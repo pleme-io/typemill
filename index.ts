@@ -6,7 +6,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { applyWorkspaceEdit } from './src/file-editor.js';
 import { LSPClient } from './src/lsp-client.js';
-import { uriToPath } from './src/utils.js';
+import { uriToPath, pathToUri } from './src/utils.js';
 
 // Handle subcommands
 const args = process.argv.slice(2);
@@ -212,6 +212,100 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['old_path', 'new_path'],
+        },
+      },
+      {
+        name: 'get_code_actions',
+        description:
+          'Get available code actions (quick fixes, refactors, organize imports) for a file or specific range. Can apply auto-fixes like removing unused imports, adding missing imports, and organizing imports.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            file_path: {
+              type: 'string',
+              description: 'The path to the file',
+            },
+            range: {
+              type: 'object',
+              description: 'Optional range to get code actions for. If not provided, gets actions for entire file.',
+              properties: {
+                start: {
+                  type: 'object',
+                  properties: {
+                    line: { type: 'number', description: 'Start line (0-indexed)' },
+                    character: { type: 'number', description: 'Start character (0-indexed)' },
+                  },
+                  required: ['line', 'character'],
+                },
+                end: {
+                  type: 'object',
+                  properties: {
+                    line: { type: 'number', description: 'End line (0-indexed)' },
+                    character: { type: 'number', description: 'End character (0-indexed)' },
+                  },
+                  required: ['line', 'character'],
+                },
+              },
+              required: ['start', 'end'],
+            },
+          },
+          required: ['file_path'],
+        },
+      },
+      {
+        name: 'format_document',
+        description:
+          'Format a document using the language server\'s formatter. Applies consistent code style and formatting rules.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            file_path: {
+              type: 'string',
+              description: 'The path to the file to format',
+            },
+            options: {
+              type: 'object',
+              description: 'Formatting options',
+              properties: {
+                tab_size: { type: 'number', description: 'Size of tabs (default: 2)' },
+                insert_spaces: { type: 'boolean', description: 'Use spaces instead of tabs (default: true)' },
+                trim_trailing_whitespace: { type: 'boolean', description: 'Trim trailing whitespace' },
+                insert_final_newline: { type: 'boolean', description: 'Insert final newline' },
+                trim_final_newlines: { type: 'boolean', description: 'Trim final newlines' },
+              },
+            },
+          },
+          required: ['file_path'],
+        },
+      },
+      {
+        name: 'search_workspace_symbols',
+        description:
+          'Search for symbols (functions, classes, variables, etc.) across the entire workspace. Useful for finding symbols by name across multiple files.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            query: {
+              type: 'string',
+              description: 'Search query for symbol names (supports partial matching)',
+            },
+          },
+          required: ['query'],
+        },
+      },
+      {
+        name: 'get_document_symbols',
+        description:
+          'Get a structured list of all symbols in a document (classes, functions, variables, etc.). Provides a hierarchical outline of the file structure.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            file_path: {
+              type: 'string',
+              description: 'The path to the file',
+            },
+          },
+          required: ['file_path'],
         },
       },
     ],
@@ -779,6 +873,240 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: 'text',
               text: `Error renaming file: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+        };
+      }
+    }
+
+    if (name === 'get_code_actions') {
+      const { file_path, range } = args as {
+        file_path: string;
+        range?: { start: { line: number; character: number }; end: { line: number; character: number } };
+      };
+      const absolutePath = resolve(file_path);
+
+      try {
+        const codeActions = await lspClient.getCodeActions(absolutePath, range);
+
+        if (codeActions.length === 0) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `No code actions available for ${file_path}${range ? ` at lines ${range.start.line + 1}-${range.end.line + 1}` : ''}.`,
+              },
+            ],
+          };
+        }
+
+        const actionDescriptions = codeActions.map((action, index) => {
+          if (action.title) {
+            return `${index + 1}. ${action.title}${action.kind ? ` (${action.kind})` : ''}`;
+          }
+          return `${index + 1}. Code action (${action.kind || 'unknown'})`;
+        });
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Found ${codeActions.length} code action${codeActions.length === 1 ? '' : 's'} for ${file_path}:\n\n${actionDescriptions.join('\n')}\n\nNote: These actions show what's available but cannot be applied directly through this tool. Use your editor's code action functionality to apply them.`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Error getting code actions: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+        };
+      }
+    }
+
+    if (name === 'format_document') {
+      const { file_path, options } = args as {
+        file_path: string;
+        options?: {
+          tab_size?: number;
+          insert_spaces?: boolean;
+          trim_trailing_whitespace?: boolean;
+          insert_final_newline?: boolean;
+          trim_final_newlines?: boolean;
+        };
+      };
+      const absolutePath = resolve(file_path);
+
+      try {
+        // Convert snake_case to camelCase for LSP client
+        const lspOptions = options ? {
+          tabSize: options.tab_size,
+          insertSpaces: options.insert_spaces,
+          trimTrailingWhitespace: options.trim_trailing_whitespace,
+          insertFinalNewline: options.insert_final_newline,
+          trimFinalNewlines: options.trim_final_newlines,
+        } : undefined;
+
+        const formatEdits = await lspClient.formatDocument(absolutePath, lspOptions);
+
+        if (formatEdits.length === 0) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `No formatting changes needed for ${file_path}. The file is already properly formatted.`,
+              },
+            ],
+          };
+        }
+
+        // Apply the formatting edits using the existing infrastructure
+        const workspaceEdit = {
+          changes: {
+            [pathToUri(absolutePath)]: formatEdits,
+          },
+        };
+
+        const editResult = await applyWorkspaceEdit(workspaceEdit, { lspClient });
+
+        if (!editResult.success) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Failed to apply formatting: ${editResult.error}`,
+              },
+            ],
+          };
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `✅ Successfully formatted ${file_path}\n\nApplied ${formatEdits.length} formatting change${formatEdits.length === 1 ? '' : 's'}.`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Error formatting document: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+        };
+      }
+    }
+
+    if (name === 'search_workspace_symbols') {
+      const { query } = args as { query: string };
+
+      try {
+        const symbols = await lspClient.searchWorkspaceSymbols(query);
+
+        if (symbols.length === 0) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `No symbols found matching "${query}". Try a different search term or ensure your language servers are running.`,
+              },
+            ],
+          };
+        }
+
+        const symbolDescriptions = symbols.map((symbol) => {
+          const name = symbol.name || 'Unknown';
+          const kind = symbol.kind ? lspClient.symbolKindToString(symbol.kind) : 'Unknown';
+          const location = symbol.location
+            ? `${uriToPath(symbol.location.uri)}:${symbol.location.range.start.line + 1}:${symbol.location.range.start.character + 1}`
+            : 'Unknown location';
+          const containerName = symbol.containerName ? ` in ${symbol.containerName}` : '';
+
+          return `• ${name} (${kind})${containerName}\n  ${location}`;
+        });
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Found ${symbols.length} symbol${symbols.length === 1 ? '' : 's'} matching "${query}":\n\n${symbolDescriptions.join('\n\n')}`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Error searching workspace symbols: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+        };
+      }
+    }
+
+    if (name === 'get_document_symbols') {
+      const { file_path } = args as { file_path: string };
+      const absolutePath = resolve(file_path);
+
+      try {
+        const symbols = await lspClient.getDocumentSymbols(absolutePath);
+
+        if (symbols.length === 0) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `No symbols found in ${file_path}. The file may be empty or contain only comments.`,
+              },
+            ],
+          };
+        }
+
+        // Format the symbols hierarchically
+        const formatSymbol = (symbol: any, indent = 0): string => {
+          const prefix = '  '.repeat(indent);
+          const name = symbol.name || 'Unknown';
+          const kind = symbol.kind ? lspClient.symbolKindToString(symbol.kind) : 'Unknown';
+          const range = symbol.range
+            ? `Lines ${symbol.range.start.line + 1}-${symbol.range.end.line + 1}`
+            : symbol.location?.range
+            ? `Lines ${symbol.location.range.start.line + 1}-${symbol.location.range.end.line + 1}`
+            : 'Unknown range';
+
+          let result = `${prefix}• ${name} (${kind}) - ${range}`;
+
+          // Handle DocumentSymbol children
+          if (symbol.children && Array.isArray(symbol.children)) {
+            const childrenFormatted = symbol.children.map((child: any) => formatSymbol(child, indent + 1));
+            result += '\n' + childrenFormatted.join('\n');
+          }
+
+          return result;
+        };
+
+        const symbolDescriptions = symbols.map((symbol) => formatSymbol(symbol));
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Document outline for ${file_path}:\n\n${symbolDescriptions.join('\n\n')}`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Error getting document symbols: ${error instanceof Error ? error.message : String(error)}`,
             },
           ],
         };

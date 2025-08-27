@@ -1478,6 +1478,83 @@ export class LSPClient {
     }
   }
 
+  async getCodeActions(
+    filePath: string,
+    range?: { start: Position; end: Position },
+    context?: { diagnostics?: Diagnostic[] }
+  ): Promise<any[]> {
+    const serverState = await this.getServer(filePath);
+    if (!serverState.initialized) {
+      throw new Error('Server not initialized');
+    }
+
+    await this.ensureFileOpen(serverState, filePath);
+    const fileUri = pathToUri(filePath);
+
+    const result = await this.sendRequest(serverState.process, 'textDocument/codeAction', {
+      textDocument: { uri: fileUri },
+      range: range || { start: { line: 0, character: 0 }, end: { line: 999999, character: 0 } },
+      context: context || {}
+    });
+
+    return Array.isArray(result) ? result : [];
+  }
+
+  async formatDocument(filePath: string, options?: {
+    tabSize?: number;
+    insertSpaces?: boolean;
+    trimTrailingWhitespace?: boolean;
+    insertFinalNewline?: boolean;
+    trimFinalNewlines?: boolean;
+  }): Promise<any[]> {
+    const serverState = await this.getServer(filePath);
+    if (!serverState.initialized) {
+      throw new Error('Server not initialized');
+    }
+
+    await this.ensureFileOpen(serverState, filePath);
+    const fileUri = pathToUri(filePath);
+
+    const formattingOptions = {
+      tabSize: options?.tabSize || 2,
+      insertSpaces: options?.insertSpaces !== false,
+      ...(options?.trimTrailingWhitespace !== undefined && { trimTrailingWhitespace: options.trimTrailingWhitespace }),
+      ...(options?.insertFinalNewline !== undefined && { insertFinalNewline: options.insertFinalNewline }),
+      ...(options?.trimFinalNewlines !== undefined && { trimFinalNewlines: options.trimFinalNewlines })
+    };
+
+    const result = await this.sendRequest(serverState.process, 'textDocument/formatting', {
+      textDocument: { uri: fileUri },
+      options: formattingOptions
+    });
+
+    return Array.isArray(result) ? result : [];
+  }
+
+  async searchWorkspaceSymbols(query: string): Promise<any[]> {
+    // For workspace/symbol, we need to try all running servers
+    const results: any[] = [];
+    
+    for (const serverState of this.servers.values()) {
+      if (!serverState.initialized) continue;
+      
+      try {
+        const result = await this.sendRequest(serverState.process, 'workspace/symbol', {
+          query: query
+        });
+        
+        if (Array.isArray(result)) {
+          results.push(...result);
+        }
+      } catch (error) {
+        // Some servers might not support workspace/symbol, continue with others
+        process.stderr.write(`[DEBUG searchWorkspaceSymbols] Server error: ${error}\n`);
+      }
+    }
+    
+    return results;
+  }
+
   async preloadServers(debug = true): Promise<void> {
     if (debug) {
       process.stderr.write('Scanning configured server directories for supported file types\n');
