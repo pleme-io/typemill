@@ -59,6 +59,9 @@ tmp/
 temp/
 test-tmp/
 
+# Development playground
+playground/
+
 # MCP specific
 mcp/*/storage.json
 

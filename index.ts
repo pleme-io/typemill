@@ -190,6 +190,30 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           },
         },
       },
+      {
+        name: 'rename_file',
+        description:
+          'Rename or move a file and automatically update all import statements that reference it. Works with TypeScript, JavaScript, JSX, and TSX files.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            old_path: {
+              type: 'string',
+              description: 'Current path to the file',
+            },
+            new_path: {
+              type: 'string',
+              description: 'New path for the file (can be in a different directory)',
+            },
+            dry_run: {
+              type: 'boolean',
+              description: 'Preview changes without applying them (default: false)',
+              default: false,
+            },
+          },
+          required: ['old_path', 'new_path'],
+        },
+      },
     ],
   };
 });
@@ -688,6 +712,73 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: 'text',
               text: `Error restarting servers: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+        };
+      }
+    }
+
+    if (name === 'rename_file') {
+      const { old_path, new_path, dry_run = false } = args as {
+        old_path: string;
+        new_path: string;
+        dry_run?: boolean;
+      };
+      
+      try {
+        const { renameFile } = await import('./src/file-editor.js');
+        const result = await renameFile(
+          old_path,
+          new_path,
+          lspClient,
+          { dry_run }
+        );
+        
+        if (!result.success) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Failed to rename file: ${result.error}`,
+              },
+            ],
+          };
+        }
+        
+        if (dry_run) {
+          // In dry-run mode, show what would be changed
+          const message = result.error || '[DRY RUN] No changes would be made';
+          return {
+            content: [
+              {
+                type: 'text',
+                text: message,
+              },
+            ],
+          };
+        }
+        
+        // Success message
+        const importCount = result.importUpdates 
+          ? Object.keys(result.importUpdates.changes || {}).length 
+          : 0;
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `✅ Successfully renamed ${old_path} to ${new_path}\n\n` +
+                    `Files modified: ${result.filesModified.length}\n` +
+                    (importCount > 0 ? `Files with updated imports: ${importCount}` : 'No import updates needed'),
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Error renaming file: ${error instanceof Error ? error.message : String(error)}`,
             },
           ],
         };
