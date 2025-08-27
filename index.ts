@@ -900,12 +900,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           };
         }
 
-        const actionDescriptions = codeActions.map((action, index) => {
-          if (action.title) {
-            return `${index + 1}. ${action.title}${action.kind ? ` (${action.kind})` : ''}`;
-          }
-          return `${index + 1}. Code action (${action.kind || 'unknown'})`;
-        });
+        const actionDescriptions = codeActions
+          .filter((action) => action && (action.title || action.kind))
+          .map((action, index) => {
+            if (action.title) {
+              return `${index + 1}. ${action.title}${action.kind ? ` (${action.kind})` : ''}`;
+            }
+            return `${index + 1}. Code action (${action.kind || 'unknown'})`;
+          });
 
         return {
           content: [
