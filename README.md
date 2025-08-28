@@ -474,6 +474,30 @@ Get available code actions (fixes, refactors) for a specific range in a file.
 - `end_line`: End line number (1-indexed)
 - `end_character`: End character position (0-indexed)
 
+#### `apply_workspace_edit`
+
+Apply workspace edits (file changes) across multiple files.
+
+**Parameters:**
+- `changes`: Record mapping file paths to arrays of text edits
+- `validate_before_apply`: Whether to validate changes before applying (optional, default: false)
+
+#### `create_file`
+
+Create a new file with specified content.
+
+**Parameters:**
+- `file_path`: Path where the new file should be created
+- `content`: Content for the new file
+
+#### `delete_file`
+
+Delete a file from the filesystem.
+
+**Parameters:**
+- `file_path`: Path to the file to delete
+- `force`: Whether to force deletion (optional, default: false)
+
 ### Code Intelligence
 
 #### `get_hover`
@@ -511,6 +535,15 @@ Get semantic tokens (detailed syntax analysis) for enhanced code understanding.
 
 **Parameters:**
 - `file_path`: The path to the file
+
+#### `get_signature_help`
+
+Get function signature help at a specific position in the code.
+
+**Parameters:**
+- `file_path`: The path to the file
+- `line`: The line number (1-indexed)
+- `character`: The character position in the line (0-indexed)
 
 ### Code Structure Analysis
 
@@ -573,6 +606,20 @@ Get hierarchical selection ranges for smart code block selection.
 #### `get_document_symbols`
 
 Get all symbols in a document for code outline and navigation.
+
+**Parameters:**
+- `file_path`: The path to the file
+
+#### `get_folding_ranges`
+
+Get folding ranges for code collapse/expand functionality.
+
+**Parameters:**
+- `file_path`: The path to the file
+
+#### `get_document_links`
+
+Get document links (URLs, imports, references) found in the file.
 
 **Parameters:**
 - `file_path`: The path to the file

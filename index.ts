@@ -92,7 +92,7 @@ const lspClient = new LSPClient();
 const server = new Server(
   {
     name: 'cclsp',
-    version: '0.1.0',
+    version: '0.5.12',
   },
   {
     capabilities: {

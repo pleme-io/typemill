@@ -10,15 +10,28 @@ By participating in this project, you are expected to uphold our [Code of Conduc
 
 ### Reporting Bugs
 
-Before creating bug reports, please check existing issues as you might find out that you don't need to create one. When you are creating a bug report, please use our [bug report template](.github/ISSUE_TEMPLATE/bug_report.md) and include as many details as possible.
+Before creating bug reports, please check existing issues as you might find out that you don't need to create one. When you are creating a bug report, please include as many details as possible:
+
+- Clear description of the problem
+- Steps to reproduce
+- Expected vs actual behavior  
+- Your environment (OS, Node version, etc.)
 
 ### Suggesting Enhancements
 
-Enhancement suggestions are tracked as GitHub issues. Use our [feature request template](.github/ISSUE_TEMPLATE/feature_request.md) to describe your idea.
+Enhancement suggestions are tracked as GitHub issues. Please describe:
+
+- The enhancement you'd like to see
+- Why it would be useful
+- Any relevant use cases
 
 ### Adding Language Support
 
-One of the most valuable contributions is adding support for new language servers. Use our [language support template](.github/ISSUE_TEMPLATE/language_support.md) to propose new language integrations.
+One of the most valuable contributions is adding support for new language servers:
+
+1. Find the LSP server for your language
+2. Test the configuration locally  
+3. Submit a PR with updated examples and documentation
 
 ### Your First Code Contribution
 

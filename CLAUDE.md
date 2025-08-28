@@ -32,7 +32,7 @@ bun run lint:fix     # Auto-fix safe issues
 bun run format       # Format code with Biome
 bun run typecheck    # Run TypeScript type checking
 bun run test         # Run unit tests
-bun run test:manual  # Run manual MCP client test
+bun run test:mcp     # Run MCP integration tests
 
 # Full pre-publish check
 npm run prepublishOnly  # build + test + typecheck
@@ -45,7 +45,7 @@ npm run prepublishOnly  # build + test + typecheck
 **MCP Server Layer** (`index.ts`)
 
 - Entry point that implements MCP protocol
-- Exposes `find_definition`, `find_references`, and `rename_symbol` tools
+- Exposes 28 MCP tools covering navigation, refactoring, intelligence, and diagnostics
 - Handles MCP client requests and delegates to LSP layer
 - Includes subcommand handling for `cclsp setup`
 
