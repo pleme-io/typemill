@@ -1,18 +1,11 @@
 import type { LSPClient } from '../lsp-client.js';
-
-// Type definitions for the methods in this module
-export interface WorkspaceMethodsContext {
-  getServer: (filePath: string) => Promise<any>;
-  ensureFileOpen: (serverState: any, filePath: string) => Promise<void>;
-  sendRequest: (process: any, method: string, params: unknown) => Promise<unknown>;
-  preloadServers: (debug?: boolean) => Promise<void>;
-  servers: Map<string, any>;
-}
+import type { WorkspaceMethodsContext } from '../lsp-types.js';
+import type { SymbolInformation } from '../types.js';
 
 export async function searchWorkspaceSymbols(
   context: WorkspaceMethodsContext,
   query: string
-): Promise<any[]> {
+): Promise<SymbolInformation[]> {
   // Ensure servers are preloaded before searching
   if (context.servers.size === 0) {
     process.stderr.write(
@@ -76,7 +69,7 @@ export async function searchWorkspaceSymbols(
   }
 
   // For workspace/symbol, we need to try all running servers
-  const results: any[] = [];
+  const results: SymbolInformation[] = [];
 
   process.stderr.write(
     `[DEBUG searchWorkspaceSymbols] Searching for "${query}" across ${context.servers.size} servers\n`

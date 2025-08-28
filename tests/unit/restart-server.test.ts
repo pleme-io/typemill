@@ -12,7 +12,7 @@ describe('Server Restart Tests', () => {
     // Wait for LSP servers to fully initialize
     console.log('⏳ Waiting for LSP servers to initialize...');
     await new Promise((resolve) => setTimeout(resolve, 3000));
-  }, 10000);
+  });
 
   afterAll(async () => {
     await client.stop();

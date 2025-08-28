@@ -7,7 +7,7 @@ describe('MCP Quick Tests', () => {
   beforeAll(async () => {
     client = new MCPTestClient();
     await client.start();
-  }, 10000);
+  });
 
   afterAll(async () => {
     await client.stop();

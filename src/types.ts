@@ -257,7 +257,7 @@ enum InsertTextMode {
   AdjustIndentation = 2,
 }
 
-interface TextEdit {
+export interface TextEdit {
   range: {
     start: Position;
     end: Position;
@@ -414,4 +414,70 @@ export interface DocumentLink {
   target?: string;
   tooltip?: string;
   data?: unknown;
+}
+
+export interface CodeAction {
+  title: string;
+  kind?: string;
+  diagnostics?: Diagnostic[];
+  isPreferred?: boolean;
+  disabled?: {
+    reason: string;
+  };
+  edit?: WorkspaceEdit;
+  command?: Command;
+  data?: unknown;
+}
+
+export interface WorkspaceEdit {
+  changes?: { [uri: string]: TextEdit[] };
+  documentChanges?: (TextDocumentEdit | CreateFile | RenameFile | DeleteFile)[];
+  changeAnnotations?: { [id: string]: ChangeAnnotation };
+}
+
+interface TextDocumentEdit {
+  textDocument: VersionedTextDocumentIdentifier;
+  edits: TextEdit[];
+}
+
+interface VersionedTextDocumentIdentifier {
+  uri: string;
+  version: number;
+}
+
+interface CreateFile {
+  kind: 'create';
+  uri: string;
+  options?: {
+    overwrite?: boolean;
+    ignoreIfExists?: boolean;
+  };
+  annotationId?: string;
+}
+
+interface RenameFile {
+  kind: 'rename';
+  oldUri: string;
+  newUri: string;
+  options?: {
+    overwrite?: boolean;
+    ignoreIfExists?: boolean;
+  };
+  annotationId?: string;
+}
+
+interface DeleteFile {
+  kind: 'delete';
+  uri: string;
+  options?: {
+    recursive?: boolean;
+    ignoreIfNotExists?: boolean;
+  };
+  annotationId?: string;
+}
+
+interface ChangeAnnotation {
+  label: string;
+  needsConfirmation?: boolean;
+  description?: string;
 }

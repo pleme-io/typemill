@@ -2,17 +2,14 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { existsSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { LSPClient } from '../../dist/src/lsp-client.js';
+import { LSPClient } from '../../src/lsp-client.js';
 import {
   handleApplyWorkspaceEdit,
   handleGetDocumentLinks,
   handleGetFoldingRanges,
-} from '../../dist/src/mcp/handlers/advanced-handlers.js';
-import { handleGetSignatureHelp } from '../../dist/src/mcp/handlers/intelligence-handlers.js';
-import {
-  handleCreateFile,
-  handleDeleteFile,
-} from '../../dist/src/mcp/handlers/utility-handlers.js';
+} from '../../src/mcp/handlers/advanced-handlers.js';
+import { handleGetSignatureHelp } from '../../src/mcp/handlers/intelligence-handlers.js';
+import { handleCreateFile, handleDeleteFile } from '../../src/mcp/handlers/utility-handlers.js';
 
 describe('MCP Handlers Unit Tests', () => {
   let lspClient: LSPClient;
@@ -47,7 +44,7 @@ describe('MCP Handlers Unit Tests', () => {
 
       const success = result.content?.[0]?.text;
       console.log(`✅ handleGetFoldingRanges: ${success ? 'SUCCESS' : 'FAILED'}`);
-      if (success) {
+      if (success && result.content?.[0]?.text) {
         console.log(`   📋 Response preview: ${result.content[0].text.substring(0, 100)}...`);
       }
 
@@ -64,7 +61,7 @@ describe('MCP Handlers Unit Tests', () => {
 
       const success = result.content?.[0]?.text;
       console.log(`✅ handleGetDocumentLinks: ${success ? 'SUCCESS' : 'FAILED'}`);
-      if (success) {
+      if (success && result.content?.[0]?.text) {
         console.log(`   📋 Links found: ${result.content[0].text.substring(0, 100)}...`);
       }
 
@@ -75,22 +72,20 @@ describe('MCP Handlers Unit Tests', () => {
     it('should handle applyWorkspaceEdit', async () => {
       console.log('📝 Testing handleApplyWorkspaceEdit...');
 
-      // Create a dry-run edit
+      // Create a validation-only edit
       const result = await handleApplyWorkspaceEdit(lspClient, {
-        edit: {
-          changes: {
-            [join(testDir, 'src/test-file.ts')]: [
-              {
-                range: {
-                  start: { line: 0, character: 0 },
-                  end: { line: 0, character: 0 },
-                },
-                newText: '// Test comment\n',
+        changes: {
+          [join(testDir, 'src/test-file.ts')]: [
+            {
+              range: {
+                start: { line: 0, character: 0 },
+                end: { line: 0, character: 0 },
               },
-            ],
-          },
+              newText: '// Test comment\n',
+            },
+          ],
         },
-        dry_run: true,
+        validate_before_apply: true,
       });
 
       console.log(
@@ -140,7 +135,7 @@ describe('MCP Handlers Unit Tests', () => {
 
       const result = await handleDeleteFile(lspClient, {
         file_path: testFile,
-        dry_run: false,
+        force: false,
       });
 
       const success = !existsSync(testFile);
@@ -170,13 +165,13 @@ describe('MCP Handlers Unit Tests', () => {
         console.log(
           `✅ handleGetSignatureHelp: ${success ? 'SUCCESS' : 'No signature at position'}`
         );
-        if (success) {
+        if (success && result.content?.[0]?.text) {
           console.log(`   📋 Signature: ${result.content[0].text.substring(0, 100)}...`);
         }
 
         expect(result).toBeDefined();
         expect(result.content).toBeDefined();
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.log('⚠️ handleGetSignatureHelp: No signature available at position');
         // This is expected for some positions
         expect(true).toBe(true);
@@ -216,7 +211,7 @@ describe('MCP Handlers Unit Tests', () => {
         handler: () =>
           handleDeleteFile(lspClient, {
             file_path: join(testDir, 'src/temp-test.ts'),
-            dry_run: false,
+            force: false,
           }),
       },
       {

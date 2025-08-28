@@ -11,7 +11,7 @@ describe('MCP Playground Tests', () => {
 
     // Wait for LSP servers to initialize
     await new Promise((resolve) => setTimeout(resolve, 2000));
-  }, 10000);
+  });
 
   afterAll(async () => {
     await client.stop();

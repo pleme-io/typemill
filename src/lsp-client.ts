@@ -9,6 +9,11 @@ import * as DiagnosticMethods from './lsp-methods/diagnostic-methods.js';
 import * as DocumentMethods from './lsp-methods/document-methods.js';
 import * as WorkspaceMethods from './lsp-methods/workspace-methods.js';
 import type {
+  DiagnosticMethodsContext,
+  ServerState,
+  WorkspaceMethodsContext,
+} from './lsp-types.js';
+import type {
   Config,
   Diagnostic,
   DocumentDiagnosticReport,
@@ -33,21 +38,7 @@ interface LSPMessage {
   error?: LSPError;
 }
 
-interface ServerState {
-  process: ChildProcess;
-  initialized: boolean;
-  initializationPromise: Promise<void>;
-  openFiles: Set<string>;
-  fileVersions: Map<string, number>; // Track file versions for didChange notifications
-  startTime: number;
-  config: LSPServerConfig;
-  restartTimer?: NodeJS.Timeout;
-  initializationResolve?: () => void;
-  diagnostics: Map<string, Diagnostic[]>; // Store diagnostics by file URI
-  lastDiagnosticUpdate: Map<string, number>; // Track last update time per file
-  diagnosticVersions: Map<string, number>; // Track diagnostic versions per file
-  capabilities?: ServerCapabilities; // LSP server capabilities from initialization
-}
+// ServerState is now imported from lsp-types.ts
 
 export class LSPClient {
   private config: Config;
@@ -1139,7 +1130,7 @@ export class LSPClient {
   }
 
   async getDiagnostics(filePath: string): Promise<Diagnostic[]> {
-    const context: DiagnosticMethods.DiagnosticMethodsContext = {
+    const context: DiagnosticMethodsContext = {
       getServer: this.getServer.bind(this),
       ensureFileOpen: this.ensureFileOpen.bind(this),
       sendRequest: this.sendRequest.bind(this),
@@ -1154,7 +1145,7 @@ export class LSPClient {
     range?: { start: Position; end: Position },
     context?: { diagnostics?: Diagnostic[] }
   ): Promise<any[]> {
-    const methodContext: DiagnosticMethods.DiagnosticMethodsContext = {
+    const methodContext: DiagnosticMethodsContext = {
       getServer: this.getServer.bind(this),
       ensureFileOpen: this.ensureFileOpen.bind(this),
       sendRequest: this.sendRequest.bind(this),
@@ -1183,10 +1174,11 @@ export class LSPClient {
   }
 
   async searchWorkspaceSymbols(query: string): Promise<any[]> {
-    const context: WorkspaceMethods.WorkspaceMethodsContext = {
+    const context: WorkspaceMethodsContext = {
       getServer: this.getServer.bind(this),
       ensureFileOpen: this.ensureFileOpen.bind(this),
       sendRequest: this.sendRequest.bind(this),
+      sendNotification: this.sendNotification.bind(this),
       preloadServers: this.preloadServers.bind(this),
       servers: this.servers,
     };

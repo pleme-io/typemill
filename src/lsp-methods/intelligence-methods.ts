@@ -1,3 +1,4 @@
+import type { IntelligenceMethodsContext } from '../lsp-types.js';
 // LLM Agent Intelligence LSP Methods
 import type {
   CompletionItem,
@@ -9,12 +10,6 @@ import type {
   SemanticTokensParams,
   SignatureHelp,
 } from '../types.js';
-
-interface IntelligenceMethodsContext {
-  getServer: (filePath: string) => Promise<any>;
-  ensureFileOpen: (serverState: any, filePath: string) => Promise<void>;
-  sendRequest: (serverState: any, method: string, params: any, timeout?: number) => Promise<any>;
-}
 
 export async function getHover(
   context: IntelligenceMethodsContext,
@@ -48,10 +43,13 @@ export async function getHover(
       30000 // 30 second timeout - give it plenty of time
     );
     console.error('[DEBUG getHover] Got response:', response);
-    return response || null;
-  } catch (error: any) {
-    console.error('[DEBUG getHover] Error:', error.message);
-    if (error.message?.includes('timeout')) {
+    return response && typeof response === 'object' && 'contents' in response
+      ? (response as Hover)
+      : null;
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[DEBUG getHover] Error:', errorMessage);
+    if (error instanceof Error && error.message?.includes('timeout')) {
       // Return a fallback hover response
       return {
         contents: {
@@ -101,9 +99,11 @@ export async function getCompletions(
       5000 // 5 second timeout
     );
 
-    return Array.isArray(response?.items) ? response.items : response?.items || [];
-  } catch (error: any) {
-    if (error.message?.includes('timeout')) {
+    if (!response || typeof response !== 'object') return [];
+    const result = response as any;
+    return Array.isArray(result.items) ? result.items : result.items || [];
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message?.includes('timeout')) {
       // Return empty completion list with explanation
       return [
         {
@@ -143,7 +143,7 @@ export async function getInlayHints(
     inlayHintParams
   );
 
-  return response || [];
+  return Array.isArray(response) ? response : [];
 }
 
 export async function getSemanticTokens(
@@ -167,7 +167,9 @@ export async function getSemanticTokens(
     semanticTokensParams
   );
 
-  return response || null;
+  return response && typeof response === 'object' && 'data' in response
+    ? (response as SemanticTokens)
+    : null;
 }
 
 export async function getSignatureHelp(
@@ -204,5 +206,7 @@ export async function getSignatureHelp(
     signatureHelpParams
   );
 
-  return response || null;
+  return response && typeof response === 'object' && 'signatures' in response
+    ? (response as SignatureHelp)
+    : null;
 }

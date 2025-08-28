@@ -8,11 +8,7 @@ import type {
   TypeHierarchyItem,
 } from '../types.js';
 
-interface HierarchyMethodsContext {
-  getServer: (filePath: string) => Promise<any>;
-  ensureFileOpen: (serverState: any, filePath: string) => Promise<void>;
-  sendRequest: (serverState: any, method: string, params: any, timeout?: number) => Promise<any>;
-}
+import type { HierarchyMethodsContext } from '../lsp-types.js';
 
 export async function prepareCallHierarchy(
   context: HierarchyMethodsContext,
@@ -31,7 +27,7 @@ export async function prepareCallHierarchy(
     position,
   });
 
-  return response || [];
+  return Array.isArray(response) ? response : [];
 }
 
 export async function getCallHierarchyIncomingCalls(
@@ -49,7 +45,7 @@ export async function getCallHierarchyIncomingCalls(
     item,
   });
 
-  return response || [];
+  return Array.isArray(response) ? response : [];
 }
 
 export async function getCallHierarchyOutgoingCalls(
@@ -67,7 +63,7 @@ export async function getCallHierarchyOutgoingCalls(
     item,
   });
 
-  return response || [];
+  return Array.isArray(response) ? response : [];
 }
 
 export async function prepareTypeHierarchy(
@@ -87,7 +83,7 @@ export async function prepareTypeHierarchy(
     position,
   });
 
-  return response || [];
+  return Array.isArray(response) ? response : [];
 }
 
 export async function getTypeHierarchySupertypes(
@@ -105,7 +101,7 @@ export async function getTypeHierarchySupertypes(
     item,
   });
 
-  return response || [];
+  return Array.isArray(response) ? response : [];
 }
 
 export async function getTypeHierarchySubtypes(
@@ -123,7 +119,7 @@ export async function getTypeHierarchySubtypes(
     item,
   });
 
-  return response || [];
+  return Array.isArray(response) ? response : [];
 }
 
 export async function getSelectionRange(
@@ -149,9 +145,9 @@ export async function getSelectionRange(
       5000
     ); // 5 second timeout
 
-    return response || [];
-  } catch (error: any) {
-    if (error.message?.includes('timeout')) {
+    return Array.isArray(response) ? response : [];
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message?.includes('timeout')) {
       throw new Error('Selection range request timed out - TypeScript server may be overloaded');
     }
     throw error;

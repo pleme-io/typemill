@@ -1,16 +1,8 @@
 import { readFileSync } from 'node:fs';
 import type { LSPClient } from '../lsp-client.js';
-import type { Diagnostic, DocumentDiagnosticReport, Position } from '../types.js';
+import type { DiagnosticMethodsContext } from '../lsp-types.js';
+import type { CodeAction, Diagnostic, DocumentDiagnosticReport, Position } from '../types.js';
 import { pathToUri } from '../utils.js';
-
-// Type definitions for the methods in this module
-export interface DiagnosticMethodsContext {
-  getServer: (filePath: string) => Promise<any>;
-  ensureFileOpen: (serverState: any, filePath: string) => Promise<void>;
-  sendRequest: (process: any, method: string, params: unknown) => Promise<unknown>;
-  sendNotification: (process: any, method: string, params: unknown) => void;
-  waitForDiagnosticsIdle: (serverState: any, fileUri: string, options: any) => Promise<void>;
-}
 
 export async function getDiagnostics(
   context: DiagnosticMethodsContext,
@@ -165,7 +157,7 @@ export async function getCodeActions(
   filePath: string,
   range?: { start: Position; end: Position },
   actionContext?: { diagnostics?: Diagnostic[] }
-): Promise<any[]> {
+): Promise<CodeAction[]> {
   const serverState = await context.getServer(filePath);
   if (!serverState.initialized) {
     throw new Error('Server not initialized');

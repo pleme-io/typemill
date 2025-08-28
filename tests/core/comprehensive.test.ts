@@ -15,7 +15,7 @@ describe('MCP Comprehensive Tests - All 23 Tools', () => {
     // Wait for LSP servers to fully initialize
     console.log('⏳ Waiting for LSP servers to initialize...');
     await new Promise((resolve) => setTimeout(resolve, 3000));
-  }, 15000);
+  });
 
   afterAll(async () => {
     await client.stop();

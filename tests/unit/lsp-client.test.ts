@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from 'bun:test';
 import { join } from 'node:path';
-import { LSPClient } from '../../dist/src/lsp-client.js';
+import { LSPClient } from '../../src/lsp-client.js';
 
 describe('LSP Client Unit Tests', () => {
   let lspClient: LSPClient;

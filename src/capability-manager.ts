@@ -1,6 +1,8 @@
 // Server capability management for robust cross-language LSP support
 // Ensures graceful degradation when servers don't support specific features
 
+import type { ServerState } from './lsp-types.js';
+
 export interface ServerCapabilities {
   textDocumentSync?: any;
   completionProvider?: any;
@@ -56,14 +58,7 @@ export interface ServerCapabilities {
   };
 }
 
-interface ServerState {
-  process: any;
-  config: any;
-  initialized: boolean;
-  capabilities?: ServerCapabilities;
-  initializationPromise: Promise<void>;
-  [key: string]: any;
-}
+// ServerState is now imported from lsp-types.ts
 
 class CapabilityManager {
   private capabilityCache = new Map<string, ServerCapabilities>();
@@ -234,13 +229,13 @@ class CapabilityManager {
   getServerDescription(serverState: ServerState): string {
     if (serverState.config?.command) {
       const command = serverState.config.command;
-      if (Array.isArray(command)) {
+      if (Array.isArray(command) && command.length > 0) {
         const serverName = command[0];
-        if (serverName.includes('typescript-language-server')) return 'TypeScript';
-        if (serverName.includes('pylsp')) return 'Python (pylsp)';
-        if (serverName.includes('gopls')) return 'Go (gopls)';
-        if (serverName.includes('rust-analyzer')) return 'Rust (rust-analyzer)';
-        return serverName;
+        if (serverName?.includes('typescript-language-server')) return 'TypeScript';
+        if (serverName?.includes('pylsp')) return 'Python (pylsp)';
+        if (serverName?.includes('gopls')) return 'Go (gopls)';
+        if (serverName?.includes('rust-analyzer')) return 'Rust (rust-analyzer)';
+        return serverName || 'Unknown Server';
       }
       return String(command);
     }
