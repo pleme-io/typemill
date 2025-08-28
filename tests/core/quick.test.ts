@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { MCPTestClient, QUICK_TESTS } from '../utils/mcp-test-client.js';
+import { MCPTestClient, QUICK_TESTS } from '../helpers/mcp-test-client.js';
 
 describe('MCP Quick Tests', () => {
   let client: MCPTestClient;

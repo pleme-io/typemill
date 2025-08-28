@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { INTELLIGENCE_TESTS, MCPTestClient } from '../utils/mcp-test-client.js';
+import { INTELLIGENCE_TESTS, MCPTestClient } from '../helpers/mcp-test-client.js';
 
 describe('MCP Intelligence Features Tests', () => {
   let client: MCPTestClient;

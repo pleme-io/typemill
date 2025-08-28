@@ -15,7 +15,7 @@ tests/
 │   ├── handlers.test.ts   # Direct handler testing
 │   ├── lsp-client.test.ts # LSP client integration
 │   └── restart-server.test.ts  # Server restart timing
-└── utils/
+└── helpers/
     └── mcp-test-client.ts  # Shared MCP testing utilities
 ```
 
@@ -173,7 +173,7 @@ npm run test:mcp:restart    # Test server restart functionality
 ### Test Data Location
 - Playground files: `/workspace/plugins/cclsp/playground/src/`
 - Config: `/workspace/plugins/cclsp/cclsp.json`
-- Test fixtures: `/workspace/plugins/cclsp/test/fixtures/`
+- Test fixtures: `/workspace/plugins/cclsp/tests/fixtures/`
 
 ## 📝 Historical Note
 

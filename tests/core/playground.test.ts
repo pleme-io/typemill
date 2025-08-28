@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { MCPTestClient, PLAYGROUND_TESTS } from '../utils/mcp-test-client.js';
+import { MCPTestClient, PLAYGROUND_TESTS } from '../helpers/mcp-test-client.js';
 
 describe('MCP Playground Tests', () => {
   let client: MCPTestClient;
