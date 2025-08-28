@@ -56,7 +56,7 @@ export interface ServerCapabilities {
   };
 }
 
-export interface ServerState {
+interface ServerState {
   process: any;
   config: any;
   initialized: boolean;
@@ -65,7 +65,7 @@ export interface ServerState {
   [key: string]: any;
 }
 
-export class CapabilityManager {
+class CapabilityManager {
   private capabilityCache = new Map<string, ServerCapabilities>();
 
   /**

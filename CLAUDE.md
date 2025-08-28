@@ -157,3 +157,13 @@ The implementation handles LSP protocol specifics:
 - Preloading of servers for detected file types
 - Automatic server restart based on configured intervals
 - Manual server restart via MCP tool
+
+## Dead Code Detection
+
+Run dead code detection with:
+- `npm run dead-code` - Check for dead code
+- `npm run dead-code:fix` - Auto-fix where possible
+- `npm run dead-code:ci` - CI-friendly output
+
+Tool: Knip (detects unused files, dependencies, exports)
+Config: knip.json

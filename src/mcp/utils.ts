@@ -1,6 +1,6 @@
 // Shared MCP utilities
 
-export interface MCPResponse {
+interface MCPResponse {
   content: Array<{
     type: 'text';
     text: string;
@@ -51,7 +51,7 @@ export function createUnsupportedFeatureResponse(
 /**
  * Create a capability validation response with helpful debugging info
  */
-export function createCapabilityInfoResponse(
+function createCapabilityInfoResponse(
   filePath: string,
   serverDescription: string,
   capabilityInfo: string

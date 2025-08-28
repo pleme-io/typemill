@@ -30,7 +30,7 @@ const DEFAULT_IGNORE_PATTERNS = [
   'Thumbs.db',
 ];
 
-export interface FileScanResult {
+interface FileScanResult {
   extensions: Set<string>;
   recommendedServers: string[];
 }

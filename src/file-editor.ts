@@ -26,7 +26,7 @@ export interface WorkspaceEdit {
   changes?: Record<string, TextEdit[]>;
 }
 
-export interface ApplyEditResult {
+interface ApplyEditResult {
   success: boolean;
   filesModified: string[];
   backupFiles: string[];

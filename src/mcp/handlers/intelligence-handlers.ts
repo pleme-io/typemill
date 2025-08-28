@@ -12,14 +12,18 @@ export async function handleGetHover(
   lspClient: LSPClient,
   args: { file_path: string; line: number; character: number }
 ) {
+  console.error('[DEBUG handleGetHover] Called with args:', args);
   const { file_path, line, character } = args;
   const absolutePath = resolve(file_path);
+  console.error('[DEBUG handleGetHover] Resolved path:', absolutePath);
 
   try {
+    console.error('[DEBUG handleGetHover] Calling lspClient.getHover');
     const hover = await lspClient.getHover(absolutePath, {
       line: line - 1, // Convert to 0-indexed
       character,
     });
+    console.error('[DEBUG handleGetHover] Got hover result:', hover);
 
     if (!hover) {
       return createMCPResponse(

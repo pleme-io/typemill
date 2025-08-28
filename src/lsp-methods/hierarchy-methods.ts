@@ -8,10 +8,10 @@ import type {
   TypeHierarchyItem,
 } from '../types.js';
 
-export interface HierarchyMethodsContext {
+interface HierarchyMethodsContext {
   getServer: (filePath: string) => Promise<any>;
   ensureFileOpen: (serverState: any, filePath: string) => Promise<void>;
-  sendRequest: (serverState: any, method: string, params: any) => Promise<any>;
+  sendRequest: (serverState: any, method: string, params: any, timeout?: number) => Promise<any>;
 }
 
 export async function prepareCallHierarchy(
@@ -138,10 +138,22 @@ export async function getSelectionRange(
 
   await context.ensureFileOpen(serverState, filePath);
 
-  const response = await context.sendRequest(serverState, 'textDocument/selectionRange', {
-    textDocument: { uri: `file://${filePath}` },
-    positions,
-  });
+  try {
+    const response = await context.sendRequest(
+      serverState,
+      'textDocument/selectionRange',
+      {
+        textDocument: { uri: `file://${filePath}` },
+        positions,
+      },
+      5000
+    ); // 5 second timeout
 
-  return response || [];
+    return response || [];
+  } catch (error: any) {
+    if (error.message?.includes('timeout')) {
+      throw new Error('Selection range request timed out - TypeScript server may be overloaded');
+    }
+    throw error;
+  }
 }

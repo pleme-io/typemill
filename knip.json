@@ -1,0 +1,23 @@
+{
+  "entry": [
+    "index.ts",
+    "src/**/*.test.ts"
+  ],
+  "project": [
+    "src/**/*.ts",
+    "index.ts"
+  ],
+  "ignore": [
+    "dist/**",
+    "node_modules/**",
+    "**/*.d.ts"
+  ],
+  "ignoreDependencies": [
+    "@types/*",
+    "typescript-language-server",
+    "memfs"
+  ],
+  "ignoreBinaries": [
+    "tsc"
+  ]
+}

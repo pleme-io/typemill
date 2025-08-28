@@ -110,6 +110,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
+  console.error('[DEBUG] Tool request received:', name, args);
+
   try {
     switch (name) {
       case 'find_definition':
@@ -216,7 +218,9 @@ async function main() {
 
   // Preload LSP servers for file types found in the project
   try {
+    process.stderr.write('Starting LSP server preload...\n');
     await lspClient.preloadServers();
+    process.stderr.write('LSP servers preloaded successfully\n');
   } catch (error) {
     process.stderr.write(`Failed to preload LSP servers: ${error}\n`);
   }

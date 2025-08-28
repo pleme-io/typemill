@@ -23,15 +23,15 @@ export interface Location {
   };
 }
 
-export interface DefinitionResult {
+interface DefinitionResult {
   locations: Location[];
 }
 
-export interface ReferenceResult {
+interface ReferenceResult {
   locations: Location[];
 }
 
-export interface SymbolSearchParams {
+interface SymbolSearchParams {
   file_path: string;
   symbol_name: string;
   symbol_kind: string;
@@ -97,7 +97,7 @@ export enum SymbolKind {
   TypeParameter = 26,
 }
 
-export enum SymbolTag {
+enum SymbolTag {
   Deprecated = 1,
 }
 
@@ -127,19 +127,19 @@ export interface SymbolMatch {
   detail?: string;
 }
 
-export enum DiagnosticSeverity {
+enum DiagnosticSeverity {
   Error = 1,
   Warning = 2,
   Information = 3,
   Hint = 4,
 }
 
-export interface DiagnosticRelatedInformation {
+interface DiagnosticRelatedInformation {
   location: Location;
   message: string;
 }
 
-export interface CodeDescription {
+interface CodeDescription {
   href: string;
 }
 
@@ -158,7 +158,7 @@ export interface Diagnostic {
   data?: unknown;
 }
 
-export enum DiagnosticTag {
+enum DiagnosticTag {
   Unnecessary = 1,
   Deprecated = 2,
 }
@@ -179,12 +179,12 @@ export interface Hover {
   };
 }
 
-export interface MarkupContent {
+interface MarkupContent {
   kind: 'plaintext' | 'markdown';
   value: string;
 }
 
-export interface MarkedString {
+interface MarkedString {
   language: string;
   value: string;
 }
@@ -210,12 +210,12 @@ export interface CompletionItem {
   data?: unknown;
 }
 
-export interface CompletionItemLabelDetails {
+interface CompletionItemLabelDetails {
   detail?: string;
   description?: string;
 }
 
-export enum CompletionItemKind {
+enum CompletionItemKind {
   Text = 1,
   Method = 2,
   Function = 3,
@@ -243,21 +243,21 @@ export enum CompletionItemKind {
   TypeParameter = 25,
 }
 
-export enum CompletionItemTag {
+enum CompletionItemTag {
   Deprecated = 1,
 }
 
-export enum InsertTextFormat {
+enum InsertTextFormat {
   PlainText = 1,
   Snippet = 2,
 }
 
-export enum InsertTextMode {
+enum InsertTextMode {
   AsIs = 1,
   AdjustIndentation = 2,
 }
 
-export interface TextEdit {
+interface TextEdit {
   range: {
     start: Position;
     end: Position;
@@ -265,7 +265,7 @@ export interface TextEdit {
   newText: string;
 }
 
-export interface Command {
+interface Command {
   title: string;
   command: string;
   arguments?: unknown[];
@@ -282,14 +282,14 @@ export interface InlayHint {
   data?: unknown;
 }
 
-export interface InlayHintLabelPart {
+interface InlayHintLabelPart {
   value: string;
   tooltip?: string | MarkupContent;
   location?: Location;
   command?: Command;
 }
 
-export enum InlayHintKind {
+enum InlayHintKind {
   Type = 1,
   Parameter = 2,
 }
@@ -379,14 +379,14 @@ export interface SignatureHelp {
   activeParameter?: number;
 }
 
-export interface SignatureInformation {
+interface SignatureInformation {
   label: string;
   documentation?: string | MarkupContent;
   parameters?: ParameterInformation[];
   activeParameter?: number;
 }
 
-export interface ParameterInformation {
+interface ParameterInformation {
   label: string | [number, number];
   documentation?: string | MarkupContent;
 }
@@ -400,7 +400,7 @@ export interface FoldingRange {
   collapsedText?: string;
 }
 
-export enum FoldingRangeKind {
+enum FoldingRangeKind {
   Comment = 'comment',
   Imports = 'imports',
   Region = 'region',

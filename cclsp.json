@@ -13,16 +13,7 @@
         "typescript-language-server",
         "--stdio"
       ],
-      "rootDir": "."
-    },
-    {
-      "extensions": [
-        "go"
-      ],
-      "command": [
-        "gopls"
-      ],
-      "rootDir": "."
+      "rootDir": "./playground"
     }
   ]
 }

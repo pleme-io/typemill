@@ -63,6 +63,12 @@ export class LSPClient {
     return serverConfig.command.some((cmd) => cmd.includes('pylsp'));
   }
 
+  private isTypeScriptServer(serverConfig: LSPServerConfig): boolean {
+    return serverConfig.command.some(
+      (cmd) => cmd.includes('typescript-language-server') || cmd.includes('tsserver')
+    );
+  }
+
   constructor(configPath?: string) {
     // First try to load from environment variable (MCP config)
     if (process.env.CCLSP_CONFIG_PATH) {
@@ -181,6 +187,15 @@ export class LSPClient {
 
             try {
               const message: LSPMessage = JSON.parse(messageContent);
+              // Debug log all messages
+              if (
+                message.method === 'textDocument/hover' ||
+                (message.id && message.method === undefined)
+              ) {
+                process.stderr.write(
+                  `[DEBUG LSP Message] ${JSON.stringify(message).substring(0, 200)}\n`
+                );
+              }
               this.handleMessage(message, serverState);
             } catch (error) {
               process.stderr.write(`Failed to parse LSP message: ${error}\n`);
@@ -260,7 +275,7 @@ export class LSPClient {
       ],
     };
 
-    // Handle initializationOptions with backwards compatibility for pylsp
+    // Handle initializationOptions with backwards compatibility
     if (serverConfig.initializationOptions !== undefined) {
       initializeParams.initializationOptions = serverConfig.initializationOptions;
     } else if (this.isPylspServer(serverConfig)) {
@@ -284,9 +299,18 @@ export class LSPClient {
           },
         },
       };
+    } else if (this.isTypeScriptServer(serverConfig)) {
+      // Provide TypeScript server initialization options
+      initializeParams.initializationOptions = {
+        hostInfo: 'cclsp',
+        preferences: {
+          includeCompletionsForModuleExports: true,
+          includeCompletionsWithInsertText: true,
+        },
+      };
     }
 
-    const initResult = await this.sendRequest(childProcess, 'initialize', initializeParams);
+    const initResult = await this.sendRequest(childProcess, 'initialize', initializeParams, 10000); // 10 second timeout for initialization
 
     // Cache server capabilities for feature detection
     const serverKey = JSON.stringify(serverConfig.command);
@@ -388,15 +412,25 @@ export class LSPClient {
       params,
     };
 
+    console.log(
+      `[DEBUG sendRequest] Sending ${method} with params:`,
+      JSON.stringify(params, null, 2)
+    );
+
     return new Promise((resolve, reject) => {
       const timeoutId = setTimeout(() => {
         this.pendingRequests.delete(id);
+        console.log(`[DEBUG sendRequest] Request ${id} (${method}) timed out after ${timeout}ms`);
         reject(new Error(`LSP request timeout: ${method} (${timeout}ms)`));
       }, timeout);
 
       this.pendingRequests.set(id, {
         resolve: (value: unknown) => {
           clearTimeout(timeoutId);
+          console.log(
+            `[DEBUG sendRequest] Request ${id} (${method}) resolved with:`,
+            JSON.stringify(value, null, 2)
+          );
           resolve(value);
         },
         reject: (reason?: unknown) => {
@@ -415,6 +449,12 @@ export class LSPClient {
       method,
       params,
     };
+
+    // Debug log important notifications
+    if (method === 'textDocument/didOpen' || method === 'initialized') {
+      console.error(`[DEBUG sendNotification] Sending ${method}`);
+    }
+
     this.sendMessage(process, message);
   }
 
@@ -514,8 +554,13 @@ export class LSPClient {
         // Remove from servers map
         this.servers.delete(key);
 
-        // Start new server
-        const newServerState = await this.startServer(state.config);
+        // Start new server with timeout wrapper
+        const startPromise = this.startServer(state.config);
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Server restart timed out after 15 seconds')), 15000)
+        );
+
+        const newServerState = (await Promise.race([startPromise, timeoutPromise])) as ServerState;
         this.servers.set(key, newServerState);
 
         restarted.push(serverDesc);
@@ -603,14 +648,29 @@ export class LSPClient {
         `[DEBUG ensureFileOpen] File content length: ${fileContent.length}, languageId: ${languageId}\n`
       );
 
-      await this.sendNotification(serverState.process, 'textDocument/didOpen', {
-        textDocument: {
-          uri,
-          languageId,
-          version: 1,
-          text: fileContent,
-        },
-      });
+      process.stderr.write('[DEBUG ensureFileOpen] About to send didOpen notification\n');
+      process.stderr.write(
+        `[DEBUG ensureFileOpen] serverState.process exists: ${!!serverState.process}\n`
+      );
+
+      if (!serverState.process) {
+        throw new Error('Server process is null!');
+      }
+
+      try {
+        this.sendNotification(serverState.process, 'textDocument/didOpen', {
+          textDocument: {
+            uri,
+            languageId,
+            version: 1,
+            text: fileContent,
+          },
+        });
+        process.stderr.write('[DEBUG ensureFileOpen] Sent didOpen notification\n');
+      } catch (notifError) {
+        process.stderr.write(`[DEBUG ensureFileOpen] Error sending didOpen: ${notifError}\n`);
+        throw notifError;
+      }
 
       serverState.openFiles.add(filePath);
       serverState.fileVersions.set(filePath, 1);
@@ -1214,7 +1274,9 @@ export class LSPClient {
     const context = {
       getServer: this.getServer.bind(this),
       ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: this.sendRequest.bind(this),
+      sendRequest: (serverState: any, method: string, params: any, timeout?: number) => {
+        return this.sendRequest(serverState.process, method, params, timeout);
+      },
     };
     return getHover(context, filePath, position);
   }
@@ -1228,7 +1290,9 @@ export class LSPClient {
     const context = {
       getServer: this.getServer.bind(this),
       ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: this.sendRequest.bind(this),
+      sendRequest: (serverState: any, method: string, params: any, timeout?: number) => {
+        return this.sendRequest(serverState.process, method, params, timeout);
+      },
     };
     return getCompletions(context, filePath, position, triggerCharacter);
   }
@@ -1241,7 +1305,9 @@ export class LSPClient {
     const context = {
       getServer: this.getServer.bind(this),
       ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: this.sendRequest.bind(this),
+      sendRequest: (serverState: any, method: string, params: any, timeout?: number) => {
+        return this.sendRequest(serverState.process, method, params, timeout);
+      },
     };
     return getInlayHints(context, filePath, range);
   }
@@ -1251,7 +1317,9 @@ export class LSPClient {
     const context = {
       getServer: this.getServer.bind(this),
       ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: this.sendRequest.bind(this),
+      sendRequest: (serverState: any, method: string, params: any, timeout?: number) => {
+        return this.sendRequest(serverState.process, method, params, timeout);
+      },
     };
     return getSemanticTokens(context, filePath);
   }
@@ -1265,7 +1333,9 @@ export class LSPClient {
     const context = {
       getServer: this.getServer.bind(this),
       ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: this.sendRequest.bind(this),
+      sendRequest: (serverState: any, method: string, params: any, timeout?: number) => {
+        return this.sendRequest(serverState.process, method, params, timeout);
+      },
     };
     return getSignatureHelp(context, filePath, position, triggerCharacter);
   }
@@ -1280,7 +1350,9 @@ export class LSPClient {
     const context = {
       getServer: this.getServer.bind(this),
       ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: this.sendRequest.bind(this),
+      sendRequest: (serverState: any, method: string, params: any, timeout?: number) => {
+        return this.sendRequest(serverState.process, method, params, timeout);
+      },
     };
     return prepareCallHierarchy(context, filePath, position);
   }
@@ -1292,7 +1364,9 @@ export class LSPClient {
     const context = {
       getServer: this.getServer.bind(this),
       ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: this.sendRequest.bind(this),
+      sendRequest: (serverState: any, method: string, params: any, timeout?: number) => {
+        return this.sendRequest(serverState.process, method, params, timeout);
+      },
     };
     return getCallHierarchyIncomingCalls(context, item);
   }
@@ -1304,7 +1378,9 @@ export class LSPClient {
     const context = {
       getServer: this.getServer.bind(this),
       ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: this.sendRequest.bind(this),
+      sendRequest: (serverState: any, method: string, params: any, timeout?: number) => {
+        return this.sendRequest(serverState.process, method, params, timeout);
+      },
     };
     return getCallHierarchyOutgoingCalls(context, item);
   }
@@ -1317,7 +1393,9 @@ export class LSPClient {
     const context = {
       getServer: this.getServer.bind(this),
       ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: this.sendRequest.bind(this),
+      sendRequest: (serverState: any, method: string, params: any, timeout?: number) => {
+        return this.sendRequest(serverState.process, method, params, timeout);
+      },
     };
     return prepareTypeHierarchy(context, filePath, position);
   }
@@ -1329,7 +1407,9 @@ export class LSPClient {
     const context = {
       getServer: this.getServer.bind(this),
       ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: this.sendRequest.bind(this),
+      sendRequest: (serverState: any, method: string, params: any, timeout?: number) => {
+        return this.sendRequest(serverState.process, method, params, timeout);
+      },
     };
     return getTypeHierarchySupertypes(context, item);
   }
@@ -1341,7 +1421,9 @@ export class LSPClient {
     const context = {
       getServer: this.getServer.bind(this),
       ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: this.sendRequest.bind(this),
+      sendRequest: (serverState: any, method: string, params: any, timeout?: number) => {
+        return this.sendRequest(serverState.process, method, params, timeout);
+      },
     };
     return getTypeHierarchySubtypes(context, item);
   }
@@ -1354,7 +1436,9 @@ export class LSPClient {
     const context = {
       getServer: this.getServer.bind(this),
       ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: this.sendRequest.bind(this),
+      sendRequest: (serverState: any, method: string, params: any, timeout?: number) => {
+        return this.sendRequest(serverState.process, method, params, timeout);
+      },
     };
     return getSelectionRange(context, filePath, positions);
   }

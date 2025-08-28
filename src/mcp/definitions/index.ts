@@ -15,10 +15,8 @@ export const allToolDefinitions = [
 ] as const;
 
 // Re-export individual categories for convenience
-export {
-  coreToolDefinitions,
-  advancedToolDefinitions,
-  utilityToolDefinitions,
-  intelligenceToolDefinitions,
-  hierarchyToolDefinitions,
-};
+export { coreToolDefinitions };
+export { advancedToolDefinitions };
+export { utilityToolDefinitions };
+export { intelligenceToolDefinitions };
+export { hierarchyToolDefinitions };

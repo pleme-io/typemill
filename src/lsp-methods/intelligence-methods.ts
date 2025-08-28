@@ -10,10 +10,10 @@ import type {
   SignatureHelp,
 } from '../types.js';
 
-export interface IntelligenceMethodsContext {
+interface IntelligenceMethodsContext {
   getServer: (filePath: string) => Promise<any>;
   ensureFileOpen: (serverState: any, filePath: string) => Promise<void>;
-  sendRequest: (serverState: any, method: string, params: any) => Promise<any>;
+  sendRequest: (serverState: any, method: string, params: any, timeout?: number) => Promise<any>;
 }
 
 export async function getHover(
@@ -21,19 +21,47 @@ export async function getHover(
   filePath: string,
   position: Position
 ): Promise<Hover | null> {
+  console.error('[DEBUG getHover] Starting hover request for', filePath);
   const serverState = await context.getServer(filePath);
   if (!serverState) {
     throw new Error('No LSP server available for this file type');
   }
+  console.error('[DEBUG getHover] Got server state');
 
   await context.ensureFileOpen(serverState, filePath);
+  console.error('[DEBUG getHover] File opened');
 
-  const response = await context.sendRequest(serverState, 'textDocument/hover', {
-    textDocument: { uri: `file://${filePath}` },
-    position,
-  });
+  // Give TypeScript Language Server time to process the file
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  console.error('[DEBUG getHover] Waited for TS to process');
 
-  return response || null;
+  console.error('[DEBUG getHover] Calling sendRequest with 30s timeout');
+
+  try {
+    const response = await context.sendRequest(
+      serverState,
+      'textDocument/hover',
+      {
+        textDocument: { uri: `file://${filePath}` },
+        position,
+      },
+      30000 // 30 second timeout - give it plenty of time
+    );
+    console.error('[DEBUG getHover] Got response:', response);
+    return response || null;
+  } catch (error: any) {
+    console.error('[DEBUG getHover] Error:', error.message);
+    if (error.message?.includes('timeout')) {
+      // Return a fallback hover response
+      return {
+        contents: {
+          kind: 'markdown',
+          value: `**Hover information unavailable**\n\nThe TypeScript Language Server did not respond to the hover request at line ${position.line + 1}, character ${position.character + 1}. This feature may not be fully supported in the current server configuration.`,
+        },
+      };
+    }
+    throw error;
+  }
 }
 
 export async function getCompletions(
@@ -49,6 +77,9 @@ export async function getCompletions(
 
   await context.ensureFileOpen(serverState, filePath);
 
+  // Give TypeScript Language Server time to process the file
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
   const completionParams = {
     textDocument: { uri: `file://${filePath}` },
     position,
@@ -62,23 +93,31 @@ export async function getCompletions(
         },
   };
 
-  const response = await context.sendRequest(
-    serverState,
-    'textDocument/completion',
-    completionParams
-  );
+  try {
+    const response = await context.sendRequest(
+      serverState,
+      'textDocument/completion',
+      completionParams,
+      5000 // 5 second timeout
+    );
 
-  // Handle both CompletionList and CompletionItem[] responses
-  if (response && typeof response === 'object') {
-    if (Array.isArray(response)) {
-      return response;
+    return Array.isArray(response?.items) ? response.items : response?.items || [];
+  } catch (error: any) {
+    if (error.message?.includes('timeout')) {
+      // Return empty completion list with explanation
+      return [
+        {
+          label: 'Completions unavailable',
+          detail: 'TypeScript Language Server timeout',
+          documentation:
+            'The TypeScript Language Server did not respond to the completion request. This feature may not be fully supported in the current server configuration.',
+          insertText: '',
+          kind: 1, // Text
+        },
+      ];
     }
-    if (response.items && Array.isArray(response.items)) {
-      return response.items;
-    }
+    throw error;
   }
-
-  return [];
 }
 
 export async function getInlayHints(

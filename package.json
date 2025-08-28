@@ -15,12 +15,22 @@
     "test:execution": "RUN_EXECUTION_TESTS=1 bun test src/setup-execution.test.ts",
     "test:all": "bun test && bun run test:execution",
     "test:manual": "node test_mcp_client.cjs",
+    "test:mcp:quick": "node tests/core/quick.test.cjs",
+    "test:mcp:full": "node tests/core/comprehensive.test.cjs",
+    "test:mcp:intelligence": "node tests/core/intelligence.test.cjs",
+    "test:mcp:playground": "node tests/core/playground.test.cjs",
+    "test:mcp:unit": "node tests/unit/handlers.test.cjs && node tests/unit/lsp-client.test.cjs",
+    "test:mcp:restart": "node tests/unit/restart-server.test.cjs",
+    "test:mcp": "npm run test:mcp:quick",
     "lint": "biome check .",
     "lint:fix": "biome check --fix .",
     "lint:fix-unsafe": "biome check --fix --unsafe .",
     "format": "biome format --write .",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run build && npm run test:all && npm run typecheck"
+    "prepublishOnly": "npm run build && npm run test:all && npm run typecheck",
+    "dead-code": "knip",
+    "dead-code:fix": "knip --fix",
+    "dead-code:ci": "knip --no-progress --reporter json"
   },
   "keywords": [
     "mcp",
@@ -52,13 +62,15 @@
     "@types/inquirer": "^9.0.8",
     "ignore": "^7.0.5",
     "inquirer": "^12.6.3",
-    "typescript-language-server": "^4.3.4"
+    "typescript-language-server": "^4.4.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "@types/bun": "latest",
     "@types/node": "^24.0.1",
-    "memfs": "^4.36.3"
+    "knip": "^5.63.0",
+    "memfs": "^4.38.2",
+    "typescript": "^5.9.2"
   },
   "peerDependencies": {
     "typescript": "^5.8.3"
