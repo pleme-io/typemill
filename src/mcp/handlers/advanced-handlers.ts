@@ -2,6 +2,7 @@ import { resolve } from 'node:path';
 import { applyWorkspaceEdit } from '../../file-editor.js';
 import type { TextEdit, WorkspaceEdit } from '../../file-editor.js';
 import type { LSPClient } from '../../lsp-client.js';
+import type { DocumentSymbol, SymbolInformation } from '../../types.js';
 import { pathToUri, uriToPath } from '../../utils.js';
 import {
   createLimitedSupportResponse,
@@ -229,7 +230,7 @@ export async function handleGetDocumentSymbols(lspClient: LSPClient, args: { fil
 
     if (isHierarchical) {
       // Handle hierarchical DocumentSymbol[]
-      const formatDocumentSymbol = (symbol: any, indent = 0): string[] => {
+      const formatDocumentSymbol = (symbol: DocumentSymbol, indent = 0): string[] => {
         const prefix = '  '.repeat(indent);
         const line = symbol.range.start.line + 1;
         const character = symbol.range.start.character + 1;
@@ -252,7 +253,7 @@ export async function handleGetDocumentSymbols(lspClient: LSPClient, args: { fil
       }
     } else {
       // Handle flat SymbolInformation[]
-      symbolDescriptions = symbols.map((symbol: any, index: number) => {
+      symbolDescriptions = symbols.map((symbol: SymbolInformation, index: number) => {
         const line = symbol.location.range.start.line + 1;
         const character = symbol.location.range.start.character + 1;
         const symbolKind = symbol.kind ? lspClient.symbolKindToString(symbol.kind) : 'unknown';

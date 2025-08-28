@@ -4,7 +4,10 @@ import type { LSPClient } from './lsp-client.js';
 import type { Diagnostic } from './types.js';
 
 // Create a function that executes the handler logic
-async function createHandler(args: { file_path: string }, lspClient: { getDiagnostics: any }) {
+async function createHandler(
+  args: { file_path: string },
+  lspClient: { getDiagnostics: (path: string) => Promise<Diagnostic[]> }
+) {
   const { file_path } = args;
   const absolutePath = resolve(file_path);
 

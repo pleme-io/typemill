@@ -23,7 +23,7 @@ class MockLSPClient {
   preloadServers: any = spyOn({} as any, 'preloadServers').mockResolvedValue(undefined);
 
   // Helper to simulate different results for different positions
-  setPositionBasedResults(results: Record<string, any[]>) {
+  setPositionBasedResults(results: Record<string, import('./types.js').LSPLocation[]>) {
     this.findDefinition.mockImplementation(
       (filePath: string, position: { line: number; character: number }) => {
         const key = `${position.line}:${position.character}`;
@@ -101,7 +101,7 @@ async function handleMultiPositionToolCall(
 
         if (locations.length > 0) {
           const locationResults = locations
-            .map((loc: any) => {
+            .map((loc: import('./types.js').LSPLocation) => {
               const filePath = loc.uri.replace('file://', '');
               const { start } = loc.range;
               return `${filePath}:${start.line + 1}:${start.character + 1}`;
@@ -170,7 +170,7 @@ async function handleMultiPositionToolCall(
 
         if (locations.length > 0) {
           const locationResults = locations
-            .map((loc: any) => {
+            .map((loc: import('./types.js').LSPLocation) => {
               const filePath = loc.uri.replace('file://', '');
               const { start } = loc.range;
               return `${filePath}:${start.line + 1}:${start.character + 1}`;
@@ -245,7 +245,7 @@ async function handleMultiPositionToolCall(
           for (const [uri, edits] of Object.entries(workspaceEdit.changes)) {
             const filePath = uri.replace('file://', '');
             changes.push(`File: ${filePath}`);
-            for (const edit of edits as any[]) {
+            for (const edit of edits as import('./types.js').TextEdit[]) {
               const { start, end } = edit.range;
               changes.push(
                 `  - Line ${start.line + 1}, Column ${start.character + 1} to Line ${end.line + 1}, Column ${end.character + 1}: "${edit.newText}"`

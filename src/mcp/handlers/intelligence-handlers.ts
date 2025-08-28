@@ -41,10 +41,11 @@ export async function handleGetHover(
         .map((item) => {
           if (typeof item === 'string') return item;
           if (typeof item === 'object' && item && 'language' in item && 'value' in item) {
-            return `\`\`\`${(item as any).language}\n${(item as any).value}\n\`\`\``;
+            const markedString = item as { language: string; value: string };
+            return `\`\`\`${markedString.language}\n${markedString.value}\n\`\`\``;
           }
           if (typeof item === 'object' && item && 'value' in item) {
-            return (item as any).value;
+            return (item as { value: string }).value;
           }
           return String(item);
         })
