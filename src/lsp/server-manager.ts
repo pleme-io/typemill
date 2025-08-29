@@ -165,12 +165,10 @@ export class ServerManager {
       lastDiagnosticUpdate: new Map(),
       diagnosticVersions: new Map(),
       restartTimer: undefined,
+      config: serverConfig,
+      fileVersions: new Map(),
+      startTime: Date.now(),
     };
-
-    // Add config reference for restart functionality
-    (serverState as any).config = serverConfig;
-    (serverState as any).fileVersions = new Map();
-    (serverState as any).startTime = Date.now();
 
     // Set up protocol handlers
     this.setupProtocolHandlers(serverState);

@@ -2,9 +2,8 @@ import { readFileSync } from 'node:fs';
 import * as CoreMethods from '../lsp-methods/core-methods.js';
 import * as DocumentMethods from '../lsp-methods/document-methods.js';
 import * as WorkspaceMethods from '../lsp-methods/workspace-methods.js';
-import type { ServerState } from '../lsp-types.js';
+import type { DocumentMethodsContext, ServerState } from '../lsp-types.js';
 import type { LSPProtocol } from '../lsp/protocol.js';
-import type { ServerManager } from '../lsp/server-manager.js';
 import type {
   DocumentSymbol,
   Location,
@@ -20,7 +19,7 @@ import { SymbolKind } from '../types.js';
  */
 export class SymbolService {
   constructor(
-    private serverManager: ServerManager,
+    private getServer: (filePath: string) => Promise<ServerState>,
     private protocol: LSPProtocol
   ) {}
 
@@ -29,7 +28,7 @@ export class SymbolService {
    */
   async findDefinition(filePath: string, position: Position): Promise<Location[]> {
     const context: CoreMethods.CoreMethodsContext = {
-      getServer: (path: string) => this.serverManager.getServer(path, {} as any),
+      getServer: this.getServer,
       ensureFileOpen: this.ensureFileOpen.bind(this),
       sendRequest: (process, method, params, timeout) =>
         this.protocol.sendRequest(process, method, params, timeout),
@@ -46,7 +45,7 @@ export class SymbolService {
     includeDeclaration = false
   ): Promise<Location[]> {
     const context: CoreMethods.CoreMethodsContext = {
-      getServer: (path: string) => this.serverManager.getServer(path, {} as any),
+      getServer: this.getServer,
       ensureFileOpen: this.ensureFileOpen.bind(this),
       sendRequest: (process, method, params, timeout) =>
         this.protocol.sendRequest(process, method, params, timeout),
@@ -65,7 +64,7 @@ export class SymbolService {
     changes?: Record<string, Array<{ range: { start: Position; end: Position }; newText: string }>>;
   }> {
     const context: CoreMethods.CoreMethodsContext = {
-      getServer: (path: string) => this.serverManager.getServer(path, {} as any),
+      getServer: this.getServer,
       ensureFileOpen: this.ensureFileOpen.bind(this),
       sendRequest: (process, method, params, timeout) =>
         this.protocol.sendRequest(process, method, params, timeout),
@@ -78,7 +77,7 @@ export class SymbolService {
    */
   async searchWorkspaceSymbols(query: string): Promise<SymbolInformation[]> {
     const context: WorkspaceMethods.WorkspaceMethodsContext = {
-      getServer: (path: string) => this.serverManager.getServer(path, {} as any),
+      getServer: this.getServer,
       ensureFileOpen: this.ensureFileOpen.bind(this),
       sendRequest: (process, method, params, timeout) =>
         this.protocol.sendRequest(process, method, params, timeout),
@@ -94,8 +93,8 @@ export class SymbolService {
    * Get document symbols
    */
   async getDocumentSymbols(filePath: string): Promise<DocumentSymbol[] | SymbolInformation[]> {
-    const context: DocumentMethods.DocumentMethodsContext = {
-      getServer: (path: string) => this.serverManager.getServer(path, {} as any),
+    const context: DocumentMethodsContext = {
+      getServer: this.getServer,
       ensureFileOpen: this.ensureFileOpen.bind(this),
       sendRequest: (process, method, params, timeout) =>
         this.protocol.sendRequest(process, method, params, timeout),
@@ -116,19 +115,38 @@ export class SymbolService {
   ): Promise<SymbolMatch[]> {
     try {
       const symbols = await this.getDocumentSymbols(filePath);
-      const flatSymbols = this.flattenDocumentSymbols(symbols);
-
       const matches: SymbolMatch[] = [];
-      for (const symbol of flatSymbols) {
-        if (symbol.name === symbolName) {
-          if (!symbolKind || this.symbolKindToString(symbol.kind) === symbolKind.toLowerCase()) {
-            const position = await this.findSymbolPositionInFile(filePath, symbol);
-            matches.push({
-              name: symbol.name,
-              kind: this.symbolKindToString(symbol.kind),
-              position,
-              location: symbol.location,
-            });
+
+      if (this.isDocumentSymbolArray(symbols)) {
+        // Handle DocumentSymbol[] format
+        const flatSymbols = this.flattenDocumentSymbols(symbols);
+        for (const symbol of flatSymbols) {
+          if (symbol.name === symbolName) {
+            if (!symbolKind || this.symbolKindToString(symbol.kind) === symbolKind.toLowerCase()) {
+              matches.push({
+                name: symbol.name,
+                kind: symbol.kind,
+                position: symbol.selectionRange.start,
+                range: symbol.range,
+                detail: symbol.detail,
+              });
+            }
+          }
+        }
+      } else {
+        // Handle SymbolInformation[] format
+        for (const symbol of symbols) {
+          if (symbol.name === symbolName) {
+            if (!symbolKind || this.symbolKindToString(symbol.kind) === symbolKind.toLowerCase()) {
+              const position = await this.findSymbolPositionInFile(filePath, symbol);
+              matches.push({
+                name: symbol.name,
+                kind: symbol.kind,
+                position,
+                range: symbol.location.range,
+                detail: undefined,
+              });
+            }
           }
         }
       }

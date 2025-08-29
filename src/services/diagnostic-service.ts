@@ -1,8 +1,7 @@
 import { readFileSync } from 'node:fs';
 import * as DiagnosticMethods from '../lsp-methods/diagnostic-methods.js';
-import type { ServerState } from '../lsp-types.js';
+import type { DiagnosticMethodsContext, ServerState } from '../lsp-types.js';
 import type { LSPProtocol } from '../lsp/protocol.js';
-import type { ServerManager } from '../lsp/server-manager.js';
 import type { Diagnostic } from '../types.js';
 
 /**
@@ -11,7 +10,7 @@ import type { Diagnostic } from '../types.js';
  */
 export class DiagnosticService {
   constructor(
-    private serverManager: ServerManager,
+    private getServer: (filePath: string) => Promise<ServerState>,
     private protocol: LSPProtocol
   ) {}
 
@@ -19,8 +18,8 @@ export class DiagnosticService {
    * Get diagnostics for a file
    */
   async getDiagnostics(filePath: string): Promise<Diagnostic[]> {
-    const context: DiagnosticMethods.DiagnosticMethodsContext = {
-      getServer: (path: string) => this.serverManager.getServer(path, {} as any),
+    const context: DiagnosticMethodsContext = {
+      getServer: this.getServer,
       ensureFileOpen: this.ensureFileOpen.bind(this),
       sendRequest: (process, method, params, timeout) =>
         this.protocol.sendRequest(process, method, params, timeout),

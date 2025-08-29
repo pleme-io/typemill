@@ -1,8 +1,12 @@
 import { readFileSync } from 'node:fs';
+import * as DiagnosticMethods from '../lsp-methods/diagnostic-methods.js';
 import * as DocumentMethods from '../lsp-methods/document-methods.js';
-import type { ServerState } from '../lsp-types.js';
+import type {
+  DiagnosticMethodsContext,
+  DocumentMethodsContext,
+  ServerState,
+} from '../lsp-types.js';
 import type { LSPProtocol } from '../lsp/protocol.js';
-import type { ServerManager } from '../lsp/server-manager.js';
 import type {
   CodeAction,
   DocumentLink,
@@ -11,6 +15,7 @@ import type {
   Range,
   TextEdit,
 } from '../types.js';
+import { pathToUri } from '../utils.js';
 
 /**
  * Service for file-related LSP operations
@@ -18,36 +23,25 @@ import type {
  */
 export class FileService {
   constructor(
-    private serverManager: ServerManager,
+    private getServer: (filePath: string) => Promise<ServerState>,
     private protocol: LSPProtocol
   ) {}
 
   /**
    * Format document
    */
-  async formatDocument(filePath: string): Promise<TextEdit[]> {
-    const context: DocumentMethods.DocumentMethodsContext = {
-      getServer: (path: string) => this.serverManager.getServer(path, {} as any),
-      ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: (process, method, params, timeout) =>
-        this.protocol.sendRequest(process, method, params, timeout),
-      sendNotification: (process, method, params) =>
-        this.protocol.sendNotification(process, method, params),
-      capabilityManager: {} as any, // Will be properly injected
-    };
-    return DocumentMethods.formatDocument(context, filePath);
-  }
-
-  /**
-   * Get code actions for range
-   */
-  async getCodeActions(
+  async formatDocument(
     filePath: string,
-    range: Range,
-    context: { diagnostics: any[] }
-  ): Promise<CodeAction[]> {
-    const docContext: DocumentMethods.DocumentMethodsContext = {
-      getServer: (path: string) => this.serverManager.getServer(path, {} as any),
+    options?: {
+      tabSize?: number;
+      insertSpaces?: boolean;
+      trimTrailingWhitespace?: boolean;
+      insertFinalNewline?: boolean;
+      trimFinalNewlines?: boolean;
+    }
+  ): Promise<TextEdit[]> {
+    const context: DocumentMethodsContext = {
+      getServer: this.getServer,
       ensureFileOpen: this.ensureFileOpen.bind(this),
       sendRequest: (process, method, params, timeout) =>
         this.protocol.sendRequest(process, method, params, timeout),
@@ -55,15 +49,35 @@ export class FileService {
         this.protocol.sendNotification(process, method, params),
       capabilityManager: {} as any,
     };
-    return DocumentMethods.getCodeActions(docContext, filePath, range, context);
+    return DocumentMethods.formatDocument(context, filePath, options);
+  }
+
+  /**
+   * Get code actions for range
+   */
+  async getCodeActions(
+    filePath: string,
+    range?: Range,
+    context?: { diagnostics?: any[] }
+  ): Promise<CodeAction[]> {
+    const docContext: DiagnosticMethodsContext = {
+      getServer: this.getServer,
+      ensureFileOpen: this.ensureFileOpen.bind(this),
+      sendRequest: (process, method, params, timeout) =>
+        this.protocol.sendRequest(process, method, params, timeout),
+      sendNotification: (process, method, params) =>
+        this.protocol.sendNotification(process, method, params),
+      waitForDiagnosticsIdle: async () => {}, // Stub implementation
+    };
+    return DiagnosticMethods.getCodeActions(docContext, filePath, range, context);
   }
 
   /**
    * Get folding ranges
    */
   async getFoldingRanges(filePath: string): Promise<FoldingRange[]> {
-    const context: DocumentMethods.DocumentMethodsContext = {
-      getServer: (path: string) => this.serverManager.getServer(path, {} as any),
+    const context: DocumentMethodsContext = {
+      getServer: this.getServer,
       ensureFileOpen: this.ensureFileOpen.bind(this),
       sendRequest: (process, method, params, timeout) =>
         this.protocol.sendRequest(process, method, params, timeout),
@@ -78,8 +92,8 @@ export class FileService {
    * Get document links
    */
   async getDocumentLinks(filePath: string): Promise<DocumentLink[]> {
-    const context: DocumentMethods.DocumentMethodsContext = {
-      getServer: (path: string) => this.serverManager.getServer(path, {} as any),
+    const context: DocumentMethodsContext = {
+      getServer: this.getServer,
       ensureFileOpen: this.ensureFileOpen.bind(this),
       sendRequest: (process, method, params, timeout) =>
         this.protocol.sendRequest(process, method, params, timeout),
@@ -201,16 +215,23 @@ export class FileService {
         if (startLine === endLine) {
           // Single line edit
           const line = lines[startLine];
-          lines[startLine] = line.substring(0, startChar) + edit.newText + line.substring(endChar);
+          if (line !== undefined) {
+            lines[startLine] =
+              line.substring(0, startChar) + edit.newText + line.substring(endChar);
+          }
         } else {
           // Multi-line edit
           const newLines = edit.newText.split('\n');
-          const firstLine = lines[startLine].substring(0, startChar) + newLines[0];
-          const lastLine = newLines[newLines.length - 1] + lines[endLine].substring(endChar);
+          const startLineText = lines[startLine];
+          const endLineText = lines[endLine];
+          if (startLineText !== undefined && endLineText !== undefined) {
+            const firstLine = startLineText.substring(0, startChar) + newLines[0];
+            const lastLine = newLines[newLines.length - 1] + endLineText.substring(endChar);
 
-          // Replace the range with new content
-          const replacementLines = [firstLine, ...newLines.slice(1, -1), lastLine];
-          lines.splice(startLine, endLine - startLine + 1, ...replacementLines);
+            // Replace the range with new content
+            const replacementLines = [firstLine, ...newLines.slice(1, -1), lastLine];
+            lines.splice(startLine, endLine - startLine + 1, ...replacementLines);
+          }
         }
       }
 
@@ -241,5 +262,51 @@ export class FileService {
       hpp: 'cpp',
     };
     return languageMap[ext || ''] || 'plaintext';
+  }
+
+  /**
+   * Synchronize file content with LSP server after external modifications
+   * This should be called after any disk writes to keep the LSP server in sync
+   */
+  async syncFileContent(filePath: string): Promise<void> {
+    try {
+      const serverState = await this.getServer(filePath);
+
+      // If file is not already open in the LSP server, open it first
+      if (!serverState.openFiles.has(filePath)) {
+        process.stderr.write(
+          `[DEBUG syncFileContent] File not open, opening it first: ${filePath}\n`
+        );
+        await this.ensureFileOpen(serverState, filePath);
+      }
+
+      process.stderr.write(`[DEBUG syncFileContent] Syncing file: ${filePath}\n`);
+
+      const fileContent = readFileSync(filePath, 'utf-8');
+      const uri = pathToUri(filePath);
+
+      // Increment version and send didChange notification
+      const version = (serverState.fileVersions.get(filePath) || 1) + 1;
+      serverState.fileVersions.set(filePath, version);
+
+      await this.protocol.sendNotification(serverState.process, 'textDocument/didChange', {
+        textDocument: {
+          uri,
+          version,
+        },
+        contentChanges: [
+          {
+            text: fileContent,
+          },
+        ],
+      });
+
+      process.stderr.write(
+        `[DEBUG syncFileContent] File synced with version ${version}: ${filePath}\n`
+      );
+    } catch (error) {
+      process.stderr.write(`[DEBUG syncFileContent] Failed to sync file ${filePath}: ${error}\n`);
+      // Don't throw - syncing is best effort
+    }
   }
 }

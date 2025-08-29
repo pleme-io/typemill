@@ -43,10 +43,11 @@ export class LSPClient {
     this.protocol = (this.newClient as any).protocol;
     this.serverManager = (this.newClient as any).serverManager;
 
-    // Initialize services
-    this.symbolService = new SymbolService(this.serverManager, this.protocol);
-    this.fileService = new FileService(this.serverManager, this.protocol);
-    this.diagnosticService = new DiagnosticService(this.serverManager, this.protocol);
+    // Initialize services with getServer wrapper
+    const getServerWrapper = (filePath: string) => this.newClient.getServer(filePath);
+    this.symbolService = new SymbolService(getServerWrapper, this.protocol);
+    this.fileService = new FileService(getServerWrapper, this.protocol);
+    this.diagnosticService = new DiagnosticService(getServerWrapper, this.protocol);
   }
 
   // Delegate core methods to services
@@ -88,16 +89,29 @@ export class LSPClient {
     return this.symbolService.findSymbolMatches(filePath, symbolName, symbolKind);
   }
 
-  async formatDocument(filePath: string): Promise<TextEdit[]> {
-    return this.fileService.formatDocument(filePath);
+  async formatDocument(
+    filePath: string,
+    options?: {
+      tabSize?: number;
+      insertSpaces?: boolean;
+      trimTrailingWhitespace?: boolean;
+      insertFinalNewline?: boolean;
+      trimFinalNewlines?: boolean;
+    }
+  ): Promise<TextEdit[]> {
+    return this.fileService.formatDocument(filePath, options);
   }
 
   async getCodeActions(
     filePath: string,
-    range: Range,
-    context: { diagnostics: any[] }
+    range?: Range,
+    context?: { diagnostics?: any[] }
   ): Promise<CodeAction[]> {
-    return this.fileService.getCodeActions(filePath, range, context);
+    return this.fileService.getCodeActions(
+      filePath,
+      range || { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+      context || { diagnostics: [] }
+    );
   }
 
   async getFoldingRanges(filePath: string): Promise<FoldingRange[]> {
@@ -110,6 +124,10 @@ export class LSPClient {
 
   async getDiagnostics(filePath: string): Promise<Diagnostic[]> {
     return this.diagnosticService.getDiagnostics(filePath);
+  }
+
+  async syncFileContent(filePath: string): Promise<void> {
+    return this.fileService.syncFileContent(filePath);
   }
 
   // Intelligence methods - still delegated to lsp-methods for now
@@ -125,20 +143,22 @@ export class LSPClient {
 
   async getCompletions(
     filePath: string,
-    position: Position
-  ): Promise<import('./types.js').CompletionList | import('./types.js').CompletionItem[]> {
+    position: Position,
+    triggerCharacter?: string
+  ): Promise<import('./types.js').CompletionItem[]> {
     const context = {
       getServer: this.getServer.bind(this),
       ensureFileOpen: this.ensureFileOpen.bind(this),
       sendRequest: (serverState: ServerState, method: string, params: unknown, timeout?: number) =>
         this.protocol.sendRequest(serverState.process, method, params, timeout),
     };
-    return IntelligenceMethods.getCompletions(context, filePath, position);
+    return IntelligenceMethods.getCompletions(context, filePath, position, triggerCharacter);
   }
 
   async getSignatureHelp(
     filePath: string,
-    position: Position
+    position: Position,
+    triggerCharacter?: string
   ): Promise<import('./types.js').SignatureHelp | null> {
     const context = {
       getServer: this.getServer.bind(this),
@@ -146,7 +166,7 @@ export class LSPClient {
       sendRequest: (serverState: ServerState, method: string, params: unknown, timeout?: number) =>
         this.protocol.sendRequest(serverState.process, method, params, timeout),
     };
-    return IntelligenceMethods.getSignatureHelp(context, filePath, position);
+    return IntelligenceMethods.getSignatureHelp(context, filePath, position, triggerCharacter);
   }
 
   async getInlayHints(filePath: string, range: Range): Promise<import('./types.js').InlayHint[]> {
@@ -207,8 +227,63 @@ export class LSPClient {
     return HierarchyMethods.getCallHierarchyOutgoingCalls(context, item);
   }
 
+  async prepareTypeHierarchy(
+    filePath: string,
+    position: Position
+  ): Promise<import('./types.js').TypeHierarchyItem[]> {
+    const context = {
+      getServer: this.getServer.bind(this),
+      ensureFileOpen: this.ensureFileOpen.bind(this),
+      sendRequest: (serverState: ServerState, method: string, params: unknown, timeout?: number) =>
+        this.protocol.sendRequest(serverState.process, method, params, timeout),
+    };
+    return HierarchyMethods.prepareTypeHierarchy(context, filePath, position);
+  }
+
+  async getTypeHierarchySupertypes(
+    item: import('./types.js').TypeHierarchyItem
+  ): Promise<import('./types.js').TypeHierarchyItem[]> {
+    const context = {
+      getServer: this.getServer.bind(this),
+      ensureFileOpen: this.ensureFileOpen.bind(this),
+      sendRequest: (serverState: ServerState, method: string, params: unknown, timeout?: number) =>
+        this.protocol.sendRequest(serverState.process, method, params, timeout),
+    };
+    return HierarchyMethods.getTypeHierarchySupertypes(context, item);
+  }
+
+  async getTypeHierarchySubtypes(
+    item: import('./types.js').TypeHierarchyItem
+  ): Promise<import('./types.js').TypeHierarchyItem[]> {
+    const context = {
+      getServer: this.getServer.bind(this),
+      ensureFileOpen: this.ensureFileOpen.bind(this),
+      sendRequest: (serverState: ServerState, method: string, params: unknown, timeout?: number) =>
+        this.protocol.sendRequest(serverState.process, method, params, timeout),
+    };
+    return HierarchyMethods.getTypeHierarchySubtypes(context, item);
+  }
+
+  async getSelectionRange(
+    filePath: string,
+    positions: Position[]
+  ): Promise<import('./types.js').SelectionRange[]> {
+    const context = {
+      getServer: this.getServer.bind(this),
+      ensureFileOpen: this.ensureFileOpen.bind(this),
+      sendRequest: (serverState: ServerState, method: string, params: unknown, timeout?: number) =>
+        this.protocol.sendRequest(serverState.process, method, params, timeout),
+    };
+    return HierarchyMethods.getSelectionRange(context, filePath, positions);
+  }
+
   // Direct delegation to new client
   async getServer(filePath: string): Promise<ServerState> {
+    return this.newClient.getServer(filePath);
+  }
+
+  // Internal method for services to get server with config access
+  private async getServerForService(filePath: string): Promise<ServerState> {
     return this.newClient.getServer(filePath);
   }
 
@@ -233,15 +308,49 @@ export class LSPClient {
     return this.newClient.restartServer(extensions);
   }
 
+  // Compatibility aliases
+  async findSymbolsByName(
+    filePath: string,
+    symbolName: string,
+    symbolKind?: string
+  ): Promise<{ matches: SymbolMatch[]; warning?: string }> {
+    const matches = await this.findSymbolMatches(filePath, symbolName, symbolKind);
+    return { matches };
+  }
+
+  async restartServers(
+    extensions?: string[]
+  ): Promise<{ success: boolean; restarted: string[]; failed: string[]; message: string }> {
+    try {
+      const restarted = await this.restartServer(extensions);
+      const message = `Successfully restarted ${restarted.length} LSP server(s)`;
+      return { success: true, restarted, failed: [], message };
+    } catch (error) {
+      const message = `Failed to restart servers: ${error instanceof Error ? error.message : String(error)}`;
+      return { success: false, restarted: [], failed: [message], message };
+    }
+  }
+
   async preloadServers(): Promise<void> {
     return this.newClient.preloadServers();
   }
 
   // Utility methods from services
-  flattenDocumentSymbols = this.symbolService.flattenDocumentSymbols;
-  isDocumentSymbolArray = this.symbolService.isDocumentSymbolArray;
-  symbolKindToString = this.symbolService.symbolKindToString;
-  getValidSymbolKinds = this.symbolService.getValidSymbolKinds;
+  get flattenDocumentSymbols() {
+    return this.symbolService.flattenDocumentSymbols;
+  }
+
+  get isDocumentSymbolArray() {
+    return this.symbolService.isDocumentSymbolArray;
+  }
+
+  get symbolKindToString() {
+    return this.symbolService.symbolKindToString;
+  }
+
+  get getValidSymbolKinds() {
+    return this.symbolService.getValidSymbolKinds;
+  }
 
   // Capability methods
   hasCapability(filePath: string, capabilityPath: string): Promise<boolean> {
