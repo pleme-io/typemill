@@ -2,8 +2,8 @@ import { type ChildProcess, spawn } from 'node:child_process';
 import type { ServerCapabilities } from '../capability-manager.js';
 import { capabilityManager } from '../capability-manager.js';
 import type { ServerState } from '../lsp-types.js';
+import { pathToUri } from '../path-utils.js';
 import type { Config, LSPServerConfig } from '../types.js';
-import { pathToUri } from '../utils.js';
 import type { LSPProtocol } from './protocol.js';
 
 /**
@@ -31,8 +31,8 @@ export class ServerManager {
     const serverKey = JSON.stringify(serverConfig.command);
 
     // Return existing server if available
-    if (this.servers.has(serverKey)) {
-      const existingServer = this.servers.get(serverKey)!;
+    const existingServer = this.servers.get(serverKey);
+    if (existingServer) {
       if (!existingServer.process.killed) {
         await existingServer.initializationPromise;
         return existingServer;
@@ -42,8 +42,9 @@ export class ServerManager {
     }
 
     // Return ongoing startup promise if server is starting
-    if (this.serversStarting.has(serverKey)) {
-      return await this.serversStarting.get(serverKey)!;
+    const startingPromise = this.serversStarting.get(serverKey);
+    if (startingPromise) {
+      return await startingPromise;
     }
 
     // Start new server
@@ -70,12 +71,12 @@ export class ServerManager {
       for (const [serverKey, serverState] of this.servers.entries()) {
         this.killServer(serverState);
         this.servers.delete(serverKey);
-        restartedServers.push((serverState as any).config?.command?.join(' ') || 'unknown');
+        restartedServers.push(serverState.config?.command?.join(' ') || 'unknown');
       }
     } else {
       // Restart servers for specific extensions
       for (const [serverKey, serverState] of this.servers.entries()) {
-        const serverConfig = (serverState as any).config;
+        const serverConfig = serverState.config;
         if (serverConfig && extensions.some((ext) => serverConfig.extensions.includes(ext))) {
           this.killServer(serverState);
           this.servers.delete(serverKey);

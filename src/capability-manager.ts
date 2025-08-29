@@ -147,9 +147,15 @@ class CapabilityManager {
   /**
    * Get cached capabilities for a server
    */
-  getCapabilities(serverState: ServerState): ServerCapabilities | undefined {
-    const serverKey = this.getServerKey(serverState);
-    return this.capabilityCache.get(serverKey) || serverState.capabilities;
+  getCapabilities(serverState: ServerState): ServerCapabilities | undefined;
+  getCapabilities(serverKey: string): ServerCapabilities | null;
+  getCapabilities(serverKeyOrState: ServerState | string): ServerCapabilities | null | undefined {
+    if (typeof serverKeyOrState === 'string') {
+      return this.capabilityCache.get(serverKeyOrState) || null;
+    }
+    // ServerState case
+    const serverKey = this.getServerKey(serverKeyOrState);
+    return this.capabilityCache.get(serverKey) || serverKeyOrState.capabilities;
   }
 
   /**
@@ -186,6 +192,60 @@ class CapabilityManager {
 
     process.stderr.write(
       `[DEBUG CapabilityManager] Capability ${capabilityPath} has unexpected type: ${typeof current}\n`
+    );
+    return false;
+  }
+
+  /**
+   * Check if a server supports a specific capability (alternate method name for interface compatibility)
+   */
+  checkCapability(
+    serverKey: string,
+    capabilityPath: string,
+    subCapability?: string | null
+  ): boolean {
+    // Find the server state by key
+    // For now, this is a simplified implementation that assumes serverKey is available
+    // In practice, you might need to maintain a mapping of serverKey to ServerState
+    const capabilities = this.getCapabilities(serverKey);
+    if (!capabilities) {
+      process.stderr.write(
+        `[DEBUG CapabilityManager] No capabilities found for server ${serverKey}\n`
+      );
+      return false;
+    }
+
+    let fullPath = capabilityPath;
+    if (subCapability) {
+      fullPath = `${capabilityPath}.${subCapability}`;
+    }
+
+    // Navigate nested capability path
+    const pathParts = fullPath.split('.');
+    let current: unknown = capabilities;
+
+    for (const part of pathParts) {
+      if (current && typeof current === 'object' && part in current) {
+        current = (current as Record<string, unknown>)[part];
+      } else {
+        process.stderr.write(
+          `[DEBUG CapabilityManager] Capability ${fullPath} not found for server ${serverKey}\n`
+        );
+        return false;
+      }
+    }
+
+    // Handle different capability value types
+    if (typeof current === 'boolean') {
+      return current;
+    }
+
+    if (current && typeof current === 'object') {
+      return true; // Provider object exists
+    }
+
+    process.stderr.write(
+      `[DEBUG CapabilityManager] Capability ${fullPath} has unexpected type: ${typeof current} for server ${serverKey}\n`
     );
     return false;
   }

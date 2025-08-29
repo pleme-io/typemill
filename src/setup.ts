@@ -6,7 +6,7 @@ import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import inquirer from 'inquirer';
 import { scanProjectFiles } from './file-scanner.js';
-import { LANGUAGE_SERVERS, generateConfig } from './language-servers.js';
+import { LANGUAGE_SERVERS, generateConfig } from './language-server-presets.js';
 
 // Detailed installation guides for LSP servers
 const DETAILED_INSTALL_GUIDES = {

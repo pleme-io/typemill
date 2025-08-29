@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { MCPTestClient } from '../helpers/mcp-test-client.js';
+import { MCPTestClient, assertToolResult } from '../helpers/mcp-test-client.js';
 
 describe('Server Restart Tests', () => {
   let client: MCPTestClient;
@@ -38,7 +38,8 @@ describe('Server Restart Tests', () => {
       console.log(`✅ restart_server completed in ${elapsed}ms`);
 
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
+      const toolResult = assertToolResult(result);
+      expect(toolResult.content).toBeDefined();
 
       console.log('✅ Got result:', JSON.stringify(result, null, 2));
     } catch (error: any) {
@@ -59,7 +60,8 @@ describe('Server Restart Tests', () => {
     console.log(`✅ restart_server (all) completed in ${elapsed}ms`);
 
     expect(result).toBeDefined();
-    expect(result.content).toBeDefined();
+    const toolResult = assertToolResult(result);
+    expect(toolResult.content).toBeDefined();
   }, 30000);
 
   it('should handle restart with non-existent extension gracefully', async () => {
@@ -70,7 +72,8 @@ describe('Server Restart Tests', () => {
     });
 
     expect(result).toBeDefined();
-    expect(result.content).toBeDefined();
+    const toolResult = assertToolResult(result);
+    expect(toolResult.content).toBeDefined();
 
     // Should complete without error even if no servers match
     console.log('✅ Handled non-existent extension gracefully');

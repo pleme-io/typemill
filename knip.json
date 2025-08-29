@@ -1,7 +1,7 @@
 {
   "entry": [
     "index.ts",
-    "src/**/*.test.ts"
+    "tests/**/*.test.ts"
   ],
   "project": [
     "src/**/*.ts",

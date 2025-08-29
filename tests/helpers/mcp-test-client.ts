@@ -19,6 +19,19 @@ export interface MCPToolCall {
   arguments: Record<string, unknown>;
 }
 
+export interface MCPToolResult {
+  content?: Array<{ text: string }>;
+  [key: string]: unknown;
+}
+
+// Type assertion helper for test results
+export function assertToolResult(result: unknown): MCPToolResult {
+  if (result && typeof result === 'object') {
+    return result as MCPToolResult;
+  }
+  return { content: [{ text: String(result) }] };
+}
+
 export class MCPTestClient {
   private process: ChildProcess | null = null;
   private buffer = '';
@@ -87,7 +100,7 @@ export class MCPTestClient {
     return this.initPromise;
   }
 
-  async callTool(name: string, args: Record<string, any>): Promise<any> {
+  async callTool(name: string, args: Record<string, unknown>): Promise<unknown> {
     const id = this.nextId++;
 
     return new Promise((resolve, reject) => {
@@ -114,8 +127,8 @@ export class MCPTestClient {
     });
   }
 
-  async callTools(tools: MCPToolCall[]): Promise<any[]> {
-    const results: any[] = [];
+  async callTools(tools: MCPToolCall[]): Promise<unknown[]> {
+    const results: unknown[] = [];
     for (const tool of tools) {
       try {
         const result = await this.callTool(tool.name, tool.arguments);
@@ -146,10 +159,12 @@ export class MCPTestClient {
       if (!line.trim()) continue;
       try {
         const msg = JSON.parse(line) as MCPMessage;
-        if (msg.id && this.messageHandlers.has(msg.id)) {
-          const handler = this.messageHandlers.get(msg.id)!;
-          this.messageHandlers.delete(msg.id);
-          handler(msg);
+        if (msg.id) {
+          const handler = this.messageHandlers.get(msg.id);
+          if (handler) {
+            this.messageHandlers.delete(msg.id);
+            handler(msg);
+          }
         }
       } catch (e) {
         // Ignore parse errors

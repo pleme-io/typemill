@@ -1,6 +1,6 @@
 import type { LSPClient } from '../lsp-client.js';
+import { pathToUri } from '../path-utils.js';
 import type { LSPLocation, Location, Position } from '../types.js';
-import { pathToUri } from '../utils.js';
 
 // Type definitions for the methods in this module
 export interface CoreMethodsContext {

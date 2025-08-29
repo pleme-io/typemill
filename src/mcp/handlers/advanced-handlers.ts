@@ -2,8 +2,8 @@ import { resolve } from 'node:path';
 import { applyWorkspaceEdit } from '../../file-editor.js';
 import type { TextEdit, WorkspaceEdit } from '../../file-editor.js';
 import type { LSPClient } from '../../lsp-client.js';
+import { pathToUri, uriToPath } from '../../path-utils.js';
 import type { DocumentSymbol, SymbolInformation } from '../../types.js';
-import { pathToUri, uriToPath } from '../../utils.js';
 import {
   createLimitedSupportResponse,
   createMCPResponse,
@@ -487,7 +487,10 @@ export async function handleApplyWorkspaceEdit(
         newText: edit.newText,
       }));
 
-      workspaceEdit.changes![uri] = textEdits;
+      if (!workspaceEdit.changes) {
+        workspaceEdit.changes = {};
+      }
+      workspaceEdit.changes[uri] = textEdits;
     }
 
     // Validate that we have at least one change
@@ -543,9 +546,9 @@ export async function handleApplyWorkspaceEdit(
 
     if (result.filesModified.length > 0) {
       response += '**Modified files:**\n';
-      result.filesModified.forEach((file) => {
+      for (const file of result.filesModified) {
         response += `• ${file}\n`;
-      });
+      }
     }
 
     if (!serverSupportsWorkspaceEdit) {

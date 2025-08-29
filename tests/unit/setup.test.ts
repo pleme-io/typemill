@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test';
 import { writeFileSync } from 'node:fs';
-import { LANGUAGE_SERVERS, generateConfig } from '../../src/language-servers.js';
+import { LANGUAGE_SERVERS, generateConfig } from '../../src/language-server-presets.js';
 import { buildMCPArgs, generateMCPCommand } from '../../src/setup.js';
 
 // Type for generated config

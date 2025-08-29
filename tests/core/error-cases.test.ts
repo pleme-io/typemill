@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { MCPTestClient } from '../helpers/mcp-test-client.js';
+import { MCPTestClient, assertToolResult } from '../helpers/mcp-test-client.js';
 
 describe('MCP Error Case Tests', () => {
   let client: MCPTestClient;
@@ -30,13 +30,14 @@ describe('MCP Error Case Tests', () => {
         });
 
         // Should either fail or return meaningful error message
-        if (result.content) {
-          const content = result.content[0]?.text || '';
+        const toolResult = assertToolResult(result);
+        if (toolResult.content) {
+          const content = toolResult.content?.[0]?.text || '';
           expect(content).toMatch(/(not found|does not exist|no such file|error)/i);
         }
       } catch (error) {
         // Expected to fail - this is the correct behavior
-        expect(error.message).toMatch(/(not found|does not exist|no such file|error)/i);
+        expect((error as Error).message).toMatch(/(not found|does not exist|no such file|error)/i);
       }
     });
 
@@ -46,7 +47,7 @@ describe('MCP Error Case Tests', () => {
           file_path: '', // Empty path
         });
       } catch (error) {
-        expect(error.message).toMatch(/(invalid|empty|path|error)/i);
+        expect((error as Error).message).toMatch(/(invalid|empty|path|error)/i);
       }
     });
   });
@@ -61,12 +62,13 @@ describe('MCP Error Case Tests', () => {
         });
 
         // Should handle gracefully
-        if (result.content) {
-          const content = result.content[0]?.text || '';
+        const toolResult = assertToolResult(result);
+        if (toolResult.content) {
+          const content = toolResult.content?.[0]?.text || '';
           expect(content).toMatch(/(out of bounds|invalid position|no hover|error)/i);
         }
       } catch (error) {
-        expect(error.message).toBeDefined();
+        expect((error as Error).message).toBeDefined();
       }
     });
 
@@ -78,7 +80,7 @@ describe('MCP Error Case Tests', () => {
           character: -5,
         });
       } catch (error) {
-        expect(error.message).toMatch(/(invalid|negative|position|error)/i);
+        expect((error as Error).message).toMatch(/(invalid|negative|position|error)/i);
       }
     });
   });
@@ -91,9 +93,10 @@ describe('MCP Error Case Tests', () => {
       });
 
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
+      const toolResult = assertToolResult(result);
+      expect(toolResult.content).toBeDefined();
 
-      const content = result.content[0]?.text || '';
+      const content = toolResult.content?.[0]?.text || '';
       expect(content).toMatch(/(not found|no definition|no matches|0 definitions)/i);
     });
 
@@ -104,7 +107,7 @@ describe('MCP Error Case Tests', () => {
           symbol_name: '', // Empty symbol name
         });
       } catch (error) {
-        expect(error.message).toMatch(/(empty|invalid|symbol|name|error)/i);
+        expect((error as Error).message).toMatch(/(empty|invalid|symbol|name|error)/i);
       }
     });
   });
@@ -119,7 +122,7 @@ describe('MCP Error Case Tests', () => {
           dry_run: true,
         });
       } catch (error) {
-        expect(error.message).toMatch(/(same name|no change|invalid|error)/i);
+        expect((error as Error).message).toMatch(/(same name|no change|invalid|error)/i);
       }
     });
 
@@ -132,7 +135,7 @@ describe('MCP Error Case Tests', () => {
           dry_run: true,
         });
       } catch (error) {
-        expect(error.message).toMatch(/(invalid|identifier|name|error)/i);
+        expect((error as Error).message).toMatch(/(invalid|identifier|name|error)/i);
       }
     });
   });
@@ -155,7 +158,7 @@ describe('MCP Error Case Tests', () => {
           validate_before_apply: true,
         });
       } catch (error) {
-        expect(error.message).toMatch(/(invalid|range|position|error)/i);
+        expect((error as Error).message).toMatch(/(invalid|range|position|error)/i);
       }
     });
 
@@ -166,7 +169,7 @@ describe('MCP Error Case Tests', () => {
           dry_run: true,
         });
       } catch (error) {
-        expect(error.message).toMatch(/(permission|access|denied|error)/i);
+        expect((error as Error).message).toMatch(/(permission|access|denied|error)/i);
       }
     });
   });
@@ -185,12 +188,13 @@ describe('MCP Error Case Tests', () => {
         });
 
         // Should handle gracefully
-        if (result.content) {
-          const content = result.content[0]?.text || '';
+        const toolResult = assertToolResult(result);
+        if (toolResult.content) {
+          const content = toolResult.content?.[0]?.text || '';
           expect(content).toMatch(/(unsupported|no server|no diagnostics|error)/i);
         }
       } catch (error) {
-        expect(error.message).toMatch(/(unsupported|no server|error)/i);
+        expect((error as Error).message).toMatch(/(unsupported|no server|error)/i);
       }
 
       // Clean up
@@ -212,7 +216,7 @@ describe('MCP Error Case Tests', () => {
           },
         });
       } catch (error) {
-        expect(error.message).toMatch(/(invalid|incomplete|item|error)/i);
+        expect((error as Error).message).toMatch(/(invalid|incomplete|item|error)/i);
       }
     });
   });
@@ -230,7 +234,8 @@ describe('MCP Error Case Tests', () => {
       // All should either succeed or fail gracefully
       results.forEach((result, index) => {
         if (result.status === 'fulfilled') {
-          expect(result.value.content).toBeDefined();
+          const toolResult = assertToolResult(result.value);
+          expect(toolResult.content).toBeDefined();
         } else {
           // Failed requests should have meaningful error messages
           expect(result.reason).toBeDefined();
@@ -248,12 +253,13 @@ describe('MCP Error Case Tests', () => {
           character: Number.MAX_SAFE_INTEGER,
         });
 
-        if (result.content) {
-          const content = result.content[0]?.text || '';
+        const toolResult = assertToolResult(result);
+        if (toolResult.content) {
+          const content = toolResult.content?.[0]?.text || '';
           expect(content).toMatch(/(out of bounds|invalid|no hover|error)/i);
         }
       } catch (error) {
-        expect(error.message).toBeDefined();
+        expect((error as Error).message).toBeDefined();
       }
     });
 
@@ -276,12 +282,13 @@ describe('MCP Error Case Tests', () => {
         });
 
         // Should handle or reject gracefully
-        if (result.content) {
-          const content = result.content[0]?.text || '';
+        const toolResult = assertToolResult(result);
+        if (toolResult.content) {
+          const content = toolResult.content?.[0]?.text || '';
           expect(content).toMatch(/(applied|too large|error)/i);
         }
       } catch (error) {
-        expect(error.message).toBeDefined();
+        expect((error as Error).message).toBeDefined();
       }
     });
   });

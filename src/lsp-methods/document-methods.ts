@@ -1,4 +1,5 @@
 import type { LSPClient } from '../lsp-client.js';
+import { pathToUri } from '../path-utils.js';
 import type {
   DocumentLink,
   DocumentSymbol,
@@ -7,7 +8,6 @@ import type {
   TextEdit,
 } from '../types.js';
 import { SymbolKind } from '../types.js';
-import { pathToUri } from '../utils.js';
 
 // Type definitions for the methods in this module
 export interface DocumentMethodsContext {

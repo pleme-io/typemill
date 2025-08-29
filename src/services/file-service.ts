@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { capabilityManager } from '../capability-manager.js';
 import * as DiagnosticMethods from '../lsp-methods/diagnostic-methods.js';
 import * as DocumentMethods from '../lsp-methods/document-methods.js';
 import type {
@@ -7,15 +8,16 @@ import type {
   ServerState,
 } from '../lsp-types.js';
 import type { LSPProtocol } from '../lsp/protocol.js';
+import { pathToUri } from '../path-utils.js';
 import type {
   CodeAction,
+  Diagnostic,
   DocumentLink,
   FoldingRange,
   Position,
   Range,
   TextEdit,
 } from '../types.js';
-import { pathToUri } from '../utils.js';
 
 /**
  * Service for file-related LSP operations
@@ -47,7 +49,7 @@ export class FileService {
         this.protocol.sendRequest(process, method, params, timeout),
       sendNotification: (process, method, params) =>
         this.protocol.sendNotification(process, method, params),
-      capabilityManager: {} as any,
+      capabilityManager,
     };
     return DocumentMethods.formatDocument(context, filePath, options);
   }
@@ -58,7 +60,7 @@ export class FileService {
   async getCodeActions(
     filePath: string,
     range?: Range,
-    context?: { diagnostics?: any[] }
+    context?: { diagnostics?: Diagnostic[] }
   ): Promise<CodeAction[]> {
     const docContext: DiagnosticMethodsContext = {
       getServer: this.getServer,
@@ -83,7 +85,7 @@ export class FileService {
         this.protocol.sendRequest(process, method, params, timeout),
       sendNotification: (process, method, params) =>
         this.protocol.sendNotification(process, method, params),
-      capabilityManager: {} as any,
+      capabilityManager,
     };
     return DocumentMethods.getFoldingRanges(context, filePath);
   }
@@ -99,7 +101,7 @@ export class FileService {
         this.protocol.sendRequest(process, method, params, timeout),
       sendNotification: (process, method, params) =>
         this.protocol.sendNotification(process, method, params),
-      capabilityManager: {} as any,
+      capabilityManager,
     };
     return DocumentMethods.getDocumentLinks(context, filePath);
   }

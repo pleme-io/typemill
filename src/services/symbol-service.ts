@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { capabilityManager } from '../capability-manager.js';
 import * as CoreMethods from '../lsp-methods/core-methods.js';
 import * as DocumentMethods from '../lsp-methods/document-methods.js';
 import * as WorkspaceMethods from '../lsp-methods/workspace-methods.js';
@@ -100,7 +101,7 @@ export class SymbolService {
         this.protocol.sendRequest(process, method, params, timeout),
       sendNotification: (process, method, params) =>
         this.protocol.sendNotification(process, method, params),
-      capabilityManager: {} as any, // Will be properly injected
+      capabilityManager, // Properly injected
     };
     return DocumentMethods.getDocumentSymbols(context, filePath);
   }

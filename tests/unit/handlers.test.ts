@@ -3,6 +3,13 @@ import { existsSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { LSPClient } from '../../src/lsp-client.js';
+
+interface MCPResponse {
+  content: Array<{
+    type: 'text';
+    text: string;
+  }>;
+}
 import {
   handleApplyWorkspaceEdit,
   handleGetDocumentLinks,
@@ -38,9 +45,9 @@ describe('MCP Handlers Unit Tests', () => {
     it('should handle getFoldingRanges', async () => {
       console.log('🔍 Testing handleGetFoldingRanges...');
 
-      const result = await handleGetFoldingRanges(lspClient, {
+      const result = (await handleGetFoldingRanges(lspClient, {
         file_path: join(testDir, 'src/components/user-form.ts'),
-      });
+      })) as MCPResponse;
 
       const success = result.content?.[0]?.text;
       console.log(`✅ handleGetFoldingRanges: ${success ? 'SUCCESS' : 'FAILED'}`);
@@ -55,9 +62,9 @@ describe('MCP Handlers Unit Tests', () => {
     it('should handle getDocumentLinks', async () => {
       console.log('🔗 Testing handleGetDocumentLinks...');
 
-      const result = await handleGetDocumentLinks(lspClient, {
+      const result = (await handleGetDocumentLinks(lspClient, {
         file_path: join(testDir, 'src/test-file.ts'),
-      });
+      })) as MCPResponse;
 
       const success = result.content?.[0]?.text;
       console.log(`✅ handleGetDocumentLinks: ${success ? 'SUCCESS' : 'FAILED'}`);
@@ -73,7 +80,7 @@ describe('MCP Handlers Unit Tests', () => {
       console.log('📝 Testing handleApplyWorkspaceEdit...');
 
       // Create a validation-only edit
-      const result = await handleApplyWorkspaceEdit(lspClient, {
+      const result = (await handleApplyWorkspaceEdit(lspClient, {
         changes: {
           [join(testDir, 'src/test-file.ts')]: [
             {
@@ -86,7 +93,7 @@ describe('MCP Handlers Unit Tests', () => {
           ],
         },
         validate_before_apply: true,
-      });
+      })) as MCPResponse;
 
       console.log(
         `✅ handleApplyWorkspaceEdit: ${result.content?.[0]?.text ? 'SUCCESS' : 'FAILED'}`
@@ -106,10 +113,10 @@ describe('MCP Handlers Unit Tests', () => {
         await rm(testFile, { force: true });
       }
 
-      const result = await handleCreateFile(lspClient, {
+      const result = (await handleCreateFile(lspClient, {
         file_path: testFile,
         content: '// Handler test file\nconsole.log("test");',
-      });
+      })) as MCPResponse;
 
       const success = existsSync(testFile);
       console.log(`✅ handleCreateFile: ${success ? 'SUCCESS' : 'FAILED'}`);
@@ -133,10 +140,10 @@ describe('MCP Handlers Unit Tests', () => {
         });
       }
 
-      const result = await handleDeleteFile(lspClient, {
+      const result = (await handleDeleteFile(lspClient, {
         file_path: testFile,
         force: false,
-      });
+      })) as MCPResponse;
 
       const success = !existsSync(testFile);
       console.log(`✅ handleDeleteFile: ${success ? 'SUCCESS' : 'FAILED'}`);
@@ -155,11 +162,11 @@ describe('MCP Handlers Unit Tests', () => {
       console.log('✍️ Testing handleGetSignatureHelp...');
 
       try {
-        const result = await handleGetSignatureHelp(lspClient, {
+        const result = (await handleGetSignatureHelp(lspClient, {
           file_path: join(testDir, 'src/test-file.ts'),
           line: 14,
           character: 20,
-        });
+        })) as MCPResponse;
 
         const success = result.content?.[0]?.text;
         console.log(

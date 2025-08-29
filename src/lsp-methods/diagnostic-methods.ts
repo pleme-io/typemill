@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import type { LSPClient } from '../lsp-client.js';
 import type { DiagnosticMethodsContext } from '../lsp-types.js';
+import { pathToUri } from '../path-utils.js';
 import type { CodeAction, Diagnostic, DocumentDiagnosticReport, Position } from '../types.js';
-import { pathToUri } from '../utils.js';
 
 export async function getDiagnostics(
   context: DiagnosticMethodsContext,

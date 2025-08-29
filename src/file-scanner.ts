@@ -2,7 +2,7 @@ import { readFile, readdir, stat } from 'node:fs/promises';
 import { constants, access } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 import ignore from 'ignore';
-import type { LanguageServerConfig } from './language-servers.js';
+import type { LanguageServerConfig } from './language-server-presets.js';
 
 // Default ignore patterns
 const DEFAULT_IGNORE_PATTERNS = [

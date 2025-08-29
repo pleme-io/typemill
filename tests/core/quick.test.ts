@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { MCPTestClient, QUICK_TESTS } from '../helpers/mcp-test-client.js';
+import { MCPTestClient, QUICK_TESTS, assertToolResult } from '../helpers/mcp-test-client.js';
 
 describe('MCP Quick Tests', () => {
   let client: MCPTestClient;
@@ -17,7 +17,8 @@ describe('MCP Quick Tests', () => {
     const results = await client.callTools(QUICK_TESTS);
 
     // Print results
-    for (const result of results) {
+    const toolResults = results as Array<{ name: string; success: boolean; error?: string }>;
+    for (const result of toolResults) {
       console.log(`${result.success ? '✅' : '❌'} ${result.name}`);
       if (!result.success) {
         console.error(`  Error: ${result.error}`);
@@ -25,7 +26,7 @@ describe('MCP Quick Tests', () => {
     }
 
     // Assertions
-    const passed = results.filter((r) => r.success).length;
+    const passed = toolResults.filter((r) => r.success).length;
     const total = results.length;
     console.log(`\nResults: ${passed}/${total} passed`);
 
@@ -40,7 +41,8 @@ describe('MCP Quick Tests', () => {
       symbol_name: 'calculateAge',
     });
     expect(result).toBeDefined();
-    expect(result.content).toBeDefined();
+    const toolResult = assertToolResult(result);
+    expect(toolResult.content).toBeDefined();
   });
 
   it('should find references', async () => {
@@ -49,7 +51,8 @@ describe('MCP Quick Tests', () => {
       symbol_name: 'TestProcessor',
     });
     expect(result).toBeDefined();
-    expect(result.content).toBeDefined();
+    const toolResult = assertToolResult(result);
+    expect(toolResult.content).toBeDefined();
   });
 
   it('should get diagnostics', async () => {
@@ -57,7 +60,8 @@ describe('MCP Quick Tests', () => {
       file_path: '/workspace/plugins/cclsp/playground/src/errors-file.ts',
     });
     expect(result).toBeDefined();
-    expect(result.content).toBeDefined();
+    const toolResult = assertToolResult(result);
+    expect(toolResult.content).toBeDefined();
   });
 
   it('should get hover information', async () => {
@@ -67,7 +71,8 @@ describe('MCP Quick Tests', () => {
       character: 10,
     });
     expect(result).toBeDefined();
-    expect(result.content).toBeDefined();
+    const toolResult = assertToolResult(result);
+    expect(toolResult.content).toBeDefined();
   });
 
   it('should rename symbol (dry run)', async () => {
@@ -78,6 +83,7 @@ describe('MCP Quick Tests', () => {
       dry_run: true,
     });
     expect(result).toBeDefined();
-    expect(result.content).toBeDefined();
+    const toolResult = assertToolResult(result);
+    expect(toolResult.content).toBeDefined();
   });
 });

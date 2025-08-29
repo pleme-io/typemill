@@ -12,7 +12,7 @@ import {
 import { readdir } from 'node:fs/promises';
 import { dirname, extname, join, relative, resolve } from 'node:path';
 import type { LSPClient } from './lsp-client.js';
-import { pathToUri, uriToPath } from './utils.js';
+import { pathToUri, uriToPath } from './path-utils.js';
 
 export interface TextEdit {
   range: {
@@ -381,8 +381,9 @@ function findImportsInFile(
   );
 
   lines.forEach((line, lineIndex) => {
-    let match;
+    let match: RegExpExecArray | null;
     importPattern.lastIndex = 0; // Reset regex state
+    // biome-ignore lint/suspicious/noAssignInExpressions: Common regex pattern
     while ((match = importPattern.exec(line)) !== null) {
       const startCol = match.index + (match[1]?.length || 0);
       const endCol = startCol + oldRelative.length;

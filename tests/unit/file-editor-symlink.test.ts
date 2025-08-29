@@ -12,8 +12,8 @@ import {
 import { lstat, readFile, readlink, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { applyWorkspaceEdit } from './file-editor.js';
-import { pathToUri } from './utils.js';
+import { applyWorkspaceEdit } from '../../src/file-editor.js';
+import { pathToUri } from '../../src/path-utils.js';
 
 // Check if symlinks are supported in this environment
 function canCreateSymlinks(): boolean {

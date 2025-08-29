@@ -10,12 +10,20 @@ import { ServerManager } from './server-manager.js';
  */
 export class LSPClient {
   private config: Config;
-  private protocol: LSPProtocol;
-  private serverManager: ServerManager;
+  private _protocol: LSPProtocol;
+  private _serverManager: ServerManager;
+
+  // Public getters for facade access
+  public get protocol(): LSPProtocol {
+    return this._protocol;
+  }
+  public get serverManager(): ServerManager {
+    return this._serverManager;
+  }
 
   constructor(configPath?: string) {
-    this.protocol = new LSPProtocol();
-    this.serverManager = new ServerManager(this.protocol);
+    this._protocol = new LSPProtocol();
+    this._serverManager = new ServerManager(this._protocol);
     this.config = this.loadConfig(configPath);
   }
 
@@ -72,7 +80,7 @@ export class LSPClient {
    * Get LSP server for a file path
    */
   async getServer(filePath: string): Promise<ServerState> {
-    return await this.serverManager.getServer(filePath, this.config);
+    return await this._serverManager.getServer(filePath, this.config);
   }
 
   /**
@@ -84,21 +92,21 @@ export class LSPClient {
     params: unknown,
     timeout?: number
   ): Promise<unknown> {
-    return await this.protocol.sendRequest(serverState.process, method, params, timeout);
+    return await this._protocol.sendRequest(serverState.process, method, params, timeout);
   }
 
   /**
    * Send notification through LSP protocol
    */
   sendNotification(serverState: ServerState, method: string, params: unknown): void {
-    this.protocol.sendNotification(serverState.process, method, params);
+    this._protocol.sendNotification(serverState.process, method, params);
   }
 
   /**
    * Restart servers for specified extensions
    */
   async restartServer(extensions?: string[]): Promise<string[]> {
-    return await this.serverManager.restartServer(extensions, this.config);
+    return await this._serverManager.restartServer(extensions, this.config);
   }
 
   /**
@@ -107,7 +115,7 @@ export class LSPClient {
   async preloadServers(): Promise<void> {
     try {
       const extensions = await scanDirectoryForExtensions(process.cwd());
-      await this.serverManager.preloadServers(this.config, Array.from(extensions));
+      await this._serverManager.preloadServers(this.config, Array.from(extensions));
     } catch (error) {
       process.stderr.write(`Failed to scan directory for extensions: ${error}\n`);
     }
@@ -117,6 +125,6 @@ export class LSPClient {
    * Clean up all resources
    */
   dispose(): void {
-    this.serverManager.dispose();
+    this._serverManager.dispose();
   }
 }

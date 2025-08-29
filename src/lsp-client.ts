@@ -40,8 +40,8 @@ export class LSPClient {
     this.newClient = new NewLSPClient(configPath);
 
     // Access internal components (would be properly injected in real refactor)
-    this.protocol = (this.newClient as any).protocol;
-    this.serverManager = (this.newClient as any).serverManager;
+    this.protocol = this.newClient.protocol;
+    this.serverManager = this.newClient.serverManager;
 
     // Initialize services with getServer wrapper
     const getServerWrapper = (filePath: string) => this.newClient.getServer(filePath);
@@ -105,7 +105,7 @@ export class LSPClient {
   async getCodeActions(
     filePath: string,
     range?: Range,
-    context?: { diagnostics?: any[] }
+    context?: { diagnostics?: Diagnostic[] }
   ): Promise<CodeAction[]> {
     return this.fileService.getCodeActions(
       filePath,

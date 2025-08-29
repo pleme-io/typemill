@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { MCPTestClient, PLAYGROUND_TESTS } from '../helpers/mcp-test-client.js';
+import { MCPTestClient, PLAYGROUND_TESTS, assertToolResult } from '../helpers/mcp-test-client.js';
 
 describe('MCP Playground Tests', () => {
   let client: MCPTestClient;
@@ -23,10 +23,11 @@ describe('MCP Playground Tests', () => {
     });
 
     expect(result).toBeDefined();
-    expect(result.content).toBeDefined();
+    const toolResult = assertToolResult(result);
+    expect(toolResult.content).toBeDefined();
 
-    if (result.content?.[0]?.text) {
-      const preview = result.content[0].text.substring(0, 100);
+    if (toolResult.content?.[0]?.text) {
+      const preview = toolResult.content[0].text.substring(0, 100);
       console.log(`   Preview: ${preview}...`);
     }
   });
@@ -39,10 +40,11 @@ describe('MCP Playground Tests', () => {
     });
 
     expect(result).toBeDefined();
-    expect(result.content).toBeDefined();
+    const toolResult = assertToolResult(result);
+    expect(toolResult.content).toBeDefined();
 
-    if (result.content?.[0]?.text) {
-      const preview = result.content[0].text.substring(0, 100);
+    if (toolResult.content?.[0]?.text) {
+      const preview = toolResult.content[0].text.substring(0, 100);
       console.log(`   Preview: ${preview}...`);
     }
   });
@@ -54,12 +56,13 @@ describe('MCP Playground Tests', () => {
     });
 
     expect(result).toBeDefined();
-    expect(result.content).toBeDefined();
+    const toolResult = assertToolResult(result);
+    expect(toolResult.content).toBeDefined();
 
     if (Array.isArray(result) && result.length > 0) {
       console.log(`   Found ${result.length} references`);
-    } else if (result.content?.[0]?.text) {
-      console.log(`   Result: ${result.content[0].text.substring(0, 100)}...`);
+    } else if (toolResult.content?.[0]?.text) {
+      console.log(`   Result: ${toolResult.content[0].text.substring(0, 100)}...`);
     }
   });
 
@@ -69,25 +72,27 @@ describe('MCP Playground Tests', () => {
     });
 
     expect(result).toBeDefined();
-    expect(result.content).toBeDefined();
+    const toolResult = assertToolResult(result);
+    expect(toolResult.content).toBeDefined();
 
     if (Array.isArray(result) && result.length > 0) {
       console.log(`   Found ${result.length} symbols`);
-    } else if (result.content?.[0]?.text) {
-      console.log(`   Result: ${result.content[0].text.substring(0, 100)}...`);
+    } else if (toolResult.content?.[0]?.text) {
+      console.log(`   Result: ${toolResult.content[0].text.substring(0, 100)}...`);
     }
   });
 
   it('should run all playground tests successfully', async () => {
     const results = await client.callTools(PLAYGROUND_TESTS);
 
-    for (const result of results) {
+    const toolResults = results as Array<{ name: string; success: boolean; error?: string }>;
+    for (const result of toolResults) {
       console.log(
         `🧪 ${result.name}: ${result.success ? '✅ SUCCESS' : `❌ ERROR - ${result.error}`}`
       );
     }
 
-    const passed = results.filter((r) => r.success).length;
+    const passed = toolResults.filter((r) => r.success).length;
     const total = results.length;
 
     console.log(`\n🎉 Playground tests completed: ${passed}/${total} passed`);

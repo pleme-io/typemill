@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { ALL_TESTS, MCPTestClient } from '../helpers/mcp-test-client.js';
+import { ALL_TESTS, MCPTestClient, assertToolResult } from '../helpers/mcp-test-client.js';
 
 describe('MCP Comprehensive Tests - All 28 Tools', () => {
   let client: MCPTestClient;
@@ -28,9 +28,10 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
         symbol_name: 'calculateAge',
       });
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
+      const toolResult = assertToolResult(result);
+      expect(toolResult.content).toBeDefined();
 
-      const content = result.content[0]?.text || '';
+      const content = toolResult.content?.[0]?.text || '';
       expect(content).toContain('calculateAge');
       expect(content).toMatch(/:\d+:\d+/); // Should contain :line:character format
       expect(content).toMatch(/:1[34]:/); // Should be around line 13-14
@@ -43,9 +44,9 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
         symbol_name: 'TestProcessor',
       });
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
 
-      const content = result.content[0]?.text || '';
+      const toolResult = assertToolResult(result);
+      const content = toolResult.content?.[0]?.text || '';
       expect(content).toContain('TestProcessor');
       expect(content).toContain('references found');
       expect(content).toMatch(/\d+\s*references?\s*found/i);
@@ -59,9 +60,9 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
         dry_run: true,
       });
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
 
-      const content = result.content[0]?.text || '';
+      const toolResult = assertToolResult(result);
+      const content = toolResult.content?.[0]?.text || '';
       expect(content).toMatch(/(rename|RENAMED_CONST|TEST_CONSTANT|edit|changes)/i);
     });
 
@@ -74,7 +75,6 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
         dry_run: true,
       });
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
     });
   });
 
@@ -84,9 +84,9 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
         file_path: '/workspace/plugins/cclsp/playground/src/errors-file.ts',
       });
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
 
-      const content = result.content[0]?.text || '';
+      const toolResult = assertToolResult(result);
+      const content = toolResult.content?.[0]?.text || '';
       expect(content).toContain('diagnostic');
       // Should contain TypeScript errors
       expect(content).toMatch(/(error|warning|missing|cannot find|type)/i);
@@ -98,9 +98,9 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
         file_path: '/workspace/plugins/cclsp/playground/src/test-file.ts',
       });
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
 
-      const content = result.content[0]?.text || '';
+      const toolResult = assertToolResult(result);
+      const content = toolResult.content?.[0]?.text || '';
       expect(content).toContain('symbol');
       // Should contain expected symbols from test file
       expect(content).toMatch(/(calculateAge|TestProcessor|ProcessorConfig)/);
@@ -116,9 +116,9 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
         },
       });
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
 
-      const content = result.content[0]?.text || '';
+      const toolResult = assertToolResult(result);
+      const content = toolResult.content?.[0]?.text || '';
       expect(content).toMatch(/(action|quick fix|refactor|organize)/i);
     });
 
@@ -132,9 +132,9 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
         dry_run: true,
       });
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
 
-      const content = result.content[0]?.text || '';
+      const toolResult = assertToolResult(result);
+      const content = toolResult.content?.[0]?.text || '';
       expect(content).toMatch(/(format|document|style|indent)/i);
     });
 
@@ -143,7 +143,6 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
         query: 'Process',
       });
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
     });
 
     it('should get folding ranges', async () => {
@@ -151,7 +150,6 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
         file_path: '/workspace/plugins/cclsp/playground/src/test-file.ts',
       });
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
     });
 
     it('should get document links', async () => {
@@ -159,7 +157,6 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
         file_path: '/workspace/plugins/cclsp/playground/src/test-file.ts',
       });
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
     });
   });
 
@@ -171,9 +168,9 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
         character: 10,
       });
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
 
-      const content = result.content[0]?.text || '';
+      const toolResult = assertToolResult(result);
+      const content = toolResult.content?.[0]?.text || '';
       // Should contain function signature or type information
       expect(content).toMatch(/(function|number|calculateAge|\(.*\)|=>)/);
     });
@@ -185,7 +182,6 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
         character: 10,
       });
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
     });
 
     it('should get signature help', async () => {
@@ -195,7 +191,6 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
         character: 20,
       });
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
     });
 
     it('should get inlay hints', async () => {
@@ -207,7 +202,6 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
         end_character: 0,
       });
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
     });
 
     it('should get semantic tokens', async () => {
@@ -215,7 +209,6 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
         file_path: '/workspace/plugins/cclsp/playground/src/test-file.ts',
       });
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
     });
   });
 
@@ -227,7 +220,6 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
         character: 10,
       });
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
     });
 
     it('should prepare type hierarchy', async () => {
@@ -237,7 +229,6 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
         character: 7,
       });
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
     });
 
     it('should get selection range', async () => {
@@ -246,7 +237,6 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
         positions: [{ line: 13, character: 10 }],
       });
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
     });
   });
 
@@ -257,7 +247,6 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
         content: '// Test file\nconsole.log("test");',
       });
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
     });
 
     it('should rename file', async () => {
@@ -267,7 +256,6 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
         dry_run: true,
       });
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
     });
 
     it('should delete file', async () => {
@@ -276,7 +264,6 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
         dry_run: true,
       });
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
     });
   });
 
@@ -286,9 +273,9 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
         extensions: ['ts', 'tsx'],
       });
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
 
-      const content = result.content[0]?.text || '';
+      const toolResult = assertToolResult(result);
+      const content = toolResult.content?.[0]?.text || '';
       expect(content).toMatch(/(restart|server|success)/i);
     }, 20000);
   });
@@ -310,9 +297,9 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
         validate_before_apply: true,
       });
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
 
-      const content = result.content[0]?.text || '';
+      const toolResult = assertToolResult(result);
+      const content = toolResult.content?.[0]?.text || '';
       expect(content).toMatch(/(applied|workspace|edit|success)/i);
     });
 
@@ -325,10 +312,10 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
       });
 
       expect(prepareResult).toBeDefined();
-      expect(prepareResult.content).toBeDefined();
 
       // If we get a valid hierarchy item, test incoming calls
-      const prepareContent = prepareResult.content[0]?.text || '';
+      const prepareToolResult = assertToolResult(prepareResult);
+      const prepareContent = prepareToolResult.content?.[0]?.text || '';
       if (prepareContent.includes('name') && prepareContent.includes('uri')) {
         const result = await client.callTool('get_call_hierarchy_incoming_calls', {
           item: {
@@ -347,9 +334,9 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
         });
 
         expect(result).toBeDefined();
-        expect(result.content).toBeDefined();
 
-        const content = result.content[0]?.text || '';
+        const toolResult = assertToolResult(result);
+        const content = toolResult.content?.[0]?.text || '';
         expect(content).toMatch(/(incoming|call|hierarchy|from)/i);
       }
     });
@@ -372,9 +359,9 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
       });
 
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
 
-      const content = result.content[0]?.text || '';
+      const toolResult = assertToolResult(result);
+      const content = toolResult.content?.[0]?.text || '';
       expect(content).toMatch(/(outgoing|call|hierarchy|to)/i);
     });
 
@@ -396,9 +383,9 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
       });
 
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
 
-      const content = result.content[0]?.text || '';
+      const toolResult = assertToolResult(result);
+      const content = toolResult.content?.[0]?.text || '';
       expect(content).toMatch(/(supertype|parent|hierarchy|extends)/i);
     });
 
@@ -420,9 +407,9 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
       });
 
       expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
 
-      const content = result.content[0]?.text || '';
+      const toolResult = assertToolResult(result);
+      const content = toolResult.content?.[0]?.text || '';
       expect(content).toMatch(/(subtype|child|hierarchy|implements)/i);
     });
   });
@@ -430,9 +417,10 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
   // Summary test
   it('should run all tests and show summary', async () => {
     const results = await client.callTools(ALL_TESTS);
+    const toolResults = results as Array<{ success: boolean; name: string; error?: string }>;
 
-    const successful = results.filter((r) => r.success);
-    const failed = results.filter((r) => !r.success);
+    const successful = toolResults.filter((r) => r.success);
+    const failed = toolResults.filter((r) => !r.success);
 
     console.log('\n=================================');
     console.log('📊 FINAL VERIFICATION RESULTS');
@@ -445,9 +433,9 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
       console.log('CCLSP is fully operational with complete LSP functionality.');
     } else {
       console.log(`⚠️  ${failed.length} tools still need attention:`);
-      failed.forEach((result) => {
+      for (const result of failed) {
         console.log(`   ❌ ${result.name}: ${result.error || 'Failed'}`);
-      });
+      }
     }
 
     // Assert all tests pass

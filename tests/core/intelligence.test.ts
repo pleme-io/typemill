@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { INTELLIGENCE_TESTS, MCPTestClient } from '../helpers/mcp-test-client.js';
+import { INTELLIGENCE_TESTS, MCPTestClient, assertToolResult } from '../helpers/mcp-test-client.js';
 
 describe('MCP Intelligence Features Tests', () => {
   let client: MCPTestClient;
@@ -25,7 +25,8 @@ describe('MCP Intelligence Features Tests', () => {
     });
 
     expect(result).toBeDefined();
-    expect(result.content).toBeDefined();
+    const toolResult = assertToolResult(result);
+    expect(toolResult.content).toBeDefined();
 
     const resultStr = JSON.stringify(result);
     if (
@@ -34,8 +35,8 @@ describe('MCP Intelligence Features Tests', () => {
       resultStr.includes('did not respond')
     ) {
       console.log('   ⚠️  Fallback response detected');
-    } else if (result.content?.[0]?.text) {
-      const preview = result.content[0].text.substring(0, 150);
+    } else if (toolResult.content?.[0]?.text) {
+      const preview = toolResult.content[0].text.substring(0, 150);
       console.log(`   📝 Preview: ${preview}...`);
     }
   });
@@ -48,12 +49,13 @@ describe('MCP Intelligence Features Tests', () => {
     });
 
     expect(result).toBeDefined();
-    expect(result.content).toBeDefined();
+    const toolResult = assertToolResult(result);
+    expect(toolResult.content).toBeDefined();
 
     if (Array.isArray(result)) {
       console.log(`   📊 Found ${result.length} completions`);
-    } else if (result.content?.[0]?.text) {
-      console.log(`   📝 Completions: ${result.content[0].text.substring(0, 150)}...`);
+    } else if (toolResult.content?.[0]?.text) {
+      console.log(`   📝 Completions: ${toolResult.content[0].text.substring(0, 150)}...`);
     }
   });
 
@@ -65,10 +67,11 @@ describe('MCP Intelligence Features Tests', () => {
     });
 
     expect(result).toBeDefined();
-    expect(result.content).toBeDefined();
+    const toolResult = assertToolResult(result);
+    expect(toolResult.content).toBeDefined();
 
-    if (result.content?.[0]?.text) {
-      console.log(`   📝 Signature: ${result.content[0].text.substring(0, 150)}...`);
+    if (toolResult.content?.[0]?.text) {
+      console.log(`   📝 Signature: ${toolResult.content[0].text.substring(0, 150)}...`);
     }
   });
 
@@ -82,12 +85,13 @@ describe('MCP Intelligence Features Tests', () => {
     });
 
     expect(result).toBeDefined();
-    expect(result.content).toBeDefined();
+    const toolResult = assertToolResult(result);
+    expect(toolResult.content).toBeDefined();
 
     if (Array.isArray(result)) {
       console.log(`   📊 Found ${result.length} inlay hints`);
-    } else if (result.content?.[0]?.text) {
-      console.log(`   📝 Hints: ${result.content[0].text.substring(0, 150)}...`);
+    } else if (toolResult.content?.[0]?.text) {
+      console.log(`   📝 Hints: ${toolResult.content[0].text.substring(0, 150)}...`);
     }
   });
 
@@ -97,11 +101,12 @@ describe('MCP Intelligence Features Tests', () => {
     });
 
     expect(result).toBeDefined();
-    expect(result.content).toBeDefined();
+    const toolResult = assertToolResult(result);
+    expect(toolResult.content).toBeDefined();
 
-    if (result.data) {
-      console.log(`   🎯 Got semantic data: ${result.data.length} tokens`);
-    } else if (result.content?.[0]?.text) {
+    if ((toolResult as any).data) {
+      console.log(`   🎯 Got semantic data: ${(toolResult as any).data.length} tokens`);
+    } else if (toolResult.content?.[0]?.text) {
       console.log('   ✨ Got semantic tokens data');
     }
   });
@@ -109,7 +114,13 @@ describe('MCP Intelligence Features Tests', () => {
   it('should run all intelligence tests successfully', async () => {
     const results = await client.callTools(INTELLIGENCE_TESTS);
 
-    for (const result of results) {
+    const toolResults = results as Array<{
+      name: string;
+      success: boolean;
+      error?: string;
+      result?: unknown;
+    }>;
+    for (const result of toolResults) {
       console.log(
         `🧠 ${result.name}: ${result.success ? '✅ SUCCESS' : `❌ ERROR - ${result.error}`}`
       );
@@ -128,7 +139,7 @@ describe('MCP Intelligence Features Tests', () => {
       }
     }
 
-    const passed = results.filter((r) => r.success).length;
+    const passed = toolResults.filter((r) => r.success).length;
     const total = results.length;
 
     console.log('\n🎉 Intelligence features test completed!');

@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { applyWorkspaceEdit } from './file-editor.js';
-import { pathToUri } from './utils.js';
+import { applyWorkspaceEdit } from '../../src/file-editor.js';
+import { pathToUri } from '../../src/path-utils.js';
 
 const TEST_DIR = process.env.CI
   ? `${process.cwd()}/test-tmp/file-editor-rollback-test`
