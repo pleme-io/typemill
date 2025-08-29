@@ -3,66 +3,34 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSyn
 import { join } from 'node:path';
 import { applyWorkspaceEdit } from '../../src/file-editor.js';
 import { pathToUri } from '../../src/path-utils.js';
+import { cleanupTestDir, createTestDir, ensureFileExists } from './test-helpers.js';
 
-const TEST_DIR = process.env.CI
-  ? `${process.cwd()}/test-tmp/file-editor-rollback-test`
-  : '/tmp/file-editor-rollback-test';
+let TEST_DIR: string;
 
 describe.skipIf(!!process.env.CI)('file-editor rollback without backups', () => {
   beforeEach(() => {
-    // Clean up and create test directory
-    if (existsSync(TEST_DIR)) {
-      rmSync(TEST_DIR, { recursive: true, force: true });
-    }
-    mkdirSync(TEST_DIR, { recursive: true });
+    // Create a unique test directory for each test
+    TEST_DIR = createTestDir('file-editor-rollback-test');
   });
 
   afterEach(() => {
     // Clean up test directory
-    if (existsSync(TEST_DIR)) {
-      rmSync(TEST_DIR, { recursive: true, force: true });
-    }
+    cleanupTestDir(TEST_DIR);
   });
 
   it('should rollback changes when createBackups=false and an error occurs', async () => {
-    console.log(`[TEST DEBUG] Test starting, TEST_DIR: ${TEST_DIR}`);
-    console.log(`[TEST DEBUG] Directory exists at test start: ${existsSync(TEST_DIR)}`);
-
     const file1 = join(TEST_DIR, 'file1.ts');
     const file2 = join(TEST_DIR, 'file2.ts');
-
-    console.log(`[TEST DEBUG] Creating files: ${file1}, ${file2}`);
 
     const originalContent1 = 'const x = 1;';
     const originalContent2 = 'const y = 2;';
 
-    try {
-      writeFileSync(file1, originalContent1);
-      console.log('[TEST DEBUG] file1 written successfully');
-      console.log(`[TEST DEBUG] file1 realpath: ${realpathSync(file1)}`);
-    } catch (error) {
-      console.log(`[TEST DEBUG] file1 write/realpath failed: ${error}`);
-      throw error;
-    }
+    writeFileSync(file1, originalContent1);
+    writeFileSync(file2, originalContent2);
 
-    try {
-      writeFileSync(file2, originalContent2);
-      console.log('[TEST DEBUG] file2 written successfully');
-      console.log(`[TEST DEBUG] file2 realpath: ${realpathSync(file2)}`);
-    } catch (error) {
-      console.log(`[TEST DEBUG] file2 write/realpath failed: ${error}`);
-      throw error;
-    }
-
-    console.log(
-      `[TEST DEBUG] Files created - file1 exists: ${existsSync(file1)}, file2 exists: ${existsSync(file2)}`
-    );
-
-    // Add small delay to see if timing issue
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    console.log(
-      `[TEST DEBUG] After 10ms delay - file1 exists: ${existsSync(file1)}, file2 exists: ${existsSync(file2)}`
-    );
+    // Ensure files are available and readable before proceeding
+    ensureFileExists(file1);
+    ensureFileExists(file2);
 
     // Create an edit that will succeed on file1 but fail on file2
     const result = await applyWorkspaceEdit(
@@ -90,6 +58,7 @@ describe.skipIf(!!process.env.CI)('file-editor rollback without backups', () => 
       },
       {
         validateBeforeApply: true,
+        createBackupFiles: false,
       }
     );
 
@@ -111,6 +80,9 @@ describe.skipIf(!!process.env.CI)('file-editor rollback without backups', () => 
     const content = 'line1\nline2\nline3';
     writeFileSync(filePath, content);
 
+    // Ensure file is available and readable before proceeding
+    ensureFileExists(filePath);
+
     // Multi-line edit where end character exceeds line length
     const result = await applyWorkspaceEdit(
       {
@@ -126,7 +98,7 @@ describe.skipIf(!!process.env.CI)('file-editor rollback without backups', () => 
           ],
         },
       },
-      { validateBeforeApply: true }
+      { validateBeforeApply: true, createBackupFiles: false }
     );
 
     expect(result.success).toBe(false);
@@ -142,6 +114,9 @@ describe.skipIf(!!process.env.CI)('file-editor rollback without backups', () => 
     const filePath = join(TEST_DIR, 'test.ts');
     writeFileSync(filePath, 'const x = 1;\nconst y = 2;');
 
+    // Ensure file is available and readable before proceeding
+    ensureFileExists(filePath);
+
     const result = await applyWorkspaceEdit(
       {
         changes: {
@@ -156,7 +131,7 @@ describe.skipIf(!!process.env.CI)('file-editor rollback without backups', () => 
           ],
         },
       },
-      { validateBeforeApply: true }
+      { validateBeforeApply: true, createBackupFiles: false }
     );
 
     expect(result.success).toBe(false);
@@ -167,6 +142,9 @@ describe.skipIf(!!process.env.CI)('file-editor rollback without backups', () => 
   it('should detect same-line inverted character positions', async () => {
     const filePath = join(TEST_DIR, 'test.ts');
     writeFileSync(filePath, 'const x = 1;');
+
+    // Ensure file is available and readable before proceeding
+    ensureFileExists(filePath);
 
     const result = await applyWorkspaceEdit(
       {
@@ -182,7 +160,7 @@ describe.skipIf(!!process.env.CI)('file-editor rollback without backups', () => 
           ],
         },
       },
-      { validateBeforeApply: true }
+      { validateBeforeApply: true, createBackupFiles: false }
     );
 
     expect(result.success).toBe(false);

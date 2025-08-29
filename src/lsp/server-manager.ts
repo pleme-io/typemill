@@ -20,6 +20,13 @@ export class ServerManager {
   }
 
   /**
+   * Get access to the servers map (for workspace operations)
+   */
+  get activeServers(): Map<string, ServerState> {
+    return this.servers;
+  }
+
+  /**
    * Get or start LSP server for a file
    */
   async getServer(filePath: string, config: Config): Promise<ServerState> {

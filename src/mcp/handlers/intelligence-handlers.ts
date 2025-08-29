@@ -1,6 +1,6 @@
 // MCP handlers for LLM agent intelligence features
 import { resolve } from 'node:path';
-import type { LSPClient } from '../../lsp-client.js';
+import type { IntelligenceService } from '../../services/intelligence-service.js';
 import {
   createLimitedSupportResponse,
   createMCPResponse,
@@ -9,7 +9,7 @@ import {
 
 // Handler for get_hover tool
 export async function handleGetHover(
-  lspClient: LSPClient,
+  intelligenceService: IntelligenceService,
   args: { file_path: string; line: number; character: number }
 ) {
   console.error('[DEBUG handleGetHover] Called with args:', args);
@@ -18,8 +18,8 @@ export async function handleGetHover(
   console.error('[DEBUG handleGetHover] Resolved path:', absolutePath);
 
   try {
-    console.error('[DEBUG handleGetHover] Calling lspClient.getHover');
-    const hover = await lspClient.getHover(absolutePath, {
+    console.error('[DEBUG handleGetHover] Calling intelligenceService.getHover');
+    const hover = await intelligenceService.getHover(absolutePath, {
       line: line - 1, // Convert to 0-indexed
       character,
     });
@@ -72,14 +72,14 @@ export async function handleGetHover(
 
 // Handler for get_completions tool
 export async function handleGetCompletions(
-  lspClient: LSPClient,
+  intelligenceService: IntelligenceService,
   args: { file_path: string; line: number; character: number; trigger_character?: string }
 ) {
   const { file_path, line, character, trigger_character } = args;
   const absolutePath = resolve(file_path);
 
   try {
-    const completions = await lspClient.getCompletions(
+    const completions = await intelligenceService.getCompletions(
       absolutePath,
       {
         line: line - 1, // Convert to 0-indexed
@@ -123,7 +123,7 @@ export async function handleGetCompletions(
 
 // Handler for get_inlay_hints tool
 export async function handleGetInlayHints(
-  lspClient: LSPClient,
+  intelligenceService: IntelligenceService,
   args: {
     file_path: string;
     start_line: number;
@@ -136,7 +136,7 @@ export async function handleGetInlayHints(
   const absolutePath = resolve(file_path);
 
   try {
-    const hints = await lspClient.getInlayHints(absolutePath, {
+    const hints = await intelligenceService.getInlayHints(absolutePath, {
       start: {
         line: start_line - 1, // Convert to 0-indexed
         character: start_character,
@@ -177,12 +177,15 @@ export async function handleGetInlayHints(
 }
 
 // Handler for get_semantic_tokens tool
-export async function handleGetSemanticTokens(lspClient: LSPClient, args: { file_path: string }) {
+export async function handleGetSemanticTokens(
+  intelligenceService: IntelligenceService,
+  args: { file_path: string }
+) {
   const { file_path } = args;
   const absolutePath = resolve(file_path);
 
   try {
-    const tokens = await lspClient.getSemanticTokens(absolutePath);
+    const tokens = await intelligenceService.getSemanticTokens(absolutePath);
 
     if (!tokens || !tokens.data || tokens.data.length === 0) {
       return createMCPResponse(`No semantic tokens available for ${file_path}`);
@@ -262,31 +265,14 @@ function getCompletionKindName(kind?: number): string {
 
 // Handler for get_signature_help tool
 export async function handleGetSignatureHelp(
-  lspClient: LSPClient,
+  intelligenceService: IntelligenceService,
   args: { file_path: string; line: number; character: number; trigger_character?: string }
 ) {
   const { file_path, line, character, trigger_character } = args;
   const absolutePath = resolve(file_path);
 
   try {
-    // Check if server supports signature help
-    const validation = await lspClient.validateCapabilities(absolutePath, [
-      'signatureHelpProvider',
-    ]);
-    if (!validation.supported) {
-      return createUnsupportedFeatureResponse(
-        'Signature Help',
-        validation.serverDescription,
-        validation.missing,
-        [
-          'Use hover information to see function documentation',
-          'Check the function definition directly with find_definition',
-          'Look at code completions which may show parameter info',
-        ]
-      );
-    }
-
-    const signatureHelp = await lspClient.getSignatureHelp(
+    const signatureHelp = await intelligenceService.getSignatureHelp(
       absolutePath,
       {
         line: line - 1, // Convert to 0-indexed
@@ -376,12 +362,11 @@ export async function handleGetSignatureHelp(
   } catch (error) {
     // Check if it's a capability-related error
     if (error instanceof Error && error.message.includes('not supported')) {
-      const serverInfo = await lspClient.getCapabilityInfo(absolutePath);
       return createLimitedSupportResponse(
         'Signature Help',
         'Current Language Server',
         'Server may not fully support signature help or the position is not inside a function call',
-        `Server capabilities: ${serverInfo}`
+        'Check server configuration for signature help support'
       );
     }
 

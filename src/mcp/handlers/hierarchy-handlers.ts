@@ -1,19 +1,19 @@
 // MCP handlers for hierarchy and navigation features
 import { resolve } from 'node:path';
-import type { LSPClient } from '../../lsp-client.js';
+import type { HierarchyService } from '../../services/hierarchy-service.js';
 import type { CallHierarchyItem, TypeHierarchyItem } from '../../types.js';
 import { createMCPResponse } from '../utils.js';
 
 // Handler for prepare_call_hierarchy tool
 export async function handlePrepareCallHierarchy(
-  lspClient: LSPClient,
+  hierarchyService: HierarchyService,
   args: { file_path: string; line: number; character: number }
 ) {
   const { file_path, line, character } = args;
   const absolutePath = resolve(file_path);
 
   try {
-    const items = await lspClient.prepareCallHierarchy(absolutePath, {
+    const items = await hierarchyService.prepareCallHierarchy(absolutePath, {
       line: line - 1, // Convert to 0-indexed
       character,
     });
@@ -44,13 +44,13 @@ export async function handlePrepareCallHierarchy(
 
 // Handler for get_call_hierarchy_incoming_calls tool
 export async function handleGetCallHierarchyIncomingCalls(
-  lspClient: LSPClient,
+  hierarchyService: HierarchyService,
   args: { item: CallHierarchyItem }
 ) {
   const { item } = args;
 
   try {
-    const incomingCalls = await lspClient.getCallHierarchyIncomingCalls(item);
+    const incomingCalls = await hierarchyService.getCallHierarchyIncomingCalls(item);
 
     if (incomingCalls.length === 0) {
       return createMCPResponse(`No incoming calls found for ${item.name}`);
@@ -83,13 +83,13 @@ export async function handleGetCallHierarchyIncomingCalls(
 
 // Handler for get_call_hierarchy_outgoing_calls tool
 export async function handleGetCallHierarchyOutgoingCalls(
-  lspClient: LSPClient,
+  hierarchyService: HierarchyService,
   args: { item: CallHierarchyItem }
 ) {
   const { item } = args;
 
   try {
-    const outgoingCalls = await lspClient.getCallHierarchyOutgoingCalls(item);
+    const outgoingCalls = await hierarchyService.getCallHierarchyOutgoingCalls(item);
 
     if (outgoingCalls.length === 0) {
       return createMCPResponse(`No outgoing calls found from ${item.name}`);
@@ -122,14 +122,14 @@ export async function handleGetCallHierarchyOutgoingCalls(
 
 // Handler for prepare_type_hierarchy tool
 export async function handlePrepareTypeHierarchy(
-  lspClient: LSPClient,
+  hierarchyService: HierarchyService,
   args: { file_path: string; line: number; character: number }
 ) {
   const { file_path, line, character } = args;
   const absolutePath = resolve(file_path);
 
   try {
-    const items = await lspClient.prepareTypeHierarchy(absolutePath, {
+    const items = await hierarchyService.prepareTypeHierarchy(absolutePath, {
       line: line - 1, // Convert to 0-indexed
       character,
     });
@@ -160,13 +160,13 @@ export async function handlePrepareTypeHierarchy(
 
 // Handler for get_type_hierarchy_supertypes tool
 export async function handleGetTypeHierarchySupertypes(
-  lspClient: LSPClient,
+  hierarchyService: HierarchyService,
   args: { item: TypeHierarchyItem }
 ) {
   const { item } = args;
 
   try {
-    const supertypes = await lspClient.getTypeHierarchySupertypes(item);
+    const supertypes = await hierarchyService.getTypeHierarchySupertypes(item);
 
     if (supertypes.length === 0) {
       return createMCPResponse(`No supertypes found for ${item.name}`);
@@ -192,13 +192,13 @@ export async function handleGetTypeHierarchySupertypes(
 
 // Handler for get_type_hierarchy_subtypes tool
 export async function handleGetTypeHierarchySubtypes(
-  lspClient: LSPClient,
+  hierarchyService: HierarchyService,
   args: { item: TypeHierarchyItem }
 ) {
   const { item } = args;
 
   try {
-    const subtypes = await lspClient.getTypeHierarchySubtypes(item);
+    const subtypes = await hierarchyService.getTypeHierarchySubtypes(item);
 
     if (subtypes.length === 0) {
       return createMCPResponse(`No subtypes found for ${item.name}`);
@@ -224,7 +224,7 @@ export async function handleGetTypeHierarchySubtypes(
 
 // Handler for get_selection_range tool
 export async function handleGetSelectionRange(
-  lspClient: LSPClient,
+  hierarchyService: HierarchyService,
   args: { file_path: string; positions: Array<{ line: number; character: number }> }
 ) {
   const { file_path, positions } = args;
@@ -236,7 +236,7 @@ export async function handleGetSelectionRange(
       character: pos.character,
     }));
 
-    const selectionRanges = await lspClient.getSelectionRange(absolutePath, lspPositions);
+    const selectionRanges = await hierarchyService.getSelectionRange(absolutePath, lspPositions);
 
     if (selectionRanges.length === 0) {
       return createMCPResponse(

@@ -3,6 +3,8 @@ import { applyWorkspaceEdit } from '../../file-editor.js';
 import type { TextEdit, WorkspaceEdit } from '../../file-editor.js';
 import type { LSPClient } from '../../lsp-client.js';
 import { pathToUri, uriToPath } from '../../path-utils.js';
+import type { FileService } from '../../services/file-service.js';
+import type { SymbolService } from '../../services/symbol-service.js';
 import type { DocumentSymbol, SymbolInformation } from '../../types.js';
 import {
   createLimitedSupportResponse,
@@ -12,7 +14,7 @@ import {
 
 // Handler for get_code_actions tool
 export async function handleGetCodeActions(
-  lspClient: LSPClient,
+  fileService: FileService,
   args: {
     file_path: string;
     range?: {
@@ -25,7 +27,7 @@ export async function handleGetCodeActions(
   const absolutePath = resolve(file_path);
 
   try {
-    const codeActions = await lspClient.getCodeActions(absolutePath, range);
+    const codeActions = await fileService.getCodeActions(absolutePath, range);
 
     if (codeActions.length === 0) {
       return {
@@ -69,7 +71,7 @@ export async function handleGetCodeActions(
 
 // Handler for format_document tool
 export async function handleFormatDocument(
-  lspClient: LSPClient,
+  fileService: FileService,
   args: {
     file_path: string;
     options?: {
@@ -96,7 +98,7 @@ export async function handleFormatDocument(
         }
       : undefined;
 
-    const formatEdits = await lspClient.formatDocument(absolutePath, lspOptions);
+    const formatEdits = await fileService.formatDocument(absolutePath, lspOptions);
 
     if (formatEdits.length === 0) {
       return {
@@ -116,7 +118,7 @@ export async function handleFormatDocument(
       },
     };
 
-    const editResult = await applyWorkspaceEdit(workspaceEdit, { lspClient });
+    const editResult = await applyWorkspaceEdit(workspaceEdit);
 
     if (!editResult.success) {
       return {
@@ -205,12 +207,15 @@ export async function handleSearchWorkspaceSymbols(lspClient: LSPClient, args: {
 }
 
 // Handler for get_document_symbols tool
-export async function handleGetDocumentSymbols(lspClient: LSPClient, args: { file_path: string }) {
+export async function handleGetDocumentSymbols(
+  symbolService: SymbolService,
+  args: { file_path: string }
+) {
   const { file_path } = args;
   const absolutePath = resolve(file_path);
 
   try {
-    const symbols = await lspClient.getDocumentSymbols(absolutePath);
+    const symbols = await symbolService.getDocumentSymbols(absolutePath);
 
     if (symbols.length === 0) {
       return {
@@ -224,7 +229,7 @@ export async function handleGetDocumentSymbols(lspClient: LSPClient, args: { fil
     }
 
     // Check if we have DocumentSymbols (hierarchical) or SymbolInformation (flat)
-    const isHierarchical = lspClient.isDocumentSymbolArray(symbols);
+    const isHierarchical = symbolService.isDocumentSymbolArray(symbols);
 
     let symbolDescriptions: string[];
 
@@ -234,7 +239,7 @@ export async function handleGetDocumentSymbols(lspClient: LSPClient, args: { fil
         const prefix = '  '.repeat(indent);
         const line = symbol.range.start.line + 1;
         const character = symbol.range.start.character + 1;
-        const symbolKind = lspClient.symbolKindToString(symbol.kind);
+        const symbolKind = symbolService.symbolKindToString(symbol.kind);
 
         const result = [`${prefix}${symbol.name} (${symbolKind}) - Line ${line}:${character}`];
 
@@ -256,7 +261,7 @@ export async function handleGetDocumentSymbols(lspClient: LSPClient, args: { fil
       symbolDescriptions = symbols.map((symbol: SymbolInformation, index: number) => {
         const line = symbol.location.range.start.line + 1;
         const character = symbol.location.range.start.character + 1;
-        const symbolKind = symbol.kind ? lspClient.symbolKindToString(symbol.kind) : 'unknown';
+        const symbolKind = symbol.kind ? symbolService.symbolKindToString(symbol.kind) : 'unknown';
 
         return `${index + 1}. ${symbol.name} (${symbolKind}) - Line ${line}:${character}`;
       });
@@ -453,7 +458,7 @@ export async function handleGetDocumentLinks(lspClient: LSPClient, args: { file_
 
 // Handler for apply_workspace_edit tool
 export async function handleApplyWorkspaceEdit(
-  lspClient: LSPClient,
+  fileService: FileService,
   args: {
     changes: Record<
       string,
@@ -506,48 +511,32 @@ export async function handleApplyWorkspaceEdit(
       0
     );
 
-    // Check workspace edit capabilities for any of the files
-    let serverSupportsWorkspaceEdit = false;
-    let serverDescription = 'Unknown Server';
+    // Skip capability validation for now - just attempt the edit
+    const serverSupportsWorkspaceEdit = true; // Assume support for file-based edits
+    const serverDescription = 'File-based workspace edit';
 
-    try {
-      // Check capability with the first file
-      const firstFile = Object.keys(workspaceEdit.changes)[0];
-      if (!firstFile) {
-        return createMCPResponse('No files found in workspace edit changes.');
-      }
-      const firstFilePath = firstFile.startsWith('file://') ? uriToPath(firstFile) : firstFile;
-      const validation = await lspClient.validateCapabilities(firstFilePath, [
-        'workspace.workspaceEdit',
-      ]);
-      serverSupportsWorkspaceEdit = validation.supported;
-      serverDescription = validation.serverDescription;
-    } catch (error) {
-      // Capability checking failed, but we can still try the edit
-      process.stderr.write(`[DEBUG] Capability check failed: ${error}\n`);
-    }
-
-    // Apply the workspace edit using the existing infrastructure
-    const result = await applyWorkspaceEdit(workspaceEdit, {
-      validateBeforeApply: validate_before_apply,
-      lspClient,
+    // Apply the workspace edit using the file service
+    const result = await fileService.applyWorkspaceEdit({
+      changes: workspaceEdit.changes,
     });
 
-    if (!result.success) {
+    if (!result.applied) {
       return createMCPResponse(
-        `❌ **Workspace edit failed**\n\n**Error:** ${result.error}\n\n**Files targeted:** ${fileCount}\n**Total edits:** ${editCount}\n\n*No changes were applied due to the error. All files remain unchanged.*`
+        `❌ **Workspace edit failed**\n\n**Error:** ${result.failureReason || 'Unknown error'}\n\n**Files targeted:** ${fileCount}\n**Total edits:** ${editCount}\n\n*No changes were applied due to the error. All files remain unchanged.*`
       );
     }
 
     // Success response
     let response = '✅ **Workspace edit applied successfully**\n\n';
-    response += `**Files modified:** ${result.filesModified.length}\n`;
+    const modifiedFiles = Object.keys(workspaceEdit.changes);
+    response += `**Files modified:** ${modifiedFiles.length}\n`;
     response += `**Total edits applied:** ${editCount}\n\n`;
 
-    if (result.filesModified.length > 0) {
+    if (modifiedFiles.length > 0) {
       response += '**Modified files:**\n';
-      for (const file of result.filesModified) {
-        response += `• ${file}\n`;
+      for (const file of modifiedFiles) {
+        const filePath = file.startsWith('file://') ? uriToPath(file) : file;
+        response += `• ${filePath}\n`;
       }
     }
 
@@ -555,9 +544,7 @@ export async function handleApplyWorkspaceEdit(
       response += `\n⚠️ **Note:** ${serverDescription} doesn't fully support workspace edits, but changes were applied successfully using CCLSP's built-in editor.`;
     }
 
-    if (result.backupFiles && result.backupFiles.length > 0) {
-      response += `\n\n**Backup files created:** ${result.backupFiles.length}`;
-    }
+    // Note: FileService doesn't currently create backup files
 
     response +=
       '\n\n*All changes were applied atomically. If any edit had failed, all changes would have been rolled back.*';

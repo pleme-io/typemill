@@ -4,7 +4,8 @@ import { resolve } from 'node:path';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { LSPClient } from './src/lsp-client.js';
+import { LSPClient as OldLSPClient } from './src/lsp-client.js';
+import { LSPClient as NewLSPClient } from './src/lsp/client.js';
 import { allToolDefinitions } from './src/mcp/definitions/index.js';
 import type {
   ApplyWorkspaceEditArgs,
@@ -67,6 +68,11 @@ import {
   handleSearchWorkspaceSymbols,
 } from './src/mcp/handlers/index.js';
 import { createMCPError } from './src/mcp/utils.js';
+import { DiagnosticService } from './src/services/diagnostic-service.js';
+import { FileService } from './src/services/file-service.js';
+import { HierarchyService } from './src/services/hierarchy-service.js';
+import { IntelligenceService } from './src/services/intelligence-service.js';
+import { SymbolService } from './src/services/symbol-service.js';
 
 // Handle subcommands
 const args = process.argv.slice(2);
@@ -87,7 +93,20 @@ if (args.length > 0) {
   }
 }
 
-const lspClient = new LSPClient();
+// Create new LSP client and initialize services
+const newLspClient = new NewLSPClient();
+const getServer = (filePath: string) => newLspClient.getServer(filePath);
+const protocol = newLspClient.protocol;
+
+// Initialize services with LSP components
+const symbolService = new SymbolService(getServer, protocol);
+const fileService = new FileService(getServer, protocol);
+const diagnosticService = new DiagnosticService(getServer, protocol);
+const intelligenceService = new IntelligenceService(getServer, protocol);
+const hierarchyService = new HierarchyService(getServer, protocol);
+
+// Temporary: Keep old LSP client for handlers that haven't been refactored yet
+const oldLspClient = new OldLSPClient();
 
 const server = new Server(
   {
@@ -115,84 +134,105 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     switch (name) {
       case 'find_definition':
-        return await handleFindDefinition(lspClient, args as unknown as FindDefinitionArgs);
+        return await handleFindDefinition(symbolService, args as unknown as FindDefinitionArgs);
       case 'find_references':
-        return await handleFindReferences(lspClient, args as unknown as FindReferencesArgs);
+        return await handleFindReferences(symbolService, args as unknown as FindReferencesArgs);
       case 'rename_symbol':
-        return await handleRenameSymbol(lspClient, args as unknown as RenameSymbolArgs);
+        return await handleRenameSymbol(symbolService, args as unknown as RenameSymbolArgs);
       case 'rename_symbol_strict':
-        return await handleRenameSymbolStrict(lspClient, args as unknown as RenameSymbolStrictArgs);
+        return await handleRenameSymbolStrict(
+          symbolService,
+          args as unknown as RenameSymbolStrictArgs
+        );
       case 'get_code_actions':
-        return await handleGetCodeActions(lspClient, args as unknown as GetCodeActionsArgs);
+        return await handleGetCodeActions(fileService, args as unknown as GetCodeActionsArgs);
       case 'format_document':
-        return await handleFormatDocument(lspClient, args as unknown as FormatDocumentArgs);
+        return await handleFormatDocument(fileService, args as unknown as FormatDocumentArgs);
       case 'search_workspace_symbols':
         return await handleSearchWorkspaceSymbols(
-          lspClient,
+          oldLspClient,
           args as unknown as SearchWorkspaceSymbolsArgs
         );
       case 'get_document_symbols':
-        return await handleGetDocumentSymbols(lspClient, args as unknown as GetDocumentSymbolsArgs);
+        return await handleGetDocumentSymbols(
+          symbolService,
+          args as unknown as GetDocumentSymbolsArgs
+        );
       case 'get_folding_ranges':
-        return await handleGetFoldingRanges(lspClient, args as unknown as GetFoldingRangesArgs);
+        return await handleGetFoldingRanges(oldLspClient, args as unknown as GetFoldingRangesArgs);
       case 'get_document_links':
-        return await handleGetDocumentLinks(lspClient, args as unknown as GetDocumentLinksArgs);
+        return await handleGetDocumentLinks(oldLspClient, args as unknown as GetDocumentLinksArgs);
       case 'get_diagnostics':
-        return await handleGetDiagnostics(lspClient, args as unknown as GetDiagnosticsArgs);
+        return await handleGetDiagnostics(diagnosticService, args as unknown as GetDiagnosticsArgs);
       case 'restart_server':
-        return await handleRestartServer(lspClient, args as unknown as RestartServerArgs);
+        return await handleRestartServer(oldLspClient, args as unknown as RestartServerArgs);
       case 'rename_file':
-        return await handleRenameFile(lspClient, args as unknown as RenameFileArgs);
+        return await handleRenameFile(oldLspClient, args as unknown as RenameFileArgs);
       // Intelligence tools
       case 'get_hover':
-        return await handleGetHover(lspClient, args as unknown as GetHoverArgs);
+        return await handleGetHover(intelligenceService, args as unknown as GetHoverArgs);
       case 'get_completions':
-        return await handleGetCompletions(lspClient, args as unknown as GetCompletionsArgs);
+        return await handleGetCompletions(
+          intelligenceService,
+          args as unknown as GetCompletionsArgs
+        );
       case 'get_inlay_hints':
-        return await handleGetInlayHints(lspClient, args as unknown as GetInlayHintsArgs);
+        return await handleGetInlayHints(intelligenceService, args as unknown as GetInlayHintsArgs);
       case 'get_semantic_tokens':
-        return await handleGetSemanticTokens(lspClient, args as unknown as GetSemanticTokensArgs);
+        return await handleGetSemanticTokens(
+          intelligenceService,
+          args as unknown as GetSemanticTokensArgs
+        );
       case 'get_signature_help':
-        return await handleGetSignatureHelp(lspClient, args as unknown as GetSignatureHelpArgs);
+        return await handleGetSignatureHelp(
+          intelligenceService,
+          args as unknown as GetSignatureHelpArgs
+        );
       // Hierarchy tools
       case 'prepare_call_hierarchy':
         return await handlePrepareCallHierarchy(
-          lspClient,
+          hierarchyService,
           args as unknown as PrepareCallHierarchyArgs
         );
       case 'get_call_hierarchy_incoming_calls':
         return await handleGetCallHierarchyIncomingCalls(
-          lspClient,
+          hierarchyService,
           args as unknown as GetCallHierarchyIncomingCallsArgs
         );
       case 'get_call_hierarchy_outgoing_calls':
         return await handleGetCallHierarchyOutgoingCalls(
-          lspClient,
+          hierarchyService,
           args as unknown as GetCallHierarchyOutgoingCallsArgs
         );
       case 'prepare_type_hierarchy':
         return await handlePrepareTypeHierarchy(
-          lspClient,
+          hierarchyService,
           args as unknown as PrepareTypeHierarchyArgs
         );
       case 'get_type_hierarchy_supertypes':
         return await handleGetTypeHierarchySupertypes(
-          lspClient,
+          hierarchyService,
           args as unknown as GetTypeHierarchySupertypesArgs
         );
       case 'get_type_hierarchy_subtypes':
         return await handleGetTypeHierarchySubtypes(
-          lspClient,
+          hierarchyService,
           args as unknown as GetTypeHierarchySubtypesArgs
         );
       case 'get_selection_range':
-        return await handleGetSelectionRange(lspClient, args as unknown as GetSelectionRangeArgs);
+        return await handleGetSelectionRange(
+          hierarchyService,
+          args as unknown as GetSelectionRangeArgs
+        );
       case 'apply_workspace_edit':
-        return await handleApplyWorkspaceEdit(lspClient, args as unknown as ApplyWorkspaceEditArgs);
+        return await handleApplyWorkspaceEdit(
+          fileService,
+          args as unknown as ApplyWorkspaceEditArgs
+        );
       case 'create_file':
-        return await handleCreateFile(lspClient, args as unknown as CreateFileArgs);
+        return await handleCreateFile(oldLspClient, args as unknown as CreateFileArgs);
       case 'delete_file':
-        return await handleDeleteFile(lspClient, args as unknown as DeleteFileArgs);
+        return await handleDeleteFile(oldLspClient, args as unknown as DeleteFileArgs);
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -202,12 +242,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 process.on('SIGINT', () => {
-  lspClient.dispose();
+  newLspClient.dispose();
+  oldLspClient.dispose();
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
-  lspClient.dispose();
+  newLspClient.dispose();
+  oldLspClient.dispose();
   process.exit(0);
 });
 
@@ -219,7 +261,8 @@ async function main() {
   // Preload LSP servers for file types found in the project
   try {
     process.stderr.write('Starting LSP server preload...\n');
-    await lspClient.preloadServers();
+    // Use old client for preloading since it has the full preload functionality
+    await oldLspClient.preloadServers();
     process.stderr.write('LSP servers preloaded successfully\n');
   } catch (error) {
     process.stderr.write(`Failed to preload LSP servers: ${error}\n`);
@@ -228,6 +271,7 @@ async function main() {
 
 main().catch((error) => {
   process.stderr.write(`Server error: ${error}\n`);
-  lspClient.dispose();
+  newLspClient.dispose();
+  oldLspClient.dispose();
   process.exit(1);
 });

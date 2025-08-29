@@ -1,20 +1,32 @@
 # CCLSP Test Suite
 
-This directory contains the organized test suite for CCLSP's MCP (Model Context Protocol) server implementation.
+This directory contains the comprehensive test suite for CCLSP's MCP (Model Context Protocol) server implementation.
 
 ## 📁 Test Structure
 
 ```
 tests/
-├── core/                 # Core functionality tests
+├── core/                 # Core functionality tests (4 files)
 │   ├── quick.test.ts     # Quick validation (5 tools, ~10s)
 │   ├── comprehensive.test.ts   # All 23 tools test (~60s)
 │   ├── intelligence.test.ts    # Intelligence features focus
 │   └── playground.test.ts      # Playground validation
-├── unit/                 # Unit and integration tests
-│   ├── handlers.test.ts   # Direct handler testing
-│   ├── lsp-client.test.ts # LSP client integration
-│   └── restart-server.test.ts  # Server restart timing
+├── unit/                 # Unit tests with logical organization (11 files)
+│   ├── handlers/         # MCP handler tests
+│   │   └── handlers.test.ts    # Direct handler testing
+│   ├── file-operations/  # File system operation tests
+│   │   ├── file-editor.test.ts       # File editing operations
+│   │   ├── file-editor-rollback.test.ts  # Edit rollback scenarios
+│   │   └── file-editor-symlink.test.ts   # Symlink handling
+│   ├── get-diagnostics.test.ts     # Diagnostic formatting & edge cases
+│   ├── mcp-tools.test.ts           # MCP tool index conversion (0-based/1-based)
+│   ├── multi-position.test.ts      # Position fallback logic testing
+│   ├── progress-tracking.test.ts   # Progress notification system
+│   ├── restart-server.test.ts      # Server restart timing
+│   ├── server-lifecycle.test.ts    # LSP server lifecycle management
+│   └── server-management.test.ts   # Server management operations
+├── integration/          # Integration tests (1 file)
+│   └── lsp-client.test.ts         # LSP client integration
 └── helpers/
     └── mcp-test-client.ts  # Shared MCP testing utilities
 ```
@@ -88,25 +100,32 @@ npm run test:mcp:restart    # Test server restart functionality
   - Symbol references
   - Document outline
 
-### Unit Tests (`/unit`)
+### Unit Tests (`/unit` - 11 files)
 
-#### `handlers.test.ts` 🔧
-- **Purpose**: Direct MCP handler testing
-- **Type**: Unit test (bypasses MCP protocol)
-- **Tests**: Handler functions directly
-- **Coverage**: File operations, workspace edits, folding
+#### Handler Testing (`handlers/`)
+- **`handlers.test.ts`** 🔧 - Direct MCP handler testing with improved assertions
+
+#### File Operations (`file-operations/`)  
+- **`file-editor.test.ts`** 📝 - Core file editing operations
+- **`file-editor-rollback.test.ts`** ↩️ - Edit rollback and error recovery
+- **`file-editor-symlink.test.ts`** 🔗 - Symlink handling edge cases
+
+#### Core Unit Tests
+- **`get-diagnostics.test.ts`** 🩺 - Diagnostic severity mapping & formatting edge cases
+- **`mcp-tools.test.ts`** 🔢 - Critical 0-based/1-based index conversion testing
+- **`multi-position.test.ts`** 🎯 - Position fallback logic when definitions aren't found
+- **`progress-tracking.test.ts`** 📊 - Progress notification system validation
+- **`restart-server.test.ts`** 🔄 - Server restart timing (~700ms typical)
+- **`server-lifecycle.test.ts`** ♻️ - LSP server process lifecycle management
+- **`server-management.test.ts`** ⚙️ - Server configuration and management
+
+### Integration Tests (`/integration` - 1 file)
 
 #### `lsp-client.test.ts` 🔗
 - **Purpose**: LSP client integration testing
-- **Type**: Integration test
-- **Tests**: Direct LSP client functionality
-- **Coverage**: Folding ranges, document links, symbols
-
-#### `restart-server.test.ts` 🔄
-- **Purpose**: Server restart functionality and timing
-- **Type**: Specialized test
-- **Tests**: Server restart with detailed timing
-- **Duration**: Measures restart performance (~700ms typical)
+- **Type**: Full integration test
+- **Tests**: Direct LSP client functionality across file types
+- **Coverage**: Folding ranges, document links, symbols, multi-language support
 
 ## 🎯 Test Philosophy
 
@@ -177,9 +196,17 @@ npm run test:mcp:restart    # Test server restart functionality
 
 ## 📝 Historical Note
 
-This test suite was reorganized in December 2024, consolidating 33+ scattered test files into 7 well-organized, purposeful tests. The reorganization removed:
-- 15 debug artifacts from troubleshooting sessions
-- 11 duplicate or superseded tests
-- Various experimental and one-off test scripts
+This test suite has evolved through multiple reorganizations:
 
-The current structure represents the minimal, complete test coverage needed for CCLSP validation.
+**December 2024**: Consolidated 33+ scattered test files into 7 well-organized tests
+- Removed 15 debug artifacts from troubleshooting sessions  
+- Removed 11 duplicate or superseded tests
+- Eliminated experimental and one-off test scripts
+
+**August 2025**: Expanded to 17 comprehensive tests with logical organization
+- **Growth rationale**: Each test serves distinct, complementary purposes
+- **Quality improvements**: Enhanced assertions, better error handling
+- **Structural organization**: Logical subdirectories (handlers/, file-operations/, integration/)
+- **Coverage expansion**: Added edge case testing, lifecycle management, and index conversion validation
+
+The current 17-file structure represents comprehensive, non-redundant test coverage with each test serving a specific, validated purpose for CCLSP functionality.

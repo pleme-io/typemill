@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { applyWorkspaceEdit } from '../../src/file-editor.js';
 import { pathToUri } from '../../src/path-utils.js';
+import { cleanupTestDir, createTestDir } from './test-helpers.js';
 
 // Check if symlinks are supported in this environment
 function canCreateSymlinks(): boolean {
@@ -76,24 +77,17 @@ async function robustReadThroughSymlink(link: string): Promise<string> {
   return readFileSync(link, 'utf-8');
 }
 
-const TEST_DIR = process.env.CI
-  ? `${process.cwd()}/test-tmp/file-editor-symlink-test`
-  : '/tmp/file-editor-symlink-test';
+let TEST_DIR: string;
 
 describe.skipIf(!canCreateSymlinks() || !!process.env.CI)('file-editor symlink handling', () => {
   beforeEach(() => {
-    // Clean up and create test directory
-    if (existsSync(TEST_DIR)) {
-      rmSync(TEST_DIR, { recursive: true, force: true });
-    }
-    mkdirSync(TEST_DIR, { recursive: true });
+    // Create a unique test directory for each test
+    TEST_DIR = createTestDir('file-editor-symlink-test');
   });
 
   afterEach(() => {
     // Clean up test directory
-    if (existsSync(TEST_DIR)) {
-      rmSync(TEST_DIR, { recursive: true, force: true });
-    }
+    cleanupTestDir(TEST_DIR);
   });
 
   it('should edit the target file without replacing the symlink', async () => {

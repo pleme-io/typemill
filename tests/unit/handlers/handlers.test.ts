@@ -3,6 +3,11 @@ import { existsSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { LSPClient } from '../../src/lsp-client.js';
+import { LSPClient as NewLSPClient } from '../../src/lsp/client.js';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { FileService } from '../../src/services/file-service.js';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { IntelligenceService } from '../../src/services/intelligence-service.js';
 
 interface MCPResponse {
   content: Array<{
@@ -20,8 +25,14 @@ import { handleCreateFile, handleDeleteFile } from '../../src/mcp/handlers/utili
 
 describe('MCP Handlers Unit Tests', () => {
   let lspClient: LSPClient;
+  let fileService: FileService;
+  let intelligenceService: IntelligenceService;
   const testDir = '/workspace/plugins/cclsp/playground';
-  const testFile = join(testDir, 'src/handler-created.ts');
+  const testFileBase = 'handler-created';
+  const testFile = join(
+    testDir,
+    `src/${testFileBase}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.ts`
+  );
 
   beforeAll(() => {
     console.log('🎯 Direct Handler Test');
@@ -30,6 +41,13 @@ describe('MCP Handlers Unit Tests', () => {
     // Set up LSP client
     process.env.CCLSP_CONFIG_PATH = join('/workspace/plugins/cclsp', 'cclsp.json');
     lspClient = new LSPClient();
+
+    // Create services for handlers that need them
+    const newLspClient = new NewLSPClient();
+    const getServerWrapper = (filePath: string) => newLspClient.getServer(filePath);
+    const protocol = newLspClient.protocol;
+    fileService = new FileService(getServerWrapper, protocol);
+    intelligenceService = new IntelligenceService(getServerWrapper, protocol);
   });
 
   afterAll(async () => {
@@ -57,6 +75,7 @@ describe('MCP Handlers Unit Tests', () => {
 
       expect(result).toBeDefined();
       expect(result.content).toBeDefined();
+      expect(result.content[0].text).toMatch(/folding|range|Found \d+/i);
     });
 
     it('should handle getDocumentLinks', async () => {
@@ -74,13 +93,14 @@ describe('MCP Handlers Unit Tests', () => {
 
       expect(result).toBeDefined();
       expect(result.content).toBeDefined();
+      expect(result.content[0].text).toMatch(/link|import|export|Found \d+/i);
     });
 
     it('should handle applyWorkspaceEdit', async () => {
       console.log('📝 Testing handleApplyWorkspaceEdit...');
 
       // Create a validation-only edit
-      const result = (await handleApplyWorkspaceEdit(lspClient, {
+      const result = (await handleApplyWorkspaceEdit(fileService, {
         changes: {
           [join(testDir, 'src/test-file.ts')]: [
             {
@@ -101,12 +121,20 @@ describe('MCP Handlers Unit Tests', () => {
 
       expect(result).toBeDefined();
       expect(result.content).toBeDefined();
+      expect(result.content[0].text).toMatch(/applied|validated|workspace|edit/i);
     });
   });
 
   describe('Utility Handlers', () => {
     it('should handle createFile', async () => {
       console.log('📝 Testing handleCreateFile...');
+
+      // Ensure parent directory exists
+      const parentDir = join(testDir, 'src');
+      if (!existsSync(parentDir)) {
+        const { mkdirSync } = await import('node:fs');
+        mkdirSync(parentDir, { recursive: true });
+      }
 
       // Remove if exists
       if (existsSync(testFile)) {
@@ -126,6 +154,7 @@ describe('MCP Handlers Unit Tests', () => {
 
       expect(result).toBeDefined();
       expect(result.content).toBeDefined();
+      expect(result.content[0].text).toMatch(/created|file|success/i);
       expect(existsSync(testFile)).toBe(true);
     });
 
@@ -153,6 +182,7 @@ describe('MCP Handlers Unit Tests', () => {
 
       expect(result).toBeDefined();
       expect(result.content).toBeDefined();
+      expect(result.content[0].text).toMatch(/deleted|removed|file|success/i);
       expect(existsSync(testFile)).toBe(false);
     });
   });
@@ -162,7 +192,7 @@ describe('MCP Handlers Unit Tests', () => {
       console.log('✍️ Testing handleGetSignatureHelp...');
 
       try {
-        const result = (await handleGetSignatureHelp(lspClient, {
+        const result = (await handleGetSignatureHelp(intelligenceService, {
           file_path: join(testDir, 'src/test-file.ts'),
           line: 14,
           character: 20,
@@ -178,10 +208,10 @@ describe('MCP Handlers Unit Tests', () => {
 
         expect(result).toBeDefined();
         expect(result.content).toBeDefined();
+        expect(result.content[0].text).toMatch(/signature|parameter|function|method/i);
       } catch (error: unknown) {
         console.log('⚠️ handleGetSignatureHelp: No signature available at position');
-        // This is expected for some positions
-        expect(true).toBe(true);
+        // This is expected for some positions - no assertion needed
       }
     });
   });
@@ -224,7 +254,7 @@ describe('MCP Handlers Unit Tests', () => {
       {
         name: 'handleGetSignatureHelp',
         handler: () =>
-          handleGetSignatureHelp(lspClient, {
+          handleGetSignatureHelp(intelligenceService, {
             file_path: join(testDir, 'src/test-file.ts'),
             line: 14,
             character: 20,

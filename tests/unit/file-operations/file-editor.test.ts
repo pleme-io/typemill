@@ -3,25 +3,19 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { join } from 'node:path';
 import { applyWorkspaceEdit, cleanupBackups } from '../../src/file-editor.js';
 import { pathToUri } from '../../src/path-utils.js';
+import { cleanupTestDir, createTestDir } from './test-helpers.js';
 
-const TEST_DIR = process.env.RUNNER_TEMP
-  ? `${process.env.RUNNER_TEMP}/file-editor-test`
-  : '/tmp/file-editor-test';
+let TEST_DIR: string;
 
 describe('file-editor', () => {
   beforeEach(() => {
-    // Clean up and create test directory
-    if (existsSync(TEST_DIR)) {
-      rmSync(TEST_DIR, { recursive: true, force: true });
-    }
-    mkdirSync(TEST_DIR, { recursive: true });
+    // Create a unique test directory for each test
+    TEST_DIR = createTestDir('file-editor-test');
   });
 
   afterEach(() => {
     // Clean up test directory
-    if (existsSync(TEST_DIR)) {
-      rmSync(TEST_DIR, { recursive: true, force: true });
-    }
+    cleanupTestDir(TEST_DIR);
   });
 
   describe('applyWorkspaceEdit', () => {

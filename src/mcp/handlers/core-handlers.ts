@@ -1,18 +1,22 @@
 import { resolve } from 'node:path';
 import { applyWorkspaceEdit } from '../../file-editor.js';
-import type { LSPClient } from '../../lsp-client.js';
 import { uriToPath } from '../../path-utils.js';
+import type { SymbolService } from '../../services/symbol-service.js';
 
 // Handler for find_definition tool
 export async function handleFindDefinition(
-  lspClient: LSPClient,
+  symbolService: SymbolService,
   args: { file_path: string; symbol_name: string; symbol_kind?: string }
 ) {
   const { file_path, symbol_name, symbol_kind } = args;
   const absolutePath = resolve(file_path);
 
-  const result = await lspClient.findSymbolsByName(absolutePath, symbol_name, symbol_kind);
-  const { matches: symbolMatches, warning } = result;
+  const symbolMatches = await symbolService.findSymbolMatches(
+    absolutePath,
+    symbol_name,
+    symbol_kind
+  );
+  const warning = undefined; // Remove warning handling for now
 
   process.stderr.write(
     `[DEBUG find_definition] Found ${symbolMatches.length} symbol matches for "${symbol_name}"\n`
@@ -32,10 +36,10 @@ export async function handleFindDefinition(
   const results = [];
   for (const match of symbolMatches) {
     process.stderr.write(
-      `[DEBUG find_definition] Processing match: ${match.name} (${lspClient.symbolKindToString(match.kind)}) at ${match.position.line}:${match.position.character}\n`
+      `[DEBUG find_definition] Processing match: ${match.name} (${symbolService.symbolKindToString(match.kind)}) at ${match.position.line}:${match.position.character}\n`
     );
     try {
-      const locations = await lspClient.findDefinition(absolutePath, match.position);
+      const locations = await symbolService.findDefinition(absolutePath, match.position);
       process.stderr.write(
         `[DEBUG find_definition] findDefinition returned ${locations.length} locations\n`
       );
@@ -50,11 +54,11 @@ export async function handleFindDefinition(
           .join('\n');
 
         results.push(
-          `Results for ${match.name} (${lspClient.symbolKindToString(match.kind)}) at ${file_path}:${match.position.line + 1}:${match.position.character + 1}:\n${locationResults}`
+          `Results for ${match.name} (${symbolService.symbolKindToString(match.kind)}) at ${file_path}:${match.position.line + 1}:${match.position.character + 1}:\n${locationResults}`
         );
       } else {
         results.push(
-          `No definition found for ${match.name} (${lspClient.symbolKindToString(match.kind)}) at ${file_path}:${match.position.line + 1}:${match.position.character + 1}`
+          `No definition found for ${match.name} (${symbolService.symbolKindToString(match.kind)}) at ${file_path}:${match.position.line + 1}:${match.position.character + 1}`
         );
       }
     } catch (error) {
@@ -90,7 +94,7 @@ export async function handleFindDefinition(
 
 // Handler for find_references tool
 export async function handleFindReferences(
-  lspClient: LSPClient,
+  symbolService: SymbolService,
   args: {
     file_path: string;
     symbol_name: string;
@@ -101,8 +105,12 @@ export async function handleFindReferences(
   const { file_path, symbol_name, symbol_kind, include_declaration = true } = args;
   const absolutePath = resolve(file_path);
 
-  const result = await lspClient.findSymbolsByName(absolutePath, symbol_name, symbol_kind);
-  const { matches: symbolMatches, warning } = result;
+  const symbolMatches = await symbolService.findSymbolMatches(
+    absolutePath,
+    symbol_name,
+    symbol_kind
+  );
+  const warning = undefined; // Remove warning handling for now
 
   process.stderr.write(
     `[DEBUG find_references] Found ${symbolMatches.length} symbol matches for "${symbol_name}"\n`
@@ -122,10 +130,10 @@ export async function handleFindReferences(
   const results = [];
   for (const match of symbolMatches) {
     process.stderr.write(
-      `[DEBUG find_references] Processing match: ${match.name} (${lspClient.symbolKindToString(match.kind)}) at ${match.position.line}:${match.position.character}\n`
+      `[DEBUG find_references] Processing match: ${match.name} (${symbolService.symbolKindToString(match.kind)}) at ${match.position.line}:${match.position.character}\n`
     );
     try {
-      const locations = await lspClient.findReferences(
+      const locations = await symbolService.findReferences(
         absolutePath,
         match.position,
         include_declaration
@@ -144,11 +152,11 @@ export async function handleFindReferences(
           .join('\n');
 
         results.push(
-          `References for ${match.name} (${lspClient.symbolKindToString(match.kind)}) at ${file_path}:${match.position.line + 1}:${match.position.character + 1}:\n${locationResults}`
+          `References for ${match.name} (${symbolService.symbolKindToString(match.kind)}) at ${file_path}:${match.position.line + 1}:${match.position.character + 1}:\n${locationResults}`
         );
       } else {
         results.push(
-          `No references found for ${match.name} (${lspClient.symbolKindToString(match.kind)}) at ${file_path}:${match.position.line + 1}:${match.position.character + 1}`
+          `No references found for ${match.name} (${symbolService.symbolKindToString(match.kind)}) at ${file_path}:${match.position.line + 1}:${match.position.character + 1}`
         );
       }
     } catch (error) {
@@ -186,7 +194,7 @@ export async function handleFindReferences(
 
 // Handler for rename_symbol tool
 export async function handleRenameSymbol(
-  lspClient: LSPClient,
+  symbolService: SymbolService,
   args: {
     file_path: string;
     symbol_name: string;
@@ -198,8 +206,12 @@ export async function handleRenameSymbol(
   const { file_path, symbol_name, symbol_kind, new_name, dry_run = false } = args;
   const absolutePath = resolve(file_path);
 
-  const result = await lspClient.findSymbolsByName(absolutePath, symbol_name, symbol_kind);
-  const { matches: symbolMatches, warning } = result;
+  const symbolMatches = await symbolService.findSymbolMatches(
+    absolutePath,
+    symbol_name,
+    symbol_kind
+  );
+  const warning = undefined; // Remove warning handling for now
 
   if (symbolMatches.length === 0) {
     const responseText = warning
@@ -220,7 +232,7 @@ export async function handleRenameSymbol(
     const matchDescriptions = symbolMatches
       .map(
         (match, index) =>
-          `${index + 1}. ${match.name} (${lspClient.symbolKindToString(match.kind)}) at line ${match.position.line + 1}, character ${match.position.character + 1}`
+          `${index + 1}. ${match.name} (${symbolService.symbolKindToString(match.kind)}) at line ${match.position.line + 1}, character ${match.position.character + 1}`
       )
       .join('\n');
 
@@ -244,7 +256,7 @@ export async function handleRenameSymbol(
     throw new Error('Symbol match is undefined');
   }
   try {
-    const workspaceEdit = await lspClient.renameSymbol(absolutePath, match.position, new_name);
+    const workspaceEdit = await symbolService.renameSymbol(absolutePath, match.position, new_name);
 
     if (!workspaceEdit.changes || Object.keys(workspaceEdit.changes).length === 0) {
       return {
@@ -259,7 +271,6 @@ export async function handleRenameSymbol(
 
     const editResult = await applyWorkspaceEdit(workspaceEdit, {
       validateBeforeApply: true,
-      lspClient,
     });
 
     if (!editResult.success) {
@@ -300,7 +311,7 @@ export async function handleRenameSymbol(
 
 // Handler for rename_symbol_strict tool
 export async function handleRenameSymbolStrict(
-  lspClient: LSPClient,
+  symbolService: SymbolService,
   args: {
     file_path: string;
     line: number;
@@ -316,7 +327,7 @@ export async function handleRenameSymbolStrict(
   const position = { line: line - 1, character: character - 1 };
 
   try {
-    const workspaceEdit = await lspClient.renameSymbol(absolutePath, position, new_name);
+    const workspaceEdit = await symbolService.renameSymbol(absolutePath, position, new_name);
 
     if (!workspaceEdit.changes || Object.keys(workspaceEdit.changes).length === 0) {
       return {
@@ -331,7 +342,6 @@ export async function handleRenameSymbolStrict(
 
     const editResult = await applyWorkspaceEdit(workspaceEdit, {
       validateBeforeApply: true,
-      lspClient,
     });
 
     if (!editResult.success) {

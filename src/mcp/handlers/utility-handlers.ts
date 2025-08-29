@@ -3,14 +3,18 @@ import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { dirname } from 'node:path';
 import type { LSPClient } from '../../lsp-client.js';
+import type { DiagnosticService } from '../../services/diagnostic-service.js';
 
 // Handler for get_diagnostics tool
-export async function handleGetDiagnostics(lspClient: LSPClient, args: { file_path: string }) {
+export async function handleGetDiagnostics(
+  diagnosticService: DiagnosticService,
+  args: { file_path: string }
+) {
   const { file_path } = args;
   const absolutePath = resolve(file_path);
 
   try {
-    const diagnostics = await lspClient.getDiagnostics(absolutePath);
+    const diagnostics = await diagnosticService.getDiagnostics(absolutePath);
 
     if (diagnostics.length === 0) {
       return {
@@ -166,7 +170,7 @@ export async function handleRenameFile(
 
 // Handler for create_file tool
 export async function handleCreateFile(
-  lspClient: LSPClient,
+  _lspClient: LSPClient, // unused - kept for interface compatibility
   args: {
     file_path: string;
     content?: string;
@@ -224,7 +228,7 @@ export async function handleCreateFile(
 
 // Handler for delete_file tool
 export async function handleDeleteFile(
-  lspClient: LSPClient,
+  _lspClient: LSPClient, // unused - kept for interface compatibility
   args: {
     file_path: string;
     force?: boolean;

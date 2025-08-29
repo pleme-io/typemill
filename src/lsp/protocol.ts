@@ -91,7 +91,19 @@ export class LSPProtocol {
       this.pendingRequests.delete(message.id);
 
       if (message.error) {
-        reject(new Error(message.error.message || 'LSP Error'));
+        // Check if this is a "method not found" error (LSP error code -32601)
+        // or if the error message indicates an unhandled/unsupported method
+        if (
+          message.error.code === -32601 ||
+          message.error.message?.toLowerCase().includes('unhandled method') ||
+          message.error.message?.toLowerCase().includes('method not found')
+        ) {
+          // For unsupported methods, resolve with null instead of rejecting
+          resolve(null);
+        } else {
+          // For actual LSP errors, reject as before
+          reject(new Error(message.error.message || 'LSP Error'));
+        }
       } else {
         resolve(message.result);
       }

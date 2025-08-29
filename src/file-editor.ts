@@ -49,13 +49,19 @@ export async function applyWorkspaceEdit(
   workspaceEdit: WorkspaceEdit,
   options: {
     validateBeforeApply?: boolean;
+    createBackupFiles?: boolean;
     lspClient?: LSPClient;
   } = {}
 ): Promise<ApplyEditResult> {
-  const { validateBeforeApply = true, lspClient } = options;
+  const {
+    validateBeforeApply = true,
+    createBackupFiles = validateBeforeApply,
+    lspClient,
+  } = options;
 
   const backups: FileBackup[] = [];
   const filesModified: string[] = [];
+  const backupFilePaths: string[] = [];
 
   if (!workspaceEdit.changes || Object.keys(workspaceEdit.changes).length === 0) {
     return {
@@ -127,6 +133,13 @@ export async function applyWorkspaceEdit(
 
       backups.push(backup);
 
+      // Create backup file if createBackupFiles is true
+      if (createBackupFiles) {
+        const backupPath = `${originalPath}.bak`;
+        writeFileSync(backupPath, originalContent, 'utf-8');
+        backupFilePaths.push(backupPath);
+      }
+
       // Apply edits to the file content
       const modifiedContent = applyEditsToContent(originalContent, edits, validateBeforeApply);
 
@@ -160,7 +173,7 @@ export async function applyWorkspaceEdit(
     return {
       success: true,
       filesModified,
-      backupFiles: [],
+      backupFiles: backupFilePaths,
     };
   } catch (error) {
     // Rollback: restore original files from backups
@@ -176,7 +189,7 @@ export async function applyWorkspaceEdit(
     return {
       success: false,
       filesModified: [],
-      backupFiles: [],
+      backupFiles: backupFilePaths,
       error: error instanceof Error ? error.message : String(error),
     };
   }

@@ -1,14 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { capabilityManager } from './capability-manager.js';
 import { scanDirectoryForExtensions } from './file-scanner.js';
-import * as HierarchyMethods from './lsp-methods/hierarchy-methods.js';
-import * as IntelligenceMethods from './lsp-methods/intelligence-methods.js';
 import type { ServerState } from './lsp-types.js';
 import { LSPClient as NewLSPClient } from './lsp/client.js';
 import type { LSPProtocol } from './lsp/protocol.js';
 import type { ServerManager } from './lsp/server-manager.js';
 import { DiagnosticService } from './services/diagnostic-service.js';
 import { FileService } from './services/file-service.js';
+import { HierarchyService } from './services/hierarchy-service.js';
+import { IntelligenceService } from './services/intelligence-service.js';
 import { SymbolService } from './services/symbol-service.js';
 import type {
   CodeAction,
@@ -35,6 +35,8 @@ export class LSPClient {
   private symbolService: SymbolService;
   private fileService: FileService;
   private diagnosticService: DiagnosticService;
+  private intelligenceService: IntelligenceService;
+  private hierarchyService: HierarchyService;
 
   constructor(configPath?: string) {
     this.newClient = new NewLSPClient(configPath);
@@ -48,6 +50,8 @@ export class LSPClient {
     this.symbolService = new SymbolService(getServerWrapper, this.protocol);
     this.fileService = new FileService(getServerWrapper, this.protocol);
     this.diagnosticService = new DiagnosticService(getServerWrapper, this.protocol);
+    this.intelligenceService = new IntelligenceService(getServerWrapper, this.protocol);
+    this.hierarchyService = new HierarchyService(getServerWrapper, this.protocol);
   }
 
   // Delegate core methods to services
@@ -78,7 +82,11 @@ export class LSPClient {
   }
 
   async searchWorkspaceSymbols(query: string): Promise<SymbolInformation[]> {
-    return this.symbolService.searchWorkspaceSymbols(query);
+    return this.symbolService.searchWorkspaceSymbols(
+      query,
+      this.serverManager.activeServers,
+      this.newClient.preloadServers.bind(this.newClient)
+    );
   }
 
   async findSymbolMatches(
@@ -130,15 +138,9 @@ export class LSPClient {
     return this.fileService.syncFileContent(filePath);
   }
 
-  // Intelligence methods - still delegated to lsp-methods for now
+  // Intelligence methods
   async getHover(filePath: string, position: Position): Promise<import('./types.js').Hover | null> {
-    const context = {
-      getServer: this.getServer.bind(this),
-      ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: (serverState: ServerState, method: string, params: unknown, timeout?: number) =>
-        this.protocol.sendRequest(serverState.process, method, params, timeout),
-    };
-    return IntelligenceMethods.getHover(context, filePath, position);
+    return this.intelligenceService.getHover(filePath, position);
   }
 
   async getCompletions(
@@ -146,13 +148,7 @@ export class LSPClient {
     position: Position,
     triggerCharacter?: string
   ): Promise<import('./types.js').CompletionItem[]> {
-    const context = {
-      getServer: this.getServer.bind(this),
-      ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: (serverState: ServerState, method: string, params: unknown, timeout?: number) =>
-        this.protocol.sendRequest(serverState.process, method, params, timeout),
-    };
-    return IntelligenceMethods.getCompletions(context, filePath, position, triggerCharacter);
+    return this.intelligenceService.getCompletions(filePath, position, triggerCharacter);
   }
 
   async getSignatureHelp(
@@ -160,121 +156,61 @@ export class LSPClient {
     position: Position,
     triggerCharacter?: string
   ): Promise<import('./types.js').SignatureHelp | null> {
-    const context = {
-      getServer: this.getServer.bind(this),
-      ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: (serverState: ServerState, method: string, params: unknown, timeout?: number) =>
-        this.protocol.sendRequest(serverState.process, method, params, timeout),
-    };
-    return IntelligenceMethods.getSignatureHelp(context, filePath, position, triggerCharacter);
+    return this.intelligenceService.getSignatureHelp(filePath, position, triggerCharacter);
   }
 
   async getInlayHints(filePath: string, range: Range): Promise<import('./types.js').InlayHint[]> {
-    const context = {
-      getServer: this.getServer.bind(this),
-      ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: (serverState: ServerState, method: string, params: unknown, timeout?: number) =>
-        this.protocol.sendRequest(serverState.process, method, params, timeout),
-    };
-    return IntelligenceMethods.getInlayHints(context, filePath, range);
+    return this.intelligenceService.getInlayHints(filePath, range);
   }
 
   async getSemanticTokens(filePath: string): Promise<import('./types.js').SemanticTokens | null> {
-    const context = {
-      getServer: this.getServer.bind(this),
-      ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: (serverState: ServerState, method: string, params: unknown, timeout?: number) =>
-        this.protocol.sendRequest(serverState.process, method, params, timeout),
-    };
-    return IntelligenceMethods.getSemanticTokens(context, filePath);
+    return this.intelligenceService.getSemanticTokens(filePath);
   }
 
-  // Hierarchy methods - still delegated to lsp-methods for now
+  // Hierarchy methods
   async prepareCallHierarchy(
     filePath: string,
     position: Position
   ): Promise<import('./types.js').CallHierarchyItem[]> {
-    const context = {
-      getServer: this.getServer.bind(this),
-      ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: (serverState: ServerState, method: string, params: unknown, timeout?: number) =>
-        this.protocol.sendRequest(serverState.process, method, params, timeout),
-    };
-    return HierarchyMethods.prepareCallHierarchy(context, filePath, position);
+    return this.hierarchyService.prepareCallHierarchy(filePath, position);
   }
 
   async getCallHierarchyIncomingCalls(
     item: import('./types.js').CallHierarchyItem
   ): Promise<import('./types.js').CallHierarchyIncomingCall[]> {
-    const context = {
-      getServer: this.getServer.bind(this),
-      ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: (serverState: ServerState, method: string, params: unknown, timeout?: number) =>
-        this.protocol.sendRequest(serverState.process, method, params, timeout),
-    };
-    return HierarchyMethods.getCallHierarchyIncomingCalls(context, item);
+    return this.hierarchyService.getCallHierarchyIncomingCalls(item);
   }
 
   async getCallHierarchyOutgoingCalls(
     item: import('./types.js').CallHierarchyItem
   ): Promise<import('./types.js').CallHierarchyOutgoingCall[]> {
-    const context = {
-      getServer: this.getServer.bind(this),
-      ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: (serverState: ServerState, method: string, params: unknown, timeout?: number) =>
-        this.protocol.sendRequest(serverState.process, method, params, timeout),
-    };
-    return HierarchyMethods.getCallHierarchyOutgoingCalls(context, item);
+    return this.hierarchyService.getCallHierarchyOutgoingCalls(item);
   }
 
   async prepareTypeHierarchy(
     filePath: string,
     position: Position
   ): Promise<import('./types.js').TypeHierarchyItem[]> {
-    const context = {
-      getServer: this.getServer.bind(this),
-      ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: (serverState: ServerState, method: string, params: unknown, timeout?: number) =>
-        this.protocol.sendRequest(serverState.process, method, params, timeout),
-    };
-    return HierarchyMethods.prepareTypeHierarchy(context, filePath, position);
+    return this.hierarchyService.prepareTypeHierarchy(filePath, position);
   }
 
   async getTypeHierarchySupertypes(
     item: import('./types.js').TypeHierarchyItem
   ): Promise<import('./types.js').TypeHierarchyItem[]> {
-    const context = {
-      getServer: this.getServer.bind(this),
-      ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: (serverState: ServerState, method: string, params: unknown, timeout?: number) =>
-        this.protocol.sendRequest(serverState.process, method, params, timeout),
-    };
-    return HierarchyMethods.getTypeHierarchySupertypes(context, item);
+    return this.hierarchyService.getTypeHierarchySupertypes(item);
   }
 
   async getTypeHierarchySubtypes(
     item: import('./types.js').TypeHierarchyItem
   ): Promise<import('./types.js').TypeHierarchyItem[]> {
-    const context = {
-      getServer: this.getServer.bind(this),
-      ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: (serverState: ServerState, method: string, params: unknown, timeout?: number) =>
-        this.protocol.sendRequest(serverState.process, method, params, timeout),
-    };
-    return HierarchyMethods.getTypeHierarchySubtypes(context, item);
+    return this.hierarchyService.getTypeHierarchySubtypes(item);
   }
 
   async getSelectionRange(
     filePath: string,
     positions: Position[]
   ): Promise<import('./types.js').SelectionRange[]> {
-    const context = {
-      getServer: this.getServer.bind(this),
-      ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: (serverState: ServerState, method: string, params: unknown, timeout?: number) =>
-        this.protocol.sendRequest(serverState.process, method, params, timeout),
-    };
-    return HierarchyMethods.getSelectionRange(context, filePath, positions);
+    return this.hierarchyService.getSelectionRange(filePath, positions);
   }
 
   // Direct delegation to new client

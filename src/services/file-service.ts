@@ -1,12 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { capabilityManager } from '../capability-manager.js';
-import * as DiagnosticMethods from '../lsp-methods/diagnostic-methods.js';
-import * as DocumentMethods from '../lsp-methods/document-methods.js';
-import type {
-  DiagnosticMethodsContext,
-  DocumentMethodsContext,
-  ServerState,
-} from '../lsp-types.js';
+import type { ServerState } from '../lsp-types.js';
 import type { LSPProtocol } from '../lsp/protocol.js';
 import { pathToUri } from '../path-utils.js';
 import type {
@@ -42,16 +36,34 @@ export class FileService {
       trimFinalNewlines?: boolean;
     }
   ): Promise<TextEdit[]> {
-    const context: DocumentMethodsContext = {
-      getServer: this.getServer,
-      ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: (process, method, params, timeout) =>
-        this.protocol.sendRequest(process, method, params, timeout),
-      sendNotification: (process, method, params) =>
-        this.protocol.sendNotification(process, method, params),
-      capabilityManager,
+    const serverState = await this.getServer(filePath);
+    if (!serverState.initialized) {
+      throw new Error('Server not initialized');
+    }
+
+    await this.ensureFileOpen(serverState, filePath);
+    const fileUri = pathToUri(filePath);
+
+    const formattingOptions = {
+      tabSize: options?.tabSize || 2,
+      insertSpaces: options?.insertSpaces !== false,
+      ...(options?.trimTrailingWhitespace !== undefined && {
+        trimTrailingWhitespace: options.trimTrailingWhitespace,
+      }),
+      ...(options?.insertFinalNewline !== undefined && {
+        insertFinalNewline: options.insertFinalNewline,
+      }),
+      ...(options?.trimFinalNewlines !== undefined && {
+        trimFinalNewlines: options.trimFinalNewlines,
+      }),
     };
-    return DocumentMethods.formatDocument(context, filePath, options);
+
+    const result = await this.protocol.sendRequest(serverState.process, 'textDocument/formatting', {
+      textDocument: { uri: fileUri },
+      options: formattingOptions,
+    });
+
+    return Array.isArray(result) ? result : [];
   }
 
   /**
@@ -62,48 +74,127 @@ export class FileService {
     range?: Range,
     context?: { diagnostics?: Diagnostic[] }
   ): Promise<CodeAction[]> {
-    const docContext: DiagnosticMethodsContext = {
-      getServer: this.getServer,
-      ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: (process, method, params, timeout) =>
-        this.protocol.sendRequest(process, method, params, timeout),
-      sendNotification: (process, method, params) =>
-        this.protocol.sendNotification(process, method, params),
-      waitForDiagnosticsIdle: async () => {}, // Stub implementation
+    const serverState = await this.getServer(filePath);
+    if (!serverState.initialized) {
+      throw new Error('Server not initialized');
+    }
+
+    await this.ensureFileOpen(serverState, filePath);
+    const fileUri = pathToUri(filePath);
+
+    // Get current diagnostics for the file to provide context
+    const diagnostics = serverState.diagnostics.get(fileUri) || [];
+
+    // Create a proper range - use a smaller, more realistic range
+    const requestRange = range || {
+      start: { line: 0, character: 0 },
+      end: { line: Math.min(100, 999999), character: 0 },
     };
-    return DiagnosticMethods.getCodeActions(docContext, filePath, range, context);
+
+    // Ensure context includes diagnostics and only property
+    const codeActionContext = {
+      diagnostics: context?.diagnostics || diagnostics,
+      only: undefined, // Don't filter by specific code action kinds
+    };
+
+    process.stderr.write(
+      `[DEBUG getCodeActions] Request params: ${JSON.stringify(
+        {
+          textDocument: { uri: fileUri },
+          range: requestRange,
+          context: codeActionContext,
+        },
+        null,
+        2
+      )}\n`
+    );
+
+    try {
+      const result = await this.protocol.sendRequest(
+        serverState.process,
+        'textDocument/codeAction',
+        {
+          textDocument: { uri: fileUri },
+          range: requestRange,
+          context: codeActionContext,
+        }
+      );
+
+      process.stderr.write(`[DEBUG getCodeActions] Raw result: ${JSON.stringify(result)}\n`);
+
+      if (!result) return [];
+      if (Array.isArray(result)) return result.filter((action) => action != null);
+      return [];
+    } catch (error) {
+      process.stderr.write(`[DEBUG getCodeActions] Error: ${error}\n`);
+      return [];
+    }
   }
 
   /**
    * Get folding ranges
    */
   async getFoldingRanges(filePath: string): Promise<FoldingRange[]> {
-    const context: DocumentMethodsContext = {
-      getServer: this.getServer,
-      ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: (process, method, params, timeout) =>
-        this.protocol.sendRequest(process, method, params, timeout),
-      sendNotification: (process, method, params) =>
-        this.protocol.sendNotification(process, method, params),
-      capabilityManager,
-    };
-    return DocumentMethods.getFoldingRanges(context, filePath);
+    const serverState = await this.getServer(filePath);
+    if (!serverState.initialized) {
+      throw new Error('Server not initialized');
+    }
+
+    await this.ensureFileOpen(serverState, filePath);
+    const fileUri = pathToUri(filePath);
+
+    process.stderr.write(`[DEBUG getFoldingRanges] Requesting folding ranges for: ${filePath}\n`);
+
+    const result = await this.protocol.sendRequest(
+      serverState.process,
+      'textDocument/foldingRange',
+      {
+        textDocument: { uri: fileUri },
+      }
+    );
+
+    process.stderr.write(
+      `[DEBUG getFoldingRanges] Result type: ${typeof result}, isArray: ${Array.isArray(result)}, length: ${Array.isArray(result) ? result.length : 'N/A'}\n`
+    );
+
+    if (Array.isArray(result)) {
+      return result as FoldingRange[];
+    }
+
+    return [];
   }
 
   /**
    * Get document links
    */
   async getDocumentLinks(filePath: string): Promise<DocumentLink[]> {
-    const context: DocumentMethodsContext = {
-      getServer: this.getServer,
-      ensureFileOpen: this.ensureFileOpen.bind(this),
-      sendRequest: (process, method, params, timeout) =>
-        this.protocol.sendRequest(process, method, params, timeout),
-      sendNotification: (process, method, params) =>
-        this.protocol.sendNotification(process, method, params),
-      capabilityManager,
-    };
-    return DocumentMethods.getDocumentLinks(context, filePath);
+    const serverState = await this.getServer(filePath);
+    if (!serverState.initialized) {
+      throw new Error('Server not initialized');
+    }
+
+    await this.ensureFileOpen(serverState, filePath);
+    const fileUri = pathToUri(filePath);
+
+    process.stderr.write(`[DEBUG getDocumentLinks] Requesting document links for: ${filePath}\n`);
+
+    const result = await this.protocol.sendRequest(
+      serverState.process,
+      'textDocument/documentLink',
+      {
+        textDocument: { uri: fileUri },
+      }
+    );
+
+    process.stderr.write(
+      `[DEBUG getDocumentLinks] Result type: ${typeof result}, isArray: ${Array.isArray(result)}, length: ${Array.isArray(result) ? result.length : 'N/A'}\n`
+    );
+
+    if (Array.isArray(result)) {
+      return result as DocumentLink[];
+    }
+
+    return [];
   }
 
   /**

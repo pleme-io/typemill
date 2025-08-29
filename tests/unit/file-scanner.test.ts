@@ -9,29 +9,19 @@ import {
   scanProjectFiles,
 } from '../../src/file-scanner.js';
 import { LANGUAGE_SERVERS } from '../../src/language-server-presets.js';
+import { cleanupTestDir, createTestDir } from './test-helpers.js';
 
-const TEST_DIR = process.env.RUNNER_TEMP
-  ? `${process.env.RUNNER_TEMP}/file-scanner-test`
-  : '/tmp/file-scanner-test';
+let TEST_DIR: string;
 
 describe('file-scanner', () => {
   beforeEach(() => {
-    // Clean up and create fresh test directory
-    try {
-      rmSync(TEST_DIR, { recursive: true, force: true });
-    } catch {
-      // Directory might not exist
-    }
-    mkdirSync(TEST_DIR, { recursive: true });
+    // Create a unique test directory for each test
+    TEST_DIR = createTestDir('file-scanner-test');
   });
 
   afterEach(() => {
-    // Clean up after each test
-    try {
-      rmSync(TEST_DIR, { recursive: true, force: true });
-    } catch {
-      // Directory might not exist
-    }
+    // Clean up test directory
+    cleanupTestDir(TEST_DIR);
   });
 
   describe('loadGitignore', () => {
