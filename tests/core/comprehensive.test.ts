@@ -25,16 +25,15 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
     it('should find definition', async () => {
       const result = await client.callTool('find_definition', {
         file_path: '/workspace/plugins/cclsp/playground/src/test-file.ts',
-        symbol_name: 'calculateAge',
+        symbol_name: '_calculateAge',
       });
       expect(result).toBeDefined();
       const toolResult = assertToolResult(result);
       expect(toolResult.content).toBeDefined();
 
       const content = toolResult.content?.[0]?.text || '';
-      // Should find something, even if it's an error about invalid name
-      expect(content).toBeDefined();
-      expect(content.length).toBeGreaterThan(0);
+      expect(content).not.toMatch(/No symbols found|No.*found|Error/);
+      expect(content).toMatch(/Results for.*function|line \d+/i);
     });
 
     it('should find references', async () => {
@@ -46,9 +45,8 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
 
       const toolResult = assertToolResult(result);
       const content = toolResult.content?.[0]?.text || '';
-      // Should find references or report no references
-      expect(content).toBeDefined();
-      expect(content.length).toBeGreaterThan(0);
+      expect(content).not.toMatch(/No symbols found|No.*found|Error/);
+      expect(content).toMatch(/References for.*TestProcessor|line \d+/i);
     });
 
     it('should rename symbol', async () => {
@@ -62,7 +60,8 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
 
       const toolResult = assertToolResult(result);
       const content = toolResult.content?.[0]?.text || '';
-      expect(content).toMatch(/(rename|RENAMED_CONST|TEST_CONSTANT|edit|changes)/i);
+      expect(content).not.toMatch(/No symbols found|Error/);
+      expect(content).toMatch(/DRY RUN.*rename|Would rename/i);
     });
 
     it('should rename symbol strict', async () => {
@@ -86,10 +85,8 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
 
       const toolResult = assertToolResult(result);
       const content = toolResult.content?.[0]?.text || '';
-      expect(content).toContain('diagnostic');
-      // Should contain TypeScript errors
-      // Should have diagnostics or be error-free
-      expect(content).toBeDefined();
+      expect(content).not.toMatch(/No diagnostics found/);
+      expect(content).toMatch(/Found \d+ diagnostic|Error:|Warning:/);
     });
 
     it('should get document symbols', async () => {
@@ -100,8 +97,7 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
 
       const toolResult = assertToolResult(result);
       const content = toolResult.content?.[0]?.text || '';
-      // Should contain document structure
-      // Should contain expected symbols from test file
+      expect(content).not.toMatch(/No symbols found|Error/);
       expect(content).toMatch(/(TestProcessor|ProcessorConfig)/);
       expect(content).toMatch(/(function|class|interface)/i);
     });
@@ -118,6 +114,7 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
 
       const toolResult = assertToolResult(result);
       const content = toolResult.content?.[0]?.text || '';
+      expect(content).not.toMatch(/No.*found|Error/);
       expect(content).toMatch(/(action|quick fix|refactor|organize)/i);
     });
 
@@ -134,6 +131,7 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
 
       const toolResult = assertToolResult(result);
       const content = toolResult.content?.[0]?.text || '';
+      expect(content).not.toMatch(/No.*found|Error/);
       expect(content).toMatch(/(format|document|style|indent)/i);
     });
 

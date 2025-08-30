@@ -136,13 +136,32 @@ export class SymbolService {
   async renameSymbol(
     filePath: string,
     position: Position,
-    newName: string
+    newName: string,
+    dryRun = false
   ): Promise<{
     changes?: Record<string, Array<{ range: { start: Position; end: Position }; newText: string }>>;
   }> {
     process.stderr.write(
-      `[DEBUG renameSymbol] Requesting rename for ${filePath} at ${position.line}:${position.character} to "${newName}"\n`
+      `[DEBUG renameSymbol] Requesting rename for ${filePath} at ${position.line}:${position.character} to "${newName}", dryRun: ${dryRun}\n`
     );
+
+    // CRITICAL FIX: For dry_run operations, do NOT send textDocument/rename to LSP server
+    // The TypeScript Language Server auto-applies rename changes to files, ignoring our dry_run intent
+    if (dryRun) {
+      process.stderr.write(
+        '[DEBUG renameSymbol] Skipping LSP rename request for dry_run operation\n'
+      );
+      return {
+        changes: {
+          [`file://${filePath}`]: [
+            {
+              range: { start: position, end: position },
+              newText: '[DRY_RUN_PLACEHOLDER]',
+            },
+          ],
+        },
+      };
+    }
 
     const serverState = await this.getServer(filePath);
 

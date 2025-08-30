@@ -38,11 +38,13 @@ describe('MCP Quick Tests', () => {
   it('should find definition', async () => {
     const result = await client.callTool('find_definition', {
       file_path: '/workspace/plugins/cclsp/playground/src/test-file.ts',
-      symbol_name: 'calculateAge',
+      symbol_name: '_calculateAge',
     });
     expect(result).toBeDefined();
     const toolResult = assertToolResult(result);
-    expect(toolResult.content).toBeDefined();
+    const content = toolResult.content?.[0]?.text || '';
+    expect(content).not.toMatch(/No symbols found|No.*found|Error/);
+    expect(content).toMatch(/Results for.*function|line \d+/i);
   });
 
   it('should find references', async () => {
@@ -52,7 +54,9 @@ describe('MCP Quick Tests', () => {
     });
     expect(result).toBeDefined();
     const toolResult = assertToolResult(result);
-    expect(toolResult.content).toBeDefined();
+    const content = toolResult.content?.[0]?.text || '';
+    expect(content).not.toMatch(/No symbols found|No.*found|Error/);
+    expect(content).toMatch(/References for.*TestProcessor|line \d+/i);
   });
 
   it('should get diagnostics', async () => {
@@ -61,7 +65,9 @@ describe('MCP Quick Tests', () => {
     });
     expect(result).toBeDefined();
     const toolResult = assertToolResult(result);
-    expect(toolResult.content).toBeDefined();
+    const content = toolResult.content?.[0]?.text || '';
+    expect(content).not.toMatch(/No diagnostics found/);
+    expect(content).toMatch(/Found \d+ diagnostic|Error:|Warning:/);
   });
 
   it('should get hover information', async () => {
@@ -72,18 +78,22 @@ describe('MCP Quick Tests', () => {
     });
     expect(result).toBeDefined();
     const toolResult = assertToolResult(result);
-    expect(toolResult.content).toBeDefined();
+    const content = toolResult.content?.[0]?.text || '';
+    expect(content).not.toMatch(/No hover|Error/);
+    expect(content).toMatch(/function.*_calculateAge|typescript/i);
   });
 
   it('should rename symbol (dry run)', async () => {
     const result = await client.callTool('rename_symbol', {
       file_path: '/workspace/plugins/cclsp/playground/src/test-file.ts',
       symbol_name: 'TEST_CONSTANT',
-      new_name: 'RENAMED_CONST',
+      new_name: 'RENAMED_CONSTANT',
       dry_run: true,
     });
     expect(result).toBeDefined();
     const toolResult = assertToolResult(result);
-    expect(toolResult.content).toBeDefined();
+    const content = toolResult.content?.[0]?.text || '';
+    expect(content).not.toMatch(/No symbols found|Error/);
+    expect(content).toMatch(/DRY RUN.*rename|Would rename/i);
   });
 });

@@ -203,7 +203,7 @@ export const TEST_FILES = {
 export const QUICK_TESTS: MCPToolCall[] = [
   {
     name: 'find_definition',
-    arguments: { file_path: TEST_FILES.testFile, symbol_name: 'calculateAge' },
+    arguments: { file_path: TEST_FILES.testFile, symbol_name: '_calculateAge' },
   },
   {
     name: 'find_references',
@@ -222,7 +222,7 @@ export const QUICK_TESTS: MCPToolCall[] = [
     arguments: {
       file_path: TEST_FILES.testFile,
       symbol_name: 'TEST_CONSTANT',
-      new_name: 'RENAMED_CONST',
+      new_name: 'RENAMED_CONSTANT',
       dry_run: true,
     },
   },
@@ -233,7 +233,7 @@ export const ALL_TESTS: MCPToolCall[] = [
   // Core Tools (4)
   {
     name: 'find_definition',
-    arguments: { file_path: TEST_FILES.testFile, symbol_name: 'calculateAge' },
+    arguments: { file_path: TEST_FILES.testFile, symbol_name: '_calculateAge' },
   },
   {
     name: 'find_references',
@@ -243,8 +243,8 @@ export const ALL_TESTS: MCPToolCall[] = [
     name: 'rename_symbol',
     arguments: {
       file_path: TEST_FILES.testFile,
-      symbol_name: 'RENAMED_CONST',
-      new_name: 'TEST_CONSTANT',
+      symbol_name: 'TEST_CONSTANT',
+      new_name: 'RENAMED_CONSTANT',
       dry_run: true,
     },
   },

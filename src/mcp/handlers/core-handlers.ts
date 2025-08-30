@@ -256,7 +256,12 @@ export async function handleRenameSymbol(
     throw new Error('Symbol match is undefined');
   }
   try {
-    const workspaceEdit = await symbolService.renameSymbol(absolutePath, match.position, new_name);
+    const workspaceEdit = await symbolService.renameSymbol(
+      absolutePath,
+      match.position,
+      new_name,
+      dry_run
+    );
 
     if (!workspaceEdit.changes || Object.keys(workspaceEdit.changes).length === 0) {
       return {
@@ -264,6 +269,19 @@ export async function handleRenameSymbol(
           {
             type: 'text',
             text: `No changes needed for renaming "${symbol_name}" to "${new_name}".`,
+          },
+        ],
+      };
+    }
+
+    const changedFileCount = Object.keys(workspaceEdit.changes).length;
+
+    if (dry_run) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `[DRY RUN] Would rename "${symbol_name}" to "${new_name}" across ${changedFileCount} file${changedFileCount === 1 ? '' : 's'}`,
           },
         ],
       };
@@ -284,16 +302,11 @@ export async function handleRenameSymbol(
       };
     }
 
-    const changedFileCount = Object.keys(workspaceEdit.changes).length;
-    const responseText = dry_run
-      ? `[DRY RUN] Would rename "${symbol_name}" to "${new_name}" across ${changedFileCount} file${changedFileCount === 1 ? '' : 's'}`
-      : `✅ Successfully renamed "${symbol_name}" to "${new_name}" across ${changedFileCount} file${changedFileCount === 1 ? '' : 's'}`;
-
     return {
       content: [
         {
           type: 'text',
-          text: responseText,
+          text: `✅ Successfully renamed "${symbol_name}" to "${new_name}" across ${changedFileCount} file${changedFileCount === 1 ? '' : 's'}`,
         },
       ],
     };
@@ -327,7 +340,12 @@ export async function handleRenameSymbolStrict(
   const position = { line: line - 1, character: character - 1 };
 
   try {
-    const workspaceEdit = await symbolService.renameSymbol(absolutePath, position, new_name);
+    const workspaceEdit = await symbolService.renameSymbol(
+      absolutePath,
+      position,
+      new_name,
+      dry_run
+    );
 
     if (!workspaceEdit.changes || Object.keys(workspaceEdit.changes).length === 0) {
       return {
@@ -335,6 +353,19 @@ export async function handleRenameSymbolStrict(
           {
             type: 'text',
             text: `No changes needed for renaming symbol at ${file_path}:${line}:${character} to "${new_name}".`,
+          },
+        ],
+      };
+    }
+
+    const changedFileCount = Object.keys(workspaceEdit.changes).length;
+
+    if (dry_run) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `[DRY RUN] Would rename symbol at ${file_path}:${line}:${character} to "${new_name}" across ${changedFileCount} file${changedFileCount === 1 ? '' : 's'}`,
           },
         ],
       };
@@ -355,16 +386,11 @@ export async function handleRenameSymbolStrict(
       };
     }
 
-    const changedFileCount = Object.keys(workspaceEdit.changes).length;
-    const responseText = dry_run
-      ? `[DRY RUN] Would rename symbol at ${file_path}:${line}:${character} to "${new_name}" across ${changedFileCount} file${changedFileCount === 1 ? '' : 's'}`
-      : `✅ Successfully renamed symbol at ${file_path}:${line}:${character} to "${new_name}" across ${changedFileCount} file${changedFileCount === 1 ? '' : 's'}`;
-
     return {
       content: [
         {
           type: 'text',
-          text: responseText,
+          text: `✅ Successfully renamed symbol at ${file_path}:${line}:${character} to "${new_name}" across ${changedFileCount} file${changedFileCount === 1 ? '' : 's'}`,
         },
       ],
     };

@@ -56,7 +56,9 @@ export class DiagnosticService {
       process.stderr.write(
         `[DEBUG getDiagnostics] Result type: ${typeof result}, has kind: ${result && typeof result === 'object' && 'kind' in result}\n`
       );
+      process.stderr.write(`[DEBUG getDiagnostics] Full result: ${JSON.stringify(result)}\n`);
 
+      // Handle LSP 3.17+ DocumentDiagnosticReport format
       if (result && typeof result === 'object' && 'kind' in result) {
         const report = result as DocumentDiagnosticReport;
 
@@ -72,10 +74,28 @@ export class DiagnosticService {
         }
       }
 
-      process.stderr.write(
-        '[DEBUG getDiagnostics] Unexpected response format, returning empty array\n'
-      );
-      return [];
+      // Handle direct diagnostic array (legacy format)
+      if (Array.isArray(result)) {
+        process.stderr.write(
+          `[DEBUG getDiagnostics] Direct diagnostic array with ${result.length} diagnostics\n`
+        );
+        return result as Diagnostic[];
+      }
+
+      // Handle null/empty responses (server may not have diagnostics yet)
+      if (result === null || result === undefined) {
+        process.stderr.write(
+          '[DEBUG getDiagnostics] Null/undefined result, falling back to other methods\n'
+        );
+        // Don't return early, fall through to the publishDiagnostics fallback
+      } else {
+        process.stderr.write(
+          '[DEBUG getDiagnostics] Unexpected response format, falling back to other methods\n'
+        );
+      }
+
+      // If we reach here, the textDocument/diagnostic didn't work as expected
+      // Fall through to publishDiagnostics method
     } catch (error) {
       // Some LSP servers may not support textDocument/diagnostic
       // Try falling back to waiting for publishDiagnostics notifications
