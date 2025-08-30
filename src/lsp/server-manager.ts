@@ -74,21 +74,24 @@ export class ServerManager {
     const restartedServers: string[] = [];
 
     if (!extensions || extensions.length === 0) {
-      // Restart all servers
-      for (const [serverKey, serverState] of this.servers.entries()) {
+      // Restart all servers - fix iterator invalidation by collecting entries first
+      const serversToRestart = Array.from(this.servers.entries());
+      for (const [serverKey, serverState] of serversToRestart) {
         this.killServer(serverState);
         this.servers.delete(serverKey);
         restartedServers.push(serverState.config?.command?.join(' ') || 'unknown');
       }
     } else {
-      // Restart servers for specific extensions
-      for (const [serverKey, serverState] of this.servers.entries()) {
+      // Restart servers for specific extensions - fix iterator invalidation
+      const serversToRestart = Array.from(this.servers.entries()).filter(([, serverState]) => {
         const serverConfig = serverState.config;
-        if (serverConfig && extensions.some((ext) => serverConfig.extensions.includes(ext))) {
-          this.killServer(serverState);
-          this.servers.delete(serverKey);
-          restartedServers.push(serverConfig.command.join(' '));
-        }
+        return serverConfig && extensions.some((ext) => serverConfig.extensions.includes(ext));
+      });
+
+      for (const [serverKey, serverState] of serversToRestart) {
+        this.killServer(serverState);
+        this.servers.delete(serverKey);
+        restartedServers.push(serverState.config?.command.join(' '));
       }
     }
 
@@ -216,6 +219,8 @@ export class ServerManager {
    * Set up protocol message handlers for server
    */
   private setupProtocolHandlers(serverState: ServerState): void {
+    const serverKey = JSON.stringify(serverState.config?.command);
+
     serverState.process.stdout?.on('data', (data: Buffer) => {
       serverState.buffer += data.toString();
       const { messages, remainingBuffer } = this.protocol.parseMessages(serverState.buffer);
@@ -228,6 +233,31 @@ export class ServerManager {
 
     serverState.process.stderr?.on('data', (data: Buffer) => {
       process.stderr.write(data);
+    });
+
+    // CRITICAL FIX: Handle process errors to prevent crashes
+    serverState.process.on('error', (error: Error) => {
+      process.stderr.write(
+        `LSP server process error (${serverState.config?.command.join(' ')}): ${error.message}\n`
+      );
+      // Remove from servers map so it can be restarted on next request
+      this.servers.delete(serverKey);
+    });
+
+    // CRITICAL FIX: Handle unexpected server exits
+    serverState.process.on('exit', (code: number | null, signal: string | null) => {
+      process.stderr.write(
+        `LSP server exited (${serverState.config?.command.join(' ')}): code=${code}, signal=${signal}\n`
+      );
+
+      // Clean up timers
+      if (serverState.restartTimer) {
+        clearTimeout(serverState.restartTimer);
+        serverState.restartTimer = undefined;
+      }
+
+      // Remove from servers map so it can be restarted on next request
+      this.servers.delete(serverKey);
     });
   }
 
