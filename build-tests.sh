@@ -3,8 +3,11 @@
 
 echo "Building TypeScript files for unit tests..."
 
-# Find all TypeScript files and compile them individually with bun
-# Use --format esm to prevent bundling
-find src -name "*.ts" -exec bun build --format esm --target node --outdir . {} \;
+# Create a test-build directory for test outputs
+mkdir -p test-build
 
-echo "Unit test build complete. Tests can now import .js files."
+# Find all TypeScript files and compile them individually with bun
+# Use --format esm to prevent bundling, output to test-build directory
+find src -name "*.ts" -exec bun build --format esm --target node --outdir test-build {} \;
+
+echo "Unit test build complete. Tests can now import .js files from test-build/."

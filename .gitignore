@@ -9,8 +9,12 @@ bun.lockb
 out/
 dist/
 build/
+test-build/
 *.tgz
 *.tsbuildinfo
+
+# Root-level JS files (build artifacts from test builds)
+/*.js
 
 # Coverage and testing
 coverage/
