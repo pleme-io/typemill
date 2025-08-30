@@ -312,18 +312,24 @@ export class DiagnosticService {
       return;
     }
 
-    const fileContent = readFileSync(filePath, 'utf-8');
+    try {
+      const fileContent = readFileSync(filePath, 'utf-8');
 
-    this.protocol.sendNotification(serverState.process, 'textDocument/didOpen', {
-      textDocument: {
-        uri: `file://${filePath}`,
-        languageId: this.getLanguageId(filePath),
-        version: 1,
-        text: fileContent,
-      },
-    });
+      this.protocol.sendNotification(serverState.process, 'textDocument/didOpen', {
+        textDocument: {
+          uri: `file://${filePath}`,
+          languageId: this.getLanguageId(filePath),
+          version: 1,
+          text: fileContent,
+        },
+      });
 
-    serverState.openFiles.add(filePath);
+      serverState.openFiles.add(filePath);
+    } catch (error) {
+      throw new Error(
+        `Failed to open file for LSP server: ${filePath} - ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
   }
 
   private getLanguageId(filePath: string): string {
