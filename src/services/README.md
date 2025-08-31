@@ -14,16 +14,18 @@ export interface ServiceContext {
   protocol: LSPProtocol;
   ensureFileOpen: (serverState: ServerState, filePath: string) => Promise<void>;
   getLanguageId: (filePath: string) => string;
+  prepareFile: (filePath: string) => Promise<ServerState>;  // NEW: Consolidates LSP setup
 }
 ```
 
 ### Benefits Achieved
 
-- **✅ 350+ lines of duplication eliminated**
+- **✅ 395+ lines of duplication eliminated** (includes prepareFile pattern)
 - **✅ Single source of truth** for language mapping and file handling  
 - **✅ Simplified testing** - mock one context vs multiple service internals
 - **✅ Future language additions** require only 1-line changes
 - **✅ Services focus on business logic** only
+- **✅ LSP setup pattern** consolidated in prepareFile helper
 
 ## Services
 
@@ -43,7 +45,7 @@ export interface ServiceContext {
 ## Usage Pattern
 
 ```typescript
-// Before: Services had duplicated constructor and methods
+// Before: Services had duplicated constructor, methods, and LSP setup
 export class SomeService {
   constructor(
     private getServer: (filePath: string) => Promise<ServerState>,
@@ -52,14 +54,25 @@ export class SomeService {
 
   private async ensureFileOpen(...) { /* 25 duplicated lines */ }
   private getLanguageId(...) { /* 20 duplicated lines */ }
+  
+  async someMethod(filePath: string) {
+    // Repetitive 3-step pattern in every method:
+    const serverState = await this.getServer(filePath);
+    await serverState.initializationPromise;
+    await this.ensureFileOpen(serverState, filePath);
+    // ... actual logic
+  }
 }
 
-// After: Clean service using context
+// After: Clean service using context with prepareFile
 export class SomeService {
   constructor(private context: ServiceContext) {}
   
-  // No duplicated utility methods!
-  // Focus purely on business logic
+  async someMethod(filePath: string) {
+    // Single line replaces 3-step pattern:
+    const serverState = await this.context.prepareFile(filePath);
+    // ... actual logic
+  }
 }
 ```
 

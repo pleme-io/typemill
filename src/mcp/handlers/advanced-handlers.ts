@@ -153,16 +153,17 @@ export async function handleFormatDocument(
 // Handler for search_workspace_symbols tool
 export async function handleSearchWorkspaceSymbols(
   symbolService: SymbolService,
-  args: { query: string },
+  args: { query: string; workspace_path?: string },
   lspClient: import('../../lsp/client.js').LSPClient
 ) {
-  const { query } = args;
+  const { query, workspace_path } = args;
 
   try {
     const symbols = await symbolService.searchWorkspaceSymbols(
       query,
       lspClient.serverManager.activeServers,
-      lspClient.preloadServers.bind(lspClient)
+      lspClient.preloadServers.bind(lspClient),
+      workspace_path
     );
 
     if (symbols.length === 0) {
@@ -445,7 +446,19 @@ export async function handleGetDocumentLinks(
 export async function handleApplyWorkspaceEdit(
   fileService: FileService,
   args: {
-    changes: Record<
+    edit?: {
+      changes: Record<
+        string,
+        Array<{
+          range: {
+            start: { line: number; character: number };
+            end: { line: number; character: number };
+          };
+          newText: string;
+        }>
+      >;
+    };
+    changes?: Record<
       string,
       Array<{
         range: {
@@ -456,9 +469,23 @@ export async function handleApplyWorkspaceEdit(
       }>
     >;
     validate_before_apply?: boolean;
+    dry_run?: boolean;
   }
 ) {
-  const { changes, validate_before_apply = true } = args;
+  // Support both formats: { changes: {...} } and { edit: { changes: {...} } }
+  const changes = args.changes || args.edit?.changes;
+  const { validate_before_apply = true, dry_run = false } = args;
+
+  if (!changes) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'No changes provided. Please specify changes to apply.',
+        },
+      ],
+    };
+  }
 
   try {
     // Convert the input format to internal WorkspaceEdit format
@@ -485,9 +512,7 @@ export async function handleApplyWorkspaceEdit(
 
     // Validate that we have at least one change
     if (!workspaceEdit.changes || Object.keys(workspaceEdit.changes).length === 0) {
-      return createMCPResponse(
-        'No changes provided. Please specify at least one file with edits to apply.'
-      );
+      return createMCPResponse('No changes to apply. The workspace edit is empty.');
     }
 
     const fileCount = Object.keys(workspaceEdit.changes).length;
@@ -495,6 +520,21 @@ export async function handleApplyWorkspaceEdit(
       (sum, edits) => sum + edits.length,
       0
     );
+
+    // Handle dry-run mode
+    if (dry_run) {
+      const fileList = Object.keys(workspaceEdit.changes)
+        .map((uri) => {
+          const path = uri.replace('file://', '');
+          const edits = workspaceEdit.changes?.[uri];
+          return `  - ${path}: ${edits?.length || 0} edit(s)`;
+        })
+        .join('\n');
+
+      return createMCPResponse(
+        `[DRY RUN] Would apply ${editCount} edit(s) to ${fileCount} file(s):\n${fileList}\n\nNo changes were applied.`
+      );
+    }
 
     // Skip capability validation for now - just attempt the edit
     const serverSupportsWorkspaceEdit = true; // Assume support for file-based edits

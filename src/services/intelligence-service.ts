@@ -21,21 +21,13 @@ export class IntelligenceService {
    * Get hover information at position
    */
   async getHover(filePath: string, position: Position): Promise<Hover | null> {
-    console.error('[DEBUG getHover] Starting hover request for', filePath);
-    const serverState = await this.context.getServer(filePath);
+    const serverState = await this.context.prepareFile(filePath);
     if (!serverState) {
       throw new Error('No LSP server available for this file type');
     }
-    console.error('[DEBUG getHover] Got server state');
-
-    await this.context.ensureFileOpen(serverState, filePath);
-    console.error('[DEBUG getHover] File opened');
 
     // Give TypeScript Language Server time to process the file
     await new Promise((resolve) => setTimeout(resolve, 500));
-    console.error('[DEBUG getHover] Waited for TS to process');
-
-    console.error('[DEBUG getHover] Calling sendRequest with 30s timeout');
 
     try {
       const response = await this.context.protocol.sendRequest(
@@ -47,13 +39,10 @@ export class IntelligenceService {
         },
         30000 // 30 second timeout - give it plenty of time
       );
-      console.error('[DEBUG getHover] Got response:', response);
       return response && typeof response === 'object' && 'contents' in response
         ? (response as Hover)
         : null;
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('[DEBUG getHover] Error:', errorMessage);
       if (error instanceof Error && error.message?.includes('timeout')) {
         // Return a fallback hover response
         return {
@@ -75,12 +64,10 @@ export class IntelligenceService {
     position: Position,
     triggerCharacter?: string
   ): Promise<CompletionItem[]> {
-    const serverState = await this.context.getServer(filePath);
+    const serverState = await this.context.prepareFile(filePath);
     if (!serverState) {
       throw new Error('No LSP server available for this file type');
     }
-
-    await this.context.ensureFileOpen(serverState, filePath);
 
     // Give TypeScript Language Server time to process the file
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -135,12 +122,10 @@ export class IntelligenceService {
     position: Position,
     triggerCharacter?: string
   ): Promise<SignatureHelp | null> {
-    const serverState = await this.context.getServer(filePath);
+    const serverState = await this.context.prepareFile(filePath);
     if (!serverState) {
       throw new Error('No LSP server available for this file type');
     }
-
-    await this.context.ensureFileOpen(serverState, filePath);
 
     const signatureHelpParams = {
       textDocument: { uri: `file://${filePath}` },
@@ -175,12 +160,10 @@ export class IntelligenceService {
     filePath: string,
     range: { start: Position; end: Position }
   ): Promise<InlayHint[]> {
-    const serverState = await this.context.getServer(filePath);
+    const serverState = await this.context.prepareFile(filePath);
     if (!serverState) {
       throw new Error('No LSP server available for this file type');
     }
-
-    await this.context.ensureFileOpen(serverState, filePath);
 
     const inlayHintParams: InlayHintParams = {
       textDocument: { uri: `file://${filePath}` },
@@ -200,12 +183,10 @@ export class IntelligenceService {
    * Get semantic tokens for file
    */
   async getSemanticTokens(filePath: string): Promise<SemanticTokens | null> {
-    const serverState = await this.context.getServer(filePath);
+    const serverState = await this.context.prepareFile(filePath);
     if (!serverState) {
       throw new Error('No LSP server available for this file type');
     }
-
-    await this.context.ensureFileOpen(serverState, filePath);
 
     const semanticTokensParams: SemanticTokensParams = {
       textDocument: { uri: `file://${filePath}` },

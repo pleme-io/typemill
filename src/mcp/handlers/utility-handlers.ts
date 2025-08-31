@@ -1,6 +1,6 @@
-import { existsSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { mkdirSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { relative, resolve } from 'node:path';
 import { dirname } from 'node:path';
 import type { DiagnosticService } from '../../services/diagnostic-service.js';
 
@@ -267,20 +267,50 @@ export async function handleDeleteFile(args: {
       };
     }
 
-    // Note: LSP notification for file deletion would require access to private methods
-    // For now, file deletion works without LSP notification (filesystem operation only)
-    // Future enhancement: Add public method for file operation notifications
+    // Import the project scanner for impact analysis
+    const { projectScanner } = await import('../../utils/project-scanner.js');
+
+    // Find all files that import this file
+    process.stderr.write(`[DEBUG] Analyzing impact of deleting ${absolutePath}\n`);
+    const importers = await projectScanner.findImporters(absolutePath);
+
+    if (importers.length > 0 && !force) {
+      // File is imported by other files - warn user
+      const relativeImporters = importers.map((imp) => relative(process.cwd(), imp));
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `⚠️ Cannot delete ${file_path} - it is imported by ${importers.length} file${importers.length === 1 ? '' : 's'}:\n\n${relativeImporters.map((f) => `  • ${f}`).join('\n')}\n\n${importers.length === 1 ? 'This file depends' : 'These files depend'} on ${file_path}. Deleting it will cause import errors.\n\nTo force deletion despite broken imports, use:\n  force: true`,
+          },
+        ],
+      };
+    }
+
+    // If force is true or no importers, proceed with deletion
+    if (importers.length > 0 && force) {
+      process.stderr.write(
+        `[DEBUG] Force deleting ${absolutePath} despite ${importers.length} importers\n`
+      );
+    }
 
     // Delete the file
     unlinkSync(absolutePath);
 
-    // File successfully deleted (LSP notifications would require public API enhancement)
+    // Build success message
+    let message = `✅ Successfully deleted ${file_path}`;
+
+    if (importers.length > 0) {
+      const relativeImporters = importers.map((imp) => relative(process.cwd(), imp));
+      message += `\n\n⚠️ Warning: ${importers.length} file${importers.length === 1 ? ' has' : 's have'} broken imports:\n${relativeImporters.map((f) => `  • ${f}`).join('\n')}\n\nYou may need to update or remove these import statements.`;
+    }
 
     return {
       content: [
         {
           type: 'text',
-          text: `✅ Successfully deleted ${file_path}`,
+          text: message,
         },
       ],
     };

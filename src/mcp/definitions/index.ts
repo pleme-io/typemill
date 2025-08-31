@@ -13,10 +13,4 @@ export const allToolDefinitions = [
   ...intelligenceToolDefinitions,
   ...hierarchyToolDefinitions,
 ] as const;
-
 // Re-export individual categories for convenience
-;
-;
-;
-;
-;

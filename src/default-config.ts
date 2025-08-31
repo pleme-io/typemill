@@ -134,7 +134,7 @@ export async function isCommandAvailable(command: string[]): Promise<boolean> {
     // Try to run the command with --version or --help
     return new Promise((resolve) => {
       const testArgs = cmd === 'npm' ? ['--version'] : ['--version'];
-      const proc = spawn(cmd!, testArgs, {
+      const proc = spawn(cmd || '', testArgs, {
         stdio: 'ignore',
         shell: false,
       });

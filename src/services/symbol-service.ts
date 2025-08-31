@@ -1,6 +1,6 @@
+import { readFileSync } from 'node:fs';
 import { capabilityManager } from '../capability-manager.js';
 import type { ServerState } from '../lsp-types.js';
-import type { LSPProtocol } from '../lsp/protocol.js';
 import { pathToUri, uriToPath } from '../path-utils.js';
 import type {
   DocumentSymbol,
@@ -12,22 +12,13 @@ import type {
 } from '../types.js';
 import { SymbolKind } from '../types.js';
 import type { ServiceContext } from './service-context.js';
-import { ServiceContextUtils } from './service-context.js';
 
 /**
  * Service for symbol-related LSP operations
  * Handles definition, references, renaming, and symbol search
  */
 export class SymbolService {
-  constructor(
-    private getServer: (filePath: string) => Promise<ServerState>,
-    private protocol: LSPProtocol
-  ) {}
-
-  // Create context from constructor parameters
-  private get context(): ServiceContext {
-    return ServiceContextUtils.createServiceContext(this.getServer, this.protocol);
-  }
+  constructor(private context: ServiceContext) {}
 
   /**
    * Find definition of symbol at position
@@ -37,13 +28,7 @@ export class SymbolService {
       `[DEBUG findDefinition] Requesting definition for ${filePath} at ${position.line}:${position.character}\n`
     );
 
-    const serverState = await this.context.getServer(filePath);
-
-    // Wait for the server to be fully initialized
-    await serverState.initializationPromise;
-
-    // Ensure the file is opened and synced with the LSP server
-    await this.context.ensureFileOpen(serverState, filePath);
+    const serverState = await this.context.prepareFile(filePath);
 
     process.stderr.write('[DEBUG findDefinition] Sending textDocument/definition request\n');
     const result = await this.context.protocol.sendRequest(
@@ -98,13 +83,7 @@ export class SymbolService {
     position: Position,
     includeDeclaration = false
   ): Promise<Location[]> {
-    const serverState = await this.context.getServer(filePath);
-
-    // Wait for the server to be fully initialized
-    await serverState.initializationPromise;
-
-    // Ensure the file is opened and synced with the LSP server
-    await this.context.ensureFileOpen(serverState, filePath);
+    const serverState = await this.context.prepareFile(filePath);
 
     process.stderr.write(
       `[DEBUG] findReferences for ${filePath} at ${position.line}:${position.character}, includeDeclaration: ${includeDeclaration}\n`
@@ -159,13 +138,7 @@ export class SymbolService {
       `[DEBUG renameSymbol] Requesting rename for ${filePath} at ${position.line}:${position.character} to "${newName}", dryRun: ${dryRun}\n`
     );
 
-    const serverState = await this.context.getServer(filePath);
-
-    // Wait for the server to be fully initialized
-    await serverState.initializationPromise;
-
-    // Ensure the main file is opened and synced with the LSP server
-    await this.context.ensureFileOpen(serverState, filePath);
+    const serverState = await this.context.prepareFile(filePath);
 
     // CRITICAL FIX: For multi-file rename to work, we need to:
     // 1. First open all potential project files (same extension) in the directory tree
@@ -236,8 +209,7 @@ export class SymbolService {
 
       for (const projectFile of filesToOpen) {
         try {
-          const fileServerState = await this.context.getServer(projectFile);
-          await this.context.ensureFileOpen(fileServerState, projectFile);
+          const fileServerState = await this.context.prepareFile(projectFile);
         } catch (error) {
           // Ignore errors opening individual files
         }
@@ -269,8 +241,7 @@ export class SymbolService {
     // Step 3: Ensure all referencing files are opened (some may already be open from step 1)
     for (const refFilePath of referencingFiles) {
       try {
-        const fileServerState = await this.context.getServer(refFilePath);
-        await this.context.ensureFileOpen(fileServerState, refFilePath);
+        const fileServerState = await this.context.prepareFile(refFilePath);
         process.stderr.write(
           `[DEBUG renameSymbol] Ensured file is open for rename: ${refFilePath}\n`
         );
@@ -377,66 +348,72 @@ export class SymbolService {
   async searchWorkspaceSymbols(
     query: string,
     servers: Map<string, ServerState>,
-    preloadServers: (verbose?: boolean) => Promise<void>
+    preloadServers: (verbose?: boolean) => Promise<void>,
+    workspacePath?: string
   ): Promise<SymbolInformation[]> {
-    // Ensure servers are preloaded before searching
+    process.stderr.write(
+      `[DEBUG searchWorkspaceSymbols] servers.size=${servers.size}, server keys: [${Array.from(servers.keys()).join(', ')}]\n`
+    );
+
+    // Check if we have any initialized servers first
+    const initializedServers = Array.from(servers.values()).filter((s) => s.initialized);
+    process.stderr.write(
+      `[DEBUG searchWorkspaceSymbols] initialized servers: ${initializedServers.length}/${servers.size}\n`
+    );
+
+    // Only preload if we have no servers at all (not even uninitialized ones)
+    // This prevents redundant preloading when servers are already starting up
     if (servers.size === 0) {
+      process.stderr.write('[DEBUG searchWorkspaceSymbols] No servers found, preloading...\n');
+      await preloadServers(false);
+    } else if (initializedServers.length === 0) {
       process.stderr.write(
-        '[DEBUG searchWorkspaceSymbols] No servers running, preloading servers first\n'
+        '[DEBUG searchWorkspaceSymbols] Servers exist but none initialized, waiting briefly...\n'
       );
-      await preloadServers(false); // Preload without verbose logging
+      // Brief wait for existing servers to finish initializing instead of preloading again
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
-    // For workspace symbol search to work, TypeScript server needs project context
-    // Open a TypeScript file to establish project context if no files are open yet
-    let hasOpenFiles = false;
-    for (const serverState of servers.values()) {
-      if (serverState.openFiles.size > 0) {
-        hasOpenFiles = true;
-        break;
-      }
-    }
+    // For workspace symbol search, we need at least some files open for context
+    // But avoid excessive file opening that causes timeouts
+    const hasAnyOpenFiles = Array.from(servers.values()).some((s) => s.openFiles.size > 0);
 
-    if (!hasOpenFiles) {
+    if (!hasAnyOpenFiles && workspacePath) {
       try {
-        // Try to open a TypeScript file in the workspace to establish project context
-        const { scanDirectoryForExtensions, loadGitignore } = await import('../file-scanner.js');
-        const gitignore = await loadGitignore(process.cwd());
-        const extensions = await scanDirectoryForExtensions(process.cwd(), 2, gitignore, false);
+        process.stderr.write(
+          '[DEBUG searchWorkspaceSymbols] Opening minimal files for workspace context\n'
+        );
 
-        if (extensions.has('ts')) {
-          // Find a .ts file to open for project context
-          const fs = await import('node:fs/promises');
-          const path = await import('node:path');
+        // Just open a few key files instead of scanning the entire project
+        const { existsSync, readdirSync } = await import('node:fs');
+        const { join } = await import('node:path');
 
-          async function findTsFile(dir: string): Promise<string | null> {
+        if (existsSync(workspacePath)) {
+          const files = readdirSync(workspacePath)
+            .filter((f) => f.match(/\.(ts|js|tsx|jsx)$/))
+            .slice(0, 3) // Open maximum 3 files for context
+            .map((f) => join(workspacePath, f));
+
+          for (const filePath of files) {
             try {
-              const entries = await fs.readdir(dir, { withFileTypes: true });
-              for (const entry of entries) {
-                if (entry.isFile() && entry.name.endsWith('.ts')) {
-                  return path.join(dir, entry.name);
-                }
-                if (entry.isDirectory() && !entry.name.startsWith('.')) {
-                  const found = await findTsFile(path.join(dir, entry.name));
-                  if (found) return found;
-                }
-              }
-            } catch {}
-            return null;
+              await this.context.prepareFile(filePath);
+            } catch (error) {
+              // Ignore individual file errors
+            }
           }
 
-          const tsFile = await findTsFile(process.cwd());
-          if (tsFile) {
-            process.stderr.write(
-              `[DEBUG searchWorkspaceSymbols] Opening ${tsFile} to establish project context\n`
-            );
-            const serverState = await this.getServer(tsFile);
-            await this.context.ensureFileOpen(serverState, tsFile);
+          process.stderr.write(
+            `[DEBUG searchWorkspaceSymbols] Opened ${files.length} context files\n`
+          );
+
+          // Brief pause to let files process
+          if (files.length > 0) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
           }
         }
       } catch (error) {
         process.stderr.write(
-          `[DEBUG searchWorkspaceSymbols] Failed to establish project context: ${error}\n`
+          `[DEBUG searchWorkspaceSymbols] Failed to establish minimal context: ${error}\n`
         );
       }
     }
@@ -496,13 +473,7 @@ export class SymbolService {
    * Get document symbols
    */
   async getDocumentSymbols(filePath: string): Promise<DocumentSymbol[] | SymbolInformation[]> {
-    const serverState = await this.context.getServer(filePath);
-
-    // Wait for the server to be fully initialized
-    await serverState.initializationPromise;
-
-    // Ensure the file is opened and synced with the LSP server
-    await this.context.ensureFileOpen(serverState, filePath);
+    const serverState = await this.context.prepareFile(filePath);
 
     process.stderr.write(`[DEBUG] Requesting documentSymbol for: ${filePath}\n`);
 

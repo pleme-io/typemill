@@ -119,17 +119,22 @@ let intelligenceService: IntelligenceService;
 let hierarchyService: HierarchyService;
 
 try {
-  // Create new LSP client and initialize services
+  // Create new LSP client
   newLspClient = new NewLSPClient();
-  const getServer = (filePath: string) => newLspClient.getServer(filePath);
-  const protocol = newLspClient.protocol;
 
-  // Initialize services with LSP components
-  symbolService = new SymbolService(getServer, protocol);
-  fileService = new FileService(getServer, protocol);
-  diagnosticService = new DiagnosticService(getServer, protocol);
-  intelligenceService = new IntelligenceService(getServer, protocol);
-  hierarchyService = new HierarchyService(getServer, protocol);
+  // Create ServiceContext for all services
+  const { ServiceContextUtils } = await import('./src/services/service-context.js');
+  const serviceContext = ServiceContextUtils.createServiceContext(
+    newLspClient.getServer.bind(newLspClient),
+    newLspClient.protocol
+  );
+
+  // Initialize services with ServiceContext
+  symbolService = new SymbolService(serviceContext);
+  fileService = new FileService(serviceContext);
+  diagnosticService = new DiagnosticService(serviceContext);
+  intelligenceService = new IntelligenceService(serviceContext);
+  hierarchyService = new HierarchyService(serviceContext);
 } catch (error) {
   process.stderr.write(
     `Failed to initialize LSP clients: ${error instanceof Error ? error.message : String(error)}\n`

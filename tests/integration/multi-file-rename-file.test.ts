@@ -2,6 +2,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { existsSync, readFileSync } from 'node:fs';
 import { FileBackupManager } from '../helpers/file-backup-manager.js';
 import { MCPTestClient, assertToolResult } from '../helpers/mcp-test-client.js';
+import {
+  verifyFileContainsAll,
+  verifyFileDoesNotContain,
+  verifyImportStatement,
+} from '../helpers/test-verification-helpers.js';
 
 describe('Multi-File Rename File Path Tests', () => {
   let client: MCPTestClient;
@@ -151,44 +156,81 @@ describe('Multi-File Rename File Path Tests', () => {
       expect(oldFileExists).toBe(false);
       expect(newFileExists).toBe(true);
 
-      // Verify import paths were updated
-      console.log('\n🔍 Verifying import updates...');
-      let totalImportsUpdated = 0;
-      let totalImportsFound = 0;
+      // Verify import paths were updated with exact content verification
+      console.log('\n🔍 Verifying exact import statement updates...');
 
-      for (const [file, originalImportList] of originalImports) {
-        if (existsSync(file)) {
-          const newContent = readFileSync(file, 'utf-8');
-          const fileName = file.split('/').pop();
+      // Check index.ts - should have path updated from services to core
+      const indexFile = '/workspace/plugins/cclsp/playground/src/index.ts';
+      if (existsSync(indexFile)) {
+        console.log('\n📄 Verifying index.ts imports...');
+        const indexContent = readFileSync(indexFile, 'utf-8');
 
-          console.log(`\n📄 ${fileName}:`);
+        // Should NOT contain old path
+        expect(indexContent).not.toContain('./services/user-service');
 
-          // Check that old imports are gone
-          const oldImports = newContent.match(/from ['"].*user-service['"]/g) || [];
-          const newImports = newContent.match(/from ['"].*account-service['"]/g) || [];
-
-          console.log(`  Old imports (user-service): ${oldImports.length}`);
-          console.log(`  New imports (account-service): ${newImports.length}`);
-          console.log(`  Expected updates: ${originalImportList.length}`);
-
-          if (oldImports.length === 0 && newImports.length === originalImportList.length) {
-            console.log('  ✅ All imports updated correctly');
-            totalImportsUpdated += newImports.length;
-          } else {
-            console.log('  ❌ Import update mismatch');
-            if (oldImports.length > 0) {
-              console.log(`    Still has old imports: ${oldImports.join(', ')}`);
-            }
-          }
-
-          totalImportsFound += originalImportList.length;
+        // Should contain new path - verify exact import statements
+        if (indexContent.includes('../core/account-service')) {
+          // Path adjusted for new location
+          verifyFileContainsAll(indexFile, ['../core/account-service']);
+          console.log('  ✅ Import path correctly updated to ../core/account-service');
+        } else if (indexContent.includes('./core/account-service')) {
+          // Or might be relative to same level
+          verifyFileContainsAll(indexFile, ['./core/account-service']);
+          console.log('  ✅ Import path correctly updated to ./core/account-service');
+        } else {
+          throw new Error('index.ts import path not properly updated');
         }
       }
 
-      console.log(`\n📊 Summary: ${totalImportsUpdated}/${totalImportsFound} imports updated`);
+      // Check user-list.ts - verify exact import change
+      const userListFile = '/workspace/plugins/cclsp/playground/src/components/user-list.ts';
+      if (existsSync(userListFile)) {
+        console.log('\n📄 Verifying user-list.ts imports...');
+        verifyImportStatement(
+          userListFile,
+          /from ['"].*services\/user-service['"]/,
+          '../core/account-service'
+        );
+        console.log('  ✅ Import path correctly updated from services to core directory');
+      }
 
-      // Expect at least some imports to be updated
-      expect(totalImportsUpdated).toBeGreaterThan(0);
+      // Check user-form.ts - verify exact import change
+      const userFormFile = '/workspace/plugins/cclsp/playground/src/components/user-form.ts';
+      if (existsSync(userFormFile)) {
+        console.log('\n📄 Verifying user-form.ts imports...');
+        verifyImportStatement(
+          userFormFile,
+          /from ['"].*services\/user-service['"]/,
+          '../core/account-service'
+        );
+        console.log('  ✅ Import path correctly updated from services to core directory');
+      }
+
+      // Check user-helpers.ts - verify exact import change
+      const userHelpersFile = '/workspace/plugins/cclsp/playground/src/utils/user-helpers.ts';
+      if (existsSync(userHelpersFile)) {
+        console.log('\n📄 Verifying user-helpers.ts imports...');
+        verifyImportStatement(
+          userHelpersFile,
+          /from ['"].*services\/user-service['"]/,
+          '../core/account-service'
+        );
+        console.log('  ✅ Import path correctly updated from services to core directory');
+      }
+
+      // Verify at least 3 files had their imports updated
+      let verifiedFiles = 0;
+      for (const file of [indexFile, userListFile, userFormFile, userHelpersFile]) {
+        if (existsSync(file)) {
+          const content = readFileSync(file, 'utf-8');
+          if (content.includes('account-service') && !content.includes('user-service')) {
+            verifiedFiles++;
+          }
+        }
+      }
+
+      console.log(`\n📊 Summary: ${verifiedFiles} files verified with correct import updates`);
+      expect(verifiedFiles).toBeGreaterThanOrEqual(3);
 
       console.log('✅ File rename with import updates verification complete');
     }, 30000); // Extended timeout for file operations

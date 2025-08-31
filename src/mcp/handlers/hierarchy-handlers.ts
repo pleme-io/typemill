@@ -45,9 +45,39 @@ export async function handlePrepareCallHierarchy(
 // Handler for get_call_hierarchy_incoming_calls tool
 export async function handleGetCallHierarchyIncomingCalls(
   hierarchyService: HierarchyService,
-  args: { item: CallHierarchyItem }
+  args: { item?: CallHierarchyItem; file_path?: string; line?: number; character?: number }
 ) {
-  const { item } = args;
+  let item: CallHierarchyItem;
+
+  // Support both API formats: direct item or file_path/line/character
+  if (args.item) {
+    item = args.item;
+  } else if (args.file_path && args.line !== undefined && args.character !== undefined) {
+    // First prepare call hierarchy to get the item
+    const absolutePath = resolve(args.file_path);
+    try {
+      const items = await hierarchyService.prepareCallHierarchy(absolutePath, {
+        line: args.line - 1, // Convert to 0-indexed
+        character: args.character,
+      });
+
+      if (items.length === 0 || !items[0]) {
+        return createMCPResponse(
+          `No call hierarchy item found at position ${args.line}:${args.character} in ${args.file_path}`
+        );
+      }
+
+      item = items[0]; // Use the first item
+    } catch (error) {
+      return createMCPResponse(
+        `Error preparing call hierarchy: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  } else {
+    return createMCPResponse(
+      'Invalid arguments: provide either "item" or "file_path", "line", and "character"'
+    );
+  }
 
   try {
     const incomingCalls = await hierarchyService.getCallHierarchyIncomingCalls(item);
@@ -84,9 +114,39 @@ export async function handleGetCallHierarchyIncomingCalls(
 // Handler for get_call_hierarchy_outgoing_calls tool
 export async function handleGetCallHierarchyOutgoingCalls(
   hierarchyService: HierarchyService,
-  args: { item: CallHierarchyItem }
+  args: { item?: CallHierarchyItem; file_path?: string; line?: number; character?: number }
 ) {
-  const { item } = args;
+  let item: CallHierarchyItem;
+
+  // Support both API formats: direct item or file_path/line/character
+  if (args.item) {
+    item = args.item;
+  } else if (args.file_path && args.line !== undefined && args.character !== undefined) {
+    // First prepare call hierarchy to get the item
+    const absolutePath = resolve(args.file_path);
+    try {
+      const items = await hierarchyService.prepareCallHierarchy(absolutePath, {
+        line: args.line - 1, // Convert to 0-indexed
+        character: args.character,
+      });
+
+      if (items.length === 0 || !items[0]) {
+        return createMCPResponse(
+          `No call hierarchy item found at position ${args.line}:${args.character} in ${args.file_path}`
+        );
+      }
+
+      item = items[0]; // Use the first item
+    } catch (error) {
+      return createMCPResponse(
+        `Error preparing call hierarchy: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  } else {
+    return createMCPResponse(
+      'Invalid arguments: provide either "item" or "file_path", "line", and "character"'
+    );
+  }
 
   try {
     const outgoingCalls = await hierarchyService.getCallHierarchyOutgoingCalls(item);

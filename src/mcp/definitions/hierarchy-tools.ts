@@ -27,7 +27,7 @@ export const hierarchyToolDefinitions = [
   {
     name: 'get_call_hierarchy_incoming_calls',
     description:
-      'Get all incoming calls to a function/method. Shows where this function is called from throughout the codebase.',
+      'Get all incoming calls to a function/method. Shows where this function is called from throughout the codebase. Can use either a prepared call hierarchy item or file position.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -85,14 +85,26 @@ export const hierarchyToolDefinitions = [
           },
           required: ['name', 'kind', 'uri', 'range', 'selectionRange'],
         },
+        file_path: {
+          type: 'string',
+          description: 'The path to the file (alternative to item)',
+        },
+        line: {
+          type: 'number',
+          description: 'The line number (1-indexed, alternative to item)',
+        },
+        character: {
+          type: 'number',
+          description: 'The character position in the line (0-indexed, alternative to item)',
+        },
       },
-      required: ['item'],
+      oneOf: [{ required: ['item'] }, { required: ['file_path', 'line', 'character'] }],
     },
   },
   {
     name: 'get_call_hierarchy_outgoing_calls',
     description:
-      'Get all outgoing calls from a function/method. Shows what functions this function calls.',
+      'Get all outgoing calls from a function/method. Shows what functions this function calls. Can use either a prepared call hierarchy item or file position.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -150,8 +162,20 @@ export const hierarchyToolDefinitions = [
           },
           required: ['name', 'kind', 'uri', 'range', 'selectionRange'],
         },
+        file_path: {
+          type: 'string',
+          description: 'The path to the file (alternative to item)',
+        },
+        line: {
+          type: 'number',
+          description: 'The line number (1-indexed, alternative to item)',
+        },
+        character: {
+          type: 'number',
+          description: 'The character position in the line (0-indexed, alternative to item)',
+        },
       },
-      required: ['item'],
+      oneOf: [{ required: ['item'] }, { required: ['file_path', 'line', 'character'] }],
     },
   },
   {

@@ -85,11 +85,15 @@ export class LSPClient {
     return this.symbolService.getDocumentSymbols(filePath);
   }
 
-  async searchWorkspaceSymbols(query: string): Promise<SymbolInformation[]> {
+  async searchWorkspaceSymbols(
+    query: string,
+    workspacePath?: string
+  ): Promise<SymbolInformation[]> {
     return this.symbolService.searchWorkspaceSymbols(
       query,
-      this.serverManager.activeServers,
-      this.newClient.preloadServers.bind(this.newClient)
+      this.newClient.serverManager.activeServers,
+      this.newClient.preloadServers.bind(this.newClient),
+      workspacePath
     );
   }
 

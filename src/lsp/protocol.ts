@@ -157,9 +157,25 @@ export class LSPProtocol {
    * Send message with proper Content-Length framing
    */
   private sendMessage(process: ChildProcess, message: LSPMessage): void {
-    const content = JSON.stringify(message);
-    const header = `Content-Length: ${Buffer.byteLength(content)}\r\n\r\n`;
-    process.stdin?.write(header + content);
+    try {
+      if (!process.stdin || process.stdin.destroyed) {
+        throw new Error('LSP process stdin is not available or destroyed');
+      }
+
+      const content = JSON.stringify(message);
+      const header = `Content-Length: ${Buffer.byteLength(content)}\r\n\r\n`;
+
+      // Check if we can write before attempting to write
+      if (process.stdin.writable) {
+        process.stdin.write(header + content);
+      } else {
+        throw new Error('LSP process stdin is not writable');
+      }
+    } catch (error) {
+      throw new Error(
+        `Failed to send LSP message: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
   }
 
   /**

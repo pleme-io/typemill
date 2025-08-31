@@ -80,6 +80,11 @@ export const advancedToolDefinitions = [
           type: 'string',
           description: 'Search query for symbol names (supports partial matching)',
         },
+        workspace_path: {
+          type: 'string',
+          description:
+            'Optional workspace path to search within (defaults to current working directory)',
+        },
       },
       required: ['query'],
     },

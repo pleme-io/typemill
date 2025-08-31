@@ -42,7 +42,7 @@ export class ServerManager {
     if (this.failedServers.has(serverKey)) {
       throw new Error(
         `Language server for ${serverConfig.extensions.join(', ')} files is not available. ` +
-          `Install it with: ${this.getInstallInstructions(serverConfig.command[0])}`
+          `Install it with: ${this.getInstallInstructions(serverConfig.command[0] || '')}`
       );
     }
 

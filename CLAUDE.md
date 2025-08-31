@@ -35,7 +35,7 @@ bun run test         # Run unit tests
 bun run test:mcp     # Run MCP integration tests
 
 # Full pre-publish check
-npm run prepublishOnly  # build + test + typecheck
+bun run prepublishOnly  # build + test + typecheck
 ```
 
 ## Architecture

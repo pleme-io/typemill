@@ -1,3 +1,4 @@
+import { readFileSync, writeFileSync } from 'node:fs';
 import { capabilityManager } from '../capability-manager.js';
 import { pathToUri } from '../path-utils.js';
 import type {
@@ -31,12 +32,10 @@ export class FileService {
       trimFinalNewlines?: boolean;
     }
   ): Promise<TextEdit[]> {
-    const serverState = await this.context.getServer(filePath);
+    const serverState = await this.context.prepareFile(filePath);
     if (!serverState.initialized) {
       throw new Error('Server not initialized');
     }
-
-    await this.context.ensureFileOpen(serverState, filePath);
     const fileUri = pathToUri(filePath);
 
     const formattingOptions = {
@@ -73,12 +72,10 @@ export class FileService {
     range?: Range,
     context?: { diagnostics?: Diagnostic[] }
   ): Promise<CodeAction[]> {
-    const serverState = await this.context.getServer(filePath);
+    const serverState = await this.context.prepareFile(filePath);
     if (!serverState.initialized) {
       throw new Error('Server not initialized');
     }
-
-    await this.context.ensureFileOpen(serverState, filePath);
     const fileUri = pathToUri(filePath);
 
     // Get current diagnostics for the file to provide context
@@ -134,12 +131,10 @@ export class FileService {
    * Get folding ranges
    */
   async getFoldingRanges(filePath: string): Promise<FoldingRange[]> {
-    const serverState = await this.context.getServer(filePath);
+    const serverState = await this.context.prepareFile(filePath);
     if (!serverState.initialized) {
       throw new Error('Server not initialized');
     }
-
-    await this.context.ensureFileOpen(serverState, filePath);
     const fileUri = pathToUri(filePath);
 
     process.stderr.write(`[DEBUG getFoldingRanges] Requesting folding ranges for: ${filePath}\n`);
@@ -167,12 +162,10 @@ export class FileService {
    * Get document links
    */
   async getDocumentLinks(filePath: string): Promise<DocumentLink[]> {
-    const serverState = await this.context.getServer(filePath);
+    const serverState = await this.context.prepareFile(filePath);
     if (!serverState.initialized) {
       throw new Error('Server not initialized');
     }
-
-    await this.context.ensureFileOpen(serverState, filePath);
     const fileUri = pathToUri(filePath);
 
     process.stderr.write(`[DEBUG getDocumentLinks] Requesting document links for: ${filePath}\n`);
@@ -260,7 +253,10 @@ export class FileService {
   /**
    * Ensure file is open in LSP server
    */
-  async ensureFileOpen(serverState: ServerState, filePath: string): Promise<void> {
+  async ensureFileOpen(
+    serverState: import('../lsp-types.js').ServerState,
+    filePath: string
+  ): Promise<void> {
     if (serverState.openFiles.has(filePath)) {
       return;
     }
@@ -271,7 +267,7 @@ export class FileService {
       this.context.protocol.sendNotification(serverState.process, 'textDocument/didOpen', {
         textDocument: {
           uri: `file://${filePath}`,
-          languageId: this.getLanguageId(filePath),
+          languageId: this.context.getLanguageId(filePath),
           version: 1,
           text: fileContent,
         },
@@ -292,52 +288,95 @@ export class FileService {
     if (edits.length === 0) return;
 
     try {
-      const fileContent = readFileSync(filePath, 'utf-8');
-      const lines = fileContent.split('\n');
+      const originalContent = readFileSync(filePath, 'utf-8');
 
-      // Sort edits in reverse order by position to avoid offset issues
+      // Sort edits in reverse order (from end to beginning of file)
+      // This prevents earlier edits from affecting the positions of later edits
       const sortedEdits = [...edits].sort((a, b) => {
+        // First sort by line (reverse)
         if (a.range.start.line !== b.range.start.line) {
           return b.range.start.line - a.range.start.line;
         }
+        // Then by character (reverse)
         return b.range.start.character - a.range.start.character;
       });
 
-      // Apply edits
+      // Apply edits by working directly on the lines array
+      const lines = originalContent.split('\n');
+
       for (const edit of sortedEdits) {
         const startLine = edit.range.start.line;
         const startChar = edit.range.start.character;
         const endLine = edit.range.end.line;
         const endChar = edit.range.end.character;
 
+        // Validate line indices
+        if (
+          startLine < 0 ||
+          startLine >= lines.length ||
+          endLine < 0 ||
+          endLine >= lines.length ||
+          startLine > endLine
+        ) {
+          process.stderr.write(
+            `[WARNING applyTextEdits] Invalid range in ${filePath}: ${startLine}:${startChar}-${endLine}:${endChar}\n`
+          );
+          continue;
+        }
+
         if (startLine === endLine) {
-          // Single line edit
+          // Single-line edit
           const line = lines[startLine];
-          if (line !== undefined) {
-            lines[startLine] =
-              line.substring(0, startChar) + edit.newText + line.substring(endChar);
-          }
+          if (line === undefined) continue;
+
+          // Validate character indices
+          const safeStartChar = Math.max(0, Math.min(startChar, line.length));
+          const safeEndChar = Math.max(safeStartChar, Math.min(endChar, line.length));
+
+          lines[startLine] =
+            line.substring(0, safeStartChar) + edit.newText + line.substring(safeEndChar);
+
+          process.stderr.write(
+            `[DEBUG applyTextEdits] Single-line edit at ${startLine}:${safeStartChar}-${safeEndChar} -> "${edit.newText}"\n`
+          );
         } else {
           // Multi-line edit
-          const newLines = edit.newText.split('\n');
-          const startLineText = lines[startLine];
-          const endLineText = lines[endLine];
-          if (startLineText !== undefined && endLineText !== undefined) {
-            const firstLine = startLineText.substring(0, startChar) + newLines[0];
-            const lastLine = newLines[newLines.length - 1] + endLineText.substring(endChar);
+          const startLineContent = lines[startLine] || '';
+          const endLineContent = lines[endLine] || '';
 
-            // Replace the range with new content
-            const replacementLines = [firstLine, ...newLines.slice(1, -1), lastLine];
-            lines.splice(startLine, endLine - startLine + 1, ...replacementLines);
-          }
+          const safeStartChar = Math.max(0, Math.min(startChar, startLineContent.length));
+          const safeEndChar = Math.max(0, Math.min(endChar, endLineContent.length));
+
+          const newLines = edit.newText.split('\n');
+
+          // Build the replacement
+          const firstLine = startLineContent.substring(0, safeStartChar) + newLines[0];
+          const lastLine =
+            (newLines[newLines.length - 1] || '') + endLineContent.substring(safeEndChar);
+
+          // Replace the range of lines
+          const replacement =
+            newLines.length === 1
+              ? [
+                  firstLine.substring(0, safeStartChar) +
+                    edit.newText +
+                    endLineContent.substring(safeEndChar),
+                ]
+              : [firstLine, ...newLines.slice(1, -1), lastLine];
+
+          lines.splice(startLine, endLine - startLine + 1, ...replacement);
+
+          process.stderr.write(
+            `[DEBUG applyTextEdits] Multi-line edit at ${startLine}:${safeStartChar}-${endLine}:${safeEndChar} -> "${edit.newText}"\n`
+          );
         }
       }
 
-      // This would normally write back to the file
-      // For now, just log what would happen
-      process.stderr.write(
-        `[DEBUG applyTextEdits] Would apply ${edits.length} edits to ${filePath}\n`
-      );
+      // Write the modified content back to the file
+      const modifiedContent = lines.join('\n');
+      writeFileSync(filePath, modifiedContent, 'utf-8');
+
+      process.stderr.write(`[DEBUG applyTextEdits] Applied ${edits.length} edits to ${filePath}\n`);
     } catch (error) {
       throw new Error(`Failed to apply text edits to ${filePath}: ${error}`);
     }

@@ -11,6 +11,7 @@ export interface ServiceContext {
   protocol: LSPProtocol;
   ensureFileOpen: (serverState: ServerState, filePath: string) => Promise<void>;
   getLanguageId: (filePath: string) => string;
+  prepareFile: (filePath: string) => Promise<ServerState>;
 }
 
 /**
@@ -75,6 +76,27 @@ export const ServiceContextUtils = {
   },
 
   /**
+   * Prepare a file for LSP operations
+   * Combines server initialization and file opening into a single operation
+   * Eliminates the repetitive 3-step pattern across all services
+   */
+  async prepareFile(
+    filePath: string,
+    getServer: (filePath: string) => Promise<ServerState>,
+    ensureFileOpen: (serverState: ServerState, filePath: string) => Promise<void>
+  ): Promise<ServerState> {
+    const serverState = await getServer(filePath);
+
+    // Wait for the server to be fully initialized
+    await serverState.initializationPromise;
+
+    // Ensure the file is opened and synced with the LSP server
+    await ensureFileOpen(serverState, filePath);
+
+    return serverState;
+  },
+
+  /**
    * Create a service context with shared utilities
    * Factory function for creating consistent service contexts
    */
@@ -88,6 +110,13 @@ export const ServiceContextUtils = {
       ensureFileOpen: async (serverState: ServerState, filePath: string) =>
         ServiceContextUtils.ensureFileOpen(serverState, filePath, protocol),
       getLanguageId: ServiceContextUtils.getLanguageId,
+      prepareFile: async (filePath: string) =>
+        ServiceContextUtils.prepareFile(
+          filePath,
+          getServer,
+          async (serverState: ServerState, filePath: string) =>
+            ServiceContextUtils.ensureFileOpen(serverState, filePath, protocol)
+        ),
     };
   },
 };

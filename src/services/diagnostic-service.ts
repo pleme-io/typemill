@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { pathToUri } from '../path-utils.js';
 import type { Diagnostic, DocumentDiagnosticReport } from '../types.js';
 import type { ServiceContext } from './service-context.js';
@@ -15,13 +16,7 @@ export class DiagnosticService {
   async getDiagnostics(filePath: string): Promise<Diagnostic[]> {
     process.stderr.write(`[DEBUG getDiagnostics] Requesting diagnostics for ${filePath}\n`);
 
-    const serverState = await this.context.getServer(filePath);
-
-    // Wait for the server to be fully initialized
-    await serverState.initializationPromise;
-
-    // Ensure the file is opened and synced with the LSP server
-    await this.ensureFileOpen(serverState, filePath);
+    const serverState = await this.context.prepareFile(filePath);
 
     // First, check if we have cached diagnostics from publishDiagnostics
     const fileUri = pathToUri(filePath);
@@ -243,7 +238,7 @@ export class DiagnosticService {
    * Wait for diagnostics to stabilize after file changes
    */
   private async waitForDiagnosticsIdle(
-    serverState: ServerState,
+    serverState: import('../lsp-types.js').ServerState,
     fileUri: string,
     options: { maxWaitTime?: number; idleTime?: number; checkInterval?: number } = {}
   ): Promise<void> {
