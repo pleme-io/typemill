@@ -304,7 +304,7 @@ async function findPotentialImporters(
   const extensions = new Set(['ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs']);
 
   // Load gitignore patterns if requested
-  let ignoreFilter: ReturnType<typeof import('ignore').default> | null = null;
+  let ignoreFilter: ReturnType<typeof import('ignore')> | null = null;
   if (useGitignore) {
     const { loadGitignore } = await import('./file-scanner.js');
     ignoreFilter = await loadGitignore(rootDir);

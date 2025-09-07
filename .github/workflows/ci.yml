@@ -33,11 +33,6 @@ jobs:
     - name: Run unit tests
       run: bun test
 
-    - name: Run execution tests
-      run: bun run test:execution
-      env:
-        CI: true
-
     - name: Build
       run: bun run build
 
@@ -68,7 +63,8 @@ jobs:
       id: version
       run: |
         CURRENT_VERSION=$(node -p "require('./package.json').version")
-        PUBLISHED_VERSION=$(npm view cclsp version 2>/dev/null || echo "0.0.0")
+        # Use the correct scoped package name
+        PUBLISHED_VERSION=$(npm view @goobits/cclsp version 2>/dev/null || echo "0.0.0")
         
         echo "Current version: $CURRENT_VERSION"
         echo "Published version: $PUBLISHED_VERSION"

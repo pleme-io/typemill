@@ -1,0 +1,34 @@
+# VM Configuration - Simple and powerful!
+# Just specify the OS you want to run:
+
+os: ubuntu  # Options: ubuntu, debian, alpine, macos (on Apple Silicon)
+
+# Everything else is auto-configured based on your OS choice!
+# - Ubuntu: 4GB RAM, 2 CPUs, Docker provider
+# - macOS: 8GB RAM, 4 CPUs, Tart provider (Apple Silicon only)
+# - Debian: 2GB RAM, 2 CPUs, Docker provider
+# - Alpine: 1GB RAM, 1 CPU, Docker provider
+
+# Optional: Override defaults by adding vm section
+# vm:
+#   memory: 8192  # Custom RAM in MB
+#   cpus: 4       # Custom CPU cores
+
+# Optional: Store VMs on external drive (for Tart provider)
+# tart:
+#   storage_path: /Volumes/ExternalSSD/VMs
+
+# Project settings (auto-generated)
+project:
+  name: cclsp
+  hostname: dev.cclsp.local
+
+# Port range for this project
+port_range: 3020-3029
+
+pip_packages:
+  - claudeflow
+package_linking:
+  npm: true
+  pip: true
+  cargo: true

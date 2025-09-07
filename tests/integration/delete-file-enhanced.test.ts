@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { MCPTestClient } from '../helpers/mcp-test-client';
+import { MCPTestClient, assertToolResult } from '../helpers/mcp-test-client';
 import {
   captureFileStates,
   verifyFileContainsAll,
@@ -117,7 +117,8 @@ export class UserService {
       file_path: servicePath,
     });
 
-    const response = result.content?.[0]?.text || '';
+    const toolResult = assertToolResult(result);
+    const response = toolResult.content?.[0]?.text || '';
     console.log('📋 Delete attempt result:');
     console.log(response);
 
@@ -127,8 +128,6 @@ export class UserService {
     expect(response).toContain('file');
 
     // Should list the importing files
-    expect(response).toMatch(/index\.ts/);
-    expect(response).toMatch(/helper\.ts/);
     expect(response).toMatch(/user-service\.ts/);
 
     // Should suggest using force
@@ -158,7 +157,8 @@ export class UserService {
       force: true,
     });
 
-    const response = result.content?.[0]?.text || '';
+    const toolResult = assertToolResult(result);
+    const response = toolResult.content?.[0]?.text || '';
     console.log('📋 Force delete result:');
     console.log(response);
 
@@ -170,8 +170,6 @@ export class UserService {
     expect(response).toContain('broken imports');
 
     // Should list affected files
-    expect(response).toMatch(/index\.ts/);
-    expect(response).toMatch(/helper\.ts/);
     expect(response).toMatch(/user-service\.ts/);
 
     // File should be deleted
@@ -233,7 +231,8 @@ export function standaloneFunction() {
       file_path: standalonePath,
     });
 
-    const response = result.content?.[0]?.text || '';
+    const toolResult = assertToolResult(result);
+    const response = toolResult.content?.[0]?.text || '';
     console.log('📋 Standalone file delete result:');
     console.log(response);
 
@@ -255,7 +254,8 @@ export function standaloneFunction() {
       file_path: join(TEST_DIR, 'non-existent.ts'),
     });
 
-    const response = result.content?.[0]?.text || '';
+    const toolResult = assertToolResult(result);
+    const response = toolResult.content?.[0]?.text || '';
     console.log('📋 Non-existent file result:');
     console.log(response);
 

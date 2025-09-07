@@ -242,9 +242,11 @@ export function countOccurrences(filePath: string, pattern: string | RegExp): nu
   if (typeof pattern === 'string') {
     let count = 0;
     let index = 0;
-    while ((index = content.indexOf(pattern, index)) !== -1) {
+    index = content.indexOf(pattern, index);
+    while (index !== -1) {
       count++;
       index += pattern.length;
+      index = content.indexOf(pattern, index);
     }
     return count;
   }

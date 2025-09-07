@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { MCPTestClient, assertToolResult } from '../helpers/mcp-test-client.js';
+import { MCPTestClient, assertToolResult } from '../helpers/mcp-test-client';
 import {
   captureFileStates,
   getFileLines,
@@ -164,7 +164,8 @@ export function createService(): UserService {
       workspace_path: TEST_DIR,
     });
 
-    const searchResponse = searchResult.content?.[0]?.text || '';
+    const searchToolResult = assertToolResult(searchResult);
+    const searchResponse = searchToolResult.content?.[0]?.text || '';
     console.log('🔍 Symbol search found:', searchResponse.substring(0, 200));
 
     // Should find the UserData interface
@@ -179,7 +180,8 @@ export function createService(): UserService {
       include_declaration: true,
     });
 
-    const referencesResponse = referencesResult.content?.[0]?.text || '';
+    const referencesToolResult = assertToolResult(referencesResult);
+    const referencesResponse = referencesToolResult.content?.[0]?.text || '';
     console.log('🔗 References found:', referencesResponse.substring(0, 300));
 
     // Should find references in multiple files
@@ -213,7 +215,8 @@ export function createService(): UserService {
       dry_run: false,
     });
 
-    const renameResponse = renameResult.content?.[0]?.text || '';
+    const renameToolResult = assertToolResult(renameResult);
+    const renameResponse = renameToolResult.content?.[0]?.text || '';
     console.log('🔄 Rename result:', renameResponse.substring(0, 200));
 
     expect(renameResponse).toMatch(/renamed|success|applied/i);
@@ -310,7 +313,8 @@ export function createService(): UserService {
       changes: changes,
     });
 
-    const editResponse = workspaceEditResult.content?.[0]?.text || '';
+    const editToolResult = assertToolResult(workspaceEditResult);
+    const editResponse = editToolResult.content?.[0]?.text || '';
     console.log('📝 Workspace edit result:', editResponse.substring(0, 200));
 
     expect(editResponse).toMatch(/applied|success/i);
@@ -326,7 +330,8 @@ export function createService(): UserService {
       symbol_name: 'deleteUser',
     });
 
-    const definitionResponse = definitionResult.content?.[0]?.text || '';
+    const definitionToolResult = assertToolResult(definitionResult);
+    const definitionResponse = definitionToolResult.content?.[0]?.text || '';
     console.log('🎯 Definition found:', definitionResponse.substring(0, 200));
 
     // Should find the definition in user-service.ts
@@ -338,7 +343,7 @@ export function createService(): UserService {
 
     // Find the exact line with deleteUser method
     const serviceContent = readFileSync(join(TEST_DIR, 'user-service.ts'), 'utf-8');
-    const lines = getFileLines(serviceContent);
+    const lines = serviceContent.split('\n');
     let deleteUserLine = -1;
 
     for (let i = 0; i < lines.length; i++) {
@@ -357,7 +362,8 @@ export function createService(): UserService {
       character: 3,
     });
 
-    const prepareResponse = prepareResult.content?.[0]?.text || '';
+    const prepareToolResult = assertToolResult(prepareResult);
+    const prepareResponse = prepareToolResult.content?.[0]?.text || '';
     console.log('📋 Call hierarchy prepared:', prepareResponse.substring(0, 200));
 
     expect(prepareResponse).toContain('deleteUser');
@@ -371,7 +377,8 @@ export function createService(): UserService {
       character: 3,
     });
 
-    const incomingResponse = incomingResult.content?.[0]?.text || '';
+    const incomingToolResult = assertToolResult(incomingResult);
+    const incomingResponse = incomingToolResult.content?.[0]?.text || '';
     console.log('📞 Incoming calls:', incomingResponse.substring(0, 300));
 
     // Should find the call from user-handler.ts
@@ -393,7 +400,8 @@ export function createService(): UserService {
       workspace_path: TEST_DIR,
     });
 
-    const searchResponse = searchResult.content?.[0]?.text || '';
+    const searchToolResult2 = assertToolResult(searchResult);
+    const searchResponse = searchToolResult2.content?.[0]?.text || '';
     console.log('🔍 Initial search:', searchResponse.substring(0, 200));
 
     expect(searchResponse).toContain('UserService');
@@ -407,7 +415,8 @@ export function createService(): UserService {
       update_imports: true,
     });
 
-    const renameFileResponse = renameFileResult.content?.[0]?.text || '';
+    const renameFileToolResult = assertToolResult(renameFileResult);
+    const renameFileResponse = renameFileToolResult.content?.[0]?.text || '';
     console.log('📁 File rename result:', renameFileResponse.substring(0, 300));
 
     expect(renameFileResponse).toMatch(/renamed|moved|updated/i);
@@ -455,7 +464,8 @@ export function createService(): UserService {
       workspace_path: TEST_DIR,
     });
 
-    const finalSearchResponse = finalSearchResult.content?.[0]?.text || '';
+    const finalSearchToolResult = assertToolResult(finalSearchResult);
+    const finalSearchResponse = finalSearchToolResult.content?.[0]?.text || '';
     console.log('🔍 Final search:', finalSearchResponse.substring(0, 200));
 
     // Should still find UserService but in the new file location
@@ -479,7 +489,8 @@ export function createService(): UserService {
       include_declaration: true,
     });
 
-    const finalReferenceResponse = finalReferenceResult.content?.[0]?.text || '';
+    const finalReferenceToolResult = assertToolResult(finalReferenceResult);
+    const finalReferenceResponse = finalReferenceToolResult.content?.[0]?.text || '';
     console.log('🔗 Final references check:', finalReferenceResponse.substring(0, 300));
 
     // Should still find references despite all the changes
@@ -499,7 +510,8 @@ export function createService(): UserService {
           file_path: file,
         });
 
-        const diagnosticsResponse = diagnosticsResult.content?.[0]?.text || '';
+        const diagnosticsToolResult = assertToolResult(diagnosticsResult);
+        const diagnosticsResponse = diagnosticsToolResult.content?.[0]?.text || '';
         console.log(
           `📋 Diagnostics for ${file.split('/').pop()}:`,
           diagnosticsResponse.substring(0, 200)

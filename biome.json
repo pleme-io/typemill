@@ -22,7 +22,11 @@
       "linter": {
         "rules": {
           "suspicious": {
-            "noExplicitAny": "off"
+            "noExplicitAny": "off",
+            "noAssignInExpressions": "off"
+          },
+          "style": {
+            "noNonNullAssertion": "off"
           }
         }
       }
@@ -43,6 +47,6 @@
     }
   },
   "files": {
-    "ignore": ["node_modules/**", "dist/**", "*.json"]
+    "ignore": ["node_modules/**", "dist/**", "*.json", "plugins/**"]
   }
 }

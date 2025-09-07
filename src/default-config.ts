@@ -121,7 +121,7 @@ export function createDefaultConfig(): Config {
 /**
  * Check if a command is available on the system
  */
-export async function isCommandAvailable(command: string[]): Promise<boolean> {
+async function isCommandAvailable(command: string[]): Promise<boolean> {
   try {
     const { spawn } = await import('node:child_process');
     const [cmd, ...args] = command;

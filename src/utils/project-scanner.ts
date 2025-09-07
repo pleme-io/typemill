@@ -2,12 +2,12 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, extname, join, relative, resolve } from 'node:path';
 import type { ServiceContext } from '../services/service-context.js';
 
-export interface DependencyInfo {
+interface DependencyInfo {
   imports: Set<string>; // Files this file imports
   importedBy: Set<string>; // Files that import this file
 }
 
-export interface ProjectScanResult {
+interface ProjectScanResult {
   files: Set<string>;
   dependencies: Map<string, DependencyInfo>;
   rootDir: string;
@@ -16,7 +16,7 @@ export interface ProjectScanResult {
 /**
  * Utility class for scanning project files and managing dependencies
  */
-export class ProjectScanner {
+class ProjectScanner {
   private static readonly EXCLUDED_DIRS = new Set([
     'node_modules',
     'dist',

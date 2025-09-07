@@ -11,14 +11,14 @@ MCP server that bridges Language Server Protocol functionality to AI coding assi
 
 ## 🚀 Quick Start
 ```bash
-# Install globally - TypeScript works immediately
-npm install -g cclsp
+# Install globally (provides `cclsp` in PATH)
+npm install -g @goobits/cclsp
 
 # Generate project configuration
 cclsp init
 
 # Interactive setup wizard for multi-language projects
-npx cclsp@latest setup
+npx @goobits/cclsp@latest setup
 
 # Start MCP server (for manual testing)
 cclsp --env CCLSP_CONFIG_PATH=/path/to/cclsp.json
@@ -41,8 +41,9 @@ cclsp --env CCLSP_CONFIG_PATH=/path/to/cclsp.json
 
 ## 🛠️ Language Server Setup
 ```bash
-# TypeScript/JavaScript (included by default)
-npm install -g typescript-language-server typescript
+# TypeScript/JavaScript
+# Works out of the box via npx. Optional explicit install:
+# npm install -g typescript-language-server typescript
 
 # Python
 pip install "python-lsp-server[all]"

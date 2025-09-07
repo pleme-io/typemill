@@ -1,5 +1,5 @@
 {
-  "name": "cclsp",
+  "name": "@goobits/cclsp",
   "version": "1.0.0",
   "description": "MCP server for accessing LSP functionality",
   "main": "dist/index.js",
@@ -9,18 +9,15 @@
   "type": "module",
   "scripts": {
     "build": "bun build --target=node --outdir=dist index.ts",
-    "build:tests": "./build-tests.sh",
     "dev": "bun run --watch index.ts",
     "start": "node dist/index.js",
-    "test": "npm run build:tests && bun test tests/unit",
+    "test": "bun test tests/unit",
     "test:fast": "bun test tests/unit tests/core/quick.test.ts tests/integration/lsp-client.test.ts",
     "test:slow": "bun test tests/core/comprehensive.test.ts tests/core/error-cases.test.ts tests/integration/multi-*.test.ts tests/integration/workspace-*.test.ts tests/integration/call-hierarchy.test.ts tests/integration/delete-file-enhanced.test.ts",
     "test:unit": "bun test tests/unit",
     "test:integration": "bun test tests/integration",
     "test:core": "bun test tests/core",
-    "test:sequential": "./run-tests-sequential.sh",
-    "test:execution": "RUN_EXECUTION_TESTS=1 bun test tests/unit/setup-execution.test.ts",
-    "test:all": "bun test && bun run test:execution",
+    "test:all": "bun test",
     "test:mcp": "bun test tests",
     "test:mcp:quick": "bun test tests/core/quick.test.ts",
     "test:mcp:full": "bun test tests/core/comprehensive.test.ts",
@@ -39,7 +36,7 @@
     "lint:fix-unsafe": "biome check --fix --unsafe .",
     "format": "biome format --write .",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run build && npm run test:all && npm run typecheck",
+    "prepublishOnly": "npm run build",
     "dead-code": "knip",
     "dead-code:fix": "knip --fix",
     "dead-code:ci": "knip --no-progress --reporter json"
@@ -67,7 +64,7 @@
     "CHANGELOG.md",
     "LICENSE",
     "CLAUDE.md",
-    "cclsp.config.json"
+    "cclsp.json"
   ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.3",

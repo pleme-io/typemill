@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { MCPTestClient } from '../helpers/mcp-test-client';
+import { MCPTestClient, assertToolResult } from '../helpers/mcp-test-client';
 import {
   captureFileStates,
   showFileDiff,
@@ -184,7 +184,8 @@ export function clamp(value: number, min: number, max: number): number {
       edit: workspaceEdit,
     });
 
-    const response = result.content?.[0]?.text || '';
+    const toolResult = assertToolResult(result);
+    const response = toolResult.content?.[0]?.text || '';
     console.log('📋 Workspace edit result:');
     console.log(response);
 
@@ -196,8 +197,11 @@ export function clamp(value: number, min: number, max: number): number {
 
     // Verify ALL changes were applied to main.ts
     console.log('\n🔍 Verifying changes to main.ts...');
-    const mainContent = afterStates.get(mainPath)!;
-    const originalMain = beforeStates.get(mainPath)!;
+    const mainContent = afterStates.get(mainPath);
+    const originalMain = beforeStates.get(mainPath);
+    if (!mainContent || !originalMain) {
+      throw new Error(`Failed to get file states for ${mainPath}`);
+    }
 
     // Check specific changes in main.ts
     verifyFileContainsAll(mainPath, [
@@ -221,8 +225,11 @@ export function clamp(value: number, min: number, max: number): number {
 
     // Verify ALL changes were applied to test file
     console.log('\n🔍 Verifying changes to calculator.test.ts...');
-    const testContent = afterStates.get(testPath)!;
-    const originalTest = beforeStates.get(testPath)!;
+    const testContent = afterStates.get(testPath);
+    const originalTest = beforeStates.get(testPath);
+    if (!testContent || !originalTest) {
+      throw new Error(`Failed to get file states for ${testPath}`);
+    }
 
     verifyFileContainsAll(testPath, ['import { MathEngine', "describe('MathEngine'"]);
 
@@ -233,8 +240,11 @@ export function clamp(value: number, min: number, max: number): number {
 
     // Verify ALL changes were applied to utils.ts
     console.log('\n🔍 Verifying changes to utils.ts...');
-    const utilContent = afterStates.get(utilPath)!;
-    const originalUtil = beforeStates.get(utilPath)!;
+    const utilContent = afterStates.get(utilPath);
+    const originalUtil = beforeStates.get(utilPath);
+    if (!utilContent || !originalUtil) {
+      throw new Error(`Failed to get file states for ${utilPath}`);
+    }
 
     verifyFileContainsAll(utilPath, [
       'export function clamp(value: number, min: number, max: number): number',
@@ -249,7 +259,7 @@ export function clamp(value: number, min: number, max: number): number {
 
     // Verify exactly 3 files were modified
     let modifiedCount = 0;
-    for (const [path, before] of beforeStates) {
+    for (const [path, before] of Array.from(beforeStates.entries())) {
       const after = afterStates.get(path);
       if (before !== after) {
         modifiedCount++;
@@ -283,7 +293,8 @@ export function clamp(value: number, min: number, max: number): number {
       dry_run: true,
     });
 
-    const response = result.content?.[0]?.text || '';
+    const toolResult = assertToolResult(result);
+    const response = toolResult.content?.[0]?.text || '';
     console.log('📋 Dry-run result:', response);
 
     // Should indicate dry-run
@@ -303,7 +314,8 @@ export function clamp(value: number, min: number, max: number): number {
       edit: { changes: {} },
     });
 
-    const response = result.content?.[0]?.text || '';
+    const toolResult = assertToolResult(result);
+    const response = toolResult.content?.[0]?.text || '';
     console.log('📋 Empty edit result:', response);
 
     // Should handle gracefully
@@ -370,7 +382,8 @@ export { oldFunction, oldVariable };`
       edit: workspaceEdit,
     });
 
-    const response = result.content?.[0]?.text || '';
+    const toolResult = assertToolResult(result);
+    const response = toolResult.content?.[0]?.text || '';
     console.log('📋 Sequential edits result:', response);
 
     // Verify all changes were applied
