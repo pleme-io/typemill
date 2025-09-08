@@ -81,7 +81,7 @@ import { IntelligenceService } from './src/services/intelligence-service.js';
 import { SymbolService } from './src/services/symbol-service.js';
 import { getPackageVersion } from './src/utils/version.js';
 
-// Handle subcommands
+// Handle subcommands and help flags
 const args = process.argv.slice(2);
 if (args.length > 0) {
   const subcommand = args[0];
@@ -99,12 +99,26 @@ if (args.length > 0) {
     console.log('   Note: Start the MCP server to retry failed servers.');
     console.log('   Failed servers will be retried on next file access.');
     process.exit(0);
+  } else if (subcommand === '--help' || subcommand === '-h' || subcommand === 'help') {
+    console.log('cclsp - MCP server for accessing LSP functionality');
+    console.log('');
+    console.log('Usage: cclsp [subcommand]');
+    console.log('');
+    console.log('Available subcommands:');
+    console.log('  init     Generate a well-commented configuration file');
+    console.log('  setup    Interactive setup wizard for your project');
+    console.log('  retry    Information about retrying failed servers');
+    console.log('  help     Show this help message');
+    console.log('');
+    console.log('Run without arguments to start the MCP server.');
+    process.exit(0);
   } else {
     console.error(`Unknown subcommand: ${subcommand}`);
     console.error('Available subcommands:');
     console.error('  init     Generate a well-commented configuration file');
     console.error('  setup    Interactive setup wizard for your project');
     console.error('  retry    Information about retrying failed servers');
+    console.error('  help     Show this help message');
     console.error('');
     console.error('Run without arguments to start the MCP server.');
     process.exit(1);

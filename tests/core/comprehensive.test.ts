@@ -75,6 +75,9 @@ export function useTempConstant() {
 }`,
       });
 
+      // Wait for LSP server to process the new file
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       // Execute actual rename (not dry-run)
       const result = await client.callTool('rename_symbol', {
         file_path: tempFile,
@@ -94,7 +97,7 @@ export function useTempConstant() {
         file_path: tempFile,
         dry_run: false,
       });
-    });
+    }, 10000); // Increase timeout to 10 seconds for this test
 
     it('should rename symbol strict', async () => {
       const result = await client.callTool('rename_symbol_strict', {

@@ -5,8 +5,8 @@ import type { ServerState } from '../lsp-types.js';
 import { pathToUri } from '../path-utils.js';
 import type { Config, LSPServerConfig } from '../types.js';
 import { ServerNotAvailableError, getErrorMessage, logError } from '../utils/error-utils.js';
-import type { LSPProtocol } from './protocol.js';
 import { getPackageVersion } from '../utils/version.js';
+import type { LSPProtocol } from './protocol.js';
 
 // Server lifecycle constants
 const SERVER_STARTUP_DELAY_MS = 100; // Delay to check for startup failures

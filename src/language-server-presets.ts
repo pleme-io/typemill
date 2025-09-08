@@ -25,7 +25,7 @@ export const LANGUAGE_SERVERS: LanguageServerConfig[] = [
     name: 'python',
     displayName: 'Python',
     extensions: ['py', 'pyi'],
-    command: ['uvx', '--from', 'python-lsp-server', 'pylsp'],
+    command: ['pylsp'],
     installInstructions: 'pip install python-lsp-server',
     description: 'Python Language Server Protocol implementation',
     installRequired: false,
