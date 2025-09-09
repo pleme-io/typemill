@@ -28,6 +28,9 @@ export class LSPProtocol {
     number,
     { resolve: (value: unknown) => void; reject: (reason?: unknown) => void }
   > = new Map();
+  private errorHandlersAttached: Set<number> = new Set(); // Track processes with error handlers
+  private connectionHealth: Map<number, { lastSuccessfulWrite: number; errorCount: number }> =
+    new Map();
 
   /**
    * Send LSP request and wait for response
@@ -170,7 +173,7 @@ export class LSPProtocol {
   }
 
   /**
-   * Send message with proper Content-Length framing
+   * Send message with proper Content-Length framing and EPIPE recovery
    */
   private sendMessage(process: ChildProcess, message: LSPMessage): void {
     try {
@@ -183,7 +186,40 @@ export class LSPProtocol {
 
       // Check if we can write before attempting to write
       if (process.stdin.writable) {
-        process.stdin.write(header + content);
+        // Set up comprehensive error handling for both sync and async EPIPE errors
+        const setupErrorHandling = () => {
+          // Handle async socket errors (the ones causing "Unhandled 'error' event")
+          if (process.stdin && process.stdin.listenerCount('error') === 0) {
+            process.stdin.on('error', (streamError) => {
+              this.handleWriteError(streamError, message, process);
+            });
+          }
+
+          // Also handle process-level errors for complete coverage
+          if (process.listenerCount('error') === 0) {
+            process.once('error', (processError) => {
+              this.handleWriteError(processError, message, process);
+            });
+          }
+        };
+
+        setupErrorHandling();
+
+        try {
+          // Use callback-based write to catch EPIPE errors gracefully
+          process.stdin.write(header + content, (error) => {
+            if (error) {
+              this.trackConnectionHealth(process, false);
+              this.handleWriteError(error, message, process);
+            } else {
+              // Track successful write for health monitoring
+              this.trackConnectionHealth(process, true);
+            }
+          });
+        } catch (writeError) {
+          // Handle synchronous EPIPE errors that occur before callback
+          this.handleWriteError(writeError as Error, message, process);
+        }
       } else {
         throw new Error('LSP process stdin is not writable');
       }
@@ -195,6 +231,125 @@ export class LSPProtocol {
       });
       throw new Error(`Failed to send LSP message: ${errorMessage}`);
     }
+  }
+
+  /**
+   * Handle write errors with EPIPE-specific recovery
+   */
+  private handleWriteError(error: Error, message: LSPMessage, process: ChildProcess): void {
+    const errorCode = (error as NodeJS.ErrnoException).code;
+    const errorMessage = error.message || 'Unknown error';
+
+    if (errorCode === 'EPIPE' || errorMessage.includes('EPIPE') || errorMessage.includes('write')) {
+      // EPIPE indicates broken pipe - LSP server process died
+      debugLog(
+        'LSPProtocol',
+        `EPIPE error detected for ${message.method || 'unknown'} - LSP server process died`
+      );
+
+      // Mark any pending requests for this message as failed
+      if (message.id && this.pendingRequests.has(message.id)) {
+        const request = this.pendingRequests.get(message.id);
+        if (request) {
+          this.pendingRequests.delete(message.id);
+          request.reject(
+            new Error(`LSP server died during ${message.method || 'request'} (EPIPE)`)
+          );
+        }
+      }
+
+      // Clean up all pending requests for this dead process
+      this.cleanupDeadProcessRequests(process);
+
+      // Don't throw - let the server manager handle process death
+      logError(
+        'LSPProtocol',
+        'LSP server died (EPIPE) - process will be restarted on next request',
+        error,
+        {
+          method: message.method,
+          pid: process.pid,
+          errorCode,
+        }
+      );
+    } else {
+      // Other write errors should still be logged but not thrown to avoid crashing
+      logError('LSPProtocol', 'LSP write error (non-EPIPE)', error, {
+        method: message.method,
+        errorCode,
+      });
+
+      // Don't throw to prevent process crash - just log and continue
+      debugLog('LSPProtocol', `Non-EPIPE write error handled gracefully: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Clean up pending requests for a dead process
+   */
+  private cleanupDeadProcessRequests(deadProcess: ChildProcess): void {
+    const deadPid = deadProcess.pid;
+    let cleanedCount = 0;
+
+    // Clean up all pending requests since we can't differentiate which belong to this process
+    for (const [requestId, request] of this.pendingRequests.entries()) {
+      request.reject(new Error(`LSP server process died (PID: ${deadPid})`));
+      this.pendingRequests.delete(requestId);
+      cleanedCount++;
+    }
+
+    // Clean up health tracking for this process
+    if (deadPid) {
+      this.connectionHealth.delete(deadPid);
+      this.errorHandlersAttached.delete(deadPid);
+    }
+
+    if (cleanedCount > 0) {
+      debugLog(
+        'LSPProtocol',
+        `Cleaned up ${cleanedCount} pending requests for dead process ${deadPid}`
+      );
+    }
+  }
+
+  /**
+   * Track connection health for monitoring
+   */
+  private trackConnectionHealth(process: ChildProcess, success: boolean): void {
+    const pid = process.pid;
+    if (!pid) return;
+
+    if (!this.connectionHealth.has(pid)) {
+      this.connectionHealth.set(pid, { lastSuccessfulWrite: Date.now(), errorCount: 0 });
+    }
+
+    const health = this.connectionHealth.get(pid)!;
+    if (success) {
+      health.lastSuccessfulWrite = Date.now();
+      health.errorCount = 0; // Reset error count on successful write
+    } else {
+      health.errorCount++;
+    }
+  }
+
+  /**
+   * Get connection health status
+   */
+  getConnectionHealth(
+    process: ChildProcess
+  ): { healthy: boolean; errorCount: number; lastSuccess: number } | null {
+    const pid = process.pid;
+    if (!pid || !this.connectionHealth.has(pid)) return null;
+
+    const health = this.connectionHealth.get(pid)!;
+    const timeSinceLastSuccess = Date.now() - health.lastSuccessfulWrite;
+    const isHealthy = health.errorCount < 3 && timeSinceLastSuccess < 30000; // Healthy if <3 errors and success within 30s
+
+    return {
+      healthy: isHealthy,
+      errorCount: health.errorCount,
+      lastSuccess: health.lastSuccessfulWrite,
+    };
   }
 
   /**
