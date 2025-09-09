@@ -14,14 +14,14 @@ MCP server that bridges Language Server Protocol functionality to AI coding assi
 # Install globally (provides `codebuddy` in PATH)
 npm install -g @goobits/codebuddy
 
-# Generate project configuration
+# Smart setup with auto-detection
 codebuddy init
 
-# Interactive setup wizard for multi-language projects
-npx @goobits/codebuddy@latest setup
+# Check status of language servers
+codebuddy status
 
-# Start MCP server (for manual testing)
-codebuddy --env CODEBUDDY_CONFIG_PATH=/path/to/codebuddy.json
+# Fix any missing language servers  
+codebuddy fix
 ```
 
 ## 📚 MCP Integration
@@ -31,9 +31,7 @@ codebuddy --env CODEBUDDY_CONFIG_PATH=/path/to/codebuddy.json
   "mcpServers": {
     "codebuddy": {
       "command": "codebuddy",
-      "env": {
-        "CODEBUDDY_CONFIG_PATH": "/path/to/your/codebuddy.json"
-      }
+      "cwd": "/path/to/your/project"
     }
   }
 }
@@ -54,20 +52,20 @@ go install golang.org/x/tools/gopls@latest
 # Rust  
 rustup component add rust-analyzer
 
-# View all supported languages
-codebuddy setup
+# View configuration and status
+codebuddy status
 ```
 
 ## ⚙️ Configuration
 ```bash
-# Generate commented config file
+# Smart setup with auto-detection
 codebuddy init
 
-# Interactive setup with language detection
-codebuddy setup
+# Show current configuration
+codebuddy config --show
 
-# Manual configuration
-cat > codebuddy.json << 'EOF'
+# Manual configuration (creates .codebuddy/config.json)
+cat > .codebuddy/config.json << 'EOF'
 {
   "servers": [
     {
@@ -106,6 +104,10 @@ bun run dev
 bun run test:fast    # Quick unit tests (~8s)
 bun run test:slow    # Full integration tests
 bun run test:ci      # All tests for CI
+
+# Adaptive test runner for slow systems
+node test-runner.cjs              # Auto-detects system capabilities
+TEST_SHARED_SERVER=true bun test  # Use shared server for faster tests
 
 # Code quality
 bun run lint         # Check issues
