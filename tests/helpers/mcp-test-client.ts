@@ -1,26 +1,25 @@
 import { type ChildProcess, spawn } from 'node:child_process';
-import { cpus } from 'node:os';
+import { getSystemCapabilities } from './system-utils.js';
 
 // Shared server instance for test suite
 let sharedServerInstance: MCPTestClient | null = null;
 
-// System capability detection
-function getSystemCapabilities() {
-  const cpuCount = cpus().length;
-  const totalMemory = require('node:os').totalmem();
-  const isSlowSystem = cpuCount <= 4 || totalMemory < 8 * 1024 * 1024 * 1024;
-  // More generous timeouts for all systems during testing
-  return {
-    isSlowSystem,
-    timeoutMultiplier: isSlowSystem ? 6 : 3, // 120s for slow, 60s for fast
-    baseTimeout: 20000,
-  };
+// System capability detection now handled by shared utility
+
+// Define message types for better type safety
+interface MCPMessage {
+  jsonrpc: string;
+  id?: number | string;
+  method?: string;
+  result?: unknown;
+  error?: unknown;
+  params?: unknown;
 }
 
 // A robust message parser that handles Content-Length headers, adapted from the project's own LSP protocol parser.
 function createMessageParser() {
   let buffer = '';
-  const subscribers = new Set<(message: any) => void>();
+  const subscribers = new Set<(message: MCPMessage) => void>();
 
   function parse() {
     while (true) {
@@ -45,8 +44,10 @@ function createMessageParser() {
       buffer = buffer.substring(messageStartIndex + contentLength);
 
       try {
-        const message = JSON.parse(messageContent);
-        subscribers.forEach((sub) => sub(message));
+        const message = JSON.parse(messageContent) as MCPMessage;
+        for (const sub of subscribers) {
+          sub(message);
+        }
       } catch (e) {
         console.error('Failed to parse message JSON:', e);
       }
@@ -58,7 +59,7 @@ function createMessageParser() {
       buffer += data;
       parse();
     },
-    subscribe: (callback: (message: any) => void) => {
+    subscribe: (callback: (message: MCPMessage) => void) => {
       subscribers.add(callback);
       return () => subscribers.delete(callback);
     },
@@ -72,10 +73,18 @@ export class MCPTestClient {
   private static sharedMode = process.env.TEST_SHARED_SERVER === 'true';
   private isShared = false;
   private initPromise: Promise<void> | null = null;
+  public isClosed = false;
 
   constructor() {
     this.parser.subscribe((message) => {
-      this.responseEmitter.emit(message.id, message.result);
+      if (message.id !== undefined) {
+        // Handle both successful results and errors
+        if (message.error) {
+          this.responseEmitter.emit(message.id, { error: message.error });
+        } else {
+          this.responseEmitter.emit(message.id, message.result);
+        }
+      }
     });
   }
 
@@ -87,23 +96,35 @@ export class MCPTestClient {
     return sharedServerInstance;
   }
 
-  async start(): Promise<void> {
+  async start(options?: {
+    timeout?: number;
+    enablePreloading?: boolean;
+    minimalConfig?: boolean;
+    skipLSPPreload?: boolean;
+  }): Promise<void> {
     // If already started (shared mode), return existing promise
     if (this.initPromise) {
       return this.initPromise;
     }
 
-    this.initPromise = this._doStart();
+    this.initPromise = this._doStart(options);
     return this.initPromise;
   }
 
-  private async _doStart(): Promise<void> {
+  private async _doStart(options?: {
+    timeout?: number;
+    enablePreloading?: boolean;
+    minimalConfig?: boolean;
+    skipLSPPreload?: boolean;
+  }): Promise<void> {
     this.process = spawn(process.execPath, ['dist/index.js'], {
       cwd: process.cwd(),
       stdio: ['pipe', 'pipe', 'pipe'],
       env: {
         ...process.env,
         TEST_MODE: getSystemCapabilities().isSlowSystem ? 'slow' : 'fast',
+        SKIP_LSP_PRELOAD: options?.skipLSPPreload ? 'true' : 'false',
+        TEST_MINIMAL_CONFIG: options?.minimalConfig ? 'true' : 'false',
       },
     });
 
@@ -134,22 +155,29 @@ export class MCPTestClient {
       console.log('⚠️ Keeping shared server alive for other tests');
       return;
     }
+    this.isClosed = true;
+    this.process?.kill('SIGTERM');
+  }
+
+  async close(): Promise<void> {
+    this.isClosed = true;
     this.process?.kill('SIGTERM');
   }
 
   static async cleanup(): Promise<void> {
     if (sharedServerInstance) {
+      sharedServerInstance.isClosed = true;
       sharedServerInstance.process?.kill('SIGTERM');
       sharedServerInstance = null;
     }
   }
 
-  async callTool(name: string, args: Record<string, unknown>): Promise<any> {
+  async callTool(name: string, args: Record<string, unknown>): Promise<unknown> {
     const id = Math.floor(Math.random() * 100000);
     const request = {
       jsonrpc: '2.0',
       id,
-      method: 'call_tool',
+      method: 'tools/call',
       params: { name, arguments: args },
     };
 
@@ -182,10 +210,61 @@ export class MCPTestClient {
       });
     });
   }
+
+  async callTools(
+    tests: Array<{ name: string; args: Record<string, unknown> }>
+  ): Promise<Array<{ name: string; success: boolean; error?: string }>> {
+    const results = [];
+    for (const test of tests) {
+      try {
+        await this.callTool(test.name, test.args);
+        results.push({ name: test.name, success: true });
+      } catch (error) {
+        results.push({
+          name: test.name,
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+    return results;
+  }
 }
 
+// Quick tests configuration
+export const QUICK_TESTS = [
+  {
+    name: 'find_definition',
+    args: {
+      file_path: '/workspace/plugins/codebuddy/playground/src/test-file.ts',
+      symbol_name: '_calculateAge',
+    },
+  },
+  {
+    name: 'find_references',
+    args: {
+      file_path: '/workspace/plugins/codebuddy/playground/src/test-file.ts',
+      symbol_name: 'TestProcessor',
+    },
+  },
+  {
+    name: 'get_diagnostics',
+    args: {
+      file_path: '/workspace/plugins/codebuddy/playground/src/errors-file.ts',
+    },
+  },
+  {
+    name: 'get_hover',
+    args: {
+      file_path: '/workspace/plugins/codebuddy/playground/src/test-file.ts',
+      line: 13,
+      character: 10,
+    },
+  },
+];
+
 export function assertToolResult(
-  result: any
+  result: unknown
 ): asserts result is { content: Array<{ type: 'text'; text: string }> } {
   if (!result || !result.content || !Array.isArray(result.content)) {
     console.error('Invalid tool result:', result);

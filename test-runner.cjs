@@ -1,22 +1,18 @@
 #!/usr/bin/env node
 
 const { spawn } = require('node:child_process');
-const { cpus } = require('node:os');
+const { getSystemCapabilities, printSystemInfo } = require('./test-system-utils.cjs');
 
-// Detect system capabilities
-const cpuCount = cpus().length;
-const totalMemory = require('node:os').totalmem();
-const isSlowSystem = cpuCount <= 2 || totalMemory < 4 * 1024 * 1024 * 1024;
+// Detect system capabilities using shared utility
+const capabilities = getSystemCapabilities();
+const isSlowSystem = capabilities.isSlowSystem;
 
-console.log('System Detection:');
-console.log(`  CPUs: ${cpuCount}`);
-console.log(`  RAM: ${(totalMemory / (1024 * 1024 * 1024)).toFixed(1)}GB`);
-console.log(`  Mode: ${isSlowSystem ? 'SLOW' : 'FAST'}`);
+printSystemInfo(capabilities, 'Legacy Test Runner');
 console.log('');
 
 // Test configuration based on system
 const config = {
-  timeout: isSlowSystem ? 180000 : 60000,
+  timeout: capabilities.baseTimeout * capabilities.timeoutMultiplier,
   parallel: !isSlowSystem,
   sharedServer: true,
   warmupDelay: isSlowSystem ? 10000 : 3000,

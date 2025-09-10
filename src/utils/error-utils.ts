@@ -3,7 +3,9 @@
  * and improved debugging across the codebase.
  */
 
-import { debugLog } from './debug-logger.js';
+import { getLogger } from './structured-logger.js';
+
+const logger = getLogger('ErrorUtils');
 
 /**
  * Custom error types for better error categorization
@@ -114,11 +116,13 @@ export function logError(
 ): void {
   const errorContext = createErrorContext(error, operation, additionalContext);
 
-  // Log to stderr for immediate visibility
-  process.stderr.write(`[ERROR ${component}] ${operation}: ${errorContext.message}\n`);
-
-  // Log to debug logger with full context
-  debugLog(component, `ERROR: ${operation}`, errorContext);
+  // Use structured logger with component context
+  const componentLogger = getLogger(component);
+  componentLogger.error(`${operation}: ${errorContext.message}`, error, {
+    operation,
+    error_type: errorContext.errorType,
+    ...additionalContext,
+  });
 }
 
 /**
@@ -292,9 +296,20 @@ export function handleConfigurationError(
 export function createUserFriendlyErrorMessage(
   error: unknown,
   operation: string,
-  suggestions?: string[]
+  suggestions?: string[],
+  context?: { filePath?: string }
 ): string {
+  // Import enhanced error messages
+  const {
+    createLSPServerUnavailableMessage,
+    createServerInitializationMessage,
+    createFileNotFoundMessage,
+  } = require('./enhanced-error-messages.js');
+
   if (error instanceof ServerNotAvailableError) {
+    if (context?.filePath) {
+      return createLSPServerUnavailableMessage(context.filePath, operation);
+    }
     const installCmd = getInstallInstructions(error.command[0] || '');
     return `Language server not available. To enable support: ${installCmd}`;
   }
@@ -305,7 +320,7 @@ export function createUserFriendlyErrorMessage(
 
   if (error instanceof FileSystemError) {
     if (error.message.includes('not found')) {
-      return `File not found: ${error.filePath}. Please check the file path.`;
+      return createFileNotFoundMessage(error.filePath, operation);
     }
     if (error.message.includes('permission')) {
       return `Permission denied accessing: ${error.filePath}. Please check file permissions.`;

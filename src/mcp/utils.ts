@@ -29,12 +29,16 @@ export function createMCPResponse(text: string): MCPResponse {
 /**
  * Create MCP error response with enhanced error handling
  */
-export function createMCPError(error: unknown, operation = 'operation'): MCPResponse {
+export function createMCPError(
+  error: unknown,
+  operation = 'operation',
+  context?: { filePath?: string }
+): MCPResponse {
   // Log the error for debugging
-  logError('MCP', `Error during ${operation}`, error);
+  logError('MCP', `Error during ${operation}`, error, context);
 
-  // Create user-friendly error message
-  const userMessage = createUserFriendlyErrorMessage(error, operation);
+  // Create user-friendly error message with context
+  const userMessage = createUserFriendlyErrorMessage(error, operation, undefined, context);
 
   return createMCPResponse(userMessage);
 }

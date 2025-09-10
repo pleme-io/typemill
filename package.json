@@ -12,7 +12,9 @@
     "dev": "bun run --watch index.ts",
     "start": "node dist/index.js",
     "test": "bun test tests/unit",
-    "test:fast": "bun test tests/unit tests/core/quick.test.ts tests/integration/lsp-client.test.ts",
+    "test:fast": "node test-runner-fast.cjs",
+    "test:minimal": "node test-runner-minimal.cjs",
+    "test:fast:old": "bun test tests/unit tests/core/quick.test.ts tests/integration/lsp-client.test.ts",
     "test:slow": "bun test tests/core/comprehensive.test.ts tests/core/error-cases.test.ts tests/integration/multi-*.test.ts tests/integration/workspace-*.test.ts tests/integration/call-hierarchy.test.ts tests/integration/delete-file-enhanced.test.ts",
     "test:unit": "bun test tests/unit",
     "test:integration": "bun test tests/integration",
@@ -52,11 +54,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ktnyt/codebuddy.git"
+    "url": "git+https://github.com/goobits/codebuddy.git"
   },
-  "homepage": "https://github.com/ktnyt/codebuddy#readme",
+  "homepage": "https://github.com/goobits/codebuddy#readme",
   "bugs": {
-    "url": "https://github.com/ktnyt/codebuddy/issues"
+    "url": "https://github.com/goobits/codebuddy/issues"
   },
   "files": [
     "dist",
@@ -89,5 +91,8 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

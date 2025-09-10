@@ -8,6 +8,9 @@ import { scanDirectoryForExtensions } from '../file-scanner.js';
 import type { ServerState } from '../lsp-types.js';
 import type { Config } from '../types.js';
 import { handleConfigurationError, logError } from '../utils/error-utils.js';
+import { getLogger } from '../utils/structured-logger.js';
+
+const logger = getLogger('LSPClient');
 import { LSPProtocol } from './protocol.js';
 import { ServerManager } from './server-manager.js';
 
@@ -40,31 +43,33 @@ export class LSPClient {
   private loadConfig(configPath?: string): Config {
     // Try environment variable first (MCP config)
     if (process.env.CODEBUDDY_CONFIG_PATH) {
-      process.stderr.write(
-        `Loading config from CODEBUDDY_CONFIG_PATH: ${process.env.CODEBUDDY_CONFIG_PATH}\n`
-      );
+      logger.info('Loading config from environment variable', {
+        config_path: process.env.CODEBUDDY_CONFIG_PATH,
+      });
 
       if (!existsSync(process.env.CODEBUDDY_CONFIG_PATH)) {
-        process.stderr.write(
-          `Warning: Config file specified in CODEBUDDY_CONFIG_PATH does not exist: ${process.env.CODEBUDDY_CONFIG_PATH}\n`
-        );
-        process.stderr.write('Falling back to default configuration...\n');
+        logger.warn('Config file from environment does not exist, falling back to defaults', {
+          config_path: process.env.CODEBUDDY_CONFIG_PATH,
+        });
         return this.loadDefaultConfig();
       }
 
       try {
         const configData = readFileSync(process.env.CODEBUDDY_CONFIG_PATH, 'utf-8');
         const config = JSON.parse(configData);
-        process.stderr.write(`Loaded ${config.servers.length} server configurations from env\n`);
+        logger.info('Loaded config from environment variable', {
+          server_count: config.servers.length,
+        });
         return mergeWithDefaults(config);
       } catch (error) {
         logError('LSPClient', 'Failed to load config from CODEBUDDY_CONFIG_PATH', error, {
           configPath: process.env.CODEBUDDY_CONFIG_PATH,
         });
-        process.stderr.write(
-          `Warning: Failed to load config from CODEBUDDY_CONFIG_PATH: ${error instanceof Error ? error.message : String(error)}\n`
-        );
-        process.stderr.write('Falling back to default configuration...\n');
+        logger.warn('Failed to load config from environment, falling back to defaults', {
+          config_path: process.env.CODEBUDDY_CONFIG_PATH,
+          error_type: error instanceof Error ? error.constructor.name : typeof error,
+          error_message: error instanceof Error ? error.message : String(error),
+        });
         return this.loadDefaultConfig();
       }
     }
@@ -72,20 +77,37 @@ export class LSPClient {
     // Try loading from provided path
     if (configPath) {
       try {
-        process.stderr.write(`Loading config from file: ${configPath}\n`);
+        logger.info('Loading config from file', { config_path: configPath });
         const configData = readFileSync(configPath, 'utf-8');
         const config = JSON.parse(configData);
-        process.stderr.write(`Loaded ${config.servers.length} server configurations\n`);
+        logger.info('Loaded server configurations', { server_count: config.servers.length });
         return mergeWithDefaults(config);
       } catch (error) {
         logError('LSPClient', 'Failed to load config from provided path', error, {
           configPath,
         });
-        process.stderr.write(
-          `Warning: Failed to load config from ${configPath}: ${error instanceof Error ? error.message : String(error)}\n`
-        );
-        process.stderr.write('Falling back to default configuration...\n');
+        logger.warn('Failed to load config from path, falling back to defaults', {
+          config_path: configPath,
+          error_type: error instanceof Error ? error.constructor.name : typeof error,
+          error_message: error instanceof Error ? error.message : String(error),
+        });
         return this.loadDefaultConfig();
+      }
+    }
+
+    // Try minimal test config first if in test mode
+    if (process.env.TEST_MINIMAL_CONFIG === 'true') {
+      const testConfigPath = '.codebuddy/test-config.json';
+      if (existsSync(testConfigPath)) {
+        try {
+          logger.info('Using minimal test config for faster startup');
+          const configData = readFileSync(testConfigPath, 'utf-8');
+          const config = JSON.parse(configData);
+          logger.info('Loaded test server configurations', { server_count: config.servers.length });
+          return mergeWithDefaults(config);
+        } catch (error) {
+          logger.warn('Failed to load test config, falling back to normal config');
+        }
       }
     }
 
@@ -93,18 +115,19 @@ export class LSPClient {
     const newConfigPath = '.codebuddy/config.json';
     if (existsSync(newConfigPath)) {
       try {
-        process.stderr.write('Found .codebuddy/config.json, loading...\n');
+        logger.info('Found .codebuddy/config.json, loading');
         const configData = readFileSync(newConfigPath, 'utf-8');
         const config = JSON.parse(configData);
-        process.stderr.write(`Loaded ${config.servers.length} server configurations\n`);
+        logger.info('Loaded server configurations', { server_count: config.servers.length });
         return mergeWithDefaults(config);
       } catch (error) {
         logError('LSPClient', 'Failed to load .codebuddy/config.json', error, {
           configPath: newConfigPath,
         });
-        process.stderr.write(
-          `Warning: Failed to load .codebuddy/config.json: ${error instanceof Error ? error.message : String(error)}\n`
-        );
+        logger.warn('Failed to load .codebuddy/config.json', {
+          error_type: error instanceof Error ? error.constructor.name : typeof error,
+          error_message: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
@@ -112,24 +135,27 @@ export class LSPClient {
     const oldConfigPath = 'codebuddy.json';
     if (existsSync(oldConfigPath)) {
       try {
-        process.stderr.write('Found legacy codebuddy.json, consider running: codebuddy init\n');
+        logger.warn('Found legacy codebuddy.json, consider running: codebuddy init');
         const configData = readFileSync(oldConfigPath, 'utf-8');
         const config = JSON.parse(configData);
-        process.stderr.write(`Loaded ${config.servers.length} server configurations\n`);
+        logger.info('Loaded server configurations from legacy file', {
+          server_count: config.servers.length,
+        });
         return mergeWithDefaults(config);
       } catch (error) {
         logError('LSPClient', 'Failed to load codebuddy.json', error, {
           configPath: oldConfigPath,
         });
-        process.stderr.write(
-          `Warning: Failed to load codebuddy.json: ${error instanceof Error ? error.message : String(error)}\n`
-        );
+        logger.warn('Failed to load codebuddy.json', {
+          error_type: error instanceof Error ? error.constructor.name : typeof error,
+          error_message: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
     // Use default configuration
-    process.stderr.write('No configuration found, using smart defaults...\n');
-    process.stderr.write('Run: codebuddy init\n');
+    logger.info('No configuration found, using smart defaults');
+    logger.info('To customize configuration, run: codebuddy init');
     return this.loadDefaultConfig();
   }
 
@@ -139,12 +165,12 @@ export class LSPClient {
    */
   private loadDefaultConfig(): Config {
     const defaultConfig = createDefaultConfig();
-    process.stderr.write(
-      `Using default configuration with support for ${defaultConfig.servers.length} languages\n`
-    );
-    process.stderr.write('TypeScript/JavaScript works out of the box (bundled dependency)\n');
-    process.stderr.write('Other languages work if their servers are installed\n');
-    process.stderr.write('To customize, create a codebuddy.json file or run: codebuddy setup\n');
+    logger.info('Using default configuration', {
+      supported_languages: defaultConfig.servers.length,
+      bundled_support: 'TypeScript/JavaScript',
+      note: 'Other languages work if their servers are installed',
+    });
+    logger.info('To customize, create a codebuddy.json file or run: codebuddy setup');
     return defaultConfig;
   }
 
@@ -216,7 +242,10 @@ export class LSPClient {
       logError('LSPClient', 'Failed to scan directory for extensions', error, {
         workingDirectory: process.cwd(),
       });
-      process.stderr.write(`Failed to scan directory for extensions: ${error}\n`);
+      logger.error('Failed to scan directory for extensions', {
+        error_type: error instanceof Error ? error.constructor.name : typeof error,
+        error_message: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 

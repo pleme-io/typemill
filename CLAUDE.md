@@ -38,6 +38,12 @@ bun run typecheck    # Run TypeScript type checking
 bun run test         # Run unit tests
 bun run test:mcp     # Run MCP integration tests
 
+# Test Performance Optimizations (for slow systems)
+bun run test:fast     # Optimized test runner with system detection
+bun run test:minimal  # Ultra-minimal runner for very slow systems
+# Fast runner: 5min timeout, parallel on fast systems, LSP preload optional
+# Minimal runner: 10min timeout, sequential only, no LSP preload, minimal config
+
 # Full pre-publish check
 bun run prepublishOnly  # build + test + typecheck
 ```
@@ -49,11 +55,11 @@ bun run prepublishOnly  # build + test + typecheck
 **MCP Server Layer** (`index.ts`)
 
 - Entry point that implements MCP protocol
-- Exposes 28 MCP tools covering navigation, refactoring, intelligence, and diagnostics
+- Exposes 38 MCP tools covering navigation, refactoring, intelligence, and diagnostics
 - Handles MCP client requests and delegates to LSP layer
 - Includes CLI subcommand handling for `init`, `status`, `fix`, `config`, `logs`
 
-**LSP Client Layer** (`src/lsp-client.ts`)
+**LSP Client Layer** (`src/lsp/client.ts`)
 
 - Manages multiple LSP server processes concurrently
 - Handles LSP protocol communication (JSON-RPC over stdio)
@@ -161,9 +167,9 @@ The implementation handles LSP protocol specifics:
 ## Dead Code Detection
 
 Run dead code detection with:
-- `npm run dead-code` - Check for dead code
-- `npm run dead-code:fix` - Auto-fix where possible
-- `npm run dead-code:ci` - CI-friendly output
+- `bun run dead-code` - Check for dead code
+- `bun run dead-code:fix` - Auto-fix where possible
+- `bun run dead-code:ci` - CI-friendly output
 
 Tool: Knip (detects unused files, dependencies, exports)
 Config: knip.json
