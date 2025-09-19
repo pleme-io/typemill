@@ -18,7 +18,7 @@ describe('LSP Client Unit Tests', () => {
     process.env.CODEBUDDY_CONFIG_PATH = join('/workspace/plugins/codebuddy', 'codebuddy.json');
 
     lspClient = new LSPClient();
-    const testFile = join('/workspace/plugins/codebuddy', 'playground/src/components/user-form.ts');
+    const testFile = join('/workspace', 'playground/src/components/user-form.ts');
 
     console.log('📁 Test file:', testFile);
 
@@ -73,16 +73,13 @@ describe('LSP Client Unit Tests', () => {
 
     try {
       // Test TypeScript file
-      const tsFile = join('/workspace/plugins/codebuddy', 'playground/src/test-file.ts');
+      const tsFile = join('/workspace', 'playground/src/test-file.ts');
       const tsSymbols = await client.getDocumentSymbols(tsFile);
       expect(tsSymbols).toBeDefined();
       console.log(`TypeScript file: ${tsSymbols?.length || 0} symbols found`);
 
       // Test another TypeScript file
-      const tsFile2 = join(
-        '/workspace/plugins/codebuddy',
-        'playground/src/components/user-form.ts'
-      );
+      const tsFile2 = join('/workspace', 'playground/src/components/user-form.ts');
       const tsSymbols2 = await client.getDocumentSymbols(tsFile2);
       expect(tsSymbols2).toBeDefined();
       console.log(`Another TypeScript file: ${tsSymbols2?.length || 0} symbols found`);
