@@ -1,10 +1,10 @@
 {
-  "name": "@goobits/codebuddy",
+  "name": "@goobits/codeflow-buddy",
   "version": "1.0.1",
   "description": "MCP server for accessing LSP functionality",
   "main": "dist/index.js",
   "bin": {
-    "codebuddy": "dist/index.js"
+    "codeflow-buddy": "dist/index.js"
   },
   "type": "module",
   "scripts": {
@@ -54,11 +54,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/goobits/codebuddy.git"
+    "url": "git+https://github.com/goobits/codeflow-buddy.git"
   },
-  "homepage": "https://github.com/goobits/codebuddy#readme",
+  "homepage": "https://github.com/goobits/codeflow-buddy#readme",
   "bugs": {
-    "url": "https://github.com/goobits/codebuddy/issues"
+    "url": "https://github.com/goobits/codeflow-buddy/issues"
   },
   "files": [
     "dist",
