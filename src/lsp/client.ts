@@ -9,10 +9,10 @@ import type { ServerState } from '../lsp-types.js';
 import type { Config } from '../types.js';
 import { handleConfigurationError, logError } from '../utils/error-utils.js';
 import { getLogger } from '../utils/structured-logger.js';
-
-const logger = getLogger('LSPClient');
 import { LSPProtocol } from './protocol.js';
 import { ServerManager } from './server-manager.js';
+
+const logger = getLogger('LSPClient');
 
 /**
  * Main LSP Client facade that coordinates protocol and server management

@@ -28,15 +28,15 @@ export interface Location {
   };
 }
 
-interface DefinitionResult {
+export interface DefinitionResult {
   locations: Location[];
 }
 
-interface ReferenceResult {
+export interface ReferenceResult {
   locations: Location[];
 }
 
-interface SymbolSearchParams {
+export interface SymbolSearchParams {
   file_path: string;
   symbol_name: string;
   symbol_kind: string;
@@ -102,7 +102,7 @@ export enum SymbolKind {
   TypeParameter = 26,
 }
 
-enum SymbolTag {
+export enum SymbolTag {
   Deprecated = 1,
 }
 
@@ -132,19 +132,19 @@ export interface SymbolMatch {
   detail?: string;
 }
 
-enum DiagnosticSeverity {
+export enum DiagnosticSeverity {
   Error = 1,
   Warning = 2,
   Information = 3,
   Hint = 4,
 }
 
-interface DiagnosticRelatedInformation {
+export interface DiagnosticRelatedInformation {
   location: Location;
   message: string;
 }
 
-interface CodeDescription {
+export interface CodeDescription {
   href: string;
 }
 
@@ -163,7 +163,7 @@ export interface Diagnostic {
   data?: unknown;
 }
 
-enum DiagnosticTag {
+export enum DiagnosticTag {
   Unnecessary = 1,
   Deprecated = 2,
 }
@@ -184,12 +184,12 @@ export interface Hover {
   };
 }
 
-interface MarkupContent {
+export interface MarkupContent {
   kind: 'plaintext' | 'markdown';
   value: string;
 }
 
-interface MarkedString {
+export interface MarkedString {
   language: string;
   value: string;
 }
@@ -215,12 +215,12 @@ export interface CompletionItem {
   data?: unknown;
 }
 
-interface CompletionItemLabelDetails {
+export interface CompletionItemLabelDetails {
   detail?: string;
   description?: string;
 }
 
-enum CompletionItemKind {
+export enum CompletionItemKind {
   Text = 1,
   Method = 2,
   Function = 3,
@@ -248,16 +248,16 @@ enum CompletionItemKind {
   TypeParameter = 25,
 }
 
-enum CompletionItemTag {
+export enum CompletionItemTag {
   Deprecated = 1,
 }
 
-enum InsertTextFormat {
+export enum InsertTextFormat {
   PlainText = 1,
   Snippet = 2,
 }
 
-enum InsertTextMode {
+export enum InsertTextMode {
   AsIs = 1,
   AdjustIndentation = 2,
 }
@@ -270,7 +270,7 @@ export interface TextEdit {
   newText: string;
 }
 
-interface Command {
+export interface Command {
   title: string;
   command: string;
   arguments?: unknown[];
@@ -287,14 +287,14 @@ export interface InlayHint {
   data?: unknown;
 }
 
-interface InlayHintLabelPart {
+export interface InlayHintLabelPart {
   value: string;
   tooltip?: string | MarkupContent;
   location?: Location;
   command?: Command;
 }
 
-enum InlayHintKind {
+export enum InlayHintKind {
   Type = 1,
   Parameter = 2,
 }
@@ -384,14 +384,14 @@ export interface SignatureHelp {
   activeParameter?: number;
 }
 
-interface SignatureInformation {
+export interface SignatureInformation {
   label: string;
   documentation?: string | MarkupContent;
   parameters?: ParameterInformation[];
   activeParameter?: number;
 }
 
-interface ParameterInformation {
+export interface ParameterInformation {
   label: string | [number, number];
   documentation?: string | MarkupContent;
 }
@@ -405,7 +405,7 @@ export interface FoldingRange {
   collapsedText?: string;
 }
 
-enum FoldingRangeKind {
+export enum FoldingRangeKind {
   Comment = 'comment',
   Imports = 'imports',
   Region = 'region',
@@ -434,23 +434,23 @@ export interface CodeAction {
   data?: unknown;
 }
 
-interface WorkspaceEdit {
+export interface WorkspaceEdit {
   changes?: { [uri: string]: TextEdit[] };
   documentChanges?: (TextDocumentEdit | CreateFile | RenameFile | DeleteFile)[];
   changeAnnotations?: { [id: string]: ChangeAnnotation };
 }
 
-interface TextDocumentEdit {
+export interface TextDocumentEdit {
   textDocument: VersionedTextDocumentIdentifier;
   edits: TextEdit[];
 }
 
-interface VersionedTextDocumentIdentifier {
+export interface VersionedTextDocumentIdentifier {
   uri: string;
   version: number;
 }
 
-interface CreateFile {
+export interface CreateFile {
   kind: 'create';
   uri: string;
   options?: {
@@ -460,7 +460,7 @@ interface CreateFile {
   annotationId?: string;
 }
 
-interface RenameFile {
+export interface RenameFile {
   kind: 'rename';
   oldUri: string;
   newUri: string;
@@ -471,7 +471,7 @@ interface RenameFile {
   annotationId?: string;
 }
 
-interface DeleteFile {
+export interface DeleteFile {
   kind: 'delete';
   uri: string;
   options?: {
@@ -481,7 +481,7 @@ interface DeleteFile {
   annotationId?: string;
 }
 
-interface ChangeAnnotation {
+export interface ChangeAnnotation {
   label: string;
   needsConfirmation?: boolean;
   description?: string;
