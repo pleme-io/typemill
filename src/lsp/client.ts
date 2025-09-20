@@ -225,6 +225,51 @@ export class LSPClient {
   }
 
   /**
+   * Sync file content with LSP server after external file changes
+   * Sends textDocument/didChange notification to keep server in sync
+   */
+  async syncFileContent(filePath: string): Promise<void> {
+    try {
+      const serverState = await this.getServer(filePath);
+      if (!serverState || !serverState.initialized) {
+        return; // Skip if no server or not initialized
+      }
+
+      // Read current file content
+      const fileContent = readFileSync(filePath, 'utf-8');
+      const fileUri = `file://${filePath}`;
+
+      // Increment version for didChange notification
+      const version = (serverState.fileVersions.get(filePath) || 1) + 1;
+      serverState.fileVersions.set(filePath, version);
+
+      // Send didChange notification with full content
+      this._protocol.sendNotification(serverState.process, 'textDocument/didChange', {
+        textDocument: {
+          uri: fileUri,
+          version,
+        },
+        contentChanges: [
+          {
+            // Full content replacement
+            text: fileContent,
+          },
+        ],
+      });
+
+      logger.info('Synced file content with LSP server', {
+        file_path: filePath,
+        version,
+      });
+    } catch (error) {
+      logger.error('Failed to sync file content with LSP server', {
+        file_path: filePath,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  /**
    * Restart servers for specified extensions
    */
   async restartServer(extensions?: string[]): Promise<string[]> {

@@ -5,7 +5,7 @@ import { MCPTestClient, assertToolResult } from '../helpers/mcp-test-client.js';
 
 describe('Multi-File Rename Integration Tests', () => {
   let client: MCPTestClient;
-  const TEST_DIR = '/tmp/multi-file-rename-test';
+  const TEST_DIR = '/workspace/playground/multi-file-rename-test';
 
   beforeAll(async () => {
     console.log('🔍 Multi-File Rename Integration Test');
@@ -229,6 +229,8 @@ export const PROCESSOR_INSTANCE = new DataProcessor();`
       expect(utilsContent).toContain('ContentProcessor');
 
       console.log('✅ Multi-file rename verification complete');
+
+      // LSP synchronization now handled automatically by applyWorkspaceEdit
     }, 20000);
 
     it('should handle rename of non-existent symbol gracefully', async () => {

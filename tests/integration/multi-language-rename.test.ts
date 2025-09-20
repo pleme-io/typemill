@@ -101,8 +101,7 @@ describe('Multi-Language Rename Integration Tests', () => {
       console.log('📋 Python rename execution result:');
       console.log(content);
 
-      // Wait for file operations
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // LSP synchronization now handled automatically by applyWorkspaceEdit
 
       console.log('🔍 Verifying Python file changes...');
 
@@ -232,8 +231,7 @@ describe('Multi-Language Rename Integration Tests', () => {
       console.log('📋 Rust rename execution result:');
       console.log(content);
 
-      // Wait for file operations
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // LSP synchronization now handled automatically by applyWorkspaceEdit
 
       console.log('🔍 Verifying Rust file changes...');
 
@@ -303,8 +301,7 @@ describe('Multi-Language Rename Integration Tests', () => {
       expect(result).toBeDefined();
       const toolResult = assertToolResult(result);
 
-      // Wait for file operations
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // LSP synchronization now handled automatically by applyWorkspaceEdit
 
       console.log('🔍 Verifying Rust function rename...');
 

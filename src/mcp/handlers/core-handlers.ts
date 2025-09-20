@@ -172,7 +172,8 @@ export async function handleRenameSymbol(
     symbol_kind?: string;
     new_name: string;
     dry_run?: boolean;
-  }
+  },
+  lspClient?: import('../../lsp/client.js').LSPClient
 ) {
   const { file_path, symbol_name, symbol_kind, new_name, dry_run = false } = args;
   const absolutePath = resolve(file_path);
@@ -243,6 +244,7 @@ export async function handleRenameSymbol(
 
     const editResult = await applyWorkspaceEdit(workspaceEdit, {
       validateBeforeApply: true,
+      lspClient,
     });
 
     if (!editResult.success) {
@@ -274,7 +276,8 @@ export async function handleRenameSymbolStrict(
     character: number;
     new_name: string;
     dry_run?: boolean;
-  }
+  },
+  lspClient?: import('../../lsp/client.js').LSPClient
 ) {
   const { file_path, line, character, new_name, dry_run = false } = args;
   const absolutePath = resolve(file_path);
@@ -306,6 +309,7 @@ export async function handleRenameSymbolStrict(
 
     const editResult = await applyWorkspaceEdit(workspaceEdit, {
       validateBeforeApply: true,
+      lspClient,
     });
 
     if (!editResult.success) {

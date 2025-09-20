@@ -83,7 +83,8 @@ export async function handleFormatDocument(
       insert_final_newline?: boolean;
       trim_final_newlines?: boolean;
     };
-  }
+  },
+  lspClient?: import('../../lsp/client.js').LSPClient
 ) {
   const { file_path, options } = args;
   const absolutePath = resolve(file_path);
@@ -113,7 +114,9 @@ export async function handleFormatDocument(
       },
     };
 
-    const editResult = await applyWorkspaceEdit(workspaceEdit);
+    const editResult = await applyWorkspaceEdit(workspaceEdit, {
+      lspClient,
+    });
 
     if (!editResult.success) {
       return createMCPResponse(`Failed to apply formatting: ${editResult.error}`);
@@ -136,6 +139,13 @@ export async function handleSearchWorkspaceSymbols(
   lspClient: import('../../lsp/client.js').LSPClient
 ) {
   const { query, workspace_path } = args;
+
+  // Handle empty query gracefully
+  if (query.trim().length === 0) {
+    return createMCPResponse(
+      'Please provide a search query to find workspace symbols. Enter a symbol name or partial name to search across all files in the workspace.'
+    );
+  }
 
   try {
     const symbols = await symbolService.searchWorkspaceSymbols(

@@ -246,6 +246,13 @@ export class MCPTestClient {
     });
   }
 
+  async forceLSPReindex(extensions: string[] = ['ts', 'py', 'rs']): Promise<void> {
+    console.log('🔄 Forcing LSP re-indexing for extensions:', extensions.join(', '));
+    await this.callTool('restart_server', { extensions });
+    await new Promise((resolve) => setTimeout(resolve, 1500)); // Wait for restart
+    console.log('✅ LSP re-indexing complete');
+  }
+
   async callTools(
     tests: Array<{ name: string; args: Record<string, unknown> }>
   ): Promise<Array<{ name: string; success: boolean; error?: string }>> {

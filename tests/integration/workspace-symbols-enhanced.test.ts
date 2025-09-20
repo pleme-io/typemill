@@ -10,7 +10,7 @@ import { getTestConfig, getTestModeFromEnv } from '../helpers/test-mode-detector
  * Optimized to prevent LSP server timeouts with minimal test files
  */
 
-const TEST_DIR = '/tmp/workspace-symbols-simple';
+const TEST_DIR = '/workspace/playground/test-workspace-symbols';
 const testConfig = getTestConfig(getTestModeFromEnv() || undefined);
 
 describe(`Workspace Symbols Search - Enhanced (${testConfig.mode.toUpperCase()} mode)`, () => {
@@ -24,6 +24,20 @@ describe(`Workspace Symbols Search - Enhanced (${testConfig.mode.toUpperCase()} 
       rmSync(TEST_DIR, { recursive: true });
     }
     mkdirSync(TEST_DIR, { recursive: true });
+
+    // Add package.json for TypeScript LSP recognition
+    writeFileSync(
+      join(TEST_DIR, 'package.json'),
+      JSON.stringify(
+        {
+          name: 'workspace-symbols-test',
+          version: '1.0.0',
+          private: true,
+        },
+        null,
+        2
+      )
+    );
 
     // Create simple test files with minimal TypeScript structures
     writeFileSync(

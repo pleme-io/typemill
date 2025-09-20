@@ -208,7 +208,7 @@ export function validateSearchWorkspaceSymbolsArgs(
   if (!isObject(args)) return false;
   const obj = args as Record<string, unknown>;
 
-  return 'query' in obj && isNonEmptyString(obj.query);
+  return 'query' in obj && isString(obj.query);
 }
 
 export function validateGetDocumentSymbolsArgs(args: unknown): args is GetDocumentSymbolsArgs {

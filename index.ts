@@ -250,7 +250,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 'object with file_path, symbol_name, and new_name'
               );
             }
-            return await handleRenameSymbol(symbolService, args);
+            return await handleRenameSymbol(symbolService, args, newLspClient);
           case 'rename_symbol_strict':
             if (!Validation.validateRenameSymbolStrictArgs(args)) {
               throw Validation.createValidationError(
@@ -258,7 +258,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 'object with file_path, line, character, and new_name'
               );
             }
-            return await handleRenameSymbolStrict(symbolService, args);
+            return await handleRenameSymbolStrict(symbolService, args, newLspClient);
           case 'get_code_actions':
             if (!Validation.validateGetCodeActionsArgs(args)) {
               throw Validation.createValidationError(
@@ -274,7 +274,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 'object with file_path string and optional formatting options'
               );
             }
-            return await handleFormatDocument(fileService, args);
+            return await handleFormatDocument(fileService, args, newLspClient);
           case 'search_workspace_symbols':
             if (!Validation.validateSearchWorkspaceSymbolsArgs(args)) {
               throw Validation.createValidationError(
