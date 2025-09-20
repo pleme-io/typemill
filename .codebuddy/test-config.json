@@ -1,9 +1,0 @@
-{
-  "servers": [
-    {
-      "extensions": ["ts", "tsx", "js", "jsx"],
-      "command": ["typescript-language-server", "--stdio"],
-      "restartInterval": 30
-    }
-  ]
-}

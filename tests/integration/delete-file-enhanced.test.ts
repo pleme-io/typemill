@@ -117,8 +117,8 @@ export class UserService {
       file_path: servicePath,
     });
 
-    const toolResult = assertToolResult(result);
-    const response = toolResult.content?.[0]?.text || '';
+    assertToolResult(result);
+    const response = result.content?.[0]?.text || '';
     console.log('📋 Delete attempt result:');
     console.log(response);
 
@@ -157,8 +157,8 @@ export class UserService {
       force: true,
     });
 
-    const toolResult = assertToolResult(result);
-    const response = toolResult.content?.[0]?.text || '';
+    assertToolResult(result);
+    const response = result.content?.[0]?.text || '';
     console.log('📋 Force delete result:');
     console.log(response);
 
@@ -231,8 +231,8 @@ export function standaloneFunction() {
       file_path: standalonePath,
     });
 
-    const toolResult = assertToolResult(result);
-    const response = toolResult.content?.[0]?.text || '';
+    assertToolResult(result);
+    const response = result.content?.[0]?.text || '';
     console.log('📋 Standalone file delete result:');
     console.log(response);
 
@@ -254,8 +254,8 @@ export function standaloneFunction() {
       file_path: join(TEST_DIR, 'non-existent.ts'),
     });
 
-    const toolResult = assertToolResult(result);
-    const response = toolResult.content?.[0]?.text || '';
+    assertToolResult(result);
+    const response = result.content?.[0]?.text || '';
     console.log('📋 Non-existent file result:');
     console.log(response);
 

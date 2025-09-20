@@ -357,7 +357,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             if (!Validation.validateGetCallHierarchyIncomingCallsArgs(args)) {
               throw Validation.createValidationError(
                 'get_call_hierarchy_incoming_calls',
-                'object with CallHierarchyItem'
+                'object with either "item" (CallHierarchyItem) or "file_path", "line", and "character"'
               );
             }
             return await handleGetCallHierarchyIncomingCalls(hierarchyService, args);
@@ -365,7 +365,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             if (!Validation.validateGetCallHierarchyOutgoingCallsArgs(args)) {
               throw Validation.createValidationError(
                 'get_call_hierarchy_outgoing_calls',
-                'object with CallHierarchyItem'
+                'object with either "item" (CallHierarchyItem) or "file_path", "line", and "character"'
               );
             }
             return await handleGetCallHierarchyOutgoingCalls(hierarchyService, args);
@@ -405,7 +405,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             if (!Validation.validateApplyWorkspaceEditArgs(args)) {
               throw Validation.createValidationError(
                 'apply_workspace_edit',
-                'object with changes mapping file paths to text edits'
+                'object with either "changes" mapping file paths to text edits or "edit" containing the workspace edit'
               );
             }
             return await handleApplyWorkspaceEdit(fileService, args);

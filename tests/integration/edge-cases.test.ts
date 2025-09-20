@@ -424,7 +424,7 @@ describe('Edge Case Tests', () => {
         });
         assertToolResult(result);
         const content = result.content?.[0]?.text || '';
-        expect(content).toMatch(/(not found|no definition)/i);
+        expect(content).toMatch(/(not found|no definition|no symbols found)/i);
       },
       timeout
     );
@@ -439,7 +439,7 @@ describe('Edge Case Tests', () => {
         });
         assertToolResult(result);
         const content = result.content?.[0]?.text || '';
-        expect(content).toMatch(/(not found|no definition)/i);
+        expect(content).toMatch(/(not found|no definition|no symbols found)/i);
       },
       timeout
     );

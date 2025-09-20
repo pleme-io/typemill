@@ -69,8 +69,8 @@ describe('Multi-File Rename File Path Tests', () => {
       });
 
       expect(result).toBeDefined();
-      const toolResult = assertToolResult(result);
-      const content = toolResult.content?.[0]?.text || '';
+      assertToolResult(result);
+      const content = result.content?.[0]?.text || '';
 
       console.log('📋 Dry-run file rename result:');
       console.log(content);
@@ -118,8 +118,8 @@ describe('Multi-File Rename File Path Tests', () => {
       });
 
       expect(result).toBeDefined();
-      const toolResult = assertToolResult(result);
-      const content = toolResult.content?.[0]?.text || '';
+      assertToolResult(result);
+      const content = result.content?.[0]?.text || '';
 
       console.log('📋 File rename execution result:');
       console.log(content);
@@ -231,8 +231,8 @@ describe('Multi-File Rename File Path Tests', () => {
       });
 
       expect(result).toBeDefined();
-      const toolResult = assertToolResult(result);
-      const content = toolResult.content?.[0]?.text || '';
+      assertToolResult(result);
+      const content = result.content?.[0]?.text || '';
 
       console.log('📋 Non-existent file result:');
       console.log(content);
@@ -253,8 +253,8 @@ describe('Multi-File Rename File Path Tests', () => {
       });
 
       expect(result).toBeDefined();
-      const toolResult = assertToolResult(result);
-      const content = toolResult.content?.[0]?.text || '';
+      assertToolResult(result);
+      const content = result.content?.[0]?.text || '';
 
       console.log('📋 Existing target file result:');
       console.log(content);

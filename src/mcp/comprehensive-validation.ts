@@ -323,21 +323,35 @@ export function validateGetCallHierarchyIncomingCallsArgs(
   if (!isObject(args)) return false;
   const obj = args as Record<string, unknown>;
 
-  // Validate CallHierarchyItem structure
-  if (!('item' in obj) || !isObject(obj.item)) return false;
+  // Support two formats:
+  // 1. Direct CallHierarchyItem: { item: CallHierarchyItem }
+  // 2. Position-based: { file_path: string, line: number, character: number }
 
-  const item = obj.item as Record<string, unknown>;
+  if ('item' in obj && isObject(obj.item)) {
+    // Validate CallHierarchyItem structure
+    const item = obj.item as Record<string, unknown>;
+    return (
+      'name' in item &&
+      isString(item.name) &&
+      'kind' in item &&
+      isNumber(item.kind) &&
+      'uri' in item &&
+      isString(item.uri) &&
+      'range' in item &&
+      isRange(item.range) &&
+      'selectionRange' in item &&
+      isRange(item.selectionRange)
+    );
+  }
+
+  // Validate position-based format
   return (
-    'name' in item &&
-    isString(item.name) &&
-    'kind' in item &&
-    isNumber(item.kind) &&
-    'uri' in item &&
-    isString(item.uri) &&
-    'range' in item &&
-    isRange(item.range) &&
-    'selectionRange' in item &&
-    isRange(item.selectionRange)
+    'file_path' in obj &&
+    isNonEmptyString(obj.file_path) &&
+    'line' in obj &&
+    isNonNegativeInteger(obj.line) &&
+    'character' in obj &&
+    isNonNegativeInteger(obj.character)
   );
 }
 
@@ -467,9 +481,21 @@ export function validateApplyWorkspaceEditArgs(args: unknown): args is ApplyWork
   if (!isObject(args)) return false;
   const obj = args as Record<string, unknown>;
 
-  if (!('changes' in obj) || !isObject(obj.changes)) return false;
+  // Support both formats:
+  // 1. Direct changes: { changes: ... }
+  // 2. Edit wrapper: { edit: { changes: ... } }
 
-  const changes = obj.changes as Record<string, unknown>;
+  let changes: Record<string, unknown>;
+
+  if ('changes' in obj && isObject(obj.changes)) {
+    changes = obj.changes as Record<string, unknown>;
+  } else if ('edit' in obj && isObject(obj.edit)) {
+    const edit = obj.edit as Record<string, unknown>;
+    if (!('changes' in edit) || !isObject(edit.changes)) return false;
+    changes = edit.changes as Record<string, unknown>;
+  } else {
+    return false;
+  }
 
   // Validate that all values in changes are arrays of TextEdit
   for (const [key, value] of Object.entries(changes)) {

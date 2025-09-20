@@ -70,7 +70,10 @@
   ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.3",
-    "ignore": "^7.0.5"
+    "ignore": "^7.0.5",
+    "vscode-langservers-extracted": "^4.10.0",
+    "yaml-language-server": "^1.15.0",
+    "bash-language-server": "^5.4.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

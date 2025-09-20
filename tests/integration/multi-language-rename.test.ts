@@ -75,8 +75,8 @@ describe('Multi-Language Rename Integration Tests', () => {
       });
 
       expect(dryRunResult).toBeDefined();
-      const dryRunToolResult = assertToolResult(dryRunResult);
-      const dryRunContent = dryRunToolResult.content?.[0]?.text || '';
+      assertToolResult(dryRunResult);
+      const dryRunContent = dryRunResult.content?.[0]?.text || '';
 
       console.log('📋 Python dry-run result:');
       console.log(dryRunContent);
@@ -95,8 +95,8 @@ describe('Multi-Language Rename Integration Tests', () => {
       });
 
       expect(result).toBeDefined();
-      const toolResult = assertToolResult(result);
-      const content = toolResult.content?.[0]?.text || '';
+      assertToolResult(result);
+      const content = result.content?.[0]?.text || '';
 
       console.log('📋 Python rename execution result:');
       console.log(content);
@@ -206,8 +206,8 @@ describe('Multi-Language Rename Integration Tests', () => {
       });
 
       expect(dryRunResult).toBeDefined();
-      const dryRunToolResult = assertToolResult(dryRunResult);
-      const dryRunContent = dryRunToolResult.content?.[0]?.text || '';
+      assertToolResult(dryRunResult);
+      const dryRunContent = dryRunResult.content?.[0]?.text || '';
 
       console.log('📋 Rust dry-run result:');
       console.log(dryRunContent);
@@ -226,8 +226,8 @@ describe('Multi-Language Rename Integration Tests', () => {
       });
 
       expect(result).toBeDefined();
-      const toolResult = assertToolResult(result);
-      const content = toolResult.content?.[0]?.text || '';
+      assertToolResult(result);
+      const content = result.content?.[0]?.text || '';
 
       console.log('📋 Rust rename execution result:');
       console.log(content);
@@ -344,8 +344,8 @@ describe('Multi-Language Rename Integration Tests', () => {
       });
 
       expect(result).toBeDefined();
-      const toolResult = assertToolResult(result);
-      const content = toolResult.content?.[0]?.text || '';
+      assertToolResult(result);
+      const content = result.content?.[0]?.text || '';
 
       console.log('📋 Python references found:');
       console.log(content);
@@ -369,8 +369,8 @@ describe('Multi-Language Rename Integration Tests', () => {
       });
 
       expect(result).toBeDefined();
-      const toolResult = assertToolResult(result);
-      const content = toolResult.content?.[0]?.text || '';
+      assertToolResult(result);
+      const content = result.content?.[0]?.text || '';
 
       console.log('📋 Rust references found (position-based):');
       console.log(content);

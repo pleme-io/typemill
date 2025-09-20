@@ -184,8 +184,8 @@ export function clamp(value: number, min: number, max: number): number {
       edit: workspaceEdit,
     });
 
-    const toolResult = assertToolResult(result);
-    const response = toolResult.content?.[0]?.text || '';
+    assertToolResult(result);
+    const response = result.content?.[0]?.text || '';
     console.log('📋 Workspace edit result:');
     console.log(response);
 
@@ -293,8 +293,8 @@ export function clamp(value: number, min: number, max: number): number {
       dry_run: true,
     });
 
-    const toolResult = assertToolResult(result);
-    const response = toolResult.content?.[0]?.text || '';
+    assertToolResult(result);
+    const response = result.content?.[0]?.text || '';
     console.log('📋 Dry-run result:', response);
 
     // Should indicate dry-run
@@ -314,8 +314,8 @@ export function clamp(value: number, min: number, max: number): number {
       edit: { changes: {} },
     });
 
-    const toolResult = assertToolResult(result);
-    const response = toolResult.content?.[0]?.text || '';
+    assertToolResult(result);
+    const response = result.content?.[0]?.text || '';
     console.log('📋 Empty edit result:', response);
 
     // Should handle gracefully
@@ -382,8 +382,8 @@ export { oldFunction, oldVariable };`
       edit: workspaceEdit,
     });
 
-    const toolResult = assertToolResult(result);
-    const response = toolResult.content?.[0]?.text || '';
+    assertToolResult(result);
+    const response = result.content?.[0]?.text || '';
     console.log('📋 Sequential edits result:', response);
 
     // Verify all changes were applied

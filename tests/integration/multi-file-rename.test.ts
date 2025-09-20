@@ -128,8 +128,8 @@ export const PROCESSOR_INSTANCE = new DataProcessor();`
       });
 
       expect(result).toBeDefined();
-      const toolResult = assertToolResult(result);
-      const content = toolResult.content?.[0]?.text || '';
+      assertToolResult(result);
+      const content = result.content?.[0]?.text || '';
 
       console.log('📋 Dry-run result preview:');
       console.log(content);
@@ -168,8 +168,8 @@ export const PROCESSOR_INSTANCE = new DataProcessor();`
       });
 
       expect(result).toBeDefined();
-      const toolResult = assertToolResult(result);
-      const content = toolResult.content?.[0]?.text || '';
+      assertToolResult(result);
+      const content = result.content?.[0]?.text || '';
 
       console.log('📋 Rename execution result:');
       console.log(content);
@@ -242,8 +242,8 @@ export const PROCESSOR_INSTANCE = new DataProcessor();`
       });
 
       expect(result).toBeDefined();
-      const toolResult = assertToolResult(result);
-      const content = toolResult.content?.[0]?.text || '';
+      assertToolResult(result);
+      const content = result.content?.[0]?.text || '';
 
       console.log('📋 Non-existent symbol result:');
       console.log(content);
@@ -265,8 +265,8 @@ export const PROCESSOR_INSTANCE = new DataProcessor();`
       });
 
       expect(result).toBeDefined();
-      const toolResult = assertToolResult(result);
-      const content = toolResult.content?.[0]?.text || '';
+      assertToolResult(result);
+      const content = result.content?.[0]?.text || '';
 
       console.log('📋 Same name rename result:');
       console.log(content);
@@ -307,8 +307,8 @@ export const PROCESSOR_INSTANCE = new DataProcessor();`
       });
 
       expect(result).toBeDefined();
-      const toolResult = assertToolResult(result);
-      const content = toolResult.content?.[0]?.text || '';
+      assertToolResult(result);
+      const content = result.content?.[0]?.text || '';
 
       console.log('📋 Position-based rename result:');
       console.log(content);
@@ -332,8 +332,8 @@ export const PROCESSOR_INSTANCE = new DataProcessor();`
       });
 
       expect(result).toBeDefined();
-      const toolResult = assertToolResult(result);
-      const content = toolResult.content?.[0]?.text || '';
+      assertToolResult(result);
+      const content = result.content?.[0]?.text || '';
 
       console.log('📋 References found:');
       console.log(content);
