@@ -102,8 +102,9 @@ bun install
 bun run dev
 
 # Testing
-bun run test:fast     # Quick unit tests (~8s)
+bun run test:fast     # Fast mode with optimizations
 bun run test          # Full test suite
+bun run test:comprehensive # All MCP tools test
 bun run test:minimal  # Minimal runner for slow systems
 
 # Code quality
@@ -121,3 +122,9 @@ MIT - see [LICENSE](LICENSE) for details
 ## 💡 Support
 - **[GitHub Issues](https://github.com/goobits/codeflow-buddy/issues)** - Bug reports and feature requests
 - **[Discussions](https://github.com/goobits/codeflow-buddy/discussions)** - Questions and community support
+
+---
+
+## 🙏 Special Thanks
+
+This project is based on [ktnyt/cclsp](https://github.com/ktnyt/cclsp)

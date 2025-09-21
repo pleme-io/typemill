@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2025-09-21
+
+### Changed
+- Project renamed from `codebuddy` to `codeflow-buddy` for better clarity
+- Updated repository URLs and package references
+- Streamlined test suite by removing redundant tests
+
+### Fixed
+- Removed superfluous test files to eliminate redundancy
+- Fixed PostToolUse hook configuration issues
+- Updated documentation to reflect current codebase state
+
+## [1.0.0] - 2025-09-20
+
+### Added
+- Major version release with stable API
+- Complete MCP tool suite (38 tools)
+- Comprehensive test coverage
+- Enhanced error handling and recovery
+
 ## [0.5.13] - 2025-08-30
 
 ### Added

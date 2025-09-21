@@ -1,10 +1,10 @@
 {
   "mcpServers": {
-    "codebuddy": {
+    "codeflow-buddy": {
       "command": "node",
       "args": ["/workspace/dist/index.js"],
       "env": {
-        "CODEBUDDY_CONFIG_PATH": "/workspace/codebuddy.json"
+        "CODEBUDDY_CONFIG_PATH": "/workspace/.codebuddy/config.json"
       }
     }
   }
