@@ -37,6 +37,10 @@ const testEnv = {
   TEST_MINIMAL_CONFIG: isSlowSystem ? 'true' : 'false',
   TEST_TIMEOUT: config.timeout.toString(),
   BUN_TEST_TIMEOUT: config.timeout.toString(),
+  // Reduce test verbosity
+  LOG_LEVEL: 'WARN',
+  DEBUG: '',
+  CODEBUDDY_DEBUG: '',
   // Optimize Node.js for testing
   NODE_OPTIONS: isSlowSystem ? '--max-old-space-size=2048' : '--max-old-space-size=4096',
 };

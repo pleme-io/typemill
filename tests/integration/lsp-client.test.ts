@@ -14,8 +14,7 @@ describe('LSP Client Unit Tests', () => {
   it('should initialize LSP client and test basic operations', async () => {
     console.log('🔧 Testing LSP Client directly...');
 
-    // Set the config path
-    process.env.CODEBUDDY_CONFIG_PATH = join('/workspace/plugins/codebuddy', 'codebuddy.json');
+    // Use default config discovery (will find .codebuddy/config.json)
 
     lspClient = new LSPClient();
     const testFile = join('/workspace', 'playground/src/components/user-form.ts');
@@ -73,8 +72,7 @@ describe('LSP Client Unit Tests', () => {
   });
 
   it('should handle multiple file types', async () => {
-    process.env.CODEBUDDY_CONFIG_PATH = join('/workspace/plugins/codebuddy', 'codebuddy.json');
-
+    // Use default config discovery
     const client = new LSPClient();
 
     try {

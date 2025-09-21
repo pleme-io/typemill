@@ -161,25 +161,16 @@ export class LSPProtocol {
         // Validate that messageContent looks like valid JSON before parsing
         const trimmed = messageContent.trim();
         if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) {
-          logError('LSPProtocol', 'Invalid JSON structure detected', new Error('Not valid JSON'), {
-            messagePreview: trimmed.substring(0, 100),
-            messageLength: messageContent.length,
-            contentLength,
-          });
-          continue; // Skip this malformed message
+          debugLog('LSPProtocol', `Skipping malformed LSP message: ${trimmed.substring(0, 50)}...`);
+          // Skip this malformed message and continue to next
+          remaining = remaining.substring(messageStart + contentLength);
+          continue;
         }
 
         const message = JSON.parse(messageContent) as LSPMessage;
         messages.push(message);
       } catch (error) {
-        logError('LSPProtocol', 'Failed to parse LSP message', error, {
-          messageContent:
-            messageContent.length > 200 ? `${messageContent.substring(0, 200)}...` : messageContent,
-          messageLength: messageContent.length,
-          contentLength,
-          headerEndIndex,
-          messageStart,
-        });
+        debugLog('LSPProtocol', `Failed to parse LSP message: ${getErrorMessage(error)}`);
         // Continue processing other messages instead of breaking the entire parsing
       }
 

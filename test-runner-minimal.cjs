@@ -30,6 +30,10 @@ const testEnv = {
   TEST_MINIMAL_CONFIG: 'true',
   TEST_TIMEOUT: config.timeout.toString(),
   BUN_TEST_TIMEOUT: config.timeout.toString(),
+  // Ultra-quiet logging
+  LOG_LEVEL: 'ERROR',
+  DEBUG: '',
+  CODEBUDDY_DEBUG: '',
   NODE_OPTIONS: '--max-old-space-size=1024', // Minimal memory
 };
 

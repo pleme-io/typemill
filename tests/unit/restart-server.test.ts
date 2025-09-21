@@ -1,16 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { MCPTestClient, assertToolResult } from '../helpers/mcp-test-client';
+import { testLog } from '../helpers/quiet-logger';
 
 describe('Server Restart Tests', () => {
   let client: MCPTestClient;
 
   beforeAll(async () => {
-    console.log('⏱️  Testing restart_server timing and response...');
+    testLog('⏱️  Testing restart_server timing and response...');
     client = new MCPTestClient();
     await client.start({ skipLSPPreload: true });
 
     // Wait for LSP servers to fully initialize
-    console.log('⏳ Waiting for LSP servers to initialize...');
+    testLog('⏳ Waiting for LSP servers to initialize...');
     await new Promise((resolve) => setTimeout(resolve, 3000));
   });
 
@@ -19,13 +20,13 @@ describe('Server Restart Tests', () => {
   });
 
   it('should restart TypeScript servers successfully', async () => {
-    console.log('🔄 Starting restart_server test...');
+    testLog('🔄 Starting restart_server test...');
     const startTime = Date.now();
 
     // Track progress
     const progressTimer = setInterval(() => {
       const elapsed = Date.now() - startTime;
-      console.log(`⏳ Still waiting... ${elapsed}ms elapsed`);
+      testLog(`⏳ Still waiting... ${elapsed}ms elapsed`);
     }, 1000);
 
     try {
@@ -35,7 +36,7 @@ describe('Server Restart Tests', () => {
 
       clearInterval(progressTimer);
       const elapsed = Date.now() - startTime;
-      console.log(`✅ restart_server completed in ${elapsed}ms`);
+      testLog(`✅ restart_server completed in ${elapsed}ms`);
 
       expect(result).toBeDefined();
       assertToolResult(result);
