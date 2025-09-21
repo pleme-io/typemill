@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
+import { logDebugMessage } from '../core/diagnostics/debug-logger.js';
 import { pathToUri } from '../core/file-operations/path-utils.js';
 import type { Diagnostic, DocumentDiagnosticReport } from '../types.js';
-import { logDebugMessage } from '../core/diagnostics/debug-logger.js';
 import type { ServiceContext } from './service-context.js';
 
 // Diagnostic service constants
@@ -40,7 +40,10 @@ export class DiagnosticService {
     }
 
     // If no cached diagnostics, try the pull-based textDocument/diagnostic
-    logDebugMessage('DiagnosticService', 'No cached diagnostics, trying textDocument/diagnostic request');
+    logDebugMessage(
+      'DiagnosticService',
+      'No cached diagnostics, trying textDocument/diagnostic request'
+    );
 
     try {
       const result = await this.context.protocol.sendRequest(
@@ -62,7 +65,10 @@ export class DiagnosticService {
         const report = result as DocumentDiagnosticReport;
 
         if (report.kind === 'full' && report.items) {
-          logDebugMessage('DiagnosticService', `Full report with ${report.items.length} diagnostics`);
+          logDebugMessage(
+            'DiagnosticService',
+            `Full report with ${report.items.length} diagnostics`
+          );
           return report.items;
         }
         if (report.kind === 'unchanged') {
@@ -73,7 +79,10 @@ export class DiagnosticService {
 
       // Handle direct diagnostic array (legacy format)
       if (Array.isArray(result)) {
-        logDebugMessage('DiagnosticService', `Direct diagnostic array with ${result.length} diagnostics`);
+        logDebugMessage(
+          'DiagnosticService',
+          `Direct diagnostic array with ${result.length} diagnostics`
+        );
         return result as Diagnostic[];
       }
 

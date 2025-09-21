@@ -128,7 +128,10 @@ export async function applyWorkspaceEdit(
       const originalStats = lstatSync(originalPath);
       if (originalStats.isSymbolicLink()) {
         targetPath = realpathSync(originalPath);
-        logDebugMessage('FileEditor', `Editing symlink target: ${targetPath} (via ${originalPath})`);
+        logDebugMessage(
+          'FileEditor',
+          `Editing symlink target: ${targetPath} (via ${originalPath})`
+        );
       }
 
       // Read content from the actual file (symlink target or regular file)

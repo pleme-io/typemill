@@ -1,7 +1,7 @@
 import type { ChildProcess } from 'node:child_process';
-import type { LSPError } from '../types.js';
 import { logDebugMessage } from '../core/diagnostics/debug-logger.js';
 import { getErrorMessage, handleLSPError, logError } from '../core/diagnostics/error-utils.js';
+import type { LSPError } from '../types.js';
 
 // Protocol constants
 const DEFAULT_REQUEST_TIMEOUT_MS = 30000; // Default timeout for LSP requests
@@ -161,7 +161,10 @@ export class LSPProtocol {
         // Validate that messageContent looks like valid JSON before parsing
         const trimmed = messageContent.trim();
         if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) {
-          logDebugMessage('LSPProtocol', `Skipping malformed LSP message: ${trimmed.substring(0, 50)}...`);
+          logDebugMessage(
+            'LSPProtocol',
+            `Skipping malformed LSP message: ${trimmed.substring(0, 50)}...`
+          );
           // Skip this malformed message and continue to next
           remaining = remaining.substring(messageStart + contentLength);
           continue;

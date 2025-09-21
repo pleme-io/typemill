@@ -181,38 +181,17 @@ export interface HealthCheckArgs {
   include_details?: boolean;
 }
 
-// Orchestration handlers
-export interface AnalyzeRefactorImpactArgs {
+// Universal Batch handler
+export interface BatchExecuteArgs {
   operations: Array<{
-    type: 'move_file' | 'rename_symbol';
-    old_path?: string;
-    new_path?: string;
-    file_path?: string;
-    symbol_name?: string;
-    symbol_kind?: string;
-    new_name?: string;
+    tool: string;
+    args: unknown;
+    id?: string;
   }>;
-  include_recommendations?: boolean;
-}
-
-export interface BatchMoveFilesArgs {
-  moves: Array<{
-    old_path: string;
-    new_path: string;
-  }>;
-  dry_run?: boolean;
-  strategy?: 'safe' | 'force';
-}
-
-export interface PreviewBatchOperationArgs {
-  operations: Array<{
-    type: 'move_file' | 'rename_symbol' | 'rename_file';
-    old_path?: string;
-    new_path?: string;
-    file_path?: string;
-    symbol_name?: string;
-    symbol_kind?: string;
-    new_name?: string;
-  }>;
-  detailed?: boolean;
+  options: {
+    atomic?: boolean;
+    parallel?: boolean;
+    dry_run?: boolean;
+    stop_on_error?: boolean;
+  };
 }

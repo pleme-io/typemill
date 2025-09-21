@@ -1,3 +1,4 @@
+import { logDebugMessage } from '../core/diagnostics/debug-logger.js';
 import type {
   CallHierarchyIncomingCall,
   CallHierarchyItem,
@@ -6,7 +7,6 @@ import type {
   SelectionRange,
   TypeHierarchyItem,
 } from '../types.js';
-import { logDebugMessage } from '../core/diagnostics/debug-logger.js';
 import type { ServiceContext } from './service-context.js';
 
 // Hierarchy service constants

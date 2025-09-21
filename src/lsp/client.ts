@@ -4,10 +4,10 @@ import {
   getAvailableDefaultServers,
   mergeWithDefaults,
 } from '../core/configuration/default-config.js';
-import { scanDirectoryForExtensions } from '../core/file-operations/scanner.js';
-import type { Config } from '../types.js';
 import { handleConfigurationError, logError } from '../core/diagnostics/error-utils.js';
 import { getLogger } from '../core/diagnostics/structured-logger.js';
+import { scanDirectoryForExtensions } from '../core/file-operations/scanner.js';
+import type { Config } from '../types.js';
 import { LSPProtocol } from './protocol.js';
 import { ServerManager } from './server-manager.js';
 import type { ServerState } from './types.js';

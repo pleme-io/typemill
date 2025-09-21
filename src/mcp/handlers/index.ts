@@ -4,4 +4,4 @@ export * from './advanced-handlers.js';
 export * from './utility-handlers.js';
 export * from './intelligence-handlers.js';
 export * from './hierarchy-handlers.js';
-export * from './orchestration-handlers.js';
+export * from './batch-handlers.js';

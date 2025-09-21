@@ -2,9 +2,9 @@ import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { mkdirSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
 import { dirname } from 'node:path';
+import { logDebugMessage } from '../../core/diagnostics/debug-logger.js';
 import type { WorkspaceEdit } from '../../core/file-operations/editor.js';
 import type { DiagnosticService } from '../../services/diagnostic-service.js';
-import { logDebugMessage } from '../../core/diagnostics/debug-logger.js';
 import {
   createFileModificationResponse,
   createListResponse,

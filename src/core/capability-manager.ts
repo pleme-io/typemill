@@ -226,7 +226,10 @@ class CapabilityManager {
       if (current && typeof current === 'object' && part in current) {
         current = (current as Record<string, unknown>)[part];
       } else {
-        logDebugMessage('CapabilityManager', `Capability ${fullPath} not found for server ${serverKey}`);
+        logDebugMessage(
+          'CapabilityManager',
+          `Capability ${fullPath} not found for server ${serverKey}`
+        );
         return false;
       }
     }

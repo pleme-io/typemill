@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { capabilityManager } from '../core/capability-manager.js';
+import { logDebugMessage } from '../core/diagnostics/debug-logger.js';
 import { pathToUri, uriToPath } from '../core/file-operations/path-utils.js';
 import type { ServerState } from '../lsp/types.js';
 import type {
@@ -11,7 +12,6 @@ import type {
   SymbolMatch,
 } from '../types.js';
 import { SymbolKind } from '../types.js';
-import { logDebugMessage } from '../core/diagnostics/debug-logger.js';
 import type { ServiceContext } from './service-context.js';
 
 // Symbol service constants
@@ -50,7 +50,10 @@ export class SymbolService {
       }
     );
 
-    logDebugMessage('SymbolService', `Result type: ${typeof result}, isArray: ${Array.isArray(result)}`);
+    logDebugMessage(
+      'SymbolService',
+      `Result type: ${typeof result}, isArray: ${Array.isArray(result)}`
+    );
 
     if (Array.isArray(result)) {
       logDebugMessage('SymbolService', `Array result with ${result.length} locations`);
@@ -347,7 +350,10 @@ export class SymbolService {
 
     // Check if we have any initialized servers first
     const initializedServers = Array.from(servers.values()).filter((s) => s.initialized);
-    logDebugMessage('SymbolService', `initialized servers: ${initializedServers.length}/${servers.size}`);
+    logDebugMessage(
+      'SymbolService',
+      `initialized servers: ${initializedServers.length}/${servers.size}`
+    );
 
     // Only preload if we have no servers at all (not even uninitialized ones)
     // This prevents redundant preloading when servers are already starting up

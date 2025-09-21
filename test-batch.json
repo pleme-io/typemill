@@ -1,0 +1,23 @@
+{
+  "tool": "batch_execute",
+  "args": {
+    "operations": [
+      {
+        "tool": "health_check",
+        "args": {"include_details": false},
+        "id": "health-1"
+      },
+      {
+        "tool": "get_diagnostics",
+        "args": {"file_path": "/nonexistent/file.ts"},
+        "id": "diag-1"
+      }
+    ],
+    "options": {
+      "dry_run": true,
+      "parallel": false,
+      "atomic": false,
+      "stop_on_error": false
+    }
+  }
+}

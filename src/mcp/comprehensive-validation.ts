@@ -4,9 +4,8 @@
  */
 
 import type {
-  AnalyzeRefactorImpactArgs,
   ApplyWorkspaceEditArgs,
-  BatchMoveFilesArgs,
+  BatchExecuteArgs,
   CreateFileArgs,
   DeleteFileArgs,
   FindDefinitionArgs,
@@ -30,13 +29,14 @@ import type {
   HealthCheckArgs,
   PrepareCallHierarchyArgs,
   PrepareTypeHierarchyArgs,
-  PreviewBatchOperationArgs,
   RenameFileArgs,
   RenameSymbolArgs,
   RenameSymbolStrictArgs,
   RestartServerArgs,
   SearchWorkspaceSymbolsArgs,
 } from './handler-types.js';
+
+import { BatchExecutor } from './services/batch-executor.js';
 
 // Utility type guards
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -516,78 +516,44 @@ export function validateApplyWorkspaceEditArgs(args: unknown): args is ApplyWork
   return !('validate_before_apply' in obj) || isOptionalBoolean(obj.validate_before_apply);
 }
 
-// Orchestration handlers validation
-export function validateAnalyzeRefactorImpactArgs(
-  args: unknown
-): args is AnalyzeRefactorImpactArgs {
+// Universal Batch handler validation
+export function validateBatchExecuteArgs(args: unknown): args is BatchExecuteArgs {
   if (!isObject(args)) return false;
 
   // Validate operations array
   if (!Array.isArray(args.operations)) return false;
+  if (args.operations.length === 0 || args.operations.length > 50) return false;
 
   for (const op of args.operations) {
     if (!isObject(op)) return false;
-    if (!isString(op.type) || !['move_file', 'rename_symbol'].includes(op.type)) return false;
 
-    if (op.type === 'move_file') {
-      if (!isNonEmptyString(op.old_path) || !isNonEmptyString(op.new_path)) return false;
-    } else if (op.type === 'rename_symbol') {
-      if (
-        !isNonEmptyString(op.file_path) ||
-        !isNonEmptyString(op.symbol_name) ||
-        !isNonEmptyString(op.new_name)
-      )
-        return false;
-    }
+    // Validate tool name
+    if (!isNonEmptyString(op.tool)) return false;
+    if (!BatchExecutor.isValidTool(op.tool)) return false;
+
+    // Prevent recursive batch execution
+    if (op.tool === 'batch_execute') return false;
+
+    // Validate args (should be an object, but we allow any structure for flexibility)
+    if (!isObject(op.args)) return false;
+
+    // Validate optional id
+    if ('id' in op && (!isString(op.id) || op.id.length > 100)) return false;
   }
 
-  return !('include_recommendations' in args) || isOptionalBoolean(args.include_recommendations);
-}
+  // Validate options object
+  if ('options' in args) {
+    if (!isObject(args.options)) return false;
 
-export function validateBatchMoveFilesArgs(args: unknown): args is BatchMoveFilesArgs {
-  if (!isObject(args)) return false;
+    const options = args.options as Record<string, unknown>;
 
-  // Validate moves array
-  if (!Array.isArray(args.moves)) return false;
-
-  for (const move of args.moves) {
-    if (!isObject(move)) return false;
-    if (!isNonEmptyString(move.old_path) || !isNonEmptyString(move.new_path)) return false;
+    if ('atomic' in options && !isOptionalBoolean(options.atomic)) return false;
+    if ('parallel' in options && !isOptionalBoolean(options.parallel)) return false;
+    if ('dry_run' in options && !isOptionalBoolean(options.dry_run)) return false;
+    if ('stop_on_error' in options && !isOptionalBoolean(options.stop_on_error)) return false;
   }
 
-  const validStrategy =
-    !('strategy' in args) || (isString(args.strategy) && ['safe', 'force'].includes(args.strategy));
-  const validDryRun = !('dry_run' in args) || isOptionalBoolean(args.dry_run);
-
-  return validStrategy && validDryRun;
-}
-
-export function validatePreviewBatchOperationArgs(
-  args: unknown
-): args is PreviewBatchOperationArgs {
-  if (!isObject(args)) return false;
-
-  // Validate operations array
-  if (!Array.isArray(args.operations)) return false;
-
-  for (const op of args.operations) {
-    if (!isObject(op)) return false;
-    if (!isString(op.type) || !['move_file', 'rename_symbol', 'rename_file'].includes(op.type))
-      return false;
-
-    if (op.type === 'move_file' || op.type === 'rename_file') {
-      if (!isNonEmptyString(op.old_path) || !isNonEmptyString(op.new_path)) return false;
-    } else if (op.type === 'rename_symbol') {
-      if (
-        !isNonEmptyString(op.file_path) ||
-        !isNonEmptyString(op.symbol_name) ||
-        !isNonEmptyString(op.new_name)
-      )
-        return false;
-    }
-  }
-
-  return !('detailed' in args) || isOptionalBoolean(args.detailed);
+  return true;
 }
 
 // Error creation helper

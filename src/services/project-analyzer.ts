@@ -222,7 +222,10 @@ class ProjectScanner {
         const fullPath = join(dir, entry.name);
 
         if (entry.isDirectory()) {
-          if (!ProjectScanner.IGNORED_DIRECTORY_PATTERNS.has(entry.name) && !entry.name.startsWith('.')) {
+          if (
+            !ProjectScanner.IGNORED_DIRECTORY_PATTERNS.has(entry.name) &&
+            !entry.name.startsWith('.')
+          ) {
             this.scanDirectory(fullPath, files, depth + 1, maxDepth, extensions);
           }
         } else if (entry.isFile()) {
