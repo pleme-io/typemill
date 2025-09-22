@@ -46,6 +46,10 @@ describe('WorkspaceManager Unit Tests', () => {
       const session = { id: 'test-session-1', projectId: 'test-project' };
       const workspace = await workspaceManager.createWorkspace(session);
 
+      // Store paths before expect calls to avoid corruption
+      const workspaceDir = workspace.workspaceDir;
+      const fuseMount = workspace.fuseMount;
+
       expect(workspace).toMatchObject({
         sessionId: 'test-session-1',
         workspaceId: expect.stringMatching(/^[a-f0-9-]{36}$/), // UUID format
@@ -56,16 +60,16 @@ describe('WorkspaceManager Unit Tests', () => {
         lastAccessed: expect.any(Date)
       });
 
-      // Verify directories were created (check immediately after creation)
-      expect(existsSync(workspace.workspaceDir)).toBe(true);
-      expect(existsSync(workspace.fuseMount)).toBe(true);
+      // Verify directories were created using stored paths
+      expect(existsSync(workspaceDir)).toBe(true);
+      expect(existsSync(fuseMount)).toBe(true);
 
       // Clean up this specific workspace for this test
       await workspaceManager.cleanupWorkspace(session.id);
 
       // Verify cleanup worked
-      expect(existsSync(workspace.workspaceDir)).toBe(false);
-      expect(existsSync(workspace.fuseMount)).toBe(false);
+      expect(existsSync(workspaceDir)).toBe(false);
+      expect(existsSync(fuseMount)).toBe(false);
     });
 
     test('should create unique workspaces for different sessions', async () => {
