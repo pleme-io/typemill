@@ -10,7 +10,7 @@ tests/
 │   ├── comprehensive.test.ts   # All 28 tools test (~60s)
 │   ├── intelligence.test.ts    # Intelligence features focus
 │   └── playground.test.ts      # Playground validation
-├── unit/                 # Unit tests with logical organization (11 files)
+├── unit/                 # Unit tests with logical organization (12 files)
 │   ├── handlers/         # MCP handler tests
 │   │   └── handlers.test.ts    # Direct handler testing
 │   ├── file-operations/  # File system operation tests
@@ -23,14 +23,17 @@ tests/
 │   ├── progress-tracking.test.ts   # Progress notification system
 │   ├── restart-server.test.ts      # Server restart timing
 │   ├── server-lifecycle.test.ts    # LSP server lifecycle management
-│   └── server-management.test.ts   # Server management operations
-├── integration/          # Integration tests (6 files)
+│   ├── server-management.test.ts   # Server management operations
+│   └── workspace-manager.test.ts   # Workspace isolation and management
+├── integration/          # Integration tests (9 files)
 │   ├── call-hierarchy-adaptive.test.ts # Adaptive call hierarchy testing
 │   ├── delete-file-enhanced.test.ts    # Enhanced file deletion with impact analysis
 │   ├── edge-cases.test.ts              # Unicode, large files, boundary conditions
 │   ├── error-cases.test.ts             # Error handling scenarios
 │   ├── error-recovery.test.ts          # Server crash recovery testing
-│   └── lsp-client.test.ts              # LSP client integration
+│   ├── fuse-integration.test.ts        # FUSE filesystem integration
+│   ├── lsp-client.test.ts              # LSP client integration
+│   └── websocket-fuse.test.ts          # WebSocket server FUSE integration
 └── helpers/
     └── mcp-test-client.ts  # Shared MCP testing utilities
 ```
@@ -44,10 +47,19 @@ npm run test               # Run default test suite
 npm run test:all           # Run all tests
 ```
 
+### FUSE Integration Testing
+```bash
+npm run test:fuse          # Run all FUSE-related tests
+npm run test:fuse:unit     # Run FUSE unit tests only
+npm run test:fuse:integration # Run FUSE integration tests only
+```
+
 ### Unit Testing
 ```bash
-npm run test:mcp:unit       # Run handler and client tests
-npm run test:mcp:restart    # Test server restart functionality
+npm run test:unit          # Run all unit tests
+npm run test:integration   # Run all integration tests
+npm run test:mcp:unit      # Run handler and client tests
+npm run test:mcp:restart   # Test server restart functionality
 ```
 
 ## 📊 Test Coverage
@@ -106,8 +118,9 @@ npm run test:mcp:restart    # Test server restart functionality
 - **`restart-server.test.ts`** 🔄 - Server restart timing (~700ms typical)
 - **`server-lifecycle.test.ts`** ♻️ - LSP server process lifecycle management
 - **`server-management.test.ts`** ⚙️ - Server configuration and management
+- **`workspace-manager.test.ts`** 🗂️ - FUSE workspace isolation, creation, cleanup, and resource management
 
-### Integration Tests (`/integration` - 6 files)
+### Integration Tests (`/integration` - 8 files)
 
 #### `call-hierarchy-adaptive.test.ts` 🔗
 - **Purpose**: Call hierarchy testing with system adaptation
@@ -129,9 +142,18 @@ npm run test:mcp:restart    # Test server restart functionality
 - **Purpose**: Server crash recovery and resilience testing
 - **Features**: LSP server crash simulation, memory management
 
+#### `fuse-integration.test.ts` 🗂️
+- **Purpose**: FUSE filesystem integration testing
+- **Features**: Workspace creation, FUSE operations, session isolation
+- **Coverage**: WorkspaceManager, FuseOperations, FuseMount classes
+
 #### `lsp-client.test.ts` 🔗
 - **Purpose**: LSP client integration testing
 - **Features**: Direct LSP client functionality across file types
+
+#### `websocket-fuse.test.ts` 🌐
+- **Purpose**: WebSocket server FUSE integration testing
+- **Features**: Session management with FUSE, enhanced sessions, multi-client isolation
 
 ## 🎯 Test Philosophy
 
@@ -171,8 +193,11 @@ npm run test:mcp:restart    # Test server restart functionality
 | `edge-cases.test.ts` | Unicode & boundaries handled |
 | `error-cases.test.ts` | All error scenarios covered |
 | `error-recovery.test.ts` | Server recovery functional |
+| `fuse-integration.test.ts` | FUSE operations working |
 | `lsp-client.test.ts` | Client operations working |
 | `restart-server.test.ts` | ~700ms restart time |
+| `websocket-fuse.test.ts` | FUSE session isolation working |
+| `workspace-manager.test.ts` | Workspace creation/cleanup working |
 
 *Note: `restart_server` may timeout in comprehensive test due to sequencing but works individually.
 
@@ -215,10 +240,11 @@ This test suite has evolved through multiple reorganizations:
 - Removed 11 duplicate or superseded tests
 - Eliminated experimental and one-off test scripts
 
-**September 2025**: Optimized to 16 focused tests by removing redundancy
+**September 2025**: Optimized to 19 focused tests by removing redundancy and adding FUSE coverage
 - **Redundancy removal**: Eliminated `quick.test.ts` (duplicate of comprehensive) and `call-hierarchy.test.ts` (superseded by adaptive version)
+- **FUSE Integration**: Added comprehensive FUSE testing with 3 new test files covering workspace isolation, FUSE operations, and WebSocket integration
 - **Quality focus**: Each remaining test serves a distinct, validated purpose
-- **Enhanced coverage**: All 28 MCP tools tested with comprehensive error handling, edge cases, and recovery scenarios
+- **Enhanced coverage**: All 28 MCP tools tested plus Phase 4 FUSE isolation features with comprehensive error handling, edge cases, and recovery scenarios
 - **Structural clarity**: Logical organization with no overlapping functionality
 
-The current 16-file structure represents optimized, non-redundant test coverage with maximum efficiency and comprehensive validation of Codebuddy functionality.
+The current 19-file structure represents optimized, non-redundant test coverage with maximum efficiency and comprehensive validation of Codebuddy functionality including enterprise-grade FUSE isolation features.
