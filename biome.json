@@ -47,6 +47,6 @@
     }
   },
   "files": {
-    "ignore": ["node_modules/**", "dist/**", "*.json", "plugins/**", "playground/**"]
+    "ignore": ["node_modules/**", "dist/**", "*.json", "plugins/**", "examples/playground/**"]
   }
 }

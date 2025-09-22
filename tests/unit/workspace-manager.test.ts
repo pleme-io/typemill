@@ -3,10 +3,10 @@
  * Tests workspace creation, management, and cleanup functionality
  */
 
+import { existsSync } from 'node:fs';
+import { mkdir, rmdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { mkdir, rmdir } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
 import { WorkspaceManager } from '../../src/server/workspace-manager.js';
 import type { WorkspaceInfo } from '../../src/types/enhanced-session.js';
 
@@ -31,7 +31,7 @@ describe('WorkspaceManager Unit Tests', () => {
       fuseMountPrefix: join(testBaseDir, 'mounts'),
       maxWorkspaces: 5,
       workspaceTimeoutMs: 2000, // 2 seconds for faster testing
-      enableCleanupTimer: false // Disable automatic cleanup for testing
+      enableCleanupTimer: false, // Disable automatic cleanup for testing
     });
   });
 
@@ -49,16 +49,17 @@ describe('WorkspaceManager Unit Tests', () => {
       // Store paths before expect calls to avoid corruption
       const workspaceDir = workspace.workspaceDir;
       const fuseMount = workspace.fuseMount;
+      const workspaceId = workspace.workspaceId;
+      const globalProjectId = workspace.globalProjectId;
 
-      expect(workspace).toMatchObject({
-        sessionId: 'test-session-1',
-        workspaceId: expect.stringMatching(/^[a-f0-9-]{36}$/), // UUID format
-        globalProjectId: expect.stringMatching(/^test-project-[a-f0-9-]{36}$/),
-        workspaceDir: expect.stringContaining('workspaces'),
-        fuseMount: expect.stringContaining('mounts'),
-        createdAt: expect.any(Date),
-        lastAccessed: expect.any(Date)
-      });
+      // Test object structure without matchers that corrupt the object
+      expect(workspace.sessionId).toBe('test-session-1');
+      expect(workspaceId).toMatch(/^[a-f0-9-]{36}$/); // UUID format
+      expect(globalProjectId).toMatch(/^test-project-[a-f0-9-]{36}$/);
+      expect(workspaceDir).toContain('workspaces');
+      expect(fuseMount).toContain('mounts');
+      expect(workspace.createdAt).toBeInstanceOf(Date);
+      expect(workspace.lastAccessed).toBeInstanceOf(Date);
 
       // Verify directories were created using stored paths
       expect(existsSync(workspaceDir)).toBe(true);
@@ -134,7 +135,7 @@ describe('WorkspaceManager Unit Tests', () => {
       const initialAccessTime = created.lastAccessed;
 
       // Wait a bit to ensure time difference
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
 
       const retrieved = workspaceManager.getWorkspace('access-time-test');
       expect(retrieved!.lastAccessed.getTime()).toBeGreaterThan(initialAccessTime.getTime());
@@ -193,7 +194,7 @@ describe('WorkspaceManager Unit Tests', () => {
         fuseMountPrefix: join(testBaseDir, 'limited-mounts'),
         maxWorkspaces: 2,
         workspaceTimeoutMs: 1000,
-        enableCleanupTimer: false
+        enableCleanupTimer: false,
       });
 
       try {
@@ -220,21 +221,30 @@ describe('WorkspaceManager Unit Tests', () => {
         fuseMountPrefix: join(testBaseDir, 'oldest-cleanup-mounts'),
         maxWorkspaces: 2,
         workspaceTimeoutMs: 1000,
-        enableCleanupTimer: false
+        enableCleanupTimer: false,
       });
 
       try {
-        const workspace1 = await limitedManager.createWorkspace({ id: 'oldest-1', projectId: 'proj' });
+        const workspace1 = await limitedManager.createWorkspace({
+          id: 'oldest-1',
+          projectId: 'proj',
+        });
 
         // Wait to ensure different creation times
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise((resolve) => setTimeout(resolve, 10));
 
-        const workspace2 = await limitedManager.createWorkspace({ id: 'oldest-2', projectId: 'proj' });
+        const workspace2 = await limitedManager.createWorkspace({
+          id: 'oldest-2',
+          projectId: 'proj',
+        });
 
         // Wait again
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise((resolve) => setTimeout(resolve, 10));
 
-        const workspace3 = await limitedManager.createWorkspace({ id: 'oldest-3', projectId: 'proj' });
+        const workspace3 = await limitedManager.createWorkspace({
+          id: 'oldest-3',
+          projectId: 'proj',
+        });
 
         // Workspace 1 should be cleaned up (oldest)
         expect(limitedManager.getWorkspace('oldest-1')).toBeUndefined();
@@ -254,11 +264,11 @@ describe('WorkspaceManager Unit Tests', () => {
       const sessions = [
         { id: 'stats-1', projectId: 'project-a' },
         { id: 'stats-2', projectId: 'project-b' },
-        { id: 'stats-3', projectId: 'project-c' }
+        { id: 'stats-3', projectId: 'project-c' },
       ];
 
       const startTime = Date.now();
-      await Promise.all(sessions.map(s => workspaceManager.createWorkspace(s)));
+      await Promise.all(sessions.map((s) => workspaceManager.createWorkspace(s)));
       const endTime = Date.now();
 
       const stats = workspaceManager.getStats();
@@ -277,10 +287,10 @@ describe('WorkspaceManager Unit Tests', () => {
     test('should list all active workspaces', async () => {
       const sessions = [
         { id: 'list-1', projectId: 'project-x' },
-        { id: 'list-2', projectId: 'project-y' }
+        { id: 'list-2', projectId: 'project-y' },
       ];
 
-      const created = await Promise.all(sessions.map(s => workspaceManager.createWorkspace(s)));
+      const created = await Promise.all(sessions.map((s) => workspaceManager.createWorkspace(s)));
       const listed = workspaceManager.listWorkspaces();
 
       expect(listed).toHaveLength(2);
@@ -294,7 +304,7 @@ describe('WorkspaceManager Unit Tests', () => {
         totalWorkspaces: 0,
         activeSessions: 0,
         oldestWorkspaceAge: 0,
-        newestWorkspaceAge: 0
+        newestWorkspaceAge: 0,
       });
     });
   });
@@ -313,7 +323,7 @@ describe('WorkspaceManager Unit Tests', () => {
     test('should accept partial configuration', () => {
       const partialManager = new WorkspaceManager({
         maxWorkspaces: 3,
-        workspaceTimeoutMs: 5000
+        workspaceTimeoutMs: 5000,
       });
 
       const stats = partialManager.getStats();
@@ -330,7 +340,7 @@ describe('WorkspaceManager Unit Tests', () => {
         fuseMountPrefix: '/invalid/readonly/mounts',
         maxWorkspaces: 1,
         workspaceTimeoutMs: 1000,
-        enableCleanupTimer: false
+        enableCleanupTimer: false,
       });
 
       const session = { id: 'error-test', projectId: 'error-project' };
@@ -351,7 +361,9 @@ describe('WorkspaceManager Unit Tests', () => {
       await rmdir(workspace.fuseMount, { recursive: true });
 
       // Cleanup should not throw even when directories don't exist
-      await expect(workspaceManager.cleanupWorkspace('cleanup-error-test')).resolves.toBeUndefined();
+      await expect(
+        workspaceManager.cleanupWorkspace('cleanup-error-test')
+      ).resolves.toBeUndefined();
     });
   });
 
@@ -359,14 +371,16 @@ describe('WorkspaceManager Unit Tests', () => {
     test('should cleanup all workspaces on shutdown', async () => {
       const sessions = [
         { id: 'shutdown-1', projectId: 'project-shutdown' },
-        { id: 'shutdown-2', projectId: 'project-shutdown' }
+        { id: 'shutdown-2', projectId: 'project-shutdown' },
       ];
 
-      const workspaces = await Promise.all(sessions.map(s => workspaceManager.createWorkspace(s)));
+      const workspaces = await Promise.all(
+        sessions.map((s) => workspaceManager.createWorkspace(s))
+      );
 
       // Verify workspaces exist
       expect(workspaceManager.getStats().totalWorkspaces).toBe(2);
-      workspaces.forEach(w => {
+      workspaces.forEach((w) => {
         expect(existsSync(w.workspaceDir)).toBe(true);
         expect(existsSync(w.fuseMount)).toBe(true);
       });
@@ -375,7 +389,7 @@ describe('WorkspaceManager Unit Tests', () => {
       await workspaceManager.shutdown();
 
       // Verify all directories are cleaned up
-      workspaces.forEach(w => {
+      workspaces.forEach((w) => {
         expect(existsSync(w.workspaceDir)).toBe(false);
         expect(existsSync(w.fuseMount)).toBe(false);
       });

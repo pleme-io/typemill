@@ -32,7 +32,7 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
   describe('Core Tools', () => {
     it('should find definition', async () => {
       const result = await client.callTool('find_definition', {
-        file_path: '/workspace/playground/src/test-file.ts',
+        file_path: '/workspace/examples/playground/src/test-file.ts',
         symbol_name: '_calculateAge',
       });
       expect(result).toBeDefined();
@@ -46,7 +46,7 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
 
     it('should find references', async () => {
       const result = await client.callTool('find_references', {
-        file_path: '/workspace/playground/src/test-file.ts',
+        file_path: '/workspace/examples/playground/src/test-file.ts',
         symbol_name: 'TestProcessor',
       });
       expect(result).toBeDefined();
@@ -59,7 +59,7 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
 
     it('should rename symbol with dry_run', async () => {
       const result = await client.callTool('rename_symbol', {
-        file_path: '/workspace/playground/src/test-file.ts',
+        file_path: '/workspace/examples/playground/src/test-file.ts',
         symbol_name: 'DEFAULT_USER',
         new_name: 'RENAMED_USER',
         dry_run: true,
@@ -112,7 +112,7 @@ export function useTempConstant() {
 
     it('should rename symbol strict', async () => {
       const result = await client.callTool('rename_symbol_strict', {
-        file_path: '/workspace/playground/src/test-file.ts',
+        file_path: '/workspace/examples/playground/src/test-file.ts',
         line: 59,
         character: 18,
         new_name: 'strictTest',
@@ -125,7 +125,7 @@ export function useTempConstant() {
   describe('Document Tools', () => {
     it('should get diagnostics', async () => {
       const result = await client.callTool('get_diagnostics', {
-        file_path: '/workspace/playground/src/errors-file.ts',
+        file_path: '/workspace/examples/playground/src/errors-file.ts',
       });
       expect(result).toBeDefined();
 
@@ -140,7 +140,7 @@ export function useTempConstant() {
 
     it('should get document symbols', async () => {
       const result = await client.callTool('get_document_symbols', {
-        file_path: '/workspace/playground/src/test-file.ts',
+        file_path: '/workspace/examples/playground/src/test-file.ts',
       });
       expect(result).toBeDefined();
 
@@ -153,7 +153,7 @@ export function useTempConstant() {
 
     it('should get code actions', async () => {
       const result = await client.callTool('get_code_actions', {
-        file_path: '/workspace/playground/src/test-file.ts',
+        file_path: '/workspace/examples/playground/src/test-file.ts',
         range: {
           start: { line: 8, character: 0 },
           end: { line: 8, character: 50 },
@@ -169,7 +169,7 @@ export function useTempConstant() {
 
     it('should format document', async () => {
       const result = await client.callTool('format_document', {
-        file_path: '/workspace/playground/src/test-file.ts',
+        file_path: '/workspace/examples/playground/src/test-file.ts',
         options: {
           tab_size: 2,
           insert_spaces: true,
@@ -193,14 +193,14 @@ export function useTempConstant() {
 
     it('should get folding ranges', async () => {
       const result = await client.callTool('get_folding_ranges', {
-        file_path: '/workspace/playground/src/test-file.ts',
+        file_path: '/workspace/examples/playground/src/test-file.ts',
       });
       expect(result).toBeDefined();
     });
 
     it('should get document links', async () => {
       const result = await client.callTool('get_document_links', {
-        file_path: '/workspace/playground/src/test-file.ts',
+        file_path: '/workspace/examples/playground/src/test-file.ts',
       });
       expect(result).toBeDefined();
     });
@@ -209,7 +209,7 @@ export function useTempConstant() {
   describe('Intelligence Tools', () => {
     it('should get hover', async () => {
       const result = await client.callTool('get_hover', {
-        file_path: '/workspace/playground/src/test-file.ts',
+        file_path: '/workspace/examples/playground/src/test-file.ts',
         line: 13,
         character: 10,
       });
@@ -224,7 +224,7 @@ export function useTempConstant() {
 
     it('should get completions', async () => {
       const result = await client.callTool('get_completions', {
-        file_path: '/workspace/playground/src/test-file.ts',
+        file_path: '/workspace/examples/playground/src/test-file.ts',
         line: 26,
         character: 10,
       });
@@ -233,7 +233,7 @@ export function useTempConstant() {
 
     it('should get signature help', async () => {
       const result = await client.callTool('get_signature_help', {
-        file_path: '/workspace/playground/src/test-file.ts',
+        file_path: '/workspace/examples/playground/src/test-file.ts',
         line: 14,
         character: 20,
       });
@@ -242,7 +242,7 @@ export function useTempConstant() {
 
     it('should get inlay hints', async () => {
       const result = await client.callTool('get_inlay_hints', {
-        file_path: '/workspace/playground/src/test-file.ts',
+        file_path: '/workspace/examples/playground/src/test-file.ts',
         start_line: 10,
         start_character: 0,
         end_line: 20,
@@ -253,7 +253,7 @@ export function useTempConstant() {
 
     it('should get semantic tokens', async () => {
       const result = await client.callTool('get_semantic_tokens', {
-        file_path: '/workspace/playground/src/test-file.ts',
+        file_path: '/workspace/examples/playground/src/test-file.ts',
       });
       expect(result).toBeDefined();
     });
@@ -262,7 +262,7 @@ export function useTempConstant() {
   describe('Hierarchy Tools', () => {
     it('should prepare call hierarchy', async () => {
       const result = await client.callTool('prepare_call_hierarchy', {
-        file_path: '/workspace/playground/src/test-file.ts',
+        file_path: '/workspace/examples/playground/src/test-file.ts',
         line: 13,
         character: 10,
       });
@@ -271,7 +271,7 @@ export function useTempConstant() {
 
     it('should prepare type hierarchy', async () => {
       const result = await client.callTool('prepare_type_hierarchy', {
-        file_path: '/workspace/playground/src/test-file.ts',
+        file_path: '/workspace/examples/playground/src/test-file.ts',
         line: 18,
         character: 7,
       });
@@ -280,7 +280,7 @@ export function useTempConstant() {
 
     it('should get selection range', async () => {
       const result = await client.callTool('get_selection_range', {
-        file_path: '/workspace/playground/src/test-file.ts',
+        file_path: '/workspace/examples/playground/src/test-file.ts',
         positions: [{ line: 13, character: 10 }],
       });
       expect(result).toBeDefined();
@@ -353,7 +353,7 @@ export function useTempConstant() {
     it('should get call hierarchy incoming calls', async () => {
       // First prepare the call hierarchy item
       const prepareResult = await client.callTool('prepare_call_hierarchy', {
-        file_path: '/workspace/playground/src/test-file.ts',
+        file_path: '/workspace/examples/playground/src/test-file.ts',
         line: 13,
         character: 10,
       });
@@ -368,7 +368,7 @@ export function useTempConstant() {
           item: {
             name: 'calculateAge',
             kind: 12,
-            uri: 'file:///workspace/playground/src/test-file.ts',
+            uri: 'file:///workspace/examples/playground/src/test-file.ts',
             range: {
               start: { line: 12, character: 0 },
               end: { line: 14, character: 1 },
@@ -393,7 +393,7 @@ export function useTempConstant() {
         item: {
           name: 'calculateAge',
           kind: 12,
-          uri: 'file:///workspace/playground/src/test-file.ts',
+          uri: 'file:///workspace/examples/playground/src/test-file.ts',
           range: {
             start: { line: 12, character: 0 },
             end: { line: 14, character: 1 },
@@ -417,7 +417,7 @@ export function useTempConstant() {
         item: {
           name: 'TestProcessor',
           kind: 5,
-          uri: 'file:///workspace/playground/src/test-file.ts',
+          uri: 'file:///workspace/examples/playground/src/test-file.ts',
           range: {
             start: { line: 17, character: 0 },
             end: { line: 41, character: 1 },
@@ -441,7 +441,7 @@ export function useTempConstant() {
         item: {
           name: 'TestProcessor',
           kind: 5,
-          uri: 'file:///workspace/playground/src/test-file.ts',
+          uri: 'file:///workspace/examples/playground/src/test-file.ts',
           range: {
             start: { line: 17, character: 0 },
             end: { line: 41, character: 1 },

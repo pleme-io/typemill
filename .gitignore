@@ -63,8 +63,7 @@ tmp/
 temp/
 test-tmp/
 
-# Development playground
-playground/
+# Development playground (now in examples/)
 
 # MCP specific
 mcp/*/storage.json

@@ -18,7 +18,7 @@ describe('Error Recovery Tests', () => {
   let client: MCPTestClient;
   const systemCaps = getSystemCapabilities();
   const timeout = systemCaps.baseTimeout * 3; // Extra time for recovery
-  const testFile = '/workspace/playground/src/test-file.ts';
+  const testFile = '/workspace/examples/playground/src/test-file.ts';
 
   beforeAll(async () => {
     console.log('🔥 Error Recovery Testing Suite');

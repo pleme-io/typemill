@@ -3,9 +3,9 @@
  * Verifies basic FUSE components work without complex test setup
  */
 
+import { existsSync, mkdir, rmdir } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { mkdir, rmdir, existsSync } from 'node:fs';
 import { WorkspaceManager } from '../../src/server/workspace-manager.js';
 
 console.log('🧪 Testing FUSE Integration Components...\n');
@@ -19,7 +19,7 @@ async function testWorkspaceManager() {
     fuseMountPrefix: join(testDir, 'mounts'),
     maxWorkspaces: 3,
     workspaceTimeoutMs: 5000,
-    enableCleanupTimer: false
+    enableCleanupTimer: false,
   });
 
   try {
@@ -43,7 +43,12 @@ async function testWorkspaceManager() {
 
     // Test workspace stats
     const stats = manager.getStats();
-    console.log('   ✅ Statistics - Workspaces:', stats.totalWorkspaces, 'Sessions:', stats.activeSessions);
+    console.log(
+      '   ✅ Statistics - Workspaces:',
+      stats.totalWorkspaces,
+      'Sessions:',
+      stats.activeSessions
+    );
 
     // Test workspace cleanup
     await manager.cleanupWorkspace(session.id);
@@ -51,7 +56,6 @@ async function testWorkspaceManager() {
     console.log('   ✅ Cleanup successful:', cleanedUp);
 
     console.log('   🎉 WorkspaceManager tests passed!\n');
-
   } catch (error) {
     console.error('   ❌ WorkspaceManager test failed:', error);
     return false;
@@ -92,14 +96,14 @@ async function testFuseOperations() {
               nlink: 1,
               rdev: 0,
               blksize: 4096,
-              blocks: 8
+              blocks: 8,
             };
           case 'fuse/read':
             return Buffer.from('Hello from FUSE!');
           default:
             return {};
         }
-      }
+      },
     };
 
     const mockSession = {
@@ -111,7 +115,7 @@ async function testFuseOperations() {
       globalProjectId: 'global-fuse-test',
       workspaceId: 'workspace-fuse-test',
       fuseMount: '/tmp/fuse-test',
-      workspaceDir: '/tmp/workspace-test'
+      workspaceDir: '/tmp/workspace-test',
     };
 
     const fuseOps = new FuseOperations(mockSession, mockTransport as any);
@@ -144,7 +148,6 @@ async function testFuseOperations() {
     console.log('   ✅ Cleanup completed');
 
     console.log('   🎉 FuseOperations tests passed!\n');
-
   } catch (error) {
     console.error('   ❌ FuseOperations test failed:', error);
     return false;
@@ -160,7 +163,7 @@ async function testFuseMount() {
     const { FuseMount } = await import('../../src/fs/fuse-mount.js');
 
     const mockTransport = {
-      sendRequest: async () => ({ success: true })
+      sendRequest: async () => ({ success: true }),
     };
 
     const mockSession = {
@@ -172,7 +175,7 @@ async function testFuseMount() {
       globalProjectId: 'global-mount-test',
       workspaceId: 'workspace-mount-test',
       fuseMount: '/tmp/fuse-mount-test',
-      workspaceDir: '/tmp/workspace-mount-test'
+      workspaceDir: '/tmp/workspace-mount-test',
     };
 
     const testMountPath = join(tmpdir(), 'fuse-mount-simple-test');
@@ -195,7 +198,6 @@ async function testFuseMount() {
 
     // Cleanup
     rmdir(testMountPath, { recursive: true });
-
   } catch (error) {
     console.error('   ❌ FuseMount test failed:', error);
     return false;
@@ -211,10 +213,10 @@ async function runTests() {
   const results = await Promise.all([
     testWorkspaceManager(),
     testFuseOperations(),
-    testFuseMount()
+    testFuseMount(),
   ]);
 
-  const allPassed = results.every(result => result);
+  const allPassed = results.every((result) => result);
 
   console.log('📊 Test Results:');
   console.log('================');
@@ -235,7 +237,7 @@ async function runTests() {
   }
 }
 
-runTests().catch(error => {
+runTests().catch((error) => {
   console.error('Test runner failed:', error);
   process.exit(1);
 });

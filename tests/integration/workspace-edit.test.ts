@@ -14,7 +14,7 @@ import {
  * Test apply_workspace_edit for atomic multi-file changes
  */
 
-const TEST_DIR = '/workspace/playground/workspace-edit-test';
+const TEST_DIR = '/workspace/examples/playground/workspace-edit-test';
 
 describe('Workspace Edit - Atomic Multi-File Changes', () => {
   let client: MCPTestClient;

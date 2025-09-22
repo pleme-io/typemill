@@ -5,7 +5,7 @@ import { MCPTestClient, assertToolResult } from '../helpers/mcp-test-client.js';
 
 describe('Multi-File Rename Integration Tests', () => {
   let client: MCPTestClient;
-  const TEST_DIR = '/workspace/playground/multi-file-rename-test';
+  const TEST_DIR = '/workspace/examples/playground/multi-file-rename-test';
 
   beforeAll(async () => {
     console.log('🔍 Multi-File Rename Integration Test');

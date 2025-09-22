@@ -279,27 +279,27 @@ export const QUICK_TESTS = [
   {
     name: 'find_definition',
     args: {
-      file_path: '/workspace/playground/src/test-file.ts',
+      file_path: '/workspace/examples/playground/src/test-file.ts',
       symbol_name: '_calculateAge',
     },
   },
   {
     name: 'find_references',
     args: {
-      file_path: '/workspace/playground/src/test-file.ts',
+      file_path: '/workspace/examples/playground/src/test-file.ts',
       symbol_name: 'TestProcessor',
     },
   },
   {
     name: 'get_diagnostics',
     args: {
-      file_path: '/workspace/playground/src/errors-file.ts',
+      file_path: '/workspace/examples/playground/src/errors-file.ts',
     },
   },
   {
     name: 'get_hover',
     args: {
-      file_path: '/workspace/playground/src/test-file.ts',
+      file_path: '/workspace/examples/playground/src/test-file.ts',
       line: 13,
       character: 10,
     },

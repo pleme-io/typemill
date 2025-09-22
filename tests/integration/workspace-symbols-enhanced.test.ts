@@ -10,7 +10,7 @@ import { getTestConfig, getTestModeFromEnv } from '../helpers/test-mode-detector
  * Optimized to prevent LSP server timeouts with minimal test files
  */
 
-const TEST_DIR = '/workspace/playground/test-workspace-symbols';
+const TEST_DIR = '/workspace/examples/playground/test-workspace-symbols';
 const testConfig = getTestConfig(getTestModeFromEnv() || undefined);
 
 describe(`Workspace Symbols Search - Enhanced (${testConfig.mode.toUpperCase()} mode)`, () => {

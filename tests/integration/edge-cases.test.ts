@@ -281,7 +281,7 @@ describe('Edge Case Tests', () => {
   });
 
   describe('Boundary Position Tests', () => {
-    const testFile = '/workspace/playground/src/test-file.ts';
+    const testFile = '/workspace/examples/playground/src/test-file.ts';
 
     it(
       'should handle position at start of file (1,0)',
@@ -407,7 +407,7 @@ describe('Edge Case Tests', () => {
       'should handle empty symbol name',
       async () => {
         const result = await client.callTool('find_definition', {
-          file_path: '/workspace/playground/src/test-file.ts',
+          file_path: '/workspace/examples/playground/src/test-file.ts',
           symbol_name: '',
         });
         assertToolResult(result);
@@ -421,7 +421,7 @@ describe('Edge Case Tests', () => {
       'should handle symbol with special characters',
       async () => {
         const result = await client.callTool('find_definition', {
-          file_path: '/workspace/playground/src/test-file.ts',
+          file_path: '/workspace/examples/playground/src/test-file.ts',
           symbol_name: '$#@!%^&*()',
         });
         assertToolResult(result);
@@ -436,7 +436,7 @@ describe('Edge Case Tests', () => {
       async () => {
         const longSymbol = 'a'.repeat(1000);
         const result = await client.callTool('find_definition', {
-          file_path: '/workspace/playground/src/test-file.ts',
+          file_path: '/workspace/examples/playground/src/test-file.ts',
           symbol_name: longSymbol,
         });
         assertToolResult(result);

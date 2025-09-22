@@ -207,7 +207,7 @@ npm run test:mcp:restart   # Test server restart functionality
 
 1. **"No LSP server available"**
    - Ensure TypeScript Language Server is installed: `npx typescript-language-server --version`
-   - Check config file exists: `/workspace/playground/codebuddy.json`
+   - Check config file exists: `/workspace/examples/playground/codebuddy.json`
 
 2. **Test timeouts**
    - Individual tests have different timeout settings
@@ -227,8 +227,8 @@ npm run test:mcp:restart   # Test server restart functionality
 4. Add npm script to package.json if needed
 
 ### Test Data Location
-- Playground files: `/workspace/playground/src/`
-- Config: `/workspace/playground/codebuddy.json`
+- Playground files: `/workspace/examples/playground/src/`
+- Config: `/workspace/examples/playground/codebuddy.json`
 - Test fixtures: `/workspace/tests/fixtures/`
 
 ## 📝 Historical Note

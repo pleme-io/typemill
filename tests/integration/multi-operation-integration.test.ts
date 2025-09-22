@@ -13,7 +13,7 @@ import {
  * Tests multiple operations working together on the same codebase
  */
 
-const TEST_DIR = '/workspace/playground/multi-operation-test';
+const TEST_DIR = '/workspace/examples/playground/multi-operation-test';
 
 describe('Multi-Operation Integration Tests', () => {
   let client: MCPTestClient;

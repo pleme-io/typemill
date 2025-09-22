@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "codebuddy-playground-python"
+version = "1.0.0"
+description = "Python playground for testing LSP functionality"
+authors = [{name = "Codebuddy", email = "test@example.com"}]
+dependencies = []
+requires-python = ">=3.8"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "mypy>=0.910",
+    "black>=21.0",
+    "isort>=5.0"
+]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+
+[tool.isort]
+profile = "black"
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true

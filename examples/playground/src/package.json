@@ -1,0 +1,15 @@
+{
+  "name": "codebuddy-playground-typescript",
+  "version": "1.0.0",
+  "description": "TypeScript playground for testing LSP functionality",
+  "main": "index.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
+  },
+  "private": true
+}

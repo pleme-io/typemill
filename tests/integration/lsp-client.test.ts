@@ -32,7 +32,7 @@ describe('LSP Client Unit Tests', () => {
     fileService = new FileService(serviceContext);
     symbolService = new SymbolService(serviceContext);
     intelligenceService = new IntelligenceService(serviceContext);
-    const testFile = join('/workspace', 'playground/src/components/user-form.ts');
+    const testFile = join('/workspace', 'examples/playground/src/components/user-form.ts');
 
     console.log('📁 Test file:', testFile);
 
@@ -102,13 +102,13 @@ describe('LSP Client Unit Tests', () => {
 
     try {
       // Test TypeScript file
-      const tsFile = join('/workspace', 'playground/src/test-file.ts');
+      const tsFile = join('/workspace', 'examples/playground/src/test-file.ts');
       const tsSymbols = await testSymbolService.getDocumentSymbols(tsFile);
       expect(tsSymbols).toBeDefined();
       console.log(`TypeScript file: ${tsSymbols?.length || 0} symbols found`);
 
       // Test another TypeScript file
-      const tsFile2 = join('/workspace', 'playground/src/components/user-form.ts');
+      const tsFile2 = join('/workspace', 'examples/playground/src/components/user-form.ts');
       const tsSymbols2 = await testSymbolService.getDocumentSymbols(tsFile2);
       expect(tsSymbols2).toBeDefined();
       console.log(`Another TypeScript file: ${tsSymbols2?.length || 0} symbols found`);
