@@ -5,14 +5,16 @@ import type { HierarchyService } from '../../services/hierarchy-service.js';
 import type { IntelligenceService } from '../../services/intelligence-service.js';
 import type { ServiceContext } from '../../services/service-context.js';
 import type { SymbolService } from '../../services/symbol-service.js';
+import { getAllTools, getTool, getToolNames } from '../tool-registry.js';
 import { createMCPResponse } from '../utils.js';
 
-// Import all existing handlers for dynamic calling
-import * as AdvancedHandlers from '../handlers/advanced-handlers.js';
-import * as CoreHandlers from '../handlers/core-handlers.js';
-import * as HierarchyHandlers from '../handlers/hierarchy-handlers.js';
-import * as IntelligenceHandlers from '../handlers/intelligence-handlers.js';
-import * as UtilityHandlers from '../handlers/utility-handlers.js';
+// Import handlers to trigger their registration
+// These imports only have side effects (registering tools)
+import '../handlers/core-handlers.js';
+import '../handlers/advanced-handlers.js';
+import '../handlers/hierarchy-handlers.js';
+import '../handlers/intelligence-handlers.js';
+import '../handlers/utility-handlers.js';
 
 export interface BatchOperation {
   tool: string;
@@ -49,107 +51,6 @@ export interface BatchResult {
   execution_mode: string;
   dry_run: boolean;
 }
-
-// Registry of all available MCP tools and their handlers
-const TOOL_REGISTRY: Record<
-  string,
-  {
-    handler: Function;
-    requiresService:
-      | 'symbol'
-      | 'file'
-      | 'diagnostic'
-      | 'intelligence'
-      | 'hierarchy'
-      | 'lsp'
-      | 'serviceContext'
-      | 'none';
-  }
-> = {
-  // Core tools
-  find_definition: { handler: CoreHandlers.handleFindDefinition, requiresService: 'symbol' },
-  find_references: { handler: CoreHandlers.handleFindReferences, requiresService: 'symbol' },
-  rename_symbol: { handler: CoreHandlers.handleRenameSymbol, requiresService: 'symbol' },
-  rename_symbol_strict: {
-    handler: CoreHandlers.handleRenameSymbolStrict,
-    requiresService: 'symbol',
-  },
-
-  // Advanced tools
-  get_code_actions: { handler: AdvancedHandlers.handleGetCodeActions, requiresService: 'file' },
-  format_document: { handler: AdvancedHandlers.handleFormatDocument, requiresService: 'file' },
-  search_workspace_symbols: {
-    handler: AdvancedHandlers.handleSearchWorkspaceSymbols,
-    requiresService: 'symbol',
-  },
-  get_document_symbols: {
-    handler: AdvancedHandlers.handleGetDocumentSymbols,
-    requiresService: 'symbol',
-  },
-  get_folding_ranges: { handler: AdvancedHandlers.handleGetFoldingRanges, requiresService: 'file' },
-  get_document_links: { handler: AdvancedHandlers.handleGetDocumentLinks, requiresService: 'file' },
-  apply_workspace_edit: {
-    handler: AdvancedHandlers.handleApplyWorkspaceEdit,
-    requiresService: 'file',
-  },
-
-  // Intelligence tools
-  get_hover: { handler: IntelligenceHandlers.handleGetHover, requiresService: 'intelligence' },
-  get_completions: {
-    handler: IntelligenceHandlers.handleGetCompletions,
-    requiresService: 'intelligence',
-  },
-  get_inlay_hints: {
-    handler: IntelligenceHandlers.handleGetInlayHints,
-    requiresService: 'intelligence',
-  },
-  get_semantic_tokens: {
-    handler: IntelligenceHandlers.handleGetSemanticTokens,
-    requiresService: 'intelligence',
-  },
-  get_signature_help: {
-    handler: IntelligenceHandlers.handleGetSignatureHelp,
-    requiresService: 'intelligence',
-  },
-
-  // Hierarchy tools
-  prepare_call_hierarchy: {
-    handler: HierarchyHandlers.handlePrepareCallHierarchy,
-    requiresService: 'hierarchy',
-  },
-  get_call_hierarchy_incoming_calls: {
-    handler: HierarchyHandlers.handleGetCallHierarchyIncomingCalls,
-    requiresService: 'hierarchy',
-  },
-  get_call_hierarchy_outgoing_calls: {
-    handler: HierarchyHandlers.handleGetCallHierarchyOutgoingCalls,
-    requiresService: 'hierarchy',
-  },
-  prepare_type_hierarchy: {
-    handler: HierarchyHandlers.handlePrepareTypeHierarchy,
-    requiresService: 'hierarchy',
-  },
-  get_type_hierarchy_supertypes: {
-    handler: HierarchyHandlers.handleGetTypeHierarchySupertypes,
-    requiresService: 'hierarchy',
-  },
-  get_type_hierarchy_subtypes: {
-    handler: HierarchyHandlers.handleGetTypeHierarchySubtypes,
-    requiresService: 'hierarchy',
-  },
-  get_selection_range: {
-    handler: HierarchyHandlers.handleGetSelectionRange,
-    requiresService: 'hierarchy',
-  },
-
-  // Utility tools
-  get_diagnostics: { handler: UtilityHandlers.handleGetDiagnostics, requiresService: 'diagnostic' },
-  restart_server: { handler: UtilityHandlers.handleRestartServer, requiresService: 'lsp' },
-  rename_file: { handler: UtilityHandlers.handleRenameFile, requiresService: 'none' },
-  create_file: { handler: UtilityHandlers.handleCreateFile, requiresService: 'none' },
-  delete_file: { handler: UtilityHandlers.handleDeleteFile, requiresService: 'none' },
-  health_check: { handler: UtilityHandlers.handleHealthCheck, requiresService: 'serviceContext' },
-};
 
 export class BatchExecutor {
   constructor(
@@ -225,10 +126,10 @@ export class BatchExecutor {
         continue;
       }
 
-      if (!TOOL_REGISTRY[op.tool]) {
+      if (!getTool(op.tool)) {
         errors.push({
           operationIndex: i,
-          error: `Unknown tool: ${op.tool}. Available tools: ${Object.keys(TOOL_REGISTRY).join(', ')}`,
+          error: `Unknown tool: ${op.tool}. Available tools: ${getToolNames().join(', ')}`,
         });
         continue;
       }
@@ -246,7 +147,7 @@ export class BatchExecutor {
     result: BatchResult
   ): Promise<BatchResult> {
     for (const operation of operations) {
-      const toolInfo = TOOL_REGISTRY[operation.tool];
+      const toolInfo = getTool(operation.tool);
       if (!toolInfo) continue;
 
       try {
@@ -402,7 +303,7 @@ export class BatchExecutor {
   }
 
   private async executeOperation(operation: BatchOperation): Promise<unknown> {
-    const toolInfo = TOOL_REGISTRY[operation.tool];
+    const toolInfo = getTool(operation.tool);
     if (!toolInfo) {
       throw new Error(`Unknown tool: ${operation.tool}`);
     }
@@ -467,10 +368,13 @@ export class BatchExecutor {
         // Reverse the file rename
         const args = operation.args as any;
         if (args?.old_path && args?.new_path) {
-          await UtilityHandlers.handleRenameFile({
-            old_path: args.new_path,
-            new_path: args.old_path,
-          });
+          const renameHandler = getTool('rename_file');
+          if (renameHandler) {
+            await renameHandler.handler({
+              old_path: args.new_path,
+              new_path: args.old_path,
+            });
+          }
         }
         break;
       }
@@ -478,10 +382,13 @@ export class BatchExecutor {
         // Delete the created file
         const createArgs = operation.args as any;
         if (createArgs?.file_path) {
-          await UtilityHandlers.handleDeleteFile({
-            file_path: createArgs.file_path,
-            force: true,
-          });
+          const deleteHandler = getTool('delete_file');
+          if (deleteHandler) {
+            await deleteHandler.handler({
+              file_path: createArgs.file_path,
+              force: true,
+            });
+          }
         }
         break;
       }
@@ -495,11 +402,11 @@ export class BatchExecutor {
 
   // Static method to get available tools for validation
   static getAvailableTools(): string[] {
-    return Object.keys(TOOL_REGISTRY);
+    return getToolNames();
   }
 
   // Static method to check if a tool exists
   static isValidTool(toolName: string): boolean {
-    return toolName in TOOL_REGISTRY;
+    return getTool(toolName) !== undefined;
   }
 }

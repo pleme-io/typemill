@@ -2,6 +2,7 @@
 import { resolve } from 'node:path';
 import type { HierarchyService } from '../../services/hierarchy-service.js';
 import type { CallHierarchyItem, TypeHierarchyItem } from '../../types.js';
+import { registerTools } from '../tool-registry.js';
 import { createMCPResponse } from '../utils.js';
 
 // Handler for prepare_call_hierarchy tool
@@ -368,3 +369,29 @@ function getSymbolKindName(kind: number): string {
   };
   return kindMap[kind] || `Unknown(${kind})`;
 }
+
+// Register hierarchy tools with the central registry
+registerTools(
+  {
+    prepare_call_hierarchy: { handler: handlePrepareCallHierarchy, requiresService: 'hierarchy' },
+    get_call_hierarchy_incoming_calls: {
+      handler: handleGetCallHierarchyIncomingCalls,
+      requiresService: 'hierarchy',
+    },
+    get_call_hierarchy_outgoing_calls: {
+      handler: handleGetCallHierarchyOutgoingCalls,
+      requiresService: 'hierarchy',
+    },
+    prepare_type_hierarchy: { handler: handlePrepareTypeHierarchy, requiresService: 'hierarchy' },
+    get_type_hierarchy_supertypes: {
+      handler: handleGetTypeHierarchySupertypes,
+      requiresService: 'hierarchy',
+    },
+    get_type_hierarchy_subtypes: {
+      handler: handleGetTypeHierarchySubtypes,
+      requiresService: 'hierarchy',
+    },
+    get_selection_range: { handler: handleGetSelectionRange, requiresService: 'hierarchy' },
+  },
+  'hierarchy-handlers'
+);

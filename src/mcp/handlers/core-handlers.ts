@@ -437,3 +437,14 @@ export async function getRenameSymbolWorkspaceEditStrict(
     };
   }
 }
+
+// Register core tools with the central registry
+registerTools(
+  {
+    find_definition: { handler: handleFindDefinition, requiresService: 'symbol' },
+    find_references: { handler: handleFindReferences, requiresService: 'symbol' },
+    rename_symbol: { handler: handleRenameSymbol, requiresService: 'symbol' },
+    rename_symbol_strict: { handler: handleRenameSymbolStrict, requiresService: 'symbol' },
+  },
+  'core-handlers'
+);

@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Major version release with stable API
-- Complete MCP tool suite (38 tools)
+- Complete MCP tool suite (29 tools)
 - Comprehensive test coverage
 - Enhanced error handling and recovery
 

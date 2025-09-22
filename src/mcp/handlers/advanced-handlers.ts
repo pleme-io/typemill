@@ -5,6 +5,7 @@ import { pathToUri, uriToPath } from '../../core/file-operations/path-utils.js';
 import type { FileService } from '../../services/file-service.js';
 import type { SymbolService } from '../../services/symbol-service.js';
 import type { DocumentSymbol, SymbolInformation } from '../../types.js';
+import { registerTools } from '../tool-registry.js';
 import {
   createFileModificationResponse,
   createLimitedSupportResponse,
@@ -533,3 +534,17 @@ export async function handleApplyWorkspaceEdit(
     );
   }
 }
+
+// Register advanced tools with the central registry
+registerTools(
+  {
+    get_code_actions: { handler: handleGetCodeActions, requiresService: 'file' },
+    format_document: { handler: handleFormatDocument, requiresService: 'file' },
+    search_workspace_symbols: { handler: handleSearchWorkspaceSymbols, requiresService: 'symbol' },
+    get_document_symbols: { handler: handleGetDocumentSymbols, requiresService: 'symbol' },
+    get_folding_ranges: { handler: handleGetFoldingRanges, requiresService: 'file' },
+    get_document_links: { handler: handleGetDocumentLinks, requiresService: 'file' },
+    apply_workspace_edit: { handler: handleApplyWorkspaceEdit, requiresService: 'file' },
+  },
+  'advanced-handlers'
+);

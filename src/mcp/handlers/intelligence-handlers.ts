@@ -1,6 +1,7 @@
 // MCP handlers for LLM agent intelligence features
 import { resolve } from 'node:path';
 import type { IntelligenceService } from '../../services/intelligence-service.js';
+import { registerTools } from '../tool-registry.js';
 import {
   createContextualErrorResponse,
   createLimitedSupportResponse,
@@ -415,3 +416,15 @@ export async function handleGetSignatureHelp(
     });
   }
 }
+
+// Register intelligence tools with the central registry
+registerTools(
+  {
+    get_hover: { handler: handleGetHover, requiresService: 'intelligence' },
+    get_completions: { handler: handleGetCompletions, requiresService: 'intelligence' },
+    get_inlay_hints: { handler: handleGetInlayHints, requiresService: 'intelligence' },
+    get_semantic_tokens: { handler: handleGetSemanticTokens, requiresService: 'intelligence' },
+    get_signature_help: { handler: handleGetSignatureHelp, requiresService: 'intelligence' },
+  },
+  'intelligence-handlers'
+);

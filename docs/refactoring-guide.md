@@ -1,18 +1,10 @@
 # CodeFlow Buddy: Advanced Refactoring Guide
 
-> **⚠️ Note**: This guide documents the legacy batch tools (`analyze_refactor_impact`, `batch_move_files`, `preview_batch_operation`) which have been replaced by the universal `batch_execute` tool. For the latest batch functionality, see the `batch_execute` documentation in [api.md](./api.md#batch_execute).
-
-This guide explains how to use CodeFlow Buddy's powerful orchestration tools for safe, atomic refactoring operations.
+This guide explains how to use CodeFlow Buddy's powerful batch execution system for safe, atomic refactoring operations.
 
 ## Overview
 
-CodeFlow Buddy provides three sophisticated orchestration tools that work together to make complex refactoring operations safe and predictable:
-
-- **`analyze_refactor_impact`** - Analyze the impact of planned changes before executing them
-- **`preview_batch_operation`** - Preview exactly what changes will be made without applying them
-- **`batch_move_files`** - Execute multiple file moves atomically with automatic rollback on failure
-
-These tools leverage your existing Language Server Protocol (LSP) infrastructure to provide intelligent dependency analysis and automatic import updates.
+CodeFlow Buddy provides a powerful `batch_execute` tool that enables you to perform complex refactoring operations safely and efficiently. This tool leverages your existing Language Server Protocol (LSP) infrastructure to provide intelligent dependency analysis and automatic import updates.
 
 ## Key Concepts
 
@@ -27,124 +19,101 @@ The default strategy is "safe" - operations abort on the first error. You can op
 
 ## Complete Refactoring Workflow
 
-Here's the recommended workflow for complex refactoring operations:
+Here's the recommended workflow for complex refactoring operations using the `batch_execute` tool:
 
 ### Step 1: Plan Your Changes
 
-First, identify the operations you want to perform. Operations can include:
+First, identify the operations you want to perform. You can batch any MCP tool operations including:
 
-- **File moves**: Moving files to new locations
-- **Symbol renames**: Renaming classes, functions, variables, etc.
+- **File operations**: rename_file, create_file, delete_file
+- **Symbol operations**: rename_symbol, find_references
+- **Diagnostics**: get_diagnostics
+- **Code intelligence**: find_definition, get_symbols
+- And any other available MCP tools
 
-### Step 2: Analyze Impact
+### Step 2: Execute with Preview
 
-Use `analyze_refactor_impact` to understand the scope and risk of your planned changes:
-
-```json
-{
-  "operations": [
-    {
-      "type": "move_file",
-      "old_path": "src/utils/string-helpers.ts",
-      "new_path": "lib/utilities/string-utils.ts"
-    },
-    {
-      "type": "move_file",
-      "old_path": "src/data/processor.ts",
-      "new_path": "lib/services/data-processor.ts"
-    },
-    {
-      "type": "rename_symbol",
-      "file_path": "lib/services/data-processor.ts",
-      "symbol_name": "DataProcessor",
-      "new_name": "EnhancedDataProcessor"
-    }
-  ],
-  "include_recommendations": true
-}
-```
-
-The analysis will show you:
-- **Risk level** for each operation (low/medium/high)
-- **Estimated number of files** that will be modified
-- **Dependent files** that import the files you're moving
-- **Recommendations** for safe execution
-
-Example output:
-```
-## Refactoring Impact Analysis
-
-**Operations**: 3
-**Estimated file changes**: 12
-**Unique files affected**: 8
-**Risk assessment**: 1 high, 1 medium, 1 low
-
-### Recommendations
-
-⚠️ **1 high-risk operation(s)** - consider breaking into smaller batches
-⚠️ **High impact** - 12 estimated changes across 8 files
-
-### Execution Strategy
-- Use `dry_run: true` first to preview changes
-- Consider executing high-risk operations individually
-- Ensure you have backup/version control
-```
-
-### Step 3: Preview Changes
-
-Use `preview_batch_operation` to see exactly what will happen:
+Use `batch_execute` with preview mode to understand what will happen:
 
 ```json
 {
   "operations": [
     {
-      "type": "move_file",
-      "old_path": "src/utils/string-helpers.ts",
-      "new_path": "lib/utilities/string-utils.ts"
+      "tool": "rename_file",
+      "args": {
+        "old_path": "src/utils/string-helpers.ts",
+        "new_path": "lib/utilities/string-utils.ts"
+      }
+    },
+    {
+      "tool": "rename_symbol",
+      "args": {
+        "file_path": "lib/utilities/string-utils.ts",
+        "symbol_name": "formatString",
+        "new_name": "formatText"
+      }
     }
   ],
-  "detailed": true
+  "options": {
+    "preview": true
+  }
 }
 ```
 
-This shows you:
+The preview will show you:
+- **Operation count** and types
 - **Validation status** for each operation
-- **Import updates** that will be made
-- **File-by-file preview** of changes (when detailed=true)
+- **Estimated impact** without making changes
 
-### Step 4: Execute with Dry Run
+### Step 3: Execute with Dry Run
 
-Before making real changes, always test with `dry_run: true`:
+Test the actual execution logic with `dry_run: true`:
 
 ```json
 {
-  "moves": [
+  "operations": [
     {
-      "old_path": "src/utils/string-helpers.ts",
-      "new_path": "lib/utilities/string-utils.ts"
+      "tool": "rename_file",
+      "args": {
+        "old_path": "src/utils/string-helpers.ts",
+        "new_path": "lib/utilities/string-utils.ts",
+        "dry_run": true
+      }
     }
   ],
-  "dry_run": true,
-  "strategy": "safe"
+  "options": {
+    "dry_run": true
+  }
 }
 ```
 
-This will show you exactly what would happen without making any actual changes.
-
-### Step 5: Execute the Refactoring
+### Step 4: Execute the Refactoring
 
 Finally, execute the actual refactoring:
 
 ```json
 {
-  "moves": [
+  "operations": [
     {
-      "old_path": "src/utils/string-helpers.ts",
-      "new_path": "lib/utilities/string-utils.ts"
+      "tool": "rename_file",
+      "args": {
+        "old_path": "src/utils/string-helpers.ts",
+        "new_path": "lib/utilities/string-utils.ts"
+      }
+    },
+    {
+      "tool": "rename_symbol",
+      "args": {
+        "file_path": "lib/utilities/string-utils.ts",
+        "symbol_name": "formatString",
+        "new_name": "formatText"
+      }
     }
   ],
-  "dry_run": false,
-  "strategy": "safe"
+  "options": {
+    "atomic": true,
+    "stop_on_error": true
+  }
 }
 ```
 
@@ -154,57 +123,28 @@ Finally, execute the actual refactoring:
 
 **Scenario**: Moving utility files from `src/utils/` to `lib/common/`
 
-**Step 1 - Analyze Impact**:
 ```json
 {
   "operations": [
     {
-      "type": "move_file",
-      "old_path": "src/utils/string-utils.ts",
-      "new_path": "lib/common/string-utils.ts"
+      "tool": "rename_file",
+      "args": {
+        "old_path": "src/utils/string-utils.ts",
+        "new_path": "lib/common/string-utils.ts"
+      }
     },
     {
-      "type": "move_file",
-      "old_path": "src/utils/date-utils.ts",
-      "new_path": "lib/common/date-utils.ts"
-    }
-  ]
-}
-```
-
-**Step 2 - Preview Changes**:
-```json
-{
-  "operations": [
-    {
-      "type": "move_file",
-      "old_path": "src/utils/string-utils.ts",
-      "new_path": "lib/common/string-utils.ts"
-    },
-    {
-      "type": "move_file",
-      "old_path": "src/utils/date-utils.ts",
-      "new_path": "lib/common/date-utils.ts"
+      "tool": "rename_file",
+      "args": {
+        "old_path": "src/utils/date-utils.ts",
+        "new_path": "lib/common/date-utils.ts"
+      }
     }
   ],
-  "detailed": false
-}
-```
-
-**Step 3 - Execute**:
-```json
-{
-  "moves": [
-    {
-      "old_path": "src/utils/string-utils.ts",
-      "new_path": "lib/common/string-utils.ts"
-    },
-    {
-      "old_path": "src/utils/date-utils.ts",
-      "new_path": "lib/common/date-utils.ts"
-    }
-  ],
-  "strategy": "safe"
+  "options": {
+    "atomic": true,
+    "stop_on_error": true
+  }
 }
 ```
 
@@ -212,75 +152,76 @@ Finally, execute the actual refactoring:
 
 **Scenario**: Moving a React component and renaming it
 
-**Step 1 - Analyze Combined Impact**:
 ```json
 {
   "operations": [
     {
-      "type": "move_file",
-      "old_path": "src/components/Button.tsx",
-      "new_path": "src/ui/ActionButton.tsx"
+      "tool": "rename_file",
+      "args": {
+        "old_path": "src/components/Button.tsx",
+        "new_path": "src/ui/ActionButton.tsx"
+      }
     },
     {
-      "type": "rename_symbol",
-      "file_path": "src/ui/ActionButton.tsx",
-      "symbol_name": "Button",
-      "new_name": "ActionButton"
+      "tool": "rename_symbol",
+      "args": {
+        "file_path": "src/ui/ActionButton.tsx",
+        "symbol_name": "Button",
+        "new_name": "ActionButton"
+      }
     }
-  ]
+  ],
+  "options": {
+    "atomic": true
+  }
 }
 ```
-
-**Note**: For symbol renames, execute them separately after file moves:
-
-1. First, move the file using `batch_move_files`
-2. Then, rename the symbol using the regular `rename_symbol` tool
 
 ### Example 3: Large-Scale Reorganization
 
 **Scenario**: Reorganizing an entire feature module
 
-**Strategy**: Break into smaller, safer batches:
-
-**Batch 1 - Move core files**:
 ```json
 {
-  "moves": [
+  "operations": [
     {
-      "old_path": "src/features/auth/types.ts",
-      "new_path": "src/modules/authentication/types.ts"
+      "tool": "rename_file",
+      "args": {
+        "old_path": "src/features/auth/types.ts",
+        "new_path": "src/modules/authentication/types.ts"
+      }
     },
     {
-      "old_path": "src/features/auth/constants.ts",
-      "new_path": "src/modules/authentication/constants.ts"
+      "tool": "rename_file",
+      "args": {
+        "old_path": "src/features/auth/constants.ts",
+        "new_path": "src/modules/authentication/constants.ts"
+      }
+    },
+    {
+      "tool": "rename_file",
+      "args": {
+        "old_path": "src/features/auth/service.ts",
+        "new_path": "src/modules/authentication/auth-service.ts"
+      }
+    },
+    {
+      "tool": "rename_file",
+      "args": {
+        "old_path": "src/features/auth/components/LoginForm.tsx",
+        "new_path": "src/modules/authentication/components/LoginForm.tsx"
+      }
     }
-  ]
+  ],
+  "options": {
+    "atomic": true,
+    "parallel": false,
+    "stop_on_error": true
+  }
 }
 ```
 
-**Batch 2 - Move service files**:
-```json
-{
-  "moves": [
-    {
-      "old_path": "src/features/auth/service.ts",
-      "new_path": "src/modules/authentication/auth-service.ts"
-    }
-  ]
-}
-```
-
-**Batch 3 - Move UI components**:
-```json
-{
-  "moves": [
-    {
-      "old_path": "src/features/auth/components/LoginForm.tsx",
-      "new_path": "src/modules/authentication/components/LoginForm.tsx"
-    }
-  ]
-}
-```
+**Tip**: Use `parallel: false` for interdependent operations to ensure correct execution order.
 
 ## Error Handling and Recovery
 
@@ -312,15 +253,15 @@ Example failure output:
 
 **Issue**: "Target file already exists"
 - **Solution**: Check if the target location already has a file with that name
-- **Prevention**: Use `preview_batch_operation` first to catch conflicts
+- **Prevention**: Use `preview: true` option to catch conflicts before execution
 
 **Issue**: "Source file does not exist"
 - **Solution**: Verify the source path is correct
 - **Prevention**: Double-check file paths before execution
 
-**Issue**: "High-risk operation detected"
-- **Solution**: Break the operation into smaller batches
-- **Prevention**: Use `analyze_refactor_impact` to identify high-risk operations
+**Issue**: "Operation failed during execution"
+- **Solution**: Enable `atomic: true` to ensure automatic rollback
+- **Prevention**: Use `preview: true` and `dry_run: true` to test first
 
 ## Best Practices
 
@@ -386,11 +327,7 @@ The system automatically handles various import patterns:
 
 ### Symbol Rename Integration
 
-While `batch_move_files` only handles file operations, you can sequence it with symbol renames:
-
-1. Use `batch_move_files` to move files
-2. Use `rename_symbol` to rename symbols in the moved files
-3. Use `analyze_refactor_impact` to plan the sequence
+The `batch_execute` tool handles all operations in a single transaction, automatically sequencing them based on dependencies and your chosen execution mode (sequential or parallel).
 
 ### TypeScript Project Support
 
@@ -456,6 +393,6 @@ git commit -m "Refactor: Move utilities to lib/common"
 
 ## Conclusion
 
-CodeFlow Buddy's orchestration tools provide enterprise-grade safety and intelligence for complex refactoring operations. By following the analyze → preview → execute workflow and using atomic operations with automatic rollback, you can confidently restructure large codebases without the risk of introducing breaking changes.
+CodeFlow Buddy's `batch_execute` tool provides enterprise-grade safety and intelligence for complex refactoring operations. With atomic operations, automatic rollback, and the ability to combine any MCP tools, you can confidently restructure large codebases without the risk of introducing breaking changes.
 
-The key to successful refactoring is taking a methodical approach: understand the impact, preview the changes, test with dry runs, and execute in controlled batches. These tools make it possible to perform refactoring operations that would be extremely risky or time-consuming to do manually.
+The key to successful refactoring is using the preview feature, enabling atomic mode for safety, and choosing the right execution strategy (sequential vs parallel) based on your operation dependencies.

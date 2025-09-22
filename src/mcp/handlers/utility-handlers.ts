@@ -5,6 +5,7 @@ import { dirname } from 'node:path';
 import { logDebugMessage } from '../../core/diagnostics/debug-logger.js';
 import type { WorkspaceEdit } from '../../core/file-operations/editor.js';
 import type { DiagnosticService } from '../../services/diagnostic-service.js';
+import { registerTools } from '../tool-registry.js';
 import {
   createFileModificationResponse,
   createListResponse,
@@ -343,3 +344,16 @@ export async function handleHealthCheck(
     );
   }
 }
+
+// Register utility tools with the central registry
+registerTools(
+  {
+    get_diagnostics: { handler: handleGetDiagnostics, requiresService: 'diagnostic' },
+    restart_server: { handler: handleRestartServer, requiresService: 'lsp' },
+    rename_file: { handler: handleRenameFile, requiresService: 'none' },
+    create_file: { handler: handleCreateFile, requiresService: 'none' },
+    delete_file: { handler: handleDeleteFile, requiresService: 'none' },
+    health_check: { handler: handleHealthCheck, requiresService: 'serviceContext' },
+  },
+  'utility-handlers'
+);

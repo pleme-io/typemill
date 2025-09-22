@@ -340,7 +340,7 @@ codeflow-buddy/
 - [ ] Session isolation prevents cross-client access
 
 ### Integration Tests
-- [ ] All 38 MCP tools work over WebSocket
+- [ ] All 29 MCP tools work over WebSocket
 - [ ] Multi-client file operations don't conflict
 - [ ] Performance: <100ms latency for local operations
 
