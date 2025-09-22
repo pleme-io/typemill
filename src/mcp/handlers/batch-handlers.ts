@@ -75,7 +75,7 @@ export async function handleBatchExecute(
         // Extract meaningful content from the MCP response
         const content =
           typeof opResultData === 'object' && opResultData !== null && 'content' in opResultData
-            ? String((opResultData as any).content)
+            ? String((opResultData as Record<string, unknown>).content)
             : String(opResultData);
 
         // Truncate long responses for summary

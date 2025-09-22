@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Package**: `@goobits/codeflow-buddy` | **Command**: `codeflow-buddy` | **Runtime**: Bun/Node.js
 
-MCP server bridging Language Server Protocol (LSP) functionality to AI coding assistants with 29 MCP tools for navigation, refactoring, and code intelligence.
+MCP server bridging Language Server Protocol (LSP) functionality to AI coding assistants with 30 MCP tools for navigation, refactoring, code intelligence, and batch operations.
 
 ## Development Commands
 
@@ -56,7 +56,7 @@ bun run prepublishOnly  # build + test + typecheck
 **MCP Server Layer** (`index.ts`)
 
 - Entry point that implements MCP protocol
-- Exposes 29 MCP tools covering navigation, refactoring, intelligence, diagnostics, and batch operations
+- Exposes 30 MCP tools covering navigation, refactoring, intelligence, diagnostics, and batch operations
 - Handles MCP client requests and delegates to LSP layer
 - Includes CLI subcommand handling for `setup`, `status`, `start`, `stop`
 
@@ -67,9 +67,16 @@ bun run prepublishOnly  # build + test + typecheck
 - Maps file extensions to appropriate language servers
 - Maintains process lifecycle and request/response correlation
 
+**Tool Registry** (`src/mcp/tool-registry.ts`)
+
+- Central registry for all MCP tool handlers
+- Decouples batch executor from handler implementations
+- Supports dynamic tool registration at module load time
+- Tracks which module registered each tool for debugging
+
 **Configuration System** (`.codebuddy/config.json`)
 
-- Defines which LSP servers to use for different file extensions  
+- Defines which LSP servers to use for different file extensions
 - Smart setup with auto-detection via `codeflow-buddy setup` command
 - File scanning with gitignore support for project structure detection
 - Automatic migration from old `codebuddy.json` format
@@ -77,11 +84,36 @@ bun run prepublishOnly  # build + test + typecheck
 ### Data Flow
 
 1. MCP client sends tool request (e.g., `find_definition`)
-2. Main server resolves file path and extracts position
-3. LSP client determines appropriate language server for file extension
-4. If server not running, spawns new LSP server process
-5. Sends LSP request to server and correlates response
-6. Transforms LSP response back to MCP format
+2. Main server looks up tool handler in central registry
+3. Tool handler is executed with appropriate service injection
+4. LSP client determines appropriate language server for file extension
+5. If server not running, spawns new LSP server process
+6. Sends LSP request to server and correlates response
+7. Transforms LSP response back to MCP format
+
+### Tool Registration Pattern
+
+Each handler module self-registers its tools with the central registry:
+
+```typescript
+// At the end of each handler file (e.g., core-handlers.ts)
+import { registerTools } from '../tool-registry.js';
+
+registerTools(
+  {
+    find_definition: { handler: handleFindDefinition, requiresService: 'symbol' },
+    find_references: { handler: handleFindReferences, requiresService: 'symbol' },
+    // ... other tools
+  },
+  'core-handlers' // module name for tracking
+);
+```
+
+This pattern eliminates circular dependencies and enables:
+- Clean separation of concerns
+- Easy addition/removal of tools
+- Better testability (registry can be mocked)
+- Plugin-style extensibility
 
 ### LSP Server Management
 
@@ -174,3 +206,25 @@ Run dead code detection with:
 
 Tool: Knip (detects unused files, dependencies, exports)
 Config: knip.json
+
+## Adding New MCP Tools (For Contributors)
+
+To add a new MCP tool to the system:
+
+1. **Define the tool schema** in the appropriate `src/mcp/definitions/*.ts` file
+2. **Implement the handler** in the corresponding `src/mcp/handlers/*.ts` file
+3. **Register the tool** at the end of your handler file:
+   ```typescript
+   registerTools(
+     { your_tool: { handler: handleYourTool, requiresService: 'symbol' } },
+     'your-handler-module'
+   );
+   ```
+4. **Update tool count** in CLAUDE.md if adding to existing categories
+
+The tool will be automatically available through:
+- Direct MCP calls
+- Batch execution system (`batch_execute` tool)
+- Tool discovery (`/tools` command)
+
+No need to modify the batch executor or main server - the registry handles everything!

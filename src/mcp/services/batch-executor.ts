@@ -176,22 +176,33 @@ export class BatchExecutor {
   private generatePreviewText(operation: BatchOperation): string {
     const { tool, args } = operation;
 
+    // Type guard helper for safer property access
+    const getArg = (key: string): string | undefined => {
+      if (args && typeof args === 'object' && key in args) {
+        return String((args as Record<string, unknown>)[key]);
+      }
+      return undefined;
+    };
+
     switch (tool) {
       case 'find_definition':
-        return `Would find definition for symbol "${(args as any)?.symbol_name}" in ${(args as any)?.file_path}`;
+        return `Would find definition for symbol "${getArg('symbol_name') || 'unknown'}" in ${getArg('file_path') || 'unknown'}`;
       case 'find_references':
-        return `Would find references for symbol "${(args as any)?.symbol_name}" in ${(args as any)?.file_path}`;
+        return `Would find references for symbol "${getArg('symbol_name') || 'unknown'}" in ${getArg('file_path') || 'unknown'}`;
       case 'rename_symbol':
-        return `Would rename symbol "${(args as any)?.symbol_name}" to "${(args as any)?.new_name}" in ${(args as any)?.file_path}`;
+        return `Would rename symbol "${getArg('symbol_name') || 'unknown'}" to "${getArg('new_name') || 'unknown'}" in ${getArg('file_path') || 'unknown'}`;
       case 'rename_file':
-        return `Would rename file from "${(args as any)?.old_path}" to "${(args as any)?.new_path}"`;
+        return `Would rename file from "${getArg('old_path') || 'unknown'}" to "${getArg('new_path') || 'unknown'}"`;
       case 'format_document':
-        return `Would format document ${(args as any)?.file_path}`;
+        return `Would format document ${getArg('file_path') || 'unknown'}`;
       case 'get_diagnostics':
-        return `Would get diagnostics for ${(args as any)?.file_path}`;
+        return `Would get diagnostics for ${getArg('file_path') || 'unknown'}`;
       case 'apply_workspace_edit': {
-        const changes = (args as any)?.changes;
-        const fileCount = changes ? Object.keys(changes).length : 0;
+        const changes =
+          args && typeof args === 'object' && 'changes' in args
+            ? (args as Record<string, unknown>).changes
+            : undefined;
+        const fileCount = changes && typeof changes === 'object' ? Object.keys(changes).length : 0;
         return `Would apply workspace edits to ${fileCount} file(s)`;
       }
       default:
@@ -366,28 +377,37 @@ export class BatchExecutor {
     switch (operation.tool) {
       case 'rename_file': {
         // Reverse the file rename
-        const args = operation.args as any;
-        if (args?.old_path && args?.new_path) {
-          const renameHandler = getTool('rename_file');
-          if (renameHandler) {
-            await renameHandler.handler({
-              old_path: args.new_path,
-              new_path: args.old_path,
-            });
+        if (operation.args && typeof operation.args === 'object') {
+          const args = operation.args as Record<string, unknown>;
+          const oldPath = args.old_path;
+          const newPath = args.new_path;
+
+          if (typeof oldPath === 'string' && typeof newPath === 'string') {
+            const renameHandler = getTool('rename_file');
+            if (renameHandler) {
+              await renameHandler.handler({
+                old_path: newPath,
+                new_path: oldPath,
+              });
+            }
           }
         }
         break;
       }
       case 'create_file': {
         // Delete the created file
-        const createArgs = operation.args as any;
-        if (createArgs?.file_path) {
-          const deleteHandler = getTool('delete_file');
-          if (deleteHandler) {
-            await deleteHandler.handler({
-              file_path: createArgs.file_path,
-              force: true,
-            });
+        if (operation.args && typeof operation.args === 'object') {
+          const args = operation.args as Record<string, unknown>;
+          const filePath = args.file_path;
+
+          if (typeof filePath === 'string') {
+            const deleteHandler = getTool('delete_file');
+            if (deleteHandler) {
+              await deleteHandler.handler({
+                file_path: filePath,
+                force: true,
+              });
+            }
           }
         }
         break;
