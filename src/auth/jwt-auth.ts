@@ -200,7 +200,7 @@ export class JWTAuthenticator {
     const unit = expiry.slice(-1);
     const value = Number.parseInt(expiry.slice(0, -1), 10);
 
-    if (isNaN(value)) {
+    if (Number.isNaN(value)) {
       throw new Error(`Invalid expiry format: ${expiry}`);
     }
 

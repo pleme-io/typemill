@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  codeflow-buddy:
+    build:
+      context: .
+      dockerfile: Dockerfile.npx
+    container_name: codeflow-npx
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - MAX_CLIENTS=50
+    volumes:
+      # Mount host directory for workspace isolation
+      - ./workspaces:/workspace
+    devices:
+      # Required for FUSE operations
+      - /dev/fuse:/dev/fuse
+    cap_add:
+      # FUSE requires SYS_ADMIN capability
+      - SYS_ADMIN
+    security_opt:
+      # Allow FUSE mounts in container
+      - apparmor:unconfined
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.codeflow.rule=Host(`codeflow.localhost`)"
+      - "traefik.http.services.codeflow.loadbalancer.server.port=3000"
+
+  # Optional: Traefik reverse proxy for production
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik-codeflow
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"  # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    profiles:
+      - proxy
+
+networks:
+  default:
+    driver: bridge

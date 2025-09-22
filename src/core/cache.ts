@@ -181,10 +181,6 @@ export interface FileContent {
 }
 
 export class PersistentFileCache extends AdvancedCache<FileContent> {
-  constructor() {
-    super(); // No default TTL - files are persistent until explicitly invalidated
-  }
-
   /**
    * Generate cache key for file read operations
    */

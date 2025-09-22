@@ -118,9 +118,8 @@ export class CodeFlowWebSocketServer {
   private createServer(): ReturnType<typeof createServer> | HttpsServer {
     if (this.options.tls) {
       return this.createHttpsServer();
-    } else {
-      return createServer(this.handleHttpRequest.bind(this));
     }
+    return createServer(this.handleHttpRequest.bind(this));
   }
 
   private createHttpsServer(): HttpsServer {
@@ -294,8 +293,8 @@ export class CodeFlowWebSocketServer {
         authentication: {
           enabled: !!this.authenticator,
           ...(this.authenticator && {
-            issuer: this.authenticator['config'].issuer,
-            audience: this.authenticator['config'].audience,
+            issuer: this.authenticator.config.issuer,
+            audience: this.authenticator.config.audience,
           }),
         },
         security: {
@@ -339,26 +338,26 @@ export class CodeFlowWebSocketServer {
 
       // Prometheus-style metrics
       const metrics = [
-        `# HELP codeflow_connections_active Number of active WebSocket connections`,
-        `# TYPE codeflow_connections_active gauge`,
+        '# HELP codeflow_connections_active Number of active WebSocket connections',
+        '# TYPE codeflow_connections_active gauge',
         `codeflow_connections_active ${sessionStats.activeSessions}`,
-        ``,
-        `# HELP codeflow_connections_disconnected Number of disconnected sessions waiting for reconnection`,
-        `# TYPE codeflow_connections_disconnected gauge`,
+        '',
+        '# HELP codeflow_connections_disconnected Number of disconnected sessions waiting for reconnection',
+        '# TYPE codeflow_connections_disconnected gauge',
         `codeflow_connections_disconnected ${sessionStats.disconnectedSessions}`,
-        ``,
-        `# HELP codeflow_projects_active Number of active projects`,
-        `# TYPE codeflow_projects_active gauge`,
+        '',
+        '# HELP codeflow_projects_active Number of active projects',
+        '# TYPE codeflow_projects_active gauge',
         `codeflow_projects_active ${sessionStats.activeProjects}`,
-        ``,
-        `# HELP codeflow_lsp_servers_active Number of active LSP servers`,
-        `# TYPE codeflow_lsp_servers_active gauge`,
+        '',
+        '# HELP codeflow_lsp_servers_active Number of active LSP servers',
+        '# TYPE codeflow_lsp_servers_active gauge',
         `codeflow_lsp_servers_active ${lspServers.length}`,
-        ``,
-        `# HELP codeflow_uptime_seconds Server uptime in seconds`,
-        `# TYPE codeflow_uptime_seconds counter`,
+        '',
+        '# HELP codeflow_uptime_seconds Server uptime in seconds',
+        '# TYPE codeflow_uptime_seconds counter',
         `codeflow_uptime_seconds ${Math.floor((Date.now() - this.startTime) / 1000)}`,
-        ``,
+        '',
       ].join('\n');
 
       res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -436,7 +435,7 @@ export class CodeFlowWebSocketServer {
           return;
         }
 
-        const authResponse = await this.authenticator!.generateToken(authRequest);
+        const authResponse = await this.authenticator?.generateToken(authRequest);
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(authResponse));

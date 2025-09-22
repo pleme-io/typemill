@@ -19,7 +19,7 @@ export class SessionManager {
     if (!this.projectSessions.has(session.projectId)) {
       this.projectSessions.set(session.projectId, new Set());
     }
-    this.projectSessions.get(session.projectId)!.add(session.id);
+    this.projectSessions.get(session.projectId)?.add(session.id);
   }
 
   /**
@@ -178,7 +178,7 @@ export class SessionManager {
   }
 
   hasActiveProject(projectId: string): boolean {
-    return this.projectSessions.has(projectId) && this.projectSessions.get(projectId)!.size > 0;
+    return this.projectSessions.has(projectId) && this.projectSessions.get(projectId)?.size > 0;
   }
 
   /**

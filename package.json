@@ -38,7 +38,12 @@
     "lsp",
     "language-server",
     "model-context-protocol",
-    "claude-code"
+    "claude-code",
+    "fuse",
+    "docker",
+    "npx",
+    "typescript",
+    "websocket"
   ],
   "author": "nano",
   "license": "MIT",

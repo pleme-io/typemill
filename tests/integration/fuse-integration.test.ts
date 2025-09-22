@@ -27,7 +27,7 @@ class MockWebSocketTransport {
       // Simulate async response via handleFuseResponse
       setTimeout(() => {
         const response = this.getResponseForMethod(method, params);
-        if (this.fuseOperations && this.fuseOperations.handleFuseResponse) {
+        if (this.fuseOperations?.handleFuseResponse) {
           this.fuseOperations.handleFuseResponse({
             correlationId: params.correlationId,
             success: true,

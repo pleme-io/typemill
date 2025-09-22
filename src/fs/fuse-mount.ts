@@ -122,7 +122,7 @@ export class FuseMount {
 
       // Mount the filesystem
       await new Promise<void>((resolve, reject) => {
-        this.fuse!.mount((error) => {
+        this.fuse?.mount((error) => {
           if (error) {
             reject(new Error(`Failed to mount FUSE filesystem: ${error.message}`));
           } else {
@@ -172,7 +172,7 @@ export class FuseMount {
 
       // Unmount the filesystem
       await new Promise<void>((resolve, reject) => {
-        this.fuse!.unmount((error) => {
+        this.fuse?.unmount((error) => {
           if (error) {
             logger.error('Error during FUSE unmount', error, {
               component: 'FuseMount',

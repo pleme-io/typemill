@@ -59,14 +59,15 @@ class RealWebSocketTransport {
 
     try {
       switch (method) {
-        case 'fuse/readdir':
+        case 'fuse/readdir': {
           if (!existsSync(fullPath)) {
             throw new Error('Directory not found');
           }
           const entries = await readdir(fullPath);
           return entries.filter((name) => !name.startsWith('.'));
+        }
 
-        case 'fuse/stat':
+        case 'fuse/stat': {
           if (!existsSync(fullPath)) {
             throw new Error('File not found');
           }
@@ -86,16 +87,18 @@ class RealWebSocketTransport {
             blksize: stats.blksize,
             blocks: stats.blocks,
           };
+        }
 
-        case 'fuse/read':
+        case 'fuse/read': {
           if (!existsSync(fullPath)) {
             throw new Error('File not found');
           }
           const content = await readFile(fullPath);
           const { offset = 0, size = content.length } = params;
           return content.slice(offset, offset + size);
+        }
 
-        case 'fuse/write':
+        case 'fuse/write': {
           const { data, offset: writeOffset = 0 } = params;
           let fileContent = Buffer.alloc(0);
 
@@ -120,6 +123,7 @@ class RealWebSocketTransport {
 
           await writeFile(fullPath, fileContent);
           return data.length;
+        }
 
         case 'fuse/open':
           if (!existsSync(fullPath)) {

@@ -214,11 +214,12 @@ export class StreamingFileAccess {
 
     switch (notification.changeType) {
       case 'changed':
-      case 'deleted':
+      case 'deleted': {
         // Invalidate the specific file
         const wasInvalidated = this.fileCache.invalidateFile(session.id, notification.path);
         invalidatedCount = wasInvalidated ? 1 : 0;
         break;
+      }
 
       case 'created':
         // For new files, no cache invalidation needed

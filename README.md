@@ -34,7 +34,17 @@ codeflow-buddy status
 codeflow-buddy start
 ```
 
-### WebSocket Server (Production)
+### Zero-Setup NPX + Docker Deployment
+```bash
+# Ultra-quick deployment (always latest version)
+curl -fsSL https://raw.githubusercontent.com/goobits/codeflow-buddy/main/scripts/quick-npx.sh | bash
+
+# Or with Docker Compose
+git clone https://github.com/goobits/codeflow-buddy.git
+cd codeflow-buddy && ./scripts/deploy-npx.sh
+```
+
+### Traditional WebSocket Server
 ```bash
 # Clone and build
 git clone https://github.com/goobits/codeflow-buddy
@@ -45,9 +55,6 @@ node dist/index.js serve --port 3000
 
 # With authentication
 node dist/index.js serve --require-auth --jwt-secret "your-secret"
-
-# Docker deployment
-docker-compose up -d
 ```
 
 ## 📚 MCP Integration

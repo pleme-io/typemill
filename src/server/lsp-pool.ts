@@ -174,7 +174,7 @@ export class LSPServerPool {
       // Reject all pending requests
       const pendingRequests = this.pendingRequests.get(serverKey) || [];
       for (const request of pendingRequests) {
-        request.reject(new Error(`LSP server crashed too many times`));
+        request.reject(new Error('LSP server crashed too many times'));
       }
       this.pendingRequests.delete(serverKey);
 
@@ -289,7 +289,7 @@ export class LSPServerPool {
     if (!this.pendingRequests.has(serverKey)) {
       this.pendingRequests.set(serverKey, []);
     }
-    this.pendingRequests.get(serverKey)!.push(request);
+    this.pendingRequests.get(serverKey)?.push(request);
   }
 
   /**
@@ -337,13 +337,7 @@ export class LSPServerPool {
         this.addPendingRequest(serverKey, request);
       });
     }
-
-    try {
-      return await this.lspClient.sendRequest(server, method, params);
-    } catch (error) {
-      // If this is a connection error, the crash handler will take care of it
-      throw error;
-    }
+    return await this.lspClient.sendRequest(server, method, params);
   }
 
   private getLanguageFromExtension(extension: string): string {
