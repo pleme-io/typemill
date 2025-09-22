@@ -1,284 +1,187 @@
 # Service Architecture Proposal
 
 ## Goal
-Enable CodeFlow Buddy to run as a centralized WebSocket service, allowing multiple clients to share LSP servers.
+Enable CodeFlow Buddy to run as a centralized WebSocket service, allowing multiple Docker containers to connect and work on different projects simultaneously.
 
-## Overview
-Run CodeFlow Buddy as a centralized service in Docker, allowing multiple development environments to connect via MCP protocol. This enables one LSP setup to serve all projects and clients.
+## Architecture Overview
+- **WebSocket MCP Server**: Handles multiple client connections
+- **LSP Server Pool**: One LSP server per project/language combination
+- **File Streaming Protocol**: Bidirectional file access between client and server
+- **Session Management**: Isolates clients working on different projects
 
-## Implementation Strategy
+## Implementation Phases
 
-### Phase 1: WebSocket Transport (Week 1)
+### Phase 1: "Make it Work" (Week 1)
+**Goal**: Get multi-client, multi-project functionality working with correct architecture.
 
-**Success Criteria**: Existing MCP tools work over WebSocket with single client.
-
-```bash
-# New command
-codeflow-buddy serve --port 3000
-
-# Client connects via WebSocket instead of stdio
-```
-
-**Implementation**:
+#### Days 1-2: WebSocket Transport & Sessions
 ```typescript
 // src/transports/websocket.ts
-class WebSocketTransport implements Transport {
-  // Adapts MCP protocol from stdio to WebSocket
-}
-```
-
-**Validation**: Run existing test suite through WebSocket transport.
-
-### Phase 2: Multi-Client Support (Week 2)
-
-**Success Criteria**: 3 concurrent clients can use different projects simultaneously.
-
-**Authentication**: Simple token-based auth for MVP
-```typescript
-// Connection handshake
-{
-  "method": "initialize",
-  "token": "shared-secret-from-env",
-  "projectRoot": "/local/project/path"
-}
-```
-
-**Session Management**:
-```typescript
 interface ClientSession {
   id: string;
-  token: string;
+  projectId: string;      // e.g., "frontend-app"
   projectRoot: string;    // Client's local path
-  serverRoot?: string;    // Mapped server path (if using shared volume)
+  socket: WebSocket;
 }
-```
 
-### Phase 3: File Access (Week 2-3)
+class WebSocketServer {
+  private sessions = new Map<string, ClientSession>();
 
-**Unified Strategy**: Auto-detect based on client configuration.
+  handleConnection(socket: WebSocket) {
+    // First message must be initialization
+    socket.once('message', (data) => {
+      const init = JSON.parse(data);
+      // { "method": "initialize", "project": "frontend-app", "projectRoot": "/app" }
 
-```json
-// Client config in .mcp/config.json
-{
-  "transport": "websocket",
-  "url": "ws://localhost:3000",
-  "fileAccess": "stream",  // Options: "shared", "stream", "sshfs"
-  "projectPath": "/Users/me/project",
-  "serverPath": "/code/project"  // Only for "shared" mode
-}
-```
+      const session: ClientSession = {
+        id: generateId(),
+        projectId: init.project,
+        projectRoot: init.projectRoot,
+        socket
+      };
 
-**Priority Order**:
-1. **Shared Volume** (Docker): Direct file access via mapped paths
-2. **Stream** (Remote): Client streams file content on-demand
-3. **SSHFS** (Future): For persistent remote development
-
-**Path Translation**:
-```typescript
-function translatePath(clientPath: string, session: ClientSession): string {
-  if (session.serverRoot) {
-    // Simple prefix replacement for shared volumes
-    return clientPath.replace(session.projectRoot, session.serverRoot);
+      this.sessions.set(session.id, session);
+      this.routeRequests(session);
+    });
   }
-  // For streaming mode, return as-is (will be fetched from client)
-  return clientPath;
 }
 ```
 
-## LSP Server Pool Management
-
-### Hybrid Approach: One LSP server per project root, shared across clients working on the same project.
-
+#### Days 3-4: LSP Server Pool
 ```typescript
-interface LSPPoolEntry {
-  projectRoot: string;      // e.g., "/code/project1"
-  language: string;         // e.g., "typescript"
-  server: LSPServer;
-  clients: Set<string>;     // Client IDs using this server
-  lastActivity: Date;
-}
-
 class LSPServerPool {
-  private pools = new Map<string, LSPPoolEntry>();
+  private pools = new Map<string, LSPServer>();
 
-  getServer(session: ClientSession, language: string): LSPServer {
-    const key = `${session.serverRoot}:${language}`;
+  getServer(projectId: string, language: string): LSPServer {
+    const key = `${projectId}:${language}`;
 
     if (!this.pools.has(key)) {
-      // Spawn new LSP server for this project/language combo
-      const server = this.spawnLSPServer(language, session.serverRoot);
-      this.pools.set(key, {
-        projectRoot: session.serverRoot,
-        language,
-        server,
-        clients: new Set([session.id]),
-        lastActivity: new Date()
-      });
-    } else {
-      // Reuse existing server, add client to set
-      const entry = this.pools.get(key);
-      entry.clients.add(session.id);
-      entry.lastActivity = new Date();
+      // Spawn new LSP server for this project/language
+      const server = this.spawnLSPServer(language, projectId);
+      this.pools.set(key, server);
     }
 
-    return this.pools.get(key).server;
-  }
-
-  releaseServer(session: ClientSession, language: string) {
-    const key = `${session.serverRoot}:${language}`;
-    const entry = this.pools.get(key);
-
-    if (entry) {
-      entry.clients.delete(session.id);
-      if (entry.clients.size === 0) {
-        // No more clients, schedule shutdown after idle period
-        setTimeout(() => {
-          if (entry.clients.size === 0) {
-            entry.server.shutdown();
-            this.pools.delete(key);
-          }
-        }, 60000); // 1 minute idle timeout
-      }
-    }
+    return this.pools.get(key);
   }
 }
 ```
 
-### Rationale
-- **Efficiency**: Multiple developers on same project share one LSP server
-- **Isolation**: Different projects get separate LSP servers (avoiding cross-project state issues)
-- **Scalability**: Servers are created on-demand and cleaned up when idle
-- **Simplicity**: LSP servers maintain their natural project-scoped state
-
-### Example Scenarios
-
-```
-Scenario 1: Two clients, same project
-Client A: /Users/alice/webapp → Server: /code/webapp
-Client B: /Users/bob/webapp   → Server: /code/webapp
-Result: Share one TypeScript LSP server
-
-Scenario 2: Two clients, different projects
-Client A: /Users/alice/webapp → Server: /code/webapp
-Client C: /Users/alice/api    → Server: /code/api
-Result: Two separate TypeScript LSP servers
-```
-
-## File Streaming Protocol
-
-### Bidirectional MCP Extension
-
-The service can request files from clients using reverse RPC calls over the WebSocket connection.
-
+#### Days 5-6: File Streaming Protocol
 ```typescript
-// Protocol Definition
+// Bidirectional file operations
 interface FileStreamProtocol {
   // Server → Client: Request file content
   'client/readFile': {
-    params: {
-      path: string;
-      encoding?: 'utf8' | 'base64';
-    };
-    result: {
-      content: string;
-      mtime: number;  // Modified time for caching
-      size: number;
-    };
-  };
-
-  // Server → Client: List directory
-  'client/listFiles': {
-    params: {
-      path: string;
-      pattern?: string;  // glob pattern
-    };
-    result: {
-      files: Array<{
-        path: string;
-        type: 'file' | 'directory';
-        size: number;
-        mtime: number;
-      }>;
-    };
+    params: { path: string };
+    result: { content: string; mtime: number };
   };
 
   // Client → Server: File changed notification
   'server/fileChanged': {
-    params: {
-      path: string;
-      changeType: 'created' | 'changed' | 'deleted';
-    };
+    params: { path: string; changeType: 'created' | 'changed' | 'deleted' };
   };
 }
-```
 
-### Implementation
-
-```typescript
-class StreamingFileAccess implements FileAccess {
-  private cache = new Map<string, CachedFile>();
-
+class StreamingFileAccess {
   async readFile(session: ClientSession, path: string): Promise<string> {
-    const cacheKey = `${session.id}:${path}`;
-    const cached = this.cache.get(cacheKey);
-
-    // Check cache validity
-    if (cached && Date.now() - cached.timestamp < 5000) {
-      return cached.content;
-    }
-
-    // Request from client via WebSocket
-    const response = await session.call('client/readFile', { path });
-
-    // Update cache
-    this.cache.set(cacheKey, {
-      content: response.content,
-      timestamp: Date.now(),
-      mtime: response.mtime
-    });
-
+    // Send request to client via WebSocket
+    const response = await session.socket.call('client/readFile', { path });
     return response.content;
   }
+}
+```
 
-  handleFileChange(session: ClientSession, params: FileChangedParams) {
-    // Invalidate cache for changed file
-    const cacheKey = `${session.id}:${params.path}`;
-    this.cache.delete(cacheKey);
+#### Day 7: Integration & Testing
+- Wire up all components
+- Test with 2-3 concurrent clients
+- Verify LSP operations work across projects
 
-    // Notify LSP server if applicable
-    const lspServer = this.getRelevantLSPServer(session, params.path);
-    if (lspServer) {
-      lspServer.didChangeWatchedFiles([{
-        uri: `file://${params.path}`,
-        type: params.changeType
-      }]);
-    }
+**Deliverables**:
+- ✅ Multiple clients can connect
+- ✅ Each project gets its own LSP server
+- ✅ Files stream correctly
+- ✅ All 30 MCP tools work
+
+### Phase 2: "Make it Right" (Week 2)
+**Goal**: Add robustness and production readiness.
+
+#### Days 8-9: Error Handling & Recovery
+```typescript
+// Connection recovery
+class SessionManager {
+  handleDisconnect(session: ClientSession) {
+    // Keep LSP server alive for 60 seconds
+    // Allow reconnection with same project ID
+  }
+
+  handleLSPCrash(projectId: string, language: string) {
+    // Auto-restart LSP server
+    // Replay pending requests
   }
 }
 ```
 
-### Client Implementation
+#### Days 10-11: Docker Deployment
+```yaml
+# docker-compose.yml
+version: '3.8'
+services:
+  codeflow-service:
+    build:
+      dockerfile: Dockerfile.service
+    ports:
+      - "3000:3000"
+    environment:
+      - MAX_CLIENTS=10
+      - FILE_SIZE_LIMIT=10MB
 
-```typescript
-// Client-side handler
-client.onRequest('client/readFile', async (params) => {
-  const content = await fs.readFile(params.path, params.encoding || 'utf8');
-  const stats = await fs.stat(params.path);
-  return {
-    content,
-    mtime: stats.mtime.getTime(),
-    size: stats.size
-  };
-});
-
-// File watcher
-chokidar.watch(projectRoot).on('all', (event, path) => {
-  client.notify('server/fileChanged', {
-    path,
-    changeType: mapChokidarEvent(event)
-  });
-});
+  dev-container-1:
+    image: node:20
+    environment:
+      - MCP_SERVER=ws://codeflow-service:3000
+      - PROJECT_ID=frontend-app
 ```
+
+#### Days 12-14: Basic Performance & Monitoring
+- Add request/response logging
+- Implement basic rate limiting
+- Add health check endpoint
+- Simple memory cache (5-second TTL)
+
+**Deliverables**:
+- ✅ Handles connection drops gracefully
+- ✅ LSP servers auto-restart on crash
+- ✅ Docker deployment works
+- ✅ Basic monitoring in place
+
+### Phase 3: "Make it Fast" (Future)
+**Goal**: Optimize for production scale.
+
+- **Advanced Caching**: Intelligent file cache with invalidation
+- **Predictive Loading**: Preload imports when file opens
+- **Delta Updates**: Send only diffs for large files
+- **Metrics Dashboard**: Prometheus + Grafana
+- **Authentication**: JWT tokens with refresh
+- **TLS Support**: Secure WebSocket connections
+- **Horizontal Scaling**: Multiple service instances
+
+## Key Design Decisions
+
+### LSP Server Pool Strategy
+- **One LSP server per project/language combination**
+- **Shared across clients working on the same project**
+- **60-second idle timeout before shutdown**
+- **Automatic restart on crash (Phase 2)**
+
+### File Access Strategy
+- **Phase 1**: File streaming only (simplest to implement)
+- **Phase 2**: Add shared volume support for Docker scenarios
+- **Future**: SSHFS for persistent remote development
+
+### Session Management
+- **Project-based isolation**: Each client declares its project on connection
+- **Stateless after Phase 1**: Can reconnect anytime with same project ID
+- **Path translation**: Client paths mapped to server's project namespace
 
 ## Project Structure
 
@@ -286,199 +189,109 @@ chokidar.watch(projectRoot).on('all', (event, path) => {
 codeflow-buddy/
 ├── src/
 │   ├── transports/
-│   │   ├── stdio.ts         # Existing
-│   │   └── websocket.ts     # New
+│   │   └── websocket.ts     # New: WebSocket transport
 │   ├── server/
 │   │   ├── ws-server.ts     # WebSocket server
 │   │   ├── session.ts       # Client session management
-│   │   └── auth.ts          # Token validation
+│   │   └── lsp-pool.ts      # LSP server pool
 │   └── fs/
-│       ├── shared.ts        # Shared volume access
-│       └── stream.ts        # Stream protocol
-├── Dockerfile.service        # Service-specific Dockerfile
-└── docker-compose.service.yml
+│       └── stream.ts        # File streaming protocol
+├── Dockerfile.service        # Service container
+└── docker-compose.yml        # Local development setup
 ```
 
-## Architecture
+## Testing Strategy
 
-```
-┌─────────────────────────────────────┐
-│     Docker: CodeFlow Service         │
-│  ┌─────────────────────────────┐    │
-│  │   WebSocket MCP Server       │    │
-│  │   - Auth & session mgmt      │    │
-│  │   - Request routing          │    │
-│  └──────────┬──────────────────┘    │
-│             │                        │
-│  ┌──────────▼──────────────────┐    │
-│  │   LSP Server Pool            │    │
-│  │   - TypeScript LSP           │    │
-│  │   - Python LSP               │    │
-│  │   - Go LSP                   │    │
-│  └──────────┬──────────────────┘    │
-│             │                        │
-│  ┌──────────▼──────────────────┐    │
-│  │   Virtual FS Layer           │    │
-│  │   - Shared volumes           │    │
-│  │   - Stream protocol          │    │
-│  │   - Cache layer              │    │
-│  └─────────────────────────────┘    │
-└─────────────────────────────────────┘
-              │
-              ▼
-     Client Connections (MCP)
-       │           │
-       ▼           ▼
-   Dev Container  Local Machine
-```
+### Phase 1 Validation
+- [ ] 3 clients connect simultaneously
+- [ ] Each gets separate LSP server for different projects
+- [ ] File streaming works bidirectionally
+- [ ] All 30 MCP tools function correctly
 
-## Validation Plan
+### Phase 2 Validation
+- [ ] Reconnection after network drop
+- [ ] LSP server auto-restart after crash
+- [ ] Docker deployment works
+- [ ] Performance <100ms latency
 
-### Unit Tests
-- [ ] WebSocket transport mirrors stdio behavior
-- [ ] Path translation works correctly
-- [ ] Session isolation prevents cross-client access
-
-### Integration Tests
-- [ ] All 29 MCP tools work over WebSocket
-- [ ] Multi-client file operations don't conflict
-- [ ] Performance: <100ms latency for local operations
-
-### Manual Testing Checklist
-- [ ] Docker container with shared volume
-- [ ] Local machine with streaming
-- [ ] 3 concurrent clients on different projects
-
-## Success Metrics
-
-| Metric | Target | Measurement |
-|--------|--------|-------------|
-| Latency overhead | <50ms vs stdio | Time MCP tool calls |
-| Concurrent clients | 5+ | Load test with multiple connections |
-| Memory per client | <50MB | Monitor process memory |
-| File cache hit rate | >80% | Log cache hits/misses |
-
-## Execution Modes
+## Quick Start Guide
 
 ```bash
-# Traditional stdio mode (default, unchanged)
-codeflow-buddy start
+# Phase 1: Run locally
+codeflow-buddy serve --port 3000
 
-# New WebSocket server mode
-codeflow-buddy serve [options]
-  --port 3000
-  --token SECRET
-  --shared-root /code
-  --max-clients 10
+# Client connects with:
+{
+  "method": "initialize",
+  "project": "my-app",
+  "projectRoot": "/path/to/my-app"
+}
+
+# Phase 2: Docker deployment
+docker-compose up -d codeflow-service
 ```
 
-## Docker Deployment
+## Example Docker Setup (Phase 2)
 
 ```yaml
-# docker-compose.service.yml
+# docker-compose.yml
 version: '3.8'
 services:
   codeflow-service:
     build:
-      context: .
       dockerfile: Dockerfile.service
     ports:
       - "3000:3000"
-    volumes:
-      - /shared/projects:/code:ro
     environment:
-      - AUTH_TOKEN=${AUTH_TOKEN}
       - MAX_CLIENTS=10
-      - FILE_ACCESS=shared
 
-  dev-env-1:
-    image: node:18
+  frontend-dev:
+    image: node:20
     environment:
-      - MCP_SERVER=ws://codeflow:3000
-    volumes:
-      - /shared/projects/project1:/app
+      - MCP_SERVER=ws://codeflow-service:3000
+      - PROJECT_ID=frontend-app
 
-  dev-env-2:
+  backend-dev:
     image: python:3.11
     environment:
-      - MCP_SERVER=ws://codeflow:3000
-    volumes:
-      - /shared/projects/project2:/app
-
-volumes:
-  codeflow-cache:
+      - MCP_SERVER=ws://codeflow-service:3000
+      - PROJECT_ID=backend-api
 ```
 
-## Performance Optimizations
+## Client Implementation Example
 
-### Caching Strategy
-- **Memory cache**: 5-second TTL for frequently accessed files
-- **Batch requests**: Group multiple file reads in single RPC
-- **Predictive loading**: Preload imports when a file is opened
-- **Delta updates**: Send only diffs for large file changes
+```typescript
+// Simple client connection
+import WebSocket from 'ws';
 
-### Expected Performance
-| Operation | Shared Volume | Streaming (LAN) | Streaming (Internet) |
-|-----------|--------------|-----------------|---------------------|
-| Read file | <1ms | 5-10ms | 50-100ms |
-| With cache | <1ms | <1ms | <1ms |
-| First project open | 100ms | 500ms | 2-3s |
-| Subsequent opens | 100ms | 150ms | 200ms |
+const ws = new WebSocket('ws://localhost:3000');
 
-## Benefits
+// Initialize session
+ws.send(JSON.stringify({
+  method: 'initialize',
+  project: 'my-app',
+  projectRoot: '/workspace/my-app'
+}));
 
-1. **Single Installation**: LSP servers installed once in service container
-2. **Resource Sharing**: One TypeScript LSP serves all clients
-3. **Central Management**: Update/configure in one place
-4. **Works Everywhere**: Any MCP client can connect via WebSocket
-5. **Cached Intelligence**: Share parsed ASTs across projects
+// Handle file read requests from server
+ws.on('message', async (data) => {
+  const msg = JSON.parse(data);
+  if (msg.method === 'client/readFile') {
+    const content = await fs.readFile(msg.params.path, 'utf8');
+    ws.send(JSON.stringify({
+      id: msg.id,
+      result: { content, mtime: Date.now() }
+    }));
+  }
+});
 
-## MVP Scope (2 weeks)
-
-**Include**:
-- WebSocket transport with token auth
-- Multi-client with session isolation
-- Shared volume file access for Docker
-- Basic streaming for non-Docker clients
-
-**Defer**:
-- SSHFS mounts
-- Advanced caching
-- TLS/certificates
-- Client-specific LSP configs
-
-## Risk Mitigation
-
-| Risk | Mitigation |
-|------|------------|
-| WebSocket adds too much latency | Benchmark early, optimize protocol |
-| File streaming too slow | Implement aggressive caching |
-| Session conflicts | Strong path isolation, comprehensive tests |
-| Breaking existing functionality | Keep stdio as default, WebSocket opt-in |
-
-## Next Steps
-
-1. **Prototype WebSocket transport** (2 days)
-   - Adapt existing MCP server to WebSocket
-   - Verify with single client
-
-2. **Add multi-client support** (3 days)
-   - Session management
-   - Path isolation
-
-3. **Implement file strategies** (3 days)
-   - Shared volume (simplest)
-   - Streaming protocol
-
-4. **Testing & documentation** (2 days)
-   - Integration tests
-   - Deployment guide
-
-Total: ~2 weeks to MVP
-
-## Security Considerations
-
-- WebSocket authentication via tokens
-- Path sandboxing (clients can only access their project paths)
-- Read-only mode option for shared code
-- TLS for production deployments
+// Use MCP tools normally
+ws.send(JSON.stringify({
+  method: 'find_definition',
+  params: {
+    file_path: '/workspace/my-app/src/index.ts',
+    line: 10,
+    character: 5
+  }
+}));
+```
