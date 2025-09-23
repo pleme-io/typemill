@@ -70,3 +70,10 @@ mcp/*/storage.json
 
 # Local claude settings
 .claude/settings.local.json
+
+# Codebuddy runtime files
+.codebuddy/server.pid
+.codebuddy/config.json
+
+# Test playground and artifacts
+examples/playground/
