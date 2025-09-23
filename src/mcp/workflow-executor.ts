@@ -237,8 +237,8 @@ function resolvePlaceholderString(value: string, context: WorkflowContext): unkn
   const placeholderRegex = /\{\{([^}]+)\}\}/g;
   let resolved = value;
 
-  let match;
-  while ((match = placeholderRegex.exec(value)) !== null) {
+  let match: RegExpExecArray | null = placeholderRegex.exec(value);
+  while (match !== null) {
     const placeholder = match[1]!;
     const placeholderValue = resolvePlaceholderPath(placeholder, context);
 
@@ -249,6 +249,7 @@ function resolvePlaceholderString(value: string, context: WorkflowContext): unkn
 
     // Otherwise, replace the placeholder with its string representation
     resolved = resolved.replace(match[0], String(placeholderValue));
+    match = placeholderRegex.exec(value);
   }
 
   return resolved;

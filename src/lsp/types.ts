@@ -44,7 +44,7 @@ interface BaseLSPMethodContext {
 /**
  * Context for workspace methods
  */
-interface WorkspaceMethodsContext extends BaseLSPMethodContext {
+export interface WorkspaceMethodsContext extends BaseLSPMethodContext {
   preloadServers: (debug?: boolean) => Promise<void>;
   servers: Map<string, ServerState>;
 }
@@ -52,7 +52,7 @@ interface WorkspaceMethodsContext extends BaseLSPMethodContext {
 /**
  * Context for diagnostic methods
  */
-interface DiagnosticMethodsContext extends BaseLSPMethodContext {
+export interface DiagnosticMethodsContext extends BaseLSPMethodContext {
   waitForDiagnosticsIdle: (
     serverState: ServerState,
     fileUri: string,
@@ -63,7 +63,7 @@ interface DiagnosticMethodsContext extends BaseLSPMethodContext {
 /**
  * Context for hierarchy methods (simplified context)
  */
-interface HierarchyMethodsContext {
+export interface HierarchyMethodsContext {
   getServer: (filePath: string) => Promise<ServerState>;
   ensureFileOpen: (serverState: ServerState, filePath: string) => Promise<void>;
   sendRequest: (
@@ -77,7 +77,7 @@ interface HierarchyMethodsContext {
 /**
  * Context for intelligence methods (simplified - doesn't need sendNotification)
  */
-interface IntelligenceMethodsContext {
+export interface IntelligenceMethodsContext {
   getServer: (filePath: string) => Promise<ServerState>;
   ensureFileOpen: (serverState: ServerState, filePath: string) => Promise<void>;
   sendRequest: (
@@ -91,7 +91,7 @@ interface IntelligenceMethodsContext {
 /**
  * Context for document methods
  */
-interface DocumentMethodsContext extends BaseLSPMethodContext {
+export interface DocumentMethodsContext extends BaseLSPMethodContext {
   capabilityManager: {
     getCapabilities(serverKey: string): ServerCapabilities | null;
     checkCapability(
@@ -105,6 +105,6 @@ interface DocumentMethodsContext extends BaseLSPMethodContext {
 /**
  * Context for core methods
  */
-interface CoreMethodsContext extends BaseLSPMethodContext {
+export interface CoreMethodsContext extends BaseLSPMethodContext {
   // Core methods use the base context
 }

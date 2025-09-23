@@ -1,99 +1,24 @@
 {
-  "name": "@goobits/codeflow-buddy",
-  "version": "1.1.0",
-  "description": "MCP server for accessing LSP functionality",
-  "main": "dist/index.js",
-  "bin": {
-    "codeflow-buddy": "dist/index.js"
-  },
-  "type": "module",
+{
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "build": "bun build --target=node --outdir=dist index.ts",
-    "dev": "bun run --watch index.ts",
-    "start": "node dist/index.js",
-    "test": "bun scripts/test-runner.ts",
-    "test:all": "bun scripts/test-runner.ts tests",
-    "test:unit": "bun scripts/test-runner.ts tests/unit",
-    "test:e2e": "bun scripts/test-runner.ts tests/e2e",
-    "test:comprehensive": "bun scripts/test-runner.ts tests/core/comprehensive.test.ts",
-    "test:fast": "bun scripts/test-runner.ts --fast",
-    "test:minimal": "bun scripts/test-runner.ts --minimal",
-    "test:fuse": "bun scripts/test-runner.ts tests/e2e/fuse-integration.test.ts tests/unit/workspace-manager.test.ts tests/e2e/websocket-fuse.test.ts tests/e2e/fuse-native-real.test.ts",
-    "test:fuse:unit": "bun scripts/test-runner.ts tests/unit/workspace-manager.test.ts",
-    "test:fuse:e2e": "bun scripts/test-runner.ts tests/e2e/fuse-integration.test.ts tests/e2e/websocket-fuse.test.ts",
-    "test:fuse:real": "bun scripts/test-runner.ts tests/e2e/fuse-native-real.test.ts",
-    "test:ci": "npm run build && npm run test:all",
+    "build": "bun run --filter \"@goobits/*\" build",
+    "test": "bun run --filter \"@goobits/codeflow-buddy\" test",
     "lint": "biome check .",
     "lint:fix": "biome check --fix .",
-    "lint:fix-unsafe": "biome check --fix --unsafe .",
     "format": "biome format --write .",
-    "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run build",
-    "dead-code": "knip",
-    "dead-code:fix": "knip --fix",
-    "dead-code:ci": "knip --no-progress --reporter json"
-  },
-  "keywords": [
-    "mcp",
-    "lsp",
-    "language-server",
-    "model-context-protocol",
-    "claude-code",
-    "fuse",
-    "docker",
-    "npx",
-    "typescript",
-    "websocket"
-  ],
-  "author": "nano",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/goobits/codeflow-buddy.git"
-  },
-  "homepage": "https://github.com/goobits/codeflow-buddy#readme",
-  "bugs": {
-    "url": "https://github.com/goobits/codeflow-buddy/issues"
-  },
-  "files": [
-    "dist",
-    "README.md",
-    "CHANGELOG.md",
-    "LICENSE",
-    "CLAUDE.md",
-    "codebuddy.json"
-  ],
-  "dependencies": {
-    "@cocalc/fuse-native": "^2.4.3",
-    "@modelcontextprotocol/sdk": "^1.18.1",
-    "@types/diff-match-patch": "^1.0.36",
-    "@types/inquirer": "^9.0.9",
-    "@types/jsonwebtoken": "^9.0.10",
-    "diff-match-patch": "^1.0.5",
-    "ignore": "^7.0.5",
-    "inquirer": "^12.9.6",
-    "jsonwebtoken": "^9.0.2",
-    "ws": "^8.18.3"
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.4",
     "@types/bun": "latest",
     "@types/node": "^24.5.2",
-    "@types/uuid": "^9.0.0",
-    "@types/ws": "^8.5.12",
-    "knip": "^5.63.1",
-    "memfs": "^4.42.0",
-    "pyright": "^1.1.405",
-    "typescript": "^5.9.2",
-    "typescript-language-server": "^5.0.0"
-  },
-  "peerDependencies": {
-    "typescript": "^5.8.3"
+    "typescript": "^5.9.2"
   },
   "engines": {
     "node": ">=22"
-  },
-  "publishConfig": {
-    "access": "public"
   }
 }
