@@ -200,3 +200,32 @@ export interface BatchExecuteArgs {
     stop_on_error?: boolean;
   };
 }
+
+// Workflow system types
+export interface WorkflowStep {
+  /** Name of the tool to execute in this step */
+  tool: string;
+  /** Arguments for the tool, can include placeholders like {{step1.result.symbols}} */
+  args: Record<string, unknown>;
+  /** Optional identifier for this step (defaults to step index) */
+  id?: string;
+  /** Human-readable description of what this step does */
+  description?: string;
+}
+
+export interface WorkflowToolDefinition {
+  /** Unique name for this workflow */
+  name: string;
+  /** Human-readable description of what this workflow accomplishes */
+  description: string;
+  /** The input schema that this workflow expects */
+  inputSchema: {
+    type: 'object';
+    properties: Record<string, unknown>;
+    required?: string[];
+  };
+  /** Ordered sequence of steps to execute */
+  steps: WorkflowStep[];
+  /** Whether this is a workflow tool (used for type discrimination) */
+  type: 'workflow';
+}

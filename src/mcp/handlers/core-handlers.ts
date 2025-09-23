@@ -86,9 +86,7 @@ export async function handleFindDefinition(
           });
 
           if (locations.length > 0) {
-            const locationResults = locations
-              .map((loc) => formatLSPLocation(loc))
-              .join('\n');
+            const locationResults = locations.map((loc) => formatLSPLocation(loc)).join('\n');
 
             const matchHumanPos = toHumanPosition(match.position);
             results.push(
@@ -196,9 +194,7 @@ export async function handleFindReferences(
           });
 
           if (locations.length > 0) {
-            const locationResults = locations
-              .map((loc) => formatLSPLocation(loc))
-              .join('\n');
+            const locationResults = locations.map((loc) => formatLSPLocation(loc)).join('\n');
 
             const matchHumanPos = toHumanPosition(match.position);
             results.push(
@@ -260,12 +256,10 @@ export async function handleRenameSymbol(
 
   if (symbolMatches.length > 1) {
     const matchDescriptions = symbolMatches
-      .map(
-        (match, index) => {
-          const humanPos = toHumanPosition(match.position);
-          return `${index + 1}. ${match.name} (${symbolService.symbolKindToString(match.kind)}) at line ${humanPos.line}, character ${humanPos.character}`;
-        }
-      )
+      .map((match, index) => {
+        const humanPos = toHumanPosition(match.position);
+        return `${index + 1}. ${match.name} (${symbolService.symbolKindToString(match.kind)}) at line ${humanPos.line}, character ${humanPos.character}`;
+      })
       .join('\n');
 
     const responseText = `Multiple symbols found with name "${symbol_name}". Please use rename_symbol_strict to specify which one to rename:\n\n${matchDescriptions}`;

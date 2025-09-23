@@ -10,14 +10,18 @@ export async function mcpDebugCommand(toolName: string, toolArgs: string): Promi
   if (!toolName) {
     console.error('Error: tool_name is required');
     console.error('Usage: codeflow-buddy mcp-debug <tool_name> <tool_args_json>');
-    console.error('Example: codeflow-buddy mcp-debug find_definition \'{"file_path": "src/index.ts", "symbol_name": "main"}\'');
+    console.error(
+      'Example: codeflow-buddy mcp-debug find_definition \'{"file_path": "src/index.ts", "symbol_name": "main"}\''
+    );
     process.exit(1);
   }
 
   if (!toolArgs) {
     console.error('Error: tool_args is required');
     console.error('Usage: codeflow-buddy mcp-debug <tool_name> <tool_args_json>');
-    console.error('Example: codeflow-buddy mcp-debug find_definition \'{"file_path": "src/index.ts", "symbol_name": "main"}\'');
+    console.error(
+      'Example: codeflow-buddy mcp-debug find_definition \'{"file_path": "src/index.ts", "symbol_name": "main"}\''
+    );
     process.exit(1);
   }
 
@@ -73,8 +77,8 @@ export async function mcpDebugCommand(toolName: string, toolArgs: string): Promi
         name: toolName,
         arguments: parsedArgs,
         // Add trace flag for enhanced debugging
-        trace: true
-      }
+        trace: true,
+      },
     };
 
     console.log('📤 REQUEST:');
@@ -95,16 +99,15 @@ export async function mcpDebugCommand(toolName: string, toolArgs: string): Promi
       operations: [
         {
           tool: toolName,
-          args: parsedArgs
-        }
+          args: parsedArgs,
+        },
       ],
       options: {
         dry_run: false,
-        atomic: false
-      }
+        atomic: false,
+      },
     };
     console.log(JSON.stringify(batchRequest, null, 2));
-
   } catch (error) {
     console.error('❌ Connection failed:', error);
     console.error('');

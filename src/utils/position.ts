@@ -3,8 +3,8 @@
  * This eliminates the constant +1/-1 position conversion bugs throughout the codebase
  */
 
-import type { Location } from '../types/lsp.js';
 import { uriToPath } from '../core/file-operations/path-utils.js';
+import type { Location } from '../types/lsp.js';
 
 /**
  * LSP Position (0-indexed line and character)

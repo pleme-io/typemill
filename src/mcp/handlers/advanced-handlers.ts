@@ -215,7 +215,9 @@ export async function handleGetDocumentSymbols(
         const humanPos = toHumanPosition(symbol.range.start);
         const symbolKind = symbolService.symbolKindToString(symbol.kind);
 
-        const result = [`${prefix}${symbol.name} (${symbolKind}) - Line ${humanPos.line}:${humanPos.character}`];
+        const result = [
+          `${prefix}${symbol.name} (${symbolKind}) - Line ${humanPos.line}:${humanPos.character}`,
+        ];
 
         if (symbol.children && symbol.children.length > 0) {
           for (const child of symbol.children) {
@@ -269,7 +271,10 @@ export async function handleGetFoldingRanges(
     }
 
     const rangeDescriptions = foldingRanges.map((range, index) => {
-      const startPos = toHumanPosition({ line: range.startLine, character: range.startCharacter || 0 });
+      const startPos = toHumanPosition({
+        line: range.startLine,
+        character: range.startCharacter || 0,
+      });
       const endPos = toHumanPosition({ line: range.endLine, character: range.endCharacter || 0 });
       const kind = range.kind || 'code';
       const characterInfo =

@@ -1,7 +1,12 @@
 // MCP handlers for LLM agent intelligence features
 import { resolve } from 'node:path';
 import type { IntelligenceService } from '../../services/intelligence/intelligence-service.js';
-import { formatHumanPosition, formatHumanRange, toHumanPosition, toLSPPosition } from '../../utils/index.js';
+import {
+  formatHumanPosition,
+  formatHumanRange,
+  toHumanPosition,
+  toLSPPosition,
+} from '../../utils/index.js';
 import { registerTools } from '../tool-registry.js';
 import {
   createContextualErrorResponse,

@@ -27,7 +27,10 @@ export async function handlePrepareCallHierarchy(
 
     const itemDescriptions = items.map((item, index) => {
       const kindName = getSymbolKindName(item.kind);
-      const humanRange = formatHumanRange({ start: toHumanPosition(item.range.start), end: toHumanPosition(item.range.end) }, 'short');
+      const humanRange = formatHumanRange(
+        { start: toHumanPosition(item.range.start), end: toHumanPosition(item.range.end) },
+        'short'
+      );
       const detail = item.detail ? ` - ${item.detail}` : '';
 
       return `${index + 1}. **${item.name}** (${kindName}) at ${humanRange}${detail}\n   URI: ${item.uri}`;
@@ -88,13 +91,21 @@ export async function handleGetCallHierarchyIncomingCalls(
 
     const callDescriptions = incomingCalls.map((call, index) => {
       const fromKind = getSymbolKindName(call.from.kind);
-      const fromRange = formatHumanRange({ start: toHumanPosition(call.from.range.start), end: toHumanPosition(call.from.range.end) }, 'short');
+      const fromRange = formatHumanRange(
+        {
+          start: toHumanPosition(call.from.range.start),
+          end: toHumanPosition(call.from.range.end),
+        },
+        'short'
+      );
       const fromDetail = call.from.detail ? ` - ${call.from.detail}` : '';
 
       const ranges = call.fromRanges
-        .map(
-          (range) =>
-            formatHumanRange({ start: toHumanPosition(range.start), end: toHumanPosition(range.end) }, 'short')
+        .map((range) =>
+          formatHumanRange(
+            { start: toHumanPosition(range.start), end: toHumanPosition(range.end) },
+            'short'
+          )
         )
         .join(', ');
 
@@ -156,13 +167,18 @@ export async function handleGetCallHierarchyOutgoingCalls(
 
     const callDescriptions = outgoingCalls.map((call, index) => {
       const toKind = getSymbolKindName(call.to.kind);
-      const toRange = formatHumanRange({ start: toHumanPosition(call.to.range.start), end: toHumanPosition(call.to.range.end) }, 'short');
+      const toRange = formatHumanRange(
+        { start: toHumanPosition(call.to.range.start), end: toHumanPosition(call.to.range.end) },
+        'short'
+      );
       const toDetail = call.to.detail ? ` - ${call.to.detail}` : '';
 
       const ranges = call.fromRanges
-        .map(
-          (range) =>
-            formatHumanRange({ start: toHumanPosition(range.start), end: toHumanPosition(range.end) }, 'short')
+        .map((range) =>
+          formatHumanRange(
+            { start: toHumanPosition(range.start), end: toHumanPosition(range.end) },
+            'short'
+          )
         )
         .join(', ');
 
@@ -200,7 +216,10 @@ export async function handlePrepareTypeHierarchy(
 
     const itemDescriptions = items.map((item, index) => {
       const kindName = getSymbolKindName(item.kind);
-      const humanRange = formatHumanRange({ start: toHumanPosition(item.range.start), end: toHumanPosition(item.range.end) }, 'short');
+      const humanRange = formatHumanRange(
+        { start: toHumanPosition(item.range.start), end: toHumanPosition(item.range.end) },
+        'short'
+      );
       const detail = item.detail ? ` - ${item.detail}` : '';
 
       return `${index + 1}. **${item.name}** (${kindName}) at ${humanRange}${detail}\n   URI: ${item.uri}`;
@@ -232,7 +251,13 @@ export async function handleGetTypeHierarchySupertypes(
 
     const supertypeDescriptions = supertypes.map((supertype, index) => {
       const kindName = getSymbolKindName(supertype.kind);
-      const humanRange = formatHumanRange({ start: toHumanPosition(supertype.range.start), end: toHumanPosition(supertype.range.end) }, 'short');
+      const humanRange = formatHumanRange(
+        {
+          start: toHumanPosition(supertype.range.start),
+          end: toHumanPosition(supertype.range.end),
+        },
+        'short'
+      );
       const detail = supertype.detail ? ` - ${supertype.detail}` : '';
 
       return `${index + 1}. **${supertype.name}** (${kindName}) at ${humanRange}${detail}\n   URI: ${supertype.uri}`;
@@ -264,7 +289,10 @@ export async function handleGetTypeHierarchySubtypes(
 
     const subtypeDescriptions = subtypes.map((subtype, index) => {
       const kindName = getSymbolKindName(subtype.kind);
-      const humanRange = formatHumanRange({ start: toHumanPosition(subtype.range.start), end: toHumanPosition(subtype.range.end) }, 'short');
+      const humanRange = formatHumanRange(
+        { start: toHumanPosition(subtype.range.start), end: toHumanPosition(subtype.range.end) },
+        'short'
+      );
       const detail = subtype.detail ? ` - ${subtype.detail}` : '';
 
       return `${index + 1}. **${subtype.name}** (${kindName}) at ${humanRange}${detail}\n   URI: ${subtype.uri}`;
@@ -312,7 +340,10 @@ export async function handleGetSelectionRange(
 
       while (current && level < 10) {
         // Limit depth to prevent infinite loops
-        const humanRange = formatHumanRange({ start: toHumanPosition(current.range.start), end: toHumanPosition(current.range.end) }, 'short');
+        const humanRange = formatHumanRange(
+          { start: toHumanPosition(current.range.start), end: toHumanPosition(current.range.end) },
+          'short'
+        );
         ranges.push(`   Level ${level}: ${humanRange}`);
         current = current.parent;
         level++;
