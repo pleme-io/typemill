@@ -18,6 +18,23 @@ export async function runInstallCommand(
     return false;
   }
 
+  // For pipx commands, try pipx first, then fallback to pip strategies
+  if (cmd === 'pipx') {
+    // First try pipx
+    const pipxSuccess = await tryInstallCommand([cmd, ...args], serverName, onOutput);
+    if (pipxSuccess) {
+      return true;
+    }
+
+    // If pipx fails, fallback to pip strategies
+    console.log('    pipx failed, trying pip fallback...');
+    const packageName = args[args.length - 1]; // Last arg should be package name
+    if (!packageName) {
+      return false;
+    }
+    return await tryPipFallback(packageName, serverName, onOutput);
+  }
+
   // For pip commands, try multiple strategies
   if ((cmd === 'pip' || cmd === 'pip3') && args.includes('--user')) {
     // First try with --user (safer)
@@ -27,13 +44,62 @@ export async function runInstallCommand(
     }
 
     // If --user fails due to externally-managed-environment, try --break-system-packages
-    const sysArgs = args.filter(arg => arg !== '--user').concat(['--break-system-packages']);
+    const sysArgs = args.filter((arg) => arg !== '--user').concat(['--break-system-packages']);
     console.log('    Retrying with --break-system-packages...');
     return await tryInstallCommand([cmd, ...sysArgs], serverName, onOutput);
   }
 
   // For all other commands, run normally
   return await tryInstallCommand(command, serverName, onOutput);
+}
+
+/**
+ * Try pip fallback strategies when pipx fails
+ */
+async function tryPipFallback(
+  packageName: string,
+  serverName: string,
+  onOutput?: (data: string) => void
+): Promise<boolean> {
+  // Try different pip commands in order of preference
+  const pipCommands = ['pip3', 'pip'];
+
+  for (const pipCmd of pipCommands) {
+    try {
+      // Check if this pip command exists
+      const checkCommand = process.platform === 'win32' ? `where ${pipCmd}` : `which ${pipCmd}`;
+      require('child_process').execSync(checkCommand, { stdio: 'ignore' });
+
+      // Try --user first (safer)
+      console.log(`    Trying ${pipCmd} --user...`);
+      const userSuccess = await tryInstallCommand(
+        [pipCmd, 'install', packageName, '--user'],
+        serverName,
+        onOutput
+      );
+      if (userSuccess) {
+        return true;
+      }
+
+      // If --user fails, try --break-system-packages on Linux
+      if (process.platform === 'linux') {
+        console.log(`    Trying ${pipCmd} with --break-system-packages...`);
+        const sysSuccess = await tryInstallCommand(
+          [pipCmd, 'install', packageName, '--break-system-packages'],
+          serverName,
+          onOutput
+        );
+        if (sysSuccess) {
+          return true;
+        }
+      }
+    } catch {
+      // This pip command not found, try next
+      continue;
+    }
+  }
+
+  return false;
 }
 
 /**

@@ -149,10 +149,14 @@ if (subcommand === 'setup') {
   const { setupCommand } = await import('./src/cli/commands/setup.js');
 
   // Parse server list from --servers flag
-  const serversIndex = args.findIndex(arg => arg === '--servers');
-  const servers = serversIndex !== -1 && args[serversIndex + 1]
-    ? args[serversIndex + 1]?.split(',').map(s => s.trim()).filter(Boolean)
-    : undefined;
+  const serversIndex = args.findIndex((arg) => arg === '--servers');
+  const servers =
+    serversIndex !== -1 && args[serversIndex + 1]
+      ? args[serversIndex + 1]
+          ?.split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : undefined;
 
   const options = {
     all: args.includes('--all'),

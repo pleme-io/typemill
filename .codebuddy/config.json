@@ -14,6 +14,95 @@
         "--stdio"
       ],
       "rootDir": "."
+    },
+    {
+      "extensions": [
+        "py",
+        "pyi"
+      ],
+      "command": [
+        "npx",
+        "--",
+        "pyright-langserver",
+        "--stdio"
+      ],
+      "rootDir": ".",
+      "restartInterval": 10
+    },
+    {
+      "extensions": [
+        "go"
+      ],
+      "command": [
+        "/Users/miko/go/bin/gopls"
+      ],
+      "rootDir": "."
+    },
+    {
+      "extensions": [
+        "json",
+        "jsonc"
+      ],
+      "command": [
+        "npx",
+        "--",
+        "vscode-json-language-server",
+        "--stdio"
+      ],
+      "rootDir": "."
+    },
+    {
+      "extensions": [
+        "html",
+        "htm"
+      ],
+      "command": [
+        "npx",
+        "--",
+        "vscode-html-language-server",
+        "--stdio"
+      ],
+      "rootDir": "."
+    },
+    {
+      "extensions": [
+        "yaml",
+        "yml"
+      ],
+      "command": [
+        "npx",
+        "--",
+        "yaml-language-server",
+        "--stdio"
+      ],
+      "rootDir": "."
+    },
+    {
+      "extensions": [
+        "sh",
+        "bash",
+        "zsh"
+      ],
+      "command": [
+        "npx",
+        "--",
+        "bash-language-server",
+        "start"
+      ],
+      "rootDir": "."
+    },
+    {
+      "extensions": [
+        "c",
+        "cpp",
+        "cc",
+        "h",
+        "hpp"
+      ],
+      "command": [
+        "clangd"
+      ],
+      "rootDir": "."
     }
   ]
 }

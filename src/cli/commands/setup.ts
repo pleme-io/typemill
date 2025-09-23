@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { spawn } from 'node:child_process';
 import inquirer from 'inquirer';
 import { LANGUAGE_SERVERS, generateConfig } from '../../core/configuration/language-presets.js';
 import { scanDirectoryForExtensions } from '../../core/file-operations/scanner.js';
@@ -7,7 +8,6 @@ import * as DirectoryUtils from '../utils/directory-utils.js';
 import { getPipCommand, runInstallCommand } from '../utils/install-utils.js';
 import * as ServerUtils from '../utils/server-utils.js';
 import { getCommandPath } from '../utils/server-utils.js';
-import { spawn } from 'node:child_process';
 
 interface ServerChoice {
   name: string;
@@ -47,7 +47,9 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
     const existingConfig = DirectoryUtils.readConfigSilent();
     if (existingConfig) {
       if (options.all || options.force || options.servers) {
-        console.log('✨ Configuration already exists. Using non-interactive mode will overwrite it.\n');
+        console.log(
+          '✨ Configuration already exists. Using non-interactive mode will overwrite it.\n'
+        );
       } else {
         try {
           const { overwrite } = await inquirer.prompt([
@@ -158,16 +160,16 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
       console.log('');
     } else if (options.servers && options.servers.length > 0) {
       // Pre-selected servers mode
-      const validServers = options.servers.filter(name =>
-        relevantServers.some(server => server.name === name)
+      const validServers = options.servers.filter((name) =>
+        relevantServers.some((server) => server.name === name)
       );
-      const invalidServers = options.servers.filter(name =>
-        !relevantServers.some(server => server.name === name)
+      const invalidServers = options.servers.filter(
+        (name) => !relevantServers.some((server) => server.name === name)
       );
 
       if (invalidServers.length > 0) {
         console.log(`❌ Unknown servers: ${invalidServers.join(', ')}`);
-        console.log(`Available servers: ${relevantServers.map(s => s.name).join(', ')}`);
+        console.log(`Available servers: ${relevantServers.map((s) => s.name).join(', ')}`);
         return;
       }
 
@@ -176,7 +178,7 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
 
       // Show status for selected servers
       for (const serverName of selectedServers) {
-        const server = relevantServers.find(s => s.name === serverName)!;
+        const server = relevantServers.find((s) => s.name === serverName)!;
         const testCommand = [...server.command];
         if (testCommand[0] === 'gopls' || testCommand[0] === 'rust-analyzer') {
           testCommand[0] = getCommandPath(testCommand[0]);
@@ -281,7 +283,12 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
           continue;
         }
 
-        if ((baseCommand === 'pip' || baseCommand === 'pip3') && !(await ServerUtils.testCommand([getPipCommand(['pip', '--version'])[0], '--version']))) {
+        const pipCommand = getPipCommand(['pip', '--version'])[0];
+        if (
+          (baseCommand === 'pip' || baseCommand === 'pip3') &&
+          pipCommand &&
+          !(await ServerUtils.testCommand([pipCommand, '--version']))
+        ) {
           console.log('❌ Failed');
           console.log('    Error: Python pip is required but not available');
           console.log('    Install Python first: https://python.org/downloads/');
@@ -421,9 +428,7 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
 
       if (workingServers.length < selectedServers.length) {
         const notWorking = selectedServers.length - workingServers.length;
-        console.log(
-          `⚠️  ${notWorking} server${notWorking !== 1 ? 's' : ''} excluded (not working)`
-        );
+        console.log(`⚠️  ${notWorking} server${notWorking !== 1 ? 's' : ''} excluded (not working)`);
         console.log('   💡 Tip: Install missing prerequisites and run setup again');
       }
     }
@@ -439,7 +444,10 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
 /**
  * Check for missing prerequisites and offer to install them
  */
-async function checkAndInstallPrerequisites(selectedServers: string[], options: SetupOptions): Promise<void> {
+async function checkAndInstallPrerequisites(
+  selectedServers: string[],
+  options: SetupOptions
+): Promise<void> {
   const missingPrereqs = await detectMissingPrerequisites(selectedServers);
 
   if (missingPrereqs.length === 0) {
@@ -509,7 +517,7 @@ async function detectMissingPrerequisites(selectedServers: string[]): Promise<Pr
   const prereqs = new Map<string, Prerequisite>();
 
   for (const serverName of selectedServers) {
-    const server = LANGUAGE_SERVERS.find(s => s.name === serverName);
+    const server = LANGUAGE_SERVERS.find((s) => s.name === serverName);
     if (!server?.installCommand) continue;
 
     const [baseCommand] = server.installCommand;
@@ -522,9 +530,9 @@ async function detectMissingPrerequisites(selectedServers: string[]): Promise<Pr
     }
 
     // Check for Python/pip
-    if ((baseCommand === 'pip' || baseCommand === 'pip3')) {
+    if (baseCommand === 'pip' || baseCommand === 'pip3') {
       const pipCommand = getPipCommand(['pip', '--version'])[0];
-      if (!(await ServerUtils.testCommand([pipCommand, '--version']))) {
+      if (pipCommand && !(await ServerUtils.testCommand([pipCommand, '--version']))) {
         const existing = prereqs.get('python') || getPrerequisiteInfo('python', 'Python/pip');
         existing.servers.push(server.displayName);
         prereqs.set('python', existing);
@@ -555,31 +563,34 @@ async function detectMissingPrerequisites(selectedServers: string[]): Promise<Pr
 function getPrerequisiteInfo(command: string, displayName: string): Prerequisite {
   const platform = process.platform;
 
-  const prereqInfo: Record<string, {
-    darwin: { cmd: string, autoInstallable: boolean },
-    linux: { cmd: string, autoInstallable: boolean },
-    win32: { cmd: string, autoInstallable: boolean }
-  }> = {
+  const prereqInfo: Record<
+    string,
+    {
+      darwin: { cmd: string; autoInstallable: boolean };
+      linux: { cmd: string; autoInstallable: boolean };
+      win32: { cmd: string; autoInstallable: boolean };
+    }
+  > = {
     go: {
       darwin: { cmd: 'brew install go', autoInstallable: true },
       linux: { cmd: 'sudo apt install golang-go', autoInstallable: true },
-      win32: { cmd: 'Download from https://golang.org/dl/', autoInstallable: false }
+      win32: { cmd: 'Download from https://golang.org/dl/', autoInstallable: false },
     },
     python: {
       darwin: { cmd: 'brew install python', autoInstallable: true },
       linux: { cmd: 'sudo apt install python3 python3-pip', autoInstallable: true },
-      win32: { cmd: 'Download from https://python.org/downloads/', autoInstallable: false }
+      win32: { cmd: 'Download from https://python.org/downloads/', autoInstallable: false },
     },
     ruby: {
       darwin: { cmd: 'brew install ruby', autoInstallable: true },
       linux: { cmd: 'sudo apt install ruby ruby-dev', autoInstallable: true },
-      win32: { cmd: 'Download from https://rubyinstaller.org/', autoInstallable: false }
+      win32: { cmd: 'Download from https://rubyinstaller.org/', autoInstallable: false },
     },
     npm: {
       darwin: { cmd: 'brew install node', autoInstallable: true },
       linux: { cmd: 'sudo apt install nodejs npm', autoInstallable: true },
-      win32: { cmd: 'Download from https://nodejs.org/', autoInstallable: false }
-    }
+      win32: { cmd: 'Download from https://nodejs.org/', autoInstallable: false },
+    },
   };
 
   const info = prereqInfo[command];
@@ -589,7 +600,7 @@ function getPrerequisiteInfo(command: string, displayName: string): Prerequisite
       command,
       installCommand: `Install ${displayName}`,
       servers: [],
-      autoInstallable: false
+      autoInstallable: false,
     };
   }
 
@@ -600,7 +611,7 @@ function getPrerequisiteInfo(command: string, displayName: string): Prerequisite
     command,
     installCommand: platformInfo.cmd,
     servers: [],
-    autoInstallable: platformInfo.autoInstallable
+    autoInstallable: platformInfo.autoInstallable,
   };
 }
 
@@ -634,6 +645,11 @@ async function runSystemCommand(command: string): Promise<boolean> {
   return new Promise((resolve) => {
     const [cmd, ...args] = command.split(' ');
 
+    if (!cmd) {
+      resolve(false);
+      return;
+    }
+
     const proc = spawn(cmd, args, {
       stdio: 'pipe',
     });
@@ -642,7 +658,7 @@ async function runSystemCommand(command: string): Promise<boolean> {
       resolve(false);
     });
 
-    proc.on('close', (code) => {
+    proc.on('close', (code: number | null) => {
       resolve(code === 0);
     });
   });

@@ -178,7 +178,9 @@ export class SessionManager {
   }
 
   hasActiveProject(projectId: string): boolean {
-    return this.projectSessions.has(projectId) && (this.projectSessions.get(projectId)?.size ?? 0) > 0;
+    return (
+      this.projectSessions.has(projectId) && (this.projectSessions.get(projectId)?.size ?? 0) > 0
+    );
   }
 
   /**
