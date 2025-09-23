@@ -107,6 +107,11 @@ if (args.length === 0 || args[0] === '--help' || args[0] === '-h' || args[0] ===
   console.log('  stop          Stop the server');
   console.log('  status        Show everything');
   console.log('');
+  console.log('Setup options:');
+  console.log('  --all                Install all available servers');
+  console.log('  --force              Skip confirmation prompts');
+  console.log('  --servers ts,python  Install specific servers');
+  console.log('');
   console.log('Quick start:');
   console.log('  npm install -g @goobits/codeflow-buddy');
   console.log('  codeflow-buddy setup         # Configure LSP servers');
@@ -141,8 +146,17 @@ const subcommand = args[0];
 
 if (subcommand === 'setup') {
   const { setupCommand } = await import('./src/cli/commands/setup.js');
+
+  // Parse server list from --servers flag
+  const serversIndex = args.findIndex(arg => arg === '--servers');
+  const servers = serversIndex !== -1 && args[serversIndex + 1]
+    ? args[serversIndex + 1]?.split(',').map(s => s.trim()).filter(Boolean)
+    : undefined;
+
   const options = {
     all: args.includes('--all'),
+    force: args.includes('--force'),
+    servers,
   };
   await setupCommand(options);
   process.exit(0);

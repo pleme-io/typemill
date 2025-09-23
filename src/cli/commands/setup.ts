@@ -17,6 +17,8 @@ interface ServerChoice {
 
 interface SetupOptions {
   all?: boolean;
+  force?: boolean;
+  servers?: string[];
 }
 
 /**
@@ -42,8 +44,8 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
     // Check if config already exists
     const existingConfig = DirectoryUtils.readConfigSilent();
     if (existingConfig) {
-      if (options.all) {
-        console.log('✨ Configuration already exists. Using --all will overwrite it.\n');
+      if (options.all || options.force || options.servers) {
+        console.log('✨ Configuration already exists. Using non-interactive mode will overwrite it.\n');
       } else {
         try {
           const { overwrite } = await inquirer.prompt([
@@ -143,6 +145,36 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
       console.log(`📋 Auto-selecting ${selectedServers.length} language servers:\n`);
 
       for (const server of relevantServers) {
+        const testCommand = [...server.command];
+        if (testCommand[0] === 'gopls' || testCommand[0] === 'rust-analyzer') {
+          testCommand[0] = getCommandPath(testCommand[0]);
+        }
+        const available = await ServerUtils.testCommand(testCommand);
+        const status = available ? '✓ installed' : '○ will install';
+        console.log(`   ${server.displayName} ${status}`);
+      }
+      console.log('');
+    } else if (options.servers && options.servers.length > 0) {
+      // Pre-selected servers mode
+      const validServers = options.servers.filter(name =>
+        relevantServers.some(server => server.name === name)
+      );
+      const invalidServers = options.servers.filter(name =>
+        !relevantServers.some(server => server.name === name)
+      );
+
+      if (invalidServers.length > 0) {
+        console.log(`❌ Unknown servers: ${invalidServers.join(', ')}`);
+        console.log(`Available servers: ${relevantServers.map(s => s.name).join(', ')}`);
+        return;
+      }
+
+      selectedServers = validServers;
+      console.log(`📋 Installing selected servers: ${selectedServers.join(', ')}\n`);
+
+      // Show status for selected servers
+      for (const serverName of selectedServers) {
+        const server = relevantServers.find(s => s.name === serverName)!;
         const testCommand = [...server.command];
         if (testCommand[0] === 'gopls' || testCommand[0] === 'rust-analyzer') {
           testCommand[0] = getCommandPath(testCommand[0]);
