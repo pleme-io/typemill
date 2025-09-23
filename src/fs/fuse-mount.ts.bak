@@ -18,7 +18,7 @@ export interface FuseMountConfig {
 }
 
 export class FuseMount {
-  private session: SessionContext;
+  private session: SessionContext
   private transport: WebSocketTransport;
   private operations: FuseOperations;
   private fuse?: Fuse;
@@ -50,7 +50,7 @@ export class FuseMount {
     try {
       logger.info('Mounting FUSE filesystem', {
         component: 'FuseMount',
-        sessionId: this.session.session.id,
+        sessionId: this.session.id,
         mountPath: this.mountPath,
         config: this.config,
       });
@@ -134,13 +134,13 @@ export class FuseMount {
 
       logger.info('FUSE filesystem mounted successfully', {
         component: 'FuseMount',
-        sessionId: this.session.session.id,
+        sessionId: this.session.id,
         mountPath: this.mountPath,
       });
     } catch (error) {
       logger.error('Failed to mount FUSE filesystem', error as Error, {
         component: 'FuseMount',
-        sessionId: this.session.session.id,
+        sessionId: this.session.id,
         mountPath: this.mountPath,
       });
       throw error;
@@ -154,7 +154,7 @@ export class FuseMount {
     if (!this.mounted || !this.fuse) {
       logger.warn('FUSE filesystem not mounted, skipping unmount', {
         component: 'FuseMount',
-        sessionId: this.session.session.id,
+        sessionId: this.session.id,
         mountPath: this.mountPath,
       });
       return;
@@ -163,7 +163,7 @@ export class FuseMount {
     try {
       logger.info('Unmounting FUSE filesystem', {
         component: 'FuseMount',
-        sessionId: this.session.session.id,
+        sessionId: this.session.id,
         mountPath: this.mountPath,
       });
 
@@ -176,7 +176,7 @@ export class FuseMount {
           if (error) {
             logger.error('Error during FUSE unmount', error, {
               component: 'FuseMount',
-              sessionId: this.session.session.id,
+              sessionId: this.session.id,
               mountPath: this.mountPath,
             });
             // Don't reject - we want to continue cleanup
@@ -190,13 +190,13 @@ export class FuseMount {
 
       logger.info('FUSE filesystem unmounted successfully', {
         component: 'FuseMount',
-        sessionId: this.session.session.id,
+        sessionId: this.session.id,
         mountPath: this.mountPath,
       });
     } catch (error) {
       logger.error('Failed to unmount FUSE filesystem', error as Error, {
         component: 'FuseMount',
-        sessionId: this.session.session.id,
+        sessionId: this.session.id,
         mountPath: this.mountPath,
       });
       throw error;
@@ -275,7 +275,7 @@ export class FuseMount {
     return {
       mounted: this.mounted,
       mountPath: this.mountPath,
-      sessionId: this.session.session.id,
+      sessionId: this.session.id,
       pendingOperations: (this.operations as any).pendingOperations?.size || 0,
       openFiles: (this.operations as any).fileDescriptors?.size || 0,
     };
@@ -288,7 +288,7 @@ export class FuseMount {
     try {
       logger.warn('Force cleaning up FUSE mount', {
         component: 'FuseMount',
-        sessionId: this.session.session.id,
+        sessionId: this.session.id,
         mountPath: this.mountPath,
       });
 
@@ -308,7 +308,7 @@ export class FuseMount {
           } catch (lazyError) {
             logger.error('Failed to force unmount FUSE filesystem', lazyError as Error, {
               component: 'FuseMount',
-              sessionId: this.session.session.id,
+              sessionId: this.session.id,
               mountPath: this.mountPath,
             });
           }
@@ -320,7 +320,7 @@ export class FuseMount {
     } catch (error) {
       logger.error('Error during force cleanup', error as Error, {
         component: 'FuseMount',
-        sessionId: this.session.session.id,
+        sessionId: this.session.id,
         mountPath: this.mountPath,
       });
     }

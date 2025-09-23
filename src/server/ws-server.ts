@@ -15,7 +15,7 @@ import type {
   EnhancedClientSession,
   FuseOperationResponse,
   WorkspaceInfo,
-} from '../types/enhanced-session.js';
+} from '../types/session.js';
 import { getPackageVersion } from '../utils/version.js';
 import { LSPServerPool } from './lsp-pool.js';
 import { SessionManager } from './session.js';

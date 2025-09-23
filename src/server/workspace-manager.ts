@@ -8,7 +8,7 @@ import { access, mkdir, rmdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { logger } from '../core/diagnostics/logger.js';
-import type { EnhancedClientSession, WorkspaceInfo } from '../types/enhanced-session.js';
+import type { EnhancedClientSession, WorkspaceInfo } from '../types/session.js';
 
 export interface WorkspaceManagerConfig {
   baseWorkspaceDir: string;

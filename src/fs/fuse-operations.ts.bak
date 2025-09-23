@@ -8,10 +8,10 @@ import { resolve } from 'node:path';
 import { logger } from '../core/diagnostics/logger.js';
 import type { WebSocketTransport } from '../transports/websocket.js';
 import type {
-  SessionContext,
+  EnhancedClientSession,
   FuseOperationRequest,
   FuseOperationResponse,
-} from '../types/session.js';
+} from '../types/enhanced-session.js';
 
 export interface FuseStats {
   mode: number;

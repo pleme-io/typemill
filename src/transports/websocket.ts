@@ -5,7 +5,7 @@ import type {
   EnhancedClientSession,
   FuseOperationResponse,
   WorkspaceInfo,
-} from '../types/enhanced-session.js';
+} from '../types/session.js';
 
 export interface ClientSession {
   id: string;
