@@ -32,7 +32,7 @@ export const LANGUAGE_SERVERS: LanguageServerConfig[] = [
     extensions: ['py', 'pyi'],
     command: ['pylsp'],
     installInstructions: 'pip install python-lsp-server',
-    installCommand: ['pip', 'install', 'python-lsp-server[all]'],
+    installCommand: ['pip', 'install', 'python-lsp-server'],
     description: 'Python Language Server Protocol implementation (comprehensive features)',
     installRequired: false,
     restartInterval: 5, // Auto-restart every 5 minutes to prevent performance degradation

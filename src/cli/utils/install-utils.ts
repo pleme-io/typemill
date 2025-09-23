@@ -58,7 +58,11 @@ export async function runInstallCommand(
         if (cmd === 'pip' || cmd === 'pip3') {
           console.log('    Install Python first: https://python.org/downloads/');
         } else if (cmd === 'go') {
-          console.log('    Install Go first: https://golang.org/dl/');
+          if (process.platform === 'darwin') {
+            console.log('    Install Go first: brew install go');
+          } else {
+            console.log('    Install Go first: https://golang.org/dl/');
+          }
         } else if (cmd === 'rustup') {
           console.log('    Install Rust first: https://rustup.rs/');
         }
@@ -90,9 +94,15 @@ export function getPipCommand(baseCommand: string[]): string[] {
     const pipCommand = findBestPipCommand();
     const result = [pipCommand, ...baseCommand.slice(1)];
 
-    // Add --break-system-packages flag for safety on system-managed environments
+    // Add appropriate flags based on platform and pip version
     if (pipCommand === 'pip' || pipCommand === 'pip3') {
-      result.push('--break-system-packages');
+      if (process.platform === 'darwin') {
+        // macOS: prefer --user to avoid system Python issues
+        result.push('--user');
+      } else {
+        // Linux: use --break-system-packages for externally managed environments
+        result.push('--break-system-packages');
+      }
     }
 
     return result;
