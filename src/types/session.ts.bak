@@ -30,15 +30,10 @@ export interface SessionManager {
   getSession: (sessionId: string) => SessionContext | null;
   destroySession: (sessionId: string) => Promise<void>;
   listSessions: () => SessionState[];
-}
 
 // Enhanced client session for FUSE integration
 export interface EnhancedClientSession {
   id: string;
-  projectId: string;
-  projectRoot: string;
-  socket: any; // WebSocket type
-  initialized: boolean;
   globalProjectId: string; // Server-generated unique ID for true isolation
   workspaceId: string; // Isolated workspace identifier
   fuseMount?: string; // FUSE mount point path

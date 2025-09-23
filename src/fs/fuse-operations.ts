@@ -9,6 +9,7 @@ import { logger } from '../core/diagnostics/logger.js';
 import type { WebSocketTransport } from '../transports/websocket.js';
 import type {
   SessionContext,
+  EnhancedClientSession,
   FuseOperationRequest,
   FuseOperationResponse,
 } from '../types/session.js';
