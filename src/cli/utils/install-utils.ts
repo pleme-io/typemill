@@ -82,14 +82,41 @@ export async function runInstallCommand(
 }
 
 /**
- * Detect if pip needs --break-system-packages flag
+ * Detect and fix pip command with proper fallbacks and flags
  */
 export function getPipCommand(baseCommand: string[]): string[] {
-  // If it's a pip command, we might need to add --break-system-packages
   if (baseCommand[0] === 'pip' || baseCommand[0] === 'pip3') {
-    // Check if we're in a system-managed environment
-    // For now, always add the flag for safety
-    return [...baseCommand, '--break-system-packages'];
+    // Try to find the best available pip command
+    const pipCommand = findBestPipCommand();
+    const result = [pipCommand, ...baseCommand.slice(1)];
+
+    // Add --break-system-packages flag for safety on system-managed environments
+    if (pipCommand === 'pip' || pipCommand === 'pip3') {
+      result.push('--break-system-packages');
+    }
+
+    return result;
   }
   return baseCommand;
+}
+
+/**
+ * Find the best available pip command (pip, pip3, pipx)
+ */
+function findBestPipCommand(): string {
+  // Prefer pip3 over pip for better Python 3 compatibility
+  const commands = ['pip3', 'pip', 'pipx'];
+
+  for (const cmd of commands) {
+    try {
+      // Quick sync check if command exists
+      require('child_process').execSync(`which ${cmd}`, { stdio: 'ignore' });
+      return cmd;
+    } catch {
+      // Command not found, try next
+    }
+  }
+
+  // Fallback to pip if nothing found (will show proper error)
+  return 'pip';
 }
