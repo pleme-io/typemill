@@ -110,6 +110,7 @@ if (args.length === 0 || args[0] === '--help' || args[0] === '-h' || args[0] ===
   console.log('Setup options:');
   console.log('  --all                Install all available servers');
   console.log('  --force              Skip confirmation prompts');
+  console.log('  --install-prereqs    Auto-install prerequisites (brew/apt)');
   console.log('  --servers ts,python  Install specific servers');
   console.log('');
   console.log('Quick start:');
@@ -156,6 +157,7 @@ if (subcommand === 'setup') {
   const options = {
     all: args.includes('--all'),
     force: args.includes('--force'),
+    installPrereqs: args.includes('--install-prereqs'),
     servers,
   };
   await setupCommand(options);

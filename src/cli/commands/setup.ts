@@ -7,6 +7,7 @@ import * as DirectoryUtils from '../utils/directory-utils.js';
 import { getPipCommand, runInstallCommand } from '../utils/install-utils.js';
 import * as ServerUtils from '../utils/server-utils.js';
 import { getCommandPath } from '../utils/server-utils.js';
+import { spawn } from 'node:child_process';
 
 interface ServerChoice {
   name: string;
@@ -19,6 +20,7 @@ interface SetupOptions {
   all?: boolean;
   force?: boolean;
   servers?: string[];
+  installPrereqs?: boolean;
 }
 
 /**
@@ -221,6 +223,9 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
       }
     }
 
+    // Check for missing prerequisites and offer to install them
+    await checkAndInstallPrerequisites(selectedServers, options);
+
     // Find which servers need installation
     const toInstall = [];
     const alreadyInstalled = [];
@@ -258,6 +263,29 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
         if (!server.installCommand || server.installCommand.length === 0) {
           console.log('❌ No auto-install available');
           console.log(`  Manual install required: ${server.installInstructions}`);
+          installResults.push({ server, success: false, manual: true });
+          continue;
+        }
+
+        // Check for missing dependencies before attempting install
+        const [baseCommand] = server.installCommand;
+        if (baseCommand === 'go' && !(await ServerUtils.testCommand(['go', 'version']))) {
+          console.log('❌ Failed');
+          console.log(`    Error: Go is required but not installed`);
+          if (process.platform === 'darwin') {
+            console.log('    Install Go first: brew install go');
+          } else {
+            console.log('    Install Go first: https://golang.org/dl/');
+          }
+          installResults.push({ server, success: false, manual: true });
+          continue;
+        }
+
+        if ((baseCommand === 'pip' || baseCommand === 'pip3') && !(await ServerUtils.testCommand([getPipCommand(['pip', '--version'])[0], '--version']))) {
+          console.log('❌ Failed');
+          console.log('    Error: Python pip is required but not available');
+          console.log('    Install Python first: https://python.org/downloads/');
+          console.log('    Or install pipx: brew install pipx');
           installResults.push({ server, success: false, manual: true });
           continue;
         }
@@ -406,4 +434,185 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
       process.on('SIGINT', handler);
     }
   }
+}
+
+/**
+ * Check for missing prerequisites and offer to install them
+ */
+async function checkAndInstallPrerequisites(selectedServers: string[], options: SetupOptions): Promise<void> {
+  const missingPrereqs = await detectMissingPrerequisites(selectedServers);
+
+  if (missingPrereqs.length === 0) {
+    return; // All prerequisites available
+  }
+
+  console.log('\n🔍 Detected missing prerequisites:\n');
+
+  for (const prereq of missingPrereqs) {
+    console.log(`   ❌ ${prereq.name} - needed for ${prereq.servers.join(', ')}`);
+    console.log(`      Install: ${prereq.installCommand}`);
+  }
+
+  // Skip prompt if force mode or installPrereqs flag
+  if (options.force && options.installPrereqs) {
+    console.log('\n🔧 Auto-installing prerequisites...\n');
+    await installPrerequisites(missingPrereqs);
+    return;
+  }
+
+  if (options.force) {
+    console.log('\n⚠️  Prerequisites missing - some servers may fail to install');
+    return;
+  }
+
+  // Interactive prompt to install prerequisites
+  try {
+    const { installPrereqs } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'installPrereqs',
+        message: 'Install missing prerequisites automatically?',
+        default: true,
+      },
+    ]);
+
+    if (installPrereqs) {
+      console.log('\n🔧 Installing prerequisites...\n');
+      await installPrerequisites(missingPrereqs);
+    } else {
+      console.log('\n⚠️  Skipping prerequisite installation - some servers may fail');
+    }
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      (error.message?.includes('SIGINT') || error.name === 'ExitPromptError')
+    ) {
+      console.log('\n👋 Setup cancelled by user');
+      process.exit(0);
+    }
+    throw error;
+  }
+}
+
+interface Prerequisite {
+  name: string;
+  command: string;
+  installCommand: string;
+  servers: string[];
+  autoInstallable: boolean;
+}
+
+/**
+ * Detect missing prerequisites for selected servers
+ */
+async function detectMissingPrerequisites(selectedServers: string[]): Promise<Prerequisite[]> {
+  const prereqs = new Map<string, Prerequisite>();
+
+  for (const serverName of selectedServers) {
+    const server = LANGUAGE_SERVERS.find(s => s.name === serverName);
+    if (!server?.installCommand) continue;
+
+    const [baseCommand] = server.installCommand;
+
+    // Check for Go
+    if (baseCommand === 'go' && !(await ServerUtils.testCommand(['go', 'version']))) {
+      const existing = prereqs.get('go') || {
+        name: 'Go',
+        command: 'go',
+        installCommand: process.platform === 'darwin' ? 'brew install go' : 'Download from https://golang.org/dl/',
+        servers: [],
+        autoInstallable: process.platform === 'darwin'
+      };
+      existing.servers.push(server.displayName);
+      prereqs.set('go', existing);
+    }
+
+    // Check for Python/pip
+    if ((baseCommand === 'pip' || baseCommand === 'pip3')) {
+      const pipCommand = getPipCommand(['pip', '--version'])[0];
+      if (!(await ServerUtils.testCommand([pipCommand, '--version']))) {
+        const existing = prereqs.get('python') || {
+          name: 'Python/pip',
+          command: 'pip',
+          installCommand: process.platform === 'darwin' ? 'brew install python' : 'Install from https://python.org/downloads/',
+          servers: [],
+          autoInstallable: process.platform === 'darwin'
+        };
+        existing.servers.push(server.displayName);
+        prereqs.set('python', existing);
+      }
+    }
+
+    // Check for Ruby/gem
+    if (baseCommand === 'gem' && !(await ServerUtils.testCommand(['gem', '--version']))) {
+      const existing = prereqs.get('ruby') || {
+        name: 'Ruby/gem',
+        command: 'gem',
+        installCommand: process.platform === 'darwin' ? 'brew install ruby' : 'Install from https://ruby-lang.org/',
+        servers: [],
+        autoInstallable: process.platform === 'darwin'
+      };
+      existing.servers.push(server.displayName);
+      prereqs.set('ruby', existing);
+    }
+
+    // Check for npm (should be rare since we're running in Node.js)
+    if (baseCommand === 'npm' && !(await ServerUtils.testCommand(['npm', '--version']))) {
+      const existing = prereqs.get('npm') || {
+        name: 'npm',
+        command: 'npm',
+        installCommand: process.platform === 'darwin' ? 'brew install node' : 'Install from https://nodejs.org/',
+        servers: [],
+        autoInstallable: process.platform === 'darwin'
+      };
+      existing.servers.push(server.displayName);
+      prereqs.set('npm', existing);
+    }
+  }
+
+  return Array.from(prereqs.values());
+}
+
+/**
+ * Install prerequisites using system package managers
+ */
+async function installPrerequisites(prereqs: Prerequisite[]): Promise<void> {
+  for (const prereq of prereqs) {
+    if (!prereq.autoInstallable) {
+      console.log(`⚠️  ${prereq.name} requires manual installation: ${prereq.installCommand}`);
+      continue;
+    }
+
+    console.log(`🔧 Installing ${prereq.name}...`);
+
+    const success = await runSystemCommand(prereq.installCommand);
+
+    if (success) {
+      console.log(`✅ ${prereq.name} installed successfully`);
+    } else {
+      console.log(`❌ Failed to install ${prereq.name}`);
+      console.log(`   Manual installation: ${prereq.installCommand}`);
+    }
+  }
+}
+
+/**
+ * Run a system command (like brew install)
+ */
+async function runSystemCommand(command: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const [cmd, ...args] = command.split(' ');
+
+    const proc = spawn(cmd, args, {
+      stdio: 'pipe',
+    });
+
+    proc.on('error', () => {
+      resolve(false);
+    });
+
+    proc.on('close', (code) => {
+      resolve(code === 0);
+    });
+  });
 }
