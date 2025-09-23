@@ -579,6 +579,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 // Cleanup function for PID file
 const cleanupPidFile = () => {
+  if (process.env.SKIP_PID_FILE === 'true') {
+    return; // Skip PID file cleanup in test mode
+  }
   try {
     const PID_FILE = join('.codebuddy', 'server.pid');
     if (existsSync(PID_FILE)) {
@@ -614,36 +617,42 @@ async function main() {
     async () => {
       logger.info('Codebuddy MCP server starting');
 
-      // Save PID file for stop command
-      const PID_DIR = '.codebuddy';
-      const PID_FILE = join(PID_DIR, 'server.pid');
+      // Save PID file for stop command (skip in test mode)
+      const skipPidFile = process.env.SKIP_PID_FILE === 'true';
 
-      try {
-        if (!existsSync(PID_DIR)) {
-          mkdirSync(PID_DIR, { recursive: true });
-        }
+      if (!skipPidFile) {
+        const PID_DIR = '.codebuddy';
+        const PID_FILE = join(PID_DIR, 'server.pid');
 
-        // Check if another server is already running
-        if (existsSync(PID_FILE)) {
-          const existingPid = Number.parseInt(readFileSync(PID_FILE, 'utf-8').trim(), 10);
-          if (!Number.isNaN(existingPid)) {
-            // Check if the process is actually running
-            const { isProcessRunning } = await import('./src/utils/platform-utils.js');
-            if (isProcessRunning(existingPid)) {
-              console.error(`Error: MCP server is already running (PID: ${existingPid})`);
-              console.error('Use "codeflow-buddy stop" to stop it first.');
-              process.exit(1);
-            } else {
-              // Clean up stale PID file
-              logger.info('Removing stale PID file', { pid: existingPid });
+        try {
+          if (!existsSync(PID_DIR)) {
+            mkdirSync(PID_DIR, { recursive: true });
+          }
+
+          // Check if another server is already running
+          if (existsSync(PID_FILE)) {
+            const existingPid = Number.parseInt(readFileSync(PID_FILE, 'utf-8').trim(), 10);
+            if (!Number.isNaN(existingPid)) {
+              // Check if the process is actually running
+              const { isProcessRunning } = await import('./src/utils/platform-utils.js');
+              if (isProcessRunning(existingPid)) {
+                console.error(`Error: MCP server is already running (PID: ${existingPid})`);
+                console.error('Use "codeflow-buddy stop" to stop it first.');
+                process.exit(1);
+              } else {
+                // Clean up stale PID file
+                logger.info('Removing stale PID file', { pid: existingPid });
+              }
             }
           }
-        }
 
-        writeFileSync(PID_FILE, process.pid.toString());
-        logger.info('PID file created', { pid: process.pid, file: PID_FILE });
-      } catch (error) {
-        logger.warn('Could not create PID file', { error: String(error) });
+          writeFileSync(PID_FILE, process.pid.toString());
+          logger.info('PID file created', { pid: process.pid, file: PID_FILE });
+        } catch (error) {
+          logger.warn('Could not create PID file', { error: String(error) });
+        }
+      } else {
+        logger.info('Skipping PID file management (test mode)');
       }
 
       const transport = new StdioServerTransport();

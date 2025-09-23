@@ -127,6 +127,7 @@ export class MCPTestClient {
         TEST_MODE: getSystemCapabilities().isSlowSystem ? 'slow' : 'fast',
         SKIP_LSP_PRELOAD: options?.skipLSPPreload !== false ? 'true' : undefined,
         TEST_MINIMAL_CONFIG: options?.minimalConfig ? 'true' : 'false',
+        SKIP_PID_FILE: 'true', // Skip PID file management in tests
       },
     });
 
