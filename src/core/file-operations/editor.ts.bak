@@ -551,50 +551,6 @@ export async function renameFile(
     renameSync(absoluteOldPath, absoluteNewPath);
     result.filesModified.push(absoluteNewPath);
 
-    // Step 4.5: Update relative imports inside the moved file
-    const oldDepth = dirname(absoluteOldPath).split('/').length;
-    const newDepth = dirname(absoluteNewPath).split('/').length;
-    const depthChange = newDepth - oldDepth;
-
-    if (depthChange !== 0) {
-      logDebugMessage('FileEditor', `Adjusting relative imports in ${absoluteNewPath} by depth ${depthChange}`);
-
-      // Read the content of the newly moved file
-      let content = readFileSync(absoluteNewPath, 'utf-8');
-
-      // Define regex for relative imports/requires
-      const importRegex = /(from\s+['"]|require\s*\(\s*['"])(\.\.\/[^'"]+|\.\/[^'"]+)(['"]\s*\)?)/g;
-
-      // Replace paths
-      content = content.replace(importRegex, (match, prefix, importPath, suffix) => {
-        let newPath = importPath;
-        if (depthChange > 0) {
-          // Moved deeper, add ../
-          newPath = '../'.repeat(depthChange) + newPath;
-        } else {
-          // Moved shallower, remove ../
-          const levelsToRemove = Math.abs(depthChange);
-          for (let i = 0; i < levelsToRemove; i++) {
-            if (newPath.startsWith('../')) {
-              newPath = newPath.substring(3);
-            } else if (newPath.startsWith('./') && i === 0) {
-              // Special case: if we're removing one level and path starts with ./
-              // we might need to convert it differently based on context
-              break;
-            } else {
-              // Can't remove more levels
-              break;
-            }
-          }
-        }
-        return prefix + newPath + suffix;
-      });
-
-      // Write the updated content back to the file
-      writeFileSync(absoluteNewPath, content, 'utf-8');
-      logDebugMessage('FileEditor', `Updated relative imports in ${absoluteNewPath}`);
-    }
-
     // Step 5: Notify LSP if available
     if (lspClient) {
       // Sync the new file content with LSP
