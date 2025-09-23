@@ -103,11 +103,8 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
     // Test which servers are already installed
     console.log('🔍 Checking installed language servers...\n');
 
-    const relevantServers = LANGUAGE_SERVERS.filter(
-      (server) =>
-        detectedExtensions.size === 0 ||
-        server.extensions.some((ext) => detectedExtensions.has(ext))
-    );
+    // Show ALL language servers available, no filtering
+    const relevantServers = LANGUAGE_SERVERS;
 
     if (relevantServers.length === 0) {
       console.log('No language servers available for your project files.');
@@ -127,10 +124,13 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
       const available = await ServerUtils.testCommand(testCommand);
       const fileTypes = server.extensions.map((ext) => `.${ext}`).join(', ');
 
+      // Auto-check if server handles detected file extensions
+      const hasDetectedFiles = server.extensions.some((ext) => detectedExtensions.has(ext));
+
       choices.push({
         name: `${server.displayName} (${fileTypes}) ${available ? '✓ installed' : '○ not installed'}`,
         value: server.name,
-        checked: available, // Pre-select if already installed
+        checked: hasDetectedFiles, // Pre-select if project has these file types
       });
     }
 
@@ -138,10 +138,10 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
     let selectedServers: string[];
 
     if (options.all) {
-      // Auto-select all relevant servers
+      // Auto-select all servers
       selectedServers = relevantServers.map((server) => server.name);
       console.log(
-        `📋 Auto-selecting ${selectedServers.length} language servers for detected file types:\n`
+        `📋 Auto-selecting ${selectedServers.length} language servers:\n`
       );
 
       for (const server of relevantServers) {
@@ -161,7 +161,7 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
           {
             type: 'checkbox',
             name: 'selectedServers',
-            message: 'Select language servers to use:',
+            message: 'Select language servers to install (detected file types are pre-checked):',
             choices,
             pageSize: 15,
             loop: false,

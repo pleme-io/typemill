@@ -137,6 +137,19 @@
         "start"
       ],
       "rootDir": "."
+    },
+    {
+      "extensions": [
+        "c",
+        "cpp",
+        "cc",
+        "h",
+        "hpp"
+      ],
+      "command": [
+        "clangd"
+      ],
+      "rootDir": "."
     }
   ]
 }

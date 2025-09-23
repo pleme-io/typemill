@@ -28,12 +28,12 @@ export const LANGUAGE_SERVERS: LanguageServerConfig[] = [
   },
   {
     name: 'python',
-    displayName: 'Python',
+    displayName: 'Python (pylsp)',
     extensions: ['py', 'pyi'],
     command: ['pylsp'],
     installInstructions: 'pip install python-lsp-server',
     installCommand: ['pip', 'install', 'python-lsp-server[all]'],
-    description: 'Python Language Server Protocol implementation',
+    description: 'Python Language Server Protocol implementation (comprehensive features)',
     installRequired: false,
     restartInterval: 5, // Auto-restart every 5 minutes to prevent performance degradation
     initializationOptions: {
@@ -55,6 +55,17 @@ export const LANGUAGE_SERVERS: LanguageServerConfig[] = [
         },
       },
     },
+  },
+  {
+    name: 'pyright',
+    displayName: 'Python (Pyright)',
+    extensions: ['py', 'pyi'],
+    command: ['npx', '--', 'pyright-langserver', '--stdio'],
+    installInstructions: 'npm install -g pyright',
+    installCommand: ['npm', 'install', '-g', 'pyright'],
+    description: 'Microsoft Pyright language server (fast type checking)',
+    installRequired: false,
+    restartInterval: 10, // Less frequent restarts as it's more stable
   },
   {
     name: 'go',
@@ -231,17 +242,17 @@ export const LANGUAGE_SERVERS: LanguageServerConfig[] = [
     name: 'vue',
     displayName: 'Vue.js',
     extensions: ['vue'],
-    command: ['npx', '--', 'vue-language-server', '--stdio'],
+    command: ['npx', '--', '@vue/language-server', '--stdio'],
     installInstructions: 'npm install -g @vue/language-server',
     installCommand: ['npm', 'install', '-g', '@vue/language-server'],
-    description: 'Official Vue.js language server (Volar)',
+    description: 'Official Vue.js language server (formerly Volar)',
     installRequired: false,
   },
   {
     name: 'svelte',
     displayName: 'Svelte',
     extensions: ['svelte'],
-    command: ['npx', '--', 'svelteserver', '--stdio'],
+    command: ['npx', '--', 'svelte-language-server', '--stdio'],
     installInstructions: 'npm install -g svelte-language-server',
     installCommand: ['npm', 'install', '-g', 'svelte-language-server'],
     description: 'Language server for Svelte framework',
