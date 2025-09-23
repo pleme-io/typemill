@@ -109,8 +109,9 @@ function findBestPipCommand(): string {
 
   for (const cmd of commands) {
     try {
-      // Quick sync check if command exists
-      require('child_process').execSync(`which ${cmd}`, { stdio: 'ignore' });
+      // Cross-platform command existence check
+      const checkCommand = process.platform === 'win32' ? `where ${cmd}` : `which ${cmd}`;
+      require('child_process').execSync(checkCommand, { stdio: 'ignore' });
       return cmd;
     } catch {
       // Command not found, try next
