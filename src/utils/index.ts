@@ -5,14 +5,23 @@
 // File utilities
 export * from './file/index.js';
 
-// Platform utilities  
+// Platform utilities
 export * from './platform/index.js';
 
+// Position utilities
+export * from './position.js';
+
+// Validation utilities
+export * from './validation.js';
+
+// Performance utilities
+export * from './performance.js';
+
 // Re-export commonly used utilities for convenience
-export { 
-  isProcessRunning, 
+export {
+  isProcessRunning,
   terminateProcess,
-  getLSPServerPaths 
+  getLSPServerPaths
 } from './platform/index.js';
 
 export {
@@ -23,3 +32,26 @@ export {
   urlToPath,
   pathToUrl
 } from './file/index.js';
+
+export {
+  toHumanPosition,
+  toLSPPosition,
+  formatHumanPosition,
+  formatFileLocation,
+  parsePositionString
+} from './position.js';
+
+export {
+  assertNonEmptyString,
+  assertValidFilePath,
+  assertFileExists,
+  assertValidSymbolName,
+  assertValidLSPPosition,
+  ValidationError
+} from './validation.js';
+
+export {
+  measurePerformance,
+  withPerformanceMeasurement,
+  globalPerformanceTracker
+} from './performance.js';

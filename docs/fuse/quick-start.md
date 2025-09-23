@@ -59,7 +59,7 @@ npm install -g @goobits/codeflow-buddy
 codeflow-buddy serve --enable-fuse --port 3000
 
 # Or use the convenience script
-./start-multitenant.sh
+./scripts/start-fuse-dev.sh
 ```
 
 ### Option 3: Production Docker

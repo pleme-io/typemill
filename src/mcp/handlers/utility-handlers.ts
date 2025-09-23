@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
-import { logDebugMessage } from '../../core/diagnostics/debug-logger.js';
+import { logger } from '../../core/diagnostics/logger.js';
 import type { WorkspaceEdit } from '../../core/file-operations/editor.js';
 import type { DiagnosticService } from '../../services/lsp/diagnostic-service.js';
 import { registerTools } from '../tool-registry.js';
@@ -10,7 +10,16 @@ import {
   createMCPResponse,
   createNoResultsResponse,
   createSuccessResponse,
+  createContextualErrorResponse,
 } from '../utils.js';
+import {
+  assertValidFilePath,
+  toHumanPosition,
+  toHumanRange,
+  formatHumanRange,
+  measureAndTrack,
+  ValidationError,
+} from '../../utils/index.js';
 
 // Handler for get_diagnostics tool
 export async function handleGetDiagnostics(
@@ -18,7 +27,22 @@ export async function handleGetDiagnostics(
   args: { file_path: string }
 ) {
   const { file_path } = args;
-  const absolutePath = resolve(file_path);
+
+  return measureAndTrack('get_diagnostics', async () => {
+    // Validate inputs
+    try {
+      assertValidFilePath(file_path);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        return createContextualErrorResponse(error, {
+          operation: 'get_diagnostics',
+          filePath: file_path,
+        });
+      }
+      throw error;
+    }
+
+    const absolutePath = resolve(file_path);
 
   try {
     const diagnostics = await diagnosticService.getDiagnostics(absolutePath);
@@ -49,7 +73,8 @@ export async function handleGetDiagnostics(
       const source = diag.source ? ` (${diag.source})` : '';
       const { start, end } = diag.range;
 
-      return `• ${severity}${code}${source}: ${diag.message}\n  Location: Line ${start.line + 1}, Column ${start.character + 1} to Line ${end.line + 1}, Column ${end.character + 1}`;
+      const humanRange = toHumanRange(diag.range);
+      return `• ${severity}${code}${source}: ${diag.message}\n  Location: ${formatHumanRange(humanRange)}`;
     });
 
     return createListResponse(`in ${file_path}`, diagnosticMessages, {
@@ -62,6 +87,9 @@ export async function handleGetDiagnostics(
       `Error getting diagnostics: ${error instanceof Error ? error.message : String(error)}`
     );
   }
+  }, {
+    context: { file_path },
+  });
 }
 
 // Handler for restart_server tool
@@ -107,10 +135,13 @@ export async function handleRenameFile(args: {
     // Pass the workspace root directory to enable import detection
     // Don't use gitignore filtering to ensure all files are checked (including test/examples/playground files)
     const rootDir = process.cwd(); // Use current working directory as root
-    logDebugMessage(
-      'UtilityHandlers',
-      `rootDir: ${rootDir}, old_path: ${old_path}, new_path: ${new_path}, dry_run: ${dry_run}`
-    );
+    logger.debug('File rename operation started', {
+      tool: 'rename_file',
+      root_dir: rootDir,
+      old_path,
+      new_path,
+      dry_run,
+    });
     const result = await renameFile(old_path, new_path, undefined, {
       dry_run,
       rootDir,
@@ -233,7 +264,10 @@ export async function handleDeleteFile(args: { file_path: string; force?: boolea
     const { projectScanner } = await import('../../services/project-analyzer.js');
 
     // Find all files that import this file
-    logDebugMessage('UtilityHandlers', `Analyzing impact of deleting ${absolutePath}`);
+    logger.debug('Analyzing file deletion impact', {
+      tool: 'delete_file',
+      file_path: absolutePath,
+    });
     const importers = await projectScanner.findImporters(absolutePath);
 
     if (importers.length > 0 && !force) {
@@ -247,10 +281,12 @@ export async function handleDeleteFile(args: { file_path: string; force?: boolea
 
     // If force is true or no importers, proceed with deletion
     if (importers.length > 0 && force) {
-      logDebugMessage(
-        'UtilityHandlers',
-        `Force deleting ${absolutePath} despite ${importers.length} importers`
-      );
+      logger.debug('Force deleting file with importers', {
+        tool: 'delete_file',
+        file_path: absolutePath,
+        importer_count: importers.length,
+        force: true,
+      });
     }
 
     // Delete the file

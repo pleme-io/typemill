@@ -7,6 +7,7 @@ import {
   logError,
   ServerNotAvailableError,
 } from '../core/diagnostics/error-utils.js';
+import { ValidationError } from '../utils/validation.js';
 
 export interface MCPResponse {
   content: Array<{
@@ -127,6 +128,15 @@ export function createContextualErrorResponse(
     suggestions?: string[];
   }
 ): MCPResponse {
+  if (error instanceof ValidationError) {
+    const suggestions = context.suggestions || [
+      `Verify the ${error.field} parameter`,
+      'Check the tool documentation for correct parameter format',
+      'Ensure all required parameters are provided',
+    ];
+    return createMCPErrorWithSuggestions(error, context.operation, suggestions);
+  }
+
   if (error instanceof ServerNotAvailableError) {
     const suggestions = context.suggestions || [
       'Run `codebuddy setup` to configure language servers',

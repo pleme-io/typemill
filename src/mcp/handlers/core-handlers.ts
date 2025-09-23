@@ -1,6 +1,7 @@
 import { resolve } from 'node:path';
 import { applyWorkspaceEdit, type WorkspaceEdit } from '../../core/file-operations/editor.js';
 import { uriToPath } from '../../core/file-operations/path-utils.js';
+import { logger } from '../../core/diagnostics/logger.js';
 import type { SymbolService } from '../../services/lsp/symbol-service.js';
 import { registerTools } from '../tool-registry.js';
 import {
@@ -10,6 +11,14 @@ import {
   createNoChangesResponse,
   createNoResultsResponse,
 } from '../utils.js';
+import {
+  assertValidFilePath,
+  assertValidSymbolName,
+  toHumanPosition,
+  formatFileLocation,
+  measureAndTrack,
+  ValidationError,
+} from '../../utils/index.js';
 
 // Handler for find_definition tool
 export async function handleFindDefinition(
@@ -17,7 +26,24 @@ export async function handleFindDefinition(
   args: { file_path: string; symbol_name: string; symbol_kind?: string }
 ) {
   const { file_path, symbol_name, symbol_kind } = args;
-  const absolutePath = resolve(file_path);
+
+  return measureAndTrack('find_definition', async () => {
+
+    // Validate inputs
+    try {
+      assertValidFilePath(file_path);
+      assertValidSymbolName(symbol_name);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        return createContextualErrorResponse(error, {
+          operation: 'find_definition',
+          filePath: file_path,
+        });
+      }
+      throw error;
+    }
+
+    const absolutePath = resolve(file_path);
 
   const symbolMatches = await symbolService.findSymbolMatches(
     absolutePath,
@@ -25,9 +51,12 @@ export async function handleFindDefinition(
     symbol_kind
   );
 
-  process.stderr.write(
-    `[DEBUG find_definition] Found ${symbolMatches.length} symbol matches for "${symbol_name}"\n`
-  );
+  logger.debug('Symbol matches found', {
+    tool: 'find_definition',
+    symbol_name,
+    match_count: symbolMatches.length,
+    file_path,
+  });
 
   if (symbolMatches.length === 0) {
     return createNoResultsResponse(
@@ -39,30 +68,38 @@ export async function handleFindDefinition(
 
   const results = [];
   for (const match of symbolMatches) {
-    process.stderr.write(
-      `[DEBUG find_definition] Processing match: ${match.name} (${symbolService.symbolKindToString(match.kind)}) at ${match.position.line}:${match.position.character}\n`
-    );
+    const humanPos = toHumanPosition(match.position);
+    logger.debug('Processing symbol match', {
+      tool: 'find_definition',
+      match_name: match.name,
+      match_kind: symbolService.symbolKindToString(match.kind),
+      position: formatFileLocation(file_path, humanPos),
+    });
     try {
       const locations = await symbolService.findDefinition(absolutePath, match.position);
-      process.stderr.write(
-        `[DEBUG find_definition] findDefinition returned ${locations.length} locations\n`
-      );
+      logger.debug('Definition search completed', {
+        tool: 'find_definition',
+        match_name: match.name,
+        location_count: locations.length,
+      });
 
       if (locations.length > 0) {
         const locationResults = locations
           .map((loc) => {
             const filePath = uriToPath(loc.uri);
-            const { start, end } = loc.range;
-            return `${filePath}:${start.line + 1}:${start.character + 1}`;
+            const humanPos = toHumanPosition(loc.range.start);
+            return formatFileLocation(filePath, humanPos);
           })
           .join('\n');
 
+        const matchHumanPos = toHumanPosition(match.position);
         results.push(
-          `Results for ${match.name} (${symbolService.symbolKindToString(match.kind)}) at ${file_path}:${match.position.line + 1}:${match.position.character + 1}:\n${locationResults}`
+          `Results for ${match.name} (${symbolService.symbolKindToString(match.kind)}) at ${formatFileLocation(file_path, matchHumanPos)}:\n${locationResults}`
         );
       } else {
+        const matchHumanPos = toHumanPosition(match.position);
         results.push(
-          `No definition found for ${match.name} (${symbolService.symbolKindToString(match.kind)}) at ${file_path}:${match.position.line + 1}:${match.position.character + 1}`
+          `No definition found for ${match.name} (${symbolService.symbolKindToString(match.kind)}) at ${formatFileLocation(file_path, matchHumanPos)}`
         );
       }
     } catch (error) {
@@ -72,13 +109,16 @@ export async function handleFindDefinition(
     }
   }
 
-  if (results.length === 0) {
-    const responseText = 'No definitions found for the specified symbol.';
-    return createMCPResponse(responseText);
-  }
+    if (results.length === 0) {
+      const responseText = 'No definitions found for the specified symbol.';
+      return createMCPResponse(responseText);
+    }
 
-  const responseText = results.join('\n\n');
-  return createMCPResponse(responseText);
+    const responseText = results.join('\n\n');
+    return createMCPResponse(responseText);
+  }, {
+    context: { file_path, symbol_name, symbol_kind },
+  });
 }
 
 // Handler for find_references tool
@@ -92,7 +132,23 @@ export async function handleFindReferences(
   }
 ) {
   const { file_path, symbol_name, symbol_kind, include_declaration = true } = args;
-  const absolutePath = resolve(file_path);
+
+  return measureAndTrack('find_references', async () => {
+    // Validate inputs
+    try {
+      assertValidFilePath(file_path);
+      assertValidSymbolName(symbol_name);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        return createContextualErrorResponse(error, {
+          operation: 'find_references',
+          filePath: file_path,
+        });
+      }
+      throw error;
+    }
+
+    const absolutePath = resolve(file_path);
 
   const symbolMatches = await symbolService.findSymbolMatches(
     absolutePath,
@@ -100,9 +156,13 @@ export async function handleFindReferences(
     symbol_kind
   );
 
-  process.stderr.write(
-    `[DEBUG find_references] Found ${symbolMatches.length} symbol matches for "${symbol_name}"\n`
-  );
+  logger.debug('Symbol matches found', {
+    tool: 'find_references',
+    symbol_name,
+    match_count: symbolMatches.length,
+    file_path,
+    include_declaration,
+  });
 
   if (symbolMatches.length === 0) {
     return createNoResultsResponse(
@@ -112,36 +172,44 @@ export async function handleFindReferences(
     );
   }
 
-  const results = [];
-  for (const match of symbolMatches) {
-    process.stderr.write(
-      `[DEBUG find_references] Processing match: ${match.name} (${symbolService.symbolKindToString(match.kind)}) at ${match.position.line}:${match.position.character}\n`
-    );
+    const results = [];
+    for (const match of symbolMatches) {
+      const humanPos = toHumanPosition(match.position);
+      logger.debug('Processing symbol match', {
+        tool: 'find_references',
+        match_name: match.name,
+        match_kind: symbolService.symbolKindToString(match.kind),
+        position: formatFileLocation(file_path, humanPos),
+      });
     try {
       const locations = await symbolService.findReferences(
         absolutePath,
         match.position,
         include_declaration
       );
-      process.stderr.write(
-        `[DEBUG find_references] findReferences returned ${locations.length} locations\n`
-      );
+      logger.debug('References search completed', {
+        tool: 'find_references',
+        match_name: match.name,
+        location_count: locations.length,
+      });
 
       if (locations.length > 0) {
         const locationResults = locations
           .map((loc) => {
             const filePath = uriToPath(loc.uri);
-            const { start, end } = loc.range;
-            return `${filePath}:${start.line + 1}:${start.character + 1}`;
+            const humanPos = toHumanPosition(loc.range.start);
+            return formatFileLocation(filePath, humanPos);
           })
           .join('\n');
 
+        const matchHumanPos = toHumanPosition(match.position);
         results.push(
-          `References for ${match.name} (${symbolService.symbolKindToString(match.kind)}) at ${file_path}:${match.position.line + 1}:${match.position.character + 1}:\n${locationResults}`
+          `References for ${match.name} (${symbolService.symbolKindToString(match.kind)}) at ${formatFileLocation(file_path, matchHumanPos)}:\n${locationResults}`
         );
       } else {
+        const matchHumanPos = toHumanPosition(match.position);
         results.push(
-          `No references found for ${match.name} (${symbolService.symbolKindToString(match.kind)}) at ${file_path}:${match.position.line + 1}:${match.position.character + 1}`
+          `No references found for ${match.name} (${symbolService.symbolKindToString(match.kind)}) at ${formatFileLocation(file_path, matchHumanPos)}`
         );
       }
     } catch (error) {
@@ -149,15 +217,18 @@ export async function handleFindReferences(
         `Error finding references for ${match.name}: ${error instanceof Error ? error.message : String(error)}`
       );
     }
-  }
+    }
 
-  if (results.length === 0) {
-    const responseText = 'No references found for the specified symbol.';
+    if (results.length === 0) {
+      const responseText = 'No references found for the specified symbol.';
+      return createMCPResponse(responseText);
+    }
+
+    const responseText = results.join('\n\n');
     return createMCPResponse(responseText);
-  }
-
-  const responseText = results.join('\n\n');
-  return createMCPResponse(responseText);
+  }, {
+    context: { file_path, symbol_name, symbol_kind, include_declaration },
+  });
 }
 
 // Handler for rename_symbol tool

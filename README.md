@@ -1,9 +1,9 @@
 # 🤖 codeflow-buddy
-**Enterprise-grade MCP server** bridging Language Server Protocol functionality to AI coding assistants with **30+ MCP tools** and **WebSocket deployment**
+**Enterprise-grade MCP server** bridging Language Server Protocol functionality to AI coding assistants with **31 MCP tools** and **WebSocket deployment**
 
 ## ✨ What It Does
 
-**30 MCP tools** that give AI assistants LSP superpowers:
+**31 MCP tools** that give AI assistants LSP superpowers:
 - **Find & Navigate** - Jump to definitions, find all references, search symbols
 - **Refactor Safely** - Rename across entire codebase, with undo safety
 - **Code Intelligence** - Hover docs, completions, diagnostics, call hierarchies
@@ -56,7 +56,7 @@ node dist/index.js serve --require-auth --jwt-secret "your-32-character-secret-k
 ## 📊 Production Monitoring
 ```bash
 # Health check
-curl http://localhost:3000/health
+curl http://localhost:3000/healthz
 
 # Prometheus metrics
 curl http://localhost:3000/metrics
@@ -114,7 +114,7 @@ EOF
 
 ## 📖 Documentation
 - **[Quick Start Guide](docs/quick-start.md)** - Get running in 2 minutes
-- **[MCP Tools Reference](docs/api.md)** - All 30 tools with examples
+- **[MCP Tools Reference](docs/api.md)** - All 31 tools with examples
 - **[Language Setup](docs/languages.md)** - TypeScript, Python, Go, and more
 - **[Troubleshooting](docs/troubleshooting.md)** - Common issues and solutions
 

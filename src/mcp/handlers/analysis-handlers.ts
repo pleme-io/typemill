@@ -3,8 +3,10 @@
  * Phase 3: Advanced features using MCP tools
  */
 
+import { logger } from '../../core/diagnostics/logger.js';
 import { createMCPResponse } from '../utils.js';
 import { registerTools } from '../tool-registry.js';
+import { measureAndTrack } from '../../utils/index.js';
 
 interface DeadCodeResult {
   file: string;
@@ -26,6 +28,8 @@ export async function handleFindDeadCode(
   } = {}
 ) {
   const { files = [], exclude_tests = true, min_references = 1 } = args;
+
+  return measureAndTrack('find_dead_code', async () => {
   
   try {
     // Files to analyze (if not provided, use common source files)
@@ -102,7 +106,11 @@ export async function handleFindDeadCode(
           }
         }
       } catch (fileError) {
-        console.warn(`Skipping ${file}: ${fileError}`);
+        logger.warn('Skipping file during dead code analysis', {
+          tool: 'find_dead_code',
+          file,
+          error: fileError,
+        });
       }
     }
     
@@ -118,6 +126,9 @@ export async function handleFindDeadCode(
   } catch (error) {
     return createMCPResponse(`Dead code analysis failed: ${error}`);
   }
+  }, {
+    context: { files, exclude_tests, min_references },
+  });
 }
 
 /**

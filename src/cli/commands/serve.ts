@@ -1,4 +1,5 @@
 import { CodeFlowWebSocketServer, type TLSOptions } from '../../server/ws-server.js';
+import { logger } from '../../core/diagnostics/logger.js';
 
 export interface ServeOptions {
   port?: number;
@@ -11,6 +12,7 @@ export interface ServeOptions {
   enableFuse?: boolean;
   allowedOrigins?: string[];
   allowedCorsOrigins?: string[];
+  logLevel?: 'debug' | 'info' | 'warn' | 'error';
   workspaceConfig?: {
     baseWorkspaceDir?: string;
     fuseMountPrefix?: string;
@@ -20,6 +22,13 @@ export interface ServeOptions {
 }
 
 export async function serveCommand(options: ServeOptions = {}): Promise<void> {
+  // Configure logging level if provided
+  const logLevel = options.logLevel || process.env.LOG_LEVEL;
+  if (logLevel) {
+    process.env.LOG_LEVEL = logLevel.toUpperCase();
+    // Re-instantiate logger to pick up new level (if needed)
+  }
+
   const port = options.port || 3000;
   const maxClients = options.maxClients || 10;
   const requireAuth = options.requireAuth || false;
@@ -41,24 +50,33 @@ export async function serveCommand(options: ServeOptions = {}): Promise<void> {
   }
 
   const protocol = tls ? 'WSS (Secure WebSocket)' : 'WS (WebSocket)';
-  console.log(`Starting CodeFlow ${protocol} server on port ${port}`);
-  console.log(`Maximum clients: ${maxClients}`);
-  console.log(`Authentication: ${requireAuth ? 'Enabled' : 'Disabled'}`);
-  console.log(`TLS/SSL: ${tls ? 'Enabled' : 'Disabled'}`);
-  console.log(`FUSE Isolation: ${enableFuse ? 'Enabled' : 'Disabled'}`);
+
+  logger.info('Starting CodeFlow WebSocket server', {
+    component: 'server',
+    protocol,
+    port,
+    max_clients: maxClients,
+    authentication: requireAuth ? 'Enabled' : 'Disabled',
+    tls: tls ? 'Enabled' : 'Disabled',
+    fuse_isolation: enableFuse ? 'Enabled' : 'Disabled',
+    log_level: logLevel || 'default',
+  });
 
   if (tls) {
-    console.log(`TLS Key: ${tls.keyPath}`);
-    console.log(`TLS Certificate: ${tls.certPath}`);
-    if (tls.caPath) {
-      console.log(`CA Certificate: ${tls.caPath} (Client cert validation enabled)`);
-    }
+    logger.info('TLS configuration loaded', {
+      component: 'server',
+      tls_key: tls.keyPath,
+      tls_certificate: tls.certPath,
+      ca_certificate: tls.caPath || 'none',
+      client_cert_validation: !!tls.caPath,
+    });
   }
 
   if (requireAuth && !jwtSecret) {
-    console.log(
-      'Warning: Authentication enabled but no JWT secret provided. Using auto-generated secret.'
-    );
+    logger.warn('Authentication enabled but no JWT secret provided', {
+      component: 'server',
+      message: 'Using auto-generated secret',
+    });
   }
 
   const server = new CodeFlowWebSocketServer({
@@ -75,7 +93,7 @@ export async function serveCommand(options: ServeOptions = {}): Promise<void> {
 
   // Handle graceful shutdown
   const shutdown = async () => {
-    console.log('\nShutting down server...');
+    logger.info('Shutting down server', { component: 'server' });
     await server.shutdown();
     process.exit(0);
   };
@@ -85,14 +103,18 @@ export async function serveCommand(options: ServeOptions = {}): Promise<void> {
 
   // Keep the process alive
   process.on('exit', () => {
-    console.log('Server process exiting');
+    logger.info('Server process exiting', { component: 'server' });
   });
 
   // Log server stats periodically
   setInterval(() => {
     const stats = server.getServerStats();
-    console.log(
-      `Server Stats - Clients: ${stats.clientCount}, Projects: ${stats.activeProjects.length}, LSP Servers: ${stats.activeServers.length}`
-    );
+    logger.debug('Server statistics', {
+      component: 'server',
+      client_count: stats.clientCount,
+      active_projects: stats.activeProjects.length,
+      active_servers: stats.activeServers.length,
+      stats_type: 'periodic',
+    });
   }, 30000); // Every 30 seconds
 }
