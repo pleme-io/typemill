@@ -330,19 +330,12 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
       }
     }
 
-    // Create configuration with all selected servers
-    const config = generateConfig(selectedServers);
-
-    // Save configuration
-    DirectoryUtils.writeConfig(config);
-
-    // Final summary
-    console.log(`\n${'='.repeat(50)}`);
-    console.log('\n✨ Setup Complete!\n');
-    console.log(`📁 Configuration saved to: ${DirectoryUtils.getConfigPath()}`);
-
-    // Count how many servers are actually working
+    // Verify which servers are actually working before saving config
     const workingServers = [];
+    const workingServerNames = [];
+
+    console.log('\n🔍 Verifying installed language servers...\n');
+
     for (const serverName of selectedServers) {
       const server = LANGUAGE_SERVERS.find((s) => s.name === serverName);
       if (server) {
@@ -354,9 +347,25 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
 
         if (await ServerUtils.testCommand(testCommand)) {
           workingServers.push(server);
+          workingServerNames.push(serverName);
+          console.log(`   ✓ ${server.displayName}`);
+        } else {
+          console.log(`   ✗ ${server.displayName} (not working - excluded from config)`);
         }
       }
     }
+
+    // Create configuration with ONLY working servers
+    const config = generateConfig(workingServerNames);
+
+    // Save configuration
+    DirectoryUtils.writeConfig(config);
+
+    // Final summary
+    console.log(`\n${'='.repeat(50)}`);
+    console.log('\n✨ Setup Complete!\n');
+    console.log(`📁 Configuration saved to: ${DirectoryUtils.getConfigPath()}`);
+    console.log(`📋 Active servers: ${workingServers.length}/${selectedServers.length}`);
 
     // Check if this is a re-run with no changes
     const finalConfig = DirectoryUtils.readConfig();
@@ -385,8 +394,9 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
       if (workingServers.length < selectedServers.length) {
         const notWorking = selectedServers.length - workingServers.length;
         console.log(
-          `⚠️  ${notWorking} server${notWorking !== 1 ? 's' : ''} need manual installation`
+          `⚠️  ${notWorking} server${notWorking !== 1 ? 's' : ''} excluded (not working)`
         );
+        console.log('   💡 Tip: Install missing prerequisites and run setup again');
       }
     }
   } finally {
