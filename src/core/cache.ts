@@ -268,4 +268,3 @@ export class PersistentFileCache extends AdvancedCache<FileContent> {
 
 // Maintain backward compatibility
 export type FileCache = PersistentFileCache;
-export const FileCache = PersistentFileCache;

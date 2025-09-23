@@ -1,7 +1,8 @@
 {
   "entry": [
     "index.ts",
-    "tests/**/*.test.ts"
+    "tests/**/*.test.ts",
+    "src/cli/commands/*.ts"
   ],
   "project": [
     "src/**/*.ts"
@@ -16,5 +17,22 @@
     "typescript-language-server",
     "memfs"
   ],
-  "ignoreBinaries": []
+  "ignoreBinaries": [],
+  "includeEntryExports": true,
+  "ignoreExportsUsedInFile": true,
+  "rules": {
+    "files": "error",
+    "dependencies": "error",
+    "devDependencies": "error",
+    "unlisted": "error",
+    "binaries": "error",
+    "unresolved": "error",
+    "exports": "error",
+    "nsExports": "error",
+    "nsTypes": "error",
+    "types": "error",
+    "enumMembers": "error",
+    "classMembers": "error",
+    "duplicates": "error"
+  }
 }

@@ -1,0 +1,41 @@
+# Public API exports that might be used by external consumers
+src/auth/jwt-auth.ts:ProjectCredentials
+src/cli/types.ts:LinkOptions
+src/cli/types.ts:UnlinkOptions
+
+# Phase 3 features (Delta updates, streaming)
+src/fs/delta.ts:DeltaUpdateRequest
+src/fs/delta.ts:DeltaUpdateResponse
+
+# LSP result types used by MCP layer
+src/types.ts:DefinitionResult
+src/types.ts:ReferenceResult
+src/types.ts:SymbolSearchParams
+
+# Utility functions used conditionally or by future features
+src/utils/platform-utils.ts:getTempDirectory
+src/utils/platform-utils.ts:normalizePath
+src/utils/platform-utils.ts:getExecutableExtension
+src/utils/platform-utils.ts:isWindows
+src/utils/platform-utils.ts:isMacOS
+src/utils/platform-utils.ts:isLinux
+
+# Internal workspace edit functions used by batch operations
+src/mcp/handlers/core-handlers.ts:getRenameSymbolWorkspaceEdit
+src/mcp/handlers/core-handlers.ts:getRenameSymbolWorkspaceEditStrict
+src/mcp/handlers/utility-handlers.ts:getRenameFileWorkspaceEdit
+
+# Tool registry meta functions
+src/mcp/tool-registry.ts:registerTool
+src/mcp/tool-registry.ts:hasTool
+
+# File operations for workspace edits and previews
+src/core/file-operations/editor.ts:mergeWorkspaceEdits
+src/core/file-operations/editor.ts:previewWorkspaceEdit
+src/core/file-operations/scanner.ts:scanProjectFiles
+
+# Error message generators used conditionally
+src/core/diagnostics/error-utils.ts:createServerInitializationMessage
+
+# Directory utilities for future logging features
+src/cli/utils/directory-utils.ts:getLogPath
