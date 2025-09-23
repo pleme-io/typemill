@@ -5,7 +5,7 @@ import type { HierarchyService } from '../../services/hierarchy-service.js';
 import type { IntelligenceService } from '../../services/intelligence-service.js';
 import { ServiceContextUtils } from '../../services/service-context.js';
 import type { SymbolService } from '../../services/symbol-service.js';
-import { type BatchExecuteArgs, BatchExecutor } from '../services/batch-executor.js';
+import { type BatchExecuteArgs, BatchExecutor } from '../../services/batch-executor.js';
 import { createMCPResponse } from '../utils.js';
 
 /**

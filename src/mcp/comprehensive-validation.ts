@@ -36,7 +36,7 @@ import type {
   SearchWorkspaceSymbolsArgs,
 } from './handler-types.js';
 
-import { BatchExecutor } from './services/batch-executor.js';
+import { BatchExecutor } from '../services/batch-executor.js';
 
 // Utility type guards
 function isObject(value: unknown): value is Record<string, unknown> {
