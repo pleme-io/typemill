@@ -12,13 +12,6 @@ export interface LogContext {
   [key: string]: any;
 }
 
-export enum LogLevel {
-  DEBUG = 0,
-  INFO = 1,
-  WARN = 2,
-  ERROR = 3,
-}
-
 export interface LogEntry {
   timestamp: string;
   level: string;
@@ -28,26 +21,26 @@ export interface LogEntry {
 
 export class StructuredLogger {
   private static instance: StructuredLogger;
-  private logLevel: LogLevel = LogLevel.INFO;
+  private logLevel: number = 1; // INFO level
 
   private constructor() {
     // Set log level from environment
     const envLevel = process.env.LOG_LEVEL?.toUpperCase();
     switch (envLevel) {
       case 'DEBUG':
-        this.logLevel = LogLevel.DEBUG;
+        this.logLevel = 0;
         break;
       case 'INFO':
-        this.logLevel = LogLevel.INFO;
+        this.logLevel = 1;
         break;
       case 'WARN':
-        this.logLevel = LogLevel.WARN;
+        this.logLevel = 2;
         break;
       case 'ERROR':
-        this.logLevel = LogLevel.ERROR;
+        this.logLevel = 3;
         break;
       default:
-        this.logLevel = LogLevel.INFO;
+        this.logLevel = 1;
     }
   }
 
@@ -58,14 +51,15 @@ export class StructuredLogger {
     return StructuredLogger.instance;
   }
 
-  private shouldLog(level: LogLevel): boolean {
+  private shouldLog(level: number): boolean {
     return level >= this.logLevel;
   }
 
-  private formatLogEntry(level: LogLevel, message: string, context: LogContext = {}): LogEntry {
+  private formatLogEntry(level: number, message: string, context: LogContext = {}): LogEntry {
+    const levels = ['DEBUG', 'INFO', 'WARN', 'ERROR'];
     return {
       timestamp: new Date().toISOString(),
-      level: LogLevel[level],
+      level: levels[level] || 'INFO',
       message,
       context,
     };
@@ -92,25 +86,25 @@ export class StructuredLogger {
   }
 
   debug(message: string, context: LogContext = {}): void {
-    if (this.shouldLog(LogLevel.DEBUG)) {
-      this.writeLog(this.formatLogEntry(LogLevel.DEBUG, message, context));
+    if (this.shouldLog(0)) {
+      this.writeLog(this.formatLogEntry(0, message, context));
     }
   }
 
   info(message: string, context: LogContext = {}): void {
-    if (this.shouldLog(LogLevel.INFO)) {
-      this.writeLog(this.formatLogEntry(LogLevel.INFO, message, context));
+    if (this.shouldLog(1)) {
+      this.writeLog(this.formatLogEntry(1, message, context));
     }
   }
 
   warn(message: string, context: LogContext = {}): void {
-    if (this.shouldLog(LogLevel.WARN)) {
-      this.writeLog(this.formatLogEntry(LogLevel.WARN, message, context));
+    if (this.shouldLog(2)) {
+      this.writeLog(this.formatLogEntry(2, message, context));
     }
   }
 
   error(message: string, error?: Error, context: LogContext = {}): void {
-    if (this.shouldLog(LogLevel.ERROR)) {
+    if (this.shouldLog(3)) {
       const errorContext = {
         ...context,
         ...(error && {
@@ -121,7 +115,7 @@ export class StructuredLogger {
           },
         }),
       };
-      this.writeLog(this.formatLogEntry(LogLevel.ERROR, message, errorContext));
+      this.writeLog(this.formatLogEntry(3, message, errorContext));
     }
   }
 
@@ -185,10 +179,10 @@ export class StructuredLogger {
     serverKey: string,
     context: LogContext = {}
   ): void {
-    const level = event === 'crash' ? LogLevel.ERROR : LogLevel.INFO;
+    const level = event === 'crash' ? 3 : 1; // ERROR : INFO
     const message = `LSP server ${event}: ${serverKey}`;
 
-    if (level === LogLevel.ERROR) {
+    if (level === 3) {
       this.error(message, undefined, { ...context, event_type: 'lsp_server', serverKey, event });
     } else {
       this.info(message, { ...context, event_type: 'lsp_server', serverKey, event });

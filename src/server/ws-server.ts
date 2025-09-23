@@ -4,7 +4,7 @@ import { type Server as HttpsServer, createServer as createHttpsServer } from 'n
 import type WebSocket from 'ws';
 import { WebSocketServer } from 'ws';
 import { type AuthRequest, type AuthResponse, JWTAuthenticator } from '../auth/jwt-auth.js';
-import { logger } from '../core/logger.js';
+import { logger } from '../core/diagnostics/logger.js';
 import { FuseMount } from '../fs/fuse-mount.js';
 import { StreamingFileAccess } from '../fs/stream.js';
 import { LSPClient } from '../lsp/client.js';

@@ -6,6 +6,7 @@ const SERVER_AVAILABILITY_CHECK_TIMEOUT_MS = 2000; // Timeout for checking serve
 /**
  * Default configurations for common language servers
  * These are carefully chosen to work on most systems
+ * @internal - Internal use only, not part of public API
  */
 export const DEFAULT_SERVERS: LSPServerConfig[] = [
   {

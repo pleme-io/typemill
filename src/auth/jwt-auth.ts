@@ -5,7 +5,7 @@
 
 import { randomBytes } from 'node:crypto';
 import jwt from 'jsonwebtoken';
-import { logger } from '../core/logger.js';
+import { logger } from '../core/diagnostics/logger.js';
 
 export interface AuthConfig {
   secretKey: string;

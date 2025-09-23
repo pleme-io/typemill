@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { access, mkdir, rmdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { logger } from '../core/logger.js';
+import { logger } from '../core/diagnostics/logger.js';
 import type { EnhancedClientSession, WorkspaceInfo } from '../types/enhanced-session.js';
 
 export interface WorkspaceManagerConfig {

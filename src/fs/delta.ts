@@ -4,7 +4,7 @@
  */
 
 import DiffMatchPatch from 'diff-match-patch';
-import { logger } from '../core/logger.js';
+import { logger } from '../core/diagnostics/logger.js';
 
 export interface FileDelta {
   filePath: string;

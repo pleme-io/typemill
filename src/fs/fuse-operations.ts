@@ -5,7 +5,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
-import { logger } from '../core/logger.js';
+import { logger } from '../core/diagnostics/logger.js';
 import type { WebSocketTransport } from '../transports/websocket.js';
 import type {
   EnhancedClientSession,

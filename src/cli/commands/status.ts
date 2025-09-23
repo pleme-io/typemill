@@ -1,7 +1,7 @@
 import type { StatusOutput } from '../types.js';
 import { findInstalledAssistants } from '../utils/assistant-utils.js';
-import * as DirectoryUtils from '../utils/directory-utils.js';
-import * as ServerUtils from '../utils/server-utils.js';
+import { migrateOldConfig, readConfig, readState } from '../utils/directory-utils.js';
+import { isProcessRunning, testCommand } from '../utils/server-utils.js';
 
 interface ServerInfo {
   name: string;
@@ -21,13 +21,13 @@ export async function statusCommand(): Promise<void> {
   const jsonMode = args.includes('--json');
 
   // Auto-migrate if needed
-  DirectoryUtils.migrateOldConfig();
+  migrateOldConfig();
 
   if (!jsonMode) {
     console.log('Language Servers:');
   }
 
-  const config = DirectoryUtils.readConfig();
+  const config = readConfig();
 
   if (!config || !config.servers?.length) {
     if (!jsonMode) {
@@ -44,7 +44,7 @@ export async function statusCommand(): Promise<void> {
     return;
   }
 
-  const state = DirectoryUtils.readState();
+  const state = readState();
   const servers: ServerInfo[] = [];
   let activeCount = 0;
   let issueCount = 0;
@@ -53,10 +53,10 @@ export async function statusCommand(): Promise<void> {
   for (const server of config.servers) {
     const serverKey = getServerKey(server);
     const serverState = state[serverKey];
-    const running = serverState ? ServerUtils.isProcessRunning(serverState.pid) : false;
+    const running = serverState ? isProcessRunning(serverState.pid) : false;
 
     // Test if server command is available
-    const available = await ServerUtils.testCommand(server.command);
+    const available = await testCommand(server.command);
 
     const serverInfo: ServerInfo = {
       name: getServerName(server.command[0] || 'unknown'),

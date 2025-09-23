@@ -4,10 +4,9 @@ import { spawn } from 'node:child_process';
 import inquirer from 'inquirer';
 import { LANGUAGE_SERVERS, generateConfig } from '../../core/configuration/language-presets.js';
 import { scanDirectoryForExtensions } from '../../core/file-operations/scanner.js';
-import * as DirectoryUtils from '../utils/directory-utils.js';
+import { getConfigPath, migrateOldConfig, readConfig, readConfigSilent, writeConfig } from '../utils/directory-utils.js';
 import { getPipCommand, runInstallCommand } from '../utils/install-utils.js';
-import * as ServerUtils from '../utils/server-utils.js';
-import { getCommandPath } from '../utils/server-utils.js';
+import { getCommandPath, testCommand } from '../utils/server-utils.js';
 
 interface ServerChoice {
   name: string;
@@ -44,7 +43,7 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
     }
 
     // Check if config already exists
-    const existingConfig = DirectoryUtils.readConfigSilent();
+    const existingConfig = readConfigSilent();
     if (existingConfig) {
       if (options.all || options.force || options.servers) {
         console.log(
@@ -79,7 +78,7 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
     }
 
     // Auto-migrate old config if needed
-    if (DirectoryUtils.migrateOldConfig()) {
+    if (migrateOldConfig()) {
       console.log('✅ Migrated existing configuration\n');
     }
 
@@ -122,12 +121,12 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
 
     for (const server of relevantServers) {
       // For Go and Rust, use the full path to test
-      const testCommand = [...server.command];
-      if (testCommand[0] === 'gopls' || testCommand[0] === 'rust-analyzer') {
-        testCommand[0] = getCommandPath(testCommand[0]);
+      const serverCommand = [...server.command];
+      if (serverCommand[0] === 'gopls' || serverCommand[0] === 'rust-analyzer') {
+        serverCommand[0] = getCommandPath(serverCommand[0]);
       }
 
-      const available = await ServerUtils.testCommand(testCommand);
+      const available = await testCommand(serverCommand);
       const fileTypes = server.extensions.map((ext) => `.${ext}`).join(', ');
 
       // Auto-check if server handles detected file extensions
@@ -149,11 +148,11 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
       console.log(`📋 Auto-selecting ${selectedServers.length} language servers:\n`);
 
       for (const server of relevantServers) {
-        const testCommand = [...server.command];
-        if (testCommand[0] === 'gopls' || testCommand[0] === 'rust-analyzer') {
-          testCommand[0] = getCommandPath(testCommand[0]);
+        const serverCommand = [...server.command];
+        if (serverCommand[0] === 'gopls' || serverCommand[0] === 'rust-analyzer') {
+          serverCommand[0] = getCommandPath(serverCommand[0]);
         }
-        const available = await ServerUtils.testCommand(testCommand);
+        const available = await testCommand(serverCommand);
         const status = available ? '✓ installed' : '○ will install';
         console.log(`   ${server.displayName} ${status}`);
       }
@@ -179,11 +178,11 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
       // Show status for selected servers
       for (const serverName of selectedServers) {
         const server = relevantServers.find((s) => s.name === serverName)!;
-        const testCommand = [...server.command];
-        if (testCommand[0] === 'gopls' || testCommand[0] === 'rust-analyzer') {
-          testCommand[0] = getCommandPath(testCommand[0]);
+        const serverCommand = [...server.command];
+        if (serverCommand[0] === 'gopls' || serverCommand[0] === 'rust-analyzer') {
+          serverCommand[0] = getCommandPath(serverCommand[0]);
         }
-        const available = await ServerUtils.testCommand(testCommand);
+        const available = await testCommand(serverCommand);
         const status = available ? '✓ installed' : '○ will install';
         console.log(`   ${server.displayName} ${status}`);
       }
@@ -237,12 +236,12 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
       if (!server) continue;
 
       // For Go and Rust, use the full path to test
-      const testCommand = [...server.command];
-      if (testCommand[0] === 'gopls' || testCommand[0] === 'rust-analyzer') {
-        testCommand[0] = getCommandPath(testCommand[0]);
+      const serverCommand = [...server.command];
+      if (serverCommand[0] === 'gopls' || serverCommand[0] === 'rust-analyzer') {
+        serverCommand[0] = getCommandPath(serverCommand[0]);
       }
 
-      const available = await ServerUtils.testCommand(testCommand);
+      const available = await testCommand(serverCommand);
       if (available) {
         alreadyInstalled.push(server);
       } else {
@@ -271,7 +270,7 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
 
         // Check for missing dependencies before attempting install
         const [baseCommand] = server.installCommand;
-        if (baseCommand === 'go' && !(await ServerUtils.testCommand(['go', 'version']))) {
+        if (baseCommand === 'go' && !(await testCommand(['go', 'version']))) {
           console.log('❌ Failed');
           console.log(`    Error: Go is required but not installed`);
           if (process.platform === 'darwin') {
@@ -287,7 +286,7 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
         if (
           (baseCommand === 'pip' || baseCommand === 'pip3') &&
           pipCommand &&
-          !(await ServerUtils.testCommand([pipCommand, '--version']))
+          !(await testCommand([pipCommand, '--version']))
         ) {
           console.log('❌ Failed');
           console.log('    Error: Python pip is required but not available');
@@ -319,13 +318,13 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
 
         if (success) {
           // For Go and Rust, use the full path to verify
-          const testCommand = [...server.command];
-          if (testCommand[0] === 'gopls' || testCommand[0] === 'rust-analyzer') {
-            testCommand[0] = getCommandPath(testCommand[0]);
+          const serverCommand = [...server.command];
+          if (serverCommand[0] === 'gopls' || serverCommand[0] === 'rust-analyzer') {
+            serverCommand[0] = getCommandPath(serverCommand[0]);
           }
 
           // Verify installation worked
-          const nowAvailable = await ServerUtils.testCommand(testCommand);
+          const nowAvailable = await testCommand(serverCommand);
           if (nowAvailable) {
             console.log('✅');
             installResults.push({ server, success: true });
@@ -375,12 +374,12 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
       const server = LANGUAGE_SERVERS.find((s) => s.name === serverName);
       if (server) {
         // For Go and Rust, use the full path to test
-        const testCommand = [...server.command];
-        if (testCommand[0] === 'gopls' || testCommand[0] === 'rust-analyzer') {
-          testCommand[0] = getCommandPath(testCommand[0]);
+        const serverCommand = [...server.command];
+        if (serverCommand[0] === 'gopls' || serverCommand[0] === 'rust-analyzer') {
+          serverCommand[0] = getCommandPath(serverCommand[0]);
         }
 
-        if (await ServerUtils.testCommand(testCommand)) {
+        if (await testCommand(serverCommand)) {
           workingServers.push(server);
           workingServerNames.push(serverName);
           console.log(`   ✓ ${server.displayName}`);
@@ -394,16 +393,16 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
     const config = generateConfig(workingServerNames);
 
     // Save configuration
-    DirectoryUtils.writeConfig(config);
+    writeConfig(config);
 
     // Final summary
     console.log(`\n${'='.repeat(50)}`);
     console.log('\n✨ Setup Complete!\n');
-    console.log(`📁 Configuration saved to: ${DirectoryUtils.getConfigPath()}`);
+    console.log(`📁 Configuration saved to: ${getConfigPath()}`);
     console.log(`📋 Active servers: ${workingServers.length}/${selectedServers.length}`);
 
     // Check if this is a re-run with no changes
-    const finalConfig = DirectoryUtils.readConfig();
+    const finalConfig = readConfig();
     const configUnchanged = finalConfig && JSON.stringify(finalConfig) === JSON.stringify(config);
 
     if (configUnchanged) {
@@ -523,7 +522,7 @@ async function detectMissingPrerequisites(selectedServers: string[]): Promise<Pr
     const [baseCommand] = server.installCommand;
 
     // Check for Go
-    if (baseCommand === 'go' && !(await ServerUtils.testCommand(['go', 'version']))) {
+    if (baseCommand === 'go' && !(await testCommand(['go', 'version']))) {
       const existing = prereqs.get('go') || getPrerequisiteInfo('go', 'Go');
       existing.servers.push(server.displayName);
       prereqs.set('go', existing);
@@ -532,7 +531,7 @@ async function detectMissingPrerequisites(selectedServers: string[]): Promise<Pr
     // Check for Python/pip
     if (baseCommand === 'pip' || baseCommand === 'pip3') {
       const pipCommand = getPipCommand(['pip', '--version'])[0];
-      if (pipCommand && !(await ServerUtils.testCommand([pipCommand, '--version']))) {
+      if (pipCommand && !(await testCommand([pipCommand, '--version']))) {
         const existing = prereqs.get('python') || getPrerequisiteInfo('python', 'Python/pip');
         existing.servers.push(server.displayName);
         prereqs.set('python', existing);
@@ -540,14 +539,14 @@ async function detectMissingPrerequisites(selectedServers: string[]): Promise<Pr
     }
 
     // Check for Ruby/gem
-    if (baseCommand === 'gem' && !(await ServerUtils.testCommand(['gem', '--version']))) {
+    if (baseCommand === 'gem' && !(await testCommand(['gem', '--version']))) {
       const existing = prereqs.get('ruby') || getPrerequisiteInfo('ruby', 'Ruby/gem');
       existing.servers.push(server.displayName);
       prereqs.set('ruby', existing);
     }
 
     // Check for npm (should be rare since we're running in Node.js)
-    if (baseCommand === 'npm' && !(await ServerUtils.testCommand(['npm', '--version']))) {
+    if (baseCommand === 'npm' && !(await testCommand(['npm', '--version']))) {
       const existing = prereqs.get('npm') || getPrerequisiteInfo('npm', 'npm');
       existing.servers.push(server.displayName);
       prereqs.set('npm', existing);

@@ -4,7 +4,7 @@
  */
 
 import Fuse from '@cocalc/fuse-native';
-import { logger } from '../core/logger.js';
+import { logger } from '../core/diagnostics/logger.js';
 import type { WebSocketTransport } from '../transports/websocket.js';
 import type { EnhancedClientSession } from '../types/enhanced-session.js';
 import { FuseOperations } from './fuse-operations.js';

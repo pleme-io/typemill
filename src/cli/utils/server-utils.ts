@@ -124,26 +124,3 @@ function getTestArgs(command: string): string[] {
   return ['--version']; // Default
 }
 
-/**
- * Get install instructions for a command
- */
-export function getInstallInstructions(command: string): string {
-  const instructions: Record<string, string> = {
-    'typescript-language-server': 'npm install -g typescript-language-server typescript',
-    pylsp: 'pip install python-lsp-server',
-    gopls: 'go install golang.org/x/tools/gopls@latest',
-    'rust-analyzer': 'rustup component add rust-analyzer',
-    clangd: 'apt install clangd OR brew install llvm',
-    jdtls: 'Download from Eclipse JDT releases',
-    solargraph: 'gem install solargraph',
-    intelephense: 'npm install -g intelephense',
-    'docker-langserver': 'npm install -g dockerfile-language-server-nodejs',
-    'yaml-language-server': 'npm install -g yaml-language-server',
-    'bash-language-server': 'npm install -g bash-language-server',
-    'vscode-json-language-server': 'npm install -g vscode-langservers-extracted',
-    'vscode-html-language-server': 'npm install -g vscode-langservers-extracted',
-    'vscode-css-language-server': 'npm install -g vscode-langservers-extracted',
-  };
-
-  return instructions[command] || `Install ${command}`;
-}

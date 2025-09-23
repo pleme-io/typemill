@@ -130,27 +130,3 @@ export function readState(): StateFile {
   }
 }
 
-/**
- * Write state file
- */
-export function writeState(state: StateFile): void {
-  ensureDirectoryStructure();
-  const statePath = getStatePath();
-  writeFileSync(statePath, JSON.stringify(state, null, 2));
-}
-
-/**
- * Append to log file
- */
-export function appendLog(message: string): void {
-  ensureDirectoryStructure();
-  const logPath = getLogPath();
-  const timestamp = new Date().toISOString();
-  const logEntry = `[${timestamp}] ${message}\n`;
-
-  try {
-    writeFileSync(logPath, logEntry, { flag: 'a' });
-  } catch (error) {
-    // Fail silently for logging
-  }
-}
