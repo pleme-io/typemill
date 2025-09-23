@@ -1,12 +1,12 @@
 import type { LSPClient } from '../lsp/lsp-client.js';
 import { getAllTools, getTool, getToolNames } from '../mcp/tool-registry.js';
 import { createMCPResponse } from '../mcp/utils.js';
-import type { DiagnosticService } from './diagnostic-service.js';
+import type { DiagnosticService } from './lsp/diagnostic-service.js';
 import type { FileService } from './file-service.js';
-import type { HierarchyService } from './hierarchy-service.js';
-import type { IntelligenceService } from './intelligence-service.js';
+import type { HierarchyService } from './intelligence/hierarchy-service.js';
+import type { IntelligenceService } from './intelligence/intelligence-service.js';
 import type { ServiceContext } from './service-context.js';
-import type { SymbolService } from './symbol-service.js';
+import type { SymbolService } from './lsp/symbol-service.js';
 
 // Import handlers to trigger their registration
 // These imports only have side effects (registering tools)

@@ -2,9 +2,9 @@ import { afterAll, describe, expect, it } from 'bun:test';
 import { join } from 'node:path';
 import { LSPClient } from '../../src/lsp/lsp-client.js';
 import { FileService } from '../../src/services/file-service.js';
-import { IntelligenceService } from '../../src/services/intelligence-service.js';
+import { IntelligenceService } from '../../src/services/intelligence/intelligence-service.js';
 import { ServiceContextUtils } from '../../src/services/service-context.js';
-import { SymbolService } from '../../src/services/symbol-service.js';
+import { SymbolService } from '../../src/services/lsp/symbol-service.js';
 
 describe('LSP Client Unit Tests', () => {
   let lspClient: LSPClient;

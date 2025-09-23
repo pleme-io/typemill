@@ -2,7 +2,7 @@
 
 import { type ChildProcess, spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { getLSPServerPaths, isProcessRunning } from '../../utils/platform-utils.js';
+import { isProcessRunning } from '../../utils/platform/process.js';
 
 // Re-export for backward compatibility
 export { isProcessRunning };

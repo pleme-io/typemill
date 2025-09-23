@@ -3,7 +3,7 @@ import type { TextEdit, WorkspaceEdit } from '../../core/file-operations/editor.
 import { applyWorkspaceEdit } from '../../core/file-operations/editor.js';
 import { pathToUri, uriToPath } from '../../core/file-operations/path-utils.js';
 import type { FileService } from '../../services/file-service.js';
-import type { SymbolService } from '../../services/symbol-service.js';
+import type { SymbolService } from '../../services/lsp/symbol-service.js';
 import type { DocumentSymbol, SymbolInformation } from '../../types.js';
 import { registerTools } from '../tool-registry.js';
 import {

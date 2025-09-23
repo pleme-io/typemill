@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import { applyWorkspaceEdit, type WorkspaceEdit } from '../../core/file-operations/editor.js';
 import { uriToPath } from '../../core/file-operations/path-utils.js';
-import type { SymbolService } from '../../services/symbol-service.js';
+import type { SymbolService } from '../../services/lsp/symbol-service.js';
 import { registerTools } from '../tool-registry.js';
 import {
   createContextualErrorResponse,

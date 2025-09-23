@@ -1,11 +1,11 @@
 import type { LSPClient } from '../../lsp/lsp-client.js';
 import { type BatchExecuteArgs, BatchExecutor } from '../../services/batch-executor.js';
-import type { DiagnosticService } from '../../services/diagnostic-service.js';
+import type { DiagnosticService } from '../../services/lsp/diagnostic-service.js';
 import type { FileService } from '../../services/file-service.js';
-import type { HierarchyService } from '../../services/hierarchy-service.js';
-import type { IntelligenceService } from '../../services/intelligence-service.js';
+import type { HierarchyService } from '../../services/intelligence/hierarchy-service.js';
+import type { IntelligenceService } from '../../services/intelligence/intelligence-service.js';
 import { ServiceContextUtils } from '../../services/service-context.js';
-import type { SymbolService } from '../../services/symbol-service.js';
+import type { SymbolService } from '../../services/lsp/symbol-service.js';
 import { createMCPResponse } from '../utils.js';
 
 /**

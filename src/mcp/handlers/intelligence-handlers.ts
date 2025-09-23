@@ -1,6 +1,6 @@
 // MCP handlers for LLM agent intelligence features
 import { resolve } from 'node:path';
-import type { IntelligenceService } from '../../services/intelligence-service.js';
+import type { IntelligenceService } from '../../services/intelligence/intelligence-service.js';
 import { registerTools } from '../tool-registry.js';
 import {
   createContextualErrorResponse,

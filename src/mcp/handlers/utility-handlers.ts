@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from '
 import { dirname, relative, resolve } from 'node:path';
 import { logDebugMessage } from '../../core/diagnostics/debug-logger.js';
 import type { WorkspaceEdit } from '../../core/file-operations/editor.js';
-import type { DiagnosticService } from '../../services/diagnostic-service.js';
+import type { DiagnosticService } from '../../services/lsp/diagnostic-service.js';
 import { registerTools } from '../tool-registry.js';
 import {
   createFileModificationResponse,

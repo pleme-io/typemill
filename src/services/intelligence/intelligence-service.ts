@@ -7,8 +7,8 @@ import type {
   SemanticTokens,
   SemanticTokensParams,
   SignatureHelp,
-} from '../types.js';
-import type { ServiceContext } from './service-context.js';
+} from '../../types.js';
+import type { ServiceContext } from '../service-context.js';
 
 // Intelligence service constants
 const SERVER_PROCESSING_DELAY_MS = 500; // Time for server to process files

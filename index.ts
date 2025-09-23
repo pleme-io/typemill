@@ -78,11 +78,11 @@ import {
   handleSearchWorkspaceSymbols,
 } from './src/mcp/handlers/index.js';
 import { createMCPError } from './src/mcp/utils.js';
-import { DiagnosticService } from './src/services/diagnostic-service.js';
+import { DiagnosticService } from './src/services/lsp/diagnostic-service.js';
 import { FileService } from './src/services/file-service.js';
-import { HierarchyService } from './src/services/hierarchy-service.js';
-import { IntelligenceService } from './src/services/intelligence-service.js';
-import { SymbolService } from './src/services/symbol-service.js';
+import { HierarchyService } from './src/services/intelligence/hierarchy-service.js';
+import { IntelligenceService } from './src/services/intelligence/intelligence-service.js';
+import { SymbolService } from './src/services/lsp/symbol-service.js';
 import { getPackageVersion } from './src/utils/version.js';
 
 // Initialize module logger
@@ -634,7 +634,7 @@ async function main() {
             const existingPid = Number.parseInt(readFileSync(PID_FILE, 'utf-8').trim(), 10);
             if (!Number.isNaN(existingPid)) {
               // Check if the process is actually running
-              const { isProcessRunning } = await import('./src/utils/platform-utils.js');
+        const { isProcessRunning } = await import('./src/utils/platform/process.js');
               if (isProcessRunning(existingPid)) {
                 console.error(`Error: MCP server is already running (PID: ${existingPid})`);
                 console.error('Use "codeflow-buddy stop" to stop it first.');

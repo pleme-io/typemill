@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
-import { isProcessRunning, terminateProcess } from '../../utils/platform-utils.js';
+import { isProcessRunning, terminateProcess } from '../../utils/platform/process.js';
 
 const PID_FILE = join('.codebuddy', 'server.pid');
 

@@ -1,6 +1,6 @@
 // MCP handlers for hierarchy and navigation features
 import { resolve } from 'node:path';
-import type { HierarchyService } from '../../services/hierarchy-service.js';
+import type { HierarchyService } from '../../services/intelligence/hierarchy-service.js';
 import type { CallHierarchyItem, TypeHierarchyItem } from '../../types.js';
 import { registerTools } from '../tool-registry.js';
 import { createMCPResponse } from '../utils.js';

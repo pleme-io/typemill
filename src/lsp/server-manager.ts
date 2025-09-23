@@ -9,7 +9,7 @@ import {
 } from '../core/diagnostics/error-utils.js';
 import { pathToUri } from '../core/file-operations/path-utils.js';
 import type { Config, LSPServerConfig } from '../types.js';
-import { terminateProcess } from '../utils/platform-utils.js';
+import { terminateProcess } from '../utils/platform/process.js';;
 import { getPackageVersion } from '../utils/version.js';
 import type { LSPProtocol } from './protocol.js';
 import type { ServerState } from './types.js';

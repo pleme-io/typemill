@@ -1,4 +1,4 @@
-import { logDebugMessage } from '../core/diagnostics/debug-logger.js';
+import { logDebugMessage } from '../../core/diagnostics/debug-logger.js';
 import type {
   CallHierarchyIncomingCall,
   CallHierarchyItem,
@@ -6,8 +6,8 @@ import type {
   Position,
   SelectionRange,
   TypeHierarchyItem,
-} from '../types.js';
-import type { ServiceContext } from './service-context.js';
+} from '../../types.js';
+import type { ServiceContext } from '../service-context.js';
 
 // Hierarchy service constants
 const RELATED_FILES_LIMIT = 30; // Maximum related files to open for context
