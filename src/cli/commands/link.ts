@@ -50,7 +50,11 @@ async function promptForAssistant(assistants: AssistantInfo[]): Promise<string[]
           .map((s) => Number.parseInt(s, 10) - 1)
           .filter((i) => !Number.isNaN(i) && i >= 0 && i < availableAssistants.length);
 
-        resolve(indices.map((i) => availableAssistants[i]?.name).filter((name): name is string => Boolean(name)));
+        resolve(
+          indices
+            .map((i) => availableAssistants[i]?.name)
+            .filter((name): name is string => Boolean(name))
+        );
       }
     );
   });

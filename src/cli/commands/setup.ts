@@ -140,9 +140,7 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
     if (options.all) {
       // Auto-select all servers
       selectedServers = relevantServers.map((server) => server.name);
-      console.log(
-        `📋 Auto-selecting ${selectedServers.length} language servers:\n`
-      );
+      console.log(`📋 Auto-selecting ${selectedServers.length} language servers:\n`);
 
       for (const server of relevantServers) {
         const testCommand = [...server.command];

@@ -56,7 +56,7 @@ const SUPPORTED_ASSISTANTS: AssistantDefinition[] = [
  */
 function expandPath(filepath: string): string {
   // Handle project-relative paths (like .cursor/mcp.json)
-  if (filepath.startsWith('./') || !filepath.includes('/') && !filepath.includes('\\')) {
+  if (filepath.startsWith('./') || (!filepath.includes('/') && !filepath.includes('\\'))) {
     if (filepath.startsWith('./')) {
       filepath = path.join(process.cwd(), filepath.slice(2));
     } else if (filepath.startsWith('.')) {
@@ -107,11 +107,10 @@ function isAssistantInstalled(assistant: AssistantDefinition): boolean {
       // For Cursor, we consider it available if we're in a valid project directory
       // The .cursor directory will be created when linking if it doesn't exist
       return process.cwd() !== '/'; // Basic check that we're not in root
-    } else {
-      // For Claude Desktop and Gemini, check if parent directory exists
-      const configDir = path.dirname(configPath);
-      return fs.existsSync(configDir);
     }
+    // For Claude Desktop and Gemini, check if parent directory exists
+    const configDir = path.dirname(configPath);
+    return fs.existsSync(configDir);
   } catch {
     return false;
   }
@@ -156,7 +155,7 @@ export function writeAssistantConfig(configPath: string, config: any): void {
     }
 
     // Write config with pretty formatting
-    fs.writeFileSync(expandedPath, JSON.stringify(config, null, 2) + '\n', 'utf-8');
+    fs.writeFileSync(expandedPath, `${JSON.stringify(config, null, 2)}\n`, 'utf-8');
   } catch (error) {
     throw new Error(`Failed to write config to ${configPath}: ${error}`);
   }
@@ -248,14 +247,13 @@ export function getMCPServerConfig(): any {
       command: 'codeflow-buddy',
       args: ['start'],
     };
-  } else {
-    // Local install - use node with the full path
-    const scriptPath = path.resolve(__dirname, '../../../index.js');
-    return {
-      command: 'node',
-      args: [scriptPath, 'start'],
-    };
   }
+  // Local install - use node with the full path
+  const scriptPath = path.resolve(__dirname, '../../../index.js');
+  return {
+    command: 'node',
+    args: [scriptPath, 'start'],
+  };
 }
 
 /**

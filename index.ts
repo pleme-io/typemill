@@ -178,11 +178,11 @@ if (subcommand === 'setup') {
       jwtSecretIndex !== -1 && args[jwtSecretIndex + 1] ? args[jwtSecretIndex + 1] : undefined,
     allowedOrigins:
       allowedOriginsIndex !== -1 && args[allowedOriginsIndex + 1]
-        ? args[allowedOriginsIndex + 1]!.split(',')
+        ? args[allowedOriginsIndex + 1]?.split(',')
         : undefined,
     allowedCorsOrigins:
       allowedCorsOriginsIndex !== -1 && args[allowedCorsOriginsIndex + 1]
-        ? args[allowedCorsOriginsIndex + 1]!.split(',')
+        ? args[allowedCorsOriginsIndex + 1]?.split(',')
         : undefined,
   };
 

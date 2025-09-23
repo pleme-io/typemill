@@ -117,12 +117,12 @@ export async function statusCommand(): Promise<void> {
     // Show new compact status
     console.log('');
     console.log('──────────────────────────────────');
-    const lspStatus = servers.map((s) => (s.available ? '✓' : '✗') + ' ' + s.name).join('  ');
+    const lspStatus = servers.map((s) => `${s.available ? '✓' : '✗'} ${s.name}`).join('  ');
     console.log(`LSPs:     ${lspStatus}`);
 
     const linkedStatus = assistants
       .filter((a) => a.installed)
-      .map((a) => (a.linked ? '✓' : '✗') + ' ' + a.displayName)
+      .map((a) => `${a.linked ? '✓' : '✗'} ${a.displayName}`)
       .join('  ');
     console.log(`Linked:   ${linkedStatus || 'None'}`);
 
