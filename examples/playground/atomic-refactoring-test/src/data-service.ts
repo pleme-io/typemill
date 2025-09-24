@@ -6,6 +6,6 @@ export class DataService {
   }
 
   processItems(items: string[]): string[] {
-    return items.map(item => this.formatData(item));
+    return items.map((item) => this.formatData(item));
   }
 }

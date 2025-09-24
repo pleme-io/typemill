@@ -2,8 +2,8 @@ import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { logger } from '../../core/diagnostics/logger.js';
 import type { WorkspaceEdit } from '../../core/file-operations/editor.js';
-import type { ServiceContext } from '../../services/service-context.js';
 import type { DiagnosticService } from '../../services/lsp/diagnostic-service.js';
+import type { ServiceContext } from '../../services/service-context.js';
 import {
   assertValidFilePath,
   formatHumanRange,

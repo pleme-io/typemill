@@ -1,5 +1,5 @@
-import { StringUtils } from '../src/utils';
 import { DataService } from '../src/data-service';
+import { StringUtils } from '../src/utils';
 
 export class Consumer {
   private dataService = new DataService();

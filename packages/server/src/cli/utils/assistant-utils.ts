@@ -206,7 +206,11 @@ export function findInstalledAssistants(): AssistantInfo[] {
 /**
  * Add MCP server to assistant configuration
  */
-export function addMCPServer(configPath: string, serverName: string, serverConfig: Record<string, unknown>): void {
+export function addMCPServer(
+  configPath: string,
+  serverName: string,
+  serverConfig: Record<string, unknown>
+): void {
   const config = readAssistantConfig(configPath) || { mcpServers: {} };
 
   if (!config.mcpServers) {

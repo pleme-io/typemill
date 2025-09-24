@@ -1,6 +1,7 @@
 // MCP Proxy Implementation
-import { WebSocketClient } from './websocket.js';
+
 import type { MCPRequest, MCPResponse } from './types.js';
+import { WebSocketClient } from './websocket.js';
 
 export class MCPProxy {
   private wsClient: WebSocketClient;
