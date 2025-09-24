@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { DIFF_DELETE, DIFF_EQUAL, DIFF_INSERT, diff_match_patch } from 'diff-match-patch';
 import { logDebugMessage } from '../core/diagnostics/debug-logger.js';
 import { handleFileSystemError, logError } from '../core/diagnostics/error-utils.js';
 import { pathToUri } from '../core/file-operations/path-utils.js';
@@ -8,6 +9,7 @@ import type {
   DocumentLink,
   FoldingRange,
   Range,
+  TextDocumentContentChangeEvent,
   TextEdit,
 } from '../types.js';
 import type { ServiceContext } from './service-context.js';
@@ -21,6 +23,7 @@ const MAX_LINE_NUMBER = 999999; // Maximum line number for file operations
  */
 export class FileService {
   private trackedFiles: Set<string> = new Set();
+  private fileContentCache: Map<string, string> = new Map();
 
   constructor(private context: ServiceContext) {}
 
@@ -391,44 +394,76 @@ export class FileService {
   // This eliminates ~20 lines of duplicated code from this service
 
   /**
-   * Synchronize file content with LSP server after external modifications
+   * Synchronize file content with LSP server using delta updates
    * This should be called after any disk writes to keep the LSP server in sync
    */
-  async syncFileContent(filePath: string): Promise<void> {
+  private async syncFileDeltas(
+    filePath: string,
+    oldContent: string,
+    newContent: string
+  ): Promise<void> {
     try {
       const serverState = await this.context.getServer(filePath);
-
-      // If file is not already open in the LSP server, open it first
       if (!serverState.openFiles.has(filePath)) {
-        logDebugMessage('FileService', `File not open, opening it first: ${filePath}`);
         await this.context.ensureFileOpen(serverState, filePath);
+        this.fileContentCache.set(filePath, newContent);
+        return;
       }
 
-      logDebugMessage('FileService', `Syncing file: ${filePath}`);
+      const dmp = new diff_match_patch();
+      const diffs = dmp.diff_main(oldContent, newContent);
+      dmp.diff_cleanupSemantic(diffs);
 
-      const fileContent = readFileSync(filePath, 'utf-8');
+      const changes: TextDocumentContentChangeEvent[] = [];
+      let line = 0;
+      let char = 0;
+
+      for (const [op, text] of diffs) {
+        const start = { line, character: char };
+        const lines = text.split('\n');
+        const numLines = lines.length - 1;
+        const lastLineLength = lines[numLines]?.length ?? 0;
+
+        if (op === DIFF_EQUAL) {
+          if (numLines > 0) {
+            line += numLines;
+            char = lastLineLength;
+          } else {
+            char += lastLineLength;
+          }
+        } else if (op === DIFF_INSERT) {
+          changes.push({ range: { start, end: start }, text });
+          if (numLines > 0) {
+            line += numLines;
+            char = lastLineLength;
+          } else {
+            char += lastLineLength;
+          }
+        } else if (op === DIFF_DELETE) {
+          const endLine = line + numLines;
+          const endChar = numLines > 0 ? lastLineLength : char + lastLineLength;
+          changes.push({ range: { start, end: { line: endLine, character: endChar } }, text: '' });
+        }
+      }
+
+      if (changes.length === 0) return;
+
       const uri = pathToUri(filePath);
-
-      // Increment version and send didChange notification
       const version = (serverState.fileVersions.get(filePath) || 1) + 1;
       serverState.fileVersions.set(filePath, version);
 
       await this.context.protocol.sendNotification(serverState.process, 'textDocument/didChange', {
-        textDocument: {
-          uri,
-          version,
-        },
-        contentChanges: [
-          {
-            text: fileContent,
-          },
-        ],
+        textDocument: { uri, version },
+        contentChanges: changes,
       });
 
-      logDebugMessage('FileService', `File synced with version ${version}: ${filePath}`);
+      this.fileContentCache.set(filePath, newContent);
+      logDebugMessage(
+        'FileService',
+        `File synced with ${changes.length} deltas (v${version}): ${filePath}`
+      );
     } catch (error) {
-      logDebugMessage('FileService', `Failed to sync file ${filePath}: ${error}`);
-      // Don't throw - syncing is best effort
+      logDebugMessage('FileService', `Failed to sync file deltas for ${filePath}: ${error}`);
     }
   }
 
@@ -456,7 +491,9 @@ export class FileService {
       if (!existsSync(filePath)) {
         return null;
       }
-      return readFileSync(filePath, 'utf-8');
+      const content = readFileSync(filePath, 'utf-8');
+      this.fileContentCache.set(filePath, content);
+      return content;
     } catch (error) {
       logDebugMessage('FileService', `Failed to read file ${filePath}: ${error}`);
       return null;
@@ -468,10 +505,11 @@ export class FileService {
    */
   async writeFile(filePath: string, content: string): Promise<void> {
     try {
+      const oldContent = this.fileContentCache.get(filePath) ?? '';
       writeFileSync(filePath, content, 'utf-8');
       this.trackFile(filePath);
-      // Sync with LSP server
-      await this.syncFileContent(filePath);
+      // Sync with LSP server using deltas
+      await this.syncFileDeltas(filePath, oldContent, content);
     } catch (error) {
       throw new Error(`Failed to write file ${filePath}: ${error}`);
     }
