@@ -8,6 +8,7 @@ import type {
   SemanticTokensParams,
   SignatureHelp,
 } from '../../types.js';
+import { toHumanPosition } from '../../utils/position.js';
 import type { ServiceContext } from '../service-context.js';
 
 // Intelligence service constants
@@ -53,7 +54,7 @@ export class IntelligenceService {
         return {
           contents: {
             kind: 'markdown',
-            value: `**Hover information unavailable**\n\nThe TypeScript Language Server did not respond to the hover request at line ${position.line + 1}, character ${position.character + 1}. This feature may not be fully supported in the current server configuration.`,
+            value: `**Hover information unavailable**\n\nThe TypeScript Language Server did not respond to the hover request at ${toHumanPosition(position).line}:${toHumanPosition(position).character}. This feature may not be fully supported in the current server configuration.`,
           },
         };
       }

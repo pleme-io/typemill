@@ -3,6 +3,8 @@
  * Uses only MCP tools to analyze the codebase
  */
 
+import { toHumanPosition } from '../utils/position.js';
+
 interface DeadCodeResult {
   file: string;
   symbol: string;
@@ -70,7 +72,7 @@ export async function findDeadCode(): Promise<{
               file,
               symbol: symbol.name,
               symbolKind: getSymbolKindName(symbol.kind),
-              line: symbol.range.start.line + 1, // Convert to 1-based
+              line: toHumanPosition(symbol.range.start).line,
               reason: 'no-references',
             });
           } else if (references.length === 1) {
@@ -79,7 +81,7 @@ export async function findDeadCode(): Promise<{
               file,
               symbol: symbol.name,
               symbolKind: getSymbolKindName(symbol.kind),
-              line: symbol.range.start.line + 1,
+              line: toHumanPosition(symbol.range.start).line,
               reason: 'only-internal-references',
             });
           }
