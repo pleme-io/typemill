@@ -3,7 +3,7 @@
  * Verifies basic FUSE components work without complex test setup
  */
 
-import { existsSync, mkdir, rmdir } from 'node:fs';
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { WorkspaceManager } from '../../src/server/workspace-manager.js';
@@ -63,7 +63,7 @@ async function testWorkspaceManager() {
     await manager.shutdown();
     // Clean up test directory
     if (existsSync(testDir)) {
-      await rmdir(testDir, { recursive: true });
+      rmSync(testDir, { recursive: true, force: true });
     }
   }
 
@@ -179,7 +179,7 @@ async function testFuseMount() {
     };
 
     const testMountPath = join(tmpdir(), 'fuse-mount-simple-test');
-    mkdir(testMountPath, { recursive: true });
+    mkdirSync(testMountPath, { recursive: true });
 
     const fuseMount = new FuseMount(mockSession, mockTransport as any, testMountPath);
 
@@ -197,7 +197,7 @@ async function testFuseMount() {
     console.log('   🎉 FuseMount tests passed!\n');
 
     // Cleanup
-    rmdir(testMountPath, { recursive: true });
+    rmSync(testMountPath, { recursive: true, force: true });
   } catch (error) {
     console.error('   ❌ FuseMount test failed:', error);
     return false;

@@ -13,10 +13,15 @@ import { FuseMount } from '../../src/fs/fuse-mount.js';
 import { FuseOperations } from '../../src/fs/fuse-operations.js';
 import type { EnhancedClientSession } from '../../src/types/enhanced-session.js';
 
-// Skip tests if FUSE is not available
+// Skip tests if FUSE is not available or not functional
 const isFuseAvailable = () => {
   try {
+    // Check if fusermount exists
     execSync('which fusermount', { stdio: 'ignore' });
+    // Check if FUSE kernel module is available
+    if (!existsSync('/dev/fuse')) {
+      return false;
+    }
     return true;
   } catch {
     return false;
