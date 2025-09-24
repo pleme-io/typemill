@@ -1,17 +1,17 @@
+import type { Server } from 'node:http';
 import express from 'express';
-import type { Server } from 'http';
 import type { MCPProxy } from './mcp-proxy.js';
 
 /**
  * Create an HTTP proxy server that forwards requests to the WebSocket MCP server.
  * This allows HTTP-only clients to interact with the WebSocket-based server.
  */
-export function createProxyServer(proxy: MCPProxy, port: number = 3001): Server {
+export function createProxyServer(proxy: MCPProxy, _port: number = 3001): Server {
   const app = express();
-  
+
   // Middleware
   app.use(express.json({ limit: '10mb' }));
-  
+
   // CORS headers for browser-based clients
   app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
@@ -24,9 +24,9 @@ export function createProxyServer(proxy: MCPProxy, port: number = 3001): Server 
   });
 
   // Health check endpoint
-  app.get('/health', (req, res) => {
+  app.get('/health', (_req, res) => {
     const status = proxy.isConnected() ? 'connected' : 'disconnected';
-    res.json({ 
+    res.json({
       status: 'ok',
       connection: status,
       timestamp: new Date().toISOString(),
@@ -36,7 +36,7 @@ export function createProxyServer(proxy: MCPProxy, port: number = 3001): Server 
   // Main RPC endpoint
   app.post('/rpc', async (req, res) => {
     const { method, params } = req.body;
-    
+
     if (!method) {
       return res.status(400).json({
         error: {
@@ -49,12 +49,13 @@ export function createProxyServer(proxy: MCPProxy, port: number = 3001): Server 
     try {
       const result = await proxy.send({ method, params });
       res.json({ result });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorObj = error as { code?: number; message: string; data?: unknown };
       res.status(500).json({
         error: {
-          code: error.code || -32603,
-          message: error.message,
-          data: error.data,
+          code: errorObj.code || -32603,
+          message: errorObj.message || 'Internal error',
+          data: errorObj.data,
         },
       });
     }
@@ -74,23 +75,24 @@ export function createProxyServer(proxy: MCPProxy, port: number = 3001): Server 
     try {
       const results = await proxy.sendBatch(req.body);
       res.json(results);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorObj = error as { code?: number; message: string; data?: unknown };
       res.status(500).json({
         error: {
-          code: error.code || -32603,
-          message: error.message,
-          data: error.data,
+          code: errorObj.code || -32603,
+          message: errorObj.message || 'Internal error',
+          data: errorObj.data,
         },
       });
     }
   });
 
   // List tools endpoint
-  app.get('/tools', async (req, res) => {
+  app.get('/tools', async (_req, res) => {
     try {
       const tools = await proxy.listTools();
       res.json(tools);
-    } catch (error: any) {
+    } catch (error: unknown) {
       res.status(500).json({
         error: {
           code: error.code || -32603,
@@ -101,7 +103,7 @@ export function createProxyServer(proxy: MCPProxy, port: number = 3001): Server 
   });
 
   // 404 handler
-  app.use((req, res) => {
+  app.use((_req, res) => {
     res.status(404).json({
       error: {
         code: -32601,
@@ -110,5 +112,5 @@ export function createProxyServer(proxy: MCPProxy, port: number = 3001): Server 
     });
   });
 
-  return app as any as Server;
+  return app.listen() as Server;
 }

@@ -1,6 +1,6 @@
-import WebSocket from 'ws';
-import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
+import { EventEmitter } from 'node:events';
+import WebSocket from 'ws';
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
 
@@ -113,7 +113,7 @@ export class WebSocketClient extends EventEmitter {
     return new Promise((resolve, reject) => {
       const headers = { ...this.options.headers };
       if (this.options.token) {
-        headers['Authorization'] = `Bearer ${this.options.token}`;
+        headers.Authorization = `Bearer ${this.options.token}`;
       }
 
       this.ws = new WebSocket(this.url, { headers });
@@ -160,9 +160,9 @@ export class WebSocketClient extends EventEmitter {
     this.ws.on('close', (code: number, reason: Buffer) => {
       this.setStatus('disconnected');
       this.emit('disconnected', { code, reason: reason.toString() });
-      
+
       // Clear all pending requests
-      for (const [id, pending] of this.pendingRequests.entries()) {
+      for (const [_id, pending] of this.pendingRequests.entries()) {
         clearTimeout(pending.timeout);
         pending.reject(new Error('Connection closed'));
       }
@@ -215,7 +215,7 @@ export class WebSocketClient extends EventEmitter {
     }
 
     const delay = Math.min(
-      this.options.reconnectInterval * Math.pow(2, this.reconnectAttempts),
+      this.options.reconnectInterval * 2 ** this.reconnectAttempts,
       30000 // Max 30 seconds
     );
 
@@ -253,7 +253,7 @@ export class WebSocketClient extends EventEmitter {
 
     return new Promise<T>((resolve, reject) => {
       const id = randomUUID();
-      
+
       const timeout = setTimeout(() => {
         this.pendingRequests.delete(id);
         reject(new Error(`Request timeout for method: ${method}`));
@@ -284,7 +284,7 @@ export class WebSocketClient extends EventEmitter {
 
   async disconnect(): Promise<void> {
     this.isManualDisconnect = true;
-    
+
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = undefined;
@@ -292,11 +292,11 @@ export class WebSocketClient extends EventEmitter {
 
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       return new Promise((resolve) => {
-        this.ws!.once('close', () => {
+        this.ws?.once('close', () => {
           this.ws = undefined;
           resolve();
         });
-        this.ws!.close();
+        this.ws?.close();
       });
     }
 

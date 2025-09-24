@@ -70,7 +70,7 @@ export class LSPServerPool {
     const pool = this.serverPool.get(language) || [];
 
     // Look for an idle server in the pool
-    const idleServer = pool.find(s => s.refCount === 0 && !s.isRestarting);
+    const idleServer = pool.find((s) => s.refCount === 0 && !s.isRestarting);
 
     if (idleServer) {
       // Lease the idle server
@@ -125,7 +125,7 @@ export class LSPServerPool {
 
       const checkForAvailableServer = async () => {
         const updatedPool = this.serverPool.get(language) || [];
-        const availableServer = updatedPool.find(s => s.refCount === 0 && !s.isRestarting);
+        const availableServer = updatedPool.find((s) => s.refCount === 0 && !s.isRestarting);
 
         if (availableServer) {
           clearTimeout(timeout);
@@ -454,7 +454,7 @@ export class LSPServerPool {
       // If not leased, check pools
       if (!server) {
         for (const [_language, pool] of this.serverPool.entries()) {
-          server = pool.find(s => s.projectId && serverKey.includes(s.projectId));
+          server = pool.find((s) => s.projectId && serverKey.includes(s.projectId));
           if (server) break;
         }
       }
@@ -480,7 +480,7 @@ export class LSPServerPool {
     if (!server) {
       // Check if it's in any pool
       for (const [_language, pool] of this.serverPool.entries()) {
-        server = pool.find(s => s.projectId && serverKey.includes(s.projectId));
+        server = pool.find((s) => s.projectId && serverKey.includes(s.projectId));
         if (server) break;
       }
     }
@@ -589,7 +589,9 @@ export class LSPServerPool {
             pool.splice(serverIndex, 1);
             this.lspClient
               .restartServer([this.getExtensionFromLanguage(server.language)])
-              .catch((error: any) => console.error(`Error stopping idle ${language} server:`, error));
+              .catch((error: any) =>
+                console.error(`Error stopping idle ${language} server:`, error)
+              );
           }
         }
       }

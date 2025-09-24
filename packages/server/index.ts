@@ -244,7 +244,7 @@ if (subcommand === 'setup') {
 const defaultServerOptions = {
   serverOptions: {
     enablePredictiveLoading: true, // Enable predictive loading by default
-  }
+  },
 };
 
 // Create LSP clients and services with proper error handling
@@ -266,7 +266,7 @@ try {
   const transactionManager = new TransactionManager();
 
   // Get the loaded config from the LSP client (which loads it from file)
-  const loadedConfig = (newLspClient as any).config || {};
+  const loadedConfig = (newLspClient as { config?: Record<string, unknown> }).config || {};
   const configWithDefaults = {
     ...loadedConfig,
     ...defaultServerOptions, // Merge in our defaults
@@ -291,7 +291,7 @@ try {
   predictiveLoaderService = new PredictiveLoaderService({
     logger,
     openFile: (filePath: string) => fileService.openFileInternal(filePath),
-    config: configWithDefaults
+    config: configWithDefaults,
   });
 
   // Add predictive loader and fileService references to the context

@@ -1,6 +1,6 @@
-import path from 'node:path';
-import { readFile, access, stat } from 'node:fs/promises';
 import { constants } from 'node:fs';
+import { access, readFile, stat } from 'node:fs/promises';
+import path from 'node:path';
 import ts from 'typescript';
 import type { StructuredLogger } from '../core/diagnostics/structured-logger.js';
 
@@ -27,7 +27,7 @@ export class PredictiveLoaderService {
 
       const preloadPromise = this._performPreload(filePath);
       this.preloadQueue.set(filePath, preloadPromise);
-      
+
       try {
         await preloadPromise;
       } finally {
@@ -50,12 +50,12 @@ export class PredictiveLoaderService {
       if (absolutePath && !this.preloadedFiles.has(absolutePath)) {
         this.preloadedFiles.add(absolutePath);
         this.context.logger.info(`Pre-loading import: ${absolutePath}`);
-        
+
         try {
           // Use the provided openFile callback to trigger a didOpen
           // to the LSP server, effectively pre-loading it.
           await this.context.openFile(absolutePath);
-          
+
           // Recursively preload imports from this file (with depth limit)
           if (this.shouldRecurse(absolutePath)) {
             await this.preloadImports(absolutePath);
@@ -72,14 +72,9 @@ export class PredictiveLoaderService {
 
   private parseImports(filePath: string, fileContent: string): string[] {
     const imports: string[] = [];
-    
+
     try {
-      const sourceFile = ts.createSourceFile(
-        filePath,
-        fileContent,
-        ts.ScriptTarget.Latest,
-        true
-      );
+      const sourceFile = ts.createSourceFile(filePath, fileContent, ts.ScriptTarget.Latest, true);
 
       const findImports = (node: ts.Node) => {
         // Handle ES6 imports
@@ -87,21 +82,25 @@ export class PredictiveLoaderService {
           imports.push(node.moduleSpecifier.text);
         }
         // Handle CommonJS requires
-        else if (ts.isCallExpression(node) && 
-                 node.expression.kind === ts.SyntaxKind.Identifier &&
-                 (node.expression as ts.Identifier).text === 'require' &&
-                 node.arguments.length > 0 &&
-                 ts.isStringLiteral(node.arguments[0])) {
+        else if (
+          ts.isCallExpression(node) &&
+          node.expression.kind === ts.SyntaxKind.Identifier &&
+          (node.expression as ts.Identifier).text === 'require' &&
+          node.arguments.length > 0 &&
+          ts.isStringLiteral(node.arguments[0])
+        ) {
           imports.push((node.arguments[0] as ts.StringLiteral).text);
         }
         // Handle dynamic imports
-        else if (ts.isCallExpression(node) &&
-                 node.expression.kind === ts.SyntaxKind.ImportKeyword &&
-                 node.arguments.length > 0 &&
-                 ts.isStringLiteral(node.arguments[0])) {
+        else if (
+          ts.isCallExpression(node) &&
+          node.expression.kind === ts.SyntaxKind.ImportKeyword &&
+          node.arguments.length > 0 &&
+          ts.isStringLiteral(node.arguments[0])
+        ) {
           imports.push((node.arguments[0] as ts.StringLiteral).text);
         }
-        
+
         ts.forEachChild(node, findImports);
       };
 
@@ -109,11 +108,14 @@ export class PredictiveLoaderService {
     } catch (error) {
       this.context.logger.warn(`Failed to parse imports for ${filePath}:`, error);
     }
-    
+
     return imports;
   }
 
-  private async resolveImportPath(currentFilePath: string, importPath: string): Promise<string | null> {
+  private async resolveImportPath(
+    currentFilePath: string,
+    importPath: string
+  ): Promise<string | null> {
     // Skip node_modules and external packages
     if (!importPath.startsWith('.') && !importPath.startsWith('/')) {
       return null;
@@ -136,9 +138,9 @@ export class PredictiveLoaderService {
       // Try exact match first
       resolved,
       // Try with extensions
-      ...extensions.map(ext => resolved + ext),
+      ...extensions.map((ext) => resolved + ext),
       // Try as directory with index files
-      ...extensions.map(ext => path.join(resolved, 'index' + ext))
+      ...extensions.map((ext) => path.join(resolved, `index${ext}`)),
     ];
 
     // Find the first file that exists
@@ -157,11 +159,14 @@ export class PredictiveLoaderService {
 
     // If we have a tsconfig.json, we could also try to resolve using TypeScript's module resolution
     // For now, we'll just return null if we can't find the file
-    this.context.logger.debug(`Could not resolve import: ${importPath} from ${currentFilePath}`, {} as any);
+    this.context.logger.debug(
+      `Could not resolve import: ${importPath} from ${currentFilePath}`,
+      {} as any
+    );
     return null;
   }
 
-  private shouldRecurse(filePath: string): boolean {
+  private shouldRecurse(_filePath: string): boolean {
     // Limit recursion depth to avoid infinite loops and excessive preloading
     // For now, we'll only preload direct imports (depth 1)
     // In future, this could be configurable
@@ -183,7 +188,7 @@ export class PredictiveLoaderService {
   getStats(): { preloadedCount: number; queueSize: number } {
     return {
       preloadedCount: this.preloadedFiles.size,
-      queueSize: this.preloadQueue.size
+      queueSize: this.preloadQueue.size,
     };
   }
 }

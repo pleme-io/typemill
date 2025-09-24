@@ -8,26 +8,17 @@ import { resolve } from 'node:path';
 import { logger } from '../core/diagnostics/logger.js';
 import type { WebSocketTransport } from '../transports/websocket.js';
 import type {
+  AsyncOperationCallback,
+  FileOperationResult,
+  FuseStats,
+} from '../types/fuse-types.js';
+import type {
   EnhancedClientSession,
   FuseOperationRequest,
   FuseOperationResponse,
 } from '../types/session.js';
 
-export interface FuseStats {
-  mode: number;
-  size: number;
-  mtime: Date;
-  atime: Date;
-  ctime: Date;
-  uid: number;
-  gid: number;
-  dev: number;
-  ino: number;
-  nlink: number;
-  rdev: number;
-  blksize: number;
-  blocks: number;
-}
+// FuseStats is now imported from types/fuse-types.ts
 
 export interface FuseOperationHandlers {
   readdir(path: string): Promise<string[]>;
@@ -46,10 +37,7 @@ export interface FuseOperationHandlers {
 export class FuseOperations implements FuseOperationHandlers {
   private session: EnhancedClientSession;
   private transport: WebSocketTransport;
-  private pendingOperations = new Map<
-    string,
-    { resolve: (value: any) => void; reject: (reason?: any) => void; timeout: NodeJS.Timeout }
-  >();
+  private pendingOperations = new Map<string, AsyncOperationCallback<FileOperationResult>>();
   private readonly OPERATION_TIMEOUT_MS = 30000; // 30 seconds
   private fileDescriptors = new Map<number, string>(); // fd -> path mapping
   private nextFd = 1;
@@ -69,7 +57,7 @@ export class FuseOperations implements FuseOperationHandlers {
     }
 
     // Check if session has required permissions
-    const permissions = (this.session as any).permissions || [];
+    const permissions = this.session.permissions || [];
 
     // Map operations to required permissions
     const requiredPermissions: Record<string, string> = {
@@ -121,7 +109,7 @@ export class FuseOperations implements FuseOperationHandlers {
   /**
    * Send a FUSE operation request to the client and wait for response
    */
-  private async sendFuseOperation<T = any>(
+  private async sendFuseOperation<T = FileOperationResult>(
     method: FuseOperationRequest['method'],
     path: string,
     options: Partial<FuseOperationRequest> = {}
@@ -175,8 +163,8 @@ export class FuseOperations implements FuseOperationHandlers {
     if (success) {
       pending.resolve(data);
     } else {
-      const fuseError = new Error(error || 'FUSE operation failed');
-      (fuseError as any).errno = errno || -2; // ENOENT by default
+      const fuseError = new Error(error || 'FUSE operation failed') as Error & { errno?: number };
+      fuseError.errno = errno || -2; // ENOENT by default
       pending.reject(fuseError);
     }
   }
@@ -435,6 +423,20 @@ export class FuseOperations implements FuseOperationHandlers {
       newPath,
     });
     throw new Error('Read-only filesystem');
+  }
+
+  /**
+   * Get pending operations count (for stats)
+   */
+  getPendingOperationsCount(): number {
+    return this.pendingOperations.size;
+  }
+
+  /**
+   * Get open files count (for stats)
+   */
+  getOpenFilesCount(): number {
+    return this.fileDescriptors.size;
   }
 
   /**

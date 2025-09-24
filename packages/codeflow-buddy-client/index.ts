@@ -1,15 +1,25 @@
 // Main exports for library usage
-export { MCPProxy, type ProxyOptions, type MCPToolCall, type MCPToolResponse } from './mcp-proxy.js';
-export { WebSocketClient, type WebSocketClientOptions, type ConnectionStatus } from './websocket.js';
-export { 
-  loadConfig, 
-  saveConfig, 
+
+export {
+  type ClientConfig,
+  deleteProfile,
   getConfig,
+  listProfiles,
+  loadConfig,
+  type ProfileConfig,
+  saveConfig,
   saveProfile,
   setCurrentProfile,
-  listProfiles,
-  deleteProfile,
-  type ClientConfig,
-  type ProfileConfig 
 } from './config.js';
 export { createProxyServer } from './http-proxy.js';
+export {
+  MCPProxy,
+  type MCPToolCall,
+  type MCPToolResponse,
+  type ProxyOptions,
+} from './mcp-proxy.js';
+export {
+  type ConnectionStatus,
+  WebSocketClient,
+  type WebSocketClientOptions,
+} from './websocket.js';

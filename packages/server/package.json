@@ -19,6 +19,7 @@
     "test:fast": "bun scripts/test-runner.ts --fast",
     "test:minimal": "bun scripts/test-runner.ts --minimal",
     "test:fuse": "bun scripts/test-runner.ts tests/e2e/fuse-integration.test.ts tests/unit/workspace-manager.test.ts tests/e2e/websocket-fuse.test.ts tests/e2e/fuse-native-real.test.ts",
+    "test:performance": "bun scripts/test-runner.ts tests/performance/predictive-loading.test.ts",
     "test:ci": "npm run build && npm run test:all",
     "lint": "biome check .",
     "lint:fix": "biome check --fix .",

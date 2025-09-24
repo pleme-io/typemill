@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import { PredictiveLoaderService } from '../src/services/predictive-loader';
-import type { StructuredLogger } from '../src/core/diagnostics/structured-logger';
-import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import type { StructuredLogger } from '../src/core/diagnostics/structured-logger';
+import { PredictiveLoaderService } from '../src/services/predictive-loader';
 
 describe('PredictiveLoaderService', () => {
   let testDir: string;
@@ -15,16 +15,16 @@ describe('PredictiveLoaderService', () => {
     // Create a temp directory for test files
     testDir = join(tmpdir(), `predictive-test-${Date.now()}`);
     mkdirSync(testDir, { recursive: true });
-    
+
     // Reset opened files tracker
     openedFiles = [];
 
     // Create mock logger
     mockLogger = {
-      debug: (...args: any[]) => {},
-      info: (...args: any[]) => {},
-      warn: (...args: any[]) => {},
-      error: (...args: any[]) => {},
+      debug: (..._args: any[]) => {},
+      info: (..._args: any[]) => {},
+      warn: (..._args: any[]) => {},
+      error: (..._args: any[]) => {},
     } as any;
 
     // Create service with mock context
@@ -35,9 +35,9 @@ describe('PredictiveLoaderService', () => {
       },
       config: {
         server: {
-          enablePredictiveLoading: true
-        }
-      }
+          enablePredictiveLoading: true,
+        },
+      },
     });
   });
 
@@ -45,26 +45,35 @@ describe('PredictiveLoaderService', () => {
     const mainFile = join(testDir, 'main.ts');
     const utilsFile = join(testDir, 'utils.ts');
     const helpersFile = join(testDir, 'helpers.ts');
-    
+
     // Create test files
-    writeFileSync(mainFile, `
+    writeFileSync(
+      mainFile,
+      `
       import { helper } from './utils';
       import * as helpers from './helpers';
       import defaultExport from './utils';
       
       const result = helper();
-    `);
-    
-    writeFileSync(utilsFile, `
+    `
+    );
+
+    writeFileSync(
+      utilsFile,
+      `
       export function helper() {
         return 'hello';
       }
       export default function() { return 'default'; }
-    `);
-    
-    writeFileSync(helpersFile, `
+    `
+    );
+
+    writeFileSync(
+      helpersFile,
+      `
       export const help = () => 'help';
-    `);
+    `
+    );
 
     // Trigger predictive loading
     await service.preloadImports(mainFile);
@@ -77,60 +86,75 @@ describe('PredictiveLoaderService', () => {
   it('should parse CommonJS requires', async () => {
     const mainFile = join(testDir, 'main.js');
     const moduleFile = join(testDir, 'module.js');
-    
-    writeFileSync(mainFile, `
+
+    writeFileSync(
+      mainFile,
+      `
       const module = require('./module');
       const { func } = require('./module');
       
       module.func();
-    `);
-    
-    writeFileSync(moduleFile, `
+    `
+    );
+
+    writeFileSync(
+      moduleFile,
+      `
       exports.func = function() {
         return 'commonjs';
       };
-    `);
+    `
+    );
 
     await service.preloadImports(mainFile);
-    
+
     expect(openedFiles).toContain(moduleFile);
   });
 
   it('should handle dynamic imports', async () => {
     const mainFile = join(testDir, 'main.ts');
     const lazyFile = join(testDir, 'lazy.ts');
-    
-    writeFileSync(mainFile, `
+
+    writeFileSync(
+      mainFile,
+      `
       async function loadLazy() {
         const module = await import('./lazy');
         return module.default;
       }
-    `);
-    
-    writeFileSync(lazyFile, `
+    `
+    );
+
+    writeFileSync(
+      lazyFile,
+      `
       export default function lazy() {
         return 'lazy loaded';
       }
-    `);
+    `
+    );
 
     await service.preloadImports(mainFile);
-    
+
     expect(openedFiles).toContain(lazyFile);
   });
 
   it('should skip node_modules and external packages', async () => {
     const mainFile = join(testDir, 'main.ts');
-    
-    writeFileSync(mainFile, `
+
+    writeFileSync(
+      mainFile,
+      `
       import express from 'express';
       import { readFile } from 'fs/promises';
       import axios from 'axios';
       
       const app = express();
-    `);
+    `
+    );
 
     await service.preloadImports(mainFile);
-    
+
     // Should not try to open node_modules files
     expect(openedFiles.length).toBe(0);
   });
@@ -139,47 +163,59 @@ describe('PredictiveLoaderService', () => {
     const mainFile = join(testDir, 'main.ts');
     const libDir = join(testDir, 'lib');
     const indexFile = join(libDir, 'index.ts');
-    
+
     mkdirSync(libDir, { recursive: true });
-    
-    writeFileSync(mainFile, `
+
+    writeFileSync(
+      mainFile,
+      `
       import { lib } from './lib';
       
       lib();
-    `);
-    
-    writeFileSync(indexFile, `
+    `
+    );
+
+    writeFileSync(
+      indexFile,
+      `
       export function lib() {
         return 'from index';
       }
-    `);
+    `
+    );
 
     await service.preloadImports(mainFile);
-    
+
     expect(openedFiles).toContain(indexFile);
   });
 
   it('should handle relative parent imports', async () => {
     const subDir = join(testDir, 'src');
     mkdirSync(subDir);
-    
+
     const mainFile = join(subDir, 'main.ts');
     const configFile = join(testDir, 'config.ts');
-    
-    writeFileSync(mainFile, `
+
+    writeFileSync(
+      mainFile,
+      `
       import { config } from '../config';
       
       console.log(config);
-    `);
-    
-    writeFileSync(configFile, `
+    `
+    );
+
+    writeFileSync(
+      configFile,
+      `
       export const config = {
         api: 'http://localhost'
       };
-    `);
+    `
+    );
 
     await service.preloadImports(mainFile);
-    
+
     expect(openedFiles).toContain(configFile);
   });
 
@@ -187,29 +223,38 @@ describe('PredictiveLoaderService', () => {
     const mainFile = join(testDir, 'main.ts');
     const sharedFile = join(testDir, 'shared.ts');
     const otherFile = join(testDir, 'other.ts');
-    
-    writeFileSync(mainFile, `
+
+    writeFileSync(
+      mainFile,
+      `
       import { shared } from './shared';
-    `);
-    
-    writeFileSync(otherFile, `
+    `
+    );
+
+    writeFileSync(
+      otherFile,
+      `
       import { shared } from './shared';
-    `);
-    
-    writeFileSync(sharedFile, `
+    `
+    );
+
+    writeFileSync(
+      sharedFile,
+      `
       export const shared = 'shared value';
-    `);
+    `
+    );
 
     // Load from main file
     await service.preloadImports(mainFile);
     expect(openedFiles).toContain(sharedFile);
-    const firstCount = openedFiles.length;
-    
+    const _firstCount = openedFiles.length;
+
     // Load from other file - shared should be cached
     await service.preloadImports(otherFile);
-    
+
     // Should only have opened otherFile, not sharedFile again
-    expect(openedFiles.filter(f => f === sharedFile).length).toBe(1);
+    expect(openedFiles.filter((f) => f === sharedFile).length).toBe(1);
   });
 
   it('should provide statistics', () => {
@@ -223,14 +268,14 @@ describe('PredictiveLoaderService', () => {
   it('should clear cache', async () => {
     const mainFile = join(testDir, 'main.ts');
     const utilFile = join(testDir, 'util.ts');
-    
+
     writeFileSync(mainFile, `import { util } from './util';`);
     writeFileSync(utilFile, `export const util = 'util';`);
 
     await service.preloadImports(mainFile);
     let stats = service.getStats();
     expect(stats.preloadedCount).toBeGreaterThan(0);
-    
+
     service.clearCache();
     stats = service.getStats();
     expect(stats.preloadedCount).toBe(0);

@@ -27,6 +27,6 @@ export function processData(data: unknown[]): ErrorData[] {
 }
 
 // Error: Unused parameter
-export function handleError(error: Error, context: string): void {
+export function handleError(error: Error, _context: string): void {
   console.log(error.message); // 'context' parameter is unused
 }

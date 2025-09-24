@@ -1,7 +1,7 @@
+import { existsSync } from 'node:fs';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
 
 export interface ClientConfig {
   url?: string;
@@ -83,16 +83,16 @@ export async function getConfig(overrides: Partial<ClientConfig> = {}): Promise<
  */
 export async function saveProfile(name: string, profile: ProfileConfig): Promise<void> {
   const config = await loadConfig();
-  
+
   if (!config.profiles) {
     config.profiles = {};
   }
-  
+
   config.profiles[name] = {
     ...profile,
     name,
   };
-  
+
   await saveConfig(config);
 }
 
@@ -101,11 +101,11 @@ export async function saveProfile(name: string, profile: ProfileConfig): Promise
  */
 export async function setCurrentProfile(name: string): Promise<void> {
   const config = await loadConfig();
-  
+
   if (!config.profiles?.[name]) {
     throw new Error(`Profile '${name}' does not exist`);
   }
-  
+
   config.currentProfile = name;
   await saveConfig(config);
 }
@@ -123,15 +123,15 @@ export async function listProfiles(): Promise<Record<string, ProfileConfig>> {
  */
 export async function deleteProfile(name: string): Promise<void> {
   const config = await loadConfig();
-  
+
   if (config.profiles) {
     delete config.profiles[name];
-    
+
     // If this was the current profile, clear it
     if (config.currentProfile === name) {
       delete config.currentProfile;
     }
-    
+
     await saveConfig(config);
   }
 }

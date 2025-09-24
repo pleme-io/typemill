@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 
+import chalk from 'chalk';
 import { Command } from 'commander';
 import inquirer from 'inquirer';
-import chalk from 'chalk';
-import { MCPProxy } from './mcp-proxy.js';
-import { 
-  loadConfig, 
-  saveConfig, 
-  getConfig, 
-  saveProfile, 
-  setCurrentProfile,
+import {
+  deleteProfile,
+  getConfig,
   listProfiles,
-  deleteProfile 
+  loadConfig,
+  saveConfig,
+  saveProfile,
+  setCurrentProfile,
 } from './config.js';
 import { createProxyServer } from './http-proxy.js';
+import { MCPProxy } from './mcp-proxy.js';
 import { WebSocketClient } from './websocket.js';
 
 const program = new Command();
@@ -107,9 +107,7 @@ program
   });
 
 // Profile management commands
-const profileCmd = program
-  .command('profile')
-  .description('Manage connection profiles');
+const profileCmd = program.command('profile').description('Manage connection profiles');
 
 profileCmd
   .command('list')
@@ -117,7 +115,7 @@ profileCmd
   .action(async () => {
     const profiles = await listProfiles();
     const config = await loadConfig();
-    
+
     if (Object.keys(profiles).length === 0) {
       console.log(chalk.yellow('No profiles configured'));
       return;
@@ -187,11 +185,11 @@ program
     if (options.interactive || !paramsJson) {
       // Interactive mode - fetch tool schema and prompt for parameters
       console.log(chalk.gray('Fetching tool schema...'));
-      
+
       try {
         const client = new WebSocketClient(config.url, {
           token: config.token,
-          requestTimeout: parseInt(globalOpts.timeout),
+          requestTimeout: parseInt(globalOpts.timeout, 10),
         });
 
         await client.connect();
@@ -207,18 +205,26 @@ program
         // Build prompts from schema
         const prompts: any[] = [];
         if (toolInfo.inputSchema?.properties) {
-          for (const [key, schema] of Object.entries(toolInfo.inputSchema.properties as Record<string, any>)) {
+          for (const [key, schema] of Object.entries(
+            toolInfo.inputSchema.properties as Record<string, any>
+          )) {
             const required = toolInfo.inputSchema.required?.includes(key);
             prompts.push({
               type: schema.type === 'boolean' ? 'confirm' : 'input',
               name: key,
               message: `${key}${required ? ' (required)' : ''}:`,
-              when: () => required || inquirer.prompt([{
-                type: 'confirm',
-                name: 'include',
-                message: `Include ${key}?`,
-                default: false,
-              }]).then((a: any) => a.include),
+              when: () =>
+                required ||
+                inquirer
+                  .prompt([
+                    {
+                      type: 'confirm',
+                      name: 'include',
+                      message: `Include ${key}?`,
+                      default: false,
+                    },
+                  ])
+                  .then((a: any) => a.include),
             });
           }
         }
@@ -229,12 +235,14 @@ program
       } catch (error) {
         console.error(chalk.red('Failed to fetch tool schema:'), error);
         // Fall back to raw parameter input
-        const answer = await inquirer.prompt([{
-          type: 'editor',
-          name: 'params',
-          message: 'Enter parameters (JSON):',
-          default: '{}',
-        }]);
+        const answer = await inquirer.prompt([
+          {
+            type: 'editor',
+            name: 'params',
+            message: 'Enter parameters (JSON):',
+            default: '{}',
+          },
+        ]);
         params = JSON.parse(answer.params);
       }
     } else {
@@ -254,7 +262,7 @@ program
     try {
       const proxy = new MCPProxy(config.url, {
         token: config.token,
-        requestTimeout: parseInt(globalOpts.timeout),
+        requestTimeout: parseInt(globalOpts.timeout, 10),
       });
 
       const result = await proxy.send({ method: tool, params });
@@ -299,12 +307,12 @@ program
 
     const proxy = new MCPProxy(config.url, {
       token: config.token,
-      requestTimeout: parseInt(globalOpts.timeout),
+      requestTimeout: parseInt(globalOpts.timeout, 10),
     });
 
-    const server = createProxyServer(proxy, parseInt(options.port));
-    
-    server.listen(parseInt(options.port), () => {
+    const server = createProxyServer(proxy, parseInt(options.port, 10));
+
+    server.listen(parseInt(options.port, 10), () => {
       console.log(chalk.green(`\n✓ HTTP proxy server started`));
       console.log(`  Listening on: http://localhost:${options.port}`);
       console.log(`  WebSocket backend: ${config.url}`);
@@ -357,9 +365,9 @@ program
       console.log(chalk.gray('Fetching available tools...'));
       const result = await client.send('tools/list');
       const tools = (result as any)?.tools || [];
-      
+
       console.log(chalk.green(`✓ Server has ${tools.length} tools available`));
-      
+
       await client.disconnect();
       console.log(chalk.green('✓ Connection test successful'));
     } catch (error: any) {
@@ -371,41 +379,41 @@ program
 // Helper function to format results
 function formatResult(result: any, indent: number = 0): string {
   const spaces = ' '.repeat(indent);
-  
+
   if (result === null || result === undefined) {
     return chalk.gray('null');
   }
-  
+
   if (typeof result === 'string') {
     return chalk.yellow(`"${result}"`);
   }
-  
+
   if (typeof result === 'number' || typeof result === 'boolean') {
     return chalk.cyan(String(result));
   }
-  
+
   if (Array.isArray(result)) {
     if (result.length === 0) {
       return chalk.gray('[]');
     }
-    const items = result.map(item => 
-      `${spaces}  - ${formatResult(item, indent + 4)}`
-    ).join('\n');
+    const items = result.map((item) => `${spaces}  - ${formatResult(item, indent + 4)}`).join('\n');
     return `\n${items}`;
   }
-  
+
   if (typeof result === 'object') {
     const entries = Object.entries(result);
     if (entries.length === 0) {
       return chalk.gray('{}');
     }
-    const items = entries.map(([key, value]) => {
-      const formattedValue = formatResult(value, indent + 2);
-      return `${spaces}  ${chalk.blue(key)}: ${formattedValue}`;
-    }).join('\n');
+    const items = entries
+      .map(([key, value]) => {
+        const formattedValue = formatResult(value, indent + 2);
+        return `${spaces}  ${chalk.blue(key)}: ${formattedValue}`;
+      })
+      .join('\n');
     return `\n${items}`;
   }
-  
+
   return String(result);
 }
 

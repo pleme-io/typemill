@@ -235,18 +235,20 @@ export class FileService {
    */
   async openFile(filePath: string, skipPredictiveLoading = false): Promise<void> {
     try {
-      const serverState = await this.context.prepareFile(filePath);
+      const _serverState = await this.context.prepareFile(filePath);
 
       // Trigger predictive loading if enabled and we have a predictive loader
       // Skip if explicitly requested (to avoid infinite recursion)
-      if (!skipPredictiveLoading &&
-          this.context.config?.serverOptions?.enablePredictiveLoading !== false && // Default to true
-          this.context.predictiveLoader) {
+      if (
+        !skipPredictiveLoading &&
+        this.context.config?.serverOptions?.enablePredictiveLoading !== false && // Default to true
+        this.context.predictiveLoader
+      ) {
         // Run predictive loading in the background
         this.context.predictiveLoader.preloadImports(filePath).catch((err: any) => {
           this.context.logger?.warn('Predictive loading failed', {
             file: filePath,
-            error: err.message
+            error: err.message,
           });
         });
       }

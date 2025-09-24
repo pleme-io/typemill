@@ -82,9 +82,9 @@ export type ProcessorConfig = {
 
 // Function with multiple parameters for signature help testing
 export function createUserProcessor(
-  config: ProcessorConfig,
+  _config: ProcessorConfig,
   logger?: (message: string) => void,
-  onError?: (error: Error) => void
+  _onError?: (error: Error) => void
 ): TestProcessor {
   const processor = new TestProcessor();
 

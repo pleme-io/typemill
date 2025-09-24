@@ -6,16 +6,17 @@
 import Fuse from '@cocalc/fuse-native';
 import { logger } from '../core/diagnostics/logger.js';
 import type { WebSocketTransport } from '../transports/websocket.js';
-import type { EnhancedClientSession } from '../types/session.js';
+import type {
+  FuseErrorCallback,
+  FuseGetattrCallback,
+  FuseOpenCallback,
+  FuseReadCallback,
+  FuseReaddirCallback,
+  FuseWriteCallback,
+  MountOptions,
+} from '../types/fuse-types.js';
+import type { EnhancedClientSession, FuseOperationResponse } from '../types/session.js';
 import { FuseOperations } from './fuse-operations.js';
-
-// FUSE callback types
-type FuseErrorCallback = (errno: number) => void;
-type FuseReaddirCallback = (errno: number, files?: string[]) => void;
-type FuseGetattrCallback = (errno: number, stats?: any) => void;
-type FuseOpenCallback = (errno: number, fd?: number) => void;
-type FuseReadCallback = (bytesRead: number) => void;
-type FuseWriteCallback = (bytesWritten: number) => void;
 
 export interface FuseMountConfig {
   mountOptions?: string[];
@@ -227,15 +228,15 @@ export class FuseMount {
   /**
    * Handle FUSE response from client
    */
-  handleFuseResponse(response: any): void {
+  handleFuseResponse(response: FuseOperationResponse): void {
     this.operations.handleFuseResponse(response);
   }
 
   /**
    * Build mount options from config
    */
-  private buildMountOptions(): object {
-    const options: any = {
+  private buildMountOptions(): MountOptions {
+    const options: MountOptions = {
       debug: this.config.debugFuse || false,
     };
 
@@ -283,8 +284,8 @@ export class FuseMount {
       mounted: this.mounted,
       mountPath: this.mountPath,
       sessionId: this.session.id,
-      pendingOperations: (this.operations as any).pendingOperations?.size || 0,
-      openFiles: (this.operations as any).fileDescriptors?.size || 0,
+      pendingOperations: this.operations.getPendingOperationsCount(),
+      openFiles: this.operations.getOpenFilesCount(),
     };
   }
 

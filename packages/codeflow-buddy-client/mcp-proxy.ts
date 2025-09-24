@@ -1,5 +1,4 @@
 import { WebSocketClient, type WebSocketClientOptions } from './websocket.js';
-import type { MCPRequest, MCPResponse } from './websocket.js';
 
 export interface ProxyOptions extends Omit<WebSocketClientOptions, 'reconnect'> {
   autoConnect?: boolean;
@@ -25,8 +24,6 @@ export interface MCPToolResponse<T = unknown> {
  */
 export class MCPProxy {
   private client: WebSocketClient;
-  private url: string;
-  private options: ProxyOptions;
   private connectPromise?: Promise<void>;
 
   constructor(url: string, options: ProxyOptions = {}) {
@@ -35,7 +32,7 @@ export class MCPProxy {
       autoConnect: true,
       ...options,
     };
-    
+
     // Always enable reconnect for the proxy
     this.client = new WebSocketClient(url, {
       ...options,
@@ -58,7 +55,7 @@ export class MCPProxy {
     if (!this.eventHandlers.has(event)) {
       this.eventHandlers.set(event, new Set());
     }
-    this.eventHandlers.get(event)!.add(handler);
+    this.eventHandlers.get(event)?.add(handler);
     return this;
   }
 
@@ -117,17 +114,21 @@ export class MCPProxy {
    */
   async sendBatch<T = unknown>(calls: MCPToolCall[]): Promise<MCPToolResponse<T>[]> {
     await this.ensureConnected();
-    
-    const promises = calls.map(call => 
-      this.client.send(call.method, call.params)
-        .then(result => ({ result } as MCPToolResponse<T>))
-        .catch(error => ({
-          error: {
-            code: error.code || -32603,
-            message: error.message,
-            data: error.data,
-          },
-        } as MCPToolResponse<T>))
+
+    const promises = calls.map((call) =>
+      this.client
+        .send(call.method, call.params)
+        .then((result) => ({ result }) as MCPToolResponse<T>)
+        .catch(
+          (error) =>
+            ({
+              error: {
+                code: error.code || -32603,
+                message: error.message,
+                data: error.data,
+              },
+            }) as MCPToolResponse<T>
+        )
     );
 
     return Promise.all(promises);
