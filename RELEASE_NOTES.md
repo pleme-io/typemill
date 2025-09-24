@@ -1,8 +1,48 @@
-# Release Notes - v1.1.0
+# Release Notes - v1.2.0
 
-## 🎉 ARM64 Native FUSE Support
+## 🚀 Enterprise Architecture & LSP Server Pooling
 
-This release brings full native FUSE support for ARM64 architecture, enabling codeflow-buddy to run on modern ARM-based systems including Apple Silicon Macs and ARM64 Linux servers.
+This release represents a complete architectural transformation, implementing advanced resource management, enterprise deployment capabilities, and intelligent pooling systems for optimal performance.
+
+### 🎯 Major Features in v1.2.0
+
+#### 🏊 LSP Server Pooling
+- **Resource Efficiency**: Max 2 servers per language instead of unlimited
+- **Reduced Latency**: Server reuse eliminates cold start delays
+- **Workspace Isolation**: Servers can be reassigned between workspaces
+- **Intelligent Queuing**: Automatic waiting when pools are at capacity
+
+#### ⚡ Performance Enhancements
+- **Delta Updates**: Efficient file synchronization using diff-match-patch
+- **Advanced Caching**: Event-driven invalidation with hit rate tracking
+- **Analysis Cache**: Prevents re-computation for workspace symbols
+
+#### 🏗️ Architecture Transformation
+- **Monorepo Structure**: Clean packages/client and packages/server separation
+- **Transaction Manager**: Atomic operations with rollback capabilities
+- **Workflow Orchestrator**: Automated tool chain execution with dependencies
+- **Service Architecture**: Modular service-based design patterns
+
+#### 🔧 Enterprise Features
+- **WebSocket Server**: Production-ready multi-client support
+- **JWT Authentication**: Token-based access control
+- **Health Monitoring**: `/healthz` and `/metrics` endpoints
+- **Session Management**: Connection recovery with 60-second grace periods
+
+### Installation
+
+```bash
+# Install latest version globally
+npm install -g @goobits/codeflow-buddy
+
+# Smart setup with auto-detection
+codeflow-buddy setup
+
+# Start WebSocket server with authentication
+node dist/index.js serve --require-auth --jwt-secret "your-secret-key"
+```
+
+## Previous Release - v1.1.0 - ARM64 Native FUSE Support
 
 ### Key Features
 
