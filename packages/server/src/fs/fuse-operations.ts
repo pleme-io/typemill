@@ -48,7 +48,7 @@ export class FuseOperations implements FuseOperationHandlers {
   private transport: WebSocketTransport;
   private pendingOperations = new Map<
     string,
-    { resolve: Function; reject: Function; timeout: NodeJS.Timeout }
+    { resolve: (value: any) => void; reject: (reason?: any) => void; timeout: NodeJS.Timeout }
   >();
   private readonly OPERATION_TIMEOUT_MS = 30000; // 30 seconds
   private fileDescriptors = new Map<number, string>(); // fd -> path mapping

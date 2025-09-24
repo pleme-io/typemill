@@ -51,7 +51,7 @@ async function checkBuild(): Promise<boolean> {
       execSync('bun run build', { stdio: 'inherit' });
       log('✅ Project built successfully', 'green');
       return true;
-    } catch (error) {
+    } catch (_error) {
       log('❌ Build failed', 'red');
       log('   Run: bun run build', 'cyan');
       return false;
@@ -65,7 +65,7 @@ async function checkBuild(): Promise<boolean> {
       execSync('bun run build', { stdio: 'inherit' });
       log('✅ Project rebuilt successfully', 'green');
       return true;
-    } catch (error) {
+    } catch (_error) {
       log('❌ Rebuild failed', 'red');
       log('   Run: bun run build', 'cyan');
       return false;
@@ -92,7 +92,7 @@ async function checkDependencies(): Promise<boolean> {
       execSync('bun install', { stdio: 'inherit' });
       log('✅ Dependencies updated', 'green');
       return true;
-    } catch (error) {
+    } catch (_error) {
       log('❌ Failed to install dependencies', 'red');
       log('   Run: bun install', 'cyan');
       return false;

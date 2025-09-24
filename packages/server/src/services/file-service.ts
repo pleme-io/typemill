@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { logDebugMessage } from '../core/diagnostics/debug-logger.js';
 import { handleFileSystemError, logError } from '../core/diagnostics/error-utils.js';
 import { pathToUri } from '../core/file-operations/path-utils.js';
@@ -20,6 +20,8 @@ const MAX_LINE_NUMBER = 999999; // Maximum line number for file operations
  * Handles formatting, code actions, document links, and file synchronization
  */
 export class FileService {
+  private trackedFiles: Set<string> = new Set();
+
   constructor(private context: ServiceContext) {}
 
   /**
@@ -427,6 +429,65 @@ export class FileService {
     } catch (error) {
       logDebugMessage('FileService', `Failed to sync file ${filePath}: ${error}`);
       // Don't throw - syncing is best effort
+    }
+  }
+
+  /**
+   * Get list of tracked files
+   * Used by TransactionManager for capturing state
+   */
+  getTrackedFiles(): string[] {
+    return Array.from(this.trackedFiles);
+  }
+
+  /**
+   * Track a file for transaction management
+   */
+  trackFile(filePath: string): void {
+    this.trackedFiles.add(filePath);
+  }
+
+  /**
+   * Read file content safely
+   * Returns null if file doesn't exist
+   */
+  async readFile(filePath: string): Promise<string | null> {
+    try {
+      if (!existsSync(filePath)) {
+        return null;
+      }
+      return readFileSync(filePath, 'utf-8');
+    } catch (error) {
+      logDebugMessage('FileService', `Failed to read file ${filePath}: ${error}`);
+      return null;
+    }
+  }
+
+  /**
+   * Write file content
+   */
+  async writeFile(filePath: string, content: string): Promise<void> {
+    try {
+      writeFileSync(filePath, content, 'utf-8');
+      this.trackFile(filePath);
+      // Sync with LSP server
+      await this.syncFileContent(filePath);
+    } catch (error) {
+      throw new Error(`Failed to write file ${filePath}: ${error}`);
+    }
+  }
+
+  /**
+   * Delete file
+   */
+  async deleteFile(filePath: string): Promise<void> {
+    try {
+      if (existsSync(filePath)) {
+        unlinkSync(filePath);
+        this.trackedFiles.delete(filePath);
+      }
+    } catch (error) {
+      throw new Error(`Failed to delete file ${filePath}: ${error}`);
     }
   }
 }

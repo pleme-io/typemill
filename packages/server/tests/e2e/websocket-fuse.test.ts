@@ -18,11 +18,11 @@ class MockWebSocket {
 
   constructor(public url: string) {}
 
-  send(data: string) {
+  send(_data: string) {
     // Mock sending data
   }
 
-  close(code?: number, reason?: string) {
+  close(_code?: number, _reason?: string) {
     if (this.onclose) {
       this.onclose();
     }

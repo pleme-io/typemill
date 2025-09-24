@@ -216,7 +216,11 @@ export class BatchExecutor {
     atomic: boolean,
     stopOnError: boolean
   ): Promise<BatchResult> {
-    const executedOperations: Array<{ operation: BatchOperation; result: unknown }> = [];
+    if (atomic) {
+      // Start a new transaction
+      this.serviceContext.transactionManager.beginTransaction();
+      await this.serviceContext.transactionManager.saveCheckpoint('before-batch');
+    }
 
     for (const operation of operations) {
       try {
@@ -228,8 +232,6 @@ export class BatchExecutor {
           result: operationResult,
         });
         result.summary.successful++;
-
-        executedOperations.push({ operation, result: operationResult });
       } catch (error) {
         result.results.push({
           operation,
@@ -240,8 +242,9 @@ export class BatchExecutor {
         result.success = false;
 
         if (atomic) {
-          // Rollback previous operations if atomic mode
-          await this.rollbackOperations(executedOperations);
+          // Rollback to checkpoint
+          await this.serviceContext.transactionManager.rollbackToCheckpoint('before-batch');
+          this.serviceContext.transactionManager.commit(); // End the transaction
           result.summary.successful = 0; // Reset successful count after rollback
           break;
         }
@@ -263,6 +266,11 @@ export class BatchExecutor {
           break;
         }
       }
+    }
+
+    // Commit transaction if atomic and successful
+    if (atomic && result.success) {
+      this.serviceContext.transactionManager.commit();
     }
 
     return result;
@@ -352,71 +360,6 @@ export class BatchExecutor {
         return this.serviceContext;
       default:
         return undefined;
-    }
-  }
-
-  private async rollbackOperations(
-    executedOperations: Array<{ operation: BatchOperation; result: unknown }>
-  ): Promise<void> {
-    // Rollback operations in reverse order
-    for (let i = executedOperations.length - 1; i >= 0; i--) {
-      const { operation } = executedOperations[i] || {};
-      if (!operation) continue;
-
-      try {
-        await this.rollbackOperation(operation);
-      } catch (error) {
-        // Log rollback errors but don't fail the entire rollback process
-        console.error(`Failed to rollback operation ${operation.tool}:`, error);
-      }
-    }
-  }
-
-  private async rollbackOperation(operation: BatchOperation): Promise<void> {
-    // Only certain operations can be rolled back
-    switch (operation.tool) {
-      case 'rename_file': {
-        // Reverse the file rename
-        if (operation.args && typeof operation.args === 'object') {
-          const args = operation.args as Record<string, unknown>;
-          const oldPath = args.old_path;
-          const newPath = args.new_path;
-
-          if (typeof oldPath === 'string' && typeof newPath === 'string') {
-            const renameHandler = getTool('rename_file');
-            if (renameHandler) {
-              await renameHandler.handler({
-                old_path: newPath,
-                new_path: oldPath,
-              });
-            }
-          }
-        }
-        break;
-      }
-      case 'create_file': {
-        // Delete the created file
-        if (operation.args && typeof operation.args === 'object') {
-          const args = operation.args as Record<string, unknown>;
-          const filePath = args.file_path;
-
-          if (typeof filePath === 'string') {
-            const deleteHandler = getTool('delete_file');
-            if (deleteHandler) {
-              await deleteHandler.handler({
-                file_path: filePath,
-                force: true,
-              });
-            }
-          }
-        }
-        break;
-      }
-      // Other operations like find_definition, get_diagnostics don't need rollback
-      // as they are read-only operations
-      default:
-        // No rollback needed for read-only operations
-        break;
     }
   }
 

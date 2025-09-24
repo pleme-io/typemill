@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { MCPTestClient, assertToolResult } from '../helpers/mcp-test-client.js';
+import { assertToolResult, MCPTestClient } from '../helpers/mcp-test-client.js';
 
 describe('Multi-File Rename Integration Tests', () => {
   let client: MCPTestClient;

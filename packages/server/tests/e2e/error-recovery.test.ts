@@ -2,15 +2,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { MCPTestClient, assertToolResult } from '../helpers/mcp-test-client.js';
+import { assertToolResult, MCPTestClient } from '../helpers/mcp-test-client.js';
 import {
   findLSPServers,
   getLSPServerMemory,
-  isProcessRunning,
-  killTypeScriptServers,
   simulateServerCrash,
   waitForLSPServer,
-  waitForProcessDeath,
 } from '../helpers/server-process-manager.js';
 import { getSystemCapabilities } from '../helpers/system-utils.js';
 

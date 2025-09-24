@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { MCPTestClient, assertToolResult } from '../helpers/mcp-test-client.js';
+import { assertToolResult, MCPTestClient } from '../helpers/mcp-test-client.js';
 import { getSystemCapabilities } from '../helpers/system-utils.js';
 
 describe('Edge Case Tests', () => {

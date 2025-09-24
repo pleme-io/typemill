@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -32,7 +32,7 @@ export function cleanupTestDir(dir: string): void {
     if (existsSync(dir)) {
       rmSync(dir, { recursive: true, force: true });
     }
-  } catch (error) {
+  } catch (_error) {
     // Ignore cleanup errors - another process may have already cleaned it
   }
 }

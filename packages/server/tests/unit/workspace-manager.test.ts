@@ -8,7 +8,6 @@ import { mkdir, rmdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { WorkspaceManager } from '../../src/server/workspace-manager.js';
-import type { WorkspaceInfo } from '../../src/types/enhanced-session.js';
 
 describe('WorkspaceManager Unit Tests', () => {
   let testBaseDir: string;
@@ -233,7 +232,7 @@ describe('WorkspaceManager Unit Tests', () => {
         // Wait to ensure different creation times
         await new Promise((resolve) => setTimeout(resolve, 10));
 
-        const workspace2 = await limitedManager.createWorkspace({
+        const _workspace2 = await limitedManager.createWorkspace({
           id: 'oldest-2',
           projectId: 'proj',
         });
@@ -241,7 +240,7 @@ describe('WorkspaceManager Unit Tests', () => {
         // Wait again
         await new Promise((resolve) => setTimeout(resolve, 10));
 
-        const workspace3 = await limitedManager.createWorkspace({
+        const _workspace3 = await limitedManager.createWorkspace({
           id: 'oldest-3',
           projectId: 'proj',
         });

@@ -4,8 +4,7 @@
  * Unified test runner with multiple modes and flag support
  */
 
-import { spawn } from 'node:child_process';
-import { execSync } from 'node:child_process';
+import { execSync, spawn } from 'node:child_process';
 import { getSystemCapabilities, printSlowSystemInfo, printSystemInfo } from './test-utils.ts';
 
 // Parse command line arguments
@@ -103,7 +102,7 @@ async function runPreTestCheck(): Promise<void> {
     console.log('Running pre-test validation...');
     execSync('bun scripts/pre-test-check.ts', { stdio: 'inherit' });
     console.log('');
-  } catch (error) {
+  } catch (_error) {
     console.error('❌ Pre-test validation failed. Please fix the issues above.');
     process.exit(1);
   }

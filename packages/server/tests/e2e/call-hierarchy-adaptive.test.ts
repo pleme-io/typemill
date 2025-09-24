@@ -2,17 +2,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { MCPTestClient, assertToolResult } from '../helpers/mcp-test-client.js';
+import { MCPTestClient } from '../helpers/mcp-test-client.js';
 import {
   getMinimalConfig,
   getTestConfig,
   getTestModeFromEnv,
 } from '../helpers/test-mode-detector.js';
-import {
-  getFileLines,
-  verifyFileContainsAll,
-  verifyLineContent,
-} from '../helpers/test-verification-helpers';
+import { verifyFileContainsAll } from '../helpers/test-verification-helpers';
 
 /**
  * Adaptive Call Hierarchy Test - works on both fast and slow systems

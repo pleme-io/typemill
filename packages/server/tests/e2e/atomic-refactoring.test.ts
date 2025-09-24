@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { MCPTestClient, assertToolResult } from '../helpers/mcp-test-client.js';
+import { assertToolResult, MCPTestClient } from '../helpers/mcp-test-client.js';
 
 describe('Atomic Refactoring Integration Tests', () => {
   let client: MCPTestClient;
@@ -188,8 +188,8 @@ export class Consumer {
       expect(existsSync(join(TEST_DIR, 'lib', 'data-service.ts'))).toBe(false);
 
       // Read original content to verify it doesn't change
-      const originalMainContent = readFileSync(join(TEST_DIR, 'main.ts'), 'utf-8');
-      const originalConsumerContent = readFileSync(join(TEST_DIR, 'lib', 'consumer.ts'), 'utf-8');
+      const _originalMainContent = readFileSync(join(TEST_DIR, 'main.ts'), 'utf-8');
+      const _originalConsumerContent = readFileSync(join(TEST_DIR, 'lib', 'consumer.ts'), 'utf-8');
 
       // Execute atomic move
       const result = await client.callTool('batch_move_files', {

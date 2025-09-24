@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { MCPTestClient, assertToolResult } from '../helpers/mcp-test-client';
+import { assertToolResult, MCPTestClient } from '../helpers/mcp-test-client';
 import { testLog } from '../helpers/quiet-logger';
 
 describe('Server Restart Tests', () => {

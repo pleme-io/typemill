@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ALL_TESTS, MCPTestClient, assertToolResult } from '../helpers/mcp-test-client.js';
+import { ALL_TESTS, assertToolResult, MCPTestClient } from '../helpers/mcp-test-client.js';
 
 describe('MCP Comprehensive Tests - All 28 Tools', () => {
   let client: MCPTestClient;

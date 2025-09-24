@@ -7,7 +7,7 @@
 
 import { execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { access, mkdir, readFile, readdir, rmdir, stat, writeFile } from 'node:fs/promises';
+import { access, mkdir, readdir, readFile, rmdir, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FuseMount } from '../../src/fs/fuse-mount.js';
@@ -53,7 +53,7 @@ const testSuite = skipCondition ? describe.skip : describe;
 class RealWebSocketTransport {
   constructor(private workspaceDir: string) {}
 
-  async sendRequest(session: EnhancedClientSession, method: string, params: any): Promise<any> {
+  async sendRequest(_session: EnhancedClientSession, method: string, params: any): Promise<any> {
     const relativePath = params.path?.startsWith('/') ? params.path.slice(1) : params.path;
     const fullPath = join(this.workspaceDir, relativePath || '');
 

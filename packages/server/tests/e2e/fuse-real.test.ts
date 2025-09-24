@@ -11,7 +11,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FuseMount } from '../../src/fs/fuse-mount.js';
 import { FuseOperations } from '../../src/fs/fuse-operations.js';
-import { WebSocketTransport } from '../../src/transports/websocket.js';
 import type { EnhancedClientSession } from '../../src/types/enhanced-session.js';
 
 // Skip tests if FUSE is not available
@@ -72,7 +71,7 @@ skipIfNoFuse('Real FUSE Mount Tests', () => {
 
       // Mock transport that handles FUSE operations
       const mockTransport = {
-        sendFuseRequest: jest.fn(async (sessionId: string, operation: any) => {
+        sendFuseRequest: jest.fn(async (_sessionId: string, operation: any) => {
           // Simulate file operations
           switch (operation.type) {
             case 'readdir':
@@ -126,7 +125,7 @@ skipIfNoFuse('Real FUSE Mount Tests', () => {
       await writeFile(testFile, 'Hello World');
 
       const mockTransport = {
-        sendFuseRequest: jest.fn(async (sessionId: string, operation: any) => {
+        sendFuseRequest: jest.fn(async (_sessionId: string, operation: any) => {
           if (operation.type === 'read' && operation.path === '/test.txt') {
             // Read from actual workspace file
             return await readFile(testFile);
@@ -223,7 +222,7 @@ skipIfNoFuse('Real FUSE Mount Tests', () => {
 
       const createMockTransport = (workspaceDir: string) =>
         ({
-          sendFuseRequest: jest.fn(async (sessionId: string, operation: any) => {
+          sendFuseRequest: jest.fn(async (_sessionId: string, operation: any) => {
             if (operation.type === 'readdir') {
               const files = await readFile(workspaceDir);
               return { entries: files };

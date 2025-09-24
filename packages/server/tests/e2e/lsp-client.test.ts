@@ -3,8 +3,8 @@ import { join } from 'node:path';
 import { LSPClient } from '../../src/lsp/lsp-client.js';
 import { FileService } from '../../src/services/file-service.js';
 import { IntelligenceService } from '../../src/services/intelligence/intelligence-service.js';
-import { ServiceContextUtils } from '../../src/services/service-context.js';
 import { SymbolService } from '../../src/services/lsp/symbol-service.js';
+import { ServiceContextUtils } from '../../src/services/service-context.js';
 
 describe('LSP Client Unit Tests', () => {
   let lspClient: LSPClient;

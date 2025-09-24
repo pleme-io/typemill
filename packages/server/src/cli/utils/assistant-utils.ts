@@ -119,7 +119,7 @@ function isAssistantInstalled(assistant: AssistantDefinition): boolean {
 /**
  * Read assistant configuration file
  */
-export function readAssistantConfig(configPath: string): any | null {
+export function readAssistantConfig(configPath: string): Record<string, unknown> | null {
   try {
     const expandedPath = expandPath(configPath);
     if (!fs.existsSync(expandedPath)) {
@@ -138,7 +138,7 @@ export function readAssistantConfig(configPath: string): any | null {
 /**
  * Write assistant configuration file with backup
  */
-export function writeAssistantConfig(configPath: string, config: any): void {
+export function writeAssistantConfig(configPath: string, config: Record<string, unknown>): void {
   const expandedPath = expandPath(configPath);
 
   try {
@@ -206,7 +206,7 @@ export function findInstalledAssistants(): AssistantInfo[] {
 /**
  * Add MCP server to assistant configuration
  */
-export function addMCPServer(configPath: string, serverName: string, serverConfig: any): void {
+export function addMCPServer(configPath: string, serverName: string, serverConfig: Record<string, unknown>): void {
   const config = readAssistantConfig(configPath) || { mcpServers: {} };
 
   if (!config.mcpServers) {
@@ -237,7 +237,7 @@ export function removeMCPServer(configPath: string, serverName: string): boolean
 /**
  * Get MCP server configuration for codeflow-buddy
  */
-export function getMCPServerConfig(): any {
+export function getMCPServerConfig(): Record<string, unknown> {
   // Determine the command to run
   const isGlobalInstall = __filename.includes('npm/global') || __filename.includes('.npm-global');
 

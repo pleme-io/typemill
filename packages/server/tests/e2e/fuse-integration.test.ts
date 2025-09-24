@@ -4,14 +4,14 @@
  */
 
 import { existsSync } from 'node:fs';
-import { access, mkdir, rmdir, writeFile } from 'node:fs/promises';
+import { mkdir, rmdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 // Import native FUSE implementation only
 import { FuseMount } from '../../src/fs/fuse-mount.js';
 import { FuseOperations } from '../../src/fs/fuse-operations.js';
 import { WorkspaceManager } from '../../src/server/workspace-manager.js';
-import type { EnhancedClientSession, WorkspaceInfo } from '../../src/types/enhanced-session.js';
+import type { EnhancedClientSession } from '../../src/types/enhanced-session.js';
 
 // Mock WebSocket transport for testing
 class MockWebSocketTransport {
@@ -21,7 +21,7 @@ class MockWebSocketTransport {
     this.fuseOperations = ops;
   }
 
-  async sendRequest(session: any, method: string, params: any): Promise<any> {
+  async sendRequest(_session: any, method: string, params: any): Promise<any> {
     // For FUSE operations, we need to simulate async response
     if (method.startsWith('fuse/')) {
       // Simulate async response via handleFuseResponse
@@ -216,15 +216,15 @@ describe('FUSE Integration Tests (Native FUSE Only)', () => {
 
       try {
         // Create 3 sessions (exceeds limit)
-        const workspace1 = await limitedManager.createWorkspace({
+        const _workspace1 = await limitedManager.createWorkspace({
           id: 'sess1',
           projectId: 'proj1',
         });
-        const workspace2 = await limitedManager.createWorkspace({
+        const _workspace2 = await limitedManager.createWorkspace({
           id: 'sess2',
           projectId: 'proj2',
         });
-        const workspace3 = await limitedManager.createWorkspace({
+        const _workspace3 = await limitedManager.createWorkspace({
           id: 'sess3',
           projectId: 'proj3',
         });

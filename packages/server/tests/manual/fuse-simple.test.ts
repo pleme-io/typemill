@@ -78,7 +78,7 @@ async function testFuseOperations() {
 
     // Mock transport for testing
     const mockTransport = {
-      sendRequest: async (session: any, method: string, params: any) => {
+      sendRequest: async (_session: any, method: string, _params: any) => {
         switch (method) {
           case 'fuse/readdir':
             return ['test-file.txt', 'test-dir'];

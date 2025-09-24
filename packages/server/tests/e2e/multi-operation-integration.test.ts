@@ -1,12 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { MCPTestClient, assertToolResult } from '../helpers/mcp-test-client';
-import {
-  captureFileStates,
-  getFileLines,
-  verifyFileContainsAll,
-} from '../helpers/test-verification-helpers.js';
+import { assertToolResult, MCPTestClient } from '../helpers/mcp-test-client';
+import { captureFileStates, verifyFileContainsAll } from '../helpers/test-verification-helpers.js';
 
 /**
  * Integration test for combined LSP operations
@@ -192,7 +188,7 @@ export function createService(): UserService {
       join(TEST_DIR, 'index.ts'),
     ];
 
-    const beforeStates = captureFileStates(filesToCheck);
+    const _beforeStates = captureFileStates(filesToCheck);
     console.log('📸 Captured state of', filesToCheck.length, 'files');
 
     // Verify UserData exists before rename

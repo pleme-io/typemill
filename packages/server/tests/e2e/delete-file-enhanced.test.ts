@@ -2,12 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { MCPTestClient, assertToolResult } from '../helpers/mcp-test-client';
-import {
-  captureFileStates,
-  verifyFileContainsAll,
-  verifyFileDoesNotContain,
-} from '../helpers/test-verification-helpers';
+import { assertToolResult, MCPTestClient } from '../helpers/mcp-test-client';
+import { captureFileStates } from '../helpers/test-verification-helpers';
 
 /**
  * Test delete_file command with enhanced impact analysis

@@ -9,6 +9,14 @@ import type { WebSocketTransport } from '../transports/websocket.js';
 import type { EnhancedClientSession } from '../types/session.js';
 import { FuseOperations } from './fuse-operations.js';
 
+// FUSE callback types
+type FuseErrorCallback = (errno: number) => void;
+type FuseReaddirCallback = (errno: number, files?: string[]) => void;
+type FuseGetattrCallback = (errno: number, stats?: any) => void;
+type FuseOpenCallback = (errno: number, fd?: number) => void;
+type FuseReadCallback = (bytesRead: number) => void;
+type FuseWriteCallback = (bytesWritten: number) => void;
+
 export interface FuseMountConfig {
   mountOptions?: string[];
   debugFuse?: boolean;
@@ -62,19 +70,19 @@ export class FuseMount {
       this.fuse = new Fuse(
         this.mountPath,
         {
-          readdir: (path: string, cb: Function) => {
+          readdir: (path: string, cb: FuseReaddirCallback) => {
             this.operations.readdir(path).then(
               (result) => cb(0, result),
               (error) => cb(error.errno || -1)
             );
           },
-          getattr: (path: string, cb: Function) => {
+          getattr: (path: string, cb: FuseGetattrCallback) => {
             this.operations.getattr(path).then(
               (result) => cb(0, result),
               (error) => cb(error.errno || -1)
             );
           },
-          open: (path: string, flags: number, cb: Function) => {
+          open: (path: string, flags: number, cb: FuseOpenCallback) => {
             this.operations.open(path, flags).then(
               (result) => cb(0, result),
               (error) => cb(error.errno || -1)
@@ -86,7 +94,7 @@ export class FuseMount {
             buffer: Buffer,
             length: number,
             position: number,
-            cb: Function
+            cb: FuseReadCallback
           ) => {
             this.operations.read(path, fd, length, position).then(
               (result) => {
@@ -102,14 +110,14 @@ export class FuseMount {
             buffer: Buffer,
             _length: number,
             position: number,
-            cb: Function
+            cb: FuseWriteCallback
           ) => {
             this.operations.write(path, fd, buffer, position).then(
               (result) => cb(result),
               (error) => cb(error.errno || -1)
             );
           },
-          release: (path: string, fd: number, cb: Function) => {
+          release: (path: string, fd: number, cb: FuseErrorCallback) => {
             this.operations.release(path, fd).then(
               () => cb(0),
               (error) => cb(error.errno || -1)

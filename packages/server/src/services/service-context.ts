@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import type { TransactionManager } from '../core/transaction/index.js';
 import type { LSPProtocol } from '../lsp/protocol.js';
 import type { ServerState } from '../lsp/types.js';
 
@@ -12,6 +13,7 @@ export interface ServiceContext {
   ensureFileOpen: (serverState: ServerState, filePath: string) => Promise<void>;
   getLanguageId: (filePath: string) => string;
   prepareFile: (filePath: string, workspaceDir?: string) => Promise<ServerState>;
+  transactionManager: TransactionManager;
 }
 
 /**
@@ -103,7 +105,8 @@ export const ServiceContextUtils = {
    */
   createServiceContext(
     getServer: (filePath: string, workspaceDir?: string) => Promise<ServerState>,
-    protocol: LSPProtocol
+    protocol: LSPProtocol,
+    transactionManager: TransactionManager
   ): ServiceContext {
     return {
       getServer,
@@ -119,6 +122,7 @@ export const ServiceContextUtils = {
             ServiceContextUtils.ensureFileOpen(serverState, filePath, protocol),
           workspaceDir
         ),
+      transactionManager,
     };
   },
 };

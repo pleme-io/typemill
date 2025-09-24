@@ -183,7 +183,8 @@ export async function setupCommand(options: SetupOptions = {}): Promise<void> {
 
       // Show status for selected servers
       for (const serverName of selectedServers) {
-        const server = relevantServers.find((s) => s.name === serverName)!;
+        const server = relevantServers.find((s) => s.name === serverName);
+        if (!server) continue;
         const serverCommand = [...server.command];
         if (serverCommand[0] === 'gopls' || serverCommand[0] === 'rust-analyzer') {
           serverCommand[0] = getCommandPath(serverCommand[0]);

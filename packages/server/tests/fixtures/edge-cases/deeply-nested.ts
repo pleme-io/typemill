@@ -1,6 +1,4 @@
 export class OuterClass {
-  private value = 1;
-
   public middleClass = class MiddleClass {
     private middleValue = 2;
 

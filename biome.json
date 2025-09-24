@@ -45,7 +45,7 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["src/**/*.ts", "*.ts", "*.js"],
+    "includes": ["src/**/*.ts", "*.ts", "*.js", "**/*.ts"],
     "maxSize": 1048576
   }
 }

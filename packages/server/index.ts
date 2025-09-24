@@ -163,10 +163,10 @@ if (subcommand === 'setup') {
 
   const options = {
     port:
-      portIndex !== -1 && args[portIndex + 1] ? Number.parseInt(args[portIndex + 1]!, 10) : 3000,
+      portIndex !== -1 && args[portIndex + 1] ? Number.parseInt(args[portIndex + 1] || '3000', 10) : 3000,
     maxClients:
       maxClientsIndex !== -1 && args[maxClientsIndex + 1]
-        ? Number.parseInt(args[maxClientsIndex + 1]!, 10)
+        ? Number.parseInt(args[maxClientsIndex + 1] || '10', 10)
         : 10,
     enableFuse: enableFuseIndex !== -1,
     requireAuth: requireAuthIndex !== -1,

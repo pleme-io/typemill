@@ -95,7 +95,7 @@ async function triggerRestart(shutdownServer: () => Promise<void>): Promise<void
 
   try {
     // Spawn new process with same arguments
-    const newProcess = spawn(process.argv[0]!, process.argv.slice(1), {
+    const newProcess = spawn(process.argv[0] || 'node', process.argv.slice(1), {
       detached: true,
       stdio: 'inherit',
       cwd: process.cwd(),

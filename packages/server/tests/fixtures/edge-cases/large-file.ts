@@ -2,18 +2,6 @@
 // This file tests LSP server performance with larger files
 
 export class LargeClass {
-  // Properties
-  private property0 = 0;
-  private property1 = 1;
-  private property2 = 2;
-  private property3 = 3;
-  private property4 = 4;
-  private property5 = 5;
-  private property6 = 6;
-  private property7 = 7;
-  private property8 = 8;
-  private property9 = 9;
-
   // Methods
   public method0(param: string): string {
     const result = `${param}_processed_0`;
@@ -38,26 +26,6 @@ export class LargeClass {
   public method4(param: string): string {
     const result = `${param}_processed_4`;
     return result;
-  }
-
-  private helper0(value: number): number {
-    return value * 1;
-  }
-
-  private helper1(value: number): number {
-    return value * 2;
-  }
-
-  private helper2(value: number): number {
-    return value * 3;
-  }
-
-  private helper3(value: number): number {
-    return value * 4;
-  }
-
-  private helper4(value: number): number {
-    return value * 5;
   }
 }
 

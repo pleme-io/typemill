@@ -1,10 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { existsSync, readFileSync } from 'node:fs';
 import { FileBackupManager } from '../helpers/file-backup-manager.js';
-import { MCPTestClient, assertToolResult } from '../helpers/mcp-test-client.js';
+import { assertToolResult, MCPTestClient } from '../helpers/mcp-test-client.js';
 import {
   verifyFileContainsAll,
-  verifyFileDoesNotContain,
   verifyImportStatement,
 } from '../helpers/test-verification-helpers.js';
 

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { MCPTestClient, assertToolResult } from '../helpers/mcp-test-client.js';
+import { assertToolResult, MCPTestClient } from '../helpers/mcp-test-client.js';
 
 describe('MCP Error Case Tests', () => {
   let client: MCPTestClient;
@@ -233,7 +233,7 @@ describe('MCP Error Case Tests', () => {
 
   describe('Concurrent Request Handling', () => {
     it('should handle multiple concurrent requests without corruption', async () => {
-      const promises = Array.from({ length: 5 }, (_, i) =>
+      const promises = Array.from({ length: 5 }, (_, _i) =>
         client.callTool('get_diagnostics', {
           file_path: '/workspace/examples/playground/src/test-file.ts',
         })
@@ -242,7 +242,7 @@ describe('MCP Error Case Tests', () => {
       const results = await Promise.allSettled(promises);
 
       // All should either succeed or fail gracefully
-      results.forEach((result, index) => {
+      results.forEach((result, _index) => {
         if (result.status === 'fulfilled') {
           assertToolResult(result.value);
           expect(result.value.content).toBeDefined();

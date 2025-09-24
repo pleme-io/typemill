@@ -4,7 +4,7 @@ export const émoji = '🎉';
 export const математика = 42;
 
 // Multi-byte characters in strings
-const greeting = 'Hello 世界!';
+const _greeting = 'Hello 世界!';
 
 // Unicode in function names
 export function 计算总和(a: number, b: number): number {
@@ -12,15 +12,15 @@ export function 计算总和(a: number, b: number): number {
 }
 
 // Combining characters
-const combined = 'é'; // e + combining accent
-const precomposed = 'é'; // precomposed character
+const _combined = 'é'; // e + combining accent
+const _precomposed = 'é'; // precomposed character
 
 // Right-to-left text
-const arabic = 'مرحبا بالعالم';
+const _arabic = 'مرحبا بالعالم';
 
 // Mathematical symbols
-const π = Math.PI;
-const Σ = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
+const _π = Math.PI;
+const _Σ = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
 
 // Simple emoji
 export const emoji = {
@@ -43,6 +43,6 @@ interface МультиязычныйИнтерфейс {
 }
 
 // Simple emoji validation
-function validateEmoji(input: string): boolean {
+function _validateEmoji(input: string): boolean {
   return /[\u{1F300}-\u{1F9FF}]/gu.test(input);
 }

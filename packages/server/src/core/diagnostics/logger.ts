@@ -9,7 +9,7 @@ export interface LogContext {
   projectId?: string;
   method?: string;
   duration?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface LogEntry {

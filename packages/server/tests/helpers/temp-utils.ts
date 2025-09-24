@@ -27,7 +27,7 @@ export function getTempFilePath(filename: string, prefix = 'codebuddy-test'): st
 export function cleanupTempDir(dirPath: string): void {
   try {
     rmSync(dirPath, { recursive: true, force: true });
-  } catch (error) {
+  } catch (_error) {
     // Ignore cleanup errors in tests
   }
 }

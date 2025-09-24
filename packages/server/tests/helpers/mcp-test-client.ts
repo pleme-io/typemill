@@ -60,7 +60,6 @@ export class MCPTestClient {
   private process!: ChildProcess;
   private parser = createMessageParser();
   private responseEmitter = new EventEmitter();
-  private static sharedMode = process.env.TEST_SHARED_SERVER === 'true';
   private isShared = false;
   private initPromise: Promise<void> | null = null;
   public isClosed = false;
