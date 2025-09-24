@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2025-09-24
+
+### Added
+- **LSP Server Pooling**: Enhanced resource management with intelligent server pooling and lifecycle management
+- **Advanced Caching System**: Event-driven cache invalidation with hit rate tracking and persistent file caching
+- **Delta Updates**: Efficient file synchronization using diff-match-patch with automatic compression analysis
+- **Foundation Features Implementation**: All 6 core features from PROPOSAL_FOUNDATION_FEATURES.md
+  - Self-modification detection with auto-restart capabilities
+  - Enhanced error context with actionable debugging information
+  - Position index consistency with unified LSP positioning
+  - Interactive tool debugging with comprehensive validation
+  - Tool dependency management with workflow orchestration
+  - Rollback & undo system with transaction management and checkpoints
+
+### Enhanced
+- **Monorepo Architecture**: Complete restructure supporting both client/server and local deployment modes
+- **WebSocket Server Deployment**: Production-ready multi-client enterprise support with JWT authentication
+- **Dead Code Detection**: Advanced analysis using MCP tool orchestration
+- **Streaming File Access**: Real-time file change notification with intelligent caching
+- **Session Management**: Connection recovery with 60-second grace periods
+
+### Changed
+- **Architecture**: Migrated to monorepo structure with packages/client and packages/server
+- **Configuration**: Smart setup with auto-detection and gitignore support
+- **Performance**: Advanced caching replacing TTL-based expiration with event-driven invalidation
+
 ## [1.1.0] - 2025-09-22
 
 ### Changed
