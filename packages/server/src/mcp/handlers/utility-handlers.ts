@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { logger } from '../../core/diagnostics/logger.js';
 import type { WorkspaceEdit } from '../../core/file-operations/editor.js';
+import type { ServiceContext } from '../../services/service-context.js';
 import type { DiagnosticService } from '../../services/lsp/diagnostic-service.js';
 import {
   assertValidFilePath,
@@ -19,6 +20,7 @@ import {
   createNoResultsResponse,
   createSuccessResponse,
 } from '../utils.js';
+import { DependencyOrchestrator } from '../workflow/index.js';
 
 // Handler for get_diagnostics tool
 export async function handleGetDiagnostics(
@@ -379,6 +381,25 @@ export async function handleHealthCheck(
   }
 }
 
+// Handler for execute_workflow tool
+export async function handleExecuteWorkflow(
+  args: { chain: any; inputs: Record<string, any> },
+  context: ServiceContext
+) {
+  const { chain, inputs } = args;
+
+  try {
+    const orchestrator = new DependencyOrchestrator(context);
+    const result = await orchestrator.execute(chain, inputs);
+
+    return createMCPResponse(`Workflow executed successfully: ${JSON.stringify(result, null, 2)}`);
+  } catch (error) {
+    return createMCPResponse(
+      `Error executing workflow: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
 // Register utility tools with the central registry
 registerTools(
   {
@@ -388,6 +409,7 @@ registerTools(
     create_file: { handler: handleCreateFile, requiresService: 'none' },
     delete_file: { handler: handleDeleteFile, requiresService: 'none' },
     health_check: { handler: handleHealthCheck, requiresService: 'serviceContext' },
+    execute_workflow: { handler: handleExecuteWorkflow, requiresService: 'serviceContext' },
   },
   'utility-handlers'
 );
