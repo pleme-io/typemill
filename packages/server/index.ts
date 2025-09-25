@@ -78,6 +78,7 @@ if (args.length === 0 || args[0] === '--help' || args[0] === '-h' || args[0] ===
   console.log('  start         Start the server');
   console.log('  stop          Stop the server');
   console.log('  status        Show everything');
+  console.log('  check-fuse    Check FUSE availability');
   console.log('  mcp-debug     Debug MCP tools directly');
   console.log('');
   console.log('Setup options:');
@@ -145,6 +146,18 @@ if (subcommand === 'setup') {
   const { statusCommand } = await import('./src/cli/commands/status.js');
   await statusCommand();
   process.exit(0);
+} else if (subcommand === 'check-fuse') {
+  const { checkFuseAvailability, printFuseStatus } = await import('./src/fs/fuse-detector.js');
+  const status = checkFuseAvailability();
+  printFuseStatus(status);
+
+  if (!status.available && args.includes('--setup')) {
+    console.log('\nRunning FUSE setup...');
+    const { setupFuse } = await import('./src/cli/fuse-setup.js');
+    await setupFuse();
+  }
+
+  process.exit(status.available ? 0 : 1);
 } else if (subcommand === 'start') {
   // Continue to start MCP server below
   console.log('Starting MCP server for Claude Code...');

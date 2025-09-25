@@ -112,6 +112,74 @@ cat > .codebuddy/config.json << 'EOF'
 EOF
 ```
 
+## 🗄️ FUSE Support (Experimental)
+
+FUSE (Filesystem in Userspace) enables mounting remote filesystems locally, allowing LSP servers to access files as if they were on the local filesystem.
+
+### Platform Support
+
+| Platform | Support | Requirements |
+|----------|---------|-------------|
+| Linux | ✅ Full | FUSE kernel module |
+| macOS | ✅ Full | macFUSE installation |
+| Windows | ❌ None | Use WSL2 for FUSE support |
+
+### Setup FUSE
+
+```bash
+# Automatic setup script
+./packages/server/scripts/setup-fuse.sh
+
+# Or use the interactive CLI
+node dist/cli/fuse-setup.js
+```
+
+#### Linux Setup
+```bash
+# Debian/Ubuntu
+sudo apt-get install fuse fuse-dev
+sudo usermod -aG fuse $USER  # Add user to fuse group
+
+# RedHat/Fedora
+sudo dnf install fuse fuse-devel
+
+# Arch
+sudo pacman -S fuse2 fuse3
+```
+
+#### macOS Setup
+```bash
+# Install macFUSE via Homebrew
+brew install --cask macfuse
+
+# Note: You'll need to allow the kernel extension in:
+# System Preferences > Security & Privacy
+```
+
+### Verify Installation
+```bash
+# Check FUSE availability
+codeflow-buddy check-fuse
+
+# The system will automatically detect FUSE on startup
+# and provide platform-specific instructions if needed
+```
+
+### Using FUSE with WebSocket Server
+```bash
+# Start server with FUSE enabled
+node dist/index.js serve --port 3000 --enable-fuse
+
+# Mount path configuration
+node dist/index.js serve --fuse-mount-path /tmp/codeflow-mount
+```
+
+### Troubleshooting
+
+- **Linux**: If you get permission errors, ensure you're in the `fuse` group and have logged out/in
+- **macOS**: If macFUSE isn't detected, restart after installation and check Security & Privacy settings
+- **Both**: Run `npm rebuild @cocalc/fuse-native` after installing FUSE
+
 ## 📖 Documentation
 - **[Quick Start Guide](docs/quick-start.md)** - Get running in 2 minutes
 - **[MCP Tools Reference](docs/api.md)** - All 35 tools with examples

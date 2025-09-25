@@ -3,7 +3,6 @@
  * Provides native filesystem access through FUSE with WebSocket backend
  */
 
-import Fuse from '@cocalc/fuse-native';
 import { logger } from '../core/diagnostics/logger.js';
 import type { WebSocketTransport } from '../transports/websocket.js';
 import type {
@@ -17,6 +16,10 @@ import type {
 } from '../types/fuse-types.js';
 import type { EnhancedClientSession, FuseOperationResponse } from '../types/session.js';
 import { FuseOperations } from './fuse-operations.js';
+import { checkFuseAvailability, printFuseStatus } from './fuse-detector.js';
+
+// Lazy load FUSE to allow graceful degradation
+let Fuse: typeof import('@cocalc/fuse-native').default | null = null;
 
 export interface FuseMountConfig {
   mountOptions?: string[];
@@ -29,10 +32,11 @@ export interface FuseMountConfig {
 export class FuseMount {
   private session: EnhancedClientSession;
   private operations: FuseOperations;
-  private fuse?: Fuse;
+  private fuse?: any; // Fuse instance type
   private mountPath: string;
   private mounted = false;
   private config: FuseMountConfig;
+  private transport: WebSocketTransport;
 
   constructor(
     session: EnhancedClientSession,
@@ -53,6 +57,27 @@ export class FuseMount {
   async mount(): Promise<void> {
     if (this.mounted) {
       throw new Error(`FUSE filesystem already mounted at ${this.mountPath}`);
+    }
+
+    // Check FUSE availability first
+    const fuseStatus = checkFuseAvailability();
+    if (!fuseStatus.available) {
+      printFuseStatus(fuseStatus);
+      throw new Error(
+        `FUSE is not available: ${fuseStatus.reason}. ${
+          fuseStatus.installCommand ? `Install with: ${fuseStatus.installCommand}` : ''
+        }`
+      );
+    }
+
+    // Lazy load FUSE module
+    if (!Fuse) {
+      try {
+        Fuse = (await import('@cocalc/fuse-native')).default;
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to load FUSE module: ${errorMsg}`);
+      }
     }
 
     try {
