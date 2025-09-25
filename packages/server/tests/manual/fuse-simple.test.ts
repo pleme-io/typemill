@@ -116,31 +116,32 @@ async function testFuseOperations() {
       workspaceId: 'workspace-fuse-test',
       fuseMount: '/tmp/fuse-test',
       workspaceDir: '/tmp/workspace-test',
+      permissions: ['file:read', 'file:write'],
     };
 
     const fuseOps = new FuseOperations(mockSession, mockTransport as any);
 
     // Test directory listing
-    const entries = await fuseOps.readdir('/test');
+    const entries = await fuseOps.readdir('test');
     console.log('   ✅ Directory listing:', entries);
 
     // Test file stats
-    const stats = await fuseOps.getattr('/test/file.txt');
+    const stats = await fuseOps.getattr('test/file.txt');
     console.log('   ✅ File stats - size:', stats.size, 'mode:', stats.mode);
 
     // Test file reading
-    const content = await fuseOps.read('/test/file.txt', 1, 1024, 0);
+    const content = await fuseOps.read('test/file.txt', 1, 1024, 0);
     console.log('   ✅ File content:', content.toString());
 
     // Test file operations (open/write/release)
-    const fd = await fuseOps.open('/test/file.txt', 0);
+    const fd = await fuseOps.open('test/file.txt', 0);
     console.log('   ✅ File opened with descriptor:', fd);
 
     const buffer = Buffer.from('Test write data');
-    const bytesWritten = await fuseOps.write('/test/file.txt', fd, buffer, 0);
+    const bytesWritten = await fuseOps.write('test/file.txt', fd, buffer, 0);
     console.log('   ✅ Bytes written:', bytesWritten);
 
-    await fuseOps.release('/test/file.txt', fd);
+    await fuseOps.release('test/file.txt', fd);
     console.log('   ✅ File released successfully');
 
     // Test cleanup
@@ -176,6 +177,7 @@ async function testFuseMount() {
       workspaceId: 'workspace-mount-test',
       fuseMount: '/tmp/fuse-mount-test',
       workspaceDir: '/tmp/workspace-mount-test',
+      permissions: ['file:read', 'file:write'],
     };
 
     const testMountPath = join(tmpdir(), 'fuse-mount-simple-test');
