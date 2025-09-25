@@ -1,9 +1,8 @@
-import { constants } from 'node:fs';
-import { access, readFile, stat } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import ts from 'typescript';
 import type { StructuredLogger } from '../core/diagnostics/structured-logger.js';
-
+import { resolveImportPath } from '../utils/module-resolver.js';
 import type { Config } from '../types/config.js';
 
 interface PredictiveLoaderContext {
@@ -46,7 +45,7 @@ export class PredictiveLoaderService {
 
     // Process imports in parallel for better performance
     const preloadPromises = imports.map(async (imp) => {
-      const absolutePath = await this.resolveImportPath(filePath, imp);
+      const absolutePath = await resolveImportPath(imp, filePath);
       if (absolutePath && !this.preloadedFiles.has(absolutePath)) {
         this.preloadedFiles.add(absolutePath);
         this.context.logger.info(`Pre-loading import: ${absolutePath}`);
@@ -112,59 +111,6 @@ export class PredictiveLoaderService {
     return imports;
   }
 
-  private async resolveImportPath(
-    currentFilePath: string,
-    importPath: string
-  ): Promise<string | null> {
-    // Skip node_modules and external packages
-    if (!importPath.startsWith('.') && !importPath.startsWith('/')) {
-      return null;
-    }
-
-    const currentDir = path.dirname(currentFilePath);
-    let resolved: string;
-
-    // Handle relative paths
-    if (importPath.startsWith('./') || importPath.startsWith('../')) {
-      resolved = path.resolve(currentDir, importPath);
-    } else {
-      // Absolute path
-      resolved = importPath;
-    }
-
-    // Try different extensions and index files
-    const extensions = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.json'];
-    const candidates = [
-      // Try exact match first
-      resolved,
-      // Try with extensions
-      ...extensions.map((ext) => resolved + ext),
-      // Try as directory with index files
-      ...extensions.map((ext) => path.join(resolved, `index${ext}`)),
-    ];
-
-    // Find the first file that exists
-    for (const candidate of candidates) {
-      try {
-        await access(candidate, constants.F_OK);
-        // Make sure it's a file, not a directory
-        const stats = await stat(candidate);
-        if (stats.isFile()) {
-          return candidate;
-        }
-      } catch {
-        // File doesn't exist or is not accessible, try next candidate
-      }
-    }
-
-    // If we have a tsconfig.json, we could also try to resolve using TypeScript's module resolution
-    // For now, we'll just return null if we can't find the file
-    this.context.logger.debug(
-      `Could not resolve import: ${importPath} from ${currentFilePath}`,
-      {} as any
-    );
-    return null;
-  }
 
   private shouldRecurse(_filePath: string): boolean {
     // Limit recursion depth to avoid infinite loops and excessive preloading

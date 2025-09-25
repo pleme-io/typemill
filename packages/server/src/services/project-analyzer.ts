@@ -1,5 +1,7 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdir, readFile, access } from 'node:fs/promises';
+import { constants } from 'node:fs';
 import { dirname, extname, join, resolve } from 'node:path';
+import { resolveImportPath } from '../utils/module-resolver.js';
 import type { ServiceContext } from '../services/service-context.js';
 
 interface DependencyInfo {
@@ -48,18 +50,18 @@ class ProjectScanner {
     const dependencies = new Map<string, DependencyInfo>();
 
     // Find all source files
-    this.scanDirectory(rootDir, files, 0, maxDepth);
+    await this.scanDirectory(rootDir, files, 0, maxDepth);
 
     // Build dependency graph
     for (const file of files) {
-      const deps = this.extractImports(file, rootDir);
+      const deps = await this.extractImports(file, rootDir);
       dependencies.set(file, deps);
     }
 
     // Update importedBy relationships
     for (const [file, info] of dependencies) {
       for (const importPath of info.imports) {
-        const resolvedImport = this.resolveImportPath(importPath, file);
+        const resolvedImport = await resolveImportPath(importPath, file);
         if (resolvedImport && dependencies.has(resolvedImport)) {
           dependencies.get(resolvedImport)?.importedBy.add(file);
         }
@@ -74,7 +76,7 @@ class ProjectScanner {
    */
   async findImporters(filePath: string, rootDir?: string): Promise<string[]> {
     const absolutePath = resolve(filePath);
-    const projectRoot = rootDir || this.findProjectRoot(dirname(absolutePath));
+    const projectRoot = rootDir || await this.findProjectRoot(dirname(absolutePath));
     const scanResult = await this.scanProject(projectRoot);
 
     const fileInfo = scanResult.dependencies.get(absolutePath);
@@ -91,7 +93,7 @@ class ProjectScanner {
     maxFiles = 50
   ): Promise<Set<string>> {
     const openedFiles = new Set<string>();
-    const projectRoot = this.findProjectRoot(dirname(filePath));
+    const projectRoot = await this.findProjectRoot(dirname(filePath));
 
     process.stderr.write(
       `[ProjectScanner] Opening related files for ${filePath} in project ${projectRoot}\n`
@@ -104,7 +106,8 @@ class ProjectScanner {
       if (!fileInfo) {
         // File not in scan result, try to open files in same directory
         const dir = dirname(filePath);
-        const files = readdirSync(dir)
+        const entries = await readdir(dir);
+        const files = entries
           .filter((f) => ProjectScanner.SUPPORTED_EXTENSIONS.has(extname(f)))
           .map((f) => join(dir, f))
           .slice(0, maxFiles);
@@ -134,9 +137,10 @@ class ProjectScanner {
       for (const importPath of fileInfo.imports) {
         if (openedFiles.size >= maxFiles) break;
 
-        const resolvedImport = this.resolveImportPath(importPath, filePath);
-        if (resolvedImport && existsSync(resolvedImport)) {
+        const resolvedImport = await resolveImportPath(importPath, filePath);
+        if (resolvedImport) {
           try {
+            await access(resolvedImport, constants.F_OK);
             const serverState = await context.getServer(resolvedImport);
             await context.ensureFileOpen(serverState, resolvedImport);
             openedFiles.add(resolvedImport);
@@ -184,7 +188,7 @@ class ProjectScanner {
     );
 
     const files = new Set<string>();
-    this.scanDirectory(rootDir, files, 0, 3, targetExtensions);
+    await this.scanDirectory(rootDir, files, 0, 3, targetExtensions);
 
     const filesToOpen = Array.from(files).slice(0, maxFiles);
 
@@ -206,17 +210,17 @@ class ProjectScanner {
   /**
    * Recursively scan directory for files
    */
-  private scanDirectory(
+  private async scanDirectory(
     dir: string,
     files: Set<string>,
     depth: number,
     maxDepth: number,
     extensions: Set<string> = ProjectScanner.SUPPORTED_EXTENSIONS
-  ): void {
+  ): Promise<void> {
     if (depth > maxDepth) return;
 
     try {
-      const entries = readdirSync(dir, { withFileTypes: true });
+      const entries = await readdir(dir, { withFileTypes: true });
 
       for (const entry of entries) {
         const fullPath = join(dir, entry.name);
@@ -226,7 +230,7 @@ class ProjectScanner {
             !ProjectScanner.IGNORED_DIRECTORY_PATTERNS.has(entry.name) &&
             !entry.name.startsWith('.')
           ) {
-            this.scanDirectory(fullPath, files, depth + 1, maxDepth, extensions);
+            await this.scanDirectory(fullPath, files, depth + 1, maxDepth, extensions);
           }
         } else if (entry.isFile()) {
           const ext = extname(entry.name);
@@ -243,12 +247,12 @@ class ProjectScanner {
   /**
    * Extract import statements from a file
    */
-  private extractImports(filePath: string, _rootDir: string): DependencyInfo {
+  private async extractImports(filePath: string, _rootDir: string): Promise<DependencyInfo> {
     const imports = new Set<string>();
     const importedBy = new Set<string>();
 
     try {
-      const content = readFileSync(filePath, 'utf-8');
+      const content = await readFile(filePath, 'utf-8');
 
       // Match various import patterns
       const importPatterns = [
@@ -280,55 +284,26 @@ class ProjectScanner {
     return { imports, importedBy };
   }
 
-  /**
-   * Resolve an import path relative to a file
-   */
-  private resolveImportPath(importPath: string, fromFile: string): string | null {
-    if (!importPath.startsWith('.')) {
-      return null; // Skip non-relative imports
-    }
-
-    const dir = dirname(fromFile);
-    let basePath = join(dir, importPath);
-
-    // Handle TypeScript convention where imports use .js but files are .ts
-    // Strip .js/.mjs extensions and try with TypeScript extensions
-    if (basePath.endsWith('.js')) {
-      basePath = basePath.slice(0, -3);
-    } else if (basePath.endsWith('.mjs')) {
-      basePath = basePath.slice(0, -4);
-    }
-
-    // Try different extensions
-    const extensions = ['', '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'];
-    for (const ext of extensions) {
-      const fullPath = basePath + ext;
-      if (existsSync(fullPath) && statSync(fullPath).isFile()) {
-        return fullPath;
-      }
-    }
-
-    // Try index file in directory
-    const indexFiles = ['index.ts', 'index.tsx', 'index.js', 'index.jsx'];
-    for (const indexFile of indexFiles) {
-      const fullPath = join(basePath, indexFile);
-      if (existsSync(fullPath)) {
-        return fullPath;
-      }
-    }
-
-    return null;
-  }
 
   /**
    * Find project root by looking for package.json or .git
    */
-  private findProjectRoot(startDir: string): string {
+  private async findProjectRoot(startDir: string): Promise<string> {
     let currentDir = startDir;
 
     while (currentDir !== '/' && currentDir !== '.') {
-      if (existsSync(join(currentDir, 'package.json')) || existsSync(join(currentDir, '.git'))) {
+      try {
+        await access(join(currentDir, 'package.json'), constants.F_OK);
         return currentDir;
+      } catch {
+        // package.json not found, try .git
+      }
+
+      try {
+        await access(join(currentDir, '.git'), constants.F_OK);
+        return currentDir;
+      } catch {
+        // .git not found, continue to parent
       }
 
       const parent = dirname(currentDir);
