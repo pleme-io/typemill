@@ -1,9 +1,12 @@
 //! Configuration management for Codeflow Buddy
 
+mod json_helper;
+
 use crate::error::{CoreError, CoreResult};
 use config::{Config, Environment, File, FileFormat};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use json_helper::to_camel_case_keys;
 
 /// Main application configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -159,7 +162,7 @@ impl Default for ServerConfig {
     fn default() -> Self {
         Self {
             host: "127.0.0.1".to_string(),
-            port: 3000,
+            port: 3040,
             max_clients: Some(10),
             timeout_ms: 30000,
             tls: None,
@@ -233,20 +236,44 @@ impl AppConfig {
             "codebuddy.toml", // Legacy support
         ];
 
+        // Try direct JSON loading first (preserves camelCase)
+        for config_path in &config_paths {
+            if config_path.ends_with(".json") {
+                let path = std::path::Path::new(config_path);
+                if path.exists() {
+                    let content = std::fs::read_to_string(path)?;
+                    match serde_json::from_str::<AppConfig>(&content) {
+                        Ok(loaded) => {
+                            app_config = loaded;
+
+                            // Apply environment overrides
+                            Self::apply_env_overrides(&mut app_config);
+
+                            // Validate configuration
+                            app_config.validate()?;
+
+                            return Ok(app_config);
+                        }
+                        Err(_) => {
+                            // Continue to try other files or methods
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fallback to config crate for TOML
         let mut config_builder = Config::builder();
         let mut file_found = false;
 
         for config_path in &config_paths {
-            let path = std::path::Path::new(config_path);
-            if path.exists() {
-                let format = if config_path.ends_with(".json") {
-                    FileFormat::Json
-                } else {
-                    FileFormat::Toml
-                };
-                config_builder = config_builder.add_source(File::from(path).format(format));
-                file_found = true;
-                break;
+            if config_path.ends_with(".toml") {
+                let path = std::path::Path::new(config_path);
+                if path.exists() {
+                    config_builder = config_builder.add_source(File::from(path).format(FileFormat::Toml));
+                    file_found = true;
+                    break;
+                }
             }
         }
 
@@ -262,52 +289,72 @@ impl AppConfig {
             let config = config_builder.build()?;
 
             // Merge file/env config into our default config
-            if let Ok(server_config) = config.get::<ServerConfig>("server") {
-                app_config.server = server_config;
+            // The config crate lowercases all keys, so we need to convert them back to camelCase
+            if let Ok(server_value) = config.get::<serde_json::Value>("server") {
+                let camel_value = to_camel_case_keys(server_value);
+                if let Ok(server_config) = serde_json::from_value::<ServerConfig>(camel_value) {
+                    app_config.server = server_config;
+                }
             }
-            if let Ok(lsp_config) = config.get::<LspConfig>("lsp") {
-                app_config.lsp = lsp_config;
+            if let Ok(lsp_value) = config.get::<serde_json::Value>("lsp") {
+                let camel_value = to_camel_case_keys(lsp_value);
+                if let Ok(lsp_config) = serde_json::from_value::<LspConfig>(camel_value) {
+                    app_config.lsp = lsp_config;
+                }
             }
-            if let Ok(fuse_config) = config.get::<FuseConfig>("fuse") {
-                app_config.fuse = Some(fuse_config);
+            if let Ok(fuse_value) = config.get::<serde_json::Value>("fuse") {
+                let camel_value = to_camel_case_keys(fuse_value);
+                if let Ok(fuse_config) = serde_json::from_value::<FuseConfig>(camel_value) {
+                    app_config.fuse = Some(fuse_config);
+                }
             }
-            if let Ok(logging_config) = config.get::<LoggingConfig>("logging") {
-                app_config.logging = logging_config;
+            if let Ok(logging_value) = config.get::<serde_json::Value>("logging") {
+                let camel_value = to_camel_case_keys(logging_value);
+                if let Ok(logging_config) = serde_json::from_value::<LoggingConfig>(camel_value) {
+                    app_config.logging = logging_config;
+                }
             }
-            if let Ok(cache_config) = config.get::<CacheConfig>("cache") {
-                app_config.cache = cache_config;
+            if let Ok(cache_value) = config.get::<serde_json::Value>("cache") {
+                let camel_value = to_camel_case_keys(cache_value);
+                if let Ok(cache_config) = serde_json::from_value::<CacheConfig>(camel_value) {
+                    app_config.cache = cache_config;
+                }
             }
         } else {
-            // No file found, just check for environment overrides
-            let config = Config::builder()
-                .add_source(
-                    Environment::with_prefix("CODEFLOW_BUDDY")
-                        .separator("__")
-                        .try_parsing(true),
-                )
-                .build();
-
-            if let Ok(config) = config {
-                // Apply environment overrides selectively
-                if let Ok(port) = config.get::<u16>("server.port") {
-                    app_config.server.port = port;
-                }
-                if let Ok(host) = config.get::<String>("server.host") {
-                    app_config.server.host = host;
-                }
-                if let Ok(level) = config.get::<String>("logging.level") {
-                    app_config.logging.level = level;
-                }
-                if let Ok(enabled) = config.get::<bool>("cache.enabled") {
-                    app_config.cache.enabled = enabled;
-                }
-            }
+            // No file found, just use defaults with environment overrides
+            Self::apply_env_overrides(&mut app_config);
         }
 
         // Validate configuration
         app_config.validate()?;
 
         Ok(app_config)
+    }
+
+    /// Apply environment variable overrides
+    fn apply_env_overrides(config: &mut Self) {
+        use std::env;
+
+        // Check for common environment overrides
+        if let Ok(port) = env::var("CODEFLOW_BUDDY__SERVER__PORT") {
+            if let Ok(port_value) = port.parse::<u16>() {
+                config.server.port = port_value;
+            }
+        }
+
+        if let Ok(host) = env::var("CODEFLOW_BUDDY__SERVER__HOST") {
+            config.server.host = host;
+        }
+
+        if let Ok(level) = env::var("CODEFLOW_BUDDY__LOGGING__LEVEL") {
+            config.logging.level = level;
+        }
+
+        if let Ok(enabled) = env::var("CODEFLOW_BUDDY__CACHE__ENABLED") {
+            if let Ok(enabled_value) = enabled.parse::<bool>() {
+                config.cache.enabled = enabled_value;
+            }
+        }
     }
 
     /// Validate the configuration

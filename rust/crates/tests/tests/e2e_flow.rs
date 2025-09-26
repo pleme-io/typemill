@@ -31,14 +31,13 @@ async fn test_server_bootstrap_and_shutdown() -> Result<(), TestHarnessError> {
 #[tokio::test]
 async fn test_server_with_invalid_config() {
     let mut config = AppConfig::default();
-    config.server.port = 0; // Invalid port for actual binding (but ok for our stub)
+    config.server.port = 0; // Invalid port that should be caught by validation
 
     let options = ServerOptions::from_config(config);
 
-    // This should still succeed in our stub implementation
-    // In a real implementation with actual port binding, this would fail
+    // This should fail during bootstrap due to config validation
     let result = bootstrap(options).await;
-    assert!(result.is_ok(), "Bootstrap should succeed with stub implementation");
+    assert!(result.is_err(), "Bootstrap should fail with invalid port 0");
 }
 
 #[tokio::test]
@@ -47,9 +46,9 @@ async fn test_configuration_loading() -> Result<(), TestHarnessError> {
     let config = create_test_config();
 
     // Validate the test configuration
-    if config.server.port != 0 {
+    if config.server.port != 3043 {
         return Err(TestHarnessError::assertion(
-            "Test config should use port 0".to_string()
+            "Test config should use port 3043".to_string()
         ));
     }
 

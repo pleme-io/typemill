@@ -22,22 +22,31 @@ pub struct AppConfig {
 
 impl AppConfig {
     pub fn load() -> Result<Self, CoreError>;
-    pub fn validate(&self) -> Result<(), CoreError>;
+    // Note: validate() is currently private
 }
 
 // Error Handling
 pub enum CoreError {
     Config { message: String },
-    Io { source: std::io::Error },
-    Serialization { source: serde_json::Error },
+    Io(std::io::Error),
+    Json(serde_json::Error),
+    ConfigParsing(config::ConfigError),
+    InvalidData { message: String },
+    NotSupported { operation: String },
+    NotFound { resource: String },
+    PermissionDenied { operation: String },
+    Timeout { operation: String },
     Internal { message: String },
-    Validation { message: String },
 }
 
 impl CoreError {
-    pub fn config(msg: impl Into<String>) -> Self;
-    pub fn internal(msg: impl Into<String>) -> Self;
-    pub fn validation(msg: impl Into<String>) -> Self;
+    pub fn config(message: impl Into<String>) -> Self;
+    pub fn invalid_data(message: impl Into<String>) -> Self;
+    pub fn not_supported(operation: impl Into<String>) -> Self;
+    pub fn not_found(resource: impl Into<String>) -> Self;
+    pub fn permission_denied(operation: impl Into<String>) -> Self;
+    pub fn timeout(operation: impl Into<String>) -> Self;
+    pub fn internal(message: impl Into<String>) -> Self;
 }
 
 // MCP Models
@@ -125,15 +134,23 @@ pub fn build_dependency_graph(import_graphs: &[ImportGraph]) -> DependencyGraph;
 pub fn plan_refactor(intent: &IntentSpec, source: &str) -> Result<EditPlan, AstError>;
 
 pub struct EditPlan {
-    pub file_path: String,
+    pub source_file: String,
     pub edits: Vec<TextEdit>,
-    pub metadata: RefactorMetadata,
+    pub dependency_updates: Vec<DependencyUpdate>,
+    pub validations: Vec<ValidationRule>,
+    pub metadata: EditPlanMetadata,
 }
 
-impl EditPlan {
-    pub fn apply(&self, source: &str) -> Result<String, AstError>;
-    pub fn preview(&self) -> Vec<EditPreview>;
+pub struct TextEdit {
+    pub edit_type: EditType,
+    pub location: EditLocation,
+    pub original_text: String,
+    pub new_text: String,
+    pub priority: u32,
+    pub description: String,
 }
+
+// Note: EditPlan methods (apply/preview) not currently implemented
 
 // Error Handling
 pub enum AstError {
@@ -146,10 +163,11 @@ pub enum AstError {
 
 ### Dependencies
 - cb-core: Core types
-- swc_ecma_parser: TypeScript/JavaScript parsing
-- swc_ecma_ast: AST types
 - petgraph: Graph algorithms
-- regex: Pattern matching
+- regex: Pattern matching (temporary, see README.md)
+- chrono: Timestamps
+
+Note: SWC integration planned but not yet implemented due to network restrictions
 
 ## cb-server
 
@@ -184,15 +202,16 @@ pub fn register_all_tools(dispatcher: &mut McpDispatcher);
 
 // Service Traits
 #[async_trait]
-pub trait AstService {
-    async fn analyze(&self, source: &str, path: &Path) -> Result<ImportGraph, ServerError>;
-    async fn refactor(&self, intent: &IntentSpec, source: &str) -> Result<EditPlan, ServerError>;
+pub trait AstService: Send + Sync {
+    async fn build_import_graph(&self, file: &Path) -> Result<ImportGraph, CoreError>;
+    async fn plan_refactor(&self, intent: &IntentSpec, file: &Path) -> Result<EditPlan, CoreError>;
 }
 
 #[async_trait]
-pub trait LspService {
-    async fn request(&self, method: &str, params: Value) -> Result<Value, ServerError>;
-    async fn get_server(&self, file_ext: &str) -> Result<LspServerHandle, ServerError>;
+pub trait LspService: Send + Sync {
+    async fn request(&self, message: McpMessage) -> Result<McpMessage, CoreError>;
+    async fn is_available(&self, extension: &str) -> bool;
+    async fn restart_servers(&self, extensions: Option<Vec<String>>) -> Result<(), CoreError>;
 }
 
 // Error Handling
@@ -221,39 +240,46 @@ CLI client for interacting with the MCP server.
 ### Public API
 
 ```rust
-// Entry Point
-pub async fn run_cli() -> Result<(), ClientError>;
-
-// Session Management
-pub struct SessionReport {
-    pub duration: Duration,
-    pub requests: u32,
-    pub errors: u32,
+// CLI Arguments
+pub struct CliArgs {
+    pub command: Commands,
+    pub debug: bool,
+    pub config: Option<String>,
 }
 
 // Commands
-pub enum Command {
-    Status,
-    Connect { server: String },
-    Request { tool: String, args: Value },
+pub enum Commands {
+    Connect {
+        url: String,
+        token: Option<String>,
+    },
+    Request {
+        url: String,
+        method: String,
+        params: Option<String>,
+    },
+    Status {
+        url: String,
+    },
 }
 
-impl Command {
-    pub async fn execute(&self, client: &Client) -> Result<CommandResult, ClientError>;
-}
+// Entry Point
+pub async fn run_cli() -> Result<(), ClientError>;
 
-// Client
-pub struct Client {
-    pub fn new(config: ClientConfig) -> Self;
-    pub async fn connect(&mut self, endpoint: &str) -> Result<(), ClientError>;
-    pub async fn request(&mut self, msg: McpMessage) -> Result<McpMessage, ClientError>;
+// Session Report
+pub struct SessionReport {
+    pub requests_sent: u32,
+    pub responses_received: u32,
+    pub errors: Vec<String>,
+    pub duration: std::time::Duration,
 }
 
 // Error Handling
 pub enum ClientError {
-    Connection(String),
-    Request(String),
-    Response(String),
+    Config { message: String },
+    Connection { url: String, error: String },
+    Request { method: String, error: String },
+    Response { error: String },
     Core(CoreError),
 }
 ```
@@ -274,17 +300,19 @@ Integration testing and mocks for all crates.
 ```rust
 // Test Helpers
 pub fn create_test_config() -> AppConfig;
-pub fn create_mock_dispatcher() -> McpDispatcher;
-pub fn create_test_ast() -> &'static str;
+pub fn create_test_intent(name: &str) -> IntentSpec;
+pub fn create_test_mcp_request(method: &str) -> McpMessage;
+pub fn create_test_mcp_response() -> McpMessage;
+pub fn create_test_import_graph(source_file: &str) -> ImportGraph;
+pub fn create_test_edit_plan() -> EditPlan;
+pub fn assert_json_eq(actual: &Value, expected: &Value);
+pub fn create_temp_file(content: &str) -> tempfile::NamedTempFile;
+pub fn get_file_extension(path: &Path) -> Option<&str>;
+pub fn generate_test_id() -> String;
 
-// Mocks
-pub struct MockLspService;
+// Mocks (in src/mocks.rs)
 pub struct MockAstService;
-pub struct MockFileSystem;
-
-// E2E Testing
-pub async fn run_e2e_suite() -> TestResults;
-pub async fn validate_tool(name: &str, args: Value) -> Result<(), TestError>;
+pub struct MockLspService;
 ```
 
 ### Dependencies

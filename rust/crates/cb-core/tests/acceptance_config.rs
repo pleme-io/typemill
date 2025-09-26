@@ -28,7 +28,7 @@ fn test_config_load_default() {
 
     // Verify default values
     assert_eq!(config.server.host, "127.0.0.1");
-    assert_eq!(config.server.port, 3000);
+    assert_eq!(config.server.port, 3040);
     assert_eq!(config.server.max_clients, Some(10));
     assert_eq!(config.server.timeout_ms, 30000);
     assert!(config.server.tls.is_none());
@@ -68,7 +68,7 @@ fn test_config_load_from_json() {
 {
   "server": {
     "host": "0.0.0.0",
-    "port": 8080,
+    "port": 3041,
     "maxClients": 50,
     "timeoutMs": 60000
   },
@@ -103,7 +103,7 @@ fn test_config_load_from_json() {
 
     // Verify loaded values
     assert_eq!(config.server.host, "0.0.0.0");
-    assert_eq!(config.server.port, 8080);
+    assert_eq!(config.server.port, 3041);
     assert_eq!(config.server.max_clients, Some(50));
     assert_eq!(config.server.timeout_ms, 60000);
 
@@ -221,7 +221,7 @@ fn test_config_validation_invalid_log_level() {
 {
   "server": {
     "host": "127.0.0.1",
-    "port": 3000,
+    "port": 3042,
     "maxClients": 10,
     "timeoutMs": 30000
   },
@@ -278,7 +278,7 @@ fn test_config_validation_empty_lsp_servers() {
 {
   "server": {
     "host": "127.0.0.1",
-    "port": 3000,
+    "port": 3042,
     "maxClients": 10,
     "timeoutMs": 30000
   },

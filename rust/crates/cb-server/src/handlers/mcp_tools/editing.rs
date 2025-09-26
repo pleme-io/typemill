@@ -2,7 +2,7 @@
 
 use crate::handlers::McpDispatcher;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::json;
 
 /// Arguments for rename_symbol tool
 #[derive(Debug, Deserialize)]

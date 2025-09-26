@@ -7,7 +7,7 @@ pub mod interfaces;
 pub use error::{ServerError, ServerResult};
 pub use interfaces::{AstService, LspService};
 
-use cb_core::{AppConfig, CoreError};
+use cb_core::AppConfig;
 use tokio::sync::oneshot;
 
 /// Server configuration options

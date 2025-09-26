@@ -32,7 +32,7 @@ pub struct IntentMetadata {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub priority: Option<u8>,
     /// Additional context information
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    #[serde(skip_serializing_if = "HashMap::is_empty", default)]
     pub context: HashMap<String, serde_json::Value>,
 }
 

@@ -1,9 +1,8 @@
 //! Navigation MCP tools (find_definition, find_references, etc.)
 
 use crate::handlers::McpDispatcher;
-use crate::error::ServerResult;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::json;
 
 /// Arguments for find_definition tool
 #[derive(Debug, Deserialize)]

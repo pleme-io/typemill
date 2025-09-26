@@ -11,7 +11,7 @@ pub fn create_test_config() -> AppConfig {
 
     // Use test-specific settings
     config.server.host = "127.0.0.1".to_string();
-    config.server.port = 0; // Use random port for testing
+    config.server.port = 3043; // Use port from allowed range for testing
     config.server.timeout_ms = 1000; // Short timeout for tests
 
     config.logging.level = "debug".to_string();
