@@ -209,12 +209,300 @@ ${
 *Powered by CodeFlow Buddy MCP Tools*`;
 }
 
+/**
+ * Fix import paths in a file that has been moved to a new location
+ */
+export async function handleFixImports(args: { file_path: string; old_path: string }) {
+  const { file_path, old_path } = args;
+
+  return measureAndTrack(
+    'fix_imports',
+    async () => {
+      try {
+        // Directly implement the import fixing logic since updateImportsInMovedFile is not exported
+        const { readFileSync, writeFileSync, existsSync } = await import('node:fs');
+        const { dirname, resolve, relative } = await import('node:path');
+
+        const content = readFileSync(file_path, 'utf-8');
+        const lines = content.split('\n');
+        const edits: any[] = [];
+
+        for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+          const line = lines[lineIndex];
+          const importRegex = /((?:from|require\s*\(|import\s*\(|export\s+.*?from)\s+['"`])(\.\.?\/[^'"`]+)(['"`])/g;
+          importRegex.lastIndex = 0;
+
+          let match;
+          while ((match = importRegex.exec(line)) !== null) {
+            const oldImportPath = match[2];
+            const targetFile = resolve(dirname(old_path), oldImportPath);
+
+            let resolvedTarget = targetFile;
+            if (!existsSync(targetFile)) {
+              const baseTarget = targetFile.replace(/\.(js|mjs|cjs)$/, '');
+              for (const ext of ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']) {
+                if (existsSync(baseTarget + ext)) {
+                  resolvedTarget = baseTarget + ext;
+                  break;
+                }
+              }
+              if (!existsSync(resolvedTarget)) {
+                for (const indexExt of ['/index.ts', '/index.tsx', '/index.js', '/index.jsx']) {
+                  if (existsSync(targetFile + indexExt)) {
+                    resolvedTarget = targetFile + indexExt;
+                    break;
+                  }
+                }
+              }
+            }
+
+            let newImportPath = relative(dirname(file_path), resolvedTarget).replace(/\\/g, '/');
+
+            if (oldImportPath.endsWith('.js') && !newImportPath.endsWith('.js')) {
+              newImportPath = newImportPath.replace(/\.(ts|tsx)$/, '.js');
+            }
+
+            if (!oldImportPath.endsWith('/index') && newImportPath.endsWith('/index')) {
+              newImportPath = newImportPath.substring(0, newImportPath.length - 6);
+            }
+
+            if (!newImportPath.startsWith('.') && !newImportPath.startsWith('/')) {
+              newImportPath = './' + newImportPath;
+            }
+
+            if (oldImportPath !== newImportPath) {
+              edits.push({
+                line: lineIndex,
+                startCol: match.index + match[1].length,
+                endCol: match.index + match[1].length + oldImportPath.length,
+                newText: newImportPath,
+                oldText: oldImportPath
+              });
+            }
+          }
+        }
+
+        if (edits.length > 0) {
+          // Apply edits in reverse order to maintain positions
+          const sortedEdits = edits.sort((a, b) => b.line - a.line || b.startCol - a.startCol);
+          const updatedLines = [...lines];
+
+          for (const edit of sortedEdits) {
+            const line = updatedLines[edit.line];
+            updatedLines[edit.line] =
+              line.substring(0, edit.startCol) +
+              edit.newText +
+              line.substring(edit.endCol);
+          }
+
+          writeFileSync(file_path, updatedLines.join('\n'), 'utf-8');
+
+          return createMCPResponse(
+            `✅ Fixed ${edits.length} import${edits.length === 1 ? '' : 's'} in ${file_path}\n\n` +
+            edits.map(e => `• Line ${e.line + 1}: "${e.oldText}" → "${e.newText}"`).join('\n')
+          );
+        } else {
+          return createMCPResponse(`✅ No imports needed fixing in ${file_path}`);
+        }
+      } catch (error) {
+        return createMCPResponse(
+          `Error fixing imports: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    },
+    { context: args }
+  );
+}
+
+/**
+ * Analyze import relationships for a file
+ */
+export async function handleAnalyzeImports(
+  args: { file_path: string; include_importers?: boolean; include_imports?: boolean }
+) {
+  const { file_path, include_importers = true, include_imports = true } = args;
+
+  return measureAndTrack(
+    'analyze_imports',
+    async () => {
+      try {
+        const { existsSync, statSync, readFileSync } = await import('node:fs');
+        const { resolve, relative } = await import('node:path');
+        const { projectScanner } = await import('../../services/project-analyzer.js');
+
+        const absolutePath = resolve(file_path);
+
+        if (!existsSync(absolutePath)) {
+          return createMCPResponse(`Error: File or directory does not exist: ${file_path}`);
+        }
+
+        const results: string[] = [];
+
+        if (include_importers) {
+          const importers = await projectScanner.findImporters(absolutePath);
+          if (importers.length > 0) {
+            results.push(`## Files that import ${file_path}:`);
+            results.push(...importers.map(imp => `• ${relative(process.cwd(), imp)}`));
+          } else {
+            results.push(`## No files import ${file_path}`);
+          }
+        }
+
+        if (include_imports && statSync(absolutePath).isFile()) {
+          // Extract imports from the file
+          const content = readFileSync(absolutePath, 'utf-8');
+          const importRegex = /(?:from|require\s*\(|import\s*\(|export\s+.*?from)\s+['"`]([^'"`]+)['"`]/g;
+          const imports = new Set<string>();
+
+          let match;
+          while ((match = importRegex.exec(content)) !== null) {
+            imports.add(match[1]);
+          }
+
+          if (imports.size > 0) {
+            results.push(`\n## ${file_path} imports:`);
+            results.push(...Array.from(imports).map(imp => `• ${imp}`));
+          } else {
+            results.push(`\n## ${file_path} has no imports`);
+          }
+        }
+
+        return createMCPResponse(results.join('\n'));
+      } catch (error) {
+        return createMCPResponse(
+          `Error analyzing imports: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    },
+    { context: args }
+  );
+}
+
+/**
+ * Rename a directory and update all imports
+ */
+export async function handleRenameDirectory(
+  args: { old_path: string; new_path: string; dry_run?: boolean }
+) {
+  const { old_path, new_path, dry_run = false } = args;
+
+  return measureAndTrack(
+    'rename_directory',
+    async () => {
+      try {
+        const { readdirSync, statSync, existsSync } = await import('node:fs');
+        const { join, resolve, relative } = await import('node:path');
+        const { renameFile } = await import('../../core/file-operations/editor.js');
+
+        const absoluteOldPath = resolve(old_path);
+        const absoluteNewPath = resolve(new_path);
+
+        if (!existsSync(absoluteOldPath)) {
+          return createMCPResponse(`Error: Directory does not exist: ${old_path}`);
+        }
+
+        if (!statSync(absoluteOldPath).isDirectory()) {
+          return createMCPResponse(`Error: Path is not a directory: ${old_path}`);
+        }
+
+        if (existsSync(absoluteNewPath)) {
+          return createMCPResponse(`Error: Target directory already exists: ${new_path}`);
+        }
+
+        // Collect all files in the directory recursively
+        const files: string[] = [];
+        function collectFiles(dir: string) {
+          try {
+            for (const entry of readdirSync(dir)) {
+              const fullPath = join(dir, entry);
+              const stat = statSync(fullPath);
+              if (stat.isDirectory()) {
+                if (!entry.startsWith('.') && entry !== 'node_modules') {
+                  collectFiles(fullPath);
+                }
+              } else if (stat.isFile()) {
+                files.push(fullPath);
+              }
+            }
+          } catch (err) {
+            logger.warn('Error reading directory during rename', { dir, error: err });
+          }
+        }
+
+        collectFiles(absoluteOldPath);
+
+        if (dry_run) {
+          const changes = files.map(oldFile => {
+            const relativePath = relative(absoluteOldPath, oldFile);
+            const newFile = join(absoluteNewPath, relativePath);
+            return `• ${relative(process.cwd(), oldFile)} → ${relative(process.cwd(), newFile)}`;
+          });
+
+          return createMCPResponse(
+            `[DRY RUN] Would rename directory with ${files.length} file(s):\n\n` +
+            changes.join('\n')
+          );
+        }
+
+        // Process files in order (deepest first to handle nested directories)
+        const sortedFiles = files.sort((a, b) => b.split('/').length - a.split('/').length);
+        const results = [];
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const oldFile of sortedFiles) {
+          const relativePath = relative(absoluteOldPath, oldFile);
+          const newFile = join(absoluteNewPath, relativePath);
+
+          try {
+            const result = await renameFile(oldFile, newFile, undefined, { dry_run: false });
+            if (result.success) {
+              successCount++;
+              results.push(`✅ ${relative(process.cwd(), oldFile)}`);
+            } else {
+              errorCount++;
+              results.push(`❌ ${relative(process.cwd(), oldFile)}: ${result.error}`);
+            }
+          } catch (err) {
+            errorCount++;
+            results.push(`❌ ${relative(process.cwd(), oldFile)}: ${err}`);
+          }
+        }
+
+        return createMCPResponse(
+          `## Directory Rename Complete\n\n` +
+          `• **Success**: ${successCount} file(s)\n` +
+          `• **Errors**: ${errorCount} file(s)\n\n` +
+          `### Details:\n${results.join('\n')}`
+        );
+      } catch (error) {
+        return createMCPResponse(
+          `Error renaming directory: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    },
+    { context: args }
+  );
+}
+
 // Register the analysis tools
 registerTools(
   {
     find_dead_code: {
       handler: handleFindDeadCode,
       requiresService: 'symbol',
+    },
+    fix_imports: {
+      handler: handleFixImports,
+      requiresService: 'none',
+    },
+    analyze_imports: {
+      handler: handleAnalyzeImports,
+      requiresService: 'none',
+    },
+    rename_directory: {
+      handler: handleRenameDirectory,
+      requiresService: 'none',
     },
   },
   'analysis-handlers'

@@ -436,6 +436,101 @@ function findImportsInFile(
 }
 
 /**
+ * Update relative imports inside a file that has been moved to a new location
+ * @param oldPath Original path of the file before moving
+ * @param newPath New path where the file has been moved
+ */
+async function updateImportsInMovedFile(
+  oldPath: string,
+  newPath: string
+): Promise<void> {
+  const content = readFileSync(newPath, 'utf-8');
+  const lines = content.split('\n');
+  const edits: TextEdit[] = [];
+
+
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    const line = lines[lineIndex];
+
+    // Match all relative import patterns (including backticks for template literals)
+    // This regex matches: from, require(), import(), export...from with relative paths
+    const importRegex = /((?:from|require\s*\(|import\s*\(|export\s+.*?from)\s+['"`])(\.\.?\/[^'"`]+)(['"`])/g;
+
+    // CRITICAL: Reset regex state for each line to avoid skipping matches
+    importRegex.lastIndex = 0;
+
+    let match: RegExpExecArray | null;
+    while ((match = importRegex.exec(line)) !== null) {
+      const oldImportPath = match[2];
+
+
+      // Resolve to absolute path from OLD location
+      const targetFile = resolve(dirname(oldPath), oldImportPath);
+
+
+      // Check if target exists, handling extension variations for TS files
+      let resolvedTarget = targetFile;
+      if (!existsSync(targetFile)) {
+        // Try without extension and with common extensions
+        const baseTarget = targetFile.replace(/\.(js|mjs|cjs)$/, '');
+        for (const ext of ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']) {
+          if (existsSync(baseTarget + ext)) {
+            resolvedTarget = baseTarget + ext;
+            break;
+          }
+        }
+        // Also check if it's a directory with index file
+        if (!existsSync(resolvedTarget)) {
+          for (const indexExt of ['/index.ts', '/index.tsx', '/index.js', '/index.jsx']) {
+            if (existsSync(targetFile + indexExt)) {
+              resolvedTarget = targetFile + indexExt;
+              break;
+            }
+          }
+        }
+      }
+
+      // Calculate new relative path from NEW location
+      let newImportPath = relative(dirname(newPath), resolvedTarget).replace(/\\/g, '/');
+
+
+      // Preserve .js extension if original had it (for TypeScript projects)
+      if (oldImportPath.endsWith('.js') && !newImportPath.endsWith('.js')) {
+        newImportPath = newImportPath.replace(/\.(ts|tsx)$/, '.js');
+      }
+
+      // Handle directory imports (remove /index from path if original didn't have it)
+      if (!oldImportPath.endsWith('/index') && newImportPath.endsWith('/index')) {
+        newImportPath = newImportPath.substring(0, newImportPath.length - 6);
+      }
+
+      // Add ./ prefix if needed for relative paths
+      if (!newImportPath.startsWith('.') && !newImportPath.startsWith('/')) {
+        newImportPath = './' + newImportPath;
+      }
+
+      // Only create edit if path actually changed
+      if (oldImportPath !== newImportPath) {
+        edits.push({
+          range: {
+            start: { line: lineIndex, character: match.index + match[1].length },
+            end: { line: lineIndex, character: match.index + match[1].length + oldImportPath.length }
+          },
+          newText: newImportPath
+        });
+      }
+    }
+  }
+
+  if (edits.length > 0) {
+    // Use existing applyEditsToContent to maintain consistency
+    const updatedContent = applyEditsToContent(content, edits, false);
+    writeFileSync(newPath, updatedContent, 'utf-8');
+    logDebugMessage('FileEditor', `Updated ${edits.length} imports in ${newPath}`);
+  }
+}
+
+/**
  * Rename a file and update all import statements that reference it
  * @param oldPath Current path of the file
  * @param newPath New path for the file
@@ -547,57 +642,7 @@ export async function renameFile(
     result.filesModified.push(absoluteNewPath);
 
     // Step 4.5: Update relative imports inside the moved file
-    const oldDepth = dirname(absoluteOldPath).split('/').length;
-    const newDepth = dirname(absoluteNewPath).split('/').length;
-    const depthChange = newDepth - oldDepth;
-
-    if (depthChange !== 0) {
-      logDebugMessage(
-        'FileEditor',
-        `Adjusting relative imports in ${absoluteNewPath} by depth ${depthChange}`
-      );
-
-      // Read the content of the newly moved file
-      let content = readFileSync(absoluteNewPath, 'utf-8');
-
-      // Define regex for relative imports/requires
-      const importRegex = /(from\s+['"]|require\s*\(\s*['"])(\.\.\/[^'"]+|\.\/[^'"]+)(['"]\s*\)?)/g;
-
-      // Replace paths
-      content = content.replace(importRegex, (_match, prefix, importPath, suffix) => {
-        let newPath = importPath;
-        if (depthChange > 0) {
-          // Moved deeper, add ../
-          const prefixPath = '../'.repeat(depthChange);
-          // If the original path started with './', remove it.
-          if (newPath.startsWith('./')) {
-            newPath = prefixPath + newPath.substring(2);
-          } else {
-            newPath = prefixPath + newPath;
-          }
-        } else {
-          // Moved shallower, remove ../
-          const levelsToRemove = Math.abs(depthChange);
-          for (let i = 0; i < levelsToRemove; i++) {
-            if (newPath.startsWith('../')) {
-              newPath = newPath.substring(3);
-            } else if (newPath.startsWith('./') && i === 0) {
-              // Special case: if we're removing one level and path starts with ./
-              // we might need to convert it differently based on context
-              break;
-            } else {
-              // Can't remove more levels
-              break;
-            }
-          }
-        }
-        return prefix + newPath + suffix;
-      });
-
-      // Write the updated content back to the file
-      writeFileSync(absoluteNewPath, content, 'utf-8');
-      logDebugMessage('FileEditor', `Updated relative imports in ${absoluteNewPath}`);
-    }
+    await updateImportsInMovedFile(absoluteOldPath, absoluteNewPath);
 
     // Step 5: Notify LSP if available
     if (lspClient) {
