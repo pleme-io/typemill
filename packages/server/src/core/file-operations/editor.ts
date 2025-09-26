@@ -307,7 +307,7 @@ function applyEditsToContent(content: string, edits: TextEdit[], validate: boole
  * @param useGitignore Whether to respect gitignore patterns (default: true)
  * @returns Array of file paths that might import the target
  */
-async function findPotentialImporters(
+export async function findPotentialImporters(
   rootDir: string,
   targetPath: string,
   useGitignore = true
@@ -361,7 +361,7 @@ async function findPotentialImporters(
  * @param newTargetPath New path for the file being renamed
  * @returns Array of text edits to update the imports
  */
-async function findImportsInFile(
+export async function findImportsInFile(
   filePath: string,
   oldTargetPath: string,
   newTargetPath: string

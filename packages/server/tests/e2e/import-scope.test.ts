@@ -23,8 +23,7 @@ describe('Import Scope Integration Test', () => {
 
   beforeAll(async () => {
     console.log('🧪 Import Scope Integration Test');
-    console.log('================================
-');
+    console.log('================================');
 
     // Create isolated test directory
     rmSync(TEST_DIR, { recursive: true, force: true });
@@ -46,8 +45,7 @@ console.log(HELLO);`);
     client = new MCPTestClient();
     await client.start({ skipLSPPreload: true });
     await waitForLSP(client, filePaths.index);
-    console.log('✅ Setup complete
-');
+    console.log('✅ Setup complete');
   });
 
   afterAll(async () => {
@@ -75,7 +73,7 @@ console.log(HELLO);`);
     // --- Verify Success ---
     console.log('🔍 Verifying success report...');
     expect(response).toContain('Directory Rename Complete');
-    expect(response).toContain('Success: 1 file(s)');
+    expect(response).toContain('Success**: 1 file(s)');
 
     console.log('🔍 Verifying file system changes...');
     expect(existsSync(filePaths.utilsDir)).toBe(false);
@@ -83,7 +81,7 @@ console.log(HELLO);`);
 
     console.log('🔍 Verifying import update in parent file (index.ts)...');
     const updatedIndexContent = readFileSync(filePaths.index, 'utf-8');
-    expect(updatedIndexContent).toContain("from './lib/utils/util'");
+    expect(updatedIndexContent).toContain('from "./lib/utils/util"');
     expect(updatedIndexContent).not.toContain("from './src/utils/util'");
 
     console.log('✅ Parent directory import updated successfully.');

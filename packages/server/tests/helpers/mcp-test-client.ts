@@ -118,8 +118,16 @@ export class MCPTestClient {
     minimalConfig?: boolean;
     skipLSPPreload?: boolean;
   }): Promise<void> {
-    this.process = spawn(process.execPath, ['dist/index.js', 'start'], {
-      cwd: process.cwd(),
+    // Run against source during development, dist in CI/production
+    const useSource = process.env.NODE_ENV !== 'production' && process.env.CI !== 'true';
+    const args = useSource
+      ? ['index.ts', 'start']  // Run source with Bun
+      : ['dist/index.js', 'start']; // Run bundled with Node
+    const executable = useSource ? 'bun' : process.execPath;
+
+
+    this.process = spawn(executable, args, {
+      cwd: '/workspace/packages/server',
       stdio: ['pipe', 'pipe', 'pipe'],
       env: {
         ...process.env,

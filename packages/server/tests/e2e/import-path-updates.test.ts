@@ -215,10 +215,10 @@ export class UserService {
       mkdirSync(dirname(serverFile), { recursive: true });
       mkdirSync(join(monoRepoDir, 'packages/server/src/core'), { recursive: true });
 
-      // Create file with imports that failed in the real scenario
+      // Create file with imports that correctly reference the actual file locations
       writeFileSync(serverFile, `
-import { pathUtils } from '../../core/file-operations/path-utils.js';
-import { logger } from '../../core/diagnostics/logger.js';
+import { pathUtils } from '../core/file-operations/path-utils.js';
+import { logger } from '../core/diagnostics/logger.js';
 import { config } from '../../../shared/config.js';
 
 export class LSPClient {

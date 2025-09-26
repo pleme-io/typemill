@@ -220,6 +220,23 @@ export class BatchExecutor {
           tool: operation.tool
         });
         const operationResult = await this.executeOperation(operation);
+
+        // Check if the result contains an error message
+        const isError = this.isErrorResponse(operationResult);
+
+        if (isError) {
+          // Extract error message from the response
+          const errorMessage = this.extractErrorMessage(operationResult);
+          logger.error('Operation returned error', {
+            component: 'BatchExecutor',
+            operationId: operation.id,
+            error: errorMessage
+          });
+
+          // Treat as a failure - throw to trigger rollback if atomic
+          throw new Error(errorMessage);
+        }
+
         logger.debug('Operation succeeded', {
           component: 'BatchExecutor',
           operationId: operation.id
@@ -252,7 +269,22 @@ export class BatchExecutor {
           if (transactionManager) {
             await transactionManager.rollbackToCheckpoint('before-batch');
             transactionManager.commit(); // End the transaction
+
+            // Mark all previously successful operations as rolled back
+            for (const opResult of result.results) {
+              if (opResult.success) {
+                opResult.success = false;
+                opResult.error = 'Rolled back due to atomic transaction failure';
+              }
+            }
             result.summary.successful = 0; // Reset successful count after rollback
+
+            // Add rollback message to the last failed operation
+            const lastResult = result.results[result.results.length - 1];
+            if (lastResult && lastResult.error) {
+              lastResult.error += '\n\n**Note**: Rolling back atomic transaction - all operations have been reverted.';
+            }
+
             logger.info('Rollback complete', { component: 'BatchExecutor' });
           }
           break;
@@ -364,6 +396,35 @@ export class BatchExecutor {
       return await toolInfo.handler(operation.args, serviceArg);
     }
     return await toolInfo.handler(serviceArg, operation.args, this.container.lspClient);
+  }
+
+  private isErrorResponse(result: unknown): boolean {
+    // Check if the result contains an error message
+    if (result && typeof result === 'object' && 'content' in result) {
+      const content = (result as any).content;
+      if (Array.isArray(content) && content.length > 0) {
+        const firstContent = content[0];
+        if (firstContent && typeof firstContent === 'object' && 'text' in firstContent) {
+          const text = String(firstContent.text);
+          // Check if the text starts with "Error:" or contains error indicators
+          return text.startsWith('Error:') || text.startsWith('❌') || text.includes('Error:');
+        }
+      }
+    }
+    return false;
+  }
+
+  private extractErrorMessage(result: unknown): string {
+    if (result && typeof result === 'object' && 'content' in result) {
+      const content = (result as any).content;
+      if (Array.isArray(content) && content.length > 0) {
+        const firstContent = content[0];
+        if (firstContent && typeof firstContent === 'object' && 'text' in firstContent) {
+          return String(firstContent.text);
+        }
+      }
+    }
+    return 'Unknown error occurred';
   }
 
   // Static method to get available tools for validation

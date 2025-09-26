@@ -14,6 +14,7 @@ import { LSPClient as NewLSPClient } from '../@codeflow/features/src/lsp/lsp-cli
 import * as Validation from './src/mcp/comprehensive-validation.js';
 import { allToolDefinitions } from './src/mcp/definitions/index.js';
 import { allWorkflowDefinitions } from './src/mcp/definitions/workflow-definitions.js';
+import { getTool } from './src/mcp/tool-registry.js';
 import {
   handleAnalyzeImports,
   handleApplyWorkspaceEdit,
@@ -303,6 +304,9 @@ try {
   const intelligenceService = new IntelligenceService(serviceContext);
   const hierarchyService = new HierarchyService(serviceContext);
 
+  // Set the FileService in TransactionManager to resolve circular dependency
+  transactionManager.setFileService(fileService);
+
   // Create PredictiveLoaderService with context that includes fileService
   predictiveLoaderService = new PredictiveLoaderService({
     logger,
@@ -502,9 +506,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         const result = await (async () => {
           // Dynamic dispatch using tool registry - MUCH better than giant switch!
-          // Ensure all handlers are imported to trigger registration
+          // Load handlers to trigger registration when running from source
           await import('./src/mcp/handlers/index.js');
-          const { getTool } = await import('./src/mcp/tool-registry.js');
           const toolEntry = getTool(name);
 
           if (!toolEntry) {

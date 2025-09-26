@@ -418,6 +418,8 @@ export async function handleRenameDirectory(
   serviceContext: import('../../../../../server/src/services/service-context.js').ServiceContext
 ) {
   const { old_path, new_path, dry_run = false } = args;
+  console.log('🎬 Starting rename_directory handler:', { old_path, new_path, dry_run });
+
 
   return measureAndTrack(
     'rename_directory',
@@ -560,7 +562,9 @@ export async function handleRenameDirectory(
 
           try {
             // Record the file move operation for transaction rollback
-            serviceContext.transactionManager.recordFileMove(oldFile, newFile);
+            if (serviceContext.transactionManager) {
+              serviceContext.transactionManager.recordFileMove(oldFile, newFile);
+            }
 
             const result = await renameFile(oldFile, newFile, undefined, { dry_run: false });
             if (result.success) {
@@ -573,6 +577,112 @@ export async function handleRenameDirectory(
           } catch (err) {
             errorCount++;
             results.push(`❌ ${relative(process.cwd(), oldFile)}: ${err}`);
+          }
+        }
+
+        console.log('📊 File move results:', { errorCount, successCount, totalFiles: sortedFiles.length });
+
+        // Update imports in external files that reference the moved directory
+        console.log('📁 About to update external imports:', { errorCount, successCount });
+        if (errorCount === 0 && successCount > 0) {
+          console.log('🚀 Starting external import update process');
+          try {
+            logger.debug('Updating external imports that reference moved directory', {
+              oldPath: absoluteOldPath,
+              newPath: absoluteNewPath,
+            });
+
+            // Import required functions
+            const editorModule = await import('../../../../../server/src/core/file-operations/editor.js');
+            const { writeFileSync, readFileSync } = await import('node:fs');
+
+            // Check if functions are available
+            if (!editorModule.findPotentialImporters || !editorModule.findImportsInFile) {
+              logger.warn('Required editor functions not available', {
+                available: Object.keys(editorModule)
+              });
+              return;
+            }
+
+            const { findPotentialImporters, findImportsInFile } = editorModule;
+
+            // Use the directory containing the moved path as the search root instead of process.cwd()
+            const searchRoot = dirname(dirname(absoluteOldPath)); // Go up to parent of parent to find potential importers
+
+            // Find all files that might import from the old directory path
+            const importingFiles = await findPotentialImporters(searchRoot, absoluteOldPath);
+
+            // For each moved file, find external files that import it and update them
+            for (const oldFile of sortedFiles) {
+              const relativePath = relative(absoluteOldPath, oldFile);
+              const newFile = join(absoluteNewPath, relativePath);
+
+              console.log('🔄 Processing moved file:', {
+                oldFile: relative(process.cwd(), oldFile),
+                newFile: relative(process.cwd(), newFile)
+              });
+
+              // Find files that import this specific moved file
+              for (const importingFile of importingFiles) {
+                if (importingFile.startsWith(absoluteOldPath) || importingFile.startsWith(absoluteNewPath)) {
+                  // Skip files within the moved directory itself
+                  continue;
+                }
+
+                try {
+                  // Use the existing findImportsInFile function which handles all the AST logic
+                  const edits = await findImportsInFile(importingFile, oldFile, newFile);
+
+                  if (edits.length > 0) {
+                    // Apply the edits to the file
+                    const content = readFileSync(importingFile, 'utf-8');
+                    const lines = content.split('\n');
+
+                    // Apply edits in reverse order to maintain line numbers
+                    const sortedEdits = edits.sort((a, b) => b.range.start.line - a.range.start.line);
+
+                    for (const edit of sortedEdits) {
+                      lines[edit.range.start.line] = edit.newText;
+                    }
+
+                    writeFileSync(importingFile, lines.join('\n'), 'utf-8');
+
+                    logger.debug('Updated external file imports', {
+                      file: relative(process.cwd(), importingFile),
+                      edits: edits.length,
+                      target: relative(process.cwd(), oldFile),
+                    });
+                  }
+                } catch (err) {
+                  logger.warn('Failed to update imports in external file', {
+                    file: importingFile,
+                    target: oldFile,
+                    error: err,
+                  });
+                }
+              }
+            }
+          } catch (err) {
+            logger.warn('Failed to update external imports', {
+              error: err instanceof Error ? err.message : String(err),
+              stack: err instanceof Error ? err.stack : undefined
+            });
+          }
+        }
+
+        // Remove the old directory structure if all files were moved successfully
+        if (errorCount === 0 && successCount > 0) {
+          try {
+            const { rmSync } = await import('node:fs');
+
+            // Use rmSync with recursive option to remove the entire directory tree
+            // This is safer and more reliable than manual traversal
+            rmSync(absoluteOldPath, { recursive: true, force: true });
+            logger.debug('Successfully removed old directory structure', { path: absoluteOldPath });
+          } catch (err) {
+            logger.warn('Could not remove old directory structure', { path: absoluteOldPath, error: err });
+            // Don't fail the operation if we can't remove the old directory
+            // The files were already moved successfully
           }
         }
 

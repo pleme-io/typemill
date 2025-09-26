@@ -6,8 +6,15 @@ import type { FileSystemSnapshot, Transaction, FileOperation } from './types.js'
 
 export class TransactionManager {
   private activeTransaction: Transaction | null = null;
+  private fileService?: FileService;
 
-  constructor(private fileService: FileService) {}
+  constructor(fileService?: FileService) {
+    this.fileService = fileService;
+  }
+
+  setFileService(fileService: FileService): void {
+    this.fileService = fileService;
+  }
 
   beginTransaction(): Transaction {
     if (this.activeTransaction) {
@@ -26,7 +33,8 @@ export class TransactionManager {
     if (!this.activeTransaction) {
       throw new Error('No active transaction.');
     }
-    const trackedFiles = this.fileService.getTrackedFiles();
+    // If fileService is not available, use an empty array of tracked files
+    const trackedFiles = this.fileService?.getTrackedFiles() || [];
     const snapshot = await this.captureState(trackedFiles);
     snapshot.operations = [...this.activeTransaction.operations]; // Copy current operations
     this.activeTransaction.checkpoints.set(name, snapshot);
@@ -135,6 +143,7 @@ export class TransactionManager {
     const operationsToRollback = this.activeTransaction.operations
       .filter(op => op.timestamp > checkpointTimestamp)
       .reverse(); // Rollback in reverse order
+
 
     for (const operation of operationsToRollback) {
       try {
