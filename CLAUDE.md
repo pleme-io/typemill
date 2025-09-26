@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Package**: `@goobits/codeflow-buddy` | **Command**: `codeflow-buddy` | **Runtime**: Bun/Node.js
 
-MCP server bridging Language Server Protocol (LSP) functionality to AI coding assistants with 35 MCP tools for navigation, refactoring, code intelligence, and batch operations.
+MCP server bridging Language Server Protocol (LSP) functionality to AI coding assistants with 31 MCP tools for navigation, refactoring, code intelligence, and batch operations.
 
 ## Development Commands
 
@@ -68,7 +68,7 @@ docker-compose up -d                                     # Full Docker deploymen
 **MCP Server Layer** (`index.ts`)
 
 - Entry point that implements MCP protocol
-- Exposes 30 MCP tools covering navigation, refactoring, intelligence, diagnostics, and batch operations
+- Exposes 31 MCP tools covering navigation, refactoring, intelligence, diagnostics, and batch operations
 - Handles MCP client requests and delegates to LSP layer
 - Includes CLI subcommand handling for `setup`, `status`, `start`, `stop`
 

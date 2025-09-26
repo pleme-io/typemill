@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-All 30 MCP tools with practical examples for AI assistants.
+All 31 MCP tools with practical examples for AI assistants.
 
 ## Core Navigation & Analysis
 
@@ -199,6 +199,77 @@ Update package.json files by adding, removing, or modifying dependencies, script
 
 **Returns:** Summary of all changes made to the package.json file
 
+### `fix_imports`
+
+Fix import paths in a file that has been moved to a new location. Updates relative imports to maintain correct references.
+
+**Parameters:**
+- `file_path`: Path to the file with imports to fix
+- `old_path`: The file's previous location (for calculating new relative paths)
+
+**When to use:** After manually moving files or when import paths are broken
+
+**Example prompt:** "Fix the imports in user-service.ts after it was moved from utils/ to services/"
+
+**Returns:** List of import statements that were updated
+
+### `analyze_imports`
+
+Analyze import relationships for a file, showing both what it imports and what imports it.
+
+**Parameters:**
+- `file_path`: Path to the file to analyze
+- `include_importers`: Whether to show files that import this file (optional, default: true)
+- `include_imports`: Whether to show what this file imports (optional, default: true)
+
+**When to use:** Understanding dependencies before refactoring or debugging circular imports
+
+**Example prompt:** "Show me what imports user-service.ts and what it imports"
+
+**Returns:** Comprehensive import relationship analysis
+
+### `find_dead_code`
+
+Find potentially unused code (functions, classes, variables) with no external references.
+
+**Parameters:**
+- `files`: Specific files to analyze (optional, defaults to common source files)
+- `exclude_tests`: Skip test files in analysis (optional, default: true)
+- `min_references`: Minimum references to not be considered dead (optional, default: 1)
+
+**When to use:** Code cleanup, bundle size optimization, identifying unused exports
+
+**Example prompt:** "Find dead code in my TypeScript project"
+
+**Returns:** Detailed report of potentially unused symbols with locations and reference counts
+
+### `health_check`
+
+Get health status of LSP servers and system resources.
+
+**Parameters:**
+- `include_details`: Include detailed server information (optional, default: false)
+
+**When to use:** Debugging LSP issues, monitoring system performance, troubleshooting
+
+**Example prompt:** "Check the health of all language servers"
+
+**Returns:** System health report with server status and resource usage
+
+### `execute_workflow`
+
+Execute a dependency-orchestrated workflow chain with multiple tool operations.
+
+**Parameters:**
+- `chain`: Workflow definition with dependency relationships
+- `inputs`: Input parameters for the workflow execution
+
+**When to use:** Complex multi-step operations with dependencies between steps
+
+**Example prompt:** "Execute a workflow to refactor and test changes"
+
+**Returns:** Workflow execution results with step-by-step status
+
 ## Code Intelligence
 
 ### `get_hover`
@@ -270,37 +341,6 @@ Get outgoing calls for a call hierarchy item.
 
 **Parameters:**
 - `item`: Call hierarchy item from prepare_call_hierarchy
-
-### `prepare_type_hierarchy`
-
-Prepare type hierarchy items for a symbol at a specific position.
-
-**Parameters:**
-- `file_path`: The path to the file
-- `line`: The line number (1-indexed)
-- `character`: The character position in the line (0-indexed)
-
-### `get_type_hierarchy_supertypes`
-
-Get supertypes (parent classes/interfaces) for a type hierarchy item.
-
-**Parameters:**
-- `item`: Type hierarchy item from prepare_type_hierarchy
-
-### `get_type_hierarchy_subtypes`
-
-Get subtypes (child implementations) for a type hierarchy item.
-
-**Parameters:**
-- `item`: Type hierarchy item from prepare_type_hierarchy
-
-### `get_selection_range`
-
-Get hierarchical selection ranges for smart code block selection.
-
-**Parameters:**
-- `file_path`: The path to the file
-- `positions`: Array of positions with line (1-indexed) and character (0-indexed) properties
 
 ## Workspace Operations
 
