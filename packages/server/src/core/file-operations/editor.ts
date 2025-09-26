@@ -10,6 +10,9 @@ import {
 } from 'node:fs';
 import { readdir } from 'node:fs/promises';
 import { dirname, extname, relative, resolve } from 'node:path';
+import { astService } from '../../services/ast-service.js';
+import { applyImportPathUpdates, findImportUpdatesForRename } from '../ast/ast-editor.js';
+import { rewriteImports, type ImportMapping } from '../ast/language-rewriters.js';
 import type { LSPClient } from '../../../../@codeflow/features/src/lsp/lsp-client.js';
 import { pathManager } from '../../utils/platform/path-manager.js';
 import { logDebugMessage } from '../diagnostics/debug-logger.js';
@@ -358,80 +361,78 @@ async function findPotentialImporters(
  * @param newTargetPath New path for the file being renamed
  * @returns Array of text edits to update the imports
  */
-function findImportsInFile(
+async function findImportsInFile(
   filePath: string,
   oldTargetPath: string,
   newTargetPath: string
-): TextEdit[] {
+): Promise<TextEdit[]> {
   const content = readFileSync(filePath, 'utf-8');
+  const fileExt = extname(filePath).toLowerCase();
+
+  // For TypeScript/JavaScript files, use AST-based approach
+  if (['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'].includes(fileExt)) {
+    const updates = findImportUpdatesForRename(filePath, content, oldTargetPath, newTargetPath);
+
+    // Convert ImportPathUpdate to TextEdit format
+    const edits: TextEdit[] = [];
+    if (updates.length > 0) {
+      // Apply the updates and extract diffs as TextEdits
+      const result = applyImportPathUpdates(filePath, content, updates);
+      if (result.success && result.content) {
+        // Generate text edits from the diff
+        const lines = content.split('\n');
+        const newLines = result.content.split('\n');
+
+        // Simple line-by-line comparison for generating edits
+        for (let i = 0; i < lines.length; i++) {
+          if (lines[i] !== newLines[i]) {
+            edits.push({
+              range: {
+                start: { line: i, character: 0 },
+                end: { line: i, character: lines[i].length }
+              },
+              newText: newLines[i]
+            });
+          }
+        }
+      }
+    }
+    return edits;
+  }
+
+  // For other languages, use language-specific rewriters
   const edits: TextEdit[] = [];
   const lines = content.split('\n');
-
-  // Calculate the relative paths from this file to the old and new targets
   const fileDir = dirname(filePath);
 
-  // Calculate paths both with and without .js extensions
-  const oldPathNoExt = oldTargetPath.replace(/\.(ts|tsx|js|jsx|mjs|cjs)$/, '');
-  const newPathNoExt = newTargetPath.replace(/\.(ts|tsx|js|jsx|mjs|cjs)$/, '');
+  // Calculate relative paths
+  const oldRelative = pathManager.normalizePosix(relative(fileDir, oldTargetPath));
+  const newRelative = pathManager.normalizePosix(relative(fileDir, newTargetPath));
 
-  // Calculate relative paths for both extension patterns
-  let oldRelativeNoExt = pathManager.normalizePosix(relative(fileDir, oldPathNoExt));
-  let newRelativeNoExt = pathManager.normalizePosix(relative(fileDir, newPathNoExt));
-  let oldRelativeWithJs = pathManager.normalizePosix(relative(fileDir, `${oldPathNoExt}.js`));
-  let newRelativeWithJs = pathManager.normalizePosix(relative(fileDir, `${newPathNoExt}.js`));
+  // Create import mapping
+  const mappings: ImportMapping[] = [{
+    oldPath: !oldRelative.startsWith('.') ? `./${oldRelative}` : oldRelative,
+    newPath: !newRelative.startsWith('.') ? `./${newRelative}` : newRelative
+  }];
 
-  // Add ./ prefix if needed for relative paths
-  const addPrefix = (path: string) =>
-    !path.startsWith('.') && !path.startsWith('/') ? `./${path}` : path;
+  // Apply language-specific rewriter
+  const result = rewriteImports(filePath, content, mappings);
 
-  oldRelativeNoExt = addPrefix(oldRelativeNoExt);
-  newRelativeNoExt = addPrefix(newRelativeNoExt);
-  oldRelativeWithJs = addPrefix(oldRelativeWithJs);
-  newRelativeWithJs = addPrefix(newRelativeWithJs);
-
-  // Escape special regex characters
-  const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-  // Define import patterns to check (both with and without .js extensions)
-  const importPatterns = [
-    { oldPath: oldRelativeNoExt, newPath: newRelativeNoExt },
-    { oldPath: oldRelativeWithJs, newPath: newRelativeWithJs },
-  ];
-
-  // Track processed ranges to avoid duplicates
-  const processedRanges = new Set<string>();
-
-  lines.forEach((line, lineIndex) => {
-    importPatterns.forEach(({ oldPath, newPath }) => {
-      const pattern = new RegExp(
-        `((?:from|require\\s*\\(|import\\s*\\(|export\\s+.*?from)\\s+['"\`])${escapeRegex(oldPath)}(['"\`])`,
-        'g'
-      );
-
-      let match: RegExpExecArray | null;
-      pattern.lastIndex = 0; // Reset regex state
-      // biome-ignore lint/suspicious/noAssignInExpressions: Common regex pattern
-      while ((match = pattern.exec(line)) !== null) {
-        const startCol = match.index + (match[1]?.length || 0);
-        const endCol = startCol + oldPath.length;
-        const rangeKey = `${lineIndex}:${startCol}:${endCol}`;
-
-        // Skip if we've already processed this range
-        if (processedRanges.has(rangeKey)) {
-          continue;
-        }
-        processedRanges.add(rangeKey);
-
+  if (result.success && result.content) {
+    // Generate text edits from the rewritten content
+    const newLines = result.content.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i] !== newLines[i]) {
         edits.push({
           range: {
-            start: { line: lineIndex, character: startCol },
-            end: { line: lineIndex, character: endCol },
+            start: { line: i, character: 0 },
+            end: { line: i, character: lines[i].length }
           },
-          newText: newPath,
+          newText: newLines[i]
         });
       }
-    });
-  });
+    }
+  }
 
   return edits;
 }
@@ -446,84 +447,133 @@ async function updateImportsInMovedFile(
   newPath: string
 ): Promise<void> {
   const content = readFileSync(newPath, 'utf-8');
-  const lines = content.split('\n');
-  const edits: TextEdit[] = [];
+  const fileExt = extname(newPath).toLowerCase();
 
-  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-    const line = lines[lineIndex];
+  // For TypeScript/JavaScript files, use AST-based approach
+  if (['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'].includes(fileExt)) {
+    try {
+      // Get all imports in the file
+      const imports = await astService.getImports(newPath);
+      const updates: Array<{ oldPath: string; newPath: string }> = [];
 
-    // Match all relative import patterns (including backticks for template literals)
-    // This regex matches: from, require(), import(), export...from with relative paths
-    const importRegex = /((?:from|require\s*\(|import\s*\(|export\s+.*?from)\s*['"`])(\.\.?\/[^'"`]+)(['"`])/g;
+      // Process each relative import
+      for (const importPath of imports) {
+        if (importPath.startsWith('.')) {
+          // Resolve to absolute path from OLD location
+          const targetFile = resolve(dirname(oldPath), importPath);
 
-    // CRITICAL: Reset regex state for each line to avoid skipping matches
-    importRegex.lastIndex = 0;
+          // Check if target exists, handling extension variations
+          let resolvedTarget = targetFile;
+          if (!existsSync(targetFile)) {
+            const baseTarget = targetFile.replace(/\.(js|mjs|cjs)$/, '');
+            for (const ext of ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']) {
+              if (existsSync(baseTarget + ext)) {
+                resolvedTarget = baseTarget + ext;
+                break;
+              }
+            }
+            // Check for index files
+            if (!existsSync(resolvedTarget)) {
+              for (const indexExt of ['/index.ts', '/index.tsx', '/index.js', '/index.jsx']) {
+                if (existsSync(targetFile + indexExt)) {
+                  resolvedTarget = targetFile + indexExt;
+                  break;
+                }
+              }
+            }
+          }
 
-    let match: RegExpExecArray | null;
-    while ((match = importRegex.exec(line)) !== null) {
-      const oldImportPath = match[2];
-      // Resolve to absolute path from OLD location
-      const targetFile = resolve(dirname(oldPath), oldImportPath);
+          // Calculate new relative path from NEW location
+          let newImportPath = pathManager.normalizePosix(relative(dirname(newPath), resolvedTarget));
 
-      // Check if target exists, handling extension variations for TS files
-      let resolvedTarget = targetFile;
-      if (!existsSync(targetFile)) {
-        // Try without extension and with common extensions
-        const baseTarget = targetFile.replace(/\.(js|mjs|cjs)$/, '');
-        for (const ext of ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']) {
-          if (existsSync(baseTarget + ext)) {
-            resolvedTarget = baseTarget + ext;
-            break;
+          // Preserve .js extension if original had it
+          if (importPath.endsWith('.js') && !newImportPath.endsWith('.js')) {
+            newImportPath = newImportPath.replace(/\.(ts|tsx)$/, '.js');
+          }
+
+          // Handle directory imports
+          if (!importPath.endsWith('/index') && newImportPath.endsWith('/index')) {
+            newImportPath = newImportPath.substring(0, newImportPath.length - 6);
+          }
+
+          // Add ./ prefix if needed
+          if (!newImportPath.startsWith('.') && !newImportPath.startsWith('/')) {
+            newImportPath = './' + newImportPath;
+          }
+
+          // Only add update if path changed
+          if (importPath !== newImportPath) {
+            updates.push({ oldPath: importPath, newPath: newImportPath });
           }
         }
-        // Also check if it's a directory with index file
-        if (!existsSync(resolvedTarget)) {
-          for (const indexExt of ['/index.ts', '/index.tsx', '/index.js', '/index.jsx']) {
-            if (existsSync(targetFile + indexExt)) {
-              resolvedTarget = targetFile + indexExt;
+      }
+
+      // Apply all updates using AST transformation
+      if (updates.length > 0) {
+        const result = applyImportPathUpdates(newPath, content, updates);
+        if (result.success && result.content) {
+          writeFileSync(newPath, result.content, 'utf-8');
+          logDebugMessage('FileEditor', `Updated ${result.editsApplied} imports in ${newPath} using AST`);
+        }
+      }
+    } catch (error) {
+      logDebugMessage('FileEditor', `Error updating imports with AST: ${error}, falling back to patterns`);
+      // Fall back to pattern-based approach on error
+      await updateImportsWithPatterns(oldPath, newPath);
+    }
+  } else {
+    // For non-TS/JS files, use language-specific rewriters
+    await updateImportsWithPatterns(oldPath, newPath);
+  }
+}
+
+/**
+ * Fallback function for updating imports using patterns
+ */
+async function updateImportsWithPatterns(oldPath: string, newPath: string): Promise<void> {
+  const content = readFileSync(newPath, 'utf-8');
+  const mappings: ImportMapping[] = [];
+
+  // Get all imports to check which need updating
+  try {
+    const imports = await astService.getImports(newPath);
+
+    for (const importPath of imports) {
+      if (importPath.startsWith('.')) {
+        const targetFile = resolve(dirname(oldPath), importPath);
+        let resolvedTarget = targetFile;
+
+        if (!existsSync(targetFile)) {
+          const baseTarget = targetFile.replace(/\.(js|mjs|cjs)$/, '');
+          for (const ext of ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py', '.go', '.rs']) {
+            if (existsSync(baseTarget + ext)) {
+              resolvedTarget = baseTarget + ext;
               break;
             }
           }
         }
-      }
 
-      // Calculate new relative path from NEW location
-      let newImportPath = pathManager.normalizePosix(relative(dirname(newPath), resolvedTarget));
+        let newImportPath = pathManager.normalizePosix(relative(dirname(newPath), resolvedTarget));
+        if (!newImportPath.startsWith('.')) {
+          newImportPath = './' + newImportPath;
+        }
 
-
-      // Preserve .js extension if original had it (for TypeScript projects)
-      if (oldImportPath.endsWith('.js') && !newImportPath.endsWith('.js')) {
-        newImportPath = newImportPath.replace(/\.(ts|tsx)$/, '.js');
-      }
-
-      // Handle directory imports (remove /index from path if original didn't have it)
-      if (!oldImportPath.endsWith('/index') && newImportPath.endsWith('/index')) {
-        newImportPath = newImportPath.substring(0, newImportPath.length - 6);
-      }
-
-      // Add ./ prefix if needed for relative paths
-      if (!newImportPath.startsWith('.') && !newImportPath.startsWith('/')) {
-        newImportPath = './' + newImportPath;
-      }
-
-      // Only create edit if path actually changed
-      if (oldImportPath !== newImportPath) {
-        edits.push({
-          range: {
-            start: { line: lineIndex, character: match.index + match[1].length },
-            end: { line: lineIndex, character: match.index + match[1].length + oldImportPath.length }
-          },
-          newText: newImportPath
-        });
+        if (importPath !== newImportPath) {
+          mappings.push({ oldPath: importPath, newPath: newImportPath });
+        }
       }
     }
+  } catch {
+    // If we can't parse imports, skip
+    return;
   }
 
-  if (edits.length > 0) {
-    // Use existing applyEditsToContent to maintain consistency
-    const updatedContent = applyEditsToContent(content, edits, false);
-    writeFileSync(newPath, updatedContent, 'utf-8');
-    logDebugMessage('FileEditor', `Updated ${edits.length} imports in ${newPath}`);
+  if (mappings.length > 0) {
+    const result = rewriteImports(newPath, content, mappings);
+    if (result.success && result.content) {
+      writeFileSync(newPath, result.content, 'utf-8');
+      logDebugMessage('FileEditor', `Updated ${result.editsApplied} imports in ${newPath} using patterns`);
+    }
   }
 }
 
@@ -581,7 +631,7 @@ export async function renameFile(
     let totalEdits = 0;
 
     for (const file of importingFiles) {
-      const edits = findImportsInFile(file, absoluteOldPath, absoluteNewPath);
+      const edits = await findImportsInFile(file, absoluteOldPath, absoluteNewPath);
       logDebugMessage('FileEditor', `Checking ${file}: found ${edits.length} imports`);
       if (edits.length > 0) {
         changes[pathToUri(file)] = edits;

@@ -219,89 +219,127 @@ export async function handleFixImports(args: { file_path: string; old_path: stri
     'fix_imports',
     async () => {
       try {
-        // Directly implement the import fixing logic since updateImportsInMovedFile is not exported
         const { readFileSync, writeFileSync, existsSync } = await import('node:fs');
-        const { dirname, resolve, relative } = await import('node:path');
+        const { dirname, resolve, relative, extname } = await import('node:path');
+        const { astService } = await import('../../../../../server/src/services/ast-service.js');
+        const { applyImportPathUpdates } = await import('../../../../../server/src/core/ast/ast-editor.js');
+        const { rewriteImports } = await import('../../../../../server/src/core/ast/language-rewriters.js');
 
         const content = readFileSync(file_path, 'utf-8');
-        const lines = content.split('\n');
-        const edits: any[] = [];
+        const fileExt = extname(file_path).toLowerCase();
 
-        for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-          const line = lines[lineIndex];
-          const importRegex = /((?:from|require\s*\(|import\s*\(|export\s+.*?from)\s*['"`])(\.\.?\/[^'"`]+)(['"`])/g;
-          importRegex.lastIndex = 0;
+        // For TypeScript/JavaScript files, use AST-based approach
+        if (['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'].includes(fileExt)) {
+          // Get all imports in the file
+          const imports = await astService.getImports(file_path);
+          const updates: Array<{ oldPath: string; newPath: string }> = [];
 
-          let match;
-          while ((match = importRegex.exec(line)) !== null) {
-            const oldImportPath = match[2];
-            const targetFile = resolve(dirname(old_path), oldImportPath);
+          // Process each relative import
+          for (const importPath of imports) {
+            if (importPath.startsWith('.')) {
+              // Resolve to absolute path from OLD location
+              const targetFile = resolve(dirname(old_path), importPath);
 
-            let resolvedTarget = targetFile;
-            if (!existsSync(targetFile)) {
-              const baseTarget = targetFile.replace(/\.(js|mjs|cjs)$/, '');
-              for (const ext of ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']) {
-                if (existsSync(baseTarget + ext)) {
-                  resolvedTarget = baseTarget + ext;
-                  break;
+              let resolvedTarget = targetFile;
+              if (!existsSync(targetFile)) {
+                const baseTarget = targetFile.replace(/\.(js|mjs|cjs)$/, '');
+                for (const ext of ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']) {
+                  if (existsSync(baseTarget + ext)) {
+                    resolvedTarget = baseTarget + ext;
+                    break;
+                  }
+                }
+                if (!existsSync(resolvedTarget)) {
+                  for (const indexExt of ['/index.ts', '/index.tsx', '/index.js', '/index.jsx']) {
+                    if (existsSync(targetFile + indexExt)) {
+                      resolvedTarget = targetFile + indexExt;
+                      break;
+                    }
+                  }
                 }
               }
-              if (!existsSync(resolvedTarget)) {
-                for (const indexExt of ['/index.ts', '/index.tsx', '/index.js', '/index.jsx']) {
-                  if (existsSync(targetFile + indexExt)) {
-                    resolvedTarget = targetFile + indexExt;
+
+              let newImportPath = relative(dirname(file_path), resolvedTarget).replace(/\\/g, '/');
+
+              // Preserve .js extension if original had it
+              if (importPath.endsWith('.js') && !newImportPath.endsWith('.js')) {
+                newImportPath = newImportPath.replace(/\.(ts|tsx)$/, '.js');
+              }
+
+              // Handle directory imports
+              if (!importPath.endsWith('/index') && newImportPath.endsWith('/index')) {
+                newImportPath = newImportPath.substring(0, newImportPath.length - 6);
+              }
+
+              // Add ./ prefix if needed
+              if (!newImportPath.startsWith('.') && !newImportPath.startsWith('/')) {
+                newImportPath = './' + newImportPath;
+              }
+
+              // Only add update if path changed
+              if (importPath !== newImportPath) {
+                updates.push({ oldPath: importPath, newPath: newImportPath });
+              }
+            }
+          }
+
+          // Apply all updates using AST transformation
+          if (updates.length > 0) {
+            const result = applyImportPathUpdates(file_path, content, updates);
+            if (result.success && result.content) {
+              writeFileSync(file_path, result.content, 'utf-8');
+              return createMCPResponse(
+                `✅ Fixed ${result.editsApplied} import${result.editsApplied === 1 ? '' : 's'} in ${file_path} using AST\n\n` +
+                updates.map(u => `• "${u.oldPath}" → "${u.newPath}"`).join('\n')
+              );
+            } else {
+              return createMCPResponse(`❌ Failed to fix imports: ${result.error}`);
+            }
+          } else {
+            return createMCPResponse(`✅ No imports needed fixing in ${file_path}`);
+          }
+        } else {
+          // For non-TS/JS files, use language-specific rewriters
+          const imports = await astService.getImports(file_path);
+          const mappings: any[] = [];
+
+          for (const importPath of imports) {
+            if (importPath.startsWith('.')) {
+              const targetFile = resolve(dirname(old_path), importPath);
+              let resolvedTarget = targetFile;
+
+              if (!existsSync(targetFile)) {
+                const baseTarget = targetFile.replace(/\.(js|mjs|cjs)$/, '');
+                for (const ext of ['.py', '.go', '.rs', '.java', '.cs', '.rb', '.php']) {
+                  if (existsSync(baseTarget + ext)) {
+                    resolvedTarget = baseTarget + ext;
                     break;
                   }
                 }
               }
-            }
 
-            let newImportPath = relative(dirname(file_path), resolvedTarget).replace(/\\/g, '/');
+              let newImportPath = relative(dirname(file_path), resolvedTarget).replace(/\\/g, '/');
+              if (!newImportPath.startsWith('.')) {
+                newImportPath = './' + newImportPath;
+              }
 
-            if (oldImportPath.endsWith('.js') && !newImportPath.endsWith('.js')) {
-              newImportPath = newImportPath.replace(/\.(ts|tsx)$/, '.js');
-            }
-
-            if (!oldImportPath.endsWith('/index') && newImportPath.endsWith('/index')) {
-              newImportPath = newImportPath.substring(0, newImportPath.length - 6);
-            }
-
-            if (!newImportPath.startsWith('.') && !newImportPath.startsWith('/')) {
-              newImportPath = './' + newImportPath;
-            }
-
-            if (oldImportPath !== newImportPath) {
-              edits.push({
-                line: lineIndex,
-                startCol: match.index + match[1].length,
-                endCol: match.index + match[1].length + oldImportPath.length,
-                newText: newImportPath,
-                oldText: oldImportPath
-              });
+              if (importPath !== newImportPath) {
+                mappings.push({ oldPath: importPath, newPath: newImportPath });
+              }
             }
           }
-        }
 
-        if (edits.length > 0) {
-          // Apply edits in reverse order to maintain positions
-          const sortedEdits = edits.sort((a, b) => b.line - a.line || b.startCol - a.startCol);
-          const updatedLines = [...lines];
-
-          for (const edit of sortedEdits) {
-            const line = updatedLines[edit.line];
-            updatedLines[edit.line] =
-              line.substring(0, edit.startCol) +
-              edit.newText +
-              line.substring(edit.endCol);
+          if (mappings.length > 0) {
+            const result = rewriteImports(file_path, content, mappings);
+            if (result.success && result.content) {
+              writeFileSync(file_path, result.content, 'utf-8');
+              return createMCPResponse(
+                `✅ Fixed ${result.editsApplied} import${result.editsApplied === 1 ? '' : 's'} in ${file_path}\n\n` +
+                mappings.map((m: any) => `• "${m.oldPath}" → "${m.newPath}"`).join('\n')
+              );
+            }
           }
 
-          writeFileSync(file_path, updatedLines.join('\n'), 'utf-8');
-
-          return createMCPResponse(
-            `✅ Fixed ${edits.length} import${edits.length === 1 ? '' : 's'} in ${file_path}\n\n` +
-            edits.map(e => `• Line ${e.line + 1}: "${e.oldText}" → "${e.newText}"`).join('\n')
-          );
-        } else {
           return createMCPResponse(`✅ No imports needed fixing in ${file_path}`);
         }
       } catch (error) {
@@ -349,19 +387,13 @@ export async function handleAnalyzeImports(
         }
 
         if (include_imports && statSync(absolutePath).isFile()) {
-          // Extract imports from the file
-          const content = readFileSync(absolutePath, 'utf-8');
-          const importRegex = /(?:from|require\s*\(|import\s*\(|export\s+.*?from)\s+['"`]([^'"`]+)['"`]/g;
-          const imports = new Set<string>();
+          // Use AST service to extract imports accurately
+          const { astService } = await import('../../../../../server/src/services/ast-service.js');
+          const imports = await astService.getImports(absolutePath);
 
-          let match;
-          while ((match = importRegex.exec(content)) !== null) {
-            imports.add(match[1]);
-          }
-
-          if (imports.size > 0) {
+          if (imports.length > 0) {
             results.push(`\n## ${file_path} imports:`);
-            results.push(...Array.from(imports).map(imp => `• ${imp}`));
+            results.push(...imports.map(imp => `• ${imp}`));
           } else {
             results.push(`\n## ${file_path} has no imports`);
           }
