@@ -1,54 +1,20 @@
 import { logger } from '../../core/diagnostics/logger.js';
-import { TransactionManager } from '../../core/transaction/TransactionManager.js';
-import type { LSPClient } from '../../../../@codeflow/features/src/lsp/lsp-client.js';
 import { type BatchExecuteArgs, BatchExecutor } from '../../services/batch-executor.js';
-import type { FileService } from '../../services/file-service.js';
-import type { HierarchyService } from '../../services/intelligence/hierarchy-service.js';
-import type { IntelligenceService } from '../../services/intelligence/intelligence-service.js';
-import type { DiagnosticService } from '../../../../@codeflow/features/src/services/lsp/diagnostic-service.js';
-import type { SymbolService } from '../../../../@codeflow/features/src/services/lsp/symbol-service.js';
-import { ServiceContextUtils } from '../../services/service-context.js';
+import type { ServiceContainer } from '../../services/service-container.js';
 import { createMCPResponse } from '../utils.js';
+import { registerTools } from '../tool-registry.js';
 
 /**
  * Universal batch execution handler
- * Replaces specific batch tools (analyze_refactor_impact, batch_move_files, preview_batch_operation)
- * with a generalized system that can batch any MCP operations
+ * Uses ServiceContainer for clean dependency injection
  */
 export async function handleBatchExecute(
-  symbolService: SymbolService,
-  fileService: FileService,
-  diagnosticService: DiagnosticService,
-  intelligenceService: IntelligenceService,
-  hierarchyService: HierarchyService,
-  lspClient: LSPClient,
+  container: ServiceContainer,
   args: BatchExecuteArgs
 ) {
   try {
-    // Create transaction manager for atomic operations
-    const transactionManager = new TransactionManager(fileService);
-
-    // Create service context with transaction support
-    const serviceContext = ServiceContextUtils.createServiceContext(
-      lspClient.getServer.bind(lspClient),
-      lspClient.protocol,
-      transactionManager,
-      fileService.logger ?? logger
-    );
-
-    // Add fileService to context
-    serviceContext.fileService = fileService;
-
-    // Create batch executor with all required services
-    const batchExecutor = new BatchExecutor(
-      symbolService,
-      fileService,
-      diagnosticService,
-      intelligenceService,
-      hierarchyService,
-      lspClient,
-      serviceContext
-    );
+    // Create batch executor using the service container
+    const batchExecutor = new BatchExecutor(container);
 
     // Execute the batch operation
     const result = await batchExecutor.execute(args);
@@ -130,3 +96,11 @@ export async function handleBatchExecute(
     );
   }
 }
+
+// Register batch tools with the central registry
+registerTools(
+  {
+    batch_execute: { handler: handleBatchExecute, requiresService: 'container' },
+  },
+  'batch-handlers'
+);

@@ -1,13 +1,7 @@
-import type { LSPClient } from '../../../@codeflow/features/src/lsp/lsp-client.js';
 import { getTool, getToolNames } from '../mcp/tool-registry.js';
 import { createMCPResponse } from '../mcp/utils.js';
 import { logger } from '../core/diagnostics/logger.js';
-import type { FileService } from './file-service.js';
-import type { HierarchyService } from './intelligence/hierarchy-service.js';
-import type { IntelligenceService } from './intelligence/intelligence-service.js';
-import type { DiagnosticService } from '../../../@codeflow/features/src/services/lsp/diagnostic-service.js';
-import type { SymbolService } from '../../../@codeflow/features/src/services/lsp/symbol-service.js';
-import type { ServiceContext } from './service-context.js';
+import type { ServiceContainer } from './service-container.js';
 
 // Import handlers to trigger their registration
 // These imports only have side effects (registering tools)
@@ -50,15 +44,7 @@ export interface BatchResult {
 }
 
 export class BatchExecutor {
-  constructor(
-    private symbolService: SymbolService,
-    private fileService: FileService,
-    private diagnosticService: DiagnosticService,
-    private intelligenceService: IntelligenceService,
-    private hierarchyService: HierarchyService,
-    private lspClient: LSPClient,
-    private serviceContext: ServiceContext
-  ) {}
+  constructor(private container: ServiceContainer) {}
 
   async execute(args: BatchExecuteArgs): Promise<BatchResult> {
     const { operations, options } = args;
@@ -216,9 +202,14 @@ export class BatchExecutor {
     if (atomic) {
       // Start a new transaction
       logger.debug('Starting atomic transaction', { component: 'BatchExecutor' });
-      this.serviceContext.transactionManager.beginTransaction();
-      await this.serviceContext.transactionManager.saveCheckpoint('before-batch');
-      logger.debug('Transaction started and checkpoint saved', { component: 'BatchExecutor' });
+      const transactionManager = this.container.transactionManager;
+      if (transactionManager) {
+        transactionManager.beginTransaction();
+        await transactionManager.saveCheckpoint('before-batch');
+        logger.debug('Transaction started and checkpoint saved', { component: 'BatchExecutor' });
+      } else {
+        logger.warn('Atomic mode requested but no transaction manager available');
+      }
     }
 
     for (const operation of operations) {
@@ -257,10 +248,13 @@ export class BatchExecutor {
         if (atomic) {
           // Rollback to checkpoint
           logger.info('Rolling back atomic transaction', { component: 'BatchExecutor' });
-          await this.serviceContext.transactionManager.rollbackToCheckpoint('before-batch');
-          this.serviceContext.transactionManager.commit(); // End the transaction
-          result.summary.successful = 0; // Reset successful count after rollback
-          logger.info('Rollback complete', { component: 'BatchExecutor' });
+          const transactionManager = this.container.transactionManager;
+          if (transactionManager) {
+            await transactionManager.rollbackToCheckpoint('before-batch');
+            transactionManager.commit(); // End the transaction
+            result.summary.successful = 0; // Reset successful count after rollback
+            logger.info('Rollback complete', { component: 'BatchExecutor' });
+          }
           break;
         }
 
@@ -286,8 +280,11 @@ export class BatchExecutor {
     // Commit transaction if atomic and successful
     if (atomic && result.success) {
       logger.debug('Committing successful atomic transaction', { component: 'BatchExecutor' });
-      this.serviceContext.transactionManager.commit();
-      logger.debug('Transaction committed', { component: 'BatchExecutor' });
+      const transactionManager = this.container.transactionManager;
+      if (transactionManager) {
+        transactionManager.commit();
+        logger.debug('Transaction committed', { component: 'BatchExecutor' });
+      }
     }
 
     logger.info('Batch execution complete', {
@@ -351,40 +348,22 @@ export class BatchExecutor {
       throw new Error(`Unknown tool: ${operation.tool}`);
     }
 
-    const serviceArg = this.getServiceArgument(toolInfo.requiresService);
-
-    // Call the handler with appropriate service
+    // Call the handler with appropriate service from container
     if (toolInfo.requiresService === 'none') {
       return await toolInfo.handler(operation.args);
     }
+    if (toolInfo.requiresService === 'container') {
+      return await toolInfo.handler(this.container, operation.args);
+    }
+
+    const serviceArg = this.container.getService(toolInfo.requiresService);
     if (toolInfo.requiresService === 'lsp') {
-      return await toolInfo.handler(this.lspClient, operation.args);
+      return await toolInfo.handler(serviceArg, operation.args);
     }
     if (toolInfo.requiresService === 'serviceContext') {
-      return await toolInfo.handler(operation.args, this.serviceContext);
+      return await toolInfo.handler(operation.args, serviceArg);
     }
-    return await toolInfo.handler(serviceArg, operation.args, this.lspClient);
-  }
-
-  private getServiceArgument(serviceType: string): unknown {
-    switch (serviceType) {
-      case 'symbol':
-        return this.symbolService;
-      case 'file':
-        return this.fileService;
-      case 'diagnostic':
-        return this.diagnosticService;
-      case 'intelligence':
-        return this.intelligenceService;
-      case 'hierarchy':
-        return this.hierarchyService;
-      case 'lsp':
-        return this.lspClient;
-      case 'serviceContext':
-        return this.serviceContext;
-      default:
-        return undefined;
-    }
+    return await toolInfo.handler(serviceArg, operation.args, this.container.lspClient);
   }
 
   // Static method to get available tools for validation
