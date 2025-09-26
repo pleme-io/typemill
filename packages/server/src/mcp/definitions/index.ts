@@ -1,6 +1,5 @@
 import { advancedToolDefinitions } from './advanced-tools.js';
 import { ANALYSIS_TOOLS } from './analysis-tools.js';
-import { atomicRefactoringTools } from './atomic-refactoring-tools.js';
 import { batchToolDefinitions } from './batch-tools.js';
 // All MCP tool definitions
 import { coreToolDefinitions } from './core-tools.js';
@@ -17,6 +16,5 @@ export const allToolDefinitions = [
   ...hierarchyToolDefinitions,
   ...batchToolDefinitions,
   ...ANALYSIS_TOOLS,
-  ...atomicRefactoringTools,
 ] as const;
 // Re-export individual categories for convenience

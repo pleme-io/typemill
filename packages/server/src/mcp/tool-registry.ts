@@ -14,6 +14,7 @@ export type ServiceType =
   | 'hierarchy'
   | 'lsp'
   | 'serviceContext'
+  | 'container'
   | 'batch'
   | 'workflow'
   | 'none';
