@@ -206,7 +206,7 @@ findDefinition('/workspace/my-app/src/index.ts', 10, 5)
 ✅ **Multi-client connections** - Multiple clients can connect simultaneously
 ✅ **Project isolation** - Each project gets dedicated LSP servers
 ✅ **File streaming** - Bidirectional file access between client and server
-✅ **All 30 MCP tools** - Complete tool compatibility through WebSocket
+✅ **All 31 MCP tools** - Complete tool compatibility through WebSocket
 ✅ **Session management** - Proper client session tracking
 ✅ **LSP server pooling** - Efficient resource management
 

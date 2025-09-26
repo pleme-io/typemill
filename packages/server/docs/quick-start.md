@@ -77,6 +77,6 @@ sudo npm install -g @goobits/codeflow-buddy
 
 ## Next Steps
 
-- [View all 30 MCP tools](api.md)
+- [View all 31 MCP tools](api.md)
 - [Configure additional languages](languages.md)
 - [WebSocket deployment](../README.md#websocket-server-optional)
