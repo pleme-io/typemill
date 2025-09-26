@@ -10,7 +10,7 @@ import {
 } from 'node:fs';
 import { readdir } from 'node:fs/promises';
 import { dirname, extname, relative, resolve } from 'node:path';
-import type { LSPClient } from '../../lsp/lsp-client.js';
+import type { LSPClient } from '../../../../@codeflow/features/src/lsp/lsp-client.js';
 import { logDebugMessage } from '../diagnostics/debug-logger.js';
 import { pathToUri, uriToPath } from './path-utils.js';
 

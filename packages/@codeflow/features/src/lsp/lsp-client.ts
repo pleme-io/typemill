@@ -1,13 +1,13 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { pathToUri } from '../core/file-operations/path-utils.js';
-import { createDefaultConfig, mergeWithDefaults } from '../core/configuration/default-config.js';
-import { logError } from '../core/diagnostics/error-utils.js';
-import { getLogger } from '../core/diagnostics/structured-logger.js';
-import { scanDirectoryForExtensions } from '../core/file-operations/scanner.js';
-import type { Config } from '../types.js';
-import { LSPProtocol } from './protocol.js';
-import { ServerManager } from './server-manager.js';
-import type { ServerState } from './types.js';
+import { pathToUri } from '../../../../server/src/core/file-operations/path-utils.js';
+import { createDefaultConfig, mergeWithDefaults } from '../../../../server/src/core/configuration/default-config.js';
+import { logError } from '../../../../server/src/core/diagnostics/error-utils.js';
+import { getLogger } from '../../../../server/src/core/diagnostics/structured-logger.js';
+import { scanDirectoryForExtensions } from '../../../../server/src/core/file-operations/scanner.js';
+import type { Config } from '../../../../server/src/types.js';
+import { LSPProtocol } from '../../../../server/src/lsp/protocol.js';
+import { ServerManager } from '../../../../server/src/lsp/server-manager.js';
+import type { ServerState } from '../../../../server/src/lsp/types.js';
 
 const logger = getLogger('LSPClient');
 

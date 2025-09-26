@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
-import { logDebugMessage } from '../../core/diagnostics/debug-logger.js';
-import { pathToUri } from '../../core/file-operations/path-utils.js';
-import type { Diagnostic, DocumentDiagnosticReport } from '../../types.js';
-import type { ServiceContext } from '../service-context.js';
+import { logDebugMessage } from '../../../../../server/src/core/diagnostics/debug-logger.js';
+import { pathToUri } from '../../../../../server/src/core/file-operations/path-utils.js';
+import type { Diagnostic, DocumentDiagnosticReport } from '../../../../../server/src/types.js';
+import type { ServiceContext } from '../../../../../server/src/services/service-context.js';
 
 // Diagnostic service constants
 const DIAGNOSTIC_WAIT_TIMEOUT_MS = process.env.TEST_MODE ? 10000 : 5000; // Longer wait in tests
@@ -253,7 +253,7 @@ export class DiagnosticService {
    * Wait for diagnostics to stabilize after file changes
    */
   private async waitForDiagnosticsIdle(
-    serverState: import('../../lsp/types.js').ServerState,
+    serverState: import('../../../../../server/src/lsp/types.js').ServerState,
     fileUri: string,
     options: { maxWaitTime?: number; idleTime?: number; checkInterval?: number } = {}
   ): Promise<void> {

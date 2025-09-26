@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
-import { AnalysisCache } from '../../core/cache/index.js';
-import { logDebugMessage } from '../../core/diagnostics/debug-logger.js';
-import { pathToUri, uriToPath } from '../../core/file-operations/path-utils.js';
-import type { ServerState } from '../../lsp/types.js';
+import { AnalysisCache } from '../../../../../server/src/core/cache/index.js';
+import { logDebugMessage } from '../../../../../server/src/core/diagnostics/debug-logger.js';
+import { pathToUri, uriToPath } from '../../../../../server/src/core/file-operations/path-utils.js';
+import type { ServerState } from '../../../../../server/src/lsp/types.js';
 import type {
   DocumentSymbol,
   Location,
@@ -10,9 +10,9 @@ import type {
   Position,
   SymbolInformation,
   SymbolMatch,
-} from '../../types.js';
-import { SymbolKind } from '../../types.js';
-import type { ServiceContext } from '../service-context.js';
+} from '../../../../../server/src/types.js';
+import { SymbolKind } from '../../../../../server/src/types.js';
+import type { ServiceContext } from '../../../../../server/src/services/service-context.js';
 
 // Symbol service constants
 const _PROJECT_FILES_LIMIT = 50; // Maximum project files to open for cross-file operations

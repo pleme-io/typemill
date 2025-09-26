@@ -6,12 +6,12 @@
 
 import type { ToolResponse } from '@modelcontextprotocol/sdk/types.js';
 import { logger } from '../../core/diagnostics/logger.js';
-import type { DiagnosticService } from '../../services/lsp/diagnostic-service.js';
+import type { DiagnosticService } from '../../../../@codeflow/features/src/services/lsp/diagnostic-service.js';
 import type { FileService } from '../../services/lsp/file-service.js';
 import type { HierarchyService } from '../../services/lsp/hierarchy-service.js';
 import type { IntelligenceService } from '../../services/lsp/intelligence-service.js';
-import type { SymbolService } from '../../services/lsp/symbol-service.js';
-import type { LSPClient } from '../../lsp/lsp-client.js';
+import type { SymbolService } from '../../../../@codeflow/features/src/services/lsp/symbol-service.js';
+import type { LSPClient } from '../../../../@codeflow/features/src/lsp/lsp-client.js';
 import { createFileModificationResponse, createMCPResponse } from '../utils.js';
 import { handleBatchExecute } from './batch-handlers.js';
 

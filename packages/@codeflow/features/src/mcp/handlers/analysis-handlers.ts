@@ -3,11 +3,11 @@
  * Phase 3: Advanced features using MCP tools
  */
 
-import { createUserFriendlyErrorMessage, MCPError } from '../../core/diagnostics/error-utils.js';
-import { logger } from '../../core/diagnostics/logger.js';
-import { measureAndTrack, toHumanPosition } from '../../utils/index.js';
-import { registerTools } from '../tool-registry.js';
-import { createMCPResponse } from '../utils.js';
+import { createUserFriendlyErrorMessage, MCPError } from '../../../../../server/src/core/diagnostics/error-utils.js';
+import { logger } from '../../../../../server/src/core/diagnostics/logger.js';
+import { measureAndTrack, toHumanPosition } from '../../../../core/src/utils/index.js';
+import { registerTools } from '../../../../../server/src/mcp/tool-registry.js';
+import { createMCPResponse } from '../../../../../server/src/mcp/utils.js';
 
 interface DeadCodeResult {
   file: string;
@@ -328,7 +328,7 @@ export async function handleAnalyzeImports(
       try {
         const { existsSync, statSync, readFileSync } = await import('node:fs');
         const { resolve, relative } = await import('node:path');
-        const { projectScanner } = await import('../../services/project-analyzer.js');
+        const { projectScanner } = await import('../../../../../server/src/services/project-analyzer.js');
 
         const absolutePath = resolve(file_path);
 
@@ -392,7 +392,7 @@ export async function handleRenameDirectory(
       try {
         const { readdirSync, statSync, existsSync } = await import('node:fs');
         const { join, resolve, relative, dirname } = await import('node:path');
-        const { renameFile } = await import('../../core/file-operations/editor.js');
+        const { renameFile } = await import('../../../../../server/src/core/file-operations/editor.js');
 
         const absoluteOldPath = resolve(old_path);
         const absoluteNewPath = resolve(new_path);
@@ -410,7 +410,7 @@ export async function handleRenameDirectory(
         }
 
         // Circular dependency safety check for directory move
-        const { projectScanner } = await import('../../services/project-analyzer.js');
+        const { projectScanner } = await import('../../../../../server/src/services/project-analyzer.js');
         const oldDir = dirname(absoluteOldPath);
         const newDir = dirname(absoluteNewPath);
 

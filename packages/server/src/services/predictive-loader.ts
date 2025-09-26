@@ -3,7 +3,7 @@ import path from 'node:path';
 import ts from 'typescript';
 import type { StructuredLogger } from '../core/diagnostics/structured-logger.js';
 import { resolveImportPath } from '../utils/module-resolver.js';
-import type { Config } from '../types/config.js';
+import type { Config } from '../../../@codeflow/core/src/types/config.js';
 
 interface PredictiveLoaderContext {
   logger: StructuredLogger;

@@ -6,7 +6,7 @@ import {
   formatHumanRange,
   toHumanPosition,
   toLSPPosition,
-} from '../../utils/index.js';
+} from '../../../../@codeflow/core/src/utils/index.js';
 import { registerTools } from '../tool-registry.js';
 import {
   createContextualErrorResponse,

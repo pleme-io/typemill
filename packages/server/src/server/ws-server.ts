@@ -7,7 +7,7 @@ import { type AuthRequest, JWTAuthenticator } from '../auth/jwt-auth.js';
 import { logger } from '../core/diagnostics/logger.js';
 import { FuseMount } from '../fs/fuse-mount.js';
 import { StreamingFileAccess } from '../fs/stream.js';
-import { LSPClient } from '../lsp/lsp-client.js';
+import { LSPClient } from '../../../@codeflow/features/src/lsp/lsp-client.js';
 import { toolRegistry } from '../mcp/tool-registry.js';
 import type { ClientSession, MCPMessage } from '../transports/websocket.js';
 import { WebSocketTransport } from '../transports/websocket.js';
@@ -22,12 +22,7 @@ import { SessionManager } from './session.js';
 import { WorkspaceManager } from './workspace-manager.js';
 
 // Import handlers to ensure they register themselves
-import '../mcp/handlers/core-handlers.js';
-import '../mcp/handlers/batch-handlers.js';
-import '../mcp/handlers/advanced-handlers.js';
-import '../mcp/handlers/hierarchy-handlers.js';
-import '../mcp/handlers/intelligence-handlers.js';
-import '../mcp/handlers/utility-handlers.js';
+import '../mcp/handlers/index.js';
 
 export interface TLSOptions {
   keyPath: string;

@@ -3,7 +3,7 @@
  */
 
 // File utilities
-export * from './file/index.js';
+export * from '../../../../server/src/utils/file/index.js';
 export {
   normalizePath,
   pathToUrl,
@@ -11,25 +11,25 @@ export {
   resolvePath,
   urlToPath,
   writeFileContent,
-} from './file/index.js';
+} from '../../../../server/src/utils/file/index.js';
 // Performance utilities
-export * from './performance.js';
+export * from '../../../../server/src/utils/performance.js';
 export {
   globalPerformanceTracker,
   measurePerformance,
   withPerformanceMeasurement,
-} from './performance.js';
+} from '../../../../server/src/utils/performance.js';
 // Platform utilities
-export * from './platform/index.js';
+export * from '../../../../server/src/utils/platform/index.js';
 
 // Re-export commonly used utilities for convenience
 export {
   getLSPServerPaths,
   isProcessRunning,
   terminateProcess,
-} from './platform/index.js';
+} from '../../../../server/src/utils/platform/index.js';
 // Position utilities
-export * from './position.js';
+export * from '../../../../server/src/utils/position.js';
 
 export {
   formatFileLocation,
@@ -37,9 +37,9 @@ export {
   parsePositionString,
   toHumanPosition,
   toLSPPosition,
-} from './position.js';
+} from '../../../../server/src/utils/position.js';
 // Validation utilities
-export * from './validation.js';
+export * from '../../../../server/src/utils/validation.js';
 export {
   assertFileExists,
   assertNonEmptyString,
@@ -47,4 +47,4 @@ export {
   assertValidLSPPosition,
   assertValidSymbolName,
   ValidationError,
-} from './validation.js';
+} from '../../../../server/src/utils/validation.js';

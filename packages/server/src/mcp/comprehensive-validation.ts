@@ -30,11 +30,17 @@ import type {
   HealthCheckArgs,
   PrepareCallHierarchyArgs,
   PrepareTypeHierarchyArgs,
+  RenameDirectoryArgs,
   RenameFileArgs,
   RenameSymbolArgs,
   RenameSymbolStrictArgs,
   RestartServerArgs,
   SearchWorkspaceSymbolsArgs,
+  UpdatePackageJsonArgs,
+  FindDeadCodeArgs,
+  FixImportsArgs,
+  AnalyzeImportsArgs,
+  ExecuteWorkflowArgs,
 } from './handler-types.js';
 
 // Utility type guards
@@ -68,6 +74,10 @@ function isBoolean(value: unknown): value is boolean {
 
 function isOptionalString(value: unknown): value is string | undefined {
   return value === undefined || isString(value);
+}
+
+function isOptionalStringArray(value: unknown): value is string[] | undefined {
+  return value === undefined || (Array.isArray(value) && value.every(isString));
 }
 
 function isOptionalBoolean(value: unknown): value is boolean | undefined {
@@ -552,6 +562,104 @@ export function validateBatchExecuteArgs(args: unknown): args is BatchExecuteArg
     if ('stop_on_error' in options && !isOptionalBoolean(options.stop_on_error)) return false;
   }
 
+  return true;
+}
+
+// Directory and package management validation functions
+export function validateRenameDirectoryArgs(args: unknown): args is RenameDirectoryArgs {
+  if (!isObject(args)) return false;
+
+  // Required fields
+  if (!isNonEmptyString(args.old_path)) return false;
+  if (!isNonEmptyString(args.new_path)) return false;
+
+  // Optional fields
+  if ('dry_run' in args && !isOptionalBoolean(args.dry_run)) return false;
+
+  return true;
+}
+
+export function validateUpdatePackageJsonArgs(args: unknown): args is UpdatePackageJsonArgs {
+  if (!isObject(args)) return false;
+
+  // Required fields
+  if (!isNonEmptyString(args.file_path)) return false;
+
+  // Optional fields
+  if ('add_dependencies' in args && args.add_dependencies !== undefined && !isObjectStringMap(args.add_dependencies)) return false;
+  if ('add_dev_dependencies' in args && args.add_dev_dependencies !== undefined && !isObjectStringMap(args.add_dev_dependencies)) return false;
+  if ('remove_dependencies' in args && !isOptionalStringArray(args.remove_dependencies)) return false;
+  if ('add_scripts' in args && args.add_scripts !== undefined && !isObjectStringMap(args.add_scripts)) return false;
+  if ('remove_scripts' in args && !isOptionalStringArray(args.remove_scripts)) return false;
+  if ('update_version' in args && !isOptionalString(args.update_version)) return false;
+  if ('dry_run' in args && !isOptionalBoolean(args.dry_run)) return false;
+
+  // Workspace config validation
+  if ('workspace_config' in args) {
+    if (!isObject(args.workspace_config)) return false;
+    const workspaceConfig = args.workspace_config as Record<string, unknown>;
+    if ('workspaces' in workspaceConfig && !isOptionalStringArray(workspaceConfig.workspaces)) return false;
+  }
+
+  return true;
+}
+
+// Analysis and workflow validation functions
+export function validateFindDeadCodeArgs(args: unknown): args is FindDeadCodeArgs {
+  if (!isObject(args)) return false;
+
+  // All fields are optional
+  if ('files' in args && !isOptionalStringArray(args.files)) return false;
+  if ('exclude_tests' in args && !isOptionalBoolean(args.exclude_tests)) return false;
+  if ('min_references' in args && !isOptionalNumber(args.min_references)) return false;
+
+  return true;
+}
+
+export function validateFixImportsArgs(args: unknown): args is FixImportsArgs {
+  if (!isObject(args)) return false;
+
+  // Required fields
+  if (!isNonEmptyString(args.file_path)) return false;
+  if (!isNonEmptyString(args.old_path)) return false;
+
+  return true;
+}
+
+export function validateAnalyzeImportsArgs(args: unknown): args is AnalyzeImportsArgs {
+  if (!isObject(args)) return false;
+
+  // Required fields
+  if (!isNonEmptyString(args.file_path)) return false;
+
+  // Optional fields
+  if ('include_importers' in args && !isOptionalBoolean(args.include_importers)) return false;
+  if ('include_imports' in args && !isOptionalBoolean(args.include_imports)) return false;
+
+  return true;
+}
+
+export function validateExecuteWorkflowArgs(args: unknown): args is ExecuteWorkflowArgs {
+  if (!isObject(args)) return false;
+
+  // Required fields (basic validation - chain and inputs can be any structure)
+  if (!('chain' in args)) return false;
+  if (!isObject(args.inputs)) return false;
+
+  return true;
+}
+
+// Helper function for validating optional number
+function isOptionalNumber(value: unknown): value is number | undefined {
+  return value === undefined || (typeof value === 'number' && !isNaN(value));
+}
+
+// Helper function for validating object with string values
+function isObjectStringMap(value: unknown): boolean {
+  if (!isObject(value)) return false;
+  for (const [key, val] of Object.entries(value)) {
+    if (!isString(key) || !isString(val)) return false;
+  }
   return true;
 }
 

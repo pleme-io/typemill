@@ -1,20 +1,16 @@
-import type { LSPClient } from '../lsp/lsp-client.js';
+import type { LSPClient } from '../../../@codeflow/features/src/lsp/lsp-client.js';
 import { getTool, getToolNames } from '../mcp/tool-registry.js';
 import { createMCPResponse } from '../mcp/utils.js';
 import type { FileService } from './file-service.js';
 import type { HierarchyService } from './intelligence/hierarchy-service.js';
 import type { IntelligenceService } from './intelligence/intelligence-service.js';
-import type { DiagnosticService } from './lsp/diagnostic-service.js';
-import type { SymbolService } from './lsp/symbol-service.js';
+import type { DiagnosticService } from '../../../@codeflow/features/src/services/lsp/diagnostic-service.js';
+import type { SymbolService } from '../../../@codeflow/features/src/services/lsp/symbol-service.js';
 import type { ServiceContext } from './service-context.js';
 
 // Import handlers to trigger their registration
 // These imports only have side effects (registering tools)
-import '../mcp/handlers/core-handlers.js';
-import '../mcp/handlers/advanced-handlers.js';
-import '../mcp/handlers/hierarchy-handlers.js';
-import '../mcp/handlers/intelligence-handlers.js';
-import '../mcp/handlers/utility-handlers.js';
+import '../mcp/handlers/index.js';
 
 export interface BatchOperation {
   tool: string;

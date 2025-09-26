@@ -6,10 +6,10 @@
 // Configuration types
 export * from './config.js';
 // LSP Protocol types
-export * from './lsp.js';
+export * from '../../../../server/src/types/lsp.js';
 
 // Service layer types
-export * from './service.js';
+export * from '../../../../server/src/types/service.js';
 
 // Session types (WebSocket/enhanced session)
-export * from './session.js';
+export * from '../../../../server/src/types/session.js';

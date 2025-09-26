@@ -229,3 +229,45 @@ export interface WorkflowToolDefinition {
   /** Whether this is a workflow tool (used for type discrimination) */
   type: 'workflow';
 }
+
+// Directory and package management types
+export interface RenameDirectoryArgs {
+  old_path: string;
+  new_path: string;
+  dry_run?: boolean;
+}
+
+export interface UpdatePackageJsonArgs {
+  file_path: string;
+  add_dependencies?: Record<string, string>;
+  add_dev_dependencies?: Record<string, string>;
+  remove_dependencies?: string[];
+  add_scripts?: Record<string, string>;
+  remove_scripts?: string[];
+  update_version?: string;
+  workspace_config?: { workspaces?: string[] };
+  dry_run?: boolean;
+}
+
+// Analysis and workflow tool types
+export interface FindDeadCodeArgs {
+  files?: string[];
+  exclude_tests?: boolean;
+  min_references?: number;
+}
+
+export interface FixImportsArgs {
+  file_path: string;
+  old_path: string;
+}
+
+export interface AnalyzeImportsArgs {
+  file_path: string;
+  include_importers?: boolean;
+  include_imports?: boolean;
+}
+
+export interface ExecuteWorkflowArgs {
+  chain: any;
+  inputs: Record<string, any>;
+}

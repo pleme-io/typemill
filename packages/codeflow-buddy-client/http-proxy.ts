@@ -93,10 +93,11 @@ export function createProxyServer(proxy: MCPProxy, _port: number = 3001): Server
       const tools = await proxy.listTools();
       res.json(tools);
     } catch (error: unknown) {
+      const errorObj = error as { code?: number; message?: string };
       res.status(500).json({
         error: {
-          code: error.code || -32603,
-          message: error.message,
+          code: errorObj.code || -32603,
+          message: errorObj.message || 'Internal server error',
         },
       });
     }

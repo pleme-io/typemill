@@ -1,4 +1,4 @@
-import type { LSPClient } from '../lsp/lsp-client.js';
+import type { LSPClient } from '../../../@codeflow/features/src/lsp/lsp-client.js';
 import type { ServerManager } from '../lsp/server-manager.js';
 import type { ServerState } from '../lsp/types.js';
 

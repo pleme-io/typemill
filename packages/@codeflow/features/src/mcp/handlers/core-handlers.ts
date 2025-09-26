@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
-import { logger } from '../../core/diagnostics/logger.js';
-import { applyWorkspaceEdit, type WorkspaceEdit } from '../../core/file-operations/editor.js';
+import { logger } from '../../../../../server/src/core/diagnostics/logger.js';
+import { applyWorkspaceEdit, type WorkspaceEdit } from '../../../../../server/src/core/file-operations/editor.js';
 import type { SymbolService } from '../../services/lsp/symbol-service.js';
 import {
   assertValidFilePath,
@@ -11,15 +11,15 @@ import {
   toHumanPosition,
   toLSPPosition,
   ValidationError,
-} from '../../utils/index.js';
-import { registerTools } from '../tool-registry.js';
+} from '../../../../core/src/utils/index.js';
+import { registerTools } from '../../../../../server/src/mcp/tool-registry.js';
 import {
   createContextualErrorResponse,
   createFileModificationResponse,
   createMCPResponse,
   createNoChangesResponse,
   createNoResultsResponse,
-} from '../utils.js';
+} from '../../../../../server/src/mcp/utils.js';
 
 // Handler for find_definition tool
 export async function handleFindDefinition(
@@ -237,7 +237,7 @@ export async function handleRenameSymbol(
     new_name: string;
     dry_run?: boolean;
   },
-  lspClient?: import('../../lsp/lsp-client.js').LSPClient
+  lspClient?: import('../../../../../server/src/lsp/lsp-client.js').LSPClient
 ) {
   const { file_path, symbol_name, symbol_kind, new_name, dry_run = false } = args;
   const absolutePath = resolve(file_path);
@@ -337,7 +337,7 @@ export async function handleRenameSymbolStrict(
     new_name: string;
     dry_run?: boolean;
   },
-  lspClient?: import('../../lsp/lsp-client.js').LSPClient
+  lspClient?: import('../../../../../server/src/lsp/lsp-client.js').LSPClient
 ) {
   const { file_path, line, character, new_name, dry_run = false } = args;
   const absolutePath = resolve(file_path);

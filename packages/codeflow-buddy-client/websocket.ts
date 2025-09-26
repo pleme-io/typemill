@@ -337,7 +337,7 @@ export class WebSocketClient extends EventEmitter {
         id,
       };
 
-      this.ws?.send(JSON.stringify(request), (error) => {
+      this.ws?.send(JSON.stringify(request), (error: any) => {
         if (error) {
           clearTimeout(timeout);
           this.pendingRequests.delete(id);

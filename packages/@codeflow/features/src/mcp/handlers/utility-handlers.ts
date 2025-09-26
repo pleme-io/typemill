@@ -1,17 +1,17 @@
 import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
-import { logger } from '../../core/diagnostics/logger.js';
-import type { WorkspaceEdit } from '../../core/file-operations/editor.js';
+import { logger } from '../../../../../server/src/core/diagnostics/logger.js';
+import type { WorkspaceEdit } from '../../../../../server/src/core/file-operations/editor.js';
 import type { DiagnosticService } from '../../services/lsp/diagnostic-service.js';
-import type { ServiceContext } from '../../services/service-context.js';
+import type { ServiceContext } from '../../../../../server/src/services/service-context.js';
 import {
   assertValidFilePath,
   formatHumanRange,
   measureAndTrack,
   toHumanRange,
   ValidationError,
-} from '../../utils/index.js';
-import { registerTools } from '../tool-registry.js';
+} from '../../../../core/src/utils/index.js';
+import { registerTools } from '../../../../../server/src/mcp/tool-registry.js';
 import {
   createContextualErrorResponse,
   createFileModificationResponse,
@@ -19,8 +19,8 @@ import {
   createMCPResponse,
   createNoResultsResponse,
   createSuccessResponse,
-} from '../utils.js';
-import { DependencyOrchestrator } from '../workflow/index.js';
+} from '../../../../../server/src/mcp/utils.js';
+import { DependencyOrchestrator } from '../../../../../server/src/mcp/workflow/index.js';
 
 // Handler for get_diagnostics tool
 export async function handleGetDiagnostics(
@@ -99,7 +99,7 @@ export async function handleGetDiagnostics(
 
 // Handler for restart_server tool
 export async function handleRestartServer(
-  newLspClient: import('../../lsp/lsp-client.js').LSPClient,
+  newLspClient: import('../../../../../server/src/lsp/lsp-client.js').LSPClient,
   args: { extensions?: string[] }
 ) {
   const { extensions } = args;
@@ -137,7 +137,7 @@ export async function handleRenameFile(args: {
 
   try {
     // Circular dependency safety check
-    const { projectScanner } = await import('../../services/project-analyzer.js');
+    const { projectScanner } = await import('../../../../../server/src/services/project-analyzer.js');
     const { dirname, relative, resolve } = await import('node:path');
 
     const absoluteOldPath = resolve(old_path);
@@ -183,7 +183,7 @@ export async function handleRenameFile(args: {
       }
     }
 
-    const { renameFile } = await import('../../core/file-operations/editor.js');
+    const { renameFile } = await import('../../../../../server/src/core/file-operations/editor.js');
 
     // Calculate a smart rootDir based on the file paths (reuse already calculated paths)
 
@@ -277,7 +277,7 @@ export async function getRenameFileWorkspaceEdit(args: {
   const { old_path, new_path } = args;
 
   try {
-    const { renameFile } = await import('../../core/file-operations/editor.js');
+    const { renameFile } = await import('../../../../../server/src/core/file-operations/editor.js');
 
     // Use the same smart rootDir calculation as handleRenameFile
     const absoluteOldPath = resolve(old_path);
@@ -393,7 +393,7 @@ export async function handleDeleteFile(args: { file_path: string; force?: boolea
     }
 
     // Import the project scanner for impact analysis
-    const { projectScanner } = await import('../../services/project-analyzer.js');
+    const { projectScanner } = await import('../../../../../server/src/services/project-analyzer.js');
 
     // Find all files that import this file
     logger.debug('Analyzing file deletion impact', {
@@ -444,9 +444,9 @@ export async function handleDeleteFile(args: { file_path: string; force?: boolea
  * Get health status of LSP servers and system resources
  */
 export async function handleHealthCheck(
-  { include_details = false }: import('../handler-types.js').HealthCheckArgs,
-  _services: import('../../services/service-context.js').ServiceContext
-): Promise<import('../utils.js').MCPResponse> {
+  { include_details = false }: import('../../../../../server/src/mcp/handler-types.js').HealthCheckArgs,
+  _services: import('../../../../../server/src/services/service-context.js').ServiceContext
+): Promise<import('../../../../../server/src/mcp/utils.js').MCPResponse> {
   try {
     const { cpus, totalmem, loadavg } = await import('node:os');
 

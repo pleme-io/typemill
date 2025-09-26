@@ -3,9 +3,9 @@ import type { TextEdit, WorkspaceEdit } from '../../core/file-operations/editor.
 import { applyWorkspaceEdit } from '../../core/file-operations/editor.js';
 import { pathToUri, uriToPath } from '../../core/file-operations/path-utils.js';
 import type { FileService } from '../../services/file-service.js';
-import type { SymbolService } from '../../services/lsp/symbol-service.js';
+import type { SymbolService } from '../../../../@codeflow/features/src/services/lsp/symbol-service.js';
 import type { DocumentSymbol, SymbolInformation } from '../../types.js';
-import { formatLSPLocation, toHumanPosition } from '../../utils/index.js';
+import { formatLSPLocation, toHumanPosition } from '../../../../@codeflow/core/src/utils/index.js';
 import { registerTools } from '../tool-registry.js';
 import {
   createFileModificationResponse,

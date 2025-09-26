@@ -2,7 +2,7 @@
 import { resolve } from 'node:path';
 import type { HierarchyService } from '../../services/intelligence/hierarchy-service.js';
 import type { CallHierarchyItem, TypeHierarchyItem } from '../../types.js';
-import { formatHumanRange, toHumanPosition, toLSPPosition } from '../../utils/index.js';
+import { formatHumanRange, toHumanPosition, toLSPPosition } from '../../../../@codeflow/core/src/utils/index.js';
 import { registerTools } from '../tool-registry.js';
 import { createMCPResponse } from '../utils.js';
 

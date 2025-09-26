@@ -25,6 +25,8 @@ export interface MCPToolResponse<T = unknown> {
 export class MCPProxy {
   private client: WebSocketClient;
   private connectPromise?: Promise<void>;
+  private url: string;
+  private options: ProxyOptions;
 
   constructor(url: string, options: ProxyOptions = {}) {
     this.url = url;
