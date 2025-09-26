@@ -1,8 +1,10 @@
 /**
  * Cross-platform executable finding and management
- * Phase 1: Foundation layer - interface and stub implementations only
+ * Phase 4: Real implementation using 'which' package
  */
 
+import which from 'which';
+import { execSync } from 'node:child_process';
 import { getPlatformInfo } from './platform-detector.js';
 
 /**
@@ -40,26 +42,75 @@ export interface ExecutableManager {
 }
 
 /**
- * Stub implementation for Phase 1
- * Will be replaced with real implementation in Phase 4
+ * Real implementation using 'which' package for cross-platform executable finding
  */
-class ExecutableManagerStub implements ExecutableManager {
+class ExecutableManagerImpl implements ExecutableManager {
+  private cache = new Map<string, ExecutableInfo>();
+
   async find(executable: string): Promise<ExecutableInfo> {
-    // Stub implementation - always returns not found
-    return {
-      path: '',
-      exists: false,
-    };
+    // Check cache first
+    if (this.cache.has(executable)) {
+      return this.cache.get(executable)!;
+    }
+
+    try {
+      const path = await which(executable);
+      const info: ExecutableInfo = {
+        path,
+        exists: true,
+        version: await this.getVersion(executable),
+      };
+
+      // Cache successful results
+      this.cache.set(executable, info);
+      return info;
+    } catch (error) {
+      const info: ExecutableInfo = {
+        path: '',
+        exists: false,
+      };
+
+      // Cache negative results for a short time to avoid repeated failures
+      this.cache.set(executable, info);
+      setTimeout(() => this.cache.delete(executable), 30000); // 30s cache
+
+      return info;
+    }
   }
 
   async exists(executable: string): Promise<boolean> {
-    // Stub implementation - always returns false
-    return false;
+    const info = await this.find(executable);
+    return info.exists;
   }
 
   async getVersion(executable: string): Promise<string | null> {
-    // Stub implementation - always returns null
-    return null;
+    try {
+      // Try common version flags
+      const versionCommands = [`${executable} --version`, `${executable} -v`, `${executable} -V`];
+
+      for (const cmd of versionCommands) {
+        try {
+          const output = execSync(cmd, {
+            encoding: 'utf8',
+            timeout: 5000,
+            stdio: ['ignore', 'pipe', 'ignore'],
+          });
+
+          // Extract version number from output
+          const versionMatch = output.match(/\d+\.\d+(\.\d+)?/);
+          if (versionMatch) {
+            return versionMatch[0];
+          }
+        } catch {
+          // Try next command
+          continue;
+        }
+      }
+
+      return null;
+    } catch (error) {
+      return null;
+    }
   }
 
   getInstallationSuggestions(executable: string): string[] {
@@ -79,7 +130,7 @@ class ExecutableManagerStub implements ExecutableManager {
 }
 
 // Export singleton instance
-export const executableManager: ExecutableManager = new ExecutableManagerStub();
+export const executableManager: ExecutableManager = new ExecutableManagerImpl();
 
 // Convenience exports
 export const { find, exists, getVersion, getInstallationSuggestions } = executableManager;

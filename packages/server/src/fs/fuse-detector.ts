@@ -6,6 +6,8 @@
 import { existsSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { logger } from '../core/diagnostics/logger.js';
+import { executableManager } from '../utils/platform/executable-manager.js';
+import { getPlatformInfo } from '../utils/platform/platform-detector.js';
 
 export interface FuseStatus {
   available: boolean;
@@ -19,7 +21,8 @@ export interface FuseStatus {
  * Check if FUSE is available on the system
  */
 export function checkFuseAvailability(): FuseStatus {
-  const platform = process.platform;
+  const platformInfo = getPlatformInfo();
+  const platform = platformInfo.platform;
 
   try {
     // Try to load the fuse-native module
@@ -59,7 +62,7 @@ export function checkFuseAvailability(): FuseStatus {
  */
 function checkLinuxFuse(): FuseStatus {
   try {
-    // Check if fusermount is available
+    // Check if fusermount is available - keep sync for now to avoid breaking changes
     execSync('which fusermount', { stdio: 'ignore' });
 
     // Check if user is in fuse group (optional but recommended)
@@ -141,7 +144,7 @@ function checkMacOSFuse(): FuseStatus {
 /**
  * Get installation guide when FUSE module load fails
  */
-function getFuseInstallationGuide(platform: NodeJS.Platform, error: unknown): FuseStatus {
+function getFuseInstallationGuide(platform: string, error: unknown): FuseStatus {
   const errorMessage = error instanceof Error ? error.message : String(error);
 
   switch (platform) {

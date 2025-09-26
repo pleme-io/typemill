@@ -1,6 +1,7 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import process from 'node:process';
+import globalModules from 'global-modules';
+import { pathManager } from './path-manager.js';
 
 /**
  * Get platform-specific LSP server paths
@@ -8,38 +9,24 @@ import process from 'node:process';
  */
 export function getLSPServerPaths(): string[] {
   const paths: string[] = [];
-  const home = homedir();
-  const plat = process.platform;
+  const home = pathManager.getHomeDir();
 
-  // Global node_modules locations
-  if (plat === 'win32') {
-    paths.push(
-      join(process.env.APPDATA || '', 'npm', 'node_modules'),
-      join(process.env.LOCALAPPDATA || '', 'npm', 'node_modules'),
-      'C:\\Program Files\\nodejs\\node_modules',
-      'C:\\Program Files (x86)\\nodejs\\node_modules'
-    );
-  } else if (plat === 'darwin') {
-    paths.push(
-      '/usr/local/lib/node_modules',
-      '/opt/homebrew/lib/node_modules',
-      join(home, '.npm-global', 'lib', 'node_modules')
-    );
-  } else {
-    // Linux
-    paths.push(
-      '/usr/local/lib/node_modules',
-      '/usr/lib/node_modules',
-      join(home, '.npm-global', 'lib', 'node_modules')
-    );
-  }
+  // Use global-modules package to get the correct global modules path
+  paths.push(globalModules);
 
-  // User-specific locations
-  paths.push(join(home, 'node_modules'), join(home, '.local', 'lib', 'node_modules'));
+  // Additional standard paths
+  paths.push(
+    // User-specific npm global directory
+    pathManager.expandPath('~/.npm-global/lib/node_modules'),
 
-  // Current project
-  paths.push(join(process.cwd(), 'node_modules'));
+    // User node_modules
+    pathManager.join(home, 'node_modules'),
+    pathManager.join(home, '.local', 'lib', 'node_modules'),
 
-  // Filter out non-existent paths (we'll do this at usage time to avoid fs dependency here)
-  return paths;
+    // Current project
+    pathManager.join(process.cwd(), 'node_modules')
+  );
+
+  // Filter out duplicates and empty paths
+  return [...new Set(paths.filter(Boolean))];
 }

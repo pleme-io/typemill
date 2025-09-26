@@ -3,6 +3,8 @@
 import { type ChildProcess, spawn } from 'node:child_process';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { executableManager } from '../../utils/platform/executable-manager.js';
+import { getPlatformInfo } from '../../utils/platform/platform-detector.js';
 
 /**
  * Run an installation command and return success status
@@ -66,9 +68,11 @@ async function tryPipFallback(
 
   for (const pipCmd of pipCommands) {
     try {
-      // Check if this pip command exists
-      const checkCommand = process.platform === 'win32' ? `where ${pipCmd}` : `which ${pipCmd}`;
-      require('node:child_process').execSync(checkCommand, { stdio: 'ignore' });
+      // Check if this pip command exists using cross-platform executable manager
+      const pipExists = await executableManager.exists(pipCmd);
+      if (!pipExists) {
+        continue;
+      }
 
       // Try --user first (safer)
       console.log(`    Trying ${pipCmd} --user...`);
@@ -82,7 +86,8 @@ async function tryPipFallback(
       }
 
       // If --user fails, try --break-system-packages on Linux
-      if (process.platform === 'linux') {
+      const platform = getPlatformInfo();
+      if (platform.isLinux) {
         console.log(`    Trying ${pipCmd} with --break-system-packages...`);
         const sysSuccess = await tryInstallCommand(
           [pipCmd, 'install', packageName, '--break-system-packages'],
@@ -153,7 +158,8 @@ async function tryInstallCommand(
         if (cmd === 'pip' || cmd === 'pip3') {
           console.log('    Install Python first: https://python.org/downloads/');
         } else if (cmd === 'go') {
-          if (process.platform === 'darwin') {
+          const platform = getPlatformInfo();
+          if (platform.isMacOS) {
             console.log('    Install Go first: brew install go');
           } else {
             console.log('    Install Go first: https://golang.org/dl/');
@@ -161,7 +167,8 @@ async function tryInstallCommand(
         } else if (cmd === 'rustup') {
           console.log('    Install Rust first: https://rustup.rs/');
         } else if (cmd === 'pipx') {
-          if (process.platform === 'darwin') {
+          const platform = getPlatformInfo();
+          if (platform.isMacOS) {
             console.log('    Install pipx first: brew install pipx');
           } else {
             console.log('    Install pipx first: pip install --user pipx');
@@ -189,10 +196,10 @@ async function tryInstallCommand(
 /**
  * Detect and fix pip command with proper fallbacks and flags
  */
-export function getPipCommand(baseCommand: string[]): string[] {
+export async function getPipCommand(baseCommand: string[]): Promise<string[]> {
   if (baseCommand[0] === 'pip' || baseCommand[0] === 'pip3') {
     // Try to find the best available pip command
-    const pipCommand = findBestPipCommand();
+    const pipCommand = await findBestPipCommand();
     const result = [pipCommand, ...baseCommand.slice(1)];
 
     // Only add flags for pip/pip3, not pipx
@@ -210,16 +217,17 @@ export function getPipCommand(baseCommand: string[]): string[] {
 /**
  * Find the best available pip command (pipx first, then pip3, then pip)
  */
-function findBestPipCommand(): string {
+async function findBestPipCommand(): Promise<string> {
   // Prefer pipx for isolated installs, especially on macOS with externally-managed Python
   const commands = ['pipx', 'pip3', 'pip'];
 
   for (const cmd of commands) {
     try {
-      // Cross-platform command existence check
-      const checkCommand = process.platform === 'win32' ? `where ${cmd}` : `which ${cmd}`;
-      require('node:child_process').execSync(checkCommand, { stdio: 'ignore' });
-      return cmd;
+      // Cross-platform command existence check using executable manager
+      const exists = await executableManager.exists(cmd);
+      if (exists) {
+        return cmd;
+      }
     } catch {
       // Command not found, try next
     }
