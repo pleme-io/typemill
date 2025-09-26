@@ -127,6 +127,195 @@ export async function handleRestartServer(
   }
 }
 
+/**
+ * Fix dynamic imports that may have been missed by the initial rename operation
+ * This function scans all project files to find and update any remaining references
+ * to the renamed file that the initial rename operation missed (specifically dynamic imports)
+ */
+async function fixDynamicImportsInProject(oldFilePath: string, newFilePath: string, rootDir: string) {
+  const { readdirSync, readFileSync, writeFileSync, existsSync, statSync } = await import('node:fs');
+  const { dirname, resolve, relative, join } = await import('node:path');
+
+  // Get all TypeScript/JavaScript files in the project to scan
+  const filesToScan: string[] = [];
+
+  function collectFiles(dir: string) {
+    try {
+      const entries = readdirSync(dir);
+      for (const entry of entries) {
+        const fullPath = join(dir, entry);
+        try {
+          const stat = statSync(fullPath);
+          if (stat.isDirectory()) {
+            // Skip common directories that won't have import statements
+            if (!entry.startsWith('.') && !['node_modules', 'dist', 'build', 'coverage'].includes(entry)) {
+              collectFiles(fullPath);
+            }
+          } else if (stat.isFile()) {
+            // Only scan TypeScript/JavaScript files
+            if (/\.(ts|tsx|js|jsx|mjs|cjs)$/.test(entry)) {
+              filesToScan.push(fullPath);
+            }
+          }
+        } catch (statError) {
+          // Skip files we can't stat
+        }
+      }
+    } catch (readError) {
+      // Skip directories we can't read
+    }
+  }
+
+  collectFiles(rootDir);
+
+  logger.debug('Scanning files for dynamic import fixes', {
+    tool: 'rename_file',
+    root_dir: rootDir,
+    files_to_scan: filesToScan.length,
+    old_file: oldFilePath,
+    new_file: newFilePath,
+  });
+
+  let totalFilesFixed = 0;
+  let totalEditsApplied = 0;
+
+  for (const filePath of filesToScan) {
+    try {
+      if (!existsSync(filePath) || filePath === newFilePath) {
+        continue; // Skip the renamed file itself
+      }
+
+      const content = readFileSync(filePath, 'utf-8');
+      const lines = content.split('\n');
+      const edits: any[] = [];
+
+      for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+        const line = lines[lineIndex];
+        // Use the comprehensive regex that includes dynamic import()
+        const importRegex = /((?:from|require\s*\(|import\s*\(|export\s+.*?from)\s*['"`])(\.\.?\/[^'"`]+)(['"`])/g;
+        importRegex.lastIndex = 0;
+
+        let match;
+        while ((match = importRegex.exec(line)) !== null) {
+          const oldImportPath = match[2];
+          // Calculate what file this import path points to
+          const targetFile = resolve(dirname(filePath), oldImportPath);
+
+          // Check if this import was pointing to our renamed file
+          let pointsToRenamedFile = false;
+
+          // Direct match
+          if (targetFile === oldFilePath) {
+            pointsToRenamedFile = true;
+          } else {
+            // Handle extension mismatches (e.g., .js imports pointing to .ts files)
+            const baseTarget = targetFile.replace(/\.(js|mjs|cjs|ts|tsx|jsx)$/, '');
+            const baseOldFile = oldFilePath.replace(/\.(js|mjs|cjs|ts|tsx|jsx)$/, '');
+
+            if (baseTarget === baseOldFile) {
+              pointsToRenamedFile = true;
+            } else {
+              // Try common extensions
+              for (const ext of ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']) {
+                if (baseTarget + ext === oldFilePath) {
+                  pointsToRenamedFile = true;
+                  break;
+                }
+              }
+
+              // Try index files
+              if (!pointsToRenamedFile) {
+                for (const indexExt of ['/index.ts', '/index.tsx', '/index.js', '/index.jsx']) {
+                  if (targetFile + indexExt === oldFilePath) {
+                    pointsToRenamedFile = true;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+
+          if (pointsToRenamedFile) {
+            // Calculate the new import path from this file to the new location
+            let newImportPath = relative(dirname(filePath), newFilePath).replace(/\\/g, '/');
+
+            // Preserve original extensions - critical for TypeScript projects
+            // If the original import used .js, keep .js (common in TS projects)
+            if (oldImportPath.endsWith('.js') && newImportPath.endsWith('.ts')) {
+              newImportPath = newImportPath.replace(/\.ts$/, '.js');
+            } else if (oldImportPath.endsWith('.js') && newImportPath.endsWith('.tsx')) {
+              newImportPath = newImportPath.replace(/\.tsx$/, '.js');
+            }
+
+            // Handle index file optimization
+            if (!oldImportPath.endsWith('/index') && newImportPath.endsWith('/index')) {
+              newImportPath = newImportPath.substring(0, newImportPath.length - 6);
+            }
+
+            // Ensure relative paths start with ./ or ../
+            if (!newImportPath.startsWith('.') && !newImportPath.startsWith('/')) {
+              newImportPath = './' + newImportPath;
+            }
+
+            // Only make changes if the path actually needs updating
+            if (oldImportPath !== newImportPath) {
+              edits.push({
+                line: lineIndex,
+                startCol: match.index! + match[1].length,
+                endCol: match.index! + match[1].length + oldImportPath.length,
+                newText: newImportPath,
+                oldText: oldImportPath
+              });
+            }
+          }
+        }
+      }
+
+      // Apply edits if any were found
+      if (edits.length > 0) {
+        // Apply edits in reverse order to maintain positions
+        const sortedEdits = edits.sort((a, b) => b.line - a.line || b.startCol - a.startCol);
+        const updatedLines = [...lines];
+
+        for (const edit of sortedEdits) {
+          const line = updatedLines[edit.line];
+          updatedLines[edit.line] =
+            line.substring(0, edit.startCol) +
+            edit.newText +
+            line.substring(edit.endCol);
+        }
+
+        writeFileSync(filePath, updatedLines.join('\n'), 'utf-8');
+        totalFilesFixed++;
+        totalEditsApplied += edits.length;
+
+        logger.debug('Fixed dynamic imports in file', {
+          tool: 'rename_file',
+          file: filePath,
+          edits_count: edits.length,
+          edits: edits.map(e => ({ line: e.line + 1, old: e.oldText, new: e.newText }))
+        });
+      }
+    } catch (fileError) {
+      logger.warn('Failed to process file during dynamic import fix', {
+        tool: 'rename_file',
+        file: filePath,
+        error: fileError,
+      });
+    }
+  }
+
+  if (totalFilesFixed > 0) {
+    logger.debug('Completed dynamic import fix across project', {
+      tool: 'rename_file',
+      files_fixed: totalFilesFixed,
+      total_edits: totalEditsApplied,
+      old_file: oldFilePath,
+      new_file: newFilePath,
+    });
+  }
+}
+
 // Handler for rename_file tool
 export async function handleRenameFile(args: {
   old_path: string;
@@ -216,6 +405,33 @@ export async function handleRenameFile(args: {
       // In dry-run mode, show what would be changed
       const message = result.error || '[DRY RUN] No changes would be made';
       return createMCPResponse(message);
+    }
+
+    // Post-processing: Fix any dynamic imports that the initial rename might have missed
+    // This addresses the bug where dynamic import() statements are not updated
+    if (!dry_run) {
+      try {
+        logger.debug('Starting post-processing to fix dynamic imports', {
+          tool: 'rename_file',
+          old_path: absoluteOldPath,
+          new_path: absoluteNewPath,
+          root_dir: rootDir,
+        });
+        await fixDynamicImportsInProject(absoluteOldPath, absoluteNewPath, rootDir);
+        logger.debug('Completed post-processing for dynamic imports', {
+          tool: 'rename_file',
+          old_path: absoluteOldPath,
+          new_path: absoluteNewPath,
+        });
+      } catch (fixError) {
+        logger.error('Failed to fix dynamic imports after rename', {
+          tool: 'rename_file',
+          old_path: absoluteOldPath,
+          new_path: absoluteNewPath,
+          error: fixError,
+        });
+        // Don't fail the entire operation for this post-processing step
+      }
     }
 
     // Success message
