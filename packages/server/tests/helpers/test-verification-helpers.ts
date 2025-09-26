@@ -1,5 +1,6 @@
 import { expect } from 'bun:test';
 import { existsSync, readFileSync } from 'node:fs';
+import type { MCPTestClient } from './mcp-test-client.js';
 
 /**
  * Polls an async function until it returns true or a timeout is reached.
@@ -24,6 +25,28 @@ export async function poll(
 
   throw new Error(`Polling timed out after ${timeout}ms`);
 }
+
+/**
+ * Waits for the LSP server to be ready for a specific file by polling a lightweight tool.
+ * @param client The MCPTestClient instance.
+ * @param filePath The absolute path to the file to check.
+ * @param timeout The total time to wait in milliseconds.
+ */
+export async function waitForLSP(client: MCPTestClient, filePath: string, timeout = 10000) {
+  console.log(`⏳ Waiting for LSP server to be ready for ${filePath}...`);
+  await poll(async () => {
+    try {
+      // Use a lightweight command to check if the server is responsive for the file
+      const result = await client.callTool('get_folding_ranges', { file_path: filePath });
+      // Check for a valid, non-error response
+      return result?.content?.[0]?.text ? !result.content[0].text.includes('Error') : true;
+    } catch (e) {
+      return false;
+    }
+  }, timeout, 500);
+  console.log(`✅ LSP server is ready for ${filePath}.`);
+}
+
 
 /**
  * Helper utilities for thorough test verification of multi-file operations
