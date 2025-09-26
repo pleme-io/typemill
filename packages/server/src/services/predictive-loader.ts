@@ -1,9 +1,8 @@
-import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import ts from 'typescript';
 import type { StructuredLogger } from '../core/diagnostics/structured-logger.js';
 import { resolveImportPath } from '../utils/module-resolver.js';
 import type { Config } from '../../../@codeflow/core/src/types/config.js';
+import { astService } from './ast-service.js';
 
 interface PredictiveLoaderContext {
   logger: StructuredLogger;
@@ -38,8 +37,7 @@ export class PredictiveLoaderService {
   }
 
   private async _performPreload(filePath: string): Promise<void> {
-    const fileContent = await readFile(filePath, 'utf-8');
-    const imports = this.parseImports(filePath, fileContent);
+    const imports = await astService.getImports(filePath);
 
     this.context.logger.debug(`Found ${imports.length} imports in ${filePath}`);
 
@@ -69,47 +67,6 @@ export class PredictiveLoaderService {
     await Promise.all(preloadPromises);
   }
 
-  private parseImports(filePath: string, fileContent: string): string[] {
-    const imports: string[] = [];
-
-    try {
-      const sourceFile = ts.createSourceFile(filePath, fileContent, ts.ScriptTarget.Latest, true);
-
-      const findImports = (node: ts.Node) => {
-        // Handle ES6 imports
-        if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
-          imports.push(node.moduleSpecifier.text);
-        }
-        // Handle CommonJS requires
-        else if (
-          ts.isCallExpression(node) &&
-          node.expression.kind === ts.SyntaxKind.Identifier &&
-          (node.expression as ts.Identifier).text === 'require' &&
-          node.arguments.length > 0 &&
-          ts.isStringLiteral(node.arguments[0])
-        ) {
-          imports.push((node.arguments[0] as ts.StringLiteral).text);
-        }
-        // Handle dynamic imports
-        else if (
-          ts.isCallExpression(node) &&
-          node.expression.kind === ts.SyntaxKind.ImportKeyword &&
-          node.arguments.length > 0 &&
-          ts.isStringLiteral(node.arguments[0])
-        ) {
-          imports.push((node.arguments[0] as ts.StringLiteral).text);
-        }
-
-        ts.forEachChild(node, findImports);
-      };
-
-      findImports(sourceFile);
-    } catch (error) {
-      this.context.logger.warn(`Failed to parse imports for ${filePath}:`, error);
-    }
-
-    return imports;
-  }
 
 
   private shouldRecurse(_filePath: string): boolean {

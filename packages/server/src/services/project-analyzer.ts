@@ -1,8 +1,9 @@
-import { readdir, readFile, access } from 'node:fs/promises';
+import { readdir, access } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { dirname, extname, join, resolve } from 'node:path';
 import { resolveImportPath } from '../utils/module-resolver.js';
 import type { ServiceContext } from '../services/service-context.js';
+import { astService } from './ast-service.js';
 
 interface DependencyInfo {
   imports: Set<string>; // Files this file imports
@@ -54,7 +55,7 @@ class ProjectScanner {
 
     // Build dependency graph
     for (const file of files) {
-      const deps = await this.extractImports(file, rootDir);
+      const deps = await this.extractImports(file);
       dependencies.set(file, deps);
     }
 
@@ -247,41 +248,16 @@ class ProjectScanner {
   /**
    * Extract import statements from a file
    */
-  private async extractImports(filePath: string, _rootDir: string): Promise<DependencyInfo> {
-    const imports = new Set<string>();
-    const importedBy = new Set<string>();
-
+  private async extractImports(filePath: string): Promise<DependencyInfo> {
+    const importedBy = new Set<string>(); // This is populated later
     try {
-      const content = await readFile(filePath, 'utf-8');
-
-      // Match various import patterns
-      const importPatterns = [
-        // ES6 imports: import ... from '...'
-        /import\s+(?:.*?\s+from\s+)?['"]([^'"]+)['"]/g,
-        // Require: require('...')
-        /require\s*\(['"]([^'"]+)['"]\)/g,
-        // Dynamic imports: import('...')
-        /import\s*\(['"]([^'"]+)['"]\)/g,
-        // Export from: export ... from '...'
-        /export\s+.*?\s+from\s+['"]([^'"]+)['"]/g,
-      ];
-
-      for (const pattern of importPatterns) {
-        let match: RegExpExecArray | null;
-        // biome-ignore lint/suspicious/noAssignInExpressions: standard regex pattern matching
-        while ((match = pattern.exec(content)) !== null) {
-          const importPath = match[1];
-          // Only track relative imports within the project
-          if (importPath?.startsWith('.')) {
-            imports.add(importPath);
-          }
-        }
-      }
-    } catch (_error) {
-      // Ignore files that can't be read
+      const allImports = await astService.getImports(filePath);
+      const relativeImports = new Set(allImports.filter(p => p.startsWith('.')));
+      return { imports: relativeImports, importedBy };
+    } catch (error) {
+      // Handle or log the error appropriately
+      return { imports: new Set<string>(), importedBy };
     }
-
-    return { imports, importedBy };
   }
 
 
