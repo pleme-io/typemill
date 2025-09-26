@@ -10,17 +10,21 @@ import {
   getLogger,
   StructuredLogger,
 } from './src/core/diagnostics/structured-logger.js';
-import { LSPClient as NewLSPClient } from './src/lsp/lsp-client.js';
+import { LSPClient as NewLSPClient } from '../@codeflow/features/src/lsp/lsp-client.js';
 import * as Validation from './src/mcp/comprehensive-validation.js';
 import { allToolDefinitions } from './src/mcp/definitions/index.js';
 import { allWorkflowDefinitions } from './src/mcp/definitions/workflow-definitions.js';
 import {
+  handleAnalyzeImports,
   handleApplyWorkspaceEdit,
   handleBatchExecute,
   handleCreateFile,
   handleDeleteFile,
+  handleExecuteWorkflow,
+  handleFindDeadCode,
   handleFindDefinition,
   handleFindReferences,
+  handleFixImports,
   handleFormatDocument,
   handleGetCallHierarchyIncomingCalls,
   handleGetCallHierarchyOutgoingCalls,
@@ -54,8 +58,8 @@ import { createWorkflowResponse, executeWorkflow } from './src/mcp/workflow-exec
 import { FileService } from './src/services/file-service.js';
 import { HierarchyService } from './src/services/intelligence/hierarchy-service.js';
 import { IntelligenceService } from './src/services/intelligence/intelligence-service.js';
-import { DiagnosticService } from './src/services/lsp/diagnostic-service.js';
-import { SymbolService } from './src/services/lsp/symbol-service.js';
+import { DiagnosticService } from '../@codeflow/features/src/services/lsp/diagnostic-service.js';
+import { SymbolService } from '../@codeflow/features/src/services/lsp/symbol-service.js';
 import { PredictiveLoaderService } from './src/services/predictive-loader.js';
 import { getPackageVersion } from './src/utils/version.js';
 
@@ -486,330 +490,66 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         const result = await (async () => {
-          switch (name) {
-            case 'find_definition':
-              if (!Validation.validateFindDefinitionArgs(args)) {
-                throw Validation.createValidationError(
-                  'find_definition',
-                  'object with file_path and symbol_name strings'
-                );
-              }
-              return await handleFindDefinition(symbolService, args);
-            case 'find_references':
-              if (!Validation.validateFindReferencesArgs(args)) {
-                throw Validation.createValidationError(
-                  'find_references',
-                  'object with file_path and symbol_name strings'
-                );
-              }
-              return await handleFindReferences(symbolService, args);
-            case 'rename_symbol':
-              if (!Validation.validateRenameSymbolArgs(args)) {
-                throw Validation.createValidationError(
-                  'rename_symbol',
-                  'object with file_path, symbol_name, and new_name'
-                );
-              }
-              return await handleRenameSymbol(symbolService, args, newLspClient);
-            case 'rename_symbol_strict':
-              if (!Validation.validateRenameSymbolStrictArgs(args)) {
-                throw Validation.createValidationError(
-                  'rename_symbol_strict',
-                  'object with file_path, line, character, and new_name'
-                );
-              }
-              return await handleRenameSymbolStrict(symbolService, args, newLspClient);
-            case 'get_code_actions':
-              if (!Validation.validateGetCodeActionsArgs(args)) {
-                throw Validation.createValidationError(
-                  'get_code_actions',
-                  'object with file_path string'
-                );
-              }
-              return await handleGetCodeActions(fileService, args);
-            case 'format_document':
-              if (!Validation.validateFormatDocumentArgs(args)) {
-                throw Validation.createValidationError(
-                  'format_document',
-                  'object with file_path string and optional formatting options'
-                );
-              }
-              return await handleFormatDocument(fileService, args, newLspClient);
-            case 'search_workspace_symbols':
-              if (!Validation.validateSearchWorkspaceSymbolsArgs(args)) {
-                throw Validation.createValidationError(
-                  'search_workspace_symbols',
-                  'object with query string'
-                );
-              }
-              return await handleSearchWorkspaceSymbols(symbolService, args, newLspClient);
-            case 'get_document_symbols':
-              if (!Validation.validateGetDocumentSymbolsArgs(args)) {
-                throw Validation.createValidationError(
-                  'get_document_symbols',
-                  'object with file_path string'
-                );
-              }
-              return await handleGetDocumentSymbols(symbolService, args);
-            case 'get_folding_ranges':
-              if (!Validation.validateGetFoldingRangesArgs(args)) {
-                throw Validation.createValidationError(
-                  'get_folding_ranges',
-                  'object with file_path string'
-                );
-              }
-              return await handleGetFoldingRanges(fileService, args, newLspClient);
-            case 'get_document_links':
-              if (!Validation.validateGetDocumentLinksArgs(args)) {
-                throw Validation.createValidationError(
-                  'get_document_links',
-                  'object with file_path string'
-                );
-              }
-              return await handleGetDocumentLinks(fileService, args, newLspClient);
-            case 'get_diagnostics':
-              if (!Validation.validateGetDiagnosticsArgs(args)) {
-                throw Validation.createValidationError(
-                  'get_diagnostics',
-                  'object with file_path string'
-                );
-              }
-              return await handleGetDiagnostics(diagnosticService, args);
-            case 'restart_server':
-              if (!Validation.validateRestartServerArgs(args)) {
-                throw Validation.createValidationError(
-                  'restart_server',
-                  'object with optional extensions array'
-                );
-              }
-              return await handleRestartServer(newLspClient, args);
-            case 'rename_file':
-              if (!Validation.validateRenameFileArgs(args)) {
-                throw Validation.createValidationError(
-                  'rename_file',
-                  'object with old_path and new_path strings'
-                );
-              }
-              return await handleRenameFile(args);
-            // Intelligence tools
-            case 'get_hover':
-              if (!Validation.validateGetHoverArgs(args)) {
-                throw Validation.createValidationError(
-                  'get_hover',
-                  'object with file_path, line, and character'
-                );
-              }
-              return await handleGetHover(intelligenceService, args);
-            case 'get_completions':
-              if (!Validation.validateGetCompletionsArgs(args)) {
-                throw Validation.createValidationError(
-                  'get_completions',
-                  'object with file_path, line, and character'
-                );
-              }
-              return await handleGetCompletions(intelligenceService, args);
-            case 'get_inlay_hints':
-              if (!Validation.validateGetInlayHintsArgs(args)) {
-                throw Validation.createValidationError(
-                  'get_inlay_hints',
-                  'object with file_path and range coordinates'
-                );
-              }
-              return await handleGetInlayHints(intelligenceService, args);
-            case 'get_semantic_tokens':
-              if (!Validation.validateGetSemanticTokensArgs(args)) {
-                throw Validation.createValidationError(
-                  'get_semantic_tokens',
-                  'object with file_path string'
-                );
-              }
-              return await handleGetSemanticTokens(intelligenceService, args);
-            case 'get_signature_help':
-              if (!Validation.validateGetSignatureHelpArgs(args)) {
-                throw Validation.createValidationError(
-                  'get_signature_help',
-                  'object with file_path, line, and character'
-                );
-              }
-              return await handleGetSignatureHelp(intelligenceService, args);
-            // Hierarchy tools
-            case 'prepare_call_hierarchy':
-              if (!Validation.validatePrepareCallHierarchyArgs(args)) {
-                throw Validation.createValidationError(
-                  'prepare_call_hierarchy',
-                  'object with file_path, line, and character'
-                );
-              }
-              return await handlePrepareCallHierarchy(hierarchyService, args);
-            case 'get_call_hierarchy_incoming_calls':
-              if (!Validation.validateGetCallHierarchyIncomingCallsArgs(args)) {
-                throw Validation.createValidationError(
-                  'get_call_hierarchy_incoming_calls',
-                  'object with either "item" (CallHierarchyItem) or "file_path", "line", and "character"'
-                );
-              }
-              return await handleGetCallHierarchyIncomingCalls(hierarchyService, args);
-            case 'get_call_hierarchy_outgoing_calls':
-              if (!Validation.validateGetCallHierarchyOutgoingCallsArgs(args)) {
-                throw Validation.createValidationError(
-                  'get_call_hierarchy_outgoing_calls',
-                  'object with either "item" (CallHierarchyItem) or "file_path", "line", and "character"'
-                );
-              }
-              return await handleGetCallHierarchyOutgoingCalls(hierarchyService, args);
-            case 'prepare_type_hierarchy':
-              if (!Validation.validatePrepareTypeHierarchyArgs(args)) {
-                throw Validation.createValidationError(
-                  'prepare_type_hierarchy',
-                  'object with file_path, line, and character'
-                );
-              }
-              return await handlePrepareTypeHierarchy(hierarchyService, args);
-            case 'get_type_hierarchy_supertypes':
-              if (!Validation.validateGetTypeHierarchySupertypesArgs(args)) {
-                throw Validation.createValidationError(
-                  'get_type_hierarchy_supertypes',
-                  'object with TypeHierarchyItem'
-                );
-              }
-              return await handleGetTypeHierarchySupertypes(hierarchyService, args);
-            case 'get_type_hierarchy_subtypes':
-              if (!Validation.validateGetTypeHierarchySubtypesArgs(args)) {
-                throw Validation.createValidationError(
-                  'get_type_hierarchy_subtypes',
-                  'object with TypeHierarchyItem'
-                );
-              }
-              return await handleGetTypeHierarchySubtypes(hierarchyService, args);
-            case 'get_selection_range':
-              if (!Validation.validateGetSelectionRangeArgs(args)) {
-                throw Validation.createValidationError(
-                  'get_selection_range',
-                  'object with file_path and positions array'
-                );
-              }
-              return await handleGetSelectionRange(hierarchyService, args);
-            case 'apply_workspace_edit':
-              if (!Validation.validateApplyWorkspaceEditArgs(args)) {
-                throw Validation.createValidationError(
-                  'apply_workspace_edit',
-                  'object with either "changes" mapping file paths to text edits or "edit" containing the workspace edit'
-                );
-              }
-              return await handleApplyWorkspaceEdit(fileService, args, newLspClient);
-            case 'create_file':
-              if (!Validation.validateCreateFileArgs(args)) {
-                throw Validation.createValidationError(
-                  'create_file',
-                  'object with file_path string'
-                );
-              }
-              return await handleCreateFile(args);
-            case 'delete_file':
-              if (!Validation.validateDeleteFileArgs(args)) {
-                throw Validation.createValidationError(
-                  'delete_file',
-                  'object with file_path string'
-                );
-              }
-              return await handleDeleteFile(args);
-            case 'health_check': {
-              if (!Validation.validateHealthCheckArgs(args)) {
-                throw Validation.createValidationError(
-                  'health_check',
-                  'object with optional include_details boolean'
-                );
-              }
+          // Dynamic dispatch using tool registry - MUCH better than giant switch!
+          // Ensure all handlers are imported to trigger registration
+          await import('./src/mcp/handlers/index.js');
+          const { getTool } = await import('./src/mcp/tool-registry.js');
+          const toolEntry = getTool(name);
+
+          if (!toolEntry) {
+            const { createUnknownToolMessage } = await import(
+              './src/core/diagnostics/error-utils.js'
+            );
+            const enhancedMessage = createUnknownToolMessage(name);
+            throw new Error(enhancedMessage);
+          }
+
+          // Get the required service for this tool
+          const serviceMap = {
+            symbol: symbolService,
+            file: fileService,
+            diagnostic: diagnosticService,
+            intelligence: intelligenceService,
+            hierarchy: hierarchyService,
+            lsp: newLspClient,
+            serviceContext: async () => {
               const { ServiceContextUtils } = await import('./src/services/service-context.js');
-              const serviceContext = ServiceContextUtils.createServiceContext(
+              return ServiceContextUtils.createServiceContext(
                 newLspClient.getServer.bind(newLspClient),
                 newLspClient.protocol
               );
-              return await handleHealthCheck(args, serviceContext);
-            }
-            case 'batch_execute':
-              if (!Validation.validateBatchExecuteArgs(args)) {
-                throw Validation.createValidationError(
-                  'batch_execute',
-                  'object with operations array and options object'
-                );
-              }
-              return await handleBatchExecute(
-                symbolService,
-                fileService,
-                diagnosticService,
-                intelligenceService,
-                hierarchyService,
-                newLspClient,
-                args
-              );
-            // Atomic refactoring tools (compatibility wrappers)
-            case 'analyze_refactor_impact': {
-              const { handleAnalyzeRefactorImpact } = await import(
-                './src/mcp/handlers/atomic-refactoring-handlers.js'
-              );
-              return await handleAnalyzeRefactorImpact(
-                symbolService,
-                fileService,
-                diagnosticService,
-                intelligenceService,
-                hierarchyService,
-                newLspClient,
-                args
-              );
-            }
-            case 'batch_move_files': {
-              const { handleBatchMoveFiles } = await import(
-                './src/mcp/handlers/atomic-refactoring-handlers.js'
-              );
-              return await handleBatchMoveFiles(
-                symbolService,
-                fileService,
-                diagnosticService,
-                intelligenceService,
-                hierarchyService,
-                newLspClient,
-                args
-              );
-            }
-            case 'preview_batch_operation': {
-              const { handlePreviewBatchOperation } = await import(
-                './src/mcp/handlers/atomic-refactoring-handlers.js'
-              );
-              return await handlePreviewBatchOperation(
-                symbolService,
-                fileService,
-                diagnosticService,
-                intelligenceService,
-                hierarchyService,
-                newLspClient,
-                args
-              );
-            }
-            case 'rename_directory':
-              if (!Validation.validateRenameDirectoryArgs || !Validation.validateRenameDirectoryArgs(args)) {
-                throw Validation.createValidationError(
-                  'rename_directory',
-                  'object with old_path and new_path strings'
-                );
-              }
-              return await handleRenameDirectory(args);
-            case 'update_package_json':
-              if (!Validation.validateUpdatePackageJsonArgs || !Validation.validateUpdatePackageJsonArgs(args)) {
-                throw Validation.createValidationError(
-                  'update_package_json',
-                  'object with file_path and update parameters'
-                );
-              }
-              return await handleUpdatePackageJson(args);
-            default: {
-              const { createUnknownToolMessage } = await import(
-                './src/core/diagnostics/error-utils.js'
-              );
-              const enhancedMessage = createUnknownToolMessage(name);
-              throw new Error(enhancedMessage);
+            },
+            batch: { /* batch executor services */ },
+            workflow: { /* workflow services */ },
+            none: null,
+          };
+
+          // Prepare arguments based on tool requirements
+          const toolArgs = [];
+          if (toolEntry.requiresService !== 'none') {
+            const service = serviceMap[toolEntry.requiresService];
+            if (typeof service === 'function') {
+              toolArgs.push(await service());
+            } else {
+              toolArgs.push(service);
             }
           }
+          toolArgs.push(args);
+
+          // Add additional service arguments for specific tools that need multiple services
+          if (name === 'batch_execute') {
+            toolArgs.splice(-1, 0,
+              symbolService,
+              fileService,
+              diagnosticService,
+              intelligenceService,
+              hierarchyService,
+              newLspClient
+            );
+          }
+
+          // Execute the tool via registry
+          return await toolEntry.handler(...toolArgs);
         })();
 
         // Log the response if trace is enabled
