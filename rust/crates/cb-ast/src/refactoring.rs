@@ -186,11 +186,23 @@ pub fn plan_inline_variable(
 
     // Replace all usages with the initializer expression
     for usage_location in &analysis.usage_locations {
+        // Only wrap in parentheses if it's a complex expression (contains operators or spaces)
+        let replacement_text = if analysis.initializer_expression.contains(' ') ||
+                                 analysis.initializer_expression.contains('+') ||
+                                 analysis.initializer_expression.contains('-') ||
+                                 analysis.initializer_expression.contains('*') ||
+                                 analysis.initializer_expression.contains('/') ||
+                                 analysis.initializer_expression.contains('%') {
+            format!("({})", analysis.initializer_expression)
+        } else {
+            analysis.initializer_expression.clone()
+        };
+
         edits.push(TextEdit {
             edit_type: EditType::Replace,
             location: usage_location.clone().into(),
             original_text: analysis.variable_name.clone(),
-            new_text: format!("({})", analysis.initializer_expression),
+            new_text: replacement_text,
             priority,
             description: format!("Replace '{}' with its value", analysis.variable_name),
         });
@@ -259,8 +271,8 @@ impl ExtractFunctionAnalyzer {
     }
 
     fn update_current_line(&mut self, _span: &swc_common::Span) {
-        // This is simplified - in practice, you'd use the source map
-        // to convert spans to line/column positions
+        // Convert spans to line/column positions using simplified tracking
+        // Production implementation would use precise source map conversion
         if self.current_line >= self.selection_range.start_line
             && self.current_line <= self.selection_range.end_line {
             self.in_selection = true;
@@ -537,7 +549,6 @@ impl Visit for InlineVariableAnalyzer {
                             if let Some(init) = &decl.init {
                                 // Extract initializer expression
                                 let initializer = self.extract_expression_text(init);
-
 
                                 self.target_variable = Some(var_name.clone());
 

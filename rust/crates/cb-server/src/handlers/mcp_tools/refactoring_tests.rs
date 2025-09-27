@@ -102,13 +102,13 @@ mod tests {
         let temp_file = create_temp_ts_file(content).unwrap();
         let file_path = temp_file.path().to_str().unwrap();
 
-        // Extract the item processing logic
+        // Extract the item processing logic (complete statements)
         let args = json!({
             "file_path": file_path,
             "start_line": 4,
             "start_col": 8,
-            "end_line": 5,
-            "end_col": 27,
+            "end_line": 6,
+            "end_col": 32, // End at the end of line 6 after "results.push(processed);"
             "new_function_name": "processItem",
             "preview": false
         });
@@ -127,6 +127,17 @@ mod tests {
         let modified_source = response["modifiedSource"].as_str().unwrap();
         assert!(modified_source.contains("processItem"));
         assert!(modified_source.contains("function processItem"));
+
+        // Check that the extracted function is well-formed
+        let function_start = modified_source.find("function processItem").unwrap();
+        let function_part = &modified_source[function_start..];
+        let function_end = function_part.find("\n}").unwrap();
+        let extracted_function = &function_part[..function_end + 2];
+
+        // The extracted function should contain the expected statements
+        assert!(extracted_function.contains("const item"));
+        assert!(extracted_function.contains("const processed"));
+        assert!(extracted_function.contains("results.push"));
 
         println!("Modified source:\n{}", modified_source);
     }
@@ -197,34 +208,16 @@ mod tests {
         assert!(result.is_ok());
         let response = result.unwrap();
 
-        // Check if the operation was successful or failed gracefully
-        let success = response["success"].as_bool().unwrap_or(false);
-        let preview_mode = response["previewMode"].as_bool().unwrap_or(true);
+        // Should succeed unconditionally
+        assert!(response["success"].as_bool().unwrap_or(false));
+        assert!(!response["previewMode"].as_bool().unwrap_or(true));
+        assert!(response["modifiedSource"].is_string());
 
-        if success {
-            // If successful, verify the execution mode and modified source
-            assert!(!preview_mode);
-            assert!(response["modifiedSource"].is_string());
-
-            // Verify the modified source has inlined the variable
-            let modified_source = response["modifiedSource"].as_str().unwrap();
-            assert!(!modified_source.contains("const multiplier"));
-            assert!(modified_source.contains("5 * (2)"));
-
-            println!("Modified source:\n{}", modified_source);
-        } else {
-            // If failed, verify error handling
-            assert!(!preview_mode);
-            assert!(response["error"].is_string());
-            let error = response["error"].as_str().unwrap();
-
-            // Should be a meaningful error message
-            assert!(!error.is_empty());
-            println!("Expected failure (AST analysis): {}", error);
-
-            // This is acceptable since AST analysis for variable inlining
-            // is complex and may not work for all cases
-        }
+        // Verify the modified source has inlined the variable
+        let modified_source = response["modifiedSource"].as_str().unwrap();
+        println!("Modified source:\n{}", modified_source);
+        assert!(!modified_source.contains("const multiplier"));
+        assert!(modified_source.contains("5 * 2")); // Should be "5 * 2" not "5 * (2)"
     }
 
     #[tokio::test]
