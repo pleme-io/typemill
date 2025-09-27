@@ -90,21 +90,25 @@ struct RenameSymbolStrictArgs {
 
 /// Register editing tools
 pub fn register_tools(dispatcher: &mut McpDispatcher) {
-    // rename_symbol tool
+    // rename_symbol tool - Returns WorkspaceEdit for transaction processing
     dispatcher.register_tool("rename_symbol".to_string(), |app_state, args| async move {
-        let params: RenameSymbolArgs = serde_json::from_value(args)
+        let params: RenameSymbolArgs = serde_json::from_value(args.clone())
             .map_err(|e| crate::error::ServerError::InvalidRequest(format!("Invalid args: {}", e)))?;
 
         tracing::debug!(
-            "Renaming symbol at {}:{}:{} to {}",
+            "Getting WorkspaceEdit for rename: {}:{}:{} to {}",
             params.file_path,
             params.line,
             params.character,
             params.new_name
         );
 
-        // Use helper function to forward request
-        forward_lsp_request(
+        // Check if this is a dry_run request
+        let dry_run = params.dry_run.unwrap_or(false);
+
+        // Request WorkspaceEdit from LSP but don't apply it
+        // The dispatcher's transaction system will handle the actual application
+        let workspace_edit_result = forward_lsp_request(
             app_state.lsp.as_ref(),
             "textDocument/rename".to_string(),
             Some(json!({
@@ -117,7 +121,17 @@ pub fn register_tools(dispatcher: &mut McpDispatcher) {
                 },
                 "newName": params.new_name
             }))
-        ).await
+        ).await?;
+
+        // Return the WorkspaceEdit with metadata for the transaction system
+        // Include the original arguments so the dispatcher can create proper FileOperations
+        Ok(json!({
+            "workspace_edit": workspace_edit_result,
+            "dry_run": dry_run,
+            "operation_type": "refactor",
+            "original_args": args,
+            "tool": "rename_symbol"
+        }))
     });
 
     // format_document tool
@@ -155,6 +169,92 @@ pub fn register_tools(dispatcher: &mut McpDispatcher) {
                 "insertSpaces": options.insert_spaces.unwrap_or(true),
                 "trimTrailingWhitespace": options.trim_trailing_whitespace.unwrap_or(true),
             }
+        }))
+    });
+
+    // organize_imports tool - Returns WorkspaceEdit for transaction processing
+    dispatcher.register_tool("organize_imports".to_string(), |app_state, args| async move {
+        let file_path = args.get("file_path")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| crate::error::ServerError::InvalidRequest("Missing file_path".into()))?;
+
+        tracing::debug!("Getting WorkspaceEdit for organize imports: {}", file_path);
+
+        // Request code action from LSP for organizing imports
+        let organize_result = forward_lsp_request(
+            app_state.lsp.as_ref(),
+            "textDocument/codeAction".to_string(),
+            Some(json!({
+                "textDocument": {
+                    "uri": format!("file://{}", file_path)
+                },
+                "range": {
+                    "start": {"line": 0, "character": 0},
+                    "end": {"line": 99999, "character": 0}
+                },
+                "context": {
+                    "only": ["source.organizeImports"]
+                }
+            }))
+        ).await?;
+
+        // Return the WorkspaceEdit for transaction processing
+        Ok(json!({
+            "workspace_edit": organize_result,
+            "operation_type": "refactor",
+            "original_args": args,
+            "tool": "organize_imports"
+        }))
+    });
+
+    // extract_function tool - Placeholder for future implementation
+    dispatcher.register_tool("extract_function".to_string(), |_app_state, args| async move {
+        tracing::debug!("Extract function requested (placeholder implementation)");
+
+        // For now, return a simple workspace edit
+        // In a real implementation, this would analyze the selection and create a new function
+        Ok(json!({
+            "workspace_edit": {
+                "changes": {}
+            },
+            "operation_type": "refactor",
+            "original_args": args,
+            "tool": "extract_function",
+            "message": "Extract function not yet fully implemented"
+        }))
+    });
+
+    // extract_variable tool - Placeholder for future implementation
+    dispatcher.register_tool("extract_variable".to_string(), |_app_state, args| async move {
+        tracing::debug!("Extract variable requested (placeholder implementation)");
+
+        // For now, return a simple workspace edit
+        // In a real implementation, this would analyze the expression and create a variable
+        Ok(json!({
+            "workspace_edit": {
+                "changes": {}
+            },
+            "operation_type": "refactor",
+            "original_args": args,
+            "tool": "extract_variable",
+            "message": "Extract variable not yet fully implemented"
+        }))
+    });
+
+    // inline_variable tool - Placeholder for future implementation
+    dispatcher.register_tool("inline_variable".to_string(), |_app_state, args| async move {
+        tracing::debug!("Inline variable requested (placeholder implementation)");
+
+        // For now, return a simple workspace edit
+        // In a real implementation, this would find variable uses and inline them
+        Ok(json!({
+            "workspace_edit": {
+                "changes": {}
+            },
+            "operation_type": "refactor",
+            "original_args": args,
+            "tool": "inline_variable",
+            "message": "Inline variable not yet fully implemented"
         }))
     });
 

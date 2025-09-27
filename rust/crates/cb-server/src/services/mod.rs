@@ -8,6 +8,9 @@ pub mod operation_queue;
 #[cfg(test)]
 pub mod tests;
 
+#[cfg(test)]
+pub mod phase2_tests;
+
 pub use import_service::ImportService;
 pub use file_service::FileService;
 pub use lock_manager::{LockManager, LockType};

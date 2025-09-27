@@ -15,117 +15,132 @@ use commands::setup::SetupCommand;
 use commands::connect::ConnectCommand;
 use commands::call::{CallCommand, OutputFormat};
 use commands::status::StatusCommand;
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Parser, Subcommand, ValueEnum, CommandFactory};
 use std::time::Duration;
 
-/// CLI arguments
+/// A powerful, interactive client for the Codeflow Buddy server.
 #[derive(Parser, Debug)]
 #[command(name = "codeflow-buddy")]
 #[command(about = "Codeflow Buddy Client - Connect to and interact with codeflow-buddy servers", long_about = None)]
 #[command(version)]
+#[command(propagate_version = true)]
 pub struct CliArgs {
     #[command(subcommand)]
     pub command: Commands,
 
-    /// Enable debug output
+    /// Enable debug logging for detailed diagnostic output.
     #[arg(short, long, global = true)]
     pub debug: bool,
 
-    /// Custom configuration file path
-    #[arg(short, long, global = true)]
+    /// Path to a custom configuration file.
+    #[arg(short, long, global = true, help_heading = "Connection")]
     pub config: Option<String>,
 
-    /// Request timeout in milliseconds
-    #[arg(short, long, global = true)]
+    /// Request timeout in milliseconds. Overrides config file and environment variables.
+    #[arg(short, long, global = true, help_heading = "Connection")]
     pub timeout: Option<u64>,
 
-    /// Disable colored output
-    #[arg(long, global = true)]
+    /// Disable colored output.
+    #[arg(long, global = true, help_heading = "Display")]
     pub no_color: bool,
 
-    /// Disable emoji in output
-    #[arg(long, global = true)]
+    /// Disable emoji icons in output.
+    #[arg(long, global = true, help_heading = "Display")]
     pub no_emoji: bool,
 }
 
-/// CLI subcommands
+/// Defines the available subcommands for the CLI.
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    /// Interactive setup wizard for configuration
+    /// Run an interactive setup wizard to create a configuration file.
+    #[command(long_about = "Guides you through setting up a connection to a Codeflow Buddy server and saves the settings to a configuration file.")]
     Setup,
 
-    /// Connect to server and run interactive session
+    /// Connect to the server and start an interactive session.
+    #[command(long_about = "Establishes a persistent WebSocket connection to the server for interactive operations.")]
     Connect {
-        /// Server URL override
-        #[arg(short, long)]
+        /// The WebSocket URL of the server (e.g., ws://localhost:3000). Overrides config and environment variables.
+        #[arg(short, long, help_heading = "Connection")]
         url: Option<String>,
 
-        /// Authentication token override
-        #[arg(short, long)]
+        /// The authentication token for the server. Overrides config and environment variables.
+        #[arg(short, long, help_heading = "Connection")]
         token: Option<String>,
 
-        /// Disable auto-reconnect on connection loss
+        /// Disable automatic reconnection if the connection is lost.
         #[arg(long)]
         no_auto_reconnect: bool,
 
-        /// Session timeout in seconds (auto-disconnect after inactivity)
+        /// Auto-disconnect after a specified number of seconds of inactivity.
         #[arg(long)]
         session_timeout: Option<u64>,
     },
 
-    /// Call a specific MCP tool
+    /// Execute a raw MCP tool on the server.
+    #[command(long_about = "Execute a raw MCP tool on the server. This is useful for scripting and advanced operations.")]
+    #[command(after_help = "Example: codeflow-buddy call read_file '{\"file_path\":\"/path/to/file.txt\"}'")]
     Call {
-        /// Tool name to call
+        /// The name of the MCP tool to execute (e.g., `read_file`, `get_hover`).
         tool: String,
 
-        /// JSON parameters (optional)
+        /// The parameters for the tool, provided as a single JSON string.
         params: Option<String>,
 
-        /// Server URL override
-        #[arg(short, long)]
+        /// The WebSocket URL of the server. Overrides all other settings.
+        #[arg(short, long, help_heading = "Connection")]
         url: Option<String>,
 
-        /// Authentication token override
-        #[arg(short, long)]
+        /// The authentication token for the server. Overrides all other settings.
+        #[arg(short, long, help_heading = "Connection")]
         token: Option<String>,
 
-        /// Output format
-        #[arg(short, long, default_value = "pretty")]
+        /// The output format for the command's result.
+        #[arg(short, long, default_value = "pretty", value_enum)]
         format: OutputFormatArg,
 
-        /// Read parameters from file
-        #[arg(long)]
+        /// Read the JSON parameters from a specified file instead of the command line.
+        #[arg(long, conflicts_with = "params_stdin")]
         params_file: Option<String>,
 
-        /// Read parameters from stdin
-        #[arg(long)]
+        /// Read the JSON parameters from standard input (stdin).
+        #[arg(long, conflicts_with = "params_file")]
         params_stdin: bool,
     },
 
-    /// Show client status and verify connectivity
+    /// Check client status and verify connectivity to the server.
+    #[command(long_about = "Performs a health check on the client and attempts to connect to the server to verify configuration and connectivity.")]
     Status {
-        /// Server URL override
-        #[arg(short, long)]
+        /// The WebSocket URL of the server to check.
+        #[arg(short, long, help_heading = "Connection")]
         url: Option<String>,
 
-        /// Authentication token override
-        #[arg(short, long)]
+        /// The authentication token to use for the check.
+        #[arg(short, long, help_heading = "Connection")]
         token: Option<String>,
 
-        /// Show detailed information
+        /// Show detailed information, including configuration sources and values.
         #[arg(short, long)]
         verbose: bool,
     },
+
+    /// Generate shell completion scripts.
+    #[command(long_about = "Generate shell completion scripts for your shell. 
+To use, add `source <(codeflow-buddy completions <shell>)` to your shell's startup file.")]
+    Completions {
+        /// The shell to generate completions for.
+        #[arg(value_enum)]
+        shell: clap_complete::Shell,
+    },
 }
 
-/// Output format for call command
+/// Output format for the `call` command.
 #[derive(Debug, Clone, ValueEnum)]
 pub enum OutputFormatArg {
-    /// Pretty-printed with colors and formatting
+    /// Pretty-printed with colors and formatting.
     Pretty,
-    /// Raw JSON output
+    /// Raw JSON output.
     Json,
-    /// Minimal output (result only)
+    /// Minimal output, showing only the raw result data.
     Raw,
 }
 
@@ -139,7 +154,7 @@ impl From<OutputFormatArg> for OutputFormat {
     }
 }
 
-/// Run the CLI application
+/// Run the CLI application.
 pub async fn run_cli() -> ClientResult<()> {
     let args = CliArgs::parse();
 
@@ -199,6 +214,12 @@ pub async fn run_cli() -> ClientResult<()> {
             let cmd = StatusCommand::new(url, token)
                 .with_verbose(verbose);
             cmd.execute(&global_args).await
+        }
+        Commands::Completions { shell } => {
+            let mut cmd = CliArgs::command();
+            let name = cmd.get_name().to_string();
+            clap_complete::generate(shell, &mut cmd, name, &mut std::io::stdout());
+            Ok(())
         }
     };
 

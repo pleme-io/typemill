@@ -114,8 +114,8 @@ The central orchestrator that:
 
 ```rust
 pub struct McpDispatcher {
-    tools: HashMap<String, Box<dyn ToolHandler>>,
-    app_state: Arc<AppState>,
+    tools: HashMap<String, Box<dyn ToolHandler>>>,
+    app_state: Arc<AppState>
 }
 
 impl McpDispatcher {
@@ -186,20 +186,31 @@ impl LspClient {
 
 ## Tool Handler Architecture
 
-### Handler Trait
+### MCP Tool Handler Pattern
 
-All tools implement a common interface:
+To reduce boilerplate and standardize interactions with the LSP service, a helper function `forward_lsp_request` is used. This centralizes the logic for creating requests, handling responses, and managing errors.
+
+- **Unique ID Generation**: Each call generates a unique, auto-incrementing request ID.
+- **Request Forwarding**: The handler constructs the parameters and calls the helper.
+- **Centralized Error Handling**: The helper is responsible for interpreting LSP responses and returning a consistent `Result`.
 
 ```rust
-#[async_trait]
-pub trait ToolHandler: Send + Sync {
-    async fn execute(
-        &self,
-        request: &McpRequest,
-        app_state: &AppState,
-    ) -> Result<McpResponse, ServerError>;
-}
+// Example from navigation.rs
+dispatcher.register_tool("find_definition".to_string(), |app_state, args| async move {
+    let params: FindDefinitionArgs = serde_json::from_value(args)?;
+    
+    // 1. Construct parameters for the LSP request
+    let lsp_params = json!({
+        "file_path": params.file_path,
+        "symbol_name": params.symbol_name,
+    });
+
+    // 2. Delegate to the helper function
+    util::forward_lsp_request(&app_state, "find_definition", lsp_params).await
+});
 ```
+
+This pattern keeps the tool handlers clean, concise, and focused on their specific logic.
 
 ### Tool Categories
 
@@ -240,7 +251,7 @@ pub struct CodeflowFS {
     attr_cache: HashMap<u64, FileAttr>,
     next_inode: u64,
     inode_to_path: HashMap<u64, PathBuf>,
-    path_to_inode: HashMap<PathBuf, u64>,
+    path_to_inode: HashMap<PathBuf, u64>
 }
 
 impl Filesystem for CodeflowFS {
@@ -289,13 +300,34 @@ CoreError → ServerError → Transport-specific errors
 
 ## Configuration Management
 
-### Configuration Sources
+### Client Configuration
 
-1. **Primary**: `.codebuddy/config.json` in working directory
-2. **Fallback**: Embedded default configuration
-3. **Validation**: Comprehensive validation with descriptive errors
+The `cb-client` crate uses a `ConfigBuilder` pattern to provide a robust and flexible way to load configuration.
 
-### Configuration Schema
+#### Configuration Sources
+
+Configuration is loaded from three sources with the following order of precedence:
+
+1.  **Command-line arguments:** (e.g., `--url <URL>`) - Highest precedence.
+2.  **Environment variables:** (`CODEFLOW_BUDDY_URL`, `CODEFLOW_BUDDY_TOKEN`).
+3.  **Configuration file:** (`~/.codeflow-buddy/config.json`) - Lowest precedence.
+
+#### `ConfigBuilder` Pattern
+
+The `ConfigBuilder` provides a fluent API to construct a `ClientConfig` object.
+
+```rust
+// Example of building a configuration
+let config = ConfigBuilder::new()
+    .from_file_if_exists("~/.codeflow-buddy/config.json").await?
+    .with_env_overrides()
+    .with_url("ws://override.com:8080".to_string()) // This would be a CLI arg
+    .build()?;
+```
+
+This pattern centralizes all configuration logic, making it predictable and easy to test.
+
+### Server Configuration Schema
 
 ```json
 {
@@ -385,8 +417,9 @@ CoreError → ServerError → Transport-specific errors
 
 ### Test Infrastructure
 
-- **Mocking**: LSP services, file system operations
-- **Test fixtures**: Realistic code samples
+- **Test Harness**: A lightweight `TestLspService` allows for predictable testing of MCP handlers without heavy mocking.
+- **Real I/O**: Tests use real file I/O in temporary directories and real environment variables to validate behavior accurately.
+- **Property-Based Testing**: `proptest` is used to test invariants and edge cases, especially for concurrent operations like request ID generation.
 - **Contract validation**: JSON schema compliance
 - **Performance testing**: Response time measurement
 

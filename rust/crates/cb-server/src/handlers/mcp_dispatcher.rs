@@ -3,6 +3,7 @@
 use crate::error::{ServerError, ServerResult};
 use cb_core::model::mcp::{McpMessage, McpRequest, McpResponse, ToolCall};
 use crate::services::{LockManager, OperationQueue, FileOperation, OperationType};
+use crate::services::operation_queue::OperationTransaction;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::future::Future;
@@ -163,35 +164,55 @@ impl McpDispatcher {
         let handler = self.tools.get(&tool_call.name)
             .ok_or_else(|| ServerError::Unsupported(format!("Unknown tool: {}", tool_call.name)))?;
 
-        // Determine if this operation needs to be queued
+        // Determine if this operation needs to be queued or can execute concurrently
         let operation_type = self.tool_operations.get(&tool_call.name);
 
         let result = if let Some(op_type) = operation_type {
             if op_type.is_write_operation() {
-                // Extract file path from arguments if available
+                // Check if this is a refactoring operation that might affect multiple files
+                if *op_type == OperationType::Refactor && self.is_multi_file_refactoring(&tool_call.name) {
+                    // Handle multi-file refactoring with transactions
+                    self.handle_refactoring_operation(&tool_call, handler).await?
+                } else {
+                    // Single file write operations - queue normally
+                    let file_path = self.extract_file_path(&tool_call.arguments);
+
+                    if let Some(path) = file_path {
+                        // Queue the write operation with appropriate priority
+                        let priority = self.get_operation_priority(op_type);
+                        let operation = FileOperation::new(
+                            tool_call.name.clone(),
+                            op_type.clone(),
+                            path,
+                            tool_call.arguments.clone().unwrap_or(json!({}))
+                        ).with_priority(priority);
+
+                        let operation_id = self.app_state.operation_queue.enqueue(operation).await?;
+                        tracing::debug!("Queued write operation {} for tool {} with priority {}", operation_id, tool_call.name, priority);
+
+                        // Process the operation immediately (it will wait for its turn in the queue)
+                        self.process_queued_operation(&tool_call.name, handler, tool_call.arguments.unwrap_or(json!({}))).await?
+                    } else {
+                        // No file path, execute directly
+                        handler(self.app_state.clone(), tool_call.arguments.unwrap_or(json!({}))).await?
+                    }
+                }
+            } else {
+                // Read operation - execute concurrently with read lock
                 let file_path = self.extract_file_path(&tool_call.arguments);
 
                 if let Some(path) = file_path {
-                    // Queue the operation
-                    let operation = FileOperation::new(
-                        tool_call.name.clone(),
-                        op_type.clone(),
-                        path,
-                        tool_call.arguments.clone().unwrap_or(json!({}))
-                    );
+                    tracing::debug!("Acquiring read lock for concurrent read operation: {}", tool_call.name);
+                    // Acquire read lock and execute immediately
+                    let file_lock = self.app_state.lock_manager.get_lock(&path).await;
+                    let _read_guard = file_lock.read().await;
 
-                    let operation_id = self.app_state.operation_queue.enqueue(operation).await?;
-                    tracing::debug!("Queued operation {} for tool {}", operation_id, tool_call.name);
-
-                    // Process the operation immediately (it will wait for its turn in the queue)
-                    self.process_queued_operation(&tool_call.name, handler, tool_call.arguments.unwrap_or(json!({}))).await?
+                    tracing::debug!("Executing read operation {} with concurrent read lock", tool_call.name);
+                    handler(self.app_state.clone(), tool_call.arguments.unwrap_or(json!({}))).await?
                 } else {
-                    // No file path, execute directly
+                    // No file path, execute directly (no locking needed)
                     handler(self.app_state.clone(), tool_call.arguments.unwrap_or(json!({}))).await?
                 }
-            } else {
-                // Read operation, can execute directly with read lock
-                handler(self.app_state.clone(), tool_call.arguments.unwrap_or(json!({}))).await?
             }
         } else {
             // Unknown operation type, execute directly
@@ -212,10 +233,189 @@ impl McpDispatcher {
             .map(PathBuf::from)
     }
 
+    /// Get the priority for an operation type
+    fn get_operation_priority(&self, op_type: &OperationType) -> u8 {
+        match op_type {
+            OperationType::Format => 10,      // Low priority - formatting can wait
+            OperationType::Write => 5,        // Medium priority - regular writes
+            OperationType::Delete => 3,       // High priority - deletions are urgent
+            OperationType::Rename => 2,       // High priority - renames affect multiple references
+            OperationType::Refactor => 1,     // Highest priority - refactoring operations are complex and should be prioritized
+            OperationType::Read => 5,         // Medium priority (though reads bypass the queue)
+        }
+    }
+
+    /// Check if a tool performs multi-file refactoring
+    fn is_multi_file_refactoring(&self, tool_name: &str) -> bool {
+        matches!(tool_name,
+            "rename_symbol" |
+            "organize_imports" |
+            "extract_function" |
+            "extract_variable" |
+            "inline_variable"
+        )
+    }
+
+    /// Handle refactoring operations with transaction support
+    async fn handle_refactoring_operation(
+        &self,
+        tool_call: &ToolCall,
+        handler: &ToolHandler,
+    ) -> ServerResult<Value> {
+        tracing::debug!("Handling multi-file refactoring operation: {}", tool_call.name);
+
+        // Execute the handler to get the WorkspaceEdit
+        let handler_result = handler(self.app_state.clone(), tool_call.arguments.clone().unwrap_or(json!({}))).await?;
+
+        // Check if this is a dry run
+        let is_dry_run = handler_result.get("dry_run")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
+        if is_dry_run {
+            // For dry runs, just return the workspace edit without applying
+            return Ok(handler_result);
+        }
+
+        // Extract the WorkspaceEdit from the handler result
+        let workspace_edit = handler_result.get("workspace_edit")
+            .ok_or_else(|| ServerError::runtime("No workspace_edit in refactoring result"))?;
+
+        // Parse the WorkspaceEdit to determine affected files
+        let affected_files = self.parse_workspace_edit(workspace_edit)?;
+
+        if affected_files.is_empty() {
+            tracing::debug!("No files affected by refactoring operation");
+            return Ok(handler_result);
+        }
+
+        tracing::debug!("Refactoring {} will affect {} files", tool_call.name, affected_files.len());
+
+        // Create a transaction for the refactoring operation
+        let mut transaction = OperationTransaction::new(self.app_state.operation_queue.clone());
+
+        // Create individual file operations for each affected file
+        let priority = self.get_operation_priority(&OperationType::Refactor);
+        for (file_path, file_edits) in affected_files {
+            let operation = FileOperation::new(
+                format!("{}_file_operation", tool_call.name),
+                OperationType::Refactor,
+                file_path,
+                json!({
+                    "edits": file_edits,
+                    "original_tool": tool_call.name.clone(),
+                }),
+            ).with_priority(priority);
+
+            transaction.add_operation(operation);
+        }
+
+        // Commit all operations atomically
+        let operation_ids = transaction.commit().await?;
+        tracing::debug!("Committed refactoring transaction with {} operations: {:?}", operation_ids.len(), operation_ids);
+
+        // Return the original workspace edit result
+        Ok(handler_result)
+    }
+
+    /// Analyze the impact of a refactoring operation to determine affected files
+    async fn analyze_refactoring_impact(
+        &self,
+        tool_name: &str,
+        args: &Option<Value>,
+    ) -> ServerResult<Vec<(PathBuf, Value)>> {
+        let default_args = json!({});
+        let args = args.as_ref().unwrap_or(&default_args);
+
+        match tool_name {
+            "rename_symbol" => {
+                // For rename symbol, we need to find all references
+                if let Some(file_path) = args.get("file_path").and_then(|v| v.as_str()) {
+                    // In a real implementation, we would use LSP to find all references
+                    // For now, simulate finding 2-3 affected files
+                    let base_path = PathBuf::from(file_path);
+                    let affected_files = vec![
+                        (base_path.clone(), args.clone()),
+                        (base_path.with_file_name("related_file1.ts"), args.clone()),
+                        (base_path.with_file_name("related_file2.ts"), args.clone()),
+                    ];
+                    Ok(affected_files)
+                } else {
+                    Ok(vec![])
+                }
+            }
+            "organize_imports" => {
+                // Organize imports might affect multiple files if it's a workspace-wide operation
+                if let Some(file_path) = args.get("file_path").and_then(|v| v.as_str()) {
+                    Ok(vec![(PathBuf::from(file_path), args.clone())])
+                } else {
+                    Ok(vec![])
+                }
+            }
+            "extract_function" | "extract_variable" | "inline_variable" => {
+                // These operations typically affect the current file and potentially callers
+                if let Some(file_path) = args.get("file_path").and_then(|v| v.as_str()) {
+                    let base_path = PathBuf::from(file_path);
+                    let affected_files = vec![
+                        (base_path.clone(), args.clone()),
+                        // In practice, we would analyze dependencies to find callers
+                    ];
+                    Ok(affected_files)
+                } else {
+                    Ok(vec![])
+                }
+            }
+            _ => {
+                tracing::warn!("Unknown refactoring operation: {}", tool_name);
+                Ok(vec![])
+            }
+        }
+    }
+
+    /// Parse a WorkspaceEdit to extract affected files and their edits
+    fn parse_workspace_edit(&self, workspace_edit: &Value) -> ServerResult<Vec<(PathBuf, Value)>> {
+        let mut affected_files = Vec::new();
+
+        // Check for 'changes' field (simple text edits per file)
+        if let Some(changes) = workspace_edit.get("changes").and_then(|v| v.as_object()) {
+            for (uri, edits) in changes {
+                // Convert URI to file path (remove "file://" prefix)
+                let file_path = if uri.starts_with("file://") {
+                    PathBuf::from(&uri[7..])
+                } else {
+                    PathBuf::from(uri)
+                };
+
+                affected_files.push((file_path, edits.clone()));
+            }
+        }
+
+        // Check for 'documentChanges' field (more complex edits with versioning)
+        if let Some(doc_changes) = workspace_edit.get("documentChanges").and_then(|v| v.as_array()) {
+            for change in doc_changes {
+                if let Some(text_doc_edit) = change.get("textDocument") {
+                    if let Some(uri) = text_doc_edit.get("uri").and_then(|v| v.as_str()) {
+                        let file_path = if uri.starts_with("file://") {
+                            PathBuf::from(&uri[7..])
+                        } else {
+                            PathBuf::from(uri)
+                        };
+
+                        if let Some(edits) = change.get("edits") {
+                            affected_files.push((file_path, edits.clone()));
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(affected_files)
+    }
+
     /// Process a queued operation
     async fn process_queued_operation(
         &self,
-        tool_name: &str,
+        _tool_name: &str,
         handler: &ToolHandler,
         args: Value,
     ) -> ServerResult<Value> {
