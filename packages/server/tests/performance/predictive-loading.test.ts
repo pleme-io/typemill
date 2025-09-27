@@ -167,7 +167,7 @@ export class UserManager {
 
     // Warm up LSP servers
     console.log('⏳ Warming up LSP servers...');
-    await fileService.getFoldingRanges(testMainFile);
+    await symbolService.getDocumentSymbols(testMainFile);
     console.log('✅ LSP servers ready');
   });
 

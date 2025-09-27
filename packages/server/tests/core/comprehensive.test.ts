@@ -381,53 +381,6 @@ export function useTempConstant() {
       expect(content).toMatch(/(outgoing|call|hierarchy|to)/i);
     });
 
-    it('should get type hierarchy supertypes', async () => {
-      const result = await client.callTool('get_type_hierarchy_supertypes', {
-        item: {
-          name: 'TestProcessor',
-          kind: 5,
-          uri: 'file:///workspace/examples/playground/src/test-file.ts',
-          range: {
-            start: { line: 17, character: 0 },
-            end: { line: 41, character: 1 },
-          },
-          selectionRange: {
-            start: { line: 17, character: 6 },
-            end: { line: 17, character: 19 },
-          },
-        },
-      });
-
-      expect(result).toBeDefined();
-
-      assertToolResult(result);
-      const content = result.content?.[0]?.text || '';
-      expect(content).toMatch(/(supertype|parent|hierarchy|extends)/i);
-    });
-
-    it('should get type hierarchy subtypes', async () => {
-      const result = await client.callTool('get_type_hierarchy_subtypes', {
-        item: {
-          name: 'TestProcessor',
-          kind: 5,
-          uri: 'file:///workspace/examples/playground/src/test-file.ts',
-          range: {
-            start: { line: 17, character: 0 },
-            end: { line: 41, character: 1 },
-          },
-          selectionRange: {
-            start: { line: 17, character: 6 },
-            end: { line: 17, character: 19 },
-          },
-        },
-      });
-
-      expect(result).toBeDefined();
-
-      assertToolResult(result);
-      const content = result.content?.[0]?.text || '';
-      expect(content).toMatch(/(subtype|child|hierarchy|implements)/i);
-    });
   });
 
   // Summary test
@@ -445,7 +398,7 @@ export function useTempConstant() {
     console.log(`❌ FAILED: ${failed.length}/${results.length}\n`);
 
     if (failed.length === 0) {
-      console.log('🎉 ALL 28 TOOLS VERIFIED WORKING! 🎉');
+      console.log('🎉 ALL 26 TOOLS VERIFIED WORKING! 🎉');
       console.log('Codebuddy is fully operational with complete LSP functionality.');
     } else {
       console.log(`⚠️  ${failed.length} tools still need attention:`);

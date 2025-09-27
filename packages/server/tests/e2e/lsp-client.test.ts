@@ -36,25 +36,7 @@ describe('LSP Client Unit Tests', () => {
 
     console.log('📁 Test file:', testFile);
 
-    // Test 1: Get folding ranges
-    console.log('\n🔍 Testing getFoldingRanges...');
-    const foldingRanges = await fileService.getFoldingRanges(testFile);
-    console.log(`✅ Folding ranges result: ${foldingRanges?.length || 0} ranges found`);
-    if (foldingRanges?.length > 0) {
-      console.log('   First range:', foldingRanges[0]);
-    }
-    expect(foldingRanges).toBeDefined();
-
-    // Test 2: Get document links
-    console.log('\n🔗 Testing getDocumentLinks...');
-    const docLinks = await fileService.getDocumentLinks(testFile);
-    console.log(`✅ Document links result: ${docLinks?.length || 0} links found`);
-    if (docLinks?.length > 0) {
-      console.log('   First link:', docLinks[0]);
-    }
-    expect(docLinks).toBeDefined();
-
-    // Test 3: Get document symbols
+    // Test 1: Get document symbols
     console.log('\n📋 Testing getDocumentSymbols...');
     const symbols = await symbolService.getDocumentSymbols(testFile);
     console.log(`✅ Document symbols result: ${symbols?.length || 0} symbols found`);
@@ -63,7 +45,7 @@ describe('LSP Client Unit Tests', () => {
     }
     expect(symbols).toBeDefined();
 
-    // Test 4: Get signature help (need a position in the file)
+    // Test 2: Get signature help (need a position in the file)
     console.log('\n✍️ Testing getSignatureHelp...');
     try {
       const sigHelp = await intelligenceService.getSignatureHelp(testFile, {
