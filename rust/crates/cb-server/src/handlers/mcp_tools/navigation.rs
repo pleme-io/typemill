@@ -257,3 +257,8 @@ mod tests {
         assert_eq!(parsed.include_declaration, Some(false));
     }
 }
+
+// Include integration tests
+#[cfg(test)]
+#[path = "navigation_tests.rs"]
+mod navigation_tests;

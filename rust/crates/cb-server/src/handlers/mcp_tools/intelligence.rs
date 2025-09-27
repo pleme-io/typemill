@@ -280,3 +280,8 @@ mod tests {
     }
 
 }
+
+// Include integration tests
+#[cfg(test)]
+#[path = "intelligence_tests.rs"]
+mod intelligence_tests;

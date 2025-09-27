@@ -193,6 +193,12 @@ impl Default for LspConfig {
                     root_dir: None,
                     restart_interval: Some(10),
                 },
+                LspServerConfig {
+                    extensions: vec!["rs".to_string()],
+                    command: vec!["rust-analyzer".to_string()],
+                    root_dir: None,
+                    restart_interval: Some(15),
+                },
             ],
             default_timeout_ms: 5000,
             enable_preload: true,

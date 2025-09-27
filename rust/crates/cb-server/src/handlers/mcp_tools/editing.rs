@@ -207,24 +207,8 @@ pub fn register_tools(dispatcher: &mut McpDispatcher) {
         }))
     });
 
-    // extract_function tool - Placeholder for future implementation
-    dispatcher.register_tool("extract_function".to_string(), |_app_state, args| async move {
-        tracing::debug!("Extract function requested (placeholder implementation)");
-
-        // For now, return a simple workspace edit
-        // In a real implementation, this would analyze the selection and create a new function
-        Ok(json!({
-            "workspace_edit": {
-                "changes": {}
-            },
-            "operation_type": "refactor",
-            "original_args": args,
-            "tool": "extract_function",
-            "message": "Extract function not yet fully implemented"
-        }))
-    });
-
     // extract_variable tool - Placeholder for future implementation
+    // TODO: Implement full AST-based extraction similar to extract_function
     dispatcher.register_tool("extract_variable".to_string(), |_app_state, args| async move {
         tracing::debug!("Extract variable requested (placeholder implementation)");
 
@@ -241,22 +225,8 @@ pub fn register_tools(dispatcher: &mut McpDispatcher) {
         }))
     });
 
-    // inline_variable tool - Placeholder for future implementation
-    dispatcher.register_tool("inline_variable".to_string(), |_app_state, args| async move {
-        tracing::debug!("Inline variable requested (placeholder implementation)");
-
-        // For now, return a simple workspace edit
-        // In a real implementation, this would find variable uses and inline them
-        Ok(json!({
-            "workspace_edit": {
-                "changes": {}
-            },
-            "operation_type": "refactor",
-            "original_args": args,
-            "tool": "inline_variable",
-            "message": "Inline variable not yet fully implemented"
-        }))
-    });
+    // Note: extract_function and inline_variable are implemented in refactoring.rs
+    // with full AST support. Removed duplicate placeholder implementations from here.
 
     // get_code_actions tool
     dispatcher.register_tool("get_code_actions".to_string(), |_app_state, args| async move {

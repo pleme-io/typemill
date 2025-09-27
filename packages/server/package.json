@@ -63,6 +63,8 @@
   ],
   "dependencies": {
     "@cocalc/fuse-native": "^2.4.3",
+    "@jscpd/core": "^4.0.1",
+    "@jscpd/finder": "^4.0.1",
     "@modelcontextprotocol/sdk": "^1.18.1",
     "@types/diff-match-patch": "^1.0.36",
     "@types/inquirer": "^9.0.9",
@@ -72,6 +74,7 @@
     "global-modules": "^2.0.0",
     "ignore": "^7.0.5",
     "inquirer": "^12.9.6",
+    "jscpd": "^4.0.5",
     "jsonwebtoken": "^9.0.2",
     "tree-kill": "^1.2.2",
     "which": "^4.0.0",

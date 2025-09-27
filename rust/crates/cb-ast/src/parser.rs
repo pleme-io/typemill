@@ -115,6 +115,7 @@ pub fn build_import_graph(source: &str, path: &Path) -> AstResult<ImportGraph> {
         Some("js") | Some("jsx") => "javascript",
         Some("py") => "python",
         Some("rs") => "rust",
+        Some("go") => "go",
         _ => "unknown",
     };
 
@@ -131,6 +132,7 @@ pub fn build_import_graph(source: &str, path: &Path) -> AstResult<ImportGraph> {
         },
         "python" => parse_python_imports(source)?,
         "rust" => parse_rust_imports(source)?,
+        "go" => parse_go_imports(source)?,
         _ => parse_imports_basic(source)?,
     };
 
@@ -858,6 +860,150 @@ fn parse_rust_imports(source: &str) -> AstResult<Vec<ImportInfo>> {
     Ok(imports)
 }
 
+/// Parse Go imports (enhanced implementation)
+fn parse_go_imports(source: &str) -> AstResult<Vec<ImportInfo>> {
+    let mut imports = Vec::new();
+    let lines: Vec<&str> = source.lines().collect();
+    let mut i = 0;
+
+    while i < lines.len() {
+        let line = lines[i].trim();
+
+        // Skip comments and empty lines
+        if line.starts_with("//") || line.starts_with("/*") || line.is_empty() {
+            i += 1;
+            continue;
+        }
+
+        // Handle single import: import "package"
+        if line.starts_with("import ") && line.contains('"') && !line.contains("(") {
+            if let Some(import_info) = parse_go_single_import(line, i as u32)? {
+                imports.push(import_info);
+            }
+            i += 1;
+        }
+        // Handle import blocks: import ( ... )
+        else if line.starts_with("import (") || line == "import (" {
+            i += 1; // Move past the opening line
+
+            // Parse the block contents
+            while i < lines.len() {
+                let block_line = lines[i].trim();
+
+                // End of import block
+                if block_line == ")" || block_line.starts_with(")") {
+                    i += 1;
+                    break;
+                }
+
+                // Parse import line within block
+                if block_line.contains('"') && !block_line.is_empty() {
+                    if let Some(import_info) = parse_go_block_import(block_line, i as u32)? {
+                        imports.push(import_info);
+                    }
+                }
+
+                i += 1;
+            }
+        }
+        else {
+            i += 1;
+        }
+    }
+
+    Ok(imports)
+}
+
+/// Parse a single Go import statement
+fn parse_go_single_import(line: &str, line_num: u32) -> AstResult<Option<ImportInfo>> {
+    // import "package" or import alias "package"
+    let import_part = &line[6..]; // Skip "import"
+    let import_part = import_part.trim();
+
+    if let Some(start_quote) = import_part.find('"') {
+        if let Some(end_quote) = import_part[start_quote + 1..].find('"') {
+            let package_path = &import_part[start_quote + 1..start_quote + 1 + end_quote];
+
+            // Check for alias
+            let alias = if start_quote > 0 {
+                let alias_part = import_part[..start_quote].trim();
+                if alias_part == "." {
+                    Some(".".to_string()) // Dot import
+                } else if alias_part == "_" {
+                    Some("_".to_string()) // Blank import
+                } else if !alias_part.is_empty() {
+                    Some(alias_part.to_string())
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            return Ok(Some(ImportInfo {
+                module_path: package_path.to_string(),
+                import_type: ImportType::EsModule, // Go doesn't distinguish like JS
+                named_imports: Vec::new(),
+                default_import: alias.clone(),
+                namespace_import: if alias.is_some() { None } else { Some(package_path.split('/').last().unwrap_or(package_path).to_string()) },
+                type_only: false,
+                location: SourceLocation {
+                    start_line: line_num,
+                    start_column: 0,
+                    end_line: line_num,
+                    end_column: line.len() as u32,
+                },
+            }));
+        }
+    }
+
+    Ok(None)
+}
+
+/// Parse Go import from within an import block
+fn parse_go_block_import(line: &str, line_num: u32) -> AstResult<Option<ImportInfo>> {
+    let line = line.trim();
+
+    if let Some(start_quote) = line.find('"') {
+        if let Some(end_quote) = line[start_quote + 1..].find('"') {
+            let package_path = &line[start_quote + 1..start_quote + 1 + end_quote];
+
+            // Check for alias before the quote
+            let alias = if start_quote > 0 {
+                let alias_part = line[..start_quote].trim();
+                if alias_part == "." {
+                    Some(".".to_string()) // Dot import
+                } else if alias_part == "_" {
+                    Some("_".to_string()) // Blank import
+                } else if !alias_part.is_empty() {
+                    Some(alias_part.to_string())
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            return Ok(Some(ImportInfo {
+                module_path: package_path.to_string(),
+                import_type: ImportType::EsModule,
+                named_imports: Vec::new(),
+                default_import: alias.clone(),
+                namespace_import: if alias.is_some() { None } else { Some(package_path.split('/').last().unwrap_or(package_path).to_string()) },
+                type_only: false,
+                location: SourceLocation {
+                    start_line: line_num,
+                    start_column: 0,
+                    end_line: line_num,
+                    end_column: line.len() as u32,
+                },
+            }));
+        }
+    }
+
+    Ok(None)
+}
+
 /// Check if a module path represents an external dependency
 fn is_external_dependency(module_path: &str) -> bool {
     // Check for relative imports
@@ -1299,5 +1445,68 @@ require('dotenv/config');
         assert_eq!(imports[3].name, "Button");
         assert_eq!(imports[3].alias, Some("CustomButton".to_string()));
         assert!(!imports[3].type_only);
+    }
+
+    #[test]
+    fn test_parse_go_imports() {
+        let source = r#"package main
+
+import "fmt"
+import alias "github.com/user/repo"
+import (
+    "os"
+    "path/filepath"
+    . "net/http"
+    _ "database/sql/driver"
+    json "encoding/json"
+    "github.com/external/lib"
+)
+
+func main() {
+    fmt.Println("Hello")
+}"#;
+
+        let imports = parse_go_imports(source).unwrap();
+
+        println!("Found {} imports:", imports.len());
+        for (i, import) in imports.iter().enumerate() {
+            println!("  {}: {} -> {:?}", i, import.module_path, import.default_import);
+        }
+
+        assert_eq!(imports.len(), 8);
+
+        // Test simple import
+        assert_eq!(imports[0].module_path, "fmt");
+        assert_eq!(imports[0].namespace_import, Some("fmt".to_string()));
+        assert_eq!(imports[0].default_import, None);
+
+        // Test aliased import
+        assert_eq!(imports[1].module_path, "github.com/user/repo");
+        assert_eq!(imports[1].default_import, Some("alias".to_string()));
+        assert_eq!(imports[1].namespace_import, None);
+
+        // Test block imports
+        assert_eq!(imports[2].module_path, "os");
+        assert_eq!(imports[2].namespace_import, Some("os".to_string()));
+
+        assert_eq!(imports[3].module_path, "path/filepath");
+        assert_eq!(imports[3].namespace_import, Some("filepath".to_string()));
+
+        // Test dot import
+        assert_eq!(imports[4].module_path, "net/http");
+        assert_eq!(imports[4].default_import, Some(".".to_string()));
+
+        // Test blank import
+        assert_eq!(imports[5].module_path, "database/sql/driver");
+        assert_eq!(imports[5].default_import, Some("_".to_string()));
+
+        // Test aliased block import
+        assert_eq!(imports[6].module_path, "encoding/json");
+        assert_eq!(imports[6].default_import, Some("json".to_string()));
+
+        // Test final block import
+        assert_eq!(imports[7].module_path, "github.com/external/lib");
+        assert_eq!(imports[7].namespace_import, Some("lib".to_string()));
+        assert_eq!(imports[7].default_import, None);
     }
 }
