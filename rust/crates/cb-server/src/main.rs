@@ -58,20 +58,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create MCP dispatcher with app state
     let mut dispatcher = McpDispatcher::new(app_state);
 
-    // Register filesystem tools
-    cb_server::handlers::mcp_tools::filesystem::register_tools(&mut dispatcher);
-
-    // Register navigation tools
-    cb_server::handlers::mcp_tools::navigation::register_tools(&mut dispatcher);
-
-    // Register editing tools
-    cb_server::handlers::mcp_tools::editing::register_tools(&mut dispatcher);
-
-    // Register intelligence tools
-    cb_server::handlers::mcp_tools::intelligence::register_tools(&mut dispatcher);
-
-    // Register analysis tools
-    cb_server::handlers::mcp_tools::analysis::register_tools(&mut dispatcher);
+    // Register all MCP tools
+    cb_server::handlers::register_all_tools(&mut dispatcher);
 
     let dispatcher = Arc::new(dispatcher);
 
