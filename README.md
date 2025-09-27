@@ -1,9 +1,9 @@
 # 🤖 codeflow-buddy
-**Enterprise-grade MCP server** bridging Language Server Protocol functionality to AI coding assistants with **28 MCP tools** and **WebSocket deployment**
+**Enterprise-grade MCP server** bridging Language Server Protocol functionality to AI coding assistants with **31 MCP tools** and **WebSocket deployment**
 
 ## ✨ What It Does
 
-**28 MCP tools** that give AI assistants LSP superpowers:
+**31 MCP tools** that give AI assistants LSP superpowers:
 - **Find & Navigate** - Jump to definitions, find all references, search symbols
 - **Refactor Safely** - Rename across entire codebase, with undo safety
 - **Code Intelligence** - Hover docs, completions, diagnostics, call hierarchies
@@ -16,30 +16,27 @@
 
 ### Traditional MCP Server
 ```bash
-# Install globally (provides `codeflow-buddy` command)
-npm install -g @goobits/codeflow-buddy
+# Clone and build (package not yet published to npm)
+# git clone <repository-url>
+# cd codeflow-buddy &&
+bun install && bun run build
 
-# Smart setup with auto-detection
-codeflow-buddy setup
-
-# Check status of language servers
-codeflow-buddy status
-
-# Start the MCP server for Claude Code
-codeflow-buddy start
+# Use node to run commands directly
+node packages/server/dist/index.js setup
+node packages/server/dist/index.js status
+node packages/server/dist/index.js start
 ```
 
 ### WebSocket Server (Optional)
 ```bash
-# Clone and build
-git clone https://github.com/goobits/codeflow-buddy
-cd codeflow-buddy && bun install && bun run build
+# From the cloned repository
+bun run build
 
 # Start basic WebSocket server
-node dist/index.js serve --port 3000
+node packages/server/dist/index.js serve --port 3000
 
 # With authentication (requires 32+ character secret)
-node dist/index.js serve --require-auth --jwt-secret "your-32-character-secret-key-here"
+node packages/server/dist/index.js serve --require-auth --jwt-secret "your-32-character-secret-key-here"
 ```
 
 ## 📚 MCP Integration
@@ -48,7 +45,8 @@ node dist/index.js serve --require-auth --jwt-secret "your-32-character-secret-k
 {
   "mcpServers": {
     "codeflow-buddy": {
-      "command": "codeflow-buddy",
+      "command": "node",
+      "args": ["/path/to/codeflow-buddy/packages/server/dist/index.js", "start"],
       "cwd": "/path/to/your/project"
     }
   }
@@ -132,8 +130,7 @@ FUSE (Filesystem in Userspace) enables mounting remote filesystems locally, allo
 # Automatic setup script
 ./packages/server/scripts/setup-fuse.sh
 
-# Or use the interactive CLI
-node dist/cli/fuse-setup.js
+# Interactive setup not currently available
 ```
 
 #### Linux Setup
@@ -183,10 +180,10 @@ node dist/index.js serve --fuse-mount-path /tmp/codeflow-mount
 - **Both**: Run `npm rebuild @cocalc/fuse-native` after installing FUSE
 
 ## 📖 Documentation
-- **[Quick Start Guide](docs/quick-start.md)** - Get running in 2 minutes
-- **[MCP Tools Reference](docs/api.md)** - All 28 tools with examples
-- **[Language Setup](docs/languages.md)** - TypeScript, Python, Go, and more
-- **[Troubleshooting](docs/troubleshooting.md)** - Common issues and solutions
+- **[Quick Start Guide](packages/server/docs/quick-start.md)** - Get running in 2 minutes
+- **[MCP Tools Reference](packages/server/docs/api.md)** - All 31 tools with examples
+- **[Language Setup](packages/server/docs/languages.md)** - TypeScript, Python, Go, and more
+- **[Troubleshooting](packages/server/docs/troubleshooting.md)** - Common issues and solutions
 
 ## 🔗 Related Projects
 - **[Model Context Protocol](https://github.com/modelcontextprotocol/servers)** - Protocol specification and ecosystem
@@ -205,7 +202,7 @@ node dist/index.js serve --port 3000                    # Basic server
 node dist/index.js serve --require-auth --jwt-secret KEY # With auth
 docker-compose up -d                                     # Full stack
 
-# Testing
+# Testing (from packages/server/)
 bun run test:fast     # Fast mode with optimizations
 bun run test          # Full test suite
 bun run test:comprehensive # All MCP tools test
@@ -224,8 +221,8 @@ bun run build
 MIT - see [LICENSE](LICENSE) for details
 
 ## 💡 Support
-- **[GitHub Issues](https://github.com/goobits/codeflow-buddy/issues)** - Bug reports and feature requests
-- **[Discussions](https://github.com/goobits/codeflow-buddy/discussions)** - Questions and community support
+- Bug reports and feature requests (repository to be published)
+- Questions and community support (repository to be published)
 
 ---
 
