@@ -1,11 +1,14 @@
 //! Filesystem MCP tools (create_file, delete_file, rename_file, etc.)
 
+mod dependency_handlers;
+
 use crate::handlers::McpDispatcher;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::path::Path;
 use tokio::fs;
 use ignore::WalkBuilder;
+use dependency_handlers::{UpdateDependenciesArgs, handle_update_dependencies};
 
 /// Arguments for create_file tool
 #[derive(Debug, Deserialize)]
@@ -33,19 +36,6 @@ struct RenameFileArgs {
     dry_run: Option<bool>,
 }
 
-/// Arguments for update_package_json tool
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "snake_case")]
-struct UpdatePackageJsonArgs {
-    file_path: Option<String>,
-    add_dependencies: Option<serde_json::Map<String, Value>>,
-    add_dev_dependencies: Option<serde_json::Map<String, Value>>,
-    add_scripts: Option<serde_json::Map<String, Value>>,
-    remove_dependencies: Option<Vec<String>>,
-    remove_scripts: Option<Vec<String>>,
-    update_version: Option<String>,
-    dry_run: Option<bool>,
-}
 
 /// Arguments for read_file tool
 #[derive(Debug, Deserialize)]
@@ -327,52 +317,22 @@ pub fn register_tools(dispatcher: &mut McpDispatcher) {
         }
     });
 
-    // update_package_json tool
-    dispatcher.register_tool("update_package_json".to_string(), |_app_state, args| async move {
-        let params: UpdatePackageJsonArgs = serde_json::from_value(args)
+    // update_dependencies tool - unified dependency management across languages
+    dispatcher.register_tool("update_dependencies".to_string(), |_app_state, args| async move {
+        let params: UpdateDependenciesArgs = serde_json::from_value(args)
             .map_err(|e| crate::error::ServerError::InvalidRequest(format!("Invalid args: {}", e)))?;
 
-        let file_path = params.file_path.unwrap_or_else(|| "./package.json".to_string());
-        let is_dry_run = params.dry_run.unwrap_or(false);
+        tracing::debug!("Updating dependencies: {}", params.file_path);
 
-        tracing::debug!("Updating package.json: {}", file_path);
-
-        let mut changes = vec![];
-
-        if let Some(deps) = params.add_dependencies {
-            for (name, version) in deps {
-                changes.push(format!("Add dependency: {} @ {}", name, version));
+        match handle_update_dependencies(params).await {
+            Ok(result) => {
+                Ok(serde_json::to_value(result)?)
+            }
+            Err(e) => {
+                tracing::error!("Failed to update dependencies: {}", e);
+                Err(crate::error::ServerError::Internal(e.to_string()))
             }
         }
-
-        if let Some(dev_deps) = params.add_dev_dependencies {
-            for (name, version) in dev_deps {
-                changes.push(format!("Add dev dependency: {} @ {}", name, version));
-            }
-        }
-
-        if let Some(scripts) = params.add_scripts {
-            for (name, command) in scripts {
-                changes.push(format!("Add script: {} = {}", name, command));
-            }
-        }
-
-        if let Some(remove) = params.remove_dependencies {
-            for name in remove {
-                changes.push(format!("Remove dependency: {}", name));
-            }
-        }
-
-        if let Some(version) = params.update_version {
-            changes.push(format!("Update version to: {}", version));
-        }
-
-        Ok(json!({
-            "success": !is_dry_run,
-            "file": file_path,
-            "changes": changes,
-            "dryRun": is_dry_run
-        }))
     });
 
     // health_check tool

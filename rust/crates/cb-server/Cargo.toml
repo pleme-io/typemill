@@ -13,6 +13,7 @@ async-trait = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+anyhow = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 chrono = { version = "0.4", features = ["serde"] }
@@ -27,6 +28,7 @@ lsp-types = "0.94"
 uuid = { version = "1.0", features = ["v4"] }
 ignore = "0.4"
 clap = { version = "4.0", features = ["derive"] }
+toml_edit = "0.20"
 # FUSE filesystem
 fuser = "0.14"
 libc = "0.2"
