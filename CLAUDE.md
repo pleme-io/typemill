@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Package**: `@goobits/codeflow-buddy` | **Command**: `codeflow-buddy` | **Runtime**: Bun/Node.js
 
-MCP server bridging Language Server Protocol (LSP) functionality to AI coding assistants with 26 MCP tools for navigation, refactoring, code intelligence, and batch operations.
+MCP server bridging Language Server Protocol (LSP) functionality to AI coding assistants with 25 MCP tools for navigation, refactoring, code intelligence, and batch operations.
 
 ## Development Commands
 

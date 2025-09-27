@@ -53,37 +53,6 @@ export const intelligenceToolDefinitions = [
     },
   },
   {
-    name: 'get_inlay_hints',
-    description:
-      'Get inlay hints for a range of code. Shows parameter names, type annotations, and other helpful inline information.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        file_path: {
-          type: 'string',
-          description: 'The path to the file',
-        },
-        start_line: {
-          type: 'number',
-          description: 'The start line number (1-indexed)',
-        },
-        start_character: {
-          type: 'number',
-          description: 'The start character position (0-indexed)',
-        },
-        end_line: {
-          type: 'number',
-          description: 'The end line number (1-indexed)',
-        },
-        end_character: {
-          type: 'number',
-          description: 'The end character position (0-indexed)',
-        },
-      },
-      required: ['file_path', 'start_line', 'start_character', 'end_line', 'end_character'],
-    },
-  },
-  {
     name: 'get_signature_help',
     description:
       'Get function signature help at a specific position. Shows function signatures, parameter information, and documentation for the function being called. Critical for AI agents when generating function calls with correct parameters.',

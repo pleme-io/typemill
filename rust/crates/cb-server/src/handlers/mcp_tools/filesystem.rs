@@ -91,6 +91,44 @@ struct ImportChange {
     new_import: String,
 }
 
+/// Arguments for update_package_json tool
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+struct UpdatePackageJsonArgs {
+    file_path: Option<String>,
+    add_dependencies: Option<std::collections::HashMap<String, String>>,
+    add_dev_dependencies: Option<std::collections::HashMap<String, String>>,
+    add_scripts: Option<std::collections::HashMap<String, String>>,
+    remove_dependencies: Option<Vec<String>>,
+    remove_scripts: Option<Vec<String>>,
+    update_version: Option<String>,
+    workspace_config: Option<WorkspaceConfig>,
+    dry_run: Option<bool>,
+}
+
+/// Workspace configuration
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+struct WorkspaceConfig {
+    workspaces: Option<Vec<String>>,
+}
+
+/// Package.json update result
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdatePackageJsonResult {
+    success: bool,
+    file_path: String,
+    changes_made: Vec<String>,
+    dependencies_added: usize,
+    dev_dependencies_added: usize,
+    scripts_added: usize,
+    items_removed: usize,
+    version_updated: bool,
+    dry_run: bool,
+    preview: Option<serde_json::Value>,
+}
+
 /// Register filesystem tools
 pub fn register_tools(dispatcher: &mut McpDispatcher) {
     eprintln!("DEBUG: Registering filesystem tools including rename_file");
@@ -367,6 +405,164 @@ pub fn register_tools(dispatcher: &mut McpDispatcher) {
         }
 
         Ok(health)
+    });
+
+    // update_package_json tool
+    dispatcher.register_tool("update_package_json".to_string(), |_app_state, args| async move {
+        let params: UpdatePackageJsonArgs = serde_json::from_value(args)
+            .map_err(|e| crate::error::ServerError::InvalidRequest(format!("Invalid args: {}", e)))?;
+
+        let file_path = params.file_path.unwrap_or_else(|| "./package.json".to_string());
+        let is_dry_run = params.dry_run.unwrap_or(false);
+
+        tracing::debug!("Updating package.json at: {} (dry_run: {})", file_path, is_dry_run);
+
+        // Read existing package.json
+        let existing_content = match tokio::fs::read_to_string(&file_path).await {
+            Ok(content) => content,
+            Err(e) => {
+                return Err(crate::error::ServerError::runtime(format!("Failed to read package.json: {}", e)));
+            }
+        };
+
+        // Parse existing JSON
+        let mut package_json: serde_json::Value = match serde_json::from_str(&existing_content) {
+            Ok(json) => json,
+            Err(e) => {
+                return Err(crate::error::ServerError::runtime(format!("Failed to parse package.json: {}", e)));
+            }
+        };
+
+        let mut changes_made = Vec::new();
+        let mut dependencies_added = 0;
+        let mut dev_dependencies_added = 0;
+        let mut scripts_added = 0;
+        let mut items_removed = 0;
+        let mut version_updated = false;
+
+        // Add dependencies
+        if let Some(deps) = params.add_dependencies {
+            if !package_json.get("dependencies").is_some() {
+                package_json["dependencies"] = json!({});
+            }
+
+            if let Some(dependencies) = package_json["dependencies"].as_object_mut() {
+                for (name, version) in deps {
+                    dependencies.insert(name.clone(), json!(version));
+                    dependencies_added += 1;
+                    changes_made.push(format!("Added dependency: {}@{}", name, version));
+                }
+            }
+        }
+
+        // Add dev dependencies
+        if let Some(dev_deps) = params.add_dev_dependencies {
+            if !package_json.get("devDependencies").is_some() {
+                package_json["devDependencies"] = json!({});
+            }
+
+            if let Some(dev_dependencies) = package_json["devDependencies"].as_object_mut() {
+                for (name, version) in dev_deps {
+                    dev_dependencies.insert(name.clone(), json!(version));
+                    dev_dependencies_added += 1;
+                    changes_made.push(format!("Added dev dependency: {}@{}", name, version));
+                }
+            }
+        }
+
+        // Add scripts
+        if let Some(scripts) = params.add_scripts {
+            if !package_json.get("scripts").is_some() {
+                package_json["scripts"] = json!({});
+            }
+
+            if let Some(package_scripts) = package_json["scripts"].as_object_mut() {
+                for (name, command) in scripts {
+                    package_scripts.insert(name.clone(), json!(command));
+                    scripts_added += 1;
+                    changes_made.push(format!("Added script: {} -> {}", name, command));
+                }
+            }
+        }
+
+        // Remove dependencies
+        if let Some(deps_to_remove) = params.remove_dependencies {
+            for dep_name in deps_to_remove {
+                // Remove from both dependencies and devDependencies
+                if let Some(dependencies) = package_json["dependencies"].as_object_mut() {
+                    if dependencies.remove(&dep_name).is_some() {
+                        items_removed += 1;
+                        changes_made.push(format!("Removed dependency: {}", dep_name));
+                    }
+                }
+
+                if let Some(dev_dependencies) = package_json["devDependencies"].as_object_mut() {
+                    if dev_dependencies.remove(&dep_name).is_some() {
+                        items_removed += 1;
+                        changes_made.push(format!("Removed dev dependency: {}", dep_name));
+                    }
+                }
+            }
+        }
+
+        // Remove scripts
+        if let Some(scripts_to_remove) = params.remove_scripts {
+            if let Some(package_scripts) = package_json["scripts"].as_object_mut() {
+                for script_name in scripts_to_remove {
+                    if package_scripts.remove(&script_name).is_some() {
+                        items_removed += 1;
+                        changes_made.push(format!("Removed script: {}", script_name));
+                    }
+                }
+            }
+        }
+
+        // Update version
+        if let Some(new_version) = params.update_version {
+            package_json["version"] = json!(new_version.clone());
+            version_updated = true;
+            changes_made.push(format!("Updated version to: {}", new_version));
+        }
+
+        // Update workspace config
+        if let Some(workspace_config) = params.workspace_config {
+            if let Some(workspaces) = workspace_config.workspaces {
+                package_json["workspaces"] = json!(workspaces);
+                changes_made.push("Updated workspace configuration".to_string());
+            }
+        }
+
+        let result = UpdatePackageJsonResult {
+            success: true,
+            file_path: file_path.clone(),
+            changes_made: changes_made.clone(),
+            dependencies_added,
+            dev_dependencies_added,
+            scripts_added,
+            items_removed,
+            version_updated,
+            dry_run: is_dry_run,
+            preview: if is_dry_run { Some(package_json.clone()) } else { None },
+        };
+
+        if is_dry_run {
+            tracing::debug!("Dry run mode - changes preview generated");
+            return Ok(serde_json::to_value(result)?);
+        }
+
+        // Write updated package.json
+        let updated_content = serde_json::to_string_pretty(&package_json)
+            .map_err(|e| crate::error::ServerError::runtime(format!("Failed to serialize package.json: {}", e)))?;
+
+        match tokio::fs::write(&file_path, updated_content).await {
+            Ok(_) => {
+                tracing::info!("Successfully updated package.json with {} changes", changes_made.len());
+                Ok(serde_json::to_value(result)?)
+            }
+            Err(e) => {
+                Err(crate::error::ServerError::runtime(format!("Failed to write package.json: {}", e)))
+            }
+        }
     });
 }
 

@@ -44,8 +44,6 @@ export function main() {
         })
     ).expect("rename_file should succeed");
 
-    // Debug: Print the rename response
-    eprintln!("Rename response: {:?}", rename_response);
 
     // Verify the rename succeeded
     assert!(rename_response["error"].is_null(), "Rename should not error");
@@ -58,15 +56,11 @@ export function main() {
         })
     ).expect("read_file should succeed");
 
-    // Debug: Print the read response
-    eprintln!("Read response: {:?}", read_response);
 
     let content = read_response["result"]["content"]["content"]["content"]
         .as_str()
         .expect("Should have file content");
 
-    // Debug: Print the content
-    eprintln!("Main.ts content after rename:\n{}", content);
 
     assert!(
         content.contains("from './renamed_utils'"),

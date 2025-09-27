@@ -141,65 +141,6 @@ export async function handleGetCompletions(
   }
 }
 
-// Handler for get_inlay_hints tool
-export async function handleGetInlayHints(
-  intelligenceService: IntelligenceService,
-  args: {
-    file_path: string;
-    start_line: number;
-    start_character: number;
-    end_line: number;
-    end_character: number;
-  }
-) {
-  const { file_path, start_line, start_character, end_line, end_character } = args;
-  const absolutePath = resolve(file_path);
-
-  try {
-    const hints = await intelligenceService.getInlayHints(absolutePath, {
-      start: toLSPPosition({ line: start_line, character: start_character }),
-      end: toLSPPosition({ line: end_line, character: end_character }),
-    });
-
-    if (hints.length === 0) {
-      return createNoResultsResponse(
-        'inlay hints',
-        `range ${start_line}:${start_character} - ${end_line}:${end_character} in ${file_path}`
-      );
-    }
-
-    const hintItems = hints.map((hint, index) => {
-      const position = formatHumanPosition(toHumanPosition(hint.position), 'short');
-      const label = Array.isArray(hint.label)
-        ? hint.label.map((part) => part.value).join('')
-        : hint.label;
-      const kindName = hint.kind === 1 ? 'Type' : hint.kind === 2 ? 'Parameter' : 'Other';
-      const tooltip = hint.tooltip
-        ? ` (tooltip: ${typeof hint.tooltip === 'string' ? hint.tooltip : hint.tooltip.value})`
-        : '';
-
-      return `${index + 1}. **${label}** at ${position} (${kindName})${tooltip}`;
-    });
-
-    const title = `Inlay Hints for ${file_path} (${start_line}:${start_character} - ${end_line}:${end_character})`;
-    return createListResponse(title, hintItems, {
-      singular: 'hint',
-      plural: 'hints',
-      showTotal: true,
-    });
-  } catch (error) {
-    return createContextualErrorResponse(error, {
-      operation: 'get inlay hints',
-      filePath: file_path,
-      suggestions: [
-        'Ensure the language server supports inlay hints',
-        'Check that the range is valid',
-        'Try a smaller range',
-      ],
-    });
-  }
-}
-
 // Helper function to get completion kind name
 function getCompletionKindName(kind?: number): string {
   const kindMap: Record<number, string> = {
@@ -357,7 +298,6 @@ registerTools(
   {
     get_hover: { handler: handleGetHover, requiresService: 'intelligence' },
     get_completions: { handler: handleGetCompletions, requiresService: 'intelligence' },
-    get_inlay_hints: { handler: handleGetInlayHints, requiresService: 'intelligence' },
     get_signature_help: { handler: handleGetSignatureHelp, requiresService: 'intelligence' },
   },
   'intelligence-handlers'

@@ -182,7 +182,7 @@ node dist/index.js serve --fuse-mount-path /tmp/codeflow-mount
 
 ## 📖 Documentation
 - **[Quick Start Guide](docs/quick-start.md)** - Get running in 2 minutes
-- **[MCP Tools Reference](docs/api.md)** - All 26 tools with examples
+- **[MCP Tools Reference](docs/api.md)** - All 25 tools with examples
 - **[Language Setup](docs/languages.md)** - TypeScript, Python, Go, and more
 - **[Troubleshooting](docs/troubleshooting.md)** - Common issues and solutions
 

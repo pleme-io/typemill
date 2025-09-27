@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-All 26 MCP tools with practical examples for AI assistants.
+All 25 MCP tools with practical examples for AI assistants.
 
 ## Core Navigation & Analysis
 
@@ -290,16 +290,6 @@ Get code completion suggestions at a specific position in a file.
 - `line`: The line number (1-indexed) 
 - `character`: The character position in the line (0-indexed)
 
-### `get_inlay_hints`
-
-Get inlay hints (parameter names, type annotations) for a range in a file.
-
-**Parameters:**
-- `file_path`: The path to the file
-- `start_line`: Start line number (1-indexed)
-- `start_character`: Start character position (0-indexed)
-- `end_line`: End line number (1-indexed)  
-- `end_character`: End character position (0-indexed)
 
 ### `get_signature_help`
 

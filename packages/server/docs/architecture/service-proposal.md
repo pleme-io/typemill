@@ -100,7 +100,7 @@ class StreamingFileAccess {
 - ✅ Multiple clients can connect
 - ✅ Each project gets its own LSP server
 - ✅ Files stream correctly
-- ✅ All 26 MCP tools work
+- ✅ All 25 MCP tools work
 
 ### Phase 2: "Make it Right" (Week 2)
 **Goal**: Add robustness and production readiness.
@@ -206,7 +206,7 @@ codeflow-buddy/
 - [ ] 3 clients connect simultaneously
 - [ ] Each gets separate LSP server for different projects
 - [ ] File streaming works bidirectionally
-- [ ] All 26 MCP tools function correctly
+- [ ] All 25 MCP tools function correctly
 
 ### Phase 2 Validation
 - [ ] Reconnection after network drop

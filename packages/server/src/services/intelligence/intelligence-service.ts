@@ -2,8 +2,6 @@ import { pathToUri } from '../../core/file-operations/path-utils.js';
 import type {
   CompletionItem,
   Hover,
-  InlayHint,
-  InlayHintParams,
   Position,
   SemanticTokens,
   SemanticTokensParams,
@@ -160,31 +158,6 @@ export class IntelligenceService {
       : null;
   }
 
-  /**
-   * Get inlay hints for range
-   */
-  async getInlayHints(
-    filePath: string,
-    range: { start: Position; end: Position }
-  ): Promise<InlayHint[]> {
-    const serverState = await this.context.prepareFile(filePath);
-    if (!serverState) {
-      throw new Error('No LSP server available for this file type');
-    }
-
-    const inlayHintParams: InlayHintParams = {
-      textDocument: { uri: `file://${filePath}` },
-      range,
-    };
-
-    const response = await this.context.protocol.sendRequest(
-      serverState.process,
-      'textDocument/inlayHint',
-      inlayHintParams
-    );
-
-    return Array.isArray(response) ? response : [];
-  }
 
   // ensureFileOpen() and getLanguageId() methods removed - provided by ServiceContext
   // This eliminates ~45 lines of duplicated code from this service

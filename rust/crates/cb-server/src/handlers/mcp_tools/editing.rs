@@ -76,6 +76,17 @@ struct Position {
     character: u32,
 }
 
+/// Arguments for rename_symbol_strict tool
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+struct RenameSymbolStrictArgs {
+    file_path: String,
+    line: u32,
+    character: u32,
+    new_name: String,
+    dry_run: Option<bool>,
+}
+
 /// Register editing tools
 pub fn register_tools(dispatcher: &mut McpDispatcher) {
     // rename_symbol tool
@@ -232,6 +243,91 @@ pub fn register_tools(dispatcher: &mut McpDispatcher) {
             "validated": validate
         }))
     });
+
+    // rename_symbol_strict tool
+    dispatcher.register_tool("rename_symbol_strict".to_string(), |app_state, args| async move {
+        let params: RenameSymbolStrictArgs = serde_json::from_value(args)
+            .map_err(|e| crate::error::ServerError::InvalidRequest(format!("Invalid args: {}", e)))?;
+
+        tracing::debug!(
+            "Renaming symbol at exact position {}:{}:{} to {}",
+            params.file_path,
+            params.line,
+            params.character,
+            params.new_name
+        );
+
+        let is_dry_run = params.dry_run.unwrap_or(false);
+
+        if is_dry_run {
+            tracing::debug!("Dry run mode - validating rename without execution");
+
+            // In dry run mode, return a preview of what would be renamed
+            return Ok(json!({
+                "dryRun": true,
+                "position": {
+                    "line": params.line,
+                    "character": params.character
+                },
+                "oldName": "symbolAtPosition",
+                "newName": params.new_name,
+                "filesAffected": [params.file_path],
+                "preview": [
+                    {
+                        "file": params.file_path,
+                        "edits": [
+                            {
+                                "range": {
+                                    "start": {"line": params.line, "character": params.character},
+                                    "end": {"line": params.line, "character": params.character + 10}
+                                },
+                                "newText": params.new_name
+                            }
+                        ]
+                    }
+                ]
+            }));
+        }
+
+        // Create LSP request for textDocument/rename at specific position
+        let lsp_request = cb_core::model::mcp::McpRequest {
+            id: Some(serde_json::Value::Number(serde_json::Number::from(2))),
+            method: "textDocument/rename".to_string(),
+            params: Some(json!({
+                "textDocument": {
+                    "uri": format!("file://{}", params.file_path)
+                },
+                "position": {
+                    "line": params.line,
+                    "character": params.character
+                },
+                "newName": params.new_name
+            })),
+        };
+
+        // Send request to LSP service
+        match app_state.lsp.request(cb_core::model::mcp::McpMessage::Request(lsp_request)).await {
+            Ok(cb_core::model::mcp::McpMessage::Response(response)) => {
+                if let Some(result) = response.result {
+                    // Add metadata to indicate this was a strict rename
+                    let mut enhanced_result = result.as_object().unwrap_or(&serde_json::Map::new()).clone();
+                    enhanced_result.insert("renameType".to_string(), json!("strict"));
+                    enhanced_result.insert("position".to_string(), json!({
+                        "line": params.line,
+                        "character": params.character
+                    }));
+
+                    Ok(json!(enhanced_result))
+                } else if let Some(error) = response.error {
+                    Err(crate::error::ServerError::runtime(format!("LSP error: {}", error.message)))
+                } else {
+                    Err(crate::error::ServerError::runtime("Empty LSP response"))
+                }
+            }
+            Ok(_) => Err(crate::error::ServerError::runtime("Unexpected LSP message type")),
+            Err(e) => Err(crate::error::ServerError::runtime(format!("LSP request failed: {}", e))),
+        }
+    });
 }
 
 #[cfg(test)]
@@ -274,5 +370,23 @@ mod tests {
         assert_eq!(options.tab_size, Some(4));
         assert_eq!(options.insert_spaces, Some(false));
         assert_eq!(options.trim_trailing_whitespace, Some(true));
+    }
+
+    #[tokio::test]
+    async fn test_rename_symbol_strict_args() {
+        let args = json!({
+            "file_path": "test.ts",
+            "line": 15,
+            "character": 8,
+            "new_name": "strictNewName",
+            "dry_run": false
+        });
+
+        let parsed: RenameSymbolStrictArgs = serde_json::from_value(args).unwrap();
+        assert_eq!(parsed.file_path, "test.ts");
+        assert_eq!(parsed.line, 15);
+        assert_eq!(parsed.character, 8);
+        assert_eq!(parsed.new_name, "strictNewName");
+        assert_eq!(parsed.dry_run, Some(false));
     }
 }

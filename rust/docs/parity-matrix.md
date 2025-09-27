@@ -95,7 +95,7 @@ This document tracks the implementation status of TypeScript features in the Rus
 - [ ] Performance validation
 
 ### Phase 4: Feature Parity ❌
-- [ ] All 26 MCP tools
+- [ ] All 25 MCP tools
 - [ ] Complete LSP client
 - [ ] FUSE integration
 - [ ] WebSocket server

@@ -3,7 +3,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::mpsc;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use std::path::Path;
 
 /// Test client for interacting with the cb-server binary.
@@ -179,6 +179,252 @@ impl TestClient {
         }
 
         Ok(())
+    }
+
+    /// Call a tool with performance timing.
+    pub fn call_tool_with_timing(&mut self, tool_name: &str, arguments: Value) -> Result<(Value, Duration), Box<dyn std::error::Error>> {
+        let start = Instant::now();
+        let result = self.call_tool(tool_name, arguments)?;
+        let duration = start.elapsed();
+        Ok((result, duration))
+    }
+
+    /// Call multiple tools sequentially and return results with timings.
+    pub fn call_multiple_tools(&mut self, calls: Vec<(&str, Value)>) -> Vec<Result<(Value, Duration), Box<dyn std::error::Error>>> {
+        let mut results = Vec::new();
+
+        for (tool_name, arguments) in calls {
+            let result = self.call_tool_with_timing(tool_name, arguments);
+            results.push(result);
+        }
+
+        results
+    }
+
+    /// Call a tool with a custom timeout.
+    pub fn call_tool_with_timeout(&mut self, tool_name: &str, arguments: Value, timeout: Duration) -> Result<Value, Box<dyn std::error::Error>> {
+        static mut REQUEST_ID: i32 = 0;
+        let id = unsafe {
+            REQUEST_ID += 1;
+            REQUEST_ID
+        };
+
+        let request = json!({
+            "jsonrpc": "2.0",
+            "id": format!("test-timeout-{}", id),
+            "method": "tools/call",
+            "params": {
+                "name": tool_name,
+                "arguments": arguments
+            }
+        });
+
+        let request_str = serde_json::to_string(&request)?;
+        writeln!(self.stdin, "{}", request_str)?;
+        self.stdin.flush()?;
+
+        // Wait for response with custom timeout
+        let response_str = self.stdout_receiver.recv_timeout(timeout)?;
+        let response: Value = serde_json::from_str(&response_str)?;
+        Ok(response)
+    }
+
+    /// Simulate a connection error by terminating stdin.
+    pub fn force_connection_error(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        // Close stdin to simulate connection loss
+        drop(&mut self.stdin);
+        Ok(())
+    }
+
+    /// Check server responsiveness with a health ping.
+    pub fn ping_server(&mut self) -> Result<Duration, Box<dyn std::error::Error>> {
+        let start = Instant::now();
+
+        let ping_request = json!({
+            "jsonrpc": "2.0",
+            "id": "ping",
+            "method": "tools/call",
+            "params": {
+                "name": "health_check",
+                "arguments": {}
+            }
+        });
+
+        self.send_request(ping_request)?;
+        Ok(start.elapsed())
+    }
+
+    /// Batch execute multiple tool calls concurrently (simulated).
+    pub fn batch_execute_tools(&mut self, calls: Vec<(&str, Value)>) -> Vec<Result<Value, Box<dyn std::error::Error>>> {
+        // Since we can't truly parallelize with a single stdin/stdout,
+        // we'll execute them rapidly in sequence to simulate batch execution
+        let mut results = Vec::new();
+
+        for (tool_name, arguments) in calls {
+            let result = self.call_tool(tool_name, arguments);
+            results.push(result);
+
+            // Small delay to prevent overwhelming the server
+            thread::sleep(Duration::from_millis(10));
+        }
+
+        results
+    }
+
+    /// Get server memory usage and performance stats.
+    pub fn get_server_stats(&self) -> Result<ServerStats, Box<dyn std::error::Error>> {
+        let pid = self.process.id();
+
+        // Get process information using /proc filesystem (Linux)
+        let status_path = format!("/proc/{}/status", pid);
+        let stat_path = format!("/proc/{}/stat", pid);
+
+        let mut stats = ServerStats {
+            pid,
+            memory_kb: 0,
+            cpu_percent: 0.0,
+            uptime_seconds: 0,
+            child_processes: self.get_child_processes().len() as u32,
+        };
+
+        // Read memory usage from /proc/PID/status
+        if let Ok(status_content) = std::fs::read_to_string(&status_path) {
+            for line in status_content.lines() {
+                if line.starts_with("VmRSS:") {
+                    if let Some(value_str) = line.split_whitespace().nth(1) {
+                        stats.memory_kb = value_str.parse().unwrap_or(0);
+                    }
+                    break;
+                }
+            }
+        }
+
+        // Basic uptime calculation (simplified)
+        if let Ok(stat_content) = std::fs::read_to_string(&stat_path) {
+            let fields: Vec<&str> = stat_content.split_whitespace().collect();
+            if fields.len() > 21 {
+                // Field 22 is starttime in clock ticks
+                if let Ok(starttime) = fields[21].parse::<u64>() {
+                    let clock_ticks_per_sec = 100; // Typical value, could be more precise
+                    let boot_time = 0; // Would need to read from /proc/stat for accuracy
+                    stats.uptime_seconds = starttime / clock_ticks_per_sec;
+                }
+            }
+        }
+
+        Ok(stats)
+    }
+
+    /// Wait for server to be ready with a timeout.
+    pub fn wait_for_ready(&mut self, timeout: Duration) -> Result<(), Box<dyn std::error::Error>> {
+        let start = Instant::now();
+
+        while start.elapsed() < timeout {
+            if let Ok(_) = self.ping_server() {
+                return Ok(());
+            }
+
+            thread::sleep(Duration::from_millis(100));
+        }
+
+        Err("Server failed to become ready within timeout".into())
+    }
+
+    /// Stress test the server with rapid requests.
+    pub fn stress_test(&mut self, request_count: usize, delay_ms: u64) -> StressTestResults {
+        let mut results = StressTestResults {
+            total_requests: request_count,
+            successful_requests: 0,
+            failed_requests: 0,
+            total_duration: Duration::ZERO,
+            min_response_time: Duration::MAX,
+            max_response_time: Duration::ZERO,
+            avg_response_time: Duration::ZERO,
+        };
+
+        let start = Instant::now();
+        let mut response_times = Vec::new();
+
+        for i in 0..request_count {
+            let request_start = Instant::now();
+
+            let result = self.call_tool("health_check", json!({}));
+            let request_duration = request_start.elapsed();
+
+            match result {
+                Ok(_) => {
+                    results.successful_requests += 1;
+                    response_times.push(request_duration);
+
+                    if request_duration < results.min_response_time {
+                        results.min_response_time = request_duration;
+                    }
+                    if request_duration > results.max_response_time {
+                        results.max_response_time = request_duration;
+                    }
+                },
+                Err(_) => {
+                    results.failed_requests += 1;
+                }
+            }
+
+            if delay_ms > 0 {
+                thread::sleep(Duration::from_millis(delay_ms));
+            }
+        }
+
+        results.total_duration = start.elapsed();
+
+        if !response_times.is_empty() {
+            let total_response_time: Duration = response_times.iter().sum();
+            results.avg_response_time = total_response_time / response_times.len() as u32;
+        }
+
+        if results.min_response_time == Duration::MAX {
+            results.min_response_time = Duration::ZERO;
+        }
+
+        results
+    }
+}
+
+/// Performance statistics for the server process.
+#[derive(Debug, Clone)]
+pub struct ServerStats {
+    pub pid: u32,
+    pub memory_kb: u64,
+    pub cpu_percent: f64,
+    pub uptime_seconds: u64,
+    pub child_processes: u32,
+}
+
+/// Results from a stress test.
+#[derive(Debug, Clone)]
+pub struct StressTestResults {
+    pub total_requests: usize,
+    pub successful_requests: usize,
+    pub failed_requests: usize,
+    pub total_duration: Duration,
+    pub min_response_time: Duration,
+    pub max_response_time: Duration,
+    pub avg_response_time: Duration,
+}
+
+impl StressTestResults {
+    pub fn success_rate(&self) -> f64 {
+        if self.total_requests == 0 {
+            0.0
+        } else {
+            (self.successful_requests as f64) / (self.total_requests as f64) * 100.0
+        }
+    }
+
+    pub fn requests_per_second(&self) -> f64 {
+        if self.total_duration.is_zero() {
+            0.0
+        } else {
+            (self.successful_requests as f64) / self.total_duration.as_secs_f64()
+        }
     }
 }
 

@@ -229,16 +229,6 @@ export function useTempConstant() {
       expect(result).toBeDefined();
     });
 
-    it('should get inlay hints', async () => {
-      const result = await client.callTool('get_inlay_hints', {
-        file_path: '/workspace/examples/playground/src/test-file.ts',
-        start_line: 10,
-        start_character: 0,
-        end_line: 20,
-        end_character: 0,
-      });
-      expect(result).toBeDefined();
-    });
   });
 
   describe('Hierarchy Tools', () => {
