@@ -10,6 +10,185 @@ pub mod commands;
 pub use error::{ClientError, ClientResult};
 pub use client_config::{ClientConfig, ConfigBuilder};
 
+use serde::{Deserialize, Serialize};
+
+/// Session report summarizing client operations
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionReport {
+    /// Total number of operations attempted
+    pub total_operations: u64,
+    /// Number of successful operations
+    pub successful_operations: u64,
+    /// Number of failed operations
+    pub failed_operations: u64,
+    /// Session start time
+    pub session_start: chrono::DateTime<chrono::Utc>,
+    /// Session end time (if session has ended)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_end: Option<chrono::DateTime<chrono::Utc>>,
+    /// Total session duration in milliseconds
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duration_ms: Option<u64>,
+    /// Connection information
+    pub connection_info: ConnectionInfo,
+    /// Error summary
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub errors: Vec<ErrorSummary>,
+}
+
+/// Connection information for the session
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectionInfo {
+    /// Server URL
+    pub server_url: String,
+    /// Whether authentication was used
+    pub authenticated: bool,
+    /// Number of reconnection attempts
+    pub reconnection_attempts: u32,
+    /// Whether the connection is currently active
+    pub active: bool,
+}
+
+/// Error summary for reporting
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ErrorSummary {
+    /// Error type/category
+    pub error_type: String,
+    /// Error message
+    pub message: String,
+    /// Number of times this error occurred
+    pub count: u32,
+    /// First occurrence timestamp
+    pub first_seen: chrono::DateTime<chrono::Utc>,
+    /// Last occurrence timestamp
+    pub last_seen: chrono::DateTime<chrono::Utc>,
+}
+
+impl SessionReport {
+    /// Create a new session report
+    pub fn new(server_url: String, authenticated: bool) -> Self {
+        Self {
+            total_operations: 0,
+            successful_operations: 0,
+            failed_operations: 0,
+            session_start: chrono::Utc::now(),
+            session_end: None,
+            duration_ms: None,
+            connection_info: ConnectionInfo {
+                server_url,
+                authenticated,
+                reconnection_attempts: 0,
+                active: true,
+            },
+            errors: Vec::new(),
+        }
+    }
+
+    /// Record a successful operation
+    pub fn record_success(&mut self) {
+        self.total_operations += 1;
+        self.successful_operations += 1;
+    }
+
+    /// Record a failed operation
+    pub fn record_failure(&mut self, error: ClientError) {
+        self.total_operations += 1;
+        self.failed_operations += 1;
+        self.add_error(error);
+    }
+
+    /// Add an error to the error summary
+    pub fn add_error(&mut self, error: ClientError) {
+        let error_type = match error {
+            ClientError::ConfigError(_) => "ConfigError",
+            ClientError::ConnectionError(_) => "ConnectionError",
+            ClientError::AuthError(_) => "AuthError",
+            ClientError::TimeoutError(_) => "TimeoutError",
+            ClientError::RequestError(_) => "RequestError",
+            ClientError::SerializationError(_) => "SerializationError",
+            ClientError::IoError(_) => "IoError",
+            ClientError::TransportError(_) => "TransportError",
+            ClientError::ProtocolError(_) => "ProtocolError",
+            ClientError::Core(_) => "CoreError",
+        }.to_string();
+
+        let message = error.to_string();
+        let now = chrono::Utc::now();
+
+        // Try to find existing error of same type and message
+        if let Some(existing) = self.errors.iter_mut().find(|e|
+            e.error_type == error_type && e.message == message
+        ) {
+            existing.count += 1;
+            existing.last_seen = now;
+        } else {
+            self.errors.push(ErrorSummary {
+                error_type,
+                message,
+                count: 1,
+                first_seen: now,
+                last_seen: now,
+            });
+        }
+    }
+
+    /// Record a reconnection attempt
+    pub fn record_reconnection(&mut self) {
+        self.connection_info.reconnection_attempts += 1;
+    }
+
+    /// Mark the session as ended
+    pub fn end_session(&mut self) {
+        let now = chrono::Utc::now();
+        self.session_end = Some(now);
+        self.duration_ms = Some((now - self.session_start).num_milliseconds() as u64);
+        self.connection_info.active = false;
+    }
+
+    /// Get success rate as a percentage
+    pub fn success_rate(&self) -> f64 {
+        if self.total_operations == 0 {
+            0.0
+        } else {
+            (self.successful_operations as f64 / self.total_operations as f64) * 100.0
+        }
+    }
+
+    /// Check if the session is currently active
+    pub fn is_active(&self) -> bool {
+        self.session_end.is_none() && self.connection_info.active
+    }
+}
+
+impl ConnectionInfo {
+    /// Create new connection info
+    pub fn new(server_url: String, authenticated: bool) -> Self {
+        Self {
+            server_url,
+            authenticated,
+            reconnection_attempts: 0,
+            active: true,
+        }
+    }
+}
+
+impl ErrorSummary {
+    /// Create a new error summary
+    pub fn new(error_type: String, message: String) -> Self {
+        let now = chrono::Utc::now();
+        Self {
+            error_type,
+            message,
+            count: 1,
+            first_seen: now,
+            last_seen: now,
+        }
+    }
+}
+
 use commands::{Command, GlobalArgs};
 use commands::setup::SetupCommand;
 use commands::connect::ConnectCommand;
