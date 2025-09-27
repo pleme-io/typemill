@@ -616,41 +616,6 @@ mod tests {
         assert_eq!(parsed.file_path, Some("package.json".to_string()));
     }
 
-    // New tests for the corrected importFilesUpdated field
-
-    #[tokio::test]
-    #[ignore] // Disabled: requires cb_tests crate which doesn't exist
-    async fn test_rename_file_response_field_names() {
-        // Test that the response contains the corrected field name
-        // use cb_tests::harness::TestWorkspace;
-        use crate::handlers::McpDispatcher;
-        use crate::handlers::AppState;
-        use std::sync::Arc;
-
-        // let workspace = TestWorkspace::new();
-
-        // Create a test file
-        // workspace.create_file("test.ts", "export const foo = 'bar';");
-
-        // Mock the file service to return a predictable response
-        // let mut mock_file_service = cb_tests::mocks::mock_file_service();
-        // let mut mock_ast_service = cb_tests::mocks::mock_ast_service();
-        // let mut mock_lsp_service = cb_tests::mocks::mock_lsp_service();
-
-        // Test disabled - requires cb_tests crate and mock dependencies
-        // This test verifies rename_file response contains corrected field names
-        // TODO: Re-enable when test infrastructure is available
-    }
-
-    #[tokio::test]
-    #[ignore] // Disabled: requires cb_tests crate which doesn't exist
-    async fn test_rename_file_response_no_import_updates() {
-        // Test disabled - requires cb_tests crate and mock dependencies
-        // This test verifies rename_file response when no import updates needed
-        // TODO: Re-enable when test infrastructure is available
-
-    }
-
     #[test]
     fn test_field_name_spelling_in_json() {
         // Direct test of the JSON structure to ensure correct spelling

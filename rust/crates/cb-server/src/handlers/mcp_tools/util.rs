@@ -72,7 +72,6 @@ mod tests {
     use std::collections::HashSet;
     use std::sync::Arc;
     use std::thread;
-    // use proptest::prelude::*;
 
     #[test]
     fn test_unique_request_ids() {
@@ -248,49 +247,6 @@ mod tests {
         assert!(error.to_string().contains("Test error"));
     }
 
-    // proptest! { // Disabled: requires proptest dependency
-        // #[test]
-        // fn test_request_ids_always_unique_property(
-        //     num_threads in 1..20usize,
-        //     ids_per_thread in 1..100usize
-        // ) {
-        //     let mut handles = vec![];
-
-        //     for _ in 0..num_threads {
-        //         let handle = thread::spawn(move || {
-        //             let mut thread_ids = Vec::new();
-        //             for _ in 0..ids_per_thread {
-        //                 thread_ids.push(generate_request_id());
-        //             }
-        //             thread_ids
-        //         });
-        //         handles.push(handle);
-        //     }
-
-        //     let mut all_ids = HashSet::new();
-        //     for handle in handles {
-        //         let thread_ids = handle.join().unwrap();
-        //         for id in thread_ids {
-        //             prop_assert!(all_ids.insert(id), "Duplicate ID found: {}", id);
-        //         }
-        //     }
-
-        //     prop_assert_eq!(all_ids.len(), num_threads * ids_per_thread);
-        // }
-
-        // #[test]
-        // fn test_request_ids_are_increasing_property(count in 1..1000usize) {
-        //     let mut ids = Vec::new();
-        //     for _ in 0..count {
-        //         ids.push(generate_request_id());
-        //     }
-
-        //     // IDs should be strictly increasing when generated sequentially
-        //     for window in ids.windows(2) {
-        //         prop_assert!(window[0] < window[1], "IDs should increase: {} >= {}", window[0], window[1]);
-        //     }
-        // }
-    // }
 
     #[test]
     fn test_request_id_wraparound_safety() {
