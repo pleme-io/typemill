@@ -29,7 +29,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // Disabled: handle_tool_call is private
     async fn test_refactoring_creates_transaction() {
         let app_state = create_test_app_state();
         let mut dispatcher = McpDispatcher::new(app_state.clone());
@@ -91,7 +90,7 @@ mod tests {
         assert_eq!(initial_stats.total_operations, 0);
 
         // Call the tool through the dispatcher
-        let result = dispatcher.handle_tool_call(Some(json!(tool_call))).await;
+        let result = dispatcher.handle_tool_call_for_test(Some(json!(tool_call))).await;
 
         // Should succeed
         assert!(result.is_ok());
@@ -109,7 +108,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // Disabled: handle_tool_call is private
     async fn test_dry_run_doesnt_create_transaction() {
         let app_state = create_test_app_state();
         let mut dispatcher = McpDispatcher::new(app_state.clone());
@@ -153,7 +151,7 @@ mod tests {
         assert_eq!(initial_stats.total_operations, 0);
 
         // Call the tool
-        let result = dispatcher.handle_tool_call(Some(json!(tool_call))).await;
+        let result = dispatcher.handle_tool_call_for_test(Some(json!(tool_call))).await;
         assert!(result.is_ok());
 
         // No operations should be enqueued for dry run

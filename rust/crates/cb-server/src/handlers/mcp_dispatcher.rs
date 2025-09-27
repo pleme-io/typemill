@@ -107,6 +107,22 @@ impl McpDispatcher {
         handler(self.app_state.clone(), args).await
     }
 
+    /// Test helper to call handle_tool_call directly (only available in test builds)
+    #[cfg(test)]
+    pub async fn handle_tool_call_for_test(&self, params: Option<Value>) -> ServerResult<Value> {
+        self.handle_tool_call(params).await
+    }
+
+    /// Test helper to dispatch a tool call with direct parameters (only available in test builds)
+    #[cfg(test)]
+    pub async fn dispatch_tool_call_for_test(&self, tool_name: &str, args: Value) -> ServerResult<Value> {
+        let tool_call = ToolCall {
+            name: tool_name.to_string(),
+            arguments: Some(args),
+        };
+        self.handle_tool_call(Some(serde_json::to_value(tool_call)?)).await
+    }
+
     /// Dispatch an MCP message
     pub async fn dispatch(&self, message: McpMessage) -> ServerResult<McpMessage> {
         match message {
