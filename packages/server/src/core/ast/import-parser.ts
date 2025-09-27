@@ -1,5 +1,5 @@
-import ts from 'typescript';
 import { extname } from 'node:path';
+import ts from 'typescript';
 
 /**
  * Parses a file to extract all import specifiers based on language.
@@ -34,7 +34,11 @@ function parseTypeScriptImports(filePath: string, fileContent: string): string[]
       imports.push(node.moduleSpecifier.text);
     }
     // Handle ES6 exports: export ... from '...'
-    else if (ts.isExportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+    else if (
+      ts.isExportDeclaration(node) &&
+      node.moduleSpecifier &&
+      ts.isStringLiteral(node.moduleSpecifier)
+    ) {
       imports.push(node.moduleSpecifier.text);
     }
     // Handle CommonJS requires: require('...')
@@ -75,14 +79,14 @@ function parseImportsWithRegex(filePath: string, fileContent: string): string[] 
   // Python imports
   if (['.py', '.pyw'].includes(ext)) {
     // import module
-    const importRegex = /^\s*import\s+([\w\.]+)/gm;
+    const importRegex = /^\s*import\s+([\w.]+)/gm;
     let match;
     while ((match = importRegex.exec(fileContent)) !== null) {
       imports.push(match[1]);
     }
 
     // from module import ...
-    const fromImportRegex = /^\s*from\s+([\w\.]+)\s+import/gm;
+    const fromImportRegex = /^\s*from\s+([\w.]+)\s+import/gm;
     while ((match = fromImportRegex.exec(fileContent)) !== null) {
       imports.push(match[1]);
     }
@@ -109,7 +113,7 @@ function parseImportsWithRegex(filePath: string, fileContent: string): string[] 
   // Rust imports
   else if (['.rs'].includes(ext)) {
     // use statements
-    const useRegex = /^\s*use\s+([\w\:]+)/gm;
+    const useRegex = /^\s*use\s+([\w:]+)/gm;
     let match;
     while ((match = useRegex.exec(fileContent)) !== null) {
       imports.push(match[1]);
@@ -126,7 +130,7 @@ function parseImportsWithRegex(filePath: string, fileContent: string): string[] 
   }
   // Java imports
   else if (['.java'].includes(ext)) {
-    const importRegex = /^\s*import\s+([\w\.\*]+);/gm;
+    const importRegex = /^\s*import\s+([\w.*]+);/gm;
     let match;
     while ((match = importRegex.exec(fileContent)) !== null) {
       imports.push(match[1]);
@@ -134,7 +138,7 @@ function parseImportsWithRegex(filePath: string, fileContent: string): string[] 
   }
   // C# imports
   else if (['.cs'].includes(ext)) {
-    const usingRegex = /^\s*using\s+([\w\.]+);/gm;
+    const usingRegex = /^\s*using\s+([\w.]+);/gm;
     let match;
     while ((match = usingRegex.exec(fileContent)) !== null) {
       imports.push(match[1]);

@@ -3,6 +3,7 @@ import { AnalysisCache } from '../../../../../server/src/core/cache/index.js';
 import { logDebugMessage } from '../../../../../server/src/core/diagnostics/debug-logger.js';
 import { pathToUri, uriToPath } from '../../../../../server/src/core/file-operations/path-utils.js';
 import type { ServerState } from '../../../../../server/src/lsp/types.js';
+import type { ServiceContext } from '../../../../../server/src/services/service-context.js';
 import type {
   DocumentSymbol,
   Location,
@@ -12,7 +13,6 @@ import type {
   SymbolMatch,
 } from '../../../../../server/src/types.js';
 import { SymbolKind } from '../../../../../server/src/types.js';
-import type { ServiceContext } from '../../../../../server/src/services/service-context.js';
 
 // Symbol service constants
 const _PROJECT_FILES_LIMIT = 50; // Maximum project files to open for cross-file operations

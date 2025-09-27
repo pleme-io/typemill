@@ -3,11 +3,11 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { createServer as createHttpsServer, type Server as HttpsServer } from 'node:https';
 import type WebSocket from 'ws';
 import { WebSocketServer } from 'ws';
+import { LSPClient } from '../../../@codeflow/features/src/lsp/lsp-client.js';
 import { type AuthRequest, JWTAuthenticator } from '../auth/jwt-auth.js';
 import { logger } from '../core/diagnostics/logger.js';
 import { FuseMount } from '../fs/fuse-mount.js';
 import { StreamingFileAccess } from '../fs/stream.js';
-import { LSPClient } from '../../../@codeflow/features/src/lsp/lsp-client.js';
 import { toolRegistry } from '../mcp/tool-registry.js';
 import type { ClientSession, MCPMessage } from '../transports/websocket.js';
 import { WebSocketTransport } from '../transports/websocket.js';

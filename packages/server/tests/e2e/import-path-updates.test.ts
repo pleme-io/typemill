@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import { MCPTestClient } from '../helpers/mcp-test-client.js';
 import { waitForCondition } from '../helpers/polling-helpers.js';
 
@@ -27,7 +27,9 @@ describe('Import Path Update Tests - Critical Fix Verification', () => {
     // Create test files with various import patterns
 
     // File with imports that need updating when moved
-    writeFileSync(originalFile, `
+    writeFileSync(
+      originalFile,
+      `
 import { helper } from '../../utils/helper.js';
 import { User } from '../../models/user.js';
 import { config } from '../../config/settings.js';
@@ -42,13 +44,20 @@ export class UserService {
     return helper.process(user);
   }
 }
-`);
+`
+    );
 
     // Create the imported files so they exist
-    writeFileSync(join(testDir, 'src/utils/helper.js'), 'export const helper = { process: (x) => x };');
+    writeFileSync(
+      join(testDir, 'src/utils/helper.js'),
+      'export const helper = { process: (x) => x };'
+    );
     writeFileSync(join(testDir, 'src/utils/validator.js'), 'export const validate = (x) => true;');
     writeFileSync(join(testDir, 'src/utils/formatter.js'), 'export const formatUser = (x) => x;');
-    writeFileSync(join(testDir, 'src/models/user.js'), 'export class User { constructor(id) { this.id = id; } }');
+    writeFileSync(
+      join(testDir, 'src/models/user.js'),
+      'export class User { constructor(id) { this.id = id; } }'
+    );
     mkdirSync(join(testDir, 'src/config'), { recursive: true });
     writeFileSync(join(testDir, 'src/config/settings.js'), 'export const config = {};');
     mkdirSync(join(testDir, 'src/data'), { recursive: true });
@@ -99,7 +108,10 @@ export class UserService {
       expect(result.content?.[0]?.text).toContain('renamed');
 
       // Wait for file operations
-      await waitForCondition(() => existsSync(movedFile) && !existsSync(originalFile), { timeout: 500, interval: 100 });
+      await waitForCondition(() => existsSync(movedFile) && !existsSync(originalFile), {
+        timeout: 500,
+        interval: 100,
+      });
 
       // Verify file was moved
       expect(existsSync(originalFile)).toBe(false);
@@ -114,24 +126,30 @@ export class UserService {
       // So imports should change from ../../ to ../../../../
 
       // Check static imports
-      const hasCorrectHelperImport = movedContent.includes("from '../../../../utils/helper.js'") ||
-                                     movedContent.includes('from "../../../../utils/helper.js"');
-      const hasCorrectUserImport = movedContent.includes("from '../../../../models/user.js'") ||
-                                   movedContent.includes('from "../../../../models/user.js"');
-      const hasCorrectConfigImport = movedContent.includes("from '../../../../config/settings.js'") ||
-                                     movedContent.includes('from "../../../../config/settings.js"');
+      const hasCorrectHelperImport =
+        movedContent.includes("from '../../../../utils/helper.js'") ||
+        movedContent.includes('from "../../../../utils/helper.js"');
+      const hasCorrectUserImport =
+        movedContent.includes("from '../../../../models/user.js'") ||
+        movedContent.includes('from "../../../../models/user.js"');
+      const hasCorrectConfigImport =
+        movedContent.includes("from '../../../../config/settings.js'") ||
+        movedContent.includes('from "../../../../config/settings.js"');
 
       // Check dynamic import
-      const hasCorrectDynamicImport = movedContent.includes("import('../../../../utils/validator.js')") ||
-                                      movedContent.includes('import("../../../../utils/validator.js")');
+      const hasCorrectDynamicImport =
+        movedContent.includes("import('../../../../utils/validator.js')") ||
+        movedContent.includes('import("../../../../utils/validator.js")');
 
       // Check export from
-      const hasCorrectExportFrom = movedContent.includes("from '../../../../utils/formatter.js'") ||
-                                   movedContent.includes('from "../../../../utils/formatter.js"');
+      const hasCorrectExportFrom =
+        movedContent.includes("from '../../../../utils/formatter.js'") ||
+        movedContent.includes('from "../../../../utils/formatter.js"');
 
       // Check require
-      const hasCorrectRequire = movedContent.includes("require('../../../../data/users.json')") ||
-                               movedContent.includes('require("../../../../data/users.json")');
+      const hasCorrectRequire =
+        movedContent.includes("require('../../../../data/users.json')") ||
+        movedContent.includes('require("../../../../data/users.json")');
 
       // Log actual vs expected for debugging
       if (!hasCorrectHelperImport) {
@@ -216,7 +234,9 @@ export class UserService {
       mkdirSync(join(monoRepoDir, 'packages/server/src/core'), { recursive: true });
 
       // Create file with imports that correctly reference the actual file locations
-      writeFileSync(serverFile, `
+      writeFileSync(
+        serverFile,
+        `
 import { pathUtils } from '../core/file-operations/path-utils.js';
 import { logger } from '../core/diagnostics/logger.js';
 import { config } from '../../../shared/config.js';
@@ -226,20 +246,24 @@ export class LSPClient {
     logger.info('LSP Client initialized');
   }
 }
-`);
+`
+      );
 
       // Create the referenced files
       mkdirSync(join(monoRepoDir, 'packages/server/src/core/file-operations'), { recursive: true });
-      writeFileSync(join(monoRepoDir, 'packages/server/src/core/file-operations/path-utils.js'),
-        'export const pathUtils = {};');
+      writeFileSync(
+        join(monoRepoDir, 'packages/server/src/core/file-operations/path-utils.js'),
+        'export const pathUtils = {};'
+      );
 
       mkdirSync(join(monoRepoDir, 'packages/server/src/core/diagnostics'), { recursive: true });
-      writeFileSync(join(monoRepoDir, 'packages/server/src/core/diagnostics/logger.js'),
-        'export const logger = { info: console.log };');
+      writeFileSync(
+        join(monoRepoDir, 'packages/server/src/core/diagnostics/logger.js'),
+        'export const logger = { info: console.log };'
+      );
 
       mkdirSync(join(monoRepoDir, 'packages/shared'), { recursive: true });
-      writeFileSync(join(monoRepoDir, 'packages/shared/config.js'),
-        'export const config = {};');
+      writeFileSync(join(monoRepoDir, 'packages/shared/config.js'), 'export const config = {};');
 
       console.log('📁 Moving from: packages/server/src/lsp/');
       console.log('📁 Moving to:   packages/@scope/features/lsp/src/\n');
@@ -252,7 +276,10 @@ export class LSPClient {
       });
 
       expect(result).toBeDefined();
-      await waitForCondition(() => existsSync(scopedFile) && !existsSync(serverFile), { timeout: 500, interval: 100 });
+      await waitForCondition(() => existsSync(scopedFile) && !existsSync(serverFile), {
+        timeout: 500,
+        interval: 100,
+      });
 
       // Verify file was moved
       expect(existsSync(serverFile)).toBe(false);
@@ -266,14 +293,24 @@ export class LSPClient {
       // - packages/server/src/core/diagnostics/logger.js = ../../../../server/src/core/diagnostics/logger.js
       // - packages/shared/config.js = ../../../../shared/config.js
 
-      const correctPathUtils = movedContent.includes('../../../../server/src/core/file-operations/path-utils.js');
-      const correctLogger = movedContent.includes('../../../../server/src/core/diagnostics/logger.js');
+      const correctPathUtils = movedContent.includes(
+        '../../../../server/src/core/file-operations/path-utils.js'
+      );
+      const correctLogger = movedContent.includes(
+        '../../../../server/src/core/diagnostics/logger.js'
+      );
       const correctConfig = movedContent.includes('../../../../shared/config.js');
 
       console.log('Import updates:');
-      console.log(`  Path utils: ${correctPathUtils ? '✅' : '❌'} (should be ../../../../server/src/core/file-operations/path-utils.js)`);
-      console.log(`  Logger:     ${correctLogger ? '✅' : '❌'} (should be ../../../../server/src/core/diagnostics/logger.js)`);
-      console.log(`  Config:     ${correctConfig ? '✅' : '❌'} (should be ../../../../shared/config.js)`);
+      console.log(
+        `  Path utils: ${correctPathUtils ? '✅' : '❌'} (should be ../../../../server/src/core/file-operations/path-utils.js)`
+      );
+      console.log(
+        `  Logger:     ${correctLogger ? '✅' : '❌'} (should be ../../../../server/src/core/diagnostics/logger.js)`
+      );
+      console.log(
+        `  Config:     ${correctConfig ? '✅' : '❌'} (should be ../../../../shared/config.js)`
+      );
 
       expect(correctPathUtils).toBe(true);
       expect(correctLogger).toBe(true);
@@ -294,19 +331,22 @@ export class LSPClient {
       mkdirSync(dirname(brokenFile), { recursive: true });
 
       // Create a file with broken imports (as if it was moved without updating imports)
-      writeFileSync(brokenFile, `
+      writeFileSync(
+        brokenFile,
+        `
 import { helper } from '../utils/helper.js';  // This path is wrong after move
 import { User } from '../models/user.js';      // This too
 
 export function test() {
   return helper.process(new User('123'));
 }
-`);
+`
+      );
 
       // Use fix_imports to repair the paths (assuming file was moved from src/ to src/features/)
       const result = await client.callTool('fix_imports', {
         file_path: brokenFile,
-        old_path: join(testDir, 'src/broken.ts'),  // Where it used to be
+        old_path: join(testDir, 'src/broken.ts'), // Where it used to be
       });
 
       expect(result).toBeDefined();
@@ -319,7 +359,7 @@ export function test() {
 
       // Verify the imports were fixed
       const fixedContent = readFileSync(brokenFile, 'utf-8');
-      expect(fixedContent).toContain('./utils/helper.js');  // Should now be relative to testDir
+      expect(fixedContent).toContain('./utils/helper.js'); // Should now be relative to testDir
       expect(fixedContent).toContain('./models/user.js');
 
       console.log('✅ fix_imports tool working correctly');

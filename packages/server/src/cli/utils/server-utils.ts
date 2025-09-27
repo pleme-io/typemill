@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
-import { type ChildProcess } from 'node:child_process';
+import type { ChildProcess } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { spawnCommand } from '../../utils/platform/command-utils.js';
 import { isProcessRunning } from '../../utils/platform/process.js';
 import { getLSPServerPaths } from '../../utils/platform/system.js';
-import { spawnCommand } from '../../utils/platform/command-utils.js';
 
 // Re-export for backward compatibility
 export { isProcessRunning };

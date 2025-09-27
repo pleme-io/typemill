@@ -3,12 +3,7 @@ import { DIFF_DELETE, DIFF_EQUAL, DIFF_INSERT, diff_match_patch } from 'diff-mat
 import { logDebugMessage } from '../core/diagnostics/debug-logger.js';
 import { handleFileSystemError, logError } from '../core/diagnostics/error-utils.js';
 import { pathToUri, uriToPath } from '../core/file-operations/path-utils.js';
-import type {
-  CodeAction,
-  Diagnostic,
-  Range,
-  TextEdit,
-} from '../types.js';
+import type { CodeAction, Diagnostic, Range, TextEdit } from '../types.js';
 import type { ServiceContext } from './service-context.js';
 
 // File service constants

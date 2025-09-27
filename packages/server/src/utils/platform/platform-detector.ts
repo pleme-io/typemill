@@ -24,11 +24,10 @@ export interface PlatformInfo {
  * Get comprehensive platform information
  */
 export function getPlatformInfo(): PlatformInfo {
-  const platform = (process.platform === 'win32' ||
-                   process.platform === 'darwin' ||
-                   process.platform === 'linux')
-                   ? process.platform
-                   : 'unknown' as SupportedPlatform;
+  const platform =
+    process.platform === 'win32' || process.platform === 'darwin' || process.platform === 'linux'
+      ? process.platform
+      : ('unknown' as SupportedPlatform);
 
   return {
     platform,

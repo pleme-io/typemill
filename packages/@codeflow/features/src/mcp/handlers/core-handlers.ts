@@ -1,7 +1,17 @@
 import { resolve } from 'node:path';
 import { logger } from '../../../../../server/src/core/diagnostics/logger.js';
-import { applyWorkspaceEdit, type WorkspaceEdit } from '../../../../../server/src/core/file-operations/editor.js';
-import type { SymbolService } from '../../services/lsp/symbol-service.js';
+import {
+  applyWorkspaceEdit,
+  type WorkspaceEdit,
+} from '../../../../../server/src/core/file-operations/editor.js';
+import { registerTools } from '../../../../../server/src/mcp/tool-registry.js';
+import {
+  createContextualErrorResponse,
+  createFileModificationResponse,
+  createMCPResponse,
+  createNoChangesResponse,
+  createNoResultsResponse,
+} from '../../../../../server/src/mcp/utils.js';
 import {
   assertValidFilePath,
   assertValidSymbolName,
@@ -12,14 +22,7 @@ import {
   toLSPPosition,
   ValidationError,
 } from '../../../../core/src/utils/index.js';
-import { registerTools } from '../../../../../server/src/mcp/tool-registry.js';
-import {
-  createContextualErrorResponse,
-  createFileModificationResponse,
-  createMCPResponse,
-  createNoChangesResponse,
-  createNoResultsResponse,
-} from '../../../../../server/src/mcp/utils.js';
+import type { SymbolService } from '../../services/lsp/symbol-service.js';
 
 // Handler for find_definition tool
 export async function handleFindDefinition(

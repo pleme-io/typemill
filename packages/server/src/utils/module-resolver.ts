@@ -1,5 +1,5 @@
-import { access, stat } from 'node:fs/promises';
 import { constants } from 'node:fs';
+import { access, stat } from 'node:fs/promises';
 import path from 'node:path';
 
 /**
@@ -11,7 +11,7 @@ import path from 'node:path';
  */
 export async function resolveImportPath(
   importPath: string,
-  currentFilePath: string,
+  currentFilePath: string
 ): Promise<string | null> {
   if (!importPath.startsWith('.') && !importPath.startsWith('/')) {
     // Skip node_modules and other external packages for now.
@@ -30,13 +30,13 @@ export async function resolveImportPath(
   }
 
   const extensions = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.json', ''];
-  const indexFiles = extensions.map(ext => `index${ext}`);
+  const indexFiles = extensions.map((ext) => `index${ext}`);
 
   const candidates = [
     // Try with extensions
-    ...extensions.map(ext => basePath + ext),
+    ...extensions.map((ext) => basePath + ext),
     // Try as a directory with index files
-    ...indexFiles.map(indexFile => path.join(basePath, indexFile)),
+    ...indexFiles.map((indexFile) => path.join(basePath, indexFile)),
   ];
 
   for (const candidate of candidates) {

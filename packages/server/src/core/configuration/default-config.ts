@@ -136,7 +136,9 @@ export function createDefaultConfig(): Config {
  */
 async function isCommandAvailable(command: string[]): Promise<boolean> {
   try {
-    const { isCommandAvailable: checkCommand } = await import('../../utils/platform/command-utils.js');
+    const { isCommandAvailable: checkCommand } = await import(
+      '../../utils/platform/command-utils.js'
+    );
     return await checkCommand(command, SERVER_AVAILABILITY_CHECK_TIMEOUT_MS);
   } catch {
     return false;

@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { existsSync, renameSync, unlinkSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { FileService } from '../../services/file-service.js';
-import type { FileSystemSnapshot, Transaction, FileOperation } from './types.js';
+import type { FileOperation, FileSystemSnapshot, Transaction } from './types.js';
 
 export class TransactionManager {
   private activeTransaction: Transaction | null = null;
@@ -136,14 +136,14 @@ export class TransactionManager {
     }
 
     // Get operations that happened after the checkpoint
-    const checkpointTimestamp = checkpointOperations.length > 0
-      ? Math.max(...checkpointOperations.map(op => op.timestamp))
-      : 0;
+    const checkpointTimestamp =
+      checkpointOperations.length > 0
+        ? Math.max(...checkpointOperations.map((op) => op.timestamp))
+        : 0;
 
     const operationsToRollback = this.activeTransaction.operations
-      .filter(op => op.timestamp > checkpointTimestamp)
+      .filter((op) => op.timestamp > checkpointTimestamp)
       .reverse(); // Rollback in reverse order
-
 
     for (const operation of operationsToRollback) {
       try {

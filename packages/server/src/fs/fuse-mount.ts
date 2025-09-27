@@ -15,8 +15,8 @@ import type {
   MountOptions,
 } from '../types/fuse-types.js';
 import type { EnhancedClientSession, FuseOperationResponse } from '../types/session.js';
-import { FuseOperations } from './fuse-operations.js';
 import { checkFuseAvailability, printFuseStatus } from './fuse-detector.js';
+import { FuseOperations } from './fuse-operations.js';
 
 // Lazy load FUSE to allow graceful degradation
 let Fuse: typeof import('@cocalc/fuse-native').default | null = null;

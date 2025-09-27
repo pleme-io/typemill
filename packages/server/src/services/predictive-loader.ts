@@ -1,7 +1,7 @@
 import path from 'node:path';
+import type { Config } from '../../../@codeflow/core/src/types/config.js';
 import type { StructuredLogger } from '../core/diagnostics/structured-logger.js';
 import { resolveImportPath } from '../utils/module-resolver.js';
-import type { Config } from '../../../@codeflow/core/src/types/config.js';
 import { astService } from './ast-service.js';
 
 interface PredictiveLoaderContext {
@@ -66,8 +66,6 @@ export class PredictiveLoaderService {
 
     await Promise.all(preloadPromises);
   }
-
-
 
   private shouldRecurse(_filePath: string): boolean {
     // Limit recursion depth to avoid infinite loops and excessive preloading

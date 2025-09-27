@@ -34,7 +34,9 @@ describe('Critical Import Fix Verification', () => {
 
     // Create the exact file that was causing issues
     const originalFile = join(serverPath, 'lsp/client.ts');
-    writeFileSync(originalFile, `
+    writeFileSync(
+      originalFile,
+      `
 // This file recreates the EXACT imports that were broken during monorepo restructuring
 import { pathToUri, uriToPath } from '../core/file-operations/path-utils.js';
 import { logger } from '../core/diagnostics/logger.js';
@@ -58,34 +60,43 @@ export class LSPClient {
     return uriToPath(path);
   }
 }
-`);
+`
+    );
 
     // Create all the referenced files so the imports can be resolved
     // IMPORTANT: The test file is at src/lsp/client.ts, so ../../core should resolve to src/core/
     // NOT to packages/server/core - we need the full src structure!
 
-    writeFileSync(join(serverPath, 'core/file-operations/path-utils.js'),
-      'export const pathToUri = (p) => p; export const uriToPath = (p) => p;');
+    writeFileSync(
+      join(serverPath, 'core/file-operations/path-utils.js'),
+      'export const pathToUri = (p) => p; export const uriToPath = (p) => p;'
+    );
 
     mkdirSync(join(serverPath, 'core/diagnostics'), { recursive: true });
-    writeFileSync(join(serverPath, 'core/diagnostics/logger.js'),
-      'export const logger = { debug: console.log };');
+    writeFileSync(
+      join(serverPath, 'core/diagnostics/logger.js'),
+      'export const logger = { debug: console.log };'
+    );
 
     mkdirSync(join(serverPath, 'utils'), { recursive: true });
-    writeFileSync(join(serverPath, 'utils/validation.js'),
-      'export class ValidationError extends Error {}');
+    writeFileSync(
+      join(serverPath, 'utils/validation.js'),
+      'export class ValidationError extends Error {}'
+    );
 
-    writeFileSync(join(serverPath, 'services/service-context.js'),
-      'export interface ServiceContext {}');
+    writeFileSync(
+      join(serverPath, 'services/service-context.js'),
+      'export interface ServiceContext {}'
+    );
 
     mkdirSync(join(serverPath, 'lsp/commands'), { recursive: true });
-    writeFileSync(join(serverPath, 'lsp/commands/setup.js'),
-      'export const setup = () => {};');
-    writeFileSync(join(serverPath, 'lsp/commands/status.js'),
-      'export const status = () => {};');
+    writeFileSync(join(serverPath, 'lsp/commands/setup.js'), 'export const setup = () => {};');
+    writeFileSync(join(serverPath, 'lsp/commands/status.js'), 'export const status = () => {};');
 
-    writeFileSync(join(serverPath, 'core/client-factory.js'),
-      'export const createClient = () => {};');
+    writeFileSync(
+      join(serverPath, 'core/client-factory.js'),
+      'export const createClient = () => {};'
+    );
 
     // Initialize MCP client
     client = new MCPTestClient();
@@ -149,15 +160,25 @@ export class LSPClient {
     // To:   /packages/server/src/core/file-operations/path-utils.js
     // Path: ../../../../server/src/core/file-operations/path-utils.js
 
-    const pathUtilsFixed = movedContent.includes('../../../../server/src/core/file-operations/path-utils.js');
+    const pathUtilsFixed = movedContent.includes(
+      '../../../../server/src/core/file-operations/path-utils.js'
+    );
     const loggerFixed = movedContent.includes('../../../../server/src/core/diagnostics/logger.js');
     const validationFixed = movedContent.includes('../../../../server/src/utils/validation.js');
-    const serviceContextFixed = movedContent.includes('../../../../server/src/services/service-context.js');
-    const clientFactoryFixed = movedContent.includes('../../../../server/src/core/client-factory.js');
+    const serviceContextFixed = movedContent.includes(
+      '../../../../server/src/services/service-context.js'
+    );
+    const clientFactoryFixed = movedContent.includes(
+      '../../../../server/src/core/client-factory.js'
+    );
 
     // Dynamic imports should also be fixed
-    const setupDynamicFixed = movedContent.includes("import('../../../../server/src/lsp/commands/setup.js')");
-    const statusDynamicFixed = movedContent.includes("import('../../../../server/src/lsp/commands/status.js')");
+    const setupDynamicFixed = movedContent.includes(
+      "import('../../../../server/src/lsp/commands/setup.js')"
+    );
+    const statusDynamicFixed = movedContent.includes(
+      "import('../../../../server/src/lsp/commands/status.js')"
+    );
 
     console.log('💊 Import Fix Results:');
     console.log(`   Path utils:     ${pathUtilsFixed ? '✅ FIXED' : '❌ STILL BROKEN'}`);
@@ -208,13 +229,16 @@ export class LSPClient {
     mkdirSync(join(testDir, 'packages/server/src/data'), { recursive: true });
     writeFileSync(join(testDir, 'packages/server/src/data/config.js'), 'export const config = {};');
 
-    writeFileSync(testFile, `
+    writeFileSync(
+      testFile,
+      `
 import { config } from '../data/config.js';
 
 export function helper() {
   return config;
 }
-`);
+`
+    );
 
     console.log('🧮 Old depth-based logic would have done:');
     console.log('   Original: ../data/config.js');

@@ -1,13 +1,16 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { pathToUri } from '../../../../server/src/core/file-operations/path-utils.js';
-import { createDefaultConfig, mergeWithDefaults } from '../../../../server/src/core/configuration/default-config.js';
+import {
+  createDefaultConfig,
+  mergeWithDefaults,
+} from '../../../../server/src/core/configuration/default-config.js';
 import { logError } from '../../../../server/src/core/diagnostics/error-utils.js';
 import { getLogger } from '../../../../server/src/core/diagnostics/structured-logger.js';
+import { pathToUri } from '../../../../server/src/core/file-operations/path-utils.js';
 import { scanDirectoryForExtensions } from '../../../../server/src/core/file-operations/scanner.js';
-import type { Config } from '../../../../server/src/types.js';
 import { LSPProtocol } from '../../../../server/src/lsp/protocol.js';
 import { ServerManager } from '../../../../server/src/lsp/server-manager.js';
 import type { ServerState } from '../../../../server/src/lsp/types.js';
+import type { Config } from '../../../../server/src/types.js';
 
 const logger = getLogger('LSPClient');
 

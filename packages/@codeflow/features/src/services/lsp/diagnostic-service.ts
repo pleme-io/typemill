@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { logDebugMessage } from '../../../../../server/src/core/diagnostics/debug-logger.js';
 import { pathToUri } from '../../../../../server/src/core/file-operations/path-utils.js';
-import type { Diagnostic, DocumentDiagnosticReport } from '../../../../../server/src/types.js';
 import type { ServiceContext } from '../../../../../server/src/services/service-context.js';
+import type { Diagnostic, DocumentDiagnosticReport } from '../../../../../server/src/types.js';
 
 // Diagnostic service constants
 const DIAGNOSTIC_WAIT_TIMEOUT_MS = process.env.TEST_MODE ? 10000 : 5000; // Longer wait in tests

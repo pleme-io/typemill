@@ -2,8 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { MCPTestClient } from '../helpers/mcp-test-client';
-import { getTestConfig, getTestModeFromEnv } from '../helpers/test-mode-detector';
 import { waitForLSPInitialization } from '../helpers/polling-helpers.js';
+import { getTestConfig, getTestModeFromEnv } from '../helpers/test-mode-detector';
 
 /**
  * Enhanced test for search_workspace_symbols with isolated test files

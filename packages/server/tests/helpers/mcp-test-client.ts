@@ -134,12 +134,11 @@ export class MCPTestClient {
       // Run against source during development, dist in CI/production
       const useSource = process.env.NODE_ENV !== 'production' && process.env.CI !== 'true';
       args = useSource
-        ? ['index.ts', 'start']  // Run source with Bun
+        ? ['index.ts', 'start'] // Run source with Bun
         : ['dist/index.js', 'start']; // Run bundled with Node
       executable = useSource ? 'bun' : process.execPath;
       cwd = '/workspace/packages/server';
     }
-
 
     this.process = spawn(executable, args, {
       cwd,

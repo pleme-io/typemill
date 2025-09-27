@@ -1,8 +1,12 @@
 // MCP handlers for hierarchy and navigation features
 import { resolve } from 'node:path';
+import {
+  formatHumanRange,
+  toHumanPosition,
+  toLSPPosition,
+} from '../../../../@codeflow/core/src/utils/index.js';
 import type { HierarchyService } from '../../services/intelligence/hierarchy-service.js';
 import type { CallHierarchyItem, TypeHierarchyItem } from '../../types.js';
-import { formatHumanRange, toHumanPosition, toLSPPosition } from '../../../../@codeflow/core/src/utils/index.js';
 import { registerTools } from '../tool-registry.js';
 import { createMCPResponse } from '../utils.js';
 
@@ -194,7 +198,6 @@ export async function handleGetCallHierarchyOutgoingCalls(
     );
   }
 }
-
 
 // Helper function to get symbol kind name
 function getSymbolKindName(kind: number): string {

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { assertToolResult, MCPTestClient } from '../helpers/mcp-test-client';
+import { waitForCondition, waitForLSPInitialization } from '../helpers/polling-helpers.js';
 import { testLog } from '../helpers/quiet-logger';
-import { waitForLSPInitialization, waitForCondition } from '../helpers/polling-helpers.js';
 
 describe('Server Restart Tests', () => {
   let client: MCPTestClient;

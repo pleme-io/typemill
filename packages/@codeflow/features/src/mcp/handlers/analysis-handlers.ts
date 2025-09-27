@@ -3,11 +3,14 @@
  * Phase 3: Advanced features using MCP tools
  */
 
-import { createUserFriendlyErrorMessage, MCPError } from '../../../../../server/src/core/diagnostics/error-utils.js';
+import {
+  createUserFriendlyErrorMessage,
+  MCPError,
+} from '../../../../../server/src/core/diagnostics/error-utils.js';
 import { logger } from '../../../../../server/src/core/diagnostics/logger.js';
-import { measureAndTrack, toHumanPosition } from '../../../../core/src/utils/index.js';
 import { registerTools } from '../../../../../server/src/mcp/tool-registry.js';
 import { createMCPResponse } from '../../../../../server/src/mcp/utils.js';
+import { measureAndTrack, toHumanPosition } from '../../../../core/src/utils/index.js';
 
 interface DeadCodeResult {
   file: string;
@@ -222,8 +225,12 @@ export async function handleFixImports(args: { file_path: string; old_path: stri
         const { readFileSync, writeFileSync, existsSync } = await import('node:fs');
         const { dirname, resolve, relative, extname } = await import('node:path');
         const { astService } = await import('../../../../../server/src/services/ast-service.js');
-        const { applyImportPathUpdates } = await import('../../../../../server/src/core/ast/ast-editor.js');
-        const { rewriteImports } = await import('../../../../../server/src/core/ast/language-rewriters.js');
+        const { applyImportPathUpdates } = await import(
+          '../../../../../server/src/core/ast/ast-editor.js'
+        );
+        const { rewriteImports } = await import(
+          '../../../../../server/src/core/ast/language-rewriters.js'
+        );
 
         const content = readFileSync(file_path, 'utf-8');
         const fileExt = extname(file_path).toLowerCase();
@@ -290,58 +297,55 @@ export async function handleFixImports(args: { file_path: string; old_path: stri
               writeFileSync(file_path, result.content, 'utf-8');
               return createMCPResponse(
                 `✅ Fixed ${result.editsApplied} import${result.editsApplied === 1 ? '' : 's'} in ${file_path} using AST\n\n` +
-                updates.map(u => `• "${u.oldPath}" → "${u.newPath}"`).join('\n')
-              );
-            } else {
-              return createMCPResponse(`❌ Failed to fix imports: ${result.error}`);
-            }
-          } else {
-            return createMCPResponse(`✅ No imports needed fixing in ${file_path}`);
-          }
-        } else {
-          // For non-TS/JS files, use language-specific rewriters
-          const imports = await astService.getImports(file_path);
-          const mappings: any[] = [];
-
-          for (const importPath of imports) {
-            if (importPath.startsWith('.')) {
-              const targetFile = resolve(dirname(old_path), importPath);
-              let resolvedTarget = targetFile;
-
-              if (!existsSync(targetFile)) {
-                const baseTarget = targetFile.replace(/\.(js|mjs|cjs)$/, '');
-                for (const ext of ['.py', '.go', '.rs', '.java', '.cs', '.rb', '.php']) {
-                  if (existsSync(baseTarget + ext)) {
-                    resolvedTarget = baseTarget + ext;
-                    break;
-                  }
-                }
-              }
-
-              let newImportPath = relative(dirname(file_path), resolvedTarget).replace(/\\/g, '/');
-              if (!newImportPath.startsWith('.')) {
-                newImportPath = './' + newImportPath;
-              }
-
-              if (importPath !== newImportPath) {
-                mappings.push({ oldPath: importPath, newPath: newImportPath });
-              }
-            }
-          }
-
-          if (mappings.length > 0) {
-            const result = rewriteImports(file_path, content, mappings);
-            if (result.success && result.content) {
-              writeFileSync(file_path, result.content, 'utf-8');
-              return createMCPResponse(
-                `✅ Fixed ${result.editsApplied} import${result.editsApplied === 1 ? '' : 's'} in ${file_path}\n\n` +
-                mappings.map((m: any) => `• "${m.oldPath}" → "${m.newPath}"`).join('\n')
+                  updates.map((u) => `• "${u.oldPath}" → "${u.newPath}"`).join('\n')
               );
             }
+            return createMCPResponse(`❌ Failed to fix imports: ${result.error}`);
           }
-
           return createMCPResponse(`✅ No imports needed fixing in ${file_path}`);
         }
+        // For non-TS/JS files, use language-specific rewriters
+        const imports = await astService.getImports(file_path);
+        const mappings: any[] = [];
+
+        for (const importPath of imports) {
+          if (importPath.startsWith('.')) {
+            const targetFile = resolve(dirname(old_path), importPath);
+            let resolvedTarget = targetFile;
+
+            if (!existsSync(targetFile)) {
+              const baseTarget = targetFile.replace(/\.(js|mjs|cjs)$/, '');
+              for (const ext of ['.py', '.go', '.rs', '.java', '.cs', '.rb', '.php']) {
+                if (existsSync(baseTarget + ext)) {
+                  resolvedTarget = baseTarget + ext;
+                  break;
+                }
+              }
+            }
+
+            let newImportPath = relative(dirname(file_path), resolvedTarget).replace(/\\/g, '/');
+            if (!newImportPath.startsWith('.')) {
+              newImportPath = './' + newImportPath;
+            }
+
+            if (importPath !== newImportPath) {
+              mappings.push({ oldPath: importPath, newPath: newImportPath });
+            }
+          }
+        }
+
+        if (mappings.length > 0) {
+          const result = rewriteImports(file_path, content, mappings);
+          if (result.success && result.content) {
+            writeFileSync(file_path, result.content, 'utf-8');
+            return createMCPResponse(
+              `✅ Fixed ${result.editsApplied} import${result.editsApplied === 1 ? '' : 's'} in ${file_path}\n\n` +
+                mappings.map((m: any) => `• "${m.oldPath}" → "${m.newPath}"`).join('\n')
+            );
+          }
+        }
+
+        return createMCPResponse(`✅ No imports needed fixing in ${file_path}`);
       } catch (error) {
         return createMCPResponse(
           `Error fixing imports: ${error instanceof Error ? error.message : String(error)}`
@@ -355,9 +359,11 @@ export async function handleFixImports(args: { file_path: string; old_path: stri
 /**
  * Analyze import relationships for a file
  */
-export async function handleAnalyzeImports(
-  args: { file_path: string; include_importers?: boolean; include_imports?: boolean }
-) {
+export async function handleAnalyzeImports(args: {
+  file_path: string;
+  include_importers?: boolean;
+  include_imports?: boolean;
+}) {
   const { file_path, include_importers = true, include_imports = true } = args;
 
   return measureAndTrack(
@@ -366,7 +372,9 @@ export async function handleAnalyzeImports(
       try {
         const { existsSync, statSync, readFileSync } = await import('node:fs');
         const { resolve, relative } = await import('node:path');
-        const { projectScanner } = await import('../../../../../server/src/services/project-analyzer.js');
+        const { projectScanner } = await import(
+          '../../../../../server/src/services/project-analyzer.js'
+        );
 
         const absolutePath = resolve(file_path);
 
@@ -380,7 +388,7 @@ export async function handleAnalyzeImports(
           const importers = await projectScanner.findImporters(absolutePath);
           if (importers.length > 0) {
             results.push(`## Files that import ${file_path}:`);
-            results.push(...importers.map(imp => `• ${relative(process.cwd(), imp)}`));
+            results.push(...importers.map((imp) => `• ${relative(process.cwd(), imp)}`));
           } else {
             results.push(`## No files import ${file_path}`);
           }
@@ -393,7 +401,7 @@ export async function handleAnalyzeImports(
 
           if (imports.length > 0) {
             results.push(`\n## ${file_path} imports:`);
-            results.push(...imports.map(imp => `• ${imp}`));
+            results.push(...imports.map((imp) => `• ${imp}`));
           } else {
             results.push(`\n## ${file_path} has no imports`);
           }
@@ -420,14 +428,15 @@ export async function handleRenameDirectory(
   const { old_path, new_path, dry_run = false } = args;
   console.log('🎬 Starting rename_directory handler:', { old_path, new_path, dry_run });
 
-
   return measureAndTrack(
     'rename_directory',
     async () => {
       try {
         const { readdirSync, statSync, existsSync } = await import('node:fs');
         const { join, resolve, relative, dirname } = await import('node:path');
-        const { renameFile } = await import('../../../../../server/src/core/file-operations/editor.js');
+        const { renameFile } = await import(
+          '../../../../../server/src/core/file-operations/editor.js'
+        );
 
         const absoluteOldPath = resolve(old_path);
         const absoluteNewPath = resolve(new_path);
@@ -445,7 +454,9 @@ export async function handleRenameDirectory(
         }
 
         // Circular dependency safety check for directory move
-        const { projectScanner } = await import('../../../../../server/src/services/project-analyzer.js');
+        const { projectScanner } = await import(
+          '../../../../../server/src/services/project-analyzer.js'
+        );
         const oldDir = dirname(absoluteOldPath);
         const newDir = dirname(absoluteNewPath);
 
@@ -473,7 +484,10 @@ export async function handleRenameDirectory(
                 }
               }
             } catch (err) {
-              logger.warn('Error scanning directory for circular dependency check', { dir, error: err });
+              logger.warn('Error scanning directory for circular dependency check', {
+                dir,
+                error: err,
+              });
             }
           }
 
@@ -494,7 +508,11 @@ export async function handleRenameDirectory(
               const relativePath = relative(absoluteNewPath, importerDir);
 
               // If the importer is in a subdirectory of the new location, this could create a circular dependency
-              if (!relativePath.startsWith('..') && relativePath !== '' && !relativePath.startsWith('/')) {
+              if (
+                !relativePath.startsWith('..') &&
+                relativePath !== '' &&
+                !relativePath.startsWith('/')
+              ) {
                 const relativeImporter = relative(process.cwd(), importer);
                 const relativeFile = relative(process.cwd(), fileToCheck);
                 const relativeOld = relative(process.cwd(), old_path);
@@ -502,13 +520,13 @@ export async function handleRenameDirectory(
 
                 return createMCPResponse(
                   `⚠️ Cannot rename directory ${relativeOld} to ${relativeNew} - this would create circular dependencies.\n\n` +
-                  `The file ${relativeImporter} imports ${relativeFile} from within the directory being moved.\n` +
-                  `Moving the directory to ${relativeNew} would place it in a parent directory of its importer, ` +
-                  `potentially creating circular import relationships.\n\n` +
-                  `Consider:\n` +
-                  `• Moving the directory to a different location that doesn't create circular dependencies\n` +
-                  `• Refactoring the imports to break the circular dependency first\n` +
-                  `• Restructuring the code organization to avoid circular dependencies`
+                    `The file ${relativeImporter} imports ${relativeFile} from within the directory being moved.\n` +
+                    `Moving the directory to ${relativeNew} would place it in a parent directory of its importer, ` +
+                    `potentially creating circular import relationships.\n\n` +
+                    `Consider:\n` +
+                    `• Moving the directory to a different location that doesn't create circular dependencies\n` +
+                    `• Refactoring the imports to break the circular dependency first\n` +
+                    `• Restructuring the code organization to avoid circular dependencies`
                 );
               }
             }
@@ -538,7 +556,7 @@ export async function handleRenameDirectory(
         collectFiles(absoluteOldPath);
 
         if (dry_run) {
-          const changes = files.map(oldFile => {
+          const changes = files.map((oldFile) => {
             const relativePath = relative(absoluteOldPath, oldFile);
             const newFile = join(absoluteNewPath, relativePath);
             return `• ${relative(process.cwd(), oldFile)} → ${relative(process.cwd(), newFile)}`;
@@ -546,7 +564,7 @@ export async function handleRenameDirectory(
 
           return createMCPResponse(
             `[DRY RUN] Would rename directory with ${files.length} file(s):\n\n` +
-            changes.join('\n')
+              changes.join('\n')
           );
         }
 
@@ -580,7 +598,11 @@ export async function handleRenameDirectory(
           }
         }
 
-        console.log('📊 File move results:', { errorCount, successCount, totalFiles: sortedFiles.length });
+        console.log('📊 File move results:', {
+          errorCount,
+          successCount,
+          totalFiles: sortedFiles.length,
+        });
 
         // Update imports in external files that reference the moved directory
         console.log('📁 About to update external imports:', { errorCount, successCount });
@@ -593,13 +615,15 @@ export async function handleRenameDirectory(
             });
 
             // Import required functions
-            const editorModule = await import('../../../../../server/src/core/file-operations/editor.js');
+            const editorModule = await import(
+              '../../../../../server/src/core/file-operations/editor.js'
+            );
             const { writeFileSync, readFileSync } = await import('node:fs');
 
             // Check if functions are available
             if (!editorModule.findPotentialImporters || !editorModule.findImportsInFile) {
               logger.warn('Required editor functions not available', {
-                available: Object.keys(editorModule)
+                available: Object.keys(editorModule),
               });
               return;
             }
@@ -619,12 +643,15 @@ export async function handleRenameDirectory(
 
               console.log('🔄 Processing moved file:', {
                 oldFile: relative(process.cwd(), oldFile),
-                newFile: relative(process.cwd(), newFile)
+                newFile: relative(process.cwd(), newFile),
               });
 
               // Find files that import this specific moved file
               for (const importingFile of importingFiles) {
-                if (importingFile.startsWith(absoluteOldPath) || importingFile.startsWith(absoluteNewPath)) {
+                if (
+                  importingFile.startsWith(absoluteOldPath) ||
+                  importingFile.startsWith(absoluteNewPath)
+                ) {
                   // Skip files within the moved directory itself
                   continue;
                 }
@@ -639,7 +666,9 @@ export async function handleRenameDirectory(
                     const lines = content.split('\n');
 
                     // Apply edits in reverse order to maintain line numbers
-                    const sortedEdits = edits.sort((a, b) => b.range.start.line - a.range.start.line);
+                    const sortedEdits = edits.sort(
+                      (a, b) => b.range.start.line - a.range.start.line
+                    );
 
                     for (const edit of sortedEdits) {
                       lines[edit.range.start.line] = edit.newText;
@@ -665,7 +694,7 @@ export async function handleRenameDirectory(
           } catch (err) {
             logger.warn('Failed to update external imports', {
               error: err instanceof Error ? err.message : String(err),
-              stack: err instanceof Error ? err.stack : undefined
+              stack: err instanceof Error ? err.stack : undefined,
             });
           }
         }
@@ -680,7 +709,10 @@ export async function handleRenameDirectory(
             rmSync(absoluteOldPath, { recursive: true, force: true });
             logger.debug('Successfully removed old directory structure', { path: absoluteOldPath });
           } catch (err) {
-            logger.warn('Could not remove old directory structure', { path: absoluteOldPath, error: err });
+            logger.warn('Could not remove old directory structure', {
+              path: absoluteOldPath,
+              error: err,
+            });
             // Don't fail the operation if we can't remove the old directory
             // The files were already moved successfully
           }
@@ -688,9 +720,9 @@ export async function handleRenameDirectory(
 
         return createMCPResponse(
           `## Directory Rename Complete\n\n` +
-          `• **Success**: ${successCount} file(s)\n` +
-          `• **Errors**: ${errorCount} file(s)\n\n` +
-          `### Details:\n${results.join('\n')}`
+            `• **Success**: ${successCount} file(s)\n` +
+            `• **Errors**: ${errorCount} file(s)\n\n` +
+            `### Details:\n${results.join('\n')}`
         );
       } catch (error) {
         return createMCPResponse(

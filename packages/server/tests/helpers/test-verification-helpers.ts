@@ -61,10 +61,10 @@ export async function waitForFile(
   filePath: string,
   options: { timeout?: number; interval?: number } = {}
 ): Promise<void> {
-  await waitForCondition(
-    () => existsSync(filePath),
-    { ...options, message: `File ${filePath} did not appear within timeout` }
-  );
+  await waitForCondition(() => existsSync(filePath), {
+    ...options,
+    message: `File ${filePath} did not appear within timeout`,
+  });
 }
 
 /**
@@ -93,19 +93,22 @@ export async function waitForFileContent(
  */
 export async function waitForLSP(client: MCPTestClient, filePath: string, timeout = 10000) {
   console.log(`⏳ Waiting for LSP server to be ready for ${filePath}...`);
-  await poll(async () => {
-    try {
-      // Use a lightweight command to check if the server is responsive for the file
-      const result = await client.callTool('get_document_symbols', { file_path: filePath });
-      // Check for a valid, non-error response
-      return result?.content?.[0]?.text ? !result.content[0].text.includes('Error') : true;
-    } catch (e) {
-      return false;
-    }
-  }, timeout, 500);
+  await poll(
+    async () => {
+      try {
+        // Use a lightweight command to check if the server is responsive for the file
+        const result = await client.callTool('get_document_symbols', { file_path: filePath });
+        // Check for a valid, non-error response
+        return result?.content?.[0]?.text ? !result.content[0].text.includes('Error') : true;
+      } catch (e) {
+        return false;
+      }
+    },
+    timeout,
+    500
+  );
   console.log(`✅ LSP server is ready for ${filePath}.`);
 }
-
 
 /**
  * Helper utilities for thorough test verification of multi-file operations

@@ -76,9 +76,7 @@ class ProcessManagerImpl implements ProcessManager {
           if (!force) {
             // Try force kill as fallback
             setTimeout(() => {
-              this.terminate(pid, { force: true, timeout })
-                .then(resolve)
-                .catch(reject);
+              this.terminate(pid, { force: true, timeout }).then(resolve).catch(reject);
             }, timeout);
           } else {
             reject(error);

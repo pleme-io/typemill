@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
-import { AnalysisCache } from '../core/cache/AnalysisCache.js';
 import { parseImports } from '../core/ast/import-parser.js';
+import { AnalysisCache } from '../core/cache/AnalysisCache.js';
 
 class ASTService {
   private importCache = new AnalysisCache<string[]>();

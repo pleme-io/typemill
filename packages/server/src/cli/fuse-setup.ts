@@ -107,7 +107,9 @@ async function setupMacOSFuse(): Promise<boolean> {
   } catch {
     console.log('❌ Homebrew not found');
     console.log('Please install Homebrew first:');
-    console.log('  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"');
+    console.log(
+      '  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
+    );
     return false;
   }
 
@@ -136,7 +138,9 @@ async function setupMacOSFuse(): Promise<boolean> {
           execSync('npm rebuild @cocalc/fuse-native', { stdio: 'inherit' });
           console.log('✅ Native modules rebuilt successfully');
         } catch {
-          console.log('⚠️  Could not rebuild native modules - you may need to reinstall the package');
+          console.log(
+            '⚠️  Could not rebuild native modules - you may need to reinstall the package'
+          );
         }
 
         return true;

@@ -3,11 +3,11 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { LSPClient } from '../../../@codeflow/features/src/lsp/lsp-client.js';
-import { FileService } from '../../src/services/file-service.js';
 import { SymbolService } from '../../../@codeflow/features/src/services/lsp/symbol-service.js';
-import { ServiceContextUtils } from '../../src/services/service-context.js';
-import { PredictiveLoaderService } from '../../src/services/predictive-loader.js';
 import { logger } from '../../src/core/diagnostics/logger.js';
+import { FileService } from '../../src/services/file-service.js';
+import { PredictiveLoaderService } from '../../src/services/predictive-loader.js';
+import { ServiceContextUtils } from '../../src/services/service-context.js';
 import { waitForCondition } from '../helpers/polling-helpers.js';
 
 /**
@@ -38,7 +38,9 @@ describe('Predictive Loading Performance', () => {
     testTypesFile = join(tempTestDir, 'types.ts');
 
     // Create test files programmatically
-    await writeFile(testTypesFile, `export interface User {
+    await writeFile(
+      testTypesFile,
+      `export interface User {
   id: string;
   name: string;
   email: string;
@@ -63,9 +65,12 @@ export interface CreateUserRequest {
   name: string;
   email: string;
   role: UserRole;
-}`);
+}`
+    );
 
-    await writeFile(testUtilsFile, `import type { User } from './types';
+    await writeFile(
+      testUtilsFile,
+      `import type { User } from './types';
 
 const mockDatabase: User[] = [
   { id: '1', name: 'John Doe', email: 'john@example.com', role: 'admin' },
@@ -96,9 +101,12 @@ export function getUsersByRole(role: string): User[] {
 
 export function formatUserName(user: User): string {
   return \`\${user.name} (\${user.email})\`;
-}`);
+}`
+    );
 
-    await writeFile(testMainFile, `import { findUser, validateUser } from './utils';
+    await writeFile(
+      testMainFile,
+      `import { findUser, validateUser } from './utils';
 import type { User } from './types';
 
 export class UserManager {
@@ -133,7 +141,8 @@ export class UserManager {
 
     throw new Error('Invalid user data');
   }
-}`);
+}`
+    );
 
     console.log('📝 Created test files with realistic import structure');
 
@@ -159,7 +168,7 @@ export class UserManager {
         console.log(`🔄 Predictive loading triggered for: ${filePath}`);
         return fileService.openFileInternal(filePath);
       },
-      config: { serverOptions: { enablePredictiveLoading: true } }
+      config: { serverOptions: { enablePredictiveLoading: true } },
     });
 
     serviceContext.predictiveLoader = predictiveLoaderService;
@@ -206,7 +215,9 @@ export class UserManager {
     const min = Math.min(...times);
     const max = Math.max(...times);
 
-    console.log(`  Average: ${average.toFixed(1)}ms, Min: ${min.toFixed(1)}ms, Max: ${max.toFixed(1)}ms`);
+    console.log(
+      `  Average: ${average.toFixed(1)}ms, Min: ${min.toFixed(1)}ms, Max: ${max.toFixed(1)}ms`
+    );
 
     return { average, min, max, times };
   }
@@ -264,7 +275,8 @@ export class UserManager {
     );
 
     // Compare results
-    const improvementPercent = ((withoutPreloading.average - withPreloading.average) / withoutPreloading.average) * 100;
+    const improvementPercent =
+      ((withoutPreloading.average - withPreloading.average) / withoutPreloading.average) * 100;
 
     console.log('\n📊 Performance Results:');
     console.log(`  Cold start (no preloading):  ${withoutPreloading.average.toFixed(1)}ms average`);
@@ -277,11 +289,19 @@ export class UserManager {
 
     // Log detailed statistics
     console.log('\n📈 Detailed Statistics:');
-    console.log('  Cold Start Times:', withoutPreloading.times.map(t => `${t.toFixed(1)}ms`).join(', '));
-    console.log('  Warm Start Times:', withPreloading.times.map(t => `${t.toFixed(1)}ms`).join(', '));
+    console.log(
+      '  Cold Start Times:',
+      withoutPreloading.times.map((t) => `${t.toFixed(1)}ms`).join(', ')
+    );
+    console.log(
+      '  Warm Start Times:',
+      withPreloading.times.map((t) => `${t.toFixed(1)}ms`).join(', ')
+    );
 
     if (improvementPercent > 10) {
-      console.log(`\n✅ Significant performance improvement detected: ${improvementPercent.toFixed(1)}%`);
+      console.log(
+        `\n✅ Significant performance improvement detected: ${improvementPercent.toFixed(1)}%`
+      );
     } else if (improvementPercent > 0) {
       console.log(`\n⚡ Minor performance improvement detected: ${improvementPercent.toFixed(1)}%`);
     } else {

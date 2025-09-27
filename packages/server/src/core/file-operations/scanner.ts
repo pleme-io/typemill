@@ -1,8 +1,8 @@
 import { access, constants, readdir, readFile, stat } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 import ignore from 'ignore';
-import type { LanguageServerConfig } from '../configuration/language-presets.js';
 import { pathManager } from '../../utils/platform/path-manager.js';
+import type { LanguageServerConfig } from '../configuration/language-presets.js';
 
 // Default ignore patterns
 const DEFAULT_IGNORE_PATTERNS = [

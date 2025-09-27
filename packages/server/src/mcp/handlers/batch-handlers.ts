@@ -1,17 +1,14 @@
 import { logger } from '../../core/diagnostics/logger.js';
 import { type BatchExecuteArgs, BatchExecutor } from '../../services/batch-executor.js';
 import type { ServiceContainer } from '../../services/service-container.js';
-import { createMCPResponse } from '../utils.js';
 import { registerTools } from '../tool-registry.js';
+import { createMCPResponse } from '../utils.js';
 
 /**
  * Universal batch execution handler
  * Uses ServiceContainer for clean dependency injection
  */
-export async function handleBatchExecute(
-  container: ServiceContainer,
-  args: BatchExecuteArgs
-) {
+export async function handleBatchExecute(container: ServiceContainer, args: BatchExecuteArgs) {
   try {
     // Create batch executor using the service container
     const batchExecutor = new BatchExecutor(container);

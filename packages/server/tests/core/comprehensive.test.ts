@@ -22,10 +22,8 @@ describe('MCP Comprehensive Tests - All 28 Tools', () => {
     }
 
     // Wait for LSP servers to be ready for test files
-    const testFiles = [
-      '/workspace/examples/playground/src/test-file.ts'
-    ];
-    for (const file of testFiles.filter(f => require('fs').existsSync(f))) {
+    const testFiles = ['/workspace/examples/playground/src/test-file.ts'];
+    for (const file of testFiles.filter((f) => require('fs').existsSync(f))) {
       await waitForLSP(client, file);
     }
   });
@@ -195,7 +193,6 @@ export function useTempConstant() {
       });
       expect(result).toBeDefined();
     });
-
   });
 
   describe('Intelligence Tools', () => {
@@ -253,7 +250,6 @@ export function useTempConstant() {
       });
       expect(result).toBeDefined();
     });
-
   });
 
   describe('File Operations', () => {
@@ -380,7 +376,6 @@ export function useTempConstant() {
       const content = result.content?.[0]?.text || '';
       expect(content).toMatch(/(outgoing|call|hierarchy|to)/i);
     });
-
   });
 
   // Summary test

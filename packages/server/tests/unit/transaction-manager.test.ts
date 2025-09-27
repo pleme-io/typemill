@@ -143,18 +143,26 @@ describe('TransactionManager', () => {
     it('should prevent multiple concurrent transactions', () => {
       transactionManager.beginTransaction();
 
-      expect(() => transactionManager.beginTransaction()).toThrow('A transaction is already in progress');
+      expect(() => transactionManager.beginTransaction()).toThrow(
+        'A transaction is already in progress'
+      );
     });
 
     it('should require active transaction for checkpoint operations', async () => {
-      await expect(transactionManager.saveCheckpoint('test')).rejects.toThrow('No active transaction');
-      await expect(transactionManager.rollbackToCheckpoint('test')).rejects.toThrow('No active transaction');
+      await expect(transactionManager.saveCheckpoint('test')).rejects.toThrow(
+        'No active transaction'
+      );
+      await expect(transactionManager.rollbackToCheckpoint('test')).rejects.toThrow(
+        'No active transaction'
+      );
     });
 
     it('should require existing checkpoint for rollback', async () => {
       transactionManager.beginTransaction();
 
-      await expect(transactionManager.rollbackToCheckpoint('nonexistent')).rejects.toThrow('Checkpoint not found');
+      await expect(transactionManager.rollbackToCheckpoint('nonexistent')).rejects.toThrow(
+        'Checkpoint not found'
+      );
     });
 
     it('should complete transaction lifecycle correctly', async () => {

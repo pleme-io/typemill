@@ -1,9 +1,9 @@
 import { afterAll, describe, expect, it } from 'bun:test';
 import { join } from 'node:path';
 import { LSPClient } from '../../../@codeflow/features/src/lsp/lsp-client.js';
+import { SymbolService } from '../../../@codeflow/features/src/services/lsp/symbol-service.js';
 import { FileService } from '../../src/services/file-service.js';
 import { IntelligenceService } from '../../src/services/intelligence/intelligence-service.js';
-import { SymbolService } from '../../../@codeflow/features/src/services/lsp/symbol-service.js';
 import { ServiceContextUtils } from '../../src/services/service-context.js';
 
 describe('LSP Client Unit Tests', () => {

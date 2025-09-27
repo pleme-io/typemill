@@ -2,8 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { assertToolResult, MCPTestClient } from '../helpers/mcp-test-client';
-import { captureFileStates, verifyFileContainsAll } from '../helpers/test-verification-helpers.js';
 import { waitForCondition, waitForLSPInitialization } from '../helpers/polling-helpers.js';
+import { captureFileStates, verifyFileContainsAll } from '../helpers/test-verification-helpers.js';
 
 /**
  * Integration test for combined LSP operations
@@ -457,7 +457,10 @@ export function createService(): UserService {
     expect(renameFileResponse).toMatch(/renamed|moved|updated/i);
 
     // Wait for file operations
-    await waitForCondition(() => existsSync(join(TEST_DIR, 'account-service.ts')), { timeout: 1000, interval: 100 });
+    await waitForCondition(() => existsSync(join(TEST_DIR, 'account-service.ts')), {
+      timeout: 1000,
+      interval: 100,
+    });
 
     // STEP 3: Verify file was renamed and imports updated
     console.log('📍 Step 3: Verify file rename and import updates');

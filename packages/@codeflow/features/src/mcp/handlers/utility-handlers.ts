@@ -2,15 +2,6 @@ import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { logger } from '../../../../../server/src/core/diagnostics/logger.js';
 import type { WorkspaceEdit } from '../../../../../server/src/core/file-operations/editor.js';
-import type { DiagnosticService } from '../../services/lsp/diagnostic-service.js';
-import type { ServiceContext } from '../../../../../server/src/services/service-context.js';
-import {
-  assertValidFilePath,
-  formatHumanRange,
-  measureAndTrack,
-  toHumanRange,
-  ValidationError,
-} from '../../../../core/src/utils/index.js';
 import { registerTools } from '../../../../../server/src/mcp/tool-registry.js';
 import {
   createContextualErrorResponse,
@@ -21,6 +12,15 @@ import {
   createSuccessResponse,
 } from '../../../../../server/src/mcp/utils.js';
 import { DependencyOrchestrator } from '../../../../../server/src/mcp/workflow/index.js';
+import type { ServiceContext } from '../../../../../server/src/services/service-context.js';
+import {
+  assertValidFilePath,
+  formatHumanRange,
+  measureAndTrack,
+  toHumanRange,
+  ValidationError,
+} from '../../../../core/src/utils/index.js';
+import type { DiagnosticService } from '../../services/lsp/diagnostic-service.js';
 
 // Handler for get_diagnostics tool
 export async function handleGetDiagnostics(
@@ -132,8 +132,14 @@ export async function handleRestartServer(
  * This function scans all project files to find and update any remaining references
  * to the renamed file that the initial rename operation missed (specifically dynamic imports)
  */
-async function fixDynamicImportsInProject(oldFilePath: string, newFilePath: string, rootDir: string) {
-  const { readdirSync, readFileSync, writeFileSync, existsSync, statSync } = await import('node:fs');
+async function fixDynamicImportsInProject(
+  oldFilePath: string,
+  newFilePath: string,
+  rootDir: string
+) {
+  const { readdirSync, readFileSync, writeFileSync, existsSync, statSync } = await import(
+    'node:fs'
+  );
   const { dirname, resolve, relative, join } = await import('node:path');
 
   // Get all TypeScript/JavaScript files in the project to scan
@@ -148,7 +154,10 @@ async function fixDynamicImportsInProject(oldFilePath: string, newFilePath: stri
           const stat = statSync(fullPath);
           if (stat.isDirectory()) {
             // Skip common directories that won't have import statements
-            if (!entry.startsWith('.') && !['node_modules', 'dist', 'build', 'coverage'].includes(entry)) {
+            if (
+              !entry.startsWith('.') &&
+              !['node_modules', 'dist', 'build', 'coverage'].includes(entry)
+            ) {
               collectFiles(fullPath);
             }
           } else if (stat.isFile()) {
@@ -192,7 +201,8 @@ async function fixDynamicImportsInProject(oldFilePath: string, newFilePath: stri
       for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
         const line = lines[lineIndex];
         // Use the comprehensive regex that includes dynamic import()
-        const importRegex = /((?:from|require\s*\(|import\s*\(|export\s+.*?from)\s*['"`])(\.\.?\/[^'"`]+)(['"`])/g;
+        const importRegex =
+          /((?:from|require\s*\(|import\s*\(|export\s+.*?from)\s*['"`])(\.\.?\/[^'"`]+)(['"`])/g;
         importRegex.lastIndex = 0;
 
         let match;
@@ -264,7 +274,7 @@ async function fixDynamicImportsInProject(oldFilePath: string, newFilePath: stri
                 startCol: match.index! + match[1].length,
                 endCol: match.index! + match[1].length + oldImportPath.length,
                 newText: newImportPath,
-                oldText: oldImportPath
+                oldText: oldImportPath,
               });
             }
           }
@@ -280,9 +290,7 @@ async function fixDynamicImportsInProject(oldFilePath: string, newFilePath: stri
         for (const edit of sortedEdits) {
           const line = updatedLines[edit.line];
           updatedLines[edit.line] =
-            line.substring(0, edit.startCol) +
-            edit.newText +
-            line.substring(edit.endCol);
+            line.substring(0, edit.startCol) + edit.newText + line.substring(edit.endCol);
         }
 
         writeFileSync(filePath, updatedLines.join('\n'), 'utf-8');
@@ -293,7 +301,7 @@ async function fixDynamicImportsInProject(oldFilePath: string, newFilePath: stri
           tool: 'rename_file',
           file: filePath,
           edits_count: edits.length,
-          edits: edits.map(e => ({ line: e.line + 1, old: e.oldText, new: e.newText }))
+          edits: edits.map((e) => ({ line: e.line + 1, old: e.oldText, new: e.newText })),
         });
       }
     } catch (fileError) {
@@ -326,7 +334,9 @@ export async function handleRenameFile(args: {
 
   try {
     // Circular dependency safety check
-    const { projectScanner } = await import('../../../../../server/src/services/project-analyzer.js');
+    const { projectScanner } = await import(
+      '../../../../../server/src/services/project-analyzer.js'
+    );
     const { dirname, relative, resolve } = await import('node:path');
 
     const absoluteOldPath = resolve(old_path);
@@ -352,20 +362,24 @@ export async function handleRenameFile(args: {
           const relativePath = relative(newDir, importerDir);
 
           // If the importer is in a subdirectory of the new location, this could create a circular dependency
-          if (!relativePath.startsWith('..') && relativePath !== '' && !relativePath.startsWith('/')) {
+          if (
+            !relativePath.startsWith('..') &&
+            relativePath !== '' &&
+            !relativePath.startsWith('/')
+          ) {
             const relativeImporter = relative(process.cwd(), importer);
             const relativeOld = relative(process.cwd(), old_path);
             const relativeNew = relative(process.cwd(), new_path);
 
             return createMCPResponse(
               `⚠️ Cannot rename ${relativeOld} to ${relativeNew} - this would create a circular dependency.\n\n` +
-              `The file ${relativeImporter} imports ${relativeOld}.\n` +
-              `Moving ${relativeOld} to ${relativeNew} would place it in a parent directory of its importer, ` +
-              `potentially creating circular import relationships.\n\n` +
-              `Consider:\n` +
-              `• Moving the file to a different location that doesn't create circular dependencies\n` +
-              `• Refactoring the imports to break the circular dependency first\n` +
-              `• Using a shared utilities directory that both can import from`
+                `The file ${relativeImporter} imports ${relativeOld}.\n` +
+                `Moving ${relativeOld} to ${relativeNew} would place it in a parent directory of its importer, ` +
+                `potentially creating circular import relationships.\n\n` +
+                `Consider:\n` +
+                `• Moving the file to a different location that doesn't create circular dependencies\n` +
+                `• Refactoring the imports to break the circular dependency first\n` +
+                `• Using a shared utilities directory that both can import from`
             );
           }
         }
@@ -550,7 +564,9 @@ export async function handleDeleteFile(args: { file_path: string; force?: boolea
     }
 
     // Import the project scanner for impact analysis
-    const { projectScanner } = await import('../../../../../server/src/services/project-analyzer.js');
+    const { projectScanner } = await import(
+      '../../../../../server/src/services/project-analyzer.js'
+    );
 
     // Find all files that import this file
     logger.debug('Analyzing file deletion impact', {
@@ -601,7 +617,9 @@ export async function handleDeleteFile(args: { file_path: string; force?: boolea
  * Get health status of LSP servers and system resources
  */
 export async function handleHealthCheck(
-  { include_details = false }: import('../../../../../server/src/mcp/handler-types.js').HealthCheckArgs,
+  {
+    include_details = false,
+  }: import('../../../../../server/src/mcp/handler-types.js').HealthCheckArgs,
   _services: import('../../../../../server/src/services/service-context.js').ServiceContext
 ): Promise<import('../../../../../server/src/mcp/utils.js').MCPResponse> {
   try {
@@ -812,7 +830,7 @@ export async function handleUpdatePackageJson(args: {
     if (dry_run) {
       return createMCPResponse(
         `[DRY RUN] Would make the following changes to ${file_path}:\n\n` +
-        changes.map(change => `• ${change}`).join('\n')
+          changes.map((change) => `• ${change}`).join('\n')
       );
     }
 
@@ -822,8 +840,8 @@ export async function handleUpdatePackageJson(args: {
 
     return createMCPResponse(
       `✅ Successfully updated ${file_path}\n\n` +
-      `Changes made:\n` +
-      changes.map(change => `• ${change}`).join('\n')
+        `Changes made:\n` +
+        changes.map((change) => `• ${change}`).join('\n')
     );
   } catch (error) {
     return createMCPResponse(

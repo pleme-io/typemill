@@ -10,11 +10,11 @@ import {
 } from 'node:fs';
 import { readdir } from 'node:fs/promises';
 import { dirname, extname, relative, resolve } from 'node:path';
-import { astService } from '../../services/ast-service.js';
-import { applyImportPathUpdates, findImportUpdatesForRename } from '../ast/ast-editor.js';
-import { rewriteImports, type ImportMapping } from '../ast/language-rewriters.js';
 import type { LSPClient } from '../../../../@codeflow/features/src/lsp/lsp-client.js';
+import { astService } from '../../services/ast-service.js';
 import { pathManager } from '../../utils/platform/path-manager.js';
+import { applyImportPathUpdates, findImportUpdatesForRename } from '../ast/ast-editor.js';
+import { type ImportMapping, rewriteImports } from '../ast/language-rewriters.js';
 import { logDebugMessage } from '../diagnostics/debug-logger.js';
 import { pathToUri, uriToPath } from './path-utils.js';
 
@@ -389,9 +389,9 @@ export async function findImportsInFile(
             edits.push({
               range: {
                 start: { line: i, character: 0 },
-                end: { line: i, character: lines[i].length }
+                end: { line: i, character: lines[i].length },
               },
-              newText: newLines[i]
+              newText: newLines[i],
             });
           }
         }
@@ -410,10 +410,12 @@ export async function findImportsInFile(
   const newRelative = pathManager.normalizePosix(relative(fileDir, newTargetPath));
 
   // Create import mapping
-  const mappings: ImportMapping[] = [{
-    oldPath: !oldRelative.startsWith('.') ? `./${oldRelative}` : oldRelative,
-    newPath: !newRelative.startsWith('.') ? `./${newRelative}` : newRelative
-  }];
+  const mappings: ImportMapping[] = [
+    {
+      oldPath: !oldRelative.startsWith('.') ? `./${oldRelative}` : oldRelative,
+      newPath: !newRelative.startsWith('.') ? `./${newRelative}` : newRelative,
+    },
+  ];
 
   // Apply language-specific rewriter
   const result = rewriteImports(filePath, content, mappings);
@@ -426,9 +428,9 @@ export async function findImportsInFile(
         edits.push({
           range: {
             start: { line: i, character: 0 },
-            end: { line: i, character: lines[i].length }
+            end: { line: i, character: lines[i].length },
           },
-          newText: newLines[i]
+          newText: newLines[i],
         });
       }
     }
@@ -442,10 +444,7 @@ export async function findImportsInFile(
  * @param oldPath Original path of the file before moving
  * @param newPath New path where the file has been moved
  */
-async function updateImportsInMovedFile(
-  oldPath: string,
-  newPath: string
-): Promise<void> {
+async function updateImportsInMovedFile(oldPath: string, newPath: string): Promise<void> {
   const content = readFileSync(newPath, 'utf-8');
   const fileExt = extname(newPath).toLowerCase();
 
@@ -484,7 +483,9 @@ async function updateImportsInMovedFile(
           }
 
           // Calculate new relative path from NEW location
-          let newImportPath = pathManager.normalizePosix(relative(dirname(newPath), resolvedTarget));
+          let newImportPath = pathManager.normalizePosix(
+            relative(dirname(newPath), resolvedTarget)
+          );
 
           // Preserve .js extension if original had it
           if (importPath.endsWith('.js') && !newImportPath.endsWith('.js')) {
@@ -513,11 +514,17 @@ async function updateImportsInMovedFile(
         const result = applyImportPathUpdates(newPath, content, updates);
         if (result.success && result.content) {
           writeFileSync(newPath, result.content, 'utf-8');
-          logDebugMessage('FileEditor', `Updated ${result.editsApplied} imports in ${newPath} using AST`);
+          logDebugMessage(
+            'FileEditor',
+            `Updated ${result.editsApplied} imports in ${newPath} using AST`
+          );
         }
       }
     } catch (error) {
-      logDebugMessage('FileEditor', `Error updating imports with AST: ${error}, falling back to patterns`);
+      logDebugMessage(
+        'FileEditor',
+        `Error updating imports with AST: ${error}, falling back to patterns`
+      );
       // Fall back to pattern-based approach on error
       await updateImportsWithPatterns(oldPath, newPath);
     }
@@ -572,7 +579,10 @@ async function updateImportsWithPatterns(oldPath: string, newPath: string): Prom
     const result = rewriteImports(newPath, content, mappings);
     if (result.success && result.content) {
       writeFileSync(newPath, result.content, 'utf-8');
-      logDebugMessage('FileEditor', `Updated ${result.editsApplied} imports in ${newPath} using patterns`);
+      logDebugMessage(
+        'FileEditor',
+        `Updated ${result.editsApplied} imports in ${newPath} using patterns`
+      );
     }
   }
 }

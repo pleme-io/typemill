@@ -3,6 +3,7 @@ import { writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { assertToolResult, MCPTestClient } from '../helpers/mcp-test-client.js';
+import { waitForCondition as pollingWaitForCondition } from '../helpers/polling-helpers.js';
 import {
   findLSPServers,
   getLSPServerMemory,
@@ -10,8 +11,7 @@ import {
   waitForLSPServer,
 } from '../helpers/server-process-manager.js';
 import { getSystemCapabilities } from '../helpers/system-utils.js';
-import { waitForLSP, waitForCondition } from '../helpers/test-verification-helpers.js';
-import { waitForCondition as pollingWaitForCondition } from '../helpers/polling-helpers.js';
+import { waitForCondition, waitForLSP } from '../helpers/test-verification-helpers.js';
 
 describe('Error Recovery Tests', () => {
   let client: MCPTestClient;
@@ -107,10 +107,10 @@ describe('Error Recovery Tests', () => {
           }
 
           // Wait between attempts for server to stabilize
-          await waitForCondition(
-            () => findLSPServers('typescript-language-server').length > 0,
-            { timeout: 3000, message: 'Server did not recover' }
-          );
+          await waitForCondition(() => findLSPServers('typescript-language-server').length > 0, {
+            timeout: 3000,
+            message: 'Server did not recover',
+          });
         }
 
         // Should recover from at least some crashes
@@ -134,10 +134,13 @@ describe('Error Recovery Tests', () => {
         ];
 
         // Crash server while requests are in flight
-        pollingWaitForCondition(() => {
-          simulateServerCrash('typescript-language-server');
-          return true;
-        }, { timeout: 100, interval: 100 });
+        pollingWaitForCondition(
+          () => {
+            simulateServerCrash('typescript-language-server');
+            return true;
+          },
+          { timeout: 100, interval: 100 }
+        );
 
         // All requests should either succeed or fail gracefully
         const results = await Promise.allSettled(promises);

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { assertToolResult, MCPTestClient } from '../helpers/mcp-test-client.js';
-import { waitForLSP, poll } from '../helpers/test-verification-helpers.js';
+import { poll, waitForLSP } from '../helpers/test-verification-helpers.js';
 
 describe('Multi-File Rename Integration Tests', () => {
   let client: MCPTestClient;
@@ -198,11 +198,15 @@ export const PROCESSOR_INSTANCE = new DataProcessor();`
 
       console.log('🔍 Verifying file changes...');
 
-          // Wait for file system operations to complete by polling for the change
-          await poll(async () => {
-              const serviceContent = readFileSync(join(TEST_DIR, 'service.ts'), 'utf-8');
-              return serviceContent.includes('ContentProcessor');
-          }, 5000, 100);
+      // Wait for file system operations to complete by polling for the change
+      await poll(
+        async () => {
+          const serviceContent = readFileSync(join(TEST_DIR, 'service.ts'), 'utf-8');
+          return serviceContent.includes('ContentProcessor');
+        },
+        5000,
+        100
+      );
       // Verify specific changes in each file
       const serviceContent = readFileSync(join(TEST_DIR, 'service.ts'), 'utf-8');
       const handlerContent = readFileSync(join(TEST_DIR, 'handler.ts'), 'utf-8');

@@ -5,12 +5,16 @@
 
 import { BatchExecutor } from '../services/batch-executor.js';
 import type {
+  AnalyzeImportsArgs,
   ApplyWorkspaceEditArgs,
   BatchExecuteArgs,
   CreateFileArgs,
   DeleteFileArgs,
+  ExecuteWorkflowArgs,
+  FindDeadCodeArgs,
   FindDefinitionArgs,
   FindReferencesArgs,
+  FixImportsArgs,
   FormatDocumentArgs,
   GetCallHierarchyIncomingCallsArgs,
   GetCallHierarchyOutgoingCallsArgs,
@@ -37,10 +41,6 @@ import type {
   RestartServerArgs,
   SearchWorkspaceSymbolsArgs,
   UpdatePackageJsonArgs,
-  FindDeadCodeArgs,
-  FixImportsArgs,
-  AnalyzeImportsArgs,
-  ExecuteWorkflowArgs,
 } from './handler-types.js';
 
 // Utility type guards
@@ -586,10 +586,26 @@ export function validateUpdatePackageJsonArgs(args: unknown): args is UpdatePack
   if (!isNonEmptyString(args.file_path)) return false;
 
   // Optional fields
-  if ('add_dependencies' in args && args.add_dependencies !== undefined && !isObjectStringMap(args.add_dependencies)) return false;
-  if ('add_dev_dependencies' in args && args.add_dev_dependencies !== undefined && !isObjectStringMap(args.add_dev_dependencies)) return false;
-  if ('remove_dependencies' in args && !isOptionalStringArray(args.remove_dependencies)) return false;
-  if ('add_scripts' in args && args.add_scripts !== undefined && !isObjectStringMap(args.add_scripts)) return false;
+  if (
+    'add_dependencies' in args &&
+    args.add_dependencies !== undefined &&
+    !isObjectStringMap(args.add_dependencies)
+  )
+    return false;
+  if (
+    'add_dev_dependencies' in args &&
+    args.add_dev_dependencies !== undefined &&
+    !isObjectStringMap(args.add_dev_dependencies)
+  )
+    return false;
+  if ('remove_dependencies' in args && !isOptionalStringArray(args.remove_dependencies))
+    return false;
+  if (
+    'add_scripts' in args &&
+    args.add_scripts !== undefined &&
+    !isObjectStringMap(args.add_scripts)
+  )
+    return false;
   if ('remove_scripts' in args && !isOptionalStringArray(args.remove_scripts)) return false;
   if ('update_version' in args && !isOptionalString(args.update_version)) return false;
   if ('dry_run' in args && !isOptionalBoolean(args.dry_run)) return false;
@@ -598,7 +614,8 @@ export function validateUpdatePackageJsonArgs(args: unknown): args is UpdatePack
   if ('workspace_config' in args) {
     if (!isObject(args.workspace_config)) return false;
     const workspaceConfig = args.workspace_config as Record<string, unknown>;
-    if ('workspaces' in workspaceConfig && !isOptionalStringArray(workspaceConfig.workspaces)) return false;
+    if ('workspaces' in workspaceConfig && !isOptionalStringArray(workspaceConfig.workspaces))
+      return false;
   }
 
   return true;

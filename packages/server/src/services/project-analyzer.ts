@@ -1,8 +1,8 @@
-import { readdir, access } from 'node:fs/promises';
 import { constants } from 'node:fs';
+import { access, readdir } from 'node:fs/promises';
 import { dirname, extname, join, resolve } from 'node:path';
-import { resolveImportPath } from '../utils/module-resolver.js';
 import type { ServiceContext } from '../services/service-context.js';
+import { resolveImportPath } from '../utils/module-resolver.js';
 import { astService } from './ast-service.js';
 
 interface DependencyInfo {
@@ -77,7 +77,7 @@ class ProjectScanner {
    */
   async findImporters(filePath: string, rootDir?: string): Promise<string[]> {
     const absolutePath = resolve(filePath);
-    const projectRoot = rootDir || await this.findProjectRoot(dirname(absolutePath));
+    const projectRoot = rootDir || (await this.findProjectRoot(dirname(absolutePath)));
     const scanResult = await this.scanProject(projectRoot);
 
     const fileInfo = scanResult.dependencies.get(absolutePath);
@@ -252,14 +252,13 @@ class ProjectScanner {
     const importedBy = new Set<string>(); // This is populated later
     try {
       const allImports = await astService.getImports(filePath);
-      const relativeImports = new Set(allImports.filter(p => p.startsWith('.')));
+      const relativeImports = new Set(allImports.filter((p) => p.startsWith('.')));
       return { imports: relativeImports, importedBy };
     } catch (error) {
       // Handle or log the error appropriately
       return { imports: new Set<string>(), importedBy };
     }
   }
-
 
   /**
    * Find project root by looking for package.json or .git

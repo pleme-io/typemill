@@ -2,11 +2,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { existsSync, readFileSync } from 'node:fs';
 import { FileBackupManager } from '../helpers/file-backup-manager.js';
 import { assertToolResult, MCPTestClient } from '../helpers/mcp-test-client.js';
+import { waitForFileOperation, waitForLSPInitialization } from '../helpers/polling-helpers.js';
 import {
   verifyFileContainsAll,
   verifyImportStatement,
 } from '../helpers/test-verification-helpers.js';
-import { waitForLSPInitialization, waitForFileOperation } from '../helpers/polling-helpers.js';
 
 describe('Multi-File Rename File Path Tests', () => {
   let client: MCPTestClient;
@@ -144,9 +144,10 @@ describe('Multi-File Rename File Path Tests', () => {
       expect(content).toMatch(/success|renamed/i);
 
       // Wait for file system operations
-      await waitForFileOperation(() =>
-        existsSync('/workspace/examples/playground/src/core/test-service.ts') &&
-        !existsSync('/workspace/examples/playground/src/test-file.ts')
+      await waitForFileOperation(
+        () =>
+          existsSync('/workspace/examples/playground/src/core/test-service.ts') &&
+          !existsSync('/workspace/examples/playground/src/test-file.ts')
       );
 
       console.log('\n🔍 Verifying file changes...');

@@ -1,5 +1,5 @@
-import ts from 'typescript';
 import { extname } from 'node:path';
+import ts from 'typescript';
 
 /**
  * Represents a mapping from old import path to new import path
@@ -40,13 +40,13 @@ export function applyImportPathUpdates(
     return {
       success: false,
       error: `AST editing not supported for ${ext} files`,
-      editsApplied: 0
+      editsApplied: 0,
     };
   }
 
   try {
     // Create a map for efficient lookup
-    const updateMap = new Map(pathUpdates.map(u => [u.oldPath, u.newPath]));
+    const updateMap = new Map(pathUpdates.map((u) => [u.oldPath, u.newPath]));
 
     // Parse the source file
     const sourceFile = ts.createSourceFile(
@@ -64,7 +64,11 @@ export function applyImportPathUpdates(
       return (rootNode) => {
         function visit(node: ts.Node): ts.Node {
           // Handle import declarations: import ... from '...'
-          if (ts.isImportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+          if (
+            ts.isImportDeclaration(node) &&
+            node.moduleSpecifier &&
+            ts.isStringLiteral(node.moduleSpecifier)
+          ) {
             const oldPath = node.moduleSpecifier.text;
             const newPath = updateMap.get(oldPath);
 
@@ -81,7 +85,11 @@ export function applyImportPathUpdates(
           }
 
           // Handle export declarations: export ... from '...'
-          else if (ts.isExportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+          else if (
+            ts.isExportDeclaration(node) &&
+            node.moduleSpecifier &&
+            ts.isStringLiteral(node.moduleSpecifier)
+          ) {
             const oldPath = node.moduleSpecifier.text;
             const newPath = updateMap.get(oldPath);
 
@@ -110,12 +118,10 @@ export function applyImportPathUpdates(
 
             if (newPath) {
               editsApplied++;
-              return ts.factory.updateCallExpression(
-                node,
-                node.expression,
-                node.typeArguments,
-                [ts.factory.createStringLiteral(newPath), ...node.arguments.slice(1)]
-              );
+              return ts.factory.updateCallExpression(node, node.expression, node.typeArguments, [
+                ts.factory.createStringLiteral(newPath),
+                ...node.arguments.slice(1),
+              ]);
             }
           }
 
@@ -132,12 +138,10 @@ export function applyImportPathUpdates(
 
             if (newPath) {
               editsApplied++;
-              return ts.factory.updateCallExpression(
-                node,
-                node.expression,
-                node.typeArguments,
-                [ts.factory.createStringLiteral(newPath), ...node.arguments.slice(1)]
-              );
+              return ts.factory.updateCallExpression(node, node.expression, node.typeArguments, [
+                ts.factory.createStringLiteral(newPath),
+                ...node.arguments.slice(1),
+              ]);
             }
           }
 
@@ -167,14 +171,13 @@ export function applyImportPathUpdates(
     return {
       success: true,
       content: newContent,
-      editsApplied
+      editsApplied,
     };
-
   } catch (error) {
     return {
       success: false,
       error: error instanceof Error ? error.message : String(error),
-      editsApplied: 0
+      editsApplied: 0,
     };
   }
 }
@@ -204,12 +207,7 @@ export function findImportUpdatesForRename(
   }
 
   try {
-    const sourceFile = ts.createSourceFile(
-      filePath,
-      fileContent,
-      ts.ScriptTarget.Latest,
-      true
-    );
+    const sourceFile = ts.createSourceFile(filePath, fileContent, ts.ScriptTarget.Latest, true);
 
     // Calculate relative paths
     const { dirname, relative } = require('node:path');
@@ -234,7 +232,7 @@ export function findImportUpdatesForRename(
 
     const possibleMappings = [
       { old: addPrefix(oldRelativeNoExt), new: addPrefix(newRelativeNoExt) },
-      { old: addPrefix(oldRelativeWithJs), new: addPrefix(newRelativeWithJs) }
+      { old: addPrefix(oldRelativeWithJs), new: addPrefix(newRelativeWithJs) },
     ];
 
     // Find which imports match our possible old paths
@@ -243,12 +241,16 @@ export function findImportUpdatesForRename(
 
       if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
         moduleSpecifier = node.moduleSpecifier.text;
-      } else if (ts.isExportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+      } else if (
+        ts.isExportDeclaration(node) &&
+        node.moduleSpecifier &&
+        ts.isStringLiteral(node.moduleSpecifier)
+      ) {
         moduleSpecifier = node.moduleSpecifier.text;
       } else if (
         ts.isCallExpression(node) &&
-        ((node.expression.kind === ts.SyntaxKind.ImportKeyword) ||
-         (ts.isIdentifier(node.expression) && node.expression.text === 'require')) &&
+        (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+          (ts.isIdentifier(node.expression) && node.expression.text === 'require')) &&
         node.arguments.length > 0 &&
         ts.isStringLiteral(node.arguments[0])
       ) {
@@ -259,7 +261,7 @@ export function findImportUpdatesForRename(
         for (const mapping of possibleMappings) {
           if (moduleSpecifier === mapping.old) {
             // Check if this update is already in the list
-            if (!updates.some(u => u.oldPath === mapping.old)) {
+            if (!updates.some((u) => u.oldPath === mapping.old)) {
               updates.push({ oldPath: mapping.old, newPath: mapping.new });
             }
             break;
@@ -271,7 +273,6 @@ export function findImportUpdatesForRename(
     }
 
     findImports(sourceFile);
-
   } catch (error) {
     // Return empty updates on error
   }

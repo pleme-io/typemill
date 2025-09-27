@@ -1,8 +1,8 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { AssistantInfo } from '../types.js';
 import { pathManager } from '../../utils/platform/path-manager.js';
+import type { AssistantInfo } from '../types.js';
 
 /**
  * AI Assistant configuration management utilities

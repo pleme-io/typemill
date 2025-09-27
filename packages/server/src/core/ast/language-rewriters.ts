@@ -49,7 +49,10 @@ function rewritePythonImports(content: string, mappings: ImportMapping[]): Rewri
       const relativeOldModule = oldPath.replace(/\//g, '.').replace(/\.py$/, '');
       const relativeNewModule = newPath.replace(/\//g, '.').replace(/\.py$/, '');
 
-      const relFromRegex = new RegExp(`^(\\s*from\\s+)${escapeRegex(relativeOldModule)}(\\s+import)`, 'gm');
+      const relFromRegex = new RegExp(
+        `^(\\s*from\\s+)${escapeRegex(relativeOldModule)}(\\s+import)`,
+        'gm'
+      );
       const relFromReplacement = `$1${relativeNewModule}$2`;
       const beforeRelFrom = modifiedContent;
       modifiedContent = modifiedContent.replace(relFromRegex, relFromReplacement);
@@ -60,7 +63,7 @@ function rewritePythonImports(content: string, mappings: ImportMapping[]): Rewri
   return {
     success: true,
     content: modifiedContent,
-    editsApplied
+    editsApplied,
   };
 }
 
@@ -94,7 +97,7 @@ function rewriteGoImports(content: string, mappings: ImportMapping[]): RewriteRe
   return {
     success: true,
     content: modifiedContent,
-    editsApplied
+    editsApplied,
   };
 }
 
@@ -128,7 +131,7 @@ function rewriteRustImports(content: string, mappings: ImportMapping[]): Rewrite
   return {
     success: true,
     content: modifiedContent,
-    editsApplied
+    editsApplied,
   };
 }
 
@@ -141,11 +144,20 @@ function rewriteJavaImports(content: string, mappings: ImportMapping[]): Rewrite
 
   for (const { oldPath, newPath } of mappings) {
     // Convert path to Java package format (dots instead of slashes)
-    const oldPackage = oldPath.replace(/^\.\//, '').replace(/\//g, '.').replace(/\.java$/, '');
-    const newPackage = newPath.replace(/^\.\//, '').replace(/\//g, '.').replace(/\.java$/, '');
+    const oldPackage = oldPath
+      .replace(/^\.\//, '')
+      .replace(/\//g, '.')
+      .replace(/\.java$/, '');
+    const newPackage = newPath
+      .replace(/^\.\//, '')
+      .replace(/\//g, '.')
+      .replace(/\.java$/, '');
 
     // import statements
-    const importRegex = new RegExp(`^(\\s*import\\s+(?:static\\s+)?)${escapeRegex(oldPackage)}((?:\\.[A-Z][\\w]*)?(?:\\.\\*)?;)`, 'gm');
+    const importRegex = new RegExp(
+      `^(\\s*import\\s+(?:static\\s+)?)${escapeRegex(oldPackage)}((?:\\.[A-Z][\\w]*)?(?:\\.\\*)?;)`,
+      'gm'
+    );
     const importReplacement = `$1${newPackage}$2`;
     const beforeImport = modifiedContent;
     modifiedContent = modifiedContent.replace(importRegex, importReplacement);
@@ -155,7 +167,7 @@ function rewriteJavaImports(content: string, mappings: ImportMapping[]): Rewrite
   return {
     success: true,
     content: modifiedContent,
-    editsApplied
+    editsApplied,
   };
 }
 
@@ -182,7 +194,7 @@ function rewriteCSharpImports(content: string, mappings: ImportMapping[]): Rewri
   return {
     success: true,
     content: modifiedContent,
-    editsApplied
+    editsApplied,
   };
 }
 
@@ -199,14 +211,17 @@ function rewriteRubyImports(content: string, mappings: ImportMapping[]): Rewrite
     const newRequire = newPath.replace(/\.rb$/, '');
 
     // require and require_relative
-    const requireRegex = new RegExp(`^(\\s*require(?:_relative)?\\s+['"]\)${escapeRegex(oldRequire)}(['"])`, 'gm');
+    const requireRegex = new RegExp(
+      `^(\\s*require(?:_relative)?\\s+['"])${escapeRegex(oldRequire)}(['"])`,
+      'gm'
+    );
     const requireReplacement = `$1${newRequire}$2`;
     const beforeRequire = modifiedContent;
     modifiedContent = modifiedContent.replace(requireRegex, requireReplacement);
     if (modifiedContent !== beforeRequire) editsApplied++;
 
     // load statements
-    const loadRegex = new RegExp(`^(\\s*load\\s+['"]\)${escapeRegex(oldPath)}(['"])`, 'gm');
+    const loadRegex = new RegExp(`^(\\s*load\\s+['"])${escapeRegex(oldPath)}(['"])`, 'gm');
     const loadReplacement = `$1${newPath}$2`;
     const beforeLoad = modifiedContent;
     modifiedContent = modifiedContent.replace(loadRegex, loadReplacement);
@@ -216,7 +231,7 @@ function rewriteRubyImports(content: string, mappings: ImportMapping[]): Rewrite
   return {
     success: true,
     content: modifiedContent,
-    editsApplied
+    editsApplied,
   };
 }
 
@@ -229,8 +244,14 @@ function rewritePhpImports(content: string, mappings: ImportMapping[]): RewriteR
 
   for (const { oldPath, newPath } of mappings) {
     // PHP namespace format (backslashes)
-    const oldNamespace = oldPath.replace(/^\.\//, '').replace(/\//g, '\\\\').replace(/\.php$/, '');
-    const newNamespace = newPath.replace(/^\.\//, '').replace(/\//g, '\\\\').replace(/\.php$/, '');
+    const oldNamespace = oldPath
+      .replace(/^\.\//, '')
+      .replace(/\//g, '\\\\')
+      .replace(/\.php$/, '');
+    const newNamespace = newPath
+      .replace(/^\.\//, '')
+      .replace(/\//g, '\\\\')
+      .replace(/\.php$/, '');
 
     // use statements
     const useRegex = new RegExp(`^(\\s*use\\s+)${escapeRegex(oldNamespace)}(;|\\s+as)`, 'gm');
@@ -240,7 +261,10 @@ function rewritePhpImports(content: string, mappings: ImportMapping[]): RewriteR
     if (modifiedContent !== beforeUse) editsApplied++;
 
     // require/include with paths
-    const requireRegex = new RegExp(`((?:require|include)(?:_once)?\\s*\\(?['"]\)${escapeRegex(oldPath)}(['"])`, 'gm');
+    const requireRegex = new RegExp(
+      `((?:require|include)(?:_once)?\\s*\\(?['"])${escapeRegex(oldPath)}(['"])`,
+      'gm'
+    );
     const requireReplacement = `$1${newPath}$2`;
     const beforeRequire = modifiedContent;
     modifiedContent = modifiedContent.replace(requireRegex, requireReplacement);
@@ -250,7 +274,7 @@ function rewritePhpImports(content: string, mappings: ImportMapping[]): RewriteR
   return {
     success: true,
     content: modifiedContent,
-    editsApplied
+    editsApplied,
   };
 }
 
@@ -303,7 +327,7 @@ export function rewriteImports(
       return {
         success: false,
         error: `No import rewriter available for ${ext} files`,
-        editsApplied: 0
+        editsApplied: 0,
       };
   }
 }

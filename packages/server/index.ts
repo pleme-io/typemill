@@ -5,16 +5,17 @@ import { join } from 'node:path';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { LSPClient as NewLSPClient } from '../@codeflow/features/src/lsp/lsp-client.js';
+import { DiagnosticService } from '../@codeflow/features/src/services/lsp/diagnostic-service.js';
+import { SymbolService } from '../@codeflow/features/src/services/lsp/symbol-service.js';
 import {
   createRequestContext,
   getLogger,
   StructuredLogger,
 } from './src/core/diagnostics/structured-logger.js';
-import { LSPClient as NewLSPClient } from '../@codeflow/features/src/lsp/lsp-client.js';
 import * as Validation from './src/mcp/comprehensive-validation.js';
 import { allToolDefinitions } from './src/mcp/definitions/index.js';
 import { allWorkflowDefinitions } from './src/mcp/definitions/workflow-definitions.js';
-import { getTool } from './src/mcp/tool-registry.js';
 import {
   handleAnalyzeImports,
   handleApplyWorkspaceEdit,
@@ -46,14 +47,17 @@ import {
   handleSearchWorkspaceSymbols,
   handleUpdatePackageJson,
 } from './src/mcp/handlers/index.js';
-import { getWorkflow, isWorkflowTool, registerWorkflows } from './src/mcp/tool-registry.js';
+import {
+  getTool,
+  getWorkflow,
+  isWorkflowTool,
+  registerWorkflows,
+} from './src/mcp/tool-registry.js';
 import { createMCPError } from './src/mcp/utils.js';
 import { createWorkflowResponse, executeWorkflow } from './src/mcp/workflow-executor.js';
 import { FileService } from './src/services/file-service.js';
 import { HierarchyService } from './src/services/intelligence/hierarchy-service.js';
 import { IntelligenceService } from './src/services/intelligence/intelligence-service.js';
-import { DiagnosticService } from '../@codeflow/features/src/services/lsp/diagnostic-service.js';
-import { SymbolService } from '../@codeflow/features/src/services/lsp/symbol-service.js';
 import { PredictiveLoaderService } from './src/services/predictive-loader.js';
 import { ServiceContainer } from './src/services/service-container.js';
 import { getPackageVersion } from './src/utils/version.js';
@@ -465,7 +469,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                       'object with file_path, line, and character'
                     );
                   }
-                  return await handleGetSignatureHelp(serviceContainer.intelligenceService, toolArgs);
+                  return await handleGetSignatureHelp(
+                    serviceContainer.intelligenceService,
+                    toolArgs
+                  );
                 case 'prepare_call_hierarchy':
                   if (!Validation.validatePrepareCallHierarchyArgs(toolArgs)) {
                     throw Validation.createValidationError(
@@ -473,7 +480,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                       'object with file_path, line, and character'
                     );
                   }
-                  return await handlePrepareCallHierarchy(serviceContainer.hierarchyService, toolArgs);
+                  return await handlePrepareCallHierarchy(
+                    serviceContainer.hierarchyService,
+                    toolArgs
+                  );
                 default:
                   throw new Error(`Unsupported tool in workflow: ${toolName}`);
               }

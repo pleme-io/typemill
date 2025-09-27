@@ -8,8 +8,8 @@ import {
   getTestConfig,
   getTestModeFromEnv,
 } from '../helpers/test-mode-detector.js';
-import { waitForLSP } from '../helpers/test-verification-helpers.js';
 import { verifyFileContainsAll } from '../helpers/test-verification-helpers';
+import { waitForLSP } from '../helpers/test-verification-helpers.js';
 
 /**
  * Adaptive Call Hierarchy Test - works on both fast and slow systems

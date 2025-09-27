@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs';
-import { pathToUri } from '../core/file-operations/path-utils.js';
+import type { Config } from '../../../@codeflow/core/src/types/config.js';
 import type { StructuredLogger } from '../core/diagnostics/structured-logger.js';
+import { pathToUri } from '../core/file-operations/path-utils.js';
 import type { TransactionManager } from '../core/transaction/index.js';
 import type { LSPProtocol } from '../lsp/protocol.js';
 import type { ServerState } from '../lsp/types.js';
-import type { Config } from '../../../@codeflow/core/src/types/config.js';
 import type { FileService } from './file-service.js';
 import type { PredictiveLoaderService } from './predictive-loader.js';
 

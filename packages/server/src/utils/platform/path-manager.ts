@@ -3,8 +3,8 @@
  * Phase 1: Foundation layer - wraps Node.js path module with additional utilities
  */
 
-import * as path from 'node:path';
 import * as os from 'node:os';
+import * as path from 'node:path';
 import envPaths from 'env-paths';
 import { getPlatformInfo } from './platform-detector.js';
 
@@ -65,7 +65,8 @@ class PathManagerImpl implements PathManager {
     if (filepath.startsWith('./') || (!filepath.includes('/') && !filepath.includes('\\'))) {
       if (filepath.startsWith('./')) {
         return path.resolve(process.cwd(), filepath.slice(2));
-      } else if (filepath.startsWith('.')) {
+      }
+      if (filepath.startsWith('.')) {
         return path.resolve(process.cwd(), filepath);
       }
     }

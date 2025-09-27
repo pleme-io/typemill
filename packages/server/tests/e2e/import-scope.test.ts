@@ -1,4 +1,3 @@
-
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -33,14 +32,20 @@ describe('Import Scope Integration Test', () => {
     mkdirSync(filePaths.libDir, { recursive: true });
 
     // --- Create Project Files ---
-    writeFileSync(filePaths.tsconfig, '{ "compilerOptions": { "module": "ESNext", "moduleResolution": "node" } }');
+    writeFileSync(
+      filePaths.tsconfig,
+      '{ "compilerOptions": { "module": "ESNext", "moduleResolution": "node" } }'
+    );
     writeFileSync(filePaths.pkgJson, '{ "name": "test-project", "type": "module" }');
     writeFileSync(filePaths.util, "export const HELLO = 'WORLD';");
 
     // index.ts is in the root, importing from a nested directory.
     // This is the exact scenario that failed for Bob.
-    writeFileSync(filePaths.index, `import { HELLO } from './src/utils/util';
-console.log(HELLO);`);
+    writeFileSync(
+      filePaths.index,
+      `import { HELLO } from './src/utils/util';
+console.log(HELLO);`
+    );
 
     client = new MCPTestClient();
     await client.start({ skipLSPPreload: true });

@@ -33,22 +33,14 @@ class DeeplyNestedClass {
               of: {
                 nesting: {
                   value: 'deep',
-                  method: function() {
-                    return function() {
-                      return function() {
-                        return function() {
-                          return 'very deep';
-                        };
-                      };
-                    };
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+                  method: () => () => () => () => 'very deep',
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   };
 
   constructor() {
@@ -85,19 +77,19 @@ const deepObject = {
                     j: {
                       k: {
                         l: {
-                          m: 'deep value'
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
+                          m: 'deep value',
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
 };
 
 // Deeply nested type
@@ -107,4 +99,4 @@ type DeepType<T> = {
 };
 
 // Export for testing
-export { Level1, DeeplyNestedClass, deepObject, DeepType };
+export { type Level1, DeeplyNestedClass, deepObject, type DeepType };

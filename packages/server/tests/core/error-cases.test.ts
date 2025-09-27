@@ -25,7 +25,7 @@ describe('MCP Error Case Tests', () => {
     const testFile = join(tmpdir(), 'error-test.ts');
     await client.callTool('create_file', {
       file_path: testFile,
-      content: '// Test file for error cases\nexport const test = 1;'
+      content: '// Test file for error cases\nexport const test = 1;',
     });
     await waitForLSP(client, testFile);
   });

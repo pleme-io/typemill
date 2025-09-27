@@ -3,8 +3,8 @@
  * Checks if FUSE is installed and properly configured for the current platform
  */
 
-import { existsSync } from 'node:fs';
 import { execSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { logger } from '../core/diagnostics/logger.js';
 import { executableManager } from '../utils/platform/executable-manager.js';
 import { getPlatformInfo } from '../utils/platform/platform-detector.js';
@@ -41,7 +41,7 @@ export function checkFuseAvailability(): FuseStatus {
           available: false,
           platform,
           reason: 'FUSE is not supported on Windows',
-          documentation: 'Consider using WSL2 (Windows Subsystem for Linux) for FUSE support'
+          documentation: 'Consider using WSL2 (Windows Subsystem for Linux) for FUSE support',
         };
 
       default:
@@ -104,7 +104,7 @@ function checkMacOSFuse(): FuseStatus {
       '/Library/Filesystems/macfuse.fs',
     ];
 
-    const macFuseInstalled = macFusePaths.some(path => existsSync(path));
+    const macFuseInstalled = macFusePaths.some((path) => existsSync(path));
 
     if (!macFuseInstalled) {
       // Check for OSXFUSE (legacy)
@@ -113,7 +113,7 @@ function checkMacOSFuse(): FuseStatus {
         '/Library/Filesystems/osxfuse.fs',
       ];
 
-      const osxFuseInstalled = osxFusePaths.some(path => existsSync(path));
+      const osxFuseInstalled = osxFusePaths.some((path) => existsSync(path));
 
       if (!osxFuseInstalled) {
         return {
@@ -121,7 +121,8 @@ function checkMacOSFuse(): FuseStatus {
           platform: 'darwin',
           reason: 'macFUSE not installed',
           installCommand: 'brew install --cask macfuse',
-          documentation: 'Visit https://osxfuse.github.io for manual installation. Note: You may need to allow the kernel extension in System Preferences > Security & Privacy.',
+          documentation:
+            'Visit https://osxfuse.github.io for manual installation. Note: You may need to allow the kernel extension in System Preferences > Security & Privacy.',
         };
       }
     }

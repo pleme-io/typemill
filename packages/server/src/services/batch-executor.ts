@@ -1,6 +1,6 @@
+import { logger } from '../core/diagnostics/logger.js';
 import { getTool, getToolNames } from '../mcp/tool-registry.js';
 import { createMCPResponse } from '../mcp/utils.js';
-import { logger } from '../core/diagnostics/logger.js';
 import type { ServiceContainer } from './service-container.js';
 
 // Import handlers to trigger their registration
@@ -217,7 +217,7 @@ export class BatchExecutor {
         logger.debug('Executing operation', {
           component: 'BatchExecutor',
           operationId: operation.id,
-          tool: operation.tool
+          tool: operation.tool,
         });
         const operationResult = await this.executeOperation(operation);
 
@@ -230,7 +230,7 @@ export class BatchExecutor {
           logger.error('Operation returned error', {
             component: 'BatchExecutor',
             operationId: operation.id,
-            error: errorMessage
+            error: errorMessage,
           });
 
           // Treat as a failure - throw to trigger rollback if atomic
@@ -239,7 +239,7 @@ export class BatchExecutor {
 
         logger.debug('Operation succeeded', {
           component: 'BatchExecutor',
-          operationId: operation.id
+          operationId: operation.id,
         });
 
         result.results.push({
@@ -252,7 +252,7 @@ export class BatchExecutor {
         logger.error('Operation failed', {
           component: 'BatchExecutor',
           operationId: operation.id,
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? error.message : String(error),
         });
         result.results.push({
           operation,
@@ -282,7 +282,8 @@ export class BatchExecutor {
             // Add rollback message to the last failed operation
             const lastResult = result.results[result.results.length - 1];
             if (lastResult && lastResult.error) {
-              lastResult.error += '\n\n**Note**: Rolling back atomic transaction - all operations have been reverted.';
+              lastResult.error +=
+                '\n\n**Note**: Rolling back atomic transaction - all operations have been reverted.';
             }
 
             logger.info('Rollback complete', { component: 'BatchExecutor' });
@@ -324,7 +325,7 @@ export class BatchExecutor {
       success: result.success,
       successful: result.summary.successful,
       failed: result.summary.failed,
-      skipped: result.summary.skipped
+      skipped: result.summary.skipped,
     });
     return result;
   }

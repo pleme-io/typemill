@@ -7,13 +7,13 @@
 import type { LSPClient } from '../../../@codeflow/features/src/lsp/lsp-client.js';
 import type { DiagnosticService } from '../../../@codeflow/features/src/services/lsp/diagnostic-service.js';
 import type { SymbolService } from '../../../@codeflow/features/src/services/lsp/symbol-service.js';
+import type { Logger } from '../core/diagnostics/structured-logger.js';
+import type { TransactionManager } from '../core/transaction/TransactionManager.js';
 import type { FileService } from './file-service.js';
 import type { HierarchyService } from './intelligence/hierarchy-service.js';
 import type { IntelligenceService } from './intelligence/intelligence-service.js';
-import type { ServiceContext } from './service-context.js';
 import type { PredictiveLoaderService } from './predictive-loader.js';
-import type { TransactionManager } from '../core/transaction/TransactionManager.js';
-import type { Logger } from '../core/diagnostics/structured-logger.js';
+import type { ServiceContext } from './service-context.js';
 
 /**
  * Container holding all service instances
@@ -142,18 +142,20 @@ export class ServiceContainer {
    * Clone the container with updated services
    * Useful for testing or creating modified contexts
    */
-  withServices(updates: Partial<{
-    symbolService: SymbolService;
-    fileService: FileService;
-    diagnosticService: DiagnosticService;
-    intelligenceService: IntelligenceService;
-    hierarchyService: HierarchyService;
-    lspClient: LSPClient;
-    serviceContext: ServiceContext;
-    predictiveLoader: PredictiveLoaderService;
-    transactionManager: TransactionManager;
-    logger: Logger;
-  }>): ServiceContainer {
+  withServices(
+    updates: Partial<{
+      symbolService: SymbolService;
+      fileService: FileService;
+      diagnosticService: DiagnosticService;
+      intelligenceService: IntelligenceService;
+      hierarchyService: HierarchyService;
+      lspClient: LSPClient;
+      serviceContext: ServiceContext;
+      predictiveLoader: PredictiveLoaderService;
+      transactionManager: TransactionManager;
+      logger: Logger;
+    }>
+  ): ServiceContainer {
     return new ServiceContainer(
       updates.symbolService ?? this._symbolService,
       updates.fileService ?? this._fileService,

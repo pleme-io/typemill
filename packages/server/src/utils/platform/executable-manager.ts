@@ -3,8 +3,8 @@
  * Phase 4: Real implementation using 'which' package
  */
 
-import which from 'which';
 import { execSync } from 'node:child_process';
+import which from 'which';
 import { getPlatformInfo } from './platform-detector.js';
 
 /**
@@ -101,10 +101,7 @@ class ExecutableManagerImpl implements ExecutableManager {
           if (versionMatch) {
             return versionMatch[0];
           }
-        } catch {
-          // Try next command
-          continue;
-        }
+        } catch {}
       }
 
       return null;
@@ -119,9 +116,11 @@ class ExecutableManagerImpl implements ExecutableManager {
     // Basic platform-specific suggestions (to be enhanced later)
     if (platform.isWindows) {
       return [`choco install ${executable}`, `winget install ${executable}`];
-    } else if (platform.isMacOS) {
+    }
+    if (platform.isMacOS) {
       return [`brew install ${executable}`];
-    } else if (platform.isLinux) {
+    }
+    if (platform.isLinux) {
       return [`sudo apt-get install ${executable}`, `sudo yum install ${executable}`];
     }
 

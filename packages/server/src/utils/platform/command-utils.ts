@@ -3,8 +3,8 @@
  * Handles differences between Windows and Unix-like systems
  */
 
+import { type SpawnOptions, spawn } from 'node:child_process';
 import { platform } from 'node:os';
-import { spawn, type SpawnOptions } from 'node:child_process';
 
 /**
  * Detect if we're running on Windows
@@ -37,21 +37,33 @@ export function getPlatformSpawnOptions(command: string, baseOptions?: SpawnOpti
 
   // Commands that require shell on Windows
   const windowsShellCommands = [
-    'npm', 'npx', 'yarn', 'pnpm', 'bun', 'node',
-    'python', 'pip', 'pipx', 'py',
-    'git', 'code', 'cursor'
+    'npm',
+    'npx',
+    'yarn',
+    'pnpm',
+    'bun',
+    'node',
+    'python',
+    'pip',
+    'pipx',
+    'py',
+    'git',
+    'code',
+    'cursor',
   ];
 
   // Check if this command needs shell on Windows
-  const needsShell = isWin && windowsShellCommands.some(cmd =>
-    command === cmd || command.endsWith(`${cmd}.cmd`) || command.endsWith(`${cmd}.exe`)
-  );
+  const needsShell =
+    isWin &&
+    windowsShellCommands.some(
+      (cmd) => command === cmd || command.endsWith(`${cmd}.cmd`) || command.endsWith(`${cmd}.exe`)
+    );
 
   return {
     ...baseOptions,
     shell: needsShell,
     // On Windows, we need to handle paths with spaces properly
-    windowsVerbatimArguments: isWin ? true : undefined
+    windowsVerbatimArguments: isWin ? true : undefined,
   };
 }
 
@@ -59,11 +71,7 @@ export function getPlatformSpawnOptions(command: string, baseOptions?: SpawnOpti
  * Spawn a command with platform-aware settings
  * Automatically handles Windows vs Unix differences
  */
-export function spawnCommand(
-  command: string,
-  args: string[] = [],
-  options?: SpawnOptions
-) {
+export function spawnCommand(command: string, args: string[] = [], options?: SpawnOptions) {
   const platformOptions = getPlatformSpawnOptions(command, options);
   return spawn(command, args, platformOptions);
 }
@@ -72,10 +80,7 @@ export function spawnCommand(
  * Check if a command is available on the system
  * Uses platform-appropriate methods
  */
-export async function isCommandAvailable(
-  command: string[],
-  timeout = 2000
-): Promise<boolean> {
+export async function isCommandAvailable(command: string[], timeout = 2000): Promise<boolean> {
   try {
     const [cmd, ...args] = command;
 

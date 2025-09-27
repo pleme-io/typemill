@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
-import { existsSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { assertToolResult, MCPTestClient } from '../helpers/mcp-test-client.js';
-import { getSystemCapabilities } from '../helpers/system-utils.js';
-import { waitForLSP, waitForCondition } from '../helpers/test-verification-helpers.js';
 import { waitForCondition as pollingWaitForCondition } from '../helpers/polling-helpers.js';
+import { getSystemCapabilities } from '../helpers/system-utils.js';
+import { waitForCondition, waitForLSP } from '../helpers/test-verification-helpers.js';
 
 describe('Edge Case Tests', () => {
   let client: MCPTestClient;
@@ -56,10 +56,10 @@ describe('Edge Case Tests', () => {
           checkJs: false,
           declaration: false,
           outDir: './dist',
-          rootDir: './'
+          rootDir: './',
         },
         include: ['**/*.ts', '**/*.js'],
-        exclude: ['node_modules', 'dist']
+        exclude: ['node_modules', 'dist'],
       };
       writeFileSync(tsconfigPath, JSON.stringify(tsconfig, null, 2));
     }
@@ -77,9 +77,9 @@ describe('Edge Case Tests', () => {
     const testFiles = [
       `${fixturesPath}/empty-file.ts`,
       `${fixturesPath}/unicode-symbols.ts`,
-      `${fixturesPath}/large-file.ts`
+      `${fixturesPath}/large-file.ts`,
     ];
-    for (const file of testFiles.filter(f => existsSync(f))) {
+    for (const file of testFiles.filter((f) => existsSync(f))) {
       await waitForLSP(client, file);
     }
   });
@@ -493,7 +493,9 @@ describe('Edge Case Tests', () => {
         assertToolResult(result);
         const content = result.content?.[0]?.text || '';
         // Special characters are invalid for symbol names - expect validation error
-        expect(content).toMatch(/(must be a valid identifier|invalid symbol|error during find_definition)/i);
+        expect(content).toMatch(
+          /(must be a valid identifier|invalid symbol|error during find_definition)/i
+        );
       },
       timeout
     );
