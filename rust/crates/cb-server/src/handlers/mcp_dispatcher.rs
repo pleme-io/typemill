@@ -70,6 +70,7 @@ impl McpDispatcher {
         self.tool_operations.insert("get_all_symbols".to_string(), OperationType::Read);
         self.tool_operations.insert("get_outline".to_string(), OperationType::Read);
         self.tool_operations.insert("find_workspace_symbols".to_string(), OperationType::Read);
+        self.tool_operations.insert("find_code_duplicates".to_string(), OperationType::Read);
 
         // Write operations
         self.tool_operations.insert("apply_code_action".to_string(), OperationType::Write);

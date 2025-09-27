@@ -12,6 +12,7 @@ pub mod diagnostics;
 pub mod server_management;
 pub mod monitoring;
 pub mod refactoring;
+pub mod duplicate_detection;
 
 #[cfg(test)]
 mod refactoring_tests;
@@ -34,4 +35,5 @@ pub fn register_all_tools(dispatcher: &mut McpDispatcher) {
     server_management::register_tools(dispatcher);
     monitoring::register_tools(dispatcher);
     refactoring::register_tools(dispatcher);
+    duplicate_detection::register(dispatcher);
 }
