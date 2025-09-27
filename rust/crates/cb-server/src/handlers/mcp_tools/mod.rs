@@ -24,6 +24,18 @@ mod debug_refactoring;
 #[path = "editing_integration_tests.rs"]
 mod editing_integration_tests;
 
+#[cfg(test)]
+#[path = "monitoring_integration_tests.rs"]
+mod monitoring_integration_tests;
+
+#[cfg(test)]
+#[path = "filesystem_integration_tests.rs"]
+mod filesystem_integration_tests;
+
+#[cfg(test)]
+#[path = "batch_integration_tests.rs"]
+mod batch_integration_tests;
+
 use crate::handlers::McpDispatcher;
 
 /// Register all MCP tools with the dispatcher
