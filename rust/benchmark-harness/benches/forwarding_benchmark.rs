@@ -3,15 +3,55 @@ use cb_core::model::lsp::{
     Location, Position, Range, SymbolKind, TextEdit, WorkspaceEdit,
 };
 use cb_server::helpers::lsp::forward_lsp_request;
-use cb_tests::harness::lsp::TestLspService;
+use cb_server::services::lsp::{LspService, LspServiceResult, LspRequest, LspResponse};
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
+use async_trait::async_trait;
 
-fn create_test_lsp_service() -> Arc<TestLspService> {
-    let mut service = TestLspService::new();
+// Simple mock LSP service for benchmarking
+struct MockLspService {
+    responses: std::sync::RwLock<HashMap<String, Value>>,
+}
+
+impl MockLspService {
+    fn new() -> Self {
+        Self {
+            responses: std::sync::RwLock::new(HashMap::new()),
+        }
+    }
+
+    fn add_response(&self, method: &str, response: Value) {
+        self.responses.write().unwrap().insert(method.to_string(), response);
+    }
+}
+
+#[async_trait]
+impl LspService for MockLspService {
+    async fn initialize(&self) -> LspServiceResult<Value> {
+        Ok(json!({"capabilities": {}}))
+    }
+
+    async fn request(&self, method: &str, _params: Value) -> LspServiceResult<Value> {
+        let responses = self.responses.read().unwrap();
+        responses.get(method)
+            .cloned()
+            .ok_or_else(|| cb_server::error::ServerError::runtime(format!("Method not found: {}", method)))
+    }
+
+    async fn shutdown(&self) -> LspServiceResult<()> {
+        Ok(())
+    }
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+}
+
+fn create_test_lsp_service() -> Arc<MockLspService> {
+    let service = MockLspService::new();
 
     // Pre-configure some mock responses for common LSP methods
     service.add_response(
@@ -212,10 +252,14 @@ fn bench_forward_with_error(c: &mut Criterion) {
     let lsp_service = create_test_lsp_service();
 
     // Configure an error response
-    lsp_service.add_error_response(
+    lsp_service.add_response(
         "textDocument/formatting",
-        -32603,
-        "Formatter not available",
+        json!({
+            "error": {
+                "code": -32603,
+                "message": "Formatter not available"
+            }
+        }),
     );
 
     c.bench_function("forward_error_response", |b| {
