@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-All 25 MCP tools with practical examples for AI assistants.
+All 40 MCP tools with practical examples for AI assistants.
 
 ## Core Navigation & Analysis
 
@@ -299,6 +299,23 @@ Get function signature help at a specific position in the code.
 - `file_path`: The path to the file
 - `line`: The line number (1-indexed)
 - `character`: The character position in the line (0-indexed)
+
+### `get_inlay_hints`
+
+Get inlay hints (parameter names, type annotations) for a range in a file. Shows helpful inline information like parameter names and type annotations.
+
+**Parameters:**
+- `file_path`: The path to the file
+- `start_line`: Start line number (1-indexed)
+- `start_character`: Start character position (0-indexed)
+- `end_line`: End line number (1-indexed)
+- `end_character`: End character position (0-indexed)
+
+**When to use:** Getting inline hints for better code understanding
+
+**Example prompt:** "Show inlay hints for the current function"
+
+**Returns:** Array of inlay hints with positions, labels, and types
 
 ## Code Structure Analysis
 
