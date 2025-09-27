@@ -5,6 +5,7 @@ members = [
     "crates/cb-server",
     "crates/cb-client",
     "crates/tests",
+    "benchmark-harness",
 ]
 resolver = "2"
 
