@@ -1,5 +1,6 @@
 //! MCP tool implementations
 
+pub mod util;
 pub mod navigation;
 pub mod editing;
 pub mod filesystem;

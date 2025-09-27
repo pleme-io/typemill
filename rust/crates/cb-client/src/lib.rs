@@ -1,7 +1,6 @@
 //! cb-client: Codeflow Buddy client implementation
 
 pub mod error;
-pub mod config;
 pub mod client_config;
 pub mod websocket;
 pub mod formatting;
@@ -9,8 +8,7 @@ pub mod interactive;
 pub mod commands;
 
 pub use error::{ClientError, ClientResult};
-pub use config::*;
-pub use client_config::ClientConfig;
+pub use client_config::{ClientConfig, ConfigBuilder};
 
 use commands::{Command, GlobalArgs};
 use commands::setup::SetupCommand;

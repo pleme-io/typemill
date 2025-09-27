@@ -1,6 +1,7 @@
 //! Editing MCP tools (rename_symbol, format_document, etc.)
 
 use crate::handlers::McpDispatcher;
+use super::util::forward_lsp_request;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -102,11 +103,11 @@ pub fn register_tools(dispatcher: &mut McpDispatcher) {
             params.new_name
         );
 
-        // Create LSP request for textDocument/rename
-        let lsp_request = cb_core::model::mcp::McpRequest {
-            id: Some(serde_json::Value::Number(serde_json::Number::from(1))),
-            method: "textDocument/rename".to_string(),
-            params: Some(json!({
+        // Use helper function to forward request
+        forward_lsp_request(
+            app_state.lsp.as_ref(),
+            "textDocument/rename".to_string(),
+            Some(json!({
                 "textDocument": {
                     "uri": format!("file://{}", params.file_path)
                 },
@@ -115,23 +116,8 @@ pub fn register_tools(dispatcher: &mut McpDispatcher) {
                     "character": params.character
                 },
                 "newName": params.new_name
-            })),
-        };
-
-        // Send request to LSP service
-        match app_state.lsp.request(cb_core::model::mcp::McpMessage::Request(lsp_request)).await {
-            Ok(cb_core::model::mcp::McpMessage::Response(response)) => {
-                if let Some(result) = response.result {
-                    Ok(result)
-                } else if let Some(error) = response.error {
-                    Err(crate::error::ServerError::runtime(format!("LSP error: {}", error.message)))
-                } else {
-                    Err(crate::error::ServerError::runtime("Empty LSP response"))
-                }
-            }
-            Ok(_) => Err(crate::error::ServerError::runtime("Unexpected LSP message type")),
-            Err(e) => Err(crate::error::ServerError::runtime(format!("LSP request failed: {}", e))),
-        }
+            }))
+        ).await
     });
 
     // format_document tool
@@ -289,11 +275,11 @@ pub fn register_tools(dispatcher: &mut McpDispatcher) {
             }));
         }
 
-        // Create LSP request for textDocument/rename at specific position
-        let lsp_request = cb_core::model::mcp::McpRequest {
-            id: Some(serde_json::Value::Number(serde_json::Number::from(2))),
-            method: "textDocument/rename".to_string(),
-            params: Some(json!({
+        // Use helper function to forward request
+        let result = forward_lsp_request(
+            app_state.lsp.as_ref(),
+            "textDocument/rename".to_string(),
+            Some(json!({
                 "textDocument": {
                     "uri": format!("file://{}", params.file_path)
                 },
@@ -302,31 +288,18 @@ pub fn register_tools(dispatcher: &mut McpDispatcher) {
                     "character": params.character
                 },
                 "newName": params.new_name
-            })),
-        };
+            }))
+        ).await?;
 
-        // Send request to LSP service
-        match app_state.lsp.request(cb_core::model::mcp::McpMessage::Request(lsp_request)).await {
-            Ok(cb_core::model::mcp::McpMessage::Response(response)) => {
-                if let Some(result) = response.result {
-                    // Add metadata to indicate this was a strict rename
-                    let mut enhanced_result = result.as_object().unwrap_or(&serde_json::Map::new()).clone();
-                    enhanced_result.insert("renameType".to_string(), json!("strict"));
-                    enhanced_result.insert("position".to_string(), json!({
-                        "line": params.line,
-                        "character": params.character
-                    }));
+        // Add metadata to indicate this was a strict rename
+        let mut enhanced_result = result.as_object().unwrap_or(&serde_json::Map::new()).clone();
+        enhanced_result.insert("renameType".to_string(), json!("strict"));
+        enhanced_result.insert("position".to_string(), json!({
+            "line": params.line,
+            "character": params.character
+        }));
 
-                    Ok(json!(enhanced_result))
-                } else if let Some(error) = response.error {
-                    Err(crate::error::ServerError::runtime(format!("LSP error: {}", error.message)))
-                } else {
-                    Err(crate::error::ServerError::runtime("Empty LSP response"))
-                }
-            }
-            Ok(_) => Err(crate::error::ServerError::runtime("Unexpected LSP message type")),
-            Err(e) => Err(crate::error::ServerError::runtime(format!("LSP request failed: {}", e))),
-        }
+        Ok(json!(enhanced_result))
     });
 }
 

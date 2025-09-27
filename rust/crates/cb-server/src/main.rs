@@ -3,7 +3,7 @@
 use cb_core::AppConfig;
 use cb_server::handlers::{McpDispatcher, AppState};
 use cb_server::systems::{LspManager, fuse::start_fuse_mount};
-use cb_server::services::FileService;
+use cb_server::services::{FileService, LockManager, OperationQueue};
 use cb_server::transport;
 use clap::{Parser, Subcommand};
 use std::sync::Arc;
@@ -48,11 +48,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create file service
     let file_service = Arc::new(FileService::new(&project_root));
 
+    // Create lock manager and operation queue
+    let lock_manager = Arc::new(LockManager::new());
+    let operation_queue = Arc::new(OperationQueue::new(lock_manager.clone()));
+
     // Create application state
     let app_state = Arc::new(AppState {
         lsp: lsp_manager,
         file_service,
         project_root,
+        lock_manager,
+        operation_queue,
     });
 
     // Create MCP dispatcher with app state

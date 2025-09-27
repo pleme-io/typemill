@@ -1,6 +1,7 @@
 //! Intelligence MCP tools (get_hover, get_completions, get_signature_help)
 
 use crate::handlers::McpDispatcher;
+use super::util::forward_lsp_request;
 use cb_core::model::mcp::{McpMessage, McpRequest};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -113,11 +114,11 @@ pub fn register_tools(dispatcher: &mut McpDispatcher) {
 
         tracing::debug!("Getting hover info for {}:{}:{}", params.file_path, params.line, params.character);
 
-        // Create LSP request for textDocument/hover
-        let lsp_request = McpRequest {
-            id: Some(serde_json::Value::Number(serde_json::Number::from(1))),
-            method: "textDocument/hover".to_string(),
-            params: Some(json!({
+        // Use helper function to forward request
+        forward_lsp_request(
+            app_state.lsp.as_ref(),
+            "textDocument/hover".to_string(),
+            Some(json!({
                 "textDocument": {
                     "uri": format!("file://{}", params.file_path)
                 },
@@ -125,23 +126,8 @@ pub fn register_tools(dispatcher: &mut McpDispatcher) {
                     "line": params.line,
                     "character": params.character
                 }
-            })),
-        };
-
-        // Send request to LSP service
-        match app_state.lsp.request(McpMessage::Request(lsp_request)).await {
-            Ok(McpMessage::Response(response)) => {
-                if let Some(result) = response.result {
-                    Ok(result)
-                } else if let Some(error) = response.error {
-                    Err(crate::error::ServerError::runtime(format!("LSP error: {}", error.message)))
-                } else {
-                    Err(crate::error::ServerError::runtime("Empty LSP response"))
-                }
-            }
-            Ok(_) => Err(crate::error::ServerError::runtime("Unexpected LSP message type")),
-            Err(e) => Err(crate::error::ServerError::runtime(format!("LSP request failed: {}", e))),
-        }
+            }))
+        ).await
     });
 
     // get_completions tool

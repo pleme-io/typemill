@@ -1,7 +1,7 @@
 //! Navigation MCP tools (find_definition, find_references, etc.)
 
 use crate::handlers::McpDispatcher;
-use cb_core::model::mcp::{McpMessage, McpRequest};
+use super::util::forward_lsp_request;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -52,31 +52,16 @@ pub fn register_tools(dispatcher: &mut McpDispatcher) {
 
         tracing::debug!("Finding definition for {} in {}", params.symbol_name, params.file_path);
 
-        // Create LSP request for textDocument/definition
-        let lsp_request = McpRequest {
-            id: Some(serde_json::Value::Number(serde_json::Number::from(1))),
-            method: "find_definition".to_string(),
-            params: Some(json!({
+        // Use helper function to forward request
+        forward_lsp_request(
+            app_state.lsp.as_ref(),
+            "find_definition".to_string(),
+            Some(json!({
                 "file_path": params.file_path,
                 "symbol_name": params.symbol_name,
                 "symbol_kind": params.symbol_kind
-            })),
-        };
-
-        // Send request to LSP service
-        match app_state.lsp.request(McpMessage::Request(lsp_request)).await {
-            Ok(McpMessage::Response(response)) => {
-                if let Some(result) = response.result {
-                    Ok(result)
-                } else if let Some(error) = response.error {
-                    Err(crate::error::ServerError::runtime(format!("LSP error: {}", error.message)))
-                } else {
-                    Err(crate::error::ServerError::runtime("Empty LSP response"))
-                }
-            }
-            Ok(_) => Err(crate::error::ServerError::runtime("Unexpected LSP message type")),
-            Err(e) => Err(crate::error::ServerError::runtime(format!("LSP request failed: {}", e))),
-        }
+            }))
+        ).await
     });
 
     // find_references tool
@@ -86,32 +71,17 @@ pub fn register_tools(dispatcher: &mut McpDispatcher) {
 
         tracing::debug!("Finding references for {} in {}", params.symbol_name, params.file_path);
 
-        // Create LSP request for textDocument/references
-        let lsp_request = McpRequest {
-            id: Some(serde_json::Value::Number(serde_json::Number::from(2))),
-            method: "find_references".to_string(),
-            params: Some(json!({
+        // Use helper function to forward request
+        forward_lsp_request(
+            app_state.lsp.as_ref(),
+            "find_references".to_string(),
+            Some(json!({
                 "file_path": params.file_path,
                 "symbol_name": params.symbol_name,
                 "symbol_kind": params.symbol_kind,
                 "include_declaration": params.include_declaration
-            })),
-        };
-
-        // Send request to LSP service
-        match app_state.lsp.request(McpMessage::Request(lsp_request)).await {
-            Ok(McpMessage::Response(response)) => {
-                if let Some(result) = response.result {
-                    Ok(result)
-                } else if let Some(error) = response.error {
-                    Err(crate::error::ServerError::runtime(format!("LSP error: {}", error.message)))
-                } else {
-                    Err(crate::error::ServerError::runtime("Empty LSP response"))
-                }
-            }
-            Ok(_) => Err(crate::error::ServerError::runtime("Unexpected LSP message type")),
-            Err(e) => Err(crate::error::ServerError::runtime(format!("LSP request failed: {}", e))),
-        }
+            }))
+        ).await
     });
 
     // search_workspace_symbols tool
@@ -121,30 +91,15 @@ pub fn register_tools(dispatcher: &mut McpDispatcher) {
 
         tracing::debug!("Searching workspace for: {}", params.query);
 
-        // Create LSP request for workspace/symbol
-        let lsp_request = McpRequest {
-            id: Some(serde_json::Value::Number(serde_json::Number::from(3))),
-            method: "search_workspace_symbols".to_string(),
-            params: Some(json!({
+        // Use helper function to forward request
+        forward_lsp_request(
+            app_state.lsp.as_ref(),
+            "search_workspace_symbols".to_string(),
+            Some(json!({
                 "query": params.query,
                 "workspace_path": params.workspace_path
-            })),
-        };
-
-        // Send request to LSP service
-        match app_state.lsp.request(McpMessage::Request(lsp_request)).await {
-            Ok(McpMessage::Response(response)) => {
-                if let Some(result) = response.result {
-                    Ok(result)
-                } else if let Some(error) = response.error {
-                    Err(crate::error::ServerError::runtime(format!("LSP error: {}", error.message)))
-                } else {
-                    Err(crate::error::ServerError::runtime("Empty LSP response"))
-                }
-            }
-            Ok(_) => Err(crate::error::ServerError::runtime("Unexpected LSP message type")),
-            Err(e) => Err(crate::error::ServerError::runtime(format!("LSP request failed: {}", e))),
-        }
+            }))
+        ).await
     });
 
     // get_document_symbols tool

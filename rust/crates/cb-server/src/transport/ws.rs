@@ -323,10 +323,14 @@ mod tests {
         let lsp_manager = Arc::new(crate::systems::LspManager::new(config.lsp.clone()));
         let project_root = std::path::PathBuf::from(".");
         let file_service = Arc::new(crate::services::FileService::new(&project_root));
+        let lock_manager = Arc::new(crate::services::LockManager::new());
+        let operation_queue = Arc::new(crate::services::OperationQueue::new(lock_manager.clone()));
         let app_state = Arc::new(crate::handlers::AppState {
             lsp: lsp_manager,
             file_service,
             project_root,
+            lock_manager,
+            operation_queue,
         });
         let _dispatcher = Arc::new(McpDispatcher::new(app_state));
         let mut session = Session::new();

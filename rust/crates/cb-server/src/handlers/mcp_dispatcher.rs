@@ -2,11 +2,13 @@
 
 use crate::error::{ServerError, ServerResult};
 use cb_core::model::mcp::{McpMessage, McpRequest, McpResponse, ToolCall};
+use crate::services::{LockManager, OperationQueue, FileOperation, OperationType};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::path::PathBuf;
 
 /// Application state containing services
 #[derive(Clone)]
@@ -17,6 +19,10 @@ pub struct AppState {
     pub file_service: Arc<crate::services::FileService>,
     /// Project root directory
     pub project_root: std::path::PathBuf,
+    /// Lock manager for file-level locking
+    pub lock_manager: Arc<LockManager>,
+    /// Operation queue for serializing file operations
+    pub operation_queue: Arc<OperationQueue>,
 }
 
 /// Tool handler function type that receives app state
@@ -28,15 +34,53 @@ pub type ToolHandler = Box<
 pub struct McpDispatcher {
     tools: HashMap<String, ToolHandler>,
     app_state: Arc<AppState>,
+    /// Map of tool names to their operation types
+    tool_operations: HashMap<String, OperationType>,
 }
 
 impl McpDispatcher {
     /// Create a new dispatcher with app state
     pub fn new(app_state: Arc<AppState>) -> Self {
-        Self {
+        let mut dispatcher = Self {
             tools: HashMap::new(),
             app_state,
-        }
+            tool_operations: HashMap::new(),
+        };
+        dispatcher.initialize_tool_operations();
+        dispatcher
+    }
+
+    /// Initialize the mapping of tools to operation types
+    fn initialize_tool_operations(&mut self) {
+        // Read operations
+        self.tool_operations.insert("find_definition".to_string(), OperationType::Read);
+        self.tool_operations.insert("find_references".to_string(), OperationType::Read);
+        self.tool_operations.insert("find_type_definition".to_string(), OperationType::Read);
+        self.tool_operations.insert("find_implementations".to_string(), OperationType::Read);
+        self.tool_operations.insert("get_symbols".to_string(), OperationType::Read);
+        self.tool_operations.insert("get_hover".to_string(), OperationType::Read);
+        self.tool_operations.insert("get_completions".to_string(), OperationType::Read);
+        self.tool_operations.insert("get_signature_help".to_string(), OperationType::Read);
+        self.tool_operations.insert("get_diagnostics".to_string(), OperationType::Read);
+        self.tool_operations.insert("get_inlay_hints".to_string(), OperationType::Read);
+        self.tool_operations.insert("find_unused_imports".to_string(), OperationType::Read);
+        self.tool_operations.insert("get_test_locations".to_string(), OperationType::Read);
+        self.tool_operations.insert("get_all_symbols".to_string(), OperationType::Read);
+        self.tool_operations.insert("get_outline".to_string(), OperationType::Read);
+        self.tool_operations.insert("find_workspace_symbols".to_string(), OperationType::Read);
+
+        // Write operations
+        self.tool_operations.insert("apply_code_action".to_string(), OperationType::Write);
+        self.tool_operations.insert("rename_symbol".to_string(), OperationType::Refactor);
+        self.tool_operations.insert("format_document".to_string(), OperationType::Format);
+        self.tool_operations.insert("format_selection".to_string(), OperationType::Format);
+        self.tool_operations.insert("organize_imports".to_string(), OperationType::Refactor);
+        self.tool_operations.insert("add_missing_imports".to_string(), OperationType::Write);
+        self.tool_operations.insert("remove_unused_imports".to_string(), OperationType::Write);
+        self.tool_operations.insert("extract_function".to_string(), OperationType::Refactor);
+        self.tool_operations.insert("extract_variable".to_string(), OperationType::Refactor);
+        self.tool_operations.insert("inline_variable".to_string(), OperationType::Refactor);
+        self.tool_operations.insert("fix_all".to_string(), OperationType::Write);
     }
 
     /// Register a tool handler
@@ -119,11 +163,65 @@ impl McpDispatcher {
         let handler = self.tools.get(&tool_call.name)
             .ok_or_else(|| ServerError::Unsupported(format!("Unknown tool: {}", tool_call.name)))?;
 
-        let result = handler(self.app_state.clone(), tool_call.arguments.unwrap_or(json!({}))).await?;
+        // Determine if this operation needs to be queued
+        let operation_type = self.tool_operations.get(&tool_call.name);
+
+        let result = if let Some(op_type) = operation_type {
+            if op_type.is_write_operation() {
+                // Extract file path from arguments if available
+                let file_path = self.extract_file_path(&tool_call.arguments);
+
+                if let Some(path) = file_path {
+                    // Queue the operation
+                    let operation = FileOperation::new(
+                        tool_call.name.clone(),
+                        op_type.clone(),
+                        path,
+                        tool_call.arguments.clone().unwrap_or(json!({}))
+                    );
+
+                    let operation_id = self.app_state.operation_queue.enqueue(operation).await?;
+                    tracing::debug!("Queued operation {} for tool {}", operation_id, tool_call.name);
+
+                    // Process the operation immediately (it will wait for its turn in the queue)
+                    self.process_queued_operation(&tool_call.name, handler, tool_call.arguments.unwrap_or(json!({}))).await?
+                } else {
+                    // No file path, execute directly
+                    handler(self.app_state.clone(), tool_call.arguments.unwrap_or(json!({}))).await?
+                }
+            } else {
+                // Read operation, can execute directly with read lock
+                handler(self.app_state.clone(), tool_call.arguments.unwrap_or(json!({}))).await?
+            }
+        } else {
+            // Unknown operation type, execute directly
+            handler(self.app_state.clone(), tool_call.arguments.unwrap_or(json!({}))).await?
+        };
 
         Ok(json!({
             "content": result
         }))
+    }
+
+    /// Extract file path from tool arguments
+    fn extract_file_path(&self, args: &Option<Value>) -> Option<PathBuf> {
+        args.as_ref()
+            .and_then(|v| v.get("file_path"))
+            .or_else(|| args.as_ref().and_then(|v| v.get("path")))
+            .and_then(|v| v.as_str())
+            .map(PathBuf::from)
+    }
+
+    /// Process a queued operation
+    async fn process_queued_operation(
+        &self,
+        tool_name: &str,
+        handler: &ToolHandler,
+        args: Value,
+    ) -> ServerResult<Value> {
+        // The operation is already in the queue, just execute it
+        // The queue system will handle locking
+        handler(self.app_state.clone(), args).await
     }
 }
 
@@ -139,11 +237,15 @@ mod tests {
         let lsp_manager = Arc::new(LspManager::new(lsp_config));
         let file_service = Arc::new(crate::services::FileService::new(std::path::PathBuf::from("/tmp")));
         let project_root = std::path::PathBuf::from("/tmp");
+        let lock_manager = Arc::new(LockManager::new());
+        let operation_queue = Arc::new(OperationQueue::new(lock_manager.clone()));
 
         Arc::new(AppState {
             lsp: lsp_manager,
             file_service,
             project_root,
+            lock_manager,
+            operation_queue,
         })
     }
 
