@@ -15,6 +15,61 @@ pub fn generate_request_id() -> u64 {
     REQUEST_ID_GENERATOR.fetch_add(1, Ordering::SeqCst)
 }
 
+/// Validate that a code range is within the source bounds
+pub fn validate_code_range(
+    source: &str,
+    start_line: u32,
+    start_col: u32,
+    end_line: u32,
+    end_col: u32,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let lines: Vec<&str> = source.lines().collect();
+    let line_count = lines.len() as u32;
+
+    if start_line >= line_count {
+        return Err(format!("Start line {} is beyond source length {}", start_line, line_count).into());
+    }
+
+    if end_line >= line_count {
+        return Err(format!("End line {} is beyond source length {}", end_line, line_count).into());
+    }
+
+    if start_line == end_line {
+        let line = lines[start_line as usize];
+        if start_col > line.len() as u32 || end_col > line.len() as u32 {
+            return Err(format!("Column position beyond line length").into());
+        }
+    }
+
+    if start_line > end_line ||
+       (start_line == end_line && start_col > end_col) {
+        return Err("Invalid range: start position after end position".into());
+    }
+
+    Ok(())
+}
+
+/// Validate that a position is within the source bounds
+pub fn validate_position(
+    source: &str,
+    line: u32,
+    col: u32,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let lines: Vec<&str> = source.lines().collect();
+    let line_count = lines.len() as u32;
+
+    if line >= line_count {
+        return Err(format!("Line {} is beyond source length {}", line, line_count).into());
+    }
+
+    let line_text = lines[line as usize];
+    if col > line_text.len() as u32 {
+        return Err(format!("Column {} is beyond line length {}", col, line_text.len()).into());
+    }
+
+    Ok(())
+}
+
 /// Forward an LSP request and handle the response uniformly
 ///
 /// This helper function eliminates boilerplate code across tool handlers by:

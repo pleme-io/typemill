@@ -383,7 +383,7 @@ async fn test_basic_filesystem_operations() {
     assert_eq!(response["id"], "fs-2");
 
     if response["error"].is_null() {
-        let content = &response["result"]["content"];
+        let content = &response["result"]["content"]["content"];
         assert!(content["content"].is_string(), "Should have file content");
         let file_content = content["content"].as_str().unwrap();
         assert!(file_content.contains("TestMain"), "Should contain our test class");
@@ -425,8 +425,8 @@ async fn test_basic_filesystem_operations() {
     assert_eq!(response["id"], "fs-4");
 
     if response["error"].is_null() {
-        let content = &response["result"]["content"]["content"].as_str().unwrap();
-        assert!(content.contains("tempVar"), "Created file should have our content");
+        let file_content = response["result"]["content"]["content"]["content"].as_str().unwrap();
+        assert!(file_content.contains("tempVar"), "Created file should have our content");
     }
 
     // Test 5: Delete the temporary file

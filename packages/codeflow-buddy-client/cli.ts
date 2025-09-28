@@ -15,6 +15,7 @@ import {
 import { createProxyServer } from './http-proxy.js';
 import { MCPProxy } from './mcp-proxy.js';
 import { WebSocketClient } from './websocket.js';
+import type { CallToolOptions, ToolListResponse, ToolInfo, ToolParameters, InquirerPrompt, PromptAnswer } from './types.js';
 
 const program = new Command();
 
@@ -166,7 +167,7 @@ program
   .description('Send a tool request to the server')
   .option('-i, --interactive', 'Interactive mode for parameters')
   .option('-f, --format <format>', 'Output format (json, pretty)', 'pretty')
-  .action(async (tool: string, paramsJson?: string, options?: any) => {
+  .action(async (tool: string, paramsJson?: string, options?: CallToolOptions) => {
     const globalOpts = program.opts();
     const config = await getConfig({
       url: globalOpts.url,
@@ -180,9 +181,9 @@ program
       process.exit(1);
     }
 
-    let params: any = {};
+    let params: ToolParameters = {};
 
-    if (options.interactive || !paramsJson) {
+    if (options?.interactive || !paramsJson) {
       // Interactive mode - fetch tool schema and prompt for parameters
       console.log(chalk.gray('Fetching tool schema...'));
 
@@ -193,20 +194,20 @@ program
         });
 
         await client.connect();
-        const tools = await client.send<any>('tools/list');
+        const tools = await client.send<ToolListResponse>('tools/list');
         await client.disconnect();
 
-        const toolInfo = tools?.tools?.find((t: any) => t.name === tool);
+        const toolInfo = tools?.tools?.find((t: ToolInfo) => t.name === tool);
         if (!toolInfo) {
           console.error(chalk.red(`Tool '${tool}' not found`));
           process.exit(1);
         }
 
         // Build prompts from schema
-        const prompts: any[] = [];
+        const prompts: InquirerPrompt[] = [];
         if (toolInfo.inputSchema?.properties) {
           for (const [key, schema] of Object.entries(
-            toolInfo.inputSchema.properties as Record<string, any>
+            toolInfo.inputSchema.properties
           )) {
             const required = toolInfo.inputSchema.required?.includes(key);
             prompts.push({
@@ -224,13 +225,13 @@ program
                       default: false,
                     },
                   ])
-                  .then((a: any) => a.include),
+                  .then((a: PromptAnswer) => Boolean(a.include)),
             });
           }
         }
 
         if (prompts.length > 0) {
-          params = await inquirer.prompt(prompts as any);
+          params = await inquirer.prompt<ToolParameters>(prompts as any);
         }
       } catch (error) {
         console.error(chalk.red('Failed to fetch tool schema:'), error);
@@ -269,7 +270,7 @@ program
       await proxy.disconnect();
 
       // Format output
-      if (options.format === 'json') {
+      if (options?.format === 'json') {
         console.log(JSON.stringify(result, null, 2));
       } else {
         // Pretty print
