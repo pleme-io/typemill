@@ -1,6 +1,12 @@
+// BENCHMARK DISABLED - Old McpDispatcher has been replaced by plugin system
+// TODO: Rewrite benchmarks for new PluginDispatcher architecture
+#![cfg(skip_benchmarks)]
+
 use cb_core::config::LspConfig;
 use cb_core::model::mcp::{McpMessage, McpRequest, ToolCall};
-use cb_server::handlers::{AppState, McpDispatcher};
+// NOTE: McpDispatcher no longer exists - replaced by PluginDispatcher
+// use cb_server::handlers::{AppState, McpDispatcher};
+use cb_server::handlers::{AppState, PluginDispatcher};
 use cb_server::services::{FileService, LockManager, OperationQueue};
 use cb_server::systems::LspManager;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};

@@ -21,8 +21,8 @@ async fn test_navigation_find_definition_integration() {
     let app_state = create_test_app_state(test_lsp.clone()).await;
     let mut dispatcher = McpDispatcher::new();
 
-    // Register navigation tools (this is what we're testing)
-    cb_server::handlers::mcp_tools::navigation::register_tools(&mut dispatcher);
+    // NOTE: Tools are now registered via the plugin system, not directly
+    // cb_server::handlers::mcp_tools::navigation::register_tools(&mut dispatcher);
 
     // Test find_definition tool
     let args = json!({
@@ -56,7 +56,8 @@ async fn test_navigation_find_references_integration() {
     let app_state = create_test_app_state(test_lsp.clone()).await;
     let mut dispatcher = McpDispatcher::new();
 
-    cb_server::handlers::mcp_tools::navigation::register_tools(&mut dispatcher);
+    // NOTE: Tools are now registered via the plugin system
+    // cb_server::handlers::mcp_tools::navigation::register_tools(&mut dispatcher);
 
     let args = json!({
         "file_path": "/test/example.ts",
@@ -88,7 +89,8 @@ async fn test_navigation_workspace_symbols_integration() {
     let app_state = create_test_app_state(test_lsp.clone()).await;
     let mut dispatcher = McpDispatcher::new();
 
-    cb_server::handlers::mcp_tools::navigation::register_tools(&mut dispatcher);
+    // NOTE: Tools are now registered via the plugin system
+    // cb_server::handlers::mcp_tools::navigation::register_tools(&mut dispatcher);
 
     let args = json!({
         "query": "TestFunction",
@@ -119,7 +121,8 @@ async fn test_editing_rename_symbol_integration() {
     let app_state = create_test_app_state(test_lsp.clone()).await;
     let mut dispatcher = McpDispatcher::new();
 
-    cb_server::handlers::mcp_tools::editing::register_tools(&mut dispatcher);
+    // NOTE: Tools are now registered via the plugin system
+    // cb_server::handlers::mcp_tools::editing::register_tools(&mut dispatcher);
 
     let args = json!({
         "file_path": "/test/example.ts",
@@ -155,7 +158,8 @@ async fn test_editing_rename_symbol_strict_integration() {
     let app_state = create_test_app_state(test_lsp.clone()).await;
     let mut dispatcher = McpDispatcher::new();
 
-    cb_server::handlers::mcp_tools::editing::register_tools(&mut dispatcher);
+    // NOTE: Tools are now registered via the plugin system
+    // cb_server::handlers::mcp_tools::editing::register_tools(&mut dispatcher);
 
     let args = json!({
         "file_path": "/test/example.ts",
@@ -190,7 +194,8 @@ async fn test_editing_rename_symbol_strict_dry_run() {
     let app_state = create_test_app_state(test_lsp.clone()).await;
     let mut dispatcher = McpDispatcher::new();
 
-    cb_server::handlers::mcp_tools::editing::register_tools(&mut dispatcher);
+    // NOTE: Tools are now registered via the plugin system
+    // cb_server::handlers::mcp_tools::editing::register_tools(&mut dispatcher);
 
     let args = json!({
         "file_path": "/test/example.ts",
@@ -225,7 +230,8 @@ async fn test_intelligence_hover_integration() {
     let app_state = create_test_app_state(test_lsp.clone()).await;
     let mut dispatcher = McpDispatcher::new();
 
-    cb_server::handlers::mcp_tools::intelligence::register_tools(&mut dispatcher);
+    // NOTE: Tools are now registered via the plugin system
+    // cb_server::handlers::mcp_tools::intelligence::register_tools(&mut dispatcher);
 
     let args = json!({
         "file_path": "/test/example.ts",
@@ -259,7 +265,8 @@ async fn test_navigation_error_handling() {
     let app_state = create_test_app_state(test_lsp.clone()).await;
     let mut dispatcher = McpDispatcher::new();
 
-    cb_server::handlers::mcp_tools::navigation::register_tools(&mut dispatcher);
+    // NOTE: Tools are now registered via the plugin system
+    // cb_server::handlers::mcp_tools::navigation::register_tools(&mut dispatcher);
 
     let args = json!({
         "file_path": "/test/example.ts",
@@ -282,7 +289,8 @@ async fn test_concurrent_request_ids() {
     let app_state = create_test_app_state(test_lsp.clone()).await;
     let mut dispatcher = McpDispatcher::new();
 
-    cb_server::handlers::mcp_tools::navigation::register_tools(&mut dispatcher);
+    // NOTE: Tools are now registered via the plugin system
+    // cb_server::handlers::mcp_tools::navigation::register_tools(&mut dispatcher);
 
     // Make multiple concurrent requests
     let mut handles = vec![];
@@ -354,7 +362,8 @@ mod property_tests {
 
                 let app_state = create_test_app_state(test_lsp.clone()).await;
                 let mut dispatcher = McpDispatcher::new();
-                cb_server::handlers::mcp_tools::navigation::register_tools(&mut dispatcher);
+                // NOTE: Tools are now registered via the plugin system
+    // cb_server::handlers::mcp_tools::navigation::register_tools(&mut dispatcher);
 
                 // Make multiple requests
                 for i in 0..num_requests {

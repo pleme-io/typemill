@@ -17,14 +17,14 @@ The Rust MCP Server is a production-ready implementation that bridges the Model 
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                     MCP Dispatcher                              │
+│                    Plugin Dispatcher                            │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
-│  │   Navigation    │  │  Intelligence   │  │   Filesystem    │  │
-│  │     Tools       │  │     Tools       │  │     Tools       │  │
+│  │   TypeScript    │  │     Python      │  │       Go        │  │
+│  │     Plugin      │  │     Plugin      │  │     Plugin      │  │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
 │  ┌─────────────────┐  ┌─────────────────┐                       │
-│  │    Editing      │  │    Analysis     │                       │
-│  │     Tools       │  │     Tools       │                       │
+│  │     Rust        │  │     Other       │                       │
+│  │     Plugin      │  │   Languages     │                       │
 │  └─────────────────┘  └─────────────────┘                       │
 └─────────────────────────────────────────────────────────────────┘
                                     │
@@ -72,7 +72,7 @@ The Rust MCP Server is a production-ready implementation that bridges the Model 
 
 2. **Dispatch Processing**
    ```
-   McpDispatcher::dispatch() → Tool lookup → Handler execution
+   PluginDispatcher::dispatch() → Plugin lookup → Handler execution
    ```
 
 3. **Tool Execution**
@@ -104,21 +104,21 @@ The Rust MCP Server is a production-ready implementation that bridges the Model 
 
 ## Component Interactions
 
-### MCP Dispatcher
+### Plugin Dispatcher
 
 The central orchestrator that:
-- Registers all 21 MCP tools at startup
-- Routes incoming tool calls to appropriate handlers
-- Provides dependency injection for services (LSP, AST)
-- Handles error conversion and response formatting
+- Manages language-specific plugins dynamically
+- Routes requests based on file extensions
+- Provides direct LSP access bypassing legacy mappings
+- Handles protocol translation via plugins
 
 ```rust
-pub struct McpDispatcher {
-    tools: HashMap<String, Box<dyn ToolHandler>>>,
+pub struct PluginDispatcher {
+    plugins: HashMap<String, Arc<dyn LanguagePlugin>>,
     app_state: Arc<AppState>
 }
 
-impl McpDispatcher {
+impl PluginDispatcher {
     pub async fn dispatch(&self, message: McpMessage) -> Result<McpMessage, ServerError> {
         match message {
             McpMessage::Request(req) => {

@@ -327,15 +327,14 @@ pub struct ServerHandle {
     pub async fn shutdown(self) -> Result<(), ServerError>;
 }
 
-// MCP Dispatcher
-pub struct McpDispatcher {
+// Plugin Dispatcher (replaces McpDispatcher)
+pub struct PluginDispatcher {
     pub fn new() -> Self;
-    pub fn register_tool<F>(&mut self, name: String, handler: F);
+    pub fn register_plugin(&mut self, extension: String, plugin: Arc<dyn LanguagePlugin>);
     pub async fn dispatch(&self, message: McpMessage) -> Result<McpMessage, ServerError>;
 }
 
-// Tool Registration
-pub fn register_all_tools(dispatcher: &mut McpDispatcher);
+// Plugin registration handled internally via plugin system
 
 // Service Traits
 #[async_trait]
