@@ -36,6 +36,8 @@ pub struct AppState {
 pub struct PluginDispatcher {
     /// Plugin manager for handling requests
     plugin_manager: Arc<PluginManager>,
+    /// Application state for file operations and services beyond LSP
+    app_state: Arc<AppState>,
     /// Initialization flag
     initialized: OnceCell<()>,
 }
@@ -136,9 +138,10 @@ impl LspService for DirectLspAdapter {
 
 impl PluginDispatcher {
     /// Create a new plugin dispatcher
-    pub fn new() -> Self {
+    pub fn new(app_state: Arc<AppState>) -> Self {
         Self {
             plugin_manager: Arc::new(PluginManager::new()),
+            app_state,
             initialized: OnceCell::new(),
         }
     }
@@ -407,6 +410,11 @@ impl PluginDispatcher {
 
         debug!("Calling tool '{}' with plugin system", tool_call.name);
 
+        // Check if this is a file operation that needs app_state services
+        if self.is_file_operation(&tool_call.name) {
+            return self.handle_file_operation(tool_call).await;
+        }
+
         // Convert MCP tool call to plugin request
         let plugin_request = self.convert_tool_call_to_plugin_request(tool_call)?;
 
@@ -496,6 +504,78 @@ impl PluginDispatcher {
         &self.plugin_manager
     }
 
+    /// Check if a tool name represents a file operation
+    fn is_file_operation(&self, tool_name: &str) -> bool {
+        matches!(tool_name, "rename_file" | "create_file" | "delete_file" | "rename_directory")
+    }
+
+    /// Handle file operations using app_state services
+    async fn handle_file_operation(&self, tool_call: ToolCall) -> ServerResult<Value> {
+        debug!("Handling file operation: {}", tool_call.name);
+
+        match tool_call.name.as_str() {
+            "rename_file" => {
+                let args = tool_call.arguments;
+                let old_path = args.get("old_path")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| ServerError::InvalidRequest("Missing 'old_path' parameter".into()))?;
+                let new_path = args.get("new_path")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| ServerError::InvalidRequest("Missing 'new_path' parameter".into()))?;
+                let dry_run = args.get("dry_run").and_then(|v| v.as_bool()).unwrap_or(false);
+
+                let result = self.app_state.file_service
+                    .rename_file_with_imports(
+                        std::path::Path::new(old_path),
+                        std::path::Path::new(new_path),
+                        dry_run
+                    ).await?;
+
+                Ok(json!({
+                    "success": true,
+                    "old_path": old_path,
+                    "new_path": new_path,
+                    "imports_updated": result.import_report.imports_updated,
+                    "files_affected": result.import_report.files_updated
+                }))
+            }
+            "create_file" => {
+                let args = tool_call.arguments;
+                let file_path = args.get("file_path")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| ServerError::InvalidRequest("Missing 'file_path' parameter".into()))?;
+                let content = args.get("content")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+
+                tokio::fs::write(file_path, content).await
+                    .map_err(|e| ServerError::Internal(format!("Failed to create file: {}", e)))?;
+
+                Ok(json!({
+                    "success": true,
+                    "file_path": file_path,
+                    "created": true
+                }))
+            }
+            "delete_file" => {
+                let args = tool_call.arguments;
+                let file_path = args.get("file_path")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| ServerError::InvalidRequest("Missing 'file_path' parameter".into()))?;
+
+                tokio::fs::remove_file(file_path).await
+                    .map_err(|e| ServerError::Internal(format!("Failed to delete file: {}", e)))?;
+
+                Ok(json!({
+                    "success": true,
+                    "file_path": file_path,
+                    "deleted": true
+                }))
+            }
+            _ => Err(ServerError::Unsupported(format!("File operation '{}' not implemented", tool_call.name)))
+        }
+    }
+
     /// Check if a method is supported for a file
     pub async fn is_method_supported(&self, file_path: &std::path::Path, method: &str) -> bool {
         self.initialize().await.is_ok() &&
@@ -566,8 +646,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_plugin_dispatcher_initialization() {
-        let _app_state = create_test_app_state();
-        let dispatcher = PluginDispatcher::new();
+        let app_state = create_test_app_state();
+        let dispatcher = PluginDispatcher::new(app_state);
 
         // Initialize should succeed
         assert!(dispatcher.initialize().await.is_ok());
@@ -581,8 +661,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_tools_list() {
-        let _app_state = create_test_app_state();
-        let dispatcher = PluginDispatcher::new();
+        let app_state = create_test_app_state();
+        let dispatcher = PluginDispatcher::new(app_state);
 
         let request = McpRequest {
             id: Some(json!(1)),
@@ -613,8 +693,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_method_support_checking() {
-        let _app_state = create_test_app_state();
-        let dispatcher = PluginDispatcher::new();
+        let app_state = create_test_app_state();
+        let dispatcher = PluginDispatcher::new(app_state);
 
         assert!(dispatcher.initialize().await.is_ok());
 
@@ -629,8 +709,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_plugin_statistics() {
-        let _app_state = create_test_app_state();
-        let dispatcher = PluginDispatcher::new();
+        let app_state = create_test_app_state();
+        let dispatcher = PluginDispatcher::new(app_state);
 
         let stats = dispatcher.get_plugin_statistics().await.unwrap();
 

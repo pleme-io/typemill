@@ -329,6 +329,13 @@ pub fn analyze_extract_variable(
 
     match parser.parse_module() {
         Ok(_module) => {
+            // TODO: Use parsed AST module for advanced code analysis
+            // The module contains the full syntax tree which could be used for:
+            // - Precise variable scope analysis
+            // - Function dependency detection
+            // - Complex expression evaluation
+            // Currently using simplified text-based extraction instead
+
             // Extract the selected expression text
             let expression_range = CodeRange {
                 start_line,
@@ -1017,12 +1024,13 @@ fn analyze_extract_function_python(
 ) -> AstResult<ExtractableFunction> {
     let lines: Vec<&str> = source.lines().collect();
 
-    // Find variables used in the selection that are defined outside
+    // Find variables and functions used in the selection that are defined outside
     let mut required_parameters = Vec::new();
-    let _functions = extract_python_functions(source)?;
+    let mut required_imports = Vec::new();
+    let functions = extract_python_functions(source)?;
     let variables = extract_python_variables(source)?;
 
-    // Simple analysis: find variables referenced in the selection
+    // Simple analysis: find variables and function calls referenced in the selection
     for line_num in range.start_line..=range.end_line {
         if let Some(line) = lines.get(line_num as usize) {
             let line_text = if line_num == range.start_line && line_num == range.end_line {
@@ -1044,6 +1052,15 @@ fn analyze_extract_function_python(
                     }
                 }
             }
+
+            // Find function calls in this line that are defined outside the selection
+            for func in &functions {
+                if func.start_line < range.start_line && line_text.contains(&format!("{}(", func.name)) {
+                    if !required_imports.contains(&func.name) {
+                        required_imports.push(func.name.clone());
+                    }
+                }
+            }
         }
     }
 
@@ -1053,6 +1070,10 @@ fn analyze_extract_function_python(
 
     // Find insertion point (before the selection at function level)
     let insertion_point = find_python_insertion_point(source, range.start_line)?;
+
+    // TODO: Include required_imports in ExtractableFunction struct for better analysis
+    // Currently analyzed but not exposed: function dependencies that need to be available
+    // This information could be used to suggest imports or parameter passing
 
     Ok(ExtractableFunction {
         selected_range: range.clone(),

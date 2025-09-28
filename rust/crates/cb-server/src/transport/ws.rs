@@ -332,7 +332,7 @@ mod tests {
             lock_manager,
             operation_queue,
         });
-        let _dispatcher = Arc::new(PluginDispatcher::new());
+        let _dispatcher = Arc::new(PluginDispatcher::new(app_state));
         let mut session = Session::new();
 
         let request = McpRequest {

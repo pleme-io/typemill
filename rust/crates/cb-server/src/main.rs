@@ -61,8 +61,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         operation_queue,
     });
 
-    // Create Plugin dispatcher
-    let dispatcher = PluginDispatcher::new();
+    // Create Plugin dispatcher with app state
+    let dispatcher = PluginDispatcher::new(app_state);
 
     let dispatcher = Arc::new(dispatcher);
 

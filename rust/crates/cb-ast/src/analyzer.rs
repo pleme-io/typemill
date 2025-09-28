@@ -750,6 +750,8 @@ fn find_function_insertion_point(_source: &str, _near_line: u32) -> AstResult<Ed
 #[derive(Debug, Clone)]
 struct FunctionInfo {
     name: String,
+    // TODO: Implement proper parameter extraction from function signatures
+    // Currently hardcoded to Vec::new() - needs AST parsing for full implementation
     parameters: Vec<String>,
     body: String,
     location: EditLocation,
@@ -760,6 +762,8 @@ struct FunctionInfo {
 #[derive(Debug, Clone)]
 struct FunctionCall {
     name: String,
+    // TODO: Implement proper argument extraction from function calls
+    // Currently not populated - needs AST parsing for function call analysis
     arguments: Vec<String>,
     location: EditLocation,
     call_text: String,
