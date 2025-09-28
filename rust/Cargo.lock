@@ -489,6 +489,7 @@ dependencies = [
  "config",
  "serde",
  "serde_json",
+ "serial_test",
  "tempfile",
  "thiserror 1.0.69",
  "tracing",
@@ -499,6 +500,9 @@ name = "cb-plugins"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "cb-ast",
+ "cb-core",
+ "ignore",
  "indexmap",
  "serde",
  "serde_json",

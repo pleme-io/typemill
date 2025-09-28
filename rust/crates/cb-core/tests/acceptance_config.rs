@@ -2,6 +2,7 @@
 //! These tests verify the public API contract for configuration loading
 
 use cb_core::{AppConfig, CoreError};
+use serial_test::serial;
 use std::env;
 use tempfile::TempDir;
 
@@ -15,6 +16,7 @@ fn clean_env() {
 }
 
 #[test]
+#[serial]
 fn test_config_load_default() {
     // Clear any environment variables that might affect the test
     clean_env();
@@ -55,6 +57,7 @@ fn test_config_load_default() {
 }
 
 #[test]
+#[serial]
 fn test_config_load_from_json() {
     clean_env();
 
@@ -128,6 +131,7 @@ fn test_config_load_from_json() {
 }
 
 #[test]
+#[serial]
 fn test_config_env_override() {
     // Clear any environment variables that might affect the test
     clean_env();
@@ -156,6 +160,7 @@ fn test_config_env_override() {
 }
 
 #[test]
+#[serial]
 fn test_config_validation_invalid_port() {
     clean_env();
     let temp_dir = TempDir::new().unwrap();
@@ -213,6 +218,7 @@ fn test_config_validation_invalid_port() {
 }
 
 #[test]
+#[serial]
 fn test_config_validation_invalid_log_level() {
     clean_env();
     let temp_dir = TempDir::new().unwrap();
@@ -270,6 +276,7 @@ fn test_config_validation_invalid_log_level() {
 }
 
 #[test]
+#[serial]
 fn test_config_validation_empty_lsp_servers() {
     clean_env();
     let temp_dir = TempDir::new().unwrap();
@@ -321,6 +328,7 @@ fn test_config_validation_empty_lsp_servers() {
 }
 
 #[test]
+#[serial]
 fn test_config_serialization_round_trip() {
     let original_config = AppConfig::default();
 

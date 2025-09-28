@@ -12,6 +12,28 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tracing::{debug, error, info, warn};
 
+// Add Unix-specific metadata support
+use std::os::unix::fs::{MetadataExt, PermissionsExt};
+
+// Helper function to convert file types
+fn file_type_to_kind(file_type: std::fs::FileType) -> fuser::FileType {
+    if file_type.is_dir() {
+        fuser::FileType::Directory
+    } else if file_type.is_file() {
+        fuser::FileType::RegularFile
+    } else if file_type.is_symlink() {
+        fuser::FileType::Symlink
+    } else {
+        // Default for other types like block device, char device, fifo, socket
+        fuser::FileType::RegularFile
+    }
+}
+
+// Constants for error handling
+const ENOENT: i32 = libc::ENOENT;
+const EIO: i32 = libc::EIO;
+const SYSTEM_TIME_UNIX_EPOCH: SystemTime = SystemTime::UNIX_EPOCH;
+
 const TTL: Duration = Duration::from_secs(1);
 
 /// FUSE filesystem implementation for Codeflow Buddy
@@ -117,57 +139,76 @@ impl CodeflowFS {
 
 impl Filesystem for CodeflowFS {
     fn lookup(&mut self, _req: &Request, parent: u64, name: &OsStr, reply: ReplyEntry) {
-        debug!("lookup: parent={}, name={:?}", parent, name);
+        let parent_path = self.inode_to_path.get(&parent).unwrap().clone();
+        let path = parent_path.join(name);
+        if !path.exists() {
+            reply.error(ENOENT);
+            return;
+        }
 
-        let path = match self.resolve_path(parent, name) {
-            Some(path) => path,
+        let inode = match self.path_to_inode.get(&path) {
+            Some(ino) => *ino,
             None => {
-                reply.error(libc::ENOENT);
-                return;
+                let ino = self.next_inode;
+                self.next_inode += 1;
+                self.inode_to_path.insert(ino, path.clone());
+                self.path_to_inode.insert(path.clone(), ino);
+                ino
             }
         };
 
-        match fs::metadata(&path) {
+        match std::fs::metadata(&path) {
             Ok(metadata) => {
-                let ino = self.get_or_assign_inode(&path);
-                let attr = self.metadata_to_attr(&metadata, ino);
-                self.attr_cache.insert(ino, attr);
-                reply.entry(&TTL, &attr, 0);
+                let attrs = fuser::FileAttr {
+                    ino: inode,
+                    size: metadata.len(),
+                    blocks: metadata.blocks(),
+                    atime: metadata.accessed().unwrap_or(SYSTEM_TIME_UNIX_EPOCH),
+                    mtime: metadata.modified().unwrap_or(SYSTEM_TIME_UNIX_EPOCH),
+                    ctime: metadata.created().unwrap_or(SYSTEM_TIME_UNIX_EPOCH),
+                    crtime: metadata.created().unwrap_or(SYSTEM_TIME_UNIX_EPOCH),
+                    kind: file_type_to_kind(metadata.file_type()),
+                    perm: metadata.permissions().mode() as u16,
+                    nlink: metadata.nlink() as u32,
+                    uid: metadata.uid(),
+                    gid: metadata.gid(),
+                    rdev: metadata.rdev() as u32,
+                    blksize: metadata.blksize() as u32,
+                    flags: 0,
+                };
+                reply.entry(&TTL, &attrs, 0);
             }
-            Err(err) => {
-                warn!("Failed to get metadata for {:?}: {}", path, err);
-                reply.error(libc::ENOENT);
-            }
+            Err(e) => reply.error(e.raw_os_error().unwrap_or(ENOENT)),
         }
     }
 
     fn getattr(&mut self, _req: &Request, ino: u64, reply: ReplyAttr) {
-        debug!("getattr: ino={}", ino);
-
-        // Check cache first
-        if let Some(attr) = self.attr_cache.get(&ino) {
-            reply.attr(&TTL, attr);
-            return;
-        }
-
-        let path = match self.inode_to_path.get(&ino) {
-            Some(path) => path.clone(),
-            None => {
-                reply.error(libc::ENOENT);
-                return;
+        if let Some(path) = self.inode_to_path.get(&ino) {
+            match std::fs::metadata(path) {
+                Ok(metadata) => {
+                    let attrs = fuser::FileAttr {
+                        ino,
+                        size: metadata.len(),
+                        blocks: metadata.blocks(),
+                        atime: metadata.accessed().unwrap_or(SYSTEM_TIME_UNIX_EPOCH),
+                        mtime: metadata.modified().unwrap_or(SYSTEM_TIME_UNIX_EPOCH),
+                        ctime: metadata.created().unwrap_or(SYSTEM_TIME_UNIX_EPOCH),
+                        crtime: metadata.created().unwrap_or(SYSTEM_TIME_UNIX_EPOCH),
+                        kind: file_type_to_kind(metadata.file_type()),
+                        perm: metadata.permissions().mode() as u16,
+                        nlink: metadata.nlink() as u32,
+                        uid: metadata.uid(),
+                        gid: metadata.gid(),
+                        rdev: metadata.rdev() as u32,
+                        blksize: metadata.blksize() as u32,
+                        flags: 0,
+                    };
+                    reply.attr(&TTL, &attrs);
+                }
+                Err(e) => reply.error(e.raw_os_error().unwrap_or(ENOENT)),
             }
-        };
-
-        match fs::metadata(&path) {
-            Ok(metadata) => {
-                let attr = self.metadata_to_attr(&metadata, ino);
-                self.attr_cache.insert(ino, attr);
-                reply.attr(&TTL, &attr);
-            }
-            Err(err) => {
-                warn!("Failed to get metadata for {:?}: {}", path, err);
-                reply.error(libc::ENOENT);
-            }
+        } else {
+            reply.error(ENOENT);
         }
     }
 
@@ -179,85 +220,40 @@ impl Filesystem for CodeflowFS {
         offset: i64,
         mut reply: ReplyDirectory,
     ) {
-        debug!("readdir: ino={}, offset={}", ino, offset);
+        if let Some(path) = self.inode_to_path.get(&ino) {
+            if let Ok(read_dir) = std::fs::read_dir(path) {
+                let entries = read_dir
+                    .filter_map(|res| res.ok())
+                    .skip(offset as usize)
+                    .collect::<Vec<_>>();
 
-        let path = match self.inode_to_path.get(&ino) {
-            Some(path) => path.clone(),
-            None => {
-                reply.error(libc::ENOENT);
-                return;
-            }
-        };
+                for (i, entry) in entries.iter().enumerate() {
+                    let path = entry.path();
+                    let file_name = path.file_name().unwrap_or_default();
+                    let file_type = entry.file_type().unwrap();
 
-        let entries = match fs::read_dir(&path) {
-            Ok(entries) => entries,
-            Err(err) => {
-                warn!("Failed to read directory {:?}: {}", path, err);
-                reply.error(libc::ENOENT);
-                return;
-            }
-        };
+                    let inode = match self.path_to_inode.get(&path) {
+                        Some(ino) => *ino,
+                        None => {
+                            let new_ino = self.next_inode;
+                            self.next_inode += 1;
+                            self.inode_to_path.insert(new_ino, path.clone());
+                            self.path_to_inode.insert(path.clone(), new_ino);
+                            new_ino
+                        }
+                    };
 
-        let mut dir_entries = Vec::new();
-
-        // Add "." and ".." entries
-        if offset == 0 {
-            dir_entries.push((ino, FileType::Directory, ".".to_string()));
-        }
-        if offset <= 1 {
-            // For simplicity, use parent inode as 1 (root) for ".."
-            let parent_ino = if ino == 1 { 1 } else { 1 };
-            dir_entries.push((parent_ino, FileType::Directory, "..".to_string()));
-        }
-
-        // Add actual directory entries
-        for (i, entry) in entries.enumerate() {
-            if (i as i64) < offset.saturating_sub(2) {
-                continue;
-            }
-
-            let entry = match entry {
-                Ok(entry) => entry,
-                Err(err) => {
-                    warn!("Failed to read directory entry: {}", err);
-                    continue;
-                }
-            };
-
-            let entry_path = entry.path();
-            let file_name = match entry_path.file_name() {
-                Some(name) => name.to_string_lossy().to_string(),
-                None => continue,
-            };
-
-            let file_type = match entry.file_type() {
-                Ok(ft) => {
-                    if ft.is_dir() {
-                        FileType::Directory
-                    } else if ft.is_file() {
-                        FileType::RegularFile
-                    } else if ft.is_symlink() {
-                        FileType::Symlink
-                    } else {
-                        FileType::RegularFile
+                    if reply.add(inode, offset + i as i64 + 1, file_type_to_kind(file_type), file_name) {
+                        break;
                     }
                 }
-                Err(_) => FileType::RegularFile,
-            };
-
-            let entry_ino = self.get_or_assign_inode(&entry_path);
-            dir_entries.push((entry_ino, file_type, file_name));
-        }
-
-        // Send entries to FUSE
-        for (i, (entry_ino, file_type, name)) in dir_entries.iter().enumerate() {
-            let offset = (i as i64) + 1;
-            if reply.add(*entry_ino, offset, *file_type, name) {
-                break; // Buffer is full
+                reply.ok();
+            } else {
+                reply.error(ENOENT);
             }
+        } else {
+            reply.error(ENOENT);
         }
-
-        reply.ok();
     }
 
     fn open(&mut self, _req: &Request, ino: u64, _flags: i32, reply: ReplyOpen) {

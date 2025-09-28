@@ -131,6 +131,12 @@ impl LspAdapterPlugin {
         // Apply standard capabilities
         Self::apply_standard_capabilities(&mut adapter);
 
+        // Add Python-specific custom capabilities
+        adapter.capabilities.custom.insert(
+            "python.format_imports".to_string(),
+            json!(true),
+        );
+
         adapter
     }
 
@@ -148,6 +154,10 @@ impl LspAdapterPlugin {
         // Add Go-specific custom capabilities
         adapter.capabilities.custom.insert(
             "go.generate".to_string(),
+            json!(true),
+        );
+        adapter.capabilities.custom.insert(
+            "go.organize_imports".to_string(),
             json!(true),
         );
 
@@ -298,6 +308,16 @@ impl LspAdapterPlugin {
                     params["context"] = json!({
                         "diagnostics": request.get_param("diagnostics").unwrap_or(&json!([]))
                     });
+                }
+            }
+            "callHierarchy/incomingCalls" | "callHierarchy/outgoingCalls" => {
+                // Call hierarchy methods need the item parameter
+                if let Some(item) = request.get_param("item") {
+                    params = json!({ "item": item });
+                } else {
+                    return Err(PluginError::configuration_error(
+                        "call hierarchy methods require item parameter",
+                    ));
                 }
             }
             _ => {
@@ -592,10 +612,13 @@ mod tests {
         let python_adapter = LspAdapterPlugin::python(lsp_service.clone());
         assert_eq!(python_adapter.metadata().name, "python-lsp-adapter");
         assert!(python_adapter.supported_extensions().contains(&"py".to_string()));
+        // Python adapter should have the custom capability we added
         assert!(python_adapter.capabilities().custom.contains_key("python.format_imports"));
 
         let go_adapter = LspAdapterPlugin::go(lsp_service.clone());
         assert_eq!(go_adapter.metadata().name, "go-lsp-adapter");
+        // Go adapter should have both capabilities
+        assert!(go_adapter.capabilities().custom.contains_key("go.generate"));
         assert!(go_adapter.capabilities().custom.contains_key("go.organize_imports"));
 
         let rust_adapter = LspAdapterPlugin::rust(lsp_service);

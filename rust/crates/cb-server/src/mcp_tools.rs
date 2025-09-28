@@ -251,6 +251,171 @@ pub fn get_tool_definitions() -> Vec<Value> {
             }
         }),
 
+        // Call Hierarchy Tools
+        json!({
+            "name": "prepare_call_hierarchy",
+            "description": "Prepare for a call hierarchy request.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "file_path": { "type": "string", "description": "The path to the file" },
+                    "line": { "type": "number", "description": "The line number (1-indexed)" },
+                    "character": { "type": "number", "description": "The character position in the line (0-indexed)" }
+                },
+                "required": ["file_path", "line", "character"]
+            }
+        }),
+        json!({
+            "name": "get_call_hierarchy_incoming_calls",
+            "description": "Get incoming calls for a call hierarchy item.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "item": {
+                        "type": "object",
+                        "description": "The call hierarchy item"
+                    }
+                },
+                "required": ["item"]
+            }
+        }),
+        json!({
+            "name": "get_call_hierarchy_outgoing_calls",
+            "description": "Get outgoing calls for a call hierarchy item.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "item": {
+                        "type": "object",
+                        "description": "The call hierarchy item"
+                    }
+                },
+                "required": ["item"]
+            }
+        }),
+
+        // System Tools
+        json!({
+            "name": "list_files",
+            "description": "List files and directories in a given path.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "path": { "type": "string", "description": "Path to list (defaults to current directory)" },
+                    "recursive": { "type": "boolean", "description": "Whether to recursively list subdirectories" },
+                    "include_hidden": { "type": "boolean", "description": "Whether to include hidden files" },
+                    "pattern": { "type": "string", "description": "Optional pattern to filter files" }
+                }
+            }
+        }),
+        json!({
+            "name": "analyze_imports",
+            "description": "Analyze import statements in a file.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "file_path": { "type": "string", "description": "Path to the file to analyze" }
+                },
+                "required": ["file_path"]
+            }
+        }),
+        json!({
+            "name": "find_dead_code",
+            "description": "Find potentially unused code in a workspace.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "workspace_path": { "type": "string", "description": "Path to the workspace to analyze" }
+                },
+                "required": ["workspace_path"]
+            }
+        }),
+        json!({
+            "name": "update_dependencies",
+            "description": "Update project dependencies using the appropriate package manager.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "project_path": { "type": "string", "description": "Path to the project (defaults to current directory)" },
+                    "package_manager": { "type": "string", "description": "Package manager to use (auto, npm, yarn, pnpm, cargo, pip)" },
+                    "update_type": { "type": "string", "description": "Type of update (minor, major, patch)" },
+                    "dry_run": { "type": "boolean", "description": "Preview changes without applying them" }
+                }
+            }
+        }),
+        json!({
+            "name": "rename_directory",
+            "description": "Rename a directory and optionally update import statements.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "old_path": { "type": "string", "description": "Current directory path" },
+                    "new_path": { "type": "string", "description": "New directory path" },
+                    "update_imports": { "type": "boolean", "description": "Whether to update import statements" },
+                    "dry_run": { "type": "boolean", "description": "Preview changes without applying them" }
+                },
+                "required": ["old_path", "new_path"]
+            }
+        }),
+        json!({
+            "name": "extract_function",
+            "description": "Extract a block of code into a new function.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "file_path": { "type": "string", "description": "Path to the file" },
+                    "start_line": { "type": "number", "description": "Start line of code to extract" },
+                    "end_line": { "type": "number", "description": "End line of code to extract" },
+                    "function_name": { "type": "string", "description": "Name for the new function" },
+                    "dry_run": { "type": "boolean", "description": "Preview changes without applying them" }
+                },
+                "required": ["file_path", "start_line", "end_line", "function_name"]
+            }
+        }),
+        json!({
+            "name": "inline_variable",
+            "description": "Inline a variable's value.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "file_path": { "type": "string", "description": "Path to the file" },
+                    "variable_name": { "type": "string", "description": "Name of the variable to inline" },
+                    "line": { "type": "number", "description": "Line number where the variable is declared" },
+                    "dry_run": { "type": "boolean", "description": "Preview changes without applying them" }
+                },
+                "required": ["file_path", "variable_name", "line"]
+            }
+        }),
+        json!({
+            "name": "extract_variable",
+            "description": "Extract an expression into a new variable.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "file_path": { "type": "string", "description": "Path to the file" },
+                    "start_line": { "type": "number", "description": "Start line of expression" },
+                    "start_character": { "type": "number", "description": "Start character of expression" },
+                    "end_line": { "type": "number", "description": "End line of expression" },
+                    "end_character": { "type": "number", "description": "End character of expression" },
+                    "variable_name": { "type": "string", "description": "Name for the new variable" },
+                    "dry_run": { "type": "boolean", "description": "Preview changes without applying them" }
+                },
+                "required": ["file_path", "start_line", "start_character", "end_line", "end_character", "variable_name"]
+            }
+        }),
+        json!({
+            "name": "fix_imports",
+            "description": "Fix import statements by removing unused imports and organizing them.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "file_path": { "type": "string", "description": "Path to the file" },
+                    "dry_run": { "type": "boolean", "description": "Preview changes without applying them" }
+                },
+                "required": ["file_path"]
+            }
+        }),
+
         // Advanced Tools
         json!({
             "name": "apply_workspace_edit",
@@ -323,6 +488,43 @@ pub fn get_tool_definitions() -> Vec<Value> {
                 "properties": {
                     "include_details": { "type": "boolean", "description": "Include detailed server information (default: false)" }
                 }
+            }
+        }),
+
+        // System Tools (workspace-level operations)
+        json!({
+            "name": "list_files",
+            "description": "List files and directories in a given path.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "path": { "type": "string", "description": "Path to list files from (defaults to current directory)" },
+                    "recursive": { "type": "boolean", "description": "Whether to list files recursively (default: false)" },
+                    "include_hidden": { "type": "boolean", "description": "Include hidden files (default: false)" },
+                    "pattern": { "type": "string", "description": "Optional glob pattern to filter files" }
+                }
+            }
+        }),
+        json!({
+            "name": "analyze_imports",
+            "description": "Analyze import statements and dependencies in a source file.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "file_path": { "type": "string", "description": "Path to the file to analyze" }
+                },
+                "required": ["file_path"]
+            }
+        }),
+        json!({
+            "name": "find_dead_code",
+            "description": "Find potentially unused code in a workspace.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "workspace_path": { "type": "string", "description": "Path to the workspace to analyze" }
+                },
+                "required": ["workspace_path"]
             }
         })
     ]

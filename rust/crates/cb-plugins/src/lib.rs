@@ -10,6 +10,7 @@ pub mod protocol;
 pub mod registry;
 pub mod error;
 pub mod adapters;
+pub mod system_tools_plugin;
 
 pub use plugin::{LanguagePlugin, PluginMetadata};
 pub use manager::PluginManager;

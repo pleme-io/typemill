@@ -155,6 +155,7 @@ impl LspService for TestLspService {
                     let errors = self.error_methods.lock().unwrap();
                     if let Some(error_msg) = errors.get(&request.method) {
                         let error_response = McpResponse {
+                            jsonrpc: "2.0".to_string(),
                             id: request.id.clone(),
                             result: None,
                             error: Some(McpError {
@@ -179,6 +180,7 @@ impl LspService for TestLspService {
                     });
 
                 let response = McpResponse {
+                    jsonrpc: "2.0".to_string(),
                     id: request.id,
                     result: Some(result),
                     error: None,
@@ -217,6 +219,7 @@ mod tests {
         service.set_response("test/method", json!({"result": "success"}));
 
         let request = McpRequest {
+            jsonrpc: "2.0".to_string(),
             id: Some(json!(1)),
             method: "test/method".to_string(),
             params: Some(json!({"param": "value"})),
@@ -244,6 +247,7 @@ mod tests {
         service.set_error("error/method", "Simulated error");
 
         let request = McpRequest {
+            jsonrpc: "2.0".to_string(),
             id: Some(json!(2)),
             method: "error/method".to_string(),
             params: None,
@@ -276,6 +280,7 @@ mod tests {
 
         // Test definition response
         let def_request = McpRequest {
+            jsonrpc: "2.0".to_string(),
             id: Some(json!(1)),
             method: "textDocument/definition".to_string(),
             params: None,

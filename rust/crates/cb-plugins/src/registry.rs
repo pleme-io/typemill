@@ -117,6 +117,14 @@ impl PluginRegistry {
 
     /// Find the best plugin for a file and method combination
     pub fn find_best_plugin(&self, file_path: &Path, method: &str) -> PluginResult<String> {
+        // Special handling for system tools that don't have file associations
+        if matches!(method, "list_files" | "analyze_imports" | "find_dead_code") {
+            // Check if we have the system plugin registered
+            if self.plugins.contains_key("system") {
+                return Ok("system".to_string());
+            }
+        }
+
         let file_plugins = self.find_plugins_for_file(file_path);
         let method_plugins = self.find_plugins_for_method(method);
 

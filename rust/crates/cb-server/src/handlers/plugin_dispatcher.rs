@@ -16,7 +16,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::{Mutex, OnceCell};
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, error, info, instrument, warn};
 
 /// Application state containing services
 #[derive(Clone)]
@@ -206,7 +206,14 @@ impl PluginDispatcher {
                 .await
                 .map_err(|e| ServerError::Internal(format!("Failed to register Rust plugin: {}", e)))?;
 
-            info!("Plugin system initialized successfully with 4 language plugins");
+            // Register System Tools plugin for workspace-level operations
+            let system_plugin = Arc::new(cb_plugins::system_tools_plugin::SystemToolsPlugin::new());
+            self.plugin_manager
+                .register_plugin("system", system_plugin)
+                .await
+                .map_err(|e| ServerError::Internal(format!("Failed to register System tools plugin: {}", e)))?;
+
+            info!("Plugin system initialized successfully with 5 plugins (4 language + 1 system)");
             Ok::<(), ServerError>(())
         }).await?;
 
@@ -349,6 +356,11 @@ impl PluginDispatcher {
             return self.handle_file_operation(tool_call).await;
         }
 
+        // Check if this is a system tool
+        if self.is_system_tool(&tool_call.name) {
+            return self.handle_system_tool(tool_call).await;
+        }
+
         // Convert MCP tool call to plugin request
         let plugin_request = self.convert_tool_call_to_plugin_request(tool_call)?;
 
@@ -466,6 +478,47 @@ impl PluginDispatcher {
     /// Check if a tool name represents a file operation
     fn is_file_operation(&self, tool_name: &str) -> bool {
         matches!(tool_name, "rename_file" | "create_file" | "delete_file" | "rename_directory")
+    }
+
+    /// Check if a tool name represents a system tool
+    fn is_system_tool(&self, tool_name: &str) -> bool {
+        matches!(tool_name, "list_files" | "analyze_imports" | "find_dead_code")
+    }
+
+    /// Handle system tools through the plugin system
+    async fn handle_system_tool(&self, tool_call: ToolCall) -> ServerResult<Value> {
+        debug!("Handling system tool: {}", tool_call.name);
+
+        // Create a plugin request for system tools
+        // System tools don't require a file_path, so use a dummy path
+        let mut request = PluginRequest::new(
+            tool_call.name.clone(),
+            PathBuf::from("."), // Dummy path for system tools
+        );
+
+        // Pass through all arguments as params
+        request.params = tool_call.arguments.unwrap_or(json!({}));
+
+        // Route to the system plugin
+        let start_time = Instant::now();
+        match self.plugin_manager.handle_request(request).await {
+            Ok(response) => {
+                let processing_time = start_time.elapsed().as_millis();
+                debug!("System tool processed in {}ms", processing_time);
+
+                Ok(json!({
+                    "content": response.data.unwrap_or(json!(null)),
+                    "plugin": response.metadata.plugin_name,
+                    "processing_time_ms": response.metadata.processing_time_ms,
+                }))
+            }
+            Err(e) => {
+                warn!("System tool error: {}", e);
+                Err(ServerError::Runtime {
+                    message: format!("Tool '{}' failed: {}", tool_call.name, e),
+                })
+            }
+        }
     }
 
     /// Handle file operations using app_state services
@@ -624,6 +677,7 @@ mod tests {
         let dispatcher = PluginDispatcher::new(app_state);
 
         let request = McpRequest {
+            jsonrpc: "2.0".to_string(),
             id: Some(json!(1)),
             method: "tools/list".to_string(),
             params: None,

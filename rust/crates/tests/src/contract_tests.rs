@@ -101,12 +101,16 @@ async fn test_tools_list_contract() {
         .map(|tool| tool["name"].as_str().unwrap())
         .collect();
 
+    // Debug: print all available tools
+    println!("Available tools: {:?}", tool_names);
+
     assert!(tool_names.contains(&"find_definition"));
     assert!(tool_names.contains(&"find_references"));
     assert!(tool_names.contains(&"get_hover"));
     assert!(tool_names.contains(&"get_completions"));
     assert!(tool_names.contains(&"analyze_imports"));
     assert!(tool_names.contains(&"find_dead_code"));
+    assert!(tool_names.contains(&"list_files"));
 
     println!("✅ tools/list contract test passed - {} tools found", tools.len());
 }
@@ -200,6 +204,10 @@ async fn test_analyze_imports_contract() {
     assert_eq!(response["id"], "test-4");
 
     // This should work regardless of LSP since it uses cb-ast directly
+    if !response["error"].is_null() {
+        println!("analyze_imports error: {}", response["error"]);
+    }
+
     if response["error"].is_null() {
         let result = &response["result"];
         let content = &result["content"];
@@ -234,13 +242,17 @@ async fn test_list_files_contract() {
 
     // Validate response structure
     assert_eq!(response["id"], "test-5");
+
+    if !response["error"].is_null() {
+        println!("list_files error: {}", response["error"]);
+    }
     assert!(response["error"].is_null(), "list_files should not error");
 
     let result = &response["result"];
     let content = &result["content"];
     assert!(content["files"].is_array(), "Should have files array");
     assert!(content["path"].is_string(), "Should have path");
-    assert!(content["count"].is_number(), "Should have count");
+    assert!(content["total"].is_number(), "Should have total count");
 
     let files = content["files"].as_array().unwrap();
     assert!(!files.is_empty(), "Should find some files");

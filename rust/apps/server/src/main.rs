@@ -75,7 +75,7 @@ async fn handle_socket(mut socket: WebSocket, dispatcher: Arc<PluginDispatcher>)
                 match response {
                     Ok(response_message) => {
                         let response_text = serde_json::to_string(&response_message).unwrap();
-                        if socket.send(Message::Text(response_text)).await.is_err() {
+                        if socket.send(Message::Text(response_text.into())).await.is_err() {
                             break; // client disconnected
                         }
                     }

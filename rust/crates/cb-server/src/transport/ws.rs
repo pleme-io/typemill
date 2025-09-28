@@ -340,6 +340,7 @@ mod tests {
         let mut session = Session::new();
 
         let request = McpRequest {
+            jsonrpc: "2.0".to_string(),
             id: Some(serde_json::Value::Number(serde_json::Number::from(1))),
             method: "initialize".to_string(),
             params: Some(json!({
@@ -368,6 +369,7 @@ mod tests {
         let mut session = Session::new();
 
         let request = McpRequest {
+            jsonrpc: "2.0".to_string(),
             id: Some(serde_json::Value::Number(serde_json::Number::from(1))),
             method: "initialize".to_string(),
             params: Some(json!({
