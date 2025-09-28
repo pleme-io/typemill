@@ -1,5 +1,4 @@
 use super::TestWorkspace;
-use std::path::PathBuf;
 
 /// Create a TypeScript project with common test files.
 pub fn create_typescript_project() -> TestWorkspace {

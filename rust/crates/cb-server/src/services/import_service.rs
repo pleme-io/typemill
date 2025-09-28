@@ -3,7 +3,7 @@
 use crate::error::{ServerError, ServerResult};
 use cb_ast::{ImportPathResolver, update_import_paths};
 use std::path::{Path, PathBuf};
-use tracing::{debug, info, warn};
+use tracing::info;
 
 /// Service for managing import path updates
 pub struct ImportService {

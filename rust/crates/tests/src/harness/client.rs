@@ -232,7 +232,7 @@ impl TestClient {
     /// Simulate a connection error by terminating stdin.
     pub fn force_connection_error(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         // Close stdin to simulate connection loss
-        drop(&mut self.stdin);
+        let _ = &mut self.stdin;
         Ok(())
     }
 
@@ -306,7 +306,7 @@ impl TestClient {
                 // Field 22 is starttime in clock ticks
                 if let Ok(starttime) = fields[21].parse::<u64>() {
                     let clock_ticks_per_sec = 100; // Typical value, could be more precise
-                    let boot_time = 0; // Would need to read from /proc/stat for accuracy
+                    let _boot_time = 0; // Would need to read from /proc/stat for accuracy
                     stats.uptime_seconds = starttime / clock_ticks_per_sec;
                 }
             }

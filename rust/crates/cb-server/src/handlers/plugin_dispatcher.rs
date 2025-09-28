@@ -36,8 +36,6 @@ pub struct AppState {
 pub struct PluginDispatcher {
     /// Plugin manager for handling requests
     plugin_manager: Arc<PluginManager>,
-    /// Application state for accessing services
-    app_state: Arc<AppState>,
     /// Initialization flag
     initialized: OnceCell<()>,
 }
@@ -138,10 +136,9 @@ impl LspService for DirectLspAdapter {
 
 impl PluginDispatcher {
     /// Create a new plugin dispatcher
-    pub fn new(app_state: Arc<AppState>) -> Self {
+    pub fn new() -> Self {
         Self {
             plugin_manager: Arc::new(PluginManager::new()),
-            app_state,
             initialized: OnceCell::new(),
         }
     }
@@ -569,8 +566,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_plugin_dispatcher_initialization() {
-        let app_state = create_test_app_state();
-        let dispatcher = PluginDispatcher::new(app_state);
+        let _app_state = create_test_app_state();
+        let dispatcher = PluginDispatcher::new();
 
         // Initialize should succeed
         assert!(dispatcher.initialize().await.is_ok());
@@ -584,8 +581,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_tools_list() {
-        let app_state = create_test_app_state();
-        let dispatcher = PluginDispatcher::new(app_state);
+        let _app_state = create_test_app_state();
+        let dispatcher = PluginDispatcher::new();
 
         let request = McpRequest {
             id: Some(json!(1)),
@@ -616,8 +613,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_method_support_checking() {
-        let app_state = create_test_app_state();
-        let dispatcher = PluginDispatcher::new(app_state);
+        let _app_state = create_test_app_state();
+        let dispatcher = PluginDispatcher::new();
 
         assert!(dispatcher.initialize().await.is_ok());
 
@@ -632,8 +629,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_plugin_statistics() {
-        let app_state = create_test_app_state();
-        let dispatcher = PluginDispatcher::new(app_state);
+        let _app_state = create_test_app_state();
+        let dispatcher = PluginDispatcher::new();
 
         let stats = dispatcher.get_plugin_statistics().await.unwrap();
 

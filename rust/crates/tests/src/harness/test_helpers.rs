@@ -1,6 +1,5 @@
 use crate::harness::{TestClient, TestWorkspace};
 use serde_json::{json, Value};
-use std::path::Path;
 use std::time::{Duration, Instant};
 
 /// Helper for timing operations
@@ -244,7 +243,7 @@ impl LspTestHelper {
 
         for symbol in symbols {
             if symbol["name"].as_str().unwrap_or("").contains(symbol_name) {
-                if let (Some(range), Some(start)) = (symbol.get("range"), symbol["range"].get("start")) {
+                if let (Some(_range), Some(start)) = (symbol.get("range"), symbol["range"].get("start")) {
                     let line = start["line"].as_u64().unwrap_or(0) as usize;
                     let character = start["character"].as_u64().unwrap_or(0) as usize;
                     return Ok(Some((line, character)));

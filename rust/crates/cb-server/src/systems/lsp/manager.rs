@@ -6,7 +6,7 @@ use crate::interfaces::LspService;
 use crate::systems::lsp::client::LspClient;
 use async_trait::async_trait;
 use cb_core::config::LspConfig;
-use cb_core::model::mcp::{McpMessage, McpRequest, McpResponse, McpError};
+use cb_core::model::mcp::{McpMessage, McpResponse, McpError};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::Path;
@@ -148,7 +148,7 @@ impl LspService for LspManager {
                 })?;
 
                 // Get LSP client for this extension
-                let client = match self.get_client_for_extension(extension).await {
+                let _client = match self.get_client_for_extension(extension).await {
                     Ok(client) => client,
                     Err(e) => {
                         error!("Failed to get LSP client for extension {}: {}", extension, e);

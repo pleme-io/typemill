@@ -102,7 +102,7 @@ pub fn extract_python_functions(source: &str) -> AstResult<Vec<PythonFunction>> 
 
     for (line_num, line) in source.lines().enumerate() {
         if let Some(captures) = func_re.captures(line) {
-            let indent = captures.get(1).unwrap().as_str();
+            let _indent = captures.get(1).unwrap().as_str();
             let is_async = captures.get(2).is_some();
             let name = captures.get(3).unwrap().as_str();
             let args_str = captures.get(4).unwrap().as_str();

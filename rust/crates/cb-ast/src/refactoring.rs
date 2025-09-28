@@ -2,7 +2,7 @@
 
 use crate::error::{AstError, AstResult};
 use crate::analyzer::{EditPlan, TextEdit, EditType, EditLocation, EditPlanMetadata, ValidationRule, ValidationType};
-use crate::python_parser::{extract_python_functions, extract_python_variables, PythonFunction, PythonVariable, PythonValueType, find_variable_at_position, get_variable_usages_in_scope, analyze_python_expression_range};
+use crate::python_parser::{extract_python_functions, extract_python_variables, find_variable_at_position, get_variable_usages_in_scope, analyze_python_expression_range};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -328,7 +328,7 @@ pub fn analyze_extract_variable(
     let mut parser = Parser::new_from(lexer);
 
     match parser.parse_module() {
-        Ok(module) => {
+        Ok(_module) => {
             // Extract the selected expression text
             let expression_range = CodeRange {
                 start_line,
@@ -1019,7 +1019,7 @@ fn analyze_extract_function_python(
 
     // Find variables used in the selection that are defined outside
     let mut required_parameters = Vec::new();
-    let functions = extract_python_functions(source)?;
+    let _functions = extract_python_functions(source)?;
     let variables = extract_python_variables(source)?;
 
     // Simple analysis: find variables referenced in the selection
