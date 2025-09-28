@@ -80,10 +80,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.0] - 2025-09-24
 
+### 🚀 Enterprise Architecture & LSP Server Pooling
+
+This release represents a complete architectural transformation, implementing advanced resource management, enterprise deployment capabilities, and intelligent pooling systems for optimal performance.
+
 ### Added
-- **LSP Server Pooling**: Enhanced resource management with intelligent server pooling and lifecycle management
-- **Advanced Caching System**: Event-driven cache invalidation with hit rate tracking and persistent file caching
-- **Delta Updates**: Efficient file synchronization using diff-match-patch with automatic compression analysis
+- **🏊 LSP Server Pooling**: Enhanced resource management with intelligent server pooling and lifecycle management
+  - **Resource Efficiency**: Max 2 servers per language instead of unlimited
+  - **Reduced Latency**: Server reuse eliminates cold start delays
+  - **Workspace Isolation**: Servers can be reassigned between workspaces
+  - **Intelligent Queuing**: Automatic waiting when pools are at capacity
+
+- **⚡ Performance Enhancements**: Multiple optimization systems for superior performance
+  - **Advanced Caching System**: Event-driven cache invalidation with hit rate tracking and persistent file caching
+  - **Delta Updates**: Efficient file synchronization using diff-match-patch with automatic compression analysis
+  - **Analysis Cache**: Prevents re-computation for workspace symbols
+
+- **🏗️ Architecture Transformation**: Complete restructure for enterprise deployment
+  - **Monorepo Structure**: Clean packages/client and packages/server separation
+  - **Transaction Manager**: Atomic operations with rollback capabilities
+  - **Workflow Orchestrator**: Automated tool chain execution with dependencies
+  - **Service Architecture**: Modular service-based design patterns
+
+- **🔧 Enterprise Features**: Production-ready deployment capabilities
+  - **WebSocket Server**: Production-ready multi-client enterprise support
+  - **JWT Authentication**: Token-based access control with configurable permissions
+  - **Health Monitoring**: `/healthz` and `/metrics` endpoints for monitoring
+  - **Session Management**: Connection recovery with 60-second grace periods
+
 - **Foundation Features Implementation**: All 6 core features from PROPOSAL_FOUNDATION_FEATURES.md
   - Self-modification detection with auto-restart capabilities
   - Enhanced error context with actionable debugging information
@@ -93,36 +117,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Rollback & undo system with transaction management and checkpoints
 
 ### Enhanced
-- **Monorepo Architecture**: Complete restructure supporting both client/server and local deployment modes
-- **WebSocket Server Deployment**: Production-ready multi-client enterprise support with JWT authentication
 - **Dead Code Detection**: Advanced analysis using MCP tool orchestration
 - **Streaming File Access**: Real-time file change notification with intelligent caching
-- **Session Management**: Connection recovery with 60-second grace periods
 
 ### Changed
 - **Architecture**: Migrated to monorepo structure with packages/client and packages/server
 - **Configuration**: Smart setup with auto-detection and gitignore support
 - **Performance**: Advanced caching replacing TTL-based expiration with event-driven invalidation
 
-## [1.1.0] - 2025-09-22
+## [1.1.0] - 2025-09-22 - ARM64 Native FUSE Support
 
-### Changed
+### 🏗️ Native FUSE Implementation
 - **FUSE Implementation**: Replaced mock FUSE implementation with native `@cocalc/fuse-native` for ARM64 compatibility
+- Replaced `fuse-native` with `@cocalc/fuse-native` for ARM64 compatibility
 - Updated FUSE mount operations to use callback-style API for compatibility with native library
 - Removed all mock FUSE fallback code paths for cleaner architecture
+- Now using 100% native FUSE implementation
 
-### Fixed
+### 🐳 Multi-Tenant Docker Support
+- Production-ready Docker Compose configuration for multi-tenant deployments
+- Multi-tenant FUSE folder mounting capabilities
+- Session-based workspace isolation
+- Automatic cleanup on client disconnect
+- Tenant client example implementation
+- Quick-start script for multi-tenant FUSE service
+
+### 🛠️ Stability Improvements
 - Fixed FUSE native library compatibility issues on ARM64 systems
 - Resolved TypeScript type errors in FUSE mount operations
 - Fixed test isolation issues in WebSocket FUSE integration tests
 - Fixed duplicate `handleSessionDisconnect` method in WebSocket server
 - Fixed incorrect `disconnectSession` method call in session cleanup
+- Better error handling in session cleanup
 
 ### Added
 - Full ARM64 architecture support for FUSE operations
-- Production-ready Docker Compose configuration for multi-tenant deployments
-- Tenant client example implementation
-- Quick-start script for multi-tenant FUSE service
+
+### Platform Support
+- ✅ x86_64 Linux
+- ✅ ARM64 Linux
+- ✅ macOS (Intel)
+- ✅ macOS (Apple Silicon)
+- ✅ Windows (via WSL2)
 
 ## [1.0.1] - 2025-09-21
 
