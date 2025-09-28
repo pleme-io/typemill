@@ -42,7 +42,7 @@ export function main() {
             "old_path": old_path.to_str().unwrap(),
             "new_path": new_path.to_str().unwrap()
         })
-    ).expect("rename_file should succeed");
+    ).await.expect("rename_file should succeed");
 
 
     // Verify the rename succeeded
@@ -54,7 +54,7 @@ export function main() {
         json!({
             "file_path": workspace.absolute_path("src/main.ts").to_str().unwrap()
         })
-    ).expect("read_file should succeed");
+    ).await.expect("read_file should succeed");
 
 
     let content = read_response["result"]["content"]["content"]["content"]
@@ -86,7 +86,7 @@ async fn test_rename_symbol_updates_references() {
             "symbol_name": "oldFunctionName",
             "new_name": "newFunctionName"
         })
-    ).expect("rename_symbol should succeed");
+    ).await.expect("rename_symbol should succeed");
 
     assert!(rename_response["error"].is_null(), "Rename symbol should not error");
 
@@ -154,7 +154,7 @@ import { existingFunction } from './moduleA';
             "line": 4,
             "character": 0
         })
-    ).ok();  // May fail if LSP not ready, that's OK for this test
+    ).await.ok();  // May fail if LSP not ready, that's OK for this test
 
     // Action 2: Add a new export to moduleA.ts
     let moduleA_content = workspace.read_file("src/moduleA.ts");
@@ -171,7 +171,7 @@ import { existingFunction } from './moduleA';
             "line": 4,
             "character": 0
         })
-    ).ok();
+    ).await.ok();
 
     // Verification: The completion list should now include 'newSymbol'
     // Note: Completions may fail if no LSP is configured, which is acceptable
@@ -215,7 +215,7 @@ console.log(result);
         json!({
             "file_path": test_file.to_str().unwrap()
         })
-    ).ok();
+    ).await.ok();
 
     // Check initial state (should have no errors if LSP is working)
     if let Some(response) = initial_diagnostics {
@@ -255,7 +255,7 @@ const badSyntax = {
         json!({
             "file_path": test_file.to_str().unwrap()
         })
-    ).ok();
+    ).await.ok();
 
     // Verification: Should now have at least one diagnostic error
     if let Some(response) = error_diagnostics {
@@ -336,7 +336,7 @@ export function processWithService(service: DataService, data: string): void {
             "symbol_name": "DataService",
             "new_name": "DataManager"
         })
-    );
+    ).await;
 
     if let Ok(response) = rename_response {
         if response["error"].is_null() {
@@ -413,7 +413,7 @@ export class UserService {
             "old_path": workspace.absolute_path("src/core/types.ts").to_str().unwrap(),
             "new_path": workspace.absolute_path("src/shared/types.ts").to_str().unwrap()
         })
-    );
+    ).await;
 
     if let Ok(response) = rename_response {
         if response["error"].is_null() {
@@ -483,7 +483,7 @@ export function main() {
             "exclude_tests": true,
             "min_references": 1
         })
-    );
+    ).await;
 
     if let Ok(response) = dead_code_response {
         if response["error"].is_null() {
@@ -528,7 +528,7 @@ mod advanced_workflows {
             json!({
                 "file_path": workspace.absolute_path("src/moduleA.ts").to_str().unwrap()
             })
-        );
+        ).await;
 
         if let Ok(response) = import_analysis {
             if response["error"].is_null() {
@@ -576,7 +576,7 @@ mod advanced_workflows {
                     "parallel": true
                 }
             })
-        );
+        ).await;
 
         if let Ok(response) = batch_response {
             if response["error"].is_null() {

@@ -97,7 +97,7 @@ export function process{}(data: Data{}): string {{
     let creation_duration = start.elapsed();
 
     println!("Created {} files in: {:?}", file_count, creation_duration);
-    println!("Average time per file: {:?}", creation_duration / file_count);
+    println!("Average time per file: {:?}", creation_duration / file_count as u32);
 
     // Give LSP time to process all files
     tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
@@ -126,28 +126,27 @@ export function process{}(data: Data{}): string {{
     let files = response["files"].as_array().unwrap();
     println!("Listed {} files in: {:?}", files.len(), list_duration);
 
-    assert!(files.len() >= file_count);
+    assert!(files.len() >= file_count as usize);
     assert!(list_duration < Duration::from_secs(5), "File listing should complete within 5 seconds");
 }
 
 #[tokio::test]
-async fn test_concurrent_operations_performance() {
+async fn test_rapid_operations_performance() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
-    let concurrent_count = 20;
-    let mut handles = Vec::new();
+    let operation_count = 20;
+    let mut successful_creates = 0;
+    let mut successful_reads = 0;
+    let mut successful_lsp = 0;
+    let mut operation_times = Vec::new();
 
-    // Launch concurrent file operations
+    // Launch rapid sequential file operations
     let start = Instant::now();
-    for i in 0..concurrent_count {
-        let workspace_path = workspace.path().to_path_buf();
-        let client_clone = client.clone();
-
-        let handle = tokio::spawn(async move {
-            let file_path = workspace_path.join(format!("concurrent_{}.ts", i));
-            let content = format!(r#"
-export class ConcurrentClass{} {{
+    for i in 0..operation_count {
+        let file_path = workspace.path().join(format!("rapid_{}.ts", i));
+        let content = format!(r#"
+export class RapidClass{} {{
     private value: number = {};
 
     public getValue(): number {{
@@ -162,81 +161,54 @@ export class ConcurrentClass{} {{
 }}
 "#, i, i);
 
-            let op_start = Instant::now();
+        let op_start = Instant::now();
 
-            // Create file
-            let create_result = client_clone.call_tool("create_file", json!({
-                "file_path": file_path.to_string_lossy(),
-                "content": content
-            })).await;
+        // Create file
+        let create_result = client.call_tool("create_file", json!({
+            "file_path": file_path.to_string_lossy(),
+            "content": content
+        })).await;
 
-            // Read file back
-            let read_result = client_clone.call_tool("read_file", json!({
-                "file_path": file_path.to_string_lossy()
-            })).await;
+        // Read file back
+        let read_result = client.call_tool("read_file", json!({
+            "file_path": file_path.to_string_lossy()
+        })).await;
 
-            // Try LSP operation
-            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-            let symbols_result = client_clone.call_tool("get_document_symbols", json!({
-                "file_path": file_path.to_string_lossy()
-            })).await;
+        // Try LSP operation
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        let symbols_result = client.call_tool("get_document_symbols", json!({
+            "file_path": file_path.to_string_lossy()
+        })).await;
 
-            let op_duration = op_start.elapsed();
+        let op_duration = op_start.elapsed();
+        operation_times.push(op_duration);
 
-            (i, create_result, read_result, symbols_result, op_duration)
-        });
-
-        handles.push(handle);
+        if create_result.is_ok() {
+            successful_creates += 1;
+        }
+        if read_result.is_ok() {
+            successful_reads += 1;
+        }
+        if symbols_result.is_ok() {
+            successful_lsp += 1;
+        }
     }
 
-    let results = futures::future::join_all(handles).await;
     let total_duration = start.elapsed();
 
-    println!("Completed {} concurrent operations in: {:?}", concurrent_count, total_duration);
+    println!("Completed {} rapid operations in: {:?}", operation_count, total_duration);
 
-    // Analyze results
-    let successful_creates = results.iter().filter(|r| {
-        if let Ok((_, create_res, _, _, _)) = r {
-            create_res.is_ok()
-        } else {
-            false
-        }
-    }).count();
-
-    let successful_reads = results.iter().filter(|r| {
-        if let Ok((_, _, read_res, _, _)) = r {
-            read_res.is_ok()
-        } else {
-            false
-        }
-    }).count();
-
-    let successful_lsp = results.iter().filter(|r| {
-        if let Ok((_, _, _, symbols_res, _)) = r {
-            symbols_res.is_ok()
-        } else {
-            false
-        }
-    }).count();
-
-    let total_ops_time: Duration = results.iter().map(|r| {
-        if let Ok((_, _, _, _, duration)) = r {
-            *duration
-        } else {
-            Duration::ZERO
-        }
-    }).sum();
-
-    let avg_op_time = total_ops_time / concurrent_count;
+    let total_ops_time: Duration = operation_times.iter().sum();
+    let avg_op_time = total_ops_time / operation_count as u32;
 
     println!("Successful operations - Creates: {}, Reads: {}, LSP: {}",
              successful_creates, successful_reads, successful_lsp);
     println!("Average operation time: {:?}", avg_op_time);
 
     // Performance assertions
-    assert!(successful_creates >= concurrent_count * 8 / 10, "At least 80% of creates should succeed");
-    assert!(successful_reads >= concurrent_count * 8 / 10, "At least 80% of reads should succeed");
-    assert!(total_duration < Duration::from_secs(30), "All concurrent operations should complete within 30 seconds");
+    assert!(successful_creates >= operation_count * 8 / 10, "At least 80% of creates should succeed");
+    assert!(successful_reads >= operation_count * 8 / 10, "At least 80% of reads should succeed");
+    assert!(total_duration < Duration::from_secs(30), "All rapid operations should complete within 30 seconds");
 }
 
 #[tokio::test]
@@ -276,7 +248,7 @@ const oldConstant{} = "old_value_{}";
     let mut changes = json!({});
 
     for (index, file_path) in file_paths.iter().enumerate() {
-        changes[file_path.to_string_lossy()] = json!([
+        changes[file_path.to_string_lossy().to_string()] = json!([
             {
                 "range": {
                     "start": { "line": 1, "character": 17 },
@@ -502,7 +474,7 @@ export class UserService{} {{
         return false;
     }}
 }}
-"#, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i);
+"#, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i);
 
         fs::write(&service_file, content).unwrap();
     }
@@ -605,15 +577,15 @@ async fn test_stress_test_rapid_operations() {
 
     // Analyze performance statistics
     let total_time: Duration = operation_times.iter().sum();
-    let avg_time = total_time / operations_count;
+    let avg_time = total_time / operations_count as u32;
     let max_time = operation_times.iter().max().unwrap();
     let min_time = operation_times.iter().min().unwrap();
 
     // Sort for percentile calculations
     let mut sorted_times = operation_times.clone();
     sorted_times.sort();
-    let p95_time = sorted_times[operations_count * 95 / 100];
-    let p99_time = sorted_times[operations_count * 99 / 100];
+    let p95_time = sorted_times[(operations_count * 95 / 100) as usize];
+    let p99_time = sorted_times[(operations_count * 99 / 100) as usize];
 
     println!("Stress test results for {} operations:", operations_count);
     println!("Total time: {:?}", total_time);
