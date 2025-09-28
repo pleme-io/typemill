@@ -11,10 +11,11 @@ use cb_plugins::{
 };
 use async_trait::async_trait;
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
-use tokio::sync::OnceCell;
+use tokio::sync::{Mutex, OnceCell};
 use tracing::{debug, error, info, instrument};
 
 /// Plugin-based MCP dispatcher
@@ -27,46 +28,89 @@ pub struct PluginDispatcher {
     initialized: OnceCell<()>,
 }
 
-/// LSP service adapter that bridges the plugin system with the existing LSP manager
-struct LspManagerAdapter {
-    lsp_manager: Arc<dyn crate::interfaces::LspService>,
+/// Direct LSP adapter that bypasses the old LSP manager and its hard-coded mappings
+struct DirectLspAdapter {
+    /// LSP clients by extension
+    lsp_clients: Arc<Mutex<HashMap<String, Arc<crate::systems::lsp::LspClient>>>>,
+    /// LSP configuration
+    config: cb_core::config::LspConfig,
+    /// Supported file extensions
     extensions: Vec<String>,
+    /// Adapter name
     name: String,
 }
 
-impl LspManagerAdapter {
-    fn new(lsp_manager: Arc<dyn crate::interfaces::LspService>, extensions: Vec<String>, name: String) -> Self {
+impl DirectLspAdapter {
+    fn new(config: cb_core::config::LspConfig, extensions: Vec<String>, name: String) -> Self {
         Self {
-            lsp_manager,
+            lsp_clients: Arc::new(Mutex::new(HashMap::new())),
+            config,
             extensions,
             name,
         }
     }
+
+    /// Get or create an LSP client for the given extension
+    async fn get_or_create_client(&self, extension: &str) -> Result<Arc<crate::systems::lsp::LspClient>, String> {
+        // Check if client already exists
+        {
+            let clients = self.lsp_clients.lock().await;
+            if let Some(client) = clients.get(extension) {
+                return Ok(client.clone());
+            }
+        }
+
+        // Find server config for this extension
+        let server_config = self.config
+            .servers
+            .iter()
+            .find(|server| server.extensions.contains(&extension.to_string()))
+            .ok_or_else(|| format!("No LSP server configured for extension: {}", extension))?
+            .clone();
+
+        // Create new LSP client
+        let client = crate::systems::lsp::LspClient::new(server_config)
+            .await
+            .map_err(|e| format!("Failed to create LSP client: {}", e))?;
+
+        let client = Arc::new(client);
+
+        // Store the client
+        {
+            let mut clients = self.lsp_clients.lock().await;
+            clients.insert(extension.to_string(), client.clone());
+        }
+
+        Ok(client)
+    }
+
+    /// Extract file extension from LSP params
+    fn extract_extension_from_params(&self, params: &Value) -> Option<String> {
+        // Try to get from textDocument.uri
+        if let Some(uri) = params.get("textDocument")?.get("uri")?.as_str() {
+            if uri.starts_with("file://") {
+                let path = uri.trim_start_matches("file://");
+                return std::path::Path::new(path).extension()?.to_str().map(|s| s.to_string());
+            }
+        }
+        None
+    }
 }
 
 #[async_trait]
-impl LspService for LspManagerAdapter {
+impl LspService for DirectLspAdapter {
     async fn request(&self, method: &str, params: Value) -> Result<Value, String> {
-        // Create a synthetic MCP request for the LSP manager
-        let mcp_request = McpRequest {
-            id: Some(json!(1)),
-            method: method.to_string(),
-            params: Some(params),
-        };
+        // Extract extension from params
+        let extension = self.extract_extension_from_params(&params)
+            .ok_or_else(|| "Could not extract file extension from params".to_string())?;
 
-        match self.lsp_manager.request(McpMessage::Request(mcp_request)).await {
-            Ok(McpMessage::Response(response)) => {
-                if let Some(result) = response.result {
-                    Ok(result)
-                } else if let Some(error) = response.error {
-                    Err(format!("LSP error: {}", error.message))
-                } else {
-                    Err("Unknown LSP error".to_string())
-                }
-            }
-            Ok(_) => Err("Unexpected LSP response type".to_string()),
-            Err(err) => Err(format!("LSP manager error: {}", err)),
-        }
+        // Get appropriate LSP client
+        let client = self.get_or_create_client(&extension).await?;
+
+        // Send LSP method DIRECTLY to client (bypassing old manager and its hard-coded mappings!)
+        client.send_request(method, params)
+            .await
+            .map_err(|e| format!("LSP request failed: {}", e))
     }
 
     fn supports_extension(&self, extension: &str) -> bool {
@@ -92,16 +136,18 @@ impl PluginDispatcher {
     #[instrument(skip(self))]
     pub async fn initialize(&self) -> ServerResult<()> {
         self.initialized.get_or_try_init(|| async {
-            info!("Initializing plugin system");
+            info!("Initializing plugin system with DirectLspAdapter (bypassing hard-coded mappings)");
 
-            // Extract LSP manager from app state
-            let lsp_manager = Arc::clone(&self.app_state.lsp);
+            // Get LSP configuration from app config
+            let app_config = cb_core::config::AppConfig::load()
+                .map_err(|e| ServerError::Internal(format!("Failed to load app config: {}", e)))?;
+            let lsp_config = app_config.lsp;
 
-            // Register TypeScript/JavaScript plugin
-            let ts_lsp_adapter = Arc::new(LspManagerAdapter::new(
-                lsp_manager.clone(),
+            // Register TypeScript/JavaScript plugin with DirectLspAdapter
+            let ts_lsp_adapter = Arc::new(DirectLspAdapter::new(
+                lsp_config.clone(),
                 vec!["ts".to_string(), "tsx".to_string(), "js".to_string(), "jsx".to_string()],
-                "typescript-lsp".to_string(),
+                "typescript-lsp-direct".to_string(),
             ));
             let ts_plugin = Arc::new(LspAdapterPlugin::typescript(ts_lsp_adapter));
             self.plugin_manager
@@ -109,11 +155,11 @@ impl PluginDispatcher {
                 .await
                 .map_err(|e| ServerError::Internal(format!("Failed to register TypeScript plugin: {}", e)))?;
 
-            // Register Python plugin
-            let py_lsp_adapter = Arc::new(LspManagerAdapter::new(
-                lsp_manager.clone(),
+            // Register Python plugin with DirectLspAdapter
+            let py_lsp_adapter = Arc::new(DirectLspAdapter::new(
+                lsp_config.clone(),
                 vec!["py".to_string(), "pyi".to_string()],
-                "python-lsp".to_string(),
+                "python-lsp-direct".to_string(),
             ));
             let py_plugin = Arc::new(LspAdapterPlugin::python(py_lsp_adapter));
             self.plugin_manager
@@ -121,11 +167,11 @@ impl PluginDispatcher {
                 .await
                 .map_err(|e| ServerError::Internal(format!("Failed to register Python plugin: {}", e)))?;
 
-            // Register Go plugin
-            let go_lsp_adapter = Arc::new(LspManagerAdapter::new(
-                lsp_manager.clone(),
+            // Register Go plugin with DirectLspAdapter
+            let go_lsp_adapter = Arc::new(DirectLspAdapter::new(
+                lsp_config.clone(),
                 vec!["go".to_string()],
-                "go-lsp".to_string(),
+                "go-lsp-direct".to_string(),
             ));
             let go_plugin = Arc::new(LspAdapterPlugin::go(go_lsp_adapter));
             self.plugin_manager
@@ -133,11 +179,11 @@ impl PluginDispatcher {
                 .await
                 .map_err(|e| ServerError::Internal(format!("Failed to register Go plugin: {}", e)))?;
 
-            // Register Rust plugin
-            let rust_lsp_adapter = Arc::new(LspManagerAdapter::new(
-                lsp_manager,
+            // Register Rust plugin with DirectLspAdapter
+            let rust_lsp_adapter = Arc::new(DirectLspAdapter::new(
+                lsp_config,
                 vec!["rs".to_string()],
-                "rust-lsp".to_string(),
+                "rust-lsp-direct".to_string(),
             ));
             let rust_plugin = Arc::new(LspAdapterPlugin::rust(rust_lsp_adapter));
             self.plugin_manager
