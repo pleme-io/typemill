@@ -2,11 +2,11 @@
 set -e
 
 # Codeflow Buddy MCP Server Installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/username/codeflow-buddy/main/install.sh | bash
+# Builds and installs from local source
 
-REPO="username/codeflow-buddy"
 BINARY_NAME="codeflow-buddy"
-INSTALL_DIR="$HOME/.local/bin"
+INSTALL_DIR="/usr/local/bin"
+SOURCE_BINARY="/workspace/rust/target/release/cb-server"
 
 # Colors for output
 RED='\033[0;31m'
@@ -21,109 +21,56 @@ log_success() { echo -e "${GREEN}✓${NC} $1"; }
 log_warning() { echo -e "${YELLOW}⚠${NC} $1"; }
 log_error() { echo -e "${RED}✗${NC} $1"; }
 
-# Detect OS and architecture
-detect_platform() {
-    local os=$(uname -s | tr '[:upper:]' '[:lower:]')
-    local arch=$(uname -m)
+# Build the Rust project
+build_project() {
+    log_info "Building Rust project..."
+    cd /workspace/rust
+    cargo build --release --package cb-server
 
-    case $os in
-        linux*) os="linux" ;;
-        darwin*) os="macos" ;;
-        msys*|mingw*|cygwin*) os="windows" ;;
-        *) log_error "Unsupported OS: $os"; exit 1 ;;
-    esac
-
-    case $arch in
-        x86_64|amd64) arch="x86_64" ;;
-        aarch64|arm64) arch="aarch64" ;;
-        armv7l) arch="armv7" ;;
-        *) log_error "Unsupported architecture: $arch"; exit 1 ;;
-    esac
-
-    echo "${os}-${arch}"
-}
-
-# Download and extract binary
-install_binary() {
-    local platform=$1
-    local download_url="https://github.com/${REPO}/releases/latest/download/codeflow-buddy-${platform}.tar.gz"
-    local temp_dir=$(mktemp -d)
-
-    log_info "Downloading codeflow-buddy for ${platform}..."
-
-    if command -v curl >/dev/null 2>&1; then
-        curl -fsSL "$download_url" -o "$temp_dir/codeflow-buddy.tar.gz"
-    elif command -v wget >/dev/null 2>&1; then
-        wget -q "$download_url" -O "$temp_dir/codeflow-buddy.tar.gz"
-    else
-        log_error "Neither curl nor wget found. Please install one of them."
+    if [ ! -f "$SOURCE_BINARY" ]; then
+        log_error "Build failed - binary not found at $SOURCE_BINARY"
         exit 1
     fi
+    log_success "Build completed successfully"
+}
 
-    log_info "Extracting binary..."
-    tar -xzf "$temp_dir/codeflow-buddy.tar.gz" -C "$temp_dir"
+# Install binary
+install_binary() {
+    log_info "Installing binary to $INSTALL_DIR/$BINARY_NAME..."
 
-    # Create install directory
-    mkdir -p "$INSTALL_DIR"
+    # Use sudo if needed for /usr/local/bin
+    if [ -w "$INSTALL_DIR" ]; then
+        cp "$SOURCE_BINARY" "$INSTALL_DIR/$BINARY_NAME"
+    else
+        sudo cp "$SOURCE_BINARY" "$INSTALL_DIR/$BINARY_NAME"
+    fi
 
-    # Install binary
-    cp "$temp_dir/codeflow-buddy" "$INSTALL_DIR/$BINARY_NAME"
-    chmod +x "$INSTALL_DIR/$BINARY_NAME"
-
-    # Cleanup
-    rm -rf "$temp_dir"
-
+    if [ -w "$INSTALL_DIR" ]; then
+        chmod +x "$INSTALL_DIR/$BINARY_NAME"
+    else
+        sudo chmod +x "$INSTALL_DIR/$BINARY_NAME"
+    fi
     log_success "Binary installed to $INSTALL_DIR/$BINARY_NAME"
 }
 
-# Update PATH if needed
-update_path() {
-    local shell_config=""
+# Setup MCP configuration in project
+setup_project_mcp() {
+    local project_dir="${1:-$(pwd)}"
+    local mcp_config="$project_dir/.mcp.json"
 
-    # Detect shell and config file
-    case $SHELL in
-        */bash) shell_config="$HOME/.bashrc" ;;
-        */zsh) shell_config="$HOME/.zshrc" ;;
-        */fish) shell_config="$HOME/.config/fish/config.fish" ;;
-        *) shell_config="$HOME/.profile" ;;
-    esac
+    log_info "Setting up MCP configuration in $project_dir..."
 
-    # Check if PATH already contains install dir
-    if [[ ":$PATH:" == *":$INSTALL_DIR:"* ]]; then
-        log_info "PATH already contains $INSTALL_DIR"
-        return
-    fi
-
-    # Add to PATH
-    echo "" >> "$shell_config"
-    echo "# Added by codeflow-buddy installer" >> "$shell_config"
-    echo "export PATH=\"$INSTALL_DIR:\$PATH\"" >> "$shell_config"
-
-    log_success "Added $INSTALL_DIR to PATH in $shell_config"
-    log_warning "Please restart your shell or run: source $shell_config"
-}
-
-# Setup MCP configuration
-setup_mcp() {
-    local claude_config_dir="$HOME/.config/claude-code"
-    local mcp_config="$claude_config_dir/mcp.json"
-
-    # Create config directory
-    mkdir -p "$claude_config_dir"
-
-    # Create or update MCP config
-    if [ -f "$mcp_config" ]; then
-        log_info "MCP config exists, creating backup..."
-        cp "$mcp_config" "$mcp_config.backup.$(date +%s)"
-    fi
-
-    # Generate MCP configuration
-    cat > "$mcp_config" << 'EOF'
+    # Create or update MCP config with correct format
+    cat > "$mcp_config" << EOF
 {
   "mcpServers": {
     "codeflow-buddy": {
-      "command": "codeflow-buddy",
-      "args": ["start"]
+      "type": "stdio",
+      "command": "$INSTALL_DIR/$BINARY_NAME",
+      "args": [
+        "start"
+      ],
+      "env": {}
     }
   }
 }
@@ -132,48 +79,150 @@ EOF
     log_success "MCP configuration created at $mcp_config"
 }
 
-# Run setup command
-run_setup() {
-    log_info "Running codeflow-buddy setup..."
+# Setup LSP configuration
+setup_lsp_config() {
+    local project_dir="${1:-$(pwd)}"
+    local config_dir="$project_dir/.codebuddy"
+    local lsp_config="$config_dir/config.json"
 
-    # Add install dir to current PATH for this session
-    export PATH="$INSTALL_DIR:$PATH"
+    log_info "Setting up LSP configuration..."
 
-    if command -v codeflow-buddy >/dev/null 2>&1; then
-        codeflow-buddy setup
-        log_success "Setup completed!"
+    # Create config directory
+    mkdir -p "$config_dir"
+
+    # Detect project type and create appropriate config
+    local has_ts=false
+    local has_py=false
+    local has_go=false
+    local has_rs=false
+
+    # Check for file types
+    [ -n "$(find "$project_dir" -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" 2>/dev/null | head -1)" ] && has_ts=true
+    [ -n "$(find "$project_dir" -name "*.py" 2>/dev/null | head -1)" ] && has_py=true
+    [ -n "$(find "$project_dir" -name "*.go" 2>/dev/null | head -1)" ] && has_go=true
+    [ -n "$(find "$project_dir" -name "*.rs" 2>/dev/null | head -1)" ] && has_rs=true
+
+    # Start building config
+    echo '{"servers":[' > "$lsp_config"
+    local first=true
+
+    # Add TypeScript/JavaScript server if needed
+    if [ "$has_ts" = true ] && command -v typescript-language-server >/dev/null 2>&1; then
+        [ "$first" = false ] && echo "," >> "$lsp_config"
+        cat >> "$lsp_config" << 'EOF'
+    {
+      "extensions": ["ts", "tsx", "js", "jsx"],
+      "command": ["typescript-language-server", "--stdio"]
+    }
+EOF
+        first=false
+        log_success "Added TypeScript language server"
+    fi
+
+    # Add Python server if needed
+    if [ "$has_py" = true ] && command -v pylsp >/dev/null 2>&1; then
+        [ "$first" = false ] && echo "," >> "$lsp_config"
+        cat >> "$lsp_config" << 'EOF'
+    {
+      "extensions": ["py", "pyi"],
+      "command": ["pylsp"]
+    }
+EOF
+        first=false
+        log_success "Added Python language server"
+    fi
+
+    # Add Go server if needed
+    if [ "$has_go" = true ] && command -v gopls >/dev/null 2>&1; then
+        [ "$first" = false ] && echo "," >> "$lsp_config"
+        cat >> "$lsp_config" << 'EOF'
+    {
+      "extensions": ["go"],
+      "command": ["gopls", "serve"]
+    }
+EOF
+        first=false
+        log_success "Added Go language server"
+    fi
+
+    # Add Rust server if needed
+    if [ "$has_rs" = true ] && command -v rust-analyzer >/dev/null 2>&1; then
+        [ "$first" = false ] && echo "," >> "$lsp_config"
+        cat >> "$lsp_config" << 'EOF'
+    {
+      "extensions": ["rs"],
+      "command": ["rust-analyzer"]
+    }
+EOF
+        first=false
+        log_success "Added Rust language server"
+    fi
+
+    echo ']' >> "$lsp_config"
+    echo '}' >> "$lsp_config"
+
+    log_success "LSP configuration created at $lsp_config"
+}
+
+# Test the installation
+test_installation() {
+    log_info "Testing MCP server..."
+
+    # Test with proper JSON-RPC 2.0 protocol
+    local response=$(echo '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{"roots":{}},"clientInfo":{"name":"test","version":"1.0.0"}}}' | \
+        "$INSTALL_DIR/$BINARY_NAME" start 2>/dev/null | head -1)
+
+    if echo "$response" | grep -q '"jsonrpc":"2.0"' && echo "$response" | grep -q '"protocolVersion":"2025-06-18"'; then
+        log_success "MCP server is responding correctly with JSON-RPC 2.0 protocol"
+        return 0
     else
-        log_warning "Binary not found in PATH. Please restart your shell and run: codeflow-buddy setup"
+        log_error "MCP server test failed. Response: $response"
+        return 1
     fi
 }
 
 # Main installation flow
 main() {
-    log_info "Installing Codeflow Buddy MCP Server..."
+    log_info "Installing Codeflow Buddy MCP Server (Local Build)..."
 
-    # Check dependencies
-    if ! command -v tar >/dev/null 2>&1; then
-        log_error "tar is required but not installed."
+    # Check we're in the right place
+    if [ ! -f "/workspace/rust/Cargo.toml" ]; then
+        log_error "This script must be run from /workspace directory"
         exit 1
     fi
 
-    # Detect platform and install
-    local platform=$(detect_platform)
-    log_info "Detected platform: $platform"
+    # Build and install
+    build_project
+    install_binary
 
-    install_binary "$platform"
-    update_path
-    setup_mcp
-    run_setup
+    # Setup configurations
+    local project_dir="${1:-/workspace}"
+    setup_project_mcp "$project_dir"
+    setup_lsp_config "$project_dir"
 
-    echo ""
-    log_success "🎉 Codeflow Buddy MCP Server installed successfully!"
-    echo ""
-    echo "Next steps:"
-    echo "1. Restart your shell or run: source ~/.bashrc (or your shell config)"
-    echo "2. In any project: codeflow-buddy setup"
-    echo "3. Start using with Claude Code!"
-    echo ""
+    # Test the installation
+    if test_installation; then
+        echo ""
+        log_success "🎉 Codeflow Buddy MCP Server installed successfully!"
+        echo ""
+        echo "The server is configured with:"
+        echo "  • Protocol: JSON-RPC 2.0"
+        echo "  • Version: 2025-06-18"
+        echo "  • Location: $INSTALL_DIR/$BINARY_NAME"
+        echo ""
+        echo "Configuration files created:"
+        echo "  • MCP: $project_dir/.mcp.json"
+        echo "  • LSP: $project_dir/.codebuddy/config.json"
+        echo ""
+        echo "To use with Claude Code:"
+        echo "  1. Open Claude Code in this project"
+        echo "  2. Use the /mcp command to connect"
+        echo ""
+    else
+        log_error "Installation completed but server test failed"
+        echo "Please check the server logs for errors"
+        exit 1
+    fi
 }
 
 # Run installer
