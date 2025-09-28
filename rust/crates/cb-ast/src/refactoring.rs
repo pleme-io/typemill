@@ -2,7 +2,8 @@
 
 use crate::error::{AstError, AstResult};
 use crate::analyzer::{EditPlan, TextEdit, EditType, EditLocation, EditPlanMetadata, ValidationRule, ValidationType};
-use crate::python_parser::{extract_python_functions, extract_python_variables, PythonFunction, PythonVariable, PythonValueType};
+// Python AST support temporarily disabled due to RustPython API changes
+// use crate::python_parser::{extract_python_functions, extract_python_variables, PythonFunction, PythonVariable, PythonValueType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -119,7 +120,10 @@ pub fn plan_extract_function(
     file_path: &str,
 ) -> AstResult<EditPlan> {
     match detect_language(file_path) {
-        "python" => plan_extract_function_python(source, range, new_function_name, file_path),
+        "python" => {
+            // Python AST support temporarily disabled due to RustPython API changes
+            Err(AstError::analysis("Python extract_function temporarily unavailable due to parser API changes".to_string()))
+        },
         "typescript" | "javascript" => plan_extract_function_ts_js(source, range, new_function_name, file_path),
         _ => Err(AstError::analysis(format!("Unsupported language for file: {}", file_path))),
     }

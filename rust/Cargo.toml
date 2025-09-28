@@ -2,6 +2,7 @@
 members = [
     "crates/cb-core",
     "crates/cb-ast",
+    "crates/cb-plugins",
     "crates/cb-server",
     "crates/cb-client",
     "crates/tests",
