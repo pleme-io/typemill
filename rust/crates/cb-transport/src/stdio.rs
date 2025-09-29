@@ -18,7 +18,7 @@ pub async fn start_stdio_server(
     let mut line = String::new();
 
     tracing::info!("Codebuddy Server running on stdio");
-    eprintln!("Codebuddy Server running on stdio");
+    // Remove eprintln since this is already logged above
 
     loop {
         line.clear();

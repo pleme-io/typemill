@@ -118,14 +118,14 @@ impl FileService {
                         }
                         Err(e) => {
                             // File was renamed but imports failed to update
-                            warn!("File renamed but import updates failed: {}", e);
+                            warn!(error = %e, "File renamed but import updates failed");
                             result.success = true; // Partial success
                             result.error = Some(format!("Import updates failed: {}", e));
                         }
                     }
                 }
                 Err(e) => {
-                    error!("Failed to rename file: {}", e);
+                    error!(error = %e, "Failed to rename file");
                     result.error = Some(e.to_string());
                     return Err(e);
                 }
@@ -182,7 +182,7 @@ impl FileService {
             .await
             .map_err(|e| ServerError::Internal(format!("Failed to write file: {}", e)))?;
 
-        info!("Created file: {:?}", abs_path);
+        info!(path = ?abs_path, "Created file");
         Ok(())
     }
 
@@ -222,7 +222,7 @@ impl FileService {
             .await
             .map_err(|e| ServerError::Internal(format!("Failed to delete file: {}", e)))?;
 
-        info!("Deleted file: {:?}", abs_path);
+        info!(path = ?abs_path, "Deleted file");
         Ok(())
     }
 
@@ -259,13 +259,13 @@ impl FileService {
             .await
             .map_err(|e| ServerError::Internal(format!("Failed to write file: {}", e)))?;
 
-        info!("Wrote to file: {:?}", abs_path);
+        info!(path = ?abs_path, "Wrote to file");
         Ok(())
     }
 
     /// Apply an edit plan to the filesystem atomically
     pub async fn apply_edit_plan(&self, plan: &EditPlan) -> ServerResult<EditPlanResult> {
-        info!("Applying edit plan for file: {}", plan.source_file);
+        info!(source_file = %plan.source_file, "Applying edit plan");
         debug!(
             "Edit plan contains {} edits and {} dependency updates",
             plan.edits.len(),
@@ -317,7 +317,7 @@ impl FileService {
                 Ok(changed) => {
                     if changed && !modified_files.contains(&dep_update.target_file) {
                         modified_files.push(dep_update.target_file.clone());
-                        info!("Applied dependency update to {}", dep_update.target_file);
+                        info!(target_file = %dep_update.target_file, "Applied dependency update");
                     }
                 }
                 Err(e) => {
@@ -335,7 +335,7 @@ impl FileService {
         for file_path in &modified_files {
             let abs_path = self.to_absolute_path(Path::new(file_path));
             self.ast_cache.invalidate(&abs_path);
-            debug!("Invalidated AST cache for {}", file_path);
+            debug!(file_path = %file_path, "Invalidated AST cache");
         }
 
         // 4. Collect validation results if any errors occurred

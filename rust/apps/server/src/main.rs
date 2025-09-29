@@ -33,7 +33,7 @@ pub async fn run_stdio_mode() {
     let app_state = match create_app_state().await {
         Ok(state) => state,
         Err(e) => {
-            error!("Failed to create app state: {}", e);
+            error!(error = %e, "Failed to create app state");
             return;
         }
     };
@@ -41,7 +41,7 @@ pub async fn run_stdio_mode() {
     let dispatcher = Arc::new(PluginDispatcher::new(app_state));
     debug!("About to call dispatcher.initialize()");
     if let Err(e) = dispatcher.initialize().await {
-        error!("Failed to initialize dispatcher: {}", e);
+        error!(error = %e, "Failed to initialize dispatcher");
         return;
     }
     debug!("Plugin dispatcher initialized successfully");
@@ -59,7 +59,7 @@ pub async fn run_stdio_mode() {
                 break; // EOF
             }
             Ok(_) => {
-                debug!("Received message: {}", line.trim());
+                debug!(message = %line.trim(), "Received message");
                 match serde_json::from_str(&line) {
                     Ok(mcp_message) => {
                         debug!("Parsed MCP message, dispatching");
@@ -68,36 +68,36 @@ pub async fn run_stdio_mode() {
                                 let response_json = match serde_json::to_string(&response) {
                                     Ok(json) => json,
                                     Err(e) => {
-                                        error!("Failed to serialize response: {}", e);
+                                        error!(error = %e, "Failed to serialize response");
                                         continue;
                                     }
                                 };
-                                debug!("Sending response: {}", response_json);
+                                debug!(response = %response_json, "Sending response");
                                 if let Err(e) = stdout.write_all(response_json.as_bytes()).await {
-                                    error!("Error writing to stdout: {}", e);
+                                    error!(error = %e, "Error writing to stdout");
                                     break;
                                 }
                                 if let Err(e) = stdout.write_all(b"\n").await {
-                                    error!("Error writing newline: {}", e);
+                                    error!(error = %e, "Error writing newline");
                                     break;
                                 }
                                 if let Err(e) = stdout.flush().await {
-                                    error!("Error flushing stdout: {}", e);
+                                    error!(error = %e, "Error flushing stdout");
                                     break;
                                 }
                             }
                             Err(e) => {
-                                error!("Error dispatching message: {}", e);
+                                error!(error = %e, "Error dispatching message");
                             }
                         }
                     }
                     Err(e) => {
-                        error!("Failed to parse JSON: {}", e);
+                        error!(error = %e, "Failed to parse JSON");
                     }
                 }
             }
             Err(e) => {
-                error!("Error reading from stdin: {}", e);
+                error!(error = %e, "Error reading from stdin");
                 break;
             }
         }
@@ -114,14 +114,14 @@ pub async fn run_websocket_server_with_port(port: u16) {
     let app_state = match create_app_state().await {
         Ok(state) => state,
         Err(e) => {
-            error!("Failed to create app state: {}", e);
+            error!(error = %e, "Failed to create app state");
             return;
         }
     };
 
     let dispatcher = Arc::new(PluginDispatcher::new(app_state));
     if let Err(e) = dispatcher.initialize().await {
-        error!("Failed to initialize dispatcher: {}", e);
+        error!(error = %e, "Failed to initialize dispatcher");
         return;
     }
 
@@ -133,7 +133,7 @@ pub async fn run_websocket_server_with_port(port: u16) {
     let listener = match tokio::net::TcpListener::bind(&bind_addr).await {
         Ok(listener) => listener,
         Err(e) => {
-            error!("Failed to bind to {}: {}", bind_addr, e);
+            error!(bind_addr = %bind_addr, error = %e, "Failed to bind to address");
             return;
         }
     };
@@ -141,21 +141,21 @@ pub async fn run_websocket_server_with_port(port: u16) {
     let addr = match listener.local_addr() {
         Ok(addr) => addr,
         Err(e) => {
-            error!("Failed to get local address: {}", e);
+            error!(error = %e, "Failed to get local address");
             return;
         }
     };
-    info!("Listening on {}", addr);
+    info!(addr = %addr, "Server listening");
 
     if let Err(e) = axum::serve(listener, app).await {
-        error!("Server error: {}", e);
+        error!(error = %e, "Server error");
     }
 }
 
 async fn create_app_state() -> Result<Arc<AppState>, std::io::Error> {
     // Use current working directory as project root for production
     let project_root = std::env::current_dir()?;
-    debug!("Server project_root set to: {}", project_root.display());
+    debug!(project_root = %project_root.display(), "Server project root set");
 
     // Create shared AST cache for performance optimization
     let ast_cache = Arc::new(AstCache::new());
@@ -196,7 +196,7 @@ async fn handle_socket(mut socket: WebSocket, dispatcher: Arc<PluginDispatcher>)
                     Ok(mcp_message) => dispatcher.dispatch(mcp_message).await,
                     Err(e) => {
                         // Handle deserialization error
-                        tracing::error!("Failed to deserialize message: {}", e);
+                        error!(error = %e, "Failed to deserialize message");
                         continue;
                     }
                 };
@@ -206,7 +206,7 @@ async fn handle_socket(mut socket: WebSocket, dispatcher: Arc<PluginDispatcher>)
                         let response_text = match serde_json::to_string(&response_message) {
                             Ok(text) => text,
                             Err(e) => {
-                                error!("Failed to serialize response: {}", e);
+                                error!(error = %e, "Failed to serialize response");
                                 continue;
                             }
                         };
@@ -220,7 +220,7 @@ async fn handle_socket(mut socket: WebSocket, dispatcher: Arc<PluginDispatcher>)
                     }
                     Err(e) => {
                         // Handle dispatch error
-                        tracing::error!("Error dispatching message: {}", e);
+                        error!(error = %e, "Error dispatching message");
                     }
                 }
             }
@@ -231,7 +231,7 @@ async fn handle_socket(mut socket: WebSocket, dispatcher: Arc<PluginDispatcher>)
                 // Ignore other message types (binary, ping, pong)
             }
             Some(Err(e)) => {
-                tracing::error!("WebSocket error: {}", e);
+                error!(error = %e, "WebSocket error");
                 break;
             }
         }

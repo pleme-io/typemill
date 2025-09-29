@@ -226,35 +226,49 @@ install_rust() {
         return 0
     fi
 
-    log_info "Installing Rust toolchain..."
+    log_info "Installing Rust toolchain via package manager..."
 
-    # Download rustup installer to a temporary file for verification
-    local rustup_installer=$(mktemp)
-    if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o "$rustup_installer"; then
-        # Note: In production, you would verify the checksum here
-        # For now, we'll execute the downloaded script
-        log_info "Downloaded rustup installer, executing..."
-        if bash "$rustup_installer" -y; then
-            log_success "Rust toolchain installed successfully"
+    if [ "$OS_TYPE" = "macos" ]; then
+        # macOS: Use Homebrew
+        if command -v brew >/dev/null 2>&1; then
+            brew install rust
+            log_success "Rust installed via Homebrew"
         else
-            log_error "Failed to execute rustup installer"
-            rm -f "$rustup_installer"
-            exit 1
-        fi
-        rm -f "$rustup_installer"
-
-        # Source Rust environment
-        if [ -f "$HOME/.cargo/env" ]; then
-            . "$HOME/.cargo/env"
-            log_success "Rust environment loaded"
-        else
-            log_error "Rust installation completed but environment not found"
+            log_error "Homebrew not found. Please install Homebrew first or install Rust manually"
             exit 1
         fi
     else
-        log_error "Failed to install Rust"
-        log_error "Please install manually from https://rustup.rs/"
-        exit 1
+        # Linux: Use distribution package manager
+        if [ -f "/etc/os-release" ]; then
+            . /etc/os-release
+            case "$ID" in
+                ubuntu|debian)
+                    # Ubuntu/Debian: Install via apt
+                    sudo apt update
+                    sudo apt install -y rustc cargo
+                    log_success "Rust installed via apt"
+                    ;;
+                fedora|rhel|centos)
+                    sudo dnf install -y rust cargo
+                    log_success "Rust installed via dnf"
+                    ;;
+                arch|manjaro)
+                    sudo pacman -S --needed rust
+                    log_success "Rust installed via pacman"
+                    ;;
+                *)
+                    log_warning "Unsupported Linux distribution. Falling back to rustup..."
+                    # Fallback to rustup for unsupported distros
+                    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+                    if [ -f "$HOME/.cargo/env" ]; then
+                        . "$HOME/.cargo/env"
+                    fi
+                    ;;
+            esac
+        else
+            log_error "Cannot detect Linux distribution"
+            exit 1
+        fi
     fi
 }
 
@@ -269,69 +283,45 @@ install_nodejs() {
         return 0
     fi
 
-    log_info "Installing Node.js LTS..."
+    log_info "Installing Node.js LTS via package manager..."
 
     if [ "$OS_TYPE" = "macos" ]; then
-        # Install via Homebrew on macOS
+        # macOS: Use Homebrew
         if command -v brew >/dev/null 2>&1; then
             brew install node
             log_success "Node.js installed via Homebrew"
         else
-            log_error "Homebrew not found. Please install Node.js manually from https://nodejs.org/"
+            log_error "Homebrew not found. Please install Homebrew first or install Node.js manually"
             exit 1
         fi
     else
-        # Linux installation
+        # Linux: Use distribution package manager
         if [ -f "/etc/os-release" ]; then
             . /etc/os-release
-            OS_ID="$ID"
+            case "$ID" in
+                ubuntu|debian)
+                    # Ubuntu/Debian: Install from default repos (simpler and more secure)
+                    sudo apt update
+                    sudo apt install -y nodejs npm
+                    log_success "Node.js installed via apt"
+                    ;;
+                fedora|rhel|centos)
+                    sudo dnf install -y nodejs npm
+                    log_success "Node.js installed via dnf"
+                    ;;
+                arch|manjaro)
+                    sudo pacman -S --needed nodejs npm
+                    log_success "Node.js installed via pacman"
+                    ;;
+                *)
+                    log_warning "Unsupported Linux distribution: $ID"
+                    log_warning "Please install Node.js manually from https://nodejs.org/"
+                    ;;
+            esac
+        else
+            log_error "Cannot detect Linux distribution"
+            exit 1
         fi
-
-        case "$OS_ID" in
-            ubuntu|debian)
-                # Download NodeSource setup script for verification
-                local node_setup=$(mktemp)
-                if curl -fsSL https://deb.nodesource.com/setup_lts.x -o "$node_setup"; then
-                    log_info "Downloaded NodeSource setup script, executing..."
-                    if sudo -E bash "$node_setup" && sudo apt-get install -y nodejs; then
-                        log_success "Node.js installed successfully"
-                    else
-                        log_error "Failed to install Node.js via NodeSource"
-                        log_error "Please install manually from https://nodejs.org/"
-                        rm -f "$node_setup"
-                        exit 1
-                    fi
-                    rm -f "$node_setup"
-                else
-                    log_error "Failed to download NodeSource setup"
-                    exit 1
-                fi
-                ;;
-            fedora|rhel|centos)
-                local node_setup=$(mktemp)
-                if curl -fsSL https://rpm.nodesource.com/setup_lts.x -o "$node_setup"; then
-                    if sudo bash "$node_setup" && sudo dnf install -y nodejs; then
-                        log_success "Node.js installed successfully"
-                    else
-                        log_error "Failed to install Node.js"
-                        rm -f "$node_setup"
-                        exit 1
-                    fi
-                    rm -f "$node_setup"
-                else
-                    log_error "Failed to download NodeSource setup"
-                    exit 1
-                fi
-                ;;
-            arch|manjaro)
-                sudo pacman -S --needed nodejs npm
-                log_success "Node.js installed via pacman"
-                ;;
-            *)
-                log_warning "Unsupported OS for automatic Node.js installation: $OS_ID"
-                log_warning "Please install Node.js manually from https://nodejs.org/"
-                ;;
-        esac
     fi
 }
 
@@ -344,74 +334,70 @@ install_pipx() {
         return 0
     fi
 
-    log_info "Installing pipx..."
+    log_info "Installing pipx via package manager..."
 
     if [ "$OS_TYPE" = "macos" ]; then
-        # Install pipx on macOS
+        # macOS: Use Homebrew
         if command -v brew >/dev/null 2>&1; then
             brew install pipx
             pipx ensurepath
             log_success "pipx installed via Homebrew"
-        elif command -v pip3 >/dev/null 2>&1; then
-            pip3 install --user pipx
-            log_success "pipx installed via pip"
         else
-            log_error "Neither Homebrew nor pip3 found. Cannot install pipx"
+            log_error "Homebrew not found. Please install Homebrew first or install pipx manually"
             exit 1
         fi
     else
-        # Linux installation
+        # Linux: Use distribution package manager
         if [ -f "/etc/os-release" ]; then
             . /etc/os-release
-            OS_ID="$ID"
-            VERSION_ID="$VERSION_ID"
-        fi
-
-        case "$OS_ID" in
-        ubuntu)
-            # Ubuntu 23.04+ has pipx in repositories
-            if [ "${VERSION_ID%%.*}" -ge 23 ]; then
-                if sudo apt-get install -y pipx; then
-                    log_success "pipx installed via apt"
-                else
-                    log_warning "Failed to install pipx via apt, trying pip..."
+            case "$ID" in
+                ubuntu|debian)
+                    # Ubuntu/Debian: Try package manager first, fallback to pip
+                    if sudo apt update && sudo apt install -y pipx; then
+                        log_success "pipx installed via apt"
+                    elif python3 -m pip install --user pipx; then
+                        log_success "pipx installed via pip"
+                    else
+                        log_error "Failed to install pipx"
+                        exit 1
+                    fi
+                    ;;
+                fedora|rhel|centos)
+                    if sudo dnf install -y pipx; then
+                        log_success "pipx installed via dnf"
+                    elif python3 -m pip install --user pipx; then
+                        log_success "pipx installed via pip"
+                    else
+                        log_error "Failed to install pipx"
+                        exit 1
+                    fi
+                    ;;
+                arch|manjaro)
+                    if sudo pacman -S --needed python-pipx; then
+                        log_success "pipx installed via pacman"
+                    elif python3 -m pip install --user pipx; then
+                        log_success "pipx installed via pip"
+                    else
+                        log_error "Failed to install pipx"
+                        exit 1
+                    fi
+                    ;;
+                *)
+                    log_warning "Unsupported Linux distribution: $ID"
+                    log_info "Trying pip installation..."
                     if python3 -m pip install --user pipx; then
                         log_success "pipx installed via pip"
                     else
                         log_error "Failed to install pipx"
                         exit 1
                     fi
-                fi
-            else
-                # Older Ubuntu versions, use pip
-                if python3 -m pip install --user pipx; then
-                    log_success "pipx installed via pip"
-                else
-                    log_error "Failed to install pipx via pip"
-                    exit 1
-                fi
-            fi
-            ;;
-        debian)
-            # Try apt first, fallback to pip
-            if sudo apt-get install -y pipx 2>/dev/null || python3 -m pip install --user pipx; then
-                log_success "pipx installed successfully"
-            else
-                log_error "Failed to install pipx"
-                exit 1
-            fi
-            ;;
-        *)
-            log_warning "Unsupported OS for automatic pipx installation: $OS_ID"
-            log_warning "Trying pip installation..."
-            if python3 -m pip install --user pipx; then
-                log_success "pipx installed via pip"
-            else
-                log_error "Failed to install pipx"
-                exit 1
-            fi
-            ;;
-    esac
+                    ;;
+            esac
+        else
+            log_error "Cannot detect Linux distribution"
+            exit 1
+        fi
+    fi
 }
 
 # Ensure all tools are in PATH

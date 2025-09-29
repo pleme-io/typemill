@@ -93,7 +93,7 @@ impl SystemToolsPlugin {
         let recursive = args.recursive.unwrap_or(false);
         let include_hidden = args.include_hidden.unwrap_or(false);
 
-        debug!("Listing files in: {} (recursive: {})", path, recursive);
+        debug!(path = %path, recursive = %recursive, "Listing files");
 
         // Use ignore::WalkBuilder to respect .gitignore and other ignore files
         let mut files = Vec::new();
@@ -125,12 +125,12 @@ impl SystemToolsPlugin {
                             files.push(file_info);
                         }
                         Err(e) => {
-                            warn!("Failed to get metadata for {:?}: {}", file_path, e);
+                            warn!(file_path = ?file_path, error = %e, "Failed to get metadata");
                         }
                     }
                 }
                 Err(e) => {
-                    warn!("Error walking directory: {}", e);
+                    warn!(error = %e, "Error walking directory");
                 }
             }
         }
@@ -155,7 +155,7 @@ impl SystemToolsPlugin {
                 message: format!("Invalid analyze_imports args: {}", e),
             })?;
 
-        debug!("Analyzing imports for: {}", args.file_path);
+        debug!(file_path = %args.file_path, "Analyzing imports");
 
         // Read the file content
         let content =
@@ -392,7 +392,7 @@ impl SystemToolsPlugin {
                 message: format!("Invalid find_dead_code args: {}", e),
             })?;
 
-        debug!("Finding dead code in workspace: {}", args.workspace_path);
+        debug!(workspace_path = %args.workspace_path, "Finding dead code");
 
         let start_time = std::time::Instant::now();
         let dead_symbols: Vec<Value> = Vec::new();
@@ -421,7 +421,7 @@ impl SystemToolsPlugin {
                     // In a full implementation, this would call LSP servers
 
                     // For now, return a placeholder that indicates the analysis would happen
-                    debug!("Would analyze file: {:?}", file_path);
+                    debug!(file_path = ?file_path, "Would analyze file");
                 }
             }
         }
@@ -607,7 +607,7 @@ impl SystemToolsPlugin {
                 message: format!("Invalid fix_imports args: {}", e),
             })?;
 
-        debug!("Fixing imports in: {}", args.file_path);
+        debug!(file_path = %args.file_path, "Fixing imports");
 
         // Read the file
         let content =
@@ -681,7 +681,7 @@ impl LanguagePlugin for SystemToolsPlugin {
     }
 
     async fn handle_request(&self, request: PluginRequest) -> PluginResult<PluginResponse> {
-        debug!("System tools plugin handling request: {}", request.method);
+        debug!(method = %request.method, "System tools plugin handling request");
 
         let result = match request.method.as_str() {
             "list_files" => self.handle_list_files(request.params.clone()).await?,

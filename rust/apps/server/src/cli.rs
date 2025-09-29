@@ -4,6 +4,7 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 use std::process;
 use cb_core::config::{AppConfig, LogFormat};
+use tracing::{error, info};
 use tracing_subscriber::fmt;
 use tracing_subscriber::prelude::*;
 
@@ -65,7 +66,7 @@ pub async fn run() {
         Commands::Start { daemon } => {
             if daemon {
                 write_pid_file().unwrap_or_else(|e| {
-                    eprintln!("❌ Failed to write PID file: {}", e);
+                    error!(error = %e, "Failed to write PID file");
                     process::exit(1);
                 });
             }
@@ -74,7 +75,7 @@ pub async fn run() {
         Commands::Serve { daemon, port } => {
             if daemon {
                 write_pid_file().unwrap_or_else(|e| {
-                    eprintln!("❌ Failed to write PID file: {}", e);
+                    error!(error = %e, "Failed to write PID file");
                     process::exit(1);
                 });
             }
@@ -129,7 +130,7 @@ async fn handle_setup() {
             println!("💡 You can edit {} to customize LSP servers and other settings.", config_path.display());
         }
         Err(e) => {
-            eprintln!("❌ Failed to save configuration: {}", e);
+            error!(error = %e, "Failed to save configuration");
             process::exit(1);
         }
     }
@@ -157,7 +158,7 @@ async fn handle_status() {
                 }
             }
             Err(e) => {
-                eprintln!("❌ Failed to read PID file: {}", e);
+                error!(error = %e, "Failed to read PID file");
             }
         }
     } else {
@@ -184,7 +185,7 @@ async fn handle_stop() {
                         println!("✅ Successfully stopped codebuddy server");
                         let _ = std::fs::remove_file(&pid_file);
                     } else {
-                        eprintln!("❌ Failed to stop server process");
+                        error!("Failed to stop server process");
                         process::exit(1);
                     }
                 } else {
@@ -192,12 +193,12 @@ async fn handle_stop() {
                     let _ = std::fs::remove_file(&pid_file);
                 }
             } else {
-                eprintln!("❌ Invalid PID file format");
+                error!("Invalid PID file format");
                 process::exit(1);
             }
         }
         Err(e) => {
-            eprintln!("❌ Failed to read PID file: {}", e);
+            error!(error = %e, "Failed to read PID file");
             process::exit(1);
         }
     }
@@ -227,7 +228,7 @@ fn write_pid_file() -> Result<(), std::io::Error> {
     let pid = process::id();
     std::fs::write(&pid_file, pid.to_string())?;
 
-    println!("📝 PID file written: {} (PID: {})", pid_file.display(), pid);
+    info!(path = %pid_file.display(), pid, "PID file written");
     Ok(())
 }
 
