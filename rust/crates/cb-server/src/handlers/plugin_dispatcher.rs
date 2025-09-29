@@ -165,38 +165,38 @@ impl PluginDispatcher {
     /// Initialize the plugin system with default plugins
     #[instrument(skip(self))]
     pub async fn initialize(&self) -> ServerResult<()> {
-        eprintln!("DEBUG: PluginDispatcher::initialize() called");
+        debug!("PluginDispatcher::initialize() called");
         self.initialized.get_or_try_init(|| async {
-            eprintln!("DEBUG: Inside initialize - loading app config");
+            debug!("Inside initialize - loading app config");
             info!("Initializing plugin system with DirectLspAdapter (bypassing hard-coded mappings)");
 
             // Get LSP configuration from app config
             let app_config = cb_core::config::AppConfig::load()
                 .map_err(|e| {
-                    eprintln!("DEBUG: Failed to load app config: {}", e);
+                    error!("Failed to load app config: {}", e);
                     ServerError::Internal(format!("Failed to load app config: {}", e))
                 })?;
-            eprintln!("DEBUG: App config loaded successfully");
+            debug!("App config loaded successfully");
             let lsp_config = app_config.lsp;
 
             // Register TypeScript/JavaScript plugin with DirectLspAdapter
-            eprintln!("DEBUG: Creating TypeScript LSP adapter");
+            debug!("Creating TypeScript LSP adapter");
             let ts_lsp_adapter = Arc::new(DirectLspAdapter::new(
                 lsp_config.clone(),
                 vec!["ts".to_string(), "tsx".to_string(), "js".to_string(), "jsx".to_string()],
                 "typescript-lsp-direct".to_string(),
             ));
-            eprintln!("DEBUG: Creating TypeScript plugin");
+            debug!("Creating TypeScript plugin");
             let ts_plugin = Arc::new(LspAdapterPlugin::typescript(ts_lsp_adapter));
-            eprintln!("DEBUG: Registering TypeScript plugin with manager");
+            debug!("Registering TypeScript plugin with manager");
             self.plugin_manager
                 .register_plugin("typescript", ts_plugin)
                 .await
                 .map_err(|e| {
-                    eprintln!("DEBUG: Failed to register TypeScript plugin: {}", e);
+                    error!("Failed to register TypeScript plugin: {}", e);
                     ServerError::Internal(format!("Failed to register TypeScript plugin: {}", e))
                 })?;
-            eprintln!("DEBUG: TypeScript plugin registered successfully");
+            debug!("TypeScript plugin registered successfully");
 
             // Register Python plugin with DirectLspAdapter
             let py_lsp_adapter = Arc::new(DirectLspAdapter::new(
@@ -354,14 +354,22 @@ impl PluginDispatcher {
                     "type": "string",
                     "description": "New name for the symbol"
                 });
-                tool["parameters"]["required"].as_array_mut().unwrap().push(json!("new_name"));
+                if let Some(array) = tool["parameters"]["required"].as_array_mut() {
+                    array.push(json!("new_name"));
+                } else {
+                    warn!("Could not add 'new_name' to required parameters for rename_symbol");
+                }
             }
             "search_workspace_symbols" => {
                 tool["parameters"]["properties"]["query"] = json!({
                     "type": "string",
                     "description": "Search query"
                 });
-                tool["parameters"]["required"].as_array_mut().unwrap().push(json!("query"));
+                if let Some(array) = tool["parameters"]["required"].as_array_mut() {
+                    array.push(json!("query"));
+                } else {
+                    warn!("Could not add 'query' to required parameters for search_workspace_symbols");
+                }
             }
             _ => {}
         }
@@ -599,7 +607,8 @@ impl PluginDispatcher {
 
         match tool_call.name.as_str() {
             "rename_file" => {
-                let args = tool_call.arguments.unwrap_or(json!({}));
+                let args = tool_call.arguments
+                    .ok_or_else(|| ServerError::InvalidRequest("Missing arguments for rename_file".into()))?;
                 let old_path = args.get("old_path")
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| ServerError::InvalidRequest("Missing 'old_path' parameter".into()))?;
@@ -615,16 +624,26 @@ impl PluginDispatcher {
                         dry_run
                     ).await?;
 
+                let imports_updated = result.import_updates
+                    .as_ref()
+                    .map(|r| r.imports_updated)
+                    .unwrap_or(0);
+                let files_affected = result.import_updates
+                    .as_ref()
+                    .map(|r| r.files_updated)
+                    .unwrap_or(0);
+
                 Ok(json!({
                     "success": true,
                     "old_path": old_path,
                     "new_path": new_path,
-                    "imports_updated": result.import_updates.as_ref().map(|r| r.imports_updated).unwrap_or(0),
-                    "files_affected": result.import_updates.as_ref().map(|r| r.files_updated).unwrap_or(0)
+                    "imports_updated": imports_updated,
+                    "files_affected": files_affected
                 }))
             }
             "create_file" => {
-                let args = tool_call.arguments.unwrap_or(json!({}));
+                let args = tool_call.arguments
+                    .ok_or_else(|| ServerError::InvalidRequest("Missing arguments for create_file".into()))?;
                 let file_path = args.get("file_path")
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| ServerError::InvalidRequest("Missing 'file_path' parameter".into()))?;
@@ -642,7 +661,8 @@ impl PluginDispatcher {
                 }))
             }
             "delete_file" => {
-                let args = tool_call.arguments.unwrap_or(json!({}));
+                let args = tool_call.arguments
+                    .ok_or_else(|| ServerError::InvalidRequest("Missing arguments for delete_file".into()))?;
                 let file_path = args.get("file_path")
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| ServerError::InvalidRequest("Missing 'file_path' parameter".into()))?;

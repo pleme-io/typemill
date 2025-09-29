@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use json_helper::to_camel_case_keys;
 
 /// Main application configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppConfig {
     /// Server configuration
@@ -146,17 +146,6 @@ pub struct CacheConfig {
     pub cache_dir: Option<PathBuf>,
 }
 
-impl Default for AppConfig {
-    fn default() -> Self {
-        Self {
-            server: ServerConfig::default(),
-            lsp: LspConfig::default(),
-            fuse: None,
-            logging: LoggingConfig::default(),
-            cache: CacheConfig::default(),
-        }
-    }
-}
 
 impl Default for ServerConfig {
     fn default() -> Self {

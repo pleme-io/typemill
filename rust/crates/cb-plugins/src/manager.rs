@@ -58,20 +58,20 @@ impl PluginManager {
         plugin: Arc<dyn LanguagePlugin>,
     ) -> PluginResult<()> {
         let name = name.into();
-        eprintln!("DEBUG: PluginManager::register_plugin called for '{}'", name);
+        debug!("PluginManager::register_plugin called for '{}'", name);
 
         // Initialize the plugin
         // Note: We can't mutate the plugin here since it's behind an Arc<dyn Trait>
         // In a real implementation, plugins would handle their own initialization
 
-        eprintln!("DEBUG: Getting registry write lock for '{}'", name);
+        debug!("Getting registry write lock for '{}'", name);
         let mut registry = self.registry.write().await;
-        eprintln!("DEBUG: Calling registry.register_plugin for '{}'", name);
+        debug!("Calling registry.register_plugin for '{}'", name);
         registry.register_plugin(&name, plugin)?;
-        eprintln!("DEBUG: Plugin '{}' registered successfully in registry", name);
+        debug!("Plugin '{}' registered successfully in registry", name);
 
         info!("Successfully registered plugin '{}'", name);
-        eprintln!("DEBUG: PluginManager::register_plugin completed for '{}'", name);
+        debug!("PluginManager::register_plugin completed for '{}'", name);
         Ok(())
     }
 
@@ -119,13 +119,13 @@ impl PluginManager {
 
         let (plugin_name, plugin) = match plugin_result {
             Ok(plugin_name) => {
-                eprintln!("DEBUG: PluginManager got plugin_name '{}' from registry", plugin_name);
+                debug!("PluginManager got plugin_name '{}' from registry", plugin_name);
                 let plugin = registry.get_plugin(&plugin_name)
                     .ok_or_else(|| {
-                        eprintln!("DEBUG: get_plugin('{}') returned None!", plugin_name);
+                        error!("get_plugin('{}') returned None!", plugin_name);
                         PluginError::plugin_not_found(&plugin_name, &request.method)
                     })?;
-                eprintln!("DEBUG: Successfully got plugin '{}' from registry", plugin_name);
+                debug!("Successfully got plugin '{}' from registry", plugin_name);
                 (plugin_name, plugin)
             }
             Err(err) => {
