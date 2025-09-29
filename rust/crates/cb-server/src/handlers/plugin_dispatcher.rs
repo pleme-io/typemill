@@ -412,6 +412,11 @@ impl PluginDispatcher {
             return self.handle_rename_symbol_with_imports(tool_call).await;
         }
 
+        // Check if this is the edit plan application tool
+        if tool_call.name == "apply_edits" {
+            return self.handle_apply_edits(tool_call).await;
+        }
+
         // Check if this is a system tool
         if self.is_system_tool(&tool_call.name) {
             return self.handle_system_tool(tool_call).await;
@@ -706,6 +711,54 @@ impl PluginDispatcher {
         }
     }
 
+    /// Handle apply_edits tool using FileService
+    async fn handle_apply_edits(&self, tool_call: ToolCall) -> ServerResult<Value> {
+        debug!("Handling apply_edits: {}", tool_call.name);
+
+        let args = tool_call.arguments.unwrap_or(json!({}));
+        let edit_plan_value = args.get("edit_plan")
+            .ok_or_else(|| ServerError::InvalidRequest("Missing 'edit_plan' parameter".into()))?;
+
+        // Parse the EditPlan from the JSON value
+        let edit_plan: cb_ast::analyzer::EditPlan = serde_json::from_value(edit_plan_value.clone())
+            .map_err(|e| ServerError::InvalidRequest(format!("Invalid edit_plan format: {}", e)))?;
+
+        debug!("Applying edit plan for file: {} with {} edits and {} dependency updates",
+               edit_plan.source_file, edit_plan.edits.len(), edit_plan.dependency_updates.len());
+
+        // Apply the edit plan using the FileService
+        match self.app_state.file_service.apply_edit_plan(&edit_plan).await {
+            Ok(result) => {
+                if result.success {
+                    info!("Successfully applied edit plan - modified {} files",
+                          result.modified_files.len());
+                    Ok(json!({
+                        "success": true,
+                        "message": format!("Successfully applied edit plan to {} files",
+                                         result.modified_files.len()),
+                        "result": result
+                    }))
+                } else {
+                    warn!("Edit plan applied with errors: {:?}", result.errors);
+                    Ok(json!({
+                        "success": false,
+                        "message": format!("Edit plan completed with errors: {}",
+                                         result.errors.as_ref()
+                                              .map(|e| e.join("; "))
+                                              .unwrap_or_else(|| "Unknown errors".to_string())),
+                        "result": result
+                    }))
+                }
+            }
+            Err(e) => {
+                error!("Failed to apply edit plan: {}", e);
+                Err(ServerError::Runtime {
+                    message: format!("Failed to apply edit plan: {}", e),
+                })
+            }
+        }
+    }
+
     /// Handle file operations using app_state services
     async fn handle_file_operation(&self, tool_call: ToolCall) -> ServerResult<Value> {
         debug!("Handling file operation: {}", tool_call.name);
@@ -835,10 +888,15 @@ mod tests {
 
     fn create_test_app_state() -> Arc<AppState> {
         let temp_dir = TempDir::new().unwrap();
-        let ast_service = Arc::new(crate::services::DefaultAstService::new());
-        let file_service = Arc::new(crate::services::FileService::new(temp_dir.path().to_path_buf()));
+        let ast_cache = Arc::new(cb_ast::AstCache::new());
+        let ast_service = Arc::new(crate::services::DefaultAstService::new(ast_cache.clone()));
         let project_root = temp_dir.path().to_path_buf();
         let lock_manager = Arc::new(crate::services::LockManager::new());
+        let file_service = Arc::new(crate::services::FileService::new(
+            project_root.clone(),
+            ast_cache.clone(),
+            lock_manager.clone(),
+        ));
         let operation_queue = Arc::new(crate::services::OperationQueue::new(lock_manager.clone()));
 
         Arc::new(AppState {

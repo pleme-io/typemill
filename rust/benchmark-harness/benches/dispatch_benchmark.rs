@@ -18,9 +18,14 @@ use tokio::runtime::Runtime;
 fn create_test_app_state() -> Arc<AppState> {
     let lsp_config = LspConfig::default();
     let lsp_manager = Arc::new(LspManager::new(lsp_config));
-    let file_service = Arc::new(FileService::new(PathBuf::from("/tmp")));
     let project_root = PathBuf::from("/tmp");
+    let ast_cache = Arc::new(cb_ast::AstCache::new());
     let lock_manager = Arc::new(LockManager::new());
+    let file_service = Arc::new(FileService::new(
+        project_root.clone(),
+        ast_cache.clone(),
+        lock_manager.clone(),
+    ));
     let operation_queue = Arc::new(OperationQueue::new(lock_manager.clone()));
 
     Arc::new(AppState {

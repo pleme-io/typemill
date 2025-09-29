@@ -26,6 +26,7 @@ petgraph = "0.6" # For dependency graph analysis
 pathdiff = "0.2" # For calculating relative paths
 tokio = { workspace = true } # For async file operations in import_updater
 tracing = { workspace = true } # For logging in import_updater
+dashmap = "5.5" # For thread-safe concurrent caching
 
 [dev-dependencies]
 tempfile = "3.0"

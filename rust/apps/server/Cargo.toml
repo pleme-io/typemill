@@ -12,6 +12,7 @@ categories = ["development-tools", "command-line-utilities"]
 [dependencies]
 cb-server = { path = "../../crates/cb-server" }
 cb-core = { path = "../../crates/cb-core" }
+cb-ast = { path = "../../crates/cb-ast" }
 
 tokio = { version = "1", features = ["full"] }
 axum = { version = "0.8", features = ["ws"] }

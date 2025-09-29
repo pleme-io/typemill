@@ -5,6 +5,7 @@ use cb_server::handlers::{PluginDispatcher, AppState};
 use cb_server::interfaces::AstService;
 use cb_server::services::{DefaultAstService, FileService, LockManager, OperationQueue};
 use cb_server::systems::fuse::start_fuse_mount;
+use cb_ast::AstCache;
 use cb_server::transport;
 use clap::{Parser, Subcommand};
 use std::sync::Arc;
@@ -43,10 +44,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Get project root
     let project_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
 
+    // Create shared AST cache for performance optimization
+    let ast_cache = Arc::new(AstCache::new());
+
     // Create services
-    let ast_service: Arc<dyn AstService> = Arc::new(DefaultAstService::new());
-    let file_service = Arc::new(FileService::new(&project_root));
+    let ast_service: Arc<dyn AstService> = Arc::new(DefaultAstService::new(ast_cache.clone()));
     let lock_manager = Arc::new(LockManager::new());
+    let file_service = Arc::new(FileService::new(
+        &project_root,
+        ast_cache.clone(),
+        lock_manager.clone(),
+    ));
     let operation_queue = Arc::new(OperationQueue::new(lock_manager.clone()));
 
     // Create application state

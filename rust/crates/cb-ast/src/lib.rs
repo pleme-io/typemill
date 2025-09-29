@@ -2,6 +2,7 @@
 
 pub mod error;
 pub mod analyzer;
+pub mod cache;
 pub mod parser;
 pub mod python_parser;
 pub mod transformer;
@@ -13,6 +14,7 @@ mod python_refactoring_test;
 
 pub use error::{AstError, AstResult};
 pub use analyzer::*;
+pub use cache::*;
 pub use parser::*;
 pub use python_parser::*;
 pub use transformer::*;

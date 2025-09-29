@@ -10,6 +10,7 @@ use axum::{
 use cb_server::handlers::plugin_dispatcher::{AppState, PluginDispatcher};
 use cb_server::services::DefaultAstService;
 use cb_server::interfaces::AstService;
+use cb_ast::AstCache;
 use clap::{Parser, Subcommand};
 use std::sync::Arc;
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -201,9 +202,17 @@ async fn create_app_state() -> Result<Arc<AppState>, std::io::Error> {
     let project_root = std::env::current_dir()?;
     debug!("Server project_root set to: {}", project_root.display());
 
-    let ast_service: Arc<dyn AstService> = Arc::new(DefaultAstService::new());
-    let file_service = Arc::new(cb_server::services::FileService::new(project_root.clone()));
+    // Create shared AST cache for performance optimization
+    let ast_cache = Arc::new(AstCache::new());
+    debug!("Created shared AST cache");
+
+    let ast_service: Arc<dyn AstService> = Arc::new(DefaultAstService::new(ast_cache.clone()));
     let lock_manager = Arc::new(cb_server::services::LockManager::new());
+    let file_service = Arc::new(cb_server::services::FileService::new(
+        project_root.clone(),
+        ast_cache.clone(),
+        lock_manager.clone(),
+    ));
     let operation_queue = Arc::new(cb_server::services::OperationQueue::new(lock_manager.clone()));
 
     Ok(Arc::new(AppState {

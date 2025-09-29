@@ -325,9 +325,14 @@ mod tests {
     async fn test_initialize_without_auth() {
         let config = create_test_config(false);
         let project_root = std::path::PathBuf::from(".");
-        let ast_service = Arc::new(crate::services::DefaultAstService::new());
-        let file_service = Arc::new(crate::services::FileService::new(&project_root));
+        let ast_cache = Arc::new(cb_ast::AstCache::new());
+        let ast_service = Arc::new(crate::services::DefaultAstService::new(ast_cache.clone()));
         let lock_manager = Arc::new(crate::services::LockManager::new());
+        let file_service = Arc::new(crate::services::FileService::new(
+            &project_root,
+            ast_cache.clone(),
+            lock_manager.clone(),
+        ));
         let operation_queue = Arc::new(crate::services::OperationQueue::new(lock_manager.clone()));
         let app_state = Arc::new(crate::handlers::AppState {
             ast_service,
