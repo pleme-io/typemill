@@ -1,5 +1,6 @@
 //! Services for coordinating complex operations
 
+pub mod ast_service;
 pub mod import_service;
 pub mod file_service;
 pub mod lock_manager;
@@ -11,6 +12,7 @@ pub mod tests;
 // #[cfg(test)]
 // pub mod phase2_tests; // Disabled due to private method access
 
+pub use ast_service::DefaultAstService;
 pub use import_service::ImportService;
 pub use file_service::FileService;
 pub use lock_manager::{LockManager, LockType};

@@ -4,6 +4,7 @@
 //! dispatcher with a flexible plugin system.
 
 use crate::error::{ServerError, ServerResult};
+use crate::interfaces::AstService;
 use crate::mcp_tools;
 use cb_core::model::mcp::{McpMessage, McpRequest, McpResponse, ToolCall};
 use cb_plugins::{
@@ -21,8 +22,8 @@ use tracing::{debug, error, info, instrument, warn};
 /// Application state containing services
 #[derive(Clone)]
 pub struct AppState {
-    /// LSP service for code intelligence
-    pub lsp: Arc<dyn crate::interfaces::LspService>,
+    /// AST service for code analysis and parsing
+    pub ast_service: Arc<dyn AstService>,
     /// File service for file operations with import awareness
     pub file_service: Arc<crate::services::FileService>,
     /// Project root directory
@@ -179,60 +180,67 @@ impl PluginDispatcher {
             debug!("App config loaded successfully");
             let lsp_config = app_config.lsp;
 
-            // Register TypeScript/JavaScript plugin with DirectLspAdapter
-            debug!("Creating TypeScript LSP adapter");
-            let ts_lsp_adapter = Arc::new(DirectLspAdapter::new(
-                lsp_config.clone(),
-                vec!["ts".to_string(), "tsx".to_string(), "js".to_string(), "jsx".to_string()],
-                "typescript-lsp-direct".to_string(),
-            ));
-            debug!("Creating TypeScript plugin");
-            let ts_plugin = Arc::new(LspAdapterPlugin::typescript(ts_lsp_adapter));
-            debug!("Registering TypeScript plugin with manager");
-            self.plugin_manager
-                .register_plugin("typescript", ts_plugin)
-                .await
-                .map_err(|e| {
-                    error!("Failed to register TypeScript plugin: {}", e);
-                    ServerError::Internal(format!("Failed to register TypeScript plugin: {}", e))
-                })?;
-            debug!("TypeScript plugin registered successfully");
+            // Dynamically register plugins based on configured LSP servers
+            let mut registered_plugins = 0;
+            for server_config in &lsp_config.servers {
+                if server_config.extensions.is_empty() {
+                    warn!("LSP server config has no extensions, skipping: {:?}", server_config.command);
+                    continue;
+                }
 
-            // Register Python plugin with DirectLspAdapter
-            let py_lsp_adapter = Arc::new(DirectLspAdapter::new(
-                lsp_config.clone(),
-                vec!["py".to_string(), "pyi".to_string()],
-                "python-lsp-direct".to_string(),
-            ));
-            let py_plugin = Arc::new(LspAdapterPlugin::python(py_lsp_adapter));
-            self.plugin_manager
-                .register_plugin("python", py_plugin)
-                .await
-                .map_err(|e| ServerError::Internal(format!("Failed to register Python plugin: {}", e)))?;
+                // Create a DirectLspAdapter for this server
+                let adapter_name = format!("{}-lsp-direct", server_config.extensions.join("-"));
+                debug!("Creating LSP adapter for extensions: {:?}", server_config.extensions);
 
-            // Register Go plugin with DirectLspAdapter
-            let go_lsp_adapter = Arc::new(DirectLspAdapter::new(
-                lsp_config.clone(),
-                vec!["go".to_string()],
-                "go-lsp-direct".to_string(),
-            ));
-            let go_plugin = Arc::new(LspAdapterPlugin::go(go_lsp_adapter));
-            self.plugin_manager
-                .register_plugin("go", go_plugin)
-                .await
-                .map_err(|e| ServerError::Internal(format!("Failed to register Go plugin: {}", e)))?;
+                let lsp_adapter = Arc::new(DirectLspAdapter::new(
+                    lsp_config.clone(),
+                    server_config.extensions.clone(),
+                    adapter_name.clone(),
+                ));
 
-            // Register Rust plugin with DirectLspAdapter
-            let rust_lsp_adapter = Arc::new(DirectLspAdapter::new(
-                lsp_config,
-                vec!["rs".to_string()],
-                "rust-lsp-direct".to_string(),
-            ));
-            let rust_plugin = Arc::new(LspAdapterPlugin::rust(rust_lsp_adapter));
-            self.plugin_manager
-                .register_plugin("rust", rust_plugin)
-                .await
-                .map_err(|e| ServerError::Internal(format!("Failed to register Rust plugin: {}", e)))?;
+                // Determine plugin type based on primary extension
+                let primary_extension = &server_config.extensions[0];
+                let (plugin_name, plugin) = match primary_extension.as_str() {
+                    "ts" | "tsx" | "js" | "jsx" => {
+                        debug!("Creating TypeScript plugin for extensions: {:?}", server_config.extensions);
+                        ("typescript".to_string(), Arc::new(LspAdapterPlugin::typescript(lsp_adapter)))
+                    }
+                    "py" | "pyi" => {
+                        debug!("Creating Python plugin for extensions: {:?}", server_config.extensions);
+                        ("python".to_string(), Arc::new(LspAdapterPlugin::python(lsp_adapter)))
+                    }
+                    "go" => {
+                        debug!("Creating Go plugin for extensions: {:?}", server_config.extensions);
+                        ("go".to_string(), Arc::new(LspAdapterPlugin::go(lsp_adapter)))
+                    }
+                    "rs" => {
+                        debug!("Creating Rust plugin for extensions: {:?}", server_config.extensions);
+                        ("rust".to_string(), Arc::new(LspAdapterPlugin::rust(lsp_adapter)))
+                    }
+                    _ => {
+                        // Generic plugin for unknown languages
+                        debug!("Creating generic plugin for extensions: {:?}", server_config.extensions);
+                        let generic_name = format!("{}-generic", primary_extension);
+                        (generic_name.clone(), Arc::new(LspAdapterPlugin::new(
+                            generic_name,
+                            server_config.extensions.clone(),
+                            lsp_adapter,
+                        )))
+                    }
+                };
+
+                debug!("Registering {} plugin for extensions: {:?}", plugin_name, server_config.extensions);
+                self.plugin_manager
+                    .register_plugin(&plugin_name, plugin)
+                    .await
+                    .map_err(|e| {
+                        error!("Failed to register {} plugin: {}", plugin_name, e);
+                        ServerError::Internal(format!("Failed to register {} plugin: {}", plugin_name, e))
+                    })?;
+
+                registered_plugins += 1;
+                debug!("{} plugin registered successfully", plugin_name);
+            }
 
             // Register System Tools plugin for workspace-level operations
             let system_plugin = Arc::new(cb_plugins::system_tools_plugin::SystemToolsPlugin::new());
@@ -240,8 +248,10 @@ impl PluginDispatcher {
                 .register_plugin("system", system_plugin)
                 .await
                 .map_err(|e| ServerError::Internal(format!("Failed to register System tools plugin: {}", e)))?;
+            registered_plugins += 1;
 
-            info!("Plugin system initialized successfully with 5 plugins (4 language + 1 system)");
+            info!("Plugin system initialized successfully with {} plugins ({} language + 1 system)",
+                  registered_plugins, registered_plugins - 1);
             Ok::<(), ServerError>(())
         }).await?;
 
@@ -395,6 +405,11 @@ impl PluginDispatcher {
         // Check if this is an LSP notification tool
         if tool_call.name == "notify_file_opened" {
             return self.handle_notify_file_opened(tool_call).await;
+        }
+
+        // Check if this is the AST-powered refactoring tool
+        if tool_call.name == "rename_symbol_with_imports" {
+            return self.handle_rename_symbol_with_imports(tool_call).await;
         }
 
         // Check if this is a system tool
@@ -583,19 +598,109 @@ impl PluginDispatcher {
 
         let file_path = PathBuf::from(file_path_str);
 
-        // Notify the LSP service about the file opening
-        match self.app_state.lsp.notify_file_opened(&file_path).await {
-            Ok(()) => {
-                debug!("Successfully notified LSP server about file: {}", file_path.display());
+        // Get file extension to determine which LSP adapter to notify
+        let extension = file_path
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("");
+
+        // Load LSP config to create a temporary DirectLspAdapter for notification
+        let app_config = cb_core::config::AppConfig::load()
+            .map_err(|e| ServerError::Internal(format!("Failed to load app config: {}", e)))?;
+        let lsp_config = app_config.lsp;
+
+        // Find the server config for this extension
+        if let Some(_server_config) = lsp_config.servers.iter()
+            .find(|server| server.extensions.contains(&extension.to_string())) {
+
+            // Create a temporary DirectLspAdapter to handle the notification
+            let adapter = DirectLspAdapter::new(
+                lsp_config,
+                vec![extension.to_string()],
+                format!("temp-{}-notifier", extension),
+            );
+
+            // Get or create LSP client and notify
+            match adapter.get_or_create_client(extension).await {
+                Ok(client) => {
+                    match client.notify_file_opened(&file_path).await {
+                        Ok(()) => {
+                            debug!("Successfully notified LSP server about file: {}", file_path.display());
+                            Ok(json!({
+                                "success": true,
+                                "message": format!("Notified LSP server about file: {}", file_path.display())
+                            }))
+                        }
+                        Err(e) => {
+                            warn!("Failed to notify LSP server about file {}: {}", file_path.display(), e);
+                            Err(ServerError::Runtime {
+                                message: format!("Failed to notify LSP server: {}", e),
+                            })
+                        }
+                    }
+                }
+                Err(e) => {
+                    warn!("Failed to get LSP client for extension '{}': {}", extension, e);
+                    Err(ServerError::Runtime {
+                        message: format!("Failed to get LSP client: {}", e),
+                    })
+                }
+            }
+        } else {
+            debug!("No LSP server configured for extension '{}'", extension);
+            Ok(json!({
+                "success": true,
+                "message": format!("No LSP server configured for extension '{}'", extension)
+            }))
+        }
+    }
+
+    /// Handle rename_symbol_with_imports tool using AST service
+    async fn handle_rename_symbol_with_imports(&self, tool_call: ToolCall) -> ServerResult<Value> {
+        debug!("Handling rename_symbol_with_imports: {}", tool_call.name);
+
+        let args = tool_call.arguments.unwrap_or(json!({}));
+        let file_path_str = args.get("file_path")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| ServerError::InvalidRequest("Missing 'file_path' parameter".into()))?;
+
+        let old_name = args.get("old_name")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| ServerError::InvalidRequest("Missing 'old_name' parameter".into()))?;
+
+        let new_name = args.get("new_name")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| ServerError::InvalidRequest("Missing 'new_name' parameter".into()))?;
+
+        let file_path = std::path::Path::new(file_path_str);
+
+        debug!("Planning refactor to rename '{}' to '{}' in file: {}", old_name, new_name, file_path.display());
+
+        // Create an IntentSpec for the rename operation
+        let intent = cb_core::model::IntentSpec::new(
+            "rename_symbol_with_imports",
+            json!({
+                "oldName": old_name,
+                "newName": new_name,
+                "sourceFile": file_path_str
+            })
+        );
+
+        // Use the AST service to plan the refactoring
+        match self.app_state.ast_service.plan_refactor(&intent, file_path).await {
+            Ok(edit_plan) => {
+                debug!("Successfully planned refactor for {} files", edit_plan.edits.len());
                 Ok(json!({
                     "success": true,
-                    "message": format!("Notified LSP server about file: {}", file_path.display())
+                    "message": format!("Successfully planned rename of '{}' to '{}' affecting {} edits across {} files",
+                                     old_name, new_name, edit_plan.edits.len(), edit_plan.metadata.impact_areas.len()),
+                    "edit_plan": edit_plan
                 }))
             }
             Err(e) => {
-                warn!("Failed to notify LSP server about file {}: {}", file_path.display(), e);
+                error!("Failed to plan refactor for '{}' -> '{}': {}", old_name, new_name, e);
                 Err(ServerError::Runtime {
-                    message: format!("Failed to notify LSP server: {}", e),
+                    message: format!("Failed to plan refactor: {}", e),
                 })
             }
         }
@@ -726,21 +831,18 @@ impl PluginDispatcher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::systems::LspManager;
-    use cb_core::config::LspConfig;
     use tempfile::TempDir;
 
     fn create_test_app_state() -> Arc<AppState> {
-        let lsp_config = LspConfig::default();
-        let lsp_manager = Arc::new(LspManager::new(lsp_config));
         let temp_dir = TempDir::new().unwrap();
+        let ast_service = Arc::new(crate::services::DefaultAstService::new());
         let file_service = Arc::new(crate::services::FileService::new(temp_dir.path().to_path_buf()));
         let project_root = temp_dir.path().to_path_buf();
         let lock_manager = Arc::new(crate::services::LockManager::new());
         let operation_queue = Arc::new(crate::services::OperationQueue::new(lock_manager.clone()));
 
         Arc::new(AppState {
-            lsp: lsp_manager,
+            ast_service,
             file_service,
             project_root,
             lock_manager,

@@ -13,9 +13,9 @@ use tokio::time::{timeout, Duration};
 use tracing::{debug, error, info, warn};
 
 /// Timeout for LSP requests
-const LSP_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
+const LSP_REQUEST_TIMEOUT: Duration = Duration::from_secs(60);  // Increased for slow language servers
 /// Timeout for LSP initialization
-const LSP_INIT_TIMEOUT: Duration = Duration::from_secs(10);
+const LSP_INIT_TIMEOUT: Duration = Duration::from_secs(60);  // Increased significantly for slow language servers like Python
 /// Buffer size for message channels
 const CHANNEL_BUFFER_SIZE: usize = 1000;
 
@@ -23,8 +23,8 @@ const CHANNEL_BUFFER_SIZE: usize = 1000;
 pub struct LspClient {
     /// Child process handle
     process: Arc<Mutex<Child>>,
-    /// Channel for sending requests to the LSP server
-    request_tx: mpsc::Sender<LspRequest>,
+    /// Channel for sending messages (requests and notifications) to the LSP server
+    message_tx: mpsc::Sender<LspMessage>,
     /// Pending requests waiting for responses
     pending_requests: Arc<Mutex<HashMap<i64, oneshot::Sender<Result<Value, String>>>>>,
     /// Next request ID
@@ -35,7 +35,22 @@ pub struct LspClient {
     config: LspServerConfig,
 }
 
-/// Internal request structure
+/// Internal message types for LSP communication
+#[derive(Debug)]
+enum LspMessage {
+    Request {
+        id: i64,
+        method: String,
+        params: Value,
+        response_tx: oneshot::Sender<Result<Value, String>>,
+    },
+    Notification {
+        method: String,
+        params: Value,
+    },
+}
+
+/// Internal request structure (kept for compatibility)
 #[derive(Debug)]
 struct LspRequest {
     id: i64,
@@ -69,7 +84,7 @@ impl LspClient {
                 ))
             })?;
 
-        // Take ownership of stdin/stdout
+        // Take ownership of stdin/stdout/stderr
         let stdin = child
             .stdin
             .take()
@@ -78,45 +93,79 @@ impl LspClient {
             .stdout
             .take()
             .ok_or_else(|| ServerError::runtime("Failed to get stdout for LSP server"))?;
+        let stderr = child
+            .stderr
+            .take()
+            .ok_or_else(|| ServerError::runtime("Failed to get stderr for LSP server"))?;
 
         let process = Arc::new(Mutex::new(child));
         let pending_requests = Arc::new(Mutex::new(HashMap::new()));
         let next_id = Arc::new(Mutex::new(1));
         let initialized = Arc::new(Mutex::new(false));
 
-        // Create request channel
-        let (request_tx, mut request_rx) = mpsc::channel::<LspRequest>(CHANNEL_BUFFER_SIZE);
+        // Create message channel for both requests and notifications
+        let (message_tx, mut message_rx) = mpsc::channel::<LspMessage>(CHANNEL_BUFFER_SIZE);
 
         // Spawn task to handle writing to LSP server
         let stdin = Arc::new(Mutex::new(stdin));
         let write_stdin = stdin.clone();
         tokio::spawn(async move {
             let mut stdin = write_stdin.lock().await;
-            while let Some(request) = request_rx.recv().await {
-                let lsp_request = json!({
-                    "jsonrpc": "2.0",
-                    "id": request.id,
-                    "method": request.method,
-                    "params": request.params
-                });
+            while let Some(message) = message_rx.recv().await {
+                let lsp_message = match &message {
+                    LspMessage::Request { id, method, params, .. } => {
+                        json!({
+                            "jsonrpc": "2.0",
+                            "id": id,
+                            "method": method,
+                            "params": params
+                        })
+                    },
+                    LspMessage::Notification { method, params } => {
+                        json!({
+                            "jsonrpc": "2.0",
+                            "method": method,
+                            "params": params
+                        })
+                    }
+                };
 
-                let message = format!("Content-Length: {}\r\n\r\n{}",
-                    serde_json::to_string(&lsp_request).unwrap().len(),
-                    serde_json::to_string(&lsp_request).unwrap());
+                let content = serde_json::to_string(&lsp_message).unwrap();
+                let message_str = format!("Content-Length: {}\r\n\r\n{}", content.len(), content);
 
-                if let Err(e) = stdin.write_all(message.as_bytes()).await {
+                if let Err(e) = stdin.write_all(message_str.as_bytes()).await {
                     error!("Failed to write to LSP server: {}", e);
-                    let _ = request.response_tx.send(Err(format!("Write error: {}", e)));
+                    if let LspMessage::Request { response_tx, .. } = message {
+                        let _ = response_tx.send(Err(format!("Write error: {}", e)));
+                    }
                     break;
                 }
 
                 if let Err(e) = stdin.flush().await {
                     error!("Failed to flush LSP server stdin: {}", e);
-                    let _ = request.response_tx.send(Err(format!("Flush error: {}", e)));
+                    if let LspMessage::Request { response_tx, .. } = message {
+                        let _ = response_tx.send(Err(format!("Flush error: {}", e)));
+                    }
                     break;
                 }
 
-                debug!("Sent LSP request: {}", request.method);
+                match &message {
+                    LspMessage::Request { method, .. } => debug!("Sent LSP request: {}", method),
+                    LspMessage::Notification { method, .. } => debug!("Sent LSP notification: {}", method),
+                }
+            }
+        });
+
+        // Spawn stderr reader task to prevent blocking
+        tokio::spawn(async move {
+            let mut stderr_reader = BufReader::new(stderr);
+            let mut stderr_line = String::new();
+            while stderr_reader.read_line(&mut stderr_line).await.is_ok() {
+                if !stderr_line.is_empty() {
+                    // Log stderr output at debug level (most LSPs write diagnostics here)
+                    debug!("LSP stderr: {}", stderr_line.trim());
+                    stderr_line.clear();
+                }
             }
         });
 
@@ -152,7 +201,7 @@ impl LspClient {
 
         let client = Self {
             process,
-            request_tx,
+            message_tx,
             pending_requests,
             next_id,
             initialized,
@@ -167,6 +216,28 @@ impl LspClient {
 
     /// Send a request to the LSP server and await the response
     pub async fn send_request(&self, method: &str, params: Value) -> ServerResult<Value> {
+        // For file-specific operations, ensure the file is open in the LSP server
+        if method.starts_with("textDocument/") && method != "textDocument/didOpen" {
+            info!("DEBUG: Processing {} request, checking if file needs to be opened", method);
+            // Extract file path from params to open it if needed
+            if let Some(uri) = params.get("textDocument").and_then(|td| td.get("uri")).and_then(|u| u.as_str()) {
+                info!("DEBUG: Found URI in params: {}", uri);
+                if uri.starts_with("file://") {
+                    let file_path = std::path::Path::new(&uri[7..]);
+                    info!("DEBUG: Opening file in LSP: {}", file_path.display());
+                    // Notify file opened (will be no-op if already open)
+                    if let Err(e) = self.notify_file_opened(file_path).await {
+                        warn!("DEBUG: Failed to open file before request: {}", e);
+                        // Continue anyway - some operations might work without it
+                    } else {
+                        info!("DEBUG: Successfully opened file in LSP");
+                    }
+                }
+            } else {
+                warn!("DEBUG: No textDocument.uri found in params for {}: {:?}", method, params);
+            }
+        }
+
         let id = {
             let mut next_id = self.next_id.lock().await;
             let id = *next_id;
@@ -182,16 +253,18 @@ impl LspClient {
             pending.insert(id, response_tx);
         }
 
-        // Create a dummy response channel for the request structure
+        // Create a dummy tx for the message (the real one is already in pending_requests)
         let (dummy_tx, _) = oneshot::channel();
-        let request_to_send = LspRequest {
+
+        // Create and send the request message
+        let message = LspMessage::Request {
             id,
             method: method.to_string(),
             params,
-            response_tx: dummy_tx,
+            response_tx: dummy_tx, // Use dummy since real one is in pending_requests
         };
 
-        if let Err(e) = self.request_tx.send(request_to_send).await {
+        if let Err(e) = self.message_tx.send(message).await {
             // Remove from pending requests
             let mut pending = self.pending_requests.lock().await;
             pending.remove(&id);
@@ -302,22 +375,17 @@ impl LspClient {
 
     /// Send a notification to the LSP server (no response expected)
     pub async fn send_notification(&self, method: &str, params: Value) -> ServerResult<()> {
-        let _notification = json!({
-            "jsonrpc": "2.0",
-            "method": method,
-            "params": params
-        });
+        // Create and send the notification message
+        let message = LspMessage::Notification {
+            method: method.to_string(),
+            params,
+        };
 
-        let _message = format!("Content-Length: {}\r\n\r\n{}",
-            serde_json::to_string(&_notification).unwrap().len(),
-            serde_json::to_string(&_notification).unwrap());
+        if let Err(e) = self.message_tx.send(message).await {
+            return Err(ServerError::runtime(format!("Failed to send notification: {}", e)));
+        }
 
-        // We need to send this directly to stdin since notifications don't have responses
-        let _stdin = self.process.lock().await;
-
-        // Note: This is simplified - in a real implementation we'd need better access to stdin
-        warn!("Notification sending not fully implemented: {}", method);
-
+        debug!("Queued LSP notification: {}", method);
         Ok(())
     }
 
@@ -461,6 +529,8 @@ impl Drop for LspClient {
             if let Err(e) = process.kill().await {
                 warn!("Failed to kill LSP server process on drop: {}", e);
             }
+            // IMPORTANT: Wait for the process to actually exit to avoid zombies
+            let _ = process.wait().await;
         });
     }
 }

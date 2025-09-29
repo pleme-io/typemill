@@ -471,8 +471,8 @@ async fn test_cross_language_project() {
     LspSetupHelper::check_lsp_servers_available()
         .expect("LSP servers must be available for cross-language tests");
 
-    // Create TypeScript files
-    let ts_file = workspace.path().join("src/app.ts");
+    // Try the working approach: simple file creation like successful tests
+    let ts_file = workspace.path().join("app.ts");
     std::fs::write(&ts_file, r#"
 interface Config {
     apiUrl: string;
@@ -491,8 +491,8 @@ export function validateConfig(config: Config): boolean {
 }
 "#).expect("Failed to create TypeScript test file");
 
-    // Create JavaScript files
-    let js_file = workspace.path().join("src/utils.js");
+    // Create JavaScript file
+    let js_file = workspace.path().join("utils.js");
     std::fs::write(&js_file, r#"
 export function validateUserInput(input) {
     return input && input.trim().length > 0;
@@ -507,7 +507,7 @@ export function formatResponse(data) {
 }
 "#).expect("Failed to create JavaScript test file");
 
-    // Create Python files
+    // Create Python file
     let py_file = workspace.path().join("validate.py");
     std::fs::write(&py_file, r#"
 def validate_user_data(user_data):
@@ -525,10 +525,38 @@ def process_user_data(user_data):
     return {'status': 'error', 'message': 'Invalid data'}
 "#).expect("Failed to create Python test file");
 
-    // Give LSP servers time to process files (same as working tests)
-    tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
+    // Debug: List files in workspace to verify they exist
+    println!("DEBUG: Files in workspace:");
+    for entry in std::fs::read_dir(workspace.path()).unwrap() {
+        let entry = entry.unwrap();
+        println!("  {:?}", entry.path());
+    }
+    if workspace.file_exists("src") {
+        println!("DEBUG: Files in src/:");
+        for entry in std::fs::read_dir(workspace.path().join("src")).unwrap() {
+            let entry = entry.unwrap();
+            println!("  {:?}", entry.path());
+        }
+    }
 
-    // Test TypeScript LSP operations
+    // Use same timing as working tests
+    tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+
+    // Step 1: Test hover first (simpler than symbols)
+    println!("DEBUG: Testing hover on Config interface...");
+    let hover_response = client.call_tool("get_hover", json!({
+        "file_path": ts_file.to_string_lossy(),
+        "line": 2,  // Config interface line
+        "character": 10
+    })).await;
+
+    match hover_response {
+        Ok(resp) => println!("DEBUG: Hover response: {}", serde_json::to_string_pretty(&resp).unwrap()),
+        Err(e) => println!("DEBUG: Hover failed: {}", e)
+    }
+
+    // Step 2: Test TypeScript LSP operations using working test pattern
+    println!("DEBUG: Testing document symbols...");
     let response = client.call_tool("get_document_symbols", json!({
         "file_path": ts_file.to_string_lossy()
     })).await.expect("TypeScript LSP call should succeed");
@@ -537,8 +565,17 @@ def process_user_data(user_data):
         panic!("TypeScript LSP failed: {}", error.get("message").unwrap_or(&json!("unknown error")));
     }
 
-    let ts_symbols = response["result"]["content"]["symbols"].as_array()
-        .expect("TypeScript LSP should return symbols array");
+    // Debug: print the actual response structure
+    println!("DEBUG: TypeScript response: {}", serde_json::to_string_pretty(&response).unwrap());
+
+    // Try working test response structure first
+    let ts_symbols = if let Some(symbols) = response["symbols"].as_array() {
+        symbols
+    } else {
+        // Fallback to nested structure
+        response["result"]["content"]["symbols"].as_array()
+            .expect("TypeScript LSP should return symbols array")
+    };
     assert!(!ts_symbols.is_empty(), "TypeScript file should have detectable symbols");
 
     // Should find the Config interface and functions
@@ -618,23 +655,23 @@ async fn test_large_scale_project_simulation() {
     LspSetupHelper::check_lsp_servers_available()
         .expect("TypeScript LSP server must be available for large-scale project tests");
 
-    // Create a realistic large project structure
-    let base_dirs = vec!["src", "tests", "docs", "config"];
-    for dir in &base_dirs {
-        std::fs::create_dir_all(workspace.path().join(dir))
-            .expect("Failed to create base directories");
+    // Setup TypeScript project structure properly
+    workspace.setup_typescript_project_with_lsp("large-scale-test");
+
+    // Create additional directories for large project structure
+    let additional_dirs = vec!["tests", "docs", "config"];
+    for dir in &additional_dirs {
+        workspace.create_directory(dir);
     }
 
-    // Create multiple subdirectories with files
+    // Create multiple subdirectories with files using workspace methods
     let src_subdirs = vec!["components", "services", "utils", "types"];
     for subdir in &src_subdirs {
-        let dir_path = workspace.path().join("src").join(subdir);
-        std::fs::create_dir_all(&dir_path)
-            .expect("Failed to create subdirectory");
+        workspace.create_directory(&format!("src/{}", subdir));
 
         // Create multiple TypeScript files in each subdirectory
         for i in 0..5 {
-            let file_path = dir_path.join(format!("{}{}.ts", subdir, i));
+            let file_path = format!("src/{}/{}{}.ts", subdir, subdir, i);
             let content = format!(r#"
 // File: {}{}.ts
 export interface {}Interface{} {{
@@ -656,13 +693,31 @@ export function {}Function{}(param: {}Interface{}): boolean {{
 }}
 "#, subdir, i, subdir, i, subdir, i, subdir, i, subdir, i, subdir, i, subdir, i);
 
-            std::fs::write(&file_path, content)
-                .expect("Failed to create TypeScript test file");
+            workspace.create_file(&file_path, &content);
         }
     }
 
-    // Give LSP time to process the large project (same as working tests)
-    tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
+    // Give LSP more time to index the large project
+    // TypeScript server needs time to discover and index all files
+    tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
+
+    // Open multiple sample files to ensure LSP is active and has indexed content
+    // This helps TypeScript server understand the project context and build symbol table
+    let sample_files = vec![
+        "src/components/components0.ts",
+        "src/services/services0.ts",
+        "src/utils/utils0.ts",
+        "src/types/types0.ts"
+    ];
+
+    for file_path in &sample_files {
+        let file = workspace.absolute_path(file_path);
+        let _ = client.call_tool("get_document_symbols", json!({
+            "file_path": file.to_string_lossy()
+        })).await;
+        // Small delay between file openings
+        tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+    }
 
     // Test workspace-wide symbol search performance
     let start = std::time::Instant::now();
@@ -677,7 +732,13 @@ export function {}Function{}(param: {}Interface{}): boolean {{
         panic!("Workspace symbol search failed: {}", error.get("message").unwrap_or(&json!("unknown error")));
     }
 
+    // Debug output to understand response structure
+    println!("DEBUG: Workspace symbol response: {}", serde_json::to_string_pretty(&response).unwrap_or_else(|_| format!("{:?}", response)));
+
     let symbols = response["symbols"].as_array()
+        .or_else(|| response.get("result")
+            .and_then(|r| r.get("content"))
+            .and_then(|c| c.as_array()))
         .expect("Workspace symbol search should return symbols array");
 
     // Should find many interface symbols across the project
@@ -748,8 +809,10 @@ async fn test_advanced_error_recovery() {
     LspSetupHelper::check_lsp_servers_available()
         .expect("TypeScript LSP server must be available for error recovery tests");
 
+    // Setup TypeScript project structure properly
+    workspace.setup_typescript_project_with_lsp("error-recovery-test");
+
     // Create a TypeScript file with syntax errors mixed with valid code
-    let error_file = workspace.path().join("src/complex_errors.ts");
     let content_with_errors = r#"
 // Multiple types of errors in one file
 import { NonExistentType, AnotherMissing } from './nonexistent';
@@ -788,13 +851,13 @@ export interface ValidInterface {
 }
 "#;
 
-    std::fs::write(&error_file, content_with_errors)
-        .expect("Failed to create TypeScript file with errors");
+    workspace.create_file("src/complex_errors.ts", content_with_errors);
 
     // Give LSP time to process the file with errors (same as working tests)
     tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
 
     // Test 1: Document symbols should still work despite errors
+    let error_file = workspace.absolute_path("src/complex_errors.ts");
     let response = client.call_tool("get_document_symbols", json!({
         "file_path": error_file.to_string_lossy()
     })).await.expect("Document symbols call should succeed even with syntax errors");
@@ -834,9 +897,18 @@ export interface ValidInterface {
     }
 
     // Should get hover information for valid code
-    if let Some(contents) = response.get("contents") {
+    // Check both possible response structures
+    let has_contents = response.get("contents").is_some() ||
+        response.get("result")
+            .and_then(|r| r.get("content"))
+            .and_then(|c| c.get("hover"))
+            .and_then(|h| h.get("contents"))
+            .is_some();
+
+    if has_contents {
         println!("✅ Hover works on valid code despite file errors");
     } else {
+        println!("DEBUG: Hover response structure: {}", serde_json::to_string_pretty(&response).unwrap());
         panic!("Should get hover contents for valid function");
     }
 

@@ -2,8 +2,9 @@
 
 use cb_core::AppConfig;
 use cb_server::handlers::{PluginDispatcher, AppState};
-use cb_server::systems::{LspManager, fuse::start_fuse_mount};
-use cb_server::services::{FileService, LockManager, OperationQueue};
+use cb_server::interfaces::AstService;
+use cb_server::services::{DefaultAstService, FileService, LockManager, OperationQueue};
+use cb_server::systems::fuse::start_fuse_mount;
 use cb_server::transport;
 use clap::{Parser, Subcommand};
 use std::sync::Arc;
@@ -39,22 +40,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load configuration
     let config = Arc::new(AppConfig::load()?);
 
-    // Create LSP manager
-    let lsp_manager = Arc::new(LspManager::new(config.lsp.clone()));
-
     // Get project root
     let project_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
 
-    // Create file service
+    // Create services
+    let ast_service: Arc<dyn AstService> = Arc::new(DefaultAstService::new());
     let file_service = Arc::new(FileService::new(&project_root));
-
-    // Create lock manager and operation queue
     let lock_manager = Arc::new(LockManager::new());
     let operation_queue = Arc::new(OperationQueue::new(lock_manager.clone()));
 
     // Create application state
     let app_state = Arc::new(AppState {
-        lsp: lsp_manager,
+        ast_service,
         file_service,
         project_root,
         lock_manager,

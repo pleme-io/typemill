@@ -1,7 +1,7 @@
 {"servers":[
     {
       "extensions": ["py", "pyi"],
-      "command": ["pylsp"]
+      "command": ["python3", "-m", "pylsp"]
     },
     {
       "extensions": ["rs"],

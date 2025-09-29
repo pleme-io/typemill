@@ -527,6 +527,19 @@ pub fn get_tool_definitions() -> Vec<Value> {
                 "required": ["workspace_path"]
             }
         }),
+        json!({
+            "name": "rename_symbol_with_imports",
+            "description": "Rename a symbol across the project and automatically update all import statements that reference it. This is a project-wide refactoring tool that goes beyond simple LSP rename.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "file_path": { "type": "string", "description": "Path to the file containing the symbol to rename" },
+                    "old_name": { "type": "string", "description": "Current name of the symbol to rename" },
+                    "new_name": { "type": "string", "description": "New name for the symbol" }
+                },
+                "required": ["file_path", "old_name", "new_name"]
+            }
+        }),
 
         // LSP Notification Tools
         json!({
