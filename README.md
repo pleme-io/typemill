@@ -106,19 +106,19 @@ go install golang.org/x/tools/gopls@latest
 rustup component add rust-analyzer
 
 # View configuration and status
-node packages/server/dist/index.js status
+codebuddy status
 ```
 
 ## ⚙️ Configuration
 ```bash
 # Smart setup with auto-detection
-node packages/server/dist/index.js setup
+codebuddy setup
 
 # Check status of language servers
-node packages/server/dist/index.js status
+codebuddy status
 
 # Link to AI assistants
-node packages/server/dist/index.js link
+codebuddy link
 
 # Manual configuration (creates .codebuddy/config.json)
 cat > .codebuddy/config.json << 'EOF'
@@ -153,10 +153,8 @@ FUSE (Filesystem in Userspace) enables mounting remote filesystems locally, allo
 ### Setup FUSE
 
 ```bash
-# Automatic setup script
-./packages/server/scripts/setup-fuse.sh
-
-# Interactive setup not currently available
+# FUSE setup must be done manually
+# See platform-specific instructions below
 ```
 
 #### Linux Setup
@@ -184,7 +182,7 @@ brew install --cask macfuse
 ### Verify Installation
 ```bash
 # Check FUSE availability
-node packages/server/dist/index.js check-fuse
+codebuddy status  # Will show FUSE support status
 
 # The system will automatically detect FUSE on startup
 # and provide platform-specific instructions if needed
@@ -193,23 +191,21 @@ node packages/server/dist/index.js check-fuse
 ### Using FUSE with WebSocket Server
 ```bash
 # Start server with FUSE enabled
-node packages/server/dist/index.js serve --port 3000 --enable-fuse
+codebuddy serve --port 3000 --enable-fuse
 
 # Mount path configuration
-node packages/server/dist/index.js serve --fuse-mount-path /tmp/codeflow-mount
+codebuddy serve --fuse-mount-path /tmp/codeflow-mount
 ```
 
 ### Troubleshooting
 
 - **Linux**: If you get permission errors, ensure you're in the `fuse` group and have logged out/in
 - **macOS**: If macFUSE isn't detected, restart after installation and check Security & Privacy settings
-- **Both**: Run `npm rebuild @cocalc/fuse-native` after installing FUSE
+- **Both**: Rebuild if needed after installing FUSE
 
 ## 📖 Documentation
-- **[Quick Start Guide](packages/server/docs/quick-start.md)** - Get running in 2 minutes
-- **[MCP Tools Reference](packages/server/docs/api.md)** - All 31 tools with examples
-- **[Language Setup](packages/server/docs/languages.md)** - TypeScript, Python, Go, and more
-- **[Troubleshooting](packages/server/docs/troubleshooting.md)** - Common issues and solutions
+- **[CLAUDE.md](CLAUDE.md)** - Project instructions and architecture
+- **[Plugin Architecture](PLUGIN_ARCHITECTURE.md)** - System design and implementation
 
 ## 🔗 Related Projects
 - **[Model Context Protocol](https://github.com/modelcontextprotocol/servers)** - Protocol specification and ecosystem
@@ -217,30 +213,29 @@ node packages/server/dist/index.js serve --fuse-mount-path /tmp/codeflow-mount
 
 ## 🧪 Development
 ```bash
-# Install dependencies
-bun install
+# Build from source
+cd rust
+cargo build --release
 
-# Development with hot reload
-bun run dev
+# Run development version
+cargo run -- start
 
 # WebSocket server development
-node packages/server/dist/index.js serve --port 3000                    # Basic server
-node packages/server/dist/index.js serve --require-auth --jwt-secret KEY # With auth
-docker-compose up -d                                     # Full stack
+./target/release/codebuddy serve --port 3000             # Basic server
+./target/release/codebuddy serve --require-auth --jwt-secret KEY # With auth
+docker-compose up -d                                      # Full stack
 
-# Testing (from packages/server/)
-bun run test:fast     # Fast mode with optimizations
-bun run test          # Full test suite
-bun run test:comprehensive # All MCP tools test
-bun run test:minimal  # Minimal runner for slow systems
+# Testing
+cargo test
+cargo test -- --nocapture  # With output
 
 # Code quality
-bun run lint         # Check code style and issues
-bun run format       # Format code with Biome
-bun run typecheck    # TypeScript type checking
+cargo clippy              # Linting
+cargo fmt                 # Format code
+cargo check               # Type checking
 
 # Build for production
-bun run build
+cargo build --release
 ```
 
 ## 📝 License

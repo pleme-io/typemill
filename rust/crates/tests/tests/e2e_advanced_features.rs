@@ -47,6 +47,7 @@ async fn test_fuse_filesystem_integration() {
 
         // This is a simplified startup. A real server would be used.
         // For this test, we'll call the mount function directly.
+        #[cfg(unix)]
         if let Err(e) = cb_vfs::start_fuse_mount(
             &config.fuse.unwrap(),
             Path::new(&workspace_path_str),

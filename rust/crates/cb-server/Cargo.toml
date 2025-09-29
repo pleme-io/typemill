@@ -11,7 +11,6 @@ cb-core = { path = "../cb-core" }
 cb-ast = { path = "../cb-ast" }
 cb-plugins = { path = "../cb-plugins" }
 cb-transport = { path = "../cb-transport" }
-cb-vfs = { path = "../cb-vfs" }
 tokio = { workspace = true }
 async-trait = { workspace = true }
 futures-util = "0.3"
@@ -31,6 +30,9 @@ uuid = { version = "1.0", features = ["v4"] }
 ignore = "0.4"
 clap = { version = "4.0", features = ["derive"] }
 toml_edit = "0.20"
+
+[target.'cfg(unix)'.dependencies]
+cb-vfs = { path = "../cb-vfs" }
 
 [dev-dependencies]
 tempfile = "3.0"

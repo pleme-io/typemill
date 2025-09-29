@@ -11,7 +11,6 @@ cb-ast = { path = "../cb-ast" }
 cb-api = { path = "../cb-api" }
 cb-server = { path = "../cb-server" }
 cb-client = { path = "../cb-client" }
-cb-vfs = { path = "../cb-vfs" }
 tokio = { workspace = true }
 async-trait = { workspace = true }
 mockall = { workspace = true }
@@ -32,3 +31,6 @@ assert_cmd = "2.0"
 predicates = "3.0"
 proptest = "1.0"
 serial_test = "3.0"
+
+[target.'cfg(unix)'.dependencies]
+cb-vfs = { path = "../cb-vfs" }
