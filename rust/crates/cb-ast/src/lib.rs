@@ -1,4 +1,9 @@
-//! cb-ast: AST parsing and transformation for Codeflow Buddy
+//! cb-ast: Abstract Syntax Tree parsing, analysis, and transformation for Codeflow Buddy
+//!
+//! This crate provides sophisticated AST-based code analysis capabilities including
+//! import graph building, project-wide refactoring planning, and intelligent caching
+//! for performance optimization. It supports multiple languages (TypeScript, Python, etc.)
+//! and enables safe, automated code transformations.
 
 pub mod analyzer;
 pub mod cache;

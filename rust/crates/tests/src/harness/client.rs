@@ -20,12 +20,10 @@ impl TestClient {
     pub fn new(working_dir: &Path) -> Self {
         // Determine the path to the cb-server binary
         // Use absolute paths for reliability
-        let possible_paths = vec![
-            "/workspace/rust/target/release/cb-server",
+        let possible_paths = ["/workspace/rust/target/release/cb-server",
             "/workspace/rust/target/debug/cb-server",
             "target/release/cb-server",
-            "target/debug/cb-server",
-        ];
+            "target/debug/cb-server"];
 
         let server_path = possible_paths
             .iter()
@@ -51,15 +49,12 @@ impl TestClient {
         let (stdout_sender, stdout_receiver) = mpsc::channel();
         thread::spawn(move || {
             let reader = BufReader::new(stdout);
-            for line in reader.lines() {
-                if let Ok(line) = line {
-                    let trimmed = line.trim();
-                    if !trimmed.is_empty() && trimmed.starts_with('{') {
-                        if stdout_sender.send(line).is_err() {
-                            break;
-                        }
+            for line in reader.lines().flatten() {
+                let trimmed = line.trim();
+                if !trimmed.is_empty() && trimmed.starts_with('{')
+                    && stdout_sender.send(line).is_err() {
+                        break;
                     }
-                }
             }
         });
 
@@ -67,11 +62,9 @@ impl TestClient {
         let (stderr_sender, stderr_receiver) = mpsc::channel();
         thread::spawn(move || {
             let reader = BufReader::new(stderr);
-            for line in reader.lines() {
-                if let Ok(line) = line {
-                    if stderr_sender.send(line).is_err() {
-                        break;
-                    }
+            for line in reader.lines().flatten() {
+                if stderr_sender.send(line).is_err() {
+                    break;
                 }
             }
         });
@@ -171,7 +164,7 @@ impl TestClient {
         });
 
         // Attempt graceful shutdown
-        if let Ok(_) = self.send_request(shutdown_request) {
+        if self.send_request(shutdown_request).is_ok() {
             // Give the server time to shut down gracefully
             thread::sleep(Duration::from_millis(500));
         }
@@ -339,7 +332,7 @@ impl TestClient {
         let start = Instant::now();
 
         while start.elapsed() < timeout {
-            if let Ok(_) = self.ping_server() {
+            if self.ping_server().is_ok() {
                 return Ok(());
             }
 

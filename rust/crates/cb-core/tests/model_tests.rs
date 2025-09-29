@@ -167,7 +167,7 @@ fn test_lsp_range_serialization() {
 #[test]
 fn test_fuse_config_default() {
     let config = FuseConfig::default();
-    assert_eq!(config.mount_point.to_str().unwrap(), "/tmp/codeflow-buddy");
+    assert_eq!(config.mount_point.to_str().unwrap(), "/tmp/codebuddy");
     assert!(config.read_only);
     assert_eq!(config.cache_timeout_seconds, 60);
     assert_eq!(config.max_file_size_bytes, 10 * 1024 * 1024);

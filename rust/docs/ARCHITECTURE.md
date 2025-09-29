@@ -309,8 +309,8 @@ The `cb-client` crate uses a `ConfigBuilder` pattern to provide a robust and fle
 Configuration is loaded from three sources with the following order of precedence:
 
 1.  **Command-line arguments:** (e.g., `--url <URL>`) - Highest precedence.
-2.  **Environment variables:** (`CODEFLOW_BUDDY_URL`, `CODEFLOW_BUDDY_TOKEN`).
-3.  **Configuration file:** (`~/.codeflow-buddy/config.json`) - Lowest precedence.
+2.  **Environment variables:** (`CODEBUDDY_URL`, `CODEBUDDY_TOKEN`).
+3.  **Configuration file:** (`~/.codebuddy/config.json`) - Lowest precedence.
 
 #### `ConfigBuilder` Pattern
 
@@ -319,7 +319,7 @@ The `ConfigBuilder` provides a fluent API to construct a `ClientConfig` object.
 ```rust
 // Example of building a configuration
 let config = ConfigBuilder::new()
-    .from_file_if_exists("~/.codeflow-buddy/config.json").await?
+    .from_file_if_exists("~/.codebuddy/config.json").await?
     .with_env_overrides()
     .with_url("ws://override.com:8080".to_string()) // This would be a CLI arg
     .build()?;

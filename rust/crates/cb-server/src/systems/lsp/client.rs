@@ -319,7 +319,7 @@ impl LspClient {
         let initialize_params = json!({
             "processId": std::process::id(),
             "clientInfo": {
-                "name": "codeflow-buddy",
+                "name": "codebuddy",
                 "version": "0.1.0"
             },
             "capabilities": {

@@ -75,7 +75,7 @@ mod tests {
             sub: Some("test_user".to_string()),
             exp: Some(now + 3600), // 1 hour from now
             iat: Some(now),
-            iss: Some("codeflow-buddy".to_string()),
+            iss: Some("codebuddy".to_string()),
             aud: Some("codeflow-clients".to_string()),
             project_id,
         };

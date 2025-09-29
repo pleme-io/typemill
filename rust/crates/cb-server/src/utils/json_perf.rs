@@ -111,7 +111,7 @@ where
         "pagination": {
             "page": page,
             "page_size": page_size,
-            "total_pages": (total_count + page_size - 1) / page_size,
+            "total_pages": total_count.div_ceil(page_size),
             "total_count": total_count,
             "has_next": end < total_count,
             "has_prev": page > 0

@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use tokio::fs;
 use tracing::{debug, info, warn};
 
-/// Client configuration for connecting to codeflow-buddy server
+/// Client configuration for connecting to codebuddy server
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientConfig {
     /// WebSocket server URL (e.g., "ws://localhost:3000")
@@ -77,12 +77,15 @@ impl ClientConfig {
 
         if self.url.is_none() {
             actions.push(
-                "Set server URL with --url or CODEFLOW_BUDDY_URL environment variable".to_string(),
+                "Set server URL with --url or CODEBUDDY_URL environment variable".to_string(),
             );
         }
 
         if self.token.is_none() {
-            actions.push("Set authentication token with --token or CODEFLOW_BUDDY_TOKEN environment variable".to_string());
+            actions.push(
+                "Set authentication token with --token or CODEBUDDY_TOKEN environment variable"
+                    .to_string(),
+            );
         }
 
         actions
@@ -139,7 +142,7 @@ impl ClientConfig {
             ClientError::ConfigError("Unable to determine home directory".to_string())
         })?;
 
-        Ok(home.join(".codeflow-buddy").join("config.json"))
+        Ok(home.join(".codebuddy").join("config.json"))
     }
 
     /// Get the configuration directory path
@@ -148,7 +151,7 @@ impl ClientConfig {
             ClientError::ConfigError("Unable to determine home directory".to_string())
         })?;
 
-        Ok(home.join(".codeflow-buddy"))
+        Ok(home.join(".codebuddy"))
     }
 
     /// Validate the configuration
@@ -265,6 +268,12 @@ pub struct ConfigBuilder {
     config: ClientConfig,
 }
 
+impl Default for ConfigBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConfigBuilder {
     /// Create a new configuration builder
     pub fn new() -> Self {
@@ -311,17 +320,17 @@ impl ConfigBuilder {
     /// Apply environment variable overrides
     pub fn with_env_overrides(mut self) -> Self {
         // Override with environment variables if present
-        if let Ok(url) = std::env::var("CODEFLOW_BUDDY_URL") {
+        if let Ok(url) = std::env::var("CODEBUDDY_URL") {
             debug!("Using URL from environment variable");
             self.config.url = Some(url);
         }
 
-        if let Ok(token) = std::env::var("CODEFLOW_BUDDY_TOKEN") {
+        if let Ok(token) = std::env::var("CODEBUDDY_TOKEN") {
             debug!("Using token from environment variable");
             self.config.token = Some(token);
         }
 
-        if let Ok(timeout) = std::env::var("CODEFLOW_BUDDY_TIMEOUT") {
+        if let Ok(timeout) = std::env::var("CODEBUDDY_TIMEOUT") {
             match timeout.parse::<u64>() {
                 Ok(timeout_ms) => {
                     debug!("Using timeout from environment variable: {}ms", timeout_ms);
@@ -509,14 +518,14 @@ mod tests {
     #[tokio::test]
     async fn test_config_builder_env_overrides() {
         // Clean up any existing env vars
-        let original_url = env::var("CODEFLOW_BUDDY_URL").ok();
-        let original_token = env::var("CODEFLOW_BUDDY_TOKEN").ok();
-        let original_timeout = env::var("CODEFLOW_BUDDY_TIMEOUT").ok();
+        let original_url = env::var("CODEBUDDY_URL").ok();
+        let original_token = env::var("CODEBUDDY_TOKEN").ok();
+        let original_timeout = env::var("CODEBUDDY_TIMEOUT").ok();
 
         // Set test environment variables
-        env::set_var("CODEFLOW_BUDDY_URL", "ws://env:4000");
-        env::set_var("CODEFLOW_BUDDY_TOKEN", "env-token");
-        env::set_var("CODEFLOW_BUDDY_TIMEOUT", "25000");
+        env::set_var("CODEBUDDY_URL", "ws://env:4000");
+        env::set_var("CODEBUDDY_TOKEN", "env-token");
+        env::set_var("CODEBUDDY_TIMEOUT", "25000");
 
         let config = ConfigBuilder::new()
             .with_url("ws://builder:3000".to_string()) // Should be overridden
@@ -529,19 +538,19 @@ mod tests {
         assert_eq!(config.timeout_ms, Some(25000));
 
         // Clean up
-        env::remove_var("CODEFLOW_BUDDY_URL");
-        env::remove_var("CODEFLOW_BUDDY_TOKEN");
-        env::remove_var("CODEFLOW_BUDDY_TIMEOUT");
+        env::remove_var("CODEBUDDY_URL");
+        env::remove_var("CODEBUDDY_TOKEN");
+        env::remove_var("CODEBUDDY_TIMEOUT");
 
         // Restore original values if they existed
         if let Some(url) = original_url {
-            env::set_var("CODEFLOW_BUDDY_URL", url);
+            env::set_var("CODEBUDDY_URL", url);
         }
         if let Some(token) = original_token {
-            env::set_var("CODEFLOW_BUDDY_TOKEN", token);
+            env::set_var("CODEBUDDY_TOKEN", token);
         }
         if let Some(timeout) = original_timeout {
-            env::set_var("CODEFLOW_BUDDY_TIMEOUT", timeout);
+            env::set_var("CODEBUDDY_TIMEOUT", timeout);
         }
     }
 
@@ -549,8 +558,8 @@ mod tests {
     #[tokio::test]
     async fn test_config_precedence_cli_over_env() {
         // Set up environment variables
-        env::set_var("CODEFLOW_BUDDY_URL", "ws://env:5000");
-        env::set_var("CODEFLOW_BUDDY_TOKEN", "env-token");
+        env::set_var("CODEBUDDY_URL", "ws://env:5000");
+        env::set_var("CODEBUDDY_TOKEN", "env-token");
 
         let config = ConfigBuilder::new()
             .with_env_overrides()
@@ -562,8 +571,8 @@ mod tests {
         assert_eq!(config.token, Some("env-token".to_string())); // Env used for token
 
         // Clean up
-        env::remove_var("CODEFLOW_BUDDY_URL");
-        env::remove_var("CODEFLOW_BUDDY_TOKEN");
+        env::remove_var("CODEBUDDY_URL");
+        env::remove_var("CODEBUDDY_TOKEN");
     }
 
     #[serial]
@@ -581,7 +590,7 @@ mod tests {
         file_config.save_to_path(&config_path).await.unwrap();
 
         // Set environment variable (should override file)
-        env::set_var("CODEFLOW_BUDDY_URL", "ws://env:8000");
+        env::set_var("CODEBUDDY_URL", "ws://env:8000");
 
         let config = ConfigBuilder::new()
             .from_file_if_exists(config_path)
@@ -596,13 +605,13 @@ mod tests {
         assert_eq!(config.timeout_ms, Some(60000)); // File used for timeout
 
         // Clean up
-        env::remove_var("CODEFLOW_BUDDY_URL");
+        env::remove_var("CODEBUDDY_URL");
     }
 
     #[serial]
     #[tokio::test]
     async fn test_invalid_env_timeout_handled_gracefully() {
-        env::set_var("CODEFLOW_BUDDY_TIMEOUT", "invalid-number");
+        env::set_var("CODEBUDDY_TIMEOUT", "invalid-number");
 
         let config = ConfigBuilder::new()
             .with_timeout_ms(15000) // Default value
@@ -613,7 +622,7 @@ mod tests {
         assert_eq!(config.timeout_ms, Some(15000)); // Should keep original value
 
         // Clean up
-        env::remove_var("CODEFLOW_BUDDY_TIMEOUT");
+        env::remove_var("CODEBUDDY_TIMEOUT");
     }
 
     #[test]

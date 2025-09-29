@@ -5,19 +5,12 @@ use dialoguer::{theme::ColorfulTheme, Confirm, FuzzySelect, Input, Password, Sel
 use url::Url;
 
 /// Interactive prompt utilities for CLI user interaction
+#[derive(Default)]
 pub struct Interactive {
     formatter: Formatter,
     theme: ColorfulTheme,
 }
 
-impl Default for Interactive {
-    fn default() -> Self {
-        Self {
-            formatter: Formatter::default(),
-            theme: ColorfulTheme::default(),
-        }
-    }
-}
 
 impl Interactive {
     /// Create a new interactive instance

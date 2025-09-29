@@ -17,7 +17,7 @@ use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tracing::{debug, error, info};
 
 #[derive(Parser)]
-#[command(name = "codeflow-buddy")]
+#[command(name = "codebuddy")]
 #[command(about = "Pure Rust MCP server bridging Language Server Protocol functionality")]
 struct Cli {
     #[command(subcommand)]

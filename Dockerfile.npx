@@ -33,5 +33,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:3000/health || exit 1
 
 # Use NPX to run latest version - always fresh from npm
-ENTRYPOINT ["npx", "@goobits/codeflow-buddy@latest"]
+ENTRYPOINT ["npx", "@goobits/codebuddy@latest"]
 CMD ["serve", "--enable-fuse", "--port", "3000", "--max-clients", "50"]

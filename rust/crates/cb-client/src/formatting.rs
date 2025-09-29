@@ -91,7 +91,7 @@ impl Formatter {
         if self.use_colors {
             format!("{}", style(message).dim())
         } else {
-            format!("{}", message)
+            message.to_string()
         }
     }
 
@@ -513,12 +513,10 @@ impl Formatter {
                 } else {
                     "✓"
                 }
+            } else if self.use_emojis {
+                "❌"
             } else {
-                if self.use_emojis {
-                    "❌"
-                } else {
-                    "✗"
-                }
+                "✗"
             };
 
             let formatted_key = if self.use_colors {

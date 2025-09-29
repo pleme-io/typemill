@@ -1,4 +1,10 @@
-//! cb-server: Codeflow Buddy server implementation
+//! cb-server: Core server implementation for Codeflow Buddy
+//!
+//! This crate implements the main server functionality including the MCP protocol
+//! handlers, plugin system dispatcher, Language Server Protocol (LSP) client management,
+//! authentication, file services with atomic operations, and various transport
+//! mechanisms (stdio, WebSocket). It provides the runtime infrastructure for all
+//! code intelligence and refactoring operations.
 
 pub mod auth;
 pub mod error;
@@ -88,7 +94,7 @@ impl ServerHandle {
         tracing::info!("Shutting down server...");
 
         // Send shutdown signal
-        if let Err(_) = self.shutdown_tx.send(()) {
+        if self.shutdown_tx.send(()).is_err() {
             tracing::warn!("Server already shut down");
         }
 

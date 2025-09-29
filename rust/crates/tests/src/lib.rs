@@ -1,4 +1,10 @@
-//! Integration tests and test utilities
+//! tests: Comprehensive integration testing framework for Codeflow Buddy
+//!
+//! This crate provides a robust testing infrastructure including test harnesses,
+//! mock implementations, helper utilities, and end-to-end test suites. It ensures
+//! complete coverage of all system functionality including refactoring workflows,
+//! plugin system operations, LSP integration, and performance validation.
+//! The testing framework validates both correctness and performance characteristics.
 
 pub mod harness;
 pub mod helpers;

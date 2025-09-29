@@ -9,6 +9,7 @@ use std::collections::HashMap;
 
 /// Complete set of capabilities a plugin can provide
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct Capabilities {
     /// Navigation capabilities (go-to-definition, find references, etc.)
     pub navigation: NavigationCapabilities,
@@ -24,21 +25,10 @@ pub struct Capabilities {
     pub custom: HashMap<String, Value>,
 }
 
-impl Default for Capabilities {
-    fn default() -> Self {
-        Self {
-            navigation: NavigationCapabilities::default(),
-            editing: EditingCapabilities::default(),
-            refactoring: RefactoringCapabilities::default(),
-            intelligence: IntelligenceCapabilities::default(),
-            diagnostics: DiagnosticCapabilities::default(),
-            custom: HashMap::new(),
-        }
-    }
-}
 
 /// Navigation-related capabilities
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct NavigationCapabilities {
     /// Go to definition support
     pub go_to_definition: bool,
@@ -56,22 +46,10 @@ pub struct NavigationCapabilities {
     pub call_hierarchy: bool,
 }
 
-impl Default for NavigationCapabilities {
-    fn default() -> Self {
-        Self {
-            go_to_definition: false,
-            find_references: false,
-            find_implementations: false,
-            find_type_definition: false,
-            workspace_symbols: false,
-            document_symbols: false,
-            call_hierarchy: false,
-        }
-    }
-}
 
 /// Code editing capabilities
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct EditingCapabilities {
     /// Symbol renaming support
     pub rename: bool,
@@ -87,21 +65,10 @@ pub struct EditingCapabilities {
     pub auto_imports: bool,
 }
 
-impl Default for EditingCapabilities {
-    fn default() -> Self {
-        Self {
-            rename: false,
-            format_document: false,
-            format_range: false,
-            code_actions: false,
-            organize_imports: false,
-            auto_imports: false,
-        }
-    }
-}
 
 /// Refactoring capabilities
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct RefactoringCapabilities {
     /// Extract function/method support
     pub extract_function: bool,
@@ -115,20 +82,10 @@ pub struct RefactoringCapabilities {
     pub move_refactor: bool,
 }
 
-impl Default for RefactoringCapabilities {
-    fn default() -> Self {
-        Self {
-            extract_function: false,
-            extract_variable: false,
-            inline_variable: false,
-            inline_function: false,
-            move_refactor: false,
-        }
-    }
-}
 
 /// Code intelligence capabilities
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct IntelligenceCapabilities {
     /// Hover information support
     pub hover: bool,
@@ -142,20 +99,10 @@ pub struct IntelligenceCapabilities {
     pub semantic_highlighting: bool,
 }
 
-impl Default for IntelligenceCapabilities {
-    fn default() -> Self {
-        Self {
-            hover: false,
-            completions: false,
-            signature_help: false,
-            inlay_hints: false,
-            semantic_highlighting: false,
-        }
-    }
-}
 
 /// Diagnostic capabilities
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct DiagnosticCapabilities {
     /// Error/warning diagnostics
     pub diagnostics: bool,
@@ -165,15 +112,6 @@ pub struct DiagnosticCapabilities {
     pub pull_diagnostics: bool,
 }
 
-impl Default for DiagnosticCapabilities {
-    fn default() -> Self {
-        Self {
-            diagnostics: false,
-            linting: false,
-            pull_diagnostics: false,
-        }
-    }
-}
 
 impl Capabilities {
     /// Create capabilities with all features enabled (for testing)

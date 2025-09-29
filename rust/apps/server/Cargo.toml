@@ -1,11 +1,11 @@
 [package]
-name = "codeflow-buddy"
+name = "codebuddy"
 version = "0.1.0"
 edition = "2021"
 description = "Pure Rust MCP server bridging Language Server Protocol (LSP) functionality to AI coding assistants"
 license = "MIT"
-repository = "https://github.com/username/codeflow-buddy"
-homepage = "https://github.com/username/codeflow-buddy"
+repository = "https://github.com/goobits/codebuddy"
+homepage = "https://github.com/goobits/codebuddy"
 keywords = ["mcp", "lsp", "ai", "coding", "assistant"]
 categories = ["development-tools", "command-line-utilities"]
 

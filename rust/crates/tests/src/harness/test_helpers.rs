@@ -121,18 +121,16 @@ impl TestFileBuilder {
 
             let content = if i == 0 {
                 // Base file
-                format!(
-                    r#"
-export interface BaseType {{
+                r#"
+export interface BaseType {
     id: number;
     value: string;
-}}
+}
 
-export function baseFunction(param: BaseType): string {{
-    return `Base: ${{param.value}}`;
-}}
-"#
-                )
+export function baseFunction(param: BaseType): string {
+    return `Base: ${param.value}`;
+}
+"#.to_string()
             } else {
                 // Import from previous file
                 let prev_file = format!("chain_{}", i - 1);
@@ -517,7 +515,7 @@ impl PerformanceTestHelper {
 
         for i in 0..operation_count {
             let operation = operation_factory(i);
-            let handle = tokio::spawn(async move { operation.await });
+            let handle = tokio::spawn(operation);
             handles.push(handle);
         }
 

@@ -7,9 +7,9 @@ use std::env;
 use tempfile::TempDir;
 
 fn clean_env() {
-    // Remove all CODEFLOW_BUDDY environment variables
+    // Remove all CODEBUDDY environment variables
     for (key, _) in env::vars() {
-        if key.starts_with("CODEFLOW_BUDDY") {
+        if key.starts_with("CODEBUDDY") {
             env::remove_var(key);
         }
     }
@@ -144,9 +144,9 @@ fn test_config_env_override() {
     env::set_current_dir(temp_dir.path()).unwrap();
 
     // Set environment variables
-    env::set_var("CODEFLOW_BUDDY__SERVER__PORT", "9000");
-    env::set_var("CODEFLOW_BUDDY__LOGGING__LEVEL", "error");
-    env::set_var("CODEFLOW_BUDDY__CACHE__ENABLED", "false");
+    env::set_var("CODEBUDDY__SERVER__PORT", "9000");
+    env::set_var("CODEBUDDY__LOGGING__LEVEL", "error");
+    env::set_var("CODEBUDDY__CACHE__ENABLED", "false");
 
     let config = AppConfig::load().unwrap();
 
@@ -156,9 +156,9 @@ fn test_config_env_override() {
     assert!(!config.cache.enabled);
 
     // Clean up
-    env::remove_var("CODEFLOW_BUDDY__SERVER__PORT");
-    env::remove_var("CODEFLOW_BUDDY__LOGGING__LEVEL");
-    env::remove_var("CODEFLOW_BUDDY__CACHE__ENABLED");
+    env::remove_var("CODEBUDDY__SERVER__PORT");
+    env::remove_var("CODEBUDDY__LOGGING__LEVEL");
+    env::remove_var("CODEBUDDY__CACHE__ENABLED");
     env::set_current_dir(original_dir).unwrap();
 }
 

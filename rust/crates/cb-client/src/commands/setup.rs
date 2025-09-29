@@ -13,8 +13,8 @@ impl SetupCommand {
     /// Run the setup wizard
     async fn run_wizard(&self, ctx: &mut CommandContext) -> ClientResult<()> {
         ctx.interactive.banner(
-            "🚀 Codeflow Buddy Client Setup",
-            Some("Let's configure your client to connect to the codeflow-buddy server"),
+            "🚀 Codebuddy Client Setup",
+            Some("Let's configure your client to connect to the codebuddy server"),
         )?;
 
         // Current configuration summary if exists
@@ -44,15 +44,14 @@ impl SetupCommand {
         // Step 4: Test connection
         let test_successful = self.test_connection(ctx, &url, &token, timeout).await?;
 
-        if !test_successful {
-            if !ctx.interactive.confirm(
+        if !test_successful
+            && !ctx.interactive.confirm(
                 "Connection test failed. Save configuration anyway?",
                 Some(false),
             )? {
                 ctx.display_info("Setup cancelled");
                 return Ok(());
             }
-        }
 
         // Step 5: Save configuration
         ctx.update_config(Some(url), token, Some(timeout));
@@ -67,7 +66,7 @@ impl SetupCommand {
 
             ctx.interactive.banner(
                 "✅ Setup Complete",
-                Some("Your codeflow-buddy client is now configured!"),
+                Some("Your codebuddy client is now configured!"),
             )?;
 
             self.show_next_steps(ctx)?;
@@ -89,7 +88,7 @@ impl SetupCommand {
 
         println!();
         ctx.interactive
-            .info("Enter the WebSocket URL of your codeflow-buddy server");
+            .info("Enter the WebSocket URL of your codebuddy server");
         ctx.interactive.info("Common formats:");
         println!("  • Local development: ws://localhost:3000");
         println!("  • Remote server: ws://your-server.com:3000");
@@ -278,7 +277,7 @@ impl SetupCommand {
 
         match error {
             ClientError::ConnectionError(msg) if msg.contains("Connection refused") => {
-                println!("  • Make sure the codeflow-buddy server is running");
+                println!("  • Make sure the codebuddy server is running");
                 println!("  • Check that the port is correct (default: 3000)");
                 println!("  • Verify the server is accepting WebSocket connections");
             }
@@ -310,14 +309,14 @@ impl SetupCommand {
     fn show_next_steps(&self, ctx: &CommandContext) -> ClientResult<()> {
         println!();
         ctx.interactive.info("Next steps:");
-        println!("  1. Test your connection: codeflow-buddy status");
-        println!("  2. Start an interactive session: codeflow-buddy connect");
-        println!("  3. Call a specific tool: codeflow-buddy call <tool_name> [params]");
+        println!("  1. Test your connection: codebuddy status");
+        println!("  2. Start an interactive session: codebuddy connect");
+        println!("  3. Call a specific tool: codebuddy call <tool_name> [params]");
         println!();
 
         ctx.interactive
             .info("For help with any command, use --help flag");
-        println!("  Example: codeflow-buddy call --help");
+        println!("  Example: codebuddy call --help");
         println!();
 
         Ok(())
@@ -377,8 +376,8 @@ impl Command for SetupCommand {
 
         // Check for quick setup mode via environment variables
         if let (Ok(url), token) = (
-            std::env::var("CODEFLOW_BUDDY_URL"),
-            std::env::var("CODEFLOW_BUDDY_TOKEN").ok(),
+            std::env::var("CODEBUDDY_URL"),
+            std::env::var("CODEBUDDY_TOKEN").ok(),
         ) {
             if !ctx.interactive.confirm(
                 &format!("Use environment variables for setup? (URL: {})", url),
@@ -399,7 +398,7 @@ impl Command for SetupCommand {
     }
 
     fn description(&self) -> &'static str {
-        "Interactive configuration wizard for the codeflow-buddy client"
+        "Interactive configuration wizard for the codebuddy client"
     }
 }
 
@@ -413,7 +412,7 @@ mod tests {
         assert_eq!(cmd.name(), "setup");
         assert_eq!(
             cmd.description(),
-            "Interactive configuration wizard for the codeflow-buddy client"
+            "Interactive configuration wizard for the codebuddy client"
         );
     }
 

@@ -809,8 +809,7 @@ fn analyze_function_variables(
 fn extract_declared_variable(line: &str) -> Option<String> {
     let line = line.trim();
     for keyword in &["let ", "const ", "var "] {
-        if line.starts_with(keyword) {
-            let after_keyword = &line[keyword.len()..];
+        if let Some(after_keyword) = line.strip_prefix(keyword) {
             if let Some(eq_pos) = after_keyword.find('=') {
                 let var_name = after_keyword[..eq_pos].trim();
                 return Some(var_name.to_string());
@@ -835,10 +834,8 @@ fn find_function_insertion_point(_source: &str, _near_line: u32) -> AstResult<Ed
 /// Information about a function definition
 #[derive(Debug, Clone)]
 struct FunctionInfo {
-    name: String,
     // TODO: Implement proper parameter extraction from function signatures
     // Currently hardcoded to Vec::new() - needs AST parsing for full implementation
-    parameters: Vec<String>,
     body: String,
     location: EditLocation,
     function_text: String,
@@ -847,10 +844,8 @@ struct FunctionInfo {
 /// Information about a function call
 #[derive(Debug, Clone)]
 struct FunctionCall {
-    name: String,
     // TODO: Implement proper argument extraction from function calls
     // Currently not populated - needs AST parsing for function call analysis
-    arguments: Vec<String>,
     location: EditLocation,
     call_text: String,
 }
@@ -864,8 +859,6 @@ fn find_function_definition(source: &str, function_name: &str) -> AstResult<Func
             || line.contains(&format!("let {} =", function_name))
         {
             return Ok(FunctionInfo {
-                name: function_name.to_string(),
-                parameters: Vec::new(), // Would extract from actual function signature
                 body: "// Function body would be extracted here".to_string(),
                 location: EditLocation {
                     start_line: line_num as u32,
@@ -891,8 +884,6 @@ fn find_function_calls(source: &str, function_name: &str) -> AstResult<Vec<Funct
     for (line_num, line) in source.lines().enumerate() {
         if line.contains(&format!("{}(", function_name)) {
             calls.push(FunctionCall {
-                name: function_name.to_string(),
-                arguments: Vec::new(), // Would extract actual arguments
                 location: EditLocation {
                     start_line: line_num as u32,
                     start_column: 0,

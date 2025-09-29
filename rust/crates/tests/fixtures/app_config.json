@@ -8,7 +8,7 @@
     "auth": {
       "jwtSecret": "test-secret",
       "jwtExpirySeconds": 86400,
-      "jwtIssuer": "codeflow-buddy",
+      "jwtIssuer": "codebuddy",
       "jwtAudience": "codeflow-clients"
     }
   },

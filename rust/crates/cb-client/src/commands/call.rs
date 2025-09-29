@@ -26,8 +26,10 @@ pub struct CallCommand {
 
 /// Output format options
 #[derive(Debug, Clone, PartialEq)]
+#[derive(Default)]
 pub enum OutputFormat {
     /// Pretty-printed with colors and formatting
+    #[default]
     Pretty,
     /// Raw JSON output
     Json,
@@ -35,11 +37,6 @@ pub enum OutputFormat {
     Raw,
 }
 
-impl Default for OutputFormat {
-    fn default() -> Self {
-        OutputFormat::Pretty
-    }
-}
 
 impl CallCommand {
     pub fn new(tool: String, params: Option<String>) -> Self {
@@ -248,7 +245,7 @@ impl CallCommand {
 
         for (description, tool, params) in examples {
             println!("{}", ctx.formatter.info(description));
-            println!("  codeflow-buddy call {} '{}'", tool, params);
+            println!("  codebuddy call {} '{}'", tool, params);
             println!();
         }
 
@@ -363,8 +360,8 @@ impl Command for CallCommand {
         }
 
         // Check if we need to run interactive parameter builder
-        if self.params.is_none() && self.params_file.is_none() && !self.params_stdin {
-            if ctx.interactive.confirm(
+        if self.params.is_none() && self.params_file.is_none() && !self.params_stdin
+            && ctx.interactive.confirm(
                 "No parameters provided. Would you like to use the interactive parameter builder?",
                 Some(false),
             )? {
@@ -389,7 +386,6 @@ impl Command for CallCommand {
                     return new_cmd.execute_tool_call(&ctx).await;
                 }
             }
-        }
 
         self.execute_tool_call(&ctx).await
     }

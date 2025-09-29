@@ -38,7 +38,7 @@ fn create_simple_response() -> McpResponse {
     McpResponse {
         id: Some(json!("bench-123")),
         result: Some(json!({
-            "project": "codeflow-buddy",
+            "project": "codebuddy",
             "version": "0.1.0"
         })),
         error: None,

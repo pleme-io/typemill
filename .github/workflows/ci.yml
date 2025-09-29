@@ -64,7 +64,7 @@ jobs:
       run: |
         CURRENT_VERSION=$(node -p "require('./packages/server/package.json').version")
         # Use the correct scoped package name
-        PUBLISHED_VERSION=$(npm view @goobits/codeflow-buddy version 2>/dev/null || echo "0.0.0")
+        PUBLISHED_VERSION=$(npm view @goobits/codebuddy version 2>/dev/null || echo "0.0.0")
         
         echo "Current version: $CURRENT_VERSION"
         echo "Published version: $PUBLISHED_VERSION"

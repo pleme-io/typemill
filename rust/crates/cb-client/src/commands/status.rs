@@ -31,7 +31,7 @@ impl StatusCommand {
 
     /// Run comprehensive status check
     async fn run_status_check(&self, ctx: &CommandContext) -> ClientResult<()> {
-        ctx.formatter.header("🔍 Codeflow Buddy Client Status");
+        ctx.formatter.header("🔍 Codebuddy Client Status");
         println!();
 
         // Status tracking
@@ -93,7 +93,7 @@ impl StatusCommand {
         let has_url = ctx.config.url.is_some() || self.url.is_some();
         let url_status = if has_url {
             let url = self.url.as_ref().or(ctx.config.url.as_ref()).unwrap();
-            format!("{}", ctx.formatter.url(url))
+            ctx.formatter.url(url).to_string()
         } else {
             "Not configured".to_string()
         };
@@ -335,7 +335,7 @@ impl StatusCommand {
         match error {
             ClientError::ConnectionError(msg) if msg.contains("Connection refused") => {
                 println!("• The server is not running or not accepting connections");
-                println!("• Check if codeflow-buddy server is started on the specified port");
+                println!("• Check if codebuddy server is started on the specified port");
                 println!("• Verify the port number in your configuration");
             }
             ClientError::ConnectionError(msg) if msg.contains("timeout") => {
@@ -405,22 +405,20 @@ impl StatusCommand {
                 has_recommendations = true;
                 match category.as_str() {
                     "Config File" => {
-                        println!("• Run 'codeflow-buddy setup' to create configuration");
+                        println!("• Run 'codebuddy setup' to create configuration");
                     }
                     "Server URL" => {
-                        println!("• Configure server URL with 'codeflow-buddy setup'");
-                        println!(
-                            "• Or use --url flag: codeflow-buddy status --url ws://localhost:3000"
-                        );
+                        println!("• Configure server URL with 'codebuddy setup'");
+                        println!("• Or use --url flag: codebuddy status --url ws://localhost:3000");
                     }
                     "Connection" => {
-                        println!("• Ensure codeflow-buddy server is running");
+                        println!("• Ensure codebuddy server is running");
                         println!("• Check server URL and network connectivity");
-                        println!("• Run 'codeflow-buddy setup' to reconfigure");
+                        println!("• Run 'codebuddy setup' to reconfigure");
                     }
                     "Authentication" => {
                         println!("• Verify authentication token is correct");
-                        println!("• Update token with 'codeflow-buddy setup'");
+                        println!("• Update token with 'codebuddy setup'");
                     }
                     "Server Capabilities" => {
                         println!("• Server might be an older version");

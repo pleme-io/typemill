@@ -1,4 +1,4 @@
-# 🤖 Codeflow Buddy
+# 🤖 Codebuddy
 
 **Pure Rust MCP server** bridging Language Server Protocol functionality to AI coding assistants with comprehensive tools for navigation, refactoring, code intelligence, and batch operations.
 
@@ -17,48 +17,48 @@
 
 ### Option 1: One-Liner Install (Recommended)
 ```bash
-curl -fsSL https://raw.githubusercontent.com/goobits/codeflow-buddy/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/goobits/codebuddy/main/install.sh | bash
 ```
 
 ### Option 2: Cargo Install
 ```bash
-cargo install codeflow-buddy
+cargo install codebuddy
 ```
 
 ### Option 3: Download Pre-built Binary
-1. Download from [GitHub Releases](https://github.com/goobits/codeflow-buddy/releases/latest)
+1. Download from [GitHub Releases](https://github.com/goobits/codebuddy/releases/latest)
 2. Extract and place in your PATH
-3. Run `codeflow-buddy setup`
+3. Run `codebuddy setup`
 
 ### Option 4: Package Managers
 
 #### Homebrew (macOS/Linux)
 ```bash
-brew install goobits/tap/codeflow-buddy
+brew install goobits/tap/codebuddy
 ```
 
 #### Chocolatey (Windows)
 ```bash
-choco install codeflow-buddy
+choco install codebuddy
 ```
 
 ## ⚡ Usage
 
 ```bash
 # Smart setup with auto-detection
-codeflow-buddy setup
+codebuddy setup
 
 # Start MCP server for Claude Code
-codeflow-buddy start
+codebuddy start
 
 # Check status
-codeflow-buddy status
+codebuddy status
 
 # WebSocket server (advanced)
-codeflow-buddy serve --port 3000
+codebuddy serve --port 3000
 
 # With authentication
-codeflow-buddy serve --require-auth --jwt-secret "your-secret"
+codebuddy serve --require-auth --jwt-secret "your-secret"
 ```
 
 ## 📚 MCP Integration
@@ -68,8 +68,8 @@ The installer automatically configures Claude Code. Manual setup:
 ```json
 {
   "mcpServers": {
-    "codeflow-buddy": {
-      "command": "codeflow-buddy",
+    "codebuddy": {
+      "command": "codebuddy",
       "args": ["start"]
     }
   }
@@ -247,8 +247,8 @@ bun run build
 MIT - see [LICENSE](LICENSE) for details
 
 ## 💡 Support
-- [Bug reports and feature requests](https://github.com/goobits/codeflow-buddy/issues)
-- [Discussions and community support](https://github.com/goobits/codeflow-buddy/discussions)
+- [Bug reports and feature requests](https://github.com/goobits/codebuddy/issues)
+- [Discussions and community support](https://github.com/goobits/codebuddy/discussions)
 
 ---
 

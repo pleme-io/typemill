@@ -1,4 +1,9 @@
-//! cb-client: Codeflow Buddy client implementation
+//! cb-client: Command-line client implementation for Codebuddy
+//!
+//! This crate provides the client-side functionality for interacting with the
+//! Codebuddy server, including WebSocket communication, interactive command
+//! handling, configuration management, and user-friendly output formatting.
+//! It enables developers to leverage all server capabilities through a clean CLI interface.
 
 pub mod client_config;
 pub mod commands;
@@ -200,10 +205,10 @@ use commands::status::StatusCommand;
 use commands::{Command, GlobalArgs};
 use std::time::Duration;
 
-/// A powerful, interactive client for the Codeflow Buddy server.
+/// A powerful, interactive client for the Codebuddy server.
 #[derive(Parser, Debug)]
-#[command(name = "codeflow-buddy")]
-#[command(about = "Codeflow Buddy Client - Connect to and interact with codeflow-buddy servers", long_about = None)]
+#[command(name = "codebuddy")]
+#[command(about = "Codebuddy Client - Connect to and interact with codebuddy servers", long_about = None)]
 #[command(version)]
 #[command(propagate_version = true)]
 pub struct CliArgs {
@@ -236,7 +241,7 @@ pub struct CliArgs {
 pub enum Commands {
     /// Run an interactive setup wizard to create a configuration file.
     #[command(
-        long_about = "Guides you through setting up a connection to a Codeflow Buddy server and saves the settings to a configuration file."
+        long_about = "Guides you through setting up a connection to a Codebuddy server and saves the settings to a configuration file."
     )]
     Setup,
 
@@ -267,7 +272,7 @@ pub enum Commands {
         long_about = "Execute a raw MCP tool on the server. This is useful for scripting and advanced operations."
     )]
     #[command(
-        after_help = "Example: codeflow-buddy call read_file '{\"file_path\":\"/path/to/file.txt\"}'"
+        after_help = "Example: codebuddy call read_file '{\"file_path\":\"/path/to/file.txt\"}'"
     )]
     Call {
         /// The name of the MCP tool to execute (e.g., `read_file`, `get_hover`).
@@ -317,7 +322,7 @@ pub enum Commands {
 
     /// Generate shell completion scripts.
     #[command(long_about = "Generate shell completion scripts for your shell. 
-To use, add `source <(codeflow-buddy completions <shell>)` to your shell's startup file.")]
+To use, add `source <(codebuddy completions <shell>)` to your shell's startup file.")]
     Completions {
         /// The shell to generate completions for.
         #[arg(value_enum)]

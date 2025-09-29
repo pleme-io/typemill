@@ -127,7 +127,7 @@ pub struct FuseStatfs {
 impl Default for FuseConfig {
     fn default() -> Self {
         Self {
-            mount_point: PathBuf::from("/tmp/codeflow-buddy"),
+            mount_point: PathBuf::from("/tmp/codebuddy"),
             read_only: true,
             cache_timeout_seconds: 60,
             max_file_size_bytes: 10 * 1024 * 1024, // 10 MB

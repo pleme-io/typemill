@@ -10,7 +10,6 @@ use cb_server::transport;
 use clap::{Parser, Subcommand};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tracing_subscriber;
 
 #[derive(Parser)]
 #[command(name = "cb-server")]

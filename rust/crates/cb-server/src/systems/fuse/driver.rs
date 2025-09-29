@@ -36,7 +36,7 @@ const SYSTEM_TIME_UNIX_EPOCH: SystemTime = SystemTime::UNIX_EPOCH;
 
 const TTL: Duration = Duration::from_secs(1);
 
-/// FUSE filesystem implementation for Codeflow Buddy
+/// FUSE filesystem implementation for Codebuddy
 pub struct CodeflowFS {
     /// Path to the real workspace on disk
     workspace_path: PathBuf,
@@ -114,7 +114,7 @@ impl CodeflowFS {
         FileAttr {
             ino,
             size: metadata.len(),
-            blocks: (metadata.len() + 511) / 512, // 512-byte blocks
+            blocks: metadata.len().div_ceil(512), // 512-byte blocks
             atime: SystemTime::UNIX_EPOCH + atime,
             mtime: SystemTime::UNIX_EPOCH + mtime,
             ctime: SystemTime::UNIX_EPOCH + ctime,
@@ -361,7 +361,7 @@ pub fn start_fuse_mount(
 
         let options = vec![
             fuser::MountOption::RO, // Read-only mount
-            fuser::MountOption::FSName("codeflow-buddy".to_string()),
+            fuser::MountOption::FSName("codebuddy".to_string()),
             fuser::MountOption::AutoUnmount,
         ];
 

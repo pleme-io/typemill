@@ -21,6 +21,12 @@ pub struct SystemToolsPlugin {
     capabilities: Capabilities,
 }
 
+impl Default for SystemToolsPlugin {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SystemToolsPlugin {
     /// Create a new system tools plugin
     pub fn new() -> Self {
@@ -76,7 +82,6 @@ impl SystemToolsPlugin {
             path: Option<String>,
             recursive: Option<bool>,
             include_hidden: Option<bool>,
-            pattern: Option<String>,
         }
 
         let args: ListFilesArgs =
@@ -334,20 +339,18 @@ impl SystemToolsPlugin {
             // Walk through directory to find all files that would be moved
             let walker = WalkBuilder::new(&args.old_path).hidden(false).build();
 
-            for result in walker {
-                if let Ok(entry) = result {
-                    let file_path = entry.path();
-                    if file_path.is_file() {
-                        let relative_path = file_path
-                            .strip_prefix(&args.old_path)
-                            .unwrap_or(file_path)
-                            .to_string_lossy();
-                        let new_file_path = format!("{}/{}", args.new_path, relative_path);
-                        affected_files.push(json!({
-                            "old": file_path.to_string_lossy(),
-                            "new": new_file_path,
-                        }));
-                    }
+            for entry in walker.flatten() {
+                let file_path = entry.path();
+                if file_path.is_file() {
+                    let relative_path = file_path
+                        .strip_prefix(&args.old_path)
+                        .unwrap_or(file_path)
+                        .to_string_lossy();
+                    let new_file_path = format!("{}/{}", args.new_path, relative_path);
+                    affected_files.push(json!({
+                        "old": file_path.to_string_lossy(),
+                        "new": new_file_path,
+                    }));
                 }
             }
 

@@ -264,9 +264,7 @@ fn apply_multi_line_edit(source: &mut String, edit: &TextEdit) -> AstResult<Edit
         }
 
         if original_text != edit.original_text {
-            return Err(AstError::transformation(format!(
-                "Expected original text doesn't match actual text"
-            )));
+            return Err(AstError::transformation("Expected original text doesn't match actual text".to_string()));
         }
     }
 

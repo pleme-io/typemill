@@ -113,8 +113,7 @@ pub fn extract_python_functions(source: &str) -> AstResult<Vec<PythonFunction>> 
                 args_str
                     .split(',')
                     .map(|arg| {
-                        arg.trim()
-                            .split_whitespace()
+                        arg.split_whitespace()
                             .next()
                             .unwrap_or("")
                             .to_string()

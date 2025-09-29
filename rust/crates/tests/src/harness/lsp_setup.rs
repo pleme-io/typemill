@@ -1,6 +1,5 @@
 use crate::harness::{TestClient, TestWorkspace};
 use serde_json::json;
-use std::path::Path;
 use std::process::Command;
 
 /// Helper for setting up and validating LSP servers in tests
@@ -11,20 +10,16 @@ impl LspSetupHelper {
     pub fn check_lsp_servers_available() -> Result<(), String> {
         // Check TypeScript language server
         if !Self::is_command_available("typescript-language-server") {
-            return Err(format!(
-                "TypeScript LSP test requires 'typescript-language-server' to be installed.\n\
+            return Err("TypeScript LSP test requires 'typescript-language-server' to be installed.\n\
                 Install with: npm install -g typescript-language-server typescript\n\
-                Or use system package manager."
-            ));
+                Or use system package manager.".to_string());
         }
 
         // Check Python language server
         if !Self::is_command_available("pylsp") {
-            return Err(format!(
-                "Python LSP test requires 'pylsp' (Python LSP Server) to be installed.\n\
+            return Err("Python LSP test requires 'pylsp' (Python LSP Server) to be installed.\n\
                 Install with: pip install python-lsp-server[all]\n\
-                Or use conda/system package manager."
-            ));
+                Or use conda/system package manager.".to_string());
         }
 
         Ok(())

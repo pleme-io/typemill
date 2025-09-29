@@ -2,8 +2,8 @@ version: 1.2.0
 provider: docker
 os: auto
 project:
-  name: codeflow-buddy
-  hostname: dev.codeflow-buddy.local
+  name: codebuddy
+  hostname: dev.codebuddy.local
   workspace_path: /workspace
   backup_pattern: '*backup*.sql.gz'
 vm:
@@ -73,7 +73,7 @@ aliases:
 terminal:
   theme: dracula
   emoji: 🚀
-  username: codeflow-buddy-dev
+  username: codebuddy-dev
   show_git_branch: true
   show_timestamp: false
 tart:

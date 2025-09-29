@@ -114,7 +114,7 @@ impl DirectLspAdapter {
                 } else if !self.extensions.is_empty() {
                     return Some(self.extensions[0].clone());
                 }
-                return None;
+                None
             }
             _ => {
                 // For file-specific operations, extract from textDocument.uri
@@ -325,82 +325,6 @@ impl PluginDispatcher {
         Ok(json!({ "tools": tools }))
     }
 
-    /// Create a tool description for the tools/list response
-    fn create_tool_description(
-        &self,
-        tool_name: &str,
-        description: &str,
-        plugin_name: &str,
-        metadata: Option<&cb_plugins::PluginMetadata>,
-    ) -> Value {
-        let mut tool = json!({
-            "name": tool_name,
-            "description": description,
-            "plugin": plugin_name,
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "file_path": {
-                        "type": "string",
-                        "description": "Path to the file"
-                    }
-                },
-                "required": ["file_path"]
-            }
-        });
-
-        // Add plugin metadata if available
-        if let Some(meta) = metadata {
-            tool["plugin_info"] = json!({
-                "name": meta.name,
-                "version": meta.version,
-                "author": meta.author,
-                "description": meta.description
-            });
-        }
-
-        // Add method-specific parameters
-        match tool_name {
-            "find_definition" | "find_references" => {
-                tool["parameters"]["properties"]["line"] = json!({
-                    "type": "number",
-                    "description": "Line number (1-indexed)"
-                });
-                tool["parameters"]["properties"]["character"] = json!({
-                    "type": "number",
-                    "description": "Character position (0-indexed)"
-                });
-            }
-            "rename_symbol" => {
-                tool["parameters"]["properties"]["new_name"] = json!({
-                    "type": "string",
-                    "description": "New name for the symbol"
-                });
-                if let Some(array) = tool["parameters"]["required"].as_array_mut() {
-                    array.push(json!("new_name"));
-                } else {
-                    warn!("Could not add 'new_name' to required parameters for rename_symbol");
-                }
-            }
-            "search_workspace_symbols" => {
-                tool["parameters"]["properties"]["query"] = json!({
-                    "type": "string",
-                    "description": "Search query"
-                });
-                if let Some(array) = tool["parameters"]["required"].as_array_mut() {
-                    array.push(json!("query"));
-                } else {
-                    warn!(
-                        "Could not add 'query' to required parameters for search_workspace_symbols"
-                    );
-                }
-            }
-            _ => {}
-        }
-
-        tool
-    }
-
     /// Handle tools/call request using plugins
     #[instrument(skip(self, params))]
     async fn handle_tool_call(&self, params: Option<Value>) -> ServerResult<Value> {
@@ -527,7 +451,7 @@ impl PluginDispatcher {
                 "tools": {}
             },
             "serverInfo": {
-                "name": "codeflow-buddy",
+                "name": "codebuddy",
                 "version": "0.1.0"
             }
         }))

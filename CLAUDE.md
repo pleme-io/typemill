@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Information
 
-**Package**: `codeflow-buddy` | **Command**: `codeflow-buddy` | **Runtime**: Rust
+**Package**: `codebuddy` | **Command**: `codebuddy` | **Runtime**: Rust
 
 Pure Rust MCP server bridging Language Server Protocol (LSP) functionality to AI coding assistants with comprehensive tools for navigation, refactoring, code intelligence, and batch operations.
 
@@ -36,13 +36,13 @@ cargo fmt
 cargo check
 
 # CLI commands for configuration and management
-./target/release/codeflow-buddy setup    # Smart setup with auto-detection
-./target/release/codeflow-buddy status   # Show what's working right now
-./target/release/codeflow-buddy start    # Start the MCP server for Claude Code
-./target/release/codeflow-buddy stop     # Stop the running MCP server
-./target/release/codeflow-buddy serve    # Start WebSocket server
-./target/release/codeflow-buddy link     # Link to AI assistants
-./target/release/codeflow-buddy unlink   # Remove AI from config
+./target/release/codebuddy setup    # Smart setup with auto-detection
+./target/release/codebuddy status   # Show what's working right now
+./target/release/codebuddy start    # Start the MCP server for Claude Code
+./target/release/codebuddy stop     # Stop the running MCP server
+./target/release/codebuddy serve    # Start WebSocket server
+./target/release/codebuddy link     # Link to AI assistants
+./target/release/codebuddy unlink   # Remove AI from config
 ```
 
 ## Architecture
@@ -73,7 +73,7 @@ cargo check
 **Configuration System** (`.codebuddy/config.json`)
 
 - Defines which LSP servers to use for different file extensions
-- Smart setup with auto-detection via `codeflow-buddy setup` command
+- Smart setup with auto-detection via `codebuddy setup` command
 - File scanning with gitignore support for project structure detection
 - Native Rust configuration parsing and validation
 
@@ -154,11 +154,11 @@ Supported language servers (configurable):
 
 ## Configuration
 
-The server loads configuration from `.codebuddy/config.json` in the current working directory. If no configuration exists, run `codeflow-buddy setup` to create one.
+The server loads configuration from `.codebuddy/config.json` in the current working directory. If no configuration exists, run `codebuddy setup` to create one.
 
 ### Smart Setup  
 
-Use `codeflow-buddy setup` to configure LSP servers with auto-detection:
+Use `codebuddy setup` to configure LSP servers with auto-detection:
 
 - Scans project for file extensions (respects .gitignore)
 - Presents pre-configured language server options for detected languages
@@ -227,22 +227,22 @@ The implementation handles LSP protocol specifics:
 cargo build --release
 
 # The resulting binary is self-contained and ready for deployment
-./target/release/codeflow-buddy serve --port 3000
+./target/release/codebuddy serve --port 3000
 ```
 
 ### WebSocket Server Configuration
 ```bash
 # Basic server
-./target/release/codeflow-buddy serve --port 3000 --max-clients 10
+./target/release/codebuddy serve --port 3000 --max-clients 10
 
 # With authentication
-./target/release/codeflow-buddy serve --require-auth --jwt-secret "your-secret"
+./target/release/codebuddy serve --require-auth --jwt-secret "your-secret"
 
 # With TLS/WSS
-./target/release/codeflow-buddy serve --tls-key server.key --tls-cert server.crt
+./target/release/codebuddy serve --tls-key server.key --tls-cert server.crt
 
 # Enterprise setup
-./target/release/codeflow-buddy serve \
+./target/release/codebuddy serve \
   --port 3000 --max-clients 10 \
   --require-auth --jwt-secret "enterprise-key" \
   --tls-key /etc/ssl/server.key --tls-cert /etc/ssl/server.crt
@@ -252,8 +252,8 @@ cargo build --release
 - `RUST_LOG` - Logging level (debug/info/warn/error)
 - `JWT_SECRET` - JWT signing secret for authentication
 - `JWT_EXPIRY` - Token expiry time (default: 24h)
-- `JWT_ISSUER` - Token issuer (default: codeflow-buddy)
-- `JWT_AUDIENCE` - Token audience (default: codeflow-clients)
+- `JWT_ISSUER` - Token issuer (default: codebuddy)
+- `JWT_AUDIENCE` - Token audience (default: codebuddy-clients)
 
 ## Performance Features
 

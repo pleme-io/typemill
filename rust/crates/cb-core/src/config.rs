@@ -284,7 +284,7 @@ impl AppConfig {
         if file_found {
             // Override with environment variables
             config_builder = config_builder.add_source(
-                Environment::with_prefix("CODEFLOW_BUDDY")
+                Environment::with_prefix("CODEBUDDY")
                     .separator("__")
                     .try_parsing(true),
             );
@@ -339,21 +339,21 @@ impl AppConfig {
         use std::env;
 
         // Check for common environment overrides
-        if let Ok(port) = env::var("CODEFLOW_BUDDY__SERVER__PORT") {
+        if let Ok(port) = env::var("CODEBUDDY__SERVER__PORT") {
             if let Ok(port_value) = port.parse::<u16>() {
                 config.server.port = port_value;
             }
         }
 
-        if let Ok(host) = env::var("CODEFLOW_BUDDY__SERVER__HOST") {
+        if let Ok(host) = env::var("CODEBUDDY__SERVER__HOST") {
             config.server.host = host;
         }
 
-        if let Ok(level) = env::var("CODEFLOW_BUDDY__LOGGING__LEVEL") {
+        if let Ok(level) = env::var("CODEBUDDY__LOGGING__LEVEL") {
             config.logging.level = level;
         }
 
-        if let Ok(enabled) = env::var("CODEFLOW_BUDDY__CACHE__ENABLED") {
+        if let Ok(enabled) = env::var("CODEBUDDY__CACHE__ENABLED") {
             if let Ok(enabled_value) = enabled.parse::<bool>() {
                 config.cache.enabled = enabled_value;
             }

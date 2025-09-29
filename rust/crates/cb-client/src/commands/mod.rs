@@ -13,6 +13,7 @@ use std::time::Duration;
 
 /// Global arguments passed to all commands
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct GlobalArgs {
     /// Enable debug logging
     pub debug: bool,
@@ -26,17 +27,6 @@ pub struct GlobalArgs {
     pub no_emoji: bool,
 }
 
-impl Default for GlobalArgs {
-    fn default() -> Self {
-        Self {
-            debug: false,
-            config_path: None,
-            timeout: None,
-            no_color: false,
-            no_emoji: false,
-        }
-    }
-}
 
 /// Common trait for all CLI commands
 #[async_trait]
@@ -107,7 +97,7 @@ impl CommandContext {
         // Validate that we have a URL
         if config.url.is_none() {
             return Err(ClientError::ConfigError(
-                "No server URL configured. Run 'codeflow-buddy setup' or provide --url".to_string(),
+                "No server URL configured. Run 'codebuddy setup' or provide --url".to_string(),
             ));
         }
 
@@ -232,7 +222,7 @@ impl CommandContext {
         let mut suggestions = Vec::new();
 
         if self.config.url.is_none() {
-            suggestions.push("Run 'codeflow-buddy setup' to configure server URL".to_string());
+            suggestions.push("Run 'codebuddy setup' to configure server URL".to_string());
         }
 
         if !self.config.has_token() {

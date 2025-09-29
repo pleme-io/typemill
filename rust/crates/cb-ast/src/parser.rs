@@ -265,7 +265,7 @@ impl Visit for ImportVisitor {
                         None => named.local.sym.to_string(),
                     };
 
-                    let alias = if named.local.sym.to_string() != import_name {
+                    let alias = if named.local.sym != import_name {
                         Some(named.local.sym.to_string())
                     } else {
                         None
@@ -1000,7 +1000,7 @@ fn parse_go_single_import(line: &str, line_num: u32) -> AstResult<Option<ImportI
                     Some(
                         package_path
                             .split('/')
-                            .last()
+                            .next_back()
                             .unwrap_or(package_path)
                             .to_string(),
                     )
@@ -1054,7 +1054,7 @@ fn parse_go_block_import(line: &str, line_num: u32) -> AstResult<Option<ImportIn
                     Some(
                         package_path
                             .split('/')
-                            .last()
+                            .next_back()
                             .unwrap_or(package_path)
                             .to_string(),
                     )

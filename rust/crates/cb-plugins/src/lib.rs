@@ -1,6 +1,6 @@
 //! Plugin system for language-specific code intelligence
 //!
-//! This crate provides the plugin architecture for codeflow-buddy,
+//! This crate provides the plugin architecture for codebuddy,
 //! enabling language-specific implementations without core code modifications.
 
 pub mod adapters;

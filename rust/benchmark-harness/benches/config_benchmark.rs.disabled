@@ -29,15 +29,15 @@ fn create_config_file(dir: &TempDir, config_size: usize) -> String {
 }
 
 fn setup_environment_variables() {
-    env::set_var("CODEFLOW_BUDDY_URL", "ws://env-server:4000");
-    env::set_var("CODEFLOW_BUDDY_TOKEN", "env-token-67890");
-    env::set_var("CODEFLOW_BUDDY_TIMEOUT", "10000");
+    env::set_var("CODEBUDDY_URL", "ws://env-server:4000");
+    env::set_var("CODEBUDDY_TOKEN", "env-token-67890");
+    env::set_var("CODEBUDDY_TIMEOUT", "10000");
 }
 
 fn cleanup_environment_variables() {
-    env::remove_var("CODEFLOW_BUDDY_URL");
-    env::remove_var("CODEFLOW_BUDDY_TOKEN");
-    env::remove_var("CODEFLOW_BUDDY_TIMEOUT");
+    env::remove_var("CODEBUDDY_URL");
+    env::remove_var("CODEBUDDY_TOKEN");
+    env::remove_var("CODEBUDDY_TIMEOUT");
 }
 
 fn bench_load_config_file_only(c: &mut Criterion) {
@@ -186,7 +186,7 @@ fn bench_home_dir_resolution(c: &mut Criterion) {
             // Simulate the path resolution that happens in ClientConfig::load()
             let home = dirs::home_dir();
             if let Some(home) = home {
-                let config_dir = home.join(".codeflow-buddy");
+                let config_dir = home.join(".codebuddy");
                 let config_path = config_dir.join("config.json");
                 black_box(config_path);
             }

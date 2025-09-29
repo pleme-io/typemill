@@ -163,7 +163,7 @@ This release represents a complete architectural transformation, implementing ad
 ## [1.0.1] - 2025-09-21
 
 ### Changed
-- Project renamed from `codebuddy` to `codeflow-buddy` for better clarity
+- Project renamed from `codeflow-buddy` to `codebuddy` for better clarity
 - Updated repository URLs and package references
 - Streamlined test suite by removing redundant tests
 

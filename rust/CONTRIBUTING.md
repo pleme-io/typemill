@@ -12,8 +12,8 @@ First off, thank you for considering contributing! It's people like you that mak
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/your-org/codeflow-buddy.git
-    cd codeflow-buddy/rust
+    git clone https://github.com/goobits/codebuddy.git
+    cd codebuddy/rust
     ```
 
 2.  **Build the project:**

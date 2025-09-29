@@ -593,7 +593,6 @@ impl ExtractFunctionAnalyzer {
 /// Visitor for analyzing variable for inlining
 struct InlineVariableAnalyzer {
     target_line: u32,
-    target_variable: Option<String>,
     variable_info: Option<InlineVariableAnalysis>,
 }
 
@@ -601,7 +600,6 @@ impl InlineVariableAnalyzer {
     fn new(_source: &str, line: u32, _col: u32, _source_map: Lrc<SourceMap>) -> Self {
         Self {
             target_line: line,
-            target_variable: None,
             variable_info: None,
         }
     }
@@ -881,22 +879,19 @@ fn analyze_extract_function_python(
 
             // Find variable references in this line
             for var in &variables {
-                if var.line < range.start_line && line_text.contains(&var.name) {
-                    if !required_parameters.contains(&var.name) {
+                if var.line < range.start_line && line_text.contains(&var.name)
+                    && !required_parameters.contains(&var.name) {
                         required_parameters.push(var.name.clone());
                     }
-                }
             }
 
             // Find function calls in this line that are defined outside the selection
             for func in &functions {
                 if func.start_line < range.start_line
                     && line_text.contains(&format!("{}(", func.name))
-                {
-                    if !required_imports.contains(&func.name) {
+                    && !required_imports.contains(&func.name) {
                         required_imports.push(func.name.clone());
                     }
-                }
             }
         }
     }

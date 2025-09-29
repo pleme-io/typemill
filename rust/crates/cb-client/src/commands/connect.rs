@@ -101,7 +101,7 @@ impl ConnectCommand {
     async fn start_session(&self, ctx: &CommandContext) -> ClientResult<()> {
         ctx.interactive.banner(
             "🔌 Interactive Session",
-            Some("Connected to codeflow-buddy server. Type 'help' for commands."),
+            Some("Connected to codebuddy server. Type 'help' for commands."),
         )?;
 
         let mut stats = SessionStats::new();
@@ -610,7 +610,7 @@ impl ConnectCommand {
         println!();
 
         if stats.commands_executed > 0 {
-            ctx.display_success("Thank you for using codeflow-buddy!");
+            ctx.display_success("Thank you for using codebuddy!");
         } else {
             ctx.display_info("No commands were executed in this session");
         }
@@ -633,7 +633,7 @@ impl Command for ConnectCommand {
         // Check configuration
         if !ctx.is_configured() && self.url.is_none() {
             ctx.display_error(&ClientError::ConfigError(
-                "No server URL configured. Run 'codeflow-buddy setup' or provide --url".to_string(),
+                "No server URL configured. Run 'codebuddy setup' or provide --url".to_string(),
             ));
 
             if ctx
@@ -655,7 +655,7 @@ impl Command for ConnectCommand {
     }
 
     fn description(&self) -> &'static str {
-        "Start an interactive session with the codeflow-buddy server"
+        "Start an interactive session with the codebuddy server"
     }
 }
 
@@ -669,7 +669,7 @@ mod tests {
         assert_eq!(cmd.name(), "connect");
         assert_eq!(
             cmd.description(),
-            "Start an interactive session with the codeflow-buddy server"
+            "Start an interactive session with the codebuddy server"
         );
         assert!(cmd.auto_reconnect);
         assert!(cmd.session_timeout.is_none());

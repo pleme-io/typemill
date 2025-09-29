@@ -60,7 +60,7 @@ impl PluginRegistry {
         for extension in plugin.supported_extensions() {
             self.extension_map
                 .entry(extension)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(name.clone());
         }
 
@@ -349,7 +349,7 @@ impl PluginRegistry {
             if supported {
                 self.method_map
                     .entry(method.to_string())
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(plugin_name.to_string());
             }
         }
@@ -358,7 +358,7 @@ impl PluginRegistry {
         for custom_method in capabilities.custom.keys() {
             self.method_map
                 .entry(custom_method.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(plugin_name.to_string());
         }
     }

@@ -20,7 +20,7 @@ fn test_app_config_contract() {
     let auth = config.server.auth.as_ref().expect("auth should be present");
     assert_eq!(auth.jwt_secret, "test-secret");
     assert_eq!(auth.jwt_expiry_seconds, 86400);
-    assert_eq!(auth.jwt_issuer, "codeflow-buddy");
+    assert_eq!(auth.jwt_issuer, "codebuddy");
     assert_eq!(auth.jwt_audience, "codeflow-clients");
 
     // Verify LSP config

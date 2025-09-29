@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use cb_core::config::LspConfig;
 use cb_core::model::mcp::{McpError, McpMessage, McpResponse};
 use cb_core::CoreError;
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
@@ -103,16 +103,6 @@ impl LspManager {
     // All requests now flow through the plugin system which handles translation.
     // The plugin system (DirectLspAdapter) bypasses this manager entirely.
 
-    /// Convert LSP response to MCP response
-    fn lsp_to_mcp_response(lsp_result: Value, request_id: Option<Value>) -> McpResponse {
-        McpResponse {
-            jsonrpc: "2.0".to_string(),
-            id: request_id,
-            result: Some(lsp_result),
-            error: None,
-        }
-    }
-
     /// Create MCP error response
     fn create_error_response(request_id: Option<Value>, message: String) -> McpResponse {
         McpResponse {
@@ -156,7 +146,7 @@ impl LspService for LspManager {
                 })?;
 
                 // Get LSP client for this extension
-                let client = match self.get_client_for_extension(extension).await {
+                let _client = match self.get_client_for_extension(extension).await {
                     Ok(client) => client,
                     Err(e) => {
                         error!(
@@ -172,28 +162,9 @@ impl LspService for LspManager {
 
                 // NOTE: This code path is DEPRECATED and bypassed by the plugin system!
                 // The plugin system (DirectLspAdapter) goes directly to LspClient.
-                // This is only kept for backwards compatibility but should not be used.
                 return Err(CoreError::not_supported(
                     "Direct LSP manager requests are deprecated. Use the plugin system instead.",
                 ));
-
-                // Old code (no longer reached):
-                #[allow(unreachable_code)]
-                match client.send_request("", json!({})).await {
-                    Ok(result) => {
-                        debug!("LSP request successful: {}", request.method);
-                        Ok(McpMessage::Response(Self::lsp_to_mcp_response(
-                            result, request.id,
-                        )))
-                    }
-                    Err(e) => {
-                        error!("LSP request failed: {}", e);
-                        Ok(McpMessage::Response(Self::create_error_response(
-                            request.id,
-                            format!("LSP request failed: {}", e),
-                        )))
-                    }
-                }
             }
             _ => {
                 // Forward other message types as-is
@@ -271,6 +242,7 @@ impl LspService for LspManager {
 mod tests {
     use super::*;
     use cb_core::config::LspServerConfig;
+    use serde_json::json;
 
     fn create_test_config() -> LspConfig {
         LspConfig {

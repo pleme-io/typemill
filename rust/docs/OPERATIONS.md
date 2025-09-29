@@ -198,7 +198,7 @@ After=network.target
 Type=simple
 User=codeflow
 Group=codeflow
-WorkingDirectory=/opt/codeflow-buddy
+WorkingDirectory=/opt/codebuddy
 ExecStart=/usr/local/bin/cb-server serve
 Restart=always
 RestartSec=10
@@ -604,7 +604,7 @@ sudo ufw deny 3040
 ```bash
 # Run as non-privileged user
 sudo useradd -r -s /bin/false codeflow
-sudo chown -R codeflow:codeflow /opt/codeflow-buddy
+sudo chown -R codeflow:codeflow /opt/codebuddy
 
 # Restrict file permissions
 chmod 640 .codebuddy/config.json

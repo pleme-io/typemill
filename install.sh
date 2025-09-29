@@ -4,7 +4,7 @@ set -e
 # Codeflow Buddy MCP Server Installer
 # Builds and installs from local source
 
-BINARY_NAME="codeflow-buddy"
+BINARY_NAME="codebuddy"
 INSTALL_DIR="/usr/local/bin"
 SOURCE_BINARY="/workspace/rust/target/release/cb-server"
 
@@ -64,7 +64,7 @@ setup_project_mcp() {
     cat > "$mcp_config" << EOF
 {
   "mcpServers": {
-    "codeflow-buddy": {
+    "codebuddy": {
       "type": "stdio",
       "command": "$INSTALL_DIR/$BINARY_NAME",
       "args": [
