@@ -90,7 +90,7 @@ impl WebSocketClient {
             *state = ConnectionState::Connecting;
         }
 
-        info!("Connecting to {}", url);
+        info!(url = %url, "Connecting to server");
 
         // Parse URL and establish connection
         let url = Url::parse(url)
@@ -118,7 +118,7 @@ impl WebSocketClient {
             tokio::spawn(async move {
                 while let Some(message) = rx.recv().await {
                     if let Err(e) = write.send(message).await {
-                        error!("Failed to send message: {}", e);
+                        error!(error = %e, "Failed to send message");
                         break;
                     }
                 }
@@ -140,7 +140,7 @@ impl WebSocketClient {
                     match message {
                         Ok(Message::Text(text)) => {
                             if let Err(e) = Self::handle_message(&text, &pending_requests).await {
-                                warn!("Failed to handle message: {}", e);
+                                warn!(error = %e, "Failed to handle message");
                             }
                         }
                         Ok(Message::Close(_)) => {
@@ -148,7 +148,7 @@ impl WebSocketClient {
                             break;
                         }
                         Err(e) => {
-                            error!("WebSocket error: {}", e);
+                            error!(error = %e, "WebSocket error");
                             break;
                         }
                         _ => {}
@@ -378,7 +378,7 @@ impl WebSocketClient {
         text: &str,
         pending_requests: &PendingRequests,
     ) -> ClientResult<()> {
-        debug!("Received message: {}", text);
+        debug!(message = %text, "Received message");
 
         let response: MCPResponse = serde_json::from_str(text).map_err(|e| {
             ClientError::SerializationError(format!("Failed to parse response: {}", e))
@@ -389,7 +389,7 @@ impl WebSocketClient {
         if let Some(sender) = pending.remove(&response.id) {
             let _ = sender.send(Ok(response));
         } else {
-            warn!("Received response for unknown request ID: {}", response.id);
+            warn!(request_id = %response.id, "Received response for unknown request ID");
         }
 
         Ok(())

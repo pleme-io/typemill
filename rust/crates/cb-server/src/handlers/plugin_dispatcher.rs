@@ -187,7 +187,7 @@ impl PluginDispatcher {
             // Get LSP configuration from app config
             let app_config = cb_core::config::AppConfig::load()
                 .map_err(|e| {
-                    error!("Failed to load app config: {}", e);
+                    error!(error = %e, "Failed to load app config");
                     ServerError::Internal(format!("Failed to load app config: {}", e))
                 })?;
             debug!("App config loaded successfully");
@@ -197,13 +197,13 @@ impl PluginDispatcher {
             let mut registered_plugins = 0;
             for server_config in &lsp_config.servers {
                 if server_config.extensions.is_empty() {
-                    warn!("LSP server config has no extensions, skipping: {:?}", server_config.command);
+                    warn!(command = ?server_config.command, "LSP server config has no extensions, skipping");
                     continue;
                 }
 
                 // Create a DirectLspAdapter for this server
                 let adapter_name = format!("{}-lsp-direct", server_config.extensions.join("-"));
-                debug!("Creating LSP adapter for extensions: {:?}", server_config.extensions);
+                debug!(extensions = ?server_config.extensions, "Creating LSP adapter");
 
                 let lsp_adapter = Arc::new(DirectLspAdapter::new(
                     lsp_config.clone(),
@@ -215,24 +215,24 @@ impl PluginDispatcher {
                 let primary_extension = &server_config.extensions[0];
                 let (plugin_name, plugin) = match primary_extension.as_str() {
                     "ts" | "tsx" | "js" | "jsx" => {
-                        debug!("Creating TypeScript plugin for extensions: {:?}", server_config.extensions);
+                        debug!(extensions = ?server_config.extensions, "Creating TypeScript plugin");
                         ("typescript".to_string(), Arc::new(LspAdapterPlugin::typescript(lsp_adapter)))
                     }
                     "py" | "pyi" => {
-                        debug!("Creating Python plugin for extensions: {:?}", server_config.extensions);
+                        debug!(extensions = ?server_config.extensions, "Creating Python plugin");
                         ("python".to_string(), Arc::new(LspAdapterPlugin::python(lsp_adapter)))
                     }
                     "go" => {
-                        debug!("Creating Go plugin for extensions: {:?}", server_config.extensions);
+                        debug!(extensions = ?server_config.extensions, "Creating Go plugin");
                         ("go".to_string(), Arc::new(LspAdapterPlugin::go(lsp_adapter)))
                     }
                     "rs" => {
-                        debug!("Creating Rust plugin for extensions: {:?}", server_config.extensions);
+                        debug!(extensions = ?server_config.extensions, "Creating Rust plugin");
                         ("rust".to_string(), Arc::new(LspAdapterPlugin::rust(lsp_adapter)))
                     }
                     _ => {
                         // Generic plugin for unknown languages
-                        debug!("Creating generic plugin for extensions: {:?}", server_config.extensions);
+                        debug!(extensions = ?server_config.extensions, "Creating generic plugin");
                         let generic_name = format!("{}-generic", primary_extension);
                         (generic_name.clone(), Arc::new(LspAdapterPlugin::new(
                             generic_name,
@@ -242,12 +242,12 @@ impl PluginDispatcher {
                     }
                 };
 
-                debug!("Registering {} plugin for extensions: {:?}", plugin_name, server_config.extensions);
+                debug!(plugin_name = %plugin_name, extensions = ?server_config.extensions, "Registering plugin");
                 self.plugin_manager
                     .register_plugin(&plugin_name, plugin)
                     .await
                     .map_err(|e| {
-                        error!("Failed to register {} plugin: {}", plugin_name, e);
+                        error!(plugin_name = %plugin_name, error = %e, "Failed to register plugin");
                         ServerError::Internal(format!("Failed to register {} plugin: {}", plugin_name, e))
                     })?;
 
@@ -386,7 +386,7 @@ impl PluginDispatcher {
                 }))
             }
             Err(err) => {
-                error!("Plugin request failed: {}", err);
+                error!(error = %err, "Plugin request failed");
                 Err(self.convert_plugin_error_to_server_error(err))
             }
         }
@@ -516,7 +516,7 @@ impl PluginDispatcher {
 
     /// Handle system tools through the plugin system
     async fn handle_system_tool(&self, tool_call: ToolCall) -> ServerResult<Value> {
-        debug!("Handling system tool: {}", tool_call.name);
+        debug!(tool_name = %tool_call.name, "Handling system tool");
 
         // Create a plugin request for system tools
         // System tools don't require a file_path, so use a dummy path
@@ -542,7 +542,7 @@ impl PluginDispatcher {
                 }))
             }
             Err(e) => {
-                warn!("System tool error: {}", e);
+                warn!(error = %e, "System tool error");
                 Err(ServerError::Runtime {
                     message: format!("Tool '{}' failed: {}", tool_call.name, e),
                 })
@@ -552,7 +552,7 @@ impl PluginDispatcher {
 
     /// Handle LSP file notification tool
     async fn handle_notify_file_opened(&self, tool_call: ToolCall) -> ServerResult<Value> {
-        debug!("Handling notify_file_opened: {}", tool_call.name);
+        debug!(tool_name = %tool_call.name, "Handling notify_file_opened");
 
         let args = tool_call.arguments.unwrap_or(json!({}));
         let file_path_str = args
@@ -628,7 +628,7 @@ impl PluginDispatcher {
 
     /// Handle rename_symbol_with_imports tool using AST service
     async fn handle_rename_symbol_with_imports(&self, tool_call: ToolCall) -> ServerResult<Value> {
-        debug!("Handling rename_symbol_with_imports: {}", tool_call.name);
+        debug!(tool_name = %tool_call.name, "Handling rename_symbol_with_imports");
 
         let args = tool_call.arguments.unwrap_or(json!({}));
         let file_path_str = args
@@ -698,7 +698,7 @@ impl PluginDispatcher {
 
     /// Handle apply_edits tool using FileService
     async fn handle_apply_edits(&self, tool_call: ToolCall) -> ServerResult<Value> {
-        debug!("Handling apply_edits: {}", tool_call.name);
+        debug!(tool_name = %tool_call.name, "Handling apply_edits");
 
         let args = tool_call.arguments.unwrap_or(json!({}));
         let edit_plan_value = args
@@ -736,7 +736,7 @@ impl PluginDispatcher {
                         "result": result
                     }))
                 } else {
-                    warn!("Edit plan applied with errors: {:?}", result.errors);
+                    warn!(errors = ?result.errors, "Edit plan applied with errors");
                     Ok(json!({
                         "success": false,
                         "message": format!("Edit plan completed with errors: {}",
@@ -748,7 +748,7 @@ impl PluginDispatcher {
                 }
             }
             Err(e) => {
-                error!("Failed to apply edit plan: {}", e);
+                error!(error = %e, "Failed to apply edit plan");
                 Err(ServerError::Runtime {
                     message: format!("Failed to apply edit plan: {}", e),
                 })
@@ -758,7 +758,7 @@ impl PluginDispatcher {
 
     /// Handle file operations using app_state services
     async fn handle_file_operation(&self, tool_call: ToolCall) -> ServerResult<Value> {
-        debug!("Handling file operation: {}", tool_call.name);
+        debug!(tool_name = %tool_call.name, "Handling file operation");
 
         match tool_call.name.as_str() {
             "rename_file" => {

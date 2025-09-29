@@ -154,7 +154,7 @@ async fn handle_status() {
                         let _ = std::fs::remove_file(&pid_file);
                     }
                 } else {
-                    println!("❌ Invalid PID file format");
+                    error!("Invalid PID file format");
                 }
             }
             Err(e) => {
