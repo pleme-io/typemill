@@ -16,7 +16,7 @@ async-trait = { workspace = true }
 futures-util = "0.3"
 serde = { workspace = true }
 serde_json = { workspace = true }
-simd-json = "0.13"
+simd-json = "0.16"
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
@@ -24,12 +24,13 @@ tracing-subscriber = { workspace = true }
 chrono = { version = "0.4", features = ["serde"] }
 jsonwebtoken = "8"
 # LSP dependencies
-lsp-types = "0.94"
+lsp-types = "0.97"
 # Utilities
 uuid = { version = "1.0", features = ["v4"] }
+dashmap = "5.5"
 ignore = "0.4"
 clap = { version = "4.0", features = ["derive"] }
-toml_edit = "0.20"
+toml_edit = "0.23"
 
 [target.'cfg(unix)'.dependencies]
 cb-vfs = { path = "../cb-vfs" }

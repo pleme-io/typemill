@@ -17,7 +17,7 @@ cb-api = { path = "../../crates/cb-api" }
 
 tokio = { version = "1", features = ["full"] }
 axum = { version = "0.8", features = ["ws"] }
-axum-extra = { version = "0.10", features = ["typed-header"] }
+axum-extra = { version = "0.10.2", features = ["typed-header"] }
 tokio-tungstenite = "0.26"
 futures-util = "0.3"
 

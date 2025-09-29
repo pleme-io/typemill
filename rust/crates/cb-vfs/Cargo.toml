@@ -10,7 +10,7 @@ description = "Virtual filesystem implementation using FUSE"
 [dependencies]
 cb-api = { path = "../cb-api" }
 cb-core = { path = "../cb-core" }
-fuser = "0.14"
+fuser = "0.16"
 libc = "0.2"
 tracing = { workspace = true }
 tokio = { workspace = true }

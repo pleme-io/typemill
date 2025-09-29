@@ -14,7 +14,9 @@ indexmap = "2.0"
 cb-core = { path = "../cb-core" }
 cb-ast = { path = "../cb-ast" }
 ignore = "0.4"
+reqwest = { version = "0.11", features = ["blocking", "rustls-tls"], default-features = false }
+html2md = "0.2"
 
 [dev-dependencies]
 tokio-test = "0.4"
-insta = { version = "1.34.0", features = ["yaml"] }
+insta = { version = "1.43", features = ["yaml"] }

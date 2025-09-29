@@ -13,6 +13,6 @@ tokio = { workspace = true }
 async-trait = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
-lsp-types = "0.94" # For shared LSP-related types
+lsp-types = "0.97" # For shared LSP-related types
 chrono = { version = "0.4", features = ["serde"] }
 cb-core = { path = "../cb-core" }
