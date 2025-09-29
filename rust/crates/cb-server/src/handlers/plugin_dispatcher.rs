@@ -252,7 +252,7 @@ impl PluginDispatcher {
                     })?;
 
                 registered_plugins += 1;
-                debug!("{} plugin registered successfully", plugin_name);
+                debug!(plugin_name = %plugin_name, "Plugin registered successfully");
             }
 
             // Register System Tools plugin for workspace-level operations
@@ -263,8 +263,11 @@ impl PluginDispatcher {
                 .map_err(|e| ServerError::Internal(format!("Failed to register System tools plugin: {}", e)))?;
             registered_plugins += 1;
 
-            info!("Plugin system initialized successfully with {} plugins ({} language + 1 system)",
-                  registered_plugins, registered_plugins - 1);
+            info!(
+                total_plugins = registered_plugins,
+                language_plugins = registered_plugins - 1,
+                "Plugin system initialized successfully"
+            );
             Ok::<(), ServerError>(())
         }).await?;
 
@@ -341,7 +344,7 @@ impl PluginDispatcher {
         let tool_call: ToolCall = serde_json::from_value(params)
             .map_err(|e| ServerError::InvalidRequest(format!("Invalid tool call: {}", e)))?;
 
-        debug!("Calling tool '{}' with plugin system", tool_call.name);
+        debug!(tool_name = %tool_call.name, "Calling tool with plugin system");
 
         // Check if this is a file operation that needs app_state services
         if self.is_file_operation(&tool_call.name) {
@@ -376,7 +379,7 @@ impl PluginDispatcher {
         match self.plugin_manager.handle_request(plugin_request).await {
             Ok(response) => {
                 let processing_time = start_time.elapsed().as_millis();
-                debug!("Plugin request processed in {}ms", processing_time);
+                debug!(processing_time_ms = processing_time, "Plugin request processed");
 
                 Ok(json!({
                     "content": response.data.unwrap_or(json!(null)),
@@ -533,7 +536,7 @@ impl PluginDispatcher {
         match self.plugin_manager.handle_request(request).await {
             Ok(response) => {
                 let processing_time = start_time.elapsed().as_millis();
-                debug!("System tool processed in {}ms", processing_time);
+                debug!(processing_time_ms = processing_time, "System tool processed");
 
                 Ok(json!({
                     "content": response.data.unwrap_or(json!(null)),
@@ -588,8 +591,8 @@ impl PluginDispatcher {
                 Ok(client) => match client.notify_file_opened(&file_path).await {
                     Ok(()) => {
                         debug!(
-                            "Successfully notified LSP server about file: {}",
-                            file_path.display()
+                            file_path = %file_path.display(),
+                            "Successfully notified LSP server about file"
                         );
                         Ok(json!({
                             "success": true,
@@ -598,9 +601,9 @@ impl PluginDispatcher {
                     }
                     Err(e) => {
                         warn!(
-                            "Failed to notify LSP server about file {}: {}",
-                            file_path.display(),
-                            e
+                            file_path = %file_path.display(),
+                            error = %e,
+                            "Failed to notify LSP server about file"
                         );
                         Err(ServerError::Runtime {
                             message: format!("Failed to notify LSP server: {}", e),
@@ -609,8 +612,9 @@ impl PluginDispatcher {
                 },
                 Err(e) => {
                     warn!(
-                        "Failed to get LSP client for extension '{}': {}",
-                        extension, e
+                        extension = %extension,
+                        error = %e,
+                        "Failed to get LSP client for extension"
                     );
                     Err(ServerError::Runtime {
                         message: format!("Failed to get LSP client: {}", e),
@@ -618,7 +622,7 @@ impl PluginDispatcher {
                 }
             }
         } else {
-            debug!("No LSP server configured for extension '{}'", extension);
+            debug!(extension = %extension, "No LSP server configured for extension");
             Ok(json!({
                 "success": true,
                 "message": format!("No LSP server configured for extension '{}'", extension)
@@ -649,10 +653,10 @@ impl PluginDispatcher {
         let file_path = std::path::Path::new(file_path_str);
 
         debug!(
-            "Planning refactor to rename '{}' to '{}' in file: {}",
-            old_name,
-            new_name,
-            file_path.display()
+            old_name = %old_name,
+            new_name = %new_name,
+            file_path = %file_path.display(),
+            "Planning refactor to rename symbol"
         );
 
         // Create an IntentSpec for the rename operation
@@ -674,8 +678,8 @@ impl PluginDispatcher {
         {
             Ok(edit_plan) => {
                 debug!(
-                    "Successfully planned refactor for {} files",
-                    edit_plan.edits.len()
+                    files_count = edit_plan.edits.len(),
+                    "Successfully planned refactor"
                 );
                 Ok(json!({
                     "success": true,
@@ -686,8 +690,10 @@ impl PluginDispatcher {
             }
             Err(e) => {
                 error!(
-                    "Failed to plan refactor for '{}' -> '{}': {}",
-                    old_name, new_name, e
+                    old_name = %old_name,
+                    new_name = %new_name,
+                    error = %e,
+                    "Failed to plan refactor"
                 );
                 Err(ServerError::Runtime {
                     message: format!("Failed to plan refactor: {}", e),
@@ -710,10 +716,10 @@ impl PluginDispatcher {
             .map_err(|e| ServerError::InvalidRequest(format!("Invalid edit_plan format: {}", e)))?;
 
         debug!(
-            "Applying edit plan for file: {} with {} edits and {} dependency updates",
-            edit_plan.source_file,
-            edit_plan.edits.len(),
-            edit_plan.dependency_updates.len()
+            source_file = %edit_plan.source_file,
+            edits_count = edit_plan.edits.len(),
+            dependency_updates_count = edit_plan.dependency_updates.len(),
+            "Applying edit plan"
         );
 
         // Apply the edit plan using the FileService
@@ -726,8 +732,8 @@ impl PluginDispatcher {
             Ok(result) => {
                 if result.success {
                     info!(
-                        "Successfully applied edit plan - modified {} files",
-                        result.modified_files.len()
+                        modified_files_count = result.modified_files.len(),
+                        "Successfully applied edit plan"
                     );
                     Ok(json!({
                         "success": true,

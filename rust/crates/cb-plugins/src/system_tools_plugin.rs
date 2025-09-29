@@ -232,8 +232,9 @@ impl SystemToolsPlugin {
         let dry_run = args.dry_run.unwrap_or(false);
 
         debug!(
-            "Updating dependencies in: {} using {}",
-            project_path, package_manager
+            project_path = %project_path,
+            package_manager = %package_manager,
+            "Updating dependencies"
         );
 
         // Detect package manager
@@ -328,8 +329,9 @@ impl SystemToolsPlugin {
             })?;
 
         debug!(
-            "Renaming directory from {} to {}",
-            args.old_path, args.new_path
+            old_path = %args.old_path,
+            new_path = %args.new_path,
+            "Renaming directory"
         );
 
         if args.dry_run.unwrap_or(false) {
@@ -459,8 +461,11 @@ impl SystemToolsPlugin {
             })?;
 
         debug!(
-            "Extracting function {} from {}:{}-{}",
-            args.function_name, args.file_path, args.start_line, args.end_line
+            function_name = %args.function_name,
+            file_path = %args.file_path,
+            start_line = args.start_line,
+            end_line = args.end_line,
+            "Extracting function"
         );
 
         // Read the file
@@ -513,8 +518,10 @@ impl SystemToolsPlugin {
             })?;
 
         debug!(
-            "Inlining variable {} in {} at line {}",
-            args.variable_name, args.file_path, args.line
+            variable_name = %args.variable_name,
+            file_path = %args.file_path,
+            line = args.line,
+            "Inlining variable"
         );
 
         // Read the file
@@ -559,13 +566,13 @@ impl SystemToolsPlugin {
             })?;
 
         debug!(
-            "Extracting variable {} from {}:{}:{}-{}:{}",
-            args.variable_name,
-            args.file_path,
-            args.start_line,
-            args.start_character,
-            args.end_line,
-            args.end_character
+            variable_name = %args.variable_name,
+            file_path = %args.file_path,
+            start_line = args.start_line,
+            start_character = args.start_character,
+            end_line = args.end_line,
+            end_character = args.end_character,
+            "Extracting variable"
         );
 
         // Read the file

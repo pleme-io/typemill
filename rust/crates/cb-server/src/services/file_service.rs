@@ -45,10 +45,7 @@ impl FileService {
         new_path: &Path,
         dry_run: bool,
     ) -> ServerResult<FileRenameResult> {
-        info!(
-            "Renaming file: {:?} -> {:?} (dry_run: {})",
-            old_path, new_path, dry_run
-        );
+        info!(old_path = ?old_path, new_path = ?new_path, dry_run, "Renaming file");
 
         // Convert to absolute paths
         let old_abs = self.to_absolute_path(old_path);
@@ -73,10 +70,7 @@ impl FileService {
         // Find files that need import updates before renaming
         let affected_files = self.import_service.find_affected_files(&old_abs).await?;
 
-        debug!(
-            "Found {} files potentially affected by rename",
-            affected_files.len()
-        );
+        debug!(affected_files_count = affected_files.len(), "Found files potentially affected by rename");
 
         let mut result = FileRenameResult {
             old_path: old_abs.to_string_lossy().to_string(),
@@ -111,8 +105,9 @@ impl FileService {
                         Ok(import_report) => {
                             result.success = true;
                             info!(
-                                "Successfully updated {} imports in {} files",
-                                import_report.imports_updated, import_report.files_updated
+                                imports_updated = import_report.imports_updated,
+                                files_updated = import_report.files_updated,
+                                "Successfully updated imports"
                             );
                             result.import_updates = Some(import_report);
                         }
@@ -207,8 +202,8 @@ impl FileService {
             let affected = self.import_service.find_affected_files(&abs_path).await?;
             if !affected.is_empty() {
                 warn!(
-                    "File is imported by {} other files. Use force=true to delete anyway.",
-                    affected.len()
+                    affected_files_count = affected.len(),
+                    "File is imported by other files. Use force=true to delete anyway"
                 );
                 return Err(ServerError::InvalidRequest(format!(
                     "File is imported by {} other files",
@@ -267,9 +262,9 @@ impl FileService {
     pub async fn apply_edit_plan(&self, plan: &EditPlan) -> ServerResult<EditPlanResult> {
         info!(source_file = %plan.source_file, "Applying edit plan");
         debug!(
-            "Edit plan contains {} edits and {} dependency updates",
-            plan.edits.len(),
-            plan.dependency_updates.len()
+            edits_count = plan.edits.len(),
+            dependency_updates_count = plan.dependency_updates.len(),
+            "Edit plan contents"
         );
 
         // For simplicity, we'll apply edits sequentially with individual locks
@@ -291,15 +286,16 @@ impl FileService {
             Ok(_) => {
                 modified_files.push(plan.source_file.clone());
                 info!(
-                    "Successfully applied {} edits to {}",
-                    plan.edits.len(),
-                    plan.source_file
+                    edits_count = plan.edits.len(),
+                    source_file = %plan.source_file,
+                    "Successfully applied edits"
                 );
             }
             Err(e) => {
                 error!(
-                    "Failed to apply edits to main file {}: {}",
-                    plan.source_file, e
+                    source_file = %plan.source_file,
+                    error = %e,
+                    "Failed to apply edits to main file"
                 );
                 errors.push(format!("Main file {}: {}", plan.source_file, e));
             }
@@ -322,8 +318,9 @@ impl FileService {
                 }
                 Err(e) => {
                     error!(
-                        "Failed to apply dependency update to {}: {}",
-                        dep_update.target_file, e
+                        target_file = %dep_update.target_file,
+                        error = %e,
+                        "Failed to apply dependency update"
                     );
                     errors.push(format!("Dependency file {}: {}", dep_update.target_file, e));
                 }
@@ -349,9 +346,9 @@ impl FileService {
         let success = errors.is_empty();
         if !success {
             warn!(
-                "Edit plan completed with {} errors: {}",
-                errors.len(),
-                errors.join("; ")
+                error_count = errors.len(),
+                errors = %errors.join("; "),
+                "Edit plan completed with errors"
             );
         }
 
@@ -487,9 +484,9 @@ impl FileService {
             Ok(content) => content,
             Err(e) => {
                 warn!(
-                    "Could not read file for dependency update {}: {}",
-                    file_path.display(),
-                    e
+                    file_path = %file_path.display(),
+                    error = %e,
+                    "Could not read file for dependency update"
                 );
                 return Ok(false); // File doesn't exist, skip update
             }
@@ -512,10 +509,10 @@ impl FileService {
             })?;
 
             debug!(
-                "Updated dependency reference '{}' -> '{}' in {}",
-                old_ref,
-                new_ref,
-                file_path.display()
+                old_ref = %old_ref,
+                new_ref = %new_ref,
+                file_path = %file_path.display(),
+                "Updated dependency reference"
             );
             return Ok(true);
         }
