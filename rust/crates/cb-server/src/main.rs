@@ -1,7 +1,7 @@
 //! cb-server main binary
 
 use cb_ast::AstCache;
-use cb_core::AppConfig;
+use cb_core::{AppConfig, config::LogFormat};
 use cb_server::handlers::{AppState, PluginDispatcher};
 use cb_api::AstService;
 use cb_server::services::{DefaultAstService, FileService, LockManager, OperationQueue};
@@ -29,16 +29,16 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize tracing
-    tracing_subscriber::fmt::init();
-
-    // Parse command line arguments
+    // Parse command line arguments first
     let cli = Cli::parse();
-
-    tracing::info!("Starting Codeflow Buddy Server");
 
     // Load configuration
     let config = Arc::new(AppConfig::load()?);
+
+    // Initialize tracing based on configuration
+    initialize_tracing(&config);
+
+    tracing::info!("Starting Codeflow Buddy Server");
 
     // Get project root
     let project_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
@@ -115,4 +115,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::info!("Server stopped");
     Ok(())
+}
+
+/// Initialize tracing based on configuration
+fn initialize_tracing(config: &AppConfig) {
+    use tracing_subscriber::{fmt, prelude::*};
+
+    // Parse log level from config, with fallback to INFO
+    let log_level = config.logging.level.parse()
+        .unwrap_or(tracing::Level::INFO);
+
+    // Create env filter with configured level and allow env overrides
+    let env_filter = tracing_subscriber::EnvFilter::from_default_env()
+        .add_directive(log_level.into());
+
+    match config.logging.format {
+        LogFormat::Json => {
+            // Use JSON formatter for structured logging
+            tracing_subscriber::registry()
+                .with(env_filter)
+                .with(fmt::layer().json())
+                .init();
+        }
+        LogFormat::Pretty => {
+            // Use pretty (human-readable) formatter
+            tracing_subscriber::registry()
+                .with(env_filter)
+                .with(fmt::layer())
+                .init();
+        }
+    }
 }

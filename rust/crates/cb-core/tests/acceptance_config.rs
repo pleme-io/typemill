@@ -1,7 +1,7 @@
 //! Acceptance tests for configuration management
 //! These tests verify the public API contract for configuration loading
 
-use cb_core::{AppConfig, CoreError};
+use cb_core::{AppConfig, CoreError, config::LogFormat};
 use serial_test::serial;
 use std::env;
 use tempfile::TempDir;
@@ -43,7 +43,7 @@ fn test_config_load_default() {
     assert!(config.fuse.is_none());
 
     assert_eq!(config.logging.level, "info");
-    assert_eq!(config.logging.format, "pretty");
+    assert_eq!(config.logging.format, LogFormat::Pretty);
     assert!(config.logging.file.is_none());
 
     assert!(config.cache.enabled);
@@ -118,7 +118,7 @@ fn test_config_load_from_json() {
     assert!(!config.lsp.enable_preload);
 
     assert_eq!(config.logging.level, "debug");
-    assert_eq!(config.logging.format, "json");
+    assert_eq!(config.logging.format, LogFormat::Json);
 
     assert!(!config.cache.enabled);
     assert_eq!(config.cache.max_size_bytes, 1024);
