@@ -543,6 +543,7 @@ dependencies = [
  "cb-vfs",
  "chrono",
  "clap",
+ "futures-util",
  "ignore",
  "jsonwebtoken 8.3.0",
  "lsp-types",
@@ -564,6 +565,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "cb-api",
+ "cb-ast",
  "cb-core",
  "futures-util",
  "jsonwebtoken 8.3.0",
@@ -584,6 +586,7 @@ dependencies = [
  "cb-core",
  "fuser",
  "libc",
+ "tempfile",
  "tokio",
  "tracing",
 ]

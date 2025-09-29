@@ -14,8 +14,12 @@ pub mod systems;
 pub mod utils;
 
 pub use cb_api::{ApiError as ServerError, ApiResult as ServerResult, AstService, LspService};
-
+use crate::handlers::plugin_dispatcher::{AppState, PluginDispatcher};
+use crate::services::{DefaultAstService, LockManager, FileService, OperationQueue};
+use cb_ast::AstCache;
 use cb_core::AppConfig;
+use std::sync::Arc;
+use std::path::PathBuf;
 use tokio::sync::oneshot;
 
 /// Server configuration options
@@ -28,9 +32,10 @@ pub struct ServerOptions {
 }
 
 /// Handle to a running server
-#[derive(Debug)]
 pub struct ServerHandle {
     shutdown_tx: oneshot::Sender<()>,
+    _config: AppConfig,
+    _dispatcher: Arc<PluginDispatcher>,
 }
 
 /// Bootstrap the server with given options
@@ -42,19 +47,44 @@ pub async fn bootstrap(options: ServerOptions) -> ServerResult<ServerHandle> {
         return Err(ServerError::config("Invalid server port"));
     }
 
+    // Get project root
+    let project_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+
+    // Create shared AST cache for performance optimization
+    let ast_cache = Arc::new(AstCache::new());
+
+    // Create services
+    let ast_service: Arc<dyn AstService> = Arc::new(DefaultAstService::new(ast_cache.clone()));
+    let lock_manager = Arc::new(LockManager::new());
+    let file_service = Arc::new(FileService::new(
+        &project_root,
+        ast_cache.clone(),
+        lock_manager.clone(),
+    ));
+    let operation_queue = Arc::new(OperationQueue::new(lock_manager.clone()));
+
+    // Create application state
+    let app_state = Arc::new(AppState {
+        ast_service,
+        file_service,
+        project_root,
+        lock_manager,
+        operation_queue,
+    });
+
+    // Create dispatcher
+    let dispatcher = Arc::new(PluginDispatcher::new(app_state));
+
     // Create shutdown channel
     let (shutdown_tx, _shutdown_rx) = oneshot::channel();
 
-    // In a real implementation, this would:
-    // 1. Initialize LSP clients
-    // 2. Set up MCP handlers
-    // 3. Start transport layers (HTTP, WebSocket)
-    // 4. Initialize FUSE filesystem (if configured)
-    // 5. Set up monitoring and health checks
-
     tracing::info!("Server bootstrapped successfully");
 
-    Ok(ServerHandle { shutdown_tx })
+    Ok(ServerHandle {
+        shutdown_tx,
+        _config: options.config,
+        _dispatcher: dispatcher,
+    })
 }
 
 impl ServerOptions {
@@ -78,8 +108,9 @@ impl ServerHandle {
     pub async fn start(&self) -> ServerResult<()> {
         tracing::info!("Starting server...");
 
-        // In a real implementation, this would start all services
-        // For now, just log that we're "running"
+        // Note: The actual server implementation is in main.rs
+        // This method exists for API compatibility but the real
+        // server startup is handled by cb-transport layer
 
         tracing::info!("Server started successfully");
         Ok(())

@@ -9,6 +9,7 @@ description = "Transport layer for WebSocket and stdio communication"
 
 [dependencies]
 cb-api = { path = "../cb-api" }
+cb-ast = { path = "../cb-ast" }
 cb-core = { path = "../cb-core" }
 tokio = { workspace = true }
 async-trait = { workspace = true }

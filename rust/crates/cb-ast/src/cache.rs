@@ -263,7 +263,7 @@ mod tests {
             source_file: path.to_string_lossy().to_string(),
             imports: vec![],
             importers: vec![],
-            metadata: crate::parser::ImportGraphMetadata {
+            metadata: cb_api::ImportGraphMetadata {
                 language: "javascript".to_string(),
                 parsed_at: chrono::Utc::now(),
                 parser_version: "0.3.0-test".to_string(),
@@ -302,7 +302,7 @@ mod tests {
             source_file: path.to_string_lossy().to_string(),
             imports: vec![],
             importers: vec![],
-            metadata: crate::parser::ImportGraphMetadata {
+            metadata: cb_api::ImportGraphMetadata {
                 language: "javascript".to_string(),
                 parsed_at: chrono::Utc::now(),
                 parser_version: "0.3.0-test".to_string(),
@@ -336,7 +336,7 @@ mod tests {
             source_file: path.to_string_lossy().to_string(),
             imports: vec![],
             importers: vec![],
-            metadata: crate::parser::ImportGraphMetadata {
+            metadata: cb_api::ImportGraphMetadata {
                 language: "javascript".to_string(),
                 parsed_at: chrono::Utc::now(),
                 parser_version: "0.3.0-test".to_string(),

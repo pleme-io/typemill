@@ -1,6 +1,7 @@
 //! Integration tests for concurrent operations
 
 use super::*;
+use crate::ServerError;
 use futures_util::future;
 use serde_json::{json, Value};
 use std::path::PathBuf;

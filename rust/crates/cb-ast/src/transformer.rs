@@ -312,7 +312,7 @@ fn apply_multi_line_edit(source: &mut String, edit: &TextEdit) -> AstResult<Edit
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::analyzer::{EditLocation, EditType};
+    use cb_api::{EditLocation, EditType};
 
     #[test]
     fn test_apply_single_line_edit() {
