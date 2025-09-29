@@ -1,3 +1,5 @@
+mod cli;
+
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
@@ -11,73 +13,16 @@ use cb_ast::AstCache;
 use cb_server::handlers::plugin_dispatcher::{AppState, PluginDispatcher};
 use cb_api::AstService;
 use cb_server::services::DefaultAstService;
-use clap::{Parser, Subcommand};
 use std::sync::Arc;
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tracing::{debug, error, info};
 
-#[derive(Parser)]
-#[command(name = "codebuddy")]
-#[command(about = "Pure Rust MCP server bridging Language Server Protocol functionality")]
-struct Cli {
-    #[command(subcommand)]
-    command: Commands,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    /// Start the MCP server in stdio mode for Claude Code
-    Start,
-    /// Start WebSocket server
-    Serve,
-    /// Show status
-    Status,
-    /// Setup configuration
-    Setup,
-    /// Stop the running server
-    Stop,
-    /// Link to AI assistants
-    Link,
-    /// Remove AI from config
-    Unlink,
-}
-
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .init();
-
-    let cli = Cli::parse();
-
-    match cli.command {
-        Commands::Start => {
-            debug!("Starting MCP server in stdio mode");
-            run_stdio_mode().await;
-        }
-        Commands::Serve => {
-            debug!("Starting WebSocket server");
-            run_websocket_server().await;
-        }
-        Commands::Status => {
-            info!("Status: Running");
-        }
-        Commands::Setup => {
-            info!("Setup: Not implemented");
-        }
-        Commands::Stop => {
-            info!("Stop: Not implemented");
-        }
-        Commands::Link => {
-            info!("Link: Not implemented");
-        }
-        Commands::Unlink => {
-            info!("Unlink: Not implemented");
-        }
-    }
+    cli::run().await;
 }
 
-async fn run_stdio_mode() {
+pub async fn run_stdio_mode() {
     debug!("Initializing stdio mode MCP server");
     debug!(
         "Current working directory in run_stdio_mode: {:?}",
@@ -160,7 +105,11 @@ async fn run_stdio_mode() {
     debug!("Stdio mode exiting");
 }
 
-async fn run_websocket_server() {
+pub async fn run_websocket_server() {
+    run_websocket_server_with_port(3000).await;
+}
+
+pub async fn run_websocket_server_with_port(port: u16) {
     // Create AppState similar to the test implementation
     let app_state = match create_app_state().await {
         Ok(state) => state,
@@ -180,10 +129,11 @@ async fn run_websocket_server() {
         .route("/ws", get(ws_handler))
         .with_state(dispatcher);
 
-    let listener = match tokio::net::TcpListener::bind("127.0.0.1:3000").await {
+    let bind_addr = format!("127.0.0.1:{}", port);
+    let listener = match tokio::net::TcpListener::bind(&bind_addr).await {
         Ok(listener) => listener,
         Err(e) => {
-            error!("Failed to bind to 127.0.0.1:3000: {}", e);
+            error!("Failed to bind to {}: {}", bind_addr, e);
             return;
         }
     };

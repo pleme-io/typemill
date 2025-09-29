@@ -225,6 +225,24 @@ impl Default for CacheConfig {
 }
 
 impl AppConfig {
+    /// Save configuration to a specified file path
+    pub fn save(&self, path: &std::path::Path) -> CoreResult<()> {
+        // Ensure the parent directory exists
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        // Serialize configuration to JSON with pretty formatting
+        let json_content = serde_json::to_string_pretty(self)
+            .map_err(|e| CoreError::config(format!("Failed to serialize configuration: {}", e)))?;
+
+        // Write to file
+        std::fs::write(path, json_content)
+            .map_err(|e| CoreError::config(format!("Failed to write configuration file: {}", e)))?;
+
+        Ok(())
+    }
+
     /// Load configuration from environment and config files
     pub fn load() -> CoreResult<Self> {
         // Start with default configuration

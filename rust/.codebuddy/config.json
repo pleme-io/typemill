@@ -1,15 +1,73 @@
-{"servers":[
-    {
-      "extensions": ["py", "pyi"],
-      "command": ["python3", "-m", "pylsp"]
-    },
-    {
-      "extensions": ["rs"],
-      "command": ["rust-analyzer"]
-    },
-    {
-      "extensions": ["ts", "tsx", "js", "jsx"],
-      "command": ["typescript-language-server", "--stdio"]
-    }
-]
+{
+  "server": {
+    "host": "127.0.0.1",
+    "port": 3040,
+    "maxClients": 10,
+    "timeoutMs": 30000,
+    "tls": null,
+    "auth": null
+  },
+  "lsp": {
+    "servers": [
+      {
+        "extensions": [
+          "ts",
+          "tsx",
+          "js",
+          "jsx"
+        ],
+        "command": [
+          "typescript-language-server",
+          "--stdio"
+        ],
+        "rootDir": null,
+        "restartInterval": 10
+      },
+      {
+        "extensions": [
+          "py"
+        ],
+        "command": [
+          "pylsp"
+        ],
+        "rootDir": null,
+        "restartInterval": 5
+      },
+      {
+        "extensions": [
+          "go"
+        ],
+        "command": [
+          "gopls"
+        ],
+        "rootDir": null,
+        "restartInterval": 10
+      },
+      {
+        "extensions": [
+          "rs"
+        ],
+        "command": [
+          "rust-analyzer"
+        ],
+        "rootDir": null,
+        "restartInterval": 15
+      }
+    ],
+    "defaultTimeoutMs": 5000,
+    "enablePreload": true
+  },
+  "fuse": null,
+  "logging": {
+    "level": "info",
+    "format": "pretty",
+    "file": null
+  },
+  "cache": {
+    "enabled": true,
+    "maxSizeBytes": 268435456,
+    "ttlSeconds": 3600,
+    "persistent": false,
+    "cacheDir": null
+  }
 }
