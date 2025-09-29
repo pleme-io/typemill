@@ -8,7 +8,6 @@
 
 pub mod auth;
 pub mod handlers;
-pub mod mcp_tools;
 pub mod services;
 pub mod systems;
 pub mod utils;

@@ -2,4 +2,4 @@
 
 pub mod lsp;
 
-pub use lsp::{LspClient, LspManager};
+pub use lsp::LspClient;

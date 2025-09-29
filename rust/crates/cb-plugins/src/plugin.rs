@@ -48,6 +48,9 @@ pub trait LanguagePlugin: Send + Sync {
         }
     }
 
+    /// Tool definitions this plugin provides
+    fn tool_definitions(&self) -> Vec<Value>;
+
     /// Initialize the plugin with necessary services
     async fn initialize(&mut self) -> PluginResult<()> {
         Ok(())
@@ -139,6 +142,10 @@ mod tests {
 
         fn configure(&self, _config: Value) -> PluginResult<()> {
             Ok(())
+        }
+
+        fn tool_definitions(&self) -> Vec<Value> {
+            vec![]
         }
     }
 

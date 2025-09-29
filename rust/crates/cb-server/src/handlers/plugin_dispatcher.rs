@@ -6,7 +6,6 @@
 use crate::{ServerError, ServerResult};
 use cb_api::AstService;
 use cb_transport::McpDispatcher;
-use crate::mcp_tools;
 use async_trait::async_trait;
 use cb_core::model::mcp::{McpMessage, McpRequest, McpResponse, ToolCall};
 use cb_plugins::{LspAdapterPlugin, LspService, PluginError, PluginManager, PluginRequest};
@@ -329,10 +328,10 @@ impl PluginDispatcher {
         }))
     }
 
-    /// Handle tools/list request using Rust-native tool definitions
+    /// Handle tools/list request using plugin-provided tool definitions
     #[instrument(skip(self))]
     async fn handle_list_tools(&self) -> ServerResult<Value> {
-        let tools = mcp_tools::get_tool_definitions();
+        let tools = self.plugin_manager.get_all_tool_definitions().await;
         Ok(json!({ "tools": tools }))
     }
 
