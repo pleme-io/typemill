@@ -11,7 +11,7 @@ pub use error::{ApiError, ApiResult};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// Generic message type for protocol communication
 /// This will be mapped to specific protocol types (MCP, LSP) in other crates

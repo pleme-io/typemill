@@ -205,9 +205,11 @@ fn apply_single_line_edit(source: &mut String, edit: &TextEdit) -> AstResult<Edi
     *source = new_lines.join("\n");
 
     // Calculate statistics
-    let mut stats = EditStats::default();
-    stats.characters_added = edit.new_text.len() as i32;
-    stats.characters_removed = (end_col - start_col) as i32;
+    let mut stats = EditStats {
+        characters_added: edit.new_text.len() as i32,
+        characters_removed: (end_col - start_col) as i32,
+        ..Default::default()
+    };
 
     // Count newlines in the new text
     let new_newlines = edit.new_text.matches('\n').count() as i32;
@@ -250,8 +252,8 @@ fn apply_multi_line_edit(source: &mut String, edit: &TextEdit) -> AstResult<Edit
         }
 
         // Middle lines
-        for line_idx in (start_line + 1)..end_line {
-            original_text.push_str(lines[line_idx]);
+        for line in lines.iter().take(end_line).skip(start_line + 1) {
+            original_text.push_str(line);
             original_text.push('\n');
         }
 

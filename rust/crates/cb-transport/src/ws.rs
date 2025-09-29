@@ -115,7 +115,10 @@ pub async fn start_ws_server(
     tracing::info!("WebSocket server listening on {}", addr);
 
     while let Ok((stream, addr)) = listener.accept().await {
-        tracing::debug!("New connection from {}", addr);
+        tracing::debug!(
+            client_addr = %addr,
+            "New connection"
+        );
         let config = config.clone();
         let dispatcher = dispatcher.clone();
         tokio::spawn(handle_connection(stream, config, dispatcher));
@@ -130,11 +133,17 @@ async fn handle_connection(
     config: Arc<AppConfig>,
     dispatcher: Arc<dyn McpDispatcher>,
 ) {
+    let addr = stream.peer_addr().unwrap_or_else(|_| "unknown".parse().unwrap());
+
     // Perform WebSocket handshake
     let ws_stream = match accept_async(stream).await {
         Ok(ws) => ws,
         Err(e) => {
-            tracing::error!("WebSocket handshake failed: {}", e);
+            tracing::error!(
+                client_addr = %addr,
+                error = %e,
+                "WebSocket handshake failed"
+            );
             return;
         }
     };
@@ -147,13 +156,22 @@ async fn handle_connection(
     while let Some(msg) = read.next().await {
         match msg {
             Ok(Message::Text(text)) => {
-                tracing::debug!("Received message: {}", text);
+                let request_id = uuid::Uuid::new_v4();
+                tracing::debug!(
+                    request_id = %request_id,
+                    message_size = text.len(),
+                    "Received message"
+                );
 
                 // Parse MCP message
                 let mcp_message: McpMessage = match serde_json::from_str(&text) {
                     Ok(msg) => msg,
                     Err(e) => {
-                        tracing::error!("Failed to parse MCP message: {}", e);
+                        tracing::error!(
+                            request_id = %request_id,
+                            error = %e,
+                            "Failed to parse MCP message"
+                        );
                         let error_response = json!({
                             "error": {
                                 "code": -32700,
@@ -174,7 +192,11 @@ async fn handle_connection(
                     match handle_message(&mut session, mcp_message, &config, dispatcher.as_ref()).await {
                         Ok(response) => response,
                         Err(e) => {
-                            tracing::error!("Failed to handle message: {}", e);
+                            tracing::error!(
+                                request_id = %request_id,
+                                error = %e,
+                                "Failed to handle message"
+                            );
                             McpMessage::Response(McpResponse {
                                 jsonrpc: "2.0".to_string(),
                                 id: None,
@@ -192,13 +214,21 @@ async fn handle_connection(
                 let response_text = match serde_json::to_string(&response) {
                     Ok(text) => text,
                     Err(e) => {
-                        tracing::error!("Failed to serialize response: {}", e);
+                        tracing::error!(
+                            request_id = %request_id,
+                            error = %e,
+                            "Failed to serialize response"
+                        );
                         continue;
                     }
                 };
 
                 if let Err(e) = write.send(Message::Text(response_text)).await {
-                    tracing::error!("Failed to send response: {}", e);
+                    tracing::error!(
+                        request_id = %request_id,
+                        error = %e,
+                        "Failed to send response"
+                    );
                     break;
                 }
             }
@@ -210,7 +240,10 @@ async fn handle_connection(
                 // Ignore other message types (binary, ping, pong)
             }
             Err(e) => {
-                tracing::error!("WebSocket error: {}", e);
+                tracing::error!(
+                    error = %e,
+                    "WebSocket error"
+                );
                 break;
             }
         }

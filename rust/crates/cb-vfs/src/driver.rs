@@ -35,6 +35,7 @@ fn file_type_to_kind(file_type: std::fs::FileType) -> fuser::FileType {
 
 // Constants for error handling
 const ENOENT: i32 = libc::ENOENT;
+#[allow(dead_code)]
 const EIO: i32 = libc::EIO;
 const SYSTEM_TIME_UNIX_EPOCH: SystemTime = SystemTime::UNIX_EPOCH;
 
@@ -43,8 +44,10 @@ const TTL: Duration = Duration::from_secs(1);
 /// FUSE filesystem implementation for Codebuddy
 pub struct CodeflowFS {
     /// Path to the real workspace on disk
+    #[allow(dead_code)]
     workspace_path: PathBuf,
     /// Cache of file attributes to avoid repeated filesystem calls
+    #[allow(dead_code)]
     attr_cache: HashMap<u64, FileAttr>,
     /// Next available inode number
     next_inode: u64,
@@ -73,6 +76,7 @@ impl CodeflowFS {
     }
 
     /// Get or assign an inode for a given path
+    #[allow(dead_code)]
     fn get_or_assign_inode(&mut self, path: &Path) -> u64 {
         if let Some(&inode) = self.path_to_inode.get(path) {
             return inode;
@@ -86,6 +90,7 @@ impl CodeflowFS {
     }
 
     /// Convert a filesystem metadata to FUSE FileAttr
+    #[allow(dead_code)]
     fn metadata_to_attr(&self, metadata: &fs::Metadata, ino: u64) -> FileAttr {
         let file_type = if metadata.is_dir() {
             FileType::Directory
@@ -135,6 +140,7 @@ impl CodeflowFS {
     }
 
     /// Resolve a path relative to the workspace
+    #[allow(dead_code)]
     fn resolve_path(&self, parent_ino: u64, name: &OsStr) -> Option<PathBuf> {
         let parent_path = self.inode_to_path.get(&parent_ino)?;
         Some(parent_path.join(name))

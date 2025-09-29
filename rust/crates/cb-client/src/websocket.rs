@@ -12,6 +12,9 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::{debug, error, info, warn};
 use url::Url;
 
+// Type alias for complex type
+type PendingRequests = Arc<Mutex<HashMap<String, oneshot::Sender<ClientResult<MCPResponse>>>>>;
+
 /// MCP request message
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MCPRequest {
@@ -373,7 +376,7 @@ impl WebSocketClient {
     /// Handle incoming message
     async fn handle_message(
         text: &str,
-        pending_requests: &Arc<Mutex<HashMap<String, oneshot::Sender<ClientResult<MCPResponse>>>>>,
+        pending_requests: &PendingRequests,
     ) -> ClientResult<()> {
         debug!("Received message: {}", text);
 

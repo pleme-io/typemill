@@ -1,7 +1,7 @@
 //! AST analysis functionality
 
 use crate::error::{AstError, AstResult};
-use cb_api::{EditPlan, EditPlanMetadata, EditType, EditLocation, TextEdit, DependencyUpdate, DependencyUpdateType, ValidationRule, ValidationType};
+use cb_api::{EditPlan, EditPlanMetadata, EditType, EditLocation, TextEdit, ValidationRule, ValidationType};
 use cb_core::model::IntentSpec;
 // serde traits no longer needed here
 use std::collections::HashMap;

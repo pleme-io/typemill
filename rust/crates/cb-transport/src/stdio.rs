@@ -4,6 +4,7 @@ use crate::McpDispatcher;
 use cb_core::model::mcp::{McpError, McpMessage, McpResponse};
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use uuid::Uuid;
 
 /// Start the stdio MCP server
 pub async fn start_stdio_server(
@@ -33,13 +34,22 @@ pub async fn start_stdio_server(
                     continue;
                 }
 
-                tracing::debug!("Received line: {}", trimmed);
+                let request_id = Uuid::new_v4();
+                tracing::debug!(
+                    request_id = %request_id,
+                    line_length = trimmed.len(),
+                    "Received line"
+                );
 
                 // Parse the JSON-RPC message
                 let mcp_message: McpMessage = match serde_json::from_str(trimmed) {
                     Ok(msg) => msg,
                     Err(e) => {
-                        tracing::error!("Failed to parse MCP message: {}", e);
+                        tracing::error!(
+                            request_id = %request_id,
+                            error = %e,
+                            "Failed to parse MCP message"
+                        );
                         let error_response = McpResponse {
                             jsonrpc: "2.0".to_string(),
                             id: None,
@@ -70,7 +80,11 @@ pub async fn start_stdio_server(
                 let response = match dispatcher.dispatch(mcp_message).await {
                     Ok(response) => response,
                     Err(e) => {
-                        tracing::error!("Failed to handle message: {}", e);
+                        tracing::error!(
+                            request_id = %request_id,
+                            error = %e,
+                            "Failed to handle message"
+                        );
                         McpMessage::Response(McpResponse {
                             jsonrpc: "2.0".to_string(),
                             id: message_id,
@@ -91,7 +105,10 @@ pub async fn start_stdio_server(
                 stdout.flush().await?;
             }
             Err(e) => {
-                tracing::error!("Error reading from stdin: {}", e);
+                tracing::error!(
+                    error = %e,
+                    "Error reading from stdin"
+                );
                 break;
             }
         }

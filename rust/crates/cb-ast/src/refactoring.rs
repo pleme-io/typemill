@@ -605,6 +605,7 @@ impl InlineVariableAnalyzer {
         }
     }
 
+    #[allow(dead_code, clippy::only_used_in_recursion)]
     fn extract_expression_text(&self, expr: &Expr) -> String {
         match expr {
             Expr::Lit(lit) => match lit {

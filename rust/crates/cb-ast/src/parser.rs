@@ -553,8 +553,8 @@ fn parse_import_specifiers(
     let import_part = import_part.trim();
 
     // Handle namespace imports: * as name
-    if import_part.starts_with("* as ") {
-        let namespace = import_part[5..].trim().to_string();
+    if let Some(stripped) = import_part.strip_prefix("* as ") {
+        let namespace = stripped.trim().to_string();
         return Ok((None, Vec::new(), Some(namespace)));
     }
 
@@ -744,9 +744,8 @@ fn parse_rust_imports(source: &str) -> AstResult<Vec<ImportInfo>> {
     for (line_num, line) in source.lines().enumerate() {
         let line = line.trim();
 
-        if line.starts_with("use ") {
-            let use_part = &line[4..]; // Skip "use "
-            let use_part = use_part.trim_end_matches(';');
+        if let Some(stripped) = line.strip_prefix("use ") {
+            let use_part = stripped.trim_end_matches(';');
 
             // Handle different use patterns
             if use_part.contains("::") {

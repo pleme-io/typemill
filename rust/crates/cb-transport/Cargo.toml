@@ -20,4 +20,4 @@ futures-util = "0.3"
 tokio-tungstenite = "0.21"
 jsonwebtoken = "8"
 url = "2"
-uuid = { version = "1.0", features = ["v4"] }
+uuid = { workspace = true }

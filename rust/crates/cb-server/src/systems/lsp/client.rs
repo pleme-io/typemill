@@ -229,33 +229,24 @@ impl LspClient {
     pub async fn send_request(&self, method: &str, params: Value) -> ServerResult<Value> {
         // For file-specific operations, ensure the file is open in the LSP server
         if method.starts_with("textDocument/") && method != "textDocument/didOpen" {
-            info!(
-                "DEBUG: Processing {} request, checking if file needs to be opened",
-                method
-            );
             // Extract file path from params to open it if needed
             if let Some(uri) = params
                 .get("textDocument")
                 .and_then(|td| td.get("uri"))
                 .and_then(|u| u.as_str())
             {
-                info!("DEBUG: Found URI in params: {}", uri);
                 if uri.starts_with("file://") {
                     let file_path = std::path::Path::new(&uri[7..]);
-                    info!("DEBUG: Opening file in LSP: {}", file_path.display());
                     // Notify file opened (will be no-op if already open)
                     if let Err(e) = self.notify_file_opened(file_path).await {
-                        warn!("DEBUG: Failed to open file before request: {}", e);
+                        tracing::debug!(
+                            file_path = %file_path.display(),
+                            error = %e,
+                            "Failed to open file before LSP request"
+                        );
                         // Continue anyway - some operations might work without it
-                    } else {
-                        info!("DEBUG: Successfully opened file in LSP");
                     }
                 }
-            } else {
-                warn!(
-                    "DEBUG: No textDocument.uri found in params for {}: {:?}",
-                    method, params
-                );
             }
         }
 
@@ -277,6 +268,13 @@ impl LspClient {
         // Create a dummy tx for the message (the real one is already in pending_requests)
         let (dummy_tx, _) = oneshot::channel();
 
+        tracing::debug!(
+            lsp_method = %method,
+            lsp_request_id = id,
+            has_params = !params.is_null(),
+            "Sending LSP request"
+        );
+
         // Create and send the request message
         let message = LspMessage::Request {
             id,
@@ -296,22 +294,56 @@ impl LspClient {
         }
 
         // Wait for response with timeout
-        match timeout(LSP_REQUEST_TIMEOUT, response_rx).await {
-            Ok(Ok(Ok(result))) => Ok(result),
-            Ok(Ok(Err(error))) => Err(ServerError::runtime(format!("LSP error: {}", error))),
+        let start_time = std::time::Instant::now();
+        let result = match timeout(LSP_REQUEST_TIMEOUT, response_rx).await {
+            Ok(Ok(Ok(result))) => {
+                tracing::debug!(
+                    lsp_method = %method,
+                    lsp_request_id = id,
+                    duration_ms = start_time.elapsed().as_millis() as u64,
+                    response_success = true,
+                    "Received LSP response"
+                );
+                Ok(result)
+            },
+            Ok(Ok(Err(error))) => {
+                tracing::debug!(
+                    lsp_method = %method,
+                    lsp_request_id = id,
+                    duration_ms = start_time.elapsed().as_millis() as u64,
+                    response_success = false,
+                    error = %error,
+                    "Received LSP error response"
+                );
+                Err(ServerError::runtime(format!("LSP error: {}", error)))
+            },
             Ok(Err(_)) => {
+                tracing::warn!(
+                    lsp_method = %method,
+                    lsp_request_id = id,
+                    duration_ms = start_time.elapsed().as_millis() as u64,
+                    "LSP response channel closed"
+                );
                 // Remove from pending requests
                 let mut pending = self.pending_requests.lock().await;
                 pending.remove(&id);
                 Err(ServerError::runtime("Response channel closed"))
             }
             Err(_) => {
+                tracing::warn!(
+                    lsp_method = %method,
+                    lsp_request_id = id,
+                    duration_ms = start_time.elapsed().as_millis() as u64,
+                    timeout_ms = LSP_REQUEST_TIMEOUT.as_millis() as u64,
+                    "LSP request timeout"
+                );
                 // Remove from pending requests
                 let mut pending = self.pending_requests.lock().await;
                 pending.remove(&id);
                 Err(ServerError::runtime("Request timeout"))
             }
-        }
+        };
+        result
     }
 
     /// Initialize the LSP server

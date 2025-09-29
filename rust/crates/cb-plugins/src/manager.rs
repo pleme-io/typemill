@@ -145,6 +145,13 @@ impl PluginManager {
 
         debug!("Routing request to plugin '{}'", plugin_name);
 
+        // Save file extension and method before moving request
+        let file_extension = request.file_path.extension()
+            .and_then(|ext| ext.to_str())
+            .unwrap_or("unknown")
+            .to_string();
+        let method = request.method.clone();
+
         // Handle the request
         let result = plugin.handle_request(request).await;
 
@@ -160,13 +167,22 @@ impl PluginManager {
                 response.metadata.processing_time_ms = Some(processing_time);
 
                 debug!(
-                    "Request processed successfully by plugin '{}' in {}ms",
-                    response.metadata.plugin_name, processing_time
+                    plugin = %response.metadata.plugin_name,
+                    duration_ms = processing_time,
+                    method = %method,
+                    file_extension = %file_extension,
+                    "Request processed successfully"
                 );
                 Ok(response)
             }
             Err(err) => {
-                error!("Plugin '{}' failed to handle request: {}", plugin_name, err);
+                error!(
+                    plugin = %plugin_name,
+                    error = %err,
+                    method = %method,
+                    file_extension = %file_extension,
+                    "Plugin request failed"
+                );
                 Err(err)
             }
         }

@@ -107,19 +107,14 @@ pub struct FuseConfig {
 }
 
 /// Log output format
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum LogFormat {
     /// Human-readable format for development
+    #[default]
     Pretty,
     /// Structured JSON format for production
     Json,
-}
-
-impl Default for LogFormat {
-    fn default() -> Self {
-        LogFormat::Pretty
-    }
 }
 
 /// Logging configuration

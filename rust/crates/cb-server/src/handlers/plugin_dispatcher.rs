@@ -272,7 +272,7 @@ impl PluginDispatcher {
     }
 
     /// Dispatch an MCP message using the plugin system
-    #[instrument(skip(self, message))]
+    #[instrument(skip(self, message), fields(request_id = %uuid::Uuid::new_v4()))]
     pub async fn dispatch(&self, message: McpMessage) -> ServerResult<McpMessage> {
         // Ensure initialization
         self.initialize().await?;
@@ -281,7 +281,10 @@ impl PluginDispatcher {
             McpMessage::Request(request) => self.handle_request(request).await,
             McpMessage::Response(response) => Ok(McpMessage::Response(response)),
             McpMessage::Notification(notification) => {
-                debug!("Received notification: {:?}", notification);
+                debug!(
+                    notification_method = %notification.method,
+                    "Received notification"
+                );
                 Ok(McpMessage::Response(McpResponse {
                     jsonrpc: "2.0".to_string(),
                     id: None,
@@ -294,9 +297,13 @@ impl PluginDispatcher {
     }
 
     /// Handle an MCP request using plugins
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, request), fields(method = %request.method))]
     async fn handle_request(&self, request: McpRequest) -> ServerResult<McpMessage> {
-        debug!("Handling request: {:?}", request.method);
+        debug!(
+            method = %request.method,
+            has_params = request.params.is_some(),
+            "Handling request"
+        );
 
         let response = match request.method.as_str() {
             "initialize" => self.handle_initialize(request.params).await?,

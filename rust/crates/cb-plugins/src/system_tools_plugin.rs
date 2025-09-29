@@ -402,28 +402,26 @@ impl SystemToolsPlugin {
         // Use ignore crate to walk the directory
         let walker = WalkBuilder::new(&args.workspace_path).hidden(false).build();
 
-        for result in walker {
-            if let Ok(entry) = result {
-                let file_path = entry.path();
+        for entry in walker.flatten() {
+            let file_path = entry.path();
 
-                // Only analyze source files
-                if let Some(ext) = file_path.extension() {
-                    let ext_str = ext.to_string_lossy();
-                    if matches!(ext_str.as_ref(), "ts" | "tsx" | "js" | "jsx" | "py" | "rs") {
-                        files_analyzed += 1;
+            // Only analyze source files
+            if let Some(ext) = file_path.extension() {
+                let ext_str = ext.to_string_lossy();
+                if matches!(ext_str.as_ref(), "ts" | "tsx" | "js" | "jsx" | "py" | "rs") {
+                    files_analyzed += 1;
 
-                        // For each file, we would need to:
-                        // 1. Get symbols using LSP documentSymbol request
-                        // 2. Check references for each symbol
-                        // 3. Mark symbols with 0-1 references as potentially dead
+                    // For each file, we would need to:
+                    // 1. Get symbols using LSP documentSymbol request
+                    // 2. Check references for each symbol
+                    // 3. Mark symbols with 0-1 references as potentially dead
 
-                        // Since we don't have LSP service access here directly,
-                        // we'll provide a simplified implementation
-                        // In a full implementation, this would call LSP servers
+                    // Since we don't have LSP service access here directly,
+                    // we'll provide a simplified implementation
+                    // In a full implementation, this would call LSP servers
 
-                        // For now, return a placeholder that indicates the analysis would happen
-                        debug!("Would analyze file: {:?}", file_path);
-                    }
+                    // For now, return a placeholder that indicates the analysis would happen
+                    debug!("Would analyze file: {:?}", file_path);
                 }
             }
         }
