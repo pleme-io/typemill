@@ -1,0 +1,8 @@
+---
+source: crates/cb-plugins/tests/integration_test.rs
+expression: response.data
+---
+hover:
+  contents:
+    kind: markdown
+    value: "```python\ndef my_function(x: int, y: int) -> int\n```\n\nCalculates the sum of two numbers"

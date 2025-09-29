@@ -1,0 +1,36 @@
+---
+source: crates/cb-plugins/tests/integration_test.rs
+expression: capabilities.unwrap()
+---
+navigation:
+  go_to_definition: true
+  find_references: true
+  find_implementations: true
+  find_type_definition: true
+  workspace_symbols: true
+  document_symbols: true
+  call_hierarchy: true
+editing:
+  rename: true
+  format_document: true
+  format_range: true
+  code_actions: true
+  organize_imports: true
+  auto_imports: true
+refactoring:
+  extract_function: true
+  extract_variable: true
+  inline_variable: true
+  inline_function: false
+  move_refactor: false
+intelligence:
+  hover: true
+  completions: true
+  signature_help: true
+  inlay_hints: true
+  semantic_highlighting: true
+diagnostics:
+  diagnostics: true
+  linting: false
+  pull_diagnostics: true
+custom: {}

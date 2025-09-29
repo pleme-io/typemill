@@ -1,0 +1,21 @@
+---
+source: crates/cb-plugins/tests/integration_test.rs
+expression: response.data
+---
+locations:
+  - range:
+      end:
+        character: 16
+        line: 10
+      start:
+        character: 4
+        line: 10
+    uri: "file:///src/lib.rs"
+  - range:
+      end:
+        character: 20
+        line: 25
+      start:
+        character: 8
+        line: 25
+    uri: "file:///src/main.rs"
