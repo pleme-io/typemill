@@ -8,10 +8,13 @@ members = [
     "crates/cb-server",
     "crates/cb-client",
     "crates/cb-transport",
-    "crates/cb-vfs",
     "crates/tests",
     "benchmark-harness",
     "apps/server",
+]
+# Excluded members (optional features - build with --features vfs):
+exclude = [
+    "crates/cb-vfs",  # EXPERIMENTAL: FUSE virtual filesystem (Unix only, optional)
 ]
 resolver = "2"
 

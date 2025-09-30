@@ -37,9 +37,9 @@ pub fn build_import_graph(source: &str, path: &Path) -> AstResult<ImportGraph> {
             match parse_js_ts_imports_swc(source, path) {
                 Ok(swc_imports) => swc_imports,
                 Err(_) => {
-                    eprintln!(
-                        "SWC parsing failed, falling back to regex for: {}",
-                        path.display()
+                    tracing::debug!(
+                        file_path = %path.display(),
+                        "SWC parsing failed, falling back to regex"
                     );
                     parse_js_ts_imports_enhanced(source)?
                 }
@@ -50,9 +50,9 @@ pub fn build_import_graph(source: &str, path: &Path) -> AstResult<ImportGraph> {
             match crate::python_parser::parse_python_imports_ast(source) {
                 Ok(ast_imports) => ast_imports,
                 Err(_) => {
-                    eprintln!(
-                        "Python AST parsing failed, falling back to regex for: {}",
-                        path.display()
+                    tracing::debug!(
+                        file_path = %path.display(),
+                        "Python AST parsing failed, falling back to regex"
                     );
                     parse_python_imports(source)?
                 }

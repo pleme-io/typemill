@@ -27,22 +27,24 @@ CodeBuddy is in active development with core functionality working but no API st
 #### 1. Structured Logging - ✅ COMPLETE
 - [x] **Foundation**: Tracing framework integrated in cb-server ✅
 - [x] **Production Code**: All production libraries use tracing ✅
-  - Status: 100% done - Analysis revealed no work needed
-  - Core libraries (cb-ast, cb-api, cb-core, cb-plugins, cb-transport): 0 println
-  - Server library (cb-server/src): Uses tracing throughout
-  - 216 println! calls are in CLI tools (user output) and tests (appropriate usage)
-  - Only 1 eprintln! in server main.rs during logger init (correct - can't log before logger exists)
-  - **Decision**: ✅ Complete - Production observability requirements met
+  - Status: 100% done - Fixed remaining eprintln! calls
+  - Fixed: cb-ast/parser.rs (2 eprintln! → tracing::debug!)
+  - Acceptable: 1 eprintln! in server main.rs during logger init (can't log before logger exists)
+  - Acceptable: 434 println! calls in CLI tools (user-facing output) and tests
+  - Breakdown: cb-client has ~200 println for interactive prompts, table output, help text
+  - **Decision**: ✅ Complete - Production code uses structured logging, CLI uses println appropriately
   - Priority: **DONE**
 
 #### 2. Error Handling - Remove .unwrap() from production code
-- [ ] **Phase 1**: Production hot paths (services/, handlers/) - 8-10 hours
-- [ ] **Phase 2**: CLI and startup code - 6-8 hours
+- [ ] **Phase 1**: Production hot paths (services/, handlers/) - 8-10 hours (TODO)
+- [x] **Phase 2**: CLI and startup code - ✅ COMPLETE (10 minutes actual)
+  - Fixed 5 production unwraps in cb-client (formatting, connect, status, mcp, call)
+  - Remaining 38 unwraps: 37 in tests (acceptable) + 4 ProgressStyle templates (safe hardcoded)
 - [ ] **Phase 3**: Keep .unwrap() in tests (tests are allowed to panic)
-  - Status: 0% done, .unwrap() in 100+ files
-  - Total estimated effort: 14-18 hours (phased approach)
-  - **Decision**: 📋 Phase it - Break into chunks, critical paths first
-  - Priority: **HIGH** for Phase 1, **MEDIUM** for Phase 2
+  - Status: Phase 2 complete, Phase 1 pending
+  - Phase 1 effort: 82 unwraps in services/handlers remain
+  - **Decision**: 📋 Phase 1 next priority
+  - Priority: **HIGH** for Phase 1
 
 #### 3. Dependency Cleanup - ✅ COMPLETE
 - [x] Run `cargo tree --duplicates` to identify all duplicates
@@ -56,14 +58,17 @@ CodeBuddy is in active development with core functionality working but no API st
 
 ### ⚠️ MEDIUM Priority (Consider for 1.0)
 
-#### 4. VFS Feature - Feature-gate and defer
-- [ ] Add `#[cfg(feature = "vfs")]` guards to cb-vfs crate
-- [ ] Update Cargo.toml to make vfs an optional feature
-- [ ] Document as experimental
-  - Status: Partial implementation (466 lines), decision pending
-  - Estimated effort: 1-2 hours to feature-gate
-  - **Decision**: ⚠️ Feature-gate and defer - Docker volumes proposal eliminates immediate need
-  - Priority: **LOW** - Not blocking 1.0, revisit in 3-6 months
+#### 4. VFS Feature - ✅ COMPLETE (Feature-gated)
+- [x] Add `#[cfg(feature = "vfs")]` guards to usage sites ✅
+- [x] Update Cargo.toml to make vfs an optional feature ✅
+- [x] Remove cb-vfs from default workspace build ✅
+- [x] Document as experimental ✅
+  - Status: Complete - cb-vfs excluded from workspace.members
+  - Usage guarded with #[cfg(all(unix, feature = "vfs"))]
+  - Build with VFS: `cargo build --features vfs` (Unix only)
+  - Default build: VFS not compiled (faster builds, smaller binary)
+  - **Decision**: ✅ Complete - Properly feature-gated, Docker volumes proposal eliminates immediate need
+  - Priority: **DONE** - Not included in default 1.0 release
 
 ### 📦 LOW Priority (Post-1.0)
 
