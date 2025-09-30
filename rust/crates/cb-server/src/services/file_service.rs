@@ -5,6 +5,7 @@ use crate::services::lock_manager::LockManager;
 use crate::{ServerError, ServerResult};
 use cb_api::{DependencyUpdate, EditPlan, EditPlanMetadata, TextEdit};
 use cb_ast::AstCache;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::fs;
@@ -275,13 +276,31 @@ impl FileService {
         self.apply_edits_with_coordination(plan).await
     }
 
-    /// Apply edits with file coordination
+    /// Apply edits with file coordination and atomic rollback on failure
     async fn apply_edits_with_coordination(&self, plan: &EditPlan) -> ServerResult<EditPlanResult> {
-        let mut modified_files = Vec::new();
-        let mut errors = Vec::new();
+        // Step 1: Identify all files that will be affected
+        let mut affected_files = std::collections::HashSet::new();
 
-        // 1. Apply main file edits with locking
+        // Main source file
         let main_file = self.to_absolute_path(Path::new(&plan.source_file));
+        affected_files.insert(main_file.clone());
+
+        // Files affected by dependency updates
+        for dep_update in &plan.dependency_updates {
+            let target_file = self.to_absolute_path(Path::new(&dep_update.target_file));
+            affected_files.insert(target_file);
+        }
+
+        // Step 2: Create snapshots of all affected files before any modifications
+        let snapshots = self.create_file_snapshots(&affected_files).await?;
+        debug!(
+            snapshot_count = snapshots.len(),
+            "Created file snapshots for atomic operation"
+        );
+
+        let mut modified_files = Vec::new();
+
+        // Step 3: Apply main file edits with locking
         let file_lock = self.lock_manager.get_lock(&main_file).await;
         let _guard = file_lock.write().await;
 
@@ -300,13 +319,18 @@ impl FileService {
                     error = %e,
                     "Failed to apply edits to main file"
                 );
-                errors.push(format!("Main file {}: {}", plan.source_file, e));
+                // Rollback all changes and return error
+                self.rollback_from_snapshots(&snapshots).await?;
+                return Err(ServerError::Internal(format!(
+                    "Failed to apply edits to main file {}: {}. All changes have been rolled back.",
+                    plan.source_file, e
+                )));
             }
         }
 
         // Guard is dropped here, releasing the lock
 
-        // 2. Apply dependency updates to other files with locking
+        // Step 4: Apply dependency updates to other files with locking
         for dep_update in &plan.dependency_updates {
             let target_file = self.to_absolute_path(Path::new(&dep_update.target_file));
             let file_lock = self.lock_manager.get_lock(&target_file).await;
@@ -325,46 +349,134 @@ impl FileService {
                         error = %e,
                         "Failed to apply dependency update"
                     );
-                    errors.push(format!("Dependency file {}: {}", dep_update.target_file, e));
+                    // Rollback all changes and return error
+                    self.rollback_from_snapshots(&snapshots).await?;
+                    return Err(ServerError::Internal(format!(
+                        "Failed to apply dependency update to {}: {}. All changes have been rolled back.",
+                        dep_update.target_file, e
+                    )));
                 }
             }
             // Guard is dropped here after each file
         }
 
-        // 3. Invalidate AST cache for all modified files
+        // Step 5: Invalidate AST cache for all modified files
         for file_path in &modified_files {
             let abs_path = self.to_absolute_path(Path::new(file_path));
             self.ast_cache.invalidate(&abs_path);
             debug!(file_path = %file_path, "Invalidated AST cache");
         }
 
-        // 4. Collect validation results if any errors occurred
-        if !errors.is_empty() && modified_files.is_empty() {
+        // Step 6: All operations successful - snapshots can be dropped
+        info!(
+            modified_files_count = modified_files.len(),
+            "Edit plan completed successfully with atomic guarantees"
+        );
+
+        Ok(EditPlanResult {
+            success: true,
+            modified_files,
+            errors: None,
+            plan_metadata: plan.metadata.clone(),
+        })
+    }
+
+    /// Create snapshots of file contents before modification
+    async fn create_file_snapshots(
+        &self,
+        file_paths: &std::collections::HashSet<PathBuf>,
+    ) -> ServerResult<HashMap<PathBuf, String>> {
+        let mut snapshots = HashMap::new();
+
+        for file_path in file_paths {
+            match fs::read_to_string(file_path).await {
+                Ok(content) => {
+                    snapshots.insert(file_path.clone(), content);
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                    // File doesn't exist yet - store empty string to indicate deletion on rollback
+                    debug!(
+                        file_path = %file_path.display(),
+                        "File does not exist yet, will be created during operation"
+                    );
+                    snapshots.insert(file_path.clone(), String::new());
+                }
+                Err(e) => {
+                    return Err(ServerError::Internal(format!(
+                        "Failed to read file {} for snapshot: {}",
+                        file_path.display(),
+                        e
+                    )));
+                }
+            }
+        }
+
+        Ok(snapshots)
+    }
+
+    /// Rollback all file modifications using snapshots
+    async fn rollback_from_snapshots(
+        &self,
+        snapshots: &HashMap<PathBuf, String>,
+    ) -> ServerResult<()> {
+        warn!(
+            files_count = snapshots.len(),
+            "Rolling back file modifications"
+        );
+
+        let mut rollback_errors = Vec::new();
+
+        for (file_path, original_content) in snapshots {
+            if original_content.is_empty() {
+                // File didn't exist before, so delete it if it was created
+                if file_path.exists() {
+                    if let Err(e) = fs::remove_file(file_path).await {
+                        rollback_errors.push(format!(
+                            "Failed to remove file {} during rollback: {}",
+                            file_path.display(),
+                            e
+                        ));
+                    } else {
+                        debug!(
+                            file_path = %file_path.display(),
+                            "Removed newly created file during rollback"
+                        );
+                    }
+                }
+            } else {
+                // Restore original content
+                if let Err(e) = fs::write(file_path, original_content).await {
+                    rollback_errors.push(format!(
+                        "Failed to restore file {} during rollback: {}",
+                        file_path.display(),
+                        e
+                    ));
+                } else {
+                    debug!(
+                        file_path = %file_path.display(),
+                        "Restored original content during rollback"
+                    );
+                }
+            }
+
+            // Invalidate AST cache for rolled-back file
+            self.ast_cache.invalidate(file_path);
+        }
+
+        if !rollback_errors.is_empty() {
+            error!(
+                error_count = rollback_errors.len(),
+                errors = %rollback_errors.join("; "),
+                "Encountered errors during rollback"
+            );
             return Err(ServerError::Internal(format!(
-                "All edits failed: {}",
-                errors.join("; ")
+                "Rollback partially failed: {}",
+                rollback_errors.join("; ")
             )));
         }
 
-        let success = errors.is_empty();
-        if !success {
-            warn!(
-                error_count = errors.len(),
-                errors = %errors.join("; "),
-                "Edit plan completed with errors"
-            );
-        }
-
-        Ok(EditPlanResult {
-            success,
-            modified_files,
-            errors: if errors.is_empty() {
-                None
-            } else {
-                Some(errors)
-            },
-            plan_metadata: plan.metadata.clone(),
-        })
+        info!("Successfully rolled back all file modifications");
+        Ok(())
     }
 
     /// Apply text edits to a single file
@@ -605,5 +717,305 @@ mod tests {
 
         service.delete_file(file_path, false).await.unwrap();
         assert!(!temp_dir.path().join(file_path).exists());
+    }
+
+    #[tokio::test]
+    async fn test_atomic_edit_plan_success() {
+        use cb_api::{DependencyUpdateType, EditLocation, EditType};
+
+        let temp_dir = TempDir::new().unwrap();
+        let ast_cache = Arc::new(AstCache::new());
+        let lock_manager = Arc::new(LockManager::new());
+        let service = FileService::new(temp_dir.path(), ast_cache, lock_manager);
+
+        // Create test files
+        let main_file = "main.ts";
+        let dep_file = "dependency.ts";
+
+        service
+            .create_file(Path::new(main_file), Some("import { foo } from './old';\nconst x = 1;"), false)
+            .await
+            .unwrap();
+        service
+            .create_file(Path::new(dep_file), Some("import './old';\nconst y = 2;"), false)
+            .await
+            .unwrap();
+
+        // Create edit plan
+        let plan = EditPlan {
+            source_file: main_file.to_string(),
+            edits: vec![TextEdit {
+                edit_type: EditType::Replace,
+                location: EditLocation {
+                    start_line: 1,
+                    start_column: 0,
+                    end_line: 1,
+                    end_column: 12,
+                },
+                original_text: "const x = 1;".to_string(),
+                new_text: "const x = 2;".to_string(),
+                priority: 1,
+                description: "Update value".to_string(),
+            }],
+            dependency_updates: vec![DependencyUpdate {
+                target_file: dep_file.to_string(),
+                update_type: DependencyUpdateType::ImportPath,
+                old_reference: "./old".to_string(),
+                new_reference: "./new".to_string(),
+            }],
+            validations: vec![],
+            metadata: EditPlanMetadata {
+                intent_name: "test".to_string(),
+                intent_arguments: serde_json::json!({}),
+                created_at: chrono::Utc::now(),
+                complexity: 1,
+                impact_areas: vec!["test".to_string()],
+            },
+        };
+
+        // Apply edit plan
+        let result = service.apply_edit_plan(&plan).await.unwrap();
+
+        // Verify success
+        assert!(result.success);
+        assert_eq!(result.modified_files.len(), 2);
+        assert!(result.errors.is_none());
+
+        // Verify file contents were updated
+        let main_content = service.read_file(Path::new(main_file)).await.unwrap();
+        assert!(main_content.contains("const x = 2;"));
+
+        let dep_content = service.read_file(Path::new(dep_file)).await.unwrap();
+        assert!(dep_content.contains("./new"));
+    }
+
+    #[tokio::test]
+    async fn test_atomic_rollback_on_main_file_failure() {
+        use cb_api::{DependencyUpdateType, EditLocation, EditType};
+
+        let temp_dir = TempDir::new().unwrap();
+        let ast_cache = Arc::new(AstCache::new());
+        let lock_manager = Arc::new(LockManager::new());
+        let service = FileService::new(temp_dir.path(), ast_cache, lock_manager);
+
+        // Create test files with specific content
+        let main_file = "main.ts";
+        let dep_file = "dependency.ts";
+
+        let main_original = "import { foo } from './old';\nconst x = 1;";
+        let dep_original = "import './old';\nconst y = 2;";
+
+        service
+            .create_file(Path::new(main_file), Some(main_original), false)
+            .await
+            .unwrap();
+        service
+            .create_file(Path::new(dep_file), Some(dep_original), false)
+            .await
+            .unwrap();
+
+        // Create edit plan with invalid edit location that will fail
+        let plan = EditPlan {
+            source_file: main_file.to_string(),
+            edits: vec![TextEdit {
+                edit_type: EditType::Replace,
+                location: EditLocation {
+                    start_line: 999, // Invalid line - will cause failure
+                    start_column: 0,
+                    end_line: 999,
+                    end_column: 10,
+                },
+                original_text: "invalid".to_string(),
+                new_text: "replacement".to_string(),
+                priority: 1,
+                description: "This should fail".to_string(),
+            }],
+            dependency_updates: vec![DependencyUpdate {
+                target_file: dep_file.to_string(),
+                update_type: DependencyUpdateType::ImportPath,
+                old_reference: "./old".to_string(),
+                new_reference: "./new".to_string(),
+            }],
+            validations: vec![],
+            metadata: EditPlanMetadata {
+                intent_name: "test_failure".to_string(),
+                intent_arguments: serde_json::json!({}),
+                created_at: chrono::Utc::now(),
+                complexity: 1,
+                impact_areas: vec!["test".to_string()],
+            },
+        };
+
+        // Apply edit plan - should fail
+        let result = service.apply_edit_plan(&plan).await;
+        assert!(result.is_err());
+
+        // Verify files were rolled back to original state
+        let main_content = service.read_file(Path::new(main_file)).await.unwrap();
+        assert_eq!(main_content, main_original, "Main file should be rolled back");
+
+        let dep_content = service.read_file(Path::new(dep_file)).await.unwrap();
+        assert_eq!(dep_content, dep_original, "Dependency file should be rolled back");
+    }
+
+    #[tokio::test]
+    async fn test_atomic_rollback_on_dependency_failure() {
+        use cb_api::{DependencyUpdateType, EditLocation, EditType};
+
+        let temp_dir = TempDir::new().unwrap();
+        let ast_cache = Arc::new(AstCache::new());
+        let lock_manager = Arc::new(LockManager::new());
+        let service = FileService::new(temp_dir.path(), ast_cache, lock_manager);
+
+        // Create main file
+        let main_file = "main.ts";
+        let main_original = "const x = 1;";
+
+        service
+            .create_file(Path::new(main_file), Some(main_original), false)
+            .await
+            .unwrap();
+
+        // Create a dependency file with unparseable content that will cause AST failure
+        let dep_file = "bad_syntax.ts";
+        let dep_original = "<<<< this is invalid typescript syntax >>>>";
+
+        service
+            .create_file(Path::new(dep_file), Some(dep_original), false)
+            .await
+            .unwrap();
+
+        // Create edit plan that will fail when trying to parse the bad dependency file
+        let plan = EditPlan {
+            source_file: main_file.to_string(),
+            edits: vec![TextEdit {
+                edit_type: EditType::Replace,
+                location: EditLocation {
+                    start_line: 0,
+                    start_column: 0,
+                    end_line: 0,
+                    end_column: 12,
+                },
+                original_text: "const x = 1;".to_string(),
+                new_text: "const x = 2;".to_string(),
+                priority: 1,
+                description: "Update value".to_string(),
+            }],
+            dependency_updates: vec![DependencyUpdate {
+                target_file: dep_file.to_string(),
+                update_type: DependencyUpdateType::ImportPath,
+                old_reference: "<<<<".to_string(),
+                new_reference: "./new".to_string(),
+            }],
+            validations: vec![],
+            metadata: EditPlanMetadata {
+                intent_name: "test_dep_failure".to_string(),
+                intent_arguments: serde_json::json!({}),
+                created_at: chrono::Utc::now(),
+                complexity: 1,
+                impact_areas: vec!["test".to_string()],
+            },
+        };
+
+        // Apply edit plan - should fail on dependency update due to parse error
+        let result = service.apply_edit_plan(&plan).await;
+        assert!(result.is_err());
+
+        // Verify main file was rolled back to original state
+        let main_content = service.read_file(Path::new(main_file)).await.unwrap();
+        assert_eq!(main_content, main_original, "Main file should be rolled back after dependency failure");
+
+        // Verify bad dependency file was also rolled back
+        let dep_content = service.read_file(Path::new(dep_file)).await.unwrap();
+        assert_eq!(dep_content, dep_original, "Dependency file should be rolled back");
+    }
+
+    #[tokio::test]
+    async fn test_atomic_rollback_multiple_files() {
+        use cb_api::{DependencyUpdateType, EditLocation, EditType};
+
+        let temp_dir = TempDir::new().unwrap();
+        let ast_cache = Arc::new(AstCache::new());
+        let lock_manager = Arc::new(LockManager::new());
+        let service = FileService::new(temp_dir.path(), ast_cache, lock_manager);
+
+        // Create multiple files
+        let main_file = "main.ts";
+        let dep_file1 = "dep1.ts";
+        let dep_file2 = "dep2.ts";
+        let dep_file3 = "dep3.ts";
+
+        let main_original = "const x = 1;";
+        let dep1_original = "import './old1';";
+        let dep2_original = "import './old2';";
+        let dep3_original = "import 'this_will_cause_parse_error'; <<<< invalid syntax >>>>";
+
+        service.create_file(Path::new(main_file), Some(main_original), false).await.unwrap();
+        service.create_file(Path::new(dep_file1), Some(dep1_original), false).await.unwrap();
+        service.create_file(Path::new(dep_file2), Some(dep2_original), false).await.unwrap();
+        service.create_file(Path::new(dep_file3), Some(dep3_original), false).await.unwrap();
+
+        // Create edit plan that will fail on the last dependency due to parse error
+        let plan = EditPlan {
+            source_file: main_file.to_string(),
+            edits: vec![TextEdit {
+                edit_type: EditType::Replace,
+                location: EditLocation {
+                    start_line: 0,
+                    start_column: 0,
+                    end_line: 0,
+                    end_column: 12,
+                },
+                original_text: "const x = 1;".to_string(),
+                new_text: "const x = 999;".to_string(),
+                priority: 1,
+                description: "Update value".to_string(),
+            }],
+            dependency_updates: vec![
+                DependencyUpdate {
+                    target_file: dep_file1.to_string(),
+                    update_type: DependencyUpdateType::ImportPath,
+                    old_reference: "./old1".to_string(),
+                    new_reference: "./new1".to_string(),
+                },
+                DependencyUpdate {
+                    target_file: dep_file2.to_string(),
+                    update_type: DependencyUpdateType::ImportPath,
+                    old_reference: "./old2".to_string(),
+                    new_reference: "./new2".to_string(),
+                },
+                DependencyUpdate {
+                    target_file: dep_file3.to_string(),
+                    update_type: DependencyUpdateType::ImportPath,
+                    old_reference: "this_will_cause_parse_error".to_string(),
+                    new_reference: "./new3".to_string(),
+                },
+            ],
+            validations: vec![],
+            metadata: EditPlanMetadata {
+                intent_name: "test_multi_rollback".to_string(),
+                intent_arguments: serde_json::json!({}),
+                created_at: chrono::Utc::now(),
+                complexity: 3,
+                impact_areas: vec!["test".to_string()],
+            },
+        };
+
+        // Apply edit plan - should fail on third dependency due to parse error
+        let result = service.apply_edit_plan(&plan).await;
+        assert!(result.is_err());
+
+        // Verify ALL files were rolled back to original state
+        let main_content = service.read_file(Path::new(main_file)).await.unwrap();
+        assert_eq!(main_content, main_original, "Main file should be rolled back");
+
+        let dep1_content = service.read_file(Path::new(dep_file1)).await.unwrap();
+        assert_eq!(dep1_content, dep1_original, "First dependency file should be rolled back");
+
+        let dep2_content = service.read_file(Path::new(dep_file2)).await.unwrap();
+        assert_eq!(dep2_content, dep2_original, "Second dependency file should be rolled back");
+
+        let dep3_content = service.read_file(Path::new(dep_file3)).await.unwrap();
+        assert_eq!(dep3_content, dep3_original, "Third dependency file should remain unchanged");
     }
 }
