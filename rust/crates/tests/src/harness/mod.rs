@@ -4,6 +4,7 @@ pub mod lsp_setup;
 pub mod project_fixtures;
 pub mod real_lsp_service;
 pub mod test_builder;
+pub mod test_fixtures;
 pub mod test_helpers;
 pub mod test_lsp_service;
 pub mod workspace;
