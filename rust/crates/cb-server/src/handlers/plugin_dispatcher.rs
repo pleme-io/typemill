@@ -36,6 +36,8 @@ pub struct AppState {
     pub lock_manager: Arc<crate::services::LockManager>,
     /// Operation queue for serializing file operations
     pub operation_queue: Arc<crate::services::OperationQueue>,
+    /// Server start time for uptime calculation
+    pub start_time: Instant,
 }
 
 /// Plugin-based MCP dispatcher
@@ -354,6 +356,11 @@ impl PluginDispatcher {
         // Check if this is an intent to be planned into a workflow
         if tool_call.name == "achieve_intent" {
             return self.handle_achieve_intent(tool_call).await;
+        }
+
+        // Check if this is a health check request
+        if tool_call.name == "health_check" {
+            return self.handle_health_check().await;
         }
 
         // Check if this is a file operation that needs app_state services
@@ -744,6 +751,37 @@ impl PluginDispatcher {
         Ok(json!({
             "success": true,
             "message": format!("Notified about closed file: {}", file_path.display())
+        }))
+    }
+
+    /// Handle health_check tool call by reporting server status.
+    async fn handle_health_check(&self) -> ServerResult<Value> {
+        info!("Handling health check request");
+
+        let uptime_secs = self.app_state.start_time.elapsed().as_secs();
+        let uptime_mins = uptime_secs / 60;
+        let uptime_hours = uptime_mins / 60;
+
+        // Get plugin count from plugin manager
+        let plugin_count = self.plugin_manager.get_all_tool_definitions().await.len();
+
+        // Get paused workflow count from executor
+        let paused_workflows = self.app_state.workflow_executor.get_paused_workflow_count();
+
+        Ok(json!({
+            "status": "healthy",
+            "uptime": {
+                "seconds": uptime_secs,
+                "minutes": uptime_mins,
+                "hours": uptime_hours,
+                "formatted": format!("{}h {}m {}s", uptime_hours, uptime_mins % 60, uptime_secs % 60)
+            },
+            "plugins": {
+                "loaded": plugin_count
+            },
+            "workflows": {
+                "paused": paused_workflows
+            }
         }))
     }
 
@@ -1163,6 +1201,7 @@ mod tests {
             project_root,
             lock_manager,
             operation_queue,
+            start_time: std::time::Instant::now(),
         })
     }
 

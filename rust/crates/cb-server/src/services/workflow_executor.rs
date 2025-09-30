@@ -35,6 +35,7 @@ pub trait WorkflowExecutor: Send + Sync {
         workflow_id: &str,
         resume_data: Option<Value>,
     ) -> ServerResult<Value>;
+    fn get_paused_workflow_count(&self) -> usize;
 }
 
 /// The default implementation of the WorkflowExecutor service.
@@ -464,6 +465,10 @@ impl WorkflowExecutor for DefaultWorkflowExecutor {
             "log": log,
             "result": final_result
         }))
+    }
+
+    fn get_paused_workflow_count(&self) -> usize {
+        self.paused_workflows.len()
     }
 }
 

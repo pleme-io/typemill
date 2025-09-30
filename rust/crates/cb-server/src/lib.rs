@@ -79,6 +79,7 @@ pub async fn bootstrap(options: ServerOptions) -> ServerResult<ServerHandle> {
         project_root,
         lock_manager,
         operation_queue,
+        start_time: std::time::Instant::now(),
     });
 
     // Create dispatcher

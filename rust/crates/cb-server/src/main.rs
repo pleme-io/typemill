@@ -78,6 +78,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         project_root,
         lock_manager,
         operation_queue,
+        start_time: std::time::Instant::now(),
     });
 
     // Create Plugin dispatcher with app state and plugin manager

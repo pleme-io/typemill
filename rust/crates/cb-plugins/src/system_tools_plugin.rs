@@ -1028,6 +1028,14 @@ impl LanguagePlugin for SystemToolsPlugin {
                     "required": ["query"]
                 }
             }),
+            json!({
+                "name": "health_check",
+                "description": "Get the health status of the server, including uptime, loaded plugins, and paused workflows.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {}
+                }
+            }),
         ]
     }
 
