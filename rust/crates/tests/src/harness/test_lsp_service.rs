@@ -1,4 +1,4 @@
-//! Test LSP service for predictable testing without heavy mocking
+//! Mock LSP service for predictable testing without heavy mocking
 
 use async_trait::async_trait;
 // No longer need cb_core imports since we use cb_api::Message
@@ -7,9 +7,8 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-/// A test implementation of LspService that returns predictable responses
-/// This is not a mock but a simple implementation for testing purposes
-pub struct TestLspService {
+/// A mock implementation of LspService that returns predictable responses
+pub struct MockLspService {
     /// Configured responses for specific LSP methods
     responses: Arc<Mutex<HashMap<String, Value>>>,
     /// Track requests for verification
@@ -18,8 +17,8 @@ pub struct TestLspService {
     error_methods: Arc<Mutex<HashMap<String, String>>>,
 }
 
-impl TestLspService {
-    /// Create a new test LSP service
+impl MockLspService {
+    /// Create a new mock LSP service
     pub fn new() -> Self {
         Self {
             responses: Arc::new(Mutex::new(HashMap::new())),
@@ -157,7 +156,7 @@ impl TestLspService {
 }
 
 #[async_trait]
-impl LspService for TestLspService {
+impl LspService for MockLspService {
     async fn request(&self, message: Message) -> Result<Message, ApiError> {
         // Store the request for verification
         {
@@ -207,12 +206,12 @@ impl LspService for TestLspService {
     }
 
     async fn notify_file_opened(&self, _file_path: &std::path::Path) -> Result<(), ApiError> {
-        // No-op for testing - the test LSP service doesn't need actual file notifications
+        // No-op for testing - the mock LSP service doesn't need actual file notifications
         Ok(())
     }
 }
 
-impl Default for TestLspService {
+impl Default for MockLspService {
     fn default() -> Self {
         Self::new()
     }
@@ -223,8 +222,8 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_lsp_service_basic_request() {
-        let service = TestLspService::new();
+    async fn test_mock_lsp_service_basic_request() {
+        let service = MockLspService::new();
         service.set_response("test/method", json!({"result": "success"}));
 
         let request = Message {
@@ -246,8 +245,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_lsp_service_error_response() {
-        let service = TestLspService::new();
+    async fn test_mock_lsp_service_error_response() {
+        let service = MockLspService::new();
         service.set_error("error/method", "Simulated error");
 
         let request = Message {
@@ -263,16 +262,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_lsp_service_is_available() {
-        let service = TestLspService::new();
+    async fn test_mock_lsp_service_is_available() {
+        let service = MockLspService::new();
         assert!(service.is_available("ts").await);
         assert!(service.is_available("js").await);
         assert!(service.is_available("py").await);
     }
 
     #[tokio::test]
-    async fn test_lsp_service_navigation_setup() {
-        let service = TestLspService::new();
+    async fn test_mock_lsp_service_navigation_setup() {
+        let service = MockLspService::new();
         service.setup_navigation_responses();
 
         // Test definition response
