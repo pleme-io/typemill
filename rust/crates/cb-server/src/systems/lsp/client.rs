@@ -677,7 +677,15 @@ impl Drop for LspClient {
                 warn!("Failed to kill LSP server process on drop: {}", e);
             }
             // IMPORTANT: Wait for the process to actually exit to avoid zombies
-            let _ = process.wait().await;
+            // Use timeout to prevent hanging indefinitely
+            match timeout(Duration::from_secs(5), process.wait()).await {
+                Ok(_) => {
+                    debug!("LSP server process terminated successfully");
+                }
+                Err(_) => {
+                    warn!("LSP server process did not terminate within 5 seconds, but drop is completing");
+                }
+            }
         });
     }
 }

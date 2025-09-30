@@ -115,6 +115,7 @@ impl DirectLspAdapter {
         &self,
         params: Value,
     ) -> Result<Value, String> {
+        const MAX_WORKSPACE_SYMBOLS: usize = 10_000;
         let mut all_symbols = Vec::new();
         let mut queried_servers = Vec::new();
 
@@ -135,6 +136,15 @@ impl DirectLspAdapter {
                                 );
                                 all_symbols.extend_from_slice(symbols);
                                 queried_servers.push(extension.clone());
+
+                                // Prevent unbounded symbol collection
+                                if all_symbols.len() >= MAX_WORKSPACE_SYMBOLS {
+                                    debug!(
+                                        symbol_count = all_symbols.len(),
+                                        "Reached maximum workspace symbol limit, stopping collection"
+                                    );
+                                    break;
+                                }
                             }
                         }
                         Err(e) => {

@@ -156,8 +156,24 @@ async fn handle_connection(
     let (mut write, mut read) = ws_stream.split();
     let mut session = Session::new();
 
-    // Message processing loop
-    while let Some(msg) = read.next().await {
+    // Message processing loop with idle timeout
+    const IDLE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300); // 5 minutes
+    loop {
+        let msg = match tokio::time::timeout(IDLE_TIMEOUT, read.next()).await {
+            Ok(Some(msg)) => msg,
+            Ok(None) => {
+                tracing::info!("WebSocket connection closed by client");
+                break;
+            }
+            Err(_) => {
+                tracing::warn!(
+                    client_addr = %addr,
+                    timeout_secs = 300,
+                    "WebSocket connection idle timeout, closing connection"
+                );
+                break;
+            }
+        };
         match msg {
             Ok(Message::Text(text)) => {
                 let request_id = uuid::Uuid::new_v4();
