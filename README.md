@@ -1,75 +1,58 @@
 # 🤖 Codebuddy
+Pure Rust MCP server bridging Language Server Protocol to AI coding assistants
 
-**Pure Rust MCP server** bridging Language Server Protocol functionality to AI coding assistants with comprehensive tools for navigation, refactoring, code intelligence, and batch operations.
+## ✨ Key Features
+- **🔍 Code Navigation** - Jump to definitions, find references, search symbols across projects
+- **🔧 Safe Refactoring** - Rename symbols with compile-time safety guarantees
+- **💡 Code Intelligence** - Hover documentation, completions, diagnostics, call hierarchies
+- **⚡ Batch Operations** - Execute multiple LSP operations atomically with parallel processing
+- **🌐 Multi-Language** - TypeScript, Python, Go, Rust + 15 more languages via LSP
+- **🚀 Production Ready** - WebSocket server with JWT authentication and health monitoring
 
-## ✨ What It Does
-
-**Comprehensive MCP tools** that give AI assistants LSP superpowers:
-- **Find & Navigate** - Jump to definitions, find all references, search symbols
-- **Refactor Safely** - Rename across entire codebase, with compile-time safety
-- **Code Intelligence** - Hover docs, completions, diagnostics, call hierarchies
-- **Batch Operations** - Execute multiple tools atomically with parallel processing
-- **Advanced Analysis** - Directory renaming, import fixing, package.json management
-- **Multi-Language** - TypeScript, Python, Go, Rust + 15 more languages
-- **WebSocket Mode** - Production-ready server with authentication
-
-## 🚀 Quick Install
-
-### Option 1: One-Liner Install (Recommended)
+## 🚀 Quick Start
 ```bash
+# Install via one-liner (recommended)
 curl -fsSL https://raw.githubusercontent.com/goobits/codebuddy/main/install.sh | bash
-```
 
-### Option 2: Cargo Install
-```bash
+# Or via Cargo
 cargo install codebuddy
-```
 
-### Option 3: Download Pre-built Binary
-1. Download from [GitHub Releases](https://github.com/goobits/codebuddy/releases/latest)
-2. Extract and place in your PATH
-3. Run `codebuddy setup`
-
-### Option 4: Package Managers
-
-#### Homebrew (macOS/Linux)
-```bash
+# Or via Homebrew (macOS/Linux)
 brew install goobits/tap/codebuddy
-```
 
-#### Chocolatey (Windows)
-```bash
+# Or via Chocolatey (Windows)
 choco install codebuddy
-```
 
-## ⚡ Usage
-
-```bash
-# Smart setup with auto-detection
+# Setup with auto-detection
 codebuddy setup
 
 # Start MCP server for Claude Code
 codebuddy start
 
-# Check status
-codebuddy status
-
-# WebSocket server
+# Or start WebSocket server
 codebuddy serve
+```
 
-# Stop the running server
-codebuddy stop
+## 🛠️ Language Server Setup
+```bash
+# TypeScript/JavaScript (works via npx, or install explicitly)
+npm install -g typescript-language-server typescript
 
-# Link to AI assistants
-codebuddy link
+# Python
+pip install "python-lsp-server[all]"
 
-# Remove AI from config
-codebuddy unlink
+# Go
+go install golang.org/x/tools/gopls@latest
+
+# Rust
+rustup component add rust-analyzer
+
+# Check configured servers
+codebuddy status
 ```
 
 ## 📚 MCP Integration
-
-The installer automatically configures Claude Code. Manual setup:
+The installer configures Claude Code automatically. For manual setup:
 
 ```json
 {
@@ -82,38 +65,18 @@ The installer automatically configures Claude Code. Manual setup:
 }
 ```
 
-
-## 🛠️ Language Server Setup
-```bash
-# TypeScript/JavaScript (works out of the box via npx)
-# Optional explicit install:
-npm install -g typescript-language-server typescript
-
-# Python
-pip install "python-lsp-server[all]"
-
-# Go
-go install golang.org/x/tools/gopls@latest
-
-# Rust
-rustup component add rust-analyzer
-
-# View configuration and status
-codebuddy status
-```
-
 ## ⚙️ Configuration
 ```bash
-# Smart setup with auto-detection
+# Interactive setup wizard
 codebuddy setup
 
-# Check status of language servers
+# View current configuration
 codebuddy status
 
 # Link to AI assistants
 codebuddy link
 
-# Manual configuration (creates .codebuddy/config.json)
+# Manual configuration
 cat > .codebuddy/config.json << 'EOF'
 {
   "servers": [
@@ -131,15 +94,59 @@ cat > .codebuddy/config.json << 'EOF'
 EOF
 ```
 
+## 🎯 CLI Commands
+```bash
+# Server management
+codebuddy start          # Start MCP server (stdio mode)
+codebuddy serve          # Start WebSocket server
+codebuddy stop           # Stop running server
+codebuddy status         # Check server status
+
+# Configuration
+codebuddy setup          # Interactive setup wizard
+codebuddy link           # Link to AI assistants
+codebuddy unlink         # Remove AI integration
+```
+
+## 🐳 Docker Deployment
+
+### Development
+```bash
+cd docker
+
+# Start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f codebuddy
+```
+
+### Production
+```bash
+cd docker
+
+# Configure authentication
+export JWT_SECRET="your-secure-secret-key"
+
+# Start with nginx reverse proxy
+docker-compose -f docker-compose.production.yml up -d
+
+# Verify health
+curl http://localhost/health
+```
+
+**Features**: Multi-stage Rust build, FUSE support, pre-installed LSP servers, nginx reverse proxy, multi-container workspaces
+
+See [`docker/README.md`](docker/README.md) for detailed documentation.
 
 ## 📖 Documentation
-- **[CLAUDE.md](CLAUDE.md)** - Project instructions and architecture
-- **[Architecture](rust/docs/ARCHITECTURE.md)** - System design and implementation details
-- **[Operations Guide](rust/docs/OPERATIONS.md)** - Deployment and operational procedures
+- **[Architecture Guide](rust/docs/ARCHITECTURE.md)** - System design and implementation
+- **[Operations Guide](rust/docs/OPERATIONS.md)** - Deployment and operations
 - **[Usage Guide](rust/docs/USAGE.md)** - Detailed usage instructions
+- **[CLAUDE.md](CLAUDE.md)** - AI assistant integration guide
 
 ## 🔗 Related Projects
-- **[Model Context Protocol](https://github.com/modelcontextprotocol/servers)** - Protocol specification and ecosystem
+- **[Model Context Protocol](https://github.com/modelcontextprotocol/servers)** - MCP specification and ecosystem
 - **[Language Server Protocol](https://langserver.org/)** - LSP specification and implementations
 
 ## 🧪 Development
@@ -151,67 +158,23 @@ cargo build --release
 # Run development version
 cargo run -- start
 
-# WebSocket server
-./target/release/codebuddy serve
-
 # Testing
-cargo test
-cargo test -- --nocapture  # With output
+cargo test                    # Run all tests
+cargo test -- --nocapture     # With output
 
 # Code quality
-cargo clippy              # Linting
-cargo fmt                 # Format code
-cargo check               # Type checking
-
-# Build for production
-cargo build --release
+cargo clippy                  # Linting
+cargo fmt                     # Formatting
+cargo check                   # Type checking
 ```
-
-## 🐳 Docker Deployment
-
-### Development Environment
-```bash
-cd docker
-
-# Start all services (codebuddy + example workspaces)
-docker-compose up -d
-
-# View logs
-docker-compose logs -f codebuddy
-```
-
-### Production Deployment
-```bash
-cd docker
-
-# Set JWT secret for authentication
-export JWT_SECRET="your-secure-secret-key"
-
-# Start production stack with nginx proxy
-docker-compose -f docker-compose.production.yml up -d
-
-# Check health
-curl http://localhost/health
-```
-
-### Features
-- **Multi-stage Rust build**: Optimized 400MB runtime image
-- **FUSE support**: Pre-configured with proper capabilities and security
-- **Pre-installed LSP servers**: TypeScript and Python ready out-of-the-box
-- **Nginx reverse proxy**: Production-grade WebSocket handling with SSL ready
-- **Multi-container development**: Isolated workspaces for frontend/backend
-
-See [`docker/README.md`](docker/README.md) for detailed Docker documentation and troubleshooting.
 
 ## 📝 License
-MIT - see [LICENSE](LICENSE) for details
+MIT - see [LICENSE](LICENSE)
 
 ## 💡 Support
-- [Bug reports and feature requests](https://github.com/goobits/codebuddy/issues)
-- [Discussions and community support](https://github.com/goobits/codebuddy/discussions)
+- [Bug reports and features](https://github.com/goobits/codebuddy/issues)
+- [Discussions](https://github.com/goobits/codebuddy/discussions)
 
 ---
 
-## 🙏 Special Thanks
-
-This project is based on [ktnyt/cclsp](https://github.com/ktnyt/cclsp)
+**Credits**: Based on [ktnyt/cclsp](https://github.com/ktnyt/cclsp)
