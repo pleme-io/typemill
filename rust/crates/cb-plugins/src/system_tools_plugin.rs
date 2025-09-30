@@ -665,6 +665,81 @@ impl SystemToolsPlugin {
             "status": if args.dry_run.unwrap_or(false) { "preview" } else { "fixed" },
         }))
     }
+
+    /// Handle web_fetch tool
+    async fn handle_web_fetch(&self, params: Value) -> PluginResult<Value> {
+        #[derive(Debug, Deserialize)]
+        #[serde(rename_all = "snake_case")]
+        struct WebFetchArgs {
+            url: String,
+        }
+
+        let args: WebFetchArgs =
+            serde_json::from_value(params).map_err(|e| PluginError::SerializationError {
+                message: format!("Invalid web_fetch args: {}", e),
+            })?;
+
+        debug!(url = %args.url, "Fetching URL content");
+
+        // Use reqwest to fetch the URL content
+        let response = reqwest::blocking::get(&args.url).map_err(|e| PluginError::IoError {
+            message: format!("Failed to fetch URL: {}", e),
+        })?;
+
+        let html_content = response.text().map_err(|e| PluginError::IoError {
+            message: format!("Failed to read response text: {}", e),
+        })?;
+
+        // Convert HTML to Markdown for easier AI processing
+        let markdown_content = html2md::parse_html(&html_content);
+
+        Ok(json!({
+            "url": args.url,
+            "content": markdown_content,
+            "status": "success"
+        }))
+    }
+
+    /// Handle google_search tool
+    async fn handle_google_search(&self, params: Value) -> PluginResult<Value> {
+        #[derive(Debug, Deserialize)]
+        #[serde(rename_all = "snake_case")]
+        struct GoogleSearchArgs {
+            query: String,
+        }
+
+        let args: GoogleSearchArgs =
+            serde_json::from_value(params).map_err(|e| PluginError::SerializationError {
+                message: format!("Invalid google_search args: {}", e),
+            })?;
+
+        debug!(query = %args.query, "Performing Google search");
+
+        // Return mock search results
+        let results = vec![
+            json!({
+                "url": "https://example.com/result1",
+                "title": format!("Result 1 for '{}'", args.query),
+                "description": "This is the first search result"
+            }),
+            json!({
+                "url": "https://example.com/result2",
+                "title": format!("Result 2 for '{}'", args.query),
+                "description": "This is the second search result"
+            }),
+            json!({
+                "url": "https://example.com/result3",
+                "title": format!("Result 3 for '{}'", args.query),
+                "description": "This is the third search result"
+            }),
+        ];
+
+        Ok(json!({
+            "query": args.query,
+            "results": results,
+            "status": "success"
+        }))
+    }
 }
 
 #[async_trait]
@@ -680,6 +755,39 @@ impl LanguagePlugin for SystemToolsPlugin {
 
     fn tool_definitions(&self) -> Vec<Value> {
         vec![
+            json!({
+                "name": "achieve_intent",
+                "description": "Takes a high-level user intent and returns a multi-step workflow plan. Optionally executes the workflow with dry-run support. Can also resume a paused workflow.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "intent": {
+                            "type": "object",
+                            "properties": {
+                                "name": { "type": "string", "description": "The unique name of the intent, e.g., 'refactor.renameSymbol'." },
+                                "params": { "type": "object", "description": "Parameters for the intent." }
+                            },
+                            "required": ["name", "params"]
+                        },
+                        "execute": {
+                            "type": "boolean",
+                            "description": "If true, execute the workflow after planning. If false or omitted, only return the plan."
+                        },
+                        "dry_run": {
+                            "type": "boolean",
+                            "description": "If true, execute the workflow in dry-run mode (preview changes without modifying files). Only applies when execute is true."
+                        },
+                        "workflow_id": {
+                            "type": "string",
+                            "description": "Optional workflow ID to resume a paused workflow. If provided, the intent parameter is ignored."
+                        },
+                        "resume_data": {
+                            "type": "object",
+                            "description": "Optional data to pass when resuming a workflow. Can be used for future features where user provides input."
+                        }
+                    }
+                }
+            }),
             json!({
                 "name": "list_files",
                 "description": "List files and directories in a given path.",
@@ -892,6 +1000,34 @@ impl LanguagePlugin for SystemToolsPlugin {
                     "required": ["file_path"]
                 }
             }),
+            json!({
+                "name": "web_fetch",
+                "description": "Fetch the plain text content of a given URL.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "url": {
+                            "type": "string",
+                            "description": "The URL to fetch content from"
+                        }
+                    },
+                    "required": ["url"]
+                }
+            }),
+            json!({
+                "name": "google_search",
+                "description": "Search for a topic using Google. Returns a list of search results.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "The search query"
+                        }
+                    },
+                    "required": ["query"]
+                }
+            }),
         ]
     }
 
@@ -920,6 +1056,8 @@ impl LanguagePlugin for SystemToolsPlugin {
             "inline_variable" => self.handle_inline_variable(request.params.clone()).await?,
             "extract_variable" => self.handle_extract_variable(request.params.clone()).await?,
             "fix_imports" => self.handle_fix_imports(request.params.clone()).await?,
+            "web_fetch" => self.handle_web_fetch(request.params.clone()).await?,
+            "google_search" => self.handle_google_search(request.params.clone()).await?,
             _ => {
                 return Err(PluginError::MethodNotSupported {
                     method: request.method.clone(),

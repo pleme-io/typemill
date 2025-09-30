@@ -137,10 +137,17 @@ async fn create_test_app_state(project_root: PathBuf) -> Arc<AppState> {
         lock_manager.clone(),
     ));
     let operation_queue = Arc::new(OperationQueue::new(lock_manager.clone()));
+    let planner = cb_server::services::planner::DefaultPlanner::new();
+    let plugin_manager = Arc::new(cb_plugins::PluginManager::new());
+    let workflow_executor = cb_server::services::workflow_executor::DefaultWorkflowExecutor::new(
+        plugin_manager.clone(),
+    );
 
     Arc::new(AppState {
         ast_service,
         file_service,
+        planner,
+        workflow_executor,
         project_root,
         lock_manager,
         operation_queue,

@@ -1,0 +1,128 @@
+{
+  "workflows": {
+    "refactor.renameSymbol": {
+      "name": "Rename '{old_name}' to '{new_name}'",
+      "metadata": {
+        "complexity": 2
+      },
+      "steps": [
+        {
+          "tool": "find_references",
+          "params": {
+            "file_path": "{file_path}",
+            "symbol_name": "{old_name}"
+          },
+          "description": "Find all references to the symbol '{old_name}'.",
+          "requires_confirmation": null
+        },
+        {
+          "tool": "apply_workspace_edit",
+          "params": {
+            "new_name": "{new_name}",
+            "description": "This will be populated by the output of the previous step.",
+            "changes": {}
+          },
+          "description": "Apply the rename changes across all found references.",
+          "requires_confirmation": true
+        }
+      ],
+      "required_params": ["file_path", "old_name", "new_name"]
+    },
+    "refactor.extractFunction": {
+      "name": "Extract function '{function_name}'",
+      "metadata": {
+        "complexity": 1
+      },
+      "steps": [
+        {
+          "tool": "extract_function",
+          "params": {
+            "file_path": "{file_path}",
+            "start_line": "{start_line}",
+            "end_line": "{end_line}",
+            "function_name": "{function_name}"
+          },
+          "description": "Extract lines {start_line}-{end_line} into function '{function_name}'",
+          "requires_confirmation": null
+        }
+      ],
+      "required_params": ["file_path", "start_line", "end_line", "function_name"]
+    },
+    "docs.generateDocstring": {
+      "name": "Generate documentation for '{symbol_name}'",
+      "metadata": {
+        "complexity": 3
+      },
+      "steps": [
+        {
+          "tool": "get_document_symbols",
+          "params": {
+            "file_path": "{file_path}"
+          },
+          "description": "Find the location of symbol '{symbol_name}'",
+          "requires_confirmation": null
+        },
+        {
+          "tool": "get_hover",
+          "params": {
+            "file_path": "{file_path}",
+            "line": "$steps.0.symbols.0.range.start.line",
+            "character": "$steps.0.symbols.0.range.start.character"
+          },
+          "description": "Get signature information for '{symbol_name}'",
+          "requires_confirmation": null
+        },
+        {
+          "tool": "apply_workspace_edit",
+          "params": {
+            "changes": {
+              "{file_path}": [
+                {
+                  "range": {
+                    "start": {
+                      "line": "$steps.0.symbols.0.range.start.line",
+                      "character": 0
+                    },
+                    "end": {
+                      "line": "$steps.0.symbols.0.range.start.line",
+                      "character": 0
+                    }
+                  },
+                  "newText": "/** TODO: Add documentation based on: $steps.1.contents */\n"
+                }
+              ]
+            }
+          },
+          "description": "Insert placeholder docstring above symbol",
+          "requires_confirmation": null
+        }
+      ],
+      "required_params": ["file_path", "symbol_name"]
+    },
+    "research.topic": {
+      "name": "Research topic '{topic}'",
+      "metadata": {
+        "complexity": 2
+      },
+      "steps": [
+        {
+          "tool": "google_search",
+          "params": {
+            "query": "{topic}"
+          },
+          "description": "Search for information about '{topic}'",
+          "requires_confirmation": null
+        },
+        {
+          "tool": "web_fetch",
+          "params": {
+            "url": "$steps.0.results.0.url"
+          },
+          "description": "Fetch the content of the top search result",
+          "requires_confirmation": null
+        }
+      ],
+      "required_params": ["topic"]
+    }
+  }
+}

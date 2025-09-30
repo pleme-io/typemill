@@ -5,6 +5,8 @@ pub mod file_service;
 pub mod import_service;
 pub mod lock_manager;
 pub mod operation_queue;
+pub mod planner;
+pub mod workflow_executor;
 
 #[cfg(test)]
 pub mod tests;

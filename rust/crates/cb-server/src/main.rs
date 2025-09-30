@@ -3,8 +3,13 @@
 use cb_api::AstService;
 use cb_ast::AstCache;
 use cb_core::{config::LogFormat, AppConfig};
+use cb_plugins::PluginManager;
 use cb_server::handlers::{AppState, PluginDispatcher};
-use cb_server::services::{DefaultAstService, FileService, LockManager, OperationQueue};
+use cb_server::services::{
+    planner::{DefaultPlanner, Planner},
+    workflow_executor::{DefaultWorkflowExecutor, WorkflowExecutor},
+    DefaultAstService, FileService, LockManager, OperationQueue,
+};
 use cb_transport;
 use cb_vfs::start_fuse_mount;
 use clap::{Parser, Subcommand};
@@ -49,6 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create services
     let ast_service: Arc<dyn AstService> = Arc::new(DefaultAstService::new(ast_cache.clone()));
     let lock_manager = Arc::new(LockManager::new());
+    let planner: Arc<dyn Planner> = DefaultPlanner::new();
     let file_service = Arc::new(FileService::new(
         &project_root,
         ast_cache.clone(),
@@ -56,17 +62,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ));
     let operation_queue = Arc::new(OperationQueue::new(lock_manager.clone()));
 
+    // Create plugin manager (needed by both dispatcher and workflow executor)
+    let plugin_manager = Arc::new(PluginManager::new());
+
+    // Create workflow executor with plugin manager
+    let workflow_executor: Arc<dyn WorkflowExecutor> =
+        DefaultWorkflowExecutor::new(plugin_manager.clone());
+
     // Create application state
     let app_state = Arc::new(AppState {
         ast_service,
         file_service,
+        planner,
+        workflow_executor,
         project_root,
         lock_manager,
         operation_queue,
     });
 
-    // Create Plugin dispatcher with app state
-    let dispatcher = PluginDispatcher::new(app_state);
+    // Create Plugin dispatcher with app state and plugin manager
+    let dispatcher = PluginDispatcher::new(app_state, plugin_manager);
 
     let dispatcher = Arc::new(dispatcher);
 

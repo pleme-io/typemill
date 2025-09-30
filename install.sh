@@ -748,6 +748,40 @@ EOF
     log_success "LSP configuration created at $lsp_config"
 }
 
+# Setup cargo config to add ~/.local/bin to PATH for tests
+setup_cargo_config() {
+    local project_dir="${1:-.}"
+    local cargo_dir="$project_dir/rust/.cargo"
+    local cargo_config="$cargo_dir/config.toml"
+
+    log_info "Setting up Cargo configuration..."
+
+    # Create .cargo directory if it doesn't exist
+    mkdir -p "$cargo_dir"
+
+    # Create or update config.toml
+    if [ -f "$cargo_config" ]; then
+        # Check if PATH is already configured
+        if grep -q "^\[env\]" "$cargo_config" && grep -q "^PATH.*\.local/bin" "$cargo_config"; then
+            log_info "Cargo PATH configuration already exists"
+            return 0
+        fi
+    fi
+
+    # Write cargo config
+    cat > "$cargo_config" << 'EOF'
+# Cargo configuration for codebuddy project
+
+[env]
+# Ensure ~/.local/bin is in PATH for language servers (pylsp, gopls, etc.)
+# This is needed for tests that require LSP servers installed via pipx/go install
+PATH = { value = "${HOME}/.local/bin:${PATH}", force = false, relative = false }
+EOF
+
+    log_success "Cargo configuration created at $cargo_config"
+    log_info "Tests will now have access to language servers in ~/.local/bin"
+}
+
 # Test the installation
 test_installation() {
     log_info "Testing MCP server..."
@@ -832,6 +866,7 @@ main() {
     local project_dir="${1:-/workspace}"
     setup_project_mcp "$project_dir"
     setup_lsp_config "$project_dir"
+    setup_cargo_config "$project_dir"
 
     # Test the installation
     if test_installation; then

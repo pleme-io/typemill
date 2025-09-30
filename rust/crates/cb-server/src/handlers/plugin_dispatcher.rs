@@ -3,6 +3,8 @@
 //! This is the new plugin-based dispatcher that replaces the monolithic
 //! dispatcher with a flexible plugin system.
 
+use crate::services::planner::Planner;
+use crate::services::workflow_executor::WorkflowExecutor;
 use crate::{ServerError, ServerResult};
 use async_trait::async_trait;
 use cb_api::AstService;
@@ -24,6 +26,10 @@ pub struct AppState {
     pub ast_service: Arc<dyn AstService>,
     /// File service for file operations with import awareness
     pub file_service: Arc<crate::services::FileService>,
+    /// Planner service for generating workflows from intents
+    pub planner: Arc<dyn Planner>,
+    /// Workflow executor for running planned workflows
+    pub workflow_executor: Arc<dyn WorkflowExecutor>,
     /// Project root directory
     pub project_root: std::path::PathBuf,
     /// Lock manager for file-level locking
@@ -167,9 +173,9 @@ impl LspService for DirectLspAdapter {
 
 impl PluginDispatcher {
     /// Create a new plugin dispatcher
-    pub fn new(app_state: Arc<AppState>) -> Self {
+    pub fn new(app_state: Arc<AppState>, plugin_manager: Arc<PluginManager>) -> Self {
         Self {
-            plugin_manager: Arc::new(PluginManager::new()),
+            plugin_manager,
             app_state,
             initialized: OnceCell::new(),
         }
@@ -344,6 +350,11 @@ impl PluginDispatcher {
             .map_err(|e| ServerError::InvalidRequest(format!("Invalid tool call: {}", e)))?;
 
         debug!(tool_name = %tool_call.name, "Calling tool with plugin system");
+
+        // Check if this is an intent to be planned into a workflow
+        if tool_call.name == "achieve_intent" {
+            return self.handle_achieve_intent(tool_call).await;
+        }
 
         // Check if this is a file operation that needs app_state services
         if self.is_file_operation(&tool_call.name) {
@@ -736,6 +747,100 @@ impl PluginDispatcher {
         }))
     }
 
+    /// Handle achieve_intent tool call by using the Planner service.
+    async fn handle_achieve_intent(&self, tool_call: ToolCall) -> ServerResult<Value> {
+        debug!(tool_name = %tool_call.name, "Planning or resuming workflow");
+
+        let args = tool_call.arguments.ok_or_else(|| {
+            ServerError::InvalidRequest("Missing arguments for achieve_intent".into())
+        })?;
+
+        // Check if this is a workflow resume request
+        if let Some(workflow_id) = args.get("workflow_id").and_then(|v| v.as_str()) {
+            info!(workflow_id = %workflow_id, "Resuming paused workflow");
+
+            let resume_data = args.get("resume_data").cloned();
+
+            return self
+                .app_state
+                .workflow_executor
+                .resume_workflow(workflow_id, resume_data)
+                .await;
+        }
+
+        // Otherwise, plan a new workflow
+        let intent_value = args
+            .get("intent")
+            .ok_or_else(|| ServerError::InvalidRequest("Missing 'intent' parameter".into()))?;
+
+        let intent: cb_core::model::workflow::Intent = serde_json::from_value(intent_value.clone())
+            .map_err(|e| ServerError::InvalidRequest(format!("Invalid intent format: {}", e)))?;
+
+        // Check if we should execute the workflow
+        let execute = args
+            .get("execute")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
+        // Check if dry-run mode is requested
+        let dry_run = args
+            .get("dry_run")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
+        match self.app_state.planner.plan_for_intent(&intent) {
+            Ok(workflow) => {
+                info!(
+                    intent = %intent.name,
+                    workflow_name = %workflow.name,
+                    steps = workflow.steps.len(),
+                    complexity = workflow.metadata.complexity,
+                    execute = execute,
+                    dry_run = dry_run,
+                    "Successfully planned workflow"
+                );
+
+                // If execute is true, run the workflow
+                if execute {
+                    debug!(dry_run = dry_run, "Executing workflow");
+                    match self
+                        .app_state
+                        .workflow_executor
+                        .execute_workflow(&workflow, dry_run)
+                        .await
+                    {
+                        Ok(result) => {
+                            info!(
+                                workflow_name = %workflow.name,
+                                dry_run = dry_run,
+                                "Workflow executed successfully"
+                            );
+                            Ok(result)
+                        }
+                        Err(e) => {
+                            error!(
+                                workflow_name = %workflow.name,
+                                error = %e,
+                                "Workflow execution failed"
+                            );
+                            Err(e)
+                        }
+                    }
+                } else {
+                    // Just return the plan
+                    Ok(json!({
+                        "success": true,
+                        "workflow": workflow,
+                    }))
+                }
+            }
+            Err(e) => {
+                error!(intent = %intent.name, error = %e, "Failed to plan workflow for intent");
+                Err(ServerError::Runtime { message: e })
+            }
+        }
+    }
+
     /// Handle rename_symbol_with_imports tool using AST service
     async fn handle_rename_symbol_with_imports(&self, tool_call: ToolCall) -> ServerResult<Value> {
         debug!(tool_name = %tool_call.name, "Handling rename_symbol_with_imports");
@@ -1045,10 +1150,16 @@ mod tests {
             lock_manager.clone(),
         ));
         let operation_queue = Arc::new(crate::services::OperationQueue::new(lock_manager.clone()));
+        let planner = crate::services::planner::DefaultPlanner::new();
+        let plugin_manager = Arc::new(PluginManager::new());
+        let workflow_executor =
+            crate::services::workflow_executor::DefaultWorkflowExecutor::new(plugin_manager);
 
         Arc::new(AppState {
             ast_service,
             file_service,
+            planner,
+            workflow_executor,
             project_root,
             lock_manager,
             operation_queue,
@@ -1058,7 +1169,8 @@ mod tests {
     #[tokio::test]
     async fn test_plugin_dispatcher_initialization() {
         let app_state = create_test_app_state();
-        let dispatcher = PluginDispatcher::new(app_state);
+        let plugin_manager = Arc::new(PluginManager::new());
+        let dispatcher = PluginDispatcher::new(app_state, plugin_manager);
 
         // Initialize should succeed
         assert!(dispatcher.initialize().await.is_ok());
@@ -1073,7 +1185,8 @@ mod tests {
     #[tokio::test]
     async fn test_tools_list() {
         let app_state = create_test_app_state();
-        let dispatcher = PluginDispatcher::new(app_state);
+        let plugin_manager = Arc::new(PluginManager::new());
+        let dispatcher = PluginDispatcher::new(app_state, plugin_manager);
 
         let request = McpRequest {
             jsonrpc: "2.0".to_string(),
@@ -1106,7 +1219,8 @@ mod tests {
     #[tokio::test]
     async fn test_method_support_checking() {
         let app_state = create_test_app_state();
-        let dispatcher = PluginDispatcher::new(app_state);
+        let plugin_manager = Arc::new(PluginManager::new());
+        let dispatcher = PluginDispatcher::new(app_state, plugin_manager);
 
         assert!(dispatcher.initialize().await.is_ok());
 
@@ -1130,7 +1244,8 @@ mod tests {
     #[tokio::test]
     async fn test_plugin_statistics() {
         let app_state = create_test_app_state();
-        let dispatcher = PluginDispatcher::new(app_state);
+        let plugin_manager = Arc::new(PluginManager::new());
+        let dispatcher = PluginDispatcher::new(app_state, plugin_manager);
 
         let stats = dispatcher.get_plugin_statistics().await.unwrap();
 

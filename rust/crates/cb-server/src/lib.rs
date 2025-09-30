@@ -62,17 +62,27 @@ pub async fn bootstrap(options: ServerOptions) -> ServerResult<ServerHandle> {
     ));
     let operation_queue = Arc::new(OperationQueue::new(lock_manager.clone()));
 
+    // Create planner
+    let planner = crate::services::planner::DefaultPlanner::new();
+
+    // Create plugin manager and workflow executor
+    let plugin_manager = Arc::new(cb_plugins::PluginManager::new());
+    let workflow_executor =
+        crate::services::workflow_executor::DefaultWorkflowExecutor::new(plugin_manager.clone());
+
     // Create application state
     let app_state = Arc::new(AppState {
         ast_service,
         file_service,
+        planner,
+        workflow_executor,
         project_root,
         lock_manager,
         operation_queue,
     });
 
     // Create dispatcher
-    let dispatcher = Arc::new(PluginDispatcher::new(app_state));
+    let dispatcher = Arc::new(PluginDispatcher::new(app_state, plugin_manager));
 
     // Create shutdown channel
     let (shutdown_tx, _shutdown_rx) = oneshot::channel();

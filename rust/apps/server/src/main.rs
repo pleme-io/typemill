@@ -171,10 +171,17 @@ async fn create_app_state() -> Result<Arc<AppState>, std::io::Error> {
     let operation_queue = Arc::new(cb_server::services::OperationQueue::new(
         lock_manager.clone(),
     ));
+    let planner = cb_server::services::planner::DefaultPlanner::new();
+    let plugin_manager = Arc::new(cb_plugins::PluginManager::new());
+    let workflow_executor = cb_server::services::workflow_executor::DefaultWorkflowExecutor::new(
+        plugin_manager.clone(),
+    );
 
     Ok(Arc::new(AppState {
         ast_service,
         file_service,
+        planner,
+        workflow_executor,
         project_root,
         lock_manager,
         operation_queue,
