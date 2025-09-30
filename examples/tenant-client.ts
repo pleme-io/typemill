@@ -1,5 +1,23 @@
+/**
+ * DEPRECATED: This example is outdated and does not match the current WebSocket API.
+ *
+ * The current CodeBuddy WebSocket transport uses the MCP (Model Context Protocol) format
+ * for all communication, not the FUSE-specific operations shown here.
+ *
+ * For the actual WebSocket implementation, see:
+ * - rust/crates/cb-transport/src/ws.rs (Rust server implementation)
+ * - MCP protocol documentation
+ *
+ * This file is kept for historical reference only.
+ *
+ * @deprecated Use MCP protocol via WebSocket transport instead
+ */
+
 import WebSocket from 'ws';
 
+/**
+ * @deprecated This client does not match the current API
+ */
 class TenantFuseClient {
   private ws: WebSocket;
   private tenantId: string;
