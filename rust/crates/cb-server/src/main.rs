@@ -163,13 +163,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn initialize_tracing(config: &AppConfig) {
     use tracing_subscriber::{fmt, prelude::*};
 
-    // Parse log level from config, with fallback to INFO
-    let log_level = config.logging.level.parse().unwrap_or(tracing::Level::INFO);
+    // Parse log level from config
+    let log_level = match config.logging.level.to_lowercase().as_str() {
+        "trace" => tracing::Level::TRACE,
+        "debug" => tracing::Level::DEBUG,
+        "info" => tracing::Level::INFO,
+        "warn" => tracing::Level::WARN,
+        "error" => tracing::Level::ERROR,
+        _ => {
+            eprintln!(
+                "Invalid log level '{}', falling back to INFO",
+                config.logging.level
+            );
+            tracing::Level::INFO
+        }
+    };
 
-    // Create env filter with configured level and allow env overrides
+    // Create env filter with configured level and allow env overrides (RUST_LOG takes precedence)
     let env_filter =
         tracing_subscriber::EnvFilter::from_default_env().add_directive(log_level.into());
 
+    // Use configured format
     match config.logging.format {
         LogFormat::Json => {
             // Use JSON formatter for structured logging
@@ -182,7 +196,7 @@ fn initialize_tracing(config: &AppConfig) {
             // Use pretty (human-readable) formatter
             tracing_subscriber::registry()
                 .with(env_filter)
-                .with(fmt::layer())
+                .with(fmt::layer().pretty())
                 .init();
         }
     }
