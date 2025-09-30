@@ -188,7 +188,7 @@ fn initialize_tracing(config: &AppConfig) {
             // Use JSON formatter for structured logging
             tracing_subscriber::registry()
                 .with(env_filter)
-                .with(fmt::layer().json())
+                .with(fmt::layer().with_ansi(false).compact())
                 .init();
         }
         LogFormat::Pretty => {

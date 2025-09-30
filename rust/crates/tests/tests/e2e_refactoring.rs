@@ -4,16 +4,17 @@
 //! ensuring correctness, atomicity, and cache invalidation.
 
 use cb_api::AstService;
-use cb_ast::{refactoring::plan_rename_refactor, AstCache};
+use cb_ast::AstCache;
 use cb_core::model::IntentSpec;
-use cb_server::handlers::{AppState, PluginDispatcher};
+use cb_plugins::PluginManager;
+use cb_server::handlers::AppState;
 use cb_server::services::{DefaultAstService, FileService, LockManager, OperationQueue};
 use serde_json::json;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Instant;
 use tempfile::TempDir;
-use tokio::test;
 
 /// Test project structure for multi-file refactoring tests
 struct TestProject {
@@ -138,7 +139,7 @@ async fn create_test_app_state(project_root: PathBuf) -> Arc<AppState> {
     ));
     let operation_queue = Arc::new(OperationQueue::new(lock_manager.clone()));
     let planner = cb_server::services::planner::DefaultPlanner::new();
-    let plugin_manager = Arc::new(cb_plugins::PluginManager::new());
+    let plugin_manager = Arc::new(PluginManager::new());
     let workflow_executor = cb_server::services::workflow_executor::DefaultWorkflowExecutor::new(
         plugin_manager.clone(),
     );
@@ -151,6 +152,7 @@ async fn create_test_app_state(project_root: PathBuf) -> Arc<AppState> {
         project_root,
         lock_manager,
         operation_queue,
+        start_time: Instant::now(),
     })
 }
 

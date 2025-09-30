@@ -2,7 +2,7 @@
 
 use cb_core::model::workflow::{Intent, Step, Workflow, WorkflowMetadata};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;

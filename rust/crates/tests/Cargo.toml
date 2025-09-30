@@ -11,6 +11,7 @@ cb-ast = { path = "../cb-ast" }
 cb-api = { path = "../cb-api" }
 cb-server = { path = "../cb-server" }
 cb-client = { path = "../cb-client" }
+cb-plugins = { path = "../cb-plugins" }
 tokio = { workspace = true }
 async-trait = { workspace = true }
 mockall = { workspace = true }

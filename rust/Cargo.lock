@@ -4114,6 +4114,7 @@ dependencies = [
  "cb-ast",
  "cb-client",
  "cb-core",
+ "cb-plugins",
  "cb-server",
  "cb-vfs",
  "chrono",
