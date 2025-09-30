@@ -34,9 +34,32 @@ impl TestClient {
 
         eprintln!("DEBUG: TestClient using server path: {}", server_path);
 
+        // Expand ALL environment variables in PATH for LSP server spawning
+        // This is needed because cargo config sets PATH with $HOME, $NVM_DIR, etc.
+        // which don't get expanded when inherited by spawned processes
+        let expanded_path = if let Ok(path) = std::env::var("PATH") {
+            // Use shellexpand for proper shell-style expansion of ALL variables
+            match shellexpand::env(&path) {
+                Ok(expanded) => {
+                    let result = expanded.to_string();
+                    eprintln!("DEBUG: Expanded PATH for cb-server (shellexpand)");
+                    eprintln!("DEBUG:   Original: {}", path);
+                    eprintln!("DEBUG:   Expanded: {}", result);
+                    result
+                }
+                Err(e) => {
+                    eprintln!("WARN: Failed to expand PATH, using original: {}", e);
+                    path
+                }
+            }
+        } else {
+            std::env::var("PATH").unwrap_or_default()
+        };
+
         let mut process = Command::new(server_path)
             .arg("start")
             .current_dir(working_dir)
+            .env("PATH", expanded_path)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())

@@ -112,29 +112,8 @@ impl TestWorkspace {
 
     /// Create LSP configuration file for the workspace
     pub fn setup_lsp_config(&self) {
-        self.create_directory(".codebuddy");
-
-        let config = serde_json::json!({
-            "servers": [
-                {
-                    "extensions": ["ts", "tsx", "js", "jsx"],
-                    "command": ["typescript-language-server", "--stdio"],
-                    "rootDir": null,
-                    "restartInterval": 5
-                },
-                {
-                    "extensions": ["py"],
-                    "command": ["pylsp"],
-                    "rootDir": null,
-                    "restartInterval": 5
-                }
-            ]
-        });
-
-        self.create_file(
-            ".codebuddy/config.json",
-            &serde_json::to_string_pretty(&config).unwrap(),
-        );
+        // Use LspSetupHelper to create config with absolute paths
+        crate::harness::LspSetupHelper::setup_lsp_config(self);
     }
 
     /// Create a Python project structure.

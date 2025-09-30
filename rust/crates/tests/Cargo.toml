@@ -32,6 +32,7 @@ assert_cmd = "2.0"
 predicates = "3.0"
 proptest = "1.0"
 serial_test = "3.0"
+shellexpand = "3.1"
 
 [target.'cfg(unix)'.dependencies]
 cb-vfs = { path = "../cb-vfs", optional = true }

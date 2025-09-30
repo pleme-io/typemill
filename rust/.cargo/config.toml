@@ -1,7 +1,8 @@
-# Cargo configuration for codebuddy project
+[target.aarch64-unknown-linux-gnu]
+linker = "/usr/bin/gcc"
 
 [env]
 # Ensure ~/.local/bin is in PATH for language servers (pylsp, gopls, etc.)
 # This is needed for tests that require LSP servers installed via pipx/go install
 # Also ensure ~/.cargo/bin and other standard paths are included
-PATH = { value = "${HOME}/.local/bin:${HOME}/.cargo/bin:${PATH}", force = true, relative = false }
+PATH = { value = "$HOME/.nvm/versions/node/v22.20.0/bin:$HOME/.local/bin:$HOME/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", force = true, relative = false }

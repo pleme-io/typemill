@@ -47,11 +47,16 @@ async fn test_fuse_filesystem_integration() {
 
         // This is a simplified startup. A real server would be used.
         // For this test, we'll call the mount function directly.
-        #[cfg(unix)]
+        #[cfg(all(unix, feature = "vfs"))]
         if let Err(e) =
             cb_vfs::start_fuse_mount(&config.fuse.unwrap(), Path::new(&workspace_path_str))
         {
             eprintln!("FUSE mount failed: {}", e);
+        }
+        #[cfg(not(all(unix, feature = "vfs")))]
+        {
+            let _ = config; // Suppress unused variable warning
+            eprintln!("VFS feature not enabled, skipping FUSE mount");
         }
     });
 
@@ -538,11 +543,15 @@ async fn test_cross_language_project() {
     // It requires TypeScript and Python LSP servers to be installed and working
 
     let workspace = TestWorkspace::new();
-    let mut client = TestClient::new(workspace.path());
 
     // Check LSP server availability first
     LspSetupHelper::check_lsp_servers_available()
         .expect("LSP servers must be available for cross-language tests");
+
+    // Create LSP config with absolute paths
+    LspSetupHelper::setup_lsp_config(&workspace);
+
+    let mut client = TestClient::new(workspace.path());
 
     // Try the working approach: simple file creation like successful tests
     let ts_file = workspace.path().join("app.ts");
@@ -806,14 +815,18 @@ async fn test_large_scale_project_simulation() {
     // It requires TypeScript LSP server to be installed and working
 
     let workspace = TestWorkspace::new();
-    let mut client = TestClient::new(workspace.path());
 
     // Check LSP server availability first
     LspSetupHelper::check_lsp_servers_available()
         .expect("TypeScript LSP server must be available for large-scale project tests");
 
+    // Create LSP config with absolute paths
+    LspSetupHelper::setup_lsp_config(&workspace);
+
     // Setup TypeScript project structure properly
     workspace.setup_typescript_project_with_lsp("large-scale-test");
+
+    let mut client = TestClient::new(workspace.path());
 
     // Create additional directories for large project structure
     let additional_dirs = vec!["tests", "docs", "config"];
@@ -1021,14 +1034,18 @@ async fn test_advanced_error_recovery() {
     // It requires TypeScript LSP server to be installed and working
 
     let workspace = TestWorkspace::new();
-    let mut client = TestClient::new(workspace.path());
 
     // Check LSP server availability first
     LspSetupHelper::check_lsp_servers_available()
         .expect("TypeScript LSP server must be available for error recovery tests");
 
+    // Create LSP config with absolute paths
+    LspSetupHelper::setup_lsp_config(&workspace);
+
     // Setup TypeScript project structure properly
     workspace.setup_typescript_project_with_lsp("error-recovery-test");
+
+    let mut client = TestClient::new(workspace.path());
 
     // Create a TypeScript file with syntax errors mixed with valid code
     let content_with_errors = r#"

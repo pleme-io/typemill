@@ -33,6 +33,22 @@ impl LspSetupHelper {
 
     /// Check if a command is available on the system
     fn is_command_available(command: &str) -> bool {
+        // Use the PATH environment variable to find the command
+        if let Ok(path_env) = std::env::var("PATH") {
+            // Use shellexpand for proper shell-style expansion of ALL variables
+            let expanded_path = shellexpand::env(&path_env)
+                .map(|s| s.to_string())
+                .unwrap_or_else(|_| path_env.clone());
+
+            for path_dir in expanded_path.split(':') {
+                let full_path = std::path::Path::new(path_dir).join(command);
+                if full_path.exists() && full_path.is_file() {
+                    return true;
+                }
+            }
+        }
+
+        // Fallback to which command
         Command::new("which")
             .arg(command)
             .output()
@@ -44,27 +60,69 @@ impl LspSetupHelper {
     pub fn setup_lsp_config(workspace: &TestWorkspace) {
         workspace.create_directory(".codebuddy");
 
+        // Resolve absolute paths for LSP servers to avoid PATH issues
+        let ts_lsp_path = Self::resolve_command_path("typescript-language-server")
+            .unwrap_or_else(|| "typescript-language-server".to_string());
+        let pylsp_path = Self::resolve_command_path("pylsp")
+            .unwrap_or_else(|| "pylsp".to_string());
+
+        eprintln!("DEBUG: Resolved TypeScript LSP path: {}", ts_lsp_path);
+        eprintln!("DEBUG: Resolved Python LSP path: {}", pylsp_path);
+
         let config = json!({
             "servers": [
                 {
                     "extensions": ["ts", "tsx", "js", "jsx"],
-                    "command": ["typescript-language-server", "--stdio"],
+                    "command": [ts_lsp_path, "--stdio"],
                     "rootDir": null,
                     "restartInterval": 5
                 },
                 {
                     "extensions": ["py"],
-                    "command": ["pylsp"],
+                    "command": [pylsp_path],
                     "rootDir": null,
                     "restartInterval": 5
                 }
             ]
         });
 
+        let config_str = serde_json::to_string_pretty(&config).unwrap();
+        eprintln!("DEBUG: Creating LSP config:\n{}", config_str);
+
         workspace.create_file(
             ".codebuddy/config.json",
-            &serde_json::to_string_pretty(&config).unwrap(),
+            &config_str,
         );
+
+        let config_path = workspace.path().join(".codebuddy/config.json");
+        eprintln!("DEBUG: LSP config created at: {}", config_path.display());
+
+        // Verify the file exists and read it back
+        if let Ok(content) = std::fs::read_to_string(&config_path) {
+            eprintln!("DEBUG: Config file verified, size: {} bytes", content.len());
+        } else {
+            eprintln!("DEBUG: WARNING: Config file could not be read!");
+        }
+    }
+
+    /// Resolve full path for a command
+    fn resolve_command_path(command: &str) -> Option<String> {
+        // Search PATH for the command
+        if let Ok(path_env) = std::env::var("PATH") {
+            // Use shellexpand for proper shell-style expansion of ALL variables
+            let expanded_path = shellexpand::env(&path_env)
+                .map(|s| s.to_string())
+                .unwrap_or_else(|_| path_env.clone());
+
+            for path_dir in expanded_path.split(':') {
+                let full_path = std::path::Path::new(path_dir).join(command);
+                if full_path.exists() && full_path.is_file() {
+                    return full_path.to_string_lossy().to_string().into();
+                }
+            }
+        }
+
+        None
     }
 
     /// Verify that LSP servers are working with the test client
