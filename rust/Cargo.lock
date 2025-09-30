@@ -614,7 +614,6 @@ dependencies = [
  "cb-core",
  "fuser",
  "libc",
- "tempfile",
  "tokio",
  "tracing",
 ]

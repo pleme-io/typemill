@@ -286,13 +286,18 @@ impl OperationQueue {
                             while i < queue.len() {
                                 if queue[i].file_path == file_path {
                                     // Remove and add to batch
-                                    let op = queue.remove(i).unwrap();
-                                    debug!(
-                                        "Batching operation {} for file {}",
-                                        op.id,
-                                        file_path.display()
-                                    );
-                                    batched_operations.push(op);
+                                    if let Some(op) = queue.remove(i) {
+                                        debug!(
+                                            "Batching operation {} for file {}",
+                                            op.id,
+                                            file_path.display()
+                                        );
+                                        batched_operations.push(op);
+                                    } else {
+                                        // Index became invalid, skip and continue
+                                        warn!("Failed to remove operation at index {}", i);
+                                        i += 1;
+                                    }
                                 } else {
                                     i += 1;
                                 }
