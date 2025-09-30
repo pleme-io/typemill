@@ -35,15 +35,8 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
-# Install LSP servers
-RUN npm install -g typescript-language-server typescript && \
-    pip3 install --break-system-packages python-lsp-server[all]
-
-# Copy binary from builder
-COPY --from=builder /build/rust/target/release/codebuddy /usr/local/bin/
-
 # Create non-root user and add to fuse group
-RUN useradd -r -s /bin/false codebuddy && \
+RUN useradd -r -s /bin/false -m codebuddy && \
     usermod -aG fuse codebuddy && \
     mkdir -p /workspace /tmp/codeflow-mounts && \
     chown -R codebuddy:codebuddy /workspace /tmp/codeflow-mounts
@@ -51,8 +44,17 @@ RUN useradd -r -s /bin/false codebuddy && \
 # Create config directory
 RUN mkdir -p /app/.codebuddy && chown codebuddy:codebuddy /app/.codebuddy
 
+# Copy binary from builder
+COPY --from=builder /build/rust/target/release/codebuddy /usr/local/bin/
+
 # Switch to non-root user
 USER codebuddy
+
+# Install LSP servers as non-root user in user directory
+ENV NPM_CONFIG_PREFIX=/home/codebuddy/.npm-global
+ENV PATH="/home/codebuddy/.npm-global/bin:${PATH}"
+RUN npm install -g typescript-language-server typescript && \
+    pip3 install --user python-lsp-server[all]
 
 # Expose ports
 EXPOSE 3000 4000
