@@ -6,7 +6,7 @@
 
 use cb_api::LspService;
 use serde_json::json;
-use tests::harness::{LspTestBuilder, MockLspService, TestWorkspace};
+use tests::harness::LspTestBuilder;
 
 // =============================================================================
 // Go To Definition Tests
@@ -14,20 +14,21 @@ use tests::harness::{LspTestBuilder, MockLspService, TestWorkspace};
 
 #[tokio::test]
 async fn test_go_to_definition_mock_typescript() {
-    let mock_service = std::sync::Arc::new(MockLspService::new());
-    let workspace = TestWorkspace::new();
-    workspace.create_file("main.ts", r#"
+    let (mock, workspace) = LspTestBuilder::new("ts")
+        .with_file("main.ts", r#"
 import { calculateSum } from './utils';
 const result = calculateSum(5, 3);
-"#);
-    workspace.create_file("utils.ts", r#"
+"#)
+        .with_file("utils.ts", r#"
 export function calculateSum(a: number, b: number): number {
     return a + b;
 }
-"#);
+"#)
+        .build_mock()
+        .await
+        .unwrap();
 
-    // Configure mock to return definition location
-    mock_service.set_response(
+    mock.set_response(
         "textDocument/definition",
         json!([{
             "uri": format!("file://{}/utils.ts", workspace.path().display()),
@@ -49,7 +50,7 @@ export function calculateSum(a: number, b: number): number {
         }),
     };
 
-    let response = mock_service.request(message).await.unwrap();
+    let response = mock.request(message).await.unwrap();
     let locations = response.params.as_array().unwrap();
     assert!(!locations.is_empty(), "Should return at least one location");
     assert!(
@@ -96,19 +97,21 @@ util();"#)
 
 #[tokio::test]
 async fn test_find_references_mock() {
-    let mock_service = std::sync::Arc::new(MockLspService::new());
-    let workspace = TestWorkspace::new();
-    workspace.create_file("utils.ts", r#"
+    let (mock, workspace) = LspTestBuilder::new("ts")
+        .with_file("utils.ts", r#"
 export function formatName(first: string, last: string): string {
     return `${first} ${last}`;
 }
-"#);
-    workspace.create_file("main.ts", r#"
+"#)
+        .with_file("main.ts", r#"
 import { formatName } from './utils';
 const fullName = formatName('John', 'Doe');
-"#);
+"#)
+        .build_mock()
+        .await
+        .unwrap();
 
-    mock_service.set_response(
+    mock.set_response(
         "textDocument/references",
         json!([
             {
@@ -140,7 +143,7 @@ const fullName = formatName('John', 'Doe');
         }),
     };
 
-    let response = mock_service.request(message).await.unwrap();
+    let response = mock.request(message).await.unwrap();
     let references = response.params.as_array().unwrap();
     assert!(references.len() >= 2, "Should find at least 2 references");
 }
@@ -181,9 +184,8 @@ async fn test_find_references_real_typescript() {
 
 #[tokio::test]
 async fn test_hover_mock() {
-    let mock_service = std::sync::Arc::new(MockLspService::new());
-    let workspace = TestWorkspace::new();
-    workspace.create_file("hover_test.ts", r#"
+    let (mock, workspace) = LspTestBuilder::new("ts")
+        .with_file("hover_test.ts", r#"
 /**
  * Calculates the area of a rectangle
  */
@@ -191,9 +193,12 @@ function calculateArea(width: number, height: number): number {
     return width * height;
 }
 const area = calculateArea(10, 5);
-"#);
+"#)
+        .build_mock()
+        .await
+        .unwrap();
 
-    mock_service.set_response(
+    mock.set_response(
         "textDocument/hover",
         json!({
             "contents": {
@@ -218,7 +223,7 @@ const area = calculateArea(10, 5);
         }),
     };
 
-    let response = mock_service.request(message).await.unwrap();
+    let response = mock.request(message).await.unwrap();
     let hover_data = &response.params;
     assert!(hover_data.is_object());
     assert!(hover_data.get("contents").is_some());
@@ -257,9 +262,8 @@ async fn test_hover_real_typescript() {
 
 #[tokio::test]
 async fn test_document_symbols_mock() {
-    let mock_service = std::sync::Arc::new(MockLspService::new());
-    let workspace = TestWorkspace::new();
-    workspace.create_file("symbols.ts", r#"
+    let (mock, workspace) = LspTestBuilder::new("ts")
+        .with_file("symbols.ts", r#"
 export const API_URL = 'https://api.example.com';
 
 export interface Config {
@@ -273,9 +277,12 @@ export class ApiClient {
 export function createClient(config: Config): ApiClient {
     return new ApiClient(config);
 }
-"#);
+"#)
+        .build_mock()
+        .await
+        .unwrap();
 
-    mock_service.set_response(
+    mock.set_response(
         "textDocument/documentSymbol",
         json!([
             {
@@ -315,7 +322,7 @@ export function createClient(config: Config): ApiClient {
         }),
     };
 
-    let response = mock_service.request(message).await.unwrap();
+    let response = mock.request(message).await.unwrap();
     let symbols = response.params.as_array().unwrap();
     assert!(!symbols.is_empty(), "Should return document symbols");
 }
@@ -357,15 +364,17 @@ export class MyClass {
 
 #[tokio::test]
 async fn test_workspace_symbols_mock() {
-    let mock_service = std::sync::Arc::new(MockLspService::new());
-    let workspace = TestWorkspace::new();
-    workspace.create_file("src/models.ts", r#"
+    let (mock, workspace) = LspTestBuilder::new("ts")
+        .with_file("src/models.ts", r#"
 export class UserModel {
     constructor(public id: number) {}
 }
-"#);
+"#)
+        .build_mock()
+        .await
+        .unwrap();
 
-    mock_service.set_response(
+    mock.set_response(
         "workspace/symbol",
         json!([
             {
@@ -390,7 +399,7 @@ export class UserModel {
         }),
     };
 
-    let response = mock_service.request(message).await.unwrap();
+    let response = mock.request(message).await.unwrap();
     let symbols = response.params.as_array().unwrap();
     assert!(!symbols.is_empty(), "Should find workspace symbols");
 }
@@ -398,7 +407,7 @@ export class UserModel {
 #[tokio::test]
 #[ignore] // Requires typescript-language-server
 async fn test_workspace_symbols_real_typescript() {
-    let (service, workspace) = LspTestBuilder::new("ts")
+    let (service, _workspace) = LspTestBuilder::new("ts")
         .with_real_lsp()
         .with_file("models.ts", "export class DataModel {}")
         .build()
@@ -423,14 +432,16 @@ async fn test_workspace_symbols_real_typescript() {
 
 #[tokio::test]
 async fn test_completion_mock_typescript() {
-    let mock_service = std::sync::Arc::new(MockLspService::new());
-    let workspace = TestWorkspace::new();
-    workspace.create_file("test.ts", r#"
+    let (mock, workspace) = LspTestBuilder::new("ts")
+        .with_file("test.ts", r#"
 const user = { name: 'Alice', age: 30 };
 user.
-"#);
+"#)
+        .build_mock()
+        .await
+        .unwrap();
 
-    mock_service.set_response(
+    mock.set_response(
         "textDocument/completion",
         json!({
             "items": [
@@ -459,7 +470,7 @@ user.
         }),
     };
 
-    let response = mock_service.request(message).await.unwrap();
+    let response = mock.request(message).await.unwrap();
     let completions = &response.params;
     assert!(completions.is_object());
     let items = completions.get("items").unwrap().as_array().unwrap();
@@ -503,14 +514,16 @@ myObj.
 
 #[tokio::test]
 async fn test_rename_mock_typescript() {
-    let mock_service = std::sync::Arc::new(MockLspService::new());
-    let workspace = TestWorkspace::new();
-    workspace.create_file("main.ts", r#"
+    let (mock, workspace) = LspTestBuilder::new("ts")
+        .with_file("main.ts", r#"
 const oldName = 'value';
 console.log(oldName);
-"#);
+"#)
+        .build_mock()
+        .await
+        .unwrap();
 
-    mock_service.set_response(
+    mock.set_response(
         "textDocument/rename",
         json!({
             "changes": {
@@ -546,7 +559,7 @@ console.log(oldName);
         }),
     };
 
-    let response = mock_service.request(message).await.unwrap();
+    let response = mock.request(message).await.unwrap();
     let workspace_edit = &response.params;
     assert!(workspace_edit.is_object());
     assert!(workspace_edit.get("changes").is_some());
@@ -590,18 +603,20 @@ const result = myVariable + 10;
 
 #[tokio::test]
 async fn test_go_to_definition_mock_python() {
-    let mock_service = std::sync::Arc::new(MockLspService::new());
-    let workspace = TestWorkspace::new();
-    workspace.create_file("main.py", r#"
+    let (mock, workspace) = LspTestBuilder::new("py")
+        .with_file("main.py", r#"
 from utils import calculate
 result = calculate(5, 3)
-"#);
-    workspace.create_file("utils.py", r#"
+"#)
+        .with_file("utils.py", r#"
 def calculate(a, b):
     return a + b
-"#);
+"#)
+        .build_mock()
+        .await
+        .unwrap();
 
-    mock_service.set_response(
+    mock.set_response(
         "textDocument/definition",
         json!([{
             "uri": format!("file://{}/utils.py", workspace.path().display()),
@@ -623,7 +638,7 @@ def calculate(a, b):
         }),
     };
 
-    let response = mock_service.request(message).await.unwrap();
+    let response = mock.request(message).await.unwrap();
     let locations = response.params.as_array().unwrap();
     assert!(!locations.is_empty(), "Should return definition location");
     assert!(locations[0]["uri"].as_str().unwrap().contains("utils.py"));
@@ -661,17 +676,19 @@ async fn test_go_to_definition_real_python() {
 
 #[tokio::test]
 async fn test_hover_mock_python() {
-    let mock_service = std::sync::Arc::new(MockLspService::new());
-    let workspace = TestWorkspace::new();
-    workspace.create_file("test.py", r#"
+    let (mock, workspace) = LspTestBuilder::new("py")
+        .with_file("test.py", r#"
 def greet(name: str) -> str:
     """Greets a person by name."""
     return f"Hello, {name}!"
 
 message = greet("World")
-"#);
+"#)
+        .build_mock()
+        .await
+        .unwrap();
 
-    mock_service.set_response(
+    mock.set_response(
         "textDocument/hover",
         json!({
             "contents": {
@@ -696,7 +713,7 @@ message = greet("World")
         }),
     };
 
-    let response = mock_service.request(message).await.unwrap();
+    let response = mock.request(message).await.unwrap();
     let hover_data = &response.params;
     assert!(hover_data.is_object());
     assert!(hover_data.get("contents").is_some());

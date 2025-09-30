@@ -41,8 +41,25 @@ impl LspTestBuilder {
         self
     }
 
-    /// Build the test context, providing an LspService and TestWorkspace.
+    /// Build the test context for mock mode, returning concrete MockLspService.
+    /// This allows direct access to mock configuration methods.
+    pub async fn build_mock(self) -> Result<(Arc<MockLspService>, TestWorkspace), ApiError> {
+        match self.mode {
+            LspTestMode::Mock => {
+                let mock_service = Arc::new(MockLspService::new());
+                Ok((mock_service, self.workspace))
+            }
+            LspTestMode::Real => {
+                Err(ApiError::lsp(
+                    "build_mock() called but mode is Real. Use build() for trait object.".to_string()
+                ))
+            }
+        }
+    }
+
+    /// Build the test context, providing an LspService trait object and TestWorkspace.
     /// Returns either a MockLspService or RealLspService based on the configured mode.
+    /// For mock tests that need to configure responses, use build_mock() instead.
     pub async fn build(self) -> Result<(Arc<dyn LspService>, TestWorkspace), ApiError> {
         let lsp_service: Arc<dyn LspService> = match self.mode {
             LspTestMode::Mock => Arc::new(MockLspService::new()),

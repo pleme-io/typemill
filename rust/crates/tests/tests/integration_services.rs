@@ -1,7 +1,11 @@
-//! End-to-end refactoring workflow tests
+//! Service-level integration tests
 //!
-//! These tests verify the complete refactoring pipeline from planning to execution,
-//! ensuring correctness, atomicity, and cache invalidation.
+//! These tests verify the refactoring service layer, including the AST service,
+//! file service, and planner. They test the complete refactoring pipeline from
+//! planning to execution, ensuring correctness, atomicity, and cache invalidation.
+//!
+//! Unlike E2E tests which use TestClient and MCP protocol, these tests directly
+//! instantiate service components and test their integration.
 
 use cb_api::AstService;
 use cb_ast::AstCache;
