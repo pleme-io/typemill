@@ -34,11 +34,12 @@ clap = { version = "4.0", features = ["derive"] }
 toml_edit = "0.23"
 
 [target.'cfg(unix)'.dependencies]
-cb-vfs = { path = "../cb-vfs" }
+cb-vfs = { path = "../cb-vfs", optional = true }
 
 [features]
 default = []
 mcp-proxy = ["cb-mcp-proxy", "cb-core/mcp-proxy"]
+vfs = ["cb-vfs"]  # EXPERIMENTAL: FUSE virtual filesystem (Unix only, deferred)
 
 [dev-dependencies]
 tempfile = "3.0"

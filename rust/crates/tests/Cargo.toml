@@ -34,4 +34,7 @@ proptest = "1.0"
 serial_test = "3.0"
 
 [target.'cfg(unix)'.dependencies]
-cb-vfs = { path = "../cb-vfs" }
+cb-vfs = { path = "../cb-vfs", optional = true }
+
+[features]
+vfs = ["cb-vfs", "cb-server/vfs"]  # EXPERIMENTAL: Enable VFS tests (Unix only)

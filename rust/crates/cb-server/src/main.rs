@@ -10,6 +10,7 @@ use cb_server::services::{
     workflow_executor::{DefaultWorkflowExecutor, WorkflowExecutor},
     DefaultAstService, FileService, LockManager, OperationQueue,
 };
+#[cfg(all(unix, feature = "vfs"))]
 use cb_vfs::start_fuse_mount;
 use clap::{Parser, Subcommand};
 use std::path::{Path, PathBuf};
@@ -87,6 +88,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Start FUSE filesystem if enabled (only for WebSocket server)
     if matches!(cli.command, Some(Commands::Serve) | None) {
+        #[cfg(all(unix, feature = "vfs"))]
         if let Some(fuse_config) = &config.fuse {
             let workspace_path = Path::new(".");
             tracing::info!(
