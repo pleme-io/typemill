@@ -400,59 +400,6 @@ mod tests {
         }
     }
 
-    // TODO: This test requires cb-server dependencies which creates a circular dependency.
-    // Consider moving this integration test to cb-server crate.
-    /*
-    #[tokio::test]
-    async fn test_initialize_without_auth() {
-        let config = create_test_config(false);
-        let project_root = std::path::PathBuf::from(".");
-        let ast_cache = Arc::new(cb_ast::AstCache::new());
-        let ast_service = Arc::new(cb_server::services::DefaultAstService::new(ast_cache.clone()));
-        let lock_manager = Arc::new(cb_server::services::LockManager::new());
-        let file_service = Arc::new(cb_server::services::FileService::new(
-            &project_root,
-            ast_cache.clone(),
-            lock_manager.clone(),
-        ));
-        let operation_queue = Arc::new(cb_server::services::OperationQueue::new(lock_manager.clone()));
-        let app_state = Arc::new(cb_server::handlers::AppState {
-            ast_service,
-            file_service,
-            project_root,
-            lock_manager,
-            operation_queue,
-        });
-        let _dispatcher = Arc::new(cb_server::handlers::PluginDispatcher::new(app_state));
-        let mut session = Session::new();
-
-        let request = McpRequest {
-            jsonrpc: "2.0".to_string(),
-            id: Some(serde_json::Value::Number(serde_json::Number::from(1))),
-            method: "initialize".to_string(),
-            params: Some(json!({
-                "project": "test_project",
-                "projectRoot": "/path/to/project"
-            })),
-        };
-
-        let response = handle_initialize(&mut session, request, &config)
-            .await
-            .unwrap();
-
-        assert!(session.initialized);
-        assert_eq!(session.project_id, Some("test_project".to_string()));
-        assert_eq!(session.project_root, Some("/path/to/project".to_string()));
-
-        if let McpMessage::Response(resp) = response {
-            assert!(resp.result.is_some());
-            assert!(resp.error.is_none());
-        } else {
-            panic!("Expected Response message");
-        }
-    }
-    */
-
     #[tokio::test]
     async fn test_initialize_with_auth_missing_token() {
         let config = create_test_config(true);

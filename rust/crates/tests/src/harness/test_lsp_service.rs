@@ -30,31 +30,36 @@ impl TestLspService {
 
     /// Configure a response for a specific LSP method
     pub fn set_response(&self, method: &str, response: Value) {
-        let mut responses = self.responses.lock().unwrap();
+        let mut responses = self.responses.lock()
+            .expect("Response lock poisoned - previous test panicked");
         responses.insert(method.to_string(), response);
     }
 
     /// Configure an error response for a specific LSP method
     pub fn set_error(&self, method: &str, error_message: &str) {
-        let mut errors = self.error_methods.lock().unwrap();
+        let mut errors = self.error_methods.lock()
+            .expect("Error methods lock poisoned - previous test panicked");
         errors.insert(method.to_string(), error_message.to_string());
     }
 
     /// Get all requests that were sent to this service
     pub fn get_requests(&self) -> Vec<Message> {
-        let requests = self.requests.lock().unwrap();
+        let requests = self.requests.lock()
+            .expect("Requests lock poisoned - previous test panicked");
         requests.clone()
     }
 
     /// Get the last request sent to this service
     pub fn get_last_request(&self) -> Option<Message> {
-        let requests = self.requests.lock().unwrap();
+        let requests = self.requests.lock()
+            .expect("Requests lock poisoned - previous test panicked");
         requests.last().cloned()
     }
 
     /// Clear all recorded requests
     pub fn clear_requests(&self) {
-        let mut requests = self.requests.lock().unwrap();
+        let mut requests = self.requests.lock()
+            .expect("Requests lock poisoned - previous test panicked");
         requests.clear();
     }
 
@@ -156,20 +161,23 @@ impl LspService for TestLspService {
     async fn request(&self, message: Message) -> Result<Message, ApiError> {
         // Store the request for verification
         {
-            let mut requests = self.requests.lock().unwrap();
+            let mut requests = self.requests.lock()
+                .expect("Requests lock poisoned - previous test panicked");
             requests.push(message.clone());
         }
 
         // Check if we should simulate an error
         {
-            let errors = self.error_methods.lock().unwrap();
+            let errors = self.error_methods.lock()
+                .expect("Error methods lock poisoned - previous test panicked");
             if let Some(error_msg) = errors.get(&message.method) {
                 return Err(ApiError::lsp(error_msg.clone()));
             }
         }
 
         // Look up configured response
-        let responses = self.responses.lock().unwrap();
+        let responses = self.responses.lock()
+            .expect("Response lock poisoned - previous test panicked");
         let result_value = responses.get(&message.method).cloned().unwrap_or_else(|| {
             // Default response for unknown methods
             json!({

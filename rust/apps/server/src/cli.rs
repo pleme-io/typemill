@@ -284,6 +284,12 @@ fn is_process_running(pid: u32) -> bool {
     #[cfg(unix)]
     {
         // On Unix systems, we can send signal 0 to check if process exists
+        // SAFETY: Sending signal 0 to check process existence is safe:
+        // - Signal 0 doesn't deliver a signal, only checks permissions and existence
+        // - pid is validated as positive u32 before this call
+        // - Return value indicates: true = process exists & accessible, false = doesn't exist or no permission
+        // - No memory is accessed, only a kernel syscall that cannot cause undefined behavior
+        // - Worst case: Returns false if pid invalid, no side effects
         unsafe { libc::kill(pid as i32, 0) == 0 }
     }
     #[cfg(windows)]
@@ -304,6 +310,13 @@ fn is_process_running(pid: u32) -> bool {
 fn terminate_process(pid: u32) -> bool {
     #[cfg(unix)]
     {
+        // SAFETY: Sending SIGTERM is safe under these conditions:
+        // - pid is validated as positive u32 from PID file that we created
+        // - SIGTERM is a standard POSIX graceful shutdown signal
+        // - Caller has verified process ownership via PID file location (temp dir)
+        // - Kernel handles all permission checks; we only check return value
+        // - No memory access, pure syscall with well-defined behavior
+        // - Worst case: Signal delivery fails, we return false, no undefined behavior
         unsafe { libc::kill(pid as i32, libc::SIGTERM) == 0 }
     }
     #[cfg(windows)]

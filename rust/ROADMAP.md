@@ -41,10 +41,13 @@ CodeBuddy is in active development with core functionality working but no API st
   - Estimated effort: 16-24 hours (complete) or 4 hours (remove)
 
 ### Developer Experience
-- [ ] **Benchmark Suite** - Re-enable and update performance benchmarks
-  - Priority: Medium
-  - Target: Q1 2025
-  - Estimated effort: 4-8 hours
+- [ ] **Benchmark Suite Restoration** - Re-enable disabled performance benchmarks
+  - File: `benchmark-harness/benches/config_benchmark.rs.disabled` (238 lines)
+  - Status: Disabled, requires API update investigation
+  - Blocker: `ClientConfig::load_with_path` method no longer exists in current API
+  - Decision needed: Update to current API or remove permanently
+  - Priority: Low (informational value only)
+  - Estimated effort: 4-8 hours (investigation + update) or 5 minutes (delete)
 
 - [ ] **Error Handling** - Systematic removal of `.unwrap()` from production code
   - Priority: High
