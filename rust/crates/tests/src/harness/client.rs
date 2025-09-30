@@ -38,20 +38,23 @@ impl TestClient {
         // This is needed because cargo config sets PATH with $HOME, $NVM_DIR, etc.
         // which don't get expanded when inherited by spawned processes
         let expanded_path = if let Ok(path) = std::env::var("PATH") {
-            // Use shellexpand for proper shell-style expansion of ALL variables
-            match shellexpand::env(&path) {
-                Ok(expanded) => {
-                    let result = expanded.to_string();
-                    eprintln!("DEBUG: Expanded PATH for cb-server (shellexpand)");
-                    eprintln!("DEBUG:   Original: {}", path);
-                    eprintln!("DEBUG:   Expanded: {}", result);
-                    result
-                }
-                Err(e) => {
-                    eprintln!("WARN: Failed to expand PATH, using original: {}", e);
-                    path
-                }
+            // Use shellexpand with custom context to handle missing variables gracefully
+            // Missing variables expand to empty strings instead of causing errors
+            let result = shellexpand::env_with_context_no_errors(&path, |var| {
+                std::env::var(var).ok()
+            }).to_string();
+
+            // Only log if RUST_LOG=debug to avoid exposing paths in CI by default
+            if std::env::var("RUST_LOG")
+                .unwrap_or_default()
+                .to_lowercase()
+                .contains("debug")
+            {
+                eprintln!("DEBUG: Expanded PATH for cb-server (shellexpand)");
+                eprintln!("DEBUG:   Original: {}", path);
+                eprintln!("DEBUG:   Expanded: {}", result);
             }
+            result
         } else {
             std::env::var("PATH").unwrap_or_default()
         };

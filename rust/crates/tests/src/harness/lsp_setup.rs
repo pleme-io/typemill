@@ -35,10 +35,10 @@ impl LspSetupHelper {
     fn is_command_available(command: &str) -> bool {
         // Use the PATH environment variable to find the command
         if let Ok(path_env) = std::env::var("PATH") {
-            // Use shellexpand for proper shell-style expansion of ALL variables
-            let expanded_path = shellexpand::env(&path_env)
-                .map(|s| s.to_string())
-                .unwrap_or_else(|_| path_env.clone());
+            // Use shellexpand with context to handle missing variables gracefully
+            let expanded_path = shellexpand::env_with_context_no_errors(&path_env, |var| {
+                std::env::var(var).ok()
+            }).to_string();
 
             for path_dir in expanded_path.split(':') {
                 let full_path = std::path::Path::new(path_dir).join(command);
@@ -66,8 +66,15 @@ impl LspSetupHelper {
         let pylsp_path = Self::resolve_command_path("pylsp")
             .unwrap_or_else(|| "pylsp".to_string());
 
-        eprintln!("DEBUG: Resolved TypeScript LSP path: {}", ts_lsp_path);
-        eprintln!("DEBUG: Resolved Python LSP path: {}", pylsp_path);
+        // Only log LSP paths if RUST_LOG=debug
+        if std::env::var("RUST_LOG")
+            .unwrap_or_default()
+            .to_lowercase()
+            .contains("debug")
+        {
+            eprintln!("DEBUG: Resolved TypeScript LSP path: {}", ts_lsp_path);
+            eprintln!("DEBUG: Resolved Python LSP path: {}", pylsp_path);
+        }
 
         let config = json!({
             "servers": [
@@ -87,21 +94,28 @@ impl LspSetupHelper {
         });
 
         let config_str = serde_json::to_string_pretty(&config).unwrap();
-        eprintln!("DEBUG: Creating LSP config:\n{}", config_str);
 
         workspace.create_file(
             ".codebuddy/config.json",
             &config_str,
         );
 
-        let config_path = workspace.path().join(".codebuddy/config.json");
-        eprintln!("DEBUG: LSP config created at: {}", config_path.display());
+        // Only log config details if RUST_LOG=debug
+        if std::env::var("RUST_LOG")
+            .unwrap_or_default()
+            .to_lowercase()
+            .contains("debug")
+        {
+            let config_path = workspace.path().join(".codebuddy/config.json");
+            eprintln!("DEBUG: Creating LSP config:\n{}", config_str);
+            eprintln!("DEBUG: LSP config created at: {}", config_path.display());
 
-        // Verify the file exists and read it back
-        if let Ok(content) = std::fs::read_to_string(&config_path) {
-            eprintln!("DEBUG: Config file verified, size: {} bytes", content.len());
-        } else {
-            eprintln!("DEBUG: WARNING: Config file could not be read!");
+            // Verify the file exists and read it back
+            if let Ok(content) = std::fs::read_to_string(&config_path) {
+                eprintln!("DEBUG: Config file verified, size: {} bytes", content.len());
+            } else {
+                eprintln!("DEBUG: WARNING: Config file could not be read!");
+            }
         }
     }
 
@@ -109,10 +123,10 @@ impl LspSetupHelper {
     fn resolve_command_path(command: &str) -> Option<String> {
         // Search PATH for the command
         if let Ok(path_env) = std::env::var("PATH") {
-            // Use shellexpand for proper shell-style expansion of ALL variables
-            let expanded_path = shellexpand::env(&path_env)
-                .map(|s| s.to_string())
-                .unwrap_or_else(|_| path_env.clone());
+            // Use shellexpand with context to handle missing variables gracefully
+            let expanded_path = shellexpand::env_with_context_no_errors(&path_env, |var| {
+                std::env::var(var).ok()
+            }).to_string();
 
             for path_dir in expanded_path.split(':') {
                 let full_path = std::path::Path::new(path_dir).join(command);
