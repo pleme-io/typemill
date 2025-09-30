@@ -73,18 +73,30 @@ This directory contains test fixtures and sample code for demonstrating and test
 
 ---
 
-### [`tenant-client.ts`](./tenant-client.ts) - FUSE Filesystem Client Example
-**Purpose:** Example WebSocket client for FUSE filesystem operations (DEPRECATED)
+### [`tenant-client.ts`](./tenant-client.ts) - MCP WebSocket Client Example
+**Purpose:** Modern TypeScript client example for CodeBuddy's MCP WebSocket API
 
 **Contents:**
-- TenantFuseClient class demonstrating:
-  - WebSocket authentication with tenant ID and API key
-  - File read/write operations via WebSocket
-  - Multi-tenant workspace isolation
+- `CodeBuddyMcpClient` class with full MCP protocol support
+- TypeScript interfaces matching Rust MCP types
+- Helper methods for common LSP operations:
+  - `findDefinition()` - Find symbol definitions
+  - `findReferences()` - Find symbol references
+  - `renameSymbol()` - Rename symbols with dry-run support
+  - `getHover()` - Get hover information
+  - `getDocumentSymbols()` - Get document outline
+  - `searchWorkspaceSymbols()` - Search symbols across workspace
+  - `formatDocument()` - Format code
+  - `getDiagnostics()` - Get errors/warnings
+- Complete usage examples demonstrating real-world scenarios
 
-**Status:** ⚠️ **DEPRECATED** - This example references FUSE filesystem features that are not fully implemented in the current architecture. The WebSocket transport API has evolved since this was written.
+**Use Cases:**
+- Building custom CodeBuddy clients
+- Integration with external tools
+- Testing WebSocket API
+- Reference implementation for other languages
 
-**For Current WebSocket Usage:** See `rust/crates/cb-transport/src/ws.rs` for the actual WebSocket transport implementation.
+**Status:** ✅ **Active** - Up-to-date with current MCP protocol (2025-06-18)
 
 ---
 
