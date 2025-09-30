@@ -19,7 +19,9 @@ struct McpStdioClient {
 
 impl McpStdioClient {
     fn new() -> Result<Self, Box<dyn std::error::Error>> {
-        let mut process = Command::new(env!("CARGO_BIN_EXE_cb-server"))
+        let binary_path = std::env::var("CARGO_BIN_EXE_cb-server")
+            .unwrap_or_else(|_| "target/debug/cb-server".to_string());
+        let mut process = Command::new(binary_path)
             .arg("start")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -321,7 +323,9 @@ async fn test_error_handling_contract() {
 #[tokio::test]
 async fn test_websocket_server_startup() {
     // Test that we can start the WebSocket server
-    let mut process = Command::new(env!("CARGO_BIN_EXE_cb-server"))
+    let binary_path = std::env::var("CARGO_BIN_EXE_cb-server")
+        .unwrap_or_else(|_| "target/debug/cb-server".to_string());
+    let mut process = Command::new(binary_path)
         .arg("serve")
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

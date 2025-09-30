@@ -633,7 +633,9 @@ mod advanced_resilience {
 #[tokio::test]
 async fn test_authentication_failure_websocket() {
     // Start WebSocket server with authentication enabled
-    let mut server_process = Command::new(env!("CARGO_BIN_EXE_cb-server"))
+    let binary_path = std::env::var("CARGO_BIN_EXE_cb-server")
+        .unwrap_or_else(|_| "target/debug/cb-server".to_string());
+    let mut server_process = Command::new(binary_path)
         .arg("serve")
         .arg("--port")
         .arg("3041") // Use different port to avoid conflicts
