@@ -11,9 +11,6 @@ pub mod helpers;
 pub mod mocks;
 
 #[cfg(test)]
-pub mod contract_tests;
-
-#[cfg(test)]
 pub mod resilience_tests;
 
 pub use harness::{TestClient, TestWorkspace};

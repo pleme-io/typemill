@@ -633,9 +633,20 @@ mod advanced_resilience {
 #[tokio::test]
 async fn test_authentication_failure_websocket() {
     // Start WebSocket server with authentication enabled
-    let binary_path = std::env::var("CARGO_BIN_EXE_cb-server")
-        .unwrap_or_else(|_| "target/debug/cb-server".to_string());
-    let mut server_process = Command::new(binary_path)
+    // Use CARGO_MANIFEST_DIR to construct path to binary in workspace
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
+        .expect("CARGO_MANIFEST_DIR not set");
+    let binary_path = std::path::Path::new(&manifest_dir)
+        .join("../../target/debug/codebuddy");
+
+    if !binary_path.exists() {
+        panic!(
+            "Binary not found at {}. Please run `cargo build` first.",
+            binary_path.display()
+        );
+    }
+
+    let mut server_process = Command::new(&binary_path)
         .arg("serve")
         .arg("--port")
         .arg("3041") // Use different port to avoid conflicts
@@ -645,7 +656,7 @@ async fn test_authentication_failure_websocket() {
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .expect("Failed to start WebSocket server with auth");
+        .unwrap_or_else(|e| panic!("Failed to start WebSocket server with auth. Binary: {}, Error: {}", binary_path.display(), e));
 
     // Wait for server to start
     thread::sleep(Duration::from_millis(2000));
