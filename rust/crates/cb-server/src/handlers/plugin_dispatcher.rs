@@ -110,18 +110,74 @@ impl DirectLspAdapter {
         Ok(client)
     }
 
+    /// Query all active LSP servers for workspace symbols and merge results
+    async fn query_all_servers_for_workspace_symbols(
+        &self,
+        params: Value,
+    ) -> Result<Value, String> {
+        let mut all_symbols = Vec::new();
+        let mut queried_servers = Vec::new();
+
+        // Query each supported extension's LSP server
+        for extension in &self.extensions {
+            // Get or create client for this extension
+            match self.get_or_create_client(extension).await {
+                Ok(client) => {
+                    // Send workspace/symbol request to this server
+                    match client.send_request("workspace/symbol", params.clone()).await {
+                        Ok(response) => {
+                            // Extract symbols from response
+                            if let Some(symbols) = response.as_array() {
+                                debug!(
+                                    extension = %extension,
+                                    symbol_count = symbols.len(),
+                                    "Got workspace symbols from LSP server"
+                                );
+                                all_symbols.extend_from_slice(symbols);
+                                queried_servers.push(extension.clone());
+                            }
+                        }
+                        Err(e) => {
+                            // Log error but continue with other servers
+                            warn!(
+                                extension = %extension,
+                                error = %e,
+                                "Failed to get workspace symbols from LSP server"
+                            );
+                        }
+                    }
+                }
+                Err(e) => {
+                    // Log error but continue with other servers
+                    warn!(
+                        extension = %extension,
+                        error = %e,
+                        "Failed to create LSP client for workspace symbol search"
+                    );
+                }
+            }
+        }
+
+        if all_symbols.is_empty() {
+            return Ok(json!([]));
+        }
+
+        debug!(
+            total_symbols = all_symbols.len(),
+            servers = ?queried_servers,
+            "Merged workspace symbols from multiple LSP servers"
+        );
+
+        Ok(json!(all_symbols))
+    }
+
     /// Extract file extension from LSP params
     fn extract_extension_from_params(&self, params: &Value, method: &str) -> Option<String> {
-        // For workspace-level operations, return the first supported extension
-        // since they don't operate on specific files
+        // For workspace-level operations, no longer needed since we handle them specially
         match method {
             "workspace/symbol" => {
-                // Workspace symbol search - use TypeScript client as default
-                if self.extensions.contains(&"ts".to_string()) {
-                    return Some("ts".to_string());
-                } else if !self.extensions.is_empty() {
-                    return Some(self.extensions[0].clone());
-                }
+                // This path should not be reached anymore - handled in request() method
+                warn!("extract_extension_from_params called for workspace/symbol - should be handled specially");
                 None
             }
             _ => {
@@ -144,7 +200,12 @@ impl DirectLspAdapter {
 #[async_trait]
 impl LspService for DirectLspAdapter {
     async fn request(&self, method: &str, params: Value) -> Result<Value, String> {
-        // Extract extension from params
+        // Special handling for workspace/symbol - query ALL active LSP servers
+        if method == "workspace/symbol" {
+            return self.query_all_servers_for_workspace_symbols(params).await;
+        }
+
+        // Extract extension from params for file-specific operations
         let extension = self
             .extract_extension_from_params(&params, method)
             .ok_or_else(|| {

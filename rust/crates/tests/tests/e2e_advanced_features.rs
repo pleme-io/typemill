@@ -791,8 +791,6 @@ def process_user_data(user_data):
         );
     }
 
-    eprintln!("DEBUG: Workspace symbol search response: {:#?}", response);
-
     let workspace_symbols = response["result"]["content"]
         .as_array()
         .expect("Workspace symbol search should return symbols array");
