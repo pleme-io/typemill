@@ -416,3 +416,320 @@ async fn test_workspace_symbols_real_typescript() {
     let response = service.request(message).await.unwrap();
     assert!(response.params.is_array() || response.params.is_null());
 }
+
+// =============================================================================
+// Completion Tests
+// =============================================================================
+
+#[tokio::test]
+async fn test_completion_mock_typescript() {
+    let mock_service = std::sync::Arc::new(MockLspService::new());
+    let workspace = TestWorkspace::new();
+    workspace.create_file("test.ts", r#"
+const user = { name: 'Alice', age: 30 };
+user.
+"#);
+
+    mock_service.set_response(
+        "textDocument/completion",
+        json!({
+            "items": [
+                {
+                    "label": "name",
+                    "kind": 5,
+                    "detail": "string"
+                },
+                {
+                    "label": "age",
+                    "kind": 5,
+                    "detail": "number"
+                }
+            ]
+        }),
+    );
+
+    let message = cb_api::Message {
+        id: Some("1".to_string()),
+        method: "textDocument/completion".to_string(),
+        params: json!({
+            "textDocument": {
+                "uri": format!("file://{}/test.ts", workspace.path().display())
+            },
+            "position": {"line": 2, "character": 5}
+        }),
+    };
+
+    let response = mock_service.request(message).await.unwrap();
+    let completions = &response.params;
+    assert!(completions.is_object());
+    let items = completions.get("items").unwrap().as_array().unwrap();
+    assert!(!items.is_empty(), "Should return completion items");
+}
+
+#[tokio::test]
+#[ignore] // Requires typescript-language-server
+async fn test_completion_real_typescript() {
+    let (service, workspace) = LspTestBuilder::new("ts")
+        .with_real_lsp()
+        .with_file("test.ts", r#"
+const myObj = { prop1: 'value', prop2: 42 };
+myObj.
+"#)
+        .build()
+        .await
+        .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+
+    let message = cb_api::Message {
+        id: Some("real-completion-1".to_string()),
+        method: "textDocument/completion".to_string(),
+        params: json!({
+            "textDocument": {
+                "uri": format!("file://{}/test.ts", workspace.path().display())
+            },
+            "position": {"line": 2, "character": 6}
+        }),
+    };
+
+    let response = service.request(message).await.unwrap();
+    // Real LSP server should return completions (items array or object)
+    assert!(response.params.is_object() || response.params.is_array());
+}
+
+// =============================================================================
+// Rename Tests
+// =============================================================================
+
+#[tokio::test]
+async fn test_rename_mock_typescript() {
+    let mock_service = std::sync::Arc::new(MockLspService::new());
+    let workspace = TestWorkspace::new();
+    workspace.create_file("main.ts", r#"
+const oldName = 'value';
+console.log(oldName);
+"#);
+
+    mock_service.set_response(
+        "textDocument/rename",
+        json!({
+            "changes": {
+                format!("file://{}/main.ts", workspace.path().display()): [
+                    {
+                        "range": {
+                            "start": {"line": 1, "character": 6},
+                            "end": {"line": 1, "character": 13}
+                        },
+                        "newText": "newName"
+                    },
+                    {
+                        "range": {
+                            "start": {"line": 2, "character": 12},
+                            "end": {"line": 2, "character": 19}
+                        },
+                        "newText": "newName"
+                    }
+                ]
+            }
+        }),
+    );
+
+    let message = cb_api::Message {
+        id: Some("1".to_string()),
+        method: "textDocument/rename".to_string(),
+        params: json!({
+            "textDocument": {
+                "uri": format!("file://{}/main.ts", workspace.path().display())
+            },
+            "position": {"line": 1, "character": 6},
+            "newName": "newName"
+        }),
+    };
+
+    let response = mock_service.request(message).await.unwrap();
+    let workspace_edit = &response.params;
+    assert!(workspace_edit.is_object());
+    assert!(workspace_edit.get("changes").is_some());
+}
+
+#[tokio::test]
+#[ignore] // Requires typescript-language-server
+async fn test_rename_real_typescript() {
+    let (service, workspace) = LspTestBuilder::new("ts")
+        .with_real_lsp()
+        .with_file("test.ts", r#"
+const myVariable = 42;
+const result = myVariable + 10;
+"#)
+        .build()
+        .await
+        .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+
+    let message = cb_api::Message {
+        id: Some("real-rename-1".to_string()),
+        method: "textDocument/rename".to_string(),
+        params: json!({
+            "textDocument": {
+                "uri": format!("file://{}/test.ts", workspace.path().display())
+            },
+            "position": {"line": 1, "character": 6},
+            "newName": "renamedVariable"
+        }),
+    };
+
+    let response = service.request(message).await.unwrap();
+    // Should return a WorkspaceEdit with changes
+    assert!(response.params.is_object());
+}
+
+// =============================================================================
+// Python Tests
+// =============================================================================
+
+#[tokio::test]
+async fn test_go_to_definition_mock_python() {
+    let mock_service = std::sync::Arc::new(MockLspService::new());
+    let workspace = TestWorkspace::new();
+    workspace.create_file("main.py", r#"
+from utils import calculate
+result = calculate(5, 3)
+"#);
+    workspace.create_file("utils.py", r#"
+def calculate(a, b):
+    return a + b
+"#);
+
+    mock_service.set_response(
+        "textDocument/definition",
+        json!([{
+            "uri": format!("file://{}/utils.py", workspace.path().display()),
+            "range": {
+                "start": {"line": 1, "character": 4},
+                "end": {"line": 1, "character": 13}
+            }
+        }]),
+    );
+
+    let message = cb_api::Message {
+        id: Some("1".to_string()),
+        method: "textDocument/definition".to_string(),
+        params: json!({
+            "textDocument": {
+                "uri": format!("file://{}/main.py", workspace.path().display())
+            },
+            "position": {"line": 2, "character": 9}
+        }),
+    };
+
+    let response = mock_service.request(message).await.unwrap();
+    let locations = response.params.as_array().unwrap();
+    assert!(!locations.is_empty(), "Should return definition location");
+    assert!(locations[0]["uri"].as_str().unwrap().contains("utils.py"));
+}
+
+#[tokio::test]
+#[ignore] // Requires pylsp (Python Language Server)
+async fn test_go_to_definition_real_python() {
+    let (service, workspace) = LspTestBuilder::new("py")
+        .with_real_lsp()
+        .with_file("main.py", "from helper import func\nfunc()")
+        .with_file("helper.py", "def func():\n    return 42")
+        .build()
+        .await
+        .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+
+    let message = cb_api::Message {
+        id: Some("real-py-def-1".to_string()),
+        method: "textDocument/definition".to_string(),
+        params: json!({
+            "textDocument": {
+                "uri": format!("file://{}/main.py", workspace.path().display())
+            },
+            "position": {"line": 0, "character": 19}
+        }),
+    };
+
+    let response = service.request(message).await.unwrap();
+    let locations = response.params.as_array().unwrap();
+    assert!(!locations.is_empty(), "Real Python LSP should return definition");
+    assert!(locations[0]["uri"].as_str().unwrap().contains("helper.py"));
+}
+
+#[tokio::test]
+async fn test_hover_mock_python() {
+    let mock_service = std::sync::Arc::new(MockLspService::new());
+    let workspace = TestWorkspace::new();
+    workspace.create_file("test.py", r#"
+def greet(name: str) -> str:
+    """Greets a person by name."""
+    return f"Hello, {name}!"
+
+message = greet("World")
+"#);
+
+    mock_service.set_response(
+        "textDocument/hover",
+        json!({
+            "contents": {
+                "kind": "markdown",
+                "value": "```python\ndef greet(name: str) -> str\n```\n\nGreets a person by name."
+            },
+            "range": {
+                "start": {"line": 5, "character": 10},
+                "end": {"line": 5, "character": 15}
+            }
+        }),
+    );
+
+    let message = cb_api::Message {
+        id: Some("1".to_string()),
+        method: "textDocument/hover".to_string(),
+        params: json!({
+            "textDocument": {
+                "uri": format!("file://{}/test.py", workspace.path().display())
+            },
+            "position": {"line": 5, "character": 10}
+        }),
+    };
+
+    let response = mock_service.request(message).await.unwrap();
+    let hover_data = &response.params;
+    assert!(hover_data.is_object());
+    assert!(hover_data.get("contents").is_some());
+}
+
+#[tokio::test]
+#[ignore] // Requires pylsp (Python Language Server)
+async fn test_hover_real_python() {
+    let (service, workspace) = LspTestBuilder::new("py")
+        .with_real_lsp()
+        .with_file("test.py", r#"
+def add(x, y):
+    return x + y
+
+result = add(1, 2)
+"#)
+        .build()
+        .await
+        .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+
+    let message = cb_api::Message {
+        id: Some("real-py-hover-1".to_string()),
+        method: "textDocument/hover".to_string(),
+        params: json!({
+            "textDocument": {
+                "uri": format!("file://{}/test.py", workspace.path().display())
+            },
+            "position": {"line": 4, "character": 9}
+        }),
+    };
+
+    let response = service.request(message).await.unwrap();
+    assert!(response.params.is_object() || response.params.is_null());
+}
