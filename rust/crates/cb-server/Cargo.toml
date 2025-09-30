@@ -23,7 +23,7 @@ anyhow = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 chrono = { version = "0.4", features = ["serde"] }
-jsonwebtoken = { version = "10", features = ["rust_crypto"] }
+jsonwebtoken = { workspace = true }
 # LSP dependencies
 lsp-types = "0.97"
 # Utilities

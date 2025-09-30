@@ -445,7 +445,7 @@ dependencies = [
  "lsp-types",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.16",
  "tokio",
 ]
 
@@ -469,7 +469,7 @@ dependencies = [
  "swc_ecma_parser",
  "swc_ecma_visit",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.16",
  "tokio",
  "tracing",
 ]
@@ -495,7 +495,7 @@ dependencies = [
  "serde_json",
  "serial_test",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.16",
  "tokio",
  "tokio-tungstenite 0.21.0",
  "tracing",
@@ -514,7 +514,7 @@ dependencies = [
  "serde_json",
  "serial_test",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.16",
  "tracing",
 ]
 
@@ -546,7 +546,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.16",
  "tokio",
  "tokio-test",
  "tracing",
@@ -570,13 +570,13 @@ dependencies = [
  "dashmap",
  "futures-util",
  "ignore",
- "jsonwebtoken 10.0.0",
+ "jsonwebtoken",
  "lsp-types",
  "serde",
  "serde_json",
  "simd-json 0.16.0",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.16",
  "tokio",
  "toml_edit",
  "tracing",
@@ -595,7 +595,7 @@ dependencies = [
  "cb-core",
  "futures-util",
  "hyper",
- "jsonwebtoken 10.0.0",
+ "jsonwebtoken",
  "serde",
  "serde_json",
  "tokio",
@@ -2107,21 +2107,6 @@ dependencies = [
  "pest",
  "pest_derive",
  "serde",
-]
-
-[[package]]
-name = "jsonwebtoken"
-version = "9.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a87cc7a48537badeae96744432de36f4be2b4a34a05a5ef32e9dd8a1c169dde"
-dependencies = [
- "base64 0.22.1",
- "js-sys",
- "pem",
- "ring",
- "serde",
- "serde_json",
- "simple_asn1",
 ]
 
 [[package]]
@@ -4121,7 +4106,7 @@ dependencies = [
  "criterion",
  "futures",
  "futures-util",
- "jsonwebtoken 9.3.1",
+ "jsonwebtoken",
  "mockall",
  "predicates",
  "proptest",
@@ -4129,7 +4114,7 @@ dependencies = [
  "serde_json",
  "serial_test",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.16",
  "tokio",
  "tokio-test",
  "tokio-tungstenite 0.21.0",

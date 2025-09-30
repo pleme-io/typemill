@@ -22,7 +22,7 @@ tempfile = "3.8"
 chrono = { version = "0.4", features = ["serde"] }
 tokio-tungstenite = "0.21"
 url = "2.5"
-jsonwebtoken = "9.0"
+jsonwebtoken = { workspace = true }
 uuid = "1.0"
 futures-util = "0.3"
 futures = "0.3"

@@ -9,7 +9,7 @@ serde_json = "1.0"
 async-trait = "0.1"
 tokio = { version = "1.0", features = ["full"] }
 tracing = "0.1"
-thiserror = "1.0"
+thiserror = { workspace = true }
 indexmap = "2.0"
 cb-core = { path = "../cb-core" }
 cb-ast = { path = "../cb-ast" }

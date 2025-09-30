@@ -9,6 +9,6 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1.0", features = ["process", "io-util", "sync"] }
 tracing = "0.1"
-thiserror = "2.0"
+thiserror = { workspace = true }
 cb-plugins = { path = "../cb-plugins" }
 cb-core = { path = "../cb-core" }

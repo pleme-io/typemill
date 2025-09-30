@@ -34,7 +34,8 @@ async-trait = "0.1"
 
 # Error handling
 anyhow = "1.0"
-thiserror = "1.0"
+thiserror = "2.0"
+jsonwebtoken = { version = "10", features = ["rust_crypto"] }
 
 # Logging
 tracing = "0.1"
