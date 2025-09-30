@@ -180,7 +180,7 @@ impl ImportService {
         update: &DependencyUpdate,
     ) -> ServerResult<bool> {
         use swc_common::{sync::Lrc, FileName, FilePathMapping, SourceMap};
-        use swc_ecma_ast::{ImportDecl, ModuleDecl, ModuleItem};
+        use swc_ecma_ast::{ModuleDecl, ModuleItem};
         use swc_ecma_codegen::{text_writer::JsWriter, Emitter};
         use swc_ecma_parser::{lexer::Lexer, Parser, StringInput, Syntax, TsSyntax};
 

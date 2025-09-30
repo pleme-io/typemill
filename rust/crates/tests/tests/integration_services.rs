@@ -160,10 +160,6 @@ async fn create_test_app_state(project_root: PathBuf) -> Arc<AppState> {
     })
 }
 
-// NOTE: test_rename_symbol_workflow_success has been migrated to the data-driven
-// test architecture in mcp_file_operations.rs as part of RENAME_SYMBOL_TESTS.
-// The new tests provide the same coverage with better maintainability.
-
 // NOTE: test_edit_plan_error_handling has been removed as it tested error handling
 // which is now covered by the data-driven test architecture.
 

@@ -13,7 +13,7 @@ use cb_server::services::{
 #[cfg(all(unix, feature = "vfs"))]
 use cb_vfs::start_fuse_mount;
 use clap::{Parser, Subcommand};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 #[derive(Parser)]

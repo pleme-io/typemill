@@ -1,8 +1,7 @@
 //! Mock implementations for testing
 
 use async_trait::async_trait;
-use cb_api::{ApiError, AstService, CacheStats, EditPlan, ImportGraph, LspService, Message};
-use cb_core::model::IntentSpec;
+use cb_api::{ApiError, AstService, CacheStats, ImportGraph, LspService, Message};
 use mockall::mock;
 use std::path::Path;
 
@@ -12,7 +11,6 @@ mock! {
     #[async_trait]
     impl AstService for AstService {
         async fn build_import_graph(&self, file: &Path) -> Result<ImportGraph, ApiError>;
-        async fn plan_refactor(&self, intent: &IntentSpec, file: &Path) -> Result<EditPlan, ApiError>;
         async fn cache_stats(&self) -> CacheStats;
     }
 }

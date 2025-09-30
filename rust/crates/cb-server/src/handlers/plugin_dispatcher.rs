@@ -452,11 +452,6 @@ impl PluginDispatcher {
             return self.handle_notify_file_closed(tool_call).await;
         }
 
-        // Check if this is the AST-powered refactoring tool
-        if tool_call.name == "rename_symbol_with_imports" {
-            return self.handle_rename_symbol_with_imports(tool_call).await;
-        }
-
         // Check if this is the edit plan application tool
         if tool_call.name == "apply_edits" {
             return self.handle_apply_edits(tool_call).await;
@@ -1014,78 +1009,6 @@ impl PluginDispatcher {
             Err(e) => {
                 error!(intent = %intent.name, error = %e, "Failed to plan workflow for intent");
                 Err(ServerError::Runtime { message: e })
-            }
-        }
-    }
-
-    /// Handle rename_symbol_with_imports tool using AST service
-    async fn handle_rename_symbol_with_imports(&self, tool_call: ToolCall) -> ServerResult<Value> {
-        debug!(tool_name = %tool_call.name, "Handling rename_symbol_with_imports");
-
-        let args = tool_call.arguments.unwrap_or(json!({}));
-        let file_path_str = args
-            .get("file_path")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| ServerError::InvalidRequest("Missing 'file_path' parameter".into()))?;
-
-        let old_name = args
-            .get("old_name")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| ServerError::InvalidRequest("Missing 'old_name' parameter".into()))?;
-
-        let new_name = args
-            .get("new_name")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| ServerError::InvalidRequest("Missing 'new_name' parameter".into()))?;
-
-        let file_path = std::path::Path::new(file_path_str);
-
-        debug!(
-            old_name = %old_name,
-            new_name = %new_name,
-            file_path = %file_path.display(),
-            "Planning refactor to rename symbol"
-        );
-
-        // Create an IntentSpec for the rename operation
-        let intent = cb_core::model::IntentSpec::new(
-            "rename_symbol_with_imports",
-            json!({
-                "oldName": old_name,
-                "newName": new_name,
-                "sourceFile": file_path_str
-            }),
-        );
-
-        // Use the AST service to plan the refactoring
-        match self
-            .app_state
-            .ast_service
-            .plan_refactor(&intent, file_path)
-            .await
-        {
-            Ok(edit_plan) => {
-                debug!(
-                    files_count = edit_plan.edits.len(),
-                    "Successfully planned refactor"
-                );
-                Ok(json!({
-                    "success": true,
-                    "message": format!("Successfully planned rename of '{}' to '{}' affecting {} edits across {} files",
-                                     old_name, new_name, edit_plan.edits.len(), edit_plan.metadata.impact_areas.len()),
-                    "edit_plan": edit_plan
-                }))
-            }
-            Err(e) => {
-                error!(
-                    old_name = %old_name,
-                    new_name = %new_name,
-                    error = %e,
-                    "Failed to plan refactor"
-                );
-                Err(ServerError::Runtime {
-                    message: format!("Failed to plan refactor: {}", e),
-                })
             }
         }
     }

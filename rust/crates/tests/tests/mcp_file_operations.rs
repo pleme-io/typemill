@@ -184,36 +184,6 @@ async fn test_list_files_real() {
     }
 }
 
-// =============================================================================
-// Rename Symbol Tests
-// =============================================================================
-
-#[tokio::test]
-async fn test_rename_symbol_mock() {
-    for (idx, case) in RENAME_SYMBOL_TESTS.iter().enumerate() {
-        println!(
-            "Running mock rename_symbol test {}/{}: {}",
-            idx + 1,
-            RENAME_SYMBOL_TESTS.len(),
-            case.test_name
-        );
-        run_rename_symbol_test(case, false).await;
-    }
-}
-
-#[tokio::test]
-#[ignore] // Requires MCP server to be running
-async fn test_rename_symbol_real() {
-    for (idx, case) in RENAME_SYMBOL_TESTS.iter().enumerate() {
-        println!(
-            "Running real rename_symbol test {}/{}: {}",
-            idx + 1,
-            RENAME_SYMBOL_TESTS.len(),
-            case.test_name
-        );
-        run_rename_symbol_test(case, true).await;
-    }
-}
 
 // =============================================================================
 // Analyze Imports Tests
