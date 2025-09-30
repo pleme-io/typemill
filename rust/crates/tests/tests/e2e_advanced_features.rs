@@ -1,6 +1,7 @@
 use serde_json::{json, Value};
 use std::path::Path;
 use std::process::Command;
+use std::time::Duration;
 use tests::harness::{LspSetupHelper, TestClient, TestWorkspace};
 
 // Advanced features that may not be fully implemented yet
@@ -734,15 +735,28 @@ def process_user_data(user_data):
     );
 
     // Test Python LSP operations
+    // Python LSP (pylsp) can take longer to start and respond, especially on first use
     let response = client
-        .call_tool(
+        .call_tool_with_timeout(
             "get_document_symbols",
             json!({
                 "file_path": py_file.to_string_lossy()
             }),
+            Duration::from_secs(30),
         )
-        .await
-        .expect("Python LSP call should succeed");
+        .await;
+
+    // If it fails, print stderr logs for debugging
+    if let Err(e) = &response {
+        let stderr_logs = client.get_stderr_logs();
+        eprintln!("DEBUG: Python LSP call failed with: {}", e);
+        eprintln!("DEBUG: cb-server stderr logs:");
+        for log in stderr_logs {
+            eprintln!("  {}", log);
+        }
+    }
+
+    let response = response.expect("Python LSP call should succeed");
 
     if let Some(error) = response.get("error") {
         panic!(
@@ -965,7 +979,7 @@ export function {}Function{}(param: {}Interface{}): boolean {{
         );
     }
 
-    let files = response["files"]
+    let files = response["result"]["content"]["files"]
         .as_array()
         .expect("File listing should return files array");
 
@@ -1137,13 +1151,14 @@ export interface ValidInterface {
     );
 
     // Test 2: Hover on valid code should work
+    // Note: Content starts with blank line, so validFunction is on line 27 (1-indexed)
     let response = client
         .call_tool(
             "get_hover",
             json!({
                 "file_path": error_file.to_string_lossy(),
-                "line": 26, // Line with validFunction
-                "character": 15
+                "line": 27, // Line with validFunction (accounting for leading newline)
+                "character": 9  // Point to 'validFunction' identifier
             }),
         )
         .await

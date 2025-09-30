@@ -67,25 +67,67 @@ impl LspClient {
             .expect("LSP server command is empty (should be caught by validation)");
 
         // Start the LSP server process
+        // Debug logging for LSP server spawn
+        let path_env = std::env::var("PATH").unwrap_or_else(|_| "NOT SET".to_string());
+        let current_dir = std::env::current_dir()?;
+        let root_dir = config
+            .root_dir
+            .as_deref()
+            .unwrap_or(&current_dir);
+
+        eprintln!("=== LSP SPAWN DEBUG ===");
+        eprintln!("Command: {}", command);
+        eprintln!("Args: {:?}", args);
+        eprintln!("Root dir: {:?}", root_dir);
+        eprintln!("PATH: {}", path_env);
+        eprintln!("======================");
+
+        tracing::debug!(
+            command = %command,
+            args = ?args,
+            root_dir = ?root_dir,
+            path_env = %path_env,
+            "Attempting to spawn LSP server"
+        );
+
         let mut child = Command::new(command)
             .args(args)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
-            .current_dir(
-                config
-                    .root_dir
-                    .as_deref()
-                    .unwrap_or(&std::env::current_dir()?),
-            )
+            .current_dir(root_dir)
             .spawn()
             .map_err(|e| {
+                eprintln!("=== LSP SPAWN FAILED ===");
+                eprintln!("Command: {}", command);
+                eprintln!("Error: {}", e);
+                eprintln!("PATH: {}", path_env);
+                eprintln!("========================");
+
+                tracing::error!(
+                    command = %command,
+                    args = ?args,
+                    error = %e,
+                    path_env = %path_env,
+                    "Failed to spawn LSP server"
+                );
                 ServerError::runtime(format!(
                     "Failed to start LSP server '{}': {}",
                     config.command.join(" "),
                     e
                 ))
             })?;
+
+        eprintln!("=== LSP SPAWN SUCCESS ===");
+        eprintln!("Command: {}", command);
+        eprintln!("PID: {:?}", child.id());
+        eprintln!("=========================");
+
+        tracing::debug!(
+            command = %command,
+            pid = child.id(),
+            "LSP server process spawned successfully"
+        );
 
         // Take ownership of stdin/stdout/stderr
         let stdin = child
