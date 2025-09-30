@@ -383,7 +383,9 @@ impl Command for CallCommand {
 
                 // Create a new command with the built parameters
                 let mut new_cmd = self.clone();
-                new_cmd.params = Some(serde_json::to_string(&p).unwrap());
+                new_cmd.params = Some(serde_json::to_string(&p).map_err(|e| {
+                    ClientError::ParseError(format!("Failed to serialize parameters: {}", e))
+                })?);
                 return new_cmd.execute_tool_call(&ctx).await;
             }
         }
