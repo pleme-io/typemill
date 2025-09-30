@@ -56,6 +56,15 @@ codebuddy status
 
 # WebSocket server
 codebuddy serve
+
+# Stop the running server
+codebuddy stop
+
+# Link to AI assistants
+codebuddy link
+
+# Remove AI from config
+codebuddy unlink
 ```
 
 ## 📚 MCP Integration
@@ -125,7 +134,9 @@ EOF
 
 ## 📖 Documentation
 - **[CLAUDE.md](CLAUDE.md)** - Project instructions and architecture
-- **[Plugin Architecture](PLUGIN_ARCHITECTURE.md)** - System design and implementation
+- **[Architecture](rust/docs/ARCHITECTURE.md)** - System design and implementation details
+- **[Operations Guide](rust/docs/OPERATIONS.md)** - Deployment and operational procedures
+- **[Usage Guide](rust/docs/USAGE.md)** - Detailed usage instructions
 
 ## 🔗 Related Projects
 - **[Model Context Protocol](https://github.com/modelcontextprotocol/servers)** - Protocol specification and ecosystem

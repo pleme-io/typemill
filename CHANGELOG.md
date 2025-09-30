@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## Rust Rewrite (2025)
+
+The project underwent a complete architectural transformation from TypeScript/Node.js to pure Rust, bringing:
+- **Native Performance**: Zero-cost abstractions and native compilation
+- **Memory Safety**: Rust's ownership system prevents common vulnerabilities
+- **Type Safety**: Compile-time guarantees with no runtime overhead
+- **Workspace Architecture**: Modern Cargo workspace with modular crates
+- **Production Features**: WebSocket server, JWT auth, FUSE filesystem support
+
+The changelog entries below document the TypeScript/Node.js implementation history (v0.1.0 - v1.3.0).
+Many features have been reimplemented in Rust with enhanced performance and safety guarantees.
+
+---
+
+## TypeScript/Node.js Implementation History
+
 ## [1.3.0] - 2025-09-24
 
 ### Added

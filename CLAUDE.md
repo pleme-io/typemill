@@ -49,47 +49,56 @@ cargo check
 
 ### Core Components
 
-**MCP Server Layer** (`src/main.rs`)
+**MCP Server Layer** (`apps/server/src/main.rs`, `crates/cb-server/`)
 
-- Entry point that implements MCP protocol
+- Entry point that implements MCP protocol via stdio and WebSocket
 - Exposes comprehensive MCP tools covering navigation, refactoring, intelligence, diagnostics, and batch operations
-- Handles MCP client requests and delegates to LSP layer
-- Includes CLI subcommand handling for `setup`, `status`, `start`, `stop`
+- Handles MCP client requests via plugin dispatcher system
+- CLI subcommand handling in `apps/server/src/cli.rs` for `setup`, `status`, `start`, `stop`, `serve`, `link`, `unlink`
 
-**LSP Client Layer** (`src/lsp/`)
+**LSP Client Layer** (`crates/cb-server/src/systems/lsp/`)
 
 - Manages multiple LSP server processes concurrently
 - Handles LSP protocol communication (JSON-RPC over stdio)
 - Maps file extensions to appropriate language servers
 - Maintains process lifecycle and request/response correlation
 
-**Tool Registry** (`src/mcp/`)
+**MCP Tool Handlers** (`crates/cb-server/src/handlers/`)
 
-- Central registry for all MCP tool handlers
-- Decouples batch executor from handler implementations
-- Native Rust tool definitions and handlers
+- Plugin dispatcher routing MCP requests to appropriate handlers
+- Native Rust tool implementations with compile-time type safety
 - Comprehensive error handling and validation
+- Integration with LSP client layer and service layer
 
-**Configuration System** (`.codebuddy/config.json`)
+**Configuration System** (`.codebuddy/config.json`, `crates/cb-core/`)
 
 - Defines which LSP servers to use for different file extensions
 - Smart setup with auto-detection via `codebuddy setup` command
 - File scanning with gitignore support for project structure detection
 - Native Rust configuration parsing and validation
 
-**WebSocket Server Layer** (`src/server/`)
+**WebSocket Transport Layer** (`crates/cb-transport/`)
 
 - Production-ready WebSocket server with HTTP health endpoints
-- Session management with connection recovery
-- JWT authentication and TLS/WSS support for enterprise security
+- Stdio transport for MCP protocol over standard input/output
+- JWT authentication support for enterprise security
 - Structured logging and comprehensive monitoring
 
-**File System Operations** (`src/fs/`)
+**Service Layer** (`crates/cb-server/src/services/`)
 
-- Native file system access and manipulation
-- Efficient file reading and writing operations
-- Directory traversal and pattern matching
-- Cross-platform compatibility
+- File service for file system operations
+- AST service for code parsing and analysis
+- Lock manager for concurrent operation safety
+- Operation queue for request management
+- Planner and workflow executor for complex operations
+
+**Additional Components**
+
+- **Plugin System** (`crates/cb-plugins/`) - Extensible plugin architecture
+- **AST Processing** (`crates/cb-ast/`) - Code parsing and analysis
+- **Virtual Filesystem** (`crates/cb-vfs/`) - FUSE filesystem support (Unix only)
+- **API Interfaces** (`crates/cb-api/`) - Service trait definitions
+- **Client Library** (`crates/cb-client/`) - CLI client and WebSocket client
 
 ### Data Flow
 
