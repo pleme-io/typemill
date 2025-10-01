@@ -272,8 +272,33 @@ impl LanguageAdapter for RustAdapter {
         manifest
     }
 
-    fn rewrite_import(&self, _old_import: &str, _new_package_name: &str) -> String {
-        unimplemented!("RustAdapter::rewrite_import not yet implemented")
+    fn rewrite_import(&self, old_import: &str, new_package_name: &str) -> String {
+        // Transform internal import path to external crate import
+        // e.g., "crate::services::planner" -> "use cb_planner;"
+        // e.g., "crate::services::planner::Config" -> "use cb_planner::Config;"
+
+        // Remove common prefixes like "crate::", "self::", "super::"
+        let trimmed = old_import
+            .trim_start_matches("crate::")
+            .trim_start_matches("self::")
+            .trim_start_matches("super::");
+
+        // Find the extracted module name and what comes after
+        // The path segments after the module name become the new import path
+        let segments: Vec<&str> = trimmed.split("::").collect();
+
+        if segments.is_empty() {
+            // Just use the new package name
+            format!("use {};", new_package_name)
+        } else if segments.len() == 1 {
+            // Only the module name itself
+            format!("use {};", new_package_name)
+        } else {
+            // Module name plus additional path
+            // Skip the first segment (the old module name) and use the rest
+            let remaining_path = segments[1..].join("::");
+            format!("use {}::{};", new_package_name, remaining_path)
+        }
     }
 }
 
@@ -367,6 +392,107 @@ impl LanguageAdapter for PythonAdapter {
     fn rewrite_import(&self, _old_import: &str, _new_package_name: &str) -> String {
         unimplemented!("PythonAdapter::rewrite_import not yet implemented")
     }
+}
+
+/// Update a Cargo.toml file to add a new path dependency
+fn update_cargo_toml_dependency(
+    cargo_content: &str,
+    dep_name: &str,
+    dep_path: &str,
+    source_path: &Path,
+) -> AstResult<String> {
+    use toml_edit::DocumentMut;
+
+    let mut doc = cargo_content.parse::<DocumentMut>().map_err(|e| {
+        crate::error::AstError::Analysis {
+            message: format!("Failed to parse Cargo.toml: {}", e),
+        }
+    })?;
+
+    // Calculate relative path from source to target
+    let source_cargo_dir = source_path;
+    let target_path = Path::new(dep_path);
+    let relative_path = pathdiff::diff_paths(target_path, source_cargo_dir)
+        .ok_or_else(|| crate::error::AstError::Analysis {
+            message: "Failed to calculate relative path".to_string(),
+        })?;
+
+    // Add dependency to [dependencies] section
+    if !doc.contains_key("dependencies") {
+        doc["dependencies"] = toml_edit::table();
+    }
+
+    let deps = doc["dependencies"].as_table_mut().ok_or_else(|| {
+        crate::error::AstError::Analysis {
+            message: "[dependencies] is not a table".to_string(),
+        }
+    })?;
+
+    // Create inline table for path dependency
+    let mut dep_table = toml_edit::InlineTable::new();
+    dep_table.insert(
+        "path",
+        toml_edit::Value::from(relative_path.to_string_lossy().as_ref()),
+    );
+
+    deps[dep_name] = toml_edit::value(toml_edit::Value::InlineTable(dep_table));
+
+    Ok(doc.to_string())
+}
+
+/// Update a workspace Cargo.toml to add a new member
+fn update_workspace_members(
+    workspace_content: &str,
+    new_member_path: &str,
+    workspace_root: &Path,
+) -> AstResult<String> {
+    use toml_edit::DocumentMut;
+
+    let mut doc = workspace_content.parse::<DocumentMut>().map_err(|e| {
+        crate::error::AstError::Analysis {
+            message: format!("Failed to parse workspace Cargo.toml: {}", e),
+        }
+    })?;
+
+    // Calculate relative path from workspace root to new member
+    let target_path = Path::new(new_member_path);
+    let relative_path = pathdiff::diff_paths(target_path, workspace_root)
+        .ok_or_else(|| crate::error::AstError::Analysis {
+            message: "Failed to calculate relative path for workspace member".to_string(),
+        })?;
+
+    // Ensure [workspace.members] exists
+    if !doc.contains_key("workspace") {
+        doc["workspace"] = toml_edit::table();
+    }
+
+    let workspace = doc["workspace"].as_table_mut().ok_or_else(|| {
+        crate::error::AstError::Analysis {
+            message: "[workspace] is not a table".to_string(),
+        }
+    })?;
+
+    if !workspace.contains_key("members") {
+        workspace["members"] = toml_edit::value(toml_edit::Array::new());
+    }
+
+    let members = workspace["members"].as_array_mut().ok_or_else(|| {
+        crate::error::AstError::Analysis {
+            message: "[workspace.members] is not an array".to_string(),
+        }
+    })?;
+
+    // Add new member if not already present
+    let member_str = relative_path.to_string_lossy();
+    let member_exists = members
+        .iter()
+        .any(|v| v.as_str() == Some(member_str.as_ref()));
+
+    if !member_exists {
+        members.push(member_str.as_ref());
+    }
+
+    Ok(doc.to_string())
 }
 
 /// Remove a module declaration from Rust source code
@@ -667,6 +793,98 @@ pub async fn plan_extract_module_to_package(
                         );
                     }
                 }
+            }
+        }
+    }
+
+    // Step 7: Update source crate's Cargo.toml to add new dependency
+    let source_cargo_toml = source_path.join("Cargo.toml");
+    if source_cargo_toml.exists() {
+        match tokio::fs::read_to_string(&source_cargo_toml).await {
+            Ok(cargo_content) => {
+                match update_cargo_toml_dependency(&cargo_content, &params.target_package_name, &params.target_package_path, source_path) {
+                    Ok(updated_cargo) => {
+                        if updated_cargo != cargo_content {
+                            edits.push(TextEdit {
+                                file_path: Some(source_cargo_toml.to_string_lossy().to_string()),
+                                edit_type: EditType::Replace,
+                                location: EditLocation {
+                                    start_line: 0,
+                                    start_column: 0,
+                                    end_line: cargo_content.lines().count() as u32,
+                                    end_column: 0,
+                                },
+                                original_text: cargo_content,
+                                new_text: updated_cargo,
+                                priority: 60,
+                                description: format!("Add {} dependency to source Cargo.toml", params.target_package_name),
+                            });
+                            debug!("Created source Cargo.toml update TextEdit");
+                        }
+                    }
+                    Err(e) => {
+                        debug!(error = %e, "Failed to update source Cargo.toml");
+                    }
+                }
+            }
+            Err(e) => {
+                debug!(error = %e, "Failed to read source Cargo.toml");
+            }
+        }
+    }
+
+    // Step 8: Update workspace Cargo.toml to add new member
+    // Find workspace root by looking for Cargo.toml with [workspace]
+    let mut workspace_root = source_path.to_path_buf();
+    while let Some(parent) = workspace_root.parent() {
+        let potential_workspace = parent.join("Cargo.toml");
+        if potential_workspace.exists() {
+            if let Ok(content) = tokio::fs::read_to_string(&potential_workspace).await {
+                if content.contains("[workspace]") {
+                    workspace_root = parent.to_path_buf();
+                    break;
+                }
+            }
+        }
+        workspace_root = parent.to_path_buf();
+        if workspace_root.parent().is_none() {
+            break;
+        }
+    }
+
+    let workspace_cargo_toml = workspace_root.join("Cargo.toml");
+    if workspace_cargo_toml.exists() && workspace_cargo_toml != source_cargo_toml {
+        match tokio::fs::read_to_string(&workspace_cargo_toml).await {
+            Ok(workspace_content) => {
+                if workspace_content.contains("[workspace]") {
+                    match update_workspace_members(&workspace_content, &params.target_package_path, &workspace_root) {
+                        Ok(updated_workspace) => {
+                            if updated_workspace != workspace_content {
+                                edits.push(TextEdit {
+                                    file_path: Some(workspace_cargo_toml.to_string_lossy().to_string()),
+                                    edit_type: EditType::Replace,
+                                    location: EditLocation {
+                                        start_line: 0,
+                                        start_column: 0,
+                                        end_line: workspace_content.lines().count() as u32,
+                                        end_column: 0,
+                                    },
+                                    original_text: workspace_content,
+                                    new_text: updated_workspace,
+                                    priority: 50,
+                                    description: "Add new crate to workspace members".to_string(),
+                                });
+                                debug!("Created workspace Cargo.toml update TextEdit");
+                            }
+                        }
+                        Err(e) => {
+                            debug!(error = %e, "Failed to update workspace Cargo.toml");
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                debug!(error = %e, "Failed to read workspace Cargo.toml");
             }
         }
     }
