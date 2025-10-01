@@ -255,40 +255,40 @@ impl SystemToolsPlugin {
             package_manager.as_str()
         };
 
-        let command = match detected_manager {
+        let (command, args) = match detected_manager {
             "npm" => {
                 if dry_run {
-                    "npm outdated"
+                    ("npm", vec!["outdated"])
                 } else {
-                    "npm update"
+                    ("npm", vec!["update"])
                 }
             }
             "yarn" => {
                 if dry_run {
-                    "yarn outdated"
+                    ("yarn", vec!["outdated"])
                 } else {
-                    "yarn upgrade"
+                    ("yarn", vec!["upgrade"])
                 }
             }
             "pnpm" => {
                 if dry_run {
-                    "pnpm outdated"
+                    ("pnpm", vec!["outdated"])
                 } else {
-                    "pnpm update"
+                    ("pnpm", vec!["update"])
                 }
             }
             "cargo" => {
                 if dry_run {
-                    "cargo outdated"
+                    ("cargo", vec!["outdated"])
                 } else {
-                    "cargo update"
+                    ("cargo", vec!["update"])
                 }
             }
             "pip" => {
                 if dry_run {
-                    "pip list --outdated"
+                    ("pip", vec!["list", "--outdated"])
                 } else {
-                    "pip install --upgrade -r requirements.txt"
+                    ("pip", vec!["install", "--upgrade", "-r", "requirements.txt"])
                 }
             }
             _ => {
@@ -299,13 +299,40 @@ impl SystemToolsPlugin {
             }
         };
 
+        // Execute the command
+        let output = tokio::process::Command::new(command)
+            .args(&args)
+            .current_dir(&project_path)
+            .output()
+            .await
+            .map_err(|e| PluginError::IoError {
+                message: format!("Failed to execute command: {}", e),
+            })?;
+
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        let success = output.status.success();
+        let exit_code = output.status.code();
+
+        debug!(
+            command = %command,
+            args = ?args,
+            success = %success,
+            exit_code = ?exit_code,
+            "Command executed"
+        );
+
         Ok(json!({
             "project_path": project_path,
             "package_manager": detected_manager,
             "update_type": update_type,
             "dry_run": dry_run,
-            "command": command,
-            "status": if dry_run { "preview" } else { "updated" },
+            "command": format!("{} {}", command, args.join(" ")),
+            "success": success,
+            "exit_code": exit_code,
+            "stdout": stdout,
+            "stderr": stderr,
+            "status": if dry_run { "preview" } else { "completed" },
         }))
     }
 

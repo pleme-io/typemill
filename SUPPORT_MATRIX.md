@@ -64,7 +64,7 @@
 | `rename_directory` | ✅ Full | ✅ | ✅ | ✅ | ✅ | **Automatically updates imports for all files**, supports dry_run |
 | `analyze_imports` | ⚠️ Partial | ✅ | ✅ | ❌ | ❌ | TS/JS via cb_ast, Python via native parser |
 | `find_dead_code` | ⚠️ Partial | ✅ | ❌ | ❌ | ❌ | TS/JS only via AST analysis |
-| `update_dependencies` | ⚠️ Partial | ✅ npm/yarn/pnpm | ✅ pip | ❌ | ✅ cargo | Package manager detection + execution |
+| `update_dependencies` | ✅ Full | ✅ npm/yarn/pnpm | ✅ pip | ❌ | ✅ cargo | **Executes package manager commands**, returns stdout/stderr |
 
 ### Advanced Operations
 
@@ -108,10 +108,10 @@
 
 ## 🚨 Implementation Status Notes
 
-### **Fully Implemented Functions** (38 total)
-All LSP-based navigation, intelligence, and editing functions are production-ready and work across all configured language servers.
+### **Fully Implemented Functions** (39 total)
+All LSP-based navigation, intelligence, and editing functions are production-ready and work across all configured language servers. File operations and workspace operations are also fully functional.
 
-### **Stub/Incomplete Functions** (5 total)
+### **Stub/Incomplete Functions** (4 total)
 
 1. **`extract_function`**
    - **Status**: STUB
