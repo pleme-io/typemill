@@ -176,6 +176,7 @@ pub async fn update_import_paths(
     old_path: &Path,
     new_path: &Path,
     project_root: &Path,
+    dry_run: bool,
 ) -> AstResult<ImportUpdateResult> {
     let resolver = ImportPathResolver::new(project_root);
 
@@ -186,9 +187,10 @@ pub async fn update_import_paths(
     let affected_files = resolver.find_affected_files(old_path, &project_files).await?;
 
     info!(
-        "Found {} files potentially affected by rename of {:?}",
-        affected_files.len(),
-        old_path
+        dry_run = dry_run,
+        affected_files = affected_files.len(),
+        old_path = ?old_path,
+        "Found files potentially affected by rename"
     );
 
     let mut result = ImportUpdateResult {
@@ -198,25 +200,31 @@ pub async fn update_import_paths(
     };
 
     for file_path in affected_files {
-        match update_imports_in_file(&file_path, old_path, new_path, &resolver).await {
+        match update_imports_in_file(&file_path, old_path, new_path, &resolver, dry_run).await {
             Ok(count) => {
                 if count > 0 {
                     result.updated_files.push(file_path.clone());
                     result.imports_updated += count;
-                    debug!("Updated {} imports in {:?}", count, file_path);
+                    debug!(
+                        imports = count,
+                        file = ?file_path,
+                        dry_run = dry_run,
+                        "Updated imports in file"
+                    );
                 }
             }
             Err(e) => {
-                warn!("Failed to update imports in {:?}: {}", file_path, e);
+                warn!(error = %e, file = ?file_path, "Failed to update imports");
                 result.failed_files.push((file_path, e.to_string()));
             }
         }
     }
 
     info!(
-        "Import update complete: {} files updated, {} imports changed",
-        result.updated_files.len(),
-        result.imports_updated
+        files_updated = result.updated_files.len(),
+        imports_updated = result.imports_updated,
+        dry_run = dry_run,
+        "Import update complete"
     );
 
     Ok(result)
@@ -228,6 +236,7 @@ async fn update_imports_in_file(
     old_target: &Path,
     new_target: &Path,
     resolver: &ImportPathResolver,
+    dry_run: bool,
 ) -> AstResult<usize> {
     let content = tokio::fs::read_to_string(file_path)
         .await
@@ -261,11 +270,14 @@ async fn update_imports_in_file(
         updated_content.push('\n');
     }
 
-    if updates_count > 0 {
-        // Write the updated content back to the file
+    if updates_count > 0 && !dry_run {
+        // Write the updated content back to the file only if not in dry run mode
         tokio::fs::write(file_path, updated_content.trim_end())
             .await
             .map_err(|e| AstError::transformation(format!("Failed to write file: {}", e)))?;
+        debug!(file = ?file_path, "Wrote updated imports to file");
+    } else if updates_count > 0 && dry_run {
+        debug!(file = ?file_path, changes = updates_count, "[DRY RUN] Would update imports");
     }
 
     Ok(updates_count)

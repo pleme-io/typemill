@@ -29,8 +29,10 @@ impl ImportService {
         dry_run: bool,
     ) -> ServerResult<ImportUpdateReport> {
         info!(
-            "Updating imports for rename: {:?} -> {:?} (dry_run: {})",
-            old_path, new_path, dry_run
+            old_path = ?old_path,
+            new_path = ?new_path,
+            dry_run = dry_run,
+            "Updating imports for rename"
         );
 
         // Convert to absolute paths if needed
@@ -46,15 +48,23 @@ impl ImportService {
             self.project_root.join(new_path)
         };
 
-        // Find and update imports
-        info!(
-            "Calling update_import_paths with old_abs: {:?}, new_abs: {:?}, project_root: {:?}",
-            old_abs, new_abs, self.project_root
+        // Find and update imports - CRITICAL FIX: Pass dry_run flag through!
+        debug!(
+            old_abs = ?old_abs,
+            new_abs = ?new_abs,
+            project_root = ?self.project_root,
+            dry_run = dry_run,
+            "Calling update_import_paths"
         );
-        let result = update_import_paths(&old_abs, &new_abs, &self.project_root)
+        let result = update_import_paths(&old_abs, &new_abs, &self.project_root, dry_run)
             .await
             .map_err(|e| ServerError::Internal(format!("Failed to update imports: {}", e)))?;
-        info!(result = ?result, "update_import_paths result");
+
+        debug!(
+            files_updated = result.updated_files.len(),
+            imports_updated = result.imports_updated,
+            "update_import_paths result"
+        );
 
         // Create report
         let report = ImportUpdateReport {
@@ -74,11 +84,16 @@ impl ImportService {
         };
 
         if dry_run {
-            info!("Dry run complete - no files were actually modified");
+            info!(
+                files_affected = report.files_updated,
+                imports_affected = report.imports_updated,
+                "Dry run complete - no files were actually modified"
+            );
         } else {
             info!(
-                "Import update complete: {} files updated, {} imports changed",
-                report.files_updated, report.imports_updated
+                files_updated = report.files_updated,
+                imports_updated = report.imports_updated,
+                "Import update complete"
             );
         }
 
