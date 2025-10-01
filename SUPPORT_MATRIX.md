@@ -71,7 +71,7 @@
 | Function | Status | TypeScript/JS | Python | Go | Rust | Notes |
 |----------|--------|---------------|--------|-----|------|-------|
 | `apply_edits` | ✅ Full | ✅ | ✅ | ✅ | ✅ | **Atomic multi-file edits with rollback** |
-| `rename_symbol_with_imports` | ✅ Full | ✅ | ✅ | ✅ | ✅ | **Symbol rename + AST-based import updates**. Combines LSP rename_symbol with analyze_imports for accurate cross-file updates |
+| `rename_symbol_with_imports` | ⚠️ Planned | ✅ | ⚠️ | ⚠️ | ⚠️ | **Symbol rename + AST-based import updates**. Implementation pending as workflow |
 | `achieve_intent` | ✅ Full | ✅ | ✅ | ✅ | ✅ | Workflow planning/execution, supports resume |
 
 ### LSP Lifecycle Notifications
