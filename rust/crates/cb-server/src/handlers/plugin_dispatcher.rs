@@ -883,7 +883,7 @@ impl PluginDispatcher {
     fn is_refactoring_operation(&self, tool_name: &str) -> bool {
         matches!(
             tool_name,
-            "extract_function" | "inline_variable" | "extract_variable"
+            "extract_function" | "inline_variable" | "extract_variable" | "extract_module_to_package"
         )
     }
 
@@ -1618,6 +1618,24 @@ impl PluginDispatcher {
                 })?;
 
                 (parsed.file_path, parsed.dry_run.unwrap_or(false), plan)
+            }
+            "extract_module_to_package" => {
+                let parsed: cb_ast::package_extractor::ExtractModuleToPackageParams =
+                    serde_json::from_value(args)
+                        .map_err(|e| ServerError::InvalidRequest(format!("Invalid arguments: {}", e)))?;
+
+                let plan = cb_ast::package_extractor::plan_extract_module_to_package(parsed)
+                    .await
+                    .map_err(|e| ServerError::Runtime {
+                        message: format!("Extract module to package planning failed: {}", e),
+                    })?;
+
+                // For package extraction, we use the source_package path as the file_path
+                (
+                    plan.source_file.clone(),
+                    false, // dry_run handled within the planner
+                    plan,
+                )
             }
             _ => {
                 return Err(ServerError::InvalidRequest(format!(

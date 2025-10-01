@@ -5,6 +5,7 @@
 
 pub mod config;
 pub mod error;
+pub mod language;
 pub mod model;
 
 pub use config::AppConfig;

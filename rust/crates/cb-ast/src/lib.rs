@@ -9,6 +9,7 @@ pub mod analyzer;
 pub mod cache;
 pub mod error;
 pub mod import_updater;
+pub mod package_extractor;
 pub mod parser;
 pub mod python_parser;
 pub mod refactoring;

@@ -8,6 +8,7 @@ use crate::{
     PluginResult,
 };
 use async_trait::async_trait;
+use cb_core::language::detect_package_manager;
 use ignore::WalkBuilder;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -69,6 +70,9 @@ impl SystemToolsPlugin {
         capabilities
             .custom
             .insert("system.extract_variable".to_string(), json!(true));
+        capabilities
+            .custom
+            .insert("system.extract_module_to_package".to_string(), json!(true));
 
         SystemToolsPlugin {
             metadata: PluginMetadata {
@@ -246,25 +250,10 @@ impl SystemToolsPlugin {
             "Updating dependencies"
         );
 
-        // Detect package manager
+        // Detect package manager using shared utility
         let detected_manager = if package_manager == "auto" {
-            if Path::new(&format!("{}/package.json", project_path)).exists() {
-                if Path::new(&format!("{}/yarn.lock", project_path)).exists() {
-                    "yarn"
-                } else if Path::new(&format!("{}/pnpm-lock.yaml", project_path)).exists() {
-                    "pnpm"
-                } else {
-                    "npm"
-                }
-            } else if Path::new(&format!("{}/go.mod", project_path)).exists() {
-                "go"
-            } else if Path::new(&format!("{}/Cargo.toml", project_path)).exists() {
-                "cargo"
-            } else if Path::new(&format!("{}/requirements.txt", project_path)).exists() {
-                "pip"
-            } else {
-                "unknown"
-            }
+            let detected = detect_package_manager(Path::new(&project_path));
+            detected.as_str()
         } else {
             package_manager.as_str()
         };
@@ -390,6 +379,37 @@ impl SystemToolsPlugin {
         Ok(json!({
             "url": args.url,
             "content": markdown_content,
+            "status": "success"
+        }))
+    }
+
+    /// Handle extract_module_to_package tool
+    async fn handle_extract_module_to_package(&self, params: Value) -> PluginResult<Value> {
+        // Deserialize parameters
+        let parsed: cb_ast::package_extractor::ExtractModuleToPackageParams =
+            serde_json::from_value(params).map_err(|e| PluginError::SerializationError {
+                message: format!("Invalid extract_module_to_package args: {}", e),
+            })?;
+
+        debug!(
+            source_package = %parsed.source_package,
+            module_path = %parsed.module_path,
+            target_package_path = %parsed.target_package_path,
+            target_package_name = %parsed.target_package_name,
+            "Extracting module to package"
+        );
+
+        // Call the planning function from cb-ast
+        let edit_plan = cb_ast::package_extractor::plan_extract_module_to_package(parsed)
+            .await
+            .map_err(|e| PluginError::PluginRequestFailed {
+                plugin: "system-tools".to_string(),
+                message: format!("Failed to plan extract_module_to_package: {}", e),
+            })?;
+
+        // Return the edit plan
+        Ok(json!({
+            "edit_plan": edit_plan,
             "status": "success"
         }))
     }
@@ -597,6 +617,47 @@ impl LanguagePlugin for SystemToolsPlugin {
                 }
             }),
             json!({
+                "name": "extract_module_to_package",
+                "description": "Extract a module from an existing package into a new standalone package. Works across Rust, TypeScript, Python, Go, and Java. Automatically updates imports and package manifests.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "source_package": {
+                            "type": "string",
+                            "description": "Path to the source package (e.g., 'rust/crates/cb-server', 'packages/api')"
+                        },
+                        "module_path": {
+                            "type": "string",
+                            "description": "Dotted path to the module within the source package (e.g., 'services.planner', 'utils.helpers')"
+                        },
+                        "target_package_path": {
+                            "type": "string",
+                            "description": "Path where the new package should be created (e.g., 'domains/planner', 'packages/planner')"
+                        },
+                        "target_package_name": {
+                            "type": "string",
+                            "description": "Name of the new package (e.g., 'cb-planner', '@org/planner', 'cb_planner')"
+                        },
+                        "update_imports": {
+                            "type": "boolean",
+                            "default": true,
+                            "description": "Automatically update all import statements across the workspace"
+                        },
+                        "create_manifest": {
+                            "type": "boolean",
+                            "default": true,
+                            "description": "Auto-generate package manifest (Cargo.toml, package.json, etc.)"
+                        },
+                        "dry_run": {
+                            "type": "boolean",
+                            "default": false,
+                            "description": "Preview changes without applying them"
+                        }
+                    },
+                    "required": ["source_package", "module_path", "target_package_path", "target_package_name"]
+                }
+            }),
+            json!({
                 "name": "web_fetch",
                 "description": "Fetch the plain text content of a given URL.",
                 "inputSchema": {
@@ -641,6 +702,12 @@ impl LanguagePlugin for SystemToolsPlugin {
                     .await?
             }
             "web_fetch" => self.handle_web_fetch(request.params.clone()).await?,
+            "extract_module_to_package" => {
+                return Err(PluginError::MethodNotSupported {
+                    method: request.method.clone(),
+                    plugin: self.metadata.name.clone(),
+                });
+            }
             _ => {
                 return Err(PluginError::MethodNotSupported {
                     method: request.method.clone(),
