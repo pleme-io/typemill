@@ -475,4 +475,40 @@ mod tests {
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("No workflow planner found"));
     }
+
+    #[test]
+    fn test_plan_rename_symbol_with_imports() {
+        // Determine workflow file path relative to workspace root
+        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let workspace_root = manifest_dir.parent().unwrap().parent().unwrap();
+        let workflows_path = workspace_root.join(".codebuddy").join("workflows.json");
+
+        // Load actual workflows from config file
+        let planner = DefaultPlanner::from_config_path(workflows_path);
+
+        let intent = Intent {
+            name: "refactor.renameSymbolWithImports".to_string(),
+            params: json!({
+                "file_path": "src/example.rs",
+                "old_name": "OldStruct",
+                "new_name": "NewStruct"
+            }),
+        };
+
+        let result = planner.plan_for_intent(&intent);
+        assert!(result.is_ok(), "Workflow planning should succeed");
+
+        let workflow = result.unwrap();
+        assert_eq!(workflow.name, "Rename symbol 'OldStruct' to 'NewStruct' with import updates");
+        assert_eq!(workflow.steps.len(), 1, "Should have exactly 1 step");
+        assert_eq!(workflow.metadata.complexity, 2);
+
+        // Check the rename_symbol step
+        let step = &workflow.steps[0];
+        assert_eq!(step.tool, "rename_symbol");
+        assert_eq!(step.params.get("file_path").unwrap().as_str().unwrap(), "src/example.rs");
+        assert_eq!(step.params.get("symbol_name").unwrap().as_str().unwrap(), "OldStruct");
+        assert_eq!(step.params.get("new_name").unwrap().as_str().unwrap(), "NewStruct");
+        assert_eq!(step.requires_confirmation, Some(true), "Should require user confirmation");
+    }
 }
