@@ -58,8 +58,26 @@ pub fn build_import_graph(source: &str, path: &Path) -> AstResult<ImportGraph> {
                 }
             }
         }
-        "rust" => parse_rust_imports(source)?,
-        "go" => parse_go_imports(source)?,
+        "rust" => {
+            // Try AST parsing first, fall back to regex on failure
+            match parse_rust_imports_ast(source) {
+                Ok(ast_imports) => ast_imports,
+                Err(_) => {
+                    tracing::debug!("Rust AST parsing failed, falling back to regex");
+                    parse_rust_imports(source)?
+                }
+            }
+        }
+        "go" => {
+            // Try AST parsing first, fall back to regex on failure
+            match parse_go_imports_ast(source) {
+                Ok(ast_imports) => ast_imports,
+                Err(_) => {
+                    tracing::debug!("Go AST parsing failed, falling back to regex");
+                    parse_go_imports(source)?
+                }
+            }
+        }
         _ => parse_imports_basic(source)?,
     };
 
@@ -769,7 +787,133 @@ fn parse_python_imports(source: &str) -> AstResult<Vec<ImportInfo>> {
     Ok(imports)
 }
 
-/// Parse Rust imports (basic implementation)
+/// Parse Rust imports using AST (syn crate)
+///
+/// This provides accurate parsing of complex Rust import statements including:
+/// - Nested module paths: `use std::collections::HashMap;`
+/// - Grouped imports: `use std::{sync::Arc, collections::HashMap};`
+/// - Glob imports: `use module::*;`
+/// - Aliased imports: `use std::collections::HashMap as Map;`
+/// - Nested groups: `use std::{io::{self, Read}, collections::*};`
+fn parse_rust_imports_ast(source: &str) -> AstResult<Vec<ImportInfo>> {
+    use syn::{visit::Visit, File, Item, ItemUse, UseTree};
+
+    // Parse the Rust source file
+    let syntax_tree: File = syn::parse_str(source).map_err(|e| {
+        AstError::analysis(format!("Failed to parse Rust source: {}", e))
+    })?;
+
+    struct ImportVisitor {
+        imports: Vec<ImportInfo>,
+        current_line: u32,
+    }
+
+    impl<'ast> Visit<'ast> for ImportVisitor {
+        fn visit_item_use(&mut self, node: &'ast ItemUse) {
+            self.extract_use_tree(&node.tree, String::new(), self.current_line);
+        }
+
+        fn visit_item(&mut self, node: &'ast Item) {
+            // Track line numbers
+            self.current_line += 1;
+            syn::visit::visit_item(self, node);
+        }
+    }
+
+    impl ImportVisitor {
+        fn extract_use_tree(&mut self, tree: &UseTree, prefix: String, line: u32) {
+            match tree {
+                UseTree::Path(path) => {
+                    let new_prefix = if prefix.is_empty() {
+                        path.ident.to_string()
+                    } else {
+                        format!("{}::{}", prefix, path.ident)
+                    };
+                    self.extract_use_tree(&path.tree, new_prefix, line);
+                }
+                UseTree::Name(name) => {
+                    let module_path = if prefix.is_empty() {
+                        name.ident.to_string()
+                    } else {
+                        prefix.clone()
+                    };
+
+                    self.imports.push(ImportInfo {
+                        module_path: module_path.clone(),
+                        import_type: ImportType::EsModule,
+                        named_imports: vec![NamedImport {
+                            name: name.ident.to_string(),
+                            alias: None,
+                            type_only: false,
+                        }],
+                        default_import: None,
+                        namespace_import: None,
+                        type_only: false,
+                        location: SourceLocation {
+                            start_line: line,
+                            start_column: 0,
+                            end_line: line,
+                            end_column: 0,
+                        },
+                    });
+                }
+                UseTree::Rename(rename) => {
+                    let module_path = prefix.clone();
+                    self.imports.push(ImportInfo {
+                        module_path: module_path.clone(),
+                        import_type: ImportType::EsModule,
+                        named_imports: vec![NamedImport {
+                            name: rename.ident.to_string(),
+                            alias: Some(rename.rename.to_string()),
+                            type_only: false,
+                        }],
+                        default_import: None,
+                        namespace_import: None,
+                        type_only: false,
+                        location: SourceLocation {
+                            start_line: line,
+                            start_column: 0,
+                            end_line: line,
+                            end_column: 0,
+                        },
+                    });
+                }
+                UseTree::Glob(_) => {
+                    self.imports.push(ImportInfo {
+                        module_path: prefix.clone(),
+                        import_type: ImportType::EsModule,
+                        named_imports: Vec::new(),
+                        default_import: None,
+                        namespace_import: Some(prefix),
+                        type_only: false,
+                        location: SourceLocation {
+                            start_line: line,
+                            start_column: 0,
+                            end_line: line,
+                            end_column: 0,
+                        },
+                    });
+                }
+                UseTree::Group(group) => {
+                    for tree in &group.items {
+                        self.extract_use_tree(tree, prefix.clone(), line);
+                    }
+                }
+            }
+        }
+    }
+
+    let mut visitor = ImportVisitor {
+        imports: Vec::new(),
+        current_line: 0,
+    };
+
+    visitor.visit_file(&syntax_tree);
+
+    Ok(visitor.imports)
+}
+
+/// Parse Rust imports using regex (fallback implementation)
 fn parse_rust_imports(source: &str) -> AstResult<Vec<ImportInfo>> {
     let mut imports = Vec::new();
 
@@ -849,7 +993,71 @@ fn parse_rust_imports(source: &str) -> AstResult<Vec<ImportInfo>> {
     Ok(imports)
 }
 
-/// Parse Go imports (enhanced implementation)
+/// Parse Go imports using AST (go/parser via subprocess)
+///
+/// This provides accurate parsing of complex Go import statements including:
+/// - Single imports: `import "fmt"`
+/// - Grouped imports: `import ( "fmt"; "io" )`
+/// - Aliased imports: `import f "fmt"`
+/// - Dot imports: `import . "fmt"`
+/// - Blank imports: `import _ "database/sql/driver"`
+fn parse_go_imports_ast(source: &str) -> AstResult<Vec<ImportInfo>> {
+    use std::process::{Command, Stdio};
+    use std::io::Write;
+
+    // Find the ast_tool.go executable path
+    let ast_tool_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("resources")
+        .join("ast_tool.go");
+
+    if !ast_tool_path.exists() {
+        return Err(AstError::analysis(format!(
+            "Go AST tool not found at: {}",
+            ast_tool_path.display()
+        )));
+    }
+
+    // Run the Go AST tool
+    let mut child = Command::new("go")
+        .arg("run")
+        .arg(&ast_tool_path)
+        .arg("analyze-imports")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| AstError::analysis(format!("Failed to spawn Go AST tool: {}", e)))?;
+
+    // Write source to stdin
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin
+            .write_all(source.as_bytes())
+            .map_err(|e| AstError::analysis(format!("Failed to write to Go AST tool: {}", e)))?;
+    }
+
+    // Wait for the process to complete
+    let output = child
+        .wait_with_output()
+        .map_err(|e| AstError::analysis(format!("Failed to wait for Go AST tool: {}", e)))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(AstError::analysis(format!(
+            "Go AST tool failed: {}",
+            stderr
+        )));
+    }
+
+    // Parse JSON output
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let imports: Vec<ImportInfo> = serde_json::from_str(&stdout).map_err(|e| {
+        AstError::analysis(format!("Failed to parse Go AST tool output: {}", e))
+    })?;
+
+    Ok(imports)
+}
+
+/// Parse Go imports using regex (fallback implementation)
 fn parse_go_imports(source: &str) -> AstResult<Vec<ImportInfo>> {
     let mut imports = Vec::new();
     let lines: Vec<&str> = source.lines().collect();

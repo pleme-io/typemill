@@ -256,6 +256,8 @@ impl SystemToolsPlugin {
                 } else {
                     "npm"
                 }
+            } else if Path::new(&format!("{}/go.mod", project_path)).exists() {
+                "go"
             } else if Path::new(&format!("{}/Cargo.toml", project_path)).exists() {
                 "cargo"
             } else if Path::new(&format!("{}/requirements.txt", project_path)).exists() {
@@ -287,6 +289,16 @@ impl SystemToolsPlugin {
                     ("pnpm", vec!["outdated"])
                 } else {
                     ("pnpm", vec!["update"])
+                }
+            }
+            "go" => {
+                if dry_run {
+                    // Go doesn't have a built-in "outdated" command
+                    // Use go list to check for available updates
+                    ("go", vec!["list", "-u", "-m", "all"])
+                } else {
+                    // Update all dependencies
+                    ("go", vec!["get", "-u", "./..."])
                 }
             }
             "cargo" => {

@@ -62,9 +62,9 @@
 | Function | Status | TypeScript/JS | Python | Go | Rust | Notes |
 |----------|--------|---------------|--------|-----|------|-------|
 | `rename_directory` | ✅ Full | ✅ | ✅ | ✅ | ✅ | **Automatically updates imports for all files**, supports dry_run |
-| `analyze_imports` | ⚠️ Partial | ✅ AST | ✅ AST | ⚠️ Regex | ⚠️ Regex | TS/JS & Python use AST. Go & Rust use less accurate regex parsing. |
+| `analyze_imports` | ✅ Full | ✅ AST | ✅ AST | ✅ AST | ✅ AST | **All languages use AST parsing**. Rust via syn, Go via go/parser, TS/JS via SWC, Python via native AST |
 | `find_dead_code` | ✅ Full | ✅ | ✅ | ✅ | ✅ | **LSP-based via workspace/symbol + textDocument/references** |
-| `update_dependencies` | ✅ Full | ✅ npm/yarn/pnpm | ✅ pip | ❌ | ✅ cargo | **Executes package manager commands**, returns stdout/stderr |
+| `update_dependencies` | ✅ Full | ✅ npm/yarn/pnpm | ✅ pip | ✅ go mod | ✅ cargo | **Executes package manager commands**, auto-detects via project files, returns stdout/stderr |
 
 ### Advanced Operations
 
@@ -161,15 +161,19 @@ All LSP-based navigation, intelligence, editing, and refactoring functions are p
 - ✅ Import analysis
 - ✅ Dead code detection via LSP
 
-### Go (Good Support)
+### Go (Excellent Support)
 - ✅ All LSP features via `gopls`
+- ✅ AST-based import analysis via native `go/parser`
+- ✅ Dependency management via `go mod`
 - ✅ Dead code detection via LSP
-- ⚠️ Limited AST-based refactoring (TS/JS only)
+- ✅ LSP-first refactoring with full language support
 
-### Rust (Good Support)
+### Rust (Excellent Support)
 - ✅ All LSP features via `rust-analyzer`
+- ✅ AST-based import analysis via `syn` crate
+- ✅ Dependency management via `cargo`
 - ✅ Dead code detection via LSP
-- ⚠️ Limited AST-based refactoring (TS/JS only)
+- ✅ LSP-first refactoring with full language support
 
 ### Adding New Languages
 New languages can be added by:
@@ -241,10 +245,10 @@ New languages can be added by:
 **Refactoring is now complete!** All three refactoring functions use an LSP-first approach with AST fallback.
 
 **Medium Priority - Enhancements:**
-1. Add Go/Rust import analysis improvements (currently uses regex, could use full AST)
-2. Improve AST fallback implementations for edge cases
-3. Add more language servers to default configuration
-4. Add LSP server capability detection and graceful degradation
+1. Improve AST fallback implementations for edge cases
+2. Add more language servers to default configuration
+3. Add LSP server capability detection and graceful degradation
+4. Add caching for Go AST tool subprocess calls
 
 **Low Priority - Testing:**
 1. Add integration tests for LSP refactoring pathway
