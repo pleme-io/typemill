@@ -1,5 +1,11 @@
 # Codebuddy
 
+> **📖 Looking for user documentation?** See the main [README.md](../README.md) at the repository root.
+>
+> **This document is for contributors** working on the Rust codebase.
+
+---
+
 A high-performance MCP (Model Context Protocol) server built in pure Rust that bridges Language Server Protocol functionality to AI coding assistants, providing comprehensive code intelligence, automated refactoring, and project-wide analysis capabilities.
 
 ## 🌟 Key Features
@@ -39,7 +45,10 @@ cargo build --release
 ### Quick Install (Unix/Linux/macOS)
 
 ```bash
-# Build and install to ~/.local/bin
+# Option 1: Install from published crate (recommended)
+cargo install codebuddy
+
+# Option 2: Build and install from source
 cargo install --path apps/server
 
 # Verify installation

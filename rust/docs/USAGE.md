@@ -11,12 +11,17 @@ You can build and install the CLI directly from the source code using `cargo`.
     cd /path/to/codebuddy/rust
     ```
 
-2.  Install the client binary:
+2.  Install the codebuddy binary:
     ```bash
-    cargo install --path crates/cb-client
+    cargo install --path apps/server
     ```
 
 This will place the `codebuddy` executable in your Cargo binary directory (usually `~/.cargo/bin/`), which should be in your system's `PATH`.
+
+Alternatively, install from the published crate:
+```bash
+cargo install codebuddy
+```
 
 ## Configuration
 

@@ -32,40 +32,21 @@ cb-server --version
 
 ## MCP Tools Contract
 
-The server implements 21 MCP tools across 5 categories:
+The server implements **40 MCP tools** across 8 categories.
 
-### Navigation Tools (4)
-- `find_definition` - Find symbol definitions via LSP
-- `find_references` - Find all references to a symbol via LSP
-- `get_document_symbols` - Get document outline via LSP
-- `search_workspace_symbols` - Search symbols across workspace via LSP
+> **For complete API documentation**, including parameters, return types, and examples for all 40 tools, see:
+> - **[MCP_API.md](../../MCP_API.md)** - Complete API reference
+> - **[SUPPORT_MATRIX.md](../../SUPPORT_MATRIX.md)** - Language support matrix
 
-### Intelligence Tools (4)
-- `get_hover` - Get hover information via LSP
-- `get_completions` - Get code completions via LSP
-- `get_signature_help` - Get function signature help via LSP
-- `get_diagnostics` - Get syntax/semantic errors via LSP
-
-### Editing Tools (4)
-- `rename_symbol` - Rename symbol across workspace via LSP
-- `format_document` - Format code via LSP
-- `get_code_actions` - Get available code actions via LSP
-- `apply_workspace_edit` - Apply multi-file edits via LSP
-
-### Filesystem Tools (5)
-- `list_files` - List files and directories
-- `read_file` - Read file contents
-- `write_file` - Write file contents
-- `create_file` - Create new files
-- `delete_file` - Delete files
-- `rename_file` - Rename/move files
-- `update_dependencies` - Universal dependency management across languages
-
-### Analysis Tools (4)
-- `analyze_imports` - Analyze import relationships using cb-ast
-- `find_dead_code` - Find potentially unused code via LSP
-- `health_check` - Check system and LSP server health
-- `restart_server` - Restart LSP servers
+### Tool Categories (40 tools total)
+- **Navigation & Intelligence** (13 tools): `find_definition`, `find_references`, `search_workspace_symbols`, `get_hover`, `get_completions`, `get_signature_help`, `get_diagnostics`, `get_document_symbols`, `prepare_call_hierarchy`, `get_call_hierarchy_incoming_calls`, `get_call_hierarchy_outgoing_calls`, `find_implementations`, `find_type_definition`
+- **Editing & Refactoring** (8 tools): `rename_symbol`, `rename_symbol_strict`, `organize_imports`, `get_code_actions`, `format_document`, `extract_function`, `inline_variable`, `extract_variable`
+- **File Operations** (6 tools): `create_file`, `read_file`, `write_file`, `delete_file`, `rename_file`, `list_files`
+- **Workspace Operations** (4 tools): `rename_directory`, `analyze_imports`, `find_dead_code`, `update_dependencies`
+- **Advanced Operations** (3 tools): `apply_edits`, `rename_symbol_with_imports`, `achieve_intent`
+- **LSP Lifecycle** (3 tools): `notify_file_opened`, `notify_file_saved`, `notify_file_closed`
+- **System & Health** (1 tool): `health_check`
+- **Web/Network** (1 tool): `web_fetch`
 
 ## Request/Response Format Contract
 

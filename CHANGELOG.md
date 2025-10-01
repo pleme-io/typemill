@@ -1,29 +1,87 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to CodeBuddy will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+---
+
+## Rust Implementation (Current)
+
+The project underwent a complete architectural transformation from TypeScript/Node.js to pure Rust in 2025, bringing native performance, memory safety, and compile-time type guarantees.
+
+### [Unreleased]
+
+#### Added
+- **Refactoring tools**: Full AST-based implementation for extract_function, inline_variable, and extract_variable
+  - Python: Full AST analysis with parameter detection and scope handling
+  - TypeScript/JavaScript: Functional implementation with SWC parser
+  - Atomic operations with automatic rollback on failure
+  - Dry-run mode for previewing changes
+- **SWC-based AST parsing** for TypeScript/JavaScript (production-ready since parser v0.3.0)
+  - Full TypeScript/JavaScript AST parsing with regex fallback for robustness
+  - Native Rust performance via swc_ecma_parser
+- **VFS (Virtual Filesystem)** support as optional experimental feature (Unix only)
+  - Feature-gated with `#[cfg(all(unix, feature = "vfs"))]`
+  - Build with: `cargo build --features vfs`
+  - Not included in default build
+- **40 MCP Tools** - Complete implementation across all categories
+  - Navigation & Intelligence (13 tools)
+  - Editing & Refactoring (8 tools)
+  - File Operations (6 tools)
+  - Workspace Operations (4 tools)
+  - Advanced Operations (3 tools)
+  - LSP Lifecycle (3 tools)
+  - System & Health (1 tool)
+  - Web/Network (1 tool)
+
+#### Changed
+- **Structured logging**: All production code now uses tracing framework
+  - Production code uses structured key-value logging
+  - CLI uses println for user-facing output
+- **Error handling**: Replaced all `.unwrap()` calls in production code with `.expect()` containing descriptive messages
+  - LSP client: 4 unwraps → expect() (command parsing, JSON serialization, directory access)
+  - AST parser: ~10 unwraps → expect() (regex compilation and capture groups)
+  - Python parser: ~10 unwraps → expect() (import/function/variable parsing)
+  - CLI: 5 production unwraps → expect()
+- **Dependencies**: Unified thiserror to v2.0 and jsonwebtoken to v10.0 across workspace
+- **VFS excluded** from default workspace build (faster builds, smaller binary)
+
+#### Fixed
+- Production code error handling improved with descriptive expect() messages
+- Structured logging in cb-ast/parser.rs (2 eprintln! → tracing::debug!)
+
+#### Removed
+- Stale benchmark suite (238 lines) - API changed, unmaintainable
+- cb-vfs from default workspace members (feature-gated, optional)
+
+### [0.1.0] - 2024-Q4
+
+#### Added
+- Core LSP integration with multiple language servers
+- MCP protocol support (40 tools)
+- Plugin architecture with LSP adapters
+- WebSocket transport with JWT authentication
+- Production-ready error handling
+- Structured logging with tracing framework
+- Smart setup with auto-detection via `codebuddy setup`
+- Complete CLI: setup, start, stop, serve, status, link, unlink
+
+#### Technical Debt Resolved
+- ✅ Structured Logging - Complete
+- ✅ Error Handling (.unwrap() removal) - Complete
+- ✅ Dependency Cleanup - Complete
+- ✅ VFS Feature-gating - Complete
+- ✅ Benchmark Suite cleanup - Complete
+- ✅ SWC Integration - Complete
 
 ---
 
-## Rust Rewrite (2025)
+## TypeScript/Node.js Implementation History (2024-2025)
 
-The project underwent a complete architectural transformation from TypeScript/Node.js to pure Rust, bringing:
-- **Native Performance**: Zero-cost abstractions and native compilation
-- **Memory Safety**: Rust's ownership system prevents common vulnerabilities
-- **Type Safety**: Compile-time guarantees with no runtime overhead
-- **Workspace Architecture**: Modern Cargo workspace with modular crates
-- **Production Features**: WebSocket server, JWT auth, FUSE filesystem support
-
-The changelog entries below document the TypeScript/Node.js implementation history (v0.1.0 - v1.3.0).
+The following entries document the original TypeScript/Node.js implementation (v0.1.0 - v1.3.0).
 Many features have been reimplemented in Rust with enhanced performance and safety guarantees.
-
----
-
-## TypeScript/Node.js Implementation History
 
 ## [1.3.0] - 2025-09-24
 
