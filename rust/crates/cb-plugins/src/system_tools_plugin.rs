@@ -28,7 +28,20 @@ impl Default for SystemToolsPlugin {
 }
 
 impl SystemToolsPlugin {
-    /// Create a new system tools plugin
+    /// Creates a new instance of the `SystemToolsPlugin`.
+    ///
+    /// This plugin provides system-level tools that work across all file types, including:
+    /// - File system operations (list_files, analyze_imports)
+    /// - Dependency management (update_dependencies)
+    /// - Code quality tools (fix_imports)
+    /// - Refactoring operations (extract_function, inline_variable, extract_variable)
+    ///
+    /// The plugin advertises all available tools through its capabilities, even though
+    /// some operations (like refactoring) are handled by the plugin dispatcher.
+    ///
+    /// # Returns
+    ///
+    /// A new `SystemToolsPlugin` instance with all capabilities registered
     pub fn new() -> Self {
         let mut capabilities = Capabilities::default();
 

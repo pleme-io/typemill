@@ -279,7 +279,16 @@ struct ExtractVariableArgs {
 }
 
 impl PluginDispatcher {
-    /// Create a new plugin dispatcher
+    /// Creates a new instance of the `PluginDispatcher`.
+    ///
+    /// # Arguments
+    ///
+    /// * `app_state` - The shared application state containing all services (AST, file operations, etc.)
+    /// * `plugin_manager` - The manager responsible for routing requests to registered plugins
+    ///
+    /// # Returns
+    ///
+    /// A new `PluginDispatcher` instance ready to handle MCP requests
     pub fn new(app_state: Arc<AppState>, plugin_manager: Arc<PluginManager>) -> Self {
         Self {
             plugin_manager,
@@ -288,7 +297,18 @@ impl PluginDispatcher {
         }
     }
 
-    /// Initialize the plugin system with default plugins
+    /// Initializes the plugin system by loading LSP configurations and registering
+    /// all necessary language and system plugins.
+    ///
+    /// This function is called lazily on the first dispatch and uses a `OnceCell` to ensure
+    /// it only runs once. It loads LSP server configurations from the application config,
+    /// creates DirectLspAdapter instances for each configured server, and registers them
+    /// along with the SystemToolsPlugin.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` - If initialization succeeds
+    /// * `Err(ServerError)` - If configuration loading or plugin registration fails
     #[instrument(skip(self))]
     pub async fn initialize(&self) -> ServerResult<()> {
         debug!("PluginDispatcher::initialize() called");
@@ -386,7 +406,20 @@ impl PluginDispatcher {
         Ok(())
     }
 
-    /// Dispatch an MCP message using the plugin system
+    /// Dispatches an MCP message using the plugin system.
+    ///
+    /// This is the main entry point for processing MCP messages. It ensures the plugin
+    /// system is initialized, then routes requests to the appropriate handlers and returns
+    /// responses or notifications unchanged.
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - The MCP message to process (Request, Response, or Notification)
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(McpMessage)` - The response message or echoed notification
+    /// * `Err(ServerError)` - If initialization fails or the request cannot be handled
     #[instrument(skip(self, message), fields(request_id = %uuid::Uuid::new_v4()))]
     pub async fn dispatch(&self, message: McpMessage) -> ServerResult<McpMessage> {
         // Ensure initialization
@@ -721,7 +754,15 @@ impl PluginDispatcher {
         }
     }
 
-    /// Get plugin manager for advanced operations
+    /// Returns a reference to the plugin manager for advanced operations.
+    ///
+    /// This provides access to the underlying plugin manager, allowing callers to
+    /// perform operations like querying plugin capabilities, getting statistics,
+    /// or accessing plugin-specific functionality.
+    ///
+    /// # Returns
+    ///
+    /// A reference to the `PluginManager` instance
     pub fn plugin_manager(&self) -> &PluginManager {
         &self.plugin_manager
     }
@@ -1486,7 +1527,19 @@ impl PluginDispatcher {
         }))
     }
 
-    /// Check if a method is supported for a file
+    /// Checks if a specific LSP method is supported for the given file.
+    ///
+    /// This queries the plugin system to determine if any registered plugin can handle
+    /// the specified method for the file type indicated by the file path's extension.
+    ///
+    /// # Arguments
+    ///
+    /// * `file_path` - The path to the file to check
+    /// * `method` - The LSP method name (e.g., "textDocument/definition")
+    ///
+    /// # Returns
+    ///
+    /// `true` if the method is supported for this file type, `false` otherwise
     pub async fn is_method_supported(&self, file_path: &std::path::Path, method: &str) -> bool {
         self.initialize().await.is_ok()
             && self
@@ -1495,7 +1548,15 @@ impl PluginDispatcher {
                 .await
     }
 
-    /// Get supported file extensions
+    /// Returns a list of all file extensions supported by registered plugins.
+    ///
+    /// This aggregates the supported extensions from all registered language plugins,
+    /// which is useful for determining which file types the system can process.
+    ///
+    /// # Returns
+    ///
+    /// A vector of file extension strings (e.g., `["rs", "ts", "py"]`), or an empty
+    /// vector if initialization fails
     pub async fn get_supported_extensions(&self) -> Vec<String> {
         if self.initialize().await.is_ok() {
             self.plugin_manager.get_supported_extensions().await
@@ -1504,7 +1565,30 @@ impl PluginDispatcher {
         }
     }
 
-    /// Get plugin statistics for monitoring
+    /// Returns comprehensive statistics about the plugin system for monitoring and debugging.
+    ///
+    /// This aggregates statistics from the plugin registry (total plugins, supported extensions,
+    /// methods per plugin) and individual plugin metrics (cache hits, processing times, etc.).
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Value)` - A JSON object containing registry statistics, plugin metrics, and plugin list
+    /// * `Err(ServerError)` - If initialization fails
+    ///
+    /// # JSON Structure
+    ///
+    /// ```json
+    /// {
+    ///   "registry": {
+    ///     "total_plugins": 3,
+    ///     "supported_extensions": ["rs", "ts", "py"],
+    ///     "supported_methods": ["textDocument/definition", ...],
+    ///     "average_methods_per_plugin": 15.2
+    ///   },
+    ///   "metrics": { ... },
+    ///   "plugins": [...]
+    /// }
+    /// ```
     pub async fn get_plugin_statistics(&self) -> ServerResult<Value> {
         self.initialize().await?;
 
