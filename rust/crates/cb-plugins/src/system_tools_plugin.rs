@@ -703,10 +703,8 @@ impl LanguagePlugin for SystemToolsPlugin {
             }
             "web_fetch" => self.handle_web_fetch(request.params.clone()).await?,
             "extract_module_to_package" => {
-                return Err(PluginError::MethodNotSupported {
-                    method: request.method.clone(),
-                    plugin: self.metadata.name.clone(),
-                });
+                self.handle_extract_module_to_package(request.params.clone())
+                    .await?
             }
             _ => {
                 return Err(PluginError::MethodNotSupported {
