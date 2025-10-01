@@ -63,7 +63,7 @@
 |----------|--------|---------------|--------|-----|------|-------|
 | `rename_directory` | ✅ Full | ✅ | ✅ | ✅ | ✅ | **Automatically updates imports for all files**, supports dry_run |
 | `analyze_imports` | ⚠️ Partial | ✅ | ✅ | ❌ | ❌ | TS/JS via cb_ast, Python via native parser |
-| `find_dead_code` | ⚠️ Partial | ✅ | ❌ | ❌ | ❌ | TS/JS only via AST analysis |
+| `find_dead_code` | ✅ Full | ✅ | ✅ | ✅ | ✅ | **LSP-based via workspace/symbol + textDocument/references** |
 | `update_dependencies` | ✅ Full | ✅ npm/yarn/pnpm | ✅ pip | ❌ | ✅ cargo | **Executes package manager commands**, returns stdout/stderr |
 
 ### Advanced Operations
@@ -108,7 +108,7 @@
 
 ## 🚨 Implementation Status Notes
 
-### **Fully Implemented Functions** (40 total)
+### **Fully Implemented Functions** (41 total)
 All LSP-based navigation, intelligence, and editing functions are production-ready and work across all configured language servers. File operations and workspace operations are also fully functional.
 
 ### **Stub/Incomplete Functions** (3 total)
@@ -143,24 +143,24 @@ All LSP-based navigation, intelligence, and editing functions are production-rea
 - ✅ All LSP features via `typescript-language-server`
 - ✅ Advanced AST analysis via native Rust `swc` parser (Phase B)
 - ✅ Import graph analysis and updates
-- ✅ Dead code detection
-- ✅ File/directory rename with automatic import updates (all languages)
+- ✅ Dead code detection via LSP
+- ✅ File/directory rename with automatic import updates
 
 ### Python (Good Support)
 - ✅ All LSP features via `pylsp`
 - ✅ Native AST parsing via subprocess (Phase A)
 - ✅ Import analysis
-- ⚠️ Limited refactoring (no dead code detection yet)
+- ✅ Dead code detection via LSP
 
-### Go (LSP Only)
+### Go (Good Support)
 - ✅ All LSP features via `gopls`
-- ❌ No AST-based refactoring
-- ❌ No import analysis beyond LSP
+- ✅ Dead code detection via LSP
+- ⚠️ Limited AST-based refactoring (TS/JS only)
 
-### Rust (LSP Only)
+### Rust (Good Support)
 - ✅ All LSP features via `rust-analyzer`
-- ❌ No AST-based refactoring
-- ❌ No import analysis beyond LSP
+- ✅ Dead code detection via LSP
+- ⚠️ Limited AST-based refactoring (TS/JS only)
 
 ### Adding New Languages
 New languages can be added by:
@@ -219,11 +219,13 @@ New languages can be added by:
 - ✅ Use all LSP-based navigation/intelligence functions confidently
 - ✅ Use file operations (`create_file`, `rename_file`, `delete_file`)
 - ✅ Use `apply_edits` for safe multi-file refactoring
-- ✅ Use `rename_file` to automatically update imports
+- ✅ Use `rename_file` and `rename_directory` to automatically update imports
+- ✅ Use `fix_imports` to organize and remove unused imports (all languages)
+- ✅ Use `find_dead_code` to identify unused code (all languages with LSP)
+- ✅ Use `update_dependencies` to manage package dependencies
 
 **Avoid or Use with Caution:**
 - ⚠️ `extract_function`, `inline_variable`, `extract_variable` - stubs only
-- ⚠️ `find_dead_code` - TS/JS only
 - ⚠️ AST-based refactoring - TS/JS has best support
 
 ### **For Contributors**
@@ -234,9 +236,9 @@ New languages can be added by:
 3. `extract_variable` - Implement AST-based extraction
 
 **Medium Priority - Expand Language Support:**
-1. Add Python dead code detection
-2. Add Go/Rust import analysis
-3. Expand AST refactoring to more languages
+1. Add Go/Rust import analysis (currently TS/JS and Python only)
+2. Expand AST refactoring to more languages (currently TS/JS only)
+3. Add more language servers to default configuration
 
 **Low Priority - Improve Testing:**
 1. Add concurrent operation tests for LockManager
