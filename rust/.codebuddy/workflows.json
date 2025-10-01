@@ -99,6 +99,25 @@
       ],
       "required_params": ["file_path", "symbol_name"]
     },
+    "refactor.renameSymbolWithImports": {
+      "name": "Rename symbol '{old_name}' to '{new_name}' with import updates",
+      "metadata": {
+        "complexity": 2
+      },
+      "steps": [
+        {
+          "tool": "rename_symbol",
+          "params": {
+            "file_path": "{file_path}",
+            "symbol_name": "{old_name}",
+            "new_name": "{new_name}"
+          },
+          "description": "Rename symbol '{old_name}' to '{new_name}' across the project",
+          "requires_confirmation": true
+        }
+      ],
+      "required_params": ["file_path", "old_name", "new_name"]
+    },
     "research.topic": {
       "name": "Research topic '{topic}'",
       "metadata": {
