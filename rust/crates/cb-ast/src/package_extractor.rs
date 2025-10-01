@@ -247,8 +247,29 @@ impl LanguageAdapter for RustAdapter {
         Ok(result)
     }
 
-    fn generate_manifest(&self, _package_name: &str, _dependencies: &[String]) -> String {
-        unimplemented!("RustAdapter::generate_manifest not yet implemented")
+    fn generate_manifest(&self, package_name: &str, dependencies: &[String]) -> String {
+        use std::fmt::Write;
+
+        let mut manifest = String::new();
+
+        // [package] section
+        writeln!(manifest, "[package]").unwrap();
+        writeln!(manifest, "name = \"{}\"", package_name).unwrap();
+        writeln!(manifest, "version = \"0.1.0\"").unwrap();
+        writeln!(manifest, "edition = \"2021\"").unwrap();
+
+        // Add blank line before dependencies section if there are any
+        if !dependencies.is_empty() {
+            writeln!(manifest).unwrap();
+            writeln!(manifest, "[dependencies]").unwrap();
+
+            // Add each dependency with wildcard version
+            for dep in dependencies {
+                writeln!(manifest, "{} = \"*\"", dep).unwrap();
+            }
+        }
+
+        manifest
     }
 
     fn rewrite_import(&self, _old_import: &str, _new_package_name: &str) -> String {
@@ -453,7 +474,15 @@ pub async fn plan_extract_module_to_package(
         "Aggregated dependencies from all module files"
     );
 
-    // Step 5: Generate EditPlan with located files and dependencies in metadata
+    // Step 5: Generate new crate manifest
+    let generated_manifest = adapter.generate_manifest(&params.target_package_name, &dependencies);
+
+    debug!(
+        manifest_lines = generated_manifest.lines().count(),
+        "Generated Cargo.toml manifest"
+    );
+
+    // Step 6: Generate EditPlan with all metadata
     // Convert PathBuf to strings for JSON serialization
     let located_files_strings: Vec<String> = located_files
         .iter()
@@ -479,6 +508,7 @@ pub async fn plan_extract_module_to_package(
                 "adapter_selected": adapter.language().as_str(),
                 "located_files": located_files_strings,
                 "dependencies": dependencies,
+                "generated_manifest": generated_manifest,
             }),
             created_at: chrono::Utc::now(),
             complexity: 1,
@@ -490,7 +520,8 @@ pub async fn plan_extract_module_to_package(
         adapter = %adapter.language().as_str(),
         files_count = located_files.len(),
         dependencies_count = dependencies.len(),
-        "Successfully created EditPlan with located files and dependencies"
+        manifest_generated = true,
+        "Successfully created EditPlan with located files, dependencies, and manifest"
     );
 
     Ok(edit_plan)
@@ -752,5 +783,76 @@ use std::io::Read;
         let result = adapter.parse_imports(&nonexistent_file).await;
 
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_generate_manifest_with_dependencies() {
+        let adapter = RustAdapter;
+        let dependencies = vec!["serde".to_string(), "tokio".to_string(), "async-trait".to_string()];
+
+        let manifest = adapter.generate_manifest("my-test-crate", &dependencies);
+
+        // Check [package] section
+        assert!(manifest.contains("[package]"));
+        assert!(manifest.contains("name = \"my-test-crate\""));
+        assert!(manifest.contains("version = \"0.1.0\""));
+        assert!(manifest.contains("edition = \"2021\""));
+
+        // Check [dependencies] section
+        assert!(manifest.contains("[dependencies]"));
+        assert!(manifest.contains("serde = \"*\""));
+        assert!(manifest.contains("tokio = \"*\""));
+        assert!(manifest.contains("async-trait = \"*\""));
+
+        // Verify it's valid TOML structure by checking line order
+        let lines: Vec<&str> = manifest.lines().collect();
+
+        // Find indices of key sections
+        let package_idx = lines.iter().position(|&l| l == "[package]").unwrap();
+        let deps_idx = lines.iter().position(|&l| l == "[dependencies]").unwrap();
+
+        // [dependencies] should come after [package]
+        assert!(deps_idx > package_idx);
+    }
+
+    #[test]
+    fn test_generate_manifest_no_dependencies() {
+        let adapter = RustAdapter;
+        let dependencies: Vec<String> = vec![];
+
+        let manifest = adapter.generate_manifest("simple-crate", &dependencies);
+
+        // Check [package] section exists
+        assert!(manifest.contains("[package]"));
+        assert!(manifest.contains("name = \"simple-crate\""));
+        assert!(manifest.contains("version = \"0.1.0\""));
+        assert!(manifest.contains("edition = \"2021\""));
+
+        // [dependencies] section should NOT exist if there are no dependencies
+        assert!(!manifest.contains("[dependencies]"));
+    }
+
+    #[test]
+    fn test_generate_manifest_single_dependency() {
+        let adapter = RustAdapter;
+        let dependencies = vec!["serde".to_string()];
+
+        let manifest = adapter.generate_manifest("test-crate", &dependencies);
+
+        assert!(manifest.contains("[package]"));
+        assert!(manifest.contains("name = \"test-crate\""));
+        assert!(manifest.contains("[dependencies]"));
+        assert!(manifest.contains("serde = \"*\""));
+    }
+
+    #[test]
+    fn test_generate_manifest_special_characters_in_name() {
+        let adapter = RustAdapter;
+        let dependencies = vec![];
+
+        let manifest = adapter.generate_manifest("my-special_crate123", &dependencies);
+
+        assert!(manifest.contains("name = \"my-special_crate123\""));
+        assert!(manifest.contains("[package]"));
     }
 }
