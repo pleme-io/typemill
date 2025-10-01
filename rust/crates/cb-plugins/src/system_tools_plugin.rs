@@ -490,71 +490,6 @@ impl SystemToolsPlugin {
         }))
     }
 
-    /// Handle fix_imports tool
-    async fn handle_fix_imports(&self, params: Value) -> PluginResult<Value> {
-        #[derive(Debug, Deserialize)]
-        #[serde(rename_all = "snake_case")]
-        struct FixImportsArgs {
-            file_path: String,
-            dry_run: Option<bool>,
-        }
-
-        let args: FixImportsArgs =
-            serde_json::from_value(params).map_err(|e| PluginError::SerializationError {
-                message: format!("Invalid fix_imports args: {}", e),
-            })?;
-
-        debug!(file_path = %args.file_path, "Fixing imports");
-
-        // Read the file
-        let content =
-            fs::read_to_string(&args.file_path)
-                .await
-                .map_err(|e| PluginError::IoError {
-                    message: format!("Failed to read file: {}", e),
-                })?;
-
-        // Use cb_ast to analyze imports
-        let path = Path::new(&args.file_path);
-        let import_graph = cb_ast::parser::build_import_graph(&content, path).map_err(|e| {
-            PluginError::PluginRequestFailed {
-                plugin: "system-tools".to_string(),
-                message: format!("Failed to analyze imports: {}", e),
-            }
-        })?;
-
-        // Count different types of fixes that would be applied
-        let unused_imports = import_graph
-            .imports
-            .iter()
-            .filter(|imp| {
-                imp.named_imports.is_empty()
-                    && imp.default_import.is_none()
-                    && imp.namespace_import.is_none()
-            })
-            .count();
-
-        let duplicate_imports = {
-            let mut seen = std::collections::HashSet::new();
-            import_graph
-                .imports
-                .iter()
-                .filter(|imp| !seen.insert(&imp.module_path))
-                .count()
-        };
-
-        Ok(json!({
-            "operation": "fix_imports",
-            "file_path": args.file_path,
-            "dry_run": args.dry_run.unwrap_or(false),
-            "fixes": {
-                "unused_imports": unused_imports,
-                "duplicate_imports": duplicate_imports,
-                "total_imports": import_graph.imports.len(),
-            },
-            "status": if args.dry_run.unwrap_or(false) { "preview" } else { "fixed" },
-        }))
-    }
 
     /// Handle web_fetch tool
     async fn handle_web_fetch(&self, params: Value) -> PluginResult<Value> {
@@ -793,24 +728,6 @@ impl LanguagePlugin for SystemToolsPlugin {
                 }
             }),
             json!({
-                "name": "fix_imports",
-                "description": "Fix import statements by removing unused imports and organizing them.",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "file_path": {
-                            "type": "string",
-                            "description": "Path to the file"
-                        },
-                        "dry_run": {
-                            "type": "boolean",
-                            "description": "Preview changes without applying them"
-                        }
-                    },
-                    "required": ["file_path"]
-                }
-            }),
-            json!({
                 "name": "web_fetch",
                 "description": "Fetch the plain text content of a given URL.",
                 "inputSchema": {
@@ -857,7 +774,6 @@ impl LanguagePlugin for SystemToolsPlugin {
             "extract_function" => self.handle_extract_function(request.params.clone()).await?,
             "inline_variable" => self.handle_inline_variable(request.params.clone()).await?,
             "extract_variable" => self.handle_extract_variable(request.params.clone()).await?,
-            "fix_imports" => self.handle_fix_imports(request.params.clone()).await?,
             "web_fetch" => self.handle_web_fetch(request.params.clone()).await?,
             _ => {
                 return Err(PluginError::MethodNotSupported {

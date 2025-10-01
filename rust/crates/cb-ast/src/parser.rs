@@ -1555,3 +1555,4 @@ func main() {
         assert_eq!(imports[7].default_import, None);
     }
 }
+

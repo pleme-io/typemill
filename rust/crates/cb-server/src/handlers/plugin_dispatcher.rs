@@ -465,6 +465,11 @@ impl PluginDispatcher {
             }));
         }
 
+        // Check if this is fix_imports - delegate to organize_imports
+        if tool_call.name == "fix_imports" {
+            return self.handle_fix_imports(tool_call).await;
+        }
+
         // Check if this is a system tool
         if self.is_system_tool(&tool_call.name) {
             return self.handle_system_tool(tool_call).await;
@@ -694,7 +699,6 @@ impl PluginDispatcher {
                 | "extract_function"
                 | "inline_variable"
                 | "extract_variable"
-                | "fix_imports"
         )
     }
 
@@ -1379,6 +1383,65 @@ impl PluginDispatcher {
                 "analysisDurationMs": start_time.elapsed().as_millis(),
             }
         }))
+    }
+
+    /// Handle fix_imports by delegating to organize_imports
+    async fn handle_fix_imports(&self, tool_call: ToolCall) -> ServerResult<Value> {
+        let args = tool_call.arguments.unwrap_or(json!({}));
+
+        // Extract parameters from fix_imports call
+        let file_path = args
+            .get("file_path")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| ServerError::InvalidRequest("file_path is required".to_string()))?;
+
+        let dry_run = args.get("dry_run").and_then(|v| v.as_bool()).unwrap_or(false);
+
+        debug!(file_path = %file_path, dry_run = dry_run, "Handling fix_imports via organize_imports");
+
+        if dry_run {
+            // For dry-run mode, just return a preview message
+            return Ok(json!({
+                "operation": "fix_imports",
+                "file_path": file_path,
+                "dry_run": true,
+                "modified": false,
+                "status": "preview",
+                "message": "Dry run mode - set dry_run: false to apply import organization"
+            }));
+        }
+
+        // For actual fixes, delegate to organize_imports via LSP
+        // Create a new tool call for organize_imports
+        let organize_imports_call = ToolCall {
+            name: "organize_imports".to_string(),
+            arguments: Some(json!({
+                "file_path": file_path
+            })),
+        };
+
+        // Convert to plugin request and dispatch through LSP adapter
+        let plugin_request = self.convert_tool_call_to_plugin_request(organize_imports_call)?;
+
+        match self.plugin_manager.handle_request(plugin_request).await {
+            Ok(response) => {
+                // Wrap LSP response in fix_imports format
+                Ok(json!({
+                    "operation": "fix_imports",
+                    "file_path": file_path,
+                    "dry_run": false,
+                    "modified": true,
+                    "status": "fixed",
+                    "lsp_response": response
+                }))
+            }
+            Err(e) => {
+                Err(ServerError::internal(format!(
+                    "Failed to organize imports: {}",
+                    e
+                )))
+            }
+        }
     }
 }
 
