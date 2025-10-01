@@ -1385,7 +1385,40 @@ impl PluginDispatcher {
         }))
     }
 
-    /// Handle fix_imports by delegating to organize_imports
+    /// Handle fix_imports by delegating to LSP's organize_imports
+    ///
+    /// This tool analyzes and fixes import statements in a file by removing unused imports,
+    /// organizing import order, and applying language-specific formatting conventions.
+    ///
+    /// # How it Works
+    ///
+    /// - **Dry-run mode** (`dry_run: true`): Returns a preview message without making changes
+    /// - **Normal mode** (`dry_run: false`): Delegates to LSP's `organize_imports` code action
+    ///   which performs semantic analysis to identify and remove all types of unused imports:
+    ///   - Named imports (e.g., `import { unused } from 'module'`)
+    ///   - Default imports (e.g., `import Unused from 'module'`)
+    ///   - Namespace imports (e.g., `import * as unused from 'module'`)
+    ///   - Side-effect imports (e.g., `import './unused.css'`)
+    ///
+    /// # Requirements
+    ///
+    /// - Requires an LSP server that supports the `source.organizeImports` code action
+    /// - TypeScript Language Server provides full support for this feature
+    ///
+    /// # Parameters
+    ///
+    /// - `file_path`: Absolute path to the file to fix
+    /// - `dry_run`: Optional boolean (default: false) - if true, returns preview without changes
+    ///
+    /// # Returns
+    ///
+    /// Returns a JSON object with:
+    /// - `operation`: "fix_imports"
+    /// - `file_path`: The file that was processed
+    /// - `dry_run`: Whether this was a dry-run
+    /// - `modified`: Whether the file was actually modified
+    /// - `status`: "preview" (dry-run) or "fixed" (actual changes)
+    /// - `lsp_response`: The response from organize_imports (when not dry-run)
     async fn handle_fix_imports(&self, tool_call: ToolCall) -> ServerResult<Value> {
         let args = tool_call.arguments.unwrap_or(json!({}));
 

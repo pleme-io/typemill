@@ -1,6 +1,6 @@
 # CodeBuddy MCP Tools Support Matrix
 
-**Last Updated:** 2025-09-30
+**Last Updated:** 2025-10-01
 **Version:** 0.1.0
 
 ---
@@ -44,7 +44,7 @@
 | `extract_function` | ⚠️ Stub | ⚠️ Basic | ⚠️ Basic | ⚠️ Basic | ⚠️ Basic | **STUB**: Basic line extraction only, no AST analysis |
 | `inline_variable` | ⚠️ Stub | ⚠️ Preview | ⚠️ Preview | ⚠️ Preview | ⚠️ Preview | **STUB**: Returns preview only, no actual changes |
 | `extract_variable` | ⚠️ Stub | ⚠️ Preview | ⚠️ Preview | ⚠️ Preview | ⚠️ Preview | **STUB**: Returns preview only, no actual changes |
-| `fix_imports` | ⚠️ Partial | ✅ | ❌ | ❌ | ❌ | Only TS/JS via cb_ast, detects unused/duplicates |
+| `fix_imports` | ✅ Full | ✅ | ✅ | ✅ | ✅ | **Delegates to LSP organize_imports**, removes all unused import types |
 
 ### File Operations
 
@@ -108,10 +108,10 @@
 
 ## 🚨 Implementation Status Notes
 
-### **Fully Implemented Functions** (39 total)
+### **Fully Implemented Functions** (40 total)
 All LSP-based navigation, intelligence, and editing functions are production-ready and work across all configured language servers. File operations and workspace operations are also fully functional.
 
-### **Stub/Incomplete Functions** (4 total)
+### **Stub/Incomplete Functions** (3 total)
 
 1. **`extract_function`**
    - **Status**: STUB
@@ -130,18 +130,6 @@ All LSP-based navigation, intelligence, and editing functions are production-rea
    - **Issue**: Returns preview only, doesn't perform actual extraction
    - **Code**: `crates/cb-plugins/src/system_tools_plugin.rs:550-601`
    - **TODO**: Implement AST-based expression extraction
-
-4. **`fix_imports`**
-   - **Status**: PARTIAL
-   - **Issue**: Only works for TypeScript/JavaScript
-   - **Code**: `crates/cb-plugins/src/system_tools_plugin.rs:604-667`
-   - **Limitation**: Relies on `cb_ast` parser (TS/JS only)
-
-5. **`find_dead_code`**
-   - **Status**: PARTIAL
-   - **Issue**: Only works for TypeScript/JavaScript
-   - **Code**: `crates/cb-plugins/src/system_tools_plugin.rs:385-444`
-   - **Limitation**: Relies on `cb_ast` parser (TS/JS only)
 
 ### **Potentially Superfluous Functions**
 
@@ -235,7 +223,6 @@ New languages can be added by:
 
 **Avoid or Use with Caution:**
 - ⚠️ `extract_function`, `inline_variable`, `extract_variable` - stubs only
-- ⚠️ `google_search` - returns mock data
 - ⚠️ `find_dead_code` - TS/JS only
 - ⚠️ AST-based refactoring - TS/JS has best support
 
@@ -286,4 +273,4 @@ codebuddy status # Show working LSP servers
 
 ---
 
-**Note**: This matrix reflects the current codebase state as of 2025-09-30. Language support depends on configured LSP servers in `.codebuddy/config.json`.
+**Note**: This matrix reflects the current codebase state as of 2025-10-01. Language support depends on configured LSP servers in `.codebuddy/config.json`.
