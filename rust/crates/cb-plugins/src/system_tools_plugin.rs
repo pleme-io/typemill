@@ -679,6 +679,52 @@ impl LanguagePlugin for SystemToolsPlugin {
                     "properties": {}
                 }
             }),
+            json!({
+                "name": "rename_file",
+                "description": "Rename or move a file and automatically update all import statements that reference it. Works with TypeScript, JavaScript, JSX, TSX, and Rust files.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "old_path": {
+                            "type": "string",
+                            "description": "Current path to the file"
+                        },
+                        "new_path": {
+                            "type": "string",
+                            "description": "New path for the file (can be in a different directory)"
+                        },
+                        "dry_run": {
+                            "type": "boolean",
+                            "default": false,
+                            "description": "Preview changes without applying them (default: false)"
+                        }
+                    },
+                    "required": ["old_path", "new_path"]
+                }
+            }),
+            json!({
+                "name": "rename_directory",
+                "description": "Rename or move a directory and automatically update all import statements for files within it. Handles workspace members and relative paths in package manifests.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "old_path": {
+                            "type": "string",
+                            "description": "Current path to the directory"
+                        },
+                        "new_path": {
+                            "type": "string",
+                            "description": "New path for the directory"
+                        },
+                        "dry_run": {
+                            "type": "boolean",
+                            "default": false,
+                            "description": "Preview changes without applying them (default: false)"
+                        }
+                    },
+                    "required": ["old_path", "new_path"]
+                }
+            }),
         ]
     }
 

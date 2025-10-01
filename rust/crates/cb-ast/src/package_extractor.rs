@@ -239,16 +239,89 @@ impl LanguageAdapter for PythonAdapter {
 /// 2. Selecting the appropriate adapter
 /// 3. Generating an EditPlan for the refactoring
 pub async fn plan_extract_module_to_package(
-    _params: ExtractModuleToPackageParams,
+    params: ExtractModuleToPackageParams,
 ) -> AstResult<EditPlan> {
-    // TODO: Implement the full logic for extracting a module to a package
-    // 1. Detect language from source_package
-    // 2. Create appropriate adapter
-    // 3. Locate module files
-    // 4. Analyze dependencies
-    // 5. Generate EditPlan with:
-    //    - Move operations for module files
-    //    - Create manifest operation
-    //    - Update import operations
-    unimplemented!("plan_extract_module_to_package is not yet implemented")
+    use cb_api::{EditPlanMetadata, ValidationRule, ValidationType};
+    use cb_core::language::detect_project_language;
+    use serde_json::json;
+    use std::collections::HashMap;
+    use tracing::{debug, info};
+
+    info!(
+        source_package = %params.source_package,
+        module_path = %params.module_path,
+        target_package = %params.target_package_path,
+        "Planning extract_module_to_package operation"
+    );
+
+    // Step 1: Detect language from source package
+    let source_path = Path::new(&params.source_package);
+    let detected_language = detect_project_language(source_path);
+
+    debug!(
+        language = %detected_language.as_str(),
+        "Detected project language"
+    );
+
+    // Step 2: Create appropriate language adapter based on detection
+    let adapter: Box<dyn LanguageAdapter> = match detected_language {
+        ProjectLanguage::Rust => {
+            info!("Selected RustAdapter for extraction");
+            Box::new(RustAdapter)
+        }
+        ProjectLanguage::TypeScript => {
+            info!("Selected TypeScriptAdapter for extraction");
+            Box::new(TypeScriptAdapter)
+        }
+        ProjectLanguage::Python => {
+            info!("Selected PythonAdapter for extraction");
+            Box::new(PythonAdapter)
+        }
+        ProjectLanguage::Go | ProjectLanguage::Java => {
+            return Err(crate::error::AstError::UnsupportedSyntax {
+                feature: format!(
+                    "{} language not yet supported for extract_module_to_package",
+                    detected_language.as_str()
+                ),
+            });
+        }
+        ProjectLanguage::Unknown => {
+            return Err(crate::error::AstError::Analysis {
+                message: "Could not detect project language - no manifest files found".to_string(),
+            });
+        }
+    };
+
+    // Step 3: Generate EditPlan with metadata confirming adapter selection
+    // For Phase 3, we return a minimal EditPlan that verifies the dispatch logic works
+    let edit_plan = EditPlan {
+        source_file: params.source_package.clone(),
+        edits: vec![],
+        dependency_updates: vec![],
+        validations: vec![ValidationRule {
+            rule_type: ValidationType::SyntaxCheck,
+            description: "Verify syntax is valid after extraction".to_string(),
+            parameters: HashMap::new(),
+        }],
+        metadata: EditPlanMetadata {
+            intent_name: "extract_module_to_package".to_string(),
+            intent_arguments: json!({
+                "source_package": params.source_package,
+                "module_path": params.module_path,
+                "target_package_path": params.target_package_path,
+                "target_package_name": params.target_package_name,
+                "adapter_selected": adapter.language().as_str(),
+            }),
+            created_at: chrono::Utc::now(),
+            complexity: 1,
+            impact_areas: vec!["package_extraction".to_string()],
+        },
+    };
+
+    info!(
+        adapter = %adapter.language().as_str(),
+        "Successfully created EditPlan with adapter selection"
+    );
+
+    Ok(edit_plan)
 }

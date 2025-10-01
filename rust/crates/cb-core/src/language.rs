@@ -260,15 +260,260 @@ mod tests {
 
     #[test]
     fn test_detect_rust_project() {
-        // This test would need a temporary directory with Cargo.toml
-        // For now, we test the current workspace which is Rust
-        let current_dir = PathBuf::from(".");
-        let result = detect_project_language(&current_dir);
-        // The test might fail if run from a different directory
-        // This is just a basic smoke test
-        assert!(matches!(
-            result,
-            ProjectLanguage::Rust | ProjectLanguage::Unknown
-        ));
+        use tempfile::tempdir;
+        use std::fs::File;
+
+        let dir = tempdir().unwrap();
+        File::create(dir.path().join("Cargo.toml")).unwrap();
+
+        let result = detect_project_language(dir.path());
+        assert_eq!(result, ProjectLanguage::Rust);
+    }
+
+    #[test]
+    fn test_detect_typescript_project() {
+        use tempfile::tempdir;
+        use std::fs::File;
+
+        let dir = tempdir().unwrap();
+        File::create(dir.path().join("package.json")).unwrap();
+
+        let result = detect_project_language(dir.path());
+        assert_eq!(result, ProjectLanguage::TypeScript);
+    }
+
+    #[test]
+    fn test_detect_python_project_pyproject() {
+        use tempfile::tempdir;
+        use std::fs::File;
+
+        let dir = tempdir().unwrap();
+        File::create(dir.path().join("pyproject.toml")).unwrap();
+
+        let result = detect_project_language(dir.path());
+        assert_eq!(result, ProjectLanguage::Python);
+    }
+
+    #[test]
+    fn test_detect_python_project_requirements() {
+        use tempfile::tempdir;
+        use std::fs::File;
+
+        let dir = tempdir().unwrap();
+        File::create(dir.path().join("requirements.txt")).unwrap();
+
+        let result = detect_project_language(dir.path());
+        assert_eq!(result, ProjectLanguage::Python);
+    }
+
+    #[test]
+    fn test_detect_python_project_setup() {
+        use tempfile::tempdir;
+        use std::fs::File;
+
+        let dir = tempdir().unwrap();
+        File::create(dir.path().join("setup.py")).unwrap();
+
+        let result = detect_project_language(dir.path());
+        assert_eq!(result, ProjectLanguage::Python);
+    }
+
+    #[test]
+    fn test_detect_go_project() {
+        use tempfile::tempdir;
+        use std::fs::File;
+
+        let dir = tempdir().unwrap();
+        File::create(dir.path().join("go.mod")).unwrap();
+
+        let result = detect_project_language(dir.path());
+        assert_eq!(result, ProjectLanguage::Go);
+    }
+
+    #[test]
+    fn test_detect_java_project_maven() {
+        use tempfile::tempdir;
+        use std::fs::File;
+
+        let dir = tempdir().unwrap();
+        File::create(dir.path().join("pom.xml")).unwrap();
+
+        let result = detect_project_language(dir.path());
+        assert_eq!(result, ProjectLanguage::Java);
+    }
+
+    #[test]
+    fn test_detect_java_project_gradle() {
+        use tempfile::tempdir;
+        use std::fs::File;
+
+        let dir = tempdir().unwrap();
+        File::create(dir.path().join("build.gradle")).unwrap();
+
+        let result = detect_project_language(dir.path());
+        assert_eq!(result, ProjectLanguage::Java);
+    }
+
+    #[test]
+    fn test_detect_unknown_project() {
+        use tempfile::tempdir;
+
+        let dir = tempdir().unwrap();
+        // Empty directory with no manifest files
+
+        let result = detect_project_language(dir.path());
+        assert_eq!(result, ProjectLanguage::Unknown);
+    }
+
+    #[test]
+    fn test_detect_npm_package_manager() {
+        use tempfile::tempdir;
+        use std::fs::File;
+
+        let dir = tempdir().unwrap();
+        File::create(dir.path().join("package.json")).unwrap();
+        // No lock file means npm
+
+        let result = detect_package_manager(dir.path());
+        assert_eq!(result, PackageManager::Npm);
+    }
+
+    #[test]
+    fn test_detect_yarn_package_manager() {
+        use tempfile::tempdir;
+        use std::fs::File;
+
+        let dir = tempdir().unwrap();
+        File::create(dir.path().join("package.json")).unwrap();
+        File::create(dir.path().join("yarn.lock")).unwrap();
+
+        let result = detect_package_manager(dir.path());
+        assert_eq!(result, PackageManager::Yarn);
+    }
+
+    #[test]
+    fn test_detect_pnpm_package_manager() {
+        use tempfile::tempdir;
+        use std::fs::File;
+
+        let dir = tempdir().unwrap();
+        File::create(dir.path().join("package.json")).unwrap();
+        File::create(dir.path().join("pnpm-lock.yaml")).unwrap();
+
+        let result = detect_package_manager(dir.path());
+        assert_eq!(result, PackageManager::Pnpm);
+    }
+
+    #[test]
+    fn test_detect_cargo_package_manager() {
+        use tempfile::tempdir;
+        use std::fs::File;
+
+        let dir = tempdir().unwrap();
+        File::create(dir.path().join("Cargo.toml")).unwrap();
+
+        let result = detect_package_manager(dir.path());
+        assert_eq!(result, PackageManager::Cargo);
+    }
+
+    #[test]
+    fn test_detect_go_package_manager() {
+        use tempfile::tempdir;
+        use std::fs::File;
+
+        let dir = tempdir().unwrap();
+        File::create(dir.path().join("go.mod")).unwrap();
+
+        let result = detect_package_manager(dir.path());
+        assert_eq!(result, PackageManager::Go);
+    }
+
+    #[test]
+    fn test_detect_pip_package_manager() {
+        use tempfile::tempdir;
+        use std::fs::File;
+
+        let dir = tempdir().unwrap();
+        File::create(dir.path().join("requirements.txt")).unwrap();
+
+        let result = detect_package_manager(dir.path());
+        assert_eq!(result, PackageManager::Pip);
+    }
+
+    #[test]
+    fn test_detect_maven_package_manager() {
+        use tempfile::tempdir;
+        use std::fs::File;
+
+        let dir = tempdir().unwrap();
+        File::create(dir.path().join("pom.xml")).unwrap();
+
+        let result = detect_package_manager(dir.path());
+        assert_eq!(result, PackageManager::Maven);
+    }
+
+    #[test]
+    fn test_detect_gradle_package_manager() {
+        use tempfile::tempdir;
+        use std::fs::File;
+
+        let dir = tempdir().unwrap();
+        File::create(dir.path().join("build.gradle")).unwrap();
+
+        let result = detect_package_manager(dir.path());
+        assert_eq!(result, PackageManager::Gradle);
+    }
+
+    #[test]
+    fn test_detect_unknown_package_manager() {
+        use tempfile::tempdir;
+
+        let dir = tempdir().unwrap();
+        // Empty directory
+
+        let result = detect_package_manager(dir.path());
+        assert_eq!(result, PackageManager::Unknown);
+    }
+
+    #[test]
+    fn test_priority_rust_over_others() {
+        use tempfile::tempdir;
+        use std::fs::File;
+
+        // Rust should be detected first if Cargo.toml exists
+        let dir = tempdir().unwrap();
+        File::create(dir.path().join("Cargo.toml")).unwrap();
+        File::create(dir.path().join("package.json")).unwrap();
+
+        let result = detect_project_language(dir.path());
+        assert_eq!(result, ProjectLanguage::Rust);
+    }
+
+    #[test]
+    fn test_priority_yarn_over_npm() {
+        use tempfile::tempdir;
+        use std::fs::File;
+
+        // Yarn lock file should take priority
+        let dir = tempdir().unwrap();
+        File::create(dir.path().join("package.json")).unwrap();
+        File::create(dir.path().join("yarn.lock")).unwrap();
+
+        let result = detect_package_manager(dir.path());
+        assert_eq!(result, PackageManager::Yarn);
+    }
+
+    #[test]
+    fn test_priority_pnpm_over_npm() {
+        use tempfile::tempdir;
+        use std::fs::File;
+
+        // pnpm lock file should take priority
+        let dir = tempdir().unwrap();
+        File::create(dir.path().join("package.json")).unwrap();
+        File::create(dir.path().join("pnpm-lock.yaml")).unwrap();
+
+        let result = detect_package_manager(dir.path());
+        assert_eq!(result, PackageManager::Pnpm);
     }
 }
