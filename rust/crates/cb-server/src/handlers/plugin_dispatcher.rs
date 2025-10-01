@@ -449,96 +449,107 @@ impl PluginDispatcher {
     }
 
     /// Handle tools/call request using plugins
+    ///
+    /// This function serves as the main entry point for all tool executions, routing them
+    /// based on their type (e.g., file operation, refactoring, LSP, system tools).
+    /// It provides comprehensive telemetry including execution duration and success/failure status.
+    ///
+    /// # Arguments
+    ///
+    /// * `params` - Optional JSON value containing the tool call parameters, must include tool name and arguments
+    ///
+    /// # Returns
+    ///
+    /// Returns a JSON value containing the tool execution result, or an error if the tool call fails
     #[instrument(skip(self, params))]
     async fn handle_tool_call(&self, params: Option<Value>) -> ServerResult<Value> {
+        let start_time = Instant::now();
+
         let params = params.ok_or_else(|| ServerError::InvalidRequest("Missing params".into()))?;
 
         let tool_call: ToolCall = serde_json::from_value(params)
             .map_err(|e| ServerError::InvalidRequest(format!("Invalid tool call: {}", e)))?;
 
-        debug!(tool_name = %tool_call.name, "Calling tool with plugin system");
+        let tool_name = tool_call.name.clone();
+        debug!(tool_name = %tool_name, "Calling tool with plugin system");
 
-        // Check if this is an intent to be planned into a workflow
-        if tool_call.name == "achieve_intent" {
-            return self.handle_achieve_intent(tool_call).await;
-        }
+        // Execute the appropriate handler based on tool type
+        let result = if tool_name == "achieve_intent" {
+            self.handle_achieve_intent(tool_call).await
+        } else if tool_name == "health_check" {
+            self.handle_health_check().await
+        } else if self.is_file_operation(&tool_name) {
+            self.handle_file_operation(tool_call).await
+        } else if self.is_refactoring_operation(&tool_name) {
+            self.handle_refactoring_operation(tool_call).await
+        } else if tool_name == "notify_file_opened" {
+            self.handle_notify_file_opened(tool_call).await
+        } else if tool_name == "notify_file_saved" {
+            self.handle_notify_file_saved(tool_call).await
+        } else if tool_name == "notify_file_closed" {
+            self.handle_notify_file_closed(tool_call).await
+        } else if tool_name == "apply_edits" {
+            self.handle_apply_edits(tool_call).await
+        } else if tool_name == "find_dead_code" {
+            match self.handle_find_dead_code(tool_call).await {
+                Ok(result) => Ok(json!({"content": result})),
+                Err(e) => Err(e),
+            }
+        } else if tool_name == "fix_imports" {
+            self.handle_fix_imports(tool_call).await
+        } else if self.is_system_tool(&tool_name) {
+            self.handle_system_tool(tool_call).await
+        } else {
+            // Convert MCP tool call to plugin request
+            let plugin_request = self.convert_tool_call_to_plugin_request(tool_call)?;
 
-        // Check if this is a health check request
-        if tool_call.name == "health_check" {
-            return self.handle_health_check().await;
-        }
+            // Handle the request through the plugin system
+            let plugin_start = Instant::now();
+            match self.plugin_manager.handle_request(plugin_request).await {
+                Ok(response) => {
+                    let processing_time = plugin_start.elapsed().as_millis();
+                    debug!(
+                        processing_time_ms = processing_time,
+                        "Plugin request processed"
+                    );
 
-        // Check if this is a file operation that needs app_state services
-        if self.is_file_operation(&tool_call.name) {
-            return self.handle_file_operation(tool_call).await;
-        }
+                    Ok(json!({
+                        "content": response.data.unwrap_or(json!(null)),
+                        "plugin": response.metadata.plugin_name,
+                        "processing_time_ms": response.metadata.processing_time_ms,
+                        "cached": response.metadata.cached
+                    }))
+                }
+                Err(err) => {
+                    error!(error = %err, "Plugin request failed");
+                    Err(self.convert_plugin_error_to_server_error(err))
+                }
+            }
+        };
 
-        // Check if this is a refactoring operation that needs EditPlan handling
-        if self.is_refactoring_operation(&tool_call.name) {
-            return self.handle_refactoring_operation(tool_call).await;
-        }
-
-        // Check if this is an LSP notification tool
-        if tool_call.name == "notify_file_opened" {
-            return self.handle_notify_file_opened(tool_call).await;
-        }
-
-        if tool_call.name == "notify_file_saved" {
-            return self.handle_notify_file_saved(tool_call).await;
-        }
-
-        if tool_call.name == "notify_file_closed" {
-            return self.handle_notify_file_closed(tool_call).await;
-        }
-
-        // Check if this is the edit plan application tool
-        if tool_call.name == "apply_edits" {
-            return self.handle_apply_edits(tool_call).await;
-        }
-
-        // Check if this is the dead code analysis tool
-        if tool_call.name == "find_dead_code" {
-            let result = self.handle_find_dead_code(tool_call).await?;
-            return Ok(json!({
-                "content": result
-            }));
-        }
-
-        // Check if this is fix_imports - delegate to organize_imports
-        if tool_call.name == "fix_imports" {
-            return self.handle_fix_imports(tool_call).await;
-        }
-
-        // Check if this is a system tool
-        if self.is_system_tool(&tool_call.name) {
-            return self.handle_system_tool(tool_call).await;
-        }
-
-        // Convert MCP tool call to plugin request
-        let plugin_request = self.convert_tool_call_to_plugin_request(tool_call)?;
-
-        // Handle the request through the plugin system
-        let start_time = Instant::now();
-        match self.plugin_manager.handle_request(plugin_request).await {
-            Ok(response) => {
-                let processing_time = start_time.elapsed().as_millis();
-                debug!(
-                    processing_time_ms = processing_time,
-                    "Plugin request processed"
+        // Log telemetry
+        let duration = start_time.elapsed();
+        match &result {
+            Ok(_) => {
+                info!(
+                    tool_name = %tool_name,
+                    duration_ms = duration.as_millis() as u64,
+                    status = "success",
+                    "Tool call completed"
                 );
-
-                Ok(json!({
-                    "content": response.data.unwrap_or(json!(null)),
-                    "plugin": response.metadata.plugin_name,
-                    "processing_time_ms": response.metadata.processing_time_ms,
-                    "cached": response.metadata.cached
-                }))
             }
-            Err(err) => {
-                error!(error = %err, "Plugin request failed");
-                Err(self.convert_plugin_error_to_server_error(err))
+            Err(e) => {
+                error!(
+                    tool_name = %tool_name,
+                    duration_ms = duration.as_millis() as u64,
+                    status = "error",
+                    error = %e,
+                    "Tool call failed"
+                );
             }
         }
+
+        result
     }
 
     /// Convert MCP tool call to plugin request

@@ -509,7 +509,7 @@ impl LanguagePlugin for SystemToolsPlugin {
             }),
             json!({
                 "name": "inline_variable",
-                "description": "Inline a variable's value.",
+                "description": "Inline a variable's value at the specified position.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
@@ -517,20 +517,20 @@ impl LanguagePlugin for SystemToolsPlugin {
                             "type": "string",
                             "description": "Path to the file"
                         },
-                        "variable_name": {
-                            "type": "string",
-                            "description": "Name of the variable to inline"
-                        },
                         "line": {
                             "type": "number",
-                            "description": "Line number where the variable is declared"
+                            "description": "Line number where the variable is declared (1-indexed)"
+                        },
+                        "character": {
+                            "type": "number",
+                            "description": "Optional character position in the line (0-indexed, defaults to 0)"
                         },
                         "dry_run": {
                             "type": "boolean",
                             "description": "Preview changes without applying them"
                         }
                     },
-                    "required": ["file_path", "variable_name", "line"]
+                    "required": ["file_path", "line"]
                 }
             }),
             json!({
