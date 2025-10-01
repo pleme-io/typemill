@@ -365,7 +365,8 @@ fn ast_extract_function_ts_js(
     let function_code = generate_extracted_function(source, &analysis, new_function_name)?;
 
     edits.push(TextEdit {
-        edit_type: EditType::Insert,
+        file_path: None,
+            edit_type: EditType::Insert,
         location: analysis.insertion_point.clone().into(),
         original_text: String::new(),
         new_text: format!("\n{}\n", function_code),
@@ -377,7 +378,8 @@ fn ast_extract_function_ts_js(
     let call_code = generate_function_call(&analysis, new_function_name)?;
 
     edits.push(TextEdit {
-        edit_type: EditType::Replace,
+        file_path: None,
+            edit_type: EditType::Replace,
         location: analysis.selected_range.clone().into(),
         original_text: extract_range_text(source, &analysis.selected_range)?,
         new_text: call_code,
@@ -486,6 +488,7 @@ fn ast_inline_variable_ts_js(
         };
 
         edits.push(TextEdit {
+            file_path: None,
             edit_type: EditType::Replace,
             location: usage_location.clone().into(),
             original_text: analysis.variable_name.clone(),
@@ -498,7 +501,8 @@ fn ast_inline_variable_ts_js(
 
     // Remove the variable declaration
     edits.push(TextEdit {
-        edit_type: EditType::Delete,
+        file_path: None,
+            edit_type: EditType::Delete,
         location: analysis.declaration_range.clone().into(),
         original_text: extract_range_text(source, &analysis.declaration_range)?,
         new_text: String::new(),
@@ -771,7 +775,8 @@ fn ast_extract_variable_ts_js(
     // Insert the variable declaration
     let declaration = format!("const {} = {};\n{}", var_name, analysis.expression, indent);
     edits.push(TextEdit {
-        edit_type: EditType::Insert,
+        file_path: None,
+            edit_type: EditType::Insert,
         location: analysis.insertion_point.clone().into(),
         original_text: String::new(),
         new_text: declaration,
@@ -784,7 +789,8 @@ fn ast_extract_variable_ts_js(
 
     // Replace the original expression with the variable name
     edits.push(TextEdit {
-        edit_type: EditType::Replace,
+        file_path: None,
+            edit_type: EditType::Replace,
         location: analysis.expression_range.clone().into(),
         original_text: analysis.expression.clone(),
         new_text: var_name.clone(),
@@ -1339,7 +1345,8 @@ fn ast_extract_function_python(
     let function_code = generate_extracted_function_python(source, &analysis, new_function_name)?;
 
     edits.push(TextEdit {
-        edit_type: EditType::Insert,
+        file_path: None,
+            edit_type: EditType::Insert,
         location: analysis.insertion_point.clone().into(),
         original_text: String::new(),
         new_text: format!("{}\n\n", function_code),
@@ -1351,7 +1358,8 @@ fn ast_extract_function_python(
     let call_code = generate_python_function_call(&analysis, new_function_name)?;
 
     edits.push(TextEdit {
-        edit_type: EditType::Replace,
+        file_path: None,
+            edit_type: EditType::Replace,
         location: analysis.selected_range.clone().into(),
         original_text: extract_python_range_text(source, &analysis.selected_range)?,
         new_text: call_code,
@@ -1417,6 +1425,7 @@ fn ast_inline_variable_python(
         };
 
         edits.push(TextEdit {
+            file_path: None,
             edit_type: EditType::Replace,
             location: usage_location.clone().into(),
             original_text: analysis.variable_name.clone(),
@@ -1429,7 +1438,8 @@ fn ast_inline_variable_python(
 
     // Remove the variable declaration
     edits.push(TextEdit {
-        edit_type: EditType::Delete,
+        file_path: None,
+            edit_type: EditType::Delete,
         location: analysis.declaration_range.clone().into(),
         original_text: extract_python_range_text(source, &analysis.declaration_range)?,
         new_text: String::new(),
@@ -1496,7 +1506,8 @@ fn ast_extract_variable_python(
     // Insert the variable declaration (Python style)
     let declaration = format!("{}{} = {}\n", indent, var_name, analysis.expression);
     edits.push(TextEdit {
-        edit_type: EditType::Insert,
+        file_path: None,
+            edit_type: EditType::Insert,
         location: analysis.insertion_point.clone().into(),
         original_text: String::new(),
         new_text: declaration,
@@ -1509,7 +1520,8 @@ fn ast_extract_variable_python(
 
     // Replace the original expression with the variable name
     edits.push(TextEdit {
-        edit_type: EditType::Replace,
+        file_path: None,
+            edit_type: EditType::Replace,
         location: analysis.expression_range.clone().into(),
         original_text: analysis.expression.clone(),
         new_text: var_name.clone(),

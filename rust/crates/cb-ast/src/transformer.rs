@@ -322,6 +322,7 @@ mod tests {
     fn test_apply_single_line_edit() {
         let mut source = "let oldName = 42;".to_string();
         let edit = TextEdit {
+            file_path: None,
             edit_type: EditType::Rename,
             location: EditLocation {
                 start_line: 0,
@@ -345,6 +346,7 @@ mod tests {
     fn test_apply_insert_edit() {
         let mut source = "console.log('hello');".to_string();
         let edit = TextEdit {
+            file_path: None,
             edit_type: EditType::Insert,
             location: EditLocation {
                 start_line: 0,

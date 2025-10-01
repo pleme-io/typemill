@@ -197,6 +197,7 @@ impl EditPlan {
                             .to_string();
 
                         edits.push(TextEdit {
+                            file_path: Some(file_path.to_string()),
                             edit_type: EditType::Replace,
                             location: EditLocation {
                                 start_line,
@@ -238,6 +239,10 @@ impl EditPlan {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct TextEdit {
+    /// File path for this edit (relative to project root)
+    /// If None, uses the source_file from EditPlan
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_path: Option<String>,
     /// Edit type classification
     pub edit_type: EditType,
     /// Location of the edit

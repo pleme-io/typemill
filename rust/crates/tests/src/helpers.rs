@@ -80,6 +80,7 @@ pub fn create_test_edit_plan() -> EditPlan {
     EditPlan {
         source_file: "test.ts".to_string(),
         edits: vec![TextEdit {
+            file_path: None,
             edit_type: EditType::Rename,
             location: EditLocation {
                 start_line: 5,

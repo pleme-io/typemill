@@ -1254,7 +1254,8 @@ mod tests {
         let plan = EditPlan {
             source_file: main_file.to_string(),
             edits: vec![TextEdit {
-                edit_type: EditType::Replace,
+                file_path: None,
+            edit_type: EditType::Replace,
                 location: EditLocation {
                     start_line: 1,
                     start_column: 0,
@@ -1327,7 +1328,8 @@ mod tests {
         let plan = EditPlan {
             source_file: main_file.to_string(),
             edits: vec![TextEdit {
-                edit_type: EditType::Replace,
+                file_path: None,
+            edit_type: EditType::Replace,
                 location: EditLocation {
                     start_line: 999, // Invalid line - will cause failure
                     start_column: 0,
@@ -1398,7 +1400,8 @@ mod tests {
         let plan = EditPlan {
             source_file: main_file.to_string(),
             edits: vec![TextEdit {
-                edit_type: EditType::Replace,
+                file_path: None,
+            edit_type: EditType::Replace,
                 location: EditLocation {
                     start_line: 0,
                     start_column: 0,
@@ -1468,7 +1471,8 @@ mod tests {
         let plan = EditPlan {
             source_file: main_file.to_string(),
             edits: vec![TextEdit {
-                edit_type: EditType::Replace,
+                file_path: None,
+            edit_type: EditType::Replace,
                 location: EditLocation {
                     start_line: 0,
                     start_column: 0,

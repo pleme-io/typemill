@@ -369,6 +369,37 @@ impl LanguageAdapter for PythonAdapter {
     }
 }
 
+/// Remove a module declaration from Rust source code
+///
+/// Parses the source with syn and removes the `mod module_name;` or `pub mod module_name;` declaration.
+fn remove_module_declaration(source: &str, module_name: &str) -> AstResult<String> {
+    use syn::{File, Item};
+
+    // Parse the Rust source
+    let mut syntax_tree: File = syn::parse_str(source).map_err(|e| {
+        crate::error::AstError::Analysis {
+            message: format!("Failed to parse Rust source for mod removal: {}", e),
+        }
+    })?;
+
+    // Remove the module declaration
+    syntax_tree.items.retain(|item| {
+        if let Item::Mod(item_mod) = item {
+            // Check if this is the module we want to remove
+            item_mod.ident != module_name
+        } else {
+            true // Keep all other items
+        }
+    });
+
+    // Convert back to string
+    let updated_source = quote::quote!(#syntax_tree).to_string();
+
+    // Format with rustfmt-style spacing (basic)
+    // Note: This is a simple approximation, real rustfmt would be better
+    Ok(updated_source)
+}
+
 /// Main entry point for extracting a module to a package
 ///
 /// This function orchestrates the extraction process by:
@@ -482,7 +513,164 @@ pub async fn plan_extract_module_to_package(
         "Generated Cargo.toml manifest"
     );
 
-    // Step 6: Generate EditPlan with all metadata
+    // Step 6: Construct file modification plan
+    use cb_api::{EditLocation, EditType, TextEdit};
+    let mut edits = Vec::new();
+
+    // Edit 1: Create new Cargo.toml
+    let manifest_path = Path::new(&params.target_package_path)
+        .join(adapter.manifest_filename())
+        .to_string_lossy()
+        .to_string();
+
+    edits.push(TextEdit {
+        file_path: Some(manifest_path.clone()),
+        edit_type: EditType::Insert,
+        location: EditLocation {
+            start_line: 0,
+            start_column: 0,
+            end_line: 0,
+            end_column: 0,
+        },
+        original_text: String::new(),
+        new_text: generated_manifest.clone(),
+        priority: 100,
+        description: "Create Cargo.toml for new crate".to_string(),
+    });
+
+    debug!(edit_count = 1, "Created manifest TextEdit");
+
+    // Edit 2: Create new src/lib.rs with module content
+    if let Some(original_file_path) = located_files.first() {
+        let original_content = tokio::fs::read_to_string(original_file_path)
+            .await
+            .map_err(|e| crate::error::AstError::Analysis {
+                message: format!(
+                    "Failed to read original module file {}: {}",
+                    original_file_path.display(),
+                    e
+                ),
+            })?;
+
+        let new_entrypoint_path = Path::new(&params.target_package_path)
+            .join(adapter.source_dir())
+            .join(adapter.entry_point())
+            .to_string_lossy()
+            .to_string();
+
+        edits.push(TextEdit {
+            file_path: Some(new_entrypoint_path.clone()),
+            edit_type: EditType::Insert,
+            location: EditLocation {
+                start_line: 0,
+                start_column: 0,
+                end_line: 0,
+                end_column: 0,
+            },
+            original_text: String::new(),
+            new_text: original_content.clone(),
+            priority: 90,
+            description: "Create entrypoint file for new crate".to_string(),
+        });
+
+        debug!(edit_count = 2, "Created entrypoint TextEdit");
+
+        // Edit 3: Delete old module file
+        edits.push(TextEdit {
+            file_path: Some(original_file_path.to_string_lossy().to_string()),
+            edit_type: EditType::Delete,
+            location: EditLocation {
+                start_line: 0,
+                start_column: 0,
+                end_line: original_content.lines().count() as u32,
+                end_column: 0,
+            },
+            original_text: original_content.clone(),
+            new_text: String::new(),
+            priority: 80,
+            description: "Delete original module file".to_string(),
+        });
+
+        debug!(edit_count = 3, "Created delete TextEdit");
+
+        // Edit 4: Remove mod declaration from parent module
+        // Determine the parent module file path
+        let module_segments: Vec<&str> = params
+            .module_path
+            .split(|c| c == ':' || c == '.')
+            .filter(|s| !s.is_empty())
+            .collect();
+
+        if !module_segments.is_empty() {
+            let final_module_name = module_segments[module_segments.len() - 1];
+
+            // Determine parent file path
+            let parent_file_path = if module_segments.len() == 1 {
+                // Top-level module, parent is lib.rs
+                source_path.join(adapter.source_dir()).join(adapter.entry_point())
+            } else {
+                // Nested module, parent is the containing module's mod.rs or .rs file
+                let mut parent_path = source_path.join(adapter.source_dir());
+                for segment in &module_segments[..module_segments.len() - 1] {
+                    parent_path = parent_path.join(segment);
+                }
+
+                // Try mod.rs first, then .rs
+                let mod_rs = parent_path.join("mod.rs");
+                if mod_rs.exists() {
+                    mod_rs
+                } else {
+                    parent_path.with_extension("rs")
+                }
+            };
+
+            if parent_file_path.exists() {
+                match tokio::fs::read_to_string(&parent_file_path).await {
+                    Ok(parent_content) => {
+                        // Parse and remove the module declaration
+                        match remove_module_declaration(&parent_content, final_module_name) {
+                            Ok(updated_content) => {
+                                if updated_content != parent_content {
+                                    edits.push(TextEdit {
+                                        file_path: Some(parent_file_path.to_string_lossy().to_string()),
+                                        edit_type: EditType::Replace,
+                                        location: EditLocation {
+                                            start_line: 0,
+                                            start_column: 0,
+                                            end_line: parent_content.lines().count() as u32,
+                                            end_column: 0,
+                                        },
+                                        original_text: parent_content,
+                                        new_text: updated_content,
+                                        priority: 70,
+                                        description: format!("Remove mod {} declaration from parent", final_module_name),
+                                    });
+
+                                    debug!(edit_count = 4, "Created parent mod removal TextEdit");
+                                } else {
+                                    debug!("No mod declaration found in parent file");
+                                }
+                            }
+                            Err(e) => {
+                                debug!(
+                                    error = %e,
+                                    "Failed to parse parent module file for declaration removal"
+                                );
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        debug!(
+                            error = %e,
+                            file_path = %parent_file_path.display(),
+                            "Failed to read parent module file"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
     // Convert PathBuf to strings for JSON serialization
     let located_files_strings: Vec<String> = located_files
         .iter()
@@ -491,7 +679,7 @@ pub async fn plan_extract_module_to_package(
 
     let edit_plan = EditPlan {
         source_file: params.source_package.clone(),
-        edits: vec![],
+        edits,
         dependency_updates: vec![],
         validations: vec![ValidationRule {
             rule_type: ValidationType::SyntaxCheck,
@@ -520,8 +708,8 @@ pub async fn plan_extract_module_to_package(
         adapter = %adapter.language().as_str(),
         files_count = located_files.len(),
         dependencies_count = dependencies.len(),
-        manifest_generated = true,
-        "Successfully created EditPlan with located files, dependencies, and manifest"
+        edits_count = edit_plan.edits.len(),
+        "Successfully created EditPlan with file modification operations"
     );
 
     Ok(edit_plan)
@@ -530,6 +718,7 @@ pub async fn plan_extract_module_to_package(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use cb_api::EditType;
     use std::fs;
     use tempfile::tempdir;
 
@@ -854,5 +1043,150 @@ use std::io::Read;
 
         assert!(manifest.contains("name = \"my-special_crate123\""));
         assert!(manifest.contains("[package]"));
+    }
+
+    #[tokio::test]
+    async fn test_plan_extract_module_to_package_integration() {
+        // Create a comprehensive test project structure
+        let temp_dir = tempdir().unwrap();
+        let project_root = temp_dir.path();
+
+        // Create source crate structure
+        let src_crate = project_root.join("src_crate");
+        let src_dir = src_crate.join("src");
+        fs::create_dir_all(&src_dir).unwrap();
+
+        // Create Cargo.toml for source crate
+        fs::write(
+            src_crate.join("Cargo.toml"),
+            r#"[package]
+name = "src_crate"
+version = "0.1.0"
+edition = "2021"
+"#,
+        )
+        .unwrap();
+
+        // Create lib.rs with module declaration
+        fs::write(
+            src_dir.join("lib.rs"),
+            r#"pub mod my_module;
+
+pub fn main_function() {
+    println!("Main function");
+}
+"#,
+        )
+        .unwrap();
+
+        // Create the module to be extracted
+        fs::write(
+            src_dir.join("my_module.rs"),
+            r#"use std::collections::HashMap;
+use serde::Serialize;
+
+pub fn module_function() {
+    let map: HashMap<String, i32> = HashMap::new();
+    println!("Module function");
+}
+"#,
+        )
+        .unwrap();
+
+        // Create target directory
+        let target_crate = project_root.join("target_crate");
+        fs::create_dir_all(&target_crate).unwrap();
+
+        // Run the extraction plan
+        let params = ExtractModuleToPackageParams {
+            source_package: src_crate.to_string_lossy().to_string(),
+            module_path: "my_module".to_string(),
+            target_package_path: target_crate.to_string_lossy().to_string(),
+            target_package_name: "extracted_module".to_string(),
+            update_imports: Some(true),
+            create_manifest: Some(true),
+            dry_run: Some(false),
+        };
+
+        let result = plan_extract_module_to_package(params).await;
+
+        assert!(result.is_ok(), "Plan should succeed: {:?}", result.err());
+        let edit_plan = result.unwrap();
+
+        // Verify metadata
+        assert_eq!(edit_plan.metadata.intent_name, "extract_module_to_package");
+        assert_eq!(
+            edit_plan.metadata.intent_arguments["adapter_selected"],
+            "rust"
+        );
+
+        // Verify we have the expected number of edits (at least 3: create manifest, create lib.rs, delete old file)
+        // May have 4 if parent mod removal succeeded
+        assert!(
+            edit_plan.edits.len() >= 3,
+            "Should have at least 3 edits, got {}",
+            edit_plan.edits.len()
+        );
+
+        // Verify Edit 1: Create Cargo.toml
+        let manifest_edit = &edit_plan.edits[0];
+        assert_eq!(manifest_edit.edit_type, EditType::Insert);
+        assert_eq!(manifest_edit.priority, 100);
+        assert!(manifest_edit
+            .file_path
+            .as_ref()
+            .unwrap()
+            .contains("Cargo.toml"));
+        assert!(manifest_edit.new_text.contains("name = \"extracted_module\""));
+        assert!(manifest_edit.new_text.contains("[package]"));
+        assert!(manifest_edit.new_text.contains("[dependencies]"));
+        assert!(manifest_edit.new_text.contains("serde = \"*\""));
+        assert!(manifest_edit.new_text.contains("std = \"*\""));
+
+        // Verify Edit 2: Create src/lib.rs
+        let entrypoint_edit = &edit_plan.edits[1];
+        assert_eq!(entrypoint_edit.edit_type, EditType::Insert);
+        assert_eq!(entrypoint_edit.priority, 90);
+        assert!(entrypoint_edit
+            .file_path
+            .as_ref()
+            .unwrap()
+            .contains("lib.rs"));
+        assert!(entrypoint_edit.new_text.contains("module_function"));
+        assert!(entrypoint_edit.new_text.contains("use std::collections::HashMap"));
+
+        // Verify Edit 3: Delete old module file
+        let delete_edit = &edit_plan.edits[2];
+        assert_eq!(delete_edit.edit_type, EditType::Delete);
+        assert_eq!(delete_edit.priority, 80);
+        assert!(delete_edit
+            .file_path
+            .as_ref()
+            .unwrap()
+            .contains("my_module.rs"));
+        assert!(delete_edit.original_text.contains("module_function"));
+
+        // If there's a 4th edit, it should be the parent mod removal
+        if edit_plan.edits.len() >= 4 {
+            let parent_edit = &edit_plan.edits[3];
+            assert_eq!(parent_edit.edit_type, EditType::Replace);
+            assert_eq!(parent_edit.priority, 70);
+            assert!(parent_edit
+                .file_path
+                .as_ref()
+                .unwrap()
+                .contains("lib.rs"));
+            assert!(parent_edit.description.contains("Remove mod my_module"));
+        }
+
+        // Verify dependencies were collected
+        let dependencies = edit_plan.metadata.intent_arguments["dependencies"]
+            .as_array()
+            .unwrap();
+        assert!(dependencies.len() >= 2); // Should have at least serde and std
+        assert!(dependencies
+            .iter()
+            .any(|d| d.as_str() == Some("serde")));
+        assert!(dependencies.iter().any(|d| d.as_str() == Some("std")));
     }
 }

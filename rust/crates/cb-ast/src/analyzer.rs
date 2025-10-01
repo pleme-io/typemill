@@ -74,7 +74,8 @@ fn plan_rename_symbol(intent: &IntentSpec, source: &str) -> AstResult<EditPlan> 
 
             if is_word_boundary {
                 edits.push(TextEdit {
-                    edit_type: EditType::Rename,
+                    file_path: None,
+            edit_type: EditType::Rename,
                     location: EditLocation {
                         start_line: line_num as u32,
                         start_column: actual_pos as u32,
@@ -160,7 +161,8 @@ fn plan_add_import(intent: &IntentSpec, source: &str) -> AstResult<EditPlan> {
     };
 
     let edit = TextEdit {
-        edit_type: EditType::AddImport,
+        file_path: None,
+            edit_type: EditType::AddImport,
         location: insert_location,
         original_text: String::new(),
         new_text: format!("{}\n", import_text),
@@ -253,7 +255,8 @@ fn plan_remove_import(intent: &IntentSpec, source: &str) -> AstResult<EditPlan> 
                         let new_line = remove_named_import_from_line(line, import_name);
                         if new_line != line {
                             edits.push(TextEdit {
-                                edit_type: EditType::UpdateImport,
+                                file_path: None,
+            edit_type: EditType::UpdateImport,
                                 location: EditLocation {
                                     start_line: line_num as u32,
                                     start_column: 0,
@@ -269,7 +272,8 @@ fn plan_remove_import(intent: &IntentSpec, source: &str) -> AstResult<EditPlan> 
                     } else {
                         // Single import - remove entire line
                         edits.push(TextEdit {
-                            edit_type: EditType::RemoveImport,
+                            file_path: None,
+            edit_type: EditType::RemoveImport,
                             location: EditLocation {
                                 start_line: line_num as u32,
                                 start_column: 0,
@@ -286,7 +290,8 @@ fn plan_remove_import(intent: &IntentSpec, source: &str) -> AstResult<EditPlan> 
             } else {
                 // Remove entire import
                 edits.push(TextEdit {
-                    edit_type: EditType::RemoveImport,
+                    file_path: None,
+            edit_type: EditType::RemoveImport,
                     location: EditLocation {
                         start_line: line_num as u32,
                         start_column: 0,
@@ -305,7 +310,8 @@ fn plan_remove_import(intent: &IntentSpec, source: &str) -> AstResult<EditPlan> 
             && line_trimmed.contains(&format!("'{}'", module_path))
         {
             edits.push(TextEdit {
-                edit_type: EditType::RemoveImport,
+                file_path: None,
+            edit_type: EditType::RemoveImport,
                 location: EditLocation {
                     start_line: line_num as u32,
                     start_column: 0,
@@ -375,7 +381,8 @@ fn plan_update_import_path(intent: &IntentSpec, source: &str) -> AstResult<EditP
 
             if new_line != line {
                 edits.push(TextEdit {
-                    edit_type: EditType::UpdateImport,
+                    file_path: None,
+            edit_type: EditType::UpdateImport,
                     location: EditLocation {
                         start_line: line_num as u32,
                         start_column: 0,
@@ -503,7 +510,8 @@ fn plan_extract_function(intent: &IntentSpec, source: &str) -> AstResult<EditPla
     };
 
     edits.push(TextEdit {
-        edit_type: EditType::Replace,
+        file_path: None,
+            edit_type: EditType::Replace,
         location: EditLocation {
             start_line,
             start_column: 0,
@@ -519,7 +527,8 @@ fn plan_extract_function(intent: &IntentSpec, source: &str) -> AstResult<EditPla
     // 2. Insert new function definition
     let insertion_point = find_function_insertion_point(source, start_line)?;
     edits.push(TextEdit {
-        edit_type: EditType::Insert,
+        file_path: None,
+            edit_type: EditType::Insert,
         location: insertion_point,
         original_text: String::new(),
         new_text: function_def,
@@ -585,6 +594,7 @@ fn plan_inline_function(intent: &IntentSpec, source: &str) -> AstResult<EditPlan
         let inlined_code = inline_function_call(&function_info, call)?;
 
         edits.push(TextEdit {
+            file_path: None,
             edit_type: EditType::Replace,
             location: call.location.clone(),
             original_text: call.call_text.clone(),
@@ -596,7 +606,8 @@ fn plan_inline_function(intent: &IntentSpec, source: &str) -> AstResult<EditPlan
 
     // Remove the original function definition
     edits.push(TextEdit {
-        edit_type: EditType::Delete,
+        file_path: None,
+            edit_type: EditType::Delete,
         location: function_info.location.clone(),
         original_text: function_info.function_text.clone(),
         new_text: String::new(),
