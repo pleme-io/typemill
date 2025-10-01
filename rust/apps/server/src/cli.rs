@@ -2,6 +2,8 @@
 
 use cb_core::config::{AppConfig, LogFormat};
 use clap::{Parser, Subcommand};
+use fs2::FileExt;
+use std::fs::{File, OpenOptions};
 use std::path::PathBuf;
 use std::process;
 use tracing::{error, info};
@@ -69,23 +71,35 @@ pub async fn run() {
     }
 
     match cli.command {
-        Commands::Start { daemon } => {
-            if daemon {
-                write_pid_file().unwrap_or_else(|e| {
-                    error!(error = %e, "Failed to write PID file");
+        Commands::Start { daemon: _ } => {
+            // Acquire exclusive lock on PID file (prevents multiple instances)
+            let _lock_guard = match acquire_pid_lock() {
+                Ok(guard) => guard,
+                Err(e) => {
+                    eprintln!("❌ Error: Codebuddy server is already running");
+                    eprintln!("   Use 'codebuddy stop' to stop the running instance first");
+                    eprintln!("   ({})", e);
                     process::exit(1);
-                });
-            }
+                }
+            };
+
             crate::run_stdio_mode().await;
+            // Lock is automatically released when _lock_guard is dropped
         }
-        Commands::Serve { daemon, port } => {
-            if daemon {
-                write_pid_file().unwrap_or_else(|e| {
-                    error!(error = %e, "Failed to write PID file");
+        Commands::Serve { daemon: _, port } => {
+            // Acquire exclusive lock on PID file (prevents multiple instances)
+            let _lock_guard = match acquire_pid_lock() {
+                Ok(guard) => guard,
+                Err(e) => {
+                    eprintln!("❌ Error: Codebuddy server is already running");
+                    eprintln!("   Use 'codebuddy stop' to stop the running instance first");
+                    eprintln!("   ({})", e);
                     process::exit(1);
-                });
-            }
+                }
+            };
+
             crate::run_websocket_server_with_port(port).await;
+            // Lock is automatically released when _lock_guard is dropped
         }
         Commands::Status => {
             handle_status().await;
@@ -178,33 +192,110 @@ async fn handle_setup() {
 
 /// Handle the status command
 async fn handle_status() {
-    let pid_file = get_pid_file_path();
+    println!("📊 Codebuddy Status\n");
 
-    if pid_file.exists() {
+    // 1. Check server status
+    println!("🖥️  Server Status:");
+    let pid_file = get_pid_file_path();
+    let server_running = if pid_file.exists() {
         match std::fs::read_to_string(&pid_file) {
             Ok(pid_str) => {
                 if let Ok(pid) = pid_str.trim().parse::<u32>() {
-                    // Check if process is still running
                     if is_process_running(pid) {
-                        println!("✅ Codebuddy server is running (PID: {})", pid);
-                        println!("   PID file: {}", pid_file.display());
+                        println!("   ✅ Running (PID: {})", pid);
+                        println!("   📄 PID file: {}", pid_file.display());
+                        true
                     } else {
-                        println!("⚠️  Codebuddy server is not running (stale PID file)");
-                        // Clean up stale PID file
+                        println!("   ⚠️  Not running (stale PID file found)");
                         let _ = std::fs::remove_file(&pid_file);
+                        false
                     }
                 } else {
-                    error!("Invalid PID file format");
+                    println!("   ❌ Invalid PID file format");
+                    false
                 }
             }
             Err(e) => {
-                error!(error = %e, "Failed to read PID file");
+                println!("   ❌ Failed to read PID file: {}", e);
+                false
             }
         }
     } else {
-        println!("ℹ️  Codebuddy server is not running");
-        println!("   Start the server with: codebuddy start");
+        println!("   ⭕ Not running");
+        println!("   💡 Start with: codebuddy start");
+        false
+    };
+
+    println!();
+
+    // 2. Check configuration
+    println!("⚙️  Configuration:");
+    match AppConfig::load() {
+        Ok(config) => {
+            let config_path = std::path::Path::new(".codebuddy/config.json");
+            println!("   ✅ Found at: {}", config_path.display());
+            println!("   📋 Log level: {}", config.logging.level);
+            println!("   📝 Log format: {:?}", config.logging.format);
+
+            if let Some(fuse_config) = &config.fuse {
+                println!("   ⚠️  FUSE enabled: {}", fuse_config.mount_point.display());
+            }
+
+            println!();
+            println!("🔧 Configured LSP Servers:");
+            for (idx, server) in config.lsp.servers.iter().enumerate() {
+                let cmd = &server.command[0];
+                let extensions = server.extensions.join(", ");
+                let status = if command_exists(cmd) { "✅" } else { "❌" };
+
+                println!("   {}. {} {}", idx + 1, status, cmd);
+                println!("      Extensions: {}", extensions);
+
+                if let Some(restart) = server.restart_interval {
+                    println!("      Restart interval: {} minutes", restart);
+                }
+
+                if !command_exists(cmd) {
+                    println!("      ⚠️  Command not found in PATH");
+                }
+            }
+        }
+        Err(e) => {
+            println!("   ❌ Configuration error: {}", e);
+            println!("   💡 Run: codebuddy setup");
+        }
     }
+
+    println!();
+
+    // 3. Show all running codebuddy processes (helpful for debugging)
+    println!("🔍 Running Codebuddy Processes:");
+    match find_all_codebuddy_processes() {
+        Ok(pids) => {
+            if pids.is_empty() {
+                println!("   ⭕ No codebuddy processes found");
+            } else {
+                for pid in pids {
+                    let marker = if server_running &&
+                        pid_file.exists() &&
+                        std::fs::read_to_string(&pid_file)
+                            .ok()
+                            .and_then(|s| s.trim().parse::<u32>().ok()) == Some(pid) {
+                        " (managed)"
+                    } else {
+                        ""
+                    };
+                    println!("   • PID: {}{}", pid, marker);
+                }
+            }
+        }
+        Err(e) => {
+            println!("   ⚠️  Could not list processes: {}", e);
+        }
+    }
+
+    println!();
+    println!("✨ Status check complete");
 }
 
 /// Handle the doctor command
@@ -313,20 +404,47 @@ async fn handle_unlink() {
     println!("   This will remove AI assistant configurations");
 }
 
-/// Write the current process ID to a PID file
-fn write_pid_file() -> Result<(), std::io::Error> {
-    let pid_file = get_pid_file_path();
+/// Acquire exclusive lock on PID file to prevent multiple instances
+/// Returns a File handle that holds the lock for the lifetime of the process
+fn acquire_pid_lock() -> Result<File, std::io::Error> {
+    let pid_file_path = get_pid_file_path();
 
-    // Ensure the directory exists
-    if let Some(parent) = pid_file.parent() {
+    // Ensure parent directory exists
+    if let Some(parent) = pid_file_path.parent() {
         std::fs::create_dir_all(parent)?;
     }
 
-    let pid = process::id();
-    std::fs::write(&pid_file, pid.to_string())?;
+    // Open or create the PID file
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&pid_file_path)?;
 
-    info!(path = %pid_file.display(), pid, "PID file written");
-    Ok(())
+    // Try to acquire exclusive lock (non-blocking)
+    match file.try_lock_exclusive() {
+        Ok(()) => {
+            // Successfully acquired lock - write our PID
+            let pid = process::id();
+            // Truncate and write PID
+            file.set_len(0)?;
+            use std::io::Write;
+            let mut file_write = &file;
+            write!(file_write, "{}", pid)?;
+            file_write.flush()?;
+
+            info!(path = %pid_file_path.display(), pid, "PID file locked");
+            Ok(file)
+        }
+        Err(e) => {
+            // Lock failed - another instance is running
+            Err(std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                format!("Failed to acquire lock: {}", e),
+            ))
+        }
+    }
 }
 
 /// Get the path to the PID file
@@ -365,6 +483,53 @@ fn is_process_running(pid: u32) -> bool {
             .output()
             .map(|output| String::from_utf8_lossy(&output.stdout).contains(&pid.to_string()))
             .unwrap_or(false)
+    }
+}
+
+/// Find all running codebuddy processes
+fn find_all_codebuddy_processes() -> Result<Vec<u32>, String> {
+    #[cfg(unix)]
+    {
+        use std::process::Command;
+
+        let output = Command::new("pgrep")
+            .arg("codebuddy")
+            .output()
+            .map_err(|e| format!("Failed to run pgrep: {}", e))?;
+
+        if !output.status.success() {
+            return Ok(Vec::new());
+        }
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let pids: Vec<u32> = stdout
+            .lines()
+            .filter_map(|line| line.trim().parse::<u32>().ok())
+            .collect();
+
+        Ok(pids)
+    }
+    #[cfg(windows)]
+    {
+        use std::process::Command;
+
+        let output = Command::new("tasklist")
+            .args(&["/FI", "IMAGENAME eq codebuddy.exe", "/FO", "CSV", "/NH"])
+            .output()
+            .map_err(|e| format!("Failed to run tasklist: {}", e))?;
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let pids: Vec<u32> = stdout
+            .lines()
+            .filter_map(|line| {
+                // CSV format: "codebuddy.exe","1234","Console","1","12,345 K"
+                line.split(',')
+                    .nth(1)
+                    .and_then(|pid_str| pid_str.trim_matches('"').parse::<u32>().ok())
+            })
+            .collect();
+
+        Ok(pids)
     }
 }
 
