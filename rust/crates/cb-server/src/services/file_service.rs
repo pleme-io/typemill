@@ -1205,7 +1205,7 @@ mod tests {
 
         // Create file
         service
-            .create_file(file_path, Some(content), false)
+            .create_file(file_path, Some(content), false, false)
             .await
             .unwrap();
 
@@ -1225,7 +1225,7 @@ mod tests {
         let old_path = Path::new("old.txt");
         let new_path = Path::new("new.txt");
         service
-            .create_file(old_path, Some("content"), false)
+            .create_file(old_path, Some("content"), false, false)
             .await
             .unwrap();
 
@@ -1252,12 +1252,12 @@ mod tests {
 
         // Create and then delete file
         service
-            .create_file(file_path, Some("temporary"), false)
+            .create_file(file_path, Some("temporary"), false, false)
             .await
             .unwrap();
         assert!(temp_dir.path().join(file_path).exists());
 
-        service.delete_file(file_path, false).await.unwrap();
+        service.delete_file(file_path, false, false).await.unwrap();
         assert!(!temp_dir.path().join(file_path).exists());
     }
 
@@ -1275,11 +1275,11 @@ mod tests {
         let dep_file = "dependency.ts";
 
         service
-            .create_file(Path::new(main_file), Some("import { foo } from './old';\nconst x = 1;"), false)
+            .create_file(Path::new(main_file), Some("import { foo } from './old';\nconst x = 1;"), false, false)
             .await
             .unwrap();
         service
-            .create_file(Path::new(dep_file), Some("import './old';\nconst y = 2;"), false)
+            .create_file(Path::new(dep_file), Some("import './old';\nconst y = 2;"), false, false)
             .await
             .unwrap();
 
@@ -1349,11 +1349,11 @@ mod tests {
         let dep_original = "import './old';\nconst y = 2;";
 
         service
-            .create_file(Path::new(main_file), Some(main_original), false)
+            .create_file(Path::new(main_file), Some(main_original), false, false)
             .await
             .unwrap();
         service
-            .create_file(Path::new(dep_file), Some(dep_original), false)
+            .create_file(Path::new(dep_file), Some(dep_original), false, false)
             .await
             .unwrap();
 
@@ -1416,7 +1416,7 @@ mod tests {
         let main_original = "const x = 1;";
 
         service
-            .create_file(Path::new(main_file), Some(main_original), false)
+            .create_file(Path::new(main_file), Some(main_original), false, false)
             .await
             .unwrap();
 
@@ -1425,7 +1425,7 @@ mod tests {
         let dep_original = "<<<< this is invalid typescript syntax >>>>";
 
         service
-            .create_file(Path::new(dep_file), Some(dep_original), false)
+            .create_file(Path::new(dep_file), Some(dep_original), false, false)
             .await
             .unwrap();
 
@@ -1495,10 +1495,10 @@ mod tests {
         let dep2_original = "import './old2';";
         let dep3_original = "import 'this_will_cause_parse_error'; <<<< invalid syntax >>>>";
 
-        service.create_file(Path::new(main_file), Some(main_original), false).await.unwrap();
-        service.create_file(Path::new(dep_file1), Some(dep1_original), false).await.unwrap();
-        service.create_file(Path::new(dep_file2), Some(dep2_original), false).await.unwrap();
-        service.create_file(Path::new(dep_file3), Some(dep3_original), false).await.unwrap();
+        service.create_file(Path::new(main_file), Some(main_original), false, false).await.unwrap();
+        service.create_file(Path::new(dep_file1), Some(dep1_original), false, false).await.unwrap();
+        service.create_file(Path::new(dep_file2), Some(dep2_original), false, false).await.unwrap();
+        service.create_file(Path::new(dep_file3), Some(dep3_original), false, false).await.unwrap();
 
         // Create edit plan that will fail on the last dependency due to parse error
         let plan = EditPlan {

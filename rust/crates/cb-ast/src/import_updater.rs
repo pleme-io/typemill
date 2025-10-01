@@ -1,18 +1,27 @@
 //! Import path resolution and updating functionality
 
 use crate::error::{AstError, AstResult};
-// TODO: Re-add when import graph caching is implemented
-// use crate::parser::ImportGraph;
-// use std::collections::HashMap;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use tracing::{debug, info, warn};
+
+/// Cached information about a file's imports
+#[derive(Debug, Clone)]
+pub struct FileImportInfo {
+    /// The files that this file imports
+    pub imports: Vec<PathBuf>,
+    /// Last modified time when this cache entry was created
+    pub last_modified: std::time::SystemTime,
+}
 
 /// Resolves and updates import paths when files are moved or renamed
 pub struct ImportPathResolver {
     /// Project root directory
     project_root: PathBuf,
-    // TODO: Add import graph caching for performance
-    // import_cache: HashMap<PathBuf, ImportGraph>,
+    /// Cache of file import information for performance
+    /// Maps file path -> (imports, last_modified_time)
+    import_cache: Arc<Mutex<HashMap<PathBuf, FileImportInfo>>>,
 }
 
 impl ImportPathResolver {
@@ -20,6 +29,47 @@ impl ImportPathResolver {
     pub fn new(project_root: impl AsRef<Path>) -> Self {
         Self {
             project_root: project_root.as_ref().to_path_buf(),
+            import_cache: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
+    /// Create a new resolver with a shared cache (for performance)
+    pub fn with_cache(
+        project_root: impl AsRef<Path>,
+        cache: Arc<Mutex<HashMap<PathBuf, FileImportInfo>>>,
+    ) -> Self {
+        Self {
+            project_root: project_root.as_ref().to_path_buf(),
+            import_cache: cache,
+        }
+    }
+
+    /// Clear the import cache
+    pub fn clear_cache(&self) {
+        if let Ok(mut cache) = self.import_cache.lock() {
+            cache.clear();
+            debug!("Cleared import cache");
+        }
+    }
+
+    /// Get cache statistics for monitoring
+    pub fn cache_stats(&self) -> (usize, usize) {
+        if let Ok(cache) = self.import_cache.lock() {
+            let total = cache.len();
+            let valid = cache
+                .iter()
+                .filter(|(path, info)| {
+                    if let Ok(metadata) = std::fs::metadata(path) {
+                        if let Ok(modified) = metadata.modified() {
+                            return modified == info.last_modified;
+                        }
+                    }
+                    false
+                })
+                .count();
+            (total, valid)
+        } else {
+            (0, 0)
         }
     }
 
@@ -104,26 +154,108 @@ impl ImportPathResolver {
     }
 
     /// Find all files that need import updates after a rename
+    /// Uses caching to avoid re-scanning files that haven't changed
     pub async fn find_affected_files(
         &self,
         renamed_file: &Path,
         project_files: &[PathBuf],
     ) -> AstResult<Vec<PathBuf>> {
         let mut affected = Vec::new();
-        let _renamed_str = renamed_file.to_string_lossy();
+        let renamed_stem = renamed_file
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("");
 
         for file in project_files {
             if file == renamed_file {
                 continue; // Skip the renamed file itself
             }
 
-            // Check if this file might import the renamed file
-            if let Ok(content) = tokio::fs::read_to_string(file).await {
-                if self.file_imports_target(&content, renamed_file) {
-                    affected.push(file.clone());
+            // Check cache first (release lock immediately)
+            let cache_result = {
+                if let Ok(cache) = self.import_cache.lock() {
+                    cache.get(file).cloned()
+                } else {
+                    None
+                }
+            };
+
+            let (should_scan, is_cached_hit) = if let Some(cached_info) = cache_result {
+                // Verify cache is still valid by checking file modification time
+                if let Ok(metadata) = tokio::fs::metadata(file).await {
+                    if let Ok(modified) = metadata.modified() {
+                        if modified == cached_info.last_modified {
+                            // Cache hit - check if renamed file is in cached imports
+                            debug!(file = ?file, "Cache hit for import check");
+                            let is_affected = cached_info.imports.contains(&renamed_file.to_path_buf());
+                            (false, is_affected)
+                        } else {
+                            // Cache stale - need to re-scan
+                            debug!(file = ?file, "Cache stale, re-scanning");
+                            (true, false)
+                        }
+                    } else {
+                        (true, false)
+                    }
+                } else {
+                    (true, false)
+                }
+            } else {
+                // Cache miss - need to scan
+                debug!(file = ?file, "Cache miss for import check");
+                (true, false)
+            };
+
+            if is_cached_hit {
+                affected.push(file.clone());
+                continue;
+            }
+
+            if should_scan {
+                // Read file and check for imports
+                if let Ok(content) = tokio::fs::read_to_string(file).await {
+                    if self.file_imports_target(&content, renamed_file) {
+                        affected.push(file.clone());
+
+                        // Update cache with this file's imports
+                        if let Ok(metadata) = tokio::fs::metadata(file).await {
+                            if let Ok(modified) = metadata.modified() {
+                                if let Ok(mut cache) = self.import_cache.lock() {
+                                    cache.insert(
+                                        file.clone(),
+                                        FileImportInfo {
+                                            imports: vec![renamed_file.to_path_buf()],
+                                            last_modified: modified,
+                                        },
+                                    );
+                                }
+                            }
+                        }
+                    } else if !renamed_stem.is_empty() && !content.contains(renamed_stem) {
+                        // File definitely doesn't import the target - cache this negative result
+                        if let Ok(metadata) = tokio::fs::metadata(file).await {
+                            if let Ok(modified) = metadata.modified() {
+                                if let Ok(mut cache) = self.import_cache.lock() {
+                                    cache.insert(
+                                        file.clone(),
+                                        FileImportInfo {
+                                            imports: vec![],
+                                            last_modified: modified,
+                                        },
+                                    );
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
+
+        debug!(
+            affected_files = affected.len(),
+            total_files = project_files.len(),
+            "Found affected files"
+        );
 
         Ok(affected)
     }
@@ -412,5 +544,60 @@ mod tests {
 
         let line3 = "import React from 'react';";
         assert_eq!(extract_import_path(line3), Some("react".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_import_cache_usage() {
+        use std::fs;
+        use std::io::Write;
+
+        let temp_dir = TempDir::new().unwrap();
+        let cache = Arc::new(Mutex::new(HashMap::new()));
+        let resolver = ImportPathResolver::with_cache(temp_dir.path(), cache.clone());
+
+        // Create test files (consistent naming with imports)
+        let file_a = temp_dir.path().join("fileA.ts");
+        let fileb = temp_dir.path().join("fileB.ts");
+        let file_c = temp_dir.path().join("fileC.ts");
+
+        // fileA imports fileB using './fileB' path
+        fs::write(&file_a, "import { foo } from './fileB';\n").unwrap();
+        fs::write(&fileb, "export const foo = 1;\n").unwrap();
+        fs::write(&file_c, "import { bar } from './other';\n").unwrap();
+
+        // First call - should populate cache
+        let project_files = vec![file_a.clone(), fileb.clone(), file_c.clone()];
+        let affected = resolver
+            .find_affected_files(&fileb, &project_files)
+            .await
+            .unwrap();
+        assert_eq!(affected.len(), 1);
+        assert!(affected.contains(&file_a));
+
+        // Check cache stats - should have entries now
+        let (total, valid) = resolver.cache_stats();
+        assert!(total > 0, "Cache should have entries after first scan");
+        assert!(valid > 0, "Cache should have valid entries");
+
+        // Second call - should use cache (file hasn't been modified)
+        let affected2 = resolver
+            .find_affected_files(&fileb, &project_files)
+            .await
+            .unwrap();
+        assert_eq!(affected2, affected, "Cached results should match");
+
+        // Modify fileA to invalidate cache
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        let mut file = fs::OpenOptions::new().append(true).open(&file_a).unwrap();
+        file.write_all(b"// comment\n").unwrap();
+        drop(file);
+
+        // Third call - cache should be invalidated for fileA
+        let affected3 = resolver
+            .find_affected_files(&fileb, &project_files)
+            .await
+            .unwrap();
+        assert_eq!(affected3.len(), 1);
+        assert!(affected3.contains(&file_a), "Should still detect fileA after modification");
     }
 }

@@ -764,16 +764,31 @@ Create a new file with optional content.
 {
   "file_path": "src/components/Button.tsx",    // Required: File path
   "content": "export const Button = () => {};", // Optional: Initial content (default: "")
-  "overwrite": false                           // Optional: Overwrite if exists (default: false)
+  "overwrite": false,                          // Optional: Overwrite if exists (default: false)
+  "dry_run": false                             // Optional: Preview operation (default: false)
 }
 ```
 
-**Returns:**
+**Returns (dry_run: false):**
 ```json
 {
   "success": true,
   "file_path": "src/components/Button.tsx",
   "created": true
+}
+```
+
+**Returns (dry_run: true):**
+```json
+{
+  "dry_run": true,
+  "result": {
+    "status": "preview",
+    "operation": "create_file",
+    "file_path": "src/components/Button.tsx",
+    "would_create": true,
+    "content_preview": "export const Button = () => {};"
+  }
 }
 ```
 
@@ -822,11 +837,12 @@ Write content to a file.
 ```json
 {
   "file_path": "src/app.ts",              // Required: File path
-  "content": "// New content"             // Required: Content to write
+  "content": "// New content",            // Required: Content to write
+  "dry_run": false                        // Optional: Preview operation (default: false)
 }
 ```
 
-**Returns:**
+**Returns (dry_run: false):**
 ```json
 {
   "success": true,
@@ -835,10 +851,25 @@ Write content to a file.
 }
 ```
 
+**Returns (dry_run: true):**
+```json
+{
+  "dry_run": true,
+  "result": {
+    "status": "preview",
+    "operation": "write_file",
+    "file_path": "src/app.ts",
+    "would_write": true,
+    "content_preview": "// New content"
+  }
+}
+```
+
 **Notes:**
 - Overwrites existing content
 - Invalidates AST cache
 - Uses file locking for safety
+- `dry_run: true` shows what would be written without making changes
 
 ---
 
@@ -850,16 +881,31 @@ Delete a file.
 ```json
 {
   "file_path": "src/old.ts",    // Required: File path
-  "force": false                // Optional: Force delete even if imported (default: false)
+  "force": false,               // Optional: Force delete even if imported (default: false)
+  "dry_run": false              // Optional: Preview operation (default: false)
 }
 ```
 
-**Returns:**
+**Returns (dry_run: false):**
 ```json
 {
   "success": true,
   "file_path": "src/old.ts",
   "deleted": true
+}
+```
+
+**Returns (dry_run: true):**
+```json
+{
+  "dry_run": true,
+  "result": {
+    "status": "preview",
+    "operation": "delete_file",
+    "file_path": "src/old.ts",
+    "would_delete": true,
+    "warnings": []
+  }
 }
 ```
 
@@ -875,6 +921,7 @@ Delete a file.
 **Notes:**
 - Checks for imports before deletion unless `force: true`
 - Notifies LSP servers
+- `dry_run: true` shows what would be deleted without making changes
 
 ---
 

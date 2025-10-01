@@ -65,6 +65,35 @@ Codebuddy provides 40+ MCP tools for code intelligence and refactoring. See **[M
 }
 ```
 
+### Dry Run Mode
+
+Most file-modifying operations support `dry_run: true` for safe previews:
+
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "rename_file",
+    "arguments": {
+      "old_path": "src/old.ts",
+      "new_path": "src/new.ts",
+      "dry_run": true
+    }
+  }
+}
+```
+
+**Supported operations:**
+- File operations: `create_file`, `write_file`, `delete_file`, `rename_file`
+- Directory operations: `rename_directory`
+- Refactoring: `rename_symbol`, `rename_symbol_strict`, `extract_function`, `inline_variable`, `extract_variable`
+
+**Benefits:**
+- Preview changes before applying them
+- No file system modifications occur
+- Returns detailed preview of what would happen
+- Safe for testing and validation
+
 For detailed parameters, return types, and examples, see **[MCP_API.md](MCP_API.md)**.
 
 ## Development Commands
