@@ -80,7 +80,6 @@ async fn test_health_check_detailed() {
     }
 }
 #[tokio::test]
-#[ignore = "Tests a fine-grained dependency update tool that is not yet implemented"]
 async fn test_update_dependencies_package_json() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
@@ -132,7 +131,6 @@ async fn test_update_dependencies_package_json() {
     assert!(deps.get("lodash").is_none());
 }
 #[tokio::test]
-#[ignore = "Tests a fine-grained dependency update tool that is not yet implemented"]
 async fn test_update_dependencies_cargo_toml() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
@@ -174,7 +172,6 @@ assert_cmd = "2.0"
     assert!(updated_content.contains("assert_cmd = \"2.0\""));
 }
 #[tokio::test]
-#[ignore = "Tests a fine-grained dependency update tool that is not yet implemented"]
 async fn test_update_dependencies_requirements_txt() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
@@ -207,7 +204,6 @@ flask==2.0.1
     assert!(updated_content.contains("requests~=2.25.0"));
 }
 #[tokio::test]
-#[ignore = "Tests a fine-grained dependency update tool that is not yet implemented"]
 async fn test_update_dependencies_dry_run() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
@@ -231,7 +227,7 @@ async fn test_update_dependencies_dry_run() {
         )
         .await
         .unwrap();
-    assert!(response.get("preview").is_some() || response.get("changes").is_some());
+    assert!(response["result"].get("preview").is_some() || response["result"].get("changes").is_some());
     let unchanged_content = std::fs::read_to_string(&package_json).unwrap();
     let unchanged_json: Value = serde_json::from_str(&unchanged_content).unwrap();
     assert_eq!(
@@ -241,7 +237,6 @@ async fn test_update_dependencies_dry_run() {
     assert!(unchanged_json["dependencies"].get("express").is_none());
 }
 #[tokio::test]
-#[ignore = "Tests a fine-grained dependency update tool that is not yet implemented"]
 async fn test_update_dependencies_scripts_management() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
@@ -277,7 +272,6 @@ async fn test_update_dependencies_scripts_management() {
     assert_eq!(scripts["test"].as_str().unwrap(), "jest");
 }
 #[tokio::test]
-#[ignore = "Tests a fine-grained dependency update tool that is not yet implemented"]
 async fn test_update_dependencies_error_handling() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
@@ -291,10 +285,14 @@ async fn test_update_dependencies_error_handling() {
             ),
         )
         .await;
-    assert!(response.is_err());
+    // MCP wraps errors in response["error"], check both
+    if let Ok(resp) = response {
+        assert!(resp.get("error").is_some(), "Expected error in response for nonexistent file");
+    } else {
+        assert!(true); // response.is_err() case also acceptable
+    }
 }
 #[tokio::test]
-#[ignore = "Tests a fine-grained dependency update tool that is not yet implemented"]
 async fn test_update_dependencies_invalid_json() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
@@ -309,10 +307,14 @@ async fn test_update_dependencies_invalid_json() {
             ),
         )
         .await;
-    assert!(response.is_err());
+    // MCP wraps errors in response["error"], check both
+    if let Ok(resp) = response {
+        assert!(resp.get("error").is_some(), "Expected error in response for invalid.json (unsupported file type)");
+    } else {
+        assert!(true); // response.is_err() case also acceptable
+    }
 }
 #[tokio::test]
-#[ignore = "Tests a fine-grained dependency update tool that is not yet implemented"]
 async fn test_system_tools_integration() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
@@ -383,7 +385,7 @@ app.listen(PORT, () => {
         .call_tool("health_check", json!({ "include_details" : true }))
         .await
         .unwrap();
-    let final_status = final_health_response["status"].as_str().unwrap();
+    let final_status = final_health_response["result"]["status"].as_str().unwrap();
     assert!(final_status == "healthy" || final_status == "degraded");
     let final_package_content = std::fs::read_to_string(&package_json).unwrap();
     let final_package_json: Value = serde_json::from_str(&final_package_content).unwrap();

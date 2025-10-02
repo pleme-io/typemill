@@ -33,7 +33,7 @@ impl SystemToolsPlugin {
     ///
     /// This plugin provides system-level tools that work across all file types, including:
     /// - File system operations (list_files, analyze_imports)
-    /// - Dependency management (update_dependencies)
+    /// - Dependency management (bulk_update_dependencies)
     /// - Code quality tools (fix_imports)
     /// - Refactoring operations (extract_function, inline_variable, extract_variable)
     ///
@@ -55,7 +55,7 @@ impl SystemToolsPlugin {
             .insert("system.analyze_imports".to_string(), json!(true));
         capabilities
             .custom
-            .insert("system.update_dependencies".to_string(), json!(true));
+            .insert("system.bulk_update_dependencies".to_string(), json!(true));
         capabilities
             .custom
             .insert("system.fix_imports".to_string(), json!(true));
@@ -223,8 +223,8 @@ impl SystemToolsPlugin {
         }))
     }
 
-    /// Handle update_dependencies tool
-    async fn handle_update_dependencies(&self, params: Value) -> PluginResult<Value> {
+    /// Handle bulk_update_dependencies tool
+    async fn handle_bulk_update_dependencies(&self, params: Value) -> PluginResult<Value> {
         #[derive(Debug, Deserialize)]
         #[serde(rename_all = "snake_case")]
         struct UpdateDependenciesArgs {
@@ -236,7 +236,7 @@ impl SystemToolsPlugin {
 
         let args: UpdateDependenciesArgs =
             serde_json::from_value(params).map_err(|e| PluginError::SerializationError {
-                message: format!("Invalid update_dependencies args: {}", e),
+                message: format!("Invalid bulk_update_dependencies args: {}", e),
             })?;
 
         let project_path = args.project_path.unwrap_or_else(|| ".".to_string());
@@ -500,8 +500,8 @@ impl LanguagePlugin for SystemToolsPlugin {
                 }
             }),
             json!({
-                "name": "update_dependencies",
-                "description": "Update project dependencies using the appropriate package manager.",
+                "name": "bulk_update_dependencies",
+                "description": "Run the package manager's update command (e.g., `npm update`).",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
@@ -745,8 +745,8 @@ impl LanguagePlugin for SystemToolsPlugin {
         let result = match request.method.as_str() {
             "list_files" => self.handle_list_files(request.params.clone()).await?,
             "analyze_imports" => self.handle_analyze_imports(request.params.clone()).await?,
-            "update_dependencies" => {
-                self.handle_update_dependencies(request.params.clone())
+            "bulk_update_dependencies" => {
+                self.handle_bulk_update_dependencies(request.params.clone())
                     .await?
             }
             "web_fetch" => self.handle_web_fetch(request.params.clone()).await?,

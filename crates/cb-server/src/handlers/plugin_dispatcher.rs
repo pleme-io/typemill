@@ -206,6 +206,9 @@ impl PluginDispatcher {
 
                 registry.register(Arc::new(super::refactoring_handler::RefactoringHandler::new()));
                 debug!("Registered RefactoringHandler with 5 tools");
+
+                registry.register(Arc::new(super::dependency_handler::DependencyHandler::new()));
+                debug!("Registered DependencyHandler with 1 tool");
             }
 
             Ok::<(), ServerError>(())
