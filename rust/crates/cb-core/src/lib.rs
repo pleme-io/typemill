@@ -11,4 +11,4 @@ pub mod model;
 
 pub use config::AppConfig;
 pub use dry_run::{execute_with_dry_run, DryRunnable};
-pub use error::CoreError;
+pub use error::{ApiError, CoreError};

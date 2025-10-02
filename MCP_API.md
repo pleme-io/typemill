@@ -18,6 +18,7 @@ Complete API documentation for all 40 MCP tools available in CodeBuddy.
 - [System & Health](#system--health) (1 tool)
 - [Web/Network](#webnetwork) (1 tool)
 - [Common Patterns](#common-patterns)
+- [Error Reference](#error-reference)
 
 ---
 
@@ -1559,6 +1560,174 @@ codebuddy call rename_directory '{"old_path":"src","new_path":"lib"}'
 - Absolute paths recommended
 - Relative paths resolved against workspace root
 - Use forward slashes (Unix-style) on all platforms
+
+---
+
+## Error Reference
+
+CodeBuddy uses a standardized error response format across all MCP tools for consistent error handling and programmatic parsing.
+
+### Error Response Structure
+
+When an error occurs, the MCP response will contain an `error` field with the following structure:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "error": {
+    "code": -1,
+    "message": "Human-readable error message",
+    "data": {
+      "code": "E1001",
+      "message": "Human-readable error message",
+      "details": {
+        // Optional context-specific information
+      }
+    }
+  }
+}
+```
+
+### Error Fields
+
+- **`error.code`**: JSON-RPC error code (always `-1` for application errors)
+- **`error.message`**: Human-readable error summary
+- **`error.data`**: Structured error details
+  - **`code`**: Machine-readable error code (e.g., "E1000", "E1001")
+  - **`message`**: Detailed error message
+  - **`details`**: Optional object with additional context (file paths, line numbers, etc.)
+
+### Standard Error Codes
+
+| Code | Category | Description | HTTP Equivalent |
+|------|----------|-------------|-----------------|
+| `E1000` | INTERNAL_SERVER_ERROR | Internal server error, unexpected failures | 500 |
+| `E1001` | INVALID_REQUEST | Invalid request parameters or malformed input | 400 |
+| `E1002` | FILE_NOT_FOUND | File or resource not found | 404 |
+| `E1003` | LSP_ERROR | Language Server Protocol error | 500 |
+| `E1004` | TIMEOUT | Operation timeout | 408 |
+| `E1005` | PERMISSION_DENIED | Permission denied or authentication failure | 403 |
+| `E1006` | RESOURCE_NOT_FOUND | Generic resource not found | 404 |
+| `E1007` | NOT_SUPPORTED | Operation not supported | 501 |
+| `E1008` | INVALID_DATA | Invalid data format or serialization error | 400 |
+
+### Error Examples
+
+#### Invalid Request (E1001)
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "error": {
+    "code": -1,
+    "message": "Missing required parameter",
+    "data": {
+      "code": "E1001",
+      "message": "Missing 'file_path' parameter",
+      "details": {
+        "parameter": "file_path",
+        "tool": "find_definition"
+      }
+    }
+  }
+}
+```
+
+#### File Not Found (E1002)
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "error": {
+    "code": -1,
+    "message": "File does not exist",
+    "data": {
+      "code": "E1002",
+      "message": "File does not exist",
+      "details": {
+        "path": "/workspace/src/missing.ts"
+      }
+    }
+  }
+}
+```
+
+#### LSP Server Error (E1003)
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "error": {
+    "code": -1,
+    "message": "Failed to communicate with language server",
+    "data": {
+      "code": "E1003",
+      "message": "LSP server timeout",
+      "details": {
+        "extension": "ts",
+        "method": "textDocument/definition"
+      }
+    }
+  }
+}
+```
+
+### Error Handling Best Practices
+
+1. **Check for `error` field**: Always check if the response contains an `error` field
+2. **Use error codes**: Parse the `error.data.code` field for programmatic error handling
+3. **Display messages**: Use `error.data.message` for user-facing error messages
+4. **Log details**: Include `error.data.details` in debug logs for troubleshooting
+5. **Retry logic**: Implement exponential backoff for `E1000` and `E1003` errors
+6. **Validation**: Check for `E1001` and `E1008` to improve request validation
+
+### Example Client Code
+
+```typescript
+async function callMcpTool(toolName: string, args: any) {
+  const response = await sendMcpRequest({
+    method: "tools/call",
+    params: {
+      name: toolName,
+      arguments: args
+    }
+  });
+
+  if (response.error) {
+    const errorData = response.error.data;
+    const errorCode = errorData?.code || "UNKNOWN";
+
+    switch (errorCode) {
+      case "E1001":
+      case "E1008":
+        // Client-side error - fix the request
+        throw new ValidationError(errorData.message, errorData.details);
+
+      case "E1002":
+      case "E1006":
+        // Resource not found - handle gracefully
+        return null;
+
+      case "E1003":
+      case "E1004":
+        // Retry-able server error
+        return await retryWithBackoff(() => callMcpTool(toolName, args));
+
+      case "E1000":
+      default:
+        // Server error - log and notify user
+        console.error("Server error:", errorData);
+        throw new ServerError(errorData.message);
+    }
+  }
+
+  return response.result;
+}
+```
 
 ---
 

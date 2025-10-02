@@ -1,5 +1,7 @@
 //! Error handling for cb-core and the broader Codeflow Buddy system
 
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use thiserror::Error;
 
 /// Core error type used throughout the Codeflow Buddy system
@@ -90,3 +92,143 @@ impl CoreError {
 
 /// Result type alias for convenience
 pub type CoreResult<T> = Result<T, CoreError>;
+
+// ============================================================================
+// Standardized API Error Response
+// ============================================================================
+
+/// Standardized error codes for API responses
+pub mod error_codes {
+    /// Internal server error (500)
+    pub const E1000_INTERNAL_SERVER_ERROR: &str = "E1000";
+    /// Invalid request parameters (400)
+    pub const E1001_INVALID_REQUEST: &str = "E1001";
+    /// File not found (404)
+    pub const E1002_FILE_NOT_FOUND: &str = "E1002";
+    /// LSP server error
+    pub const E1003_LSP_ERROR: &str = "E1003";
+    /// Operation timeout
+    pub const E1004_TIMEOUT: &str = "E1004";
+    /// Permission denied (403)
+    pub const E1005_PERMISSION_DENIED: &str = "E1005";
+    /// Resource not found (404)
+    pub const E1006_RESOURCE_NOT_FOUND: &str = "E1006";
+    /// Operation not supported
+    pub const E1007_NOT_SUPPORTED: &str = "E1007";
+    /// Invalid data format
+    pub const E1008_INVALID_DATA: &str = "E1008";
+}
+
+/// Standardized API error structure for MCP tool responses
+///
+/// This struct provides a consistent error format across all MCP tools,
+/// making it easier for clients to parse and handle errors programmatically.
+///
+/// # Fields
+/// - `code`: Machine-readable error code (e.g., "E1000")
+/// - `message`: Human-readable error message
+/// - `details`: Optional additional context (file paths, line numbers, etc.)
+///
+/// # Example
+/// ```rust
+/// use cb_core::error::{ApiError, error_codes};
+/// use serde_json::json;
+///
+/// let error = ApiError {
+///     code: error_codes::E1002_FILE_NOT_FOUND.to_string(),
+///     message: "File does not exist".to_string(),
+///     details: Some(json!({"path": "/path/to/missing/file.rs"})),
+/// };
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApiError {
+    /// Machine-readable error code
+    pub code: String,
+    /// Human-readable error message
+    pub message: String,
+    /// Optional additional context
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub details: Option<Value>,
+}
+
+impl ApiError {
+    /// Create a new API error
+    pub fn new(code: impl Into<String>, message: impl Into<String>) -> Self {
+        Self {
+            code: code.into(),
+            message: message.into(),
+            details: None,
+        }
+    }
+
+    /// Create a new API error with details
+    pub fn with_details(
+        code: impl Into<String>,
+        message: impl Into<String>,
+        details: Value,
+    ) -> Self {
+        Self {
+            code: code.into(),
+            message: message.into(),
+            details: Some(details),
+        }
+    }
+
+    /// Add details to an existing error
+    pub fn details(mut self, details: Value) -> Self {
+        self.details = Some(details);
+        self
+    }
+}
+
+impl std::fmt::Display for ApiError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[{}] {}", self.code, self.message)?;
+        if let Some(details) = &self.details {
+            write!(f, " (details: {})", details)?;
+        }
+        Ok(())
+    }
+}
+
+impl std::error::Error for ApiError {}
+
+/// Convert CoreError to ApiError
+impl From<CoreError> for ApiError {
+    fn from(err: CoreError) -> Self {
+        use error_codes::*;
+
+        match err {
+            CoreError::Config { message } => {
+                ApiError::new(E1001_INVALID_REQUEST, message)
+            }
+            CoreError::Io(e) => {
+                ApiError::new(E1000_INTERNAL_SERVER_ERROR, format!("I/O error: {}", e))
+            }
+            CoreError::Json(e) => {
+                ApiError::new(E1008_INVALID_DATA, format!("JSON error: {}", e))
+            }
+            CoreError::ConfigParsing(e) => {
+                ApiError::new(E1001_INVALID_REQUEST, format!("Config parsing error: {}", e))
+            }
+            CoreError::InvalidData { message } => {
+                ApiError::new(E1008_INVALID_DATA, message)
+            }
+            CoreError::NotSupported { operation } => {
+                ApiError::new(E1007_NOT_SUPPORTED, format!("Operation not supported: {}", operation))
+            }
+            CoreError::NotFound { resource } => {
+                ApiError::new(E1006_RESOURCE_NOT_FOUND, format!("Resource not found: {}", resource))
+            }
+            CoreError::PermissionDenied { operation } => {
+                ApiError::new(E1005_PERMISSION_DENIED, format!("Permission denied: {}", operation))
+            }
+            CoreError::Timeout { operation } => {
+                ApiError::new(E1004_TIMEOUT, format!("Timeout: {}", operation))
+            }
+            CoreError::Internal { message } => {
+                ApiError::new(E1000_INTERNAL_SERVER_ERROR, message)
+            }
+        }
+    }
+}

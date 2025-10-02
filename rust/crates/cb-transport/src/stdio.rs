@@ -80,19 +80,27 @@ pub async fn start_stdio_server(
                 let response = match dispatcher.dispatch(mcp_message).await {
                     Ok(response) => response,
                     Err(e) => {
+                        // Convert to structured API error
+                        let api_error = e.to_api_response();
+
                         tracing::error!(
                             request_id = %request_id,
+                            error_code = %api_error.code,
                             error = %e,
                             "Failed to handle message"
                         );
+
+                        // Serialize the structured error to JSON for the data field
+                        let error_data = serde_json::to_value(&api_error).ok();
+
                         McpMessage::Response(McpResponse {
                             jsonrpc: "2.0".to_string(),
                             id: message_id,
                             result: None,
                             error: Some(McpError {
                                 code: -1,
-                                message: e.to_string(),
-                                data: None,
+                                message: api_error.message.clone(),
+                                data: error_data,
                             }),
                         })
                     }
