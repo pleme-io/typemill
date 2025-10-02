@@ -176,10 +176,17 @@ impl FileOperationHandler {
             .await?;
 
         if result.dry_run {
-            Ok(json!({
-                "status": "preview",
-                "preview": result.result
-            }))
+            // Merge status into the result object instead of nesting
+            if let Value::Object(mut obj) = result.result {
+                obj.insert("status".to_string(), json!("preview"));
+                Ok(Value::Object(obj))
+            } else {
+                // Fallback for non-object results
+                Ok(json!({
+                    "status": "preview",
+                    "result": result.result
+                }))
+            }
         } else {
             Ok(result.result)
         }
@@ -214,10 +221,17 @@ impl FileOperationHandler {
             .await?;
 
         if result.dry_run {
-            Ok(json!({
-                "status": "preview",
-                "preview": result.result
-            }))
+            // Merge status into the result object instead of nesting
+            if let Value::Object(mut obj) = result.result {
+                obj.insert("status".to_string(), json!("preview"));
+                Ok(Value::Object(obj))
+            } else {
+                // Fallback for non-object results
+                Ok(json!({
+                    "status": "preview",
+                    "result": result.result
+                }))
+            }
         } else {
             Ok(result.result)
         }
@@ -253,10 +267,17 @@ impl FileOperationHandler {
             .await?;
 
         if result.dry_run {
-            Ok(json!({
-                "status": "preview",
-                "preview": result.result
-            }))
+            // Merge status into the result object instead of nesting
+            if let Value::Object(mut obj) = result.result {
+                obj.insert("status".to_string(), json!("preview"));
+                Ok(Value::Object(obj))
+            } else {
+                // Fallback for non-object results
+                Ok(json!({
+                    "status": "preview",
+                    "result": result.result
+                }))
+            }
         } else {
             Ok(result.result)
         }
@@ -288,10 +309,17 @@ impl FileOperationHandler {
             .await?;
 
         if result.dry_run {
-            Ok(json!({
-                "status": "preview",
-                "preview": result.result
-            }))
+            // Merge status into the result object instead of nesting
+            if let Value::Object(mut obj) = result.result {
+                obj.insert("status".to_string(), json!("preview"));
+                Ok(Value::Object(obj))
+            } else {
+                // Fallback for non-object results
+                Ok(json!({
+                    "status": "preview",
+                    "result": result.result
+                }))
+            }
         } else {
             Ok(result.result)
         }

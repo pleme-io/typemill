@@ -116,6 +116,15 @@ pub async fn run_websocket_server() {
 }
 
 pub async fn run_websocket_server_with_port(port: u16) {
+    // Load configuration
+    let config = match cb_core::config::AppConfig::load() {
+        Ok(c) => Arc::new(c),
+        Err(e) => {
+            error!(error = %e, "Failed to load configuration");
+            return;
+        }
+    };
+
     // Create workspace manager
     let workspace_manager = Arc::new(WorkspaceManager::new());
 
@@ -134,9 +143,10 @@ pub async fn run_websocket_server_with_port(port: u16) {
 
     // Start admin server on a separate port
     let admin_port = port + 1000; // Admin on port+1000
+    let admin_config = config.clone();
     let admin_workspace_manager = workspace_manager.clone();
     tokio::spawn(async move {
-        if let Err(e) = cb_transport::start_admin_server(admin_port, admin_workspace_manager).await
+        if let Err(e) = cb_transport::start_admin_server(admin_port, admin_config, admin_workspace_manager).await
         {
             error!(
                 error_category = "admin_server_error",

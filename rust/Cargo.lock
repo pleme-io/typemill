@@ -792,6 +792,7 @@ dependencies = [
  "cb-core",
  "cb-plugins",
  "cb-server",
+ "cb-transport",
  "clap",
  "fs2",
  "futures-util",

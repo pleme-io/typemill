@@ -16,6 +16,7 @@ cb-core = { path = "../../crates/cb-core" }
 cb-ast = { path = "../../crates/cb-ast" }
 cb-api = { path = "../../crates/cb-api" }
 cb-plugins = { path = "../../crates/cb-plugins" }
+cb-transport = { path = "../../crates/cb-transport" }
 
 tokio = { version = "1", features = ["full"] }
 axum = { version = "0.8", features = ["ws"] }
