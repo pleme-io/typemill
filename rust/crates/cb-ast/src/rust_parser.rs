@@ -166,6 +166,88 @@ pub fn parse_rust_imports_ast(source: &str) -> AstResult<Vec<ImportInfo>> {
     Ok(visitor.imports)
 }
 
+/// Rewrite a use tree to replace an old crate name with a new one
+///
+/// This function recursively traverses a `syn::UseTree` and replaces the leading
+/// identifier if it matches the old crate name. It handles all UseTree variants:
+/// - Path: Checks if the leading identifier matches old_crate and replaces it
+/// - Name, Rename, Glob: Returns None (no changes needed at this level)
+/// - Group: Recursively processes all items in the group
+///
+/// # Arguments
+///
+/// * `tree` - The use tree to potentially rewrite
+/// * `old_crate` - The old crate name to replace (in snake_case)
+/// * `new_crate` - The new crate name to use (in snake_case)
+///
+/// # Returns
+///
+/// `Some(UseTree)` if the tree was modified, `None` if no changes were needed
+pub(crate) fn rewrite_use_tree(tree: &UseTree, old_crate: &str, new_crate: &str) -> Option<UseTree> {
+    match tree {
+        UseTree::Path(path) => {
+            // Check if this is the leading identifier we need to replace
+            if path.ident == old_crate {
+                // Clone the path and replace the identifier
+                let mut new_path = path.clone();
+                new_path.ident = syn::Ident::new(new_crate, path.ident.span());
+
+                // Recursively process the rest of the tree
+                if let Some(new_subtree) = rewrite_use_tree(&path.tree, old_crate, new_crate) {
+                    new_path.tree = Box::new(new_subtree);
+                }
+
+                Some(UseTree::Path(new_path))
+            } else {
+                // Not the crate we're looking for, but check the subtree
+                if let Some(new_subtree) = rewrite_use_tree(&path.tree, old_crate, new_crate) {
+                    let mut new_path = path.clone();
+                    new_path.tree = Box::new(new_subtree);
+                    Some(UseTree::Path(new_path))
+                } else {
+                    None
+                }
+            }
+        }
+        UseTree::Name(_) => {
+            // Name nodes don't contain the crate identifier, no changes needed
+            None
+        }
+        UseTree::Rename(_) => {
+            // Rename nodes don't contain the crate identifier at this level
+            None
+        }
+        UseTree::Glob(_) => {
+            // Glob imports don't need modification at this level
+            None
+        }
+        UseTree::Group(group) => {
+            // Process each item in the group
+            let mut modified = false;
+            let new_items: Vec<UseTree> = group
+                .items
+                .iter()
+                .map(|item| {
+                    if let Some(new_item) = rewrite_use_tree(item, old_crate, new_crate) {
+                        modified = true;
+                        new_item
+                    } else {
+                        item.clone()
+                    }
+                })
+                .collect();
+
+            if modified {
+                let mut new_group = group.clone();
+                new_group.items = new_items.into_iter().collect();
+                Some(UseTree::Group(new_group))
+            } else {
+                None
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

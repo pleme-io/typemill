@@ -348,15 +348,65 @@ impl LanguageAdapter for RustAdapter {
         _project_root: &Path,
         rename_info: Option<&serde_json::Value>,
     ) -> AstResult<(String, usize)> {
-        // Phase 2: This will use syn + prettyplease for Rust import rewriting
-        // For now, return placeholder until Phase 2 implementation
-        if let Some(info) = rename_info {
-            tracing::debug!(
-                rename_info = %info,
-                "Rust import rewriting not yet implemented (Phase 2)"
-            );
+        use syn::{File, Item};
+
+        // If no rename_info provided, no rewriting needed
+        let rename_info = match rename_info {
+            Some(info) => info,
+            None => return Ok((content.to_string(), 0)),
+        };
+
+        // Extract old and new crate names from rename_info
+        let old_crate_name = rename_info["old_crate_name"]
+            .as_str()
+            .ok_or_else(|| AstError::analysis("Missing old_crate_name in rename_info"))?;
+
+        let new_crate_name = rename_info["new_crate_name"]
+            .as_str()
+            .ok_or_else(|| AstError::analysis("Missing new_crate_name in rename_info"))?;
+
+        tracing::debug!(
+            old_crate = %old_crate_name,
+            new_crate = %new_crate_name,
+            "Rewriting Rust imports for crate rename"
+        );
+
+        // Parse the Rust source file
+        let mut file: File = syn::parse_str(content).map_err(|e| {
+            AstError::analysis(format!("Failed to parse Rust source: {}", e))
+        })?;
+
+        let mut changes_count = 0;
+
+        // Iterate through all items and rewrite use statements
+        for item in &mut file.items {
+            if let Item::Use(use_item) = item {
+                // Try to rewrite the use tree
+                if let Some(new_tree) = crate::rust_parser::rewrite_use_tree(
+                    &use_item.tree,
+                    old_crate_name,
+                    new_crate_name,
+                ) {
+                    use_item.tree = new_tree;
+                    changes_count += 1;
+                }
+            }
         }
-        Ok((content.to_string(), 0))
+
+        // If no changes were made, return original content
+        if changes_count == 0 {
+            return Ok((content.to_string(), 0));
+        }
+
+        // Use prettyplease to format the modified AST
+        let new_content = prettyplease::unparse(&file);
+
+        tracing::debug!(
+            changes = changes_count,
+            "Successfully rewrote Rust imports"
+        );
+
+        Ok((new_content, changes_count))
     }
 }
 
@@ -1789,5 +1839,144 @@ pub fn consume() {
             .iter()
             .any(|d| d.as_str() == Some("serde")));
         assert!(dependencies.iter().any(|d| d.as_str() == Some("std")));
+    }
+
+    #[test]
+    fn test_rust_adapter_rewrite_simple_use() {
+        use serde_json::json;
+
+        let adapter = RustAdapter;
+        let source = r#"use old_crate::SomeType;"#;
+
+        let rename_info = json!({
+            "old_crate_name": "old_crate",
+            "new_crate_name": "new_crate",
+        });
+
+        let (new_content, count) = adapter
+            .rewrite_imports_for_rename(source, Path::new(""), Path::new(""), Path::new(""), Path::new(""), Some(&rename_info))
+            .unwrap();
+
+        assert_eq!(count, 1);
+        assert!(new_content.contains("use new_crate::SomeType;"));
+    }
+
+    #[test]
+    fn test_rust_adapter_rewrite_grouped_use() {
+        use serde_json::json;
+
+        let adapter = RustAdapter;
+        let source = r#"use old_crate::{TypeA, TypeB, TypeC};"#;
+
+        let rename_info = json!({
+            "old_crate_name": "old_crate",
+            "new_crate_name": "new_crate",
+        });
+
+        let (new_content, count) = adapter
+            .rewrite_imports_for_rename(source, Path::new(""), Path::new(""), Path::new(""), Path::new(""), Some(&rename_info))
+            .unwrap();
+
+        assert_eq!(count, 1);
+        assert!(new_content.contains("use new_crate::{TypeA, TypeB, TypeC};"));
+    }
+
+    #[test]
+    fn test_rust_adapter_rewrite_nested_path() {
+        use serde_json::json;
+
+        let adapter = RustAdapter;
+        let source = r#"use old_crate::module::submodule::Item;"#;
+
+        let rename_info = json!({
+            "old_crate_name": "old_crate",
+            "new_crate_name": "new_crate",
+        });
+
+        let (new_content, count) = adapter
+            .rewrite_imports_for_rename(source, Path::new(""), Path::new(""), Path::new(""), Path::new(""), Some(&rename_info))
+            .unwrap();
+
+        assert_eq!(count, 1);
+        assert!(new_content.contains("use new_crate::module::submodule::Item;"));
+    }
+
+    #[test]
+    fn test_rust_adapter_no_changes_different_crate() {
+        use serde_json::json;
+
+        let adapter = RustAdapter;
+        let source = r#"use some_other_crate::SomeType;"#;
+
+        let rename_info = json!({
+            "old_crate_name": "old_crate",
+            "new_crate_name": "new_crate",
+        });
+
+        let (new_content, count) = adapter
+            .rewrite_imports_for_rename(source, Path::new(""), Path::new(""), Path::new(""), Path::new(""), Some(&rename_info))
+            .unwrap();
+
+        assert_eq!(count, 0);
+        assert_eq!(new_content, source);
+    }
+
+    #[test]
+    fn test_rust_adapter_multiple_use_statements() {
+        use serde_json::json;
+
+        let adapter = RustAdapter;
+        let source = r#"use old_crate::TypeA;
+use std::collections::HashMap;
+use old_crate::module::TypeB;
+use other_crate::TypeC;"#;
+
+        let rename_info = json!({
+            "old_crate_name": "old_crate",
+            "new_crate_name": "new_crate",
+        });
+
+        let (new_content, count) = adapter
+            .rewrite_imports_for_rename(source, Path::new(""), Path::new(""), Path::new(""), Path::new(""), Some(&rename_info))
+            .unwrap();
+
+        assert_eq!(count, 2);
+        assert!(new_content.contains("use new_crate::TypeA;"));
+        assert!(new_content.contains("use new_crate::module::TypeB;"));
+        assert!(new_content.contains("use std::collections::HashMap;"));
+        assert!(new_content.contains("use other_crate::TypeC;"));
+    }
+
+    #[test]
+    fn test_rust_adapter_no_rename_info() {
+        let adapter = RustAdapter;
+        let source = r#"use old_crate::SomeType;"#;
+
+        let (new_content, count) = adapter
+            .rewrite_imports_for_rename(source, Path::new(""), Path::new(""), Path::new(""), Path::new(""), None)
+            .unwrap();
+
+        assert_eq!(count, 0);
+        assert_eq!(new_content, source);
+    }
+
+    #[test]
+    fn test_rust_adapter_glob_import() {
+        use serde_json::json;
+
+        let adapter = RustAdapter;
+        let source = r#"use old_crate::module::*;"#;
+
+        let rename_info = json!({
+            "old_crate_name": "old_crate",
+            "new_crate_name": "new_crate",
+        });
+
+        let (new_content, count) = adapter
+            .rewrite_imports_for_rename(source, Path::new(""), Path::new(""), Path::new(""), Path::new(""), Some(&rename_info))
+            .unwrap();
+
+        assert_eq!(count, 1);
+        assert!(new_content.contains("use new_crate::module::*;"));
     }
 }
