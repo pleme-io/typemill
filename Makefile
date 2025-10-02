@@ -3,12 +3,20 @@
 
 .PHONY: build release test install uninstall clean setup help
 
+# Configure sccache for faster builds (if installed)
+SCCACHE_BIN := $(shell command -v sccache 2>/dev/null)
+ifdef SCCACHE_BIN
+    export RUSTC_WRAPPER=$(SCCACHE_BIN)
+endif
+
 # Default target
 build:
+	@command -v sccache >/dev/null 2>&1 || { echo "⚠️  Warning: sccache not found. Run 'make setup' for faster builds."; echo ""; }
 	cd rust && cargo build
 
 # Optimized release build
 release:
+	@command -v sccache >/dev/null 2>&1 || { echo "⚠️  Warning: sccache not found. Run 'make setup' for faster builds."; echo ""; }
 	cd rust && cargo build --release
 
 # Run all tests
@@ -35,6 +43,8 @@ clean:
 
 # One-time developer setup (installs sccache and mold)
 setup:
+	@echo "Installing build optimization tools..."
+	@cargo install sccache
 	@./scripts/setup-dev-tools.sh
 
 # Show available commands

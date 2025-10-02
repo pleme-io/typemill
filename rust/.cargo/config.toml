@@ -11,7 +11,10 @@
 # Installation: cargo install sccache
 
 [build]
-rustc-wrapper = "sccache"
+# sccache is configured via RUSTC_WRAPPER environment variable in Makefile
+# This allows it to work without hardcoding paths
+# Team members: run `make setup` to install sccache
+# rustc-wrapper = "sccache"
 
 # =============================================================================
 # Fast Linker Configuration (mold)
