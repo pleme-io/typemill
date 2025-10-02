@@ -22,13 +22,14 @@ This refactor will follow a clear philosophy:
 
 ## The Four-Phase Refactoring Plan
 
-### Phase 1: Project Organization & Cleanup (Low Risk)
+### Phase 1: Project Organization & Cleanup (Low Risk) ✅ COMPLETED
 
 This phase, adapted from the original proposal, focuses on improving the repository layout without changing core logic.
 
-*   **Action:** Move all root-level documentation (`.md` files) into a `docs/proposals/` or similar subdirectory.
-*   **Action:** Consolidate all shell, Python, and Go scripts into the top-level `scripts/` directory.
-*   **Action:** Move test fixtures from `tests/fixtures` to `integration-tests/fixtures` to centralize test data.
+*   ~~**Action:** Move all root-level documentation (`.md` files) into a `docs/proposals/` or similar subdirectory.~~ **SKIPPED** (Deferred for now)
+*   ✅ **Action:** Consolidate all shell, Python, and Go scripts into the top-level `scripts/` directory.
+*   ✅ **Action:** Move test fixtures from `tests/fixtures` to `integration-tests/test-fixtures` to centralize test data.
+*   ✅ **Action:** Remove old empty directories (`tests`, `deployment/scripts`, `crates/cb-ast/resources`)
 *   **Benefit:** A clean, uncluttered root directory.
 
 ### Phase 2: Foundational Crate Refactoring (High Value)
@@ -103,7 +104,7 @@ Here are the actionable commands to execute the four-phase refactoring plan.
 
 ```bash
 # 1a: Move root documentation into docs/proposals
-codebuddy call batch_execute --arguments '{ 
+codebuddy tool batch_execute '{ 
   "operations": [
     {"type": "create_directory", "path": "docs/proposals"},
     {"type": "rename_file", "old_path": "BUG_REPORT.md", "new_path": "docs/proposals/BUG_REPORT.md"},
@@ -121,7 +122,7 @@ codebuddy call batch_execute --arguments '{
 '
 
 # 1b: Consolidate scripts
-codebuddy call batch_execute --arguments '{ 
+codebuddy tool batch_execute '{ 
   "operations": [
     {"type": "create_directory", "path": "scripts"},
     {"type": "rename_file", "old_path": "install.sh", "new_path": "scripts/install.sh"},
@@ -133,7 +134,7 @@ codebuddy call batch_execute --arguments '{
 '
 
 # 1c: Consolidate test fixtures
-codebuddy call rename_directory --arguments '{"old_path":"tests/fixtures", "new_path":"integration-tests/fixtures"}'
+codebuddy tool rename_directory '{"old_path":"tests/fixtures", "new_path":"integration-tests/test-fixtures"}'
 
 # 1d: Manual cleanup
 echo "Run 'git rm -r tests deployment/scripts crates/cb-ast/resources' to remove old directories"
@@ -143,7 +144,7 @@ echo "Run 'git rm -r tests deployment/scripts crates/cb-ast/resources' to remove
 
 ```bash
 # 2a: Create new crates cb-types and cb-plugin-api
-codebuddy call batch_execute --arguments '{ 
+codebuddy tool batch_execute '{ 
   "operations": [
     {
       "type": "create_file",
@@ -170,7 +171,7 @@ codebuddy call batch_execute --arguments '{
 '
 
 # 2b: Move model and error from cb-core to cb-types
-codebuddy call batch_execute --arguments '{ 
+codebuddy tool batch_execute '{ 
   "operations": [
     {"type": "rename_file", "old_path": "crates/cb-core/src/model", "new_path": "crates/cb-types/src/model"},
     {"type": "rename_file", "old_path": "crates/cb-core/src/error.rs", "new_path": "crates/cb-types/src/error.rs"}
@@ -179,7 +180,7 @@ codebuddy call batch_execute --arguments '{
 '
 
 # 2c: Rename cb-api to cb-protocol
-codebuddy call rename_directory --arguments '{"old_path":"crates/cb-api", "new_path":"crates/cb-protocol"}'
+codebuddy tool rename_directory '{"old_path":"crates/cb-api", "new_path":"crates/cb-protocol"}'
 
 # 2d: Manual updates
 echo "1. Add '\"crates/cb-types\"', '\"crates/cb-plugin-api\"' to workspace members in root Cargo.toml"
@@ -192,16 +193,17 @@ echo "4. Fix 'use' statements across the workspace"
 
 ```bash
 # 3a: Create new crates cb-lsp, cb-services, cb-handlers (taken from original proposal)
-codebuddy call batch_execute --arguments '{"operations": [
+codebuddy tool batch_execute '{"operations": [
     {"type": "create_file", "path": "crates/cb-lsp/Cargo.toml", "content": "[package]\nname = \"cb-lsp\"\nversion = \"1.0.0-beta\"\nedition = \"2021\"\n[dependencies]\ncb-core = { path = \"../cb-core\" }\ntokio = { workspace = true }\nserde_json = { workspace = true }\nlsp-types = \"0.97\""},
     {"type": "create_file", "path": "crates/cb-lsp/src/lib.rs", "content": "pub mod client;"},
     {"type": "create_file", "path": "crates/cb-services/Cargo.toml", "content": "[package]\nname = \"cb-services\"\nversion = \"1.0.0-beta\"\nedition = \"2021\"\n[dependencies]\ncb-types = { path = \"../cb-types\" }\ncb-core = { path = \"../cb-core\" }\ncb-ast = { path = \"../cb-ast\" }\ncb-lsp = { path = \"../cb-lsp\" }\nanyhow = { workspace = true }"},
     {"type": "create_file", "path": "crates/cb-services/src/lib.rs", "content": "pub mod ast_service;\npub mod file_service;"},
     {"type": "create_file", "path": "crates/cb-handlers/Cargo.toml", "content": "[package]\nname = \"cb-handlers\"\nversion = \"1.0.0-beta\"\nedition = \"2021\"\n[dependencies]\ncb-protocol = { path = \"../cb-protocol\" }\ncb-core = { path = \"../cb-core\" }\ncb-services = { path = \"../cb-services\" }\ncb-plugin-api = { path = \"../cb-plugin-api\" }\nanyhow = { workspace = true }"},
     {"type": "create_file", "path": "crates/cb-handlers/src/lib.rs", "content": "pub mod tools;"}
-]}' ( 
+]}'
+
 # 3b: Move code from cb-server to new crates (example)
-codebuddy call batch_execute --arguments '{ 
+codebuddy tool batch_execute '{ 
   "operations": [
     {"type": "rename_file", "old_path": "crates/cb-server/src/systems/lsp", "new_path": "crates/cb-lsp/src/lsp_system"},
     {"type": "rename_file", "old_path": "crates/cb-server/src/services", "new_path": "crates/cb-services/src/services"},
@@ -220,7 +222,7 @@ echo "3. Fix 'use' statements across the workspace"
 
 ```bash
 # 4a: Move files from cb-mcp-proxy to cb-plugins/src/mcp
-codebuddy call batch_execute --arguments '{ 
+codebuddy tool batch_execute '{ 
   "operations": [
     {"type": "create_directory", "path": "crates/cb-plugins/src/mcp"},
     {"type": "rename_file", "old_path": "crates/cb-mcp-proxy/src/lib.rs", "new_path": "crates/cb-plugins/src/mcp/mod.rs"},

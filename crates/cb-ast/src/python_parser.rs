@@ -16,8 +16,8 @@ pub fn list_functions(source: &str) -> AstResult<Vec<String>> {
     // A more robust solution might involve making this configurable.
     let python_executable = "python3";
 
-    // Determine the path to the script relative to the crate's root.
-    let script_path = format!("{}/resources/ast_tool.py", env!("CARGO_MANIFEST_DIR"));
+    // Determine the path to the script relative to the workspace root.
+    let script_path = format!("{}/../../scripts/ast_tool.py", env!("CARGO_MANIFEST_DIR"));
 
     let mut child = Command::new(python_executable)
         .arg(&script_path)
