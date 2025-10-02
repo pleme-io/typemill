@@ -28,6 +28,7 @@ rustpython-parser = "0.3"
 # Rust AST parsing
 syn = { version = "2.0", features = ["full", "extra-traits", "visit"] }
 quote = "1.0"
+prettyplease = "0.2"
 # Additional utilities
 indexmap = "2.0"
 petgraph = "0.6" # For dependency graph analysis

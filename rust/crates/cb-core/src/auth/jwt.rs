@@ -31,7 +31,7 @@ pub fn validate_token(token: &str, secret: &str) -> Result<bool, CoreError> {
 
     decode::<Claims>(token, &key, &validation)
         .map(|_| true)
-        .map_err(|e| CoreError::Auth(e.to_string()))
+        .map_err(|e| CoreError::permission_denied(e.to_string()))
 }
 
 /// Validate a JWT token with project ID verification
@@ -46,14 +46,14 @@ pub fn validate_token_with_project(
     validation.validate_aud = false;
 
     let token_data =
-        decode::<Claims>(token, &key, &validation).map_err(|e| CoreError::Auth(e.to_string()))?;
+        decode::<Claims>(token, &key, &validation).map_err(|e| CoreError::permission_denied(e.to_string()))?;
 
     // Check if project_id claim matches expected value
     if let Some(project_id) = &token_data.claims.project_id {
         if project_id == expected_project_id {
             Ok(true)
         } else {
-            Err(CoreError::Auth(format!(
+            Err(CoreError::permission_denied(format!(
                 "Project ID mismatch: expected '{}', got '{}'",
                 expected_project_id, project_id
             )))
@@ -74,7 +74,9 @@ pub fn generate_token(
 ) -> Result<String, CoreError> {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map_err(|e| CoreError::Internal(format!("System time error: {}", e)))?
+        .map_err(|e| CoreError::Internal {
+            message: format!("System time error: {}", e),
+        })?
         .as_secs() as usize;
 
     let claims = Claims {
@@ -89,7 +91,7 @@ pub fn generate_token(
     let header = Header::default();
     let key = EncodingKey::from_secret(secret.as_ref());
 
-    encode(&header, &claims, &key).map_err(|e| CoreError::Auth(format!("Token generation failed: {}", e)))
+    encode(&header, &claims, &key).map_err(|e| CoreError::permission_denied(format!("Token generation failed: {}", e)))
 }
 
 #[cfg(test)]

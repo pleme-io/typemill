@@ -27,8 +27,8 @@ linker = "clang"
 rustflags = ["-C", "link-arg=-fuse-ld=mold"]
 
 [target.aarch64-unknown-linux-gnu]
-linker = "clang"
-rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+linker = "/usr/bin/clang"
+rustflags = ["-C", "link-arg=-fuse-ld=/usr/bin/mold"]
 
 [target.x86_64-apple-darwin]
 rustflags = ["-C", "link-arg=-fuse-ld=/opt/homebrew/opt/mold/libexec/mold"]
@@ -67,4 +67,6 @@ strip = true        # Strip symbols to reduce binary size
 # Ensure ~/.local/bin is in PATH for language servers (pylsp, gopls, etc.)
 # This is needed for tests that require LSP servers installed via pipx/go install
 # Also ensure ~/.cargo/bin and other standard paths are included
-PATH = { value = "$HOME/.local/bin:$HOME/.cargo/bin:$PATH", force = true, relative = false }
+PATH = { value = "$HOME/.local/bin:$HOME/.cargo/bin:/usr/bin:$PATH", force = true, relative = false }
+# Set CC for dependencies that need a C compiler
+CC = "/usr/bin/gcc"

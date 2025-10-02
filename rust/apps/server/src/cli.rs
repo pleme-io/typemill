@@ -62,6 +62,12 @@ pub enum Commands {
         #[arg(long, default_value = "pretty", value_parser = ["pretty", "compact"])]
         format: String,
     },
+    /// List all available MCP tools
+    Tools {
+        /// Output format (table, json, or names-only)
+        #[arg(long, default_value = "table", value_parser = ["table", "json", "names"])]
+        format: String,
+    },
     /// Manage MCP server presets
     #[cfg(feature = "mcp-proxy")]
     #[command(subcommand)]
@@ -140,6 +146,9 @@ pub async fn run() {
             format,
         } => {
             handle_tool_command(&tool_name, &args, &format).await;
+        }
+        Commands::Tools { format } => {
+            handle_tools_command(&format).await;
         }
         #[cfg(feature = "mcp-proxy")]
         Commands::Mcp(mcp_command) => {
@@ -580,6 +589,70 @@ fn terminate_process(pid: u32) -> bool {
     }
 }
 
+/// Handle tools list command - list all available MCP tools
+async fn handle_tools_command(format: &str) {
+    let dispatcher = match crate::dispatcher_factory::create_initialized_dispatcher().await {
+        Ok(d) => d,
+        Err(e) => {
+            eprintln!("Error initializing: {}", e);
+            process::exit(1);
+        }
+    };
+
+    // Create MCP tools/list request
+    use cb_core::model::mcp::{McpMessage, McpRequest};
+    let request = McpRequest {
+        jsonrpc: "2.0".to_string(),
+        id: Some(serde_json::json!(1)),
+        method: "tools/list".to_string(),
+        params: None,
+    };
+
+    match dispatcher.dispatch(McpMessage::Request(request)).await {
+        Ok(McpMessage::Response(response)) => {
+            if let Some(result) = response.result {
+                match format {
+                    "json" => println!("{}", serde_json::to_string_pretty(&result).unwrap()),
+                    "names" => {
+                        if let Some(tools) = result.get("tools").and_then(|t| t.as_array()) {
+                            for tool in tools {
+                                if let Some(name) = tool.get("name").and_then(|n| n.as_str()) {
+                                    println!("{}", name);
+                                }
+                            }
+                        }
+                    }
+                    _ => {
+                        // Table format
+                        println!("{:<30} {}", "TOOL NAME", "DESCRIPTION");
+                        println!("{}", "=".repeat(80));
+                        if let Some(tools) = result.get("tools").and_then(|t| t.as_array()) {
+                            for tool in tools {
+                                let name = tool.get("name").and_then(|n| n.as_str()).unwrap_or("unknown");
+                                let desc = tool.get("description").and_then(|d| d.as_str()).unwrap_or("");
+                                let desc_short = if desc.len() > 48 {
+                                    format!("{}...", &desc[..45])
+                                } else {
+                                    desc.to_string()
+                                };
+                                println!("{:<30} {}", name, desc_short);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("Error listing tools: {}", e);
+            process::exit(1);
+        }
+        _ => {
+            eprintln!("Unexpected response type");
+            process::exit(1);
+        }
+    }
+}
+
 /// Handle the tool command - call MCP tool directly
 async fn handle_tool_command(tool_name: &str, args_json: &str, format: &str) {
     // Parse JSON arguments
@@ -593,27 +666,15 @@ async fn handle_tool_command(tool_name: &str, args_json: &str, format: &str) {
         }
     };
 
-    // Create headless AppState initialization
-    let app_state = match crate::create_app_state().await {
-        Ok(state) => state,
+    // Initialize dispatcher via factory
+    let dispatcher = match crate::dispatcher_factory::create_initialized_dispatcher().await {
+        Ok(d) => d,
         Err(e) => {
             let error = cb_api::ApiError::internal(format!("Failed to initialize: {}", e));
             output_error(&error, format);
             process::exit(1);
         }
     };
-
-    let plugin_manager = std::sync::Arc::new(cb_plugins::PluginManager::new());
-    let dispatcher = std::sync::Arc::new(
-        cb_server::handlers::plugin_dispatcher::PluginDispatcher::new(app_state, plugin_manager),
-    );
-
-    // Initialize dispatcher
-    if let Err(e) = dispatcher.initialize().await {
-        let error = cb_api::ApiError::internal(format!("Failed to initialize dispatcher: {}", e));
-        output_error(&error, format);
-        process::exit(1);
-    }
 
     // Construct MCP request message
     use cb_core::model::mcp::{McpMessage, McpRequest};

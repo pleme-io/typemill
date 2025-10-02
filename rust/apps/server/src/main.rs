@@ -1,4 +1,5 @@
 mod cli;
+mod dispatcher_factory;
 
 use axum::{
     extract::{
@@ -11,7 +12,6 @@ use axum::{
 };
 use cb_api::AstService;
 use cb_ast::AstCache;
-use cb_plugins::PluginManager;
 use cb_server::handlers::plugin_dispatcher::{AppState, PluginDispatcher};
 use cb_server::services::DefaultAstService;
 use cb_server::workspaces::WorkspaceManager;
@@ -42,25 +42,14 @@ pub async fn run_stdio_mode() {
         std::env::current_dir()
     );
 
-    // Create workspace manager
-    let workspace_manager = Arc::new(WorkspaceManager::new());
-
-    // Create AppState similar to the test implementation
-    let app_state = match create_app_state(workspace_manager).await {
-        Ok(state) => state,
+    // Initialize dispatcher via factory
+    let dispatcher = match dispatcher_factory::create_initialized_dispatcher().await {
+        Ok(d) => d,
         Err(e) => {
-            error!(error = %e, "Failed to create app state");
+            error!(error = %e, "Failed to initialize dispatcher");
             return;
         }
     };
-
-    let plugin_manager = Arc::new(PluginManager::new());
-    let dispatcher = Arc::new(PluginDispatcher::new(app_state, plugin_manager));
-    debug!("About to call dispatcher.initialize()");
-    if let Err(e) = dispatcher.initialize().await {
-        error!(error = %e, "Failed to initialize dispatcher");
-        return;
-    }
     debug!("Plugin dispatcher initialized successfully");
 
     let stdin = io::stdin();
@@ -130,21 +119,14 @@ pub async fn run_websocket_server_with_port(port: u16) {
     // Create workspace manager
     let workspace_manager = Arc::new(WorkspaceManager::new());
 
-    // Create AppState similar to the test implementation
-    let app_state = match create_app_state(workspace_manager.clone()).await {
-        Ok(state) => state,
+    // Initialize dispatcher via factory
+    let dispatcher = match dispatcher_factory::create_initialized_dispatcher_with_workspace(workspace_manager.clone()).await {
+        Ok(d) => d,
         Err(e) => {
-            error!(error = %e, "Failed to create app state");
+            error!(error = %e, "Failed to initialize dispatcher");
             return;
         }
     };
-
-    let plugin_manager = Arc::new(PluginManager::new());
-    let dispatcher = Arc::new(PluginDispatcher::new(app_state, plugin_manager));
-    if let Err(e) = dispatcher.initialize().await {
-        error!(error = %e, "Failed to initialize dispatcher");
-        return;
-    }
 
     // Start admin server on a separate port
     let admin_port = port + 1000; // Admin on port+1000

@@ -992,7 +992,7 @@ impl LanguageAdapter for JavaAdapter {
                 let (dep_artifact, dep_group) = if dep_parts.len() == 2 {
                     (dep_parts[0], dep_parts[1])
                 } else {
-                    (dep, "com.example")
+                    (dep.as_str(), "com.example")
                 };
 
                 writeln!(manifest, "        <dependency>").unwrap();

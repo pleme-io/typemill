@@ -9,14 +9,12 @@ use crate::workspaces::WorkspaceManager;
 use crate::{ServerError, ServerResult};
 use async_trait::async_trait;
 use cb_api::AstService;
-use cb_ast::refactoring::{CodeRange, LspRefactoringService};
 use cb_core::model::mcp::{McpMessage, McpRequest, McpResponse, ToolCall};
 use cb_plugins::{LspAdapterPlugin, LspService, PluginError, PluginManager, PluginRequest};
 use cb_transport::McpDispatcher;
-use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{Mutex, OnceCell};
@@ -53,12 +51,14 @@ pub struct PluginDispatcher {
     app_state: Arc<AppState>,
     /// LSP adapter for refactoring operations
     lsp_adapter: Arc<Mutex<Option<Arc<DirectLspAdapter>>>>,
+    /// Tool handler registry for automatic routing
+    tool_registry: Arc<Mutex<super::tool_registry::ToolRegistry>>,
     /// Initialization flag
     initialized: OnceCell<()>,
 }
 
 /// Direct LSP adapter that bypasses the old LSP manager and its hard-coded mappings
-pub(crate) struct DirectLspAdapter {
+pub struct DirectLspAdapter {
     /// LSP clients by extension
     lsp_clients: Arc<Mutex<HashMap<String, Arc<crate::systems::lsp::LspClient>>>>,
     /// LSP configuration
@@ -70,7 +70,7 @@ pub(crate) struct DirectLspAdapter {
 }
 
 impl DirectLspAdapter {
-    pub(crate) fn new(config: cb_core::config::LspConfig, extensions: Vec<String>, name: String) -> Self {
+    pub fn new(config: cb_core::config::LspConfig, extensions: Vec<String>, name: String) -> Self {
         Self {
             lsp_clients: Arc::new(Mutex::new(HashMap::new())),
             config,
@@ -80,7 +80,7 @@ impl DirectLspAdapter {
     }
 
     /// Get or create an LSP client for the given extension
-    pub(crate) async fn get_or_create_client(
+    pub async fn get_or_create_client(
         &self,
         extension: &str,
     ) -> Result<Arc<crate::systems::lsp::LspClient>, String> {
@@ -251,121 +251,6 @@ impl LspService for DirectLspAdapter {
     }
 }
 
-/// LSP service wrapper for refactoring operations
-///
-/// This wrapper implements the `LspRefactoringService` trait from cb-ast,
-/// allowing refactoring functions to query LSP servers for code actions.
-struct LspRefactoringServiceWrapper {
-    lsp_adapter: Arc<DirectLspAdapter>,
-}
-
-impl LspRefactoringServiceWrapper {
-    fn new(lsp_adapter: Arc<DirectLspAdapter>) -> Self {
-        Self { lsp_adapter }
-    }
-
-    /// Get file extension from file path
-    fn get_extension(file_path: &str) -> Option<String> {
-        Path::new(file_path)
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .map(|s| s.to_string())
-    }
-}
-
-#[async_trait]
-impl LspRefactoringService for LspRefactoringServiceWrapper {
-    async fn get_code_actions(
-        &self,
-        file_path: &str,
-        range: &CodeRange,
-        kinds: Option<Vec<String>>,
-    ) -> cb_ast::error::AstResult<Value> {
-        // Convert file path to URI
-        let uri = format!("file://{}", file_path);
-
-        // Build LSP code action params
-        let params = json!({
-            "textDocument": {
-                "uri": uri
-            },
-            "range": {
-                "start": {
-                    "line": range.start_line,
-                    "character": range.start_col
-                },
-                "end": {
-                    "line": range.end_line,
-                    "character": range.end_col
-                }
-            },
-            "context": {
-                "diagnostics": [],
-                "only": kinds.unwrap_or_default()
-            }
-        });
-
-        // Get extension and send request
-        let extension = Self::get_extension(file_path).ok_or_else(|| {
-            cb_ast::error::AstError::analysis(format!(
-                "Could not determine file extension for: {}",
-                file_path
-            ))
-        })?;
-
-        let client = self
-            .lsp_adapter
-            .get_or_create_client(&extension)
-            .await
-            .map_err(|e| cb_ast::error::AstError::analysis(format!("LSP client error: {}", e)))?;
-
-        client
-            .send_request("textDocument/codeAction", params)
-            .await
-            .map_err(|e| cb_ast::error::AstError::analysis(format!("LSP request failed: {}", e)))
-            .map(|v| v)
-    }
-}
-
-/// Parameter structures for refactoring operations
-#[derive(Debug, Deserialize)]
-struct ExtractFunctionArgs {
-    file_path: String,
-    start_line: u32,
-    end_line: u32,
-    function_name: String,
-    #[serde(default)]
-    dry_run: Option<bool>,
-    #[serde(default)]
-    workspace_id: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct InlineVariableArgs {
-    file_path: String,
-    line: u32,
-    #[serde(default)]
-    character: Option<u32>,
-    #[serde(default)]
-    dry_run: Option<bool>,
-    #[serde(default)]
-    workspace_id: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct ExtractVariableArgs {
-    file_path: String,
-    start_line: u32,
-    start_character: u32,
-    end_line: u32,
-    end_character: u32,
-    variable_name: String,
-    #[serde(default)]
-    dry_run: Option<bool>,
-    #[serde(default)]
-    workspace_id: Option<String>,
-}
-
 impl PluginDispatcher {
     /// Creates a new instance of the `PluginDispatcher`.
     ///
@@ -382,6 +267,7 @@ impl PluginDispatcher {
             plugin_manager,
             app_state,
             lsp_adapter: Arc::new(Mutex::new(None)),
+            tool_registry: Arc::new(Mutex::new(super::tool_registry::ToolRegistry::new())),
             initialized: OnceCell::new(),
         }
     }
@@ -498,6 +384,23 @@ impl PluginDispatcher {
                 language_plugins = registered_plugins - 1,
                 "Plugin system initialized successfully"
             );
+
+            // Register tool handlers for non-LSP operations
+            {
+                let mut registry = self.tool_registry.lock().await;
+                registry.register(Arc::new(super::file_operation_handler::FileOperationHandler::new()));
+                debug!("Registered FileOperationHandler with 7 tools");
+
+                registry.register(Arc::new(super::workflow_handler::WorkflowHandler::new()));
+                debug!("Registered WorkflowHandler with 2 tools");
+
+                registry.register(Arc::new(super::system_handler::SystemHandler::new()));
+                debug!("Registered SystemHandler with 5 tools");
+
+                registry.register(Arc::new(super::refactoring_handler::RefactoringHandler::new()));
+                debug!("Registered RefactoringHandler with 5 tools");
+            }
+
             Ok::<(), ServerError>(())
         }).await?;
 
@@ -605,55 +508,41 @@ impl PluginDispatcher {
         debug!(tool_name = %tool_name, "Calling tool with plugin system");
 
         // Execute the appropriate handler based on tool type
-        let result = if tool_name == "achieve_intent" {
-            self.handle_achieve_intent(tool_call).await
-        } else if tool_name == "health_check" {
-            self.handle_health_check().await
-        } else if self.is_file_operation(&tool_name) {
-            self.handle_file_operation(tool_call).await
-        } else if self.is_refactoring_operation(&tool_name) {
-            self.handle_refactoring_operation(tool_call).await
-        } else if tool_name == "notify_file_opened" {
-            self.handle_notify_file_opened(tool_call).await
-        } else if tool_name == "notify_file_saved" {
-            self.handle_notify_file_saved(tool_call).await
-        } else if tool_name == "notify_file_closed" {
-            self.handle_notify_file_closed(tool_call).await
-        } else if tool_name == "apply_edits" {
-            self.handle_apply_edits(tool_call).await
-        } else if tool_name == "find_dead_code" {
-            match self.handle_find_dead_code(tool_call).await {
-                Ok(result) => Ok(json!({"content": result})),
-                Err(e) => Err(e),
-            }
-        } else if tool_name == "fix_imports" {
-            self.handle_fix_imports(tool_call).await
-        } else if self.is_system_tool(&tool_name) {
-            self.handle_system_tool(tool_call).await
-        } else {
-            // Convert MCP tool call to plugin request
-            let plugin_request = self.convert_tool_call_to_plugin_request(tool_call)?;
+        // Try tool registry first (for file operations, workflows, system tools, refactoring)
+        let result = {
+            let registry = self.tool_registry.lock().await;
+            if registry.has_tool(&tool_name) {
+                let context = super::tool_handler::ToolContext {
+                    app_state: self.app_state.clone(),
+                    plugin_manager: self.plugin_manager.clone(),
+                    lsp_adapter: self.lsp_adapter.clone(),
+                };
+                drop(registry); // Release lock before async operation
+                self.tool_registry.lock().await.handle_tool(tool_call, &context).await
+            } else {
+                // Fall back to plugin system for LSP operations only
+                let plugin_request = self.convert_tool_call_to_plugin_request(tool_call)?;
 
-            // Handle the request through the plugin system
-            let plugin_start = Instant::now();
-            match self.plugin_manager.handle_request(plugin_request).await {
-                Ok(response) => {
-                    let processing_time = plugin_start.elapsed().as_millis();
-                    debug!(
-                        processing_time_ms = processing_time,
-                        "Plugin request processed"
-                    );
+                let plugin_start = Instant::now();
+                match self.plugin_manager.handle_request(plugin_request).await {
+                    Ok(response) => {
+                        let processing_time = plugin_start.elapsed().as_millis();
+                        debug!(
+                            processing_time_ms = processing_time,
+                            "Plugin request processed"
+                        );
 
-                    Ok(json!({
-                        "content": response.data.unwrap_or(json!(null)),
-                        "plugin": response.metadata.plugin_name,
-                        "processing_time_ms": response.metadata.processing_time_ms,
-                        "cached": response.metadata.cached
-                    }))
-                }
-                Err(err) => {
-                    error!(error = %err, "Plugin request failed");
-                    Err(self.convert_plugin_error_to_server_error(err))
+                        Ok(json!({
+                            "content": response.data.unwrap_or(json!(null)),
+                            "plugin": response.metadata.plugin_name,
+                            "processing_time_ms": response.metadata.processing_time_ms,
+                            "cached": response.metadata.cached
+                        }))
+                    }
+                    Err(err) => {
+                        error!(error = %err, "Plugin request failed");
+                        Err(self.convert_plugin_error_to_server_error(err))
+                    }
                 }
             }
         };
@@ -977,963 +866,6 @@ impl PluginDispatcher {
         Ok(result.stdout)
     }
 
-    /// Check if a tool name represents a file operation
-    fn is_file_operation(&self, tool_name: &str) -> bool {
-        matches!(
-            tool_name,
-            "rename_file"
-                | "create_file"
-                | "delete_file"
-                | "read_file"
-                | "write_file"
-                | "rename_directory"
-        )
-    }
-
-    /// Check if a tool name represents a system tool
-    fn is_system_tool(&self, tool_name: &str) -> bool {
-        matches!(
-            tool_name,
-            "list_files"
-                | "analyze_imports"
-                | "update_dependencies"
-        )
-    }
-
-    /// Check if a tool name represents a refactoring operation that needs EditPlan handling
-    fn is_refactoring_operation(&self, tool_name: &str) -> bool {
-        matches!(
-            tool_name,
-            "extract_function" | "inline_variable" | "extract_variable" | "extract_module_to_package"
-        )
-    }
-
-    /// Handle system tools through the plugin system
-    async fn handle_system_tool(&self, tool_call: ToolCall) -> ServerResult<Value> {
-        debug!(tool_name = %tool_call.name, "Handling system tool");
-
-        // Check if this is a workspace-aware list_files call
-        if tool_call.name == "list_files" {
-            let args = &tool_call.arguments;
-            if let Some(args) = args {
-                if let Some(workspace_id) = args.get("workspace_id").and_then(|v| v.as_str()) {
-                    // Handle remote list_files
-                    let path = args
-                        .get("path")
-                        .and_then(|v| v.as_str())
-                        .ok_or_else(|| {
-                            ServerError::InvalidRequest("Missing 'path' parameter".into())
-                        })?;
-
-                    let command = format!("ls -1 '{}'", Self::escape_shell_arg(path));
-                    let stdout = Self::execute_remote_command(
-                        &self.app_state.workspace_manager,
-                        workspace_id,
-                        &command,
-                    )
-                    .await?;
-
-                    // Parse stdout into file list (one file per line)
-                    let files: Vec<String> = stdout
-                        .lines()
-                        .filter(|line| !line.is_empty())
-                        .map(|line| line.to_string())
-                        .collect();
-
-                    return Ok(json!({
-                        "files": files,
-                        "path": path
-                    }));
-                }
-            }
-        }
-
-        // Fall through to plugin system for local operations
-        let mut request = PluginRequest::new(
-            tool_call.name.clone(),
-            PathBuf::from("."), // Dummy path for system tools
-        );
-
-        // Pass through all arguments as params
-        request.params = tool_call.arguments.unwrap_or(json!({}));
-
-        // Route to the system plugin
-        let start_time = Instant::now();
-        match self.plugin_manager.handle_request(request).await {
-            Ok(response) => {
-                let processing_time = start_time.elapsed().as_millis();
-                debug!(
-                    processing_time_ms = processing_time,
-                    "System tool processed"
-                );
-
-                Ok(json!({
-                    "content": response.data.unwrap_or(json!(null)),
-                    "plugin": response.metadata.plugin_name,
-                    "processing_time_ms": response.metadata.processing_time_ms,
-                }))
-            }
-            Err(e) => {
-                warn!(error = %e, "System tool error");
-                Err(ServerError::Runtime {
-                    message: format!("Tool '{}' failed: {}", tool_call.name, e),
-                })
-            }
-        }
-    }
-
-    /// Handle LSP file notification tool
-    async fn handle_notify_file_opened(&self, tool_call: ToolCall) -> ServerResult<Value> {
-        debug!(tool_name = %tool_call.name, "Handling notify_file_opened");
-
-        let args = tool_call.arguments.unwrap_or(json!({}));
-        let file_path_str = args
-            .get("file_path")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| ServerError::InvalidRequest("Missing 'file_path' parameter".into()))?;
-
-        let file_path = PathBuf::from(file_path_str);
-
-        // Trigger plugin lifecycle hooks for all plugins that can handle this file
-        if let Err(e) = self
-            .plugin_manager
-            .trigger_file_open_hooks(&file_path)
-            .await
-        {
-            warn!(
-                file_path = %file_path.display(),
-                error = %e,
-                "Failed to trigger plugin hooks (continuing)"
-            );
-        }
-
-        // Get file extension to determine which LSP adapter to notify
-        let extension = file_path.extension().and_then(|e| e.to_str()).unwrap_or("");
-
-        // Load LSP config to create a temporary DirectLspAdapter for notification
-        let app_config = cb_core::config::AppConfig::load()
-            .map_err(|e| ServerError::Internal(format!("Failed to load app config: {}", e)))?;
-        let lsp_config = app_config.lsp;
-
-        // Find the server config for this extension
-        if let Some(_server_config) = lsp_config
-            .servers
-            .iter()
-            .find(|server| server.extensions.contains(&extension.to_string()))
-        {
-            // Create a temporary DirectLspAdapter to handle the notification
-            let adapter = DirectLspAdapter::new(
-                lsp_config,
-                vec![extension.to_string()],
-                format!("temp-{}-notifier", extension),
-            );
-
-            // Get or create LSP client and notify
-            match adapter.get_or_create_client(extension).await {
-                Ok(client) => match client.notify_file_opened(&file_path).await {
-                    Ok(()) => {
-                        debug!(
-                            file_path = %file_path.display(),
-                            "Successfully notified LSP server about file"
-                        );
-                        Ok(json!({
-                            "success": true,
-                            "message": format!("Notified LSP server about file: {}", file_path.display())
-                        }))
-                    }
-                    Err(e) => {
-                        warn!(
-                            file_path = %file_path.display(),
-                            error = %e,
-                            "Failed to notify LSP server about file"
-                        );
-                        Err(ServerError::Runtime {
-                            message: format!("Failed to notify LSP server: {}", e),
-                        })
-                    }
-                },
-                Err(e) => {
-                    warn!(
-                        extension = %extension,
-                        error = %e,
-                        "Failed to get LSP client for extension"
-                    );
-                    Err(ServerError::Runtime {
-                        message: format!("Failed to get LSP client: {}", e),
-                    })
-                }
-            }
-        } else {
-            debug!(extension = %extension, "No LSP server configured for extension");
-            Ok(json!({
-                "success": true,
-                "message": format!("No LSP server configured for extension '{}'", extension)
-            }))
-        }
-    }
-
-    /// Handle LSP file saved notification tool
-    async fn handle_notify_file_saved(&self, tool_call: ToolCall) -> ServerResult<Value> {
-        debug!(tool_name = %tool_call.name, "Handling notify_file_saved");
-
-        let args = tool_call.arguments.unwrap_or(json!({}));
-        let file_path_str = args
-            .get("file_path")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| ServerError::InvalidRequest("Missing 'file_path' parameter".into()))?;
-
-        let file_path = PathBuf::from(file_path_str);
-
-        // Trigger plugin lifecycle hooks for all plugins that can handle this file
-        if let Err(e) = self
-            .plugin_manager
-            .trigger_file_save_hooks(&file_path)
-            .await
-        {
-            warn!(
-                file_path = %file_path.display(),
-                error = %e,
-                "Failed to trigger plugin save hooks (continuing)"
-            );
-        }
-
-        debug!(
-            file_path = %file_path.display(),
-            "File saved notification processed"
-        );
-
-        Ok(json!({
-            "success": true,
-            "message": format!("Notified about saved file: {}", file_path.display())
-        }))
-    }
-
-    /// Handle LSP file closed notification tool
-    async fn handle_notify_file_closed(&self, tool_call: ToolCall) -> ServerResult<Value> {
-        debug!(tool_name = %tool_call.name, "Handling notify_file_closed");
-
-        let args = tool_call.arguments.unwrap_or(json!({}));
-        let file_path_str = args
-            .get("file_path")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| ServerError::InvalidRequest("Missing 'file_path' parameter".into()))?;
-
-        let file_path = PathBuf::from(file_path_str);
-
-        // Trigger plugin lifecycle hooks for all plugins that can handle this file
-        if let Err(e) = self
-            .plugin_manager
-            .trigger_file_close_hooks(&file_path)
-            .await
-        {
-            warn!(
-                file_path = %file_path.display(),
-                error = %e,
-                "Failed to trigger plugin close hooks (continuing)"
-            );
-        }
-
-        debug!(
-            file_path = %file_path.display(),
-            "File closed notification processed"
-        );
-
-        Ok(json!({
-            "success": true,
-            "message": format!("Notified about closed file: {}", file_path.display())
-        }))
-    }
-
-    /// Handle health_check tool call by reporting server status.
-    async fn handle_health_check(&self) -> ServerResult<Value> {
-        info!("Handling health check request");
-
-        let uptime_secs = self.app_state.start_time.elapsed().as_secs();
-        let uptime_mins = uptime_secs / 60;
-        let uptime_hours = uptime_mins / 60;
-
-        // Get plugin count from plugin manager
-        let plugin_count = self.plugin_manager.get_all_tool_definitions().await.len();
-
-        // Get paused workflow count from executor
-        let paused_workflows = self.app_state.workflow_executor.get_paused_workflow_count();
-
-        Ok(json!({
-            "status": "healthy",
-            "uptime": {
-                "seconds": uptime_secs,
-                "minutes": uptime_mins,
-                "hours": uptime_hours,
-                "formatted": format!("{}h {}m {}s", uptime_hours, uptime_mins % 60, uptime_secs % 60)
-            },
-            "plugins": {
-                "loaded": plugin_count
-            },
-            "workflows": {
-                "paused": paused_workflows
-            }
-        }))
-    }
-
-    /// Handle achieve_intent tool call by using the Planner service.
-    async fn handle_achieve_intent(&self, tool_call: ToolCall) -> ServerResult<Value> {
-        debug!(tool_name = %tool_call.name, "Planning or resuming workflow");
-
-        let args = tool_call.arguments.ok_or_else(|| {
-            ServerError::InvalidRequest("Missing arguments for achieve_intent".into())
-        })?;
-
-        // Check if this is a workflow resume request
-        if let Some(workflow_id) = args.get("workflow_id").and_then(|v| v.as_str()) {
-            info!(workflow_id = %workflow_id, "Resuming paused workflow");
-
-            let resume_data = args.get("resume_data").cloned();
-
-            return self
-                .app_state
-                .workflow_executor
-                .resume_workflow(workflow_id, resume_data)
-                .await;
-        }
-
-        // Otherwise, plan a new workflow
-        let intent_value = args
-            .get("intent")
-            .ok_or_else(|| ServerError::InvalidRequest("Missing 'intent' parameter".into()))?;
-
-        let intent: cb_core::model::workflow::Intent = serde_json::from_value(intent_value.clone())
-            .map_err(|e| ServerError::InvalidRequest(format!("Invalid intent format: {}", e)))?;
-
-        // Check if we should execute the workflow
-        let execute = args
-            .get("execute")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-
-        // Check if dry-run mode is requested
-        let dry_run = args
-            .get("dry_run")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-
-        match self.app_state.planner.plan_for_intent(&intent) {
-            Ok(workflow) => {
-                info!(
-                    intent = %intent.name,
-                    workflow_name = %workflow.name,
-                    steps = workflow.steps.len(),
-                    complexity = workflow.metadata.complexity,
-                    execute = execute,
-                    dry_run = dry_run,
-                    "Successfully planned workflow"
-                );
-
-                // If execute is true, run the workflow
-                if execute {
-                    debug!(dry_run = dry_run, "Executing workflow");
-                    match self
-                        .app_state
-                        .workflow_executor
-                        .execute_workflow(&workflow, dry_run)
-                        .await
-                    {
-                        Ok(result) => {
-                            info!(
-                                workflow_name = %workflow.name,
-                                dry_run = dry_run,
-                                "Workflow executed successfully"
-                            );
-                            Ok(result)
-                        }
-                        Err(e) => {
-                            error!(
-                                workflow_name = %workflow.name,
-                                error = %e,
-                                "Workflow execution failed"
-                            );
-                            Err(e)
-                        }
-                    }
-                } else {
-                    // Just return the plan
-                    Ok(json!({
-                        "success": true,
-                        "workflow": workflow,
-                    }))
-                }
-            }
-            Err(e) => {
-                error!(intent = %intent.name, error = %e, "Failed to plan workflow for intent");
-                Err(ServerError::Runtime { message: e })
-            }
-        }
-    }
-
-    /// Handle apply_edits tool using FileService
-    async fn handle_apply_edits(&self, tool_call: ToolCall) -> ServerResult<Value> {
-        debug!(tool_name = %tool_call.name, "Handling apply_edits");
-
-        let args = tool_call.arguments.unwrap_or(json!({}));
-        let edit_plan_value = args
-            .get("edit_plan")
-            .ok_or_else(|| ServerError::InvalidRequest("Missing 'edit_plan' parameter".into()))?;
-
-        // Parse the EditPlan from the JSON value
-        let edit_plan: cb_api::EditPlan = serde_json::from_value(edit_plan_value.clone())
-            .map_err(|e| ServerError::InvalidRequest(format!("Invalid edit_plan format: {}", e)))?;
-
-        debug!(
-            source_file = %edit_plan.source_file,
-            edits_count = edit_plan.edits.len(),
-            dependency_updates_count = edit_plan.dependency_updates.len(),
-            "Applying edit plan"
-        );
-
-        // Apply the edit plan using the FileService
-        match self
-            .app_state
-            .file_service
-            .apply_edit_plan(&edit_plan)
-            .await
-        {
-            Ok(result) => {
-                if result.success {
-                    info!(
-                        modified_files_count = result.modified_files.len(),
-                        "Successfully applied edit plan"
-                    );
-                    Ok(json!({
-                        "success": true,
-                        "message": format!("Successfully applied edit plan to {} files",
-                                         result.modified_files.len()),
-                        "result": result
-                    }))
-                } else {
-                    warn!(errors = ?result.errors, "Edit plan applied with errors");
-                    Ok(json!({
-                        "success": false,
-                        "message": format!("Edit plan completed with errors: {}",
-                                         result.errors.as_ref()
-                                              .map(|e| e.join("; "))
-                                              .unwrap_or_else(|| "Unknown errors".to_string())),
-                        "result": result
-                    }))
-                }
-            }
-            Err(e) => {
-                error!(error = %e, "Failed to apply edit plan");
-                Err(ServerError::Runtime {
-                    message: format!("Failed to apply edit plan: {}", e),
-                })
-            }
-        }
-    }
-
-    /// Handle file operations using app_state services
-    async fn handle_file_operation(&self, tool_call: ToolCall) -> ServerResult<Value> {
-        debug!(tool_name = %tool_call.name, "Handling file operation");
-
-        match tool_call.name.as_str() {
-            "rename_file" => {
-                let args = tool_call.arguments.ok_or_else(|| {
-                    ServerError::InvalidRequest("Missing arguments for rename_file".into())
-                })?;
-                let old_path = args
-                    .get("old_path")
-                    .and_then(|v| v.as_str())
-                    .ok_or_else(|| {
-                        ServerError::InvalidRequest("Missing 'old_path' parameter".into())
-                    })?;
-                let new_path = args
-                    .get("new_path")
-                    .and_then(|v| v.as_str())
-                    .ok_or_else(|| {
-                        ServerError::InvalidRequest("Missing 'new_path' parameter".into())
-                    })?;
-                let dry_run = args
-                    .get("dry_run")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false);
-
-                let result = self
-                    .app_state
-                    .file_service
-                    .rename_file_with_imports(
-                        std::path::Path::new(old_path),
-                        std::path::Path::new(new_path),
-                        dry_run,
-                    )
-                    .await?;
-
-                if result.dry_run {
-                    Ok(json!({
-                        "status": "preview",
-                        "preview": result.result
-                    }))
-                } else {
-                    Ok(result.result)
-                }
-            }
-            "rename_directory" => {
-                let args = tool_call.arguments.ok_or_else(|| {
-                    ServerError::InvalidRequest("Missing arguments for rename_directory".into())
-                })?;
-                let old_path = args
-                    .get("old_path")
-                    .and_then(|v| v.as_str())
-                    .ok_or_else(|| {
-                        ServerError::InvalidRequest("Missing 'old_path' parameter".into())
-                    })?;
-                let new_path = args
-                    .get("new_path")
-                    .and_then(|v| v.as_str())
-                    .ok_or_else(|| {
-                        ServerError::InvalidRequest("Missing 'new_path' parameter".into())
-                    })?;
-                let dry_run = args
-                    .get("dry_run")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false);
-
-                let result = self
-                    .app_state
-                    .file_service
-                    .rename_directory_with_imports(
-                        std::path::Path::new(old_path),
-                        std::path::Path::new(new_path),
-                        dry_run,
-                    )
-                    .await?;
-
-                if result.dry_run {
-                    Ok(json!({
-                        "status": "preview",
-                        "preview": result.result
-                    }))
-                } else {
-                    Ok(result.result)
-                }
-            }
-            "create_file" => {
-                let args = tool_call.arguments.ok_or_else(|| {
-                    ServerError::InvalidRequest("Missing arguments for create_file".into())
-                })?;
-                let file_path =
-                    args.get("file_path")
-                        .and_then(|v| v.as_str())
-                        .ok_or_else(|| {
-                            ServerError::InvalidRequest("Missing 'file_path' parameter".into())
-                        })?;
-                let content = args.get("content").and_then(|v| v.as_str());
-                let overwrite = args.get("overwrite").and_then(|v| v.as_bool()).unwrap_or(false);
-                let dry_run = args.get("dry_run").and_then(|v| v.as_bool()).unwrap_or(false);
-
-                let result = self.app_state
-                    .file_service
-                    .create_file(std::path::Path::new(file_path), content, overwrite, dry_run)
-                    .await?;
-
-                if result.dry_run {
-                    Ok(json!({
-                        "status": "preview",
-                        "preview": result.result
-                    }))
-                } else {
-                    Ok(result.result)
-                }
-            }
-            "delete_file" => {
-                let args = tool_call.arguments.ok_or_else(|| {
-                    ServerError::InvalidRequest("Missing arguments for delete_file".into())
-                })?;
-                let file_path =
-                    args.get("file_path")
-                        .and_then(|v| v.as_str())
-                        .ok_or_else(|| {
-                            ServerError::InvalidRequest("Missing 'file_path' parameter".into())
-                        })?;
-                let force = args.get("force").and_then(|v| v.as_bool()).unwrap_or(false);
-                let dry_run = args.get("dry_run").and_then(|v| v.as_bool()).unwrap_or(false);
-
-                let result = self.app_state
-                    .file_service
-                    .delete_file(std::path::Path::new(file_path), force, dry_run)
-                    .await?;
-
-                if result.dry_run {
-                    Ok(json!({
-                        "status": "preview",
-                        "preview": result.result
-                    }))
-                } else {
-                    Ok(result.result)
-                }
-            }
-            "read_file" => {
-                let args = tool_call.arguments.ok_or_else(|| {
-                    ServerError::InvalidRequest("Missing arguments for read_file".into())
-                })?;
-                let file_path =
-                    args.get("file_path")
-                        .and_then(|v| v.as_str())
-                        .ok_or_else(|| {
-                            ServerError::InvalidRequest("Missing 'file_path' parameter".into())
-                        })?;
-                let workspace_id = args.get("workspace_id").and_then(|v| v.as_str());
-
-                // Route to workspace or local filesystem
-                let content = if let Some(workspace_id) = workspace_id {
-                    // Execute in remote workspace
-                    let command = format!("cat '{}'", Self::escape_shell_arg(file_path));
-                    Self::execute_remote_command(
-                        &self.app_state.workspace_manager,
-                        workspace_id,
-                        &command,
-                    )
-                    .await?
-                } else {
-                    // Use FileService for local operations
-                    self.app_state
-                        .file_service
-                        .read_file(std::path::Path::new(file_path))
-                        .await?
-                };
-
-                Ok(json!({
-                    "success": true,
-                    "file_path": file_path,
-                    "content": content
-                }))
-            }
-            "write_file" => {
-                let args = tool_call.arguments.ok_or_else(|| {
-                    ServerError::InvalidRequest("Missing arguments for write_file".into())
-                })?;
-                let file_path =
-                    args.get("file_path")
-                        .and_then(|v| v.as_str())
-                        .ok_or_else(|| {
-                            ServerError::InvalidRequest("Missing 'file_path' parameter".into())
-                        })?;
-                let content = args.get("content")
-                    .and_then(|v| v.as_str())
-                    .ok_or_else(|| {
-                        ServerError::InvalidRequest("Missing 'content' parameter".into())
-                    })?;
-                let dry_run = args.get("dry_run").and_then(|v| v.as_bool()).unwrap_or(false);
-                let workspace_id = args.get("workspace_id").and_then(|v| v.as_str());
-
-                // Route to workspace or local filesystem
-                if let Some(workspace_id) = workspace_id {
-                    // Remote workspace - dry_run not supported for remote operations
-                    if dry_run {
-                        return Err(ServerError::InvalidRequest(
-                            "dry_run not supported for remote workspace operations".into(),
-                        ));
-                    }
-
-                    // Use printf for safer writing (avoids issues with echo interpreting backslashes)
-                    let command = format!(
-                        "printf '%s' '{}' > '{}'",
-                        Self::escape_shell_arg(content),
-                        Self::escape_shell_arg(file_path)
-                    );
-                    Self::execute_remote_command(
-                        &self.app_state.workspace_manager,
-                        workspace_id,
-                        &command,
-                    )
-                    .await?;
-
-                    Ok(json!({
-                        "success": true,
-                        "file_path": file_path,
-                        "message": "File written successfully"
-                    }))
-                } else {
-                    // Local filesystem
-                    let result = self.app_state
-                        .file_service
-                        .write_file(std::path::Path::new(file_path), content, dry_run)
-                        .await?;
-
-                    if result.dry_run {
-                        Ok(json!({
-                            "status": "preview",
-                            "preview": result.result
-                        }))
-                    } else {
-                        Ok(result.result)
-                    }
-                }
-            }
-            _ => Err(ServerError::Unsupported(format!(
-                "File operation '{}' not implemented",
-                tool_call.name
-            ))),
-        }
-    }
-
-    /// Handle refactoring operations using cb-ast and FileService
-    async fn handle_refactoring_operation(&self, tool_call: ToolCall) -> ServerResult<Value> {
-        debug!(tool_name = %tool_call.name, "Handling refactoring operation");
-
-        let args = tool_call.arguments.ok_or_else(|| {
-            ServerError::InvalidRequest(format!("Missing arguments for {}", tool_call.name))
-        })?;
-
-        // Parse and execute refactoring based on tool type
-        let (file_path, dry_run, workspace_id, edit_plan) = match tool_call.name.as_str() {
-            "extract_function" => {
-                let parsed: ExtractFunctionArgs = serde_json::from_value(args)
-                    .map_err(|e| ServerError::InvalidRequest(format!("Invalid arguments: {}", e)))?;
-
-                let content = if let Some(workspace_id) = &parsed.workspace_id {
-                    let command = format!("cat '{}'", Self::escape_shell_arg(&parsed.file_path));
-                    Self::execute_remote_command(
-                        &self.app_state.workspace_manager,
-                        workspace_id,
-                        &command,
-                    )
-                    .await?
-                } else {
-                    self.app_state
-                        .file_service
-                        .read_file(Path::new(&parsed.file_path))
-                        .await?
-                };
-
-                // Calculate end_col based on the actual line length
-                let lines: Vec<&str> = content.lines().collect();
-                let end_col = if parsed.end_line > 0 && (parsed.end_line as usize) <= lines.len() {
-                    let line = lines[(parsed.end_line as usize) - 1];
-                    line.len() as u32
-                } else {
-                    0
-                };
-
-                let range = cb_ast::refactoring::CodeRange {
-                    start_line: parsed.start_line,
-                    start_col: 0,
-                    end_line: parsed.end_line,
-                    end_col,
-                };
-
-                // Create LSP service wrapper if adapter is available
-                let lsp_service: Option<LspRefactoringServiceWrapper> = {
-                    let adapter_guard = self.lsp_adapter.lock().await;
-                    adapter_guard
-                        .as_ref()
-                        .map(|adapter| LspRefactoringServiceWrapper::new(adapter.clone()))
-                };
-
-                let plan = cb_ast::refactoring::plan_extract_function(
-                    &content,
-                    &range,
-                    &parsed.function_name,
-                    &parsed.file_path,
-                    lsp_service.as_ref().map(|s| s as &dyn LspRefactoringService),
-                )
-                .await
-                .map_err(|e| ServerError::Runtime {
-                    message: format!("Extract function planning failed: {}", e),
-                })?;
-
-                (parsed.file_path, parsed.dry_run.unwrap_or(false), parsed.workspace_id, plan)
-            }
-            "inline_variable" => {
-                let parsed: InlineVariableArgs = serde_json::from_value(args)
-                    .map_err(|e| ServerError::InvalidRequest(format!("Invalid arguments: {}", e)))?;
-
-                let content = if let Some(workspace_id) = &parsed.workspace_id {
-                    let command = format!("cat '{}'", Self::escape_shell_arg(&parsed.file_path));
-                    Self::execute_remote_command(
-                        &self.app_state.workspace_manager,
-                        workspace_id,
-                        &command,
-                    )
-                    .await?
-                } else {
-                    self.app_state
-                        .file_service
-                        .read_file(Path::new(&parsed.file_path))
-                        .await?
-                };
-
-                // Create LSP service wrapper if adapter is available
-                let lsp_service: Option<LspRefactoringServiceWrapper> = {
-                    let adapter_guard = self.lsp_adapter.lock().await;
-                    adapter_guard
-                        .as_ref()
-                        .map(|adapter| LspRefactoringServiceWrapper::new(adapter.clone()))
-                };
-
-                let plan = cb_ast::refactoring::plan_inline_variable(
-                    &content,
-                    parsed.line,
-                    parsed.character.unwrap_or(0),
-                    &parsed.file_path,
-                    lsp_service.as_ref().map(|s| s as &dyn LspRefactoringService),
-                )
-                .await
-                .map_err(|e| ServerError::Runtime {
-                    message: format!("Inline variable planning failed: {}", e),
-                })?;
-
-                (parsed.file_path, parsed.dry_run.unwrap_or(false), parsed.workspace_id, plan)
-            }
-            "extract_variable" => {
-                let parsed: ExtractVariableArgs = serde_json::from_value(args)
-                    .map_err(|e| ServerError::InvalidRequest(format!("Invalid arguments: {}", e)))?;
-
-                let content = if let Some(workspace_id) = &parsed.workspace_id {
-                    let command = format!("cat '{}'", Self::escape_shell_arg(&parsed.file_path));
-                    Self::execute_remote_command(
-                        &self.app_state.workspace_manager,
-                        workspace_id,
-                        &command,
-                    )
-                    .await?
-                } else {
-                    self.app_state
-                        .file_service
-                        .read_file(Path::new(&parsed.file_path))
-                        .await?
-                };
-
-                // Create LSP service wrapper if adapter is available
-                let lsp_service: Option<LspRefactoringServiceWrapper> = {
-                    let adapter_guard = self.lsp_adapter.lock().await;
-                    adapter_guard
-                        .as_ref()
-                        .map(|adapter| LspRefactoringServiceWrapper::new(adapter.clone()))
-                };
-
-                let plan = cb_ast::refactoring::plan_extract_variable(
-                    &content,
-                    parsed.start_line,
-                    parsed.start_character,
-                    parsed.end_line,
-                    parsed.end_character,
-                    Some(parsed.variable_name.clone()),
-                    &parsed.file_path,
-                    lsp_service.as_ref().map(|s| s as &dyn LspRefactoringService),
-                )
-                .await
-                .map_err(|e| ServerError::Runtime {
-                    message: format!("Extract variable planning failed: {}", e),
-                })?;
-
-                (parsed.file_path, parsed.dry_run.unwrap_or(false), parsed.workspace_id, plan)
-            }
-            "extract_module_to_package" => {
-                let parsed: cb_ast::package_extractor::ExtractModuleToPackageParams =
-                    serde_json::from_value(args)
-                        .map_err(|e| ServerError::InvalidRequest(format!("Invalid arguments: {}", e)))?;
-
-                let plan = cb_ast::package_extractor::plan_extract_module_to_package(parsed)
-                    .await
-                    .map_err(|e| ServerError::Runtime {
-                        message: format!("Extract module to package planning failed: {}", e),
-                    })?;
-
-                // For package extraction, we use the source_package path as the file_path
-                (
-                    plan.source_file.clone(),
-                    false, // dry_run handled within the planner
-                    None,  // workspace_id not supported for package extraction
-                    plan,
-                )
-            }
-            _ => {
-                return Err(ServerError::InvalidRequest(format!(
-                    "Unknown refactoring operation: {}",
-                    tool_call.name
-                )))
-            }
-        };
-
-        // Apply edits with workspace routing
-        if let Some(workspace_id) = &workspace_id {
-            // Remote workspace execution
-            if dry_run {
-                // Return preview for remote dry run
-                return Ok(json!({
-                    "status": "preview",
-                    "operation": tool_call.name,
-                    "file_path": file_path,
-                    "edit_plan": edit_plan,
-                }));
-            }
-
-            // Apply edits to remote workspace
-            if let Some(file_edit) = edit_plan.edits.get(0) {
-                let command = format!(
-                    "printf '%s' '{}' > '{}'",
-                    Self::escape_shell_arg(&file_edit.new_content),
-                    Self::escape_shell_arg(&file_edit.file_path)
-                );
-                Self::execute_remote_command(
-                    &self.app_state.workspace_manager,
-                    workspace_id,
-                    &command,
-                )
-                .await?;
-
-                Ok(json!({
-                    "status": "completed",
-                    "operation": tool_call.name,
-                    "file_path": file_path,
-                    "success": true,
-                    "modified_files": [file_path],
-                }))
-            } else {
-                Ok(json!({
-                    "status": "completed",
-                    "operation": tool_call.name,
-                    "file_path": file_path,
-                    "success": true,
-                    "modified_files": [],
-                    "message": "No changes needed."
-                }))
-            }
-        } else {
-            // Local execution with dry_run pattern
-            let dry_run_result = cb_core::execute_with_dry_run(
-                dry_run,
-                // Preview function: Just return the generated plan
-                || async {
-                    Ok(json!({
-                        "status": "preview",
-                        "operation": tool_call.name,
-                        "file_path": file_path,
-                        "edit_plan": edit_plan,
-                    }))
-                },
-                // Execution function: Apply the plan using the file service
-                || async {
-                    let result = self
-                        .app_state
-                        .file_service
-                        .apply_edit_plan(&edit_plan)
-                        .await?;
-
-                    Ok(json!({
-                        "status": "completed",
-                        "operation": tool_call.name,
-                        "file_path": file_path,
-                        "success": result.success,
-                        "modified_files": result.modified_files,
-                        "errors": result.errors
-                    }))
-                },
-            )
-            .await
-            .map_err(|e| ServerError::Internal(format!("Dry run execution failed: {}", e)))?;
-
-            Ok(dry_run_result.to_json())
-        }
-    }
 
     /// Checks if a specific LSP method is supported for the given file.
     ///
