@@ -30,15 +30,19 @@ ERROR: Failed to start LSP server 'typescript-language-server --stdio':
 
 **Current State:**
 - LSP availability checks: ✅ FIXED (now checks ~/.local/bin, ~/.nvm, ~/.cargo/bin)
-- Config generation: ✅ IMPROVED (generates full AppConfig structure)
-- Config loading: ❌ **STILL FAILING** (deserialization issue)
+- Config generation: ✅ FIXED (cache config fields corrected)
+- Config loading: ✅ **FIXED** (deserialization now succeeds)
 
-**Needed Fix:**
-Option 1: Make config loading more robust - log deserialization errors, partial config support
-Option 2: Ensure test config JSON exactly matches all required AppConfig fields
-Option 3: Add config validation in tests to detect deserialization failures early
+**Resolution (ce965a5):**
+The issue was in the CacheConfig JSON structure:
+- Used `maxSizeMb` instead of `maxSizeBytes`
+- Missing required `persistent` field
+- Missing optional `cacheDir` field
 
-**Workaround:** Install LSP servers in system PATH (not just user bin dirs)
+After fixing these fields to match the struct definition, config deserialization succeeds.
+LSP servers now spawn with absolute paths from the config.
+
+**Status:** RESOLVED - LSP servers now start correctly (some tests still timeout waiting for LSP responses, but that's a separate initialization timing issue)
 
 ---
 
