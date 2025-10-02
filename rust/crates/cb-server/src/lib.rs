@@ -15,7 +15,9 @@ pub mod handlers;
 pub mod services;
 pub mod systems;
 pub mod utils;
-pub mod workspaces;
+
+// Re-export workspaces from cb-core for backward compatibility
+pub use cb_core::workspaces;
 
 use crate::handlers::plugin_dispatcher::{AppState, PluginDispatcher};
 use crate::services::{DefaultAstService, FileService, LockManager, OperationQueue};

@@ -8,9 +8,9 @@ use axum::{
     Router,
 };
 use cb_api::ApiResult;
+use cb_core::auth::generate_token;
 use cb_core::config::AppConfig;
-use cb_server::auth::generate_token;
-use cb_server::workspaces::{Workspace, WorkspaceManager};
+use cb_core::workspaces::{Workspace, WorkspaceManager};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::sync::Arc;

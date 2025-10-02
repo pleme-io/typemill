@@ -33,7 +33,7 @@ swc_ecma_ast = "15"
 swc_ecma_codegen = "17"
 # Utilities
 uuid = { version = "1.0", features = ["v4"] }
-dashmap = "5.5"
+dashmap = { workspace = true }
 ignore = "0.4"
 clap = { version = "4.0", features = ["derive"] }
 toml_edit = "0.23"

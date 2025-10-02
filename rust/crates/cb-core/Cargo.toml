@@ -13,6 +13,8 @@ tracing = { workspace = true }
 chrono = { version = "0.4", features = ["serde"] }
 toml = "0.8"
 figment = { version = "0.10", features = ["toml", "env"] }
+jsonwebtoken = { workspace = true }
+dashmap = { workspace = true }
 
 [features]
 default = []

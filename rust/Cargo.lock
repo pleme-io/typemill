@@ -555,7 +555,9 @@ name = "cb-core"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "dashmap",
  "figment",
+ "jsonwebtoken",
  "serde",
  "serde_json",
  "serial_test",

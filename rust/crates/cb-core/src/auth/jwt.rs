@@ -1,6 +1,6 @@
 //! JWT authentication utilities
 
-use crate::ServerError;
+use crate::CoreError;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -23,7 +23,7 @@ pub struct Claims {
 }
 
 /// Validate a JWT token and return true if valid
-pub fn validate_token(token: &str, secret: &str) -> Result<bool, ServerError> {
+pub fn validate_token(token: &str, secret: &str) -> Result<bool, CoreError> {
     let key = DecodingKey::from_secret(secret.as_ref());
     let mut validation = Validation::default();
     // Don't require aud claim in tests
@@ -31,7 +31,7 @@ pub fn validate_token(token: &str, secret: &str) -> Result<bool, ServerError> {
 
     decode::<Claims>(token, &key, &validation)
         .map(|_| true)
-        .map_err(|e| ServerError::Auth(e.to_string()))
+        .map_err(|e| CoreError::Auth(e.to_string()))
 }
 
 /// Validate a JWT token with project ID verification
@@ -39,21 +39,21 @@ pub fn validate_token_with_project(
     token: &str,
     secret: &str,
     expected_project_id: &str,
-) -> Result<bool, ServerError> {
+) -> Result<bool, CoreError> {
     let key = DecodingKey::from_secret(secret.as_ref());
     let mut validation = Validation::default();
     // Don't require aud claim in tests
     validation.validate_aud = false;
 
     let token_data =
-        decode::<Claims>(token, &key, &validation).map_err(|e| ServerError::Auth(e.to_string()))?;
+        decode::<Claims>(token, &key, &validation).map_err(|e| CoreError::Auth(e.to_string()))?;
 
     // Check if project_id claim matches expected value
     if let Some(project_id) = &token_data.claims.project_id {
         if project_id == expected_project_id {
             Ok(true)
         } else {
-            Err(ServerError::Auth(format!(
+            Err(CoreError::Auth(format!(
                 "Project ID mismatch: expected '{}', got '{}'",
                 expected_project_id, project_id
             )))
@@ -71,10 +71,10 @@ pub fn generate_token(
     issuer: &str,
     audience: &str,
     project_id: Option<String>,
-) -> Result<String, ServerError> {
+) -> Result<String, CoreError> {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map_err(|e| ServerError::Internal(format!("System time error: {}", e)))?
+        .map_err(|e| CoreError::Internal(format!("System time error: {}", e)))?
         .as_secs() as usize;
 
     let claims = Claims {
@@ -89,7 +89,7 @@ pub fn generate_token(
     let header = Header::default();
     let key = EncodingKey::from_secret(secret.as_ref());
 
-    encode(&header, &claims, &key).map_err(|e| ServerError::Auth(format!("Token generation failed: {}", e)))
+    encode(&header, &claims, &key).map_err(|e| CoreError::Auth(format!("Token generation failed: {}", e)))
 }
 
 #[cfg(test)]

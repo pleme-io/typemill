@@ -2,9 +2,9 @@
 
 use crate::McpDispatcher;
 use cb_api::{ApiError, ApiResult};
+use cb_core::auth::validate_token;
 use cb_core::config::AppConfig;
 use cb_core::model::mcp::{McpError, McpMessage, McpRequest, McpResponse};
-use cb_server::auth::validate_token;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
