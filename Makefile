@@ -29,13 +29,33 @@ install: release
 	@cp rust/target/release/codebuddy ~/.local/bin/
 	@echo "✓ Installed to ~/.local/bin/codebuddy"
 	@echo ""
-	@echo "Make sure ~/.local/bin is in your PATH. Add to your shell config:"
-	@echo "  export PATH=\"\$$HOME/.local/bin:\$$PATH\""
-	@echo ""
-	@echo "Shell config files (choose yours):"
-	@echo "  - Bash: ~/.bashrc or ~/.bash_profile"
-	@echo "  - Zsh:  ~/.zshrc"
-	@echo "  - Fish: ~/.config/fish/config.fish"
+	@# Auto-detect and update shell config if needed
+	@if ! echo "$$PATH" | grep -q "$$HOME/.local/bin"; then \
+		if [ -f "$$HOME/.zshrc" ] && [ "$$SHELL" = "/bin/zsh" ] || [ "$$SHELL" = "/usr/bin/zsh" ]; then \
+			if ! grep -q 'export PATH="$$HOME/.local/bin:' "$$HOME/.zshrc"; then \
+				echo 'export PATH="$$HOME/.local/bin:$$PATH"' >> "$$HOME/.zshrc"; \
+				echo "✓ Added ~/.local/bin to PATH in ~/.zshrc"; \
+				echo "  Run: source ~/.zshrc"; \
+			fi; \
+		elif [ -f "$$HOME/.bashrc" ]; then \
+			if ! grep -q 'export PATH="$$HOME/.local/bin:' "$$HOME/.bashrc"; then \
+				echo 'export PATH="$$HOME/.local/bin:$$PATH"' >> "$$HOME/.bashrc"; \
+				echo "✓ Added ~/.local/bin to PATH in ~/.bashrc"; \
+				echo "  Run: source ~/.bashrc"; \
+			fi; \
+		elif [ -f "$$HOME/.bash_profile" ]; then \
+			if ! grep -q 'export PATH="$$HOME/.local/bin:' "$$HOME/.bash_profile"; then \
+				echo 'export PATH="$$HOME/.local/bin:$$PATH"' >> "$$HOME/.bash_profile"; \
+				echo "✓ Added ~/.local/bin to PATH in ~/.bash_profile"; \
+				echo "  Run: source ~/.bash_profile"; \
+			fi; \
+		else \
+			echo "⚠️  Could not detect shell config. Manually add to PATH:"; \
+			echo "  export PATH=\"\$$HOME/.local/bin:\$$PATH\""; \
+		fi; \
+	else \
+		echo "✓ ~/.local/bin already in PATH"; \
+	fi
 
 # Uninstall from ~/.local/bin
 uninstall:
