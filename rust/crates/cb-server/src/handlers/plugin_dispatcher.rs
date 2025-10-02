@@ -1309,14 +1309,13 @@ impl PluginDispatcher {
                     )
                     .await?;
 
-                match result {
-                    cb_core::dry_run::DryRunnable::Preview(preview) => {
-                        Ok(json!({
-                            "status": "preview",
-                            "preview": preview
-                        }))
-                    }
-                    cb_core::dry_run::DryRunnable::Executed(data) => Ok(data),
+                if result.dry_run {
+                    Ok(json!({
+                        "status": "preview",
+                        "preview": result.result
+                    }))
+                } else {
+                    Ok(result.result)
                 }
             }
             "rename_directory" => {
@@ -1350,14 +1349,13 @@ impl PluginDispatcher {
                     )
                     .await?;
 
-                match result {
-                    cb_core::dry_run::DryRunnable::Preview(preview) => {
-                        Ok(json!({
-                            "status": "preview",
-                            "preview": preview
-                        }))
-                    }
-                    cb_core::dry_run::DryRunnable::Executed(data) => Ok(data),
+                if result.dry_run {
+                    Ok(json!({
+                        "status": "preview",
+                        "preview": result.result
+                    }))
+                } else {
+                    Ok(result.result)
                 }
             }
             "create_file" => {
@@ -1379,14 +1377,13 @@ impl PluginDispatcher {
                     .create_file(std::path::Path::new(file_path), content, overwrite, dry_run)
                     .await?;
 
-                match result {
-                    cb_core::dry_run::DryRunnable::Preview(preview) => {
-                        Ok(json!({
-                            "status": "preview",
-                            "preview": preview
-                        }))
-                    }
-                    cb_core::dry_run::DryRunnable::Executed(data) => Ok(data),
+                if result.dry_run {
+                    Ok(json!({
+                        "status": "preview",
+                        "preview": result.result
+                    }))
+                } else {
+                    Ok(result.result)
                 }
             }
             "delete_file" => {
@@ -1407,14 +1404,13 @@ impl PluginDispatcher {
                     .delete_file(std::path::Path::new(file_path), force, dry_run)
                     .await?;
 
-                match result {
-                    cb_core::dry_run::DryRunnable::Preview(preview) => {
-                        Ok(json!({
-                            "status": "preview",
-                            "preview": preview
-                        }))
-                    }
-                    cb_core::dry_run::DryRunnable::Executed(data) => Ok(data),
+                if result.dry_run {
+                    Ok(json!({
+                        "status": "preview",
+                        "preview": result.result
+                    }))
+                } else {
+                    Ok(result.result)
                 }
             }
             "read_file" => {
@@ -1462,14 +1458,13 @@ impl PluginDispatcher {
                     .write_file(std::path::Path::new(file_path), content, dry_run)
                     .await?;
 
-                match result {
-                    cb_core::dry_run::DryRunnable::Preview(preview) => {
-                        Ok(json!({
-                            "status": "preview",
-                            "preview": preview
-                        }))
-                    }
-                    cb_core::dry_run::DryRunnable::Executed(data) => Ok(data),
+                if result.dry_run {
+                    Ok(json!({
+                        "status": "preview",
+                        "preview": result.result
+                    }))
+                } else {
+                    Ok(result.result)
                 }
             }
             _ => Err(ServerError::Unsupported(format!(

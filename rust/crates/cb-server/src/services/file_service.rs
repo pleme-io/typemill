@@ -1,6 +1,6 @@
 //! File operations service with import awareness
 
-use crate::services::import_service::{ImportService, ImportUpdateReport};
+use crate::services::import_service::ImportService;
 use crate::services::lock_manager::LockManager;
 use crate::{ServerError, ServerResult};
 use cb_api::{DependencyUpdate, EditPlan, EditPlanMetadata, TextEdit};
