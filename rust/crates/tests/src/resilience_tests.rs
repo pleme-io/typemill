@@ -345,7 +345,8 @@ async fn test_find_dead_code_workflow() {
     );
 
     if response["error"].is_null() {
-        let result = &response["result"]["content"];
+        // System tools return results directly, not wrapped in "content"
+        let result = &response["result"];
 
         // Validate response structure
         assert!(
@@ -455,7 +456,10 @@ async fn test_basic_filesystem_operations() {
     assert_eq!(response["id"], "fs-1");
     assert!(response["error"].is_null(), "list_files should not error");
 
-    let files = &response["result"]["content"]["files"];
+    eprintln!("DEBUG list_files response: {}", serde_json::to_string_pretty(&response).unwrap());
+
+    // File operations return results directly, not wrapped in "content"
+    let files = &response["result"]["files"];
     assert!(files.is_array(), "Should return files array");
     let file_list = files.as_array().unwrap();
     assert!(file_list.len() >= 3, "Should find our 3 test files");
