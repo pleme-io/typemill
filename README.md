@@ -112,24 +112,24 @@ codebuddy unlink         # Remove AI integration
 
 ### Development
 ```bash
-cd docker
+cd deployment/docker
 
 # Start all services
-docker-compose up -d
+deployment/docker-compose up -d
 
 # View logs
-docker-compose logs -f codebuddy
+deployment/docker-compose logs -f codebuddy
 ```
 
 ### Production
 ```bash
-cd docker
+cd deployment/docker
 
 # Configure authentication
 export JWT_SECRET="your-secure-secret-key"
 
 # Start with nginx reverse proxy
-docker-compose -f docker-compose.production.yml up -d
+deployment/docker-compose -f deployment/docker-compose.production.yml up -d
 
 # Verify health
 curl http://localhost/health
@@ -137,7 +137,7 @@ curl http://localhost/health
 
 **Features**: Multi-stage Rust build, FUSE support, pre-installed LSP servers, nginx reverse proxy, multi-container workspaces
 
-See [`docker/README.md`](docker/README.md) for detailed documentation.
+See [`deployment/docker/README.md`](deployment/docker/README.md) for detailed documentation.
 
 ## 📖 Documentation
 - **[MCP API Reference](MCP_API.md)** - Complete MCP tools documentation

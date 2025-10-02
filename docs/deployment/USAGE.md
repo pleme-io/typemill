@@ -55,7 +55,7 @@ This will guide you through the process and create a config file at `~/.codebudd
 
 ## Shell Completions
 
-To make the CLI easier to use, you can generate auto-completion scripts for your shell.
+To make the CLI easier to use, you can generate auto-completion deployment/scripts for your shell.
 
 ### Bash
 

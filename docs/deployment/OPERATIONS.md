@@ -224,7 +224,7 @@ sudo journalctl -u cb-server -f
 
 #### Docker Deployment
 
-```dockerfile
+```deployment/dockerfile
 FROM rust:1.70 as builder
 WORKDIR /app
 COPY . .
@@ -249,8 +249,8 @@ CMD ["cb-server", "serve"]
 
 ```bash
 # Build and run
-docker build -t cb-server .
-docker run -p 3040:3040 -v /path/to/workspace:/workspace cb-server
+deployment/docker build -t cb-server .
+deployment/docker run -p 3040:3040 -v /path/to/workspace:/workspace cb-server
 ```
 
 ## Testing

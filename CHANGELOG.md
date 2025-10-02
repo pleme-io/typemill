@@ -337,7 +337,7 @@ This release represents a complete architectural transformation, implementing ad
   - Real command execution simulation with `echo`
   - Verification that quoted paths work correctly in actual execution
   - Integration tests for MCP command structure
-  - New test scripts: `test:execution` and `test:all`
+  - New test deployment/scripts: `test:execution` and `test:all`
 
 ### Fixed
 

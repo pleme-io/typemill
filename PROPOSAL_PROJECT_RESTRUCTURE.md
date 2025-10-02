@@ -25,12 +25,12 @@ This proposal outlines a comprehensive restructure of the Codebuddy project to i
 ├── .knipignore
 ├── .mcp.json
 │
-├── docker/
+├── deployment/docker/
 │   ├── config/
 │   │   ├── development.json
 │   │   └── production.json
-│   ├── docker-compose.yml
-│   ├── docker-compose.production.yml
+│   ├── deployment/docker-compose.yml
+│   ├── deployment/docker-compose.production.yml
 │   ├── Dockerfile
 │   ├── nginx.conf
 │   └── README.md
@@ -202,18 +202,18 @@ This proposal outlines a comprehensive restructure of the Codebuddy project to i
 │       └── rust/
 │
 ├── deployment/
-│   ├── docker/
+│   ├── deployment/docker/
 │   │   ├── config/
 │   │   │   ├── development.json
 │   │   │   └── production.json
-│   │   ├── docker-compose.yml
-│   │   ├── docker-compose.production.yml
+│   │   ├── deployment/docker-compose.yml
+│   │   ├── deployment/docker-compose.production.yml
 │   │   ├── Dockerfile
 │   │   └── nginx.conf
 │   ├── vm.yaml
 │   └── README.md
 │
-├── scripts/
+├── deployment/scripts/
 │   └── install.sh
 │
 └── docs/
@@ -226,7 +226,7 @@ This proposal outlines a comprehensive restructure of the Codebuddy project to i
     │   └── ROADMAP.md
     ├── deployment/
     │   ├── OPERATIONS.md
-    │   ├── docker.md
+    │   ├── deployment/docker.md
     │   └── PROPOSAL_DOCKER_SHARED_VOLUMES.md
     ├── features/
     │   └── WORKFLOWS.md
@@ -320,7 +320,7 @@ This maintains flexibility while following Rust ecosystem conventions.
 - Create organized `/workspace/docs/` structure:
   - `docs/architecture/` (ARCHITECTURE.md, contracts.md)
   - `docs/development/` (TESTING_GUIDE.md, LOGGING_GUIDELINES.md, ROADMAP.md)
-  - `docs/deployment/` (OPERATIONS.md, docker.md, PROPOSAL_DOCKER_SHARED_VOLUMES.md)
+  - `docs/deployment/` (OPERATIONS.md, deployment/docker.md, PROPOSAL_DOCKER_SHARED_VOLUMES.md)
   - `docs/features/` (WORKFLOWS.md)
   - `docs/api/` (MCP_API.md)
   - `docs/support/` (SUPPORT_MATRIX.md)
@@ -336,13 +336,13 @@ This maintains flexibility while following Rust ecosystem conventions.
 
 **Changes:**
 - Create `/workspace/deployment/` directory
-- Move `/workspace/docker/` → `/workspace/deployment/docker/`
+- Move `/workspace/deployment/docker/` → `/workspace/deployment/deployment/docker/`
 - Move `/workspace/vm.yaml` → `/workspace/deployment/vm.yaml`
-- Create `/workspace/scripts/` directory
-- Move `/workspace/install.sh` → `/workspace/scripts/install.sh`
+- Create `/workspace/deployment/scripts/` directory
+- Move `/workspace/install.sh` → `/workspace/deployment/scripts/install.sh`
 - Consolidate deployment docs into `deployment/README.md`
 
-**Reason:** Infrastructure and deployment concerns currently mixed with source code at root. Grouping deployment configurations and scripts improves organization and separates operational concerns from development workflow.
+**Reason:** Infrastructure and deployment concerns currently mixed with source code at root. Grouping deployment configurations and deployment/scripts improves organization and separates operational concerns from development workflow.
 
 ---
 

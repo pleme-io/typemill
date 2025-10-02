@@ -352,26 +352,26 @@ Phase 6 of restructure complete."
 #### Step 1: Create deployment directory structure
 
 ```bash
-mkdir -p deployment/{docker,scripts,vm}
+mkdir -p deployment/{deployment/docker,deployment/scripts,vm}
 ```
 
-#### Step 2: Move docker files (dry-run first)
+#### Step 2: Move deployment/docker files (dry-run first)
 
 ```bash
-# Check what docker files exist
-ls -la docker/ 2>/dev/null || ls -la *.dockerfile 2>/dev/null || ls -la Dockerfile* 2>/dev/null
+# Check what deployment/docker files exist
+ls -la deployment/docker/ 2>/dev/null || ls -la *.deployment/dockerfile 2>/dev/null || ls -la Dockerfile* 2>/dev/null
 
-# If docker/ directory exists:
+# If deployment/docker/ directory exists:
 ./target/release/codebuddy tool rename_directory '{
-  "old_path": "docker",
-  "new_path": "deployment/docker",
+  "old_path": "deployment/docker",
+  "new_path": "deployment/deployment/docker",
   "dry_run": true
 }'
 
 # Execute if good:
 ./target/release/codebuddy tool rename_directory '{
-  "old_path": "docker",
-  "new_path": "deployment/docker"
+  "old_path": "deployment/docker",
+  "new_path": "deployment/deployment/docker"
 }'
 ```
 
@@ -394,29 +394,29 @@ ls -la vm.yaml 2>/dev/null
 }'
 ```
 
-#### Step 4: Move deployment scripts
+#### Step 4: Move deployment deployment/scripts
 
 ```bash
-# Check scripts directory
-ls -la scripts/
+# Check deployment/scripts directory
+ls -la deployment/scripts/
 
-# Move deployment-related scripts
+# Move deployment-related deployment/scripts
 ./target/release/codebuddy tool rename_directory '{
-  "old_path": "scripts",
-  "new_path": "deployment/scripts",
+  "old_path": "deployment/scripts",
+  "new_path": "deployment/deployment/scripts",
   "dry_run": true
 }'
 
-# Or move selectively if scripts contains dev tools
-# (Review and move only deployment scripts manually)
+# Or move selectively if deployment/scripts contains dev tools
+# (Review and move only deployment deployment/scripts manually)
 ```
 
 #### Step 5: Update CI/CD references (manual)
 
 ```bash
 # Find CI/CD files that reference moved paths
-grep -r "docker/" .github/ 2>/dev/null
-grep -r "scripts/" .github/ 2>/dev/null
+grep -r "deployment/docker/" .github/ 2>/dev/null
+grep -r "deployment/scripts/" .github/ 2>/dev/null
 grep -r "vm.yaml" .github/ 2>/dev/null
 
 # Update paths in CI/CD configs manually
@@ -427,8 +427,8 @@ grep -r "vm.yaml" .github/ 2>/dev/null
 ```bash
 cargo build --release
 
-# Verify docker builds still work
-docker-compose -f deployment/docker/docker-compose.yml config 2>/dev/null || echo "No docker-compose file"
+# Verify deployment/docker builds still work
+deployment/docker-compose -f deployment/deployment/docker/deployment/docker-compose.yml config 2>/dev/null || echo "No deployment/docker-compose file"
 ```
 
 #### Step 7: Commit Phase 7
@@ -438,9 +438,9 @@ git add -A
 git commit -m "refactor: organize infrastructure files (Phase 7)
 
 - Created deployment/ directory structure
-- Moved docker/ → deployment/docker/
+- Moved deployment/docker/ → deployment/deployment/docker/
 - Moved vm.yaml → deployment/vm/vm.yaml
-- Moved deployment scripts → deployment/scripts/
+- Moved deployment deployment/scripts → deployment/deployment/scripts/
 - Updated CI/CD path references
 
 Centralizes deployment and infrastructure configuration.

@@ -18,7 +18,7 @@ First off, thank you for considering contributing! It's people like you that mak
 
 2.  **Install build optimization tools (HIGHLY RECOMMENDED):**
     ```bash
-    ./scripts/setup-dev-tools.sh
+    ./deployment/scripts/setup-dev-tools.sh
     ```
     This installs `sccache` (compilation cache) and `mold` (fast linker), which can speed up builds by 2-10x.
 
