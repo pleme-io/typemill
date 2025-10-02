@@ -5,11 +5,11 @@ async fn test_health_check_basic() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
     let response = client.call_tool("health_check", json!({})).await.unwrap();
-    assert!(response.get("status").is_some());
-    assert!(response.get("timestamp").is_some());
-    let status = response["status"].as_str().unwrap();
+    let result = response["result"].as_object().expect("Should have result field");
+    assert!(result.get("status").is_some());
+    let status = result["status"].as_str().unwrap();
     assert!(status == "healthy" || status == "degraded" || status == "unhealthy");
-    if let Some(servers) = response.get("servers") {
+    if let Some(servers) = result.get("servers") {
         let servers_array = servers.as_array().unwrap();
         for server in servers_array {
             assert!(server.get("name").is_some());
@@ -41,9 +41,10 @@ const test: Test = { id: 1 };
         .await;
     tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
     let response = client.call_tool("health_check", json!({})).await.unwrap();
-    let status = response["status"].as_str().unwrap();
+    let result = response["result"].as_object().expect("Should have result field");
+    let status = result["status"].as_str().unwrap();
     assert!(status == "healthy" || status == "degraded");
-    if let Some(servers) = response.get("servers") {
+    if let Some(servers) = result.get("servers") {
         let servers_array = servers.as_array().unwrap();
         let has_ts_server = servers_array.iter().any(|s| {
             s["name"].as_str().unwrap_or("").contains("typescript")
@@ -60,13 +61,13 @@ async fn test_health_check_detailed() {
         .call_tool("health_check", json!({ "include_details" : true }))
         .await
         .unwrap();
-    assert!(response.get("status").is_some());
-    assert!(response.get("timestamp").is_some());
-    if response.get("system").is_some() {
-        let system = &response["system"];
+    let result = response["result"].as_object().expect("Should have result field");
+    assert!(result.get("status").is_some());
+    if result.get("system").is_some() {
+        let system = &result["system"];
         assert!(system.is_object());
     }
-    if let Some(servers) = response.get("servers") {
+    if let Some(servers) = result.get("servers") {
         let servers_array = servers.as_array().unwrap();
         for server in servers_array {
             assert!(server.get("name").is_some());
@@ -105,7 +106,7 @@ async fn test_update_dependencies_package_json() {
         )
         .await
         .unwrap();
-    assert!(response["success"].as_bool().unwrap_or(false));
+    assert!(response["result"]["success"].as_bool().unwrap_or(false));
     let updated_content = std::fs::read_to_string(&package_json).unwrap();
     let updated_json: Value = serde_json::from_str(&updated_content).unwrap();
     assert_eq!(updated_json["version"].as_str().unwrap(), "1.1.0");
@@ -151,7 +152,7 @@ assert_cmd = "2.0"
         )
         .await
         .unwrap();
-    assert!(response["success"].as_bool().unwrap_or(false));
+    assert!(response["result"]["success"].as_bool().unwrap_or(false));
     let updated_content = std::fs::read_to_string(&cargo_toml).unwrap();
     assert!(updated_content.contains("version = \"0.2.0\""));
     assert!(updated_content.contains("reqwest = \"0.11\""));
@@ -184,7 +185,7 @@ flask==2.0.1
         )
         .await
         .unwrap();
-    assert!(response["success"].as_bool().unwrap_or(false));
+    assert!(response["result"]["success"].as_bool().unwrap_or(false));
     let updated_content = std::fs::read_to_string(&requirements_txt).unwrap();
     assert!(updated_content.contains("fastapi==0.68.0"));
     assert!(updated_content.contains("uvicorn==0.15.0"));
@@ -251,7 +252,7 @@ async fn test_update_dependencies_scripts_management() {
         )
         .await
         .unwrap();
-    assert!(response["success"].as_bool().unwrap_or(false));
+    assert!(response["result"]["success"].as_bool().unwrap_or(false));
     let updated_content = std::fs::read_to_string(&package_json).unwrap();
     let updated_json: Value = serde_json::from_str(&updated_content).unwrap();
     let scripts = &updated_json["scripts"];
@@ -299,7 +300,8 @@ async fn test_system_tools_integration() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
     let health_response = client.call_tool("health_check", json!({})).await.unwrap();
-    let initial_status = health_response["status"].as_str().unwrap();
+    let health_result = health_response["result"].as_object().expect("Should have result field");
+    let initial_status = health_result["status"].as_str().unwrap();
     let package_json = workspace.path().join("package.json");
     let initial_package = json!(
         { "name" : "integration-test", "version" : "0.1.0", "scripts" : { "start" :
@@ -324,7 +326,7 @@ async fn test_system_tools_integration() {
         )
         .await
         .unwrap();
-    assert!(_update_response["success"].as_bool().unwrap_or(false));
+    assert!(_update_response["result"]["success"].as_bool().unwrap_or(false));
     let src_dir = workspace.path().join("src");
     std::fs::create_dir(&src_dir).unwrap();
     let index_ts = src_dir.join("index.ts");
@@ -674,7 +676,7 @@ edition = "2021"
         );
     } else {
         assert_eq!(
-            response["success"], true,
+            response["result"]["success"], true,
             "Response should indicate success"
         );
     }

@@ -87,14 +87,23 @@ async fn test_file_corruption_scenarios() {
     // Should handle invalid UTF-8 by returning an error or replacement characters
     match response {
         Ok(resp) => {
-            // Should have result field with either content or error
+            // MCP responses can have either "result" (success) or "error" (failure) field
             if let Some(result) = resp.get("result") {
+                // Success case - should have content
                 assert!(
-                    result.get("content").is_some() || result.get("error").is_some(),
-                    "Invalid UTF-8 should be handled with content (possibly with replacement chars) or error"
+                    result.get("content").is_some() || result.get("success").is_some(),
+                    "Result should have content or success field"
+                );
+            } else if let Some(error) = resp.get("error") {
+                // Error case - should mention encoding issue
+                let error_str = error.to_string();
+                assert!(
+                    error_str.contains("UTF") || error_str.contains("encoding") || error_str.contains("invalid"),
+                    "Error should mention encoding issue, got: {}",
+                    error_str
                 );
             } else {
-                panic!("Response should have result field");
+                panic!("Response should have either result or error field");
             }
         }
         Err(e) => {
