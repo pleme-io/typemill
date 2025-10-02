@@ -345,7 +345,7 @@ impl LspAdapterPlugin {
     ) -> PluginResult<PluginResponse> {
         // Handle different LSP response formats
         let data = match request.method.as_str() {
-            "find_definition" | "find_references" | "find_implementations" => {
+            "find_definition" | "find_references" | "find_implementations" | "find_type_definition" => {
                 // LSP returns Location[] or LocationLink[]
                 self.normalize_locations(lsp_result)?
             }
@@ -467,6 +467,32 @@ impl LanguagePlugin for LspAdapterPlugin {
                         "symbol_name": { "type": "string", "description": "The name of the symbol" },
                         "symbol_kind": { "type": "string", "description": "The kind of symbol (function, class, variable, method, etc.)" },
                         "include_declaration": { "type": "boolean", "description": "Whether to include the declaration", "default": true }
+                    },
+                    "required": ["file_path", "symbol_name"]
+                }
+            }),
+            json!({
+                "name": "find_implementations",
+                "description": "Find all implementations of an interface or abstract class. Useful for finding concrete classes that implement an interface.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": { "type": "string", "description": "The path to the file" },
+                        "symbol_name": { "type": "string", "description": "The name of the interface or abstract class" },
+                        "symbol_kind": { "type": "string", "description": "The kind of symbol (interface, class, etc.)" }
+                    },
+                    "required": ["file_path", "symbol_name"]
+                }
+            }),
+            json!({
+                "name": "find_type_definition",
+                "description": "Find the type definition of a symbol. For variables, this finds the type declaration rather than the variable declaration.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": { "type": "string", "description": "The path to the file" },
+                        "symbol_name": { "type": "string", "description": "The name of the symbol" },
+                        "symbol_kind": { "type": "string", "description": "The kind of symbol (variable, property, etc.)" }
                     },
                     "required": ["file_path", "symbol_name"]
                 }

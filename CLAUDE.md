@@ -10,7 +10,7 @@ Pure Rust MCP server bridging Language Server Protocol (LSP) functionality to AI
 
 ## MCP Tools
 
-Codebuddy provides 40+ MCP tools for code intelligence and refactoring. See **[MCP_API.md](MCP_API.md)** for complete API reference.
+Codebuddy provides 42 MCP tools for code intelligence and refactoring. See **[MCP_API.md](MCP_API.md)** for complete API reference.
 
 ### Quick Reference
 
@@ -21,9 +21,9 @@ Codebuddy provides 40+ MCP tools for code intelligence and refactoring. See **[M
 - `prepare_call_hierarchy`, `get_call_hierarchy_incoming_calls`, `get_call_hierarchy_outgoing_calls`
 - `find_implementations`, `find_type_definition`
 
-**Editing & Refactoring** (8 tools)
+**Editing & Refactoring** (9 tools)
 - `rename_symbol`, `rename_symbol_strict`
-- `organize_imports`, `get_code_actions`, `format_document`
+- `organize_imports`, `fix_imports`, `get_code_actions`, `format_document`
 - `extract_function`, `inline_variable`, `extract_variable`
 
 **File Operations** (6 tools)

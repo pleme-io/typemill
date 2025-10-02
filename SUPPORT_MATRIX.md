@@ -1,13 +1,13 @@
 # CodeBuddy MCP Tools Support Matrix
 
-**Last Updated:** 2025-10-01
+**Last Updated:** 2025-10-02
 **Version:** 0.1.0
 
 ---
 
 ## 📋 Complete MCP Function List
 
-**Total MCP Functions**: 40
+**Total MCP Functions**: 42
 
 ### Navigation & Intelligence (LSP-based)
 
@@ -41,10 +41,10 @@
 
 | Function | Status | TypeScript/JS | Python | Go | Rust | Notes |
 |----------|--------|---------------|--------|-----|------|-------|
-| `extract_function` | ✅ Full | ✅ LSP | ✅ LSP | ✅ LSP | ✅ LSP | **LSP-first**: Uses language server code actions, falls back to AST for TS/JS/Python |
-| `inline_variable` | ✅ Full | ✅ LSP | ✅ LSP | ✅ LSP | ✅ LSP | **LSP-first**: Uses language server code actions, falls back to AST for TS/JS/Python |
-| `extract_variable` | ✅ Full | ✅ LSP | ✅ LSP | ✅ LSP | ✅ LSP | **LSP-first**: Uses language server code actions, falls back to AST for TS/JS/Python |
-| `fix_imports` | ✅ Full | ✅ | ✅ | ✅ | ✅ | **Delegates to LSP organize_imports**, removes all unused import types |
+| `extract_function` | ✅ Full | ✅ LSP/AST | ✅ LSP/AST | ✅ LSP/AST | ✅ LSP/AST | **LSP-first with AST fallback**: Attempts LSP code actions, falls back to AST parsing if unsupported |
+| `inline_variable` | ✅ Full | ✅ LSP/AST | ✅ LSP/AST | ✅ LSP/AST | ✅ LSP/AST | **LSP-first with AST fallback**: Attempts LSP code actions, falls back to AST parsing if unsupported |
+| `extract_variable` | ✅ Full | ✅ LSP/AST | ✅ LSP/AST | ✅ LSP/AST | ✅ LSP/AST | **LSP-first with AST fallback**: Attempts LSP code actions, falls back to AST parsing if unsupported |
+| `fix_imports` | ✅ Full | ✅ | ✅ | ✅ | ✅ | **Convenience wrapper for organize_imports** - delegates to LSP organize_imports, removes all unused import types |
 
 ### File Operations
 
@@ -65,6 +65,7 @@
 | `analyze_imports` | ✅ Full | ✅ AST | ✅ AST | ✅ AST | ✅ AST | **All languages use AST parsing**. Rust via syn, Go via go/parser, TS/JS via SWC, Python via native AST |
 | `find_dead_code` | ✅ Full | ✅ | ✅ | ✅ | ✅ | **LSP-based via workspace/symbol + textDocument/references** |
 | `update_dependencies` | ✅ Full | ✅ npm/yarn/pnpm | ✅ pip | ✅ go mod | ✅ cargo | **Executes package manager commands**, auto-detects via project files, returns stdout/stderr |
+| `extract_module_to_package` | ✅ Full | ❌ | ❌ | ✅ Go | ❌ | **Go-specific**: Extracts a module to a separate package, updates imports across workspace |
 
 ### Advanced Operations
 
@@ -108,10 +109,13 @@
 
 ## 📚 Additional Resources
 
-- **[MCP_API.md](./MCP_API.md)** - Complete API reference with parameters, examples, and return types for all 40 tools
+- **[MCP_API.md](./MCP_API.md)** - Complete API reference with parameters, examples, and return types for all 41 tools
 - **[rust/docs/ARCHITECTURE.md](./rust/docs/ARCHITECTURE.md)** - Implementation architecture and design decisions
 - **[CLAUDE.md](./CLAUDE.md)** - Project overview and development guide
 
 ---
 
-**Note**: This matrix reflects the current codebase state as of 2025-10-01. Language support depends on configured LSP servers in `.codebuddy/config.json`.
+**Notes**:
+- This matrix reflects the current codebase state as of 2025-10-02
+- Language support depends on configured LSP servers in `.codebuddy/config.json`
+- **LSP-first with AST fallback** means the tool attempts to use LSP code actions first, and falls back to AST parsing if the language server doesn't support the operation

@@ -1,22 +1,23 @@
 # CodeBuddy MCP Tools API Reference
 
 **Version:** 0.1.0
-**Last Updated:** 2025-10-01
+**Last Updated:** 2025-10-02
 
-Complete API documentation for all 40 MCP tools available in CodeBuddy.
+Complete API documentation for all 42 MCP tools available in CodeBuddy.
 
 ---
 
 ## Table of Contents
 
 - [Navigation & Intelligence](#navigation--intelligence) (13 tools)
-- [Editing & Refactoring](#editing--refactoring) (8 tools)
+- [Editing & Refactoring](#editing--refactoring) (9 tools)
 - [File Operations](#file-operations) (6 tools)
-- [Workspace Operations](#workspace-operations) (4 tools)
+- [Workspace Operations](#workspace-operations) (5 tools)
 - [Advanced Operations](#advanced-operations) (3 tools)
 - [LSP Lifecycle](#lsp-lifecycle) (3 tools)
 - [System & Health](#system--health) (1 tool)
 - [Web/Network](#webnetwork) (1 tool)
+- [Specialized Tools](#specialized-tools) (1 tool)
 - [Common Patterns](#common-patterns)
 - [Error Reference](#error-reference)
 
@@ -443,7 +444,7 @@ Find underlying type definition.
 
 ## Editing & Refactoring
 
-LSP-based editing and refactoring operations.
+LSP-based editing and refactoring operations (9 tools).
 
 ### `rename_symbol`
 
@@ -558,6 +559,38 @@ Organize and sort imports according to language conventions.
 - Removes unused imports
 - Groups imports by type (external, internal, etc.)
 - Sorts alphabetically
+
+---
+
+### `fix_imports`
+
+Convenience wrapper for organizing imports. Delegates to `organize_imports`.
+
+**Parameters:**
+```json
+{
+  "file_path": "src/app.ts"    // Required: File path
+}
+```
+
+**Returns:**
+```json
+{
+  "changes": [
+    {
+      "range": {"start": {"line": 0, "character": 0}, "end": {"line": 5, "character": 0}},
+      "newText": "import { Button } from './components/Button';\nimport React from 'react';\n"
+    }
+  ],
+  "imports_removed": 2,
+  "imports_sorted": true
+}
+```
+
+**Notes:**
+- Alias for `organize_imports`
+- Removes all unused import types
+- Uses language server's organize imports functionality
 
 ---
 
@@ -1204,6 +1237,42 @@ Update project dependencies using package manager.
 - `requirements.txt` or `setup.py` → pip
 - `Cargo.toml` → cargo
 - `go.mod` → go mod
+
+---
+
+## Specialized Tools
+
+### `extract_module_to_package`
+
+Extract a Go module to a separate package (Go-specific operation).
+
+**Parameters:**
+```json
+{
+  "source_package": "github.com/user/project",     // Required: Source package path
+  "module_path": "internal/utils",                 // Required: Path to module to extract
+  "target_package_path": "pkg/utils",              // Required: Target package path
+  "target_package_name": "utils",                  // Required: Target package name
+  "dry_run": false                                 // Optional: Preview changes (default: false)
+}
+```
+
+**Returns:**
+```json
+{
+  "success": true,
+  "files_created": 3,
+  "imports_updated": 12,
+  "files_affected": ["cmd/main.go", "internal/handler.go"],
+  "package_path": "pkg/utils"
+}
+```
+
+**Notes:**
+- **Go-specific**: Only works with Go projects
+- Moves module files to new package
+- Updates all import statements across workspace
+- Creates package directory structure
 
 ---
 
