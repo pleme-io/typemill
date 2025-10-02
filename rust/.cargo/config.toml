@@ -1,5 +1,64 @@
+# =============================================================================
+# Cargo Build Configuration for CodeBuddy
+# =============================================================================
+# This file configures build optimizations that apply to all team members
+# See scripts/setup-dev-tools.sh for installation of required tools
+
+# =============================================================================
+# Compilation Caching with sccache
+# =============================================================================
+# sccache caches compiled artifacts to speed up rebuilds
+# Installation: cargo install sccache
+
+[build]
+rustc-wrapper = "sccache"
+
+# =============================================================================
+# Fast Linker Configuration (mold)
+# =============================================================================
+# mold is a modern, fast linker that significantly speeds up linking
+# Installation: sudo apt-get install mold (Linux) or brew install mold (macOS)
+
+[target.x86_64-unknown-linux-gnu]
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+
 [target.aarch64-unknown-linux-gnu]
-linker = "/usr/bin/gcc"
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "link-arg=-fuse-ld=/opt/homebrew/opt/mold/libexec/mold"]
+
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "link-arg=-fuse-ld=/opt/homebrew/opt/mold/libexec/mold"]
+
+# =============================================================================
+# Development Profile Optimizations
+# =============================================================================
+
+[profile.dev]
+# Enable incremental compilation
+incremental = true
+
+# Optimize dependencies for better runtime performance during development
+# while keeping our code unoptimized for fast compile times
+[profile.dev.package."*"]
+opt-level = 2
+
+# =============================================================================
+# Release Profile Optimizations
+# =============================================================================
+
+[profile.release]
+opt-level = 3
+lto = "thin"        # Thin LTO for good optimization without excessive build time
+codegen-units = 1   # Better optimization, slower compile
+strip = true        # Strip symbols to reduce binary size
+
+# =============================================================================
+# Environment Configuration
+# =============================================================================
 
 [env]
 # Ensure ~/.local/bin is in PATH for language servers (pylsp, gopls, etc.)
