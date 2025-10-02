@@ -1114,10 +1114,10 @@ Rename a directory and automatically update all imports.
 **Example:**
 ```bash
 # Preview changes
-codebuddy call rename_directory '{"old_path":"rust/crates","new_path":"lib","dry_run":true}'
+codebuddy call rename_directory '{"old_path":"crates","new_path":"lib","dry_run":true}'
 
 # Apply changes
-codebuddy call rename_directory '{"old_path":"rust/crates","new_path":"lib"}'
+codebuddy call rename_directory '{"old_path":"crates","new_path":"lib"}'
 ```
 
 ---
@@ -1809,6 +1809,6 @@ async function callMcpTool(toolName: string, args: any) {
 ## See Also
 
 - [SUPPORT_MATRIX.md](./SUPPORT_MATRIX.md) - Language support matrix
-- [rust/docs/ARCHITECTURE.md](./rust/docs/ARCHITECTURE.md) - Implementation architecture
-- [rust/docs/USAGE.md](./rust/docs/USAGE.md) - CLI usage guide
+- [docs/architecture/ARCHITECTURE.md](./docs/architecture/ARCHITECTURE.md) - Implementation architecture
+- [docs/deployment/USAGE.md](./docs/deployment/USAGE.md) - CLI usage guide
 - [.codebuddy/workflows.json](./.codebuddy/workflows.json) - Workflow definitions

@@ -110,7 +110,7 @@
 ## 📚 Additional Resources
 
 - **[MCP_API.md](./MCP_API.md)** - Complete API reference with parameters, examples, and return types for all 41 tools
-- **[rust/docs/ARCHITECTURE.md](./rust/docs/ARCHITECTURE.md)** - Implementation architecture and design decisions
+- **[docs/architecture/ARCHITECTURE.md](./docs/architecture/ARCHITECTURE.md)** - Implementation architecture and design decisions
 - **[CLAUDE.md](./CLAUDE.md)** - Project overview and development guide
 
 ---

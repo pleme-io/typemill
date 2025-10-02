@@ -142,7 +142,7 @@ See [`docker/README.md`](docker/README.md) for detailed documentation.
 ## 📖 Documentation
 - **[MCP API Reference](MCP_API.md)** - Complete MCP tools documentation
 - **[CLAUDE.md](CLAUDE.md)** - AI assistant integration guide
-- **[Architecture](rust/docs/ARCHITECTURE.md)** - System design
+- **[Architecture](docs/architecture/ARCHITECTURE.md)** - System design
 - **[Support Matrix](SUPPORT_MATRIX.md)** - Language support
 
 ## 🔧 Troubleshooting
