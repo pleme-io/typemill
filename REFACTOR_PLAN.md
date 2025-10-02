@@ -24,7 +24,7 @@
 
 #### 🆕 CREATE
 
-**1. `apps/server/src/dispatcher_factory.rs`** (NEW)
+**1. `apps/codebuddy/src/dispatcher_factory.rs`** (NEW)
 ```rust
 //! Shared dispatcher initialization factory
 //! Eliminates 3x duplication across CLI, stdio, WebSocket
@@ -64,7 +64,7 @@ pub async fn create_initialized_dispatcher_with_workspace(
 
 #### ✏️ EDIT
 
-**2. `apps/server/src/main.rs`**
+**2. `apps/codebuddy/src/main.rs`**
 
 **Removing:**
 ```rust
@@ -126,7 +126,7 @@ let dispatcher = match dispatcher_factory::create_initialized_dispatcher().await
 
 ---
 
-**3. `apps/server/src/cli.rs`**
+**3. `apps/codebuddy/src/cli.rs`**
 
 **Removing:**
 ```rust
@@ -790,7 +790,7 @@ mod tests {
 ## 📊 **Summary**
 
 ### Files to CREATE (9)
-1. `apps/server/src/dispatcher_factory.rs` - Shared initialization
+1. `apps/codebuddy/src/dispatcher_factory.rs` - Shared initialization
 2. `crates/cb-server/src/tool_handler.rs` - ToolHandler trait
 3. `crates/cb-server/src/handlers/file_operations_handler.rs` - File ops
 4. `crates/cb-server/src/handlers/workflow_handler.rs` - Workflows
@@ -801,8 +801,8 @@ mod tests {
 9. Plus handler implementations (moving code from dispatcher)
 
 ### Files to EDIT (6)
-1. `apps/server/src/main.rs` - Use factory
-2. `apps/server/src/cli.rs` - Use factory + add tools command
+1. `apps/codebuddy/src/main.rs` - Use factory
+2. `apps/codebuddy/src/cli.rs` - Use factory + add tools command
 3. `crates/cb-server/src/lib.rs` - Export new modules
 4. `crates/cb-server/src/handlers/mod.rs` - Export handlers
 5. `crates/cb-server/src/handlers/plugin_dispatcher.rs` - Use registry routing

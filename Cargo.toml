@@ -8,8 +8,7 @@ members = [
     "crates/cb-server",
     "crates/cb-client",
     "crates/cb-transport",
-    "crates/tests",
-    "apps/server", "testing/benchmarks",
+    "crates/tests", "testing/benchmarks", "apps/codebuddy",
 ]
 resolver = "2"
 

@@ -10,7 +10,7 @@ The system is built on a multi-crate architecture with focused responsibilities 
 
 ```mermaid
 graph TD
-    A[apps/server] --> B[cb-server]
+    A[apps/codebuddy] --> B[cb-server]
     B --> C[cb-api]
     B --> D[cb-core]
     B --> E[cb-ast]
@@ -77,7 +77,7 @@ graph TD
 
 ### Application Layer
 
-**`apps/server`** - Executable entry point
+**`apps/codebuddy`** - Executable entry point
 - CLI argument parsing
 - Server bootstrap and initialization
 - Process management (stdio/WebSocket modes)

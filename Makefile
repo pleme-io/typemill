@@ -12,21 +12,21 @@ endif
 # Default target
 build:
 	@command -v sccache >/dev/null 2>&1 || { echo "⚠️  Warning: sccache not found. Run 'make setup' for faster builds."; echo ""; }
-	cd rust && cargo build
+	cargo build
 
 # Optimized release build
 release:
 	@command -v sccache >/dev/null 2>&1 || { echo "⚠️  Warning: sccache not found. Run 'make setup' for faster builds."; echo ""; }
-	cd rust && cargo build --release
+	cargo build --release
 
 # Run all tests
 test:
-	cd rust && cargo test
+	cargo test
 
 # Install to ~/.local/bin (ensure it's in your PATH)
 install: release
 	@mkdir -p ~/.local/bin
-	@cp rust/target/release/codebuddy ~/.local/bin/
+	@cp target/release/codebuddy ~/.local/bin/
 	@echo "✓ Installed to ~/.local/bin/codebuddy"
 	@echo ""
 	@# Auto-detect and update shell config if needed
@@ -64,7 +64,7 @@ uninstall:
 
 # Clean build artifacts
 clean:
-	cd rust && cargo clean
+	cargo clean
 
 # One-time developer setup (installs sccache and mold)
 setup:

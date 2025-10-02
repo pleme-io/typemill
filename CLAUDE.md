@@ -137,12 +137,12 @@ cargo check
 
 ### Core Components
 
-**MCP Server Layer** (`apps/server/src/main.rs`, `crates/cb-server/`)
+**MCP Server Layer** (`apps/codebuddy/src/main.rs`, `crates/cb-server/`)
 
 - Entry point that implements MCP protocol via stdio and WebSocket
 - Exposes comprehensive MCP tools covering navigation, refactoring, intelligence, diagnostics, and batch operations
 - Handles MCP client requests via plugin dispatcher system
-- CLI subcommand handling in `apps/server/src/cli.rs` for `setup`, `status`, `start`, `stop`, `serve`, `link`, `unlink`
+- CLI subcommand handling in `apps/codebuddy/src/cli.rs` for `setup`, `status`, `start`, `stop`, `serve`, `link`, `unlink`
 
 **LSP Client Layer** (`crates/cb-server/src/systems/lsp/`)
 

@@ -13,7 +13,7 @@ You can build and install the CLI directly from the source code using `cargo`.
 
 2.  Install the codebuddy binary:
     ```bash
-    cargo install --path apps/server
+    cargo install --path apps/codebuddy
     ```
 
 This will place the `codebuddy` executable in your Cargo binary directory (usually `~/.cargo/bin/`), which should be in your system's `PATH`.
