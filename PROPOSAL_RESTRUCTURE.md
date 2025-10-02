@@ -7,82 +7,540 @@
 3. **Root directory cluttered** with docs/proposals that should be organized
 4. **Handler refactor incomplete** (tools/ modules half-done, old handlers remain)
 
-## Solution: Hybrid Approach
+## Solution: Hybrid Approach with batch_execute
 
-Combine organizational cleanup (low-risk) with strategic crate restructuring (high-value).
+Use codebuddy's `batch_execute` MCP tool to perform atomic batch operations.
 
 ---
 
 ## Phase 1: Organization (Low Risk)
 
-### Step 1.1: Move Root Documentation to docs/project/
+### Phase 1a: Move Root Documentation
 
 ```bash
-# Create directory
-mkdir -p docs/project
-
-# Use individual rename_file commands
-codebuddy call rename_file '{"old_path": "BUG_REPORT.md", "new_path": "docs/project/BUG_REPORT.md"}'
-codebuddy call rename_file '{"old_path": "CHANGELOG.md", "new_path": "docs/project/CHANGELOG.md"}'
-codebuddy call rename_file '{"old_path": "CLAUDE.md", "new_path": "docs/project/CLAUDE.md"}'
-codebuddy call rename_file '{"old_path": "MCP_API.md", "new_path": "docs/project/MCP_API.md"}'
-codebuddy call rename_file '{"old_path": "ROADMAP.md", "new_path": "docs/project/ROADMAP.md"}'
-codebuddy call rename_file '{"old_path": "SUPPORT_MATRIX.md", "new_path": "docs/project/SUPPORT_MATRIX.md"}'
-codebuddy call rename_file '{"old_path": "PROPOSAL_ADVANCED_ANALYSIS.md", "new_path": "docs/project/PROPOSAL_ADVANCED_ANALYSIS.md"}'
-codebuddy call rename_file '{"old_path": "PROPOSAL_BACKEND_ARCHITECTURE.md", "new_path": "docs/project/PROPOSAL_BACKEND_ARCHITECTURE.md"}'
-codebuddy call rename_file '{"old_path": "PROPOSAL_HANDLER_ARCHITECTURE.md", "new_path": "docs/project/PROPOSAL_HANDLER_ARCHITECTURE.md"}'
-codebuddy call rename_file '{"old_path": "PROPOSAL_RESTRUCTURE.md", "new_path": "docs/project/PROPOSAL_RESTRUCTURE.md"}'
+codebuddy call batch_execute --arguments '{
+  "operations": [
+    {
+      "type": "create_file",
+      "path": "docs/project/.gitkeep",
+      "content": ""
+    },
+    {
+      "type": "create_file",
+      "path": "scripts/.gitkeep",
+      "content": ""
+    },
+    {
+      "type": "rename_file",
+      "old_path": "BUG_REPORT.md",
+      "new_path": "docs/project/BUG_REPORT.md"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "CHANGELOG.md",
+      "new_path": "docs/project/CHANGELOG.md"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "CLAUDE.md",
+      "new_path": "docs/project/CLAUDE.md"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "MCP_API.md",
+      "new_path": "docs/project/MCP_API.md"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "ROADMAP.md",
+      "new_path": "docs/project/ROADMAP.md"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "SUPPORT_MATRIX.md",
+      "new_path": "docs/project/SUPPORT_MATRIX.md"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "PROPOSAL_ADVANCED_ANALYSIS.md",
+      "new_path": "docs/project/PROPOSAL_ADVANCED_ANALYSIS.md"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "PROPOSAL_BACKEND_ARCHITECTURE.md",
+      "new_path": "docs/project/PROPOSAL_BACKEND_ARCHITECTURE.md"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "PROPOSAL_HANDLER_ARCHITECTURE.md",
+      "new_path": "docs/project/PROPOSAL_HANDLER_ARCHITECTURE.md"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "PROPOSAL_RESTRUCTURE.md",
+      "new_path": "docs/project/PROPOSAL_RESTRUCTURE.md"
+    }
+  ]
+}'
 ```
 
-### Step 1.2: Flatten Documentation Subdirectories
+### Phase 1b: Flatten Documentation Structure
 
 ```bash
-codebuddy call rename_file '{"old_path": "docs/architecture/ARCHITECTURE.md", "new_path": "docs/ARCHITECTURE.md"}'
-codebuddy call rename_file '{"old_path": "docs/architecture/contracts.md", "new_path": "docs/CONTRACTS.md"}'
-codebuddy call rename_file '{"old_path": "docs/deployment/OPERATIONS.md", "new_path": "docs/DEPLOYMENT.md"}'
-codebuddy call rename_file '{"old_path": "docs/deployment/USAGE.md", "new_path": "docs/USAGE.md"}'
-codebuddy call rename_file '{"old_path": "docs/development/LOGGING_GUIDELINES.md", "new_path": "docs/LOGGING.md"}'
-codebuddy call rename_file '{"old_path": "docs/features/WORKFLOWS.md", "new_path": "docs/WORKFLOWS.md"}'
+codebuddy call batch_execute --arguments '{
+  "operations": [
+    {
+      "type": "rename_file",
+      "old_path": "docs/architecture/ARCHITECTURE.md",
+      "new_path": "docs/ARCHITECTURE.md"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "docs/architecture/contracts.md",
+      "new_path": "docs/CONTRACTS.md"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "docs/deployment/OPERATIONS.md",
+      "new_path": "docs/DEPLOYMENT.md"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "docs/deployment/USAGE.md",
+      "new_path": "docs/USAGE.md"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "docs/development/LOGGING_GUIDELINES.md",
+      "new_path": "docs/LOGGING.md"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "docs/features/WORKFLOWS.md",
+      "new_path": "docs/WORKFLOWS.md"
+    }
+  ]
+}'
 ```
 
-### Step 1.3: Consolidate Scripts
+### Phase 1c: Consolidate Scripts
 
 ```bash
-# Create scripts directory
-mkdir -p scripts
-
-codebuddy call rename_file '{"old_path": "install.sh", "new_path": "scripts/install.sh"}'
-codebuddy call rename_file '{"old_path": "deployment/scripts/setup-dev-tools.sh", "new_path": "scripts/setup-dev-tools.sh"}'
-codebuddy call rename_file '{"old_path": "crates/cb-ast/resources/ast_tool.py", "new_path": "scripts/ast_tool.py"}'
-codebuddy call rename_file '{"old_path": "crates/cb-ast/resources/ast_tool.go", "new_path": "scripts/ast_tool.go"}'
+codebuddy call batch_execute --arguments '{
+  "operations": [
+    {
+      "type": "rename_file",
+      "old_path": "install.sh",
+      "new_path": "scripts/install.sh"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "deployment/scripts/setup-dev-tools.sh",
+      "new_path": "scripts/setup-dev-tools.sh"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-ast/resources/ast_tool.py",
+      "new_path": "scripts/ast_tool.py"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-ast/resources/ast_tool.go",
+      "new_path": "scripts/ast_tool.go"
+    }
+  ]
+}'
 ```
 
-### Step 1.4: Consolidate Test Fixtures
+### Phase 1d: Move Test Fixtures (Individual calls - batch_execute doesn't support rename_directory)
 
 ```bash
-codebuddy call rename_directory '{"old_path": "tests/fixtures/atomic-refactoring-test", "new_path": "integration-tests/fixtures/atomic-refactoring-test"}'
-codebuddy call rename_directory '{"old_path": "tests/fixtures/python", "new_path": "integration-tests/fixtures/python"}'
-codebuddy call rename_directory '{"old_path": "tests/fixtures/rust", "new_path": "integration-tests/fixtures/rust"}'
-codebuddy call rename_directory '{"old_path": "tests/fixtures/src", "new_path": "integration-tests/fixtures/src"}'
-codebuddy call rename_directory '{"old_path": "tests/fixtures/test-workspace-symbols", "new_path": "integration-tests/fixtures/test-workspace-symbols"}'
+codebuddy call rename_directory --arguments '{"old_path":"tests/fixtures/atomic-refactoring-test","new_path":"integration-tests/fixtures/atomic-refactoring-test"}'
+codebuddy call rename_directory --arguments '{"old_path":"tests/fixtures/python","new_path":"integration-tests/fixtures/python"}'
+codebuddy call rename_directory --arguments '{"old_path":"tests/fixtures/rust","new_path":"integration-tests/fixtures/rust"}'
+codebuddy call rename_directory --arguments '{"old_path":"tests/fixtures/src","new_path":"integration-tests/fixtures/src"}'
+codebuddy call rename_directory --arguments '{"old_path":"tests/fixtures/test-workspace-symbols","new_path":"integration-tests/fixtures/test-workspace-symbols"}'
 ```
 
-### Step 1.5: Cleanup Empty Directories
+### Phase 1e: Cleanup Empty Directories
 
 ```bash
-# Manual cleanup with git
+# Manual cleanup (git commands)
 git rm -r docs/architecture docs/deployment docs/development docs/features
 git rm -r deployment/scripts crates/cb-ast/resources tests
+
+# Verify
+cargo check --workspace
+git status
+git add . && git commit -m "Phase 1: Reorganize documentation and scripts"
 ```
 
-**Verification:**
+**Phase 1 Summary**: 3 batch operations (22 files) + 5 directory moves + cleanup
+
+---
+
+## Phase 2: Split cb-server (High Value)
+
+### Phase 2a: Create New Crate Structures
 
 ```bash
-cargo check --workspace
+# Create cb-lsp crate
+codebuddy call batch_execute --arguments '{
+  "operations": [
+    {
+      "type": "create_file",
+      "path": "crates/cb-lsp/Cargo.toml",
+      "content": "[package]\nname = \"cb-lsp\"\nversion = \"1.0.0-beta\"\nedition = \"2021\"\ndescription = \"LSP protocol adapter for Codeflow Buddy\"\nlicense = \"MIT\"\n\n[dependencies]\ncb-core = { path = \"../cb-core\" }\ntokio = { workspace = true }\nasync-trait = { workspace = true }\nserde = { workspace = true }\nserde_json = { workspace = true }\ntracing = { workspace = true }\nlsp-types = \"0.97\"\ndashmap = { workspace = true }\n"
+    },
+    {
+      "type": "create_file",
+      "path": "crates/cb-lsp/src/lib.rs",
+      "content": "//! LSP protocol adapter for Codeflow Buddy\n\npub mod client;\n\npub use client::LspClient;\n"
+    },
+    {
+      "type": "create_file",
+      "path": "crates/cb-services/Cargo.toml",
+      "content": "[package]\nname = \"cb-services\"\nversion = \"1.0.0-beta\"\nedition = \"2021\"\ndescription = \"Business logic and orchestration services for Codeflow Buddy\"\nlicense = \"MIT\"\n\n[dependencies]\ncb-api = { path = \"../cb-api\" }\ncb-core = { path = \"../cb-core\" }\ncb-ast = { path = \"../cb-ast\" }\ncb-lsp = { path = \"../cb-lsp\" }\ntokio = { workspace = true }\nasync-trait = { workspace = true }\nserde = { workspace = true }\nserde_json = { workspace = true }\ntracing = { workspace = true }\nanyhow = { workspace = true }\nthiserror = { workspace = true }\ndashmap = { workspace = true }\nignore = \"0.4\"\n\n[dev-dependencies]\ntempfile = \"3.0\"\n"
+    },
+    {
+      "type": "create_file",
+      "path": "crates/cb-services/src/lib.rs",
+      "content": "//! Services for coordinating complex operations\n\npub mod ast_service;\npub mod file_service;\npub mod import_service;\npub mod lock_manager;\npub mod operation_queue;\npub mod planner;\npub mod workflow_executor;\n\n#[cfg(test)]\npub mod tests;\n\npub use ast_service::DefaultAstService;\npub use file_service::FileService;\npub use import_service::ImportService;\npub use lock_manager::{LockManager, LockType};\npub use operation_queue::{FileOperation, OperationQueue, OperationType, QueueStats};\n"
+    },
+    {
+      "type": "create_file",
+      "path": "crates/cb-handlers/Cargo.toml",
+      "content": "[package]\nname = \"cb-handlers\"\nversion = \"1.0.0-beta\"\nedition = \"2021\"\ndescription = \"MCP tool handler implementations for Codeflow Buddy\"\nlicense = \"MIT\"\n\n[dependencies]\ncb-api = { path = \"../cb-api\" }\ncb-core = { path = \"../cb-core\" }\ncb-ast = { path = \"../cb-ast\" }\ncb-lsp = { path = \"../cb-lsp\" }\ncb-services = { path = \"../cb-services\" }\ncb-plugins = { path = \"../cb-plugins\" }\ntokio = { workspace = true }\nasync-trait = { workspace = true }\nserde = { workspace = true }\nserde_json = { workspace = true }\ntracing = { workspace = true }\nanyhow = { workspace = true }\nthiserror = { workspace = true }\nlsp-types = \"0.97\"\nuuid = { version = \"1.0\", features = [\"v4\"] }\n"
+    },
+    {
+      "type": "create_file",
+      "path": "crates/cb-handlers/src/lib.rs",
+      "content": "//! MCP tool handler implementations\n\npub mod plugin_dispatcher;\npub mod tool_registry;\npub mod tools;\n\npub use plugin_dispatcher::PluginDispatcher;\npub use tool_registry::ToolRegistry;\n"
+    },
+    {
+      "type": "create_file",
+      "path": "crates/cb-handlers/src/tools/mod.rs",
+      "content": "//! MCP tool implementations organized by domain\n\npub mod advanced;\npub mod editing;\npub mod file_ops;\npub mod lifecycle;\npub mod navigation;\npub mod system;\npub mod workspace;\n"
+    }
+  ]
+}'
 ```
 
-**Result After Phase 1:**
+### Phase 2b: Move LSP & Service Code
+
+```bash
+codebuddy call batch_execute --arguments '{
+  "operations": [
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-server/src/systems/lsp/client.rs",
+      "new_path": "crates/cb-lsp/src/client.rs"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-server/src/services/ast_service.rs",
+      "new_path": "crates/cb-services/src/ast_service.rs"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-server/src/services/file_service.rs",
+      "new_path": "crates/cb-services/src/file_service.rs"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-server/src/services/import_service.rs",
+      "new_path": "crates/cb-services/src/import_service.rs"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-server/src/services/lock_manager.rs",
+      "new_path": "crates/cb-services/src/lock_manager.rs"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-server/src/services/operation_queue.rs",
+      "new_path": "crates/cb-services/src/operation_queue.rs"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-server/src/services/planner.rs",
+      "new_path": "crates/cb-services/src/planner.rs"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-server/src/services/workflow_executor.rs",
+      "new_path": "crates/cb-services/src/workflow_executor.rs"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-server/src/services/tests.rs",
+      "new_path": "crates/cb-services/src/tests.rs"
+    }
+  ]
+}'
 ```
+
+### Phase 2c: Move Handler Code
+
+```bash
+codebuddy call batch_execute --arguments '{
+  "operations": [
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-server/src/handlers/plugin_dispatcher.rs",
+      "new_path": "crates/cb-handlers/src/plugin_dispatcher.rs"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-server/src/handlers/tool_registry.rs",
+      "new_path": "crates/cb-handlers/src/tool_registry.rs"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-server/src/handlers/tools/advanced.rs",
+      "new_path": "crates/cb-handlers/src/tools/advanced.rs"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-server/src/handlers/tools/editing.rs",
+      "new_path": "crates/cb-handlers/src/tools/editing.rs"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-server/src/handlers/tools/file_ops.rs",
+      "new_path": "crates/cb-handlers/src/tools/file_ops.rs"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-server/src/handlers/tools/lifecycle.rs",
+      "new_path": "crates/cb-handlers/src/tools/lifecycle.rs"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-server/src/handlers/tools/navigation.rs",
+      "new_path": "crates/cb-handlers/src/tools/navigation.rs"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-server/src/handlers/tools/system.rs",
+      "new_path": "crates/cb-handlers/src/tools/system.rs"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-server/src/handlers/tools/workspace.rs",
+      "new_path": "crates/cb-handlers/src/tools/workspace.rs"
+    }
+  ]
+}'
+```
+
+### Phase 2d: Manual Updates
+
+```bash
+# Update workspace Cargo.toml - add to [workspace] members:
+#   "crates/cb-handlers",
+#   "crates/cb-lsp",
+#   "crates/cb-services",
+
+# Update crates/cb-server/Cargo.toml - add to [dependencies]:
+#   cb-handlers = { path = "../cb-handlers" }
+#   cb-lsp = { path = "../cb-lsp" }
+#   cb-services = { path = "../cb-services" }
+
+# Fix imports (bulk find-replace)
+find crates/cb-services/src -name "*.rs" -exec sed -i 's/crate::services::/cb_services::/g' {} +
+find crates/cb-lsp/src -name "*.rs" -exec sed -i 's/crate::systems::lsp::/cb_lsp::/g' {} +
+find crates/cb-handlers/src -name "*.rs" -exec sed -i 's/crate::handlers::/cb_handlers::/g' {} +
+find crates/cb-handlers/src -name "*.rs" -exec sed -i 's/crate::services::/cb_services::/g' {} +
+find crates/cb-handlers/src -name "*.rs" -exec sed -i 's/crate::systems::lsp::/cb_lsp::/g' {} +
+
+# Cleanup old directories
+git rm -r crates/cb-server/src/handlers/tools
+git rm -r crates/cb-server/src/services
+git rm -r crates/cb-server/src/systems
+git rm crates/cb-server/src/handlers/file_operation_handler.rs
+git rm crates/cb-server/src/handlers/refactoring_handler.rs
+git rm crates/cb-server/src/handlers/system_handler.rs
+git rm crates/cb-server/src/handlers/tool_handler.rs
+git rm crates/cb-server/src/handlers/workflow_handler.rs
+git rm crates/cb-server/src/handlers/lsp_adapter.rs
+
+# Verify
+cargo check --workspace && cargo test --workspace
+git add . && git commit -m "Phase 2: Split cb-server into focused crates"
+```
+
+**Phase 2 Summary**: 3 batch operations (25 files) + manual edits + cleanup
+
+---
+
+## Phase 3: Merge Tiny Crates
+
+### Phase 3a: Merge cb-api into cb-core
+
+```bash
+codebuddy call batch_execute --arguments '{
+  "operations": [
+    {
+      "type": "create_file",
+      "path": "crates/cb-core/src/api/.gitkeep",
+      "content": ""
+    },
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-api/src/error.rs",
+      "new_path": "crates/cb-core/src/api/error.rs"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-api/src/lib.rs",
+      "new_path": "crates/cb-core/src/api/mod.rs"
+    }
+  ]
+}'
+```
+
+### Phase 3b: Merge cb-mcp-proxy into cb-plugins
+
+```bash
+codebuddy call batch_execute --arguments '{
+  "operations": [
+    {
+      "type": "create_file",
+      "path": "crates/cb-plugins/src/mcp/.gitkeep",
+      "content": ""
+    },
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-mcp-proxy/src/client.rs",
+      "new_path": "crates/cb-plugins/src/mcp/client.rs"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-mcp-proxy/src/error.rs",
+      "new_path": "crates/cb-plugins/src/mcp/error.rs"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-mcp-proxy/src/manager.rs",
+      "new_path": "crates/cb-plugins/src/mcp/manager.rs"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-mcp-proxy/src/plugin.rs",
+      "new_path": "crates/cb-plugins/src/mcp/plugin.rs"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-mcp-proxy/src/presets.rs",
+      "new_path": "crates/cb-plugins/src/mcp/presets.rs"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-mcp-proxy/src/protocol.rs",
+      "new_path": "crates/cb-plugins/src/mcp/protocol.rs"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "crates/cb-mcp-proxy/src/lib.rs",
+      "new_path": "crates/cb-plugins/src/mcp/mod.rs"
+    }
+  ]
+}'
+```
+
+### Phase 3c: Manual Updates
+
+```bash
+# Update cb-core/src/lib.rs - add at top:
+#   pub mod api;
+#   pub use api::*;
+
+# Update cb-plugins/src/lib.rs - add at top:
+#   pub mod mcp;
+#   pub use mcp::*;
+
+# Update workspace Cargo.toml - remove from members:
+#   "crates/cb-api",
+#   "crates/cb-mcp-proxy",
+
+# Fix all Cargo.toml dependencies
+find crates -name "Cargo.toml" -exec sed -i '/cb-api = { path = "..\/cb-api" }/d' {} +
+find crates -name "Cargo.toml" -exec sed -i '/cb-mcp-proxy = { path = "..\/cb-mcp-proxy".*}/d' {} +
+
+# Fix all imports
+find crates -name "*.rs" -exec sed -i 's/use cb_api::/use cb_core::api::/g' {} +
+find crates -name "*.rs" -exec sed -i 's/cb_api::/cb_core::api::/g' {} +
+find crates -name "*.rs" -exec sed -i 's/use cb_mcp_proxy::/use cb_plugins::mcp::/g' {} +
+find crates -name "*.rs" -exec sed -i 's/cb_mcp_proxy::/cb_plugins::mcp::/g' {} +
+
+# Remove old crate directories
+git rm -r crates/cb-api
+git rm -r crates/cb-mcp-proxy
+
+# Verify
+cargo check --workspace
+cargo test --workspace
+cargo clippy --workspace
+cargo fmt --workspace
+git add . && git commit -m "Phase 3: Merge tiny crates into parent crates"
+```
+
+**Phase 3 Summary**: 2 batch operations (11 files) + manual edits + cleanup
+
+---
+
+## Execution Summary
+
+**Total batch_execute operations**: 8 batches, 58 file operations
+**Total rename_directory operations**: 5 directories
+**Manual steps**: Cargo.toml edits, import fixes, cleanups
+
+### Complete Execution Script
+
+```bash
+#!/bin/bash
+set -e
+
+echo "=== Phase 1: Organization ==="
+# Run Phase 1a, 1b, 1c batch_execute commands
+# Run Phase 1d rename_directory commands
+# Phase 1e cleanup
+cargo check --workspace
+git commit -m "Phase 1: Reorganize documentation and scripts"
+
+echo "=== Phase 2: Split cb-server ==="
+# Run Phase 2a, 2b, 2c batch_execute commands
+# Phase 2d manual updates
+cargo check --workspace && cargo test --workspace
+git commit -m "Phase 2: Split cb-server into focused crates"
+
+echo "=== Phase 3: Merge Tiny Crates ==="
+# Run Phase 3a, 3b batch_execute commands
+# Phase 3c manual updates
+cargo check --workspace && cargo test --workspace && cargo clippy --workspace
+git commit -m "Phase 3: Merge tiny crates"
+
+echo "=== Complete ==="
+cargo fmt --workspace
+```
+
+---
+
+## Final Structure
+
+```
+crates/
+├── cb-core/              (EXPANDED: +api/)
+├── cb-ast/               (UNCHANGED)
+├── cb-client/            (UNCHANGED)
+├── cb-plugins/           (EXPANDED: +mcp/)
+├── cb-transport/         (UNCHANGED)
+├── cb-lsp/               (NEW: LSP adapter)
+├── cb-services/          (NEW: Business logic)
+├── cb-handlers/          (NEW: Tool implementations)
+└── cb-server/            (SLIMMED: Entry point)
+
 docs/
 ├── ARCHITECTURE.md
 ├── CONTRACTS.md
@@ -91,582 +549,25 @@ docs/
 ├── USAGE.md
 ├── WORKFLOWS.md
 └── project/
-    ├── BUG_REPORT.md
-    ├── CHANGELOG.md
-    ├── CLAUDE.md
-    ├── MCP_API.md
-    ├── PROPOSAL_*.md
-    ├── ROADMAP.md
-    └── SUPPORT_MATRIX.md
+    └── [project docs]
 
 scripts/
-├── install.sh
-├── setup-dev-tools.sh
-├── ast_tool.py
-└── ast_tool.go
+└── [helper scripts]
 ```
-
-**Phase 1 Command Count**: ~20 codebuddy calls + manual git cleanup
-
----
-
-## Phase 2: Split cb-server (High Value)
-
-### Step 2.1: Create New Crate Structures
-
-**Use shell script to create directories and Cargo.toml files:**
-
-```bash
-# Create cb-lsp crate
-mkdir -p crates/cb-lsp/src
-
-cat > crates/cb-lsp/Cargo.toml << 'EOF'
-[package]
-name = "cb-lsp"
-version = "1.0.0-beta"
-edition = "2021"
-description = "LSP protocol adapter for Codeflow Buddy"
-license = "MIT"
-
-[dependencies]
-cb-core = { path = "../cb-core" }
-tokio = { workspace = true }
-async-trait = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-tracing = { workspace = true }
-lsp-types = "0.97"
-dashmap = { workspace = true }
-EOF
-
-cat > crates/cb-lsp/src/lib.rs << 'EOF'
-//! LSP protocol adapter for Codeflow Buddy
-
-pub mod client;
-
-pub use client::LspClient;
-EOF
-
-# Create cb-services crate
-mkdir -p crates/cb-services/src
-
-cat > crates/cb-services/Cargo.toml << 'EOF'
-[package]
-name = "cb-services"
-version = "1.0.0-beta"
-edition = "2021"
-description = "Business logic and orchestration services for Codeflow Buddy"
-license = "MIT"
-
-[dependencies]
-cb-api = { path = "../cb-api" }
-cb-core = { path = "../cb-core" }
-cb-ast = { path = "../cb-ast" }
-cb-lsp = { path = "../cb-lsp" }
-tokio = { workspace = true }
-async-trait = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-tracing = { workspace = true }
-anyhow = { workspace = true }
-thiserror = { workspace = true }
-dashmap = { workspace = true }
-ignore = "0.4"
-
-[dev-dependencies]
-tempfile = "3.0"
-EOF
-
-cat > crates/cb-services/src/lib.rs << 'EOF'
-//! Services for coordinating complex operations
-
-pub mod ast_service;
-pub mod file_service;
-pub mod import_service;
-pub mod lock_manager;
-pub mod operation_queue;
-pub mod planner;
-pub mod workflow_executor;
-
-#[cfg(test)]
-pub mod tests;
-
-pub use ast_service::DefaultAstService;
-pub use file_service::FileService;
-pub use import_service::ImportService;
-pub use lock_manager::{LockManager, LockType};
-pub use operation_queue::{FileOperation, OperationQueue, OperationType, QueueStats};
-EOF
-
-# Create cb-handlers crate
-mkdir -p crates/cb-handlers/src/tools
-
-cat > crates/cb-handlers/Cargo.toml << 'EOF'
-[package]
-name = "cb-handlers"
-version = "1.0.0-beta"
-edition = "2021"
-description = "MCP tool handler implementations for Codeflow Buddy"
-license = "MIT"
-
-[dependencies]
-cb-api = { path = "../cb-api" }
-cb-core = { path = "../cb-core" }
-cb-ast = { path = "../cb-ast" }
-cb-lsp = { path = "../cb-lsp" }
-cb-services = { path = "../cb-services" }
-cb-plugins = { path = "../cb-plugins" }
-tokio = { workspace = true }
-async-trait = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-tracing = { workspace = true }
-anyhow = { workspace = true }
-thiserror = { workspace = true }
-lsp-types = "0.97"
-uuid = { version = "1.0", features = ["v4"] }
-EOF
-
-cat > crates/cb-handlers/src/lib.rs << 'EOF'
-//! MCP tool handler implementations
-
-pub mod plugin_dispatcher;
-pub mod tool_registry;
-pub mod tools;
-
-pub use plugin_dispatcher::PluginDispatcher;
-pub use tool_registry::ToolRegistry;
-EOF
-
-cat > crates/cb-handlers/src/tools/mod.rs << 'EOF'
-//! MCP tool implementations organized by domain
-
-pub mod advanced;
-pub mod editing;
-pub mod file_ops;
-pub mod lifecycle;
-pub mod navigation;
-pub mod system;
-pub mod workspace;
-EOF
-```
-
-### Step 2.2: Move LSP Code
-
-```bash
-codebuddy call rename_file '{"old_path": "crates/cb-server/src/systems/lsp/client.rs", "new_path": "crates/cb-lsp/src/client.rs"}'
-```
-
-### Step 2.3: Move Service Files
-
-```bash
-codebuddy call rename_file '{"old_path": "crates/cb-server/src/services/ast_service.rs", "new_path": "crates/cb-services/src/ast_service.rs"}'
-codebuddy call rename_file '{"old_path": "crates/cb-server/src/services/file_service.rs", "new_path": "crates/cb-services/src/file_service.rs"}'
-codebuddy call rename_file '{"old_path": "crates/cb-server/src/services/import_service.rs", "new_path": "crates/cb-services/src/import_service.rs"}'
-codebuddy call rename_file '{"old_path": "crates/cb-server/src/services/lock_manager.rs", "new_path": "crates/cb-services/src/lock_manager.rs"}'
-codebuddy call rename_file '{"old_path": "crates/cb-server/src/services/operation_queue.rs", "new_path": "crates/cb-services/src/operation_queue.rs"}'
-codebuddy call rename_file '{"old_path": "crates/cb-server/src/services/planner.rs", "new_path": "crates/cb-services/src/planner.rs"}'
-codebuddy call rename_file '{"old_path": "crates/cb-server/src/services/workflow_executor.rs", "new_path": "crates/cb-services/src/workflow_executor.rs"}'
-codebuddy call rename_file '{"old_path": "crates/cb-server/src/services/tests.rs", "new_path": "crates/cb-services/src/tests.rs"}'
-```
-
-### Step 2.4: Move Handler Files
-
-```bash
-codebuddy call rename_file '{"old_path": "crates/cb-server/src/handlers/plugin_dispatcher.rs", "new_path": "crates/cb-handlers/src/plugin_dispatcher.rs"}'
-codebuddy call rename_file '{"old_path": "crates/cb-server/src/handlers/tool_registry.rs", "new_path": "crates/cb-handlers/src/tool_registry.rs"}'
-codebuddy call rename_file '{"old_path": "crates/cb-server/src/handlers/tools/advanced.rs", "new_path": "crates/cb-handlers/src/tools/advanced.rs"}'
-codebuddy call rename_file '{"old_path": "crates/cb-server/src/handlers/tools/editing.rs", "new_path": "crates/cb-handlers/src/tools/editing.rs"}'
-codebuddy call rename_file '{"old_path": "crates/cb-server/src/handlers/tools/file_ops.rs", "new_path": "crates/cb-handlers/src/tools/file_ops.rs"}'
-codebuddy call rename_file '{"old_path": "crates/cb-server/src/handlers/tools/lifecycle.rs", "new_path": "crates/cb-handlers/src/tools/lifecycle.rs"}'
-codebuddy call rename_file '{"old_path": "crates/cb-server/src/handlers/tools/navigation.rs", "new_path": "crates/cb-handlers/src/tools/navigation.rs"}'
-codebuddy call rename_file '{"old_path": "crates/cb-server/src/handlers/tools/system.rs", "new_path": "crates/cb-handlers/src/tools/system.rs"}'
-codebuddy call rename_file '{"old_path": "crates/cb-server/src/handlers/tools/workspace.rs", "new_path": "crates/cb-handlers/src/tools/workspace.rs"}'
-```
-
-### Step 2.5: Update Workspace Configuration
-
-**Manually edit `/workspace/Cargo.toml`:**
-
-```toml
-[workspace]
-members = [
-    "apps/codebuddy",
-    "benchmarks",
-    "crates/cb-api",
-    "crates/cb-ast",
-    "crates/cb-client",
-    "crates/cb-core",
-    "crates/cb-handlers",      # NEW
-    "crates/cb-lsp",           # NEW
-    "crates/cb-mcp-proxy",
-    "crates/cb-plugins",
-    "crates/cb-server",
-    "crates/cb-services",      # NEW
-    "crates/cb-transport",
-    "integration-tests",
-]
-```
-
-### Step 2.6: Update cb-server Dependencies
-
-**Manually edit `crates/cb-server/Cargo.toml` dependencies section:**
-
-```toml
-[dependencies]
-cb-api = { path = "../cb-api" }
-cb-core = { path = "../cb-core" }
-cb-ast = { path = "../cb-ast" }
-cb-handlers = { path = "../cb-handlers" }     # NEW
-cb-lsp = { path = "../cb-lsp" }               # NEW
-cb-services = { path = "../cb-services" }     # NEW
-cb-plugins = { path = "../cb-plugins" }
-cb-transport = { path = "../cb-transport" }
-cb-mcp-proxy = { path = "../cb-mcp-proxy", optional = true }
-# ... rest of dependencies unchanged
-```
-
-### Step 2.7: Fix Imports (Batch Find-Replace)
-
-**Use sed for bulk import updates:**
-
-```bash
-# Update imports in moved files
-find crates/cb-lsp crates/cb-services crates/cb-handlers -name "*.rs" -type f -exec sed -i 's/crate::services::/cb_services::/g' {} +
-find crates/cb-lsp crates/cb-services crates/cb-handlers -name "*.rs" -type f -exec sed -i 's/crate::systems::lsp::/cb_lsp::/g' {} +
-find crates/cb-lsp crates/cb-services crates/cb-handlers -name "*.rs" -type f -exec sed -i 's/crate::handlers::/cb_handlers::/g' {} +
-
-# Update imports in cb-server
-find crates/cb-server -name "*.rs" -type f -exec sed -i 's/crate::services::/cb_services::/g' {} +
-find crates/cb-server -name "*.rs" -type f -exec sed -i 's/crate::systems::lsp::/cb_lsp::/g' {} +
-find crates/cb-server -name "*.rs" -type f -exec sed -i 's/crate::handlers::/cb_handlers::/g' {} +
-
-# Update ServerError references in services
-find crates/cb-services -name "*.rs" -type f -exec sed -i 's/use crate::ServerError/use cb_server::ServerError/g' {} +
-find crates/cb-services -name "*.rs" -type f -exec sed -i 's/use crate::ServerResult/use cb_server::ServerResult/g' {} +
-```
-
-### Step 2.8: Cleanup Old Files
-
-```bash
-# Remove old handler files
-git rm crates/cb-server/src/handlers/file_operation_handler.rs
-git rm crates/cb-server/src/handlers/refactoring_handler.rs
-git rm crates/cb-server/src/handlers/system_handler.rs
-git rm crates/cb-server/src/handlers/tool_handler.rs
-git rm crates/cb-server/src/handlers/workflow_handler.rs
-git rm crates/cb-server/src/handlers/lsp_adapter.rs
-
-# Remove empty directories
-git rm -r crates/cb-server/src/handlers/tools
-git rm -r crates/cb-server/src/services
-git rm -r crates/cb-server/src/systems
-```
-
-**Verification:**
-
-```bash
-cargo check --workspace
-cargo test --workspace
-```
-
-**Result After Phase 2:**
-```
-crates/
-├── cb-lsp/           (NEW: LSP protocol adapter)
-├── cb-services/      (NEW: Business logic)
-├── cb-handlers/      (NEW: MCP tool implementations)
-└── cb-server/        (SLIMMED: Entry point only)
-```
-
-**Phase 2 Command Count**: 1 shell script + ~10 codebuddy calls + 2 manual edits + batch sed
-
----
-
-## Phase 3: Merge Tiny Crates
-
-### Step 3.1: Move cb-api Files
-
-```bash
-# Create directory
-mkdir -p crates/cb-core/src/api
-
-codebuddy call rename_file '{"old_path": "crates/cb-api/src/error.rs", "new_path": "crates/cb-core/src/api/error.rs"}'
-codebuddy call rename_file '{"old_path": "crates/cb-api/src/lib.rs", "new_path": "crates/cb-core/src/api/mod.rs"}'
-```
-
-### Step 3.2: Move cb-mcp-proxy Files
-
-```bash
-# Create directory
-mkdir -p crates/cb-plugins/src/mcp
-
-codebuddy call rename_file '{"old_path": "crates/cb-mcp-proxy/src/client.rs", "new_path": "crates/cb-plugins/src/mcp/client.rs"}'
-codebuddy call rename_file '{"old_path": "crates/cb-mcp-proxy/src/error.rs", "new_path": "crates/cb-plugins/src/mcp/error.rs"}'
-codebuddy call rename_file '{"old_path": "crates/cb-mcp-proxy/src/manager.rs", "new_path": "crates/cb-plugins/src/mcp/manager.rs"}'
-codebuddy call rename_file '{"old_path": "crates/cb-mcp-proxy/src/plugin.rs", "new_path": "crates/cb-plugins/src/mcp/plugin.rs"}'
-codebuddy call rename_file '{"old_path": "crates/cb-mcp-proxy/src/presets.rs", "new_path": "crates/cb-plugins/src/mcp/presets.rs"}'
-codebuddy call rename_file '{"old_path": "crates/cb-mcp-proxy/src/protocol.rs", "new_path": "crates/cb-plugins/src/mcp/protocol.rs"}'
-codebuddy call rename_file '{"old_path": "crates/cb-mcp-proxy/src/lib.rs", "new_path": "crates/cb-plugins/src/mcp/mod.rs"}'
-```
-
-### Step 3.3: Update Module Exports
-
-**Edit `crates/cb-core/src/lib.rs`:**
-
-Add near the top:
-```rust
-pub mod api;
-pub use api::*;
-```
-
-**Edit `crates/cb-plugins/src/lib.rs`:**
-
-Add near the top:
-```rust
-pub mod mcp;
-pub use mcp::*;
-```
-
-### Step 3.4: Update Workspace Configuration
-
-**Edit `/workspace/Cargo.toml`:**
-
-```toml
-[workspace]
-members = [
-    "apps/codebuddy",
-    "benchmarks",
-    # "crates/cb-api",         # REMOVED - merged into cb-core
-    "crates/cb-ast",
-    "crates/cb-client",
-    "crates/cb-core",
-    "crates/cb-handlers",
-    "crates/cb-lsp",
-    # "crates/cb-mcp-proxy",   # REMOVED - merged into cb-plugins
-    "crates/cb-plugins",
-    "crates/cb-server",
-    "crates/cb-services",
-    "crates/cb-transport",
-    "integration-tests",
-]
-```
-
-### Step 3.5: Update Dependencies in Cargo.toml Files
-
-**Use sed for batch updates:**
-
-```bash
-# Comment out cb-api dependencies (will manually add cb-core if needed)
-find crates -name "Cargo.toml" -type f -exec sed -i 's/cb-api = { path = "..\/cb-api" }/# cb-api merged into cb-core/g' {} +
-
-# Comment out cb-mcp-proxy dependencies
-find crates -name "Cargo.toml" -type f -exec sed -i 's/cb-mcp-proxy = { path = "..\/cb-mcp-proxy" }/# cb-mcp-proxy merged into cb-plugins/g' {} +
-```
-
-**Manually verify these Cargo.toml files have cb-core listed:**
-- `crates/cb-handlers/Cargo.toml`
-- `crates/cb-services/Cargo.toml`
-- `crates/cb-server/Cargo.toml`
-
-### Step 3.6: Fix All Imports
-
-```bash
-# Update cb-api imports to cb-core::api
-find crates -name "*.rs" -type f -exec sed -i 's/use cb_api::/use cb_core::api::/g' {} +
-find crates -name "*.rs" -type f -exec sed -i 's/cb_api::/cb_core::api::/g' {} +
-
-# Update cb-mcp-proxy imports to cb-plugins::mcp
-find crates -name "*.rs" -type f -exec sed -i 's/use cb_mcp_proxy::/use cb_plugins::mcp::/g' {} +
-find crates -name "*.rs" -type f -exec sed -i 's/cb_mcp_proxy::/cb_plugins::mcp::/g' {} +
-```
-
-### Step 3.7: Remove Old Crate Directories
-
-```bash
-git rm -r crates/cb-api
-git rm -r crates/cb-mcp-proxy
-```
-
-**Verification:**
-
-```bash
-cargo check --workspace
-cargo test --workspace
-cargo clippy --workspace
-cargo fmt --workspace
-```
-
-**Result After Phase 3:**
-```
-crates/
-├── cb-core/        (EXPANDED: +api/)
-├── cb-ast/         (UNCHANGED)
-├── cb-client/      (UNCHANGED)
-├── cb-plugins/     (EXPANDED: +mcp/)
-├── cb-transport/   (UNCHANGED)
-├── cb-lsp/         (NEW)
-├── cb-services/    (NEW)
-├── cb-handlers/    (NEW)
-└── cb-server/      (SLIMMED)
-
-Result: 9 crates (was 8)
-```
-
-**Phase 3 Command Count**: ~9 codebuddy calls + 2 manual edits + batch sed
-
----
-
-## Final Structure
-
-```
-/workspace/
-├── apps/
-│   └── codebuddy/
-├── benchmarks/
-├── crates/
-│   ├── cb-core/              (EXPANDED: +api/, 16 files, ~3,500 lines)
-│   ├── cb-ast/               (UNCHANGED: 13 files, 9,544 lines)
-│   ├── cb-client/            (UNCHANGED: 14 files, 5,747 lines)
-│   ├── cb-plugins/           (EXPANDED: +mcp/, 17 files, ~4,900 lines)
-│   ├── cb-transport/         (UNCHANGED: 4 files, 966 lines)
-│   ├── cb-lsp/               (NEW: 3 files, ~715 lines)
-│   ├── cb-services/          (NEW: 9 files, ~4,000 lines)
-│   ├── cb-handlers/          (NEW: 17 files, ~4,500 lines)
-│   └── cb-server/            (SLIMMED: 2 files, ~400 lines)
-├── deployment/
-│   └── docker/
-├── docs/
-│   ├── ARCHITECTURE.md
-│   ├── CONTRACTS.md
-│   ├── DEPLOYMENT.md
-│   ├── LOGGING.md
-│   ├── USAGE.md
-│   ├── WORKFLOWS.md
-│   └── project/
-│       ├── BUG_REPORT.md
-│       ├── CHANGELOG.md
-│       ├── CLAUDE.md
-│       ├── MCP_API.md
-│       ├── PROPOSAL_*.md
-│       ├── ROADMAP.md
-│       └── SUPPORT_MATRIX.md
-├── examples/
-├── integration-tests/
-│   └── fixtures/
-├── playground/
-├── scripts/
-│   ├── install.sh
-│   ├── setup-dev-tools.sh
-│   ├── ast_tool.py
-│   └── ast_tool.go
-└── [root files]
-```
-
----
-
-## Execution Summary
-
-### Phase 1
-- ~20 `codebuddy call rename_file` commands
-- ~5 `codebuddy call rename_directory` commands
-- Manual git cleanup
-
-### Phase 2
-- 1 shell script (create crates)
-- ~10 `codebuddy call rename_file` commands
-- 2 manual Cargo.toml edits
-- Batch sed for imports
-- Manual git cleanup
-
-### Phase 3
-- ~9 `codebuddy call rename_file` commands
-- 2 manual lib.rs edits
-- 1 manual Cargo.toml edit
-- Batch sed for imports and dependencies
-- Manual git cleanup
-
-**Total: ~44 codebuddy calls + 1 shell script + ~5 manual edits + batch sed operations**
 
 ---
 
 ## Benefits
 
-### Maintainability
-- ✅ Clear separation of concerns (handlers vs services vs LSP)
-- ✅ Easier navigation (find operations in cb-services, not buried in cb-server)
-- ✅ Reduced cognitive load per crate
-
-### Development Experience
-- ✅ Faster iteration (change handlers without recompiling services)
-- ✅ Clearer APIs (explicit crate boundaries)
-- ✅ Better testability (isolated concerns)
-
-### Documentation
-- ✅ Organized root directory
-- ✅ Centralized project documentation
-- ✅ Clear script location
-
-### Code Quality
-- ✅ Completes handler refactor (finish tools/ migration)
-- ✅ Addresses cb-server bloat
-- ✅ Reduces crate fragmentation (merge tiny crates)
+- ✅ **Atomic operations**: batch_execute ensures all-or-nothing file moves
+- ✅ **Automatic import updates**: rename_file in batch handles imports
+- ✅ **Rollback on failure**: Failed operations automatically rollback
+- ✅ **Clear separation**: cb-server split into focused crates
+- ✅ **Reduced overhead**: Tiny crates merged into logical parents
+- ✅ **Clean root**: Documentation and scripts organized
 
 ---
 
-## Risks & Mitigations
+## Total Effort
 
-| Risk | Mitigation |
-|------|------------|
-| Breaking imports | Git branch, incremental testing after each phase |
-| Circular dependencies | Clear dependency graph (handlers → services → lsp → core) |
-| Compilation issues | Fix phase by phase with cargo check after each step |
-| Incomplete migration | Use git to track progress, revert if needed |
-| sed errors on macOS | Use `sed -i ''` on macOS instead of `sed -i` |
-
----
-
-## Execution Checklist
-
-- [ ] **Phase 1.1**: Move root docs (10 codebuddy calls)
-- [ ] **Phase 1.2**: Flatten docs (6 codebuddy calls)
-- [ ] **Phase 1.3**: Consolidate scripts (4 codebuddy calls)
-- [ ] **Phase 1.4**: Consolidate test fixtures (5 codebuddy calls)
-- [ ] **Phase 1.5**: Git cleanup
-- [ ] **Verify Phase 1**: `cargo check --workspace`
-
-- [ ] **Phase 2.1**: Create new crate structures (shell script)
-- [ ] **Phase 2.2**: Move LSP code (1 codebuddy call)
-- [ ] **Phase 2.3**: Move service files (8 codebuddy calls)
-- [ ] **Phase 2.4**: Move handler files (9 codebuddy calls)
-- [ ] **Phase 2.5**: Update workspace Cargo.toml (manual)
-- [ ] **Phase 2.6**: Update cb-server Cargo.toml (manual)
-- [ ] **Phase 2.7**: Fix imports (batch sed)
-- [ ] **Phase 2.8**: Git cleanup
-- [ ] **Verify Phase 2**: `cargo check --workspace && cargo test --workspace`
-
-- [ ] **Phase 3.1**: Move cb-api files (2 codebuddy calls)
-- [ ] **Phase 3.2**: Move cb-mcp-proxy files (7 codebuddy calls)
-- [ ] **Phase 3.3**: Update cb-core/cb-plugins lib.rs (manual)
-- [ ] **Phase 3.4**: Update workspace Cargo.toml (manual)
-- [ ] **Phase 3.5**: Update dependencies (batch sed + manual verification)
-- [ ] **Phase 3.6**: Fix imports (batch sed)
-- [ ] **Phase 3.7**: Git cleanup
-- [ ] **Verify Phase 3**: `cargo check --workspace && cargo test --workspace && cargo clippy --workspace`
-
-- [ ] **Final**: Run full test suite, update CI/CD, commit changes
-
----
-
-## Decision
-
-**Recommendation**: Execute all 3 phases in order, with verification after each phase.
-
-**Total Effort**: 6-8 hours
-
-**Rationale**:
-- Using codebuddy CLI for all file operations ensures LSP awareness and import tracking
-- Shell scripts only for creating new files (Cargo.toml, lib.rs stubs)
-- Batch sed operations for consistency in import updates
-- Incremental verification catches issues early
-- Git cleanup keeps repository clean
+**2-3 hours** with batch operations and verification steps.

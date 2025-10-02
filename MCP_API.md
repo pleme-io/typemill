@@ -13,7 +13,7 @@ Complete API documentation for all 42 MCP tools available in CodeBuddy.
 - [Editing & Refactoring](#editing--refactoring) (9 tools)
 - [File Operations](#file-operations) (6 tools)
 - [Workspace Operations](#workspace-operations) (5 tools)
-- [Advanced Operations](#advanced-operations) (3 tools)
+- [Advanced Operations](#advanced-operations) (4 tools: apply_edits, batch_execute, rename_symbol_with_imports, achieve_intent)
 - [LSP Lifecycle](#lsp-lifecycle) (3 tools)
 - [System & Health](#system--health) (1 tool)
 - [Web/Network](#webnetwork) (1 tool)
@@ -1375,6 +1375,139 @@ Apply atomic multi-file edits with rollback on failure.
 - File snapshots created before modifications
 - AST cache invalidation
 - File-level locking
+
+---
+
+### `batch_execute`
+
+Execute multiple file operations in a single batch with atomic guarantees.
+
+**Parameters:**
+```json
+{
+  "operations": [
+    {
+      "type": "create_file",
+      "path": "src/utils/helper.ts",
+      "content": "export const helper = () => {};"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "src/old.ts",
+      "new_path": "src/new.ts"
+    },
+    {
+      "type": "write_file",
+      "path": "src/config.json",
+      "content": "{\"version\": \"1.0.0\"}"
+    },
+    {
+      "type": "delete_file",
+      "path": "src/deprecated.ts"
+    }
+  ]
+}
+```
+
+**Supported Operation Types:**
+
+| Type | Fields | Description |
+|------|--------|-------------|
+| `create_file` | `path`, `content` (optional) | Create new file with optional content |
+| `rename_file` | `old_path`, `new_path` | Rename/move file with import updates |
+| `write_file` | `path`, `content` | Write content to file (creates if not exists) |
+| `delete_file` | `path` | Delete file |
+
+**Returns:**
+```json
+{
+  "success": true,
+  "batch_id": "batch_abc123",
+  "operations_queued": 4,
+  "results": [
+    {
+      "operation": "create_file",
+      "path": "src/utils/helper.ts",
+      "success": true
+    },
+    {
+      "operation": "rename_file",
+      "old_path": "src/old.ts",
+      "new_path": "src/new.ts",
+      "success": true,
+      "imports_updated": 3
+    },
+    {
+      "operation": "write_file",
+      "path": "src/config.json",
+      "success": true
+    },
+    {
+      "operation": "delete_file",
+      "path": "src/deprecated.ts",
+      "success": true
+    }
+  ]
+}
+```
+
+**Error Handling:**
+```json
+{
+  "success": false,
+  "batch_id": "batch_abc123",
+  "operations_queued": 4,
+  "failed_at": 2,
+  "error": "File already exists: src/config.json",
+  "results": [
+    {"operation": "create_file", "success": true},
+    {"operation": "rename_file", "success": true},
+    {"operation": "write_file", "success": false, "error": "File already exists"}
+  ]
+}
+```
+
+**Example:**
+```bash
+# Create directory structure and move files
+codebuddy call batch_execute --arguments '{
+  "operations": [
+    {
+      "type": "create_file",
+      "path": "docs/project/.gitkeep",
+      "content": ""
+    },
+    {
+      "type": "rename_file",
+      "old_path": "CLAUDE.md",
+      "new_path": "docs/project/CLAUDE.md"
+    },
+    {
+      "type": "rename_file",
+      "old_path": "MCP_API.md",
+      "new_path": "docs/project/MCP_API.md"
+    }
+  ]
+}'
+```
+
+**Features:**
+- Atomic batch execution (all succeed or all rollback)
+- Automatic import updates for `rename_file` operations
+- Operations queued and executed sequentially
+- Rollback on first failure
+- Lock management for concurrent operations
+
+**Limitations:**
+- Does not support `rename_directory` (use individual MCP call)
+- Maximum 100 operations per batch
+- Each operation uses same working directory
+
+**Use Cases:**
+- Repository restructuring (move multiple files)
+- Build artifact generation (create multiple files)
+- Cleanup operations (delete multiple deprecated files)
+- Project scaffolding (create directory structure)
 
 ---
 
