@@ -4,6 +4,46 @@ This document tracks known bugs, limitations, and areas for improvement in Codeb
 
 ## 🐛 Active Issues
 
+### E2E Test Config Loading Failure (CRITICAL)
+
+**Severity:** High
+**Affected Component:** `cb-core::config::AppConfig::load()`, e2e test infrastructure
+
+**Description:**
+E2e_advanced_features tests fail because cb-server doesn't load the test-generated `.codebuddy/config.json` file, falling back to hard-coded default LSP commands without absolute paths.
+
+**Root Cause Analysis:**
+1. Test harness generates `.codebuddy/config.json` with absolute paths to LSP servers
+2. `AppConfig::load()` attempts to deserialize JSON as full `AppConfig` struct (line 320 in config.rs)
+3. If deserialization fails (even partially), it silently continues without using the config
+4. Fallback to `AppConfig::default()` which has hard-coded relative commands:
+   ```rust
+   command: vec!["typescript-language-server".to_string(), "--stdio".to_string()]
+   ```
+5. When cb-server spawns LSP, it can't find `typescript-language-server` because it's not in PATH
+
+**Evidence:**
+```
+ERROR: Failed to start LSP server 'typescript-language-server --stdio':
+       No such file or directory (os error 2)
+```
+
+**Current State:**
+- LSP availability checks: ✅ FIXED (now checks ~/.local/bin, ~/.nvm, ~/.cargo/bin)
+- Config generation: ✅ IMPROVED (generates full AppConfig structure)
+- Config loading: ❌ **STILL FAILING** (deserialization issue)
+
+**Needed Fix:**
+Option 1: Make config loading more robust - log deserialization errors, partial config support
+Option 2: Ensure test config JSON exactly matches all required AppConfig fields
+Option 3: Add config validation in tests to detect deserialization failures early
+
+**Workaround:** Install LSP servers in system PATH (not just user bin dirs)
+
+---
+
+## 🐛 Active Issues
+
 ### 1. Incomplete Import Path Updates During `rename_directory`
 
 **Severity:** Medium
