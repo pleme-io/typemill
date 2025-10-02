@@ -29,8 +29,13 @@ install: release
 	@cp rust/target/release/codebuddy ~/.local/bin/
 	@echo "✓ Installed to ~/.local/bin/codebuddy"
 	@echo ""
-	@echo "Make sure ~/.local/bin is in your PATH:"
-	@echo "  echo 'export PATH=\"\$$HOME/.local/bin:\$$PATH\"' >> ~/.bashrc"
+	@echo "Make sure ~/.local/bin is in your PATH. Add to your shell config:"
+	@echo "  export PATH=\"\$$HOME/.local/bin:\$$PATH\""
+	@echo ""
+	@echo "Shell config files (choose yours):"
+	@echo "  - Bash: ~/.bashrc or ~/.bash_profile"
+	@echo "  - Zsh:  ~/.zshrc"
+	@echo "  - Fish: ~/.config/fish/config.fish"
 
 # Uninstall from ~/.local/bin
 uninstall:
