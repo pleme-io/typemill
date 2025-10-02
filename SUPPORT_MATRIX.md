@@ -65,7 +65,7 @@
 | `analyze_imports` | ✅ Full | ✅ AST | ✅ AST | ✅ AST | ✅ AST | **All languages use AST parsing**. Rust via syn, Go via go/parser, TS/JS via SWC, Python via native AST |
 | `find_dead_code` | ✅ Full | ✅ | ✅ | ✅ | ✅ | **LSP-based via workspace/symbol + textDocument/references** |
 | `update_dependencies` | ✅ Full | ✅ npm/yarn/pnpm | ✅ pip | ✅ go mod | ✅ cargo | **Executes package manager commands**, auto-detects via project files, returns stdout/stderr |
-| `extract_module_to_package` | ✅ Full | ❌ | ❌ | ✅ Go | ❌ | **Go-specific**: Extracts a module to a separate package, updates imports across workspace |
+| `extract_module_to_package` | ✅ Full | ✅ | ✅ | ✅ | ✅ | **Multi-language**: Rust via syn, TS/JS via directory move, Python via package structure, Go via go/parser, Java via Maven/Gradle. Extracts module to separate package, updates imports across workspace |
 
 ### Advanced Operations
 

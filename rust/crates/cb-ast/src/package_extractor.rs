@@ -4,7 +4,7 @@
 //! for extracting modules into separate packages.
 
 use crate::error::AstResult;
-use crate::language::{LanguageAdapter, PythonAdapter, RustAdapter, TypeScriptAdapter};
+use crate::language::{GoAdapter, JavaAdapter, LanguageAdapter, PythonAdapter, RustAdapter, TypeScriptAdapter};
 use cb_api::EditPlan;
 use cb_core::language::ProjectLanguage;
 use serde::Deserialize;
@@ -242,13 +242,13 @@ pub async fn plan_extract_module_to_package(
             info!("Selected PythonAdapter for extraction");
             Box::new(PythonAdapter)
         }
-        ProjectLanguage::Go | ProjectLanguage::Java => {
-            return Err(crate::error::AstError::UnsupportedSyntax {
-                feature: format!(
-                    "{} language not yet supported for extract_module_to_package",
-                    detected_language.as_str()
-                ),
-            });
+        ProjectLanguage::Go => {
+            info!("Selected GoAdapter for extraction");
+            Box::new(GoAdapter)
+        }
+        ProjectLanguage::Java => {
+            info!("Selected JavaAdapter for extraction");
+            Box::new(JavaAdapter)
         }
         ProjectLanguage::Unknown => {
             return Err(crate::error::AstError::Analysis {

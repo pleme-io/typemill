@@ -580,3 +580,504 @@ fn update_import_line_ts(
         None
     }
 }
+
+/// Go language adapter
+pub struct GoAdapter;
+
+#[async_trait]
+impl LanguageAdapter for GoAdapter {
+    fn language(&self) -> ProjectLanguage {
+        ProjectLanguage::Go
+    }
+
+    fn manifest_filename(&self) -> &'static str {
+        "go.mod"
+    }
+
+    fn source_dir(&self) -> &'static str {
+        "" // Go projects don't have a standard source directory
+    }
+
+    fn entry_point(&self) -> &'static str {
+        "" // Go doesn't have a single entry point file
+    }
+
+    fn module_separator(&self) -> &'static str {
+        "/"
+    }
+
+    async fn locate_module_files(
+        &self,
+        package_path: &Path,
+        module_path: &str,
+    ) -> AstResult<Vec<std::path::PathBuf>> {
+        use tracing::debug;
+
+        debug!(
+            package_path = %package_path.display(),
+            module_path = %module_path,
+            "Locating Go module files"
+        );
+
+        // Go modules are directories containing .go files
+        // module_path format: "internal/utils" or "pkg/service"
+
+        let module_dir = package_path.join(module_path);
+
+        if !module_dir.exists() || !module_dir.is_dir() {
+            return Err(AstError::Analysis {
+                message: format!("Module directory not found: {}", module_dir.display()),
+            });
+        }
+
+        // Find all .go files in the directory (non-recursive)
+        let mut go_files = Vec::new();
+
+        let mut entries = tokio::fs::read_dir(&module_dir).await.map_err(|e| {
+            AstError::Analysis {
+                message: format!("Failed to read directory {}: {}", module_dir.display(), e),
+            }
+        })?;
+
+        while let Some(entry) = entries.next_entry().await.map_err(|e| {
+            AstError::Analysis {
+                message: format!("Error reading directory entry: {}", e),
+            }
+        })? {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(ext) = path.extension() {
+                    if ext == "go" {
+                        // Exclude test files
+                        if let Some(file_stem) = path.file_stem() {
+                            if !file_stem.to_string_lossy().ends_with("_test") {
+                                debug!(file_path = %path.display(), "Found Go file");
+                                go_files.push(path);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if go_files.is_empty() {
+            return Err(AstError::Analysis {
+                message: format!("No .go files found in module: {}", module_dir.display()),
+            });
+        }
+
+        debug!(
+            files_count = go_files.len(),
+            "Successfully located Go module files"
+        );
+
+        Ok(go_files)
+    }
+
+    async fn parse_imports(&self, file_path: &Path) -> AstResult<Vec<String>> {
+        use std::collections::HashSet;
+        use tracing::debug;
+
+        debug!(
+            file_path = %file_path.display(),
+            "Parsing Go imports"
+        );
+
+        // Read file content
+        let content = tokio::fs::read_to_string(file_path).await.map_err(|e| {
+            AstError::Analysis {
+                message: format!("Failed to read file {}: {}", file_path.display(), e),
+            }
+        })?;
+
+        // Use existing build_import_graph which calls parse_go_imports_ast
+        let import_graph = crate::parser::build_import_graph(&content, file_path)?;
+
+        // Extract unique import paths
+        let mut dependencies = HashSet::new();
+
+        for import_info in import_graph.imports {
+            // Go imports are full package paths
+            // Filter out standard library (no dots in path typically means stdlib)
+            // External packages usually have domain names: "github.com/user/repo"
+            if import_info.module_path.contains('.') {
+                dependencies.insert(import_info.module_path);
+            }
+        }
+
+        let mut result: Vec<String> = dependencies.into_iter().collect();
+        result.sort();
+
+        debug!(
+            dependencies_count = result.len(),
+            "Extracted external dependencies"
+        );
+
+        Ok(result)
+    }
+
+    fn generate_manifest(&self, package_name: &str, dependencies: &[String]) -> String {
+        use std::fmt::Write;
+
+        let mut manifest = String::new();
+
+        // module declaration
+        writeln!(manifest, "module {}", package_name).unwrap();
+        writeln!(manifest).unwrap();
+        writeln!(manifest, "go 1.21").unwrap();
+
+        // Add dependencies if any
+        if !dependencies.is_empty() {
+            writeln!(manifest).unwrap();
+            writeln!(manifest, "require (").unwrap();
+            for dep in dependencies {
+                writeln!(manifest, "\t{} v0.0.0", dep).unwrap();
+            }
+            writeln!(manifest, ")").unwrap();
+        }
+
+        manifest
+    }
+
+    fn rewrite_import(&self, old_import: &str, new_package_name: &str) -> String {
+        // Transform internal import to external module import
+        // e.g., "github.com/user/project/internal/utils" -> "github.com/user/new-package"
+        new_package_name.to_string()
+    }
+
+    fn handles_extension(&self, ext: &str) -> bool {
+        matches!(ext, "go")
+    }
+
+    fn rewrite_imports_for_rename(
+        &self,
+        content: &str,
+        _old_path: &Path,
+        _new_path: &Path,
+        _importing_file: &Path,
+        _project_root: &Path,
+        rename_info: Option<&serde_json::Value>,
+    ) -> AstResult<(String, usize)> {
+        // If no rename_info provided, no rewriting needed
+        let rename_info = match rename_info {
+            Some(info) => info,
+            None => return Ok((content.to_string(), 0)),
+        };
+
+        // Extract old and new module paths from rename_info
+        let old_module = rename_info["old_module_path"]
+            .as_str()
+            .ok_or_else(|| AstError::analysis("Missing old_module_path in rename_info"))?;
+
+        let new_module = rename_info["new_module_path"]
+            .as_str()
+            .ok_or_else(|| AstError::analysis("Missing new_module_path in rename_info"))?;
+
+        tracing::debug!(
+            old_module = %old_module,
+            new_module = %new_module,
+            "Rewriting Go imports for module rename"
+        );
+
+        // Simple line-by-line replacement for Go imports
+        // Go import format: import "module/path" or import ( ... )
+        let mut updated_content = String::new();
+        let mut changes_count = 0;
+
+        for line in content.lines() {
+            if line.contains("import") && line.contains(old_module) {
+                let updated_line = line.replace(old_module, new_module);
+                updated_content.push_str(&updated_line);
+                changes_count += 1;
+            } else {
+                updated_content.push_str(line);
+            }
+            updated_content.push('\n');
+        }
+
+        tracing::debug!(
+            changes = changes_count,
+            "Successfully rewrote Go imports"
+        );
+
+        Ok((updated_content.trim_end().to_string(), changes_count))
+    }
+}
+
+/// Java language adapter
+pub struct JavaAdapter;
+
+#[async_trait]
+impl LanguageAdapter for JavaAdapter {
+    fn language(&self) -> ProjectLanguage {
+        ProjectLanguage::Java
+    }
+
+    fn manifest_filename(&self) -> &'static str {
+        "pom.xml" // Default to Maven, could also be build.gradle
+    }
+
+    fn source_dir(&self) -> &'static str {
+        "src/main/java"
+    }
+
+    fn entry_point(&self) -> &'static str {
+        "" // Java doesn't have a single entry point like Rust's lib.rs
+    }
+
+    fn module_separator(&self) -> &'static str {
+        "."
+    }
+
+    async fn locate_module_files(
+        &self,
+        package_path: &Path,
+        module_path: &str,
+    ) -> AstResult<Vec<std::path::PathBuf>> {
+        use tracing::debug;
+
+        debug!(
+            package_path = %package_path.display(),
+            module_path = %module_path,
+            "Locating Java package files"
+        );
+
+        // Java packages map to directory structure
+        // module_path format: "com.example.utils" -> src/main/java/com/example/utils/
+
+        let src_root = package_path.join(self.source_dir());
+
+        if !src_root.exists() {
+            return Err(AstError::Analysis {
+                message: format!("Source directory not found: {}", src_root.display()),
+            });
+        }
+
+        // Convert dotted package name to path
+        // "com.example.utils" -> "com/example/utils"
+        let package_path_str = module_path.replace('.', "/");
+        let package_dir = src_root.join(&package_path_str);
+
+        if !package_dir.exists() || !package_dir.is_dir() {
+            return Err(AstError::Analysis {
+                message: format!("Package directory not found: {}", package_dir.display()),
+            });
+        }
+
+        // Find all .java files in the package directory (non-recursive)
+        let mut java_files = Vec::new();
+
+        let mut entries = tokio::fs::read_dir(&package_dir).await.map_err(|e| {
+            AstError::Analysis {
+                message: format!("Failed to read directory {}: {}", package_dir.display(), e),
+            }
+        })?;
+
+        while let Some(entry) = entries.next_entry().await.map_err(|e| {
+            AstError::Analysis {
+                message: format!("Error reading directory entry: {}", e),
+            }
+        })? {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(ext) = path.extension() {
+                    if ext == "java" {
+                        debug!(file_path = %path.display(), "Found Java file");
+                        java_files.push(path);
+                    }
+                }
+            }
+        }
+
+        if java_files.is_empty() {
+            return Err(AstError::Analysis {
+                message: format!("No .java files found in package: {}", package_dir.display()),
+            });
+        }
+
+        debug!(
+            files_count = java_files.len(),
+            "Successfully located Java package files"
+        );
+
+        Ok(java_files)
+    }
+
+    async fn parse_imports(&self, file_path: &Path) -> AstResult<Vec<String>> {
+        use std::collections::HashSet;
+        use tracing::debug;
+
+        debug!(
+            file_path = %file_path.display(),
+            "Parsing Java imports"
+        );
+
+        // Read file content
+        let content = tokio::fs::read_to_string(file_path).await.map_err(|e| {
+            AstError::Analysis {
+                message: format!("Failed to read file {}: {}", file_path.display(), e),
+            }
+        })?;
+
+        // Parse Java imports using regex (simple but effective)
+        // import com.example.utils.Helper;
+        // import static com.example.Constants.*;
+        let import_regex = regex::Regex::new(r#"^\s*import\s+(?:static\s+)?([a-zA-Z0-9_.]+)"#)
+            .map_err(|e| AstError::analysis(format!("Regex compilation failed: {}", e)))?;
+
+        let mut dependencies = HashSet::new();
+
+        for line in content.lines() {
+            if let Some(captures) = import_regex.captures(line) {
+                if let Some(import_path) = captures.get(1) {
+                    let full_import = import_path.as_str();
+
+                    // Extract package name (everything except last segment)
+                    // "com.example.utils.Helper" -> "com.example.utils"
+                    if let Some(last_dot) = full_import.rfind('.') {
+                        let package_name = &full_import[..last_dot];
+
+                        // Filter out java.* and javax.* (standard library)
+                        if !package_name.starts_with("java.") && !package_name.starts_with("javax.") {
+                            dependencies.insert(package_name.to_string());
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut result: Vec<String> = dependencies.into_iter().collect();
+        result.sort();
+
+        debug!(
+            dependencies_count = result.len(),
+            "Extracted external dependencies"
+        );
+
+        Ok(result)
+    }
+
+    fn generate_manifest(&self, package_name: &str, dependencies: &[String]) -> String {
+        use std::fmt::Write;
+
+        let mut manifest = String::new();
+
+        // Generate basic pom.xml structure
+        writeln!(manifest, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>").unwrap();
+        writeln!(manifest, "<project xmlns=\"http://maven.apache.org/POM/4.0.0\"").unwrap();
+        writeln!(manifest, "         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"").unwrap();
+        writeln!(manifest, "         xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\">").unwrap();
+        writeln!(manifest, "    <modelVersion>4.0.0</modelVersion>").unwrap();
+        writeln!(manifest).unwrap();
+
+        // Extract group and artifact IDs from package_name
+        // Assume format: "com.example.artifactid"
+        let parts: Vec<&str> = package_name.rsplitn(2, '.').collect();
+        let (artifact_id, group_id) = if parts.len() == 2 {
+            (parts[0], parts[1])
+        } else {
+            (package_name, "com.example")
+        };
+
+        writeln!(manifest, "    <groupId>{}</groupId>", group_id).unwrap();
+        writeln!(manifest, "    <artifactId>{}</artifactId>", artifact_id).unwrap();
+        writeln!(manifest, "    <version>1.0.0</version>").unwrap();
+        writeln!(manifest).unwrap();
+
+        // Add dependencies if any
+        if !dependencies.is_empty() {
+            writeln!(manifest, "    <dependencies>").unwrap();
+            for dep in dependencies {
+                let dep_parts: Vec<&str> = dep.rsplitn(2, '.').collect();
+                let (dep_artifact, dep_group) = if dep_parts.len() == 2 {
+                    (dep_parts[0], dep_parts[1])
+                } else {
+                    (dep, "com.example")
+                };
+
+                writeln!(manifest, "        <dependency>").unwrap();
+                writeln!(manifest, "            <groupId>{}</groupId>", dep_group).unwrap();
+                writeln!(manifest, "            <artifactId>{}</artifactId>", dep_artifact).unwrap();
+                writeln!(manifest, "            <version>1.0.0</version>").unwrap();
+                writeln!(manifest, "        </dependency>").unwrap();
+            }
+            writeln!(manifest, "    </dependencies>").unwrap();
+        }
+
+        writeln!(manifest, "</project>").unwrap();
+
+        manifest
+    }
+
+    fn rewrite_import(&self, old_import: &str, new_package_name: &str) -> String {
+        // Transform internal import to external package import
+        // e.g., "com.example.project.internal.Utils" -> "com.example.newpackage.Utils"
+
+        // Extract the class name (last segment)
+        if let Some(last_dot) = old_import.rfind('.') {
+            let class_name = &old_import[last_dot + 1..];
+            format!("{}.{}", new_package_name, class_name)
+        } else {
+            // No dot, just use new package name
+            new_package_name.to_string()
+        }
+    }
+
+    fn handles_extension(&self, ext: &str) -> bool {
+        matches!(ext, "java")
+    }
+
+    fn rewrite_imports_for_rename(
+        &self,
+        content: &str,
+        _old_path: &Path,
+        _new_path: &Path,
+        _importing_file: &Path,
+        _project_root: &Path,
+        rename_info: Option<&serde_json::Value>,
+    ) -> AstResult<(String, usize)> {
+        // If no rename_info provided, no rewriting needed
+        let rename_info = match rename_info {
+            Some(info) => info,
+            None => return Ok((content.to_string(), 0)),
+        };
+
+        // Extract old and new package names from rename_info
+        let old_package = rename_info["old_package_name"]
+            .as_str()
+            .ok_or_else(|| AstError::analysis("Missing old_package_name in rename_info"))?;
+
+        let new_package = rename_info["new_package_name"]
+            .as_str()
+            .ok_or_else(|| AstError::analysis("Missing new_package_name in rename_info"))?;
+
+        tracing::debug!(
+            old_package = %old_package,
+            new_package = %new_package,
+            "Rewriting Java imports for package rename"
+        );
+
+        // Simple line-by-line replacement for Java imports
+        // Java import format: import com.example.package.ClassName;
+        let mut updated_content = String::new();
+        let mut changes_count = 0;
+
+        for line in content.lines() {
+            if line.trim().starts_with("import") && line.contains(old_package) {
+                let updated_line = line.replace(old_package, new_package);
+                updated_content.push_str(&updated_line);
+                changes_count += 1;
+            } else {
+                updated_content.push_str(line);
+            }
+            updated_content.push('\n');
+        }
+
+        tracing::debug!(
+            changes = changes_count,
+            "Successfully rewrote Java imports"
+        );
+
+        Ok((updated_content.trim_end().to_string(), changes_count))
+    }
+}

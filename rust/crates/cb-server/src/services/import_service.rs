@@ -19,12 +19,14 @@ pub struct ImportService {
 impl ImportService {
     /// Create a new import service
     pub fn new(project_root: impl AsRef<Path>) -> Self {
-        use cb_ast::language::{RustAdapter, TypeScriptAdapter, PythonAdapter};
+        use cb_ast::language::{GoAdapter, JavaAdapter, PythonAdapter, RustAdapter, TypeScriptAdapter};
 
         let adapters: Vec<Arc<dyn LanguageAdapter>> = vec![
             Arc::new(RustAdapter),
             Arc::new(TypeScriptAdapter),
             Arc::new(PythonAdapter),
+            Arc::new(GoAdapter),
+            Arc::new(JavaAdapter),
         ];
 
         Self {

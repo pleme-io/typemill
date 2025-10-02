@@ -1244,7 +1244,7 @@ Update project dependencies using package manager.
 
 ### `extract_module_to_package`
 
-Extract a Go module to a separate package (Go-specific operation).
+Extract a module to a separate package with multi-language support.
 
 **Parameters:**
 ```json
@@ -1269,10 +1269,16 @@ Extract a Go module to a separate package (Go-specific operation).
 ```
 
 **Notes:**
-- **Go-specific**: Only works with Go projects
+- **Multi-language support**: Rust, TypeScript/JavaScript, Python, Go, Java
+- **Language-specific behavior**:
+  - **Rust**: Uses `syn` crate for AST parsing, generates Cargo.toml
+  - **TypeScript/JS**: Directory-based modules, generates package.json
+  - **Python**: Package structure with __init__.py, generates pyproject.toml
+  - **Go**: Uses `go/parser` via subprocess, generates go.mod
+  - **Java**: Maven/Gradle package structure, generates pom.xml
 - Moves module files to new package
-- Updates all import statements across workspace
-- Creates package directory structure
+- Updates all import statements across workspace using language-aware AST parsing
+- Creates package directory structure and manifest file
 
 ---
 
