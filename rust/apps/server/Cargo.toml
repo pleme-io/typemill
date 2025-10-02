@@ -1,6 +1,6 @@
 [package]
 name = "codebuddy"
-version = "0.1.0"
+version = "1.0.0-beta"
 edition = "2021"
 description = "Pure Rust MCP server bridging Language Server Protocol (LSP) functionality to AI coding assistants"
 license = "MIT"

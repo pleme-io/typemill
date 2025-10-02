@@ -1,6 +1,6 @@
 [package]
 name = "tests"
-version = "0.1.0"
+version = "1.0.0-beta"
 edition = "2021"
 description = "Integration tests and test utilities for Codeflow Buddy"
 license = "MIT"

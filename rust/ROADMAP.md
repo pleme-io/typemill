@@ -1,14 +1,14 @@
 # CodeBuddy Roadmap
 
-## Current Status: Pre-1.0 Development (v0.1.0)
+## Current Status: 1.0 Beta (v1.0.0-beta)
 
-CodeBuddy is in active development with core functionality working but no API stability guarantees.
+CodeBuddy has reached beta status with core functionality complete and stable. API may still change before 1.0 final release.
 
 ---
 
 ## 🎯 Path to 1.0 Release
 
-**Target:** Q2 2025
+**Target:** Q1 2026
 
 ### Requirements for 1.0
 - [ ] API stability commitment
@@ -101,19 +101,19 @@ CodeBuddy is in active development with core functionality working but no API st
 
 ## 📅 Release Timeline
 
-### Q4 2024 (Current)
+### Q4 2024 - Q3 2025 (Completed)
 - ✅ Core LSP integration
 - ✅ MCP protocol support
 - ✅ Plugin architecture
 - 🔄 Technical debt reduction (in progress)
 
-### Q1 2025
+### Q4 2025 (Current - Beta Release)
 - Performance optimization
 - Documentation improvements
 - Security hardening
 - Beta testing program
 
-### Q2 2025
+### Q1 2026
 - API stabilization
 - 1.0 Release candidate
 - Production readiness validation
@@ -143,11 +143,11 @@ See section above for detailed breakdown. Quick reference:
 
 ## 📊 Version Strategy
 
-### Pre-1.0 (Current: 0.1.0)
-- Breaking changes allowed without notice
-- No API stability guarantees
-- Rapid iteration and experimentation
-- Internal use and testing only
+### Beta (Current: 1.0.0-beta)
+- Core features complete and stable
+- Breaking changes possible but minimized
+- Beta testing and feedback period
+- Production use at own risk (API may change)
 
 ### Post-1.0
 - **Major version** (X.0.0): Breaking changes
@@ -167,4 +167,4 @@ Want to help shape CodeBuddy's future?
 
 ---
 
-**Last Updated:** 2025-09-30
+**Last Updated:** 2025-10-02

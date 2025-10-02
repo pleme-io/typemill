@@ -342,7 +342,7 @@ checksum = "55248b47b0caf0546f7988906588779981c43bb1bc9d0c44087278f80cdb44ba"
 
 [[package]]
 name = "benchmark-harness"
-version = "0.1.0"
+version = "1.0.0-beta"
 dependencies = [
  "async-trait",
  "cb-core",
@@ -476,7 +476,7 @@ dependencies = [
 
 [[package]]
 name = "cb-api"
-version = "0.1.0"
+version = "1.0.0-beta"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -491,7 +491,7 @@ dependencies = [
 
 [[package]]
 name = "cb-ast"
-version = "0.1.0"
+version = "1.0.0-beta"
 dependencies = [
  "async-trait",
  "cb-api",
@@ -523,7 +523,7 @@ dependencies = [
 
 [[package]]
 name = "cb-client"
-version = "0.1.0"
+version = "1.0.0-beta"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -553,7 +553,7 @@ dependencies = [
 
 [[package]]
 name = "cb-core"
-version = "0.1.0"
+version = "1.0.0-beta"
 dependencies = [
  "chrono",
  "dashmap",
@@ -571,7 +571,7 @@ dependencies = [
 
 [[package]]
 name = "cb-mcp-proxy"
-version = "0.1.0"
+version = "1.0.0-beta"
 dependencies = [
  "async-trait",
  "cb-core",
@@ -585,7 +585,7 @@ dependencies = [
 
 [[package]]
 name = "cb-plugins"
-version = "0.1.0"
+version = "1.0.0-beta"
 dependencies = [
  "async-trait",
  "cb-ast",
@@ -605,7 +605,7 @@ dependencies = [
 
 [[package]]
 name = "cb-server"
-version = "0.1.0"
+version = "1.0.0-beta"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -641,7 +641,7 @@ dependencies = [
 
 [[package]]
 name = "cb-transport"
-version = "0.1.0"
+version = "1.0.0-beta"
 dependencies = [
  "async-trait",
  "axum",
@@ -782,7 +782,7 @@ checksum = "b94f61472cee1439c0b966b47e3aca9ae07e45d070759512cd390ea2bebc6675"
 
 [[package]]
 name = "codebuddy"
-version = "0.1.0"
+version = "1.0.0-beta"
 dependencies = [
  "axum",
  "axum-extra",
@@ -4123,7 +4123,7 @@ checksum = "8f50febec83f5ee1df3015341d8bd429f2d1cc62bcba7ea2076759d315084683"
 
 [[package]]
 name = "tests"
-version = "0.1.0"
+version = "1.0.0-beta"
 dependencies = [
  "assert_cmd",
  "async-trait",
