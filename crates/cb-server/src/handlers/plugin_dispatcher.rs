@@ -21,6 +21,43 @@ use tracing::{debug, error, info, instrument, warn};
 
 use super::lsp_adapter::DirectLspAdapter;
 
+/// Adapter to bridge new ToolHandler trait with old ToolHandler trait
+/// This allows new handlers to work with the legacy tool registry
+struct ToolHandlerAdapter {
+    new_handler: Arc<dyn super::tools::ToolHandler>,
+    context: Arc<super::tools::ToolHandlerContext>,
+}
+
+impl ToolHandlerAdapter {
+    fn new(
+        new_handler: Arc<dyn super::tools::ToolHandler>,
+        context: Arc<super::tools::ToolHandlerContext>,
+    ) -> Self {
+        Self {
+            new_handler,
+            context,
+        }
+    }
+}
+
+#[async_trait]
+impl super::tool_handler::ToolHandler for ToolHandlerAdapter {
+    fn supported_tools(&self) -> Vec<&'static str> {
+        self.new_handler.supported_tools().to_vec()
+    }
+
+    async fn handle_tool(
+        &self,
+        tool_call: ToolCall,
+        _context: &super::tool_handler::ToolContext,
+    ) -> ServerResult<Value> {
+        let params = tool_call.arguments.unwrap_or(json!({}));
+        self.new_handler
+            .handle(&tool_call.name, params, &self.context)
+            .await
+    }
+}
+
 /// Application state containing services
 #[derive(Clone)]
 pub struct AppState {
@@ -195,6 +232,8 @@ impl PluginDispatcher {
             // Register tool handlers for non-LSP operations
             {
                 let mut registry = self.tool_registry.lock().await;
+
+                // Legacy handlers (to be phased out)
                 registry.register(Arc::new(super::file_operation_handler::FileOperationHandler::new()));
                 debug!("Registered FileOperationHandler with 7 tools");
 
@@ -209,6 +248,24 @@ impl PluginDispatcher {
 
                 registry.register(Arc::new(super::dependency_handler::DependencyHandler::new()));
                 debug!("Registered DependencyHandler with 1 tool");
+
+                // New modular handlers (wrapped in adapters for compatibility)
+                use super::tools::ToolHandler as NewToolHandler;
+
+                // Create context for new handlers
+                let new_handler_context = Arc::new(super::tools::ToolHandlerContext {
+                    app_state: self.app_state.clone(),
+                    plugin_manager: self.plugin_manager.clone(),
+                    lsp_adapter: self.lsp_adapter.clone(),
+                });
+
+                // Register AdvancedHandler (includes batch_execute)
+                let advanced_handler = Arc::new(super::tools::AdvancedHandler::new());
+                registry.register(Arc::new(ToolHandlerAdapter::new(
+                    advanced_handler,
+                    new_handler_context.clone(),
+                )));
+                debug!("Registered AdvancedHandler with 3 tools (apply_edits, achieve_intent, batch_execute)");
             }
 
             Ok::<(), ServerError>(())
