@@ -10,7 +10,6 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
 
-pub mod auth;
 pub mod handlers;
 pub mod services;
 pub mod systems;
@@ -108,6 +107,9 @@ pub async fn bootstrap(options: ServerOptions) -> ServerResult<ServerHandle> {
     let workflow_executor =
         crate::services::workflow_executor::DefaultWorkflowExecutor::new(plugin_manager.clone());
 
+    // Create workspace manager for tracking connected containers
+    let workspace_manager = Arc::new(cb_core::workspaces::WorkspaceManager::new());
+
     // Create application state
     let app_state = Arc::new(AppState {
         ast_service,
@@ -118,6 +120,7 @@ pub async fn bootstrap(options: ServerOptions) -> ServerResult<ServerHandle> {
         lock_manager,
         operation_queue,
         start_time: std::time::Instant::now(),
+        workspace_manager,
     });
 
     // Create dispatcher

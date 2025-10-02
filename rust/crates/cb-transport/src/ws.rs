@@ -14,7 +14,7 @@ use tokio_tungstenite::{
     accept_hdr_async,
     tungstenite::{
         handshake::server::{Request, Response},
-        http::StatusCode,
+        http::{Response as HttpResponse, StatusCode},
         Message,
     },
 };
@@ -108,7 +108,7 @@ async fn handle_connection(
     let config_clone = config.clone();
 
     // Perform WebSocket handshake with authorization header validation
-    let ws_stream = match accept_hdr_async(stream, |req: &Request, mut response: Response| {
+    let ws_stream = match accept_hdr_async(stream, |req: &Request, response: Response| {
         // Check if authentication is required
         if let Some(auth_config) = &config_clone.server.auth {
             // Extract Authorization header
@@ -140,13 +140,14 @@ async fn handle_connection(
                 tracing::warn!("WebSocket connection rejected: missing Authorization header");
             }
 
-            // Reject with 401 Unauthorized
-            *response.status_mut() = StatusCode::UNAUTHORIZED;
-            response.headers_mut().insert(
+            // Reject with 401 Unauthorized - create HttpResponse<Option<String>>
+            let mut error_response: HttpResponse<Option<String>> = HttpResponse::new(Some("Unauthorized".to_string()));
+            *error_response.status_mut() = StatusCode::UNAUTHORIZED;
+            error_response.headers_mut().insert(
                 "WWW-Authenticate",
                 "Bearer realm=\"WebSocket\"".parse().unwrap(),
             );
-            return Err(response);
+            return Err(error_response);
         }
 
         // No authentication required

@@ -76,7 +76,7 @@ impl FileService {
 
                 let import_report = self
                     .import_service
-                    .update_imports_for_rename(&old_abs, &new_abs, true)
+                    .update_imports_for_rename(&old_abs, &new_abs, None, true)
                     .await
                     .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
 
@@ -111,7 +111,7 @@ impl FileService {
 
                 let import_report = self
                     .import_service
-                    .update_imports_for_rename(&old_abs, &new_abs, false)
+                    .update_imports_for_rename(&old_abs, &new_abs, None, false)
                     .await
                     .map_err(|e| {
                         warn!(error = %e, "File renamed but import updates failed");
@@ -529,6 +529,76 @@ impl FileService {
         )
         .await
         .map_err(|e| ServerError::Internal(e.to_string()))
+    }
+
+    /// List files in a directory
+    pub async fn list_files(&self, path: &Path, recursive: bool) -> ServerResult<Vec<String>> {
+        let abs_path = self.to_absolute_path(path);
+
+        if !abs_path.exists() {
+            return Err(ServerError::NotFound(format!(
+                "Directory not found: {}",
+                abs_path.display()
+            )));
+        }
+
+        if !abs_path.is_dir() {
+            return Err(ServerError::InvalidRequest(format!(
+                "Path is not a directory: {}",
+                abs_path.display()
+            )));
+        }
+
+        let mut files = Vec::new();
+
+        if recursive {
+            self.list_files_recursive(&abs_path, &abs_path, &mut files).await?;
+        } else {
+            let mut entries = fs::read_dir(&abs_path).await.map_err(|e| {
+                ServerError::Internal(format!("Failed to read directory: {}", e))
+            })?;
+
+            while let Some(entry) = entries.next_entry().await.map_err(|e| {
+                ServerError::Internal(format!("Failed to read directory entry: {}", e))
+            })? {
+                let path = entry.path();
+                if let Some(file_name) = path.file_name() {
+                    files.push(file_name.to_string_lossy().to_string());
+                }
+            }
+        }
+
+        files.sort();
+        Ok(files)
+    }
+
+    /// Recursively list files in a directory
+    async fn list_files_recursive(
+        &self,
+        base_path: &Path,
+        current_path: &Path,
+        files: &mut Vec<String>,
+    ) -> ServerResult<()> {
+        let mut entries = fs::read_dir(current_path).await.map_err(|e| {
+            ServerError::Internal(format!("Failed to read directory: {}", e))
+        })?;
+
+        while let Some(entry) = entries.next_entry().await.map_err(|e| {
+            ServerError::Internal(format!("Failed to read directory entry: {}", e))
+        })? {
+            let path = entry.path();
+
+            if path.is_dir() {
+                Box::pin(self.list_files_recursive(base_path, &path, files)).await?;
+            } else {
+                // Get relative path from base directory
+                if let Ok(relative) = path.strip_prefix(base_path) {
+                    files.push(relative.to_string_lossy().to_string());
+                }
+            }
+        }
+
+        Ok(())
     }
 
     /// Apply an edit plan to the filesystem atomically
@@ -1329,7 +1399,7 @@ mod tests {
             .rename_file_with_imports(old_path, new_path, false)
             .await
             .unwrap();
-        assert!(result.success);
+        assert!(result.result["success"].as_bool().unwrap_or(false));
 
         // Verify old file doesn't exist and new file does
         assert!(!temp_dir.path().join(old_path).exists());

@@ -429,10 +429,11 @@ impl RefactoringHandler {
             }
 
             if let Some(file_edit) = edit_plan.edits.get(0) {
+                let target_file = file_edit.file_path.as_ref().unwrap_or(&edit_plan.source_file);
                 let command = format!(
                     "printf '%s' '{}' > '{}'",
-                    Self::escape_shell_arg(&file_edit.new_content),
-                    Self::escape_shell_arg(&file_edit.file_path)
+                    Self::escape_shell_arg(&file_edit.new_text),
+                    Self::escape_shell_arg(target_file)
                 );
                 Self::execute_remote_command(
                     &context.app_state.workspace_manager,

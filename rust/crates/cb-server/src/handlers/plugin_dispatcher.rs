@@ -1135,6 +1135,7 @@ mod tests {
         let plugin_manager = Arc::new(PluginManager::new());
         let workflow_executor =
             crate::services::workflow_executor::DefaultWorkflowExecutor::new(plugin_manager);
+        let workspace_manager = Arc::new(WorkspaceManager::new());
 
         Arc::new(AppState {
             ast_service,
@@ -1145,6 +1146,7 @@ mod tests {
             lock_manager,
             operation_queue,
             start_time: std::time::Instant::now(),
+            workspace_manager,
         })
     }
 

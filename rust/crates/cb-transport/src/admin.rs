@@ -71,7 +71,7 @@ pub struct ExecuteCommandRequest {
 }
 
 /// Execute command response
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ExecuteCommandResponse {
     /// Exit code of the command
     pub exit_code: i32,
