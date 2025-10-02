@@ -5,9 +5,9 @@
 //! making them reusable across multiple languages.
 
 use cb_api::LspService;
-use serde_json::json;
 use integration_tests::harness::test_fixtures::*;
 use integration_tests::harness::LspTestBuilder;
+use serde_json::json;
 
 /// Run a "go to definition" test with the given test case
 pub async fn run_go_to_definition_test(case: &GoToDefinitionTestCase, use_real_lsp: bool) {

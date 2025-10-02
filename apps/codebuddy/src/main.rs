@@ -143,7 +143,9 @@ pub async fn run_websocket_server_with_port(port: u16) {
     let admin_config = config.clone();
     let admin_workspace_manager = workspace_manager.clone();
     tokio::spawn(async move {
-        if let Err(e) = cb_transport::start_admin_server(admin_port, admin_config, admin_workspace_manager).await
+        if let Err(e) =
+            cb_transport::start_admin_server(admin_port, admin_config, admin_workspace_manager)
+                .await
         {
             error!(
                 error_category = "admin_server_error",

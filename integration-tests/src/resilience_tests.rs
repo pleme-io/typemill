@@ -456,7 +456,10 @@ async fn test_basic_filesystem_operations() {
     assert_eq!(response["id"], "fs-1");
     assert!(response["error"].is_null(), "list_files should not error");
 
-    eprintln!("DEBUG list_files response: {}", serde_json::to_string_pretty(&response).unwrap());
+    eprintln!(
+        "DEBUG list_files response: {}",
+        serde_json::to_string_pretty(&response).unwrap()
+    );
 
     // File operations return results directly, not wrapped in "content"
     let files = &response["result"]["files"];

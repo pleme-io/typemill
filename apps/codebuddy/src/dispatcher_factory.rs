@@ -21,9 +21,10 @@ pub async fn create_initialized_dispatcher_with_workspace(
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
 
     // Create dispatcher using shared library function (reduces duplication)
-    let dispatcher = cb_server::create_dispatcher_with_workspace(Arc::new(config), workspace_manager)
-        .await
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+    let dispatcher =
+        cb_server::create_dispatcher_with_workspace(Arc::new(config), workspace_manager)
+            .await
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
 
     // Initialize dispatcher (loads plugins, starts LSP servers)
     dispatcher

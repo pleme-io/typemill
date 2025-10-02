@@ -10,11 +10,11 @@ use cb_plugins::PluginManager;
 use cb_server::handlers::AppState;
 use cb_server::services::{DefaultAstService, FileService, LockManager, OperationQueue};
 use cb_server::workspaces::WorkspaceManager;
+use integration_tests::harness::mcp_fixtures::*;
+use integration_tests::harness::{TestClient, TestWorkspace};
 use serde_json::json;
 use std::path::PathBuf;
 use std::sync::Arc;
-use integration_tests::harness::mcp_fixtures::*;
-use integration_tests::harness::{TestClient, TestWorkspace};
 
 /// Create a mock AppState for direct service testing
 async fn create_mock_state(workspace_root: PathBuf) -> Arc<AppState> {

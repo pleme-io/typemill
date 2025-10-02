@@ -25,8 +25,8 @@
 
 mod lsp_feature_runners;
 
-use lsp_feature_runners::*;
 use integration_tests::harness::test_fixtures::*;
+use lsp_feature_runners::*;
 
 // =============================================================================
 // Go To Definition Tests

@@ -3,7 +3,6 @@
 use cb_core::model::*;
 use serde_json::json;
 
-
 #[test]
 fn test_intent_spec_creation() {
     let args = json!({"file": "test.rs", "method": "rename"});

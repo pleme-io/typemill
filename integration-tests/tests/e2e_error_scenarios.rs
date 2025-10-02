@@ -1,6 +1,6 @@
+use integration_tests::harness::{TestClient, TestWorkspace};
 use serde_json::json;
 use std::fs;
-use integration_tests::harness::{TestClient, TestWorkspace};
 
 #[tokio::test]
 async fn test_malformed_tool_requests() {
@@ -101,8 +101,11 @@ async fn test_file_corruption_scenarios() {
             // Explicit error is also acceptable for invalid UTF-8
             let error_msg = format!("{:?}", e);
             assert!(
-                error_msg.contains("UTF") || error_msg.contains("encoding") || error_msg.contains("invalid"),
-                "Error should mention encoding issue, got: {}", error_msg
+                error_msg.contains("UTF")
+                    || error_msg.contains("encoding")
+                    || error_msg.contains("invalid"),
+                "Error should mention encoding issue, got: {}",
+                error_msg
             );
         }
     }
@@ -124,7 +127,9 @@ async fn test_file_corruption_scenarios() {
     // Should either successfully read the file or return a clear size limit error
     match response {
         Ok(resp) => {
-            let result = resp.get("result").expect("Response should have result field");
+            let result = resp
+                .get("result")
+                .expect("Response should have result field");
             if let Some(content) = result.get("content") {
                 assert!(
                     content.as_str().map(|s| !s.is_empty()).unwrap_or(false),
@@ -133,8 +138,11 @@ async fn test_file_corruption_scenarios() {
             } else if let Some(error) = result.get("error") {
                 let error_msg = error.as_str().unwrap_or("");
                 assert!(
-                    error_msg.contains("size") || error_msg.contains("large") || error_msg.contains("limit"),
-                    "Error should mention size/limit, got: {}", error_msg
+                    error_msg.contains("size")
+                        || error_msg.contains("large")
+                        || error_msg.contains("limit"),
+                    "Error should mention size/limit, got: {}",
+                    error_msg
                 );
             } else {
                 panic!("Result should have either content or error for large file");
@@ -144,8 +152,11 @@ async fn test_file_corruption_scenarios() {
             // If it fails, error should mention size limits
             let error_msg = format!("{:?}", e);
             assert!(
-                error_msg.contains("size") || error_msg.contains("large") || error_msg.contains("limit"),
-                "Error should mention size limit, got: {}", error_msg
+                error_msg.contains("size")
+                    || error_msg.contains("large")
+                    || error_msg.contains("limit"),
+                "Error should mention size limit, got: {}",
+                error_msg
             );
         }
     }

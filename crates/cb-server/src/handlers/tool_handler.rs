@@ -40,7 +40,8 @@ use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
 use serde_json::Value;
 
-use super::plugin_dispatcher::{AppState, DirectLspAdapter};
+use super::lsp_adapter::DirectLspAdapter;
+use super::plugin_dispatcher::AppState;
 use cb_plugins::PluginManager;
 use tokio::sync::Mutex;
 

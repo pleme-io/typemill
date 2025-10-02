@@ -1,6 +1,6 @@
+use integration_tests::harness::{TestClient, TestWorkspace};
 use serde_json::{json, Value};
 use std::path::Path;
-use integration_tests::harness::{TestClient, TestWorkspace};
 #[tokio::test]
 async fn test_apply_workspace_edit_single_file() {
     let workspace = TestWorkspace::new();
@@ -30,7 +30,7 @@ const result = oldFunctionName(5);
     assert!(response["applied"].as_bool().unwrap_or(false));
     let content = std::fs::read_to_string(&file_path).unwrap();
     assert!(content.contains("newFunctionName"));
-    assert!(! content.contains("oldFunctionName"));
+    assert!(!content.contains("oldFunctionName"));
 }
 #[tokio::test]
 async fn test_apply_workspace_edit_multiple_files() {
@@ -39,18 +39,18 @@ async fn test_apply_workspace_edit_multiple_files() {
     let file1 = workspace.path().join("types.ts");
     let file2 = workspace.path().join("usage.ts");
     std::fs::write(
-            &file1,
-            r#"
+        &file1,
+        r#"
 export interface OldInterface {
     id: number;
     name: string;
 }
 "#,
-        )
-        .unwrap();
+    )
+    .unwrap();
     std::fs::write(
-            &file2,
-            r#"
+        &file2,
+        r#"
 import { OldInterface } from './types';
 
 const item: OldInterface = {
@@ -58,8 +58,8 @@ const item: OldInterface = {
     name: 'test'
 };
 "#,
-        )
-        .unwrap();
+    )
+    .unwrap();
     let response = client
         .call_tool(
             "apply_workspace_edit",
@@ -79,9 +79,9 @@ const item: OldInterface = {
     let content1 = std::fs::read_to_string(&file1).unwrap();
     let content2 = std::fs::read_to_string(&file2).unwrap();
     assert!(content1.contains("NewInterface"));
-    assert!(! content1.contains("OldInterface"));
+    assert!(!content1.contains("OldInterface"));
     assert!(content2.contains("NewInterface"));
-    assert!(! content2.contains("OldInterface"));
+    assert!(!content2.contains("OldInterface"));
 }
 #[tokio::test]
 async fn test_apply_workspace_edit_atomic_failure() {
@@ -198,8 +198,8 @@ function processUser(user: User): void {
     std::fs::write(&file_path, content_with_issues).unwrap();
     let utils_file = workspace.path().join("utils.ts");
     std::fs::write(
-            &utils_file,
-            r#"
+        &utils_file,
+        r#"
 export function unusedImport(x: string): string {
     return x.toUpperCase();
 }
@@ -208,8 +208,8 @@ export function usedImport(x: string): string {
     return x.toLowerCase();
 }
 "#,
-        )
-        .unwrap();
+    )
+    .unwrap();
     tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
     let response = client
         .call_tool(
@@ -223,21 +223,23 @@ export function usedImport(x: string): string {
         .await
         .unwrap();
     let actions = response["actions"].as_array().unwrap();
-    assert!(! actions.is_empty());
+    assert!(!actions.is_empty());
     let action_titles: Vec<String> = actions
         .iter()
         .filter_map(|a| a["title"].as_str())
         .map(|s| s.to_string())
         .collect();
-    let has_relevant_actions = action_titles
-        .iter()
-        .any(|title| {
-            title.contains("unused") || title.contains("import")
-                || title.contains("remove") || title.contains("organize")
-                || title.contains("fix")
-        });
+    let has_relevant_actions = action_titles.iter().any(|title| {
+        title.contains("unused")
+            || title.contains("import")
+            || title.contains("remove")
+            || title.contains("organize")
+            || title.contains("fix")
+    });
     assert!(
-        has_relevant_actions, "Expected relevant code actions, got: {:?}", action_titles
+        has_relevant_actions,
+        "Expected relevant code actions, got: {:?}",
+        action_titles
     );
 }
 #[tokio::test]
@@ -289,8 +291,8 @@ async fn test_workspace_operations_integration() {
     let services_file = workspace.path().join("services.ts");
     let main_file = workspace.path().join("main.ts");
     std::fs::write(
-            &models_file,
-            r#"
+        &models_file,
+        r#"
 export   interface   Product   {
 id:string;
 name:string;
@@ -299,11 +301,11 @@ price:number;
 
 export type ProductFilter = (product: Product) => boolean;
 "#,
-        )
-        .unwrap();
+    )
+    .unwrap();
     std::fs::write(
-            &services_file,
-            r#"
+        &services_file,
+        r#"
 import{Product,ProductFilter}from'./models';
 
 export class ProductService{
@@ -318,11 +320,11 @@ return this.products.filter(filter);
 }
 }
 "#,
-        )
-        .unwrap();
+    )
+    .unwrap();
     std::fs::write(
-            &main_file,
-            r#"
+        &main_file,
+        r#"
 import{ProductService}from'./services';
 import{Product}from'./models';
 
@@ -332,8 +334,8 @@ service.addProduct({id:'1',name:'Laptop',price:999});
 const expensiveProducts=service.filterProducts(p=>p.price>500);
 console.log(expensiveProducts);
 "#,
-        )
-        .unwrap();
+    )
+    .unwrap();
     tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
     for file in [&models_file, &services_file, &main_file] {
         let response = client
@@ -393,13 +395,13 @@ console.log(expensiveProducts);
     let main_content = std::fs::read_to_string(&main_file).unwrap();
     assert!(models_content.contains("interface Item"));
     assert!(models_content.contains("ItemFilter"));
-    assert!(! models_content.contains("Product"));
+    assert!(!models_content.contains("Product"));
     assert!(services_content.contains("Item"));
     assert!(services_content.contains("ItemFilter"));
-    assert!(! services_content.contains("Product"));
+    assert!(!services_content.contains("Product"));
     assert!(main_content.contains("ItemService"));
     assert!(main_content.contains("Item"));
-    assert!(! main_content.contains("Product"));
+    assert!(!main_content.contains("Product"));
     let response = client
         .call_tool(
             "get_code_actions",
@@ -412,7 +414,7 @@ console.log(expensiveProducts);
         .await
         .unwrap();
     let actions = response["actions"].as_array().unwrap();
-    assert!(! actions.is_empty() || actions.is_empty());
+    assert!(!actions.is_empty() || actions.is_empty());
 }
 #[tokio::test]
 async fn test_workspace_edit_with_validation() {
@@ -434,9 +436,7 @@ console.log(value);
             ),
         )
         .await;
-    assert!(
-        response.is_err() || ! response.unwrap() ["applied"].as_bool().unwrap_or(true)
-    );
+    assert!(response.is_err() || !response.unwrap()["applied"].as_bool().unwrap_or(true));
     let unchanged_content = std::fs::read_to_string(&file_path).unwrap();
     assert_eq!(unchanged_content.trim(), content.trim());
 }

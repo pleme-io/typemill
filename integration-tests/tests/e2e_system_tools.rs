@@ -1,5 +1,5 @@
-use serde_json::{json, Value};
 use integration_tests::harness::{TestClient, TestWorkspace};
+use serde_json::{json, Value};
 #[tokio::test]
 async fn test_health_check_basic() {
     let workspace = TestWorkspace::new();
@@ -23,16 +23,16 @@ async fn test_health_check_with_active_lsp() {
     let mut client = TestClient::new(workspace.path());
     let ts_file = workspace.path().join("trigger.ts");
     std::fs::write(
-            &ts_file,
-            r#"
+        &ts_file,
+        r#"
 interface Test {
     id: number;
 }
 
 const test: Test = { id: 1 };
 "#,
-        )
-        .unwrap();
+    )
+    .unwrap();
     let _response = client
         .call_tool(
             "get_document_symbols",
@@ -45,12 +45,10 @@ const test: Test = { id: 1 };
     assert!(status == "healthy" || status == "degraded");
     if let Some(servers) = response.get("servers") {
         let servers_array = servers.as_array().unwrap();
-        let has_ts_server = servers_array
-            .iter()
-            .any(|s| {
-                s["name"].as_str().unwrap_or("").contains("typescript")
-                    || s["name"].as_str().unwrap_or("").contains("ts")
-            });
+        let has_ts_server = servers_array.iter().any(|s| {
+            s["name"].as_str().unwrap_or("").contains("typescript")
+                || s["name"].as_str().unwrap_or("").contains("ts")
+        });
         if !servers_array.is_empty() {}
     }
 }
@@ -91,10 +89,10 @@ async fn test_update_dependencies_package_json() {
         "build" : "tsc", "test" : "jest" } }
     );
     std::fs::write(
-            &package_json,
-            serde_json::to_string_pretty(&initial_content).unwrap(),
-        )
-        .unwrap();
+        &package_json,
+        serde_json::to_string_pretty(&initial_content).unwrap(),
+    )
+    .unwrap();
     let response = client
         .call_tool(
             "update_dependencies",
@@ -119,8 +117,8 @@ async fn test_update_dependencies_package_json() {
     assert_eq!(dev_deps["@types/node"].as_str().unwrap(), "^18.0.0");
     assert_eq!(dev_deps["jest"].as_str().unwrap(), "^29.0.0");
     assert_eq!(dev_deps["typescript"].as_str().unwrap(), "^4.9.0");
-    assert_eq!(updated_json["scripts"] ["build"].as_str().unwrap(), "tsc");
-    assert_eq!(updated_json["scripts"] ["test"].as_str().unwrap(), "jest");
+    assert_eq!(updated_json["scripts"]["build"].as_str().unwrap(), "tsc");
+    assert_eq!(updated_json["scripts"]["test"].as_str().unwrap(), "jest");
 }
 #[tokio::test]
 async fn test_update_dependencies_cargo_toml() {
@@ -158,7 +156,7 @@ assert_cmd = "2.0"
     assert!(updated_content.contains("version = \"0.2.0\""));
     assert!(updated_content.contains("reqwest = \"0.11\""));
     assert!(updated_content.contains("clap = \"4.0\""));
-    assert!(! updated_content.contains("serde = \"1.0\""));
+    assert!(!updated_content.contains("serde = \"1.0\""));
     assert!(updated_content.contains("tokio"));
     assert!(updated_content.contains("tempfile = \"3.0\""));
     assert!(updated_content.contains("assert_cmd = \"2.0\""));
@@ -190,7 +188,7 @@ flask==2.0.1
     let updated_content = std::fs::read_to_string(&requirements_txt).unwrap();
     assert!(updated_content.contains("fastapi==0.68.0"));
     assert!(updated_content.contains("uvicorn==0.15.0"));
-    assert!(! updated_content.contains("flask==2.0.1"));
+    assert!(!updated_content.contains("flask==2.0.1"));
     assert!(updated_content.contains("numpy==1.21.0"));
     assert!(updated_content.contains("pandas>=1.3.0"));
     assert!(updated_content.contains("requests~=2.25.0"));
@@ -205,10 +203,10 @@ async fn test_update_dependencies_dry_run() {
         "^4.17.21" } }
     );
     std::fs::write(
-            &package_json,
-            serde_json::to_string_pretty(&initial_content).unwrap(),
-        )
-        .unwrap();
+        &package_json,
+        serde_json::to_string_pretty(&initial_content).unwrap(),
+    )
+    .unwrap();
     let response = client
         .call_tool(
             "update_dependencies",
@@ -222,7 +220,10 @@ async fn test_update_dependencies_dry_run() {
     assert!(response.get("preview").is_some() || response.get("changes").is_some());
     let unchanged_content = std::fs::read_to_string(&package_json).unwrap();
     let unchanged_json: Value = serde_json::from_str(&unchanged_content).unwrap();
-    assert_eq!(unchanged_json["dependencies"] ["lodash"].as_str().unwrap(), "^4.17.21");
+    assert_eq!(
+        unchanged_json["dependencies"]["lodash"].as_str().unwrap(),
+        "^4.17.21"
+    );
     assert!(unchanged_json["dependencies"].get("express").is_none());
 }
 #[tokio::test]
@@ -235,10 +236,10 @@ async fn test_update_dependencies_scripts_management() {
         "test" : "jest", "outdated-script" : "old-command" } }
     );
     std::fs::write(
-            &package_json,
-            serde_json::to_string_pretty(&initial_content).unwrap(),
-        )
-        .unwrap();
+        &package_json,
+        serde_json::to_string_pretty(&initial_content).unwrap(),
+    )
+    .unwrap();
     let response = client
         .call_tool(
             "update_dependencies",
@@ -305,10 +306,10 @@ async fn test_system_tools_integration() {
         "node index.js" }, "dependencies" : {} }
     );
     std::fs::write(
-            &package_json,
-            serde_json::to_string_pretty(&initial_package).unwrap(),
-        )
-        .unwrap();
+        &package_json,
+        serde_json::to_string_pretty(&initial_package).unwrap(),
+    )
+    .unwrap();
     let _update_response = client
         .call_tool(
             "update_dependencies",
@@ -328,8 +329,8 @@ async fn test_system_tools_integration() {
     std::fs::create_dir(&src_dir).unwrap();
     let index_ts = src_dir.join("index.ts");
     std::fs::write(
-            &index_ts,
-            r#"
+        &index_ts,
+        r#"
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -349,8 +350,8 @@ app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
 "#,
-        )
-        .unwrap();
+    )
+    .unwrap();
     tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
     let _symbols_response = client
         .call_tool(
@@ -366,17 +367,23 @@ app.listen(PORT, () => {
     let final_status = final_health_response["status"].as_str().unwrap();
     assert!(final_status == "healthy" || final_status == "degraded");
     let final_package_content = std::fs::read_to_string(&package_json).unwrap();
-    let final_package_json: Value = serde_json::from_str(&final_package_content)
-        .unwrap();
+    let final_package_json: Value = serde_json::from_str(&final_package_content).unwrap();
     assert_eq!(final_package_json["version"].as_str().unwrap(), "1.0.0");
     assert_eq!(
-        final_package_json["dependencies"] ["express"].as_str().unwrap(), "^4.18.0"
+        final_package_json["dependencies"]["express"]
+            .as_str()
+            .unwrap(),
+        "^4.18.0"
     );
     assert_eq!(
-        final_package_json["devDependencies"] ["typescript"].as_str().unwrap(), "^4.9.0"
+        final_package_json["devDependencies"]["typescript"]
+            .as_str()
+            .unwrap(),
+        "^4.9.0"
     );
     assert_eq!(
-        final_package_json["scripts"] ["dev"].as_str().unwrap(), "nodemon src/index.ts"
+        final_package_json["scripts"]["dev"].as_str().unwrap(),
+        "nodemon src/index.ts"
     );
 }
 #[tokio::test]
@@ -385,8 +392,8 @@ async fn test_fix_imports_dry_run() {
     let mut client = TestClient::new(workspace.path());
     let test_file = workspace.path().join("test.ts");
     std::fs::write(
-            &test_file,
-            r#"import { useState, useEffect, useCallback } from 'react';
+        &test_file,
+        r#"import { useState, useEffect, useCallback } from 'react';
 import * as lodash from 'lodash';
 import defaultExport from 'some-module';
 import './styles.css';
@@ -397,8 +404,8 @@ function MyComponent() {
     return <div>{count}</div>;
 }
 "#,
-        )
-        .unwrap();
+    )
+    .unwrap();
     let response = client
         .call_tool(
             "fix_imports",
@@ -442,26 +449,27 @@ function MyComponent() {
     match response {
         Ok(response_value) => {
             eprintln!(
-                "Response: {}", serde_json::to_string_pretty(& response_value).unwrap()
+                "Response: {}",
+                serde_json::to_string_pretty(&response_value).unwrap()
             );
             if let Some(result) = response_value.get("result") {
                 assert_eq!(result["operation"].as_str().unwrap(), "fix_imports");
                 assert_eq!(result["dry_run"].as_bool().unwrap_or(true), false);
                 assert_eq!(result["status"].as_str().unwrap(), "fixed");
                 assert!(
-                    result.get("lsp_response").is_some(), "Expected lsp_response field"
+                    result.get("lsp_response").is_some(),
+                    "Expected lsp_response field"
                 );
             } else if let Some(_error) = response_value.get("error") {
-                eprintln!(
-                    "Note: fix_imports returned an error (LSP may not be configured)"
-                );
+                eprintln!("Note: fix_imports returned an error (LSP may not be configured)");
             } else {
                 panic!("Expected either 'result' or 'error' in response");
             }
         }
         Err(e) => {
             eprintln!(
-                "Note: fix_imports requires LSP organize_imports support: {:?}", e
+                "Note: fix_imports requires LSP organize_imports support: {:?}",
+                e
             );
         }
     }
@@ -470,9 +478,11 @@ function MyComponent() {
 async fn test_fix_imports_missing_file_path() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
-    let response = client.call_tool("fix_imports", json!({ "dry_run" : true })).await;
+    let response = client
+        .call_tool("fix_imports", json!({ "dry_run" : true }))
+        .await;
     if let Ok(resp) = response {
-        eprintln!("Response: {}", serde_json::to_string_pretty(& resp).unwrap());
+        eprintln!("Response: {}", serde_json::to_string_pretty(&resp).unwrap());
         assert!(resp.get("error").is_some(), "Expected error in response");
     } else {
         assert!(true);
@@ -506,7 +516,9 @@ async fn test_extract_function_refactoring() {
     let mut client = TestClient::new(workspace.path());
     let test_file = workspace.path().join("test.py");
     let original_content = "a = 1\nb = 2\nresult = a + b\n";
-    tokio::fs::write(&test_file, original_content).await.unwrap();
+    tokio::fs::write(&test_file, original_content)
+        .await
+        .unwrap();
     let response = client
         .call_tool(
             "extract_function",
@@ -527,10 +539,12 @@ async fn test_extract_function_refactoring() {
                     result.get("success").is_some() || result.get("status").is_some(),
                     "Result should have success or status field"
                 );
-                if result.get("success").and_then(|s| s.as_bool()).unwrap_or(false) {
-                    let modified_content = tokio::fs::read_to_string(&test_file)
-                        .await
-                        .unwrap();
+                if result
+                    .get("success")
+                    .and_then(|s| s.as_bool())
+                    .unwrap_or(false)
+                {
+                    let modified_content = tokio::fs::read_to_string(&test_file).await.unwrap();
                     assert_ne!(
                         original_content, modified_content,
                         "File content should be modified after successful refactoring"
@@ -547,7 +561,9 @@ async fn test_inline_variable_refactoring() {
     let mut client = TestClient::new(workspace.path());
     let test_file = workspace.path().join("test.py");
     let original_content = "x = 10\ny = x * 2\n";
-    tokio::fs::write(&test_file, original_content).await.unwrap();
+    tokio::fs::write(&test_file, original_content)
+        .await
+        .unwrap();
     let response = client
         .call_tool(
             "inline_variable",
@@ -568,10 +584,12 @@ async fn test_inline_variable_refactoring() {
                     result.get("success").is_some() || result.get("status").is_some(),
                     "Result should have success or status field"
                 );
-                if result.get("success").and_then(|s| s.as_bool()).unwrap_or(false) {
-                    let modified_content = tokio::fs::read_to_string(&test_file)
-                        .await
-                        .unwrap();
+                if result
+                    .get("success")
+                    .and_then(|s| s.as_bool())
+                    .unwrap_or(false)
+                {
+                    let modified_content = tokio::fs::read_to_string(&test_file).await.unwrap();
                     assert_ne!(
                         original_content, modified_content,
                         "File content should be modified after successful refactoring"
@@ -585,19 +603,17 @@ async fn test_inline_variable_refactoring() {
 #[tokio::test]
 async fn test_rename_directory_in_rust_workspace() {
     let workspace = TestWorkspace::new();
-    workspace
-        .create_file(
-            "Cargo.toml",
-            r#"
+    workspace.create_file(
+        "Cargo.toml",
+        r#"
 [workspace]
 resolver = "2"
 members = ["crates/crate_a", "crates/crate_b"]
 "#,
-        );
-    workspace
-        .create_file(
-            "crates/crate_a/Cargo.toml",
-            r#"
+    );
+    workspace.create_file(
+        "crates/crate_a/Cargo.toml",
+        r#"
 [package]
 name = "crate_a"
 version = "0.1.0"
@@ -606,27 +622,24 @@ edition = "2021"
 [dependencies]
 crate_b = { path = "../crate_b" }
 "#,
-        );
-    workspace
-        .create_file(
-            "crates/crate_a/src/lib.rs",
-            "pub fn hello_a() { crate_b::hello_b(); }",
-        );
-    workspace
-        .create_file(
-            "crates/crate_b/Cargo.toml",
-            r#"
+    );
+    workspace.create_file(
+        "crates/crate_a/src/lib.rs",
+        "pub fn hello_a() { crate_b::hello_b(); }",
+    );
+    workspace.create_file(
+        "crates/crate_b/Cargo.toml",
+        r#"
 [package]
 name = "crate_b"
 version = "0.1.0"
 edition = "2021"
 "#,
-        );
-    workspace
-        .create_file(
-            "crates/crate_b/src/lib.rs",
-            "pub fn hello_b() { println!(\"Hello from B\"); }",
-        );
+    );
+    workspace.create_file(
+        "crates/crate_b/src/lib.rs",
+        "pub fn hello_b() { println!(\"Hello from B\"); }",
+    );
     let cargo_available = std::process::Command::new("cargo")
         .arg("--version")
         .output()
@@ -639,8 +652,8 @@ edition = "2021"
             .expect("Failed to run cargo check");
         assert!(
             initial_check.status.success(),
-            "Initial workspace should be valid. Stderr: {}", String::from_utf8_lossy(&
-            initial_check.stderr)
+            "Initial workspace should be valid. Stderr: {}",
+            String::from_utf8_lossy(&initial_check.stderr)
         );
     } else {
         eprintln!("Note: cargo not available, skipping initial validation");
@@ -655,19 +668,22 @@ edition = "2021"
     assert!(result.is_ok(), "Tool call should succeed");
     let response: serde_json::Value = result.unwrap();
     if let Some(result_obj) = response.get("result") {
-        assert_eq!(result_obj["success"], true, "Result should indicate success");
+        assert_eq!(
+            result_obj["success"], true,
+            "Result should indicate success"
+        );
     } else {
-        assert_eq!(response["success"], true, "Response should indicate success");
+        assert_eq!(
+            response["success"], true,
+            "Response should indicate success"
+        );
     }
     let ws_manifest = workspace.read_file("Cargo.toml");
     assert!(
-        ws_manifest.contains("\"crates/crate_renamed\"") || ws_manifest
-        .contains("crates/crate_renamed")
+        ws_manifest.contains("\"crates/crate_renamed\"")
+            || ws_manifest.contains("crates/crate_renamed")
     );
-    assert!(
-        ! ws_manifest.contains("\"crates/crate_b\"") || ! ws_manifest
-        .contains("crate_b\"")
-    );
+    assert!(!ws_manifest.contains("\"crates/crate_b\"") || !ws_manifest.contains("crate_b\""));
     assert!(
         workspace.file_exists("crates/crate_renamed/Cargo.toml"),
         "Renamed crate should exist"
@@ -677,7 +693,7 @@ edition = "2021"
         "Renamed crate source should exist"
     );
     assert!(
-        ! workspace.file_exists("crates/crate_b/Cargo.toml"),
+        !workspace.file_exists("crates/crate_b/Cargo.toml"),
         "Old crate directory should not exist"
     );
 }

@@ -1,8 +1,8 @@
+use integration_tests::harness::{TestClient, TestWorkspace};
 use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;
 use std::time::{Duration, Instant};
-use integration_tests::harness::{TestClient, TestWorkspace};
 
 #[tokio::test]
 async fn test_large_file_performance() {
@@ -322,12 +322,14 @@ export class RapidClass{} {{
     assert!(
         successful_creates >= operation_count * 19 / 20,
         "At least 95% of creates should succeed, got {}/{}",
-        successful_creates, operation_count
+        successful_creates,
+        operation_count
     );
     assert!(
         successful_reads >= operation_count * 19 / 20,
         "At least 95% of reads should succeed, got {}/{}",
-        successful_reads, operation_count
+        successful_reads,
+        operation_count
     );
     assert!(
         total_duration < Duration::from_secs(30),

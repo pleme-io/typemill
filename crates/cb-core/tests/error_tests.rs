@@ -4,7 +4,6 @@ use cb_core::error::CoreResult;
 use cb_core::CoreError;
 use std::io;
 
-
 #[test]
 fn test_error_chain() {
     // Test that errors can be chained properly

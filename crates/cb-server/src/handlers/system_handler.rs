@@ -3,7 +3,7 @@
 //! Handles: health_check, notify_file_opened, notify_file_saved,
 //!          notify_file_closed, find_dead_code, fix_imports
 
-use super::plugin_dispatcher::DirectLspAdapter;
+use super::lsp_adapter::DirectLspAdapter;
 use super::tool_handler::{ToolContext, ToolHandler};
 use crate::{ServerError, ServerResult};
 use async_trait::async_trait;

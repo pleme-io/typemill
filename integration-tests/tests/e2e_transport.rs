@@ -1,6 +1,6 @@
+use integration_tests::harness::{TestClient, TestWorkspace};
 use serde_json::{json, Value};
 use std::path::Path;
-use integration_tests::harness::{TestClient, TestWorkspace};
 
 // Note: These tests are for future WebSocket and authentication features
 // They may be disabled if the features are not yet implemented

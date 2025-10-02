@@ -74,8 +74,8 @@ async fn test_configuration_loading() -> Result<(), TestHarnessError> {
 
 #[tokio::test]
 async fn test_mock_services_integration() -> Result<(), TestHarnessError> {
-    use std::path::Path;
     use integration_tests::{MockAstService, MockLspService};
+    use std::path::Path;
 
     // Create mock services
     let mut ast_service = MockAstService::new();
