@@ -410,21 +410,6 @@ pub async fn update_imports_for_rename(
     Ok(result)
 }
 
-/// Legacy function for backward compatibility - delegates to update_imports_for_rename with TypeScript adapter
-pub async fn update_import_paths(
-    old_path: &Path,
-    new_path: &Path,
-    project_root: &Path,
-    dry_run: bool,
-) -> AstResult<ImportUpdateResult> {
-    use crate::package_extractor::TypeScriptAdapter;
-
-    let adapters: Vec<std::sync::Arc<dyn crate::package_extractor::LanguageAdapter>> =
-        vec![std::sync::Arc::new(TypeScriptAdapter)];
-
-    update_imports_for_rename(old_path, new_path, project_root, &adapters, None, dry_run).await
-}
-
 
 /// Extract import path from an import/require statement
 pub fn extract_import_path(line: &str) -> Option<String> {

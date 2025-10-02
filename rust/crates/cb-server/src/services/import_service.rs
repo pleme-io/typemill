@@ -2,7 +2,7 @@
 
 use crate::{ServerError, ServerResult};
 use cb_api::DependencyUpdate;
-use cb_ast::{package_extractor::LanguageAdapter, update_import_paths, update_imports_for_rename, ImportPathResolver};
+use cb_ast::{package_extractor::LanguageAdapter, find_project_files, update_imports_for_rename, ImportPathResolver};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::fs;
@@ -84,7 +84,7 @@ impl ImportService {
         debug!(
             files_updated = result.updated_files.len(),
             imports_updated = result.imports_updated,
-            "update_import_paths result"
+            "update_imports_for_rename result"
         );
 
         // Create report
@@ -125,8 +125,10 @@ impl ImportService {
     pub async fn find_affected_files(&self, file_path: &Path) -> ServerResult<Vec<PathBuf>> {
         let resolver = ImportPathResolver::new(&self.project_root);
 
-        // Get all project files
-        let project_files = self.find_all_source_files().await?;
+        // Get all project files using adapters
+        let project_files = find_project_files(&self.project_root, &self.adapters)
+            .await
+            .map_err(|e| ServerError::Internal(format!("Failed to find project files: {}", e)))?;
 
         // Find files importing the target
         let affected = resolver
@@ -135,58 +137,6 @@ impl ImportService {
             .map_err(|e| ServerError::Internal(format!("Failed to find affected files: {}", e)))?;
 
         Ok(affected)
-    }
-
-    /// Find all source files in the project
-    async fn find_all_source_files(&self) -> ServerResult<Vec<PathBuf>> {
-        let mut files = Vec::new();
-        let extensions = ["ts", "tsx", "js", "jsx", "mjs", "cjs"];
-
-        Self::collect_files(&self.project_root, &mut files, &extensions).await?;
-
-        Ok(files)
-    }
-
-    /// Recursively collect files with given extensions
-    fn collect_files<'a>(
-        dir: &'a Path,
-        files: &'a mut Vec<PathBuf>,
-        extensions: &'a [&str],
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ServerResult<()>> + Send + 'a>> {
-        Box::pin(async move {
-            // Skip ignored directories
-            if let Some(name) = dir.file_name() {
-                let name_str = name.to_string_lossy();
-                if matches!(
-                    name_str.as_ref(),
-                    "node_modules" | ".git" | "dist" | "build" | "target" | ".next" | ".nuxt"
-                ) {
-                    return Ok(());
-                }
-            }
-
-            let mut read_dir = tokio::fs::read_dir(dir)
-                .await
-                .map_err(|e| ServerError::Internal(format!("Failed to read directory: {}", e)))?;
-
-            while let Some(entry) = read_dir
-                .next_entry()
-                .await
-                .map_err(|e| ServerError::Internal(format!("Failed to read entry: {}", e)))?
-            {
-                let path = entry.path();
-
-                if path.is_dir() {
-                    Self::collect_files(&path, files, extensions).await?;
-                } else if let Some(ext) = path.extension() {
-                    if extensions.contains(&ext.to_str().unwrap_or("")) {
-                        files.push(path);
-                    }
-                }
-            }
-
-            Ok(())
-        })
     }
 
     /// Check if a file imports another file
