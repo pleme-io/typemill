@@ -128,9 +128,10 @@ Search for symbols across the entire workspace.
 ```
 
 **Notes:**
-- Queries ALL active LSP servers
+- Queries ALL active LSP servers concurrently
 - Results are merged and deduplicated
 - Maximum 10,000 symbols returned
+- **Performance:** Fast for specific queries, slower for broad searches (e.g., single letter)
 
 ---
 
@@ -847,19 +848,23 @@ Read file contents.
 **Parameters:**
 ```json
 {
-  "file_path": "src/app.ts"    // Required: File path
+  "file_path": "src/app.ts",    // Required: File path
+  "workspace_id": "workspace1"  // Optional: Remote workspace ID
 }
 ```
 
 **Returns:**
 ```json
 {
-  "content": "import React from 'react';\n...",
+  "success": true,
   "file_path": "src/app.ts",
-  "size": 1024,
-  "lines": 50
+  "content": "import React from 'react';\n..."
 }
 ```
+
+**Notes:**
+- Returns only file content (no size/lines metadata)
+- Supports remote workspace execution via `workspace_id` parameter
 
 ---
 
@@ -872,38 +877,39 @@ Write content to a file.
 {
   "file_path": "src/app.ts",              // Required: File path
   "content": "// New content",            // Required: Content to write
-  "dry_run": false                        // Optional: Preview operation (default: false)
+  "dry_run": false,                       // Optional: Preview operation (default: false)
+  "workspace_id": "workspace1"            // Optional: Remote workspace ID
 }
 ```
 
 **Returns (dry_run: false):**
 ```json
 {
-  "success": true,
-  "file_path": "src/app.ts",
-  "bytes_written": 256
+  "operation": "write_file",
+  "path": "src/app.ts",
+  "written": true
 }
 ```
 
 **Returns (dry_run: true):**
 ```json
 {
-  "dry_run": true,
-  "result": {
-    "status": "preview",
-    "operation": "write_file",
-    "file_path": "src/app.ts",
-    "would_write": true,
-    "content_preview": "// New content"
-  }
+  "status": "preview",
+  "operation": "write_file",
+  "path": "src/app.ts",
+  "content_size": 256,
+  "exists": true
 }
 ```
 
 **Notes:**
-- Overwrites existing content
-- Invalidates AST cache
-- Uses file locking for safety
+- Overwrites existing content completely
+- Creates parent directories automatically
+- Invalidates AST cache after write
+- Uses file locking for atomic safety
+- Supports remote workspace execution via `workspace_id` parameter
 - `dry_run: true` shows what would be written without making changes
+- **Note:** `dry_run` not supported for remote workspace operations
 
 ---
 
@@ -920,42 +926,52 @@ Delete a file.
 }
 ```
 
-**Returns (dry_run: false):**
+**Returns (dry_run: false, success):**
 ```json
 {
-  "success": true,
-  "file_path": "src/old.ts",
+  "operation": "delete_file",
+  "path": "src/old.ts",
   "deleted": true
 }
 ```
 
-**Returns (dry_run: true):**
+**Returns (dry_run: true, success):**
 ```json
 {
-  "dry_run": true,
-  "result": {
-    "status": "preview",
-    "operation": "delete_file",
-    "file_path": "src/old.ts",
-    "would_delete": true,
-    "warnings": []
+  "status": "preview",
+  "operation": "delete_file",
+  "path": "src/old.ts",
+  "force": false,
+  "affected_files": 0
+}
+```
+
+**Error (file has imports, force: false):**
+```json
+{
+  "error": {
+    "code": "E1001",
+    "message": "File is imported by 5 other files"
   }
 }
 ```
 
-**Warnings:**
+**Returns (force: true, file doesn't exist):**
 ```json
 {
-  "warning": "File is imported by other files",
-  "imported_by": ["src/app.ts", "src/utils.ts"],
-  "deleted": false
+  "operation": "delete_file",
+  "path": "src/old.ts",
+  "deleted": false,
+  "reason": "not_exists"
 }
 ```
 
 **Notes:**
-- Checks for imports before deletion unless `force: true`
-- Notifies LSP servers
-- `dry_run: true` shows what would be deleted without making changes
+- **Safety check**: Scans entire workspace for files importing the target file
+- Checks run during both `dry_run: true` and actual execution
+- Use `force: true` to bypass import safety check
+- Returns error (not warning) when file has imports and `force: false`
+- Notifies LSP servers after successful deletion
 
 ---
 
@@ -1110,6 +1126,8 @@ Rename a directory and automatically update all imports.
 - Updates imports in ALL languages (TypeScript, Python, Go, Rust)
 - Moves directory on filesystem first, then updates imports
 - Safe for large refactorings
+- **Performance:** Processing time scales with number of files in directory and workspace size
+- For Cargo packages: Also updates workspace manifests and package dependencies
 
 **Example:**
 ```bash
@@ -1176,7 +1194,7 @@ Find potentially unused code in the workspace.
 **Parameters:**
 ```json
 {
-  "workspace_path": "/project"    // Required: Workspace root path
+  "workspace_path": "/project"    // Optional: Workspace root path (default: ".")
 }
 ```
 
@@ -1201,6 +1219,7 @@ Find potentially unused code in the workspace.
 - Only finds symbols with zero references
 - Does not detect all dead code (e.g., unreachable code paths)
 - Works across all LSP-enabled languages
+- **Performance:** Can be slow on large workspaces (queries all LSP servers for symbols and references)
 
 ---
 
@@ -1624,6 +1643,20 @@ codebuddy call rename_directory '{"old_path":"src","new_path":"lib","dry_run":tr
 # Apply
 codebuddy call rename_directory '{"old_path":"src","new_path":"lib"}'
 ```
+
+**Tools with dry_run support:**
+- File operations: `create_file`, `write_file`, `delete_file`, `rename_file`
+- Directory operations: `rename_directory`
+- Refactoring: `rename_symbol`, `rename_symbol_strict`, `extract_function`, `inline_variable`, `extract_variable`
+
+### Safety Parameters
+
+**`force` parameter:**
+- Available on: `delete_file`
+- Purpose: Bypass safety checks (import dependency analysis)
+- Default: `false`
+- When `false`: Operations are rejected if they would break imports/references
+- When `true`: Operations proceed regardless of dependencies
 
 ### Position Indexing
 
