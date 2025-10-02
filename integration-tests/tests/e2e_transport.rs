@@ -28,7 +28,7 @@ async fn test_connection_resilience() {
         .await
         .unwrap();
 
-    assert!(response["success"].as_bool().unwrap_or(false));
+    assert!(response["result"]["success"].as_bool().unwrap_or(false));
 
     // Rapid consecutive operations to test resilience
     for i in 0..10 {
@@ -43,7 +43,7 @@ async fn test_connection_resilience() {
 
         match response {
             Ok(resp) => {
-                assert_eq!(resp["content"].as_str().unwrap(), content);
+                assert_eq!(resp["result"]["content"].as_str().unwrap(), content);
             }
             Err(_) => {
                 // Some failures are acceptable under stress
@@ -61,7 +61,7 @@ async fn test_connection_resilience() {
                     .await
                     .unwrap();
 
-                assert_eq!(retry_response["content"].as_str().unwrap(), content);
+                assert_eq!(retry_response["result"]["content"].as_str().unwrap(), content);
             }
         }
 
@@ -100,7 +100,7 @@ async fn test_message_ordering() {
             .await
             .unwrap();
 
-        assert!(response["success"].as_bool().unwrap_or(false));
+        assert!(response["result"]["success"].as_bool().unwrap_or(false));
 
         // Verify the write took effect before next operation
         let read_response = client
@@ -114,7 +114,7 @@ async fn test_message_ordering() {
             .unwrap();
 
         let expected = format!("{} - {}", content, i);
-        assert_eq!(read_response["content"].as_str().unwrap(), expected);
+        assert_eq!(read_response["result"]["content"].as_str().unwrap(), expected);
     }
 }
 
@@ -137,7 +137,7 @@ async fn test_error_propagation() {
         .await;
 
     assert!(
-        error_response.is_err(),
+        error_response.unwrap().get("error").is_some(),
         "Should propagate file not found error"
     );
 
@@ -152,7 +152,7 @@ async fn test_error_propagation() {
         .await;
 
     assert!(
-        invalid_response.is_err(),
+        invalid_response.unwrap().get("error").is_some(),
         "Should propagate invalid tool error"
     );
 
@@ -167,7 +167,7 @@ async fn test_error_propagation() {
         .await;
 
     assert!(
-        invalid_params_response.is_err(),
+        invalid_params_response.unwrap().get("error").is_some(),
         "Should propagate parameter validation error"
     );
 }
@@ -199,7 +199,7 @@ async fn test_large_message_handling() {
 
         match response {
             Ok(resp) => {
-                assert!(resp["success"].as_bool().unwrap_or(false));
+                assert!(resp["result"]["success"].as_bool().unwrap_or(false));
 
                 // Verify we can read it back
                 let read_response = client
@@ -212,7 +212,7 @@ async fn test_large_message_handling() {
                     .await
                     .unwrap();
 
-                let read_content = read_response["content"].as_str().unwrap();
+                let read_content = read_response["result"]["content"].as_str().unwrap();
                 assert_eq!(read_content.len(), size);
 
                 println!("Successfully handled {}KB message", size / 1024);
@@ -268,7 +268,7 @@ async fn test_rapid_transport_operations() {
 
             if let Ok(read_resp) = read_result {
                 let expected = format!("Rapid content {}", i);
-                assert_eq!(read_resp["content"].as_str().unwrap(), expected);
+                assert_eq!(read_resp["result"]["content"].as_str().unwrap(), expected);
             }
         }
     }
@@ -288,12 +288,12 @@ async fn test_transport_health_monitoring() {
 
     let response = client.call_tool("health_check", json!({})).await.unwrap();
 
-    assert!(response.get("status").is_some());
-    let status = response["status"].as_str().unwrap();
+    assert!(response["result"].get("status").is_some());
+    let status = response["result"]["status"].as_str().unwrap();
     assert!(status == "healthy" || status == "degraded" || status == "unhealthy");
 
     // If transport details are available, verify them
-    if let Some(transport) = response.get("transport") {
+    if let Some(transport) = response["result"].get("transport") {
         assert!(transport.get("type").is_some());
 
         if let Some(stats) = transport.get("statistics") {
@@ -320,6 +320,6 @@ async fn test_transport_health_monitoring() {
 
     // Health should still be good after operations
     let response = client.call_tool("health_check", json!({})).await.unwrap();
-    let status = response["status"].as_str().unwrap();
+    let status = response["result"]["status"].as_str().unwrap();
     assert!(status == "healthy" || status == "degraded");
 }
