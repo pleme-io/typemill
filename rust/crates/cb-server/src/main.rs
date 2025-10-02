@@ -106,8 +106,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Some(Commands::Serve) | None => {
             // Start admin server on a separate port
             let admin_port = config.server.port + 1000; // Admin on port+1000
+            let admin_config = config.clone();
+            let admin_workspace_manager = Arc::new(cb_server::workspaces::WorkspaceManager::new());
             tokio::spawn(async move {
-                if let Err(e) = cb_transport::start_admin_server(admin_port).await {
+                if let Err(e) = cb_transport::start_admin_server(
+                    admin_port,
+                    admin_config,
+                    admin_workspace_manager,
+                )
+                .await
+                {
                     tracing::error!(
                         error_category = "admin_server_error",
                         error = %e,

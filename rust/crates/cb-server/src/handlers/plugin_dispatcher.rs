@@ -336,6 +336,8 @@ struct ExtractFunctionArgs {
     function_name: String,
     #[serde(default)]
     dry_run: Option<bool>,
+    #[serde(default)]
+    workspace_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -346,6 +348,8 @@ struct InlineVariableArgs {
     character: Option<u32>,
     #[serde(default)]
     dry_run: Option<bool>,
+    #[serde(default)]
+    workspace_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -358,6 +362,8 @@ struct ExtractVariableArgs {
     variable_name: String,
     #[serde(default)]
     dry_run: Option<bool>,
+    #[serde(default)]
+    workspace_id: Option<String>,
 }
 
 impl PluginDispatcher {
@@ -1677,16 +1683,25 @@ impl PluginDispatcher {
         })?;
 
         // Parse and execute refactoring based on tool type
-        let (file_path, dry_run, edit_plan) = match tool_call.name.as_str() {
+        let (file_path, dry_run, workspace_id, edit_plan) = match tool_call.name.as_str() {
             "extract_function" => {
                 let parsed: ExtractFunctionArgs = serde_json::from_value(args)
                     .map_err(|e| ServerError::InvalidRequest(format!("Invalid arguments: {}", e)))?;
 
-                let content = self
-                    .app_state
-                    .file_service
-                    .read_file(Path::new(&parsed.file_path))
-                    .await?;
+                let content = if let Some(workspace_id) = &parsed.workspace_id {
+                    let command = format!("cat '{}'", Self::escape_shell_arg(&parsed.file_path));
+                    Self::execute_remote_command(
+                        &self.app_state.workspace_manager,
+                        workspace_id,
+                        &command,
+                    )
+                    .await?
+                } else {
+                    self.app_state
+                        .file_service
+                        .read_file(Path::new(&parsed.file_path))
+                        .await?
+                };
 
                 // Calculate end_col based on the actual line length
                 let lines: Vec<&str> = content.lines().collect();
@@ -1724,17 +1739,26 @@ impl PluginDispatcher {
                     message: format!("Extract function planning failed: {}", e),
                 })?;
 
-                (parsed.file_path, parsed.dry_run.unwrap_or(false), plan)
+                (parsed.file_path, parsed.dry_run.unwrap_or(false), parsed.workspace_id, plan)
             }
             "inline_variable" => {
                 let parsed: InlineVariableArgs = serde_json::from_value(args)
                     .map_err(|e| ServerError::InvalidRequest(format!("Invalid arguments: {}", e)))?;
 
-                let content = self
-                    .app_state
-                    .file_service
-                    .read_file(Path::new(&parsed.file_path))
-                    .await?;
+                let content = if let Some(workspace_id) = &parsed.workspace_id {
+                    let command = format!("cat '{}'", Self::escape_shell_arg(&parsed.file_path));
+                    Self::execute_remote_command(
+                        &self.app_state.workspace_manager,
+                        workspace_id,
+                        &command,
+                    )
+                    .await?
+                } else {
+                    self.app_state
+                        .file_service
+                        .read_file(Path::new(&parsed.file_path))
+                        .await?
+                };
 
                 // Create LSP service wrapper if adapter is available
                 let lsp_service: Option<LspRefactoringServiceWrapper> = {
@@ -1756,17 +1780,26 @@ impl PluginDispatcher {
                     message: format!("Inline variable planning failed: {}", e),
                 })?;
 
-                (parsed.file_path, parsed.dry_run.unwrap_or(false), plan)
+                (parsed.file_path, parsed.dry_run.unwrap_or(false), parsed.workspace_id, plan)
             }
             "extract_variable" => {
                 let parsed: ExtractVariableArgs = serde_json::from_value(args)
                     .map_err(|e| ServerError::InvalidRequest(format!("Invalid arguments: {}", e)))?;
 
-                let content = self
-                    .app_state
-                    .file_service
-                    .read_file(Path::new(&parsed.file_path))
-                    .await?;
+                let content = if let Some(workspace_id) = &parsed.workspace_id {
+                    let command = format!("cat '{}'", Self::escape_shell_arg(&parsed.file_path));
+                    Self::execute_remote_command(
+                        &self.app_state.workspace_manager,
+                        workspace_id,
+                        &command,
+                    )
+                    .await?
+                } else {
+                    self.app_state
+                        .file_service
+                        .read_file(Path::new(&parsed.file_path))
+                        .await?
+                };
 
                 // Create LSP service wrapper if adapter is available
                 let lsp_service: Option<LspRefactoringServiceWrapper> = {
@@ -1791,7 +1824,7 @@ impl PluginDispatcher {
                     message: format!("Extract variable planning failed: {}", e),
                 })?;
 
-                (parsed.file_path, parsed.dry_run.unwrap_or(false), plan)
+                (parsed.file_path, parsed.dry_run.unwrap_or(false), parsed.workspace_id, plan)
             }
             "extract_module_to_package" => {
                 let parsed: cb_ast::package_extractor::ExtractModuleToPackageParams =
@@ -1808,6 +1841,7 @@ impl PluginDispatcher {
                 (
                     plan.source_file.clone(),
                     false, // dry_run handled within the planner
+                    None,  // workspace_id not supported for package extraction
                     plan,
                 )
             }
@@ -1819,41 +1853,86 @@ impl PluginDispatcher {
             }
         };
 
-        // Use centralized dry_run pattern for consistent behavior
-        let dry_run_result = cb_core::execute_with_dry_run(
-            dry_run,
-            // Preview function: Just return the generated plan
-            || async {
-                Ok(json!({
+        // Apply edits with workspace routing
+        if let Some(workspace_id) = &workspace_id {
+            // Remote workspace execution
+            if dry_run {
+                // Return preview for remote dry run
+                return Ok(json!({
                     "status": "preview",
                     "operation": tool_call.name,
                     "file_path": file_path,
                     "edit_plan": edit_plan,
-                }))
-            },
-            // Execution function: Apply the plan using the file service
-            || async {
-                let result = self
-                    .app_state
-                    .file_service
-                    .apply_edit_plan(&edit_plan)
-                    .await?;
+                }));
+            }
+
+            // Apply edits to remote workspace
+            if let Some(file_edit) = edit_plan.edits.get(0) {
+                let command = format!(
+                    "printf '%s' '{}' > '{}'",
+                    Self::escape_shell_arg(&file_edit.new_content),
+                    Self::escape_shell_arg(&file_edit.file_path)
+                );
+                Self::execute_remote_command(
+                    &self.app_state.workspace_manager,
+                    workspace_id,
+                    &command,
+                )
+                .await?;
 
                 Ok(json!({
                     "status": "completed",
                     "operation": tool_call.name,
                     "file_path": file_path,
-                    "success": result.success,
-                    "modified_files": result.modified_files,
-                    "errors": result.errors
+                    "success": true,
+                    "modified_files": [file_path],
                 }))
-            },
-        )
-        .await
-        .map_err(|e| ServerError::Internal(format!("Dry run execution failed: {}", e)))?;
+            } else {
+                Ok(json!({
+                    "status": "completed",
+                    "operation": tool_call.name,
+                    "file_path": file_path,
+                    "success": true,
+                    "modified_files": [],
+                    "message": "No changes needed."
+                }))
+            }
+        } else {
+            // Local execution with dry_run pattern
+            let dry_run_result = cb_core::execute_with_dry_run(
+                dry_run,
+                // Preview function: Just return the generated plan
+                || async {
+                    Ok(json!({
+                        "status": "preview",
+                        "operation": tool_call.name,
+                        "file_path": file_path,
+                        "edit_plan": edit_plan,
+                    }))
+                },
+                // Execution function: Apply the plan using the file service
+                || async {
+                    let result = self
+                        .app_state
+                        .file_service
+                        .apply_edit_plan(&edit_plan)
+                        .await?;
 
-        // Return the consistent, wrapped result
-        Ok(dry_run_result.to_json())
+                    Ok(json!({
+                        "status": "completed",
+                        "operation": tool_call.name,
+                        "file_path": file_path,
+                        "success": result.success,
+                        "modified_files": result.modified_files,
+                        "errors": result.errors
+                    }))
+                },
+            )
+            .await
+            .map_err(|e| ServerError::Internal(format!("Dry run execution failed: {}", e)))?;
+
+            Ok(dry_run_result.to_json())
+        }
     }
 
     /// Checks if a specific LSP method is supported for the given file.

@@ -194,6 +194,84 @@ Edit `.codebuddy/config.json` to add support for additional languages:
 }
 ```
 
+## 🔒 WebSocket Authentication
+
+When running the WebSocket server (`codebuddy serve`), you can optionally enable JWT authentication to secure connections.
+
+### Configuration
+
+Add the `auth` section to your `config.json` server configuration:
+
+```json
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 3000,
+    "auth": {
+      "jwtSecret": "your-secret-key-here",
+      "jwtExpirySeconds": 3600,
+      "jwtIssuer": "codebuddy",
+      "jwtAudience": "codeflow-clients"
+    }
+  }
+}
+```
+
+**Security Note:** Use a strong, randomly generated secret in production. Generate one with:
+```bash
+openssl rand -base64 32
+```
+
+### Generating Tokens
+
+The admin server (running on port+1000, e.g., 4000) provides a token generation endpoint:
+
+```bash
+# Generate a token (valid for default expiry period)
+curl -X POST http://localhost:4000/auth/generate-token \
+  -H "Content-Type: application/json" \
+  -d '{}'
+
+# Generate a token with custom expiry (in seconds)
+curl -X POST http://localhost:4000/auth/generate-token \
+  -H "Content-Type: application/json" \
+  -d '{"expiry_seconds": 7200}'
+
+# Generate a token for a specific project
+curl -X POST http://localhost:4000/auth/generate-token \
+  -H "Content-Type: application/json" \
+  -d '{"project_id": "my-project"}'
+```
+
+Response:
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "expires_at": 1234567890
+}
+```
+
+### Connecting with Authentication
+
+When connecting to the WebSocket server, include the token in the `Authorization` header:
+
+```javascript
+const ws = new WebSocket('ws://localhost:3000', {
+  headers: {
+    'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+  }
+});
+```
+
+**Important:** Authentication is validated at the HTTP handshake level. Connections without a valid token will be rejected with HTTP 401 Unauthorized **before** the WebSocket connection is established.
+
+### Authentication Behavior
+
+- **Without `auth` config:** Server accepts all connections (development mode)
+- **With `auth` config:** All WebSocket connections **must** provide a valid JWT token
+- **Token validation:** Checked at connection time, not during message processing
+- **Admin endpoints:** No authentication required (bind to localhost only)
+
 ## 🔧 MCP Tools Available
 
 Codebuddy exposes comprehensive code intelligence tools through MCP:

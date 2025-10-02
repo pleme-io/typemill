@@ -1,8 +1,9 @@
 //! JWT authentication utilities
 
 use crate::ServerError;
-use jsonwebtoken::{decode, DecodingKey, Validation};
+use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// JWT Claims structure
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -61,6 +62,34 @@ pub fn validate_token_with_project(
         // No project_id claim, allow access (for backward compatibility)
         Ok(true)
     }
+}
+
+/// Generate a new JWT token with the given parameters
+pub fn generate_token(
+    secret: &str,
+    expiry_seconds: u64,
+    issuer: &str,
+    audience: &str,
+    project_id: Option<String>,
+) -> Result<String, ServerError> {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|e| ServerError::Internal(format!("System time error: {}", e)))?
+        .as_secs() as usize;
+
+    let claims = Claims {
+        sub: Some("api_client".to_string()),
+        exp: Some(now + expiry_seconds as usize),
+        iat: Some(now),
+        iss: Some(issuer.to_string()),
+        aud: Some(audience.to_string()),
+        project_id,
+    };
+
+    let header = Header::default();
+    let key = EncodingKey::from_secret(secret.as_ref());
+
+    encode(&header, &claims, &key).map_err(|e| ServerError::Auth(format!("Token generation failed: {}", e)))
 }
 
 #[cfg(test)]

@@ -4,27 +4,24 @@ use crate::McpDispatcher;
 use cb_api::{ApiError, ApiResult};
 use cb_core::config::AppConfig;
 use cb_core::model::mcp::{McpError, McpMessage, McpRequest, McpResponse};
+use cb_server::auth::validate_token;
 use futures_util::{SinkExt, StreamExt};
-use jsonwebtoken::{decode, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
-use tokio_tungstenite::{accept_async, tungstenite::Message};
-
-/// JWT Claims structure
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct Claims {
-    exp: usize,
-    iat: usize,
-    project_id: Option<String>,
-}
+use tokio_tungstenite::{
+    accept_hdr_async,
+    tungstenite::{
+        handshake::server::{Request, Response},
+        http::StatusCode,
+        Message,
+    },
+};
 
 /// Initialize message payload structure
 #[derive(Debug, Deserialize)]
 struct InitializePayload {
-    /// Optional JWT token for authentication
-    token: Option<String>,
     /// Project identifier
     project: Option<String>,
     /// Project root directory
@@ -73,37 +70,6 @@ impl Session {
     }
 }
 
-/// Simple JWT validation function
-fn validate_token_with_project(
-    token: &str,
-    secret: &str,
-    project_id: &str,
-) -> Result<bool, String> {
-    let key = DecodingKey::from_secret(secret.as_bytes());
-    let mut validation = Validation::default();
-    // Don't require aud claim
-    validation.validate_aud = false;
-
-    match decode::<Claims>(token, &key, &validation) {
-        Ok(token_data) => {
-            let claims = token_data.claims;
-
-            // Check if project matches (if specified in claims)
-            if let Some(token_project) = claims.project_id {
-                if token_project != project_id {
-                    return Err(format!(
-                        "Token project '{}' does not match expected project '{}'",
-                        token_project, project_id
-                    ));
-                }
-            }
-
-            Ok(true)
-        }
-        Err(e) => Err(e.to_string()),
-    }
-}
-
 /// Start the WebSocket server
 pub async fn start_ws_server(
     config: Arc<AppConfig>,
@@ -139,8 +105,55 @@ async fn handle_connection(
         .peer_addr()
         .unwrap_or_else(|_| "unknown".parse().unwrap());
 
-    // Perform WebSocket handshake
-    let ws_stream = match accept_async(stream).await {
+    let config_clone = config.clone();
+
+    // Perform WebSocket handshake with authorization header validation
+    let ws_stream = match accept_hdr_async(stream, |req: &Request, mut response: Response| {
+        // Check if authentication is required
+        if let Some(auth_config) = &config_clone.server.auth {
+            // Extract Authorization header
+            let auth_header = req
+                .headers()
+                .get("Authorization")
+                .and_then(|h| h.to_str().ok());
+
+            if let Some(auth_value) = auth_header {
+                // Check for Bearer token
+                if let Some(token) = auth_value.strip_prefix("Bearer ") {
+                    // Validate token
+                    match validate_token(token, &auth_config.jwt_secret) {
+                        Ok(true) => {
+                            tracing::debug!("WebSocket connection authenticated");
+                            return Ok(response);
+                        }
+                        Ok(false) => {
+                            tracing::warn!("WebSocket connection rejected: invalid token");
+                        }
+                        Err(e) => {
+                            tracing::warn!(error = %e, "WebSocket connection rejected: token validation failed");
+                        }
+                    }
+                } else {
+                    tracing::warn!("WebSocket connection rejected: malformed Authorization header");
+                }
+            } else {
+                tracing::warn!("WebSocket connection rejected: missing Authorization header");
+            }
+
+            // Reject with 401 Unauthorized
+            *response.status_mut() = StatusCode::UNAUTHORIZED;
+            response.headers_mut().insert(
+                "WWW-Authenticate",
+                "Bearer realm=\"WebSocket\"".parse().unwrap(),
+            );
+            return Err(response);
+        }
+
+        // No authentication required
+        Ok(response)
+    })
+    .await
+    {
         Ok(ws) => ws,
         Err(e) => {
             tracing::error!(
@@ -330,36 +343,12 @@ async fn handle_initialize(
             .map_err(|e| ApiError::InvalidRequest(format!("Invalid initialize params: {}", e)))?
     } else {
         InitializePayload {
-            token: None,
             project: None,
             project_root: None,
         }
     };
 
-    // Validate authentication if required
-    if let Some(auth_config) = &config.server.auth {
-        if let Some(token) = &payload.token {
-            let project_id = payload.project.as_deref().unwrap_or("default");
-
-            validate_token_with_project(token, &auth_config.jwt_secret, project_id)
-                .map_err(|e| ApiError::Auth(format!("Authentication failed: {}", e)))?;
-
-            tracing::info!("Authentication successful for project: {}", project_id);
-        } else {
-            return Ok(McpMessage::Response(McpResponse {
-                jsonrpc: "2.0".to_string(),
-                id: request.id,
-                result: None,
-                error: Some(McpError {
-                    code: -32000,
-                    message: "Authentication required: No token provided".to_string(),
-                    data: None,
-                }),
-            }));
-        }
-    }
-
-    // Update session
+    // Update session (authentication already done at connection level)
     session.project_id = payload.project;
     session.project_root = payload.project_root;
     session.initialized = true;
@@ -425,8 +414,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_initialize_with_auth_missing_token() {
-        let config = create_test_config(true);
+    async fn test_initialize_success() {
+        let config = create_test_config(false);
         let mut session = Session::new();
 
         let request = McpRequest {
@@ -442,11 +431,12 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(!session.initialized);
+        assert!(session.initialized);
+        assert_eq!(session.project_id, Some("test_project".to_string()));
 
         if let McpMessage::Response(resp) = response {
-            assert!(resp.result.is_none());
-            assert!(resp.error.is_some());
+            assert!(resp.result.is_some());
+            assert!(resp.error.is_none());
         } else {
             panic!("Expected Response message");
         }

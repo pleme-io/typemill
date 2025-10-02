@@ -2,4 +2,4 @@
 
 pub mod jwt;
 
-pub use jwt::{validate_token, validate_token_with_project, Claims};
+pub use jwt::{generate_token, validate_token, validate_token_with_project, Claims};
