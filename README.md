@@ -104,8 +104,13 @@ codebuddy status         # Check server status
 
 # Configuration
 codebuddy setup          # Interactive setup wizard
+codebuddy doctor         # Diagnose configuration issues
 codebuddy link           # Link to AI assistants
 codebuddy unlink         # Remove AI integration
+
+# Direct tool execution
+codebuddy tool <name>    # Call MCP tool directly
+codebuddy tools          # List available tools
 ```
 
 ## 🐳 Docker Deployment
@@ -115,10 +120,10 @@ codebuddy unlink         # Remove AI integration
 cd deployment/docker
 
 # Start all services
-deployment/docker-compose up -d
+docker-compose up -d
 
 # View logs
-deployment/docker-compose logs -f codebuddy
+docker-compose logs -f codebuddy
 ```
 
 ### Production
@@ -129,7 +134,7 @@ cd deployment/docker
 export JWT_SECRET="your-secure-secret-key"
 
 # Start with nginx reverse proxy
-deployment/docker-compose -f deployment/docker-compose.production.yml up -d
+docker-compose -f docker-compose.production.yml up -d
 
 # Verify health
 curl http://localhost/health
