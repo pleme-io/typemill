@@ -2,7 +2,7 @@ import { UserForm } from './components/user-form';
 import { UserList } from './components/user-list';
 // Main index file for playground
 import { DEFAULT_USER, TestProcessor, UserData, UserRole } from './core/test-service';
-import { formatUser } from './utils/user-helpers';
+import { formatUser } from '../../../crates/cb-server/src/services/tests.rs';
 
 export class App {
   private processor: TestProcessor;

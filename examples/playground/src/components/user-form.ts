@@ -1,6 +1,6 @@
 // User form component
 import { type UserData, validateEmail } from '../test-file';
-import { formatUser } from '../utils/user-helpers';
+import { formatUser } from '../../../../crates/cb-server/src/services/tests.rs';
 
 export class UserForm {
   private formData: Partial<UserData> = {};

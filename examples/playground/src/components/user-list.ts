@@ -1,6 +1,6 @@
 // User list component
 import { TestProcessor, type UserData } from '../core/test-service';
-import { formatUser, sortUsersByName } from '../utils/user-helpers';
+import { formatUser, sortUsersByName } from '../../../../crates/cb-server/src/services/tests.rs';
 
 export class UserList {
   private users: UserData[] = [];
