@@ -182,7 +182,7 @@ This proposal outlines a comprehensive restructure of the Codebuddy project to i
 │       ├── lsp_*.rs
 │       └── mcp_*.rs
 │
-├── benchmarks/                        # Moved from testing/benchmarks
+├── benchmarks/                        # Moved from benchmarks
 │   ├── Cargo.toml
 │   └── benches/
 │
@@ -349,8 +349,8 @@ This maintains flexibility while following Rust ecosystem conventions.
 ### 7. Move Benchmarks to Standard Location
 
 **Changes:**
-- Move `/workspace/testing/benchmarks/` → `/workspace/benchmarks/`
-- Update workspace `Cargo.toml` members: change `"testing/benchmarks"` to `"benchmarks"`
+- Move `/workspace/benchmarks/` → `/workspace/benchmarks/`
+- Update workspace `Cargo.toml` members: change `"benchmarks"` to `"benchmarks"`
 - Delete empty `/workspace/testing/` directory
 
 **Reason:** Directory named "testing" contains only benchmarks, causing confusion. Moving to `/workspace/benchmarks/` clarifies purpose while maintaining benchmarks as separate crate for independent compilation and dependencies.

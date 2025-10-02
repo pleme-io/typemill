@@ -90,7 +90,7 @@ CodeBuddy has reached beta status with core functionality complete and stable. A
   - Priority: **DONE**
 
 #### 6. Benchmark Suite - ✅ COMPLETE
-- [x] Delete `testing/benchmarks/benches/config_benchmark.rs.disabled`
+- [x] Delete `benchmarks/benches/config_benchmark.rs.disabled`
 - [x] Document that benchmarks can be recreated later if needed
   - Status: Done - Removed 238 lines of stale code
   - API changed (ClientConfig::load_with_path doesn't exist), unmaintainable

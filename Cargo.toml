@@ -7,7 +7,7 @@ members = [
     "crates/cb-mcp-proxy",
     "crates/cb-server",
     "crates/cb-client",
-    "crates/cb-transport", "testing/benchmarks", "apps/codebuddy", "integration-tests",
+    "crates/cb-transport", "apps/codebuddy", "integration-tests", "benchmarks",
 ]
 resolver = "2"
 

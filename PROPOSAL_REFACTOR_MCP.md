@@ -127,7 +127,7 @@ Phase 3 of restructure complete."
 
 ```bash
 ./target/release/codebuddy tool rename_directory '{
-  "old_path": "testing/benchmarks",
+  "old_path": "benchmarks",
   "new_path": "benchmarks",
   "dry_run": true
 }'
@@ -137,7 +137,7 @@ Phase 3 of restructure complete."
 
 ```bash
 ./target/release/codebuddy tool rename_directory '{
-  "old_path": "testing/benchmarks",
+  "old_path": "benchmarks",
   "new_path": "benchmarks"
 }'
 ```
@@ -166,7 +166,7 @@ cargo bench --no-run  # Verify benchmarks compile
 git add -A
 git commit -m "refactor: move benchmarks to repository root (Phase 4)
 
-- Moved testing/benchmarks/ → benchmarks/
+- Moved benchmarks/ → benchmarks/
 - Removed empty testing/ directory
 - Updated workspace Cargo.toml
 

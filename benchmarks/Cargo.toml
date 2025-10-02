@@ -1,5 +1,5 @@
 [package]
-name = "benchmark-harness"
+name = "benchmarks"
 version = "1.0.0-beta"
 edition = "2021"
 authors = ["Codeflow Buddy Contributors"]
@@ -7,8 +7,8 @@ description = "Performance benchmarking suite for Codeflow Buddy"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-cb-server = { path = "../../crates/cb-server" }
-cb-core = { path = "../../crates/cb-core" }
+cb-server = { path = "../crates/cb-server" }
+cb-core = { path = "../crates/cb-core" }
 tokio = { version = "1.42", features = ["full"] }
 serde_json = "1.0"
 simd-json = "0.13"
