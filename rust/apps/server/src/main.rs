@@ -166,7 +166,7 @@ pub async fn run_websocket_server_with_port(port: u16) {
     }
 }
 
-async fn create_app_state() -> Result<Arc<AppState>, std::io::Error> {
+pub async fn create_app_state() -> Result<Arc<AppState>, std::io::Error> {
     // Use current working directory as project root for production
     let project_root = std::env::current_dir()?;
     debug!(project_root = %project_root.display(), "Server project root set");

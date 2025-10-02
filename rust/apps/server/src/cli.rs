@@ -10,6 +10,11 @@ use tracing::{error, info};
 use tracing_subscriber::fmt;
 use tracing_subscriber::prelude::*;
 
+/// Parse JSON argument from string
+fn parse_json(s: &str) -> Result<serde_json::Value, String> {
+    serde_json::from_str(s).map_err(|e| format!("Invalid JSON: {}", e))
+}
+
 #[derive(Parser)]
 #[command(name = "codebuddy")]
 #[command(about = "Pure Rust MCP server bridging Language Server Protocol functionality")]
@@ -47,6 +52,17 @@ pub enum Commands {
     Unlink,
     /// Check client configuration and diagnose potential problems
     Doctor,
+    /// Call an MCP tool directly (without WebSocket server)
+    Tool {
+        /// Tool name (e.g., "rename_directory", "find_definition")
+        tool_name: String,
+        /// Tool arguments as JSON
+        #[arg(value_parser = parse_json)]
+        args: Option<serde_json::Value>,
+        /// Output format (json or pretty)
+        #[arg(long, default_value = "pretty")]
+        format: String,
+    },
     /// Manage MCP server presets
     #[cfg(feature = "mcp-proxy")]
     #[command(subcommand)]
@@ -118,6 +134,13 @@ pub async fn run() {
         }
         Commands::Doctor => {
             handle_doctor().await;
+        }
+        Commands::Tool {
+            tool_name,
+            args,
+            format,
+        } => {
+            handle_tool_command(&tool_name, args, &format).await;
         }
         #[cfg(feature = "mcp-proxy")]
         Commands::Mcp(mcp_command) => {
@@ -555,6 +578,78 @@ fn terminate_process(pid: u32) -> bool {
             .output()
             .map(|output| output.status.success())
             .unwrap_or(false)
+    }
+}
+
+/// Handle the tool command - call MCP tool directly
+async fn handle_tool_command(
+    tool_name: &str,
+    args: Option<serde_json::Value>,
+    format: &str,
+) {
+    // Create MCP request
+    let request = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+            "name": tool_name,
+            "arguments": args.unwrap_or(serde_json::json!({}))
+        }
+    });
+
+    // Create app state and dispatcher
+    let app_state = match crate::create_app_state().await {
+        Ok(state) => state,
+        Err(e) => {
+            eprintln!("❌ Failed to initialize: {}", e);
+            process::exit(1);
+        }
+    };
+
+    let plugin_manager = std::sync::Arc::new(cb_plugins::PluginManager::new());
+    let dispatcher = std::sync::Arc::new(
+        cb_server::handlers::plugin_dispatcher::PluginDispatcher::new(app_state, plugin_manager),
+    );
+
+    if let Err(e) = dispatcher.initialize().await {
+        eprintln!("❌ Failed to initialize dispatcher: {}", e);
+        process::exit(1);
+    }
+
+    // Parse and dispatch
+    let mcp_request: cb_core::model::mcp::McpRequest = match serde_json::from_value(request) {
+        Ok(msg) => msg,
+        Err(e) => {
+            eprintln!("❌ Failed to create MCP request: {}", e);
+            process::exit(1);
+        }
+    };
+
+    let mcp_message = cb_core::model::mcp::McpMessage::Request(mcp_request);
+
+    match dispatcher.dispatch(mcp_message).await {
+        Ok(cb_core::model::mcp::McpMessage::Response(response)) => {
+            if format == "json" {
+                println!("{}", serde_json::to_string_pretty(&response).unwrap());
+            } else {
+                // Pretty format
+                if let Some(result) = response.result {
+                    println!("{}", serde_json::to_string_pretty(&result).unwrap());
+                } else if let Some(error) = response.error {
+                    eprintln!("❌ Error: {}", serde_json::to_string_pretty(&error).unwrap());
+                    process::exit(1);
+                }
+            }
+        }
+        Ok(msg) => {
+            eprintln!("❌ Unexpected response type: {:?}", msg);
+            process::exit(1);
+        }
+        Err(e) => {
+            eprintln!("❌ Tool execution failed: {}", e);
+            process::exit(1);
+        }
     }
 }
 
