@@ -116,6 +116,12 @@ impl PluginDispatcher {
         }
     }
 
+    /// Returns a reference to the operation queue.
+    /// This is useful for CLI tools that need to wait for async operations to complete.
+    pub fn operation_queue(&self) -> Arc<crate::services::OperationQueue> {
+        self.app_state.operation_queue.clone()
+    }
+
     /// Initializes the plugin system by loading LSP configurations and registering
     /// all necessary language and system plugins.
     ///

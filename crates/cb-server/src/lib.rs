@@ -219,6 +219,82 @@ pub async fn create_dispatcher_with_workspace(
     let workflow_executor =
         crate::services::workflow_executor::DefaultWorkflowExecutor::new(plugin_manager.clone());
 
+    // Start background processor for operation queue
+    {
+        let queue = operation_queue.clone();
+        let file_svc = file_service.clone();
+        tokio::spawn(async move {
+            use std::path::Path;
+
+            queue
+                .process_with(move |op| {
+                    let file_svc = file_svc.clone();
+                    async move {
+                        tracing::debug!(
+                            operation_id = %op.id,
+                            operation_type = ?op.operation_type,
+                            file_path = %op.file_path.display(),
+                            "Processing queued operation"
+                        );
+
+                        let result = match op.operation_type {
+                            crate::services::OperationType::Write => {
+                                let file_path = op.params.get("file_path")
+                                    .and_then(|v| v.as_str())
+                                    .ok_or_else(|| ServerError::runtime("Missing file_path parameter"))?;
+                                let content = op.params.get("content")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("");
+                                let dry_runnable = file_svc.write_file(Path::new(file_path), content, false).await?;
+                                Ok(dry_runnable.result)
+                            }
+                            crate::services::OperationType::Delete => {
+                                let file_path = op.params.get("file_path")
+                                    .and_then(|v| v.as_str())
+                                    .ok_or_else(|| ServerError::runtime("Missing file_path parameter"))?;
+                                let dry_runnable = file_svc.delete_file(Path::new(file_path), false, false).await?;
+                                Ok(dry_runnable.result)
+                            }
+                            crate::services::OperationType::Rename => {
+                                let old_path = op.params.get("old_path")
+                                    .and_then(|v| v.as_str())
+                                    .ok_or_else(|| ServerError::runtime("Missing old_path parameter"))?;
+                                let new_path = op.params.get("new_path")
+                                    .and_then(|v| v.as_str())
+                                    .ok_or_else(|| ServerError::runtime("Missing new_path parameter"))?;
+                                let dry_runnable = file_svc.rename_file_with_imports(Path::new(old_path), Path::new(new_path), false).await?;
+                                Ok(dry_runnable.result)
+                            }
+                            _ => {
+                                Err(ServerError::runtime(format!("Unsupported operation type: {:?}", op.operation_type)))
+                            }
+                        };
+
+                        match &result {
+                            Ok(_) => {
+                                tracing::info!(
+                                    operation_id = %op.id,
+                                    operation_type = ?op.operation_type,
+                                    "Operation completed successfully"
+                                );
+                            }
+                            Err(e) => {
+                                tracing::error!(
+                                    operation_id = %op.id,
+                                    operation_type = ?op.operation_type,
+                                    error = %e,
+                                    "Operation failed"
+                                );
+                            }
+                        }
+
+                        result
+                    }
+                })
+                .await;
+        });
+    }
+
     // Create application state
     let app_state = Arc::new(AppState {
         ast_service,

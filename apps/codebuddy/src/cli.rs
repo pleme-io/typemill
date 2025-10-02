@@ -704,6 +704,23 @@ async fn handle_tool_command(tool_name: &str, args_json: &str, format: &str) {
     // Execute tool call via dispatcher
     match dispatcher.dispatch(message).await {
         Ok(McpMessage::Response(response)) => {
+            // Wait for async operations (like batch_execute) to complete
+            let operation_queue = dispatcher.operation_queue();
+            let start_time = std::time::Instant::now();
+            let timeout = std::time::Duration::from_secs(30);
+
+            loop {
+                if operation_queue.is_idle().await {
+                    break;
+                }
+                if start_time.elapsed() > timeout {
+                    eprintln!("⚠️  Warning: Timed out waiting for operations to complete");
+                    eprintln!("   Some operations may still be running in the background");
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            }
+
             if let Some(result) = response.result {
                 output_result(&result, format);
             } else if let Some(error) = response.error {

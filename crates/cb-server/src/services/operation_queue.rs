@@ -383,6 +383,14 @@ impl OperationQueue {
         }
     }
 
+    /// Checks if the queue is idle (no pending operations and all operations processed).
+    /// This is useful for CLI tools that need to wait for async operations to complete.
+    pub async fn is_idle(&self) -> bool {
+        let stats = self.get_stats().await;
+        stats.pending_operations == 0
+            && stats.total_operations == (stats.completed_operations + stats.failed_operations)
+    }
+
     /// Clear all pending operations
     pub async fn clear(&self) {
         let mut queue = self.queue.lock().await;
