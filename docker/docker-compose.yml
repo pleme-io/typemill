@@ -28,6 +28,29 @@ services:
     networks:
       - codebuddy-net
 
+  python-workspace:
+    image: python:3.11-slim
+    container_name: python-workspace
+    depends_on:
+      codebuddy:
+        condition: service_started
+    networks:
+      - codebuddy-net
+    command: >
+      bash -c "
+        pip install curl-cffi &&
+        echo 'Waiting for CodeBuddy admin server...' &&
+        until curl -s --fail http://codebuddy-dev:4000/health > /dev/null; do
+          sleep 1;
+        done;
+        echo 'CodeBuddy is healthy. Registering workspace...' &&
+        curl -X POST http://codebuddy-dev:4000/workspaces/register \
+          -H 'Content-Type: application/json' \
+          -d '{\"id\": \"python-workspace\", \"language\": \"python\", \"project_name\": \"Sample Python Project\"}' &&
+        echo 'Workspace registered. Idling...' &&
+        tail -f /dev/null
+      "
+
 volumes:
   cargo-registry:
   rust-target:

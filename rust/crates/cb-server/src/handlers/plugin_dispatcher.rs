@@ -5,6 +5,7 @@
 
 use crate::services::planner::Planner;
 use crate::services::workflow_executor::WorkflowExecutor;
+use crate::workspaces::WorkspaceManager;
 use crate::{ServerError, ServerResult};
 use async_trait::async_trait;
 use cb_api::AstService;
@@ -40,6 +41,8 @@ pub struct AppState {
     pub operation_queue: Arc<crate::services::OperationQueue>,
     /// Server start time for uptime calculation
     pub start_time: Instant,
+    /// Workspace manager for tracking connected containers
+    pub workspace_manager: Arc<WorkspaceManager>,
 }
 
 /// Plugin-based MCP dispatcher

@@ -15,6 +15,7 @@ pub mod handlers;
 pub mod services;
 pub mod systems;
 pub mod utils;
+pub mod workspaces;
 
 use crate::handlers::plugin_dispatcher::{AppState, PluginDispatcher};
 use crate::services::{DefaultAstService, FileService, LockManager, OperationQueue};

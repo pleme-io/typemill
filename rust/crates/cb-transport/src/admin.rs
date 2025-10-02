@@ -8,6 +8,7 @@ use axum::{
     Router,
 };
 use cb_api::ApiResult;
+use cb_server::workspaces::{Workspace, WorkspaceManager};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::sync::Arc;
@@ -22,6 +23,8 @@ pub struct AdminState {
     pub version: String,
     /// Server start time
     pub start_time: std::time::Instant,
+    /// Workspace manager
+    pub workspace_manager: Arc<WorkspaceManager>,
 }
 
 /// Log level change request
@@ -56,10 +59,14 @@ pub struct HealthResponse {
 }
 
 /// Start the admin HTTP server on a separate port
-pub async fn start_admin_server(port: u16) -> ApiResult<()> {
+pub async fn start_admin_server(
+    port: u16,
+    workspace_manager: Arc<WorkspaceManager>,
+) -> ApiResult<()> {
     let state = AdminState {
         version: env!("CARGO_PKG_VERSION").to_string(),
         start_time: std::time::Instant::now(),
+        workspace_manager,
     };
 
     let app = Router::new()
@@ -67,6 +74,8 @@ pub async fn start_admin_server(port: u16) -> ApiResult<()> {
         .route("/healthz", get(health_check)) // Kubernetes style
         .route("/admin/log-level", post(set_log_level))
         .route("/admin/log-level", get(get_log_level))
+        .route("/workspaces", get(list_workspaces))
+        .route("/workspaces/register", post(register_workspace))
         .layer(ServiceBuilder::new())
         .with_state(Arc::new(state));
 
@@ -79,6 +88,8 @@ pub async fn start_admin_server(port: u16) -> ApiResult<()> {
     info!("  GET  /healthz - Kubernetes health check");
     info!("  POST /admin/log-level - Set log level");
     info!("  GET  /admin/log-level - Get current log level");
+    info!("  GET  /workspaces - List registered workspaces");
+    info!("  POST /workspaces/register - Register a new workspace");
 
     axum::serve(listener, app).await?;
     Ok(())
@@ -144,4 +155,19 @@ fn get_current_log_level() -> String {
         .next_back()
         .unwrap_or("info")
         .to_string()
+}
+
+/// Register a new workspace
+async fn register_workspace(
+    State(state): State<Arc<AdminState>>,
+    Json(workspace): Json<Workspace>,
+) -> Result<Json<Value>, (StatusCode, String)> {
+    info!(workspace_id = %workspace.id, "Registering new workspace");
+    state.workspace_manager.register(workspace);
+    Ok(Json(json!({ "status": "registered" })))
+}
+
+/// List all registered workspaces
+async fn list_workspaces(State(state): State<Arc<AdminState>>) -> Json<Vec<Workspace>> {
+    Json(state.workspace_manager.list())
 }

@@ -14,6 +14,7 @@ use cb_ast::AstCache;
 use cb_plugins::PluginManager;
 use cb_server::handlers::plugin_dispatcher::{AppState, PluginDispatcher};
 use cb_server::services::DefaultAstService;
+use cb_server::workspaces::WorkspaceManager;
 use std::sync::Arc;
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tracing::{debug, error, info};
@@ -41,8 +42,11 @@ pub async fn run_stdio_mode() {
         std::env::current_dir()
     );
 
+    // Create workspace manager
+    let workspace_manager = Arc::new(WorkspaceManager::new());
+
     // Create AppState similar to the test implementation
-    let app_state = match create_app_state().await {
+    let app_state = match create_app_state(workspace_manager).await {
         Ok(state) => state,
         Err(e) => {
             error!(error = %e, "Failed to create app state");
@@ -123,8 +127,11 @@ pub async fn run_websocket_server() {
 }
 
 pub async fn run_websocket_server_with_port(port: u16) {
+    // Create workspace manager
+    let workspace_manager = Arc::new(WorkspaceManager::new());
+
     // Create AppState similar to the test implementation
-    let app_state = match create_app_state().await {
+    let app_state = match create_app_state(workspace_manager.clone()).await {
         Ok(state) => state,
         Err(e) => {
             error!(error = %e, "Failed to create app state");
@@ -138,6 +145,19 @@ pub async fn run_websocket_server_with_port(port: u16) {
         error!(error = %e, "Failed to initialize dispatcher");
         return;
     }
+
+    // Start admin server on a separate port
+    let admin_port = port + 1000; // Admin on port+1000
+    let admin_workspace_manager = workspace_manager.clone();
+    tokio::spawn(async move {
+        if let Err(e) = cb_transport::start_admin_server(admin_port, admin_workspace_manager).await {
+            error!(
+                error_category = "admin_server_error",
+                error = %e,
+                "Admin server failed"
+            );
+        }
+    });
 
     let app = Router::new()
         .route("/ws", get(ws_handler))
@@ -166,7 +186,9 @@ pub async fn run_websocket_server_with_port(port: u16) {
     }
 }
 
-pub async fn create_app_state() -> Result<Arc<AppState>, std::io::Error> {
+pub async fn create_app_state(
+    workspace_manager: Arc<WorkspaceManager>,
+) -> Result<Arc<AppState>, std::io::Error> {
     // Use current working directory as project root for production
     let project_root = std::env::current_dir()?;
     debug!(project_root = %project_root.display(), "Server project root set");
@@ -200,6 +222,7 @@ pub async fn create_app_state() -> Result<Arc<AppState>, std::io::Error> {
         lock_manager,
         operation_queue,
         start_time: std::time::Instant::now(),
+        workspace_manager,
     }))
 }
 
