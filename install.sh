@@ -173,9 +173,15 @@ fi
 # Build the Rust project
 build_project() {
     log_info "Building Rust project..."
-    cd /workspace/rust
-    cargo build --release --package cb-server
+    cd /workspace
 
+    # Use Makefile for consistent build process
+    if ! make release; then
+        log_error "Build failed - make release returned error"
+        exit 1
+    fi
+
+    # Verify binary exists at expected location
     if [ ! -f "$SOURCE_BINARY" ]; then
         log_error "Build failed - binary not found at $SOURCE_BINARY"
         exit 1
@@ -187,7 +193,19 @@ build_project() {
 install_binary() {
     log_info "Installing binary to $INSTALL_DIR/$BINARY_NAME..."
 
-    # Use appropriate command based on permissions
+    # For local installation, use Makefile's install target
+    if [ "$INSTALL_MODE" = "local" ]; then
+        cd /workspace
+        if make install; then
+            log_success "Binary installed to $INSTALL_DIR/$BINARY_NAME"
+            return 0
+        else
+            log_error "Installation failed"
+            exit 1
+        fi
+    fi
+
+    # For system-wide installation, manually copy with sudo
     if [ -n "$SUDO_CMD" ]; then
         $SUDO_CMD cp "$SOURCE_BINARY" "$INSTALL_DIR/$BINARY_NAME"
         $SUDO_CMD chmod +x "$INSTALL_DIR/$BINARY_NAME"
@@ -787,23 +805,39 @@ setup_cargo_config() {
     # Create .cargo directory if it doesn't exist
     mkdir -p "$cargo_dir"
 
-    # Create or update config.toml
+    # Check if config already exists (created by our repo or make setup)
     if [ -f "$cargo_config" ]; then
-        # Check if PATH is already configured
-        if grep -q "^\[env\]" "$cargo_config" && grep -q "^PATH.*\.local/bin" "$cargo_config"; then
-            log_info "Cargo PATH configuration already exists"
+        log_info "Cargo configuration already exists at $cargo_config"
+
+        # Verify it has the PATH env var for LSP servers
+        if grep -q "^\[env\]" "$cargo_config" && grep -q "PATH.*\.local/bin" "$cargo_config"; then
+            log_success "Cargo PATH configuration verified"
             return 0
+        else
+            log_warning "Cargo config exists but missing PATH env. Appending..."
+            # Append PATH configuration if missing
+            cat >> "$cargo_config" << 'EOF'
+
+# Environment Configuration
+# =============================================================================
+
+[env]
+# Ensure ~/.local/bin is in PATH for language servers (pylsp, gopls, etc.)
+# This is needed for tests that require LSP servers installed via pipx/go install
+PATH = { value = "${HOME}/.local/bin:${HOME}/.cargo/bin:${PATH}", force = true, relative = false }
+EOF
+            log_success "Appended PATH configuration to $cargo_config"
         fi
+        return 0
     fi
 
-    # Write cargo config with expanded PATH to include all necessary directories
+    # If no config exists at all, create a basic one (shouldn't happen with our repo)
+    log_warning "No Cargo configuration found - this is unusual. Creating basic config..."
     cat > "$cargo_config" << 'EOF'
 # Cargo configuration for codebuddy project
 
 [env]
 # Ensure ~/.local/bin is in PATH for language servers (pylsp, gopls, etc.)
-# This is needed for tests that require LSP servers installed via pipx/go install
-# Also ensure ~/.cargo/bin and other standard paths are included
 PATH = { value = "${HOME}/.local/bin:${HOME}/.cargo/bin:${PATH}", force = true, relative = false }
 EOF
 
@@ -853,6 +887,15 @@ main() {
     install_nodejs
     install_pipx
     ensure_tool_paths
+
+    # Phase 1.5: Install build optimization tools (sccache, mold)
+    log_info "=== Phase 1.5: Installing Build Optimization Tools ==="
+    cd /workspace
+    if make setup; then
+        log_success "Build optimization tools installed (sccache, mold)"
+    else
+        log_warning "Build optimization tools installation failed (non-critical)"
+    fi
 
     # Phase 2: Install language servers
     log_info "=== Phase 2: Installing Language Servers ==="
