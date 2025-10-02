@@ -2,7 +2,7 @@
 
 use crate::{ServerError, ServerResult};
 use cb_api::DependencyUpdate;
-use cb_ast::{package_extractor::LanguageAdapter, find_project_files, update_imports_for_rename, ImportPathResolver};
+use cb_ast::{language::LanguageAdapter, find_project_files, update_imports_for_rename, ImportPathResolver};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::fs;
@@ -19,7 +19,7 @@ pub struct ImportService {
 impl ImportService {
     /// Create a new import service
     pub fn new(project_root: impl AsRef<Path>) -> Self {
-        use cb_ast::package_extractor::{RustAdapter, TypeScriptAdapter, PythonAdapter};
+        use cb_ast::language::{RustAdapter, TypeScriptAdapter, PythonAdapter};
 
         let adapters: Vec<Arc<dyn LanguageAdapter>> = vec![
             Arc::new(RustAdapter),

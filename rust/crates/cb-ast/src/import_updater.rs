@@ -308,7 +308,7 @@ pub async fn update_imports_for_rename(
     old_path: &Path,
     new_path: &Path,
     project_root: &Path,
-    adapters: &[std::sync::Arc<dyn crate::package_extractor::LanguageAdapter>],
+    adapters: &[std::sync::Arc<dyn crate::language::LanguageAdapter>],
     rename_info: Option<&serde_json::Value>,
     dry_run: bool,
 ) -> AstResult<ImportUpdateResult> {
@@ -441,14 +441,14 @@ pub fn extract_import_path(line: &str) -> Option<String> {
 /// Find all project files that match the language adapters
 pub async fn find_project_files(
     project_root: &Path,
-    adapters: &[std::sync::Arc<dyn crate::package_extractor::LanguageAdapter>],
+    adapters: &[std::sync::Arc<dyn crate::language::LanguageAdapter>],
 ) -> AstResult<Vec<PathBuf>> {
     let mut files = Vec::new();
 
     fn collect_files<'a>(
         dir: &'a Path,
         files: &'a mut Vec<PathBuf>,
-        adapters: &'a [std::sync::Arc<dyn crate::package_extractor::LanguageAdapter>],
+        adapters: &'a [std::sync::Arc<dyn crate::language::LanguageAdapter>],
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = AstResult<()>> + Send + 'a>> {
         Box::pin(async move {
             if dir.is_dir() {
