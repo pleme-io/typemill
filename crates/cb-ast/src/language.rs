@@ -561,13 +561,113 @@ impl LanguageAdapter for TypeScriptAdapter {
 
     fn find_module_references(
         &self,
-        _content: &str,
-        _module_to_find: &str,
-        _scope: ScanScope,
+        content: &str,
+        module_to_find: &str,
+        scope: ScanScope,
     ) -> AstResult<Vec<ModuleReference>> {
-        // TODO: Implement SWC-based reference finding for TypeScript/JavaScript
-        // For now, return empty to satisfy the trait
-        Ok(Vec::new())
+        use swc_common::sync::Lrc;
+        use swc_common::{FileName, FilePathMapping, SourceMap};
+        use swc_ecma_ast::EsVersion;
+        use swc_ecma_parser::{lexer::Lexer, Parser, StringInput, Syntax, TsSyntax};
+        use swc_ecma_visit::VisitWith;
+
+        // 1. Setup SWC parser
+        let cm = Lrc::new(SourceMap::new(FilePathMapping::empty()));
+        let fm = cm.new_source_file(Lrc::new(FileName::Anon), content.to_string());
+        let lexer = Lexer::new(
+            Syntax::Typescript(TsSyntax {
+                tsx: false,
+                decorators: false,
+                ..Default::default()
+            }),
+            EsVersion::latest(),
+            StringInput::from(&*fm),
+            None,
+        );
+        let mut parser = Parser::new_from(lexer);
+
+        let module = match parser.parse_module() {
+            Ok(m) => m,
+            Err(_e) => {
+                // If parsing fails, return empty vec
+                return Ok(Vec::new());
+            }
+        };
+
+        // 2. Create and run the visitor
+        let mut visitor = TsModuleVisitor {
+            module_to_find,
+            references: Vec::new(),
+            scope,
+            source_map: &cm,
+            source_file: &fm,
+        };
+        module.visit_with(&mut visitor);
+
+        Ok(visitor.references)
+    }
+}
+
+/// Visitor for finding module references in TypeScript/JavaScript AST
+struct TsModuleVisitor<'a> {
+    module_to_find: &'a str,
+    references: Vec<ModuleReference>,
+    scope: ScanScope,
+    source_map: &'a swc_common::SourceMap,
+    source_file: &'a swc_common::SourceFile,
+}
+
+impl<'a> swc_ecma_visit::Visit for TsModuleVisitor<'a> {
+    fn visit_import_decl(&mut self, import: &swc_ecma_ast::ImportDecl) {
+        // Only process imports if scope allows
+        if self.scope == ScanScope::TopLevelOnly
+            || self.scope == ScanScope::AllUseStatements
+            || self.scope == ScanScope::QualifiedPaths
+            || self.scope == ScanScope::All
+        {
+            if let Some(src_str) = import.src.raw.as_ref() {
+                if src_str.contains(self.module_to_find) {
+                    let span = import.src.span;
+                    if let Some(reference) = self.span_to_reference(span, ReferenceKind::Declaration) {
+                        self.references.push(reference);
+                    }
+                }
+            }
+        }
+    }
+
+    fn visit_member_expr(&mut self, member_expr: &swc_ecma_ast::MemberExpr) {
+        // Only process qualified paths if scope allows
+        if self.scope == ScanScope::QualifiedPaths || self.scope == ScanScope::All {
+            if let Some(ident) = member_expr.obj.as_ident() {
+                if ident.sym.as_ref() == self.module_to_find {
+                    let span = member_expr.span;
+                    if let Some(reference) = self.span_to_reference(span, ReferenceKind::QualifiedPath) {
+                        self.references.push(reference);
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl<'a> TsModuleVisitor<'a> {
+    /// Convert a SWC span to a ModuleReference with line/column information
+    fn span_to_reference(&self, span: swc_common::Span, kind: ReferenceKind) -> Option<ModuleReference> {
+        let lo = self.source_map.lookup_char_pos(span.lo);
+
+        // Extract the actual text from the span
+        let start = (span.lo.0 - self.source_file.start_pos.0) as usize;
+        let end = (span.hi.0 - self.source_file.start_pos.0) as usize;
+        let text = self.source_file.src.get(start..end)?.to_string();
+
+        Some(ModuleReference {
+            line: lo.line,
+            column: lo.col.0,
+            length: (span.hi.0 - span.lo.0) as usize,
+            text,
+            kind,
+        })
     }
 }
 
