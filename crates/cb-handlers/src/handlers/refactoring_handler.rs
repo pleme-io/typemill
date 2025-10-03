@@ -2,14 +2,14 @@
 //!
 //! Handles: extract_function, inline_variable, extract_variable, extract_module_to_package, fix_imports
 
-use super::lsp_adapter::DirectLspAdapter;
 use super::compat::{ToolContext, ToolHandler};
-use cb_core::workspaces::WorkspaceManager;
-use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
+use super::lsp_adapter::DirectLspAdapter;
 use async_trait::async_trait;
 use cb_ast::refactoring::{CodeRange, LspRefactoringService};
 use cb_core::model::mcp::ToolCall;
+use cb_core::workspaces::WorkspaceManager;
 use cb_plugins::PluginRequest;
+use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};

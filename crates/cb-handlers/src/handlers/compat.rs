@@ -3,16 +3,16 @@
 //! This module provides compatibility types and traits for legacy handlers
 //! that haven't been fully migrated to the unified architecture yet.
 
-use cb_protocol::ApiResult as ServerResult;
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
+use cb_protocol::ApiResult as ServerResult;
 use serde_json::Value;
 
-use super::plugin_dispatcher::AppState;
 use super::lsp_adapter::DirectLspAdapter;
+use super::plugin_dispatcher::AppState;
 use cb_plugins::PluginManager;
-use tokio::sync::Mutex;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 
 /// Legacy context for old tool handlers
 pub struct ToolContext {

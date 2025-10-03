@@ -1,9 +1,9 @@
 //! Tool handler for fine-grained dependency management.
 
 use super::compat::{ToolContext, ToolHandler};
-use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
+use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -33,17 +33,17 @@ impl DependencyHandler {
     async fn handle_package_json(&self, args: &UpdateDependenciesArgs) -> ServerResult<()> {
         debug!(file_path = %args.file_path, "Handling package.json dependency update");
 
-        let content = fs::read_to_string(&args.file_path).await.map_err(|e| {
-            ServerError::Runtime {
-                message: format!("Failed to read file: {}", e),
-            }
-        })?;
+        let content =
+            fs::read_to_string(&args.file_path)
+                .await
+                .map_err(|e| ServerError::Runtime {
+                    message: format!("Failed to read file: {}", e),
+                })?;
 
-        let mut json_val: Value = serde_json::from_str(&content).map_err(|e| {
-            ServerError::Runtime {
+        let mut json_val: Value =
+            serde_json::from_str(&content).map_err(|e| ServerError::Runtime {
                 message: format!("Failed to parse JSON: {}", e),
-            }
-        })?;
+            })?;
 
         if let Some(map) = json_val.as_object_mut() {
             // Update version
@@ -112,11 +112,10 @@ impl DependencyHandler {
             }
         }
 
-        let updated_content = serde_json::to_string_pretty(&json_val).map_err(|e| {
-            ServerError::Runtime {
+        let updated_content =
+            serde_json::to_string_pretty(&json_val).map_err(|e| ServerError::Runtime {
                 message: format!("Failed to serialize JSON: {}", e),
-            }
-        })?;
+            })?;
 
         fs::write(&args.file_path, updated_content)
             .await
@@ -129,17 +128,17 @@ impl DependencyHandler {
     async fn handle_cargo_toml(&self, args: &UpdateDependenciesArgs) -> ServerResult<()> {
         debug!(file_path = %args.file_path, "Handling Cargo.toml dependency update");
 
-        let content = fs::read_to_string(&args.file_path).await.map_err(|e| {
-            ServerError::Runtime {
-                message: format!("Failed to read file: {}", e),
-            }
-        })?;
+        let content =
+            fs::read_to_string(&args.file_path)
+                .await
+                .map_err(|e| ServerError::Runtime {
+                    message: format!("Failed to read file: {}", e),
+                })?;
 
-        let mut toml_val: toml::Value = toml::from_str(&content).map_err(|e| {
-            ServerError::Runtime {
+        let mut toml_val: toml::Value =
+            toml::from_str(&content).map_err(|e| ServerError::Runtime {
                 message: format!("Failed to parse TOML: {}", e),
-            }
-        })?;
+            })?;
 
         if let Some(table) = toml_val.as_table_mut() {
             // Update version
@@ -191,11 +190,10 @@ impl DependencyHandler {
             }
         }
 
-        let updated_content = toml::to_string_pretty(&toml_val).map_err(|e| {
-            ServerError::Runtime {
+        let updated_content =
+            toml::to_string_pretty(&toml_val).map_err(|e| ServerError::Runtime {
                 message: format!("Failed to serialize TOML: {}", e),
-            }
-        })?;
+            })?;
 
         fs::write(&args.file_path, updated_content)
             .await
@@ -208,11 +206,12 @@ impl DependencyHandler {
     async fn handle_requirements_txt(&self, args: &UpdateDependenciesArgs) -> ServerResult<()> {
         debug!(file_path = %args.file_path, "Handling requirements.txt dependency update");
 
-        let content = fs::read_to_string(&args.file_path).await.map_err(|e| {
-            ServerError::Runtime {
-                message: format!("Failed to read file: {}", e),
-            }
-        })?;
+        let content =
+            fs::read_to_string(&args.file_path)
+                .await
+                .map_err(|e| ServerError::Runtime {
+                    message: format!("Failed to read file: {}", e),
+                })?;
 
         let mut lines: Vec<String> = content.lines().map(String::from).collect();
 

@@ -3,8 +3,8 @@
 //! Central registry for all tool handlers with automatic routing based on tool names.
 
 use super::tools::{ToolHandler, ToolHandlerContext};
-use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use cb_core::model::mcp::ToolCall;
+use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -52,7 +52,8 @@ impl ToolRegistry {
                     "Tool handler replaced (duplicate registration)"
                 );
             }
-            self.handler_names.insert(tool_name.to_string(), handler_name.to_string());
+            self.handler_names
+                .insert(tool_name.to_string(), handler_name.to_string());
         }
     }
 

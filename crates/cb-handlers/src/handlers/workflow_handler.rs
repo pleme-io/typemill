@@ -3,9 +3,9 @@
 //! Handles: achieve_intent, apply_edits
 
 use super::compat::{ToolContext, ToolHandler};
-use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
+use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde_json::{json, Value};
 use tracing::{debug, error, info, warn};
 

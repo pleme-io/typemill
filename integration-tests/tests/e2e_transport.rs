@@ -61,7 +61,10 @@ async fn test_connection_resilience() {
                     .await
                     .unwrap();
 
-                assert_eq!(retry_response["result"]["content"].as_str().unwrap(), content);
+                assert_eq!(
+                    retry_response["result"]["content"].as_str().unwrap(),
+                    content
+                );
             }
         }
 
@@ -114,7 +117,10 @@ async fn test_message_ordering() {
             .unwrap();
 
         let expected = format!("{} - {}", content, i);
-        assert_eq!(read_response["result"]["content"].as_str().unwrap(), expected);
+        assert_eq!(
+            read_response["result"]["content"].as_str().unwrap(),
+            expected
+        );
     }
 }
 

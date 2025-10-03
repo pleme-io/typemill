@@ -5,6 +5,12 @@ use std::process::Command as OsCommand;
 
 pub struct DoctorCommand;
 
+impl Default for DoctorCommand {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DoctorCommand {
     pub fn new() -> Self {
         Self
@@ -74,7 +80,7 @@ impl DoctorCommand {
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .status()
-        .map_or(false, |status| status.success())
+        .is_ok_and(|status| status.success())
     }
 }
 

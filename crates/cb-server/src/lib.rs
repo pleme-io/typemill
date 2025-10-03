@@ -23,11 +23,11 @@ pub use cb_core::workspaces;
 pub use cb_handlers::handlers;
 pub use cb_services::services;
 
-use cb_handlers::handlers::plugin_dispatcher::{AppState, PluginDispatcher};
-use cb_services::services::{DefaultAstService, FileService, LockManager, OperationQueue};
-pub use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult, AstService, LspService};
 use cb_ast::AstCache;
 use cb_core::AppConfig;
+use cb_handlers::handlers::plugin_dispatcher::{AppState, PluginDispatcher};
+pub use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult, AstService, LspService};
+use cb_services::services::{DefaultAstService, FileService, LockManager, OperationQueue};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::oneshot;
@@ -111,8 +111,9 @@ pub async fn bootstrap(options: ServerOptions) -> ServerResult<ServerHandle> {
             })?;
     }
 
-    let workflow_executor =
-        cb_services::services::workflow_executor::DefaultWorkflowExecutor::new(plugin_manager.clone());
+    let workflow_executor = cb_services::services::workflow_executor::DefaultWorkflowExecutor::new(
+        plugin_manager.clone(),
+    );
 
     // Create workspace manager for tracking connected containers
     let workspace_manager = Arc::new(cb_core::workspaces::WorkspaceManager::new());
@@ -223,8 +224,9 @@ pub async fn create_dispatcher_with_workspace(
             })?;
     }
 
-    let workflow_executor =
-        cb_services::services::workflow_executor::DefaultWorkflowExecutor::new(plugin_manager.clone());
+    let workflow_executor = cb_services::services::workflow_executor::DefaultWorkflowExecutor::new(
+        plugin_manager.clone(),
+    );
 
     // Start background processor for operation queue
     {
@@ -275,7 +277,9 @@ pub async fn create_dispatcher_with_workspace(
                                 .params
                                 .get("new_path")
                                 .and_then(|v| v.as_str())
-                                .ok_or_else(|| ServerError::internal("Missing 'new_path' parameter for Rename"))?;
+                                .ok_or_else(|| {
+                                ServerError::internal("Missing 'new_path' parameter for Rename")
+                            })?;
                             let new_path = Path::new(new_path_str);
 
                             fs::rename(&op.file_path, new_path).await.map_err(|e| {

@@ -7,10 +7,10 @@
 //! Unlike E2E tests which use TestClient and MCP protocol, these tests directly
 //! instantiate service components and test their integration.
 
-use cb_protocol::AstService;
 use cb_ast::AstCache;
 use cb_core::model::IntentSpec;
 use cb_plugins::PluginManager;
+use cb_protocol::AstService;
 use cb_server::handlers::AppState;
 use cb_server::services::{DefaultAstService, FileService, LockManager, OperationQueue};
 use cb_server::workspaces::WorkspaceManager;

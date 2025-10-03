@@ -263,11 +263,7 @@ impl PluginRegistry {
     /// Returns None if the list is empty
     /// Returns Err if there's an ambiguous selection (multiple plugins with same priority)
     /// Returns Ok(Some(plugin_name)) otherwise
-    fn select_by_priority(
-        &self,
-        plugins: &[String],
-        method: &str,
-    ) -> PluginResult<Option<String>> {
+    fn select_by_priority(&self, plugins: &[String], method: &str) -> PluginResult<Option<String>> {
         if plugins.is_empty() {
             return Ok(None);
         }
@@ -514,7 +510,9 @@ mod tests {
     #[async_trait]
     impl LanguagePlugin for TestPlugin {
         fn metadata(&self) -> PluginMetadata {
-            self.metadata.clone().unwrap_or_else(|| PluginMetadata::new(&self.name, "1.0.0", "test"))
+            self.metadata
+                .clone()
+                .unwrap_or_else(|| PluginMetadata::new(&self.name, "1.0.0", "test"))
         }
 
         fn supported_extensions(&self) -> Vec<String> {
@@ -680,11 +678,15 @@ mod tests {
 
         // File-scoped tool should only match plugin with matching file extension
         let ts_file = PathBuf::from("example.ts");
-        let best = registry.find_best_plugin(&ts_file, "find_definition").unwrap();
+        let best = registry
+            .find_best_plugin(&ts_file, "find_definition")
+            .unwrap();
         assert_eq!(best, "ts-plugin");
 
         let js_file = PathBuf::from("example.js");
-        let best = registry.find_best_plugin(&js_file, "find_definition").unwrap();
+        let best = registry
+            .find_best_plugin(&js_file, "find_definition")
+            .unwrap();
         assert_eq!(best, "generic-plugin");
     }
 
@@ -703,15 +705,21 @@ mod tests {
             metadata: None,
         });
 
-        registry.register_plugin("workspace-plugin", plugin).unwrap();
+        registry
+            .register_plugin("workspace-plugin", plugin)
+            .unwrap();
 
         // Workspace tool should work regardless of file extension
         let ts_file = PathBuf::from("example.ts");
-        let best = registry.find_best_plugin(&ts_file, "search_workspace_symbols").unwrap();
+        let best = registry
+            .find_best_plugin(&ts_file, "search_workspace_symbols")
+            .unwrap();
         assert_eq!(best, "workspace-plugin");
 
         let py_file = PathBuf::from("example.py");
-        let best = registry.find_best_plugin(&py_file, "search_workspace_symbols").unwrap();
+        let best = registry
+            .find_best_plugin(&py_file, "search_workspace_symbols")
+            .unwrap();
         assert_eq!(best, "workspace-plugin");
     }
 
@@ -751,7 +759,9 @@ mod tests {
 
         // High priority plugin should be selected
         let ts_file = PathBuf::from("example.ts");
-        let best = registry.find_best_plugin(&ts_file, "find_definition").unwrap();
+        let best = registry
+            .find_best_plugin(&ts_file, "find_definition")
+            .unwrap();
         assert_eq!(best, "high-priority");
     }
 
@@ -789,7 +799,9 @@ mod tests {
         registry.set_priority_overrides(overrides);
 
         let ts_file = PathBuf::from("example.ts");
-        let best = registry.find_best_plugin(&ts_file, "find_definition").unwrap();
+        let best = registry
+            .find_best_plugin(&ts_file, "find_definition")
+            .unwrap();
         assert_eq!(best, "plugin1");
     }
 
@@ -825,7 +837,10 @@ mod tests {
         let result = registry.find_best_plugin(&ts_file, "find_definition");
 
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), PluginError::AmbiguousPluginSelection { .. }));
+        assert!(matches!(
+            result.unwrap_err(),
+            PluginError::AmbiguousPluginSelection { .. }
+        ));
     }
 
     #[test]
@@ -857,7 +872,9 @@ mod tests {
         registry.register_plugin("alpha-plugin", plugin2).unwrap();
 
         let ts_file = PathBuf::from("example.ts");
-        let best = registry.find_best_plugin(&ts_file, "find_definition").unwrap();
+        let best = registry
+            .find_best_plugin(&ts_file, "find_definition")
+            .unwrap();
 
         // Should select "alpha-plugin" due to lexicographic order
         assert_eq!(best, "alpha-plugin");

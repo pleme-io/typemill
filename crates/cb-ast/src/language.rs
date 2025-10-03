@@ -170,7 +170,7 @@ impl LanguageAdapter for RustAdapter {
 
         // Split module path by either "::" or "." into segments
         let segments: Vec<&str> = module_path
-            .split(|c| c == ':' || c == '.')
+            .split([':', '.'])
             .filter(|s| !s.is_empty())
             .collect();
 

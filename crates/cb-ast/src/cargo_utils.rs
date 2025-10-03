@@ -42,14 +42,17 @@ pub fn update_dependency(
     new_dep_name: &str,
     new_path: &str,
 ) -> AstResult<String> {
-    let mut doc = cargo_content.parse::<DocumentMut>().map_err(|e| {
-        AstError::Analysis {
+    let mut doc = cargo_content
+        .parse::<DocumentMut>()
+        .map_err(|e| AstError::Analysis {
             message: format!("Failed to parse Cargo.toml: {}", e),
-        }
-    })?;
+        })?;
 
     // Try to update in [dependencies]
-    if let Some(deps) = doc.get_mut("dependencies").and_then(Item::as_table_like_mut) {
+    if let Some(deps) = doc
+        .get_mut("dependencies")
+        .and_then(Item::as_table_like_mut)
+    {
         if deps.contains_key(old_dep_name) {
             // Create a new table for the updated dependency
             let mut new_dep_table = toml_edit::InlineTable::new();
@@ -95,8 +98,8 @@ cb-mcp-proxy = { path = "../cb-mcp-proxy" }
 other-dep = "1.0"
 "#;
 
-        let updated = update_dependency(cargo_toml, "cb-mcp-proxy", "cb-plugins", "../cb-plugins")
-            .unwrap();
+        let updated =
+            update_dependency(cargo_toml, "cb-mcp-proxy", "cb-plugins", "../cb-plugins").unwrap();
 
         assert!(updated.contains("cb-plugins"));
         assert!(!updated.contains("cb-mcp-proxy"));
@@ -113,8 +116,8 @@ name = "test-crate"
 cb-mcp-proxy = { path = "../cb-mcp-proxy" }
 "#;
 
-        let updated = update_dependency(cargo_toml, "cb-mcp-proxy", "cb-plugins", "../cb-plugins")
-            .unwrap();
+        let updated =
+            update_dependency(cargo_toml, "cb-mcp-proxy", "cb-plugins", "../cb-plugins").unwrap();
 
         assert!(updated.contains("cb-plugins"));
         assert!(!updated.contains("cb-mcp-proxy"));
@@ -129,8 +132,8 @@ serde = "1.0"
 tokio = { version = "1.0", features = ["full"] }
 "#;
 
-        let updated = update_dependency(cargo_toml, "cb-mcp-proxy", "cb-plugins", "../cb-plugins")
-            .unwrap();
+        let updated =
+            update_dependency(cargo_toml, "cb-mcp-proxy", "cb-plugins", "../cb-plugins").unwrap();
 
         assert!(updated.contains("serde"));
         assert!(updated.contains("tokio"));

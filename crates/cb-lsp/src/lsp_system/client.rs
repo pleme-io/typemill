@@ -1,7 +1,7 @@
 //! LSP client implementation for communicating with a single LSP server
 
-use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use cb_core::config::LspServerConfig;
+use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::process::Stdio;

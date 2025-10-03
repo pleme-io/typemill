@@ -671,6 +671,7 @@ fn suggest_variable_name(expression: &str) -> String {
 /// This function implements an LSP-first approach:
 /// 1. If LSP service is provided, try LSP code actions first
 /// 2. Fall back to AST-based analysis if LSP is unavailable or fails
+#[allow(clippy::too_many_arguments)]
 pub async fn plan_extract_variable(
     source: &str,
     start_line: u32,

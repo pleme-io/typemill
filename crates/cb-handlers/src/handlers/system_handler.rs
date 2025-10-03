@@ -3,12 +3,12 @@
 //! Handles: health_check, notify_file_opened, notify_file_saved,
 //!          notify_file_closed, find_dead_code, fix_imports
 
-use super::lsp_adapter::DirectLspAdapter;
 use super::compat::{ToolContext, ToolHandler};
-use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
+use super::lsp_adapter::DirectLspAdapter;
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
 use cb_plugins::LspService;
+use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde_json::{json, Value};
 use std::path::PathBuf;
 use std::sync::Arc;

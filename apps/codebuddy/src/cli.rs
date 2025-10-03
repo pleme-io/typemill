@@ -636,9 +636,11 @@ async fn handle_tools_command(format: &str) {
 
             println!("└{0:─<32}┴{0:─<20}┘", "");
             println!();
-            println!("Total: {} tools across {} handlers",
+            println!(
+                "Total: {} tools across {} handlers",
                 tools_with_handlers.len(),
-                tools_with_handlers.iter()
+                tools_with_handlers
+                    .iter()
                     .map(|(_, h)| h)
                     .collect::<std::collections::HashSet<_>>()
                     .len()

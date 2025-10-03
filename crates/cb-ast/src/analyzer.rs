@@ -1,10 +1,10 @@
 //! AST analysis functionality
 
 use crate::error::{AstError, AstResult};
+use cb_core::model::IntentSpec;
 use cb_protocol::{
     EditLocation, EditPlan, EditPlanMetadata, EditType, TextEdit, ValidationRule, ValidationType,
 };
-use cb_core::model::IntentSpec;
 // serde traits no longer needed here
 use std::collections::HashMap;
 use swc_common::{sync::Lrc, SourceMap};

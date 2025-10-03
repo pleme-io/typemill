@@ -1,10 +1,10 @@
 //! Service for managing import updates across the codebase
 
-use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
-use cb_protocol::DependencyUpdate;
 use cb_ast::{
     find_project_files, language::LanguageAdapter, update_imports_for_rename, ImportPathResolver,
 };
+use cb_protocol::DependencyUpdate;
+use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::fs;

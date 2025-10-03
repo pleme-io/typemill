@@ -1,10 +1,10 @@
 //! MCP tool handlers module
 
 pub mod compat;
-pub mod macros;
 pub mod dependency_handler;
 pub mod file_operation_handler;
 pub mod lsp_adapter;
+pub mod macros;
 pub mod plugin_dispatcher;
 pub mod refactoring_handler;
 pub mod system_handler;

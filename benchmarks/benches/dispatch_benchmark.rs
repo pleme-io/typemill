@@ -6,11 +6,14 @@
 //! - Concurrent request handling throughput
 //! - Plugin registry initialization time
 
-use cb_core::model::mcp::ToolCall;
-use cb_plugins::{Capabilities, LanguagePlugin, PluginMetadata, PluginRegistry, PluginRequest, PluginResponse, PluginResult};
-use cb_server::handlers::plugin_dispatcher::create_test_dispatcher;
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
 use async_trait::async_trait;
+use cb_core::model::mcp::ToolCall;
+use cb_plugins::{
+    Capabilities, LanguagePlugin, PluginMetadata, PluginRegistry, PluginRequest, PluginResponse,
+    PluginResult,
+};
+use cb_server::handlers::plugin_dispatcher::create_test_dispatcher;
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -109,7 +112,9 @@ fn create_benchmark_registry(num_plugins: usize, use_priorities: bool) -> Plugin
             0, // No delay for selection benchmarks
         ));
 
-        registry.register_plugin(format!("bench-plugin-{}", i), plugin).unwrap();
+        registry
+            .register_plugin(format!("bench-plugin-{}", i), plugin)
+            .unwrap();
     }
 
     registry
@@ -128,10 +133,8 @@ fn bench_plugin_selection(c: &mut Criterion) {
                 let file_path = PathBuf::from("test.ts");
 
                 b.iter(|| {
-                    let result = registry.find_best_plugin(
-                        black_box(&file_path),
-                        black_box("find_definition")
-                    );
+                    let result = registry
+                        .find_best_plugin(black_box(&file_path), black_box("find_definition"));
                     black_box(result)
                 });
             },
@@ -145,10 +148,8 @@ fn bench_plugin_selection(c: &mut Criterion) {
                 let file_path = PathBuf::from("test.ts");
 
                 b.iter(|| {
-                    let result = registry.find_best_plugin(
-                        black_box(&file_path),
-                        black_box("find_definition")
-                    );
+                    let result = registry
+                        .find_best_plugin(black_box(&file_path), black_box("find_definition"));
                     black_box(result)
                 });
             },
@@ -170,10 +171,8 @@ fn bench_priority_override(c: &mut Criterion) {
         let file_path = PathBuf::from("test.ts");
 
         b.iter(|| {
-            let result = registry.find_best_plugin(
-                black_box(&file_path),
-                black_box("find_definition")
-            );
+            let result =
+                registry.find_best_plugin(black_box(&file_path), black_box("find_definition"));
             black_box(result)
         });
     });

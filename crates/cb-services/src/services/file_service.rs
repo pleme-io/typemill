@@ -1,12 +1,13 @@
 //! File operations service with import awareness
 
+use crate::services::git_service::GitService;
 use crate::services::import_service::ImportService;
 use crate::services::lock_manager::LockManager;
 use crate::services::operation_queue::{FileOperation, OperationTransaction, OperationType};
-use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
-use cb_protocol::{DependencyUpdate, EditPlan, EditPlanMetadata, TextEdit};
 use cb_ast::AstCache;
 use cb_core::dry_run::DryRunnable;
+use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
+use cb_protocol::{DependencyUpdate, EditPlan, EditPlanMetadata, TextEdit};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -26,6 +27,11 @@ pub struct FileService {
     lock_manager: Arc<LockManager>,
     /// Operation queue for serializing file operations
     operation_queue: Arc<super::operation_queue::OperationQueue>,
+    /// Git service for git-aware file operations
+    #[allow(dead_code)]
+    git_service: GitService,
+    /// Whether to use git for file operations
+    use_git: bool,
 }
 
 impl FileService {
@@ -37,13 +43,67 @@ impl FileService {
         operation_queue: Arc<super::operation_queue::OperationQueue>,
     ) -> Self {
         let project_root = project_root.as_ref().to_path_buf();
+        let use_git = GitService::is_git_repo(&project_root);
+
+        debug!(
+            project_root = %project_root.display(),
+            use_git,
+            "Initializing FileService with git support"
+        );
+
         Self {
             import_service: ImportService::new(&project_root),
             project_root,
             ast_cache,
             lock_manager,
             operation_queue,
+            git_service: GitService::new(),
+            use_git,
         }
+    }
+
+    /// Perform a git-aware file rename
+    ///
+    /// Uses `git mv` if the file is tracked and git is available, otherwise falls back to filesystem rename.
+    async fn rename_file_internal(&self, old: &Path, new: &Path) -> ServerResult<()> {
+        if self.use_git && GitService::is_file_tracked(old) {
+            // Use git mv for tracked files
+            debug!(
+                old = %old.display(),
+                new = %new.display(),
+                "Using git mv for tracked file"
+            );
+
+            // git mv is synchronous, run in blocking task
+            let old_clone = old.to_path_buf();
+            let new_clone = new.to_path_buf();
+
+            tokio::task::spawn_blocking(move || GitService::git_mv(&old_clone, &new_clone))
+                .await
+                .map_err(|e| ServerError::Internal(format!("Task join error: {}", e)))?
+                .map_err(|e| ServerError::Internal(format!("git mv failed: {}", e)))?;
+        } else {
+            // Fallback to filesystem rename
+            debug!(
+                old = %old.display(),
+                new = %new.display(),
+                use_git = self.use_git,
+                "Using filesystem rename"
+            );
+
+            // Ensure parent directory exists
+            if let Some(parent) = new.parent() {
+                fs::create_dir_all(parent).await.map_err(|e| {
+                    ServerError::Internal(format!("Failed to create parent directory: {}", e))
+                })?;
+            }
+
+            fs::rename(old, new)
+                .await
+                .map_err(|e| ServerError::Internal(format!("Failed to rename file: {}", e)))?;
+        }
+
+        Ok(())
     }
 
     /// Rename a file and update all imports
@@ -303,33 +363,8 @@ impl FileService {
 
     /// Perform the actual file rename operation
     async fn perform_rename(&self, old_path: &Path, new_path: &Path) -> ServerResult<()> {
-        // Queue the operations for execution by the background worker
-        let mut transaction = OperationTransaction::new(self.operation_queue.clone());
-
-        if let Some(parent) = new_path.parent() {
-            if !parent.exists() {
-                transaction.add_operation(FileOperation::new(
-                    "system".to_string(),
-                    OperationType::CreateDir,
-                    parent.to_path_buf(),
-                    json!({ "recursive": true }),
-                ));
-            }
-        }
-
-        transaction.add_operation(FileOperation::new(
-            "system".to_string(),
-            OperationType::Rename,
-            old_path.to_path_buf(),
-            json!({ "new_path": new_path.to_string_lossy() }),
-        ));
-
-        transaction
-            .commit()
-            .await
-            .map_err(|e| ServerError::Internal(e.to_string()))?;
-
-        Ok(())
+        // Use our git-aware rename helper directly
+        self.rename_file_internal(old_path, new_path).await
     }
 
     /// Create a new file with content
@@ -438,10 +473,7 @@ impl FileService {
             }
 
             let affected_files_count = if !force {
-                let affected = self
-                    .import_service
-                    .find_affected_files(&abs_path)
-                    .await?;
+                let affected = self.import_service.find_affected_files(&abs_path).await?;
                 if !affected.is_empty() {
                     return Err(ServerError::InvalidRequest(format!(
                         "File is imported by {} other files",
@@ -1465,14 +1497,18 @@ mod tests {
         use tokio::fs;
 
         tokio::spawn(async move {
-            queue.process_with(|op| {
-                async move {
+            queue
+                .process_with(|op| async move {
                     match op.operation_type {
                         OperationType::CreateDir => {
                             fs::create_dir_all(&op.file_path).await?;
                         }
                         OperationType::CreateFile | OperationType::Write => {
-                            let content = op.params.get("content").and_then(|v| v.as_str()).unwrap_or("");
+                            let content = op
+                                .params
+                                .get("content")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("");
                             fs::write(&op.file_path, content).await?;
                         }
                         OperationType::Delete => {
@@ -1481,23 +1517,40 @@ mod tests {
                             }
                         }
                         OperationType::Rename => {
-                            let new_path_str = op.params.get("new_path").and_then(|v| v.as_str())
-                                .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "Missing new_path"))?;
+                            let new_path_str = op
+                                .params
+                                .get("new_path")
+                                .and_then(|v| v.as_str())
+                                .ok_or_else(|| {
+                                std::io::Error::new(std::io::ErrorKind::Other, "Missing new_path")
+                            })?;
                             fs::rename(&op.file_path, new_path_str).await?;
                         }
                         _ => {}
                     }
                     Ok(serde_json::Value::Null)
-                }
-            }).await;
+                })
+                .await;
         });
     }
 
-    fn create_test_service(temp_dir: &TempDir) -> (FileService, Arc<super::super::operation_queue::OperationQueue>) {
+    fn create_test_service(
+        temp_dir: &TempDir,
+    ) -> (
+        FileService,
+        Arc<super::super::operation_queue::OperationQueue>,
+    ) {
         let ast_cache = Arc::new(AstCache::new());
         let lock_manager = Arc::new(LockManager::new());
-        let operation_queue = Arc::new(super::super::operation_queue::OperationQueue::new(lock_manager.clone()));
-        let service = FileService::new(temp_dir.path(), ast_cache, lock_manager, operation_queue.clone());
+        let operation_queue = Arc::new(super::super::operation_queue::OperationQueue::new(
+            lock_manager.clone(),
+        ));
+        let service = FileService::new(
+            temp_dir.path(),
+            ast_cache,
+            lock_manager,
+            operation_queue.clone(),
+        );
 
         // Spawn background worker to process queued operations
         spawn_test_worker(operation_queue.clone());
@@ -1931,14 +1984,18 @@ mod workspace_tests {
         use tokio::fs;
 
         tokio::spawn(async move {
-            queue.process_with(|op| {
-                async move {
+            queue
+                .process_with(|op| async move {
                     match op.operation_type {
                         OperationType::CreateDir => {
                             fs::create_dir_all(&op.file_path).await?;
                         }
                         OperationType::CreateFile | OperationType::Write => {
-                            let content = op.params.get("content").and_then(|v| v.as_str()).unwrap_or("");
+                            let content = op
+                                .params
+                                .get("content")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("");
                             fs::write(&op.file_path, content).await?;
                         }
                         OperationType::Delete => {
@@ -1947,23 +2004,40 @@ mod workspace_tests {
                             }
                         }
                         OperationType::Rename => {
-                            let new_path_str = op.params.get("new_path").and_then(|v| v.as_str())
-                                .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "Missing new_path"))?;
+                            let new_path_str = op
+                                .params
+                                .get("new_path")
+                                .and_then(|v| v.as_str())
+                                .ok_or_else(|| {
+                                std::io::Error::new(std::io::ErrorKind::Other, "Missing new_path")
+                            })?;
                             fs::rename(&op.file_path, new_path_str).await?;
                         }
                         _ => {}
                     }
                     Ok(serde_json::Value::Null)
-                }
-            }).await;
+                })
+                .await;
         });
     }
 
-    fn create_test_service(temp_dir: &TempDir) -> (FileService, Arc<super::super::operation_queue::OperationQueue>) {
+    fn create_test_service(
+        temp_dir: &TempDir,
+    ) -> (
+        FileService,
+        Arc<super::super::operation_queue::OperationQueue>,
+    ) {
         let ast_cache = Arc::new(AstCache::new());
         let lock_manager = Arc::new(LockManager::new());
-        let operation_queue = Arc::new(super::super::operation_queue::OperationQueue::new(lock_manager.clone()));
-        let service = FileService::new(temp_dir.path(), ast_cache, lock_manager, operation_queue.clone());
+        let operation_queue = Arc::new(super::super::operation_queue::OperationQueue::new(
+            lock_manager.clone(),
+        ));
+        let service = FileService::new(
+            temp_dir.path(),
+            ast_cache,
+            lock_manager,
+            operation_queue.clone(),
+        );
 
         // Spawn background worker to process queued operations
         spawn_test_worker(operation_queue.clone());
@@ -2028,7 +2102,9 @@ members = [
         // This test doesn't need async operations, so create service directly
         let ast_cache = Arc::new(AstCache::new());
         let lock_manager = Arc::new(LockManager::new());
-        let operation_queue = Arc::new(super::super::operation_queue::OperationQueue::new(lock_manager.clone()));
+        let operation_queue = Arc::new(super::super::operation_queue::OperationQueue::new(
+            lock_manager.clone(),
+        ));
         let service = FileService::new(temp_dir.path(), ast_cache, lock_manager, operation_queue);
 
         // Moved deeper: 1 level

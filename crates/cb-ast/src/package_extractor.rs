@@ -7,8 +7,8 @@ use crate::error::AstResult;
 use crate::language::{
     GoAdapter, JavaAdapter, LanguageAdapter, PythonAdapter, RustAdapter, TypeScriptAdapter,
 };
-use cb_protocol::EditPlan;
 use cb_core::language::ProjectLanguage;
+use cb_protocol::EditPlan;
 use serde::Deserialize;
 use std::path::Path;
 use tracing::info;
@@ -210,8 +210,8 @@ fn remove_module_declaration(source: &str, module_name: &str) -> AstResult<Strin
 pub async fn plan_extract_module_to_package(
     params: ExtractModuleToPackageParams,
 ) -> AstResult<EditPlan> {
-    use cb_protocol::{EditPlanMetadata, ValidationRule, ValidationType};
     use cb_core::language::detect_project_language;
+    use cb_protocol::{EditPlanMetadata, ValidationRule, ValidationType};
     use serde_json::json;
     use std::collections::HashMap;
     use tracing::{debug, info};
@@ -395,7 +395,7 @@ pub async fn plan_extract_module_to_package(
         // Determine the parent module file path
         let module_segments: Vec<&str> = params
             .module_path
-            .split(|c| c == ':' || c == '.')
+            .split([':', '.'])
             .filter(|s| !s.is_empty())
             .collect();
 
@@ -560,8 +560,11 @@ pub async fn plan_extract_module_to_package(
                 if !workspace_cargo_toml.exists() {
                     let source_crate_rel = pathdiff::diff_paths(source_path, &workspace_root)
                         .unwrap_or_else(|| source_path.to_path_buf());
-                    let target_crate_rel = pathdiff::diff_paths(&params.target_package_path, &workspace_root)
-                        .unwrap_or_else(|| Path::new(&params.target_package_path).to_path_buf());
+                    let target_crate_rel =
+                        pathdiff::diff_paths(&params.target_package_path, &workspace_root)
+                            .unwrap_or_else(|| {
+                                Path::new(&params.target_package_path).to_path_buf()
+                            });
 
                     let workspace_content = format!(
                         r#"[workspace]
@@ -622,7 +625,8 @@ resolver = "2"
                                             original_text: workspace_content,
                                             new_text: updated_workspace,
                                             priority: 50,
-                                            description: "Add new crate to workspace members".to_string(),
+                                            description: "Add new crate to workspace members"
+                                                .to_string(),
                                         });
                                         debug!("Created workspace Cargo.toml update TextEdit");
                                     }
@@ -670,9 +674,8 @@ resolver = "2"
                             for import in imports {
                                 // Check if this import references the extracted module
                                 // The module path should start with "crate::" followed by our module path
-                                let module_path_normalized =
-                                    params.module_path.replace("::", "::").replace(".", "::");
-                                let patterns_to_match = vec![
+                                let module_path_normalized = params.module_path.replace('.', "::");
+                                let patterns_to_match = [
                                     format!("crate::{}", module_path_normalized),
                                     format!("self::{}", module_path_normalized),
                                     module_path_normalized.clone(),
@@ -1627,20 +1630,17 @@ pub fn module_function() {
         let edit_plan = result.unwrap();
 
         // Verify that a workspace Cargo.toml edit was created
-        let workspace_cargo_edit = edit_plan
-            .edits
-            .iter()
-            .find(|e| {
-                e.file_path
-                    .as_ref()
-                    .map(|p| {
-                        p.ends_with("Cargo.toml")
-                            && !p.contains("src_crate")
-                            && !p.contains("extracted_crate")
-                    })
-                    .unwrap_or(false)
-                    && (e.description.contains("workspace") || e.description.contains("members"))
-            });
+        let workspace_cargo_edit = edit_plan.edits.iter().find(|e| {
+            e.file_path
+                .as_ref()
+                .map(|p| {
+                    p.ends_with("Cargo.toml")
+                        && !p.contains("src_crate")
+                        && !p.contains("extracted_crate")
+                })
+                .unwrap_or(false)
+                && (e.description.contains("workspace") || e.description.contains("members"))
+        });
 
         assert!(
             workspace_cargo_edit.is_some(),

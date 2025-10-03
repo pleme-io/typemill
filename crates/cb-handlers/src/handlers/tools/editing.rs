@@ -7,9 +7,9 @@
 use super::{ToolHandler, ToolHandlerContext};
 use crate::handlers::compat::{ToolContext, ToolHandler as LegacyToolHandler};
 use crate::handlers::refactoring_handler::RefactoringHandler as LegacyRefactoringHandler;
-use cb_protocol::ApiResult as ServerResult;
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
+use cb_protocol::ApiResult as ServerResult;
 use serde_json::Value;
 
 pub struct EditingHandler {

@@ -1,4 +1,5 @@
 //! AST parsing functionality
+use crate::error::AstError;
 use crate::error::AstResult;
 use cb_protocol::{
     ImportGraph, ImportGraphMetadata, ImportInfo, ImportType, NamedImport, SourceLocation,
@@ -8,7 +9,6 @@ use petgraph::{Direction, Graph};
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
-use crate::error::AstError;
 use swc_common::{sync::Lrc, FileName, FilePathMapping, SourceMap};
 use swc_ecma_ast::{CallExpr, ExportDecl, Expr, ImportDecl, Lit, Str};
 use swc_ecma_parser::{lexer::Lexer, Parser, StringInput, Syntax, TsSyntax};
@@ -24,48 +24,40 @@ pub fn build_import_graph(source: &str, path: &Path) -> AstResult<ImportGraph> {
         _ => "unknown",
     };
     let imports = match language {
-        "typescript" | "javascript" => {
-            match parse_js_ts_imports_swc(source, path) {
-                Ok(swc_imports) => swc_imports,
-                Err(_) => {
-                    tracing::debug!(
-                        file_path = % path.display(),
-                        "SWC parsing failed, falling back to regex"
-                    );
-                    parse_js_ts_imports_enhanced(source)?
-                }
+        "typescript" | "javascript" => match parse_js_ts_imports_swc(source, path) {
+            Ok(swc_imports) => swc_imports,
+            Err(_) => {
+                tracing::debug!(
+                    file_path = % path.display(),
+                    "SWC parsing failed, falling back to regex"
+                );
+                parse_js_ts_imports_enhanced(source)?
             }
-        }
-        "python" => {
-            match crate::python_parser::parse_python_imports_ast(source) {
-                Ok(ast_imports) => ast_imports,
-                Err(_) => {
-                    tracing::debug!(
-                        file_path = % path.display(),
-                        "Python AST parsing failed, falling back to regex"
-                    );
-                    parse_python_imports(source)?
-                }
+        },
+        "python" => match crate::python_parser::parse_python_imports_ast(source) {
+            Ok(ast_imports) => ast_imports,
+            Err(_) => {
+                tracing::debug!(
+                    file_path = % path.display(),
+                    "Python AST parsing failed, falling back to regex"
+                );
+                parse_python_imports(source)?
             }
-        }
-        "rust" => {
-            match crate::rust_parser::parse_rust_imports_ast(source) {
-                Ok(ast_imports) => ast_imports,
-                Err(_) => {
-                    tracing::debug!("Rust AST parsing failed, falling back to regex");
-                    parse_rust_imports(source)?
-                }
+        },
+        "rust" => match crate::rust_parser::parse_rust_imports_ast(source) {
+            Ok(ast_imports) => ast_imports,
+            Err(_) => {
+                tracing::debug!("Rust AST parsing failed, falling back to regex");
+                parse_rust_imports(source)?
             }
-        }
-        "go" => {
-            match parse_go_imports_ast(source) {
-                Ok(ast_imports) => ast_imports,
-                Err(_) => {
-                    tracing::debug!("Go AST parsing failed, falling back to regex");
-                    parse_go_imports(source)?
-                }
+        },
+        "go" => match parse_go_imports_ast(source) {
+            Ok(ast_imports) => ast_imports,
+            Err(_) => {
+                tracing::debug!("Go AST parsing failed, falling back to regex");
+                parse_go_imports(source)?
             }
-        }
+        },
         _ => parse_imports_basic(source)?,
     };
     let external_dependencies = imports
@@ -152,16 +144,12 @@ impl Visit for ImportVisitor {
             match spec {
                 swc_ecma_ast::ImportSpecifier::Named(named) => {
                     let import_name = match &named.imported {
-                        Some(name) => {
-                            match name {
-                                swc_ecma_ast::ModuleExportName::Ident(ident) => {
-                                    ident.sym.to_string()
-                                }
-                                swc_ecma_ast::ModuleExportName::Str(str_lit) => {
-                                    str_lit.value.to_string()
-                                }
+                        Some(name) => match name {
+                            swc_ecma_ast::ModuleExportName::Ident(ident) => ident.sym.to_string(),
+                            swc_ecma_ast::ModuleExportName::Str(str_lit) => {
+                                str_lit.value.to_string()
                             }
-                        }
+                        },
                         None => named.local.sym.to_string(),
                     };
                     let alias = if named.local.sym != import_name {
@@ -169,12 +157,11 @@ impl Visit for ImportVisitor {
                     } else {
                         None
                     };
-                    named_imports
-                        .push(NamedImport {
-                            name: import_name,
-                            alias,
-                            type_only: named.is_type_only,
-                        });
+                    named_imports.push(NamedImport {
+                        name: import_name,
+                        alias,
+                        type_only: named.is_type_only,
+                    });
                 }
                 swc_ecma_ast::ImportSpecifier::Default(default) => {
                     default_import = Some(default.local.sym.to_string());
@@ -184,69 +171,62 @@ impl Visit for ImportVisitor {
                 }
             }
         }
-        self.imports
-            .push(ImportInfo {
-                module_path,
-                import_type: if type_only {
-                    ImportType::TypeOnly
-                } else {
-                    ImportType::EsModule
-                },
-                named_imports,
-                default_import,
-                namespace_import,
-                type_only,
-                location: SourceLocation {
-                    start_line: self.current_line,
-                    start_column: 0,
-                    end_line: self.current_line,
-                    end_column: 0,
-                },
-            });
+        self.imports.push(ImportInfo {
+            module_path,
+            import_type: if type_only {
+                ImportType::TypeOnly
+            } else {
+                ImportType::EsModule
+            },
+            named_imports,
+            default_import,
+            namespace_import,
+            type_only,
+            location: SourceLocation {
+                start_line: self.current_line,
+                start_column: 0,
+                end_line: self.current_line,
+                end_column: 0,
+            },
+        });
     }
     fn visit_call_expr(&mut self, n: &CallExpr) {
         if let swc_ecma_ast::Callee::Expr(callee_expr) = &n.callee {
             if let Expr::Ident(ident) = &**callee_expr {
                 if ident.sym == "import" && n.args.len() == 1 {
-                    if let Some(module_path) = Self::extract_string_literal(
-                        &n.args[0].expr,
-                    ) {
-                        self.imports
-                            .push(ImportInfo {
-                                module_path,
-                                import_type: ImportType::Dynamic,
-                                named_imports: Vec::new(),
-                                default_import: None,
-                                namespace_import: None,
-                                type_only: false,
-                                location: SourceLocation {
-                                    start_line: self.current_line,
-                                    start_column: 0,
-                                    end_line: self.current_line,
-                                    end_column: 0,
-                                },
-                            });
+                    if let Some(module_path) = Self::extract_string_literal(&n.args[0].expr) {
+                        self.imports.push(ImportInfo {
+                            module_path,
+                            import_type: ImportType::Dynamic,
+                            named_imports: Vec::new(),
+                            default_import: None,
+                            namespace_import: None,
+                            type_only: false,
+                            location: SourceLocation {
+                                start_line: self.current_line,
+                                start_column: 0,
+                                end_line: self.current_line,
+                                end_column: 0,
+                            },
+                        });
                     }
                 }
                 if ident.sym == "require" && n.args.len() == 1 {
-                    if let Some(module_path) = Self::extract_string_literal(
-                        &n.args[0].expr,
-                    ) {
-                        self.imports
-                            .push(ImportInfo {
-                                module_path,
-                                import_type: ImportType::CommonJs,
-                                named_imports: Vec::new(),
-                                default_import: None,
-                                namespace_import: None,
-                                type_only: false,
-                                location: SourceLocation {
-                                    start_line: self.current_line,
-                                    start_column: 0,
-                                    end_line: self.current_line,
-                                    end_column: 0,
-                                },
-                            });
+                    if let Some(module_path) = Self::extract_string_literal(&n.args[0].expr) {
+                        self.imports.push(ImportInfo {
+                            module_path,
+                            import_type: ImportType::CommonJs,
+                            named_imports: Vec::new(),
+                            default_import: None,
+                            namespace_import: None,
+                            type_only: false,
+                            location: SourceLocation {
+                                start_line: self.current_line,
+                                start_column: 0,
+                                end_line: self.current_line,
+                                end_column: 0,
+                            },
+                        });
                     }
                 }
             }
@@ -267,9 +247,9 @@ pub fn parse_js_ts_imports_enhanced(source: &str) -> AstResult<Vec<ImportInfo>> 
     let dynamic_import_re = Regex::new(r#"import\s*\(\s*['"]([^'"]+)['"]\s*\)"#)
         .expect("Dynamic import regex pattern should be valid");
     let require_re = Regex::new(
-            r#"(?:const|let|var)\s+(?:\{([^}]+)\}|(\w+))\s*=\s*require\s*\(\s*['"]([^'"]+)['"]\s*\)"#,
-        )
-        .expect("Require regex pattern should be valid");
+        r#"(?:const|let|var)\s+(?:\{([^}]+)\}|(\w+))\s*=\s*require\s*\(\s*['"]([^'"]+)['"]\s*\)"#,
+    )
+    .expect("Require regex pattern should be valid");
     let direct_require_re = Regex::new(r#"require\s*\(\s*['"]([^'"]+)['"]\s*\)"#)
         .expect("Direct require regex pattern should be valid");
     for (line_num, line) in source.lines().enumerate() {
@@ -294,52 +274,48 @@ pub fn parse_js_ts_imports_enhanced(source: &str) -> AstResult<Vec<ImportInfo>> 
             } else {
                 Vec::new()
             };
-            imports
-                .push(ImportInfo {
-                    module_path,
-                    import_type: if type_only {
-                        ImportType::TypeOnly
-                    } else {
-                        ImportType::EsModule
-                    },
-                    named_imports,
-                    default_import,
-                    namespace_import: if is_namespace { namespace_name } else { None },
-                    type_only,
-                    location: SourceLocation {
-                        start_line: line_num as u32,
-                        start_column: 0,
-                        end_line: line_num as u32,
-                        end_column: line.len() as u32,
-                    },
-                });
+            imports.push(ImportInfo {
+                module_path,
+                import_type: if type_only {
+                    ImportType::TypeOnly
+                } else {
+                    ImportType::EsModule
+                },
+                named_imports,
+                default_import,
+                namespace_import: if is_namespace { namespace_name } else { None },
+                type_only,
+                location: SourceLocation {
+                    start_line: line_num as u32,
+                    start_column: 0,
+                    end_line: line_num as u32,
+                    end_column: line.len() as u32,
+                },
+            });
         }
         for captures in dynamic_import_re.captures_iter(line) {
             let module_path = captures
                 .get(1)
-                .expect(
-                    "Dynamic import regex should always capture module path at index 1",
-                )
+                .expect("Dynamic import regex should always capture module path at index 1")
                 .as_str()
                 .to_string();
             let full_match = captures
                 .get(0)
                 .expect("Regex match should always have capture group 0");
-            imports
-                .push(ImportInfo {
-                    module_path,
-                    import_type: ImportType::Dynamic,
-                    named_imports: Vec::new(),
-                    default_import: None,
-                    namespace_import: None,
-                    type_only: false,
-                    location: SourceLocation {
-                        start_line: line_num as u32,
-                        start_column: full_match.start() as u32,
-                        end_line: line_num as u32,
-                        end_column: full_match.end() as u32,
-                    },
-                });
+            imports.push(ImportInfo {
+                module_path,
+                import_type: ImportType::Dynamic,
+                named_imports: Vec::new(),
+                default_import: None,
+                namespace_import: None,
+                type_only: false,
+                location: SourceLocation {
+                    start_line: line_num as u32,
+                    start_column: full_match.start() as u32,
+                    end_line: line_num as u32,
+                    end_column: full_match.end() as u32,
+                },
+            });
         }
         if let Some(captures) = require_re.captures(line) {
             let module_path = captures
@@ -353,47 +329,43 @@ pub fn parse_js_ts_imports_enhanced(source: &str) -> AstResult<Vec<ImportInfo>> 
                 Vec::new()
             };
             let default_import = captures.get(2).map(|m| m.as_str().to_string());
-            imports
-                .push(ImportInfo {
-                    module_path,
-                    import_type: ImportType::CommonJs,
-                    named_imports,
-                    default_import,
-                    namespace_import: None,
-                    type_only: false,
-                    location: SourceLocation {
-                        start_line: line_num as u32,
-                        start_column: 0,
-                        end_line: line_num as u32,
-                        end_column: line.len() as u32,
-                    },
-                });
+            imports.push(ImportInfo {
+                module_path,
+                import_type: ImportType::CommonJs,
+                named_imports,
+                default_import,
+                namespace_import: None,
+                type_only: false,
+                location: SourceLocation {
+                    start_line: line_num as u32,
+                    start_column: 0,
+                    end_line: line_num as u32,
+                    end_column: line.len() as u32,
+                },
+            });
         } else if let Some(captures) = direct_require_re.captures(line) {
             let module_path = captures
                 .get(1)
-                .expect(
-                    "Direct require regex should always capture module path at index 1",
-                )
+                .expect("Direct require regex should always capture module path at index 1")
                 .as_str()
                 .to_string();
             let full_match = captures
                 .get(0)
                 .expect("Regex match should always have capture group 0");
-            imports
-                .push(ImportInfo {
-                    module_path,
-                    import_type: ImportType::CommonJs,
-                    named_imports: Vec::new(),
-                    default_import: None,
-                    namespace_import: None,
-                    type_only: false,
-                    location: SourceLocation {
-                        start_line: line_num as u32,
-                        start_column: full_match.start() as u32,
-                        end_line: line_num as u32,
-                        end_column: full_match.end() as u32,
-                    },
-                });
+            imports.push(ImportInfo {
+                module_path,
+                import_type: ImportType::CommonJs,
+                named_imports: Vec::new(),
+                default_import: None,
+                namespace_import: None,
+                type_only: false,
+                location: SourceLocation {
+                    start_line: line_num as u32,
+                    start_column: full_match.start() as u32,
+                    end_line: line_num as u32,
+                    end_column: full_match.end() as u32,
+                },
+            });
         }
     }
     Ok(imports)
@@ -411,12 +383,11 @@ fn parse_named_imports_enhanced(named_str: &str) -> AstResult<Vec<NamedImport>> 
             .as_str()
             .to_string();
         let alias = captures.get(3).map(|m| m.as_str().to_string());
-        named_imports
-            .push(NamedImport {
-                name,
-                alias,
-                type_only,
-            });
+        named_imports.push(NamedImport {
+            name,
+            alias,
+            type_only,
+        });
     }
     Ok(named_imports)
 }
@@ -451,29 +422,26 @@ fn parse_es_import(line: &str, line_num: u32) -> AstResult<Option<ImportInfo>> {
             .trim_matches('\'')
             .trim_end_matches(';');
         let type_only = line.contains("import type");
-        let (default_import, named_imports, namespace_import) = parse_import_specifiers(
-            import_part,
-        )?;
-        return Ok(
-            Some(ImportInfo {
-                module_path: module_path.to_string(),
-                import_type: if type_only {
-                    ImportType::TypeOnly
-                } else {
-                    ImportType::EsModule
-                },
-                named_imports,
-                default_import,
-                namespace_import,
-                type_only,
-                location: SourceLocation {
-                    start_line: line_num,
-                    start_column: 0,
-                    end_line: line_num,
-                    end_column: line.len() as u32,
-                },
-            }),
-        );
+        let (default_import, named_imports, namespace_import) =
+            parse_import_specifiers(import_part)?;
+        return Ok(Some(ImportInfo {
+            module_path: module_path.to_string(),
+            import_type: if type_only {
+                ImportType::TypeOnly
+            } else {
+                ImportType::EsModule
+            },
+            named_imports,
+            default_import,
+            namespace_import,
+            type_only,
+            location: SourceLocation {
+                start_line: line_num,
+                start_column: 0,
+                end_line: line_num,
+                end_column: line.len() as u32,
+            },
+        }));
     }
     Ok(None)
 }
@@ -485,22 +453,20 @@ fn parse_commonjs_require(line: &str, line_num: u32) -> AstResult<Option<ImportI
             let module_path = &require_part[..end_paren]
                 .trim_matches('"')
                 .trim_matches('\'');
-            return Ok(
-                Some(ImportInfo {
-                    module_path: module_path.to_string(),
-                    import_type: ImportType::CommonJs,
-                    named_imports: Vec::new(),
-                    default_import: None,
-                    namespace_import: None,
-                    type_only: false,
-                    location: SourceLocation {
-                        start_line: line_num,
-                        start_column: require_start as u32,
-                        end_line: line_num,
-                        end_column: (require_start + 8 + end_paren + 1) as u32,
-                    },
-                }),
-            );
+            return Ok(Some(ImportInfo {
+                module_path: module_path.to_string(),
+                import_type: ImportType::CommonJs,
+                named_imports: Vec::new(),
+                default_import: None,
+                namespace_import: None,
+                type_only: false,
+                location: SourceLocation {
+                    start_line: line_num,
+                    start_column: require_start as u32,
+                    end_line: line_num,
+                    end_column: (require_start + 8 + end_paren + 1) as u32,
+                },
+            }));
         }
     }
     Ok(None)
@@ -513,22 +479,20 @@ fn parse_dynamic_import(line: &str, line_num: u32) -> AstResult<Option<ImportInf
             let module_path = &import_part[..end_paren]
                 .trim_matches('"')
                 .trim_matches('\'');
-            return Ok(
-                Some(ImportInfo {
-                    module_path: module_path.to_string(),
-                    import_type: ImportType::Dynamic,
-                    named_imports: Vec::new(),
-                    default_import: None,
-                    namespace_import: None,
-                    type_only: false,
-                    location: SourceLocation {
-                        start_line: line_num,
-                        start_column: import_start as u32,
-                        end_line: line_num,
-                        end_column: (import_start + 7 + end_paren + 1) as u32,
-                    },
-                }),
-            );
+            return Ok(Some(ImportInfo {
+                module_path: module_path.to_string(),
+                import_type: ImportType::Dynamic,
+                named_imports: Vec::new(),
+                default_import: None,
+                namespace_import: None,
+                type_only: false,
+                location: SourceLocation {
+                    start_line: line_num,
+                    start_column: import_start as u32,
+                    end_line: line_num,
+                    end_column: (import_start + 7 + end_paren + 1) as u32,
+                },
+            }));
         }
     }
     Ok(None)
@@ -581,19 +545,17 @@ fn parse_named_imports(inner: &str) -> AstResult<Vec<NamedImport>> {
         if let Some(as_pos) = item.find(" as ") {
             let name = item[..as_pos].trim().to_string();
             let alias = item[as_pos + 4..].trim().to_string();
-            named_imports
-                .push(NamedImport {
-                    name,
-                    alias: Some(alias),
-                    type_only,
-                });
+            named_imports.push(NamedImport {
+                name,
+                alias: Some(alias),
+                type_only,
+            });
         } else {
-            named_imports
-                .push(NamedImport {
-                    name: item.to_string(),
-                    alias: None,
-                    type_only,
-                });
+            named_imports.push(NamedImport {
+                name: item.to_string(),
+                alias: None,
+                type_only,
+            });
         }
     }
     Ok(named_imports)
@@ -610,40 +572,39 @@ fn parse_python_imports(source: &str) -> AstResult<Vec<ImportInfo>> {
                 if let Some(as_pos) = module.find(" as ") {
                     let module_name = module[..as_pos].trim();
                     let alias = module[as_pos + 4..].trim();
-                    imports
-                        .push(ImportInfo {
-                            module_path: module_name.to_string(),
-                            import_type: ImportType::EsModule,
-                            named_imports: vec![
-                                NamedImport { name : alias.to_string(), alias : None,
-                                type_only : false, }
-                            ],
-                            default_import: None,
-                            namespace_import: None,
+                    imports.push(ImportInfo {
+                        module_path: module_name.to_string(),
+                        import_type: ImportType::EsModule,
+                        named_imports: vec![NamedImport {
+                            name: alias.to_string(),
+                            alias: None,
                             type_only: false,
-                            location: SourceLocation {
-                                start_line: line_num as u32,
-                                start_column: 0,
-                                end_line: line_num as u32,
-                                end_column: line.len() as u32,
-                            },
-                        });
+                        }],
+                        default_import: None,
+                        namespace_import: None,
+                        type_only: false,
+                        location: SourceLocation {
+                            start_line: line_num as u32,
+                            start_column: 0,
+                            end_line: line_num as u32,
+                            end_column: line.len() as u32,
+                        },
+                    });
                 } else {
-                    imports
-                        .push(ImportInfo {
-                            module_path: module.to_string(),
-                            import_type: ImportType::EsModule,
-                            named_imports: Vec::new(),
-                            default_import: None,
-                            namespace_import: Some(module.to_string()),
-                            type_only: false,
-                            location: SourceLocation {
-                                start_line: line_num as u32,
-                                start_column: 0,
-                                end_line: line_num as u32,
-                                end_column: line.len() as u32,
-                            },
-                        });
+                    imports.push(ImportInfo {
+                        module_path: module.to_string(),
+                        import_type: ImportType::EsModule,
+                        named_imports: Vec::new(),
+                        default_import: None,
+                        namespace_import: Some(module.to_string()),
+                        type_only: false,
+                        location: SourceLocation {
+                            start_line: line_num as u32,
+                            start_column: 0,
+                            end_line: line_num as u32,
+                            end_column: line.len() as u32,
+                        },
+                    });
                 }
             }
         } else if line.starts_with("from ") && line.contains(" import ") {
@@ -680,21 +641,20 @@ fn parse_python_imports(source: &str) -> AstResult<Vec<ImportInfo>> {
                 } else {
                     None
                 };
-                imports
-                    .push(ImportInfo {
-                        module_path: module_part.to_string(),
-                        import_type: ImportType::EsModule,
-                        named_imports,
-                        default_import: None,
-                        namespace_import,
-                        type_only: false,
-                        location: SourceLocation {
-                            start_line: line_num as u32,
-                            start_column: 0,
-                            end_line: line_num as u32,
-                            end_column: line.len() as u32,
-                        },
-                    });
+                imports.push(ImportInfo {
+                    module_path: module_part.to_string(),
+                    import_type: ImportType::EsModule,
+                    named_imports,
+                    default_import: None,
+                    namespace_import,
+                    type_only: false,
+                    location: SourceLocation {
+                        start_line: line_num as u32,
+                        start_column: 0,
+                        end_line: line_num as u32,
+                        end_column: line.len() as u32,
+                    },
+                });
             }
         }
     }
@@ -708,6 +668,7 @@ fn parse_python_imports(source: &str) -> AstResult<Vec<ImportInfo>> {
 /// - Glob imports: `use module::*;`
 /// - Aliased imports: `use std::collections::HashMap as Map;`
 /// - Nested groups: `use std::{io::{self, Read}, collections::*};`
+///
 /// Parse Rust imports using regex (fallback implementation)
 fn parse_rust_imports(source: &str) -> AstResult<Vec<ImportInfo>> {
     let mut imports = Vec::new();
@@ -720,63 +681,58 @@ fn parse_rust_imports(source: &str) -> AstResult<Vec<ImportInfo>> {
                 let module_path = parts[..parts.len() - 1].join("::");
                 let imported_item = parts
                     .last()
-                    .expect(
-                        "use statement with :: should have at least one part after split",
-                    );
-                let (named_imports, namespace_import) = if imported_item.contains('{')
-                    && imported_item.contains('}')
-                {
-                    let inner = imported_item
-                        .trim_start_matches('{')
-                        .trim_end_matches('}');
-                    let named = inner
-                        .split(',')
-                        .map(|name| {
-                            let name = name.trim();
-                            if let Some(as_pos) = name.find(" as ") {
-                                let original = name[..as_pos].trim();
-                                let alias = name[as_pos + 4..].trim();
-                                NamedImport {
-                                    name: original.to_string(),
-                                    alias: Some(alias.to_string()),
-                                    type_only: false,
+                    .expect("use statement with :: should have at least one part after split");
+                let (named_imports, namespace_import) =
+                    if imported_item.contains('{') && imported_item.contains('}') {
+                        let inner = imported_item.trim_start_matches('{').trim_end_matches('}');
+                        let named = inner
+                            .split(',')
+                            .map(|name| {
+                                let name = name.trim();
+                                if let Some(as_pos) = name.find(" as ") {
+                                    let original = name[..as_pos].trim();
+                                    let alias = name[as_pos + 4..].trim();
+                                    NamedImport {
+                                        name: original.to_string(),
+                                        alias: Some(alias.to_string()),
+                                        type_only: false,
+                                    }
+                                } else {
+                                    NamedImport {
+                                        name: name.to_string(),
+                                        alias: None,
+                                        type_only: false,
+                                    }
                                 }
-                            } else {
-                                NamedImport {
-                                    name: name.to_string(),
-                                    alias: None,
-                                    type_only: false,
-                                }
-                            }
-                        })
-                        .collect();
-                    (named, None)
-                } else if *imported_item == "*" {
-                    (Vec::new(), Some(module_path.clone()))
-                } else {
-                    (
-                        vec![
-                            NamedImport { name : imported_item.to_string(), alias : None,
-                            type_only : false, }
-                        ],
-                        None,
-                    )
-                };
-                imports
-                    .push(ImportInfo {
-                        module_path,
-                        import_type: ImportType::EsModule,
-                        named_imports,
-                        default_import: None,
-                        namespace_import,
-                        type_only: false,
-                        location: SourceLocation {
-                            start_line: line_num as u32,
-                            start_column: 0,
-                            end_line: line_num as u32,
-                            end_column: line.len() as u32,
-                        },
-                    });
+                            })
+                            .collect();
+                        (named, None)
+                    } else if *imported_item == "*" {
+                        (Vec::new(), Some(module_path.clone()))
+                    } else {
+                        (
+                            vec![NamedImport {
+                                name: imported_item.to_string(),
+                                alias: None,
+                                type_only: false,
+                            }],
+                            None,
+                        )
+                    };
+                imports.push(ImportInfo {
+                    module_path,
+                    import_type: ImportType::EsModule,
+                    named_imports,
+                    default_import: None,
+                    namespace_import,
+                    type_only: false,
+                    location: SourceLocation {
+                        start_line: line_num as u32,
+                        start_column: 0,
+                        end_line: line_num as u32,
+                        end_column: line.len() as u32,
+                    },
+                });
             }
         }
     }
@@ -797,11 +753,10 @@ fn parse_go_imports_ast(source: &str) -> AstResult<Vec<ImportInfo>> {
         .join("resources")
         .join("ast_tool.go");
     if !ast_tool_path.exists() {
-        return Err(
-            AstError::analysis(
-                format!("Go AST tool not found at: {}", ast_tool_path.display()),
-            ),
-        );
+        return Err(AstError::analysis(format!(
+            "Go AST tool not found at: {}",
+            ast_tool_path.display()
+        )));
     }
     let mut child = Command::new("go")
         .arg("run")
@@ -815,24 +770,21 @@ fn parse_go_imports_ast(source: &str) -> AstResult<Vec<ImportInfo>> {
     if let Some(mut stdin) = child.stdin.take() {
         stdin
             .write_all(source.as_bytes())
-            .map_err(|e| AstError::analysis(
-                format!("Failed to write to Go AST tool: {}", e),
-            ))?;
+            .map_err(|e| AstError::analysis(format!("Failed to write to Go AST tool: {}", e)))?;
     }
     let output = child
         .wait_with_output()
-        .map_err(|e| AstError::analysis(
-            format!("Failed to wait for Go AST tool: {}", e),
-        ))?;
+        .map_err(|e| AstError::analysis(format!("Failed to wait for Go AST tool: {}", e)))?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(AstError::analysis(format!("Go AST tool failed: {}", stderr)));
+        return Err(AstError::analysis(format!(
+            "Go AST tool failed: {}",
+            stderr
+        )));
     }
     let stdout = String::from_utf8_lossy(&output.stdout);
     let imports: Vec<ImportInfo> = serde_json::from_str(&stdout)
-        .map_err(|e| AstError::analysis(
-            format!("Failed to parse Go AST tool output: {}", e),
-        ))?;
+        .map_err(|e| AstError::analysis(format!("Failed to parse Go AST tool output: {}", e)))?;
     Ok(imports)
 }
 /// Parse Go imports using regex (fallback implementation)
@@ -860,10 +812,7 @@ fn parse_go_imports(source: &str) -> AstResult<Vec<ImportInfo>> {
                     break;
                 }
                 if block_line.contains('"') && !block_line.is_empty() {
-                    if let Some(import_info) = parse_go_block_import(
-                        block_line,
-                        i as u32,
-                    )? {
+                    if let Some(import_info) = parse_go_block_import(block_line, i as u32)? {
                         imports.push(import_info);
                     }
                 }
@@ -881,8 +830,7 @@ fn parse_go_single_import(line: &str, line_num: u32) -> AstResult<Option<ImportI
     let import_part = import_part.trim();
     if let Some(start_quote) = import_part.find('"') {
         if let Some(end_quote) = import_part[start_quote + 1..].find('"') {
-            let package_path = &import_part[start_quote
-                + 1..start_quote + 1 + end_quote];
+            let package_path = &import_part[start_quote + 1..start_quote + 1 + end_quote];
             let alias = if start_quote > 0 {
                 let alias_part = import_part[..start_quote].trim();
                 if alias_part == "." {
@@ -897,32 +845,30 @@ fn parse_go_single_import(line: &str, line_num: u32) -> AstResult<Option<ImportI
             } else {
                 None
             };
-            return Ok(
-                Some(ImportInfo {
-                    module_path: package_path.to_string(),
-                    import_type: ImportType::EsModule,
-                    named_imports: Vec::new(),
-                    default_import: alias.clone(),
-                    namespace_import: if alias.is_some() {
-                        None
-                    } else {
-                        Some(
-                            package_path
-                                .split('/')
-                                .next_back()
-                                .unwrap_or(package_path)
-                                .to_string(),
-                        )
-                    },
-                    type_only: false,
-                    location: SourceLocation {
-                        start_line: line_num,
-                        start_column: 0,
-                        end_line: line_num,
-                        end_column: line.len() as u32,
-                    },
-                }),
-            );
+            return Ok(Some(ImportInfo {
+                module_path: package_path.to_string(),
+                import_type: ImportType::EsModule,
+                named_imports: Vec::new(),
+                default_import: alias.clone(),
+                namespace_import: if alias.is_some() {
+                    None
+                } else {
+                    Some(
+                        package_path
+                            .split('/')
+                            .next_back()
+                            .unwrap_or(package_path)
+                            .to_string(),
+                    )
+                },
+                type_only: false,
+                location: SourceLocation {
+                    start_line: line_num,
+                    start_column: 0,
+                    end_line: line_num,
+                    end_column: line.len() as u32,
+                },
+            }));
         }
     }
     Ok(None)
@@ -947,32 +893,30 @@ fn parse_go_block_import(line: &str, line_num: u32) -> AstResult<Option<ImportIn
             } else {
                 None
             };
-            return Ok(
-                Some(ImportInfo {
-                    module_path: package_path.to_string(),
-                    import_type: ImportType::EsModule,
-                    named_imports: Vec::new(),
-                    default_import: alias.clone(),
-                    namespace_import: if alias.is_some() {
-                        None
-                    } else {
-                        Some(
-                            package_path
-                                .split('/')
-                                .next_back()
-                                .unwrap_or(package_path)
-                                .to_string(),
-                        )
-                    },
-                    type_only: false,
-                    location: SourceLocation {
-                        start_line: line_num,
-                        start_column: 0,
-                        end_line: line_num,
-                        end_column: line.len() as u32,
-                    },
-                }),
-            );
+            return Ok(Some(ImportInfo {
+                module_path: package_path.to_string(),
+                import_type: ImportType::EsModule,
+                named_imports: Vec::new(),
+                default_import: alias.clone(),
+                namespace_import: if alias.is_some() {
+                    None
+                } else {
+                    Some(
+                        package_path
+                            .split('/')
+                            .next_back()
+                            .unwrap_or(package_path)
+                            .to_string(),
+                    )
+                },
+                type_only: false,
+                location: SourceLocation {
+                    start_line: line_num,
+                    start_column: 0,
+                    end_line: line_num,
+                    end_column: line.len() as u32,
+                },
+            }));
         }
     }
     Ok(None)
@@ -988,7 +932,8 @@ fn is_external_dependency(module_path: &str) -> bool {
     if module_path.starts_with("@") {
         return true;
     }
-    !module_path.contains("/") || module_path.contains("node_modules")
+    !module_path.contains("/")
+        || module_path.contains("node_modules")
         || !module_path.starts_with(".")
 }
 /// Build a dependency graph for a collection of files
@@ -1054,10 +999,9 @@ impl DependencyGraph {
     }
     /// Check if there's a dependency path between two files
     pub fn has_dependency_path(&self, from: &str, to: &str) -> bool {
-        if let (Some(&from_node), Some(&to_node)) = (
-            self.file_nodes.get(from),
-            self.file_nodes.get(to),
-        ) {
+        if let (Some(&from_node), Some(&to_node)) =
+            (self.file_nodes.get(from), self.file_nodes.get(to))
+        {
             petgraph::algo::has_path_connecting(&self.graph, from_node, to_node, None)
         } else {
             false
@@ -1128,10 +1072,7 @@ fn find_cycles_dfs(
         if !visited.contains(&neighbor) {
             find_cycles_dfs(graph, neighbor, visited, rec_stack, path, cycles);
         } else if rec_stack.contains(&neighbor) {
-            let cycle_start = path
-                .iter()
-                .position(|p| p == &graph[neighbor])
-                .unwrap_or(0);
+            let cycle_start = path.iter().position(|p| p == &graph[neighbor]).unwrap_or(0);
             let cycle = path[cycle_start..].to_vec();
             cycles.push(cycle);
         }
@@ -1168,7 +1109,10 @@ import { Button as CustomButton } from '@ui/components';
         assert_eq!(imports[3].namespace_import, Some("utils".to_string()));
         assert_eq!(imports[4].module_path, "@ui/components");
         assert_eq!(imports[4].named_imports[0].name, "Button");
-        assert_eq!(imports[4].named_imports[0].alias, Some("CustomButton".to_string()));
+        assert_eq!(
+            imports[4].named_imports[0].alias,
+            Some("CustomButton".to_string())
+        );
     }
     #[test]
     fn test_parse_commonjs_requires() {
@@ -1225,7 +1169,10 @@ from ..config import settings
         assert_eq!(imports[3].named_imports.len(), 2);
         assert_eq!(imports[3].named_imports[0].name, "Dict");
         assert_eq!(imports[3].named_imports[1].name, "List");
-        assert_eq!(imports[3].named_imports[1].alias, Some("ArrayList".to_string()));
+        assert_eq!(
+            imports[3].named_imports[1].alias,
+            Some("ArrayList".to_string())
+        );
     }
     #[test]
     fn test_parse_rust_imports() {
@@ -1260,38 +1207,68 @@ require('dotenv/config');
         assert_eq!(graph.source_file, "src/index.ts");
         assert_eq!(graph.imports.len(), 4);
         assert_eq!(graph.metadata.language, "typescript");
-        assert!(graph.metadata.external_dependencies.contains(& "react".to_string()));
-        assert!(
-            graph.metadata.external_dependencies.contains(& "@shared/utils".to_string())
-        );
-        assert!(
-            graph.metadata.external_dependencies.contains(& "dotenv/config".to_string())
-        );
+        assert!(graph
+            .metadata
+            .external_dependencies
+            .contains(&"react".to_string()));
+        assert!(graph
+            .metadata
+            .external_dependencies
+            .contains(&"@shared/utils".to_string()));
+        assert!(graph
+            .metadata
+            .external_dependencies
+            .contains(&"dotenv/config".to_string()));
     }
     #[test]
     fn test_is_external_dependency() {
         assert!(is_external_dependency("react"));
         assert!(is_external_dependency("@types/node"));
         assert!(is_external_dependency("lodash"));
-        assert!(! is_external_dependency("./component"));
-        assert!(! is_external_dependency("../utils"));
-        assert!(! is_external_dependency("src/types"));
+        assert!(!is_external_dependency("./component"));
+        assert!(!is_external_dependency("../utils"));
+        assert!(!is_external_dependency("src/types"));
     }
     #[test]
     fn test_dependency_graph() {
         let graphs = vec![
-            ImportGraph { source_file : "a.ts".to_string(), imports : vec![ImportInfo {
-            module_path : "./b".to_string(), import_type : ImportType::EsModule,
-            named_imports : vec![], default_import : None, namespace_import : None,
-            type_only : false, location : SourceLocation { start_line : 0, start_column :
-            0, end_line : 0, end_column : 20, }, }], importers : vec![], metadata :
-            ImportGraphMetadata { language : "typescript".to_string(), parsed_at :
-            chrono::Utc::now(), parser_version : "0.2.0".to_string(),
-            circular_dependencies : vec![], external_dependencies : vec![], }, },
-            ImportGraph { source_file : "b.ts".to_string(), imports : vec![], importers :
-            vec![], metadata : ImportGraphMetadata { language : "typescript".to_string(),
-            parsed_at : chrono::Utc::now(), parser_version : "0.2.0".to_string(),
-            circular_dependencies : vec![], external_dependencies : vec![], }, },
+            ImportGraph {
+                source_file: "a.ts".to_string(),
+                imports: vec![ImportInfo {
+                    module_path: "./b".to_string(),
+                    import_type: ImportType::EsModule,
+                    named_imports: vec![],
+                    default_import: None,
+                    namespace_import: None,
+                    type_only: false,
+                    location: SourceLocation {
+                        start_line: 0,
+                        start_column: 0,
+                        end_line: 0,
+                        end_column: 20,
+                    },
+                }],
+                importers: vec![],
+                metadata: ImportGraphMetadata {
+                    language: "typescript".to_string(),
+                    parsed_at: chrono::Utc::now(),
+                    parser_version: "0.2.0".to_string(),
+                    circular_dependencies: vec![],
+                    external_dependencies: vec![],
+                },
+            },
+            ImportGraph {
+                source_file: "b.ts".to_string(),
+                imports: vec![],
+                importers: vec![],
+                metadata: ImportGraphMetadata {
+                    language: "typescript".to_string(),
+                    parsed_at: chrono::Utc::now(),
+                    parser_version: "0.2.0".to_string(),
+                    circular_dependencies: vec![],
+                    external_dependencies: vec![],
+                },
+            },
         ];
         let dep_graph = build_dependency_graph(&graphs);
         assert!(dep_graph.file_nodes.contains_key("a.ts"));
@@ -1308,14 +1285,14 @@ require('dotenv/config');
         assert_eq!(imports.len(), 4);
         assert_eq!(imports[0].name, "useState");
         assert_eq!(imports[0].alias, None);
-        assert!(! imports[0].type_only);
+        assert!(!imports[0].type_only);
         assert_eq!(imports[1].name, "useEffect");
-        assert!(! imports[1].type_only);
+        assert!(!imports[1].type_only);
         assert_eq!(imports[2].name, "User");
         assert!(imports[2].type_only);
         assert_eq!(imports[3].name, "Button");
         assert_eq!(imports[3].alias, Some("CustomButton".to_string()));
-        assert!(! imports[3].type_only);
+        assert!(!imports[3].type_only);
     }
     #[test]
     fn test_parse_go_imports() {
@@ -1338,7 +1315,10 @@ func main() {
         let imports = parse_go_imports(source).unwrap();
         println!("Found {} imports:", imports.len());
         for (i, import) in imports.iter().enumerate() {
-            println!("  {}: {} -> {:?}", i, import.module_path, import.default_import);
+            println!(
+                "  {}: {} -> {:?}",
+                i, import.module_path, import.default_import
+            );
         }
         assert_eq!(imports.len(), 8);
         assert_eq!(imports[0].module_path, "fmt");

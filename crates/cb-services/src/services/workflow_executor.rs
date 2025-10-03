@@ -1,8 +1,8 @@
 //! The WorkflowExecutor service for executing multi-step workflows.
 
-use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use cb_core::model::workflow::Workflow;
 use cb_plugins::{PluginManager, PluginRequest};
+use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use dashmap::DashMap;
 use serde_json::{json, Value};
 use std::collections::HashMap;

@@ -2,8 +2,8 @@
 
 use super::client::ExternalMcpClient;
 use super::error::{McpProxyError, McpProxyResult};
+use crate::{PluginError, PluginRequest, PluginResponse, PluginResult};
 use cb_core::config::ExternalMcpServerConfig;
-use crate::{PluginRequest, PluginResponse, PluginResult, PluginError};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;

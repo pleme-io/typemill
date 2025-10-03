@@ -38,7 +38,11 @@ impl Manifest for CargoManifest {
         new_path: Option<&str>,
     ) -> AstResult<()> {
         // Update in [dependencies]
-        if let Some(deps) = self.0.get_mut("dependencies").and_then(Item::as_table_like_mut) {
+        if let Some(deps) = self
+            .0
+            .get_mut("dependencies")
+            .and_then(Item::as_table_like_mut)
+        {
             if deps.contains_key(old_name) {
                 // Create new dependency entry
                 let mut new_dep_table = toml_edit::InlineTable::new();
@@ -132,9 +136,11 @@ impl Manifest for NpmManifest {
 pub fn load_manifest(path: &Path, content: &str) -> AstResult<Box<dyn Manifest>> {
     match path.file_name().and_then(|s| s.to_str()) {
         Some("Cargo.toml") => {
-            let doc = content.parse::<DocumentMut>().map_err(|e| AstError::Analysis {
-                message: format!("Failed to parse Cargo.toml: {}", e),
-            })?;
+            let doc = content
+                .parse::<DocumentMut>()
+                .map_err(|e| AstError::Analysis {
+                    message: format!("Failed to parse Cargo.toml: {}", e),
+                })?;
             Ok(Box::new(CargoManifest(doc)))
         }
         Some("package.json") => {

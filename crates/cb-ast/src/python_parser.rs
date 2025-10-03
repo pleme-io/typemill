@@ -11,9 +11,7 @@ use std::process::{Command, Stdio};
 /// This function spawns a Python subprocess to perform the parsing.
 pub fn list_functions(source: &str) -> AstResult<Vec<String>> {
     let python_executable = "python3";
-    let script_path = format!(
-        "{}/../../scripts/ast_tool.py", env!("CARGO_MANIFEST_DIR")
-    );
+    let script_path = format!("{}/../../scripts/ast_tool.py", env!("CARGO_MANIFEST_DIR"));
     let mut child = Command::new(python_executable)
         .arg(&script_path)
         .arg("list-functions")
@@ -21,33 +19,25 @@ pub fn list_functions(source: &str) -> AstResult<Vec<String>> {
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|e| AstError::analysis(
-            format!("Failed to spawn Python script: {}", e),
-        ))?;
+        .map_err(|e| AstError::analysis(format!("Failed to spawn Python script: {}", e)))?;
     if let Some(mut stdin) = child.stdin.take() {
-        stdin
-            .write_all(source.as_bytes())
-            .map_err(|e| {
-                AstError::analysis(
-                    format!("Failed to write to Python script stdin: {}", e),
-                )
-            })?;
+        stdin.write_all(source.as_bytes()).map_err(|e| {
+            AstError::analysis(format!("Failed to write to Python script stdin: {}", e))
+        })?;
     }
     let output = child
         .wait_with_output()
-        .map_err(|e| AstError::analysis(
-            format!("Failed to wait for Python script: {}", e),
-        ))?;
+        .map_err(|e| AstError::analysis(format!("Failed to wait for Python script: {}", e)))?;
     if output.status.success() {
-        serde_json::from_slice(&output.stdout)
-            .map_err(|e| {
-                AstError::analysis(
-                    format!("Failed to parse JSON from Python script: {}", e),
-                )
-            })
+        serde_json::from_slice(&output.stdout).map_err(|e| {
+            AstError::analysis(format!("Failed to parse JSON from Python script: {}", e))
+        })
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        Err(AstError::analysis(format!("Python script failed: {}", stderr)))
+        Err(AstError::analysis(format!(
+            "Python script failed: {}",
+            stderr
+        )))
     }
 }
 /// Parse Python imports using regex-based parsing (temporary implementation)
@@ -62,55 +52,47 @@ pub fn parse_python_imports_ast(source: &str) -> AstResult<Vec<ImportInfo>> {
         if let Some(captures) = import_re.captures(line) {
             let module_name = captures
                 .get(1)
-                .expect(
-                    "Python import regex should always capture module name at index 1",
-                )
+                .expect("Python import regex should always capture module name at index 1")
                 .as_str();
             let alias = captures.get(2).map(|m| m.as_str().to_string());
-            imports
-                .push(ImportInfo {
-                    module_path: module_name.to_string(),
-                    import_type: ImportType::PythonImport,
-                    named_imports: Vec::new(),
-                    default_import: None,
-                    namespace_import: alias.or_else(|| Some(module_name.to_string())),
-                    type_only: false,
-                    location: SourceLocation {
-                        start_line: line_num as u32,
-                        end_line: line_num as u32,
-                        start_column: 0,
-                        end_column: line.len() as u32,
-                    },
-                });
+            imports.push(ImportInfo {
+                module_path: module_name.to_string(),
+                import_type: ImportType::PythonImport,
+                named_imports: Vec::new(),
+                default_import: None,
+                namespace_import: alias.or_else(|| Some(module_name.to_string())),
+                type_only: false,
+                location: SourceLocation {
+                    start_line: line_num as u32,
+                    end_line: line_num as u32,
+                    start_column: 0,
+                    end_column: line.len() as u32,
+                },
+            });
         } else if let Some(captures) = from_import_re.captures(line) {
             let module_name = captures
                 .get(1)
-                .expect(
-                    "Python from-import regex should always capture module name at index 1",
-                )
+                .expect("Python from-import regex should always capture module name at index 1")
                 .as_str();
             let imports_str = captures
                 .get(2)
-                .expect(
-                    "Python from-import regex should always capture imports at index 2",
-                )
+                .expect("Python from-import regex should always capture imports at index 2")
                 .as_str();
             let named_imports = parse_import_names(imports_str);
-            imports
-                .push(ImportInfo {
-                    module_path: module_name.to_string(),
-                    import_type: ImportType::PythonFromImport,
-                    named_imports,
-                    default_import: None,
-                    namespace_import: None,
-                    type_only: false,
-                    location: SourceLocation {
-                        start_line: line_num as u32,
-                        end_line: line_num as u32,
-                        start_column: 0,
-                        end_column: line.len() as u32,
-                    },
-                });
+            imports.push(ImportInfo {
+                module_path: module_name.to_string(),
+                import_type: ImportType::PythonFromImport,
+                named_imports,
+                default_import: None,
+                namespace_import: None,
+                type_only: false,
+                location: SourceLocation {
+                    start_line: line_num as u32,
+                    end_line: line_num as u32,
+                    start_column: 0,
+                    end_column: line.len() as u32,
+                },
+            });
         }
     }
     Ok(imports)
@@ -124,19 +106,17 @@ fn parse_import_names(imports_str: &str) -> Vec<NamedImport> {
     for import_part in imports_str.split(',') {
         let import_part = import_part.trim();
         if let Some((name, alias)) = import_part.split_once(" as ") {
-            named_imports
-                .push(NamedImport {
-                    name: name.trim().to_string(),
-                    alias: Some(alias.trim().to_string()),
-                    type_only: false,
-                });
+            named_imports.push(NamedImport {
+                name: name.trim().to_string(),
+                alias: Some(alias.trim().to_string()),
+                type_only: false,
+            });
         } else {
-            named_imports
-                .push(NamedImport {
-                    name: import_part.to_string(),
-                    alias: None,
-                    type_only: false,
-                });
+            named_imports.push(NamedImport {
+                name: import_part.to_string(),
+                alias: None,
+                type_only: false,
+            });
         }
     }
     named_imports
@@ -170,16 +150,15 @@ pub fn extract_python_functions(source: &str) -> AstResult<Vec<PythonFunction>> 
                     .filter(|arg| !arg.is_empty())
                     .collect()
             };
-            functions
-                .push(PythonFunction {
-                    name: name.to_string(),
-                    start_line: line_num as u32,
-                    end_line: line_num as u32 + 10,
-                    args,
-                    body_start_line: line_num as u32 + 1,
-                    is_async,
-                    decorators: Vec::new(),
-                });
+            functions.push(PythonFunction {
+                name: name.to_string(),
+                start_line: line_num as u32,
+                end_line: line_num as u32 + 10,
+                args,
+                body_start_line: line_num as u32 + 1,
+                is_async,
+                decorators: Vec::new(),
+            });
         }
     }
     Ok(functions)
@@ -204,9 +183,7 @@ pub fn extract_python_variables(source: &str) -> AstResult<Vec<PythonVariable>> 
         if let Some(captures) = assign_re.captures(line) {
             let var_name = captures
                 .get(2)
-                .expect(
-                    "Python assignment regex should always capture variable name at index 2",
-                )
+                .expect("Python assignment regex should always capture variable name at index 2")
                 .as_str();
             let value = captures
                 .get(3)
@@ -214,13 +191,12 @@ pub fn extract_python_variables(source: &str) -> AstResult<Vec<PythonVariable>> 
                 .as_str();
             let value_type = infer_python_value_type_simple(value);
             let is_constant = var_name.chars().all(|c| c.is_uppercase() || c == '_');
-            variables
-                .push(PythonVariable {
-                    name: var_name.to_string(),
-                    line: line_num as u32,
-                    value_type,
-                    is_constant,
-                });
+            variables.push(PythonVariable {
+                name: var_name.to_string(),
+                line: line_num as u32,
+                value_type,
+                is_constant,
+            });
         }
     }
     Ok(variables)
@@ -279,16 +255,14 @@ pub fn find_python_scope_variables(
 ) -> AstResult<Vec<PythonVariable>> {
     let variables = extract_python_variables(source)?;
     let target_indent = get_python_indentation_at_line(source, target_line);
-    Ok(
-        variables
-            .into_iter()
-            .filter(|var| var.line < target_line)
-            .filter(|var| {
-                let var_indent = get_python_indentation_at_line(source, var.line);
-                var_indent <= target_indent
-            })
-            .collect(),
-    )
+    Ok(variables
+        .into_iter()
+        .filter(|var| var.line < target_line)
+        .filter(|var| {
+            let var_indent = get_python_indentation_at_line(source, var.line);
+            var_indent <= target_indent
+        })
+        .collect())
 }
 /// Analyze a selected Python expression range
 pub fn analyze_python_expression_range(
@@ -374,12 +348,11 @@ pub fn get_variable_usages_in_scope(
                         .unwrap_or(' ')
                         .is_alphanumeric());
             if is_word_boundary {
-                usages
-                    .push((
-                        line_idx,
-                        actual_pos as u32,
-                        (actual_pos + variable_name.len()) as u32,
-                    ));
+                usages.push((
+                    line_idx,
+                    actual_pos as u32,
+                    (actual_pos + variable_name.len()) as u32,
+                ));
             }
             start = actual_pos + 1;
         }
@@ -387,10 +360,7 @@ pub fn get_variable_usages_in_scope(
     Ok(usages)
 }
 /// Find the end line of a Python function
-pub fn find_python_function_end(
-    source: &str,
-    function_start_line: u32,
-) -> AstResult<u32> {
+pub fn find_python_function_end(source: &str, function_start_line: u32) -> AstResult<u32> {
     let lines: Vec<&str> = source.lines().collect();
     let start_line = function_start_line as usize;
     if start_line >= lines.len() {
@@ -405,8 +375,10 @@ pub fn find_python_function_end(
         let line_indent = line.chars().take_while(|c| c.is_whitespace()).count();
         if line_indent <= func_indent {
             let trimmed = line.trim();
-            if trimmed.starts_with("def ") || trimmed.starts_with("class ")
-                || trimmed.starts_with("if __name__") || line_indent < func_indent
+            if trimmed.starts_with("def ")
+                || trimmed.starts_with("class ")
+                || trimmed.starts_with("if __name__")
+                || line_indent < func_indent
             {
                 return Ok(idx as u32 - 1);
             }
@@ -446,7 +418,10 @@ from typing import Dict, List as ArrayList
         assert_eq!(imports[2].named_imports[0].name, "Path");
         assert_eq!(imports[3].module_path, "typing");
         assert_eq!(imports[3].named_imports.len(), 2);
-        assert_eq!(imports[3].named_imports[1].alias, Some("ArrayList".to_string()));
+        assert_eq!(
+            imports[3].named_imports[1].alias,
+            Some("ArrayList".to_string())
+        );
     }
     #[test]
     fn test_extract_python_functions_basic() {
@@ -463,13 +438,13 @@ def function_with_args(a, b, c=None):
         let functions = extract_python_functions(source).unwrap();
         assert_eq!(functions.len(), 3);
         assert_eq!(functions[0].name, "simple_function");
-        assert!(! functions[0].is_async);
+        assert!(!functions[0].is_async);
         assert_eq!(functions[0].args.len(), 0);
         assert_eq!(functions[1].name, "async_function");
         assert!(functions[1].is_async);
         assert_eq!(functions[1].args, vec!["param1", "param2"]);
         assert_eq!(functions[2].name, "function_with_args");
-        assert!(! functions[2].is_async);
+        assert!(!functions[2].is_async);
         assert_eq!(functions[2].args, vec!["a", "b", "c=None"]);
     }
     #[test]
@@ -486,7 +461,7 @@ CONSTANT_VALUE = "constant"
         assert_eq!(variables.len(), 6);
         assert_eq!(variables[0].name, "name");
         assert!(matches!(variables[0].value_type, PythonValueType::String));
-        assert!(! variables[0].is_constant);
+        assert!(!variables[0].is_constant);
         assert_eq!(variables[1].name, "age");
         assert!(matches!(variables[1].value_type, PythonValueType::Number));
         assert_eq!(variables[2].name, "is_active");
@@ -511,21 +486,30 @@ CONSTANT_VALUE = "constant"
     }
     #[test]
     fn test_value_type_inference() {
-        assert!(
-            matches!(infer_python_value_type_simple("\"hello\""),
-            PythonValueType::String)
-        );
-        assert!(matches!(infer_python_value_type_simple("42"), PythonValueType::Number));
-        assert!(
-            matches!(infer_python_value_type_simple("True"), PythonValueType::Boolean)
-        );
-        assert!(
-            matches!(infer_python_value_type_simple("[1, 2, 3]"), PythonValueType::List)
-        );
-        assert!(
-            matches!(infer_python_value_type_simple("{\"a\": 1}"), PythonValueType::Dict)
-        );
-        assert!(matches!(infer_python_value_type_simple("None"), PythonValueType::None));
+        assert!(matches!(
+            infer_python_value_type_simple("\"hello\""),
+            PythonValueType::String
+        ));
+        assert!(matches!(
+            infer_python_value_type_simple("42"),
+            PythonValueType::Number
+        ));
+        assert!(matches!(
+            infer_python_value_type_simple("True"),
+            PythonValueType::Boolean
+        ));
+        assert!(matches!(
+            infer_python_value_type_simple("[1, 2, 3]"),
+            PythonValueType::List
+        ));
+        assert!(matches!(
+            infer_python_value_type_simple("{\"a\": 1}"),
+            PythonValueType::Dict
+        ));
+        assert!(matches!(
+            infer_python_value_type_simple("None"),
+            PythonValueType::None
+        ));
     }
     #[test]
     fn test_list_functions_success() {
@@ -545,10 +529,10 @@ class MyClass:
 "#;
         let functions = list_functions(source).unwrap();
         assert_eq!(functions.len(), 4);
-        assert!(functions.contains(& "top_level_function".to_string()));
-        assert!(functions.contains(& "method_one".to_string()));
-        assert!(functions.contains(& "method_two".to_string()));
-        assert!(functions.contains(& "nested_function".to_string()));
+        assert!(functions.contains(&"top_level_function".to_string()));
+        assert!(functions.contains(&"method_one".to_string()));
+        assert!(functions.contains(&"method_two".to_string()));
+        assert!(functions.contains(&"nested_function".to_string()));
     }
     #[test]
     fn test_list_functions_no_functions() {

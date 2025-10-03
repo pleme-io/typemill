@@ -4,8 +4,8 @@ use async_trait::async_trait;
 use std::path::Path;
 use std::sync::Arc;
 
-use cb_protocol::{ApiResult, CacheStats, ImportGraph};
 use cb_ast::AstCache;
+use cb_protocol::{ApiResult, CacheStats, ImportGraph};
 use tracing::{debug, trace};
 
 use cb_protocol::AstService;

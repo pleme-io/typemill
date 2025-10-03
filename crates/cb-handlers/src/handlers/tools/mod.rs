@@ -3,9 +3,9 @@
 //! This module contains specialized tool handlers for different categories of MCP tools.
 //! Each handler is responsible for a specific domain of functionality.
 
-use cb_protocol::ApiResult as ServerResult;
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
+use cb_protocol::ApiResult as ServerResult;
 use serde_json::Value;
 
 use super::lsp_adapter::DirectLspAdapter;

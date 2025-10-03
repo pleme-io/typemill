@@ -1,11 +1,12 @@
 //! MCP Proxy as a LanguagePlugin
 
 use super::manager::ExternalMcpManager;
+use crate::{
+    Capabilities, LanguagePlugin, PluginError, PluginMetadata, PluginRequest, PluginResponse,
+    PluginResult,
+};
 use async_trait::async_trait;
 use cb_core::config::ExternalMcpServerConfig;
-use crate::{
-    Capabilities, LanguagePlugin, PluginMetadata, PluginError, PluginRequest, PluginResponse, PluginResult,
-};
 use serde_json::Value;
 
 pub struct McpProxyPlugin {

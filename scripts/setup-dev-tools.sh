@@ -2,9 +2,9 @@
 set -e
 
 # Development Tools Setup Script for CodeBuddy
-# Installs and configures build optimization tools: sccache and mold
+# Installs and configures build optimization tools: sccache, mold, jscpd
 #
-# This script is automatically referenced by rust/.cargo/config.toml
+# This script is automatically referenced by .cargo/config.toml
 # Run this script once per machine to speed up Rust compilation significantly
 #
 # Usage:
@@ -146,13 +146,39 @@ install_mold() {
 }
 
 # =============================================================================
+# Install Code Quality Tools
+# =============================================================================
+
+install_quality_tools() {
+    log_info "Checking code quality tools installation..."
+
+    # Install jscpd for duplicate code detection
+    if command -v jscpd >/dev/null 2>&1; then
+        log_success "jscpd already installed"
+    else
+        log_info "Installing jscpd for duplicate code detection..."
+        npm install -g jscpd
+        log_success "jscpd installed"
+    fi
+
+    # Note: rust-code-analysis-cli has dependency conflicts
+    # Skip installation as it's currently broken
+    if command -v rust-code-analysis-cli >/dev/null 2>&1; then
+        log_success "rust-code-analysis-cli already installed"
+    else
+        log_warning "rust-code-analysis-cli has dependency conflicts and is skipped"
+        log_info "See: https://github.com/mozilla/rust-code-analysis/issues"
+    fi
+}
+
+# =============================================================================
 # Verify Configuration
 # =============================================================================
 
 verify_configuration() {
     log_info "Verifying Cargo configuration..."
 
-    local cargo_config="/workspace/rust/.cargo/config.toml"
+    local cargo_config="/workspace/.cargo/config.toml"
 
     if [ ! -f "$cargo_config" ]; then
         log_error "Cargo configuration not found at $cargo_config"
@@ -186,7 +212,7 @@ verify_configuration() {
 test_build() {
     log_info "Testing build with optimizations..."
 
-    cd /workspace/rust
+    cd /workspace
 
     # Show sccache statistics before
     log_info "sccache stats before build:"
@@ -224,6 +250,9 @@ main() {
     install_sscache
     install_mold
 
+    log_info "=== Installing Code Quality Tools ==="
+    install_quality_tools
+
     # Verify configuration
     log_info "=== Verifying Configuration ==="
     verify_configuration
@@ -248,13 +277,16 @@ main() {
     if [ "$OS_TYPE" = "linux" ]; then
         echo "  • clang: $(which clang)"
     fi
+    if command -v jscpd >/dev/null 2>&1; then
+        echo "  • jscpd: $(which jscpd)"
+    fi
     echo ""
     echo "💡 TIPS:"
     echo "  • sccache stats: sccache --show-stats"
     echo "  • Clear cache: sccache --zero-stats"
     echo "  • Team members should run this script on their machines"
     echo ""
-    echo "📖 Configuration: rust/.cargo/config.toml"
+    echo "📖 Configuration: .cargo/config.toml"
     echo ""
 }
 

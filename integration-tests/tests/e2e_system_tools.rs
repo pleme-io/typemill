@@ -5,7 +5,9 @@ async fn test_health_check_basic() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
     let response = client.call_tool("health_check", json!({})).await.unwrap();
-    let result = response["result"].as_object().expect("Should have result field");
+    let result = response["result"]
+        .as_object()
+        .expect("Should have result field");
     assert!(result.get("status").is_some());
     let status = result["status"].as_str().unwrap();
     assert!(status == "healthy" || status == "degraded" || status == "unhealthy");
@@ -41,7 +43,9 @@ const test: Test = { id: 1 };
         .await;
     tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
     let response = client.call_tool("health_check", json!({})).await.unwrap();
-    let result = response["result"].as_object().expect("Should have result field");
+    let result = response["result"]
+        .as_object()
+        .expect("Should have result field");
     let status = result["status"].as_str().unwrap();
     assert!(status == "healthy" || status == "degraded");
     if let Some(servers) = result.get("servers") {
@@ -61,7 +65,9 @@ async fn test_health_check_detailed() {
         .call_tool("health_check", json!({ "include_details" : true }))
         .await
         .unwrap();
-    let result = response["result"].as_object().expect("Should have result field");
+    let result = response["result"]
+        .as_object()
+        .expect("Should have result field");
     assert!(result.get("status").is_some());
     if result.get("system").is_some() {
         let system = &result["system"];
@@ -108,7 +114,10 @@ async fn test_update_dependencies_package_json() {
         .current_dir(workspace.path())
         .status()
         .expect("Failed to run npm install");
-    assert!(status.success(), "npm install should succeed to setup the test");
+    assert!(
+        status.success(),
+        "npm install should succeed to setup the test"
+    );
 
     let response = client
         .call_tool(
@@ -121,7 +130,10 @@ async fn test_update_dependencies_package_json() {
         )
         .await
         .unwrap();
-    assert!(response["result"]["success"].as_bool().unwrap_or(false), "update_dependencies tool should report success");
+    assert!(
+        response["result"]["success"].as_bool().unwrap_or(false),
+        "update_dependencies tool should report success"
+    );
     let updated_content = std::fs::read_to_string(&package_json).unwrap();
     let updated_json: Value = serde_json::from_str(&updated_content).unwrap();
     assert_eq!(updated_json["version"].as_str().unwrap(), "1.1.0");
@@ -227,7 +239,9 @@ async fn test_update_dependencies_dry_run() {
         )
         .await
         .unwrap();
-    assert!(response["result"].get("preview").is_some() || response["result"].get("changes").is_some());
+    assert!(
+        response["result"].get("preview").is_some() || response["result"].get("changes").is_some()
+    );
     let unchanged_content = std::fs::read_to_string(&package_json).unwrap();
     let unchanged_json: Value = serde_json::from_str(&unchanged_content).unwrap();
     assert_eq!(
@@ -287,7 +301,10 @@ async fn test_update_dependencies_error_handling() {
         .await;
     // MCP wraps errors in response["error"], check both
     if let Ok(resp) = response {
-        assert!(resp.get("error").is_some(), "Expected error in response for nonexistent file");
+        assert!(
+            resp.get("error").is_some(),
+            "Expected error in response for nonexistent file"
+        );
     } else {
         assert!(true); // response.is_err() case also acceptable
     }
@@ -309,7 +326,10 @@ async fn test_update_dependencies_invalid_json() {
         .await;
     // MCP wraps errors in response["error"], check both
     if let Ok(resp) = response {
-        assert!(resp.get("error").is_some(), "Expected error in response for invalid.json (unsupported file type)");
+        assert!(
+            resp.get("error").is_some(),
+            "Expected error in response for invalid.json (unsupported file type)"
+        );
     } else {
         assert!(true); // response.is_err() case also acceptable
     }
@@ -319,7 +339,9 @@ async fn test_system_tools_integration() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
     let health_response = client.call_tool("health_check", json!({})).await.unwrap();
-    let health_result = health_response["result"].as_object().expect("Should have result field");
+    let health_result = health_response["result"]
+        .as_object()
+        .expect("Should have result field");
     let initial_status = health_result["status"].as_str().unwrap();
     let package_json = workspace.path().join("package.json");
     let initial_package = json!(
@@ -345,7 +367,9 @@ async fn test_system_tools_integration() {
         )
         .await
         .unwrap();
-    assert!(_update_response["result"]["success"].as_bool().unwrap_or(false));
+    assert!(_update_response["result"]["success"]
+        .as_bool()
+        .unwrap_or(false));
     let src_dir = workspace.path().join("src");
     std::fs::create_dir(&src_dir).unwrap();
     let index_ts = src_dir.join("index.ts");
@@ -571,7 +595,10 @@ async fn test_extract_function_refactoring() {
                         original_content, modified_content,
                         "File content should have changed after refactoring"
                     );
-                    assert!(!edits.is_empty(), "EditPlan should contain at least one edit");
+                    assert!(
+                        !edits.is_empty(),
+                        "EditPlan should contain at least one edit"
+                    );
                 } else {
                     // Refactoring not supported or failed - this is acceptable
                     eprintln!("INFO: Refactoring not available for this test (possibly unsupported language/LSP)");
@@ -623,7 +650,10 @@ async fn test_inline_variable_refactoring() {
                         original_content, modified_content,
                         "File content should have changed after refactoring"
                     );
-                    assert!(!edits.is_empty(), "EditPlan should contain at least one edit");
+                    assert!(
+                        !edits.is_empty(),
+                        "EditPlan should contain at least one edit"
+                    );
                 } else {
                     // Refactoring not supported or failed - this is acceptable
                     eprintln!("INFO: Refactoring not available for this test (possibly unsupported language/LSP)");

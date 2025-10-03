@@ -204,7 +204,7 @@ impl Capabilities {
     pub fn get_tool_scope(&self, method: &str) -> Option<ToolScope> {
         match method {
             // File-scoped navigation tools
-            | "find_definition"
+            "find_definition"
             | "find_references"
             | "find_implementations"
             | "find_type_definition"
@@ -214,7 +214,7 @@ impl Capabilities {
             | "get_call_hierarchy_outgoing_calls" => Some(ToolScope::File),
 
             // File-scoped editing tools
-            | "rename_symbol"
+            "rename_symbol"
             | "rename_symbol_strict"
             | "format_document"
             | "format_range"
@@ -223,23 +223,19 @@ impl Capabilities {
             | "fix_imports" => Some(ToolScope::File),
 
             // File-scoped refactoring tools
-            | "extract_function"
-            | "extract_variable"
-            | "inline_variable" => Some(ToolScope::File),
+            "extract_function" | "extract_variable" | "inline_variable" => Some(ToolScope::File),
 
             // File-scoped intelligence tools
-            | "get_hover"
-            | "get_completions"
-            | "get_signature_help" => Some(ToolScope::File),
+            "get_hover" | "get_completions" | "get_signature_help" => Some(ToolScope::File),
 
             // File-scoped diagnostic tools
-            | "get_diagnostics" => Some(ToolScope::File),
+            "get_diagnostics" => Some(ToolScope::File),
 
             // File-scoped analysis tools
-            | "analyze_imports" => Some(ToolScope::File),
+            "analyze_imports" => Some(ToolScope::File),
 
             // Workspace-scoped tools
-            | "search_workspace_symbols"
+            "search_workspace_symbols"
             | "list_files"
             | "find_dead_code"
             | "bulk_update_dependencies"
@@ -310,15 +306,30 @@ mod tests {
         let caps = Capabilities::default();
 
         // Test file-scoped tools
-        assert_eq!(caps.get_tool_scope("find_definition"), Some(ToolScope::File));
+        assert_eq!(
+            caps.get_tool_scope("find_definition"),
+            Some(ToolScope::File)
+        );
         assert_eq!(caps.get_tool_scope("rename_symbol"), Some(ToolScope::File));
         assert_eq!(caps.get_tool_scope("get_hover"), Some(ToolScope::File));
-        assert_eq!(caps.get_tool_scope("extract_function"), Some(ToolScope::File));
+        assert_eq!(
+            caps.get_tool_scope("extract_function"),
+            Some(ToolScope::File)
+        );
 
         // Test workspace-scoped tools
-        assert_eq!(caps.get_tool_scope("search_workspace_symbols"), Some(ToolScope::Workspace));
-        assert_eq!(caps.get_tool_scope("list_files"), Some(ToolScope::Workspace));
-        assert_eq!(caps.get_tool_scope("rename_directory"), Some(ToolScope::Workspace));
+        assert_eq!(
+            caps.get_tool_scope("search_workspace_symbols"),
+            Some(ToolScope::Workspace)
+        );
+        assert_eq!(
+            caps.get_tool_scope("list_files"),
+            Some(ToolScope::Workspace)
+        );
+        assert_eq!(
+            caps.get_tool_scope("rename_directory"),
+            Some(ToolScope::Workspace)
+        );
 
         // Test unknown tool
         assert_eq!(caps.get_tool_scope("unknown_tool"), None);
@@ -330,6 +341,9 @@ mod tests {
         caps.add_custom("custom.analysis".to_string(), json!(true));
 
         // Custom tools default to workspace scope
-        assert_eq!(caps.get_tool_scope("custom.analysis"), Some(ToolScope::Workspace));
+        assert_eq!(
+            caps.get_tool_scope("custom.analysis"),
+            Some(ToolScope::Workspace)
+        );
     }
 }

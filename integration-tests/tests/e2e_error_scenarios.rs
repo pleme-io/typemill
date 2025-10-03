@@ -98,7 +98,9 @@ async fn test_file_corruption_scenarios() {
                 // Error case - should mention encoding issue
                 let error_str = error.to_string();
                 assert!(
-                    error_str.contains("UTF") || error_str.contains("encoding") || error_str.contains("invalid"),
+                    error_str.contains("UTF")
+                        || error_str.contains("encoding")
+                        || error_str.contains("invalid"),
                     "Error should mention encoding issue, got: {}",
                     error_str
                 );

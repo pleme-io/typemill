@@ -1,7 +1,7 @@
 //! Tests for error handling
 
-use cb_types::error::CoreResult;
 use cb_types::error::CoreError;
+use cb_types::error::CoreResult;
 use std::io;
 
 #[test]

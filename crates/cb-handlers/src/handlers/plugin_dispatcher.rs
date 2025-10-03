@@ -4,14 +4,14 @@
 //! dispatcher with a flexible plugin system.
 
 use crate::register_handlers_with_logging;
+use async_trait::async_trait;
+use cb_core::model::mcp::{McpMessage, McpRequest, McpResponse, ToolCall};
+use cb_core::workspaces::WorkspaceManager;
+use cb_plugins::{LspAdapterPlugin, PluginManager};
+use cb_protocol::AstService;
+use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use cb_services::services::planner::Planner;
 use cb_services::services::workflow_executor::WorkflowExecutor;
-use cb_core::workspaces::WorkspaceManager;
-use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
-use async_trait::async_trait;
-use cb_protocol::AstService;
-use cb_core::model::mcp::{McpMessage, McpRequest, McpResponse, ToolCall};
-use cb_plugins::{LspAdapterPlugin, PluginManager};
 use cb_transport::McpDispatcher;
 use serde_json::{json, Value};
 use std::sync::Arc;
@@ -330,7 +330,8 @@ impl PluginDispatcher {
         };
 
         // Directly dispatch to the tool_registry. It now handles ALL tools.
-        let result = self.tool_registry
+        let result = self
+            .tool_registry
             .lock()
             .await
             .handle_tool(tool_call, &context)
@@ -509,10 +510,14 @@ impl McpDispatcher for PluginDispatcher {
 pub fn create_test_dispatcher() -> PluginDispatcher {
     let temp_dir = tempfile::TempDir::new().unwrap();
     let ast_cache = Arc::new(cb_ast::AstCache::new());
-    let ast_service = Arc::new(cb_services::services::DefaultAstService::new(ast_cache.clone()));
+    let ast_service = Arc::new(cb_services::services::DefaultAstService::new(
+        ast_cache.clone(),
+    ));
     let project_root = temp_dir.path().to_path_buf();
     let lock_manager = Arc::new(cb_services::services::LockManager::new());
-    let operation_queue = Arc::new(cb_services::services::OperationQueue::new(lock_manager.clone()));
+    let operation_queue = Arc::new(cb_services::services::OperationQueue::new(
+        lock_manager.clone(),
+    ));
     let file_service = Arc::new(cb_services::services::FileService::new(
         project_root.clone(),
         ast_cache.clone(),
@@ -521,8 +526,9 @@ pub fn create_test_dispatcher() -> PluginDispatcher {
     ));
     let planner = cb_services::services::planner::DefaultPlanner::new();
     let plugin_manager = Arc::new(PluginManager::new());
-    let workflow_executor =
-        cb_services::services::workflow_executor::DefaultWorkflowExecutor::new(plugin_manager.clone());
+    let workflow_executor = cb_services::services::workflow_executor::DefaultWorkflowExecutor::new(
+        plugin_manager.clone(),
+    );
     let workspace_manager = Arc::new(WorkspaceManager::new());
 
     let app_state = Arc::new(AppState {
@@ -548,10 +554,14 @@ mod tests {
     fn create_test_app_state() -> Arc<AppState> {
         let temp_dir = TempDir::new().unwrap();
         let ast_cache = Arc::new(cb_ast::AstCache::new());
-        let ast_service = Arc::new(cb_services::services::DefaultAstService::new(ast_cache.clone()));
+        let ast_service = Arc::new(cb_services::services::DefaultAstService::new(
+            ast_cache.clone(),
+        ));
         let project_root = temp_dir.path().to_path_buf();
         let lock_manager = Arc::new(cb_services::services::LockManager::new());
-        let operation_queue = Arc::new(cb_services::services::OperationQueue::new(lock_manager.clone()));
+        let operation_queue = Arc::new(cb_services::services::OperationQueue::new(
+            lock_manager.clone(),
+        ));
         let file_service = Arc::new(cb_services::services::FileService::new(
             project_root.clone(),
             ast_cache.clone(),

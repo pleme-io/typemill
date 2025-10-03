@@ -5,9 +5,9 @@
 use super::{ToolHandler, ToolHandlerContext};
 use crate::handlers::compat::{ToolContext, ToolHandler as LegacyToolHandler};
 use crate::handlers::workflow_handler::WorkflowHandler as LegacyWorkflowHandler;
-use cb_protocol::ApiResult as ServerResult;
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
+use cb_protocol::ApiResult as ServerResult;
 use serde_json::Value;
 
 pub struct AdvancedHandler {
@@ -34,7 +34,10 @@ impl ToolHandler for AdvancedHandler {
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         let tool_name = &tool_call.name;
-        let params = tool_call.arguments.clone().unwrap_or_else(|| serde_json::json!({}));
+        let params = tool_call
+            .arguments
+            .clone()
+            .unwrap_or_else(|| serde_json::json!({}));
 
         match tool_name.as_str() {
             "apply_edits" => {
@@ -56,20 +59,35 @@ impl ToolHandler for AdvancedHandler {
                     .await
             }
             "batch_execute" => {
-                use serde::Deserialize;
                 use cb_services::services::OperationType;
-                use uuid::Uuid;
-                use std::path::PathBuf;
+                use serde::Deserialize;
                 use serde_json::json;
+                use std::path::PathBuf;
+                use uuid::Uuid;
 
                 // Define the structure for individual operations within the batch
                 #[derive(Deserialize, Debug)]
                 #[serde(tag = "type", rename_all = "snake_case")]
                 enum BatchOperation {
-                    CreateFile { path: String, content: Option<String>, dry_run: Option<bool> },
-                    DeleteFile { path: String, dry_run: Option<bool> },
-                    WriteFile { path: String, content: String, dry_run: Option<bool> },
-                    RenameFile { old_path: String, new_path: String, dry_run: Option<bool> },
+                    CreateFile {
+                        path: String,
+                        content: Option<String>,
+                        dry_run: Option<bool>,
+                    },
+                    DeleteFile {
+                        path: String,
+                        dry_run: Option<bool>,
+                    },
+                    WriteFile {
+                        path: String,
+                        content: String,
+                        dry_run: Option<bool>,
+                    },
+                    RenameFile {
+                        old_path: String,
+                        new_path: String,
+                        dry_run: Option<bool>,
+                    },
                 }
 
                 // Define the structure for the overall batch_execute parameters
@@ -79,8 +97,13 @@ impl ToolHandler for AdvancedHandler {
                 }
 
                 // 1. Deserialize the incoming parameters
-                let batch_params: BatchExecuteParams = serde_json::from_value(params)
-                    .map_err(|e| cb_protocol::ApiError::runtime(format!("Failed to parse batch_execute params: {}", e)))?;
+                let batch_params: BatchExecuteParams =
+                    serde_json::from_value(params).map_err(|e| {
+                        cb_protocol::ApiError::runtime(format!(
+                            "Failed to parse batch_execute params: {}",
+                            e
+                        ))
+                    })?;
 
                 // 2. Get the operation queue from the context
                 let operation_queue = &context.app_state.operation_queue;
@@ -93,10 +116,10 @@ impl ToolHandler for AdvancedHandler {
                 for operation in batch_params.operations.into_iter() {
                     // Check if this operation is a dry run
                     let is_dry_run = match &operation {
-                        BatchOperation::CreateFile { dry_run, .. } |
-                        BatchOperation::DeleteFile { dry_run, .. } |
-                        BatchOperation::WriteFile { dry_run, .. } |
-                        BatchOperation::RenameFile { dry_run, .. } => dry_run.unwrap_or(false),
+                        BatchOperation::CreateFile { dry_run, .. }
+                        | BatchOperation::DeleteFile { dry_run, .. }
+                        | BatchOperation::WriteFile { dry_run, .. }
+                        | BatchOperation::RenameFile { dry_run, .. } => dry_run.unwrap_or(false),
                     };
 
                     // If dry_run, execute directly and collect results
@@ -112,8 +135,13 @@ impl ToolHandler for AdvancedHandler {
                                     )
                                     .await
                                     .map(|dry_result| dry_result.result)
-                                    .map_err(|e| cb_protocol::ApiError::runtime(format!("Dry run failed for create_file {}: {}", path, e)))?
-                            },
+                                    .map_err(|e| {
+                                        cb_protocol::ApiError::runtime(format!(
+                                            "Dry run failed for create_file {}: {}",
+                                            path, e
+                                        ))
+                                    })?
+                            }
                             BatchOperation::WriteFile { path, content, .. } => {
                                 let file_service = &context.app_state.file_service;
                                 file_service
@@ -124,61 +152,94 @@ impl ToolHandler for AdvancedHandler {
                                     )
                                     .await
                                     .map(|dry_result| dry_result.result)
-                                    .map_err(|e| cb_protocol::ApiError::runtime(format!("Dry run failed for write_file {}: {}", path, e)))?
-                            },
+                                    .map_err(|e| {
+                                        cb_protocol::ApiError::runtime(format!(
+                                            "Dry run failed for write_file {}: {}",
+                                            path, e
+                                        ))
+                                    })?
+                            }
                             BatchOperation::DeleteFile { path, .. } => {
                                 let file_service = &context.app_state.file_service;
                                 file_service
                                     .delete_file(&PathBuf::from(&path), false, true)
                                     .await
                                     .map(|dry_result| dry_result.result)
-                                    .map_err(|e| cb_protocol::ApiError::runtime(format!("Dry run failed for delete_file {}: {}", path, e)))?
-                            },
-                            BatchOperation::RenameFile { old_path, new_path, .. } => {
+                                    .map_err(|e| {
+                                        cb_protocol::ApiError::runtime(format!(
+                                            "Dry run failed for delete_file {}: {}",
+                                            path, e
+                                        ))
+                                    })?
+                            }
+                            BatchOperation::RenameFile {
+                                old_path, new_path, ..
+                            } => {
                                 let file_service = &context.app_state.file_service;
                                 file_service
-                                    .rename_file_with_imports(&PathBuf::from(&old_path), &PathBuf::from(&new_path), true)
+                                    .rename_file_with_imports(
+                                        &PathBuf::from(&old_path),
+                                        &PathBuf::from(&new_path),
+                                        true,
+                                    )
                                     .await
                                     .map(|dry_result| dry_result.result)
-                                    .map_err(|e| cb_protocol::ApiError::runtime(format!("Dry run failed for rename_file {} -> {}: {}", old_path, new_path, e)))?
-                            },
+                                    .map_err(|e| {
+                                        cb_protocol::ApiError::runtime(format!(
+                                            "Dry run failed for rename_file {} -> {}: {}",
+                                            old_path, new_path, e
+                                        ))
+                                    })?
+                            }
                         };
                         results.push(result);
                         continue;
                     }
 
                     let (operation_type, file_path, operation_params) = match operation {
-                        BatchOperation::CreateFile { path, content, dry_run } => {
+                        BatchOperation::CreateFile {
+                            path,
+                            content,
+                            dry_run,
+                        } => {
                             let params = json!({
                                 "file_path": path,
                                 "content": content.unwrap_or_default(),
                                 "dry_run": dry_run.unwrap_or(false)
                             });
                             (OperationType::Write, PathBuf::from(path), params)
-                        },
+                        }
                         BatchOperation::DeleteFile { path, dry_run } => {
                             let params = json!({
                                 "file_path": path,
                                 "dry_run": dry_run.unwrap_or(false)
                             });
                             (OperationType::Delete, PathBuf::from(path), params)
-                        },
-                        BatchOperation::WriteFile { path, content, dry_run } => {
+                        }
+                        BatchOperation::WriteFile {
+                            path,
+                            content,
+                            dry_run,
+                        } => {
                             let params = json!({
                                 "file_path": path,
                                 "content": content,
                                 "dry_run": dry_run.unwrap_or(false)
                             });
                             (OperationType::Write, PathBuf::from(path), params)
-                        },
-                        BatchOperation::RenameFile { old_path, new_path, dry_run } => {
+                        }
+                        BatchOperation::RenameFile {
+                            old_path,
+                            new_path,
+                            dry_run,
+                        } => {
                             let params = json!({
                                 "old_path": old_path,
                                 "new_path": new_path.clone(),
                                 "dry_run": dry_run.unwrap_or(false)
                             });
                             (OperationType::Rename, PathBuf::from(old_path), params)
-                        },
+                        }
                     };
 
                     let file_op = cb_services::services::FileOperation::new(
@@ -189,7 +250,10 @@ impl ToolHandler for AdvancedHandler {
                     );
 
                     operation_queue.enqueue(file_op).await.map_err(|e| {
-                        cb_protocol::ApiError::runtime(format!("Failed to enqueue batch operation: {}", e))
+                        cb_protocol::ApiError::runtime(format!(
+                            "Failed to enqueue batch operation: {}",
+                            e
+                        ))
                     })?;
 
                     queued_count += 1;

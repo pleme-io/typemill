@@ -1,7 +1,7 @@
 //! Integration tests for concurrent operations
 
 use super::*;
-use cb_protocol::{ApiError as ServerError};
+use cb_protocol::ApiError as ServerError;
 use futures_util::future;
 use serde_json::{json, Value};
 use std::path::PathBuf;

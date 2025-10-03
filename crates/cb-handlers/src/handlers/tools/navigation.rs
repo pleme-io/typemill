@@ -8,10 +8,10 @@
 //! These tools are delegated to the LSP plugin system.
 
 use super::{ToolHandler, ToolHandlerContext};
-use cb_protocol::ApiResult as ServerResult;
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
 use cb_plugins::PluginRequest;
+use cb_protocol::ApiResult as ServerResult;
 use serde_json::{json, Value};
 use std::path::PathBuf;
 
@@ -22,7 +22,10 @@ impl NavigationHandler {
         Self
     }
 
-    fn convert_tool_call_to_plugin_request(&self, tool_call: &ToolCall) -> Result<PluginRequest, cb_protocol::ApiError> {
+    fn convert_tool_call_to_plugin_request(
+        &self,
+        tool_call: &ToolCall,
+    ) -> Result<PluginRequest, cb_protocol::ApiError> {
         let args = tool_call.arguments.clone().unwrap_or(json!({}));
 
         // Handle workspace-level operations that don't require a file path
@@ -37,7 +40,9 @@ impl NavigationHandler {
                     args.get("file_path")
                         .and_then(|v| v.as_str())
                         .ok_or_else(|| {
-                            cb_protocol::ApiError::InvalidRequest("Missing file_path parameter".into())
+                            cb_protocol::ApiError::InvalidRequest(
+                                "Missing file_path parameter".into(),
+                            )
                         })?;
                 PathBuf::from(file_path_str)
             }
@@ -104,17 +109,16 @@ impl ToolHandler for NavigationHandler {
         let plugin_request = self.convert_tool_call_to_plugin_request(tool_call)?;
 
         match context.plugin_manager.handle_request(plugin_request).await {
-            Ok(response) => {
-                Ok(json!({
-                    "content": response.data.unwrap_or(json!(null)),
-                    "plugin": response.metadata.plugin_name,
-                    "processing_time_ms": response.metadata.processing_time_ms,
-                    "cached": response.metadata.cached
-                }))
-            }
-            Err(err) => {
-                Err(cb_protocol::ApiError::Internal(format!("Plugin request failed: {}", err)))
-            }
+            Ok(response) => Ok(json!({
+                "content": response.data.unwrap_or(json!(null)),
+                "plugin": response.metadata.plugin_name,
+                "processing_time_ms": response.metadata.processing_time_ms,
+                "cached": response.metadata.cached
+            })),
+            Err(err) => Err(cb_protocol::ApiError::Internal(format!(
+                "Plugin request failed: {}",
+                err
+            ))),
         }
     }
 }

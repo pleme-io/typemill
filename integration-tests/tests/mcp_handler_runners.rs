@@ -4,9 +4,9 @@
 //! Each runner function is parameterized to accept a fixture struct,
 //! making them reusable across multiple test scenarios.
 
-use cb_protocol::AstService;
 use cb_ast::AstCache;
 use cb_plugins::PluginManager;
+use cb_protocol::AstService;
 use cb_server::handlers::AppState;
 use cb_server::services::{DefaultAstService, FileService, LockManager, OperationQueue};
 use cb_server::workspaces::WorkspaceManager;
