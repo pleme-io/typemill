@@ -89,22 +89,58 @@ codebuddy tool batch_update_dependencies '{
 
 ---
 
-## 🐛 Active Issues
+## ✅ More Resolved Issues
 
-### 1. Incomplete Import Path Updates During `rename_directory`
-**Priority:** HIGH
-**Severity:** Medium
+### Enhanced Import Scanning (Issue #1) - RESOLVED
+**Resolution Date:** 2025-10-03 (Phase IS - Import Scanning)
+**Tool Enhanced:** `rename_directory` now supports configurable import scanning
 
-Only top-level `use` statements are updated. Missed references:
-- Imports inside function bodies (`#[test]` functions)
-- Qualified paths in code (`old_module::function()`)
-- Module references in strings
+**Original Problem:**
+- Only top-level `use` statements were updated
+- Missed function-scoped imports (`#[test]` functions)
+- Missed qualified paths in code (`old_module::function()`)
+- No support for deep scanning
 
-**Workaround:** Manual find-and-replace after `rename_directory`
+**Solution:**
+Implemented multi-level AST-based import scanning with EditPlan integration:
+- ✅ Added `ScanScope` enum (TopLevelOnly, AllUseStatements, QualifiedPaths, All)
+- ✅ Added `find_module_references()` to LanguageAdapter trait
+- ✅ Fully implemented TypeScript/JavaScript scanning with SWC visitor pattern
+- ✅ Added user-facing `update_mode` parameter (Conservative/Standard/Aggressive)
+- ✅ Integrated with EditPlan for precise surgical text edits
+- ✅ Backward compatible - defaults to Conservative mode
+
+**Files Modified:**
+- `crates/cb-ast/src/language.rs` - Enhanced trait with find_module_references()
+- `crates/cb-ast/src/import_updater.rs` - Returns EditPlan with precise TextEdits
+- `crates/cb-services/src/services/import_service.rs` - Passes through EditPlan
+- `crates/cb-services/src/services/file_service.rs` - Applies EditPlan via apply_edit_plan()
+- `crates/cb-handlers/src/handlers/tools/workspace.rs` - UpdateMode API
+
+**Usage:**
+```json
+{
+  "name": "rename_directory",
+  "arguments": {
+    "old_path": "src/old_module",
+    "new_path": "src/new_module",
+    "update_mode": "aggressive"
+  }
+}
+```
+
+**Impact:** `rename_directory` now finds and updates:
+- ✅ Top-level imports (all modes)
+- ✅ Function-scoped imports (Standard/Aggressive)
+- ✅ Qualified paths like `module.method()` (Aggressive)
+- ✅ Works with TypeScript/JavaScript via SWC AST visitor
+- ✅ Precise line/column edits instead of full-file rewrites
 
 ---
 
-### 2. Test Flakiness
+## 🐛 Active Issues
+
+### 1. Test Flakiness
 **Severity:** Low
 **Affected Test:** `resilience_tests::test_basic_filesystem_operations`
 
@@ -114,22 +150,17 @@ Intermittent timeouts and JSON parsing errors ("trailing characters"). Likely ti
 
 ## 📋 Enhancement Requests
 
-### 1. Enhanced Import Scanning
-- Update qualified paths (`module::function`) in addition to `use` statements
-- Scan function-scoped imports
-- Configurable scope with pattern matching
-
-### 2. update_dependency Tool - Metadata Preservation
+### 1. update_dependency Tool - Metadata Preservation
 - Support inline dependency features (e.g., `optional = true`, `features = [...]`)
 - Preserve existing metadata when renaming dependencies
 - **Note:** Batch mode and auto-discovery are already implemented (see Resolved Issues)
 
-### 3. Post-Operation Validation
+### 2. Post-Operation Validation
 - Run `cargo check` after refactoring operations
 - Report compilation errors with suggestions
 - Optional rollback on validation failure
 
-### 4. Better MCP Error Reporting
+### 3. Better MCP Error Reporting
 - The update_dependency tool returns JSON errors but CLI expects string messages
 - Need consistent error format across all tools
 
