@@ -10,9 +10,6 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
 
-pub mod handlers;
-pub mod services;
-pub mod systems;
 pub mod utils;
 
 // Test helpers - available for integration tests
@@ -22,8 +19,12 @@ pub mod test_helpers;
 // Re-export workspaces from cb-core for backward compatibility
 pub use cb_core::workspaces;
 
-use crate::handlers::plugin_dispatcher::{AppState, PluginDispatcher};
-use crate::services::{DefaultAstService, FileService, LockManager, OperationQueue};
+// Re-export from new crates for backward compatibility
+pub use cb_handlers::handlers;
+pub use cb_services::services;
+
+use cb_handlers::handlers::plugin_dispatcher::{AppState, PluginDispatcher};
+use cb_services::services::{DefaultAstService, FileService, LockManager, OperationQueue};
 pub use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult, AstService, LspService};
 use cb_ast::AstCache;
 use cb_core::AppConfig;
@@ -79,7 +80,7 @@ pub async fn bootstrap(options: ServerOptions) -> ServerResult<ServerHandle> {
     ));
 
     // Create planner
-    let planner = crate::services::planner::DefaultPlanner::new();
+    let planner = cb_services::services::planner::DefaultPlanner::new();
 
     // Create plugin manager and workflow executor
     let plugin_manager = Arc::new(cb_plugins::PluginManager::new());
@@ -111,7 +112,7 @@ pub async fn bootstrap(options: ServerOptions) -> ServerResult<ServerHandle> {
     }
 
     let workflow_executor =
-        crate::services::workflow_executor::DefaultWorkflowExecutor::new(plugin_manager.clone());
+        cb_services::services::workflow_executor::DefaultWorkflowExecutor::new(plugin_manager.clone());
 
     // Create workspace manager for tracking connected containers
     let workspace_manager = Arc::new(cb_core::workspaces::WorkspaceManager::new());
@@ -191,7 +192,7 @@ pub async fn create_dispatcher_with_workspace(
     ));
 
     // Create planner
-    let planner = crate::services::planner::DefaultPlanner::new();
+    let planner = cb_services::services::planner::DefaultPlanner::new();
 
     // Create plugin manager and workflow executor
     let plugin_manager = Arc::new(cb_plugins::PluginManager::new());
@@ -223,13 +224,13 @@ pub async fn create_dispatcher_with_workspace(
     }
 
     let workflow_executor =
-        crate::services::workflow_executor::DefaultWorkflowExecutor::new(plugin_manager.clone());
+        cb_services::services::workflow_executor::DefaultWorkflowExecutor::new(plugin_manager.clone());
 
     // Start background processor for operation queue
     {
         let queue = operation_queue.clone();
         tokio::spawn(async move {
-            use crate::services::operation_queue::OperationType;
+            use cb_services::services::operation_queue::OperationType;
             use serde_json::Value;
             use std::path::Path;
             use tokio::fs;

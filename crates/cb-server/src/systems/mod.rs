@@ -1,5 +1,4 @@
-//! System components
+//! System components (now moved to cb-lsp crate)
 
-pub mod lsp;
-
-pub use lsp::LspClient;
+// Re-export from cb-lsp for backward compatibility
+pub use cb_lsp::lsp_system::LspClient;

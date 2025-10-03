@@ -12,6 +12,9 @@ cb-ast = { path = "../cb-ast" }
 cb-plugins = { path = "../cb-plugins" }
 cb-transport = { path = "../cb-transport" }
 cb-mcp-proxy = { path = "../cb-mcp-proxy", optional = true }
+cb-lsp = { path = "../cb-lsp" }
+cb-services = { path = "../cb-services" }
+cb-handlers = { path = "../cb-handlers" }
 tokio = { workspace = true }
 async-trait = { workspace = true }
 futures-util = "0.3"

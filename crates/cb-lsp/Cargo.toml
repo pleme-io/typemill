@@ -1,0 +1,19 @@
+[package]
+name = "cb-lsp"
+version = "1.0.0-beta"
+edition = "2021"
+
+[dependencies]
+cb-core = { path = "../cb-core" }
+cb-types = { path = "../cb-types" }
+cb-protocol = { path = "../cb-protocol" }
+tokio = { workspace = true }
+serde_json = { workspace = true }
+serde = { workspace = true }
+lsp-types = "0.97"
+tracing = { workspace = true }
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+dashmap = { workspace = true }
+uuid = { workspace = true }

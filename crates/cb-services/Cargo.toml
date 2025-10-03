@@ -1,0 +1,33 @@
+[package]
+name = "cb-services"
+version = "1.0.0-beta"
+edition = "2021"
+
+[dependencies]
+cb-types = { path = "../cb-types" }
+cb-core = { path = "../cb-core" }
+cb-ast = { path = "../cb-ast" }
+cb-lsp = { path = "../cb-lsp" }
+cb-protocol = { path = "../cb-protocol" }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+dashmap = { workspace = true }
+uuid = { workspace = true }
+lsp-types = "0.97"
+tempfile = "3.0"
+ignore = "0.4"
+toml_edit = "0.23"
+swc_common = "14"
+swc_ecma_parser = "24"
+swc_ecma_ast = "15"
+swc_ecma_codegen = "17"
+cb-plugins = { path = "../cb-plugins" }
+
+[dev-dependencies]
+futures-util = "0.3"
+chrono = "0.4"
