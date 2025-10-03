@@ -13,6 +13,44 @@ use async_trait::async_trait;
 use cb_core::language::ProjectLanguage;
 use std::path::Path;
 
+/// Defines the scope of the import/reference scan
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScanScope {
+    /// Only find top-level `import`/`use` statements
+    TopLevelOnly,
+    /// Find all `use` or `import` statements, including those inside functions
+    AllUseStatements,
+    /// Find all `use` statements and qualified paths (e.g., `my_module::MyStruct`)
+    QualifiedPaths,
+    /// Find all references, including string literals (requires confirmation)
+    All,
+}
+
+/// Represents a found reference to a module within a source file
+#[derive(Debug, Clone)]
+pub struct ModuleReference {
+    /// Line number (1-indexed)
+    pub line: usize,
+    /// Column number (0-indexed)
+    pub column: usize,
+    /// Length of the reference in characters
+    pub length: usize,
+    /// The actual text that was found
+    pub text: String,
+    /// The type of reference
+    pub kind: ReferenceKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ReferenceKind {
+    /// An `import` or `export` or `use` declaration
+    Declaration,
+    /// A qualified path (e.g., `my_module.MyStruct` or `my_module::function`)
+    QualifiedPath,
+    /// A reference inside a string literal
+    StringLiteral,
+}
+
 /// Language-specific adapter for package extraction operations
 ///
 /// This trait abstracts language-specific operations needed for extracting
@@ -119,6 +157,27 @@ pub trait LanguageAdapter: Send + Sync {
         project_root: &Path,
         rename_info: Option<&serde_json::Value>,
     ) -> AstResult<(String, usize)>;
+
+    /// Find all references to a specific module within file content
+    ///
+    /// This is more powerful than `parse_imports` as it finds not just declarations,
+    /// but also qualified paths and other usages within the code based on the scope.
+    ///
+    /// # Arguments
+    ///
+    /// * `content` - The file content to scan
+    /// * `module_to_find` - The module name/path to search for
+    /// * `scope` - The scope of the search (top-level only, all statements, qualified paths, etc.)
+    ///
+    /// # Returns
+    ///
+    /// Vector of all found references with their locations
+    fn find_module_references(
+        &self,
+        content: &str,
+        module_to_find: &str,
+        scope: ScanScope,
+    ) -> AstResult<Vec<ModuleReference>>;
 }
 
 /// Rust language adapter
@@ -399,6 +458,17 @@ impl LanguageAdapter for RustAdapter {
 
         Ok((new_content, changes_count))
     }
+
+    fn find_module_references(
+        &self,
+        _content: &str,
+        _module_to_find: &str,
+        _scope: ScanScope,
+    ) -> AstResult<Vec<ModuleReference>> {
+        // TODO: Implement full Rust AST-based reference finding
+        // For now, return empty to satisfy the trait
+        Ok(Vec::new())
+    }
 }
 
 /// TypeScript/JavaScript language adapter
@@ -488,6 +558,17 @@ impl LanguageAdapter for TypeScriptAdapter {
 
         Ok((updated_content.trim_end().to_string(), updates_count))
     }
+
+    fn find_module_references(
+        &self,
+        _content: &str,
+        _module_to_find: &str,
+        _scope: ScanScope,
+    ) -> AstResult<Vec<ModuleReference>> {
+        // TODO: Implement SWC-based reference finding for TypeScript/JavaScript
+        // For now, return empty to satisfy the trait
+        Ok(Vec::new())
+    }
 }
 
 /// Python language adapter
@@ -550,6 +631,16 @@ impl LanguageAdapter for PythonAdapter {
     ) -> AstResult<(String, usize)> {
         // Python import rewriting not yet implemented
         Ok((content.to_string(), 0))
+    }
+
+    fn find_module_references(
+        &self,
+        _content: &str,
+        _module_to_find: &str,
+        _scope: ScanScope,
+    ) -> AstResult<Vec<ModuleReference>> {
+        // TODO: Implement Python AST-based reference finding
+        Ok(Vec::new())
     }
 }
 
@@ -794,6 +885,16 @@ impl LanguageAdapter for GoAdapter {
         tracing::debug!(changes = changes_count, "Successfully rewrote Go imports");
 
         Ok((updated_content.trim_end().to_string(), changes_count))
+    }
+
+    fn find_module_references(
+        &self,
+        _content: &str,
+        _module_to_find: &str,
+        _scope: ScanScope,
+    ) -> AstResult<Vec<ModuleReference>> {
+        // TODO: Implement Go AST-based reference finding
+        Ok(Vec::new())
     }
 }
 
@@ -1083,5 +1184,15 @@ impl LanguageAdapter for JavaAdapter {
         tracing::debug!(changes = changes_count, "Successfully rewrote Java imports");
 
         Ok((updated_content.trim_end().to_string(), changes_count))
+    }
+
+    fn find_module_references(
+        &self,
+        _content: &str,
+        _module_to_find: &str,
+        _scope: ScanScope,
+    ) -> AstResult<Vec<ModuleReference>> {
+        // TODO: Implement Java AST-based reference finding
+        Ok(Vec::new())
     }
 }
