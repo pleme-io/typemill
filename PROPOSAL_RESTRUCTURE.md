@@ -104,9 +104,9 @@ Here are the actionable commands to execute the four-phase refactoring plan.
 
 ```bash
 # 1a: Move root documentation into docs/proposals
-codebuddy tool batch_execute '{ 
+mkdir -p docs/proposals
+codebuddy tool batch_execute '{
   "operations": [
-    {"type": "create_directory", "path": "docs/proposals"},
     {"type": "rename_file", "old_path": "BUG_REPORT.md", "new_path": "docs/proposals/BUG_REPORT.md"},
     {"type": "rename_file", "old_path": "CHANGELOG.md", "new_path": "docs/proposals/CHANGELOG.md"},
     {"type": "rename_file", "old_path": "CLAUDE.md", "new_path": "docs/proposals/CLAUDE.md"},
@@ -122,9 +122,9 @@ codebuddy tool batch_execute '{
 '
 
 # 1b: Consolidate scripts
-codebuddy tool batch_execute '{ 
+mkdir -p scripts
+codebuddy tool batch_execute '{
   "operations": [
-    {"type": "create_directory", "path": "scripts"},
     {"type": "rename_file", "old_path": "install.sh", "new_path": "scripts/install.sh"},
     {"type": "rename_file", "old_path": "deployment/scripts/setup-dev-tools.sh", "new_path": "scripts/setup-dev-tools.sh"},
     {"type": "rename_file", "old_path": "crates/cb-ast/resources/ast_tool.py", "new_path": "scripts/ast_tool.py"},
@@ -170,19 +170,16 @@ codebuddy tool batch_execute '{
 }
 '
 
-# 2b: Move model and error from cb-core to cb-types
-codebuddy tool batch_execute '{ 
-  "operations": [
-    {"type": "rename_file", "old_path": "crates/cb-core/src/model", "new_path": "crates/cb-types/src/model"},
-    {"type": "rename_file", "old_path": "crates/cb-core/src/error.rs", "new_path": "crates/cb-types/src/error.rs"}
-  ]
-}
-'
+# 2b: Move model directory from cb-core to cb-types
+codebuddy tool rename_directory '{"old_path":"crates/cb-core/src/model", "new_path":"crates/cb-types/src/model"}'
 
-# 2c: Rename cb-api to cb-protocol
+# 2c: Move error.rs manually (single file)
+git mv crates/cb-core/src/error.rs crates/cb-types/src/error.rs
+
+# 2d: Rename cb-api to cb-protocol
 codebuddy tool rename_directory '{"old_path":"crates/cb-api", "new_path":"crates/cb-protocol"}'
 
-# 2d: Manual updates
+# 2e: Manual updates
 echo "1. Add '\"crates/cb-types\"', '\"crates/cb-plugin-api\"' to workspace members in root Cargo.toml"
 echo "2. Remove '\"crates/cb-api\"' from workspace members and add '\"crates/cb-protocol\"'"
 echo "3. Update dependencies in all Cargo.toml files (replace cb-api with cb-protocol, add cb-types where needed)"
@@ -222,9 +219,9 @@ echo "3. Fix 'use' statements across the workspace"
 
 ```bash
 # 4a: Move files from cb-mcp-proxy to cb-plugins/src/mcp
-codebuddy tool batch_execute '{ 
+mkdir -p crates/cb-plugins/src/mcp
+codebuddy tool batch_execute '{
   "operations": [
-    {"type": "create_directory", "path": "crates/cb-plugins/src/mcp"},
     {"type": "rename_file", "old_path": "crates/cb-mcp-proxy/src/lib.rs", "new_path": "crates/cb-plugins/src/mcp/mod.rs"},
     {"type": "rename_file", "old_path": "crates/cb-mcp-proxy/src/client.rs", "new_path": "crates/cb-plugins/src/mcp/client.rs"},
     {"type": "rename_file", "old_path": "crates/cb-mcp-proxy/src/error.rs", "new_path": "crates/cb-plugins/src/mcp/error.rs"},

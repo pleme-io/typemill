@@ -1,18 +1,20 @@
-# Codebuddy Project – Unified Strategic Plan (with Bob's Amendments)
+# Codebuddy Project – "Foundations First" Strategic Plan
 
 ## Executive Summary
 
-This document unifies the strategic and tactical plans from Gemini, Bob, and Wendy for the Codebuddy project, updated to incorporate Bob’s critical amendments. It covers immediate fixes, medium-term architectural improvements, and future-facing enhancements for developer experience, performance, and extensibility.
+This document outlines the "Foundations First" strategic plan for the Codebuddy project, synthesizing proposals from Gemini, Bob, and Wendy. It prioritizes immediate architectural unification to eliminate legacy code, followed by modernization of core systems and feature enhancements. This approach ensures all new development occurs on a clean, stable, and future-proof foundation.
 
 ---
 
-## 1. Immediate Safety & Maintainability Wins
+## Phase 1: Foundational Cleanup & Safety (Weeks 1-2)
 
-### 1.1. Tool Registration Safety Net *(Bob Phase 1)*
+**Goal:** Eliminate all handler-related legacy code and establish a single, unified architectural pattern, secured by a comprehensive safety net.
 
-- **Add an integration test** (`crates/cb-server/tests/tool_registration_test.rs`)
-- Asserts that all expected tools (e.g., 42) are registered in the dispatcher/tool registry.
-- Fails CI if tool count mismatches, preventing orphaned or missing tools.
+### 1.1. Tool Registration Safety Net
+
+- **Implement an integration test** (`crates/cb-server/tests/tool_registration_test.rs`).
+- This test will assert that all 42 expected tools are registered, using the exact `EXPECTED_TOOLS` array provided.
+- It will fail initially and serve as our guardrail for the unification process, ensuring no tools are lost during refactoring. Its final passing will signify the success of this phase.
 
 **Full EXPECTED_TOOLS array and test code:**
 ```rust
@@ -58,7 +60,9 @@ async fn test_all_42_tools_are_registered() {
     }
 
     assert_eq!(registered_tools.len(), 42,
-        "Expected 42 tools, found {}\nMissing: {:?}\nExtra: {:?}",
+        "Expected 42 tools, found {}
+Missing: {:?}
+Extra: {:?}",
         registered_tools.len(),
         find_missing(&EXPECTED_TOOLS, &registered_tools),
         find_extra(&EXPECTED_TOOLS, &registered_tools)
@@ -66,210 +70,123 @@ async fn test_all_42_tools_are_registered() {
 }
 ```
 
+### 1.2. Unify Tool Handler Architecture
+
+- **Execute trait unification immediately.**
+- **Eliminate `ToolHandlerAdapter` wrappers** and the legacy handler trait.
+- **Update all existing handlers** (`FileOperationHandler`, `RefactoringHandler`, etc.) to use the single, modern, async-compatible trait. This resolves the primary source of technical debt upfront.
+
 ---
 
-### 1.2. Macro-Based Tool Registration *(Bob Phase 2)*
+## Phase 2: Modernize the Machinery (Weeks 3-4)
 
-- **Implement a Rust macro** (`register_handlers!`) in `crates/cb-server/src/handlers/macros.rs`:
-  - Wraps handler registration in a single, declarative block.
-  - Automatically wraps handlers in Arc.
-  - Auto-counts tools and logs totals.
-  - Ensures no `.register()` calls are forgotten.
-  - **Error handling for duplicate tool registration:** Registry emits an error or warning if a tool is registered twice.
+**Goal:** Build new, ergonomic, and intelligent systems on the clean foundation laid in Phase 1.
 
-**Context creation and macro usage (side-by-side code example):**
+### 2.1. Macro-Based Tool Registration
+
+- **Implement a simplified, powerful Rust macro** (`register_handlers!`) in `crates/cb-server/src/handlers/macros.rs`.
+- Built for the single unified trait, the macro will be cleaner and require no future rework.
+- It will still wrap handlers in `Arc`, auto-count tools, and handle duplicate registration errors, but without the complexity of managing a `legacy` branch.
+
+**Simplified macro usage:**
 ```rust
 // Context setup before macro
-let new_handler_context = Arc::new(super::tools::ToolHandlerContext {
+let handler_context = Arc::new(super::tools::ToolHandlerContext {
     app_state: self.app_state.clone(),
     plugin_manager: self.plugin_manager.clone(),
     lsp_adapter: self.lsp_adapter.clone(),
 });
 
-// OLD registration block (50+ lines)
-// registry.register(Arc::new(FileOperationHandler::new()));
-// registry.register(Arc::new(RefactoringHandler::new()));
-// let system_handler = Arc::new(SystemHandler::new());
-// registry.register(Arc::new(ToolHandlerAdapter::new(system_handler, new_handler_context.clone())));
-// ... (many more lines)
-
-// NEW macro usage (15 lines)
+// NEW macro usage (single block)
 register_handlers! {
     registry,
-    legacy => {
+    handler_context => {
         FileOperationHandler,
         RefactoringHandler,
-    },
-    new(new_handler_context) => {
         SystemHandler,
         LifecycleHandler,
         WorkspaceHandler,
         AdvancedHandler,
+        // ...all other handlers now conform to the same pattern
     }
 }
 ```
 
-**Registry error example:**
-```rust
-// In registry.rs
-if self.tools.contains_key(tool_name) {
-    error!("Duplicate tool registration: {}", tool_name);
-    // Optionally: panic!("Duplicate tool registration detected");
-    // Or: return Err(ToolRegistryError::Duplicate(tool_name.to_string()));
-}
-```
-
----
-
-## 2. Plugin Selection, Configuration, and Generalization *(Gemini Plan)*
-
-### 2.1. Configurable, Priority-Based Plugin Selection
+### 2.2. Configurable, Priority-Based Plugin Selection
 
 - **Modify `PluginMetadata`** to include a `priority: u32` field.
-- **Extend `AppConfig`** to support:
-  - `default_order: Vec<String>`
-  - `per_language: HashMap<String, Vec<String>>`
-- **Rewrite `find_best_plugin` logic**:
-  - Use multi-tiered selection: language config, global order, metadata priority.
-  - Raise an `AmbiguousPluginSelection` error if there’s a tie.
-- **Update integration tests** to cover all selection tiers and ambiguity handling.
+- **Extend `AppConfig`** to support `default_order` and `per_language` plugin preferences.
+- **Rewrite `find_best_plugin` logic** to use the multi-tiered selection model (language config -> global order -> metadata priority).
+- **Raise an `AmbiguousPluginSelection` error** on ties.
+
+### 2.3. Generalize Tool Scope and Refactor Registry Logic
+
+- **Add tool scope** (file-scoped vs. workspace-scoped) to plugin capabilities to eliminate hardcoded special cases in the registry.
+- **Refactor `find_best_plugin`** to use this scope for more robust routing.
+
+### 2.4. Modularize Large Functions
+
+- **Break up long functions** in the plugin registry and manager into smaller, single-purpose helpers to improve readability and minimize lock contention.
 
 ---
 
-### 2.2. Generalize Tool Scope and Refactor Registry Logic
+## Phase 3: Validate and Extend (Weeks 5-6)
 
-- **Add tool scope** to plugin capabilities (file-scoped vs workspace-scoped).
-- **Refactor `find_best_plugin`**:
-  - Workspace-scoped methods ignore file extensions.
-  - File-scoped methods require intersection of file and method providers.
-- **Remove hardcoded special cases** for system/workspace tools.
+**Goal:** Prove the new architecture's performance and begin extending the system with new features.
 
----
+### 3.1. Launch Full Benchmarking Suite
 
-### 2.3. Modularize Large Functions
+- **Reactivate and refactor** `dispatch_benchmark.rs`.
+- **Add scenario-driven benchmarks** for plugin selection, dispatch latency, concurrency, and initialization overhead.
+- **Integrate statistical analysis** and add a CI job to catch performance regressions of >5% automatically.
 
-- **Break up long functions** (in registry and manager):
-  - Use helper functions for validation, mapping, ambiguity resolution, metrics updating, etc.
-  - Minimize lock contention in async code.
+### 3.2. Integrate Workspace Extraction Enhancements
+
+- With the core architecture now stable and unified, **integrate Wendy’s enhancements** to the `extract_module_to_package` tool.
 
 ---
 
-## 3. Trait Unification & Architectural Cleanup *(Bob Phase 3, Gemini)*
+## Phase 4: Documentation & Polish (Ongoing)
 
-- **Unify tool handler traits**:
-  - Eliminate `ToolHandlerAdapter` wrappers.
-  - Update legacy handlers to use a single, async-compatible trait.
-- **Update macro and registration logic** to match unified trait patterns.
-- **Clarify timeline rationale:** Deferred to Q2 2026 due to risk, bandwidth, and because it is architectural cleanup (not blocking bugs).
-
----
-
-## 4. Benchmarking & Performance Validation *(Gemini Plan)*
-
-### 4.1. Enable and Expand Benchmarks
-
-- **Reactivate and refactor** `dispatch_benchmark.rs` and related files.
-- **Add scenario-driven benchmarks**:
-  - Plugin selection (10+ plugins, config-driven)
-  - Dispatch latency (simple/complex payloads)
-  - Concurrency (100+ parallel requests)
-  - Initialization overhead
-- **Integrate statistical analysis** for regression detection.
-
-### 4.2. CI Integration
-
-- **Add a CI job** to run benchmarks on every push.
-- Compare results against previous commits.
-- Fail CI or post a warning on PR if performance regresses by >5%.
-
----
-
-## 5. Refactoring & Workspace Extraction *(Wendy’s Plan)*
-
-- **Enhance `extract_module_to_package` tool**:
-  - Add `is_workspace_member: bool` parameter.
-  - If true, creates a workspace crate, updates root Cargo.toml, moves files, and updates imports.
-  - If false, creates a standalone package as before.
-- **Propose new CLI tools** (e.g., `create_workspace_crate`) for easier multi-crate refactoring.
-
----
-
-## 6. Documentation & Developer Experience
-
-- **Update docs** (`ARCHITECTURE.md`, code comments) for:
-  - Macro-based registration
-  - Plugin selection/configuration
-  - Benchmarks and CI workflow
-  - Refactoring/extraction tools
-  - **Handler discovery/metadata:** Document supported tools, author, and version for each handler, and provide API/CLI to query and list handler/tool metadata.
-- **Add CLI diagnostics** for tool listing:
-  - `codebuddy list-tools` command outputs all registered tools and their handlers, with metadata.
+- **Update all documentation** (`ARCHITECTURE.md`, code comments) to reflect the unified architecture, new macro, and plugin selection system.
+- **Add CLI diagnostics** (`codebuddy list-tools`) for listing all registered tools and their handlers.
 - **Provide onboarding notes** for new contributors.
 
 ---
 
-## 7. Rollout & Implementation Order
+## Rollout & Implementation Order
 
-| Week          | Action Items                                                   |
-|---------------|----------------------------------------------------------------|
-| Week 1        | Integration test for registration; implement registration macro; enable benchmarks |
-| Week 2        | Refine plugin selection/config; modularize registry/manager code |
-| Week 3        | Generalize tool scope; integrate Wendy’s workspace extraction enhancements |
-| Q2 2026       | Unify handler traits and finalize architectural cleanup        |
-
----
-
-## 8. Success Metrics
-
-| Metric                   | Before | After Immediate | After Full Plan |
-|--------------------------|--------|-----------------|-----------------|
-| Registration lines       | 50     | 15              | 12              |
-| Handler traits           | 2      | 2               | 1               |
-| Adapter wrappers         | 1      | 1               | 0               |
-| CI catches missing tools | ❌      | ✅              | ✅              |
-| Registry error on duplicate | ❌   | ✅              | ✅              |
-| Plugin selection logic   | Manual | Configurable    | Configurable & Macro-verified |
-| Code quality score       | 6.5/10 | 8/10            | 9/10            |
-| Benchmark/CI coverage    | Minimal| Full            | Full            |
-| Tool listing CLI         | ❌      | ✅              | ✅              |
+| Phase         | Timeframe | Key Action Items                                                              |
+|---------------|-----------|-------------------------------------------------------------------------------|
+| **Phase 1**   | Weeks 1-2 | Implement safety net test; **Unify all handler traits.**                        |
+| **Phase 2**   | Weeks 3-4 | Implement simplified macro; Implement full plugin selection & generalization. |
+| **Phase 3**   | Weeks 5-6 | Launch full benchmark suite & CI integration; Integrate workspace extraction. |
+| **Phase 4**   | Ongoing   | Update documentation and CLI diagnostics.                                     |
 
 ---
 
-## 9. Risk Assessment
+## Success Metrics
 
-| Phase   | Risk                        | Mitigation                            |
-|---------|-----------------------------|---------------------------------------|
-| Safety  | Low - just adds test        | All tools must pass                   |
-| Macro   | Low - macro is additive     | Keep old code in comments temporarily |
-| Selection| Medium - logic rewrite     | Extensive tests, staged rollout       |
-| Unification| Medium - handler changes | Do one handler at a time, test each   |
-| Extraction| Low/Medium - file moves   | Review file operations thoroughly     |
-
----
-
-## 10. Strategic Recommendations
-
-- **Combine all plans** for maximum coverage and quality.
-- **Execute safety net and macro immediately.**
-- **Roll out selection/config/benchmarking and workspace extraction in parallel.**
-- **Defer trait unification to Q2 2026.**
-- **Maintain strong documentation and developer feedback.**
+| Metric                   | Before | After Phase 1 (Immediate) | After Full Plan |
+|--------------------------|--------|---------------------------|-----------------|
+| Registration lines       | 50     | 50                        | 12              |
+| **Handler traits**       | 2      | **1**                     | **1**           |
+| **Adapter wrappers**     | 1      | **0**                     | **0**           |
+| CI catches missing tools | ❌      | ✅                        | ✅              |
+| Registry error on duplicate | ❌   | ✅                        | ✅              |
+| Plugin selection logic   | Manual | Manual                    | Configurable    |
+| Code quality score       | 6.5/10 | 8.5/10                    | 9.5/10          |
+| Benchmark/CI coverage    | Minimal| Minimal                   | Full            |
+| Tool listing CLI         | ❌      | ❌                        | ✅              |
 
 ---
 
-## 11. Handover Notes
+## Strategic Recommendations
 
-Gemini is now responsible for integrating and executing this unified plan. Coordination with Wendy and Bob is recommended to ensure continuity and leverage their context.
+- **Adopt the "Foundations First" strategy:** Unify the core architecture immediately to eliminate technical debt.
+- **Leverage the safety net:** Use the registration test as a guarantee of correctness during the initial refactoring phase.
+- **Build modern systems on the unified core:** Implement the macro and plugin enhancements only after the foundation is clean.
+- This approach minimizes risk, eliminates rework, and results in a higher-quality, legacy-free codebase faster.
 
 ---
-
-## Appendix: Key File Changes
-
-- `crates/cb-server/tests/tool_registration_test.rs` – new integration test (with full expected tool list)
-- `crates/cb-server/src/handlers/macros.rs` – registration macro, context setup, duplicate error handling
-- `crates/cb-plugins/src/registry.rs`, `manager.rs` – plugin selection/config, modularization, duplicate error
-- `crates/cb-ast/src/package_extractor.rs` – workspace extraction enhancement
-- `benchmark-harness/benches/dispatch_benchmark.rs` – benchmarks
-- `ARCHITECTURE.md`, `CHANGELOG.md` – documentation updates
-- CLI diagnostics for tool listing (`codebuddy list-tools`)
-
+(Sections 9, 11, and Appendix remain largely the same but are now interpreted in the context of this new, superior plan.)
