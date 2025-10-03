@@ -4,18 +4,17 @@
 
 use super::compat::{ToolContext, ToolHandler};
 use super::lsp_adapter::DirectLspAdapter;
+use crate::utils::remote_exec::execute_remote_command;
 use async_trait::async_trait;
 use cb_ast::refactoring::{CodeRange, LspRefactoringService};
 use cb_core::model::mcp::ToolCall;
-use cb_core::workspaces::WorkspaceManager;
 use cb_plugins::PluginRequest;
 use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Duration;
-use tracing::{debug, error};
+use tracing::debug;
 
 /// Parameter structures for refactoring operations
 #[derive(Debug, Deserialize)]
@@ -135,64 +134,6 @@ impl RefactoringHandler {
         arg.replace('\'', "'\\''")
     }
 
-    async fn execute_remote_command(
-        workspace_manager: &WorkspaceManager,
-        workspace_id: &str,
-        command: &str,
-    ) -> ServerResult<String> {
-        debug!(workspace_id = %workspace_id, command = %command, "Executing remote command");
-
-        let workspace = workspace_manager.get(workspace_id).ok_or_else(|| {
-            ServerError::InvalidRequest(format!("Workspace '{}' not found", workspace_id))
-        })?;
-
-        let agent_url = format!("{}/execute", workspace.agent_url);
-
-        let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(60))
-            .build()
-            .map_err(|e| {
-                error!(error = %e, "Failed to create HTTP client");
-                ServerError::Internal("HTTP client error".into())
-            })?;
-
-        let response = client
-            .post(&agent_url)
-            .json(&json!({ "command": command }))
-            .send()
-            .await
-            .map_err(|e| {
-                error!(workspace_id = %workspace_id, agent_url = %agent_url, error = %e, "Failed to send command");
-                ServerError::Internal(format!("Failed to reach workspace agent: {}", e))
-            })?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let error_text = response
-                .text()
-                .await
-                .unwrap_or_else(|_| "Unknown error".to_string());
-            error!(workspace_id = %workspace_id, status = %status, error = %error_text, "Workspace agent returned error");
-            return Err(ServerError::Internal(format!(
-                "Workspace agent error ({}): {}",
-                status, error_text
-            )));
-        }
-
-        let result: Value = response.json().await.map_err(|e| {
-            error!(error = %e, "Failed to parse agent response");
-            ServerError::Internal("Failed to parse agent response".into())
-        })?;
-
-        result
-            .get("stdout")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string())
-            .ok_or_else(|| {
-                error!("Agent response missing stdout field");
-                ServerError::Internal("Invalid agent response format".into())
-            })
-    }
 }
 
 impl Default for RefactoringHandler {
@@ -253,7 +194,7 @@ impl RefactoringHandler {
 
                 let content = if let Some(workspace_id) = &parsed.workspace_id {
                     let command = format!("cat '{}'", Self::escape_shell_arg(&parsed.file_path));
-                    Self::execute_remote_command(
+                    execute_remote_command(
                         &context.app_state.workspace_manager,
                         workspace_id,
                         &command,
@@ -317,7 +258,7 @@ impl RefactoringHandler {
 
                 let content = if let Some(workspace_id) = &parsed.workspace_id {
                     let command = format!("cat '{}'", Self::escape_shell_arg(&parsed.file_path));
-                    Self::execute_remote_command(
+                    execute_remote_command(
                         &context.app_state.workspace_manager,
                         workspace_id,
                         &command,
@@ -366,7 +307,7 @@ impl RefactoringHandler {
 
                 let content = if let Some(workspace_id) = &parsed.workspace_id {
                     let command = format!("cat '{}'", Self::escape_shell_arg(&parsed.file_path));
-                    Self::execute_remote_command(
+                    execute_remote_command(
                         &context.app_state.workspace_manager,
                         workspace_id,
                         &command,
@@ -454,7 +395,7 @@ impl RefactoringHandler {
                     Self::escape_shell_arg(&file_edit.new_text),
                     Self::escape_shell_arg(target_file)
                 );
-                Self::execute_remote_command(
+                execute_remote_command(
                     &context.app_state.workspace_manager,
                     workspace_id,
                     &command,

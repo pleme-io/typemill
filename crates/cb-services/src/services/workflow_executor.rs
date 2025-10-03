@@ -138,6 +138,112 @@ impl DefaultWorkflowExecutor {
             other => Ok(other.clone()),
         }
     }
+
+    /// Execute a single workflow step
+    ///
+    /// This method handles parameter resolution, dry-run injection,
+    /// plugin request creation, and execution with logging.
+    async fn execute_workflow_step(
+        &self,
+        step: &cb_core::model::workflow::Step,
+        step_index: usize,
+        workflow_name: &str,
+        total_steps: usize,
+        step_results: &mut HashMap<usize, Value>,
+        log: &mut Vec<String>,
+        dry_run: bool,
+    ) -> ServerResult<Value> {
+        debug!(
+            step_index = step_index,
+            tool = %step.tool,
+            description = %step.description,
+            "Executing workflow step"
+        );
+
+        // Resolve parameters using generic placeholder substitution
+        let mut resolved_params = Self::resolve_step_params(&step.params, step_results)?;
+
+        // If dry_run is enabled, add it to the parameters for all tools
+        if dry_run {
+            if let Value::Object(ref mut map) = resolved_params {
+                map.insert("dry_run".to_string(), Value::Bool(true));
+            }
+        }
+
+        debug!(params = ?resolved_params, dry_run = dry_run, "Resolved step parameters");
+
+        // Create plugin request
+        let file_path = resolved_params
+            .get("file_path")
+            .and_then(|v| v.as_str())
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("."));
+
+        let plugin_request = PluginRequest {
+            method: step.tool.clone(),
+            file_path,
+            position: None,
+            range: None,
+            params: resolved_params,
+            request_id: None,
+        };
+
+        // Execute the step
+        match self.plugin_manager.handle_request(plugin_request).await {
+            Ok(response) => {
+                let step_result = response.data.unwrap_or(json!({}));
+                debug!(
+                    step_index = step_index,
+                    result = ?step_result,
+                    "Step completed successfully"
+                );
+
+                // Log successful step completion
+                log.push(format!(
+                    "[Step {}/{}] SUCCESS: {} - {}",
+                    step_index + 1,
+                    total_steps,
+                    step.tool,
+                    step.description
+                ));
+
+                step_results.insert(step_index, step_result.clone());
+                Ok(step_result)
+            }
+            Err(e) => {
+                error!(
+                    step_index = step_index,
+                    step_description = %step.description,
+                    tool = %step.tool,
+                    workflow = %workflow_name,
+                    error = %e,
+                    "Step execution failed - halting workflow"
+                );
+
+                // Log the failure
+                log.push(format!(
+                    "[Step {}/{}] FAILED: {} - {}. Error: {}",
+                    step_index + 1,
+                    total_steps,
+                    step.tool,
+                    step.description,
+                    e
+                ));
+
+                Err(ServerError::Runtime {
+                    message: format!(
+                        "Workflow '{}' failed at step {}/{} ({}): {}. Error: {}",
+                        workflow_name,
+                        step_index + 1,
+                        total_steps,
+                        step.tool,
+                        step.description,
+                        e
+                    ),
+                })
+            }
+        }
+    }
 }
 
 #[async_trait::async_trait]
@@ -203,96 +309,17 @@ impl WorkflowExecutor for DefaultWorkflowExecutor {
                 }));
             }
 
-            debug!(
-                step_index = step_index,
-                tool = %step.tool,
-                description = %step.description,
-                "Executing workflow step"
-            );
+            let step_result = self.execute_workflow_step(
+                step,
+                step_index,
+                &workflow.name,
+                workflow.steps.len(),
+                &mut step_results,
+                &mut log,
+                dry_run,
+            ).await?;
 
-            // Resolve parameters using generic placeholder substitution
-            let mut resolved_params = Self::resolve_step_params(&step.params, &step_results)?;
-
-            // If dry_run is enabled, add it to the parameters for all tools
-            if dry_run {
-                if let Value::Object(ref mut map) = resolved_params {
-                    map.insert("dry_run".to_string(), Value::Bool(true));
-                }
-            }
-
-            debug!(params = ?resolved_params, dry_run = dry_run, "Resolved step parameters");
-
-            // Create plugin request
-            let file_path = resolved_params
-                .get("file_path")
-                .and_then(|v| v.as_str())
-                .map(PathBuf::from)
-                .unwrap_or_else(|| PathBuf::from("."));
-
-            let plugin_request = PluginRequest {
-                method: step.tool.clone(),
-                file_path,
-                position: None,
-                range: None,
-                params: resolved_params,
-                request_id: None,
-            };
-
-            // Execute the step
-            match self.plugin_manager.handle_request(plugin_request).await {
-                Ok(response) => {
-                    let step_result = response.data.unwrap_or(json!({}));
-                    debug!(
-                        step_index = step_index,
-                        result = ?step_result,
-                        "Step completed successfully"
-                    );
-
-                    // Log successful step completion
-                    log.push(format!(
-                        "[Step {}/{}] SUCCESS: {} - {}",
-                        step_index + 1,
-                        workflow.steps.len(),
-                        step.tool,
-                        step.description
-                    ));
-
-                    step_results.insert(step_index, step_result.clone());
-                    final_result = step_result;
-                }
-                Err(e) => {
-                    error!(
-                        step_index = step_index,
-                        step_description = %step.description,
-                        tool = %step.tool,
-                        workflow = %workflow.name,
-                        error = %e,
-                        "Step execution failed - halting workflow"
-                    );
-
-                    // Log the failure
-                    log.push(format!(
-                        "[Step {}/{}] FAILED: {} - {}. Error: {}",
-                        step_index + 1,
-                        workflow.steps.len(),
-                        step.tool,
-                        step.description,
-                        e
-                    ));
-
-                    return Err(ServerError::Runtime {
-                        message: format!(
-                            "Workflow '{}' failed at step {}/{} ({}): {}. Error: {}",
-                            workflow.name,
-                            step_index + 1,
-                            workflow.steps.len(),
-                            step.tool,
-                            step.description,
-                            e
-                        ),
-                    });
-                }
-            }
+            final_result = step_result;
         }
 
         info!(
@@ -352,96 +379,17 @@ impl WorkflowExecutor for DefaultWorkflowExecutor {
             .enumerate()
             .skip(paused_state.step_index)
         {
-            debug!(
-                step_index = step_index,
-                tool = %step.tool,
-                description = %step.description,
-                "Executing workflow step after resume"
-            );
+            let step_result = self.execute_workflow_step(
+                step,
+                step_index,
+                &workflow.name,
+                workflow.steps.len(),
+                &mut step_results,
+                &mut log,
+                dry_run,
+            ).await?;
 
-            // Resolve parameters using generic placeholder substitution
-            let mut resolved_params = Self::resolve_step_params(&step.params, &step_results)?;
-
-            // If dry_run is enabled, add it to the parameters for all tools
-            if dry_run {
-                if let Value::Object(ref mut map) = resolved_params {
-                    map.insert("dry_run".to_string(), Value::Bool(true));
-                }
-            }
-
-            debug!(params = ?resolved_params, dry_run = dry_run, "Resolved step parameters");
-
-            // Create plugin request
-            let file_path = resolved_params
-                .get("file_path")
-                .and_then(|v| v.as_str())
-                .map(PathBuf::from)
-                .unwrap_or_else(|| PathBuf::from("."));
-
-            let plugin_request = PluginRequest {
-                method: step.tool.clone(),
-                file_path,
-                position: None,
-                range: None,
-                params: resolved_params,
-                request_id: None,
-            };
-
-            // Execute the step
-            match self.plugin_manager.handle_request(plugin_request).await {
-                Ok(response) => {
-                    let step_result = response.data.unwrap_or(json!({}));
-                    debug!(
-                        step_index = step_index,
-                        result = ?step_result,
-                        "Step completed successfully"
-                    );
-
-                    // Log successful step completion
-                    log.push(format!(
-                        "[Step {}/{}] SUCCESS: {} - {}",
-                        step_index + 1,
-                        workflow.steps.len(),
-                        step.tool,
-                        step.description
-                    ));
-
-                    step_results.insert(step_index, step_result.clone());
-                    final_result = step_result;
-                }
-                Err(e) => {
-                    error!(
-                        step_index = step_index,
-                        step_description = %step.description,
-                        tool = %step.tool,
-                        workflow = %workflow.name,
-                        error = %e,
-                        "Step execution failed - halting workflow"
-                    );
-
-                    // Log the failure
-                    log.push(format!(
-                        "[Step {}/{}] FAILED: {} - {}. Error: {}",
-                        step_index + 1,
-                        workflow.steps.len(),
-                        step.tool,
-                        step.description,
-                        e
-                    ));
-
-                    return Err(ServerError::Runtime {
-                        message: format!(
-                            "Workflow '{}' failed at step {}/{} ({}): {}. Error: {}",
-                            workflow.name,
-                            step_index + 1,
-                            workflow.steps.len(),
-                            step.tool,
-                            step.description,
-                            e
-                        ),
-                    });
-                }
-            }
+            final_result = step_result;
         }
 
         info!(
