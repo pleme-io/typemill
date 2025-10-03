@@ -53,7 +53,7 @@ pub fn update_dependency(
         if deps.contains_key(old_dep_name) {
             // Create a new table for the updated dependency
             let mut new_dep_table = toml_edit::InlineTable::new();
-            new_dep_table.insert("path", value(new_path));
+            new_dep_table.insert("path", new_path.into());
 
             // Remove the old key and insert the new one
             deps.remove(old_dep_name);
@@ -69,7 +69,7 @@ pub fn update_dependency(
         if dev_deps.contains_key(old_dep_name) {
             // Create a new table for the updated dependency
             let mut new_dep_table = toml_edit::InlineTable::new();
-            new_dep_table.insert("path", value(new_path));
+            new_dep_table.insert("path", new_path.into());
 
             // Remove the old key and insert the new one
             dev_deps.remove(old_dep_name);

@@ -7,9 +7,11 @@
 
 pub mod analyzer;
 pub mod cache;
+pub mod cargo_utils;
 pub mod error;
 pub mod import_updater;
 pub mod language;
+pub mod manifest;
 pub mod package_extractor;
 pub mod parser;
 pub mod python_parser;
