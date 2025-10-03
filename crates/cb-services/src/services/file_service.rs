@@ -136,24 +136,54 @@ impl FileService {
                     }))
                 }
                 cb_core::config::ValidationFailureAction::Rollback => {
-                    // TODO: Implement rollback using git reset --hard
+                    warn!(
+                        stderr = %stderr,
+                        "Validation failed. Executing automatic rollback via 'git reset --hard HEAD'"
+                    );
+
+                    let rollback_output = Command::new("git")
+                        .args(&["reset", "--hard", "HEAD"])
+                        .current_dir(&self.project_root)
+                        .output();
+
+                    let (rollback_status, rollback_error) = match rollback_output {
+                        Ok(out) if out.status.success() => {
+                            info!("Rollback completed successfully");
+                            ("rollback_succeeded", None)
+                        }
+                        Ok(out) => {
+                            let error_msg = String::from_utf8_lossy(&out.stderr).to_string();
+                            error!(error = %error_msg, "Rollback command failed");
+                            ("rollback_failed", Some(error_msg))
+                        }
+                        Err(e) => {
+                            error!(error = %e, "Failed to execute rollback command");
+                            ("rollback_failed", Some(e.to_string()))
+                        }
+                    };
+
                     Some(json!({
                         "validation_status": "failed",
-                        "validation_action": "rollback_not_implemented",
+                        "validation_action": rollback_status,
                         "validation_command": self.validation_config.command,
                         "validation_errors": stderr,
-                        "suggestion": "Rollback action is not yet implemented. Please manually revert changes using git."
+                        "rollback_error": rollback_error,
+                        "suggestion": if rollback_status == "rollback_succeeded" {
+                            "Validation failed and changes were automatically rolled back using git."
+                        } else {
+                            "Validation failed and automatic rollback failed. Please manually revert changes."
+                        }
                     }))
                 }
                 cb_core::config::ValidationFailureAction::Interactive => {
                     Some(json!({
                         "validation_status": "failed",
-                        "validation_action": "awaiting_user_decision",
+                        "validation_action": "interactive_prompt",
                         "validation_command": self.validation_config.command,
                         "validation_errors": stderr,
                         "validation_stdout": stdout,
                         "rollback_available": true,
-                        "suggestion": "Validation failed. You can manually revert changes using 'git reset --hard' if needed."
+                        "suggestion": "Validation failed. Please review the errors and decide whether to keep or revert the changes. Run 'git reset --hard HEAD' to rollback."
                     }))
                 }
             }

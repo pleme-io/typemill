@@ -850,12 +850,139 @@ impl LanguageAdapter for PythonAdapter {
 
     fn find_module_references(
         &self,
-        _content: &str,
-        _module_to_find: &str,
-        _scope: ScanScope,
+        content: &str,
+        module_to_find: &str,
+        scope: ScanScope,
     ) -> AstResult<Vec<ModuleReference>> {
-        // TODO: Implement Python AST-based reference finding
-        Ok(Vec::new())
+        // Parse Python source code
+        let program = rustpython_parser::parse_program(content, "<string>")
+            .map_err(|e| AstError::analysis(format!("Failed to parse Python source: {:?}", e)))?;
+
+        // Create and run visitor
+        let mut finder = PythonModuleFinder::new(module_to_find, scope);
+        for stmt in &program {
+            finder.visit_stmt(stmt);
+        }
+
+        Ok(finder.into_references())
+    }
+}
+
+/// Visitor for finding module references in Python code
+struct PythonModuleFinder<'a> {
+    module_to_find: &'a str,
+    scope: ScanScope,
+    references: Vec<ModuleReference>,
+}
+
+impl<'a> PythonModuleFinder<'a> {
+    fn new(module_to_find: &'a str, scope: ScanScope) -> Self {
+        Self {
+            module_to_find,
+            scope,
+            references: Vec::new(),
+        }
+    }
+
+    fn into_references(self) -> Vec<ModuleReference> {
+        self.references
+    }
+
+    fn visit_stmt(&mut self, stmt: &rustpython_parser::ast::Stmt) {
+        use rustpython_parser::ast::Stmt;
+
+        match stmt {
+            Stmt::Import(import_stmt) => {
+                // Handle: import module, import module as alias
+                for alias in &import_stmt.names {
+                    let module_name = alias.name.as_str();
+                    if module_name == self.module_to_find || module_name.starts_with(&format!("{}.", self.module_to_find)) {
+                        self.references.push(ModuleReference {
+                            line: 0,
+                            column: 0,
+                            length: self.module_to_find.len(),
+                            text: module_name.to_string(),
+                            kind: ReferenceKind::Declaration,
+                        });
+                    }
+                }
+            }
+            Stmt::ImportFrom(import_from) => {
+                // Handle: from module import ...
+                if let Some(module) = &import_from.module {
+                    let module_name = module.as_str();
+                    if module_name == self.module_to_find || module_name.starts_with(&format!("{}.", self.module_to_find)) {
+                        self.references.push(ModuleReference {
+                            line: 0,
+                            column: 0,
+                            length: self.module_to_find.len(),
+                            text: module_name.to_string(),
+                            kind: ReferenceKind::Declaration,
+                        });
+                    }
+                }
+            }
+            Stmt::FunctionDef(func) => {
+                // Recurse into function body for nested imports
+                if self.scope != ScanScope::TopLevelOnly {
+                    for stmt in &func.body {
+                        self.visit_stmt(stmt);
+                    }
+                }
+            }
+            Stmt::ClassDef(class) => {
+                // Recurse into class body
+                if self.scope != ScanScope::TopLevelOnly {
+                    for stmt in &class.body {
+                        self.visit_stmt(stmt);
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        // For QualifiedPaths and All scopes, check expressions
+        if self.scope == ScanScope::QualifiedPaths || self.scope == ScanScope::All {
+            if let Stmt::Expr(expr_stmt) = stmt {
+                self.visit_expr(&expr_stmt.value);
+            }
+        }
+    }
+
+    fn visit_expr(&mut self, expr: &rustpython_parser::ast::Expr) {
+        use rustpython_parser::ast::Expr;
+
+        match expr {
+            Expr::Attribute(attr) => {
+                // Check for qualified paths like module.function()
+                if let Expr::Name(name) = attr.value.as_ref() {
+                    if name.id.as_str() == self.module_to_find {
+                        self.references.push(ModuleReference {
+                            line: 0,
+                            column: 0,
+                            length: self.module_to_find.len(),
+                            text: format!("{}.{}", name.id, attr.attr),
+                            kind: ReferenceKind::QualifiedPath,
+                        });
+                    }
+                }
+            }
+            Expr::Constant(constant) if self.scope == ScanScope::All => {
+                // Check string literals
+                if let rustpython_parser::ast::Constant::Str(s) = &constant.value {
+                    if s.contains(self.module_to_find) {
+                        self.references.push(ModuleReference {
+                            line: 0,
+                            column: 0,
+                            length: self.module_to_find.len(),
+                            text: s.clone(),
+                            kind: ReferenceKind::StringLiteral,
+                        });
+                    }
+                }
+            }
+            _ => {}
+        }
     }
 }
 
@@ -884,6 +1011,110 @@ fn update_import_line_ts(
 }
 
 /// Go language adapter
+/// Visitor for finding module references in Go code using tree-sitter
+struct GoModuleFinder<'a> {
+    module_to_find: &'a str,
+    scope: ScanScope,
+    references: Vec<ModuleReference>,
+    source: &'a str,
+}
+
+impl<'a> GoModuleFinder<'a> {
+    fn new(module_to_find: &'a str, scope: ScanScope, source: &'a str) -> Self {
+        Self {
+            module_to_find,
+            scope,
+            references: Vec::new(),
+            source,
+        }
+    }
+
+    fn into_references(self) -> Vec<ModuleReference> {
+        self.references
+    }
+
+    fn visit_node(&mut self, node: tree_sitter::Node, cursor: &mut tree_sitter::TreeCursor) {
+        // Check import declarations
+        if node.kind() == "import_spec" {
+            // import_spec contains the import path as a string literal
+            if let Some(path_node) = node.child_by_field_name("path") {
+                let import_path = self.node_text(path_node);
+                // Remove quotes from import path
+                let import_path = import_path.trim_matches('"');
+
+                // Check if this import references our module
+                if import_path == self.module_to_find || import_path.ends_with(&format!("/{}", self.module_to_find)) {
+                    self.references.push(ModuleReference {
+                        line: path_node.start_position().row,
+                        column: path_node.start_position().column,
+                        length: self.module_to_find.len(),
+                        text: import_path.to_string(),
+                        kind: ReferenceKind::Declaration,
+                    });
+                }
+            }
+        }
+
+        // Check qualified identifiers (module.Function calls) if in appropriate scope
+        if matches!(self.scope, ScanScope::QualifiedPaths | ScanScope::All) {
+            if node.kind() == "selector_expression" {
+                // selector_expression: operand.field
+                // Check if operand is our module
+                if let Some(operand) = node.child_by_field_name("operand") {
+                    if operand.kind() == "identifier" {
+                        let ident = self.node_text(operand);
+                        if ident == self.module_to_find {
+                            let full_text = self.node_text(node);
+                            self.references.push(ModuleReference {
+                                line: operand.start_position().row,
+                                column: operand.start_position().column,
+                                length: self.module_to_find.len(),
+                                text: full_text,
+                                kind: ReferenceKind::QualifiedPath,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // Check string literals if scanning all
+        if self.scope == ScanScope::All {
+            if node.kind() == "interpreted_string_literal" || node.kind() == "raw_string_literal" {
+                let text = self.node_text(node);
+                if text.contains(self.module_to_find) {
+                    self.references.push(ModuleReference {
+                        line: node.start_position().row,
+                        column: node.start_position().column,
+                        length: self.module_to_find.len(),
+                        text,
+                        kind: ReferenceKind::StringLiteral,
+                    });
+                }
+            }
+        }
+
+        // Recursively visit children
+        if cursor.goto_first_child() {
+            loop {
+                let child = cursor.node();
+                self.visit_node(child, cursor);
+
+                if !cursor.goto_next_sibling() {
+                    break;
+                }
+            }
+            cursor.goto_parent();
+        }
+    }
+
+    fn node_text(&self, node: tree_sitter::Node) -> String {
+        node.utf8_text(self.source.as_bytes())
+            .unwrap_or("")
+            .to_string()
+    }
+}
+
 pub struct GoAdapter;
 
 #[async_trait]
@@ -1104,12 +1335,28 @@ impl LanguageAdapter for GoAdapter {
 
     fn find_module_references(
         &self,
-        _content: &str,
-        _module_to_find: &str,
-        _scope: ScanScope,
+        content: &str,
+        module_to_find: &str,
+        scope: ScanScope,
     ) -> AstResult<Vec<ModuleReference>> {
-        // TODO: Implement Go AST-based reference finding
-        Ok(Vec::new())
+        // Create tree-sitter parser with Go grammar
+        let mut parser = tree_sitter::Parser::new();
+        parser
+            .set_language(tree_sitter_go::language())
+            .map_err(|e| AstError::analysis(format!("Failed to set Go language: {:?}", e)))?;
+
+        // Parse the Go source code
+        let tree = parser
+            .parse(content, None)
+            .ok_or_else(|| AstError::analysis("Failed to parse Go source code"))?;
+
+        // Create and run visitor
+        let mut finder = GoModuleFinder::new(module_to_find, scope, content);
+        let root = tree.root_node();
+        let mut cursor = root.walk();
+        finder.visit_node(root, &mut cursor);
+
+        Ok(finder.into_references())
     }
 }
 
