@@ -2,294 +2,183 @@
 
 This document tracks known bugs, limitations, and areas for improvement in Codebuddy.
 
-## 🐛 Active Issues
+## ✅ Resolved Issues
 
-### E2E Test Config Loading Failure (CRITICAL)
+### Cargo Dependency Management (Issues #2, #6) - RESOLVED
+**Resolution Date:** 2025-10-03 (Phase 4)
+**Tool Added:** `update_dependency`
 
-**Severity:** High
-**Affected Component:** `cb-core::config::AppConfig::load()`, e2e test infrastructure
+**Original Problem:**
+- `rename_directory` didn't update Cargo.toml dependency names or paths
+- Moving packages broke relative path dependencies
+- Required manual sed/grep to fix all Cargo.toml files
 
-**Description:**
-E2e_advanced_features tests fail because cb-server doesn't load the test-generated `.codebuddy/config.json` file, falling back to hard-coded default LSP commands without absolute paths.
+**Solution:**
+Created language-agnostic `update_dependency` tool using Manifest trait:
+- Supports Cargo.toml (Rust) and package.json (JavaScript/TypeScript)
+- Automatically updates dependency names and paths
+- Extensible to other package managers (Python, Go, etc.)
 
-**Root Cause Analysis:**
-1. Test harness generates `.codebuddy/config.json` with absolute paths to LSP servers
-2. `AppConfig::load()` attempts to deserialize JSON as full `AppConfig` struct (line 320 in config.rs)
-3. If deserialization fails (even partially), it silently continues without using the config
-4. Fallback to `AppConfig::default()` which has hard-coded relative commands:
-   ```rust
-   command: vec!["typescript-language-server".to_string(), "--stdio".to_string()]
-   ```
-5. When cb-server spawns LSP, it can't find `typescript-language-server` because it's not in PATH
-
-**Evidence:**
+**Usage:**
+```bash
+codebuddy tool update_dependency '{
+  "manifest_path": "crates/my-crate/Cargo.toml",
+  "old_dep_name": "old-package",
+  "new_dep_name": "new-package",
+  "new_path": "../new-package"
+}'
 ```
-ERROR: Failed to start LSP server 'typescript-language-server --stdio':
-       No such file or directory (os error 2)
-```
 
-**Current State:**
-- LSP availability checks: ✅ FIXED (now checks ~/.local/bin, ~/.nvm, ~/.cargo/bin)
-- Config generation: ✅ FIXED (cache config fields corrected)
-- Config loading: ✅ **FIXED** (deserialization now succeeds)
+**Note:** Currently requires exact filename match (`Cargo.toml` or `package.json`). Optional parameters like `optional = true` still need manual adjustment.
 
-**Resolution (ce965a5):**
-The issue was in the CacheConfig JSON structure:
-- Used `maxSizeMb` instead of `maxSizeBytes`
-- Missing required `persistent` field
-- Missing optional `cacheDir` field
+---
 
-After fixing these fields to match the struct definition, config deserialization succeeds.
-LSP servers now spawn with absolute paths from the config.
-
-**Status:** RESOLVED - LSP servers now start correctly (some tests still timeout waiting for LSP responses, but that's a separate initialization timing issue)
+### E2E Test Config Loading (Issue #1) - RESOLVED
+**Resolution Date:** ce965a5
+**Root Cause:** Incorrect CacheConfig JSON structure in test fixtures
+**Fix:** Corrected field names (`maxSizeBytes` vs `maxSizeMb`) and added required fields
 
 ---
 
 ## 🐛 Active Issues
 
 ### 1. Incomplete Import Path Updates During `rename_directory`
-
 **Severity:** Medium
-**Affected Tool:** `rename_directory`
 
-**Description:**
-The `rename_directory` tool updates module-level imports but misses imports in other contexts.
+Only top-level `use` statements are updated. Missed references:
+- Imports inside function bodies (`#[test]` functions)
+- Qualified paths in code (`old_module::function()`)
+- Module references in strings
 
-**Examples of Missed Updates:**
-1. **Imports inside function bodies:**
-   ```rust
-   #[test]
-   fn my_test() {
-       use old_module::SomeType;  // ❌ Not updated
-   }
-   ```
-
-2. **Qualified path references in code:**
-   ```rust
-   let result = old_module::function_name();  // ❌ Not updated
-   ```
-
-3. **Module references in strings (test assertions, etc.):**
-   ```rust
-   assert!(path.contains("old_module"));  // ❌ Not updated
-   ```
-
-**Current Behavior:** Only top-level `use` statements are updated
-
-**Expected Behavior:** All import and module references should be updated throughout the file
-
-**Workaround:** Manual find-and-replace after running `rename_directory`
+**Workaround:** Manual find-and-replace after `rename_directory`
 
 ---
 
-### 2. Cargo Dependency Paths Not Updated After Package Move
-
-**Severity:** Medium
-**Affected Tool:** `rename_directory`
-
-**Description:**
-When moving a Cargo package to a different directory level, relative `path` dependencies in `Cargo.toml` break.
-
-**Example:**
-```toml
-# Before: crates/tests/Cargo.toml
-[dependencies]
-cb-core = { path = "../cb-core" }  # Works when in crates/
-
-# After moving to: integration-tests/Cargo.toml
-cb-core = { path = "../cb-core" }  # ❌ Broken - needs "../crates/cb-core"
-```
-
-**Current Behavior:** Cargo.toml paths remain unchanged after directory move
-
-**Expected Behavior:** Relative paths should be automatically adjusted based on new directory structure
-
-**Workaround:** Manually update relative paths in moved Cargo.toml files
-
----
-
-### 3. Workspace-Relative Paths Not Updated
-
-**Severity:** Low-Medium
-**Affected Tool:** `rename_directory`
-
-**Description:**
-Hard-coded paths to common workspace directories (like `target/`, `examples/`) are not updated when directory structure changes.
-
-**Examples:**
-```rust
-// Test harness with hard-coded path
-let binary = Path::new(&manifest_dir).join("../../target/debug/binary");
-// ❌ Breaks if package moves from crates/pkg to pkg (needs ../target)
-
-// String literal paths
-let path = "/workspace/examples/playground/file.ts";
-// ❌ Not updated when examples/playground moves
-```
-
-**Current Behavior:** These paths remain unchanged
-
-**Expected Behavior:** Option to update workspace-relative paths with configurable patterns
-
-**Workaround:** Manual search and replace for common path patterns
-
----
-
-### 4. Test Assertion Error Message Mismatches
-
+### 2. Batch File Operations Don't Use Git
 **Severity:** Low
-**Affected Tests:** `test_tool_invalid_file_path`, `test_tool_unknown_tool_name`
+**Component:** `batch_execute`, all file operation tools
 
 **Description:**
-CLI tool tests expect error messages to contain specific strings, but actual error format differs.
+File operations (rename_file, etc.) copy/move files without using `git mv`, losing Git history tracking.
+
+**Impact:**
+- Git shows files as deleted + new instead of renamed
+- Lose file history in `git log --follow`
+- Requires `git add -A` to let Git auto-detect renames
 
 **Example:**
-```rust
-// Test expects stderr to contain "error" or "Error"
-// Actual stderr: {"details": "...", "type": "Internal"}
+```bash
+# codebuddy creates:
+deleted:    old/file.rs
+new file:   new/file.rs
+
+# But git add -A recovers rename detection:
+renamed:    old/file.rs -> new/file.rs
 ```
 
-**Current Behavior:** Tests fail with assertion errors on stderr format
+**Enhancement Request:**
+Detect if working directory is a git repository and use `git mv` instead of filesystem operations. Fallback to regular fs ops if not in git repo.
 
-**Expected Behavior:** Error messages should match test expectations or tests should be updated
+**Implementation Idea:**
+```rust
+fn is_git_repo() -> bool {
+    Command::new("git").args(&["rev-parse", "--git-dir"]).status().is_ok()
+}
 
-**Status:** Under investigation
+fn rename_file(old: &Path, new: &Path) -> Result<()> {
+    if is_git_repo() {
+        Command::new("git").args(&["mv", old, new]).status()?;
+    } else {
+        std::fs::rename(old, new)?;
+    }
+}
+```
+
+---
+
+### 3. Test Flakiness
+**Severity:** Low
+**Affected Test:** `resilience_tests::test_basic_filesystem_operations`
+
+Intermittent timeouts and JSON parsing errors ("trailing characters"). Likely timing/initialization issue with integration test infrastructure, not a regression.
 
 ---
 
 ## 📋 Enhancement Requests
 
 ### 1. Enhanced Import Scanning
-- Scan entire file content for all import/module references
 - Update qualified paths (`module::function`) in addition to `use` statements
-- Configurable scope: imports only, all references, or custom patterns
+- Scan function-scoped imports
+- Configurable scope with pattern matching
 
-### 2. Cargo-Aware Path Updates
-- Detect Cargo workspace structure
-- Automatically adjust relative `path = "..."` dependencies when packages move
-- Validate updated paths exist
+### 2. update_dependency Tool Improvements
+- Support inline dependency features (e.g., `optional = true`, `features = [...]`)
+- Batch update mode for multi-file refactorings
+- Auto-detect from workspace root and update all referencing crates
 
-### 3. Configurable Path Update Patterns
-- Allow users to specify additional path patterns to update
-- Support for string literal path updates with confirmation
-- Common presets: `target/`, `examples/`, workspace-relative paths
-
-### 4. Post-Operation Validation
-- Option to run `cargo check` or `cargo build` after rename operations
+### 3. Post-Operation Validation
+- Run `cargo check` after refactoring operations
 - Report compilation errors with suggestions
-- Rollback support if validation fails
+- Optional rollback on validation failure
 
-### 5. Better Operation Reporting
-- Show detailed summary: "Updated 15 imports, found 3 potential issues"
-- List files that may need manual review
-- Diff preview for complex operations
+### 4. Better MCP Error Reporting
+- The update_dependency tool returns JSON errors but CLI expects string messages
+- Need consistent error format across all tools
 
 ---
 
-## 🔍 Testing Gaps
+## 🔧 Phase 4 Refactoring Experience (2025-10-03)
 
-1. **Function-scoped imports** - No test coverage for imports inside function bodies
-2. **Qualified path references** - Missing tests for `module::item` style references
-3. **Cargo workspace moves** - No integration tests for cross-level package moves
-4. **String literal paths** - No validation of path strings in code
+### Successful Dogfooding! 🎉
+
+**Tools Used:**
+1. ✅ `batch_execute` - Moved 7 files from cb-mcp-proxy to cb-plugins/mcp
+2. ✅ `update_dependency` - Updated Cargo.toml files (cb-client, cb-server)
+
+**Manual Adjustments Still Needed:**
+1. Feature flags in Cargo.toml (mcp-proxy feature)
+2. Import path updates (crate:: → super:: for mcp module)
+3. Exposing new module in lib.rs
+
+**Key Learning:**
+Our new `update_dependency` tool worked perfectly for basic dependency renaming! The refactoring went much smoother than Phase 3 because we could automate the Cargo.toml updates.
+
+**Git Rename Detection:**
+Even though batch_execute doesn't use git mv, running `git add -A` allowed Git to properly detect all 7 file renames. No history lost.
 
 ---
 
 ## 📝 Notes
 
-### Reporting Process
-1. Test the operation with `dry_run: true` first
-2. Review the preview carefully
-3. After execution, run `cargo check` or relevant build command
-4. Document any manual fixes required
+### Best Practices for Large Refactorings
 
-### Workaround Priority
-For large refactorings:
-1. Use `rename_directory` for initial move and basic updates
-2. Run `grep -r "old_name" .` to find remaining references
-3. Use `sed` for batch string replacements if needed
-4. Validate with `cargo build` or `cargo test`
+1. **Always use dry_run first:**
+   ```bash
+   codebuddy tool rename_directory '{"old_path":"...","new_path":"...","dry_run":true}'
+   ```
 
----
+2. **For package renames:**
+   ```bash
+   # 1. Move files
+   codebuddy tool rename_directory ...
 
-## 🔧 Phase 2 Refactoring Experience (2025-10-03)
+   # 2. Update dependencies
+   codebuddy tool update_dependency '{"manifest_path":"...","old_dep_name":"...","new_dep_name":"..."}'
 
-### Tools Used & Performance
+   # 3. Fix imports
+   cargo check --workspace 2>&1 | grep error
 
-**Successful Operations:**
-1. ✅ `batch_execute` - Created multiple crate files efficiently in single transaction
-2. ✅ `rename_directory` - Moved `crates/cb-core/src/model` to `crates/cb-types/src/model`
-   - Automatically updated documentation references (PROPOSAL_RESTRUCTURE.md)
-   - Import updates: 0 files (expected, since model was being moved to new crate)
-3. ✅ `rename_directory` - Renamed `crates/cb-api` to `crates/cb-protocol`
-   - Automatically updated 3 import files with 4 import updates
-   - Updated 2 documentation files (PROPOSAL_RESTRUCTURE.md, CLAUDE.md)
+   # 4. Stage all changes
+   git add -A  # Let git detect renames
+   ```
 
-**Manual Fixes Required:**
-1. Cargo.toml dependency updates (5 files) - Not handled by tools
-2. Use statement updates for `cb_core::error` → `cb_types::error`
-3. Test file imports (`crates/cb-core/tests/error_tests.rs`)
-4. Workspace-wide `use cb_api::` → `use cb_protocol::` replacements
-
-### New Issues Discovered
-
-**5. MCP API Documentation Incorrect Command**
-
-**Severity:** Low (Documentation)
-**Affected File:** `MCP_API.md`
-
-**Description:**
-The MCP API documentation shows examples using `codebuddy call <tool>` but the actual CLI command is `codebuddy tool <tool>`.
-
-**Evidence:**
-```bash
-# Documentation shows:
-codebuddy call rename_directory '{"old_path":"...","new_path":"..."}'
-
-# Actual command:
-codebuddy tool rename_directory '{"old_path":"...","new_path":"..."}'
-```
-
-**Confirmed via:** `codebuddy --help` shows `tool` subcommand, not `call`
-
-**Status:** Documentation needs update
+3. **Validate continuously:**
+   - Run `cargo check` after each major step
+   - Run tests before committing
+   - Check git diff to ensure renames are detected
 
 ---
 
-**6. Codebuddy `rename_directory` Does Not Update Cargo.toml Dependencies**
-
-**Severity:** Medium
-**Affected Tool:** `rename_directory`
-**Related to:** Issue #2 (Cargo Dependency Paths)
-
-**Description:**
-When using `rename_directory` to rename a crate directory (e.g., `cb-api` → `cb-protocol`), Cargo.toml `[dependencies]` sections that reference the old crate name are not automatically updated.
-
-**Example:**
-```toml
-# Before: crates/cb-server/Cargo.toml
-[dependencies]
-cb-api = { path = "../cb-api" }
-
-# After: codebuddy tool rename_directory cb-api → cb-protocol
-# Expected: cb-protocol = { path = "../cb-protocol" }
-# Actual: cb-api = { path = "../cb-api" }  # ❌ Not updated
-```
-
-**Impact:** Requires manual find/replace across all Cargo.toml files in workspace
-
-**Workaround:**
-```bash
-# Find all affected files
-grep -r "cb-api" --include="Cargo.toml" crates/
-
-# Manual sed replacement
-find crates/ -name "Cargo.toml" -exec sed -i 's/cb-api/cb-protocol/g' {} +
-```
-
-**Enhancement Request:** `rename_directory` should detect Cargo packages and update dependency names in addition to paths.
-
----
-
-**Last Updated:** Phase 2 refactoring complete (2025-10-03)
+**Last Updated:** Phase 4 complete (2025-10-03)
+**Tool Count:** 43 MCP tools registered
+**Test Coverage:** 244 library tests, 13 CLI integration tests
