@@ -17,20 +17,20 @@ pub async fn create_initialized_dispatcher_with_workspace(
     workspace_manager: Arc<WorkspaceManager>,
 ) -> Result<Arc<PluginDispatcher>, std::io::Error> {
     // Load configuration
-    let config = cb_core::config::AppConfig::load()
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+    let config =
+        cb_core::config::AppConfig::load().map_err(|e| std::io::Error::other(e.to_string()))?;
 
     // Create dispatcher using shared library function (reduces duplication)
     let dispatcher =
         cb_server::create_dispatcher_with_workspace(Arc::new(config), workspace_manager)
             .await
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
 
     // Initialize dispatcher (loads plugins, starts LSP servers)
     dispatcher
         .initialize()
         .await
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+        .map_err(|e| std::io::Error::other(e.to_string()))?;
 
     Ok(dispatcher)
 }

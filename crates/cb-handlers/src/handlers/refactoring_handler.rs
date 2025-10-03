@@ -121,7 +121,6 @@ impl LspRefactoringService for LspRefactoringServiceWrapper {
             .send_request("textDocument/codeAction", params)
             .await
             .map_err(|e| cb_ast::error::AstError::analysis(format!("LSP request failed: {}", e)))
-            .map(|v| v)
     }
 }
 
@@ -445,7 +444,7 @@ impl RefactoringHandler {
                 }));
             }
 
-            if let Some(file_edit) = edit_plan.edits.get(0) {
+            if let Some(file_edit) = edit_plan.edits.first() {
                 let target_file = file_edit
                     .file_path
                     .as_ref()

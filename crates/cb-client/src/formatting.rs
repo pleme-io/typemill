@@ -416,25 +416,20 @@ impl Formatter {
         };
 
         if self.use_colors {
-            let style = if length.is_some() {
+            if let Ok(style) = if length.is_some() {
                 ProgressStyle::with_template(
-                    "{spinner:.green} [{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}"
-                ).expect("Failed to create progress style")
+                    "{spinner:.green} [{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
+                )
             } else {
                 ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] {msg}")
-                    .expect("Failed to create progress style")
-            };
-
-            pb.set_style(style);
+            } {
+                pb.set_style(style);
+            }
+        } else if let Ok(style) = if length.is_some() {
+            ProgressStyle::with_template("[{elapsed_precise}] {bar:40} {pos:>7}/{len:7} {msg}")
         } else {
-            let style = if length.is_some() {
-                ProgressStyle::with_template("[{elapsed_precise}] {bar:40} {pos:>7}/{len:7} {msg}")
-                    .expect("Failed to create progress style")
-            } else {
-                ProgressStyle::with_template("[{elapsed_precise}] {msg}")
-                    .expect("Failed to create progress style")
-            };
-
+            ProgressStyle::with_template("[{elapsed_precise}] {msg}")
+        } {
             pb.set_style(style);
         }
 

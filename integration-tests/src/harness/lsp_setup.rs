@@ -181,7 +181,7 @@ impl LspSetupHelper {
         }
 
         // Check common LSP installation locations
-        if let Some(home_dir) = std::env::var("HOME").ok() {
+        if let Ok(home_dir) = std::env::var("HOME") {
             // Check standard locations
             let standard_paths = vec![
                 format!("{}/.local/bin/{}", home_dir, command),

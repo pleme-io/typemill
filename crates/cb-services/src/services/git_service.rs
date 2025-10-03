@@ -21,7 +21,7 @@ impl GitService {
     pub fn is_git_repo(path: &Path) -> bool {
         let result = Command::new("git")
             .current_dir(path)
-            .args(&["rev-parse", "--git-dir"])
+            .args(["rev-parse", "--git-dir"])
             .output();
 
         match result {
@@ -48,7 +48,7 @@ impl GitService {
     /// Check if a file is tracked by git
     pub fn is_file_tracked(path: &Path) -> bool {
         let result = Command::new("git")
-            .args(&["ls-files", "--error-unmatch"])
+            .args(["ls-files", "--error-unmatch"])
             .arg(path.to_str().unwrap_or(""))
             .output();
 
@@ -90,7 +90,7 @@ impl GitService {
         );
 
         let output = Command::new("git")
-            .args(&["mv"])
+            .args(["mv"])
             .arg(old.to_str().ok_or_else(|| anyhow!("Invalid old path"))?)
             .arg(new.to_str().ok_or_else(|| anyhow!("Invalid new path"))?)
             .output()?;
@@ -120,7 +120,7 @@ impl GitService {
         debug!(path = %path.display(), "Executing git rm");
 
         let output = Command::new("git")
-            .args(&["rm"])
+            .args(["rm"])
             .arg(path.to_str().ok_or_else(|| anyhow!("Invalid path"))?)
             .output()?;
 

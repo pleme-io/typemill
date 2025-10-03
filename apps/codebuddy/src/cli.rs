@@ -11,6 +11,7 @@ use tracing_subscriber::fmt;
 use tracing_subscriber::prelude::*;
 
 /// Parse JSON argument from string
+#[allow(dead_code)]
 fn parse_json(s: &str) -> Result<serde_json::Value, String> {
     serde_json::from_str(s).map_err(|e| format!("Invalid JSON: {}", e))
 }
@@ -385,7 +386,7 @@ fn command_exists(cmd: &str) -> bool {
     .stdout(std::process::Stdio::null())
     .stderr(std::process::Stdio::null())
     .status()
-    .map_or(false, |status| status.success())
+    .is_ok_and(|status| status.success())
 }
 
 /// Handle the stop command

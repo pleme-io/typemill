@@ -100,11 +100,12 @@ impl RealLspService {
 
                                     // Read JSON content
                                     let mut json_buffer = vec![0u8; content_length];
-                                    if let Ok(_) = tokio::io::AsyncReadExt::read_exact(
+                                    if tokio::io::AsyncReadExt::read_exact(
                                         &mut reader,
                                         &mut json_buffer,
                                     )
                                     .await
+                                    .is_ok()
                                     {
                                         if let Ok(json_str) = String::from_utf8(json_buffer) {
                                             if let Ok(value) =

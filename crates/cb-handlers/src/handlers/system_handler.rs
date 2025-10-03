@@ -142,7 +142,7 @@ fn should_analyze_symbol(symbol: &Value, config: &AnalysisConfig) -> bool {
     symbol
         .get("kind")
         .and_then(|k| k.as_u64())
-        .map_or(false, |kind| config.analyzed_kinds.contains(&kind))
+        .is_some_and(|kind| config.analyzed_kinds.contains(&kind))
 }
 
 /// Check references for symbols in parallel with concurrency limiting

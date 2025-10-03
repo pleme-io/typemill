@@ -232,8 +232,6 @@ impl WorkspaceHandler {
     /// Updates multiple dependencies across multiple manifest files in a single operation.
     async fn handle_batch_update_dependencies(&self, tool_call: &ToolCall) -> ServerResult<Value> {
         use serde_json::json;
-        use std::path::Path;
-        use tokio::fs;
 
         // Parse arguments
         let args = tool_call

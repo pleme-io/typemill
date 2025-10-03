@@ -68,6 +68,7 @@ impl ToolHandler for AdvancedHandler {
                 // Define the structure for individual operations within the batch
                 #[derive(Deserialize, Debug)]
                 #[serde(tag = "type", rename_all = "snake_case")]
+                #[allow(clippy::enum_variant_names)]
                 enum BatchOperation {
                     CreateFile {
                         path: String,
