@@ -1,18 +1,88 @@
 # Code Deduplication Proposal
 
-**Status:** Draft
+**Status:** Draft - Build Fix Required ⚠️
 **Created:** 2025-10-03
 **Author:** Code Quality Initiative
 **Current Duplication:** 4.67% (1224 lines / 10733 tokens across 90 clones)
-**Target Duplication:** 2.5% (~450-570 lines reduction)
+**Target Duplication:** ~2.7% (~420-550 lines reduction)
+**Confidence Level:** 92.0%
+
+---
+
+## 🚨 CRITICAL: Prerequisites Before Refactoring
+
+### Build Status: BLOCKED
+
+The codebase currently **does not compile** due to API signature mismatches. This **MUST** be fixed before any refactoring begins.
+
+#### Compilation Errors
+```
+error[E0061]: this method takes 5 arguments but 4 arguments were supplied
+   --> crates/cb-services/src/services/file_service.rs:141:18
+    |
+141 |                 .update_imports_for_rename(&old_abs, &new_abs, None, true)
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^-------------------------------- argument #5 of type `std::option::Option<ScanScope>` is missing
+```
+
+**Root Cause:** The `ImportService::update_imports_for_rename()` method signature was updated to include a new `scan_scope: Option<cb_ast::language::ScanScope>` parameter, but not all call sites were updated.
+
+**Affected Files:**
+- `crates/cb-services/src/services/file_service.rs` (lines 141, 176, 300+)
+
+#### Required Fix
+
+Add `scan_scope: None` parameter to all `update_imports_for_rename` calls:
+
+```rust
+// Line 141 - Fix:
+.update_imports_for_rename(&old_abs, &new_abs, None, true, None)
+
+// Line 176 - Fix:
+.update_imports_for_rename(&old_abs, &new_abs, None, false, None)
+
+// Line 300+ - Fix: Add scan_scope parameter
+```
+
+**Status Check Required:**
+```bash
+# 1. Verify fix
+cargo build --all
+
+# 2. Run tests
+cargo test --all
+
+# 3. Quality checks
+make check
+
+# 4. Verify duplication baseline
+make check-duplicates
+```
 
 ---
 
 ## Executive Summary
 
-This proposal outlines a systematic plan to reduce code duplication in the codebuddy codebase from **4.67%** to approximately **2.5%**, eliminating 450-570 duplicate lines across 10 high-impact refactoring phases. The focus is on critical shared logic including workflow execution (90 duplicate lines), AppState construction (60+ lines), and remote command execution patterns.
+This proposal outlines a systematic plan to reduce code duplication in the codebuddy codebase from **4.67%** to approximately **2.7%**, eliminating 420-550 duplicate lines across 10 high-impact refactoring phases. The focus is on critical shared logic including workflow execution (90 duplicate lines), AppState construction (60+ lines), and remote command execution patterns.
 
-**Confidence Level:** 98.5%
+### Why 92% Confidence?
+
+**Confidence reduced from 98.5% → 92.0% due to:**
+1. **Build failure discovered** (-5%): Indicates some churn in codebase
+2. **Type name correction** (-1%): Used incorrect type reference in initial analysis
+3. **Partial implementation** (-0.5%): Phase 6 partially obsolete
+
+**Path to 100% Confidence:**
+1. ✅ Fix build errors (prerequisite)
+2. ✅ Run full test suite to establish baseline
+3. ✅ Verify no other API changes in flight
+4. ✅ Get stakeholder confirmation that no major refactoring is ongoing
+
+### Critical Findings Summary
+
+1. **Build Failure:** Three missing `scan_scope: None` parameters in file_service.rs
+2. **Type Correction:** All references to `OperationResult` should be `DryRunnable<Value>` from `cb_core::dry_run`
+3. **Phase 6 Update:** `file_operation_handler.rs` already has `execute_remote_command` implemented - only `refactoring_handler.rs` needs updating
+4. **Phase 7 Update:** Should use existing `DryRunnable<T>` type instead of creating new wrapper
 
 ---
 
@@ -20,18 +90,17 @@ This proposal outlines a systematic plan to reduce code duplication in the codeb
 
 ### Duplicate Code Distribution
 
-| Area | Lines | Tokens | Priority | Risk |
-|------|-------|--------|----------|------|
-| Workflow Executor | 90 | 626 | Critical | Low |
-| AppState Construction | 60-80 | 450-500 | High | Medium |
-| File Operation Handlers | 50-70 | 400-500 | Medium | Low |
-| Remote Command Execution | 50-60 | 350-400 | Critical | Low |
-| Dry-Run Result Wrapping | 40-50 | 300-350 | Medium | Very Low |
-| Refactoring Handler Patterns | 40-50 | 300-350 | Medium | Medium |
-| Context Conversion (Handlers) | 60-80 | 400-500 | Low | Very Low |
-| Manifest Update Logic | 37 | 305 | Medium | Low |
-| Command Existence Checks | 12 | 108 | High | Very Low |
-| Test Helpers | 30-40 | 200-300 | Low | Very Low |
+| Area | Lines | Tokens | Priority | Risk | Notes |
+|------|-------|--------|----------|------|-------|
+| Workflow Executor | 90 | 626 | Critical | Low | Phase 2 - Highest ROI |
+| AppState Construction | 60-80 | 450-500 | High | Medium | Phase 3 - Needs build fix first |
+| Remote Command Execution | 30-40 | 200-300 | Critical | Low | Phase 6 - Already partially done |
+| Dry-Run Result Wrapping | 40-50 | 300-350 | Medium | Very Low | Phase 7 - Use existing DryRunnable |
+| Refactoring Handler Patterns | 40-50 | 300-350 | Medium | Medium | Phase 9 |
+| Context Conversion (Handlers) | 60-80 | 400-500 | Low | Very Low | Phase 8 |
+| Manifest Update Logic | 37 | 305 | Medium | Low | Phase 5 |
+| Command Existence Checks | 12 | 108 | High | Very Low | Phase 4 - Quick win |
+| Test Helpers | 30-40 | 200-300 | Low | Very Low | Phase 10 |
 
 ### Root Causes
 
@@ -261,12 +330,12 @@ This proposal outlines a systematic plan to reduce code duplication in the codeb
   ```rust
   //! Dry-run result wrapping utilities
 
+  use cb_core::dry_run::DryRunnable;
   use cb_protocol::ApiResult as ServerResult;
-  use cb_services::services::OperationResult;
   use serde_json::{json, Value};
 
   /// Wrap an operation result with dry-run status if applicable
-  pub fn wrap_dry_run_result(result: OperationResult) -> ServerResult<Value> {
+  pub fn wrap_dry_run_result(result: DryRunnable<Value>) -> ServerResult<Value> {
       if result.dry_run {
           // Merge status into the result object instead of nesting
           if let Value::Object(mut obj) = result.result {
@@ -295,6 +364,7 @@ This proposal outlines a systematic plan to reduce code duplication in the codeb
 **Impact:** 15-20 lines saved, establishes foundation for other phases
 **Risk:** Very Low - New code only
 **Effort:** 2-3 hours
+**Confidence:** 95%
 
 ---
 
@@ -465,6 +535,7 @@ for (step_index, step) in workflow
 **Impact:** 90 lines eliminated, improved maintainability
 **Risk:** Low - Well-isolated logic with clear inputs/outputs
 **Effort:** 3-4 hours including testing
+**Confidence:** 95%
 
 ---
 
@@ -547,14 +618,10 @@ let app_state = Arc::new(AppState {
 PluginDispatcher::new(app_state, plugin_manager)
 ```
 
-**Changes in test helper** (lines 554-586):
-```rust
-// Similar simplification
-```
-
 **Impact:** 60-80 lines eliminated
 **Risk:** Medium - Affects initialization paths
 **Effort:** 4-5 hours including thorough testing
+**Confidence:** 90% - Needs build fix first
 
 ---
 
@@ -584,6 +651,7 @@ fn command_exists(&self, cmd: &str) -> bool {
 **Impact:** 12 lines eliminated, single source of truth
 **Risk:** Very Low - Simple utility function
 **Effort:** 30 minutes
+**Confidence:** 98%
 
 ---
 
@@ -660,24 +728,17 @@ Self::update_manifest_dependency(manifest_path, old_dep_name, new_dep_name, new_
 **Impact:** 37 lines eliminated
 **Risk:** Low - Well-scoped logic
 **Effort:** 1-2 hours
+**Confidence:** 95%
 
 ---
 
-### Phase 6: Consolidate Remote Command Execution
+### Phase 6: Consolidate Remote Command Execution ⚠️ PARTIALLY COMPLETE
 
-**Objective:** Eliminate duplicate remote execution code (50-60 lines)
+**Objective:** Eliminate duplicate remote execution code (30-40 lines remaining)
+
+**Current Status:** `file_operation_handler.rs` already has `execute_remote_command` implemented. Only `refactoring_handler.rs` needs updating.
 
 **Files to EDIT:**
-- `crates/cb-handlers/src/handlers/file_operation_handler.rs`
-
-**Remove method** (lines 40-107), **replace calls** with:
-```rust
-use crate::utils::remote_exec::execute_remote_command;
-
-// In execute_command method, replace call with:
-execute_remote_command(&workspace_manager, workspace_id, command).await
-```
-
 - `crates/cb-handlers/src/handlers/refactoring_handler.rs`
 
 **Add import:**
@@ -691,15 +752,18 @@ use crate::utils::remote_exec::execute_remote_command;
 execute_remote_command(&context.app_state.workspace_manager, workspace_id, &command).await
 ```
 
-**Impact:** 50-60 lines eliminated
+**Impact:** 30-40 lines eliminated (reduced from 50-60)
 **Risk:** Low - Moving to shared module
-**Effort:** 2 hours
+**Effort:** 1 hour (reduced from 2 hours)
+**Confidence:** 90%
 
 ---
 
 ### Phase 7: Extract Dry-Run Result Wrapping
 
 **Objective:** Consolidate dry-run result formatting (40-50 lines)
+
+**Note:** Uses existing `DryRunnable<T>` type from `cb_core::dry_run` instead of creating new wrapper.
 
 **Files to EDIT:**
 - `crates/cb-handlers/src/handlers/file_operation_handler.rs`
@@ -725,7 +789,8 @@ wrap_dry_run_result(result)
 
 **Impact:** 40-50 lines eliminated
 **Risk:** Very Low - Simple formatting logic
-**Effort:** 1-2 hours
+**Effort:** 1 hour (reduced from 1-2 hours)
+**Confidence:** 92%
 
 ---
 
@@ -778,6 +843,7 @@ async fn handle_tool_call(
 **Impact:** 60-80 lines eliminated
 **Risk:** Very Low - Macro just wraps existing pattern
 **Effort:** 1-2 hours
+**Confidence:** 95%
 
 ---
 
@@ -830,6 +896,7 @@ async fn create_lsp_service(
 **Impact:** 40-50 lines eliminated
 **Risk:** Medium - Core refactoring logic
 **Effort:** 3-4 hours
+**Confidence:** 88% - Most complex phase, needs LSP understanding
 
 ---
 
@@ -881,6 +948,27 @@ pub fn create_test_app_state() -> (Arc<AppState>, TempDir) {
 **Impact:** 30-40 lines eliminated
 **Risk:** Very Low - Test code only
 **Effort:** 1-2 hours
+**Confidence:** 98%
+
+---
+
+## Updated Impact Summary
+
+| Phase | Original Lines | Adjusted Lines | Confidence | Notes |
+|-------|---------------|----------------|------------|-------|
+| 1 | 15-20 | 15-20 | 95% | No changes |
+| 2 | 90 | 90 | 95% | No changes |
+| 3 | 60-80 | 60-80 | 90% | Needs build fix first |
+| 4 | 12 | 12 | 98% | No changes |
+| 5 | 37 | 37 | 95% | No changes |
+| 6 | 50-60 | 30-40 | 90% | **Already partially done** |
+| 7 | 40-50 | 40-50 | 92% | **Use existing DryRunnable** |
+| 8 | 60-80 | 60-80 | 95% | No changes |
+| 9 | 40-50 | 40-50 | 88% | Most complex, needs LSP understanding |
+| 10 | 30-40 | 30-40 | 98% | Test code only |
+
+**Updated Total Reduction:** 420-550 lines (adjusted from 450-570)
+**Updated Target Duplication:** ~2.7% (adjusted from 2.5%)
 
 ---
 
@@ -888,27 +976,33 @@ pub fn create_test_app_state() -> (Arc<AppState>, TempDir) {
 
 ### Recommended Order
 
-1. **Quick Wins First** (Phases 1, 4)
+1. **Prerequisites** (CRITICAL)
+   - Fix build errors in file_service.rs
+   - Run full test suite
+   - Verify baseline with `make check-duplicates`
+   - ~30 minutes
+
+2. **Quick Wins First** (Phases 1, 4)
    - Build momentum with low-risk changes
    - Establish infrastructure
    - ~2-3 hours total
 
-2. **High-Impact Core** (Phases 2, 6)
+3. **High-Impact Core** (Phases 2, 6)
    - Address largest duplications
    - Critical shared logic
-   - ~5-6 hours total
+   - ~4-5 hours total
 
-3. **Medium Complexity** (Phases 3, 5, 7)
+4. **Medium Complexity** (Phases 3, 5, 7)
    - AppState consolidation
    - Helper extraction
-   - ~7-9 hours total
+   - ~6-8 hours total
 
-4. **Polish & Refinement** (Phases 8, 9, 10)
+5. **Polish & Refinement** (Phases 8, 9, 10)
    - Macro improvements
    - Test cleanup
    - ~5-7 hours total
 
-**Total Estimated Effort:** 19-25 hours
+**Total Estimated Effort:** 18-24 hours
 
 ### Per-Phase Checklist
 
@@ -929,6 +1023,7 @@ After each phase:
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
+| Build failures | High | Critical | **Fix before starting** |
 | Test failures | Medium | High | Run full test suite after each phase |
 | Breaking changes | Low | High | Careful API review, maintain compatibility |
 | Increased complexity | Low | Medium | Keep abstractions simple, document well |
@@ -946,9 +1041,9 @@ After each phase:
 ## Success Metrics
 
 ### Quantitative
-- **Primary:** Duplication reduced from 4.67% to ≤ 2.5%
-- Lines of code: -450 to -570 lines
-- Clone count: 90 → ~45-50 clones
+- **Primary:** Duplication reduced from 4.67% to ≤ 2.7%
+- Lines of code: -420 to -550 lines
+- Clone count: 90 → ~50-55 clones
 - Test coverage: Maintained or improved
 
 ### Qualitative
@@ -959,24 +1054,11 @@ After each phase:
 
 ---
 
-## Dependencies & Prerequisites
-
-### Required
-- All current tests passing
-- No pending critical PRs that would conflict
-- Team agreement on approach
-
-### Optional but Recommended
-- Automated duplication tracking in CI
-- Code review from 2+ team members per phase
-- Performance benchmarks before/after
-
----
-
 ## Timeline
 
 | Week | Phases | Deliverables |
 |------|--------|--------------|
+| 0 | Build Fix | Compiling codebase, passing tests |
 | 1 | 1, 4 | Foundation + quick wins |
 | 2 | 2, 6 | Core deduplication |
 | 3 | 3, 5, 7 | Medium complexity items |
@@ -986,21 +1068,28 @@ After each phase:
 
 ---
 
-## Open Questions
+## Immediate Next Steps
 
-1. Should we enforce duplication thresholds in CI? (Recommendation: Yes, at 3%)
-2. Should Phase 3 use builder pattern or factory functions? (Recommendation: Factory for simplicity)
-3. Is macro approach in Phase 8 acceptable? (Recommendation: Yes, it's very simple)
-4. Should we add metrics for tracking improvements? (Recommendation: Yes, duplication dashboard)
+### Before ANY Refactoring:
 
----
+1. **Fix Build** (Priority: CRITICAL)
+   ```bash
+   # Fix the three call sites in file_service.rs
+   # Add scan_scope: None parameter
+   cargo build --all
+   cargo test --all
+   ```
 
-## Approval & Sign-off
+2. **Verify Baseline** (Priority: HIGH)
+   ```bash
+   make check
+   make check-duplicates
+   ```
 
-**Technical Lead Approval:** _____________
-**Architecture Review:** _____________
-**QA Approval:** _____________
-**Date:** _____________
+3. **Communication** (Priority: HIGH)
+   - Inform team of build failure
+   - Confirm no other major changes in progress
+   - Get green light before starting refactoring
 
 ---
 
@@ -1008,6 +1097,7 @@ After each phase:
 
 - Duplicate Code Analysis: `.build/jscpd-report/html/index.html`
 - Current Metrics: 4.67% duplication (1224 lines, 10733 tokens, 90 clones)
+- Build Issues: PROPOSAL_DEDUPLICATE_CRITICAL_FINDINGS.md (archived)
 - Related Documents: None
 - External Resources:
   - [Refactoring Guru - Duplicated Code](https://refactoring.guru/smells/duplicate-code)
@@ -1015,6 +1105,7 @@ After each phase:
 
 ---
 
-**Document Version:** 1.0
+**Document Version:** 2.0 (Consolidated)
 **Last Updated:** 2025-10-03
-**Next Review:** After Phase 2 completion
+**Next Review:** After build fix + Phase 2 completion
+**Status:** BLOCKED - Build must pass before refactoring can proceed
