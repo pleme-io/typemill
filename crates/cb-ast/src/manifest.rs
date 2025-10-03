@@ -50,10 +50,19 @@ impl Manifest for CargoManifest {
                     Item::Value(ref val) if val.is_inline_table() => {
                         // It's an inline table, preserve all fields and update path
                         if let Some(table) = val.as_inline_table() {
-                            let mut new_table = table.clone();
+                            // Manually copy fields instead of clone to avoid compiler issues
+                            let mut new_table = toml_edit::InlineTable::new();
+
+                            // Copy all existing key-value pairs
+                            for (key, value) in table.iter() {
+                                new_table.insert(key, value.clone());
+                            }
+
+                            // Update or add the path field
                             if let Some(path) = new_path {
                                 new_table.insert("path", path.into());
                             }
+
                             value(new_table)
                         } else {
                             old_dep
@@ -226,7 +235,6 @@ other-dep = "1.0"
     }
 
     #[test]
-    #[ignore] // Temporarily disabled - causes compiler crash
     fn test_cargo_manifest_preserves_metadata() {
         let cargo_toml = r#"
 [package]
