@@ -33,6 +33,8 @@ pub struct FileService {
     git_service: GitService,
     /// Whether to use git for file operations
     use_git: bool,
+    /// Validation configuration
+    validation_config: cb_core::config::ValidationConfig,
 }
 
 impl FileService {
@@ -68,6 +70,93 @@ impl FileService {
             operation_queue,
             git_service: GitService::new(),
             use_git,
+            validation_config: config.validation.clone(),
+        }
+    }
+
+    /// Run post-operation validation if configured
+    /// Returns validation results to be included in the operation response
+    async fn run_validation(&self) -> Option<Value> {
+        use std::process::Command;
+
+        if !self.validation_config.enabled {
+            return None;
+        }
+
+        info!(
+            command = %self.validation_config.command,
+            "Running post-operation validation"
+        );
+
+        // Run validation command in the project root
+        let output = match Command::new("sh")
+            .arg("-c")
+            .arg(&self.validation_config.command)
+            .current_dir(&self.project_root)
+            .output()
+        {
+            Ok(output) => output,
+            Err(e) => {
+                error!(error = %e, "Failed to execute validation command");
+                return Some(json!({
+                    "validation_status": "error",
+                    "validation_error": format!("Failed to execute command: {}", e)
+                }));
+            }
+        };
+
+        let success = output.status.success();
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+        if success {
+            info!("Validation passed");
+            Some(json!({
+                "validation_status": "passed",
+                "validation_command": self.validation_config.command
+            }))
+        } else {
+            warn!(
+                stderr = %stderr,
+                "Validation failed"
+            );
+
+            // For Report action, just include the errors in the response
+            match self.validation_config.on_failure {
+                cb_core::config::ValidationFailureAction::Report => {
+                    Some(json!({
+                        "validation_status": "failed",
+                        "validation_command": self.validation_config.command,
+                        "validation_errors": stderr,
+                        "validation_stdout": stdout,
+                        "suggestion": format!(
+                            "Validation failed. Run '{}' to see details. Consider reviewing changes before committing.",
+                            self.validation_config.command
+                        )
+                    }))
+                }
+                cb_core::config::ValidationFailureAction::Rollback => {
+                    // TODO: Implement rollback using git reset --hard
+                    Some(json!({
+                        "validation_status": "failed",
+                        "validation_action": "rollback_not_implemented",
+                        "validation_command": self.validation_config.command,
+                        "validation_errors": stderr,
+                        "suggestion": "Rollback action is not yet implemented. Please manually revert changes using git."
+                    }))
+                }
+                cb_core::config::ValidationFailureAction::Interactive => {
+                    Some(json!({
+                        "validation_status": "failed",
+                        "validation_action": "awaiting_user_decision",
+                        "validation_command": self.validation_config.command,
+                        "validation_errors": stderr,
+                        "validation_stdout": stdout,
+                        "rollback_available": true,
+                        "suggestion": "Validation failed. You can manually revert changes using 'git reset --hard' if needed."
+                    }))
+                }
+            }
         }
     }
 
@@ -385,22 +474,29 @@ impl FileService {
                 "Directory rename complete"
             );
 
-            Ok(DryRunnable::new(
-                false,
-                json!({
-                    "operation": "rename_directory",
-                    "old_path": old_abs_dir.to_string_lossy(),
-                    "new_path": new_abs_dir.to_string_lossy(),
-                    "files_moved": files_to_move.len(),
-                    "import_updates": {
-                        "files_updated": total_files_updated.len(),
-                        "edits_applied": total_edits_applied,
-                        "errors": all_errors,
-                    },
-                    "documentation_updates": doc_updates,
-                    "success": all_errors.is_empty(),
-                }),
-            ))
+            // Run post-operation validation if configured
+            let validation_result = self.run_validation().await;
+
+            let mut result = json!({
+                "operation": "rename_directory",
+                "old_path": old_abs_dir.to_string_lossy(),
+                "new_path": new_abs_dir.to_string_lossy(),
+                "files_moved": files_to_move.len(),
+                "import_updates": {
+                    "files_updated": total_files_updated.len(),
+                    "edits_applied": total_edits_applied,
+                    "errors": all_errors,
+                },
+                "documentation_updates": doc_updates,
+                "success": all_errors.is_empty(),
+            });
+
+            // Add validation results if available
+            if let Some(validation) = validation_result {
+                result["validation"] = validation;
+            }
+
+            Ok(DryRunnable::new(false, result))
         }
     }
 
