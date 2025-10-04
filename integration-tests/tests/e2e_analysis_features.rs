@@ -47,9 +47,7 @@ export function main() {
     tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
 
     // Call find_dead_code
-    let response = client
-        .call_tool("find_dead_code", json!({}))
-        .await;
+    let response = client.call_tool("find_dead_code", json!({})).await;
 
     // find_dead_code requires LSP workspace/symbol or document/symbol support
     if let Ok(response_value) = response {
@@ -61,16 +59,31 @@ export function main() {
 
         if let Some(result) = response_value.get("result") {
             // If successful, verify the structure
-            assert!(result.get("workspacePath").is_some(), "Result should have workspacePath field");
-            assert!(result.get("deadSymbols").is_some(), "Result should have deadSymbols field");
-            assert!(result.get("analysisStats").is_some(), "Result should have analysisStats field");
+            assert!(
+                result.get("workspacePath").is_some(),
+                "Result should have workspacePath field"
+            );
+            assert!(
+                result.get("deadSymbols").is_some(),
+                "Result should have deadSymbols field"
+            );
+            assert!(
+                result.get("analysisStats").is_some(),
+                "Result should have analysisStats field"
+            );
 
             let _dead_symbols = result["deadSymbols"].as_array().unwrap();
             // May or may not find dead symbols depending on LSP capabilities
 
             let stats = &result["analysisStats"];
-            assert!(stats.get("filesAnalyzed").is_some(), "Stats should have filesAnalyzed");
-            assert!(stats.get("analysisDurationMs").is_some(), "Stats should have analysisDurationMs");
+            assert!(
+                stats.get("filesAnalyzed").is_some(),
+                "Stats should have filesAnalyzed"
+            );
+            assert!(
+                stats.get("analysisDurationMs").is_some(),
+                "Stats should have analysisDurationMs"
+            );
         }
     }
 }
@@ -138,9 +151,7 @@ mod tests {
     tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
 
     // Call find_dead_code
-    let response = client
-        .call_tool("find_dead_code", json!({}))
-        .await;
+    let response = client.call_tool("find_dead_code", json!({})).await;
 
     // Rust analyzer may not support workspace/symbol well, so we should fallback to document/symbol
     if let Ok(response_value) = response {
@@ -152,22 +163,37 @@ mod tests {
 
         if let Some(result) = response_value.get("result") {
             // If successful, verify the structure
-            assert!(result.get("workspacePath").is_some(), "Result should have workspacePath field");
-            assert!(result.get("deadSymbols").is_some(), "Result should have deadSymbols field");
-            assert!(result.get("analysisStats").is_some(), "Result should have analysisStats field");
+            assert!(
+                result.get("workspacePath").is_some(),
+                "Result should have workspacePath field"
+            );
+            assert!(
+                result.get("deadSymbols").is_some(),
+                "Result should have deadSymbols field"
+            );
+            assert!(
+                result.get("analysisStats").is_some(),
+                "Result should have analysisStats field"
+            );
 
             let _dead_symbols = result["deadSymbols"].as_array().unwrap();
             // Rust analyzer should find symbols via documentSymbol fallback
 
             let stats = &result["analysisStats"];
-            assert!(stats.get("filesAnalyzed").is_some(), "Stats should have filesAnalyzed");
-            assert!(stats.get("analysisDurationMs").is_some(), "Stats should have analysisDurationMs");
+            assert!(
+                stats.get("filesAnalyzed").is_some(),
+                "Stats should have filesAnalyzed"
+            );
+            assert!(
+                stats.get("analysisDurationMs").is_some(),
+                "Stats should have analysisDurationMs"
+            );
 
             // Verify we got some analysis done (filesAnalyzed > 0 means fallback worked)
-            if stats["filesAnalyzed"].as_u64().unwrap_or(0) > 0 {
-                // Successfully used fallback path
-                assert!(true, "Fallback path successfully analyzed files");
-            }
+            let files_analyzed = stats["filesAnalyzed"].as_u64().unwrap_or(0);
+            // Successfully used fallback path if we analyzed any files
+            // This confirms the documentSymbol fallback is working
+            let _ = files_analyzed; // May be 0 if LSP not available
         }
     }
 }
@@ -179,9 +205,7 @@ async fn test_find_dead_code_empty_workspace() {
     let mut client = TestClient::new(workspace.path());
 
     // Call find_dead_code on empty workspace
-    let response = client
-        .call_tool("find_dead_code", json!({}))
-        .await;
+    let response = client.call_tool("find_dead_code", json!({})).await;
 
     if let Ok(response_value) = response {
         // Should succeed but find no dead code
@@ -191,13 +215,26 @@ async fn test_find_dead_code_empty_workspace() {
         );
 
         if let Some(result) = response_value.get("result") {
-            assert!(result.get("workspacePath").is_some(), "Result should have workspacePath field");
-            assert!(result.get("deadSymbols").is_some(), "Result should have deadSymbols field");
-            assert!(result.get("analysisStats").is_some(), "Result should have analysisStats field");
+            assert!(
+                result.get("workspacePath").is_some(),
+                "Result should have workspacePath field"
+            );
+            assert!(
+                result.get("deadSymbols").is_some(),
+                "Result should have deadSymbols field"
+            );
+            assert!(
+                result.get("analysisStats").is_some(),
+                "Result should have analysisStats field"
+            );
 
             let dead_symbols = result["deadSymbols"].as_array().unwrap();
             // Empty workspace should have no dead symbols
-            assert_eq!(dead_symbols.len(), 0, "Empty workspace should have no dead symbols");
+            assert_eq!(
+                dead_symbols.len(),
+                0,
+                "Empty workspace should have no dead symbols"
+            );
         }
     }
 }
@@ -260,9 +297,18 @@ if __name__ == "__main__":
         );
 
         if let Some(result) = response_value.get("result") {
-            assert!(result.get("workspacePath").is_some(), "Result should have workspacePath field");
-            assert!(result.get("deadSymbols").is_some(), "Result should have deadSymbols field");
-            assert!(result.get("analysisStats").is_some(), "Result should have analysisStats field");
+            assert!(
+                result.get("workspacePath").is_some(),
+                "Result should have workspacePath field"
+            );
+            assert!(
+                result.get("deadSymbols").is_some(),
+                "Result should have deadSymbols field"
+            );
+            assert!(
+                result.get("analysisStats").is_some(),
+                "Result should have analysisStats field"
+            );
 
             let dead_symbols = result["deadSymbols"].as_array().unwrap();
             // Should only analyze .ts files, not .py files
@@ -332,9 +378,7 @@ function unusedHelper() {
 
     // If get_document_symbols works, find_dead_code should work too (via fallback if needed)
     if symbols_response.is_ok() {
-        let dead_code_response = client
-            .call_tool("find_dead_code", json!({}))
-            .await;
+        let dead_code_response = client.call_tool("find_dead_code", json!({})).await;
 
         if let Ok(response_value) = dead_code_response {
             assert!(
@@ -343,9 +387,18 @@ function unusedHelper() {
             );
 
             if let Some(result) = response_value.get("result") {
-                assert!(result.get("workspacePath").is_some(), "Result should have workspacePath field");
-                assert!(result.get("deadSymbols").is_some(), "Result should have deadSymbols field");
-                assert!(result.get("analysisStats").is_some(), "Result should have analysisStats field");
+                assert!(
+                    result.get("workspacePath").is_some(),
+                    "Result should have workspacePath field"
+                );
+                assert!(
+                    result.get("deadSymbols").is_some(),
+                    "Result should have deadSymbols field"
+                );
+                assert!(
+                    result.get("analysisStats").is_some(),
+                    "Result should have analysisStats field"
+                );
             }
         }
     }

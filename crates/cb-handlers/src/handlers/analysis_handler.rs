@@ -186,9 +186,12 @@ async fn collect_symbols_by_document(
         let uri = format!("file://{}", file_path.display());
 
         match lsp_adapter
-            .request("textDocument/documentSymbol", json!({
-                "textDocument": { "uri": uri }
-            }))
+            .request(
+                "textDocument/documentSymbol",
+                json!({
+                    "textDocument": { "uri": uri }
+                }),
+            )
             .await
         {
             Ok(response) => {
@@ -268,11 +271,9 @@ fn flatten_document_symbol(symbol: &Value, uri: &str, output: &mut Vec<Value>) {
 
     // Otherwise, it's DocumentSymbol format (has "range")
     // Convert to workspace symbol (SymbolInformation) format
-    if let (Some(name), Some(kind), Some(range)) = (
-        symbol.get("name"),
-        symbol.get("kind"),
-        symbol.get("range"),
-    ) {
+    if let (Some(name), Some(kind), Some(range)) =
+        (symbol.get("name"), symbol.get("kind"), symbol.get("range"))
+    {
         output.push(json!({
             "name": name,
             "kind": kind,
@@ -438,9 +439,9 @@ impl AnalysisHandler {
 
         // Get shared LSP adapter from context
         let lsp_adapter = context.lsp_adapter.lock().await;
-        let adapter = lsp_adapter.as_ref().ok_or_else(|| {
-            ServerError::Internal("LSP adapter not initialized".to_string())
-        })?;
+        let adapter = lsp_adapter
+            .as_ref()
+            .ok_or_else(|| ServerError::Internal("LSP adapter not initialized".to_string()))?;
 
         // Run dead code analysis using shared LSP adapter
         let config = AnalysisConfig::default();
