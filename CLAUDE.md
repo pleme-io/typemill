@@ -2,6 +2,34 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 📚 Essential Documentation for AI Agents
+
+**Before working with this codebase, please read:**
+
+1. **[API.md](API.md)** - **READ THIS FIRST** - Complete MCP tools API reference
+   - Tool parameters, return types, and examples
+   - [Language Support Matrix](API.md#language-support-matrix) - Which tools work with which languages
+   - Internal vs public tools distinction
+
+2. **[docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)** - System architecture
+   - Component overview and data flow
+   - LSP integration patterns
+   - Plugin system design
+
+3. **[CONTRIBUTING.md](CONTRIBUTING.md)** - Contributor guide
+   - How to add new MCP tools
+   - Handler architecture and registration
+   - Best practices and code standards
+
+4. **[docs/development/LOGGING_GUIDELINES.md](docs/development/LOGGING_GUIDELINES.md)** - Structured logging
+   - Required logging format (structured key-value)
+   - Log levels and conventions
+   - Anti-patterns to avoid
+
+5. **[docs/deployment/OPERATIONS.md](docs/deployment/OPERATIONS.md)** - Operations guide
+   - Configuration and deployment
+   - CLI usage and commands
+
 ## Project Information
 
 **Package**: `codebuddy` | **Command**: `codebuddy` | **Runtime**: Rust
@@ -10,7 +38,7 @@ Pure Rust MCP server bridging Language Server Protocol (LSP) functionality to AI
 
 ## MCP Tools
 
-Codebuddy provides comprehensive MCP tools for code intelligence and refactoring. See **[API.md](API.md)** for complete API reference.
+Codebuddy provides comprehensive MCP tools for code intelligence and refactoring. See **[API.md](API.md)** for complete API reference with detailed parameters, return types, and examples.
 
 **Note:** Additional internal tools exist for backend use only (lifecycle hooks, workflow plumbing). These are hidden from MCP `tools/list` to simplify the API surface. See [API.md Internal Tools](API.md#internal-tools) section.
 
@@ -415,19 +443,26 @@ cargo build --release
 
 ## Adding New MCP Tools (For Contributors)
 
-To add a new MCP tool to the system:
+**See [CONTRIBUTING.md](CONTRIBUTING.md)** for complete step-by-step guide on adding new tools with handler architecture, registration, and best practices.
 
-1. **Define the tool schema** in `src/mcp/tools.rs`
-2. **Implement the handler** in the appropriate handler module
-3. **Register the tool** in the main server setup:
-   ```rust
-   tools.push(Tool::new("your_tool", handle_your_tool));
-   ```
-4. **Add tests** for the new functionality
+---
 
-The tool will be automatically available through:
-- Direct MCP calls
-- Batch execution system
-- Tool discovery
+## 📖 Additional Documentation
 
-All tools benefit from Rust's compile-time guarantees for safety and performance!
+### For Contributors
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Setup, PR process, adding tools, best practices
+- **[docs/development/LOGGING_GUIDELINES.md](docs/development/LOGGING_GUIDELINES.md)** - Structured logging standards
+- **[integration-tests/TESTING_GUIDE.md](integration-tests/TESTING_GUIDE.md)** - Testing architecture
+
+### For Operators
+- **[docs/deployment/OPERATIONS.md](docs/deployment/OPERATIONS.md)** - Production deployment and CLI usage
+- **[deployment/docker/README.md](deployment/docker/README.md)** - Docker deployment
+
+### For Understanding the System
+- **[docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)** - Complete system architecture
+- **[docs/architecture/INTERNAL_TOOLS.md](docs/architecture/INTERNAL_TOOLS.md)** - Internal vs public tools policy
+- **[docs/features/WORKFLOWS.md](docs/features/WORKFLOWS.md)** - Workflow automation engine
+
+### For Tool Reference
+- **[API.md](API.md)** - Complete MCP tools API with examples
+- **[API.md#language-support-matrix](API.md#language-support-matrix)** - Language support by tool
