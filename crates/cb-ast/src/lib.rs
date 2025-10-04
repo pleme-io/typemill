@@ -8,7 +8,6 @@
 pub mod adapter_registry;
 pub mod analyzer;
 pub mod cache;
-pub mod cargo_utils;
 pub mod error;
 pub mod import_updater;
 pub mod language;

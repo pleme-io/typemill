@@ -45,10 +45,11 @@ pub fn build_import_graph(source: &str, path: &Path) -> AstResult<ImportGraph> {
             }
         },
         "rust" => {
-            // DEPRECATED: Rust parsing moved to cb-lang-rust plugin
-            // Fallback to regex parser for now
-            tracing::debug!("Rust AST parsing deprecated, using regex parser");
-            parse_rust_imports(source)?
+            // Rust import parsing is handled by cb-lang-rust plugin
+            // Cannot be called here due to circular dependency (cb-lang-rust depends on cb-ast)
+            // Use cb_lang_rust::parse_imports() directly when needed
+            tracing::debug!("Rust import parsing should use cb-lang-rust plugin directly");
+            Vec::new()
         },
         "go" => match parse_go_imports_ast(source) {
             Ok(ast_imports) => ast_imports,
@@ -667,76 +668,6 @@ fn parse_python_imports(source: &str) -> AstResult<Vec<ImportInfo>> {
 /// - Glob imports: `use module::*;`
 /// - Aliased imports: `use std::collections::HashMap as Map;`
 /// - Nested groups: `use std::{io::{self, Read}, collections::*};`
-///
-/// Parse Rust imports using regex (fallback implementation)
-fn parse_rust_imports(source: &str) -> AstResult<Vec<ImportInfo>> {
-    let mut imports = Vec::new();
-    for (line_num, line) in source.lines().enumerate() {
-        let line = line.trim();
-        if let Some(stripped) = line.strip_prefix("use ") {
-            let use_part = stripped.trim_end_matches(';');
-            if use_part.contains("::") {
-                let parts: Vec<&str> = use_part.split("::").collect();
-                let module_path = parts[..parts.len() - 1].join("::");
-                let imported_item = parts
-                    .last()
-                    .expect("use statement with :: should have at least one part after split");
-                let (named_imports, namespace_import) =
-                    if imported_item.contains('{') && imported_item.contains('}') {
-                        let inner = imported_item.trim_start_matches('{').trim_end_matches('}');
-                        let named = inner
-                            .split(',')
-                            .map(|name| {
-                                let name = name.trim();
-                                if let Some(as_pos) = name.find(" as ") {
-                                    let original = name[..as_pos].trim();
-                                    let alias = name[as_pos + 4..].trim();
-                                    NamedImport {
-                                        name: original.to_string(),
-                                        alias: Some(alias.to_string()),
-                                        type_only: false,
-                                    }
-                                } else {
-                                    NamedImport {
-                                        name: name.to_string(),
-                                        alias: None,
-                                        type_only: false,
-                                    }
-                                }
-                            })
-                            .collect();
-                        (named, None)
-                    } else if *imported_item == "*" {
-                        (Vec::new(), Some(module_path.clone()))
-                    } else {
-                        (
-                            vec![NamedImport {
-                                name: imported_item.to_string(),
-                                alias: None,
-                                type_only: false,
-                            }],
-                            None,
-                        )
-                    };
-                imports.push(ImportInfo {
-                    module_path,
-                    import_type: ImportType::EsModule,
-                    named_imports,
-                    default_import: None,
-                    namespace_import,
-                    type_only: false,
-                    location: SourceLocation {
-                        start_line: line_num as u32,
-                        start_column: 0,
-                        end_line: line_num as u32,
-                        end_column: line.len() as u32,
-                    },
-                });
-            }
-        }
-    }
-    Ok(imports)
-}
 /// Parse Go imports using AST (go/parser via subprocess)
 ///
 /// This provides accurate parsing of complex Go import statements including:
@@ -1172,26 +1103,6 @@ from ..config import settings
             imports[3].named_imports[1].alias,
             Some("ArrayList".to_string())
         );
-    }
-    #[test]
-    fn test_parse_rust_imports() {
-        let source = r#"
-use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
-use crate::error::AstError;
-use super::utils;
-use tokio::fs::File;
-"#;
-        let imports = parse_rust_imports(source).unwrap();
-        assert_eq!(imports.len(), 5);
-        assert_eq!(imports[0].module_path, "std::collections");
-        assert_eq!(imports[0].named_imports[0].name, "HashMap");
-        assert_eq!(imports[1].module_path, "serde");
-        assert_eq!(imports[1].named_imports.len(), 2);
-        assert_eq!(imports[1].named_imports[0].name, "Serialize");
-        assert_eq!(imports[1].named_imports[1].name, "Deserialize");
-        assert_eq!(imports[2].module_path, "crate::error");
-        assert_eq!(imports[2].named_imports[0].name, "AstError");
     }
     #[test]
     fn test_build_import_graph() {

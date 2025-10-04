@@ -1409,17 +1409,43 @@ impl LanguageAdapter for RustAdapter {
     fn entry_point(&self) -> &'static str { "lib.rs" }
     fn module_separator(&self) -> &'static str { "::" }
     async fn locate_module_files(&self, package_path: &Path, module_path: &str) -> AstResult<Vec<std::path::PathBuf>> {
+        if module_path.is_empty() {
+            return Err(AstError::analysis("Module path cannot be empty"));
+        }
+
         let src_root = package_path.join("src");
-        let file_path = src_root.join(format!("{}.rs", module_path.replace("::", "/")));
-        Ok(vec![file_path])
+        if !src_root.exists() {
+            return Err(AstError::analysis(format!("Source directory not found: {}", src_root.display())));
+        }
+
+        // Convert module path to file path (handle :: and . separators)
+        let normalized_path = module_path.replace("::", "/").replace(".", "/");
+
+        // Try multiple possibilities
+        let candidates = vec![
+            src_root.join(format!("{}.rs", normalized_path)),
+            src_root.join(&normalized_path).join("mod.rs"),
+            src_root.join(&normalized_path).join("lib.rs"),
+        ];
+
+        for candidate in candidates {
+            if candidate.exists() {
+                return Ok(vec![candidate]);
+            }
+        }
+
+        Err(AstError::analysis(format!("Module file not found for: {}", module_path)))
     }
     async fn parse_imports(&self, _file_path: &Path) -> AstResult<Vec<String>> { Ok(vec![]) }
-    fn generate_manifest(&self, package_name: &str, _dependencies: &[String]) -> String {
-        format!("[package]
-name = \"{}\"
-version = \"0.1.0\"
-edition = \"2021\"
-", package_name)
+    fn generate_manifest(&self, package_name: &str, dependencies: &[String]) -> String {
+        let mut manifest = format!("[package]\nname = \"{}\"\nversion = \"0.1.0\"\nedition = \"2021\"\n", package_name);
+        if !dependencies.is_empty() {
+            manifest.push_str("\n[dependencies]\n");
+            for dep in dependencies {
+                manifest.push_str(&format!("{} = \"*\"\n", dep));
+            }
+        }
+        manifest
     }
     fn rewrite_import(&self, _old_import: &str, new_package_name: &str) -> String {
         format!("use {};", new_package_name)
