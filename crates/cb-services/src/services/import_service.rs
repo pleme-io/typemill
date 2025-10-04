@@ -1,7 +1,7 @@
 //! Service for managing import updates across the codebase
 
 use cb_ast::{
-    find_project_files, language::LanguageAdapter, update_imports_for_rename, ImportPathResolver,
+    find_project_files, update_imports_for_rename, ImportPathResolver, LanguageAdapterRegistry,
 };
 use cb_protocol::DependencyUpdate;
 use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
@@ -14,28 +14,51 @@ use tracing::{debug, error, info};
 pub struct ImportService {
     /// Project root directory
     project_root: PathBuf,
-    /// Language adapters for multi-language support
-    adapters: Vec<Arc<dyn LanguageAdapter>>,
+    /// Language adapter registry for multi-language support
+    adapter_registry: Arc<LanguageAdapterRegistry>,
 }
 
 impl ImportService {
-    /// Create a new import service
-    pub fn new(project_root: impl AsRef<Path>) -> Self {
+    /// Create a new import service with a custom adapter registry
+    ///
+    /// # Arguments
+    ///
+    /// * `project_root` - Root directory of the project
+    /// * `adapter_registry` - Registry of language adapters to use
+    pub fn new(
+        project_root: impl AsRef<Path>,
+        adapter_registry: Arc<LanguageAdapterRegistry>,
+    ) -> Self {
+        Self {
+            project_root: project_root.as_ref().to_path_buf(),
+            adapter_registry,
+        }
+    }
+
+    /// Create a new import service with default adapters (deprecated)
+    ///
+    /// This method creates a registry with the old hardcoded adapters for
+    /// backward compatibility. New code should use `new()` with a properly
+    /// configured registry.
+    #[deprecated(
+        since = "1.0.0-beta",
+        note = "Use ImportService::new() with a LanguageAdapterRegistry instead"
+    )]
+    pub fn with_default_adapters(project_root: impl AsRef<Path>) -> Self {
         use cb_ast::language::{
             GoAdapter, JavaAdapter, PythonAdapter, RustAdapter, TypeScriptAdapter,
         };
 
-        let adapters: Vec<Arc<dyn LanguageAdapter>> = vec![
-            Arc::new(RustAdapter),
-            Arc::new(TypeScriptAdapter),
-            Arc::new(PythonAdapter),
-            Arc::new(GoAdapter),
-            Arc::new(JavaAdapter),
-        ];
+        let mut registry = LanguageAdapterRegistry::new();
+        registry.register(Arc::new(RustAdapter));
+        registry.register(Arc::new(TypeScriptAdapter));
+        registry.register(Arc::new(PythonAdapter));
+        registry.register(Arc::new(GoAdapter));
+        registry.register(Arc::new(JavaAdapter));
 
         Self {
             project_root: project_root.as_ref().to_path_buf(),
-            adapters,
+            adapter_registry: Arc::new(registry),
         }
     }
 
@@ -83,7 +106,7 @@ impl ImportService {
             &old_abs,
             &new_abs,
             &self.project_root,
-            &self.adapters,
+            self.adapter_registry.all(),
             rename_info,
             dry_run,
             scan_scope,
@@ -110,7 +133,7 @@ impl ImportService {
         let resolver = ImportPathResolver::new(&self.project_root);
 
         // Get all project files using adapters
-        let project_files = find_project_files(&self.project_root, &self.adapters)
+        let project_files = find_project_files(&self.project_root, self.adapter_registry.all())
             .await
             .map_err(|e| ServerError::Internal(format!("Failed to find project files: {}", e)))?;
 
@@ -315,7 +338,8 @@ mod tests {
     #[tokio::test]
     async fn test_import_service_creation() {
         let temp_dir = TempDir::new().unwrap();
-        let service = ImportService::new(temp_dir.path());
+        let registry = Arc::new(LanguageAdapterRegistry::new());
+        let service = ImportService::new(temp_dir.path(), registry);
 
         assert_eq!(service.project_root, temp_dir.path());
     }

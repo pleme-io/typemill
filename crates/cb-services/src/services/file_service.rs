@@ -63,7 +63,7 @@ impl FileService {
         );
 
         Self {
-            import_service: ImportService::new(&project_root),
+            import_service: ImportService::with_default_adapters(&project_root),
             project_root,
             ast_cache,
             lock_manager,

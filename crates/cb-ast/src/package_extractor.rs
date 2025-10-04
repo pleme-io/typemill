@@ -3,14 +3,14 @@
 //! This module provides language-agnostic package extraction capabilities
 //! for extracting modules into separate packages.
 
+use crate::adapter_registry::LanguageAdapterRegistry;
 use crate::error::AstResult;
-use crate::language::{
-    GoAdapter, JavaAdapter, LanguageAdapter, PythonAdapter, RustAdapter, TypeScriptAdapter,
-};
+use crate::language::LanguageAdapter;
 use cb_core::language::ProjectLanguage;
 use cb_protocol::EditPlan;
 use serde::Deserialize;
 use std::path::Path;
+use std::sync::Arc;
 use tracing::info;
 
 #[derive(Debug, Deserialize)]
@@ -201,14 +201,45 @@ fn remove_module_declaration(source: &str, module_name: &str) -> AstResult<Strin
     Ok(updated_source)
 }
 
+/// Main entry point for extracting a module to a package (deprecated)
+///
+/// This version uses hardcoded adapters for backward compatibility.
+/// New code should use `plan_extract_module_to_package_with_registry`.
+#[deprecated(
+    since = "1.0.0-beta",
+    note = "Use plan_extract_module_to_package_with_registry instead"
+)]
+pub async fn plan_extract_module_to_package(
+    params: ExtractModuleToPackageParams,
+) -> AstResult<EditPlan> {
+    use crate::language::{
+        GoAdapter, JavaAdapter, PythonAdapter, RustAdapter, TypeScriptAdapter,
+    };
+
+    let mut registry = LanguageAdapterRegistry::new();
+    registry.register(Arc::new(RustAdapter));
+    registry.register(Arc::new(TypeScriptAdapter));
+    registry.register(Arc::new(PythonAdapter));
+    registry.register(Arc::new(GoAdapter));
+    registry.register(Arc::new(JavaAdapter));
+
+    plan_extract_module_to_package_with_registry(params, &registry).await
+}
+
 /// Main entry point for extracting a module to a package
 ///
 /// This function orchestrates the extraction process by:
 /// 1. Detecting the source package language
-/// 2. Selecting the appropriate adapter
+/// 2. Selecting the appropriate adapter from the registry
 /// 3. Generating an EditPlan for the refactoring
-pub async fn plan_extract_module_to_package(
+///
+/// # Arguments
+///
+/// * `params` - Extraction parameters
+/// * `adapter_registry` - Registry of language adapters
+pub async fn plan_extract_module_to_package_with_registry(
     params: ExtractModuleToPackageParams,
+    adapter_registry: &LanguageAdapterRegistry,
 ) -> AstResult<EditPlan> {
     use cb_core::language::detect_project_language;
     use cb_protocol::{EditPlanMetadata, ValidationRule, ValidationType};
@@ -232,34 +263,36 @@ pub async fn plan_extract_module_to_package(
         "Detected project language"
     );
 
-    // Step 2: Create appropriate language adapter based on detection
-    let adapter: Box<dyn LanguageAdapter> = match detected_language {
-        ProjectLanguage::Rust => {
-            info!("Selected RustAdapter for extraction");
-            Box::new(RustAdapter)
-        }
-        ProjectLanguage::TypeScript => {
-            info!("Selected TypeScriptAdapter for extraction");
-            Box::new(TypeScriptAdapter)
-        }
-        ProjectLanguage::Python => {
-            info!("Selected PythonAdapter for extraction");
-            Box::new(PythonAdapter)
-        }
-        ProjectLanguage::Go => {
-            info!("Selected GoAdapter for extraction");
-            Box::new(GoAdapter)
-        }
-        ProjectLanguage::Java => {
-            info!("Selected JavaAdapter for extraction");
-            Box::new(JavaAdapter)
-        }
+    // Step 2: Look up appropriate language adapter from registry
+    let manifest_ext = match detected_language {
+        ProjectLanguage::Rust => "toml",
+        ProjectLanguage::TypeScript => "json",
+        ProjectLanguage::Python => "txt",
+        ProjectLanguage::Go => "mod",
+        ProjectLanguage::Java => "xml",
         ProjectLanguage::Unknown => {
             return Err(crate::error::AstError::Analysis {
                 message: "Could not detect project language - no manifest files found".to_string(),
             });
         }
     };
+
+    // Find adapter by checking all adapters for one that handles this language
+    let adapter = adapter_registry
+        .all()
+        .iter()
+        .find(|a| a.language() == detected_language)
+        .ok_or_else(|| crate::error::AstError::Analysis {
+            message: format!(
+                "No adapter registered for language: {}",
+                detected_language.as_str()
+            ),
+        })?;
+
+    info!(
+        language = %detected_language.as_str(),
+        "Selected adapter for extraction"
+    );
 
     // Step 3: Locate module files using the adapter
     let located_files = adapter
@@ -1162,7 +1195,11 @@ pub fn module_function() {
             is_workspace_member: Some(true),
         };
 
-        let result = plan_extract_module_to_package(params).await;
+        // Create registry with RustAdapter for test
+        let mut registry = LanguageAdapterRegistry::new();
+        registry.register(Arc::new(crate::language::RustAdapter));
+
+        let result = plan_extract_module_to_package_with_registry(params, &registry).await;
         assert!(result.is_ok(), "Plan should succeed: {:?}", result.err());
 
         let edit_plan = result.unwrap();
@@ -1270,7 +1307,11 @@ edition = "2021"
             is_workspace_member: Some(false),
         };
 
-        let result = plan_extract_module_to_package(params).await;
+        // Create registry with RustAdapter for test
+        let mut registry = LanguageAdapterRegistry::new();
+        registry.register(Arc::new(crate::language::RustAdapter));
+
+        let result = plan_extract_module_to_package_with_registry(params, &registry).await;
         assert!(result.is_ok(), "Plan should succeed: {:?}", result.err());
 
         let edit_plan = result.unwrap();

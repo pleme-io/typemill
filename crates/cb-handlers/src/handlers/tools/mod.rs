@@ -38,7 +38,7 @@ pub use dispatch::dispatch_to_language_plugin;
 /// Dispatch helpers for language plugin operations
 mod dispatch {
     use super::ToolHandlerContext;
-    use cb_plugin_api::LanguagePlugin;
+    use cb_plugins::LanguagePlugin;
     use cb_protocol::{ApiError, ApiResult};
     use std::path::Path;
 

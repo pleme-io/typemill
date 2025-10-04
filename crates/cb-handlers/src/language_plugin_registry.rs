@@ -4,7 +4,7 @@
 //! `LanguagePlugin` trait. The registry allows for dynamic discovery and routing
 //! of language-specific operations based on file extensions.
 
-use cb_plugin_api::{LanguagePlugin, PluginRegistry as ApiPluginRegistry};
+use cb_plugins::{LanguagePlugin, PluginRegistry as ApiPluginRegistry};
 use std::sync::Arc;
 use tracing::{debug, info};
 
@@ -111,7 +111,7 @@ impl LanguagePluginRegistry {
     /// # Returns
     ///
     /// A reference to the language plugin if found, `None` otherwise
-    pub fn get_plugin_for_manifest(&self, filename: &str) -> Option<&dyn cb_plugin_api::LanguagePlugin> {
+    pub fn get_plugin_for_manifest(&self, filename: &str) -> Option<&dyn LanguagePlugin> {
         debug!(filename = filename, "Looking up plugin for manifest");
 
         for plugin in self.inner.all() {

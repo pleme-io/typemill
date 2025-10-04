@@ -127,12 +127,12 @@ pub mod error_codes {
 /// - `details`: Optional additional context (file paths, line numbers, etc.)
 ///
 /// # Example
-/// ```rust
-/// use cb_core::error::{ApiError, error_codes};
+/// ```rust,no_run
+/// use cb_types::error::ApiError;
 /// use serde_json::json;
 ///
 /// let error = ApiError {
-///     code: error_codes::E1002_FILE_NOT_FOUND.to_string(),
+///     code: "E1002".to_string(),
 ///     message: "File does not exist".to_string(),
 ///     details: Some(json!({"path": "/path/to/missing/file.rs"})),
 ///     suggestion: Some("Check that the file path is correct and the file exists".to_string()),
