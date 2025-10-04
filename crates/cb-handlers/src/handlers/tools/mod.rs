@@ -38,7 +38,7 @@ pub use dispatch::dispatch_to_language_plugin;
 /// Dispatch helpers for language plugin operations
 mod dispatch {
     use super::ToolHandlerContext;
-    use cb_plugins::LanguagePlugin;
+    use cb_plugin_api::LanguageIntelligencePlugin;
     use cb_protocol::{ApiError, ApiResult};
     use std::path::Path;
 
@@ -73,7 +73,7 @@ mod dispatch {
         operation: F,
     ) -> ApiResult<T>
     where
-        F: FnOnce(&dyn LanguagePlugin, String) -> Fut,
+        F: FnOnce(&dyn cb_plugin_api::LanguageIntelligencePlugin, String) -> Fut,
         Fut: std::future::Future<Output = cb_plugin_api::PluginResult<T>>,
     {
         // Get file extension

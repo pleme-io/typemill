@@ -1,10 +1,10 @@
 //! Language Plugin Registry for dynamic language support
 //!
 //! This module provides a registry for language plugins that implement the
-//! `LanguagePlugin` trait. The registry allows for dynamic discovery and routing
+//! `LanguageIntelligencePlugin` trait. The registry allows for dynamic discovery and routing
 //! of language-specific operations based on file extensions.
 
-use cb_plugins::{LanguagePlugin, PluginRegistry as ApiPluginRegistry};
+use cb_plugin_api::{LanguageIntelligencePlugin, PluginRegistry};
 use std::sync::Arc;
 use tracing::{debug, info};
 
@@ -14,7 +14,7 @@ use tracing::{debug, info};
 /// provides additional functionality for integration with the handler system.
 #[derive(Clone)]
 pub struct LanguagePluginRegistry {
-    inner: Arc<ApiPluginRegistry>,
+    inner: Arc<PluginRegistry>,
 }
 
 impl LanguagePluginRegistry {
@@ -24,7 +24,7 @@ impl LanguagePluginRegistry {
     /// the application. In the future, this could be extended to support dynamic
     /// plugin loading from external libraries.
     pub fn new() -> Self {
-        let mut registry = ApiPluginRegistry::new();
+        let mut registry = PluginRegistry::new();
 
         // Register Rust plugin
         #[cfg(feature = "lang-rust")]
@@ -60,7 +60,7 @@ impl LanguagePluginRegistry {
     /// # Returns
     ///
     /// An `Arc` to the language plugin if found, `None` otherwise
-    pub fn get_plugin(&self, extension: &str) -> Option<&dyn LanguagePlugin> {
+    pub fn get_plugin(&self, extension: &str) -> Option<&dyn LanguageIntelligencePlugin> {
         debug!(extension = extension, "Looking up language plugin");
         let result = self.inner.find_by_extension(extension);
 
@@ -80,7 +80,7 @@ impl LanguagePluginRegistry {
     }
 
     /// Get all registered language plugins
-    pub fn all_plugins(&self) -> &[Box<dyn LanguagePlugin>] {
+    pub fn all_plugins(&self) -> &[Box<dyn LanguageIntelligencePlugin>] {
         self.inner.all()
     }
 
@@ -111,7 +111,7 @@ impl LanguagePluginRegistry {
     /// # Returns
     ///
     /// A reference to the language plugin if found, `None` otherwise
-    pub fn get_plugin_for_manifest(&self, filename: &str) -> Option<&dyn LanguagePlugin> {
+    pub fn get_plugin_for_manifest(&self, filename: &str) -> Option<&dyn LanguageIntelligencePlugin> {
         debug!(filename = filename, "Looking up plugin for manifest");
 
         for plugin in self.inner.all() {
