@@ -2384,7 +2384,7 @@ mod tests {
 
         tokio::spawn(async move {
             queue
-                .process_with(|op| async move {
+                .process_with(|op, _stats| async move {
                     match op.operation_type {
                         OperationType::CreateDir => {
                             fs::create_dir_all(&op.file_path).await?;
@@ -2873,7 +2873,7 @@ mod workspace_tests {
 
         tokio::spawn(async move {
             queue
-                .process_with(|op| async move {
+                .process_with(|op, _stats| async move {
                     match op.operation_type {
                         OperationType::CreateDir => {
                             fs::create_dir_all(&op.file_path).await?;
