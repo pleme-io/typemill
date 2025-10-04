@@ -379,7 +379,26 @@ main() {
         fi
     fi
 
-    # Step 4: Install codebuddy from source
+    # Step 4: Ensure git is installed
+    if ! command_exists git; then
+        log_info "Git not found, installing..."
+        case "${PKG_MANAGER}" in
+            brew)
+                install_verified "git"
+                ;;
+            apt)
+                install_verified "git"
+                ;;
+            dnf|yum)
+                install_verified "git"
+                ;;
+            pacman)
+                install_verified "git"
+                ;;
+        esac
+    fi
+
+    # Step 5: Install codebuddy from source
     log_info "Installing codebuddy from source..."
 
     # Create temporary directory
@@ -393,7 +412,7 @@ main() {
     log_info "Cloning repository..."
     if ! git clone --depth 1 https://github.com/goobits/codebuddy.git; then
         handle_error "Failed to clone repository" \
-            "Check network connection or install git"
+            "Check network connection"
     fi
 
     cd codebuddy || handle_error "Failed to enter repository directory"
