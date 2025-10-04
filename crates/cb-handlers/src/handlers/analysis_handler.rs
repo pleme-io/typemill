@@ -12,9 +12,10 @@ use cb_core::model::mcp::ToolCall;
 use cb_plugins::LspService;
 use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde_json::{json, Value};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Semaphore;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 // ============================================================================
 // Dead Code Analysis - Configuration & Types
@@ -58,22 +59,34 @@ struct DeadSymbol {
 ///
 /// This uses the following algorithm:
 /// 1. Collect all symbols from workspace via LSP workspace/symbol
+///    - If empty, fall back to per-file textDocument/documentSymbol (for rust-analyzer)
 /// 2. Filter to analyzable symbols (functions, classes, methods, interfaces)
 /// 3. Check references for each symbol via LSP textDocument/references
 /// 4. Symbols with ≤1 reference (just the declaration) are considered dead
 async fn analyze_dead_code(
     lsp_adapter: Arc<DirectLspAdapter>,
-    _workspace_path: &str,
+    workspace_path: &str,
     config: AnalysisConfig,
 ) -> ServerResult<Vec<DeadSymbol>> {
-    let all_symbols = collect_workspace_symbols(&lsp_adapter).await?;
+    // Try workspace/symbol first (fast path for most LSP servers)
+    let mut all_symbols = collect_workspace_symbols(&lsp_adapter).await?;
     debug!(
         total_symbols = all_symbols.len(),
-        "Collected symbols from language servers"
+        "Collected symbols from workspace/symbol"
     );
 
+    // If workspace/symbol returned nothing, use fallback
     if all_symbols.is_empty() {
-        return Ok(Vec::new());
+        warn!("workspace/symbol returned 0 symbols - using per-file fallback");
+        all_symbols = collect_symbols_by_document(&lsp_adapter, workspace_path).await?;
+        debug!(
+            total_symbols = all_symbols.len(),
+            "Collected symbols via fallback (textDocument/documentSymbol)"
+        );
+
+        if all_symbols.is_empty() {
+            return Ok(Vec::new());
+        }
     }
 
     let symbols_to_check: Vec<_> = all_symbols
@@ -139,6 +152,143 @@ async fn collect_workspace_symbols(
         "No workspace symbols found. Note: Some LSP servers (like rust-analyzer) don't support workspace/symbol queries and will return 0 symbols."
     );
     Ok(Vec::new())
+}
+
+/// Fallback: Collect symbols by querying textDocument/documentSymbol for each file.
+///
+/// This is used when workspace/symbol returns no results (e.g., rust-analyzer).
+/// It discovers all source files in the workspace and queries each individually.
+async fn collect_symbols_by_document(
+    lsp_adapter: &Arc<DirectLspAdapter>,
+    workspace_path: &str,
+) -> ServerResult<Vec<Value>> {
+    debug!(
+        workspace_path = %workspace_path,
+        "Using fallback: collecting symbols via textDocument/documentSymbol"
+    );
+
+    // Discover all source files in the workspace
+    let source_files = discover_source_files(workspace_path)?;
+    debug!(
+        file_count = source_files.len(),
+        "Discovered source files for symbol collection"
+    );
+
+    if source_files.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut all_symbols = Vec::new();
+    let file_count = source_files.len();
+
+    // Query each file for its document symbols
+    for file_path in &source_files {
+        let uri = format!("file://{}", file_path.display());
+
+        match lsp_adapter
+            .request("textDocument/documentSymbol", json!({
+                "textDocument": { "uri": uri }
+            }))
+            .await
+        {
+            Ok(response) => {
+                // documentSymbol can return either DocumentSymbol[] or SymbolInformation[]
+                // We need to handle both and convert to workspace symbol format
+                if let Some(symbols) = response.as_array() {
+                    for symbol in symbols {
+                        // Flatten nested symbols and convert to workspace symbol format
+                        flatten_document_symbol(symbol, &uri, &mut all_symbols);
+                    }
+                }
+            }
+            Err(e) => {
+                debug!(
+                    error = %e,
+                    file_path = %file_path.display(),
+                    "Failed to get document symbols for file"
+                );
+            }
+        }
+    }
+
+    info!(
+        symbol_count = all_symbols.len(),
+        file_count = file_count,
+        "Collected symbols via document-by-document fallback"
+    );
+
+    Ok(all_symbols)
+}
+
+/// Discover source files in the workspace that should be analyzed.
+///
+/// Currently supports common extensions. Can be extended to read .gitignore, etc.
+fn discover_source_files(workspace_path: &str) -> ServerResult<Vec<PathBuf>> {
+    let workspace_dir = Path::new(workspace_path);
+    if !workspace_dir.exists() {
+        return Err(ServerError::InvalidRequest(format!(
+            "Workspace path does not exist: {}",
+            workspace_path
+        )));
+    }
+
+    let mut source_files = Vec::new();
+
+    // Common source file extensions to analyze
+    let extensions = vec!["rs", "ts", "tsx", "js", "jsx", "py", "go"];
+
+    // Walk the directory tree
+    for entry in walkdir::WalkDir::new(workspace_dir)
+        .follow_links(false)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        if entry.file_type().is_file() {
+            if let Some(ext) = entry.path().extension().and_then(|e| e.to_str()) {
+                if extensions.contains(&ext) {
+                    source_files.push(entry.path().to_path_buf());
+                }
+            }
+        }
+    }
+
+    Ok(source_files)
+}
+
+/// Flatten a potentially nested DocumentSymbol into workspace symbol format.
+///
+/// DocumentSymbol can be hierarchical (e.g., class -> methods). We flatten this
+/// into individual symbols, converting to the same format as workspace/symbol.
+fn flatten_document_symbol(symbol: &Value, uri: &str, output: &mut Vec<Value>) {
+    // If it's already in SymbolInformation format (has "location"), use it directly
+    if symbol.get("location").is_some() {
+        output.push(symbol.clone());
+        return;
+    }
+
+    // Otherwise, it's DocumentSymbol format (has "range")
+    // Convert to workspace symbol (SymbolInformation) format
+    if let (Some(name), Some(kind), Some(range)) = (
+        symbol.get("name"),
+        symbol.get("kind"),
+        symbol.get("range"),
+    ) {
+        output.push(json!({
+            "name": name,
+            "kind": kind,
+            "location": {
+                "uri": uri,
+                "range": range
+            }
+        }));
+    }
+
+    // Recursively process children if present
+    if let Some(children) = symbol.get("children").and_then(|c| c.as_array()) {
+        for child in children {
+            flatten_document_symbol(child, uri, output);
+        }
+    }
 }
 
 /// Check if a symbol should be analyzed based on configuration

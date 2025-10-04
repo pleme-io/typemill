@@ -6,12 +6,13 @@
 //! Note: find_dead_code has been moved to analysis_handler.rs
 
 use super::compat::{ToolContext, ToolHandler};
+use super::lsp_adapter::DirectLspAdapter;
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
 use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde_json::{json, Value};
 use std::path::PathBuf;
-use tracing::{debug, error, warn};
+use tracing::{debug, error, info, warn};
 
 // ============================================================================
 // SystemHandler - Public Interface
