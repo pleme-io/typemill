@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::language::{JavaAdapter, LanguageAdapter, ModuleReference, ReferenceKind, ScanScope};
+    use crate::language::{JavaAdapter, LanguageAdapter, ReferenceKind, ScanScope};
 
     #[test]
     fn test_java_find_import_declarations_top_level() {

@@ -3,7 +3,7 @@
 //! These tests validate that the Java AST parsing works correctly
 //! with the full codebuddy system using real Java test fixtures.
 
-use integration_tests::harness::{TestWorkspace, create_java_project};
+use integration_tests::harness::create_java_project;
 use cb_ast::language::{JavaAdapter, LanguageAdapter, ScanScope};
 use std::fs;
 
