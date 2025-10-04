@@ -839,6 +839,16 @@ impl FileService {
 
     /// List files in a directory
     pub async fn list_files(&self, path: &Path, recursive: bool) -> ServerResult<Vec<String>> {
+        self.list_files_with_pattern(path, recursive, None).await
+    }
+
+    /// List files in a directory with optional glob pattern filtering
+    pub async fn list_files_with_pattern(
+        &self,
+        path: &Path,
+        recursive: bool,
+        pattern: Option<&str>,
+    ) -> ServerResult<Vec<String>> {
         let abs_path = self.to_absolute_path(path);
 
         if !abs_path.exists() {
@@ -875,8 +885,28 @@ impl FileService {
             }
         }
 
+        // Apply pattern filtering if provided
+        if let Some(pattern) = pattern {
+            files = Self::filter_by_pattern(files, pattern)?;
+        }
+
         files.sort();
         Ok(files)
+    }
+
+    /// Filter files by glob pattern
+    fn filter_by_pattern(files: Vec<String>, pattern: &str) -> ServerResult<Vec<String>> {
+        use globset::{Glob, GlobMatcher};
+
+        let glob = Glob::new(pattern).map_err(|e| {
+            ServerError::InvalidRequest(format!("Invalid glob pattern '{}': {}", pattern, e))
+        })?;
+        let matcher: GlobMatcher = glob.compile_matcher();
+
+        Ok(files
+            .into_iter()
+            .filter(|file| matcher.is_match(file))
+            .collect())
     }
 
     /// Recursively list files in a directory

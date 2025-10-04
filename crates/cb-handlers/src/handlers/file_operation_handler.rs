@@ -420,16 +420,18 @@ impl FileOperationHandler {
             .get("recursive")
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
+        let pattern = args.get("pattern").and_then(|v| v.as_str());
 
         let files = context
             .app_state
             .file_service
-            .list_files(Path::new(directory), recursive)
+            .list_files_with_pattern(Path::new(directory), recursive, pattern)
             .await?;
 
         Ok(json!({
             "success": true,
             "directory": directory,
+            "pattern": pattern,
             "files": files
         }))
     }
