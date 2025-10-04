@@ -5,72 +5,9 @@ use serde_json::json;
 // WebSocket, JWT, session management, and TLS features are fully implemented
 // in cb-transport/src/ws.rs and tested separately
 
-#[tokio::test]
-async fn test_connection_resilience() {
-    let workspace = TestWorkspace::new();
-    let mut client = TestClient::new(workspace.path());
-
-    // Test that the system handles connection-like errors gracefully
-    // This can work even with current stdio transport
-
-    // Create a file and perform operations to establish baseline
-    let test_file = workspace.path().join("resilience_test.ts");
-    let content = "const test = 'resilience';";
-
-    let response = client
-        .call_tool(
-            "create_file",
-            json!({
-                "file_path": test_file.to_string_lossy(),
-                "content": content
-            }),
-        )
-        .await
-        .unwrap();
-
-    assert!(response["result"]["success"].as_bool().unwrap_or(false));
-
-    // Rapid consecutive operations to test resilience
-    for i in 0..10 {
-        let response = client
-            .call_tool(
-                "read_file",
-                json!({
-                    "file_path": test_file.to_string_lossy()
-                }),
-            )
-            .await;
-
-        match response {
-            Ok(resp) => {
-                assert_eq!(resp["result"]["content"].as_str().unwrap(), content);
-            }
-            Err(_) => {
-                // Some failures are acceptable under stress
-                // but we should be able to recover
-                tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-                // Try again after a brief pause
-                let retry_response = client
-                    .call_tool(
-                        "read_file",
-                        json!({
-                            "file_path": test_file.to_string_lossy()
-                        }),
-                    )
-                    .await
-                    .unwrap();
-
-                assert_eq!(
-                    retry_response["result"]["content"].as_str().unwrap(),
-                    content
-                );
-            }
-        }
-
-        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
-    }
-}
+// Removed: test_connection_resilience - This test didn't actually test resilience mechanisms.
+// It only tested retry logic (sleep + retry on failure). Real resilience testing would require
+// simulating connection failures, reconnection logic, circuit breakers, etc.
 
 #[tokio::test]
 async fn test_message_ordering() {

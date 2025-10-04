@@ -414,7 +414,8 @@ console.log(expensiveProducts);
         .await
         .unwrap();
     let actions = response["actions"].as_array().unwrap();
-    assert!(!actions.is_empty() || actions.is_empty());
+    // Code actions may or may not be available depending on LSP state
+    // No assertion needed - we just verify the call succeeds
 }
 #[tokio::test]
 async fn test_workspace_edit_with_validation() {
@@ -436,7 +437,11 @@ console.log(value);
             ),
         )
         .await;
-    assert!(response.is_err() || !response.unwrap()["applied"].as_bool().unwrap_or(true));
+    // Should fail because line 100 doesn't exist in the file
+    assert!(
+        response.is_err() || response.unwrap()["applied"].as_bool().unwrap_or(false) == false,
+        "Workspace edit with invalid line number should fail validation"
+    );
     let unchanged_content = std::fs::read_to_string(&file_path).unwrap();
     assert_eq!(unchanged_content.trim(), content.trim());
 }

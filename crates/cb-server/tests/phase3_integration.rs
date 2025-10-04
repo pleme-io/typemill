@@ -122,66 +122,9 @@ async fn test_operation_batching() {
     }
 }
 
-#[tokio::test]
-#[cfg(feature = "long-running-tests")]
-async fn test_deadlock_warning() {
-    // Test that long lock waits trigger warning logs
-    let lock_manager = Arc::new(LockManager::new());
-    let queue = Arc::new(OperationQueue::new(lock_manager.clone()));
-
-    // File that will be locked
-    let test_file = PathBuf::from("/test/deadlock.txt");
-
-    // First, acquire a write lock and hold it
-    let lock = lock_manager.get_lock(test_file.clone()).await;
-    let _write_guard = lock.write().await;
-
-    // Now try to enqueue an operation for the same file
-    let op = FileOperation {
-        id: "stalled-op".to_string(),
-        operation_type: OperationType::Write,
-        tool_name: "stalled-write".to_string(),
-        file_path: test_file.clone(),
-        params: json!({}),
-        created_at: Instant::now(),
-        priority: 1,
-    };
-    queue.enqueue(op).await.unwrap();
-
-    // Start processor in background
-    let queue_clone = queue.clone();
-    let processor = tokio::spawn(async move {
-        queue_clone
-            .process_with(|op| async move { Ok::<_, ApiError>(json!({"processed": op.id})) })
-            .await;
-    });
-
-    // Wait enough time for warning to trigger (>30 seconds)
-    // In real test, we'd capture logs and verify warning was emitted
-    println!("Waiting for stall warning (this will take 30+ seconds)...");
-
-    // Use timeout to avoid hanging in CI
-    let timeout_result = tokio::time::timeout(
-        Duration::from_secs(35),
-        tokio::time::sleep(Duration::from_secs(31)),
-    )
-    .await;
-
-    if timeout_result.is_err() {
-        println!("Test timed out after 35 seconds - acceptable for CI");
-    }
-
-    // Release the lock
-    drop(_write_guard);
-
-    // Give processor time to complete
-    tokio::time::sleep(Duration::from_millis(100)).await;
-
-    // Cancel processor
-    processor.abort();
-
-    println!("Deadlock warning test completed - check logs for warning message");
-}
+// Removed: test_deadlock_warning - This test waited 31+ seconds and only printed messages
+// without programmatic validation. To properly test deadlock warnings, we would need
+// to capture logs using tracing-subscriber test utilities and verify the warning is emitted.
 
 #[tokio::test]
 #[cfg(not(feature = "long-running-tests"))]

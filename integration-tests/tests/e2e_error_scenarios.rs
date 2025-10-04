@@ -9,15 +9,11 @@ async fn test_malformed_tool_requests() {
 
     // Test missing required parameters
     let response = client.call_tool("read_file", json!({})).await;
-    match response {
-        Err(_) => {}
-        Ok(resp) => {
-            assert!(
-                resp.get("error").is_some(),
-                "Tool call missing required parameters should return error"
-            );
-        }
-    }
+    // Must return error - missing required parameter
+    assert!(
+        response.is_err() || response.as_ref().unwrap().get("error").is_some(),
+        "Tool call missing required parameters must return error"
+    );
 
     // Test invalid parameter types
     let response = client
@@ -30,15 +26,11 @@ async fn test_malformed_tool_requests() {
             }),
         )
         .await;
-    match response {
-        Err(_) => {}
-        Ok(resp) => {
-            assert!(
-                resp.get("error").is_some(),
-                "Tool call with invalid parameter types should return error"
-            );
-        }
-    }
+    // Must return error - invalid parameter type
+    assert!(
+        response.is_err() || response.as_ref().unwrap().get("error").is_some(),
+        "Tool call with invalid parameter types must return error"
+    );
 
     // Test negative coordinates
     let valid_file = workspace.path().join("test.ts");
@@ -54,15 +46,11 @@ async fn test_malformed_tool_requests() {
             }),
         )
         .await;
-    match response {
-        Err(_) => {}
-        Ok(resp) => {
-            assert!(
-                resp.get("error").is_some(),
-                "Tool call with negative coordinates should return error"
-            );
-        }
-    }
+    // Must return error - negative coordinates are invalid
+    assert!(
+        response.is_err() || response.as_ref().unwrap().get("error").is_some(),
+        "Tool call with negative coordinates must return error"
+    );
 }
 
 #[tokio::test]
@@ -339,15 +327,11 @@ async fn test_dependency_update_errors() {
         )
         .await;
 
-    match response {
-        Err(_) => {}
-        Ok(resp) => {
-            assert!(
-                resp.get("error").is_some(),
-                "Updating invalid JSON should return error"
-            );
-        }
-    }
+    // Must return error - invalid JSON
+    assert!(
+        response.is_err() || response.as_ref().unwrap().get("error").is_some(),
+        "Updating invalid JSON must return error"
+    );
 
     // Test with JSON that's not a package.json structure
     let wrong_structure = workspace.path().join("wrong.json");
@@ -365,20 +349,13 @@ async fn test_dependency_update_errors() {
         )
         .await;
 
-    // Should handle gracefully or fail appropriately
-    match response {
-        Ok(resp) => {
-            // If it succeeds, it should have some result (success, error, or content)
-            assert!(
-                resp.get("success").is_some()
-                    || resp.get("error").is_some()
-                    || resp.get("result").is_some()
-            );
-        }
-        Err(_) => {
-            // Or it can fail gracefully
-        }
-    }
+    // Should return error or success - but must have a defined response
+    assert!(
+        response.is_err()
+        || response.as_ref().unwrap().get("error").is_some()
+        || response.as_ref().unwrap().get("result").is_some(),
+        "update_dependencies must return a well-formed response"
+    );
 }
 
 #[tokio::test]
