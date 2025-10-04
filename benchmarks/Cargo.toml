@@ -13,7 +13,7 @@ cb-plugins = { path = "../crates/cb-plugins" }
 cb-ast = { path = "../crates/cb-ast" }
 tokio = { version = "1.42", features = ["full"] }
 serde_json = "1.0"
-simd-json = "0.13"
+simd-json = "0.16"
 tempfile = "3.15"
 async-trait = "0.1"
 
