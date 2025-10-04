@@ -7,3 +7,4 @@ edition = "2021"
 cb-types = { path = "../cb-types" }
 async-trait = { workspace = true }
 serde_json = { workspace = true }
+thiserror = { workspace = true }

@@ -256,8 +256,7 @@ operations = ["mv", "rm"]
         .ok();
 
     // Create a TestClient
-    let workspace = TestWorkspace::from_path(project_path);
-    let mut client = TestClient::new(workspace.path());
+    let mut client = TestClient::new(project_path);
 
     // Rename the file
     let rename_request = json!({

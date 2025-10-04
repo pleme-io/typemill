@@ -414,6 +414,8 @@ mod tests {
             logging: LoggingConfig::default(),
             cache: CacheConfig::default(),
             plugin_selection: Default::default(),
+            git: Default::default(),
+            validation: Default::default(),
         }
     }
 
