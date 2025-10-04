@@ -1280,37 +1280,82 @@ Analyze import statements in a file.
 
 Find potentially unused code in the workspace.
 
-**Implementation:** LSP-based via `workspace/symbol` + `textDocument/references`
+**Implementation:** LSP-based via `workspace/symbol` + `textDocument/references` with fallback to `textDocument/documentSymbol` for rust-analyzer
 
 **Parameters:**
 ```json
 {
-  "workspace_path": "/project"    // Optional: Workspace root path (default: ".")
+  "workspace_path": "/project",                           // Optional: Workspace root path (default: ".")
+  "symbol_kinds": ["function", "variable", "constant"],   // Optional: Symbol types to analyze (default: comprehensive set)
+  "max_concurrency": 50,                                  // Optional: Max concurrent LSP requests (default: 20, max: 100)
+  "min_references": 1,                                    // Optional: Min refs to consider dead (default: 1, i.e., ≤1 = dead)
+  "file_types": [".ts", ".tsx"],                          // Optional: File extensions to analyze (default: all)
+  "include_exported": true,                               // Optional: Include exported symbols (default: true)
+  "max_results": 100,                                     // Optional: Stop after finding N dead symbols (default: unlimited)
+  "timeout_seconds": 300                                  // Optional: Max analysis time in seconds (default: unlimited)
 }
 ```
 
 **Returns:**
 ```json
 {
-  "dead_code": [
+  "workspacePath": "/project",
+  "deadSymbols": [
     {
-      "symbol": "unusedFunction",
+      "name": "unusedFunction",
+      "kind": "function",
       "file": "src/utils.ts",
       "line": 42,
-      "kind": "function",
-      "references": 0
+      "column": 0,
+      "referenceCount": 0
     }
   ],
-  "total_symbols_analyzed": 250,
-  "potentially_unused": 8
+  "analysisStats": {
+    "filesAnalyzed": 42,
+    "symbolsAnalyzed": 250,
+    "deadSymbolsFound": 8,
+    "analysisDurationMs": 12450,
+    "symbolKindsAnalyzed": ["function", "variable", "constant", "class"],
+    "truncated": false,
+    "symbolsByKind": {
+      "function": { "dead": 5 },
+      "variable": { "dead": 3 },
+      "constant": { "dead": 0 }
+    }
+  },
+  "configUsed": {
+    "symbolKinds": ["function", "variable", "constant", "class"],
+    "maxConcurrency": 20,
+    "minReferences": 1,
+    "includeExported": true,
+    "fileTypes": null
+  }
 }
 ```
 
+**Symbol Kinds:** (all LSP SymbolKind values supported)
+- `function`, `class`, `method`, `interface`, `enum`, `struct`
+- `variable`, `constant`, `field`, `property`
+- `constructor`, `enum_member`
+- `module`, `namespace`, `package`
+- `event`, `operator`, `type_parameter`
+- And more (see LSP specification)
+
+**Performance Tips:**
+- Use `file_types` to analyze only specific file extensions
+- Use `symbol_kinds` to focus on high-value symbols (e.g., only functions and classes)
+- Increase `max_concurrency` for faster LSP servers (e.g., gopls), decrease for slower ones
+- Use `max_results` for quick scans to find "low-hanging fruit"
+- Use `timeout_seconds` to prevent long-running analysis on large codebases
+
 **Notes:**
-- Only finds symbols with zero references
-- Does not detect all dead code (e.g., unreachable code paths)
-- Works across all LSP-enabled languages
-- **Performance:** Can be slow on large workspaces (queries all LSP servers for symbols and references)
+- Finds symbols with ≤ `min_references` references (default: ≤1 means only declaration, no usage)
+- Supports all LSP symbol types: function, class, method, variable, constant, interface, enum, struct, field, property, constructor, enum_member, and more
+- Can be configured to analyze specific symbol types for faster, targeted analysis
+- Works across all LSP-enabled languages with hybrid fallback for rust-analyzer
+- **Default symbol types analyzed**: class, method, constructor, enum, interface, function, variable, constant, enum_member, struct
+- Does not detect all dead code (e.g., unreachable code paths within functions)
+- **Performance:** Configurable concurrency (1-100) and file type filtering for optimal speed
 
 ---
 

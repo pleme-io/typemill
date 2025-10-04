@@ -11,9 +11,11 @@ use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
 use cb_plugins::LspService;
 use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
+use futures::stream::{FuturesUnordered, StreamExt};
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Instant;
 use tokio::sync::Semaphore;
 use tracing::{debug, info, warn};
 
@@ -28,16 +30,90 @@ struct AnalysisConfig {
     max_concurrent_checks: usize,
     /// Symbol kinds to analyze (LSP SymbolKind numbers)
     analyzed_kinds: Vec<u64>,
+    /// Minimum reference count threshold (symbols with ≤ this many refs are considered dead)
+    min_reference_threshold: usize,
+    /// Include exported symbols in analysis
+    include_exported: bool,
+    /// File extensions to analyze (e.g., [".ts", ".tsx"]). None = all files
+    file_types: Option<Vec<String>>,
+    /// Maximum number of dead symbols to find before stopping
+    max_results: Option<usize>,
+    /// Maximum analysis duration
+    timeout: Option<std::time::Duration>,
 }
 
 impl Default for AnalysisConfig {
     fn default() -> Self {
         Self {
             max_concurrent_checks: 20,
-            // LSP SymbolKind: Function=12, Class=5, Method=6, Interface=11
-            analyzed_kinds: vec![5, 6, 11, 12],
+            // Comprehensive default: classes, methods, constructors, enums, interfaces,
+            // functions, variables, constants, enum members, structs
+            analyzed_kinds: vec![5, 6, 9, 10, 11, 12, 13, 14, 22, 23],
+            min_reference_threshold: 1,
+            include_exported: true,
+            file_types: None,
+            max_results: None,
+            timeout: None,
         }
     }
+}
+
+/// Build AnalysisConfig from tool call arguments
+fn config_from_params(args: &Value) -> AnalysisConfig {
+    let mut config = AnalysisConfig::default();
+
+    // Parse symbol_kinds parameter
+    if let Some(kinds) = args.get("symbol_kinds").and_then(|v| v.as_array()) {
+        let mut parsed_kinds = Vec::new();
+        for kind in kinds {
+            if let Some(kind_str) = kind.as_str() {
+                if let Some(kind_num) = parse_symbol_kind(kind_str) {
+                    parsed_kinds.push(kind_num);
+                }
+            }
+        }
+        if !parsed_kinds.is_empty() {
+            config.analyzed_kinds = parsed_kinds;
+        }
+    }
+
+    // Parse max_concurrency parameter (clamped to 1-100)
+    if let Some(max_conc) = args.get("max_concurrency").and_then(|v| v.as_u64()) {
+        config.max_concurrent_checks = (max_conc as usize).clamp(1, 100);
+    }
+
+    // Parse min_references parameter
+    if let Some(min_refs) = args.get("min_references").and_then(|v| v.as_u64()) {
+        config.min_reference_threshold = min_refs as usize;
+    }
+
+    // Parse file_types parameter
+    if let Some(types) = args.get("file_types").and_then(|v| v.as_array()) {
+        let file_types: Vec<String> = types
+            .iter()
+            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+            .collect();
+        if !file_types.is_empty() {
+            config.file_types = Some(file_types);
+        }
+    }
+
+    // Parse include_exported parameter
+    if let Some(inc_exp) = args.get("include_exported").and_then(|v| v.as_bool()) {
+        config.include_exported = inc_exp;
+    }
+
+    // Parse max_results parameter
+    if let Some(max_res) = args.get("max_results").and_then(|v| v.as_u64()) {
+        config.max_results = Some(max_res as usize);
+    }
+
+    // Parse timeout_seconds parameter
+    if let Some(timeout_sec) = args.get("timeout_seconds").and_then(|v| v.as_u64()) {
+        config.timeout = Some(std::time::Duration::from_secs(timeout_sec));
+    }
+
+    config
 }
 
 /// Result of dead code analysis
@@ -98,9 +174,7 @@ async fn analyze_dead_code(
         "Filtered to analyzable symbols"
     );
 
-    let dead_symbols =
-        check_symbol_references(&lsp_adapter, symbols_to_check, config.max_concurrent_checks)
-            .await?;
+    let dead_symbols = check_symbol_references(&lsp_adapter, symbols_to_check, &config).await?;
 
     info!(
         dead_symbols_found = dead_symbols.len(),
@@ -301,29 +375,76 @@ fn should_analyze_symbol(symbol: &Value, config: &AnalysisConfig) -> bool {
 }
 
 /// Check references for symbols in parallel with concurrency limiting
+///
+/// Uses FuturesUnordered for efficient streaming and early termination support.
 async fn check_symbol_references(
     lsp_adapter: &Arc<DirectLspAdapter>,
     symbols: Vec<&Value>,
-    max_concurrent: usize,
+    config: &AnalysisConfig,
 ) -> ServerResult<Vec<DeadSymbol>> {
-    let semaphore = Arc::new(Semaphore::new(max_concurrent));
-    let mut tasks = Vec::new();
+    let semaphore = Arc::new(Semaphore::new(config.max_concurrent_checks));
+    let mut dead_symbols = Vec::new();
+    let mut futures = FuturesUnordered::new();
+    let mut symbols_iter = symbols.into_iter();
+    let start_time = Instant::now();
 
-    for symbol in symbols {
+    // Fill initial batch
+    for symbol in symbols_iter
+        .by_ref()
+        .take(config.max_concurrent_checks)
+    {
         let sem = semaphore.clone();
         let adapter = lsp_adapter.clone();
         let symbol = symbol.clone();
 
-        tasks.push(tokio::spawn(async move {
+        let min_refs = config.min_reference_threshold;
+        futures.push(tokio::spawn(async move {
             let _permit = sem.acquire().await.ok()?;
-            check_single_symbol_references(&adapter, &symbol).await
+            check_single_symbol_references(&adapter, &symbol, min_refs).await
         }));
     }
 
-    let mut dead_symbols = Vec::new();
-    for task in tasks {
-        if let Ok(Some(dead_symbol)) = task.await {
+    // Stream results and spawn more tasks as they complete
+    while let Some(result) = futures.next().await {
+        // Check timeout
+        if let Some(timeout) = config.timeout {
+            if start_time.elapsed() > timeout {
+                debug!(
+                    timeout_seconds = timeout.as_secs(),
+                    dead_symbols_found = dead_symbols.len(),
+                    "Analysis timeout reached, stopping early"
+                );
+                break;
+            }
+        }
+
+        // Check max_results
+        if let Some(max_res) = config.max_results {
+            if dead_symbols.len() >= max_res {
+                debug!(
+                    max_results = max_res,
+                    "Reached max_results limit, stopping early"
+                );
+                break;
+            }
+        }
+
+        // Process result
+        if let Ok(Some(dead_symbol)) = result {
             dead_symbols.push(dead_symbol);
+        }
+
+        // Spawn next task if more symbols remain
+        if let Some(symbol) = symbols_iter.next() {
+            let sem = semaphore.clone();
+            let adapter = lsp_adapter.clone();
+            let symbol = symbol.clone();
+            let min_refs = config.min_reference_threshold;
+
+            futures.push(tokio::spawn(async move {
+                let _permit = sem.acquire().await.ok()?;
+                check_single_symbol_references(&adapter, &symbol, min_refs).await
+            }));
         }
     }
 
@@ -334,6 +455,7 @@ async fn check_symbol_references(
 async fn check_single_symbol_references(
     lsp_adapter: &Arc<DirectLspAdapter>,
     symbol: &Value,
+    min_reference_threshold: usize,
 ) -> Option<DeadSymbol> {
     // Extract symbol metadata
     let name = symbol.get("name")?.as_str()?.to_string();
@@ -357,8 +479,8 @@ async fn check_single_symbol_references(
     if let Ok(response) = lsp_adapter.request("textDocument/references", params).await {
         let ref_count = response.as_array().map_or(0, |a| a.len());
 
-        // Symbol is dead if it has ≤1 reference (just the declaration itself)
-        if ref_count <= 1 {
+        // Symbol is dead if it has ≤ min_reference_threshold references
+        if ref_count <= min_reference_threshold {
             return Some(DeadSymbol {
                 name,
                 kind: lsp_kind_to_string(kind),
@@ -376,13 +498,68 @@ async fn check_single_symbol_references(
 /// Convert LSP SymbolKind number to human-readable string
 fn lsp_kind_to_string(kind: u64) -> String {
     match kind {
+        1 => "file",
+        2 => "module",
+        3 => "namespace",
+        4 => "package",
         5 => "class",
         6 => "method",
+        7 => "property",
+        8 => "field",
+        9 => "constructor",
+        10 => "enum",
         11 => "interface",
         12 => "function",
-        _ => "symbol",
+        13 => "variable",
+        14 => "constant",
+        15 => "string",
+        16 => "number",
+        17 => "boolean",
+        18 => "array",
+        19 => "object",
+        20 => "key",
+        21 => "null",
+        22 => "enum_member",
+        23 => "struct",
+        24 => "event",
+        25 => "operator",
+        26 => "type_parameter",
+        _ => "unknown",
     }
     .to_string()
+}
+
+/// Convert string symbol kind name to LSP SymbolKind number
+fn parse_symbol_kind(kind_str: &str) -> Option<u64> {
+    match kind_str.to_lowercase().as_str() {
+        "file" | "files" => Some(1),
+        "module" | "modules" => Some(2),
+        "namespace" | "namespaces" => Some(3),
+        "package" | "packages" => Some(4),
+        "class" | "classes" => Some(5),
+        "method" | "methods" => Some(6),
+        "property" | "properties" => Some(7),
+        "field" | "fields" => Some(8),
+        "constructor" | "constructors" => Some(9),
+        "enum" | "enums" => Some(10),
+        "interface" | "interfaces" => Some(11),
+        "function" | "functions" => Some(12),
+        "variable" | "variables" => Some(13),
+        "constant" | "constants" => Some(14),
+        "string" | "strings" => Some(15),
+        "number" | "numbers" => Some(16),
+        "boolean" | "booleans" => Some(17),
+        "array" | "arrays" => Some(18),
+        "object" | "objects" => Some(19),
+        "key" | "keys" => Some(20),
+        "null" => Some(21),
+        "enum_member" | "enum_members" | "enummember" | "enummembers" => Some(22),
+        "struct" | "structs" => Some(23),
+        "event" | "events" => Some(24),
+        "operator" | "operators" => Some(25),
+        "type_parameter" | "type_parameters" | "typeparameter" | "typeparameters" => Some(26),
+        _ => None,
+    }
 }
 
 // ============================================================================
@@ -428,14 +605,22 @@ impl AnalysisHandler {
         tool_call: ToolCall,
         context: &ToolContext,
     ) -> ServerResult<Value> {
-        let start_time = std::time::Instant::now();
+        let start_time = Instant::now();
         let args = tool_call.arguments.unwrap_or(json!({}));
         let workspace_path = args
             .get("workspace_path")
             .and_then(|v| v.as_str())
             .unwrap_or(".");
 
-        debug!(workspace_path = %workspace_path, "Handling find_dead_code request");
+        // Build configuration from parameters
+        let config = config_from_params(&args);
+
+        debug!(
+            workspace_path = %workspace_path,
+            symbol_kinds = ?config.analyzed_kinds,
+            max_concurrency = config.max_concurrent_checks,
+            "Handling find_dead_code request"
+        );
 
         // Get shared LSP adapter from context
         let lsp_adapter = context.lsp_adapter.lock().await;
@@ -444,10 +629,29 @@ impl AnalysisHandler {
             .ok_or_else(|| ServerError::Internal("LSP adapter not initialized".to_string()))?;
 
         // Run dead code analysis using shared LSP adapter
-        let config = AnalysisConfig::default();
-        let dead_symbols = analyze_dead_code(adapter.clone(), workspace_path, config).await?;
+        let dead_symbols = analyze_dead_code(adapter.clone(), workspace_path, config.clone()).await?;
 
-        // Format response with complete stats
+        // Compute statistics
+        let files_analyzed = dead_symbols
+            .iter()
+            .map(|s| s.file_path.as_str())
+            .collect::<std::collections::HashSet<_>>()
+            .len();
+
+        // Group symbols by kind for detailed stats
+        let mut symbol_kind_stats: std::collections::HashMap<String, (usize, usize)> =
+            std::collections::HashMap::new();
+
+        for symbol in &dead_symbols {
+            let entry = symbol_kind_stats.entry(symbol.kind.clone()).or_insert((0, 0));
+            entry.1 += 1; // dead count
+        }
+
+        // Check if analysis was truncated
+        let is_truncated = config.max_results.is_some_and(|max| dead_symbols.len() >= max)
+            || config.timeout.is_some_and(|timeout| start_time.elapsed() >= timeout);
+
+        // Format dead symbols for response
         let dead_symbols_json: Vec<Value> = dead_symbols
             .iter()
             .map(|s| {
@@ -462,11 +666,25 @@ impl AnalysisHandler {
             })
             .collect();
 
-        let files_analyzed = dead_symbols
+        // Build symbol kinds analyzed list
+        let symbol_kinds_analyzed: Vec<String> = config
+            .analyzed_kinds
             .iter()
-            .map(|s| s.file_path.as_str())
-            .collect::<std::collections::HashSet<_>>()
-            .len();
+            .map(|k| lsp_kind_to_string(*k))
+            .collect();
+
+        // Build symbols by kind stats
+        let symbols_by_kind: Value = symbol_kind_stats
+            .into_iter()
+            .map(|(kind, (_total, dead))| {
+                (
+                    kind,
+                    json!({
+                        "dead": dead
+                    }),
+                )
+            })
+            .collect();
 
         Ok(json!({
             "workspacePath": workspace_path,
@@ -476,6 +694,16 @@ impl AnalysisHandler {
                 "symbolsAnalyzed": dead_symbols_json.len(),
                 "deadSymbolsFound": dead_symbols.len(),
                 "analysisDurationMs": start_time.elapsed().as_millis(),
+                "symbolKindsAnalyzed": symbol_kinds_analyzed,
+                "truncated": is_truncated,
+                "symbolsByKind": symbols_by_kind,
+            },
+            "configUsed": {
+                "symbolKinds": symbol_kinds_analyzed,
+                "maxConcurrency": config.max_concurrent_checks,
+                "minReferences": config.min_reference_threshold,
+                "includeExported": config.include_exported,
+                "fileTypes": config.file_types,
             }
         }))
     }
