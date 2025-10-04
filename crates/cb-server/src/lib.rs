@@ -88,6 +88,7 @@ pub async fn bootstrap(options: ServerOptions) -> ServerResult<ServerHandle> {
         operation_queue: services.operation_queue,
         start_time: std::time::Instant::now(),
         workspace_manager,
+        language_plugins: cb_handlers::LanguagePluginRegistry::new(),
     });
 
     // Create dispatcher
@@ -259,6 +260,7 @@ pub async fn create_dispatcher_with_workspace(
         operation_queue,
         start_time: std::time::Instant::now(),
         workspace_manager,
+        language_plugins: cb_handlers::LanguagePluginRegistry::new(),
     });
 
     // Create and return dispatcher

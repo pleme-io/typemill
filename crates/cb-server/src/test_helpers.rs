@@ -48,6 +48,7 @@ pub fn create_test_dispatcher() -> PluginDispatcher {
         operation_queue,
         start_time: std::time::Instant::now(),
         workspace_manager,
+        language_plugins: cb_handlers::LanguagePluginRegistry::new(),
     });
 
     PluginDispatcher::new(app_state, plugin_manager)

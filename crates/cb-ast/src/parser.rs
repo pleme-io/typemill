@@ -44,12 +44,11 @@ pub fn build_import_graph(source: &str, path: &Path) -> AstResult<ImportGraph> {
                 parse_python_imports(source)?
             }
         },
-        "rust" => match crate::rust_parser::parse_rust_imports_ast(source) {
-            Ok(ast_imports) => ast_imports,
-            Err(_) => {
-                tracing::debug!("Rust AST parsing failed, falling back to regex");
-                parse_rust_imports(source)?
-            }
+        "rust" => {
+            // DEPRECATED: Rust parsing moved to cb-lang-rust plugin
+            // Fallback to regex parser for now
+            tracing::debug!("Rust AST parsing deprecated, using regex parser");
+            parse_rust_imports(source)?
         },
         "go" => match parse_go_imports_ast(source) {
             Ok(ast_imports) => ast_imports,

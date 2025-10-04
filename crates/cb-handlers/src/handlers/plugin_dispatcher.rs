@@ -42,6 +42,8 @@ pub struct AppState {
     pub start_time: Instant,
     /// Workspace manager for tracking connected containers
     pub workspace_manager: Arc<WorkspaceManager>,
+    /// Language plugin registry for dynamic language support
+    pub language_plugins: crate::LanguagePluginRegistry,
 }
 
 /// Plugin-based MCP dispatcher
@@ -534,6 +536,7 @@ pub fn create_test_dispatcher() -> PluginDispatcher {
         operation_queue: services.operation_queue,
         start_time: std::time::Instant::now(),
         workspace_manager,
+        language_plugins: crate::LanguagePluginRegistry::new(),
     });
 
     PluginDispatcher::new(app_state, plugin_manager)
@@ -582,6 +585,7 @@ mod tests {
             operation_queue,
             start_time: std::time::Instant::now(),
             workspace_manager,
+            language_plugins: crate::LanguagePluginRegistry::new(),
         })
     }
 

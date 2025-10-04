@@ -99,6 +99,28 @@ impl LanguagePlugin for RustPlugin {
     async fn list_functions(&self, source: &str) -> PluginResult<Vec<String>> {
         parser::list_functions(source)
     }
+
+    async fn update_dependency(
+        &self,
+        manifest_path: &Path,
+        old_name: &str,
+        new_name: &str,
+        new_path: Option<&str>,
+    ) -> PluginResult<String> {
+        // Read the current manifest content
+        let content = tokio::fs::read_to_string(manifest_path)
+            .await
+            .map_err(|e| {
+                cb_plugin_api::PluginError::manifest(format!("Failed to read manifest: {}", e))
+            })?;
+
+        // Use our manifest module to update the dependency
+        manifest::rename_dependency(&content, old_name, new_name, new_path)
+    }
+
+    fn handles_manifest(&self, filename: &str) -> bool {
+        filename == "Cargo.toml"
+    }
 }
 
 // Re-export public API items

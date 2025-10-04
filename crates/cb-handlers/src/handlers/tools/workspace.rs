@@ -117,8 +117,8 @@ impl ToolHandler for WorkspaceHandler {
                     .handle_tool(tool_call.clone(), &legacy_context)
                     .await
             }
-            "update_dependency" => self.handle_update_dependency(tool_call).await,
-            "batch_update_dependencies" => self.handle_batch_update_dependencies(tool_call).await,
+            "update_dependency" => self.handle_update_dependency(context, tool_call).await,
+            "batch_update_dependencies" => self.handle_batch_update_dependencies(context, tool_call).await,
             _ => Err(cb_protocol::ApiError::InvalidRequest(format!(
                 "Unknown workspace tool: {}",
                 tool_call.name
@@ -178,43 +178,61 @@ impl WorkspaceHandler {
 
     /// Helper to update a manifest dependency with the given parameters
     /// Returns the updated manifest content as a string
+    ///
+    /// This now uses the language plugin registry to dynamically route to the
+    /// appropriate language plugin based on the manifest filename, and uses
+    /// FileService for all file operations (respecting caching, locking, and
+    /// virtual workspaces).
     async fn update_manifest_dependency(
+        context: &ToolHandlerContext,
         manifest_path: &str,
         old_dep_name: &str,
         new_dep_name: &str,
         new_path: Option<&str>,
     ) -> ServerResult<String> {
         use std::path::Path;
-        use tokio::fs;
 
-        // Read the manifest file
-        let content = fs::read_to_string(manifest_path).await.map_err(|e| {
-            cb_protocol::ApiError::Internal(format!(
-                "Failed to read manifest file at {}: {}",
-                manifest_path, e
-            ))
-        })?;
-
-        // Use the manifest factory to get the correct handler
         let path = Path::new(manifest_path);
-        let mut manifest = cb_ast::manifest::load_manifest(path, &content).map_err(|e| {
-            cb_protocol::ApiError::Internal(format!("Failed to load manifest: {}", e))
-        })?;
 
-        // Update the dependency using the generic trait method
-        manifest
-            .rename_dependency(old_dep_name, new_dep_name, new_path)
+        // Get the manifest filename (e.g., "Cargo.toml")
+        let filename = path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .ok_or_else(|| {
+                cb_protocol::ApiError::InvalidRequest(format!(
+                    "Invalid manifest path: {}",
+                    manifest_path
+                ))
+            })?;
+
+        // Find the appropriate language plugin for this manifest
+        let plugin = context
+            .app_state
+            .language_plugins
+            .get_plugin_for_manifest(filename)
+            .ok_or_else(|| {
+                cb_protocol::ApiError::Unsupported(format!(
+                    "No language plugin found for manifest file: {}",
+                    filename
+                ))
+            })?;
+
+        // Use the plugin to update the dependency
+        // Note: The plugin will read the file directly for now. In the future, we could
+        // refactor the plugin API to accept content instead of paths, which would allow
+        // us to use FileService for reading and benefit from caching/locking.
+        let updated_content = plugin
+            .update_dependency(path, old_dep_name, new_dep_name, new_path)
+            .await
             .map_err(|e| {
                 cb_protocol::ApiError::Internal(format!("Failed to update dependency: {}", e))
             })?;
 
-        // Serialize the updated manifest
-        let updated_content = manifest.to_string().map_err(|e| {
-            cb_protocol::ApiError::Internal(format!("Failed to serialize manifest: {}", e))
-        })?;
-
-        // Write the updated content back
-        fs::write(manifest_path, &updated_content)
+        // Write the updated content back using FileService for caching/locking/virtual workspace support
+        context
+            .app_state
+            .file_service
+            .write_file(path, &updated_content, false)
             .await
             .map_err(|e| {
                 cb_protocol::ApiError::Internal(format!(
@@ -229,7 +247,11 @@ impl WorkspaceHandler {
     /// Handle update_dependency tool call
     /// Updates a dependency in any supported manifest file (Cargo.toml, package.json, etc.)
     /// This is language-agnostic and works across all supported package managers.
-    async fn handle_update_dependency(&self, tool_call: &ToolCall) -> ServerResult<Value> {
+    async fn handle_update_dependency(
+        &self,
+        context: &ToolHandlerContext,
+        tool_call: &ToolCall,
+    ) -> ServerResult<Value> {
         use serde_json::json;
 
         // Parse arguments
@@ -272,7 +294,7 @@ impl WorkspaceHandler {
         let new_path = args.get("new_path").and_then(|v| v.as_str());
 
         // Use the helper to perform the update
-        Self::update_manifest_dependency(manifest_path, old_dep_name, new_dep_name, new_path)
+        Self::update_manifest_dependency(context, manifest_path, old_dep_name, new_dep_name, new_path)
             .await?;
 
         Ok(json!({
@@ -293,7 +315,11 @@ impl WorkspaceHandler {
 
     /// Handle batch_update_dependencies tool call
     /// Updates multiple dependencies across multiple manifest files in a single operation.
-    async fn handle_batch_update_dependencies(&self, tool_call: &ToolCall) -> ServerResult<Value> {
+    async fn handle_batch_update_dependencies(
+        &self,
+        context: &ToolHandlerContext,
+        tool_call: &ToolCall,
+    ) -> ServerResult<Value> {
         use serde_json::json;
 
         // Parse arguments
@@ -363,7 +389,7 @@ impl WorkspaceHandler {
 
                 // Try to update this manifest
                 match self
-                    .update_single_dependency(manifest_path, old_dep_name, new_dep_name, new_path)
+                    .update_single_dependency(context, manifest_path, old_dep_name, new_dep_name, new_path)
                     .await
                 {
                     Ok(_) => {
@@ -402,13 +428,14 @@ impl WorkspaceHandler {
     /// Helper function to update a single dependency in a manifest
     async fn update_single_dependency(
         &self,
+        context: &ToolHandlerContext,
         manifest_path: &str,
         old_dep_name: &str,
         new_dep_name: &str,
         new_path: Option<&str>,
     ) -> ServerResult<()> {
         // Use the shared helper to perform the update
-        Self::update_manifest_dependency(manifest_path, old_dep_name, new_dep_name, new_path)
+        Self::update_manifest_dependency(context, manifest_path, old_dep_name, new_dep_name, new_path)
             .await?;
         Ok(())
     }

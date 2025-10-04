@@ -28,6 +28,7 @@ pub fn create_test_app_state() -> (Arc<AppState>, TempDir) {
         operation_queue: services.operation_queue,
         start_time: std::time::Instant::now(),
         workspace_manager,
+        language_plugins: cb_handlers::LanguagePluginRegistry::new(),
     });
 
     (app_state, temp_dir)

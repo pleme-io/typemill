@@ -12,6 +12,7 @@ cb-protocol = { path = "../crates/cb-protocol" }
 cb-server = { path = "../crates/cb-server" }
 cb-client = { path = "../crates/cb-client" }
 cb-plugins = { path = "../crates/cb-plugins" }
+cb-handlers = { path = "../crates/cb-handlers" }
 tokio = { workspace = true }
 async-trait = { workspace = true }
 mockall = { workspace = true }

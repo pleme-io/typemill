@@ -400,45 +400,10 @@ impl LanguageAdapter for RustAdapter {
             "Parsing Rust imports"
         );
 
-        // Read the file content
-        let content = tokio::fs::read_to_string(file_path).await.map_err(|e| {
-            crate::error::AstError::Analysis {
-                message: format!("Failed to read file {}: {}", file_path.display(), e),
-            }
-        })?;
-
-        // Parse imports using the refactored AST parser
-        let import_infos = crate::rust_parser::parse_rust_imports_ast(&content)?;
-
-        // Extract unique external crate names
-        let mut dependencies = HashSet::new();
-
-        for import_info in import_infos {
-            // Split the module path by "::" to get segments
-            let segments: Vec<&str> = import_info.module_path.split("::").collect();
-
-            if let Some(first_segment) = segments.first() {
-                // Filter out internal imports (crate, self, super)
-                if *first_segment != "crate"
-                    && *first_segment != "self"
-                    && *first_segment != "super"
-                {
-                    // This is an external crate dependency
-                    dependencies.insert(first_segment.to_string());
-                }
-            }
-        }
-
-        // Convert HashSet to sorted Vec for consistent output
-        let mut result: Vec<String> = dependencies.into_iter().collect();
-        result.sort();
-
-        debug!(
-            dependencies_count = result.len(),
-            "Extracted external dependencies"
-        );
-
-        Ok(result)
+        // DEPRECATED: RustAdapter is no longer used. Rust parsing is now handled by cb-lang-rust plugin.
+        // Return empty result since this adapter is deprecated
+        tracing::debug!("RustAdapter::parse_imports is deprecated - use cb-lang-rust plugin instead");
+        Ok(vec![])
     }
 
     fn generate_manifest(&self, package_name: &str, dependencies: &[String]) -> String {
@@ -532,37 +497,10 @@ impl LanguageAdapter for RustAdapter {
         );
 
         // Parse the Rust source file
-        let mut file: File = syn::parse_str(content)
-            .map_err(|e| AstError::analysis(format!("Failed to parse Rust source: {}", e)))?;
-
-        let mut changes_count = 0;
-
-        // Iterate through all items and rewrite use statements
-        for item in &mut file.items {
-            if let Item::Use(use_item) = item {
-                // Try to rewrite the use tree
-                if let Some(new_tree) = crate::rust_parser::rewrite_use_tree(
-                    &use_item.tree,
-                    old_crate_name,
-                    new_crate_name,
-                ) {
-                    use_item.tree = new_tree;
-                    changes_count += 1;
-                }
-            }
-        }
-
-        // If no changes were made, return original content
-        if changes_count == 0 {
-            return Ok((content.to_string(), 0));
-        }
-
-        // Use prettyplease to format the modified AST
-        let new_content = prettyplease::unparse(&file);
-
-        tracing::debug!(changes = changes_count, "Successfully rewrote Rust imports");
-
-        Ok((new_content, changes_count))
+        // DEPRECATED: RustAdapter is no longer used. Rust parsing is now handled by cb-lang-rust plugin.
+        // Return original content unchanged since this adapter is deprecated
+        tracing::debug!("RustAdapter::rewrite_imports_for_rename is deprecated - use cb-lang-rust plugin instead");
+        Ok((content.to_string(), 0))
     }
 
     fn find_module_references(

@@ -318,6 +318,30 @@ pub trait LanguagePlugin: Send + Sync {
             .collect())
     }
 
+    /// Updates a dependency in a manifest file
+    ///
+    /// # Arguments
+    /// * `manifest_path` - Path to the manifest file
+    /// * `old_name` - Current dependency name
+    /// * `new_name` - New dependency name
+    /// * `new_path` - Optional new path for the dependency
+    ///
+    /// # Returns
+    /// The updated manifest content as a string
+    async fn update_dependency(
+        &self,
+        _manifest_path: &Path,
+        _old_name: &str,
+        _new_name: &str,
+        _new_path: Option<&str>,
+    ) -> PluginResult<String> {
+        // Default implementation returns not supported
+        Err(PluginError::not_supported(format!(
+            "Dependency updates not supported for {}",
+            self.name()
+        )))
+    }
+
     /// Checks if this plugin can handle a given file extension
     ///
     /// # Arguments
@@ -327,6 +351,18 @@ pub trait LanguagePlugin: Send + Sync {
     /// `true` if this plugin handles the extension
     fn handles_extension(&self, extension: &str) -> bool {
         self.file_extensions().contains(&extension)
+    }
+
+    /// Checks if this plugin handles a specific manifest file
+    ///
+    /// # Arguments
+    /// * `filename` - The manifest filename (e.g., "Cargo.toml", "package.json")
+    ///
+    /// # Returns
+    /// `true` if this plugin can handle the manifest file
+    fn handles_manifest(&self, _filename: &str) -> bool {
+        // Default implementation - override in specific plugins
+        false
     }
 }
 
