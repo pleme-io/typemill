@@ -1,6 +1,20 @@
 # 🤖 Codebuddy
 Pure Rust MCP server bridging Language Server Protocol to AI coding assistants
 
+## 📋 Table of Contents
+- [Key Features](#-key-features)
+- [Quick Start](#-quick-start)
+- [Language Server Setup](#️-language-server-setup)
+- [MCP Integration](#-mcp-integration)
+- [Configuration](#️-configuration)
+- [CLI Commands](#-cli-commands)
+- [Docker Deployment](#-docker-deployment)
+- [Documentation](#-documentation)
+- [Troubleshooting](#-troubleshooting)
+- [Development](#-development)
+- [License](#-license)
+- [Support](#-support)
+
 ## ✨ Key Features
 - **🔍 Code Navigation** - Jump to definitions, find references, search symbols across projects
 - **🔧 Safe Refactoring** - Rename symbols with compile-time safety guarantees

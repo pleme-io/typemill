@@ -16,7 +16,7 @@ syn = { version = "2.0", features = ["full", "visit"] }
 quote = "1.0"
 
 # For parsing Cargo.toml files
-toml_edit = "0.22"
+toml_edit = "0.23"
 serde = { workspace = true }
 serde_json = { workspace = true }
 

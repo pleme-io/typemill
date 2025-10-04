@@ -12,7 +12,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 chrono = { version = "0.4", features = ["serde"] }
-toml = "0.8"
+toml = "0.9"
 figment = { version = "0.10", features = ["toml", "env"] }
 jsonwebtoken = { workspace = true }
 dashmap = { workspace = true }
