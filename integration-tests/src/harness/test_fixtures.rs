@@ -187,6 +187,33 @@ pub const WORKSPACE_SYMBOLS_TESTS: &[WorkspaceSymbolsTestCase] = &[
         query: "Data",
         should_find_symbols: true,
     },
+    // Rust Case 1 - Empty query (documents rust-analyzer limitation)
+    WorkspaceSymbolsTestCase {
+        language_id: "rs",
+        files: &[
+            ("main.rs", "fn main() {}\nfn helper() {}"),
+            ("lib.rs", "pub struct MyStruct {}\npub fn util() {}"),
+        ],
+        query: "",
+        should_find_symbols: false, // rust-analyzer returns empty for empty query
+    },
+    // Rust Case 2 - Wildcard query
+    WorkspaceSymbolsTestCase {
+        language_id: "rs",
+        files: &[
+            ("main.rs", "fn main() {}\nfn helper() {}"),
+            ("lib.rs", "pub struct MyStruct {}\npub fn util() {}"),
+        ],
+        query: "*",
+        should_find_symbols: false, // rust-analyzer doesn't support wildcard
+    },
+    // Rust Case 3 - Specific symbol name query
+    WorkspaceSymbolsTestCase {
+        language_id: "rs",
+        files: &[("main.rs", "fn main() {}\nfn helper_function() {}")],
+        query: "helper",
+        should_find_symbols: false, // Documents actual rust-analyzer behavior
+    },
     // Python Case - Add when ready
 ];
 
