@@ -1,8 +1,7 @@
 //! Service for managing import updates across the codebase
 
-use cb_ast::{
-    find_project_files, update_imports_for_rename, ImportPathResolver, LanguageAdapterRegistry,
-};
+use cb_ast::{find_project_files, update_imports_for_rename, ImportPathResolver};
+use cb_plugin_api::PluginRegistry;
 use cb_protocol::DependencyUpdate;
 use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use std::path::{Path, PathBuf};
@@ -14,24 +13,21 @@ use tracing::{debug, error, info};
 pub struct ImportService {
     /// Project root directory
     project_root: PathBuf,
-    /// Language adapter registry for multi-language support
-    adapter_registry: Arc<LanguageAdapterRegistry>,
+    /// Language plugin registry for multi-language support
+    plugin_registry: Arc<PluginRegistry>,
 }
 
 impl ImportService {
-    /// Create a new import service with a custom adapter registry
+    /// Create a new import service with a custom plugin registry
     ///
     /// # Arguments
     ///
     /// * `project_root` - Root directory of the project
-    /// * `adapter_registry` - Registry of language adapters to use
-    pub fn new(
-        project_root: impl AsRef<Path>,
-        adapter_registry: Arc<LanguageAdapterRegistry>,
-    ) -> Self {
+    /// * `plugin_registry` - Registry of language plugins to use
+    pub fn new(project_root: impl AsRef<Path>, plugin_registry: Arc<PluginRegistry>) -> Self {
         Self {
             project_root: project_root.as_ref().to_path_buf(),
-            adapter_registry,
+            plugin_registry,
         }
     }
 
@@ -44,7 +40,7 @@ impl ImportService {
         new_path: &Path,
         rename_info: Option<&serde_json::Value>,
         dry_run: bool,
-        scan_scope: Option<cb_ast::language::ScanScope>,
+        scan_scope: Option<cb_plugin_api::ScanScope>,
     ) -> ServerResult<cb_protocol::EditPlan> {
         info!(
             old_path = ?old_path,
@@ -79,7 +75,7 @@ impl ImportService {
             &old_abs,
             &new_abs,
             &self.project_root,
-            self.adapter_registry.all(),
+            self.plugin_registry.all(),
             rename_info,
             dry_run,
             scan_scope,
@@ -106,7 +102,7 @@ impl ImportService {
         let resolver = ImportPathResolver::new(&self.project_root);
 
         // Get all project files using adapters
-        let project_files = find_project_files(&self.project_root, self.adapter_registry.all())
+        let project_files = find_project_files(&self.project_root, self.plugin_registry.all())
             .await
             .map_err(|e| ServerError::Internal(format!("Failed to find project files: {}", e)))?;
 
@@ -311,7 +307,7 @@ mod tests {
     #[tokio::test]
     async fn test_import_service_creation() {
         let temp_dir = TempDir::new().unwrap();
-        let registry = Arc::new(LanguageAdapterRegistry::new());
+        let registry = Arc::new(PluginRegistry::new());
         let service = ImportService::new(temp_dir.path(), registry);
 
         assert_eq!(service.project_root, temp_dir.path());

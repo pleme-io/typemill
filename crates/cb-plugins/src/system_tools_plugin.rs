@@ -8,8 +8,7 @@ use crate::{
     PluginResult,
 };
 use async_trait::async_trait;
-use cb_ast::adapter_registry::LanguageAdapterRegistry;
-use cb_ast::language::{GoAdapter, JavaAdapter, PythonAdapter, TypeScriptAdapter};
+use cb_plugin_api::PluginRegistry;
 use cb_core::language::detect_package_manager;
 use ignore::WalkBuilder;
 use serde::Deserialize;
@@ -408,13 +407,9 @@ impl SystemToolsPlugin {
             "Extracting module to package"
         );
 
-        // Create language adapter registry
-        let mut registry = LanguageAdapterRegistry::new();
+        // Create language plugin registry (only Rust for now)
+        let mut registry = PluginRegistry::new();
         registry.register(Arc::new(cb_lang_rust::RustPlugin::new()));
-        registry.register(Arc::new(TypeScriptAdapter));
-        registry.register(Arc::new(PythonAdapter));
-        registry.register(Arc::new(GoAdapter));
-        registry.register(Arc::new(JavaAdapter));
 
         // Call the planning function from cb-ast
         let edit_plan = cb_ast::package_extractor::plan_extract_module_to_package_with_registry(

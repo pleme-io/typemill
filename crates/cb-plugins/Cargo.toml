@@ -13,6 +13,7 @@ thiserror = { workspace = true }
 indexmap = "2.0"
 cb-core = { path = "../cb-core" }
 cb-ast = { path = "../cb-ast" }
+cb-plugin-api = { path = "../cb-plugin-api" }
 cb-lang-rust = { path = "../languages/cb-lang-rust" }
 ignore = "0.4"
 reqwest = { version = "0.12", features = ["blocking", "rustls-tls"], default-features = false }

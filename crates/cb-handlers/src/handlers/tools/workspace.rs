@@ -28,9 +28,9 @@ pub enum UpdateMode {
 }
 
 impl UpdateMode {
-    /// Convert UpdateMode to cb_ast::language::ScanScope
-    pub fn to_scan_scope(self) -> cb_ast::language::ScanScope {
-        use cb_ast::language::ScanScope;
+    /// Convert UpdateMode to cb_plugin_api::ScanScope
+    pub fn to_scan_scope(self) -> cb_plugin_api::ScanScope {
+        use cb_plugin_api::ScanScope;
         match self {
             UpdateMode::Conservative => ScanScope::TopLevelOnly,
             UpdateMode::Standard => ScanScope::AllUseStatements,

@@ -62,16 +62,12 @@ impl FileService {
             "Initializing FileService with git support"
         );
 
-        // Create language adapter registry with default adapters
-        let mut adapter_registry = cb_ast::LanguageAdapterRegistry::new();
-        adapter_registry.register(Arc::new(cb_lang_rust::RustPlugin::new()));
-        adapter_registry.register(Arc::new(cb_ast::language::TypeScriptAdapter));
-        adapter_registry.register(Arc::new(cb_ast::language::PythonAdapter));
-        adapter_registry.register(Arc::new(cb_ast::language::GoAdapter));
-        adapter_registry.register(Arc::new(cb_ast::language::JavaAdapter));
+        // Create language plugin registry (only Rust for now)
+        let mut plugin_registry = cb_plugin_api::PluginRegistry::new();
+        plugin_registry.register(Arc::new(cb_lang_rust::RustPlugin::new()));
 
         Self {
-            import_service: ImportService::new(&project_root, Arc::new(adapter_registry)),
+            import_service: ImportService::new(&project_root, Arc::new(plugin_registry)),
             project_root,
             ast_cache,
             lock_manager,
@@ -378,7 +374,7 @@ impl FileService {
         new_dir_path: &Path,
         dry_run: bool,
         consolidate: bool,
-        scan_scope: Option<cb_ast::language::ScanScope>,
+        scan_scope: Option<cb_plugin_api::ScanScope>,
     ) -> ServerResult<DryRunnable<Value>> {
         info!(old_path = ?old_dir_path, new_path = ?new_dir_path, dry_run, consolidate, "Renaming directory");
 
@@ -1659,7 +1655,7 @@ impl FileService {
                 &virtual_new_path,
                 Some(&rename_info),
                 false,
-                Some(cb_ast::language::ScanScope::AllUseStatements),
+                Some(cb_plugin_api::ScanScope::AllUseStatements),
             )
             .await
         {

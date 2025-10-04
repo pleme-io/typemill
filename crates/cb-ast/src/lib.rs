@@ -5,12 +5,10 @@
 //! for performance optimization. It supports multiple languages (TypeScript, Python, etc.)
 //! and enables safe, automated code transformations.
 
-pub mod adapter_registry;
 pub mod analyzer;
 pub mod cache;
 pub mod error;
 pub mod import_updater;
-pub mod language;
 pub mod package_extractor;
 pub mod parser;
 pub mod python_parser;
@@ -23,12 +21,10 @@ mod python_refactoring_test;
 #[cfg(test)]
 mod java_language_test;
 
-pub use adapter_registry::LanguageAdapterRegistry;
 pub use analyzer::*;
 pub use cache::*;
 pub use error::{AstError, AstResult};
 pub use import_updater::{find_project_files, update_imports_for_rename, ImportPathResolver};
-pub use language::{GoAdapter, JavaAdapter, LanguageAdapter, PythonAdapter, TypeScriptAdapter};
 pub use parser::*;
 pub use refactoring::*;
 pub use transformer::*;

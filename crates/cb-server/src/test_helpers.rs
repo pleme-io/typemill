@@ -145,17 +145,10 @@ fn spawn_test_worker(queue: Arc<OperationQueue>) {
     });
 }
 
-/// Create a test dispatcher for integration tests
-///
-/// Note: The dispatcher will use a temporary directory that will be cleaned up when dropped
-pub fn create_test_dispatcher() -> PluginDispatcher {
-    // Use a temporary directory that won't be cleaned up during the test
-    let temp_dir = std::env::temp_dir().join(format!("codebuddy-test-{}", uuid::Uuid::new_v4()));
-    std::fs::create_dir_all(&temp_dir).expect("Failed to create temp dir");
-
+/// Create a test dispatcher for integration tests with a custom project root
+pub fn create_test_dispatcher_with_root(project_root: std::path::PathBuf) -> PluginDispatcher {
     let ast_cache = Arc::new(AstCache::new());
     let ast_service = Arc::new(DefaultAstService::new(ast_cache.clone()));
-    let project_root = temp_dir;
     let lock_manager = Arc::new(LockManager::new());
     let operation_queue = Arc::new(OperationQueue::new(lock_manager.clone()));
 
@@ -192,4 +185,11 @@ pub fn create_test_dispatcher() -> PluginDispatcher {
     });
 
     PluginDispatcher::new(app_state, plugin_manager)
+}
+
+/// Create a test dispatcher with a temporary directory (for backward compatibility)
+pub fn create_test_dispatcher() -> PluginDispatcher {
+    let temp_dir = std::env::temp_dir().join(format!("codebuddy-test-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&temp_dir).expect("Failed to create temp dir");
+    create_test_dispatcher_with_root(temp_dir)
 }

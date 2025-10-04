@@ -426,7 +426,7 @@ pub trait LanguageIntelligencePlugin: Send + Sync {
     }
 
     /// Get the package manifest filename (e.g., "Cargo.toml", "package.json")
-    fn manifest_filename_str(&self) -> &'static str {
+    fn manifest_filename(&self) -> &'static str {
         "" // Default: no manifest
     }
 

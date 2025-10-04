@@ -306,7 +306,7 @@ pub struct ImportUpdateResult {
 
 /// Helper function to create TextEdits from ModuleReferences for import path updates
 fn create_text_edits_from_references(
-    references: &[crate::language::ModuleReference],
+    references: &[cb_plugin_api::ModuleReference],
     file_path: &Path,
     old_module_name: &str,
     new_module_name: &str,
@@ -330,9 +330,9 @@ fn create_text_edits_from_references(
             description: format!(
                 "Update {} reference from '{}' to '{}'",
                 match refer.kind {
-                    crate::language::ReferenceKind::Declaration => "import",
-                    crate::language::ReferenceKind::QualifiedPath => "qualified path",
-                    crate::language::ReferenceKind::StringLiteral => "string literal",
+                    cb_plugin_api::ReferenceKind::Declaration => "import",
+                    cb_plugin_api::ReferenceKind::QualifiedPath => "qualified path",
+                    cb_plugin_api::ReferenceKind::StringLiteral => "string literal",
                 },
                 old_module_name,
                 new_module_name
@@ -348,15 +348,15 @@ pub async fn update_imports_for_rename(
     old_path: &Path,
     new_path: &Path,
     project_root: &Path,
-    adapters: &[std::sync::Arc<dyn crate::language::LanguageAdapter>],
+    plugins: &[std::sync::Arc<dyn cb_plugin_api::LanguageIntelligencePlugin>],
     rename_info: Option<&serde_json::Value>,
     dry_run: bool,
-    scan_scope: Option<crate::language::ScanScope>,
+    scan_scope: Option<cb_plugin_api::ScanScope>,
 ) -> AstResult<cb_protocol::EditPlan> {
     let resolver = ImportPathResolver::new(project_root);
 
-    // Find all files that the adapters handle
-    let project_files = find_project_files(project_root, adapters).await?;
+    // Find all files that the plugins handle
+    let project_files = find_project_files(project_root, plugins).await?;
 
     // Find files that import the renamed file
     let mut affected_files = resolver
@@ -381,19 +381,19 @@ pub async fn update_imports_for_rename(
 
         // Scan all project files for module references
         for file_path in &project_files {
-            // Find the appropriate adapter for this file
-            let adapter = if let Some(ext) = file_path.extension() {
+            // Find the appropriate plugin for this file
+            let plugin = if let Some(ext) = file_path.extension() {
                 let ext_str = ext.to_str().unwrap_or("");
-                adapters.iter().find(|a| a.handles_extension(ext_str))
+                plugins.iter().find(|p| p.handles_extension(ext_str))
             } else {
                 None
             };
 
-            if let Some(adapter) = adapter {
+            if let Some(plugin) = plugin {
                 // Read file content
                 if let Ok(content) = tokio::fs::read_to_string(file_path).await {
                     // Find module references using the enhanced scanner
-                    if let Ok(refs) = adapter.find_module_references(&content, module_name, scope) {
+                    if let Ok(refs) = plugin.find_module_references(&content, module_name, scope) {
                         if !refs.is_empty() {
                             debug!(
                                 file = ?file_path,
@@ -427,16 +427,16 @@ pub async fn update_imports_for_rename(
 
     // Build TextEdits for each affected file
     for file_path in affected_files {
-        // Find the appropriate adapter for this file
-        let adapter = if let Some(ext) = file_path.extension() {
+        // Find the appropriate plugin for this file
+        let plugin = if let Some(ext) = file_path.extension() {
             let ext_str = ext.to_str().unwrap_or("");
-            adapters.iter().find(|a| a.handles_extension(ext_str))
+            plugins.iter().find(|p| p.handles_extension(ext_str))
         } else {
             None
         };
 
-        let adapter = match adapter {
-            Some(a) => a,
+        let plugin = match plugin {
+            Some(p) => p,
             None => {
                 debug!(file = ?file_path, "No adapter found for file extension");
                 continue;
@@ -454,7 +454,7 @@ pub async fn update_imports_for_rename(
 
         // If scan_scope is provided, use find_module_references for precise edits
         if let Some(scope) = scan_scope {
-            if let Ok(refs) = adapter.find_module_references(&content, old_module_name, scope) {
+            if let Ok(refs) = plugin.find_module_references(&content, old_module_name, scope) {
                 if !refs.is_empty() {
                     let edits = create_text_edits_from_references(
                         &refs,
@@ -473,7 +473,7 @@ pub async fn update_imports_for_rename(
             }
         } else {
             // Fallback to the old rewrite logic
-            match adapter.rewrite_imports_for_rename(
+            match plugin.rewrite_imports_for_rename(
                 &content,
                 old_path,
                 new_path,
@@ -581,14 +581,14 @@ pub fn extract_import_path(line: &str) -> Option<String> {
 /// Find all project files that match the language adapters
 pub async fn find_project_files(
     project_root: &Path,
-    adapters: &[std::sync::Arc<dyn crate::language::LanguageAdapter>],
+    plugins: &[std::sync::Arc<dyn cb_plugin_api::LanguageIntelligencePlugin>],
 ) -> AstResult<Vec<PathBuf>> {
     let mut files = Vec::new();
 
     fn collect_files<'a>(
         dir: &'a Path,
         files: &'a mut Vec<PathBuf>,
-        adapters: &'a [std::sync::Arc<dyn crate::language::LanguageAdapter>],
+        plugins: &'a [std::sync::Arc<dyn cb_plugin_api::LanguageIntelligencePlugin>],
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = AstResult<()>> + Send + 'a>> {
         Box::pin(async move {
             if dir.is_dir() {
@@ -616,13 +616,13 @@ pub async fn find_project_files(
                 {
                     let path = entry.path();
                     if path.is_dir() {
-                        collect_files(&path, files, adapters).await?;
+                        collect_files(&path, files, plugins).await?;
                     } else if let Some(ext) = path.extension() {
                         let ext_str = ext.to_str().unwrap_or("");
-                        // Check if any adapter handles this extension
-                        if adapters
+                        // Check if any plugin handles this extension
+                        if plugins
                             .iter()
-                            .any(|adapter| adapter.handles_extension(ext_str))
+                            .any(|plugin| plugin.handles_extension(ext_str))
                         {
                             files.push(path);
                         }
@@ -633,7 +633,7 @@ pub async fn find_project_files(
         })
     }
 
-    collect_files(project_root, &mut files, adapters).await?;
+    collect_files(project_root, &mut files, plugins).await?;
     Ok(files)
 }
 

@@ -6,8 +6,7 @@ use super::compat::{ToolContext, ToolHandler};
 use super::lsp_adapter::DirectLspAdapter;
 use crate::utils::remote_exec::execute_remote_command;
 use async_trait::async_trait;
-use cb_ast::adapter_registry::LanguageAdapterRegistry;
-use cb_ast::language::{GoAdapter, JavaAdapter, PythonAdapter, TypeScriptAdapter};
+use cb_plugin_api::PluginRegistry;
 use cb_ast::refactoring::{CodeRange, LspRefactoringService};
 use cb_core::model::mcp::ToolCall;
 use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
@@ -349,12 +348,8 @@ impl RefactoringHandler {
                     })?;
 
                 // Create language adapter registry
-                let mut registry = LanguageAdapterRegistry::new();
+                let mut registry = PluginRegistry::new();
                 registry.register(Arc::new(cb_lang_rust::RustPlugin::new()));
-                registry.register(Arc::new(TypeScriptAdapter));
-                registry.register(Arc::new(PythonAdapter));
-                registry.register(Arc::new(GoAdapter));
-                registry.register(Arc::new(JavaAdapter));
 
                 let plan = cb_ast::package_extractor::plan_extract_module_to_package_with_registry(
                     parsed, &registry,

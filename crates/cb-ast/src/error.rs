@@ -58,5 +58,19 @@ impl From<AstError> for CoreError {
     }
 }
 
+impl From<cb_plugin_api::PluginError> for AstError {
+    fn from(err: cb_plugin_api::PluginError) -> Self {
+        match err {
+            cb_plugin_api::PluginError::Parse { message, .. } => Self::Parse { message },
+            cb_plugin_api::PluginError::Manifest { message } => Self::Analysis { message },
+            cb_plugin_api::PluginError::NotSupported { operation } => {
+                Self::UnsupportedSyntax { feature: operation }
+            }
+            cb_plugin_api::PluginError::InvalidInput { message } => Self::Analysis { message },
+            cb_plugin_api::PluginError::Internal { message } => Self::Analysis { message },
+        }
+    }
+}
+
 /// Result type alias for AST operations
 pub type AstResult<T> = Result<T, AstError>;

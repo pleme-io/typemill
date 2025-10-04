@@ -3,7 +3,6 @@
 //! This module provides language-agnostic package extraction capabilities
 //! for extracting modules into separate packages.
 
-use crate::adapter_registry::LanguageAdapterRegistry;
 use crate::error::AstResult;
 use cb_core::language::ProjectLanguage;
 use cb_protocol::EditPlan;
@@ -203,16 +202,16 @@ fn remove_module_declaration(source: &str, module_name: &str) -> AstResult<Strin
 ///
 /// This function orchestrates the extraction process by:
 /// 1. Detecting the source package language
-/// 2. Selecting the appropriate adapter from the registry
+/// 2. Selecting the appropriate plugin from the registry
 /// 3. Generating an EditPlan for the refactoring
 ///
 /// # Arguments
 ///
 /// * `params` - Extraction parameters
-/// * `adapter_registry` - Registry of language adapters
+/// * `plugin_registry` - Registry of language plugins
 pub async fn plan_extract_module_to_package_with_registry(
     params: ExtractModuleToPackageParams,
-    adapter_registry: &LanguageAdapterRegistry,
+    plugin_registry: &cb_plugin_api::PluginRegistry,
 ) -> AstResult<EditPlan> {
     use cb_core::language::detect_project_language;
     use cb_protocol::{EditPlanMetadata, ValidationRule, ValidationType};
@@ -236,7 +235,7 @@ pub async fn plan_extract_module_to_package_with_registry(
         "Detected project language"
     );
 
-    // Step 2: Look up appropriate language adapter from registry
+    // Step 2: Look up appropriate language plugin from registry
     let _manifest_ext = match detected_language {
         ProjectLanguage::Rust => "toml",
         ProjectLanguage::TypeScript => "json",
@@ -250,25 +249,25 @@ pub async fn plan_extract_module_to_package_with_registry(
         }
     };
 
-    // Find adapter by checking all adapters for one that handles this language
-    let adapter = adapter_registry
+    // Find plugin by checking all plugins for one that handles this language
+    let plugin = plugin_registry
         .all()
         .iter()
-        .find(|a| a.language() == detected_language)
+        .find(|p| p.language() == detected_language)
         .ok_or_else(|| crate::error::AstError::Analysis {
             message: format!(
-                "No adapter registered for language: {}",
+                "No plugin registered for language: {}",
                 detected_language.as_str()
             ),
         })?;
 
     info!(
         language = %detected_language.as_str(),
-        "Selected adapter for extraction"
+        "Selected plugin for extraction"
     );
 
-    // Step 3: Locate module files using the adapter
-    let located_files = adapter
+    // Step 3: Locate module files using the plugin
+    let located_files = plugin
         .locate_module_files(source_path, &params.module_path)
         .await?;
 
@@ -283,7 +282,7 @@ pub async fn plan_extract_module_to_package_with_registry(
             "Parsing dependencies from file"
         );
 
-        match adapter.parse_imports(file_path).await {
+        match plugin.parse_imports(file_path).await {
             Ok(deps) => {
                 for dep in deps {
                     all_dependencies.insert(dep);
@@ -310,7 +309,7 @@ pub async fn plan_extract_module_to_package_with_registry(
     );
 
     // Step 5: Generate new crate manifest
-    let generated_manifest = adapter.generate_manifest(&params.target_package_name, &dependencies);
+    let generated_manifest = plugin.generate_manifest(&params.target_package_name, &dependencies);
 
     debug!(
         manifest_lines = generated_manifest.lines().count(),
@@ -323,7 +322,7 @@ pub async fn plan_extract_module_to_package_with_registry(
 
     // Edit 1: Create new Cargo.toml
     let manifest_path = Path::new(&params.target_package_path)
-        .join(adapter.manifest_filename())
+        .join(plugin.manifest_filename())
         .to_string_lossy()
         .to_string();
 
@@ -357,8 +356,8 @@ pub async fn plan_extract_module_to_package_with_registry(
             })?;
 
         let new_entrypoint_path = Path::new(&params.target_package_path)
-            .join(adapter.source_dir())
-            .join(adapter.entry_point())
+            .join(plugin.source_dir())
+            .join(plugin.entry_point())
             .to_string_lossy()
             .to_string();
 
@@ -412,11 +411,11 @@ pub async fn plan_extract_module_to_package_with_registry(
             let parent_file_path = if module_segments.len() == 1 {
                 // Top-level module, parent is lib.rs
                 source_path
-                    .join(adapter.source_dir())
-                    .join(adapter.entry_point())
+                    .join(plugin.source_dir())
+                    .join(plugin.entry_point())
             } else {
                 // Nested module, parent is the containing module's mod.rs or .rs file
-                let mut parent_path = source_path.join(adapter.source_dir());
+                let mut parent_path = source_path.join(plugin.source_dir());
                 for segment in &module_segments[..module_segments.len() - 1] {
                     parent_path = parent_path.join(segment);
                 }
@@ -676,7 +675,7 @@ resolver = "2"
                 Ok(_content) => {
                     // DEPRECATED: Rust parsing moved to cb-lang-rust plugin
                     // This entire extract_module_to_package functionality should be refactored
-                    // to use language plugins instead of hardcoded adapters
+                    // to use language plugins instead of hardcoded plugins
                     //
                     // For now, we'll return empty imports to make compilation succeed
                     // match crate::rust_parser::parse_rust_imports_ast(&content) {
@@ -700,7 +699,7 @@ resolver = "2"
                         if is_match {
                             // Found an import that needs to be rewritten
                             let old_use_statement = format!("use {};", import.module_path);
-                            let new_use_statement = adapter
+                            let new_use_statement = plugin
                                 .rewrite_import(&import.module_path, &params.target_package_name);
 
                             // Create a TextEdit to replace this import
@@ -765,7 +764,7 @@ resolver = "2"
                 "module_path": params.module_path,
                 "target_package_path": params.target_package_path,
                 "target_package_name": params.target_package_name,
-                "adapter_selected": adapter.language().as_str(),
+                "plugin_selected": plugin.language().as_str(),
                 "located_files": located_files_strings,
                 "dependencies": dependencies,
                 "generated_manifest": generated_manifest,
@@ -777,7 +776,7 @@ resolver = "2"
     };
 
     info!(
-        adapter = %adapter.language().as_str(),
+        plugin = %plugin.language().as_str(),
         files_count = located_files.len(),
         dependencies_count = dependencies.len(),
         edits_count = edit_plan.edits.len(),
@@ -809,8 +808,8 @@ mod tests {
         // Create a module as a single file: src/my_module.rs
         fs::write(src_dir.join("my_module.rs"), "// my_module.rs").unwrap();
 
-        let adapter = &crate::language::RustAdapter;
-        let result = adapter
+        let plugin = &crate::language::RustAdapter;
+        let result = plugin
             .locate_module_files(temp_dir.path(), "my_module")
             .await;
 
@@ -835,8 +834,8 @@ mod tests {
         fs::create_dir(&module_dir).unwrap();
         fs::write(module_dir.join("mod.rs"), "// mod.rs").unwrap();
 
-        let adapter = &crate::language::RustAdapter;
-        let result = adapter
+        let plugin = &crate::language::RustAdapter;
+        let result = plugin
             .locate_module_files(temp_dir.path(), "my_module")
             .await;
 
@@ -861,8 +860,8 @@ mod tests {
         fs::create_dir(&services_dir).unwrap();
         fs::write(services_dir.join("planner.rs"), "// planner.rs").unwrap();
 
-        let adapter = &crate::language::RustAdapter;
-        let result = adapter
+        let plugin = &crate::language::RustAdapter;
+        let result = plugin
             .locate_module_files(temp_dir.path(), "services::planner")
             .await;
 
@@ -889,8 +888,8 @@ mod tests {
         fs::create_dir(&services_dir).unwrap();
         fs::write(services_dir.join("planner.rs"), "// planner.rs").unwrap();
 
-        let adapter = &crate::language::RustAdapter;
-        let result = adapter
+        let plugin = &crate::language::RustAdapter;
+        let result = plugin
             .locate_module_files(temp_dir.path(), "services.planner")
             .await;
 
@@ -912,8 +911,8 @@ mod tests {
         // Create lib.rs but no module files
         fs::write(src_dir.join("lib.rs"), "// lib.rs").unwrap();
 
-        let adapter = &crate::language::RustAdapter;
-        let result = adapter
+        let plugin = &crate::language::RustAdapter;
+        let result = plugin
             .locate_module_files(temp_dir.path(), "nonexistent")
             .await;
 
@@ -927,8 +926,8 @@ mod tests {
         // Create a temporary directory without src/
         let temp_dir = tempdir().unwrap();
 
-        let adapter = &crate::language::RustAdapter;
-        let result = adapter
+        let plugin = &crate::language::RustAdapter;
+        let result = plugin
             .locate_module_files(temp_dir.path(), "my_module")
             .await;
 
@@ -943,8 +942,8 @@ mod tests {
         let src_dir = temp_dir.path().join("src");
         fs::create_dir(&src_dir).unwrap();
 
-        let adapter = &crate::language::RustAdapter;
-        let result = adapter.locate_module_files(temp_dir.path(), "").await;
+        let plugin = &crate::language::RustAdapter;
+        let result = plugin.locate_module_files(temp_dir.path(), "").await;
 
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -966,8 +965,8 @@ fn main() {
         let test_file = src_dir.join("test_module.rs");
         fs::write(&test_file, rust_content).unwrap();
 
-        let adapter = &crate::language::RustAdapter;
-        let result = adapter.parse_imports(&test_file).await;
+        let plugin = &crate::language::RustAdapter;
+        let result = plugin.parse_imports(&test_file).await;
 
         assert!(result.is_ok());
         let dependencies = result.unwrap();
@@ -976,14 +975,14 @@ fn main() {
 
     #[test]
     fn test_generate_manifest_with_dependencies() {
-        let adapter = &crate::language::RustAdapter;
+        let plugin = &crate::language::RustAdapter;
         let dependencies = vec![
             "serde".to_string(),
             "tokio".to_string(),
             "async-trait".to_string(),
         ];
 
-        let manifest = adapter.generate_manifest("my-test-crate", &dependencies);
+        let manifest = plugin.generate_manifest("my-test-crate", &dependencies);
 
         // Check [package] section
         assert!(manifest.contains("[package]"));
@@ -1010,10 +1009,10 @@ fn main() {
 
     #[test]
     fn test_generate_manifest_no_dependencies() {
-        let adapter = &crate::language::RustAdapter;
+        let plugin = &crate::language::RustAdapter;
         let dependencies: Vec<String> = vec![];
 
-        let manifest = adapter.generate_manifest("simple-crate", &dependencies);
+        let manifest = plugin.generate_manifest("simple-crate", &dependencies);
 
         // Check [package] section exists
         assert!(manifest.contains("[package]"));
@@ -1027,10 +1026,10 @@ fn main() {
 
     #[test]
     fn test_generate_manifest_single_dependency() {
-        let adapter = &crate::language::RustAdapter;
+        let plugin = &crate::language::RustAdapter;
         let dependencies = vec!["serde".to_string()];
 
-        let manifest = adapter.generate_manifest("test-crate", &dependencies);
+        let manifest = plugin.generate_manifest("test-crate", &dependencies);
 
         assert!(manifest.contains("[package]"));
         assert!(manifest.contains("name = \"test-crate\""));
@@ -1040,20 +1039,20 @@ fn main() {
 
     #[test]
     fn test_generate_manifest_special_characters_in_name() {
-        let adapter = &crate::language::RustAdapter;
+        let plugin = &crate::language::RustAdapter;
         let dependencies = vec![];
 
-        let manifest = adapter.generate_manifest("my-special_crate123", &dependencies);
+        let manifest = plugin.generate_manifest("my-special_crate123", &dependencies);
 
         assert!(manifest.contains("name = \"my-special_crate123\""));
         assert!(manifest.contains("[package]"));
     }
 
     #[test]
-    fn test_rust_adapter_no_changes_different_crate() {
+    fn test_rust_plugin_no_changes_different_crate() {
         use serde_json::json;
 
-        let adapter = &crate::language::RustAdapter;
+        let plugin = &crate::language::RustAdapter;
         let source = r#"use some_other_crate::SomeType;"#;
 
         let rename_info = json!({
@@ -1061,7 +1060,7 @@ fn main() {
             "new_crate_name": "new_crate",
         });
 
-        let (new_content, count) = adapter
+        let (new_content, count) = plugin
             .rewrite_imports_for_rename(
                 source,
                 Path::new(""),
@@ -1077,11 +1076,11 @@ fn main() {
     }
 
     #[test]
-    fn test_rust_adapter_no_rename_info() {
-        let adapter = &crate::language::RustAdapter;
+    fn test_rust_plugin_no_rename_info() {
+        let plugin = &crate::language::RustAdapter;
         let source = r#"use old_crate::SomeType;"#;
 
-        let (new_content, count) = adapter
+        let (new_content, count) = plugin
             .rewrite_imports_for_rename(
                 source,
                 Path::new(""),
