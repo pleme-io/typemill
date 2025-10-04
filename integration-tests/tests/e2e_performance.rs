@@ -388,6 +388,27 @@ const oldConstant{} = "old_value_{}";
     // Give file system time to sync all files
     tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
 
+    // DEBUG: Verify ALL files have content before workspace edit
+    let mut empty_files = Vec::new();
+    for (i, file_path) in file_paths.iter().enumerate() {
+        match tokio::fs::read_to_string(file_path).await {
+            Ok(content) => {
+                if content.is_empty() {
+                    empty_files.push(i);
+                    eprintln!("DEBUG: File {} (index {}) is EMPTY!", file_path.display(), i);
+                }
+            }
+            Err(e) => {
+                eprintln!("DEBUG: File {} (index {}) ERROR: {}", file_path.display(), i, e);
+                empty_files.push(i);
+            }
+        }
+    }
+    if !empty_files.is_empty() {
+        panic!("Files are empty or missing: {:?}", empty_files);
+    }
+    eprintln!("DEBUG: All {} files verified to have content!", file_paths.len());
+
     // Prepare large workspace edit
     let mut changes = json!({});
 

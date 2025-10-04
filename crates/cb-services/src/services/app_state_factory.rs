@@ -59,10 +59,14 @@ fn spawn_operation_worker(queue: Arc<super::operation_queue::OperationQueue>) {
     use tokio::fs;
 
     tokio::spawn(async move {
-        eprintln!("DEBUG: Operation queue worker started");
+        tracing::info!("Operation queue worker started");
         queue
             .process_with(|op| async move {
-                eprintln!("DEBUG: Processing operation: {:?} on {}", op.operation_type, op.file_path.display());
+                tracing::info!(
+                    op_type = ?op.operation_type,
+                    file_path = %op.file_path.display(),
+                    "Processing queued operation"
+                );
                 match op.operation_type {
                     OperationType::CreateDir => {
                         fs::create_dir_all(&op.file_path).await.map_err(|e| {
