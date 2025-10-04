@@ -151,18 +151,10 @@ pub async fn create_dispatcher_with_workspace(
     register_mcp_proxy_if_enabled(&plugin_manager, config.external_mcp.as_ref()).await?;
 
     let services = create_services_bundle(&project_root, cache_settings, plugin_manager.clone(), &config);
-    let (ast_service, file_service, planner, workflow_executor, lock_manager, operation_queue) = (
-        services.ast_service,
-        services.file_service,
-        services.planner,
-        services.workflow_executor,
-        services.lock_manager,
-        services.operation_queue,
-    );
 
     // Start background processor for operation queue
     {
-        let queue = operation_queue.clone();
+        let queue = services.operation_queue.clone();
         tokio::spawn(async move {
             use cb_services::services::operation_queue::OperationType;
             use serde_json::Value;
@@ -251,13 +243,13 @@ pub async fn create_dispatcher_with_workspace(
 
     // Create application state
     let app_state = Arc::new(AppState {
-        ast_service,
-        file_service,
-        planner,
-        workflow_executor,
+        ast_service: services.ast_service,
+        file_service: services.file_service,
+        planner: services.planner,
+        workflow_executor: services.workflow_executor,
         project_root,
-        lock_manager,
-        operation_queue,
+        lock_manager: services.lock_manager,
+        operation_queue: services.operation_queue,
         start_time: std::time::Instant::now(),
         workspace_manager,
         language_plugins: cb_handlers::LanguagePluginRegistry::new(),

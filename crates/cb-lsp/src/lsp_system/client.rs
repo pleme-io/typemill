@@ -104,6 +104,25 @@ impl LspClient {
             path_additions.push(format!("{}/.cargo/bin", home));
         }
 
+        // Add NVM node bin directory (critical for typescript-language-server)
+        if let Ok(nvm_dir) = std::env::var("NVM_DIR") {
+            // Try to find the current node version
+            if let Ok(entries) = std::fs::read_dir(format!("{}/versions/node", nvm_dir)) {
+                // Get all node versions and use the first one (or could use 'default' symlink)
+                if let Some(Ok(entry)) = entries.into_iter().next() {
+                    path_additions.push(format!("{}/bin", entry.path().display()));
+                }
+            }
+        } else if let Ok(home) = std::env::var("HOME") {
+            // Fallback: try common NVM location
+            let nvm_default = format!("{}/.nvm/versions/node", home);
+            if let Ok(entries) = std::fs::read_dir(&nvm_default) {
+                if let Some(Ok(entry)) = entries.into_iter().next() {
+                    path_additions.push(format!("{}/bin", entry.path().display()));
+                }
+            }
+        }
+
         // Construct augmented PATH
         let augmented_path = if path_additions.is_empty() {
             current_path
@@ -140,6 +159,7 @@ impl LspClient {
                 ))
             })?;
 
+        eprintln!("✅ LSP server process spawned: {} (PID: {:?})", command, child.id());
         tracing::debug!(
             command = %command,
             pid = child.id(),
@@ -223,11 +243,19 @@ impl LspClient {
                 }
 
                 match &message {
-                    LspMessage::Request { method, .. } => {
-                        debug!(method = %method, "Sent LSP request")
+                    LspMessage::Request { method, id, .. } => {
+                        if method == "initialize" {
+                            tracing::warn!(method = %method, id = %id, "Sent LSP initialize request to server");
+                        } else {
+                            debug!(method = %method, "Sent LSP request");
+                        }
                     }
                     LspMessage::Notification { method, .. } => {
-                        debug!(method = %method, "Sent LSP notification")
+                        if method == "initialized" {
+                            tracing::warn!(method = %method, "Sent LSP initialized notification");
+                        } else {
+                            debug!(method = %method, "Sent LSP notification");
+                        }
                     }
                 }
             }
@@ -236,28 +264,45 @@ impl LspClient {
         // Spawn stderr reader task to prevent blocking
         let server_command = command.to_string();
         tokio::spawn(async move {
+            eprintln!("🔍 LSP stderr reader task started for: {}", server_command);
             let mut stderr_reader = BufReader::new(stderr);
             let mut stderr_line = String::new();
+            let mut line_count = 0;
             while stderr_reader.read_line(&mut stderr_line).await.is_ok() {
                 if !stderr_line.is_empty() {
+                    line_count += 1;
                     let trimmed = stderr_line.trim();
-                    // Log stderr output at debug level (most LSPs write diagnostics here)
-                    debug!(server = %server_command, stderr = %trimmed, "LSP stderr");
+                    eprintln!("📢 LSP STDERR [{}]: {}", server_command, trimmed);
+                    // Log stderr at ERROR level so we always see crashes/errors
+                    // Regular diagnostics at debug level
+                    if trimmed.contains("error") || trimmed.contains("Error") || trimmed.contains("ERROR")
+                        || trimmed.contains("fatal") || trimmed.contains("panic") || trimmed.contains("crash") {
+                        tracing::error!(server = %server_command, stderr = %trimmed, "LSP stderr ERROR");
+                    } else {
+                        tracing::warn!(server = %server_command, stderr = %trimmed, "LSP stderr");
+                    }
                     stderr_line.clear();
+                } else {
+                    break; // EOF
                 }
             }
+            eprintln!("🛑 LSP stderr reader task ended for: {} (read {} lines)", server_command, line_count);
         });
 
         // Spawn task to handle reading from LSP server
         let pending_requests_clone = pending_requests.clone();
+        let server_command_stdout = command.to_string();
         tokio::spawn(async move {
+            eprintln!("🔍 LSP stdout reader task started for: {}", server_command_stdout);
             let mut reader = BufReader::new(stdout);
             let mut buffer = String::new();
+            let mut message_count = 0;
 
             loop {
                 buffer.clear();
                 match reader.read_line(&mut buffer).await {
                     Ok(0) => {
+                        eprintln!("🛑 LSP stdout closed for: {} (read {} messages)", server_command_stdout, message_count);
                         debug!("LSP server stdout closed");
                         break;
                     }
@@ -291,6 +336,8 @@ impl LspClient {
                             if let Ok(message) =
                                 Self::read_json_message(&mut reader, content_length).await
                             {
+                                message_count += 1;
+                                eprintln!("📨 LSP received message #{}: {:?}", message_count, message);
                                 Self::handle_message(message, &pending_requests_clone).await;
                             }
                         }
@@ -505,15 +552,26 @@ impl LspClient {
 
         debug!(params = ?initialize_params, "LSP initialize params");
 
+        tracing::warn!(
+            command = %self.config.command.join(" "),
+            "Sending LSP initialize request (60s timeout)..."
+        );
+
         // Send initialize request
         let result = timeout(
             LSP_INIT_TIMEOUT,
             self.send_request("initialize", initialize_params),
         )
         .await
-        .map_err(|_| ServerError::runtime("LSP initialization timeout"))??;
+        .map_err(|_| {
+            tracing::error!(
+                command = %self.config.command.join(" "),
+                "LSP initialization TIMEOUT after 60 seconds - server never responded"
+            );
+            ServerError::runtime("LSP initialization timeout")
+        })??;
 
-        debug!(result = ?result, "LSP server initialized");
+        tracing::warn!(result = ?result, "LSP server initialization response received");
 
         // Send initialized notification
         self.send_notification("initialized", json!({})).await?;
@@ -646,6 +704,8 @@ impl LspClient {
 
     /// Handle incoming message from LSP server
     async fn handle_message(message: Value, pending_requests: &PendingRequests) {
+        tracing::warn!(message = ?message, "Received message from LSP server");
+
         if let Some(id) = message.get("id") {
             if let Some(id_num) = id.as_i64() {
                 let sender = {
@@ -659,12 +719,17 @@ impl LspClient {
                             .as_str()
                             .unwrap_or("Unknown error")
                             .to_string();
+                        tracing::error!(id = id_num, error = %error_msg, "LSP request returned error");
                         let _ = sender.send(Err(error_msg));
                     } else if let Some(result) = message.get("result") {
+                        tracing::warn!(id = id_num, "LSP request successful, sending result");
                         let _ = sender.send(Ok(result.clone()));
                     } else {
+                        tracing::error!(id = id_num, "LSP response has no result or error field");
                         let _ = sender.send(Err("Invalid response format".to_string()));
                     }
+                } else {
+                    tracing::warn!(id = id_num, "Received response for unknown request ID (already handled or timeout)");
                 }
             }
         } else if message.get("method").is_some() {
