@@ -1,6 +1,6 @@
 # CodeBuddy MCP Tools Quick Reference
 
-**Version:** 1.0.0
+**Version:** 1.0.0-rc1
 **Last Updated:** 2025-10-04
 
 Quick reference for all 44 MCP tools. For detailed API documentation, see [API.md](API.md).

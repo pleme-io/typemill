@@ -11,9 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 The project underwent a complete architectural transformation from TypeScript/Node.js to pure Rust in 2025, bringing native performance, memory safety, and compile-time type guarantees.
 
-### [1.0.0] - 2025-10-04
+### [1.0.0-rc1] - 2025-10-04
 
-🎉 **First Major Release** - Production-ready Rust MCP server with comprehensive tooling
+🎉 **Release Candidate 1** - Production-ready Rust MCP server with comprehensive tooling
 
 #### Added
 
