@@ -11,7 +11,10 @@ Pure Rust MCP server bridging Language Server Protocol to AI coding assistants
 
 ## 🚀 Quick Start
 ```bash
-# Install from source
+# Install via automated script (recommended)
+curl -fsSL https://raw.githubusercontent.com/goobits/codebuddy/main/install.sh | bash
+
+# Or install from source manually
 git clone https://github.com/goobits/codebuddy.git
 cd codebuddy
 cargo build --release
