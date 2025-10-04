@@ -30,14 +30,14 @@ impl LanguagePluginRegistry {
         #[cfg(feature = "lang-rust")]
         {
             info!(plugin = "rust", "Registering Rust language plugin");
-            registry.register(Box::new(cb_lang_rust::RustPlugin::new()));
+            registry.register(Arc::new(cb_lang_rust::RustPlugin::new()));
         }
 
         // Register Go plugin
         #[cfg(feature = "lang-go")]
         {
             info!(plugin = "go", "Registering Go language plugin");
-            registry.register(Box::new(cb_lang_go::GoPlugin::new()));
+            registry.register(Arc::new(cb_lang_go::GoPlugin::new()));
         }
 
         // Future language plugins will be registered here
@@ -84,7 +84,7 @@ impl LanguagePluginRegistry {
     }
 
     /// Get all registered language plugins
-    pub fn all_plugins(&self) -> &[Box<dyn LanguageIntelligencePlugin>] {
+    pub fn all_plugins(&self) -> &[Arc<dyn LanguageIntelligencePlugin>] {
         self.inner.all()
     }
 

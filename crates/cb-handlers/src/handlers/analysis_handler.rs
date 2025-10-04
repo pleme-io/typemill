@@ -154,7 +154,9 @@ async fn analyze_dead_code(
     // If workspace/symbol returned nothing, use fallback
     if all_symbols.is_empty() {
         warn!("workspace/symbol returned 0 symbols - using per-file fallback");
-        all_symbols = collect_symbols_by_document(&lsp_adapter, workspace_path).await?;
+        all_symbols =
+            collect_symbols_by_document(&lsp_adapter, workspace_path, config.file_types.as_ref())
+                .await?;
         debug!(
             total_symbols = all_symbols.len(),
             "Collected symbols via fallback (textDocument/documentSymbol)"
@@ -235,6 +237,7 @@ async fn collect_workspace_symbols(
 async fn collect_symbols_by_document(
     lsp_adapter: &Arc<DirectLspAdapter>,
     workspace_path: &str,
+    file_types_filter: Option<&Vec<String>>,
 ) -> ServerResult<Vec<Value>> {
     debug!(
         workspace_path = %workspace_path,
@@ -242,7 +245,7 @@ async fn collect_symbols_by_document(
     );
 
     // Discover all source files in the workspace
-    let source_files = discover_source_files(workspace_path)?;
+    let source_files = discover_source_files(workspace_path, file_types_filter)?;
     debug!(
         file_count = source_files.len(),
         "Discovered source files for symbol collection"
@@ -299,8 +302,11 @@ async fn collect_symbols_by_document(
 
 /// Discover source files in the workspace that should be analyzed.
 ///
-/// Currently supports common extensions. Can be extended to read .gitignore, etc.
-fn discover_source_files(workspace_path: &str) -> ServerResult<Vec<PathBuf>> {
+/// Optionally filters by file types if provided.
+fn discover_source_files(
+    workspace_path: &str,
+    file_types_filter: Option<&Vec<String>>,
+) -> ServerResult<Vec<PathBuf>> {
     let workspace_dir = Path::new(workspace_path);
     if !workspace_dir.exists() {
         return Err(ServerError::InvalidRequest(format!(
@@ -311,8 +317,16 @@ fn discover_source_files(workspace_path: &str) -> ServerResult<Vec<PathBuf>> {
 
     let mut source_files = Vec::new();
 
-    // Common source file extensions to analyze
-    let extensions = vec!["rs", "ts", "tsx", "js", "jsx", "py", "go"];
+    // Use provided filter or default extensions
+    let default_extensions = vec!["rs", "ts", "tsx", "js", "jsx", "py", "go"];
+    let extensions_to_check: Vec<String> = if let Some(filter) = file_types_filter {
+        filter
+            .iter()
+            .map(|ext| ext.trim_start_matches('.').to_string())
+            .collect()
+    } else {
+        default_extensions.iter().map(|s| s.to_string()).collect()
+    };
 
     // Walk the directory tree
     for entry in walkdir::WalkDir::new(workspace_dir)
@@ -322,7 +336,7 @@ fn discover_source_files(workspace_path: &str) -> ServerResult<Vec<PathBuf>> {
     {
         if entry.file_type().is_file() {
             if let Some(ext) = entry.path().extension().and_then(|e| e.to_str()) {
-                if extensions.contains(&ext) {
+                if extensions_to_check.contains(&ext.to_string()) {
                     source_files.push(entry.path().to_path_buf());
                 }
             }
@@ -398,9 +412,10 @@ async fn check_symbol_references(
         let symbol = symbol.clone();
 
         let min_refs = config.min_reference_threshold;
+        let include_exported = config.include_exported;
         futures.push(tokio::spawn(async move {
             let _permit = sem.acquire().await.ok()?;
-            check_single_symbol_references(&adapter, &symbol, min_refs).await
+            check_single_symbol_references(&adapter, &symbol, min_refs, include_exported).await
         }));
     }
 
@@ -440,10 +455,11 @@ async fn check_symbol_references(
             let adapter = lsp_adapter.clone();
             let symbol = symbol.clone();
             let min_refs = config.min_reference_threshold;
+            let include_exported = config.include_exported;
 
             futures.push(tokio::spawn(async move {
                 let _permit = sem.acquire().await.ok()?;
-                check_single_symbol_references(&adapter, &symbol, min_refs).await
+                check_single_symbol_references(&adapter, &symbol, min_refs, include_exported).await
             }));
         }
     }
@@ -451,11 +467,41 @@ async fn check_symbol_references(
     Ok(dead_symbols)
 }
 
+/// Check if a symbol appears to be exported based on heuristic analysis.
+///
+/// Uses lightweight heuristics to detect exported/public symbols:
+/// - Reads the declaration line from the file
+/// - Checks for common export/visibility keywords
+///
+/// This is not 100% accurate but good enough for filtering purposes.
+fn is_symbol_exported(file_path: &str, line: u32) -> bool {
+    use std::fs::File;
+    use std::io::{BufRead, BufReader};
+
+    // Try to read the specific line
+    let file = match File::open(file_path) {
+        Ok(f) => f,
+        Err(_) => return false, // Can't read file, assume not exported
+    };
+
+    let reader = BufReader::new(file);
+    if let Some(Ok(line_content)) = reader.lines().nth(line as usize) {
+        let line_lower = line_content.to_lowercase();
+        // Check for common export/public keywords
+        return line_lower.contains("export ")
+            || line_lower.contains("pub ")
+            || line_lower.contains("public ");
+    }
+
+    false // Couldn't read line, assume not exported
+}
+
 /// Check references for a single symbol using LSP textDocument/references
 async fn check_single_symbol_references(
     lsp_adapter: &Arc<DirectLspAdapter>,
     symbol: &Value,
     min_reference_threshold: usize,
+    include_exported: bool,
 ) -> Option<DeadSymbol> {
     // Extract symbol metadata
     let name = symbol.get("name")?.as_str()?.to_string();
@@ -468,6 +514,11 @@ async fn check_single_symbol_references(
 
     // Extract file path from URI
     let file_path = uri.strip_prefix("file://").unwrap_or(uri);
+
+    // Skip exported symbols if include_exported is false
+    if !include_exported && is_symbol_exported(file_path, line) {
+        return None;
+    }
 
     // Query references via shared LSP adapter
     let params = json!({
