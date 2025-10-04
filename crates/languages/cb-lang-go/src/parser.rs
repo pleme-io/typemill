@@ -1,8 +1,7 @@
 //! Go import parsing logic for the cb-lang-go plugin.
 
 use cb_plugin_api::{PluginError, PluginResult};
-use cb_protocol::{ImportGraph, ImportGraphMetadata, ImportInfo, ImportType, NamedImport, SourceLocation};
-use regex::Regex;
+use cb_protocol::{ImportGraph, ImportGraphMetadata, ImportInfo, ImportType, SourceLocation};
 use std::collections::HashSet;
 use std::io::Write;
 use std::path::Path;
@@ -67,23 +66,23 @@ fn parse_go_imports_ast(source: &str) -> Result<Vec<ImportInfo>, PluginError> {
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|e| PluginError::analysis(format!("Failed to spawn Go AST tool: {}", e)))?;
+        .map_err(|e| PluginError::parse(format!("Failed to spawn Go AST tool: {}", e)))?;
 
     if let Some(mut stdin) = child.stdin.take() {
         stdin.write_all(source.as_bytes())
-            .map_err(|e| PluginError::analysis(format!("Failed to write to Go AST tool stdin: {}", e)))?;
+            .map_err(|e| PluginError::parse(format!("Failed to write to Go AST tool stdin: {}", e)))?;
     }
 
     let output = child.wait_with_output()
-        .map_err(|e| PluginError::analysis(format!("Failed to wait for Go AST tool: {}", e)))?;
+        .map_err(|e| PluginError::parse(format!("Failed to wait for Go AST tool: {}", e)))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(PluginError::analysis(format!("Go AST tool failed: {}", stderr)));
+        return Err(PluginError::parse(format!("Go AST tool failed: {}", stderr)));
     }
 
     serde_json::from_slice(&output.stdout)
-        .map_err(|e| PluginError::analysis(format!("Failed to parse Go AST tool output: {}", e)))
+        .map_err(|e| PluginError::parse(format!("Failed to parse Go AST tool output: {}", e)))
 }
 
 /// Parse Go imports using regex (fallback implementation)

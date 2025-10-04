@@ -26,7 +26,6 @@ use async_trait::async_trait;
 use cb_plugin_api::{
     LanguageIntelligencePlugin, ManifestData, ParsedSource, PluginResult, PluginError,
 };
-use cb_protocol::ImportGraph;
 use std::path::Path;
 
 /// Go language plugin implementation.
@@ -60,10 +59,6 @@ impl LanguageIntelligencePlugin for GoPlugin {
             data: serde_json::json!({ "status": "Go symbol parsing not yet implemented" }),
             symbols: Vec::new(),
         })
-    }
-
-    async fn analyze_imports(&self, source: &str) -> PluginResult<ImportGraph> {
-        parser::analyze_imports(source, None)
     }
 
     async fn analyze_manifest(&self, _path: &Path) -> PluginResult<ManifestData> {
