@@ -219,8 +219,7 @@ impl Capabilities {
             | "format_document"
             | "format_range"
             | "get_code_actions"
-            | "organize_imports"
-            | "fix_imports" => Some(ToolScope::File),
+            | "organize_imports" => Some(ToolScope::File),
 
             // File-scoped refactoring tools
             "extract_function" | "extract_variable" | "inline_variable" => Some(ToolScope::File),

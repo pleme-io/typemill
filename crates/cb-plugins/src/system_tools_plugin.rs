@@ -59,9 +59,6 @@ impl SystemToolsPlugin {
         capabilities
             .custom
             .insert("system.bulk_update_dependencies".to_string(), json!(true));
-        capabilities
-            .custom
-            .insert("system.fix_imports".to_string(), json!(true));
 
         // Add refactoring tool capabilities (handled by plugin_dispatcher, but advertised here for discovery)
         capabilities

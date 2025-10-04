@@ -35,7 +35,6 @@ async fn test_all_39_public_tools_are_registered() {
         "extract_function",
         "inline_variable",
         "extract_variable",
-        "fix_imports",
         // File Operations (6)
         "create_file",
         "read_file",

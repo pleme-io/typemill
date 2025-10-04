@@ -36,7 +36,6 @@ Quick reference for all 39 public MCP tools. For detailed API documentation, see
 | `rename_symbol` | Rename a symbol across the project by name | `file_path`, `symbol_name`, `new_name` | Workspace edits with file changes |
 | `rename_symbol_strict` | Rename a symbol at a specific position | `file_path`, `line`, `character`, `new_name` | Workspace edits with file changes |
 | `organize_imports` | Organize and sort imports, remove unused | `file_path` | Import changes applied |
-| `fix_imports` | Alias for organize_imports | `file_path` | Import changes applied |
 | `get_code_actions` | Get available quick fixes and refactorings | `file_path` | Array of code actions |
 | `format_document` | Format document using language server | `file_path` | Formatting changes |
 | `extract_function` | Extract code into a new function | `file_path`, `start_line`, `end_line`, `function_name` | Workspace edits |

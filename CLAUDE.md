@@ -25,7 +25,7 @@ Codebuddy provides comprehensive MCP tools for code intelligence and refactoring
 
 **Editing & Refactoring**
 - `rename_symbol`, `rename_symbol_strict`
-- `organize_imports`, `fix_imports`, `get_code_actions`, `format_document`
+- `organize_imports`, `get_code_actions`, `format_document`
 - `extract_function`, `inline_variable`, `extract_variable`
 
 **File Operations**

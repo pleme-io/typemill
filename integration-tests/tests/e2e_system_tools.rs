@@ -424,7 +424,7 @@ app.listen(PORT, () => {
     );
 }
 #[tokio::test]
-async fn test_fix_imports_dry_run() {
+async fn test_organize_imports_dry_run() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
     let test_file = workspace.path().join("test.ts");
@@ -445,13 +445,13 @@ function MyComponent() {
     .unwrap();
     let response = client
         .call_tool(
-            "fix_imports",
+            "organize_imports",
             json!({ "file_path" : test_file.to_string_lossy(), "dry_run" : true }),
         )
         .await
         .unwrap();
     let result = &response["result"];
-    assert_eq!(result["operation"].as_str().unwrap(), "fix_imports");
+    assert_eq!(result["operation"].as_str().unwrap(), "organize_imports");
     assert_eq!(result["dry_run"].as_bool().unwrap(), true);
     assert_eq!(result["modified"].as_bool().unwrap(), false);
     assert_eq!(result["status"].as_str().unwrap(), "preview");
@@ -461,7 +461,7 @@ function MyComponent() {
     assert!(content.contains("lodash"));
 }
 #[tokio::test]
-async fn test_fix_imports_with_lsp() {
+async fn test_organize_imports_with_lsp() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
     let test_file = workspace.path().join("test_imports.ts");
@@ -479,12 +479,12 @@ function MyComponent() {
     tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
     let response = client
         .call_tool(
-            "fix_imports",
+            "organize_imports",
             json!({ "file_path" : test_file.to_string_lossy(), "dry_run" : false }),
         )
         .await;
 
-    // fix_imports requires LSP organize_imports support - may not be available
+    // organize_imports requires LSP organize_imports support - may not be available
     if let Ok(response_value) = response {
         // Response must have either result or error
         assert!(
@@ -493,7 +493,7 @@ function MyComponent() {
         );
 
         if let Some(result) = response_value.get("result") {
-            assert_eq!(result["operation"].as_str().unwrap(), "fix_imports");
+            assert_eq!(result["operation"].as_str().unwrap(), "organize_imports");
             assert_eq!(result["dry_run"].as_bool().unwrap_or(true), false);
         }
         // If error, that's acceptable (LSP may not support organize_imports)
@@ -501,11 +501,11 @@ function MyComponent() {
     // If Err, that's also acceptable (LSP not configured)
 }
 #[tokio::test]
-async fn test_fix_imports_missing_file_path() {
+async fn test_organize_imports_missing_file_path() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
     let response = client
-        .call_tool("fix_imports", json!({ "dry_run" : true }))
+        .call_tool("organize_imports", json!({ "dry_run" : true }))
         .await;
     // Must return error - missing required file_path parameter
     assert!(
@@ -514,13 +514,13 @@ async fn test_fix_imports_missing_file_path() {
     );
 }
 #[tokio::test]
-async fn test_fix_imports_nonexistent_file() {
+async fn test_organize_imports_nonexistent_file() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
     let nonexistent_file = workspace.path().join("nonexistent.ts");
     let response = client
         .call_tool(
-            "fix_imports",
+            "organize_imports",
             json!(
                 { "file_path" : nonexistent_file.to_string_lossy(), "dry_run" : false }
             ),

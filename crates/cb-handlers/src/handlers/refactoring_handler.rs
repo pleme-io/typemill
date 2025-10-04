@@ -185,7 +185,6 @@ impl ToolHandler for RefactoringHandler {
             "inline_variable",
             "extract_variable",
             "extract_module_to_package",
-            "fix_imports",
         ]
     }
 
@@ -199,7 +198,6 @@ impl ToolHandler for RefactoringHandler {
             | "extract_module_to_package" => {
                 self.handle_refactoring_operation(tool_call, context).await
             }
-            "fix_imports" => self.handle_fix_imports(tool_call, context).await,
             _ => Err(ServerError::Unsupported(format!(
                 "Unknown refactoring operation: {}",
                 tool_call.name
@@ -461,55 +459,4 @@ impl RefactoringHandler {
         }
     }
 
-    async fn handle_fix_imports(
-        &self,
-        tool_call: ToolCall,
-        context: &ToolContext,
-    ) -> ServerResult<Value> {
-        let args = tool_call.arguments.unwrap_or(json!({}));
-
-        let file_path = args
-            .get("file_path")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| ServerError::InvalidRequest("file_path is required".to_string()))?;
-
-        let dry_run = args
-            .get("dry_run")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-
-        debug!(file_path = %file_path, dry_run = dry_run, "Handling fix_imports via organize_imports");
-
-        if dry_run {
-            return Ok(json!({
-                "operation": "fix_imports",
-                "file_path": file_path,
-                "dry_run": true,
-                "modified": false,
-                "status": "preview",
-                "message": "Dry run mode - set dry_run: false to apply import organization"
-            }));
-        }
-
-        let mut plugin_request =
-            PluginRequest::new("organize_imports".to_string(), PathBuf::from(file_path));
-        plugin_request.params = json!({
-            "file_path": file_path
-        });
-
-        match context.plugin_manager.handle_request(plugin_request).await {
-            Ok(response) => Ok(json!({
-                "operation": "fix_imports",
-                "file_path": file_path,
-                "dry_run": false,
-                "modified": true,
-                "status": "fixed",
-                "lsp_response": response
-            })),
-            Err(e) => Err(ServerError::internal(format!(
-                "Failed to organize imports: {}",
-                e
-            ))),
-        }
-    }
 }

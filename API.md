@@ -561,38 +561,6 @@ Organize and sort imports according to language conventions.
 
 ---
 
-### `fix_imports`
-
-Convenience wrapper for organizing imports. Delegates to `organize_imports`.
-
-**Parameters:**
-```json
-{
-  "file_path": "src/app.ts"    // Required: File path
-}
-```
-
-**Returns:**
-```json
-{
-  "changes": [
-    {
-      "range": {"start": {"line": 0, "character": 0}, "end": {"line": 5, "character": 0}},
-      "newText": "import { Button } from './components/Button';\nimport React from 'react';\n"
-    }
-  ],
-  "imports_removed": 2,
-  "imports_sorted": true
-}
-```
-
-**Notes:**
-- Alias for `organize_imports`
-- Removes all unused import types
-- Uses language server's organize imports functionality
-
----
-
 ### `get_code_actions`
 
 Get available code actions (quick fixes, refactors) for a file or range.
