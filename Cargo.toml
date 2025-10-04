@@ -12,9 +12,11 @@ members = [
     "crates/cb-server",
     "crates/cb-client",
     "crates/cb-transport",
+    "crates/languages/*",
     "apps/codebuddy",
     "integration-tests",
-    "benchmarks", "experiments/syn-visitor-test",
+    "benchmarks",
+    "experiments/syn-visitor-test",
 ]
 resolver = "2"
 
