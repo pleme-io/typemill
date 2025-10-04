@@ -310,15 +310,17 @@ impl WorkflowExecutor for DefaultWorkflowExecutor {
                 }));
             }
 
-            let step_result = self.execute_workflow_step(
-                step,
-                step_index,
-                &workflow.name,
-                workflow.steps.len(),
-                &mut step_results,
-                &mut log,
-                dry_run,
-            ).await?;
+            let step_result = self
+                .execute_workflow_step(
+                    step,
+                    step_index,
+                    &workflow.name,
+                    workflow.steps.len(),
+                    &mut step_results,
+                    &mut log,
+                    dry_run,
+                )
+                .await?;
 
             final_result = step_result;
         }
@@ -380,15 +382,17 @@ impl WorkflowExecutor for DefaultWorkflowExecutor {
             .enumerate()
             .skip(paused_state.step_index)
         {
-            let step_result = self.execute_workflow_step(
-                step,
-                step_index,
-                &workflow.name,
-                workflow.steps.len(),
-                &mut step_results,
-                &mut log,
-                dry_run,
-            ).await?;
+            let step_result = self
+                .execute_workflow_step(
+                    step,
+                    step_index,
+                    &workflow.name,
+                    workflow.steps.len(),
+                    &mut step_results,
+                    &mut log,
+                    dry_run,
+                )
+                .await?;
 
             final_result = step_result;
         }

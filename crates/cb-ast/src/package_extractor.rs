@@ -700,10 +700,8 @@ resolver = "2"
                         if is_match {
                             // Found an import that needs to be rewritten
                             let old_use_statement = format!("use {};", import.module_path);
-                            let new_use_statement = adapter.rewrite_import(
-                                &import.module_path,
-                                &params.target_package_name,
-                            );
+                            let new_use_statement = adapter
+                                .rewrite_import(&import.module_path, &params.target_package_name);
 
                             // Create a TextEdit to replace this import
                             edits.push(TextEdit {
@@ -953,7 +951,6 @@ mod tests {
         assert!(matches!(err, crate::error::AstError::Analysis { .. }));
     }
 
-
     #[tokio::test]
     async fn test_parse_imports_empty_file() {
         // Create a temporary Rust file with no imports
@@ -976,8 +973,6 @@ fn main() {
         let dependencies = result.unwrap();
         assert_eq!(dependencies.len(), 0);
     }
-
-
 
     #[test]
     fn test_generate_manifest_with_dependencies() {
@@ -1054,10 +1049,6 @@ fn main() {
         assert!(manifest.contains("[package]"));
     }
 
-
-
-
-
     #[test]
     fn test_rust_adapter_no_changes_different_crate() {
         use serde_json::json;
@@ -1085,7 +1076,6 @@ fn main() {
         assert_eq!(new_content, source);
     }
 
-
     #[test]
     fn test_rust_adapter_no_rename_info() {
         let adapter = &crate::language::RustAdapter;
@@ -1105,7 +1095,6 @@ fn main() {
         assert_eq!(count, 0);
         assert_eq!(new_content, source);
     }
-
 
     #[tokio::test]
     async fn test_workspace_member_creation() {

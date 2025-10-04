@@ -149,15 +149,12 @@ impl WorkspaceHandler {
         let path = Path::new(manifest_path);
 
         // Get the manifest filename (e.g., "Cargo.toml")
-        let filename = path
-            .file_name()
-            .and_then(|s| s.to_str())
-            .ok_or_else(|| {
-                cb_protocol::ApiError::InvalidRequest(format!(
-                    "Invalid manifest path: {}",
-                    manifest_path
-                ))
-            })?;
+        let filename = path.file_name().and_then(|s| s.to_str()).ok_or_else(|| {
+            cb_protocol::ApiError::InvalidRequest(format!(
+                "Invalid manifest path: {}",
+                manifest_path
+            ))
+        })?;
 
         // Find the appropriate language plugin for this manifest
         let plugin = context
@@ -248,8 +245,14 @@ impl WorkspaceHandler {
         let new_path = args.get("new_path").and_then(|v| v.as_str());
 
         // Use the helper to perform the update
-        Self::update_manifest_dependency(context, manifest_path, old_dep_name, new_dep_name, new_path)
-            .await?;
+        Self::update_manifest_dependency(
+            context,
+            manifest_path,
+            old_dep_name,
+            new_dep_name,
+            new_path,
+        )
+        .await?;
 
         Ok(json!({
             "success": true,
@@ -266,5 +269,4 @@ impl WorkspaceHandler {
             "new_path": new_path,
         }))
     }
-
 }

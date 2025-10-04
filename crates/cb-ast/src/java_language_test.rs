@@ -29,7 +29,8 @@ public class TestClass {
 
         // Should find the import declaration
         assert!(
-            refs.iter().any(|r| r.kind == ReferenceKind::Declaration && r.text.contains("Helper")),
+            refs.iter()
+                .any(|r| r.kind == ReferenceKind::Declaration && r.text.contains("Helper")),
             "Should find Helper import declaration"
         );
 
@@ -69,7 +70,8 @@ public class TestClass {
             "Should find import declaration"
         );
 
-        let qualified_refs: Vec<_> = refs.iter()
+        let qualified_refs: Vec<_> = refs
+            .iter()
             .filter(|r| r.kind == ReferenceKind::QualifiedPath)
             .collect();
 
@@ -137,7 +139,8 @@ public class TestClass {
         let refs = result.unwrap();
 
         // Should find string literals containing "Helper"
-        let string_refs: Vec<_> = refs.iter()
+        let string_refs: Vec<_> = refs
+            .iter()
             .filter(|r| r.kind == ReferenceKind::StringLiteral)
             .collect();
 
@@ -175,11 +178,13 @@ public class TestClass {
         let adapter = JavaAdapter;
 
         // Test Helper references
-        let helper_result = adapter.find_module_references(source, "Helper", ScanScope::QualifiedPaths);
+        let helper_result =
+            adapter.find_module_references(source, "Helper", ScanScope::QualifiedPaths);
         assert!(helper_result.is_ok());
         let helper_refs = helper_result.unwrap();
 
-        let helper_qualified: Vec<_> = helper_refs.iter()
+        let helper_qualified: Vec<_> = helper_refs
+            .iter()
             .filter(|r| r.kind == ReferenceKind::QualifiedPath)
             .collect();
 
@@ -190,11 +195,13 @@ public class TestClass {
         );
 
         // Test StringProcessor references
-        let processor_result = adapter.find_module_references(source, "StringProcessor", ScanScope::QualifiedPaths);
+        let processor_result =
+            adapter.find_module_references(source, "StringProcessor", ScanScope::QualifiedPaths);
         assert!(processor_result.is_ok());
         let processor_refs = processor_result.unwrap();
 
-        let processor_qualified: Vec<_> = processor_refs.iter()
+        let processor_qualified: Vec<_> = processor_refs
+            .iter()
             .filter(|r| r.kind == ReferenceKind::QualifiedPath)
             .collect();
 
@@ -227,21 +234,25 @@ public class TestClass {
         let refs = result.unwrap();
 
         // Should NOT find import or qualified calls (only string content)
-        let qualified_refs: Vec<_> = refs.iter()
+        let qualified_refs: Vec<_> = refs
+            .iter()
             .filter(|r| r.kind == ReferenceKind::QualifiedPath)
             .collect();
 
         assert_eq!(
-            qualified_refs.len(), 0,
+            qualified_refs.len(),
+            0,
             "Should not find qualified paths when module is not used"
         );
 
-        let declaration_refs: Vec<_> = refs.iter()
+        let declaration_refs: Vec<_> = refs
+            .iter()
             .filter(|r| r.kind == ReferenceKind::Declaration)
             .collect();
 
         assert_eq!(
-            declaration_refs.len(), 0,
+            declaration_refs.len(),
+            0,
             "Should not find import declarations when module is not imported"
         );
     }
@@ -266,7 +277,8 @@ public class Main {
         let adapter = JavaAdapter;
 
         // Test finding by simple class name
-        let helper_result = adapter.find_module_references(source, "Helper", ScanScope::TopLevelOnly);
+        let helper_result =
+            adapter.find_module_references(source, "Helper", ScanScope::TopLevelOnly);
         assert!(helper_result.is_ok());
         let helper_refs = helper_result.unwrap();
         assert!(helper_refs.len() > 0, "Should find Helper import");
@@ -281,6 +293,9 @@ public class Main {
         let data_result = adapter.find_module_references(source, "data", ScanScope::TopLevelOnly);
         assert!(data_result.is_ok());
         let data_refs = data_result.unwrap();
-        assert!(data_refs.len() >= 2, "Should find both data package imports");
+        assert!(
+            data_refs.len() >= 2,
+            "Should find both data package imports"
+        );
     }
 }

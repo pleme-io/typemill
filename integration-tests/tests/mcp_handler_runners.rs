@@ -953,9 +953,7 @@ pub async fn run_rename_directory_test(case: &RenameDirectoryTestCase, use_real_
         let result = app_state
             .file_service
             .rename_directory_with_imports(
-                &old_path,
-                &new_path,
-                false, // dry_run
+                &old_path, &new_path, false, // dry_run
                 false, // consolidate
                 None,  // scan_scope (uses default)
             )

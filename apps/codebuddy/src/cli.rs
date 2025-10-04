@@ -375,7 +375,6 @@ async fn handle_doctor() {
     println!("✨ Doctor's checkup complete.");
 }
 
-
 /// Handle the stop command
 async fn handle_stop() {
     let pid_file = get_pid_file_path();

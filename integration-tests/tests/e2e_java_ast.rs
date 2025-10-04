@@ -3,8 +3,8 @@
 //! These tests validate that the Java AST parsing works correctly
 //! with the full codebuddy system using real Java test fixtures.
 
-use integration_tests::harness::create_java_project;
 use cb_ast::language::{JavaAdapter, LanguageAdapter, ScanScope};
+use integration_tests::harness::create_java_project;
 use std::fs;
 
 #[tokio::test]
@@ -52,8 +52,7 @@ async fn test_java_find_helper_references_in_main() {
     let main_path = workspace.absolute_path("src/main/java/com/codebuddy/example/Main.java");
 
     // Read Main.java content
-    let content = fs::read_to_string(&main_path)
-        .expect("Should be able to read Main.java");
+    let content = fs::read_to_string(&main_path).expect("Should be able to read Main.java");
 
     let adapter = JavaAdapter;
 
@@ -69,7 +68,8 @@ async fn test_java_find_helper_references_in_main() {
     let references = result.unwrap();
 
     // Should find import declaration
-    let declarations: Vec<_> = references.iter()
+    let declarations: Vec<_> = references
+        .iter()
         .filter(|r| matches!(r.kind, cb_ast::language::ReferenceKind::Declaration))
         .collect();
 
@@ -79,7 +79,8 @@ async fn test_java_find_helper_references_in_main() {
     );
 
     // Should find qualified method calls (Helper.logInfo, Helper.printSeparator)
-    let qualified_calls: Vec<_> = references.iter()
+    let qualified_calls: Vec<_> = references
+        .iter()
         .filter(|r| matches!(r.kind, cb_ast::language::ReferenceKind::QualifiedPath))
         .collect();
 
@@ -101,29 +102,36 @@ async fn test_java_find_helper_references_in_main() {
 #[tokio::test]
 async fn test_java_find_dataprocessor_references() {
     let workspace = create_java_project();
-    let processor_path = workspace.absolute_path("src/main/java/com/codebuddy/example/data/DataProcessor.java");
+    let processor_path =
+        workspace.absolute_path("src/main/java/com/codebuddy/example/data/DataProcessor.java");
 
     // Read DataProcessor.java content
-    let content = fs::read_to_string(&processor_path)
-        .expect("Should be able to read DataProcessor.java");
+    let content =
+        fs::read_to_string(&processor_path).expect("Should be able to read DataProcessor.java");
 
     let adapter = JavaAdapter;
 
     // Find Helper references (cross-package import)
     let result = adapter.find_module_references(&content, "Helper", ScanScope::QualifiedPaths);
 
-    assert!(result.is_ok(), "Should successfully parse DataProcessor.java");
+    assert!(
+        result.is_ok(),
+        "Should successfully parse DataProcessor.java"
+    );
 
     let references = result.unwrap();
 
     // Should find Helper import from utils package
     assert!(
-        references.iter().any(|r| matches!(r.kind, cb_ast::language::ReferenceKind::Declaration)),
+        references
+            .iter()
+            .any(|r| matches!(r.kind, cb_ast::language::ReferenceKind::Declaration)),
         "Should find Helper import in DataProcessor.java"
     );
 
     // Should find Helper qualified calls in methods
-    let qualified: Vec<_> = references.iter()
+    let qualified: Vec<_> = references
+        .iter()
         .filter(|r| matches!(r.kind, cb_ast::language::ReferenceKind::QualifiedPath))
         .collect();
 
@@ -138,8 +146,7 @@ async fn test_java_find_utils_package_references() {
     let workspace = create_java_project();
     let main_path = workspace.absolute_path("src/main/java/com/codebuddy/example/Main.java");
 
-    let content = fs::read_to_string(&main_path)
-        .expect("Should be able to read Main.java");
+    let content = fs::read_to_string(&main_path).expect("Should be able to read Main.java");
 
     let adapter = JavaAdapter;
 
@@ -177,23 +184,26 @@ async fn test_java_scope_variations() {
     let workspace = create_java_project();
     let main_path = workspace.absolute_path("src/main/java/com/codebuddy/example/Main.java");
 
-    let content = fs::read_to_string(&main_path)
-        .expect("Should be able to read Main.java");
+    let content = fs::read_to_string(&main_path).expect("Should be able to read Main.java");
 
     let adapter = JavaAdapter;
 
     // Test TopLevelOnly - should find only imports
-    let top_level_result = adapter.find_module_references(&content, "Helper", ScanScope::TopLevelOnly);
+    let top_level_result =
+        adapter.find_module_references(&content, "Helper", ScanScope::TopLevelOnly);
     assert!(top_level_result.is_ok());
     let top_level_refs = top_level_result.unwrap();
 
     assert!(
-        top_level_refs.iter().all(|r| matches!(r.kind, cb_ast::language::ReferenceKind::Declaration)),
+        top_level_refs
+            .iter()
+            .all(|r| matches!(r.kind, cb_ast::language::ReferenceKind::Declaration)),
         "TopLevelOnly should only find import declarations"
     );
 
     // Test QualifiedPaths - should find imports AND qualified calls
-    let qualified_result = adapter.find_module_references(&content, "Helper", ScanScope::QualifiedPaths);
+    let qualified_result =
+        adapter.find_module_references(&content, "Helper", ScanScope::QualifiedPaths);
     assert!(qualified_result.is_ok());
     let qualified_refs = qualified_result.unwrap();
 
@@ -203,7 +213,9 @@ async fn test_java_scope_variations() {
     );
 
     assert!(
-        qualified_refs.iter().any(|r| matches!(r.kind, cb_ast::language::ReferenceKind::QualifiedPath)),
+        qualified_refs
+            .iter()
+            .any(|r| matches!(r.kind, cb_ast::language::ReferenceKind::QualifiedPath)),
         "QualifiedPaths should find qualified method calls"
     );
 }
@@ -216,17 +228,17 @@ async fn test_java_multiple_files_cross_package() {
 
     // Test Main.java
     let main_content = workspace.read_file("src/main/java/com/codebuddy/example/Main.java");
-    let main_refs = adapter.find_module_references(&main_content, "DataProcessor", ScanScope::TopLevelOnly)
+    let main_refs = adapter
+        .find_module_references(&main_content, "DataProcessor", ScanScope::TopLevelOnly)
         .expect("Should parse Main.java");
 
-    assert!(
-        main_refs.len() > 0,
-        "Main.java should import DataProcessor"
-    );
+    assert!(main_refs.len() > 0, "Main.java should import DataProcessor");
 
     // Test DataProcessor.java
-    let processor_content = workspace.read_file("src/main/java/com/codebuddy/example/data/DataProcessor.java");
-    let processor_refs = adapter.find_module_references(&processor_content, "Helper", ScanScope::QualifiedPaths)
+    let processor_content =
+        workspace.read_file("src/main/java/com/codebuddy/example/data/DataProcessor.java");
+    let processor_refs = adapter
+        .find_module_references(&processor_content, "Helper", ScanScope::QualifiedPaths)
         .expect("Should parse DataProcessor.java");
 
     assert!(
@@ -246,13 +258,13 @@ async fn test_java_stringprocessor_static_methods() {
     let workspace = create_java_project();
     let main_path = workspace.absolute_path("src/main/java/com/codebuddy/example/Main.java");
 
-    let content = fs::read_to_string(&main_path)
-        .expect("Should be able to read Main.java");
+    let content = fs::read_to_string(&main_path).expect("Should be able to read Main.java");
 
     let adapter = JavaAdapter;
 
     // Find StringProcessor references
-    let result = adapter.find_module_references(&content, "StringProcessor", ScanScope::QualifiedPaths);
+    let result =
+        adapter.find_module_references(&content, "StringProcessor", ScanScope::QualifiedPaths);
 
     assert!(result.is_ok(), "Should successfully parse Main.java");
 
@@ -260,12 +272,15 @@ async fn test_java_stringprocessor_static_methods() {
 
     // Should find import
     assert!(
-        references.iter().any(|r| matches!(r.kind, cb_ast::language::ReferenceKind::Declaration)),
+        references
+            .iter()
+            .any(|r| matches!(r.kind, cb_ast::language::ReferenceKind::Declaration)),
         "Should find StringProcessor import"
     );
 
     // Should find static method call (StringProcessor.format)
-    let qualified: Vec<_> = references.iter()
+    let qualified: Vec<_> = references
+        .iter()
         .filter(|r| matches!(r.kind, cb_ast::language::ReferenceKind::QualifiedPath))
         .collect();
 

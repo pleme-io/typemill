@@ -127,8 +127,8 @@ impl LanguageIntelligencePlugin for RustPlugin {
 }
 
 // Re-export public API items
-pub use parser::{extract_symbols, list_functions, parse_imports, rewrite_use_tree};
 pub use manifest::{load_cargo_toml, parse_cargo_toml, rename_dependency};
+pub use parser::{extract_symbols, list_functions, parse_imports, rewrite_use_tree};
 
 #[cfg(test)]
 mod tests {

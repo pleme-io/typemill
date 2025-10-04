@@ -337,7 +337,9 @@ impl<'a> swc_ecma_visit::Visit for TsModuleVisitor<'a> {
             if let Some(src_str) = import.src.raw.as_ref() {
                 if src_str.contains(self.module_to_find) {
                     let span = import.src.span;
-                    if let Some(reference) = self.span_to_reference(span, ReferenceKind::Declaration) {
+                    if let Some(reference) =
+                        self.span_to_reference(span, ReferenceKind::Declaration)
+                    {
                         self.references.push(reference);
                     }
                 }
@@ -351,7 +353,9 @@ impl<'a> swc_ecma_visit::Visit for TsModuleVisitor<'a> {
             if let Some(ident) = member_expr.obj.as_ident() {
                 if ident.sym.as_ref() == self.module_to_find {
                     let span = member_expr.span;
-                    if let Some(reference) = self.span_to_reference(span, ReferenceKind::QualifiedPath) {
+                    if let Some(reference) =
+                        self.span_to_reference(span, ReferenceKind::QualifiedPath)
+                    {
                         self.references.push(reference);
                     }
                 }
@@ -362,7 +366,11 @@ impl<'a> swc_ecma_visit::Visit for TsModuleVisitor<'a> {
 
 impl<'a> TsModuleVisitor<'a> {
     /// Convert a SWC span to a ModuleReference with line/column information
-    fn span_to_reference(&self, span: swc_common::Span, kind: ReferenceKind) -> Option<ModuleReference> {
+    fn span_to_reference(
+        &self,
+        span: swc_common::Span,
+        kind: ReferenceKind,
+    ) -> Option<ModuleReference> {
         let lo = self.source_map.lookup_char_pos(span.lo);
 
         // Extract the actual text from the span
@@ -491,7 +499,9 @@ impl<'a> PythonModuleFinder<'a> {
                 // Handle: import module, import module as alias
                 for alias in &import_stmt.names {
                     let module_name = alias.name.as_str();
-                    if module_name == self.module_to_find || module_name.starts_with(&format!("{}.", self.module_to_find)) {
+                    if module_name == self.module_to_find
+                        || module_name.starts_with(&format!("{}.", self.module_to_find))
+                    {
                         self.references.push(ModuleReference {
                             line: 0,
                             column: 0,
@@ -506,7 +516,9 @@ impl<'a> PythonModuleFinder<'a> {
                 // Handle: from module import ...
                 if let Some(module) = &import_from.module {
                     let module_name = module.as_str();
-                    if module_name == self.module_to_find || module_name.starts_with(&format!("{}.", self.module_to_find)) {
+                    if module_name == self.module_to_find
+                        || module_name.starts_with(&format!("{}.", self.module_to_find))
+                    {
                         self.references.push(ModuleReference {
                             line: 0,
                             column: 0,
@@ -638,7 +650,9 @@ impl<'a> GoModuleFinder<'a> {
                 let import_path = import_path.trim_matches('"');
 
                 // Check if this import references our module
-                if import_path == self.module_to_find || import_path.ends_with(&format!("/{}", self.module_to_find)) {
+                if import_path == self.module_to_find
+                    || import_path.ends_with(&format!("/{}", self.module_to_find))
+                {
                     self.references.push(ModuleReference {
                         line: path_node.start_position().row,
                         column: path_node.start_position().column,
@@ -1392,7 +1406,6 @@ impl LanguageAdapter for JavaAdapter {
     }
 }
 
-
 // Test-only mock for Rust adapter (for package_extractor tests)
 // The real Rust adapter is now in cb-lang-rust crate
 #[cfg(test)]
@@ -1404,18 +1417,33 @@ impl LanguageAdapter for RustAdapter {
     fn language(&self) -> ProjectLanguage {
         ProjectLanguage::Rust
     }
-    fn manifest_filename(&self) -> &'static str { "Cargo.toml" }
-    fn source_dir(&self) -> &'static str { "src" }
-    fn entry_point(&self) -> &'static str { "lib.rs" }
-    fn module_separator(&self) -> &'static str { "::" }
-    async fn locate_module_files(&self, package_path: &Path, module_path: &str) -> AstResult<Vec<std::path::PathBuf>> {
+    fn manifest_filename(&self) -> &'static str {
+        "Cargo.toml"
+    }
+    fn source_dir(&self) -> &'static str {
+        "src"
+    }
+    fn entry_point(&self) -> &'static str {
+        "lib.rs"
+    }
+    fn module_separator(&self) -> &'static str {
+        "::"
+    }
+    async fn locate_module_files(
+        &self,
+        package_path: &Path,
+        module_path: &str,
+    ) -> AstResult<Vec<std::path::PathBuf>> {
         if module_path.is_empty() {
             return Err(AstError::analysis("Module path cannot be empty"));
         }
 
         let src_root = package_path.join("src");
         if !src_root.exists() {
-            return Err(AstError::analysis(format!("Source directory not found: {}", src_root.display())));
+            return Err(AstError::analysis(format!(
+                "Source directory not found: {}",
+                src_root.display()
+            )));
         }
 
         // Convert module path to file path (handle :: and . separators)
@@ -1434,11 +1462,19 @@ impl LanguageAdapter for RustAdapter {
             }
         }
 
-        Err(AstError::analysis(format!("Module file not found for: {}", module_path)))
+        Err(AstError::analysis(format!(
+            "Module file not found for: {}",
+            module_path
+        )))
     }
-    async fn parse_imports(&self, _file_path: &Path) -> AstResult<Vec<String>> { Ok(vec![]) }
+    async fn parse_imports(&self, _file_path: &Path) -> AstResult<Vec<String>> {
+        Ok(vec![])
+    }
     fn generate_manifest(&self, package_name: &str, dependencies: &[String]) -> String {
-        let mut manifest = format!("[package]\nname = \"{}\"\nversion = \"0.1.0\"\nedition = \"2021\"\n", package_name);
+        let mut manifest = format!(
+            "[package]\nname = \"{}\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+            package_name
+        );
         if !dependencies.is_empty() {
             manifest.push_str("\n[dependencies]\n");
             for dep in dependencies {
@@ -1450,11 +1486,26 @@ impl LanguageAdapter for RustAdapter {
     fn rewrite_import(&self, _old_import: &str, new_package_name: &str) -> String {
         format!("use {};", new_package_name)
     }
-    fn handles_extension(&self, ext: &str) -> bool { ext == "rs" }
-    fn rewrite_imports_for_rename(&self, content: &str, _old_path: &Path, _new_path: &Path, _importing_file: &Path, _project_root: &Path, _rename_info: Option<&serde_json::Value>) -> AstResult<(String, usize)> {
+    fn handles_extension(&self, ext: &str) -> bool {
+        ext == "rs"
+    }
+    fn rewrite_imports_for_rename(
+        &self,
+        content: &str,
+        _old_path: &Path,
+        _new_path: &Path,
+        _importing_file: &Path,
+        _project_root: &Path,
+        _rename_info: Option<&serde_json::Value>,
+    ) -> AstResult<(String, usize)> {
         Ok((content.to_string(), 0))
     }
-    fn find_module_references(&self, _content: &str, _module_to_find: &str, _scope: ScanScope) -> AstResult<Vec<ModuleReference>> {
+    fn find_module_references(
+        &self,
+        _content: &str,
+        _module_to_find: &str,
+        _scope: ScanScope,
+    ) -> AstResult<Vec<ModuleReference>> {
         Ok(vec![])
     }
 }

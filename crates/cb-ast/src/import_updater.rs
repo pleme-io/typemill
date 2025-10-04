@@ -368,10 +368,7 @@ pub async fn update_imports_for_rename(
         use std::collections::HashSet;
 
         // Get module name from old path for searching
-        let module_name = old_path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("");
+        let module_name = old_path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
 
         // Use HashSet to avoid duplicates
         let mut all_affected: HashSet<PathBuf> = affected_files.iter().cloned().collect();
@@ -422,14 +419,8 @@ pub async fn update_imports_for_rename(
     );
 
     // Get module names for reference replacement
-    let old_module_name = old_path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("");
-    let new_module_name = new_path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("");
+    let old_module_name = old_path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+    let new_module_name = new_path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
 
     let mut all_edits = Vec::new();
     let mut edited_file_count = 0;
@@ -555,10 +546,7 @@ pub async fn update_imports_for_rename(
             }),
             created_at: chrono::Utc::now(),
             complexity: if scan_scope.is_some() { 7 } else { 5 },
-            impact_areas: vec![
-                "imports".to_string(),
-                "file_references".to_string(),
-            ],
+            impact_areas: vec!["imports".to_string(), "file_references".to_string()],
         },
     })
 }

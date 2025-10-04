@@ -418,8 +418,7 @@ impl SystemToolsPlugin {
 
         // Call the planning function from cb-ast
         let edit_plan = cb_ast::package_extractor::plan_extract_module_to_package_with_registry(
-            parsed,
-            &registry,
+            parsed, &registry,
         )
         .await
         .map_err(|e| PluginError::PluginRequestFailed {

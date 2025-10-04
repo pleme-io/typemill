@@ -312,12 +312,7 @@ pub trait LanguageIntelligencePlugin: Send + Sync {
         Ok(parsed
             .symbols
             .into_iter()
-            .filter(|s| {
-                matches!(
-                    s.kind,
-                    SymbolKind::Function | SymbolKind::Method
-                )
-            })
+            .filter(|s| matches!(s.kind, SymbolKind::Function | SymbolKind::Method))
             .map(|s| s.name)
             .collect())
     }

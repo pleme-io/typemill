@@ -72,10 +72,7 @@ impl LanguagePluginRegistry {
         let result = self.inner.find_by_extension(extension);
 
         if result.is_some() {
-            debug!(
-                extension = extension,
-                "Found language plugin for extension"
-            );
+            debug!(extension = extension, "Found language plugin for extension");
         } else {
             debug!(
                 extension = extension,
@@ -118,7 +115,10 @@ impl LanguagePluginRegistry {
     /// # Returns
     ///
     /// A reference to the language plugin if found, `None` otherwise
-    pub fn get_plugin_for_manifest(&self, filename: &str) -> Option<&dyn LanguageIntelligencePlugin> {
+    pub fn get_plugin_for_manifest(
+        &self,
+        filename: &str,
+    ) -> Option<&dyn LanguageIntelligencePlugin> {
         debug!(filename = filename, "Looking up plugin for manifest");
 
         for plugin in self.inner.all() {

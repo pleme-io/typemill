@@ -352,8 +352,8 @@ async fn test_dependency_update_errors() {
     // Should return error or success - but must have a defined response
     assert!(
         response.is_err()
-        || response.as_ref().unwrap().get("error").is_some()
-        || response.as_ref().unwrap().get("result").is_some(),
+            || response.as_ref().unwrap().get("error").is_some()
+            || response.as_ref().unwrap().get("result").is_some(),
         "update_dependencies must return a well-formed response"
     );
 }

@@ -415,8 +415,9 @@ const MY_CONST: i32 = 42;
         let symbols = extract_symbols(source).unwrap();
 
         // Check function
-        assert!(symbols.iter().any(|s| s.name == "my_function"
-            && s.kind == SymbolKind::Function));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "my_function" && s.kind == SymbolKind::Function));
 
         // Check struct
         assert!(symbols

@@ -269,9 +269,12 @@ impl LspAdapterPlugin {
 
         // Create proper file:// URI using the url crate
         let file_uri = Url::from_file_path(&abs_path)
-            .map_err(|_| PluginError::configuration_error(
-                format!("Invalid file path: {}", abs_path.display())
-            ))?
+            .map_err(|_| {
+                PluginError::configuration_error(format!(
+                    "Invalid file path: {}",
+                    abs_path.display()
+                ))
+            })?
             .to_string();
 
         let mut params = json!({

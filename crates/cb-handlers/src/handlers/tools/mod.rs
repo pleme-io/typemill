@@ -109,18 +109,20 @@ mod dispatch {
             })?;
 
         // Execute the operation with the plugin
-        operation(plugin, content)
-            .await
-            .map_err(|e| {
-                // Convert PluginError to ApiError
-                match e {
-                    cb_plugin_api::PluginError::Parse { message, .. } => ApiError::Parse { message },
-                    cb_plugin_api::PluginError::Manifest { message } => ApiError::Parse { message },
-                    cb_plugin_api::PluginError::NotSupported { operation } => ApiError::Unsupported(operation),
-                    cb_plugin_api::PluginError::InvalidInput { message } => ApiError::InvalidRequest(message),
-                    cb_plugin_api::PluginError::Internal { message } => ApiError::Internal(message),
+        operation(plugin, content).await.map_err(|e| {
+            // Convert PluginError to ApiError
+            match e {
+                cb_plugin_api::PluginError::Parse { message, .. } => ApiError::Parse { message },
+                cb_plugin_api::PluginError::Manifest { message } => ApiError::Parse { message },
+                cb_plugin_api::PluginError::NotSupported { operation } => {
+                    ApiError::Unsupported(operation)
                 }
-            })
+                cb_plugin_api::PluginError::InvalidInput { message } => {
+                    ApiError::InvalidRequest(message)
+                }
+                cb_plugin_api::PluginError::Internal { message } => ApiError::Internal(message),
+            }
+        })
     }
 }
 
@@ -202,7 +204,7 @@ pub trait ToolHandler: Send + Sync {
     ///
     /// `true` if all tools in this handler are internal, `false` if public (default).
     fn is_internal(&self) -> bool {
-        false  // Default: tools are public/visible
+        false // Default: tools are public/visible
     }
 
     /// Handles an incoming tool call.

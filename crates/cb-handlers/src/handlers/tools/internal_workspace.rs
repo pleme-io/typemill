@@ -49,24 +49,22 @@ impl InternalWorkspaceHandler {
         // Convert changes map to Vec<TextEdit>
         let mut all_edits = Vec::new();
         for (file_path, edits_value) in changes {
-            let edits_array = edits_value.as_array().ok_or_else(|| {
-                ApiError::InvalidRequest("Edits must be an array".to_string())
-            })?;
+            let edits_array = edits_value
+                .as_array()
+                .ok_or_else(|| ApiError::InvalidRequest("Edits must be an array".to_string()))?;
 
             for edit_value in edits_array {
-                let range = edit_value.get("range").ok_or_else(|| {
-                    ApiError::InvalidRequest("Edit missing range".to_string())
-                })?;
+                let range = edit_value
+                    .get("range")
+                    .ok_or_else(|| ApiError::InvalidRequest("Edit missing range".to_string()))?;
 
                 let start_line = range["start"]["line"]
                     .as_u64()
                     .ok_or_else(|| ApiError::InvalidRequest("Invalid start line".to_string()))?
                     as u32;
-                let start_char = range["start"]["character"]
-                    .as_u64()
-                    .ok_or_else(|| {
-                        ApiError::InvalidRequest("Invalid start character".to_string())
-                    })? as u32;
+                let start_char = range["start"]["character"].as_u64().ok_or_else(|| {
+                    ApiError::InvalidRequest("Invalid start character".to_string())
+                })? as u32;
                 let end_line = range["end"]["line"]
                     .as_u64()
                     .ok_or_else(|| ApiError::InvalidRequest("Invalid end line".to_string()))?

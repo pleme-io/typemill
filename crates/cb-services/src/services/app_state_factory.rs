@@ -136,16 +136,14 @@ fn spawn_operation_worker(queue: Arc<super::operation_queue::OperationQueue>) {
                                     "Rename operation missing new_path".to_string(),
                                 )
                             })?;
-                        fs::rename(&op.file_path, new_path_str)
-                            .await
-                            .map_err(|e| {
-                                cb_protocol::ApiError::Internal(format!(
-                                    "Failed to rename file {} to {}: {}",
-                                    op.file_path.display(),
-                                    new_path_str,
-                                    e
-                                ))
-                            })
+                        fs::rename(&op.file_path, new_path_str).await.map_err(|e| {
+                            cb_protocol::ApiError::Internal(format!(
+                                "Failed to rename file {} to {}: {}",
+                                op.file_path.display(),
+                                new_path_str,
+                                e
+                            ))
+                        })
                     }
                     OperationType::Read | OperationType::Format | OperationType::Refactor => {
                         // These operations don't modify filesystem, just log
@@ -202,18 +200,14 @@ pub async fn register_mcp_proxy_if_enabled(
 
         let mut plugin = McpProxyPlugin::new(config.servers.clone());
         plugin.initialize().await.map_err(|e| {
-            cb_protocol::ApiError::plugin(
-                format!("Failed to initialize MCP proxy plugin: {}", e)
-            )
+            cb_protocol::ApiError::plugin(format!("Failed to initialize MCP proxy plugin: {}", e))
         })?;
 
         plugin_manager
             .register_plugin("mcp-proxy", Arc::new(plugin))
             .await
             .map_err(|e| {
-                cb_protocol::ApiError::plugin(
-                    format!("Failed to register MCP proxy plugin: {}", e)
-                )
+                cb_protocol::ApiError::plugin(format!("Failed to register MCP proxy plugin: {}", e))
             })?;
     }
     Ok(())

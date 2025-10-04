@@ -276,7 +276,10 @@ public class Main {
     }
 }
 "#;
-    workspace.create_file("src/main/java/com/codebuddy/example/Main.java", main_content);
+    workspace.create_file(
+        "src/main/java/com/codebuddy/example/Main.java",
+        main_content,
+    );
 
     // Create Helper.java
     let helper_content = r#"package com.codebuddy.example.utils;

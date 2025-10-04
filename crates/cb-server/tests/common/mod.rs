@@ -5,9 +5,9 @@ use std::sync::Arc;
 use tempfile::TempDir;
 
 pub fn create_test_app_state() -> (Arc<AppState>, TempDir) {
-    use cb_services::services::app_state_factory::create_services_bundle;
-    use cb_plugins::PluginManager;
     use cb_core::workspaces::WorkspaceManager;
+    use cb_plugins::PluginManager;
+    use cb_services::services::app_state_factory::create_services_bundle;
 
     let temp_dir = TempDir::new().unwrap();
     let project_root = temp_dir.path().to_path_buf();
@@ -15,7 +15,12 @@ pub fn create_test_app_state() -> (Arc<AppState>, TempDir) {
     let plugin_manager = Arc::new(PluginManager::new());
     let config = cb_core::AppConfig::default();
 
-    let services = create_services_bundle(&project_root, cache_settings, plugin_manager.clone(), &config);
+    let services = create_services_bundle(
+        &project_root,
+        cache_settings,
+        plugin_manager.clone(),
+        &config,
+    );
     let workspace_manager = Arc::new(WorkspaceManager::new());
 
     let app_state = Arc::new(AppState {

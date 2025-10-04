@@ -314,13 +314,19 @@ pub const LSP_COMPLIANCE_TESTS: &[LspComplianceTestCase] = &[
         method: "workspace/symbol",
         params: workspace_symbol_empty_params,
         files: &[
-            ("Cargo.toml", r#"[package]
+            (
+                "Cargo.toml",
+                r#"[package]
 name = "test"
 version = "0.1.0"
 edition = "2021"
-"#),
+"#,
+            ),
             ("src/main.rs", "fn main() {}\nfn my_func() {}"),
-            ("src/lib.rs", "pub fn helper() {}\npub fn make_something() {}"),
+            (
+                "src/lib.rs",
+                "pub fn helper() {}\npub fn make_something() {}",
+            ),
         ],
         expected_behavior: LspComplianceBehavior::ReturnsNonEmptyArray,
     },
@@ -333,8 +339,11 @@ edition = "2021"
         method: "workspace/symbol",
         params: workspace_symbol_data_params,
         files: &[
-            ("tsconfig.json", r#"{"compilerOptions": {"target": "ES2020", "module": "commonjs"}}"#),
-            ("models.ts", "export class DataModel {}")
+            (
+                "tsconfig.json",
+                r#"{"compilerOptions": {"target": "ES2020", "module": "commonjs"}}"#,
+            ),
+            ("models.ts", "export class DataModel {}"),
         ],
         expected_behavior: LspComplianceBehavior::Fails,
     },

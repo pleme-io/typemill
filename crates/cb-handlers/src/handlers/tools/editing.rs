@@ -55,11 +55,7 @@ impl EditingHandler {
                 if let Some(edits) = text_edits {
                     if !edits.is_empty() {
                         // Read the current file content
-                        let content = context
-                            .app_state
-                            .file_service
-                            .read_file(&file_path)
-                            .await?;
+                        let content = context.app_state.file_service.read_file(&file_path).await?;
 
                         // Apply the text edits
                         let formatted_content = Self::apply_text_edits(&content, edits)?;
@@ -132,18 +128,22 @@ impl EditingHandler {
             let range = &edit["range"];
             let new_text = edit["newText"].as_str().unwrap_or("");
 
-            let start_line = range["start"]["line"].as_u64().ok_or_else(|| {
-                cb_protocol::ApiError::Internal("Invalid edit range".into())
-            })? as usize;
-            let start_char = range["start"]["character"].as_u64().ok_or_else(|| {
-                cb_protocol::ApiError::Internal("Invalid edit range".into())
-            })? as usize;
-            let end_line = range["end"]["line"].as_u64().ok_or_else(|| {
-                cb_protocol::ApiError::Internal("Invalid edit range".into())
-            })? as usize;
-            let end_char = range["end"]["character"].as_u64().ok_or_else(|| {
-                cb_protocol::ApiError::Internal("Invalid edit range".into())
-            })? as usize;
+            let start_line = range["start"]["line"]
+                .as_u64()
+                .ok_or_else(|| cb_protocol::ApiError::Internal("Invalid edit range".into()))?
+                as usize;
+            let start_char = range["start"]["character"]
+                .as_u64()
+                .ok_or_else(|| cb_protocol::ApiError::Internal("Invalid edit range".into()))?
+                as usize;
+            let end_line = range["end"]["line"]
+                .as_u64()
+                .ok_or_else(|| cb_protocol::ApiError::Internal("Invalid edit range".into()))?
+                as usize;
+            let end_char = range["end"]["character"]
+                .as_u64()
+                .ok_or_else(|| cb_protocol::ApiError::Internal("Invalid edit range".into()))?
+                as usize;
 
             if start_line == end_line && start_line < lines.len() {
                 // Single line edit

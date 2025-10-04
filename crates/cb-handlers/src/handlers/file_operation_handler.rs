@@ -189,9 +189,10 @@ impl FileOperationHandler {
         })?;
 
         // Deserialize into strongly-typed parameters
-        let params: cb_protocol::RenameDirectoryParams = serde_json::from_value(args).map_err(|e| {
-            ServerError::InvalidRequest(format!("Invalid rename_directory parameters: {}", e))
-        })?;
+        let params: cb_protocol::RenameDirectoryParams =
+            serde_json::from_value(args).map_err(|e| {
+                ServerError::InvalidRequest(format!("Invalid rename_directory parameters: {}", e))
+            })?;
 
         // Parse update_mode parameter (optional, defaults to Conservative)
         let update_mode = params
@@ -202,7 +203,7 @@ impl FileOperationHandler {
                 "standard" => Some(crate::handlers::tools::workspace::UpdateMode::Standard),
                 "aggressive" => Some(crate::handlers::tools::workspace::UpdateMode::Aggressive),
                 "full" => Some(crate::handlers::tools::workspace::UpdateMode::Full),
-                _ => None
+                _ => None,
             })
             .unwrap_or(crate::handlers::tools::workspace::UpdateMode::Conservative);
 
@@ -227,7 +228,7 @@ impl FileOperationHandler {
                 &params.new_path,
                 params.dry_run,
                 params.consolidate,
-                Some(update_mode.to_scan_scope())
+                Some(update_mode.to_scan_scope()),
             )
             .await?;
 

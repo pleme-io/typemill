@@ -17,7 +17,11 @@ fn spawn_test_worker(queue: Arc<OperationQueue>) {
         eprintln!("DEBUG: Test worker started");
         queue
             .process_with(|op, stats| async move {
-                eprintln!("DEBUG: Test worker processing: {:?} on {}", op.operation_type, op.file_path.display());
+                eprintln!(
+                    "DEBUG: Test worker processing: {:?} on {}",
+                    op.operation_type,
+                    op.file_path.display()
+                );
 
                 // Process the operation
                 let result = match op.operation_type {
@@ -56,15 +60,22 @@ fn spawn_test_worker(queue: Arc<OperationQueue>) {
                         })?;
 
                         // CRITICAL: Sync file to disk BEFORE updating stats
-                        file.sync_all().await.map_err(|e| {
-                            cb_protocol::ApiError::Internal(format!(
-                                "Failed to sync file {}: {}",
-                                op.file_path.display(),
-                                e
-                            ))
-                        }).map(|_| {
-                            eprintln!("DEBUG: Wrote {} bytes to {} (with sync)", content.len(), op.file_path.display());
-                        })
+                        file.sync_all()
+                            .await
+                            .map_err(|e| {
+                                cb_protocol::ApiError::Internal(format!(
+                                    "Failed to sync file {}: {}",
+                                    op.file_path.display(),
+                                    e
+                                ))
+                            })
+                            .map(|_| {
+                                eprintln!(
+                                    "DEBUG: Wrote {} bytes to {} (with sync)",
+                                    content.len(),
+                                    op.file_path.display()
+                                );
+                            })
                     }
                     OperationType::Delete => {
                         if op.file_path.exists() {
@@ -89,20 +100,21 @@ fn spawn_test_worker(queue: Arc<OperationQueue>) {
                                     "Rename operation missing new_path".to_string(),
                                 )
                             })?;
-                        fs::rename(&op.file_path, new_path_str)
-                            .await
-                            .map_err(|e| {
-                                cb_protocol::ApiError::Internal(format!(
-                                    "Failed to rename file {} to {}: {}",
-                                    op.file_path.display(),
-                                    new_path_str,
-                                    e
-                                ))
-                            })
+                        fs::rename(&op.file_path, new_path_str).await.map_err(|e| {
+                            cb_protocol::ApiError::Internal(format!(
+                                "Failed to rename file {} to {}: {}",
+                                op.file_path.display(),
+                                new_path_str,
+                                e
+                            ))
+                        })
                     }
                     OperationType::Read | OperationType::Format | OperationType::Refactor => {
                         // These operations don't modify filesystem, just log
-                        eprintln!("DEBUG: Skipping non-modifying operation: {:?}", op.operation_type);
+                        eprintln!(
+                            "DEBUG: Skipping non-modifying operation: {:?}",
+                            op.operation_type
+                        );
                         Ok(())
                     }
                 };

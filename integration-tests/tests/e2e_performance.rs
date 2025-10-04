@@ -395,11 +395,20 @@ const oldConstant{} = "old_value_{}";
             Ok(content) => {
                 if content.is_empty() {
                     empty_files.push(i);
-                    eprintln!("DEBUG: File {} (index {}) is EMPTY!", file_path.display(), i);
+                    eprintln!(
+                        "DEBUG: File {} (index {}) is EMPTY!",
+                        file_path.display(),
+                        i
+                    );
                 }
             }
             Err(e) => {
-                eprintln!("DEBUG: File {} (index {}) ERROR: {}", file_path.display(), i, e);
+                eprintln!(
+                    "DEBUG: File {} (index {}) ERROR: {}",
+                    file_path.display(),
+                    i,
+                    e
+                );
                 empty_files.push(i);
             }
         }
@@ -407,7 +416,10 @@ const oldConstant{} = "old_value_{}";
     if !empty_files.is_empty() {
         panic!("Files are empty or missing: {:?}", empty_files);
     }
-    eprintln!("DEBUG: All {} files verified to have content!", file_paths.len());
+    eprintln!(
+        "DEBUG: All {} files verified to have content!",
+        file_paths.len()
+    );
 
     // Prepare large workspace edit
     let mut changes = json!({});
@@ -456,7 +468,10 @@ const oldConstant{} = "old_value_{}";
         file_count, edit_duration
     );
 
-    eprintln!("APPLY_EDITS RESPONSE: {}", serde_json::to_string_pretty(&response).unwrap());
+    eprintln!(
+        "APPLY_EDITS RESPONSE: {}",
+        serde_json::to_string_pretty(&response).unwrap()
+    );
 
     let result = response
         .get("result")

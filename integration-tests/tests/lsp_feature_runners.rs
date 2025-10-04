@@ -577,7 +577,10 @@ pub async fn run_lsp_compliance_test(case: &LspComplianceTestCase) {
     // 3. Give LSP time to initialize and index
     // rust-analyzer needs more time to index Cargo projects
     let sleep_duration = if case.language_id == "rs" { 5 } else { 2 };
-    eprintln!("⏳ Waiting {} seconds for LSP server to index workspace...", sleep_duration);
+    eprintln!(
+        "⏳ Waiting {} seconds for LSP server to index workspace...",
+        sleep_duration
+    );
     tokio::time::sleep(std::time::Duration::from_secs(sleep_duration)).await;
 
     // 4. Get method and params from the test case.
@@ -586,7 +589,10 @@ pub async fn run_lsp_compliance_test(case: &LspComplianceTestCase) {
 
     // 5. Send the request to the LSP server.
     let message = cb_protocol::Message {
-        id: Some(format!("compliance-{}-{}", case.language_id, case.feature_name)),
+        id: Some(format!(
+            "compliance-{}-{}",
+            case.language_id, case.feature_name
+        )),
         method: method.to_string(),
         params,
     };
@@ -607,7 +613,10 @@ pub async fn run_lsp_compliance_test(case: &LspComplianceTestCase) {
                 panic!("Result should be an array");
             });
             eprintln!("🔍 DEBUG: Array length: {}, content: {:?}", arr.len(), arr);
-            assert!(!arr.is_empty(), "Expected a non-empty array, but got an empty one.");
+            assert!(
+                !arr.is_empty(),
+                "Expected a non-empty array, but got an empty one."
+            );
         }
         LspComplianceBehavior::ReturnsEmptyArray => {
             let result = response.expect("Request should have succeeded.");
@@ -619,17 +628,21 @@ pub async fn run_lsp_compliance_test(case: &LspComplianceTestCase) {
                 println!("Response is not an array, got: {:?}", result.params);
                 panic!("Result should be an array");
             });
-            assert!(arr.is_empty(), "Expected an empty array, but got a non-empty one.");
+            assert!(
+                arr.is_empty(),
+                "Expected an empty array, but got a non-empty one."
+            );
         }
         LspComplianceBehavior::Fails => {
             // Check if either the request failed OR the response contains an error
             match response {
                 Err(_) => {
                     println!("Request failed as expected");
-                },
+                }
                 Ok(result) => {
                     // Check if response is an error object (has "code" and "message")
-                    if result.params.get("code").is_some() && result.params.get("message").is_some() {
+                    if result.params.get("code").is_some() && result.params.get("message").is_some()
+                    {
                         println!("Response contains error object as expected");
                     } else {
                         panic!("Expected request to fail or return error, but got successful response: {:?}", result.params);

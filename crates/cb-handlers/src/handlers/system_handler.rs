@@ -62,19 +62,17 @@ impl ToolHandler for SystemHandler {
             "notify_file_closed" => self.handle_notify_file_closed(tool_call, context).await,
 
             // Delegate to AnalysisHandler
-            "find_dead_code" => {
-                self.analysis_handler.handle_tool(tool_call, context).await
-            }
+            "find_dead_code" => self.analysis_handler.handle_tool(tool_call, context).await,
 
             // Delegate to DependencyHandler
             "update_dependencies" => {
-                self.dependency_handler.handle_tool(tool_call, context).await
+                self.dependency_handler
+                    .handle_tool(tool_call, context)
+                    .await
             }
 
             // Delegate to plugin system (SystemToolsPlugin handles this)
-            "analyze_imports" => {
-                self.delegate_to_plugin_system(tool_call, context).await
-            }
+            "analyze_imports" => self.delegate_to_plugin_system(tool_call, context).await,
 
             _ => Err(ServerError::Unsupported(format!(
                 "Unknown system operation: {}",
@@ -127,8 +125,10 @@ impl SystemHandler {
                     Ok(response.data.unwrap_or(json!(null)))
                 } else {
                     Err(ServerError::Internal(
-                        response.error.map(|e| e.to_string())
-                            .unwrap_or_else(|| "Plugin request failed".to_string())
+                        response
+                            .error
+                            .map(|e| e.to_string())
+                            .unwrap_or_else(|| "Plugin request failed".to_string()),
                     ))
                 }
             }

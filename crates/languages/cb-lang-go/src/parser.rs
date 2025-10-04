@@ -52,11 +52,14 @@ pub fn analyze_imports(source: &str, file_path: Option<&Path>) -> PluginResult<I
 fn parse_go_imports_ast(source: &str) -> Result<Vec<ImportInfo>, PluginError> {
     const AST_TOOL_GO: &str = include_str!("../resources/ast_tool.go");
 
-    let tmp_dir = Builder::new().prefix("codebuddy-go-ast").tempdir()
+    let tmp_dir = Builder::new()
+        .prefix("codebuddy-go-ast")
+        .tempdir()
         .map_err(|e| PluginError::internal(format!("Failed to create temp dir: {}", e)))?;
     let tool_path = tmp_dir.path().join("ast_tool.go");
-    std::fs::write(&tool_path, AST_TOOL_GO)
-        .map_err(|e| PluginError::internal(format!("Failed to write Go tool to temp file: {}", e)))?;
+    std::fs::write(&tool_path, AST_TOOL_GO).map_err(|e| {
+        PluginError::internal(format!("Failed to write Go tool to temp file: {}", e))
+    })?;
 
     let mut child = Command::new("go")
         .arg("run")
@@ -69,16 +72,21 @@ fn parse_go_imports_ast(source: &str) -> Result<Vec<ImportInfo>, PluginError> {
         .map_err(|e| PluginError::parse(format!("Failed to spawn Go AST tool: {}", e)))?;
 
     if let Some(mut stdin) = child.stdin.take() {
-        stdin.write_all(source.as_bytes())
-            .map_err(|e| PluginError::parse(format!("Failed to write to Go AST tool stdin: {}", e)))?;
+        stdin.write_all(source.as_bytes()).map_err(|e| {
+            PluginError::parse(format!("Failed to write to Go AST tool stdin: {}", e))
+        })?;
     }
 
-    let output = child.wait_with_output()
+    let output = child
+        .wait_with_output()
         .map_err(|e| PluginError::parse(format!("Failed to wait for Go AST tool: {}", e)))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(PluginError::parse(format!("Go AST tool failed: {}", stderr)));
+        return Err(PluginError::parse(format!(
+            "Go AST tool failed: {}",
+            stderr
+        )));
     }
 
     serde_json::from_slice(&output.stdout)

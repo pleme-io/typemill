@@ -227,7 +227,6 @@ pub fn detect_package_manager(project_path: &Path) -> PackageManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
 
     #[test]
     fn test_language_as_str() {

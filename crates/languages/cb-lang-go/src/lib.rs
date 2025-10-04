@@ -24,7 +24,7 @@ mod parser;
 
 use async_trait::async_trait;
 use cb_plugin_api::{
-    LanguageIntelligencePlugin, ManifestData, ParsedSource, PluginResult, PluginError,
+    LanguageIntelligencePlugin, ManifestData, ParsedSource, PluginError, PluginResult,
 };
 use std::path::Path;
 
@@ -62,7 +62,9 @@ impl LanguageIntelligencePlugin for GoPlugin {
     }
 
     async fn analyze_manifest(&self, _path: &Path) -> PluginResult<ManifestData> {
-        Err(PluginError::not_supported("go.mod analysis not yet implemented."))
+        Err(PluginError::not_supported(
+            "go.mod analysis not yet implemented.",
+        ))
     }
 
     fn handles_manifest(&self, filename: &str) -> bool {

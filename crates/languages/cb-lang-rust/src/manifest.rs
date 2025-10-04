@@ -86,7 +86,10 @@ fn parse_dependency_source(table: &toml_edit::InlineTable) -> DependencySource {
 
     // Check for git dependency
     if let Some(git_url) = table.get("git").and_then(|v| v.as_str()) {
-        let rev = table.get("rev").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let rev = table
+            .get("rev")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
         return DependencySource::Git {
             url: git_url.to_string(),
             rev,
@@ -166,7 +169,10 @@ pub fn rename_dependency(
     }
 
     // Update in [dependencies]
-    if let Some(deps) = doc.get_mut("dependencies").and_then(Item::as_table_like_mut) {
+    if let Some(deps) = doc
+        .get_mut("dependencies")
+        .and_then(Item::as_table_like_mut)
+    {
         rename_in_table(deps, old_name, new_name, new_path);
     }
 
@@ -244,8 +250,13 @@ cb-mcp-proxy = { path = "../cb-mcp-proxy" }
 other-dep = "1.0"
 "#;
 
-        let result = rename_dependency(cargo_toml, "cb-mcp-proxy", "cb-plugins", Some("../cb-plugins"))
-            .unwrap();
+        let result = rename_dependency(
+            cargo_toml,
+            "cb-mcp-proxy",
+            "cb-plugins",
+            Some("../cb-plugins"),
+        )
+        .unwrap();
 
         assert!(result.contains("cb-plugins"));
         assert!(!result.contains("cb-mcp-proxy"));
@@ -263,8 +274,8 @@ version = "0.1.0"
 my-dep = { path = "../my-dep", version = "0.1", optional = true, features = ["feat1", "feat2"], default-features = false }
 "#;
 
-        let result = rename_dependency(cargo_toml, "my-dep", "renamed-dep", Some("../renamed-dep"))
-            .unwrap();
+        let result =
+            rename_dependency(cargo_toml, "my-dep", "renamed-dep", Some("../renamed-dep")).unwrap();
 
         // Verify the dependency was renamed
         assert!(result.contains("renamed-dep"));

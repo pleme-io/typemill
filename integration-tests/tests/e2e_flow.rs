@@ -71,4 +71,3 @@ async fn test_configuration_loading() -> Result<(), TestHarnessError> {
 
     Ok(())
 }
-

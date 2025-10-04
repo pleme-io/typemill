@@ -28,8 +28,7 @@ fn codebuddy_cmd() -> Command {
         );
     }
 
-    Command::cargo_bin("codebuddy")
-        .expect("codebuddy binary should exist after check above")
+    Command::cargo_bin("codebuddy").expect("codebuddy binary should exist after check above")
 }
 
 #[test]

@@ -152,9 +152,7 @@ impl RefactoringHandler {
             )
             .await
         } else {
-            file_service
-                .read_file(Path::new(file_path))
-                .await
+            file_service.read_file(Path::new(file_path)).await
         }
     }
 
@@ -167,7 +165,6 @@ impl RefactoringHandler {
             .as_ref()
             .map(|adapter| LspRefactoringServiceWrapper::new(adapter.clone()))
     }
-
 }
 
 impl Default for RefactoringHandler {
@@ -360,8 +357,7 @@ impl RefactoringHandler {
                 registry.register(Arc::new(JavaAdapter));
 
                 let plan = cb_ast::package_extractor::plan_extract_module_to_package_with_registry(
-                    parsed,
-                    &registry,
+                    parsed, &registry,
                 )
                 .await
                 .map_err(|e| ServerError::Runtime {
@@ -457,5 +453,4 @@ impl RefactoringHandler {
             Ok(dry_run_result.to_json())
         }
     }
-
 }

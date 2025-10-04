@@ -568,7 +568,10 @@ async fn test_extract_function_refactoring() {
         // If we got edits, verify they're valid
         if let Some(result) = resp.get("result") {
             if let Some(edits) = result.get("edits").and_then(|e| e.as_array()) {
-                assert!(!edits.is_empty(), "Edits array should not be empty if present");
+                assert!(
+                    !edits.is_empty(),
+                    "Edits array should not be empty if present"
+                );
             }
         }
     }
@@ -609,7 +612,10 @@ async fn test_inline_variable_refactoring() {
         // If we got edits, verify they're valid
         if let Some(result) = resp.get("result") {
             if let Some(edits) = result.get("edits").and_then(|e| e.as_array()) {
-                assert!(!edits.is_empty(), "Edits array should not be empty if present");
+                assert!(
+                    !edits.is_empty(),
+                    "Edits array should not be empty if present"
+                );
             }
         }
     }

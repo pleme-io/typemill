@@ -119,23 +119,20 @@ impl LanguageAdapter for RustPlugin {
         );
 
         // Read file content
-        let content = tokio::fs::read_to_string(file_path)
-            .await
-            .map_err(|e| AstError::Analysis {
-                message: format!("Failed to read file {}: {}", file_path.display(), e),
-            })?;
+        let content =
+            tokio::fs::read_to_string(file_path)
+                .await
+                .map_err(|e| AstError::Analysis {
+                    message: format!("Failed to read file {}: {}", file_path.display(), e),
+                })?;
 
         // Use our own parse_imports function
-        let imports = crate::parser::parse_imports(&content)
-            .map_err(|e| AstError::Analysis {
-                message: format!("Failed to parse imports: {}", e),
-            })?;
+        let imports = crate::parser::parse_imports(&content).map_err(|e| AstError::Analysis {
+            message: format!("Failed to parse imports: {}", e),
+        })?;
 
         // Extract module paths from import info
-        let module_paths: Vec<String> = imports
-            .iter()
-            .map(|imp| imp.module_path.clone())
-            .collect();
+        let module_paths: Vec<String> = imports.iter().map(|imp| imp.module_path.clone()).collect();
 
         debug!(imports_count = module_paths.len(), "Parsed imports");
 

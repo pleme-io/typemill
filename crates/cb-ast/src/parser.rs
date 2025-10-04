@@ -50,13 +50,13 @@ pub fn build_import_graph(source: &str, path: &Path) -> AstResult<ImportGraph> {
             // Use cb_lang_rust::parse_imports() directly when needed
             tracing::debug!("Rust import parsing should use cb-lang-rust plugin directly");
             Vec::new()
-        },
+        }
         "go" => {
             // Go import parsing is handled by cb-lang-go plugin
             // Use the plugin directly when needed
             tracing::debug!("Go import parsing should use cb-lang-go plugin directly");
             Vec::new()
-        },
+        }
         _ => parse_imports_basic(source)?,
     };
     let external_dependencies = imports

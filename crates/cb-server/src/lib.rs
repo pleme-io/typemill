@@ -73,7 +73,12 @@ pub async fn bootstrap(options: ServerOptions) -> ServerResult<ServerHandle> {
     #[cfg(feature = "mcp-proxy")]
     register_mcp_proxy_if_enabled(&plugin_manager, options.config.external_mcp.as_ref()).await?;
 
-    let services = create_services_bundle(&project_root, cache_settings, plugin_manager.clone(), &options.config);
+    let services = create_services_bundle(
+        &project_root,
+        cache_settings,
+        plugin_manager.clone(),
+        &options.config,
+    );
 
     let workspace_manager = Arc::new(cb_core::workspaces::WorkspaceManager::new());
 
@@ -150,7 +155,12 @@ pub async fn create_dispatcher_with_workspace(
     #[cfg(feature = "mcp-proxy")]
     register_mcp_proxy_if_enabled(&plugin_manager, config.external_mcp.as_ref()).await?;
 
-    let services = create_services_bundle(&project_root, cache_settings, plugin_manager.clone(), &config);
+    let services = create_services_bundle(
+        &project_root,
+        cache_settings,
+        plugin_manager.clone(),
+        &config,
+    );
 
     // Start background processor for operation queue
     {

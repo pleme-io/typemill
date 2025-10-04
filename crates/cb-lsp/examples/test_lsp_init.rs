@@ -1,5 +1,5 @@
-use cb_lsp::lsp_system::client::LspClient;
 use cb_core::config::LspServerConfig;
+use cb_lsp::lsp_system::client::LspClient;
 use std::time::Duration;
 
 #[tokio::main]
@@ -10,7 +10,7 @@ async fn main() {
     let ts_lsp = "/home/developer/.nvm/versions/node/v22.20.0/bin/typescript-language-server";
 
     println!("Using typescript-language-server at: {}", ts_lsp);
-    
+
     let config = LspServerConfig {
         extensions: vec!["ts".to_string()],
         command: vec![ts_lsp.to_string(), "--stdio".to_string()],
@@ -18,15 +18,12 @@ async fn main() {
         restart_interval: None,
         initialization_options: None,
     };
-    
+
     println!("Creating LSP client...");
     println!("This will attempt to initialize the LSP server with 60s timeout");
     println!("Watch for LSP stderr output and initialization messages...\n");
-    
-    match tokio::time::timeout(
-        Duration::from_secs(70),
-        LspClient::new(config)
-    ).await {
+
+    match tokio::time::timeout(Duration::from_secs(70), LspClient::new(config)).await {
         Ok(Ok(client)) => {
             println!("\n✅ SUCCESS! LSP client initialized");
             drop(client);

@@ -131,18 +131,16 @@ impl FileService {
 
             // For Report action, just include the errors in the response
             match self.validation_config.on_failure {
-                cb_core::config::ValidationFailureAction::Report => {
-                    Some(json!({
-                        "validation_status": "failed",
-                        "validation_command": self.validation_config.command,
-                        "validation_errors": stderr,
-                        "validation_stdout": stdout,
-                        "suggestion": format!(
-                            "Validation failed. Run '{}' to see details. Consider reviewing changes before committing.",
-                            self.validation_config.command
-                        )
-                    }))
-                }
+                cb_core::config::ValidationFailureAction::Report => Some(json!({
+                    "validation_status": "failed",
+                    "validation_command": self.validation_config.command,
+                    "validation_errors": stderr,
+                    "validation_stdout": stdout,
+                    "suggestion": format!(
+                        "Validation failed. Run '{}' to see details. Consider reviewing changes before committing.",
+                        self.validation_config.command
+                    )
+                })),
                 cb_core::config::ValidationFailureAction::Rollback => {
                     warn!(
                         stderr = %stderr,
@@ -183,17 +181,15 @@ impl FileService {
                         }
                     }))
                 }
-                cb_core::config::ValidationFailureAction::Interactive => {
-                    Some(json!({
-                        "validation_status": "failed",
-                        "validation_action": "interactive_prompt",
-                        "validation_command": self.validation_config.command,
-                        "validation_errors": stderr,
-                        "validation_stdout": stdout,
-                        "rollback_available": true,
-                        "suggestion": "Validation failed. Please review the errors and decide whether to keep or revert the changes. Run 'git reset --hard HEAD' to rollback."
-                    }))
-                }
+                cb_core::config::ValidationFailureAction::Interactive => Some(json!({
+                    "validation_status": "failed",
+                    "validation_action": "interactive_prompt",
+                    "validation_command": self.validation_config.command,
+                    "validation_errors": stderr,
+                    "validation_stdout": stdout,
+                    "rollback_available": true,
+                    "suggestion": "Validation failed. Please review the errors and decide whether to keep or revert the changes. Run 'git reset --hard HEAD' to rollback."
+                })),
             }
         }
     }
@@ -388,7 +384,9 @@ impl FileService {
 
         // If consolidate flag is set, use consolidation logic instead
         if consolidate {
-            return self.consolidate_rust_package(old_dir_path, new_dir_path, dry_run).await;
+            return self
+                .consolidate_rust_package(old_dir_path, new_dir_path, dry_run)
+                .await;
         }
 
         let old_abs_dir = self.to_absolute_path(old_dir_path);
@@ -511,8 +509,10 @@ impl FileService {
                         }
                     }
                     Err(e) => {
-                        let error_msg =
-                            format!("Failed to create import plan for {:?}: {}", old_file_path, e);
+                        let error_msg = format!(
+                            "Failed to create import plan for {:?}: {}",
+                            old_file_path, e
+                        );
                         warn!(error = %e, file_path = %old_file_path.display(), "Failed to create import plan");
                         all_errors.push(error_msg);
                     }
@@ -1014,10 +1014,16 @@ impl FileService {
             if let Some(file_path) = &edit.file_path {
                 let abs_path = self.to_absolute_path(Path::new(file_path));
                 affected_files.insert(abs_path);
-                edits_by_file.entry(file_path.clone()).or_insert_with(Vec::new).push(edit);
+                edits_by_file
+                    .entry(file_path.clone())
+                    .or_insert_with(Vec::new)
+                    .push(edit);
             } else {
                 // Edit without explicit file_path goes to source_file
-                edits_by_file.entry(plan.source_file.clone()).or_insert_with(Vec::new).push(edit);
+                edits_by_file
+                    .entry(plan.source_file.clone())
+                    .or_insert_with(Vec::new)
+                    .push(edit);
             }
         }
 
@@ -1045,17 +1051,13 @@ impl FileService {
             let _guard = file_lock.write().await;
 
             // Convert &TextEdit to TextEdit
-            let owned_edits: Vec<cb_protocol::TextEdit> = edits.iter().map(|e| (*e).clone()).collect();
+            let owned_edits: Vec<cb_protocol::TextEdit> =
+                edits.iter().map(|e| (*e).clone()).collect();
 
             // Get the original content from snapshot (guarantees atomicity)
-            let original_content = snapshots
-                .get(&abs_file_path)
-                .ok_or_else(|| {
-                    ServerError::Internal(format!(
-                        "File {} not found in snapshots",
-                        file_path
-                    ))
-                })?;
+            let original_content = snapshots.get(&abs_file_path).ok_or_else(|| {
+                ServerError::Internal(format!("File {} not found in snapshots", file_path))
+            })?;
 
             // DEBUG: Log snapshot content length
             if original_content.is_empty() {
@@ -1170,10 +1172,7 @@ impl FileService {
             // Open file with explicit handle and force cache drop
             let read_result = async {
                 use tokio::io::AsyncReadExt;
-                let mut file = fs::OpenOptions::new()
-                    .read(true)
-                    .open(file_path)
-                    .await?;
+                let mut file = fs::OpenOptions::new().read(true).open(file_path).await?;
 
                 // Force page cache invalidation on Unix systems
                 #[cfg(unix)]
@@ -1190,7 +1189,10 @@ impl FileService {
 
                 // DEBUG: Log if we read empty content
                 if content.is_empty() {
-                    eprintln!("CACHE BUG: Read {} as EMPTY (should have content)!", file_path.display());
+                    eprintln!(
+                        "CACHE BUG: Read {} as EMPTY (should have content)!",
+                        file_path.display()
+                    );
                     // Try ONE more time with explicit sync
                     drop(file);
                     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
@@ -1198,13 +1200,17 @@ impl FileService {
                     let mut retry_content = String::new();
                     retry_file.read_to_string(&mut retry_content).await?;
                     if !retry_content.is_empty() {
-                        eprintln!("CACHE BUG CONFIRMED: Retry read {} bytes!", retry_content.len());
+                        eprintln!(
+                            "CACHE BUG CONFIRMED: Retry read {} bytes!",
+                            retry_content.len()
+                        );
                         return Ok(retry_content);
                     }
                 }
 
                 Ok::<String, std::io::Error>(content)
-            }.await;
+            }
+            .await;
 
             match read_result {
                 Ok(content) => {
@@ -1303,7 +1309,11 @@ impl FileService {
 
     /// Apply text edits to a single file
     /// Apply edits to file content and return the modified content (synchronous, no I/O)
-    fn apply_edits_to_content(&self, original_content: &str, edits: &[TextEdit]) -> ServerResult<String> {
+    fn apply_edits_to_content(
+        &self,
+        original_content: &str,
+        edits: &[TextEdit],
+    ) -> ServerResult<String> {
         if edits.is_empty() {
             return Ok(original_content.to_string());
         }
@@ -1511,11 +1521,17 @@ impl FileService {
             let new_cargo_toml = new_abs.join("Cargo.toml");
 
             // Calculate rename info for preview
-            let rename_info = self.extract_consolidation_rename_info(&old_abs, &new_abs).await?;
+            let rename_info = self
+                .extract_consolidation_rename_info(&old_abs, &new_abs)
+                .await?;
             let old_crate_name = rename_info["old_crate_name"].as_str().unwrap_or("unknown");
-            let new_import_prefix = rename_info["new_import_prefix"].as_str().unwrap_or("unknown");
+            let new_import_prefix = rename_info["new_import_prefix"]
+                .as_str()
+                .unwrap_or("unknown");
             let submodule_name = rename_info["submodule_name"].as_str().unwrap_or("unknown");
-            let target_crate_name = rename_info["target_crate_name"].as_str().unwrap_or("unknown");
+            let target_crate_name = rename_info["target_crate_name"]
+                .as_str()
+                .unwrap_or("unknown");
 
             return Ok(DryRunnable::new(
                 true,
@@ -1544,11 +1560,25 @@ impl FileService {
 
         // Execution mode
         // Calculate rename info before moving files
-        let rename_info = self.extract_consolidation_rename_info(&old_abs, &new_abs).await?;
-        let old_crate_name = rename_info["old_crate_name"].as_str().unwrap_or("unknown").to_string();
-        let new_import_prefix = rename_info["new_import_prefix"].as_str().unwrap_or("unknown").to_string();
-        let submodule_name = rename_info["submodule_name"].as_str().unwrap_or("unknown").to_string();
-        let target_crate_name = rename_info["target_crate_name"].as_str().unwrap_or("unknown").to_string();
+        let rename_info = self
+            .extract_consolidation_rename_info(&old_abs, &new_abs)
+            .await?;
+        let old_crate_name = rename_info["old_crate_name"]
+            .as_str()
+            .unwrap_or("unknown")
+            .to_string();
+        let new_import_prefix = rename_info["new_import_prefix"]
+            .as_str()
+            .unwrap_or("unknown")
+            .to_string();
+        let submodule_name = rename_info["submodule_name"]
+            .as_str()
+            .unwrap_or("unknown")
+            .to_string();
+        let target_crate_name = rename_info["target_crate_name"]
+            .as_str()
+            .unwrap_or("unknown")
+            .to_string();
 
         info!(
             old_crate = %old_crate_name,
@@ -1574,9 +1604,9 @@ impl FileService {
                 }
 
                 // Move the file
-                fs::rename(path, &target_path).await.map_err(|e| {
-                    ServerError::Internal(format!("Failed to move file: {}", e))
-                })?;
+                fs::rename(path, &target_path)
+                    .await
+                    .map_err(|e| ServerError::Internal(format!("Failed to move file: {}", e)))?;
 
                 moved_files.push(target_path.to_string_lossy().to_string());
             }
@@ -1634,7 +1664,10 @@ impl FileService {
             .await
         {
             Ok(edit_plan) => {
-                info!(edits_planned = edit_plan.edits.len(), "Created import update plan");
+                info!(
+                    edits_planned = edit_plan.edits.len(),
+                    "Created import update plan"
+                );
 
                 // Apply the edit plan
                 match self.apply_edit_plan(&edit_plan).await {
@@ -1703,22 +1736,22 @@ impl FileService {
         use toml_edit::DocumentMut;
 
         // Read both TOML files
-        let source_content = fs::read_to_string(source_toml_path)
-            .await
-            .map_err(|e| ServerError::Internal(format!("Failed to read source Cargo.toml: {}", e)))?;
+        let source_content = fs::read_to_string(source_toml_path).await.map_err(|e| {
+            ServerError::Internal(format!("Failed to read source Cargo.toml: {}", e))
+        })?;
 
-        let target_content = fs::read_to_string(target_toml_path)
-            .await
-            .map_err(|e| ServerError::Internal(format!("Failed to read target Cargo.toml: {}", e)))?;
+        let target_content = fs::read_to_string(target_toml_path).await.map_err(|e| {
+            ServerError::Internal(format!("Failed to read target Cargo.toml: {}", e))
+        })?;
 
         // Parse both documents
-        let source_doc = source_content
-            .parse::<DocumentMut>()
-            .map_err(|e| ServerError::Internal(format!("Failed to parse source Cargo.toml: {}", e)))?;
+        let source_doc = source_content.parse::<DocumentMut>().map_err(|e| {
+            ServerError::Internal(format!("Failed to parse source Cargo.toml: {}", e))
+        })?;
 
-        let mut target_doc = target_content
-            .parse::<DocumentMut>()
-            .map_err(|e| ServerError::Internal(format!("Failed to parse target Cargo.toml: {}", e)))?;
+        let mut target_doc = target_content.parse::<DocumentMut>().map_err(|e| {
+            ServerError::Internal(format!("Failed to parse target Cargo.toml: {}", e))
+        })?;
 
         let mut merged_count = 0;
         let mut conflict_count = 0;
@@ -1757,7 +1790,9 @@ impl FileService {
         // Write the updated target TOML
         fs::write(target_toml_path, target_doc.to_string())
             .await
-            .map_err(|e| ServerError::Internal(format!("Failed to write target Cargo.toml: {}", e)))?;
+            .map_err(|e| {
+                ServerError::Internal(format!("Failed to write target Cargo.toml: {}", e))
+            })?;
 
         info!(
             merged = merged_count,
@@ -1778,14 +1813,19 @@ impl FileService {
         while let Some(path) = current_path {
             let workspace_toml_path = path.join("Cargo.toml");
             if workspace_toml_path.exists() {
-                let content = fs::read_to_string(&workspace_toml_path).await.map_err(|e| {
-                    ServerError::Internal(format!("Failed to read workspace Cargo.toml: {}", e))
-                })?;
+                let content = fs::read_to_string(&workspace_toml_path)
+                    .await
+                    .map_err(|e| {
+                        ServerError::Internal(format!("Failed to read workspace Cargo.toml: {}", e))
+                    })?;
 
                 if content.contains("[workspace]") {
                     // Parse the workspace manifest
                     let mut doc = content.parse::<DocumentMut>().map_err(|e| {
-                        ServerError::Internal(format!("Failed to parse workspace Cargo.toml: {}", e))
+                        ServerError::Internal(format!(
+                            "Failed to parse workspace Cargo.toml: {}",
+                            e
+                        ))
                     })?;
 
                     // Calculate relative path from workspace root to package
@@ -1796,23 +1836,31 @@ impl FileService {
                     let package_rel_str = package_rel_path.to_string_lossy().to_string();
 
                     // Remove from workspace members
-                    let should_write = if let Some(members) = doc["workspace"]["members"].as_array_mut() {
-                        let index_opt = members.iter().position(|m| m.as_str() == Some(&package_rel_str));
-                        if let Some(index) = index_opt {
-                            members.remove(index);
-                            true
+                    let should_write =
+                        if let Some(members) = doc["workspace"]["members"].as_array_mut() {
+                            let index_opt = members
+                                .iter()
+                                .position(|m| m.as_str() == Some(&package_rel_str));
+                            if let Some(index) = index_opt {
+                                members.remove(index);
+                                true
+                            } else {
+                                false
+                            }
                         } else {
                             false
-                        }
-                    } else {
-                        false
-                    };
+                        };
 
                     if should_write {
                         // Write back
-                        fs::write(&workspace_toml_path, doc.to_string()).await.map_err(|e| {
-                            ServerError::Internal(format!("Failed to write workspace Cargo.toml: {}", e))
-                        })?;
+                        fs::write(&workspace_toml_path, doc.to_string())
+                            .await
+                            .map_err(|e| {
+                                ServerError::Internal(format!(
+                                    "Failed to write workspace Cargo.toml: {}",
+                                    e
+                                ))
+                            })?;
 
                         info!(
                             workspace = ?workspace_toml_path,
@@ -2996,7 +3044,13 @@ members = [
             lock_manager.clone(),
         ));
         let config = cb_core::AppConfig::default();
-        let service = FileService::new(temp_dir.path(), ast_cache, lock_manager, operation_queue, &config);
+        let service = FileService::new(
+            temp_dir.path(),
+            ast_cache,
+            lock_manager,
+            operation_queue,
+            &config,
+        );
 
         // Moved deeper: 1 level
         assert_eq!(

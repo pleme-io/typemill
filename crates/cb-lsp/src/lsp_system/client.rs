@@ -159,7 +159,11 @@ impl LspClient {
                 ))
             })?;
 
-        eprintln!("✅ LSP server process spawned: {} (PID: {:?})", command, child.id());
+        eprintln!(
+            "✅ LSP server process spawned: {} (PID: {:?})",
+            command,
+            child.id()
+        );
         tracing::debug!(
             command = %command,
             pid = child.id(),
@@ -275,8 +279,13 @@ impl LspClient {
                     eprintln!("📢 LSP STDERR [{}]: {}", server_command, trimmed);
                     // Log stderr at ERROR level so we always see crashes/errors
                     // Regular diagnostics at debug level
-                    if trimmed.contains("error") || trimmed.contains("Error") || trimmed.contains("ERROR")
-                        || trimmed.contains("fatal") || trimmed.contains("panic") || trimmed.contains("crash") {
+                    if trimmed.contains("error")
+                        || trimmed.contains("Error")
+                        || trimmed.contains("ERROR")
+                        || trimmed.contains("fatal")
+                        || trimmed.contains("panic")
+                        || trimmed.contains("crash")
+                    {
                         tracing::error!(server = %server_command, stderr = %trimmed, "LSP stderr ERROR");
                     } else {
                         tracing::warn!(server = %server_command, stderr = %trimmed, "LSP stderr");
@@ -286,14 +295,20 @@ impl LspClient {
                     break; // EOF
                 }
             }
-            eprintln!("🛑 LSP stderr reader task ended for: {} (read {} lines)", server_command, line_count);
+            eprintln!(
+                "🛑 LSP stderr reader task ended for: {} (read {} lines)",
+                server_command, line_count
+            );
         });
 
         // Spawn task to handle reading from LSP server
         let pending_requests_clone = pending_requests.clone();
         let server_command_stdout = command.to_string();
         tokio::spawn(async move {
-            eprintln!("🔍 LSP stdout reader task started for: {}", server_command_stdout);
+            eprintln!(
+                "🔍 LSP stdout reader task started for: {}",
+                server_command_stdout
+            );
             let mut reader = BufReader::new(stdout);
             let mut buffer = String::new();
             let mut message_count = 0;
@@ -302,7 +317,10 @@ impl LspClient {
                 buffer.clear();
                 match reader.read_line(&mut buffer).await {
                     Ok(0) => {
-                        eprintln!("🛑 LSP stdout closed for: {} (read {} messages)", server_command_stdout, message_count);
+                        eprintln!(
+                            "🛑 LSP stdout closed for: {} (read {} messages)",
+                            server_command_stdout, message_count
+                        );
                         debug!("LSP server stdout closed");
                         break;
                     }
@@ -337,7 +355,10 @@ impl LspClient {
                                 Self::read_json_message(&mut reader, content_length).await
                             {
                                 message_count += 1;
-                                eprintln!("📨 LSP received message #{}: {:?}", message_count, message);
+                                eprintln!(
+                                    "📨 LSP received message #{}: {:?}",
+                                    message_count, message
+                                );
                                 Self::handle_message(message, &pending_requests_clone).await;
                             }
                         }
@@ -740,7 +761,10 @@ impl LspClient {
                         let _ = sender.send(Err("Invalid response format".to_string()));
                     }
                 } else {
-                    tracing::warn!(id = id_num, "Received response for unknown request ID (already handled or timeout)");
+                    tracing::warn!(
+                        id = id_num,
+                        "Received response for unknown request ID (already handled or timeout)"
+                    );
                 }
             }
         } else if message.get("method").is_some() {

@@ -113,7 +113,8 @@ on_failure = "Report"
 
     // Git mv should show as "R  original.txt -> renamed.txt" or "R original.txt -> renamed.txt"
     assert!(
-        status_str.contains("original.txt -> renamed.txt") || status_str.contains("R  original.txt -> renamed.txt"),
+        status_str.contains("original.txt -> renamed.txt")
+            || status_str.contains("R  original.txt -> renamed.txt"),
         "Git status should show file was renamed using git mv, but got: {}",
         status_str
     );
@@ -123,10 +124,7 @@ on_failure = "Report"
         project_path.join("renamed.txt").exists(),
         "renamed.txt should exist"
     );
-    assert!(
-        !test_file.exists(),
-        "original.txt should no longer exist"
-    );
+    assert!(!test_file.exists(), "original.txt should no longer exist");
 
     println!("✅ Git mv integration test passed - file renamed using git");
 }
@@ -190,10 +188,7 @@ operations = ["mv", "rm"]
         project_path.join("renamed.txt").exists(),
         "renamed.txt should exist"
     );
-    assert!(
-        !test_file.exists(),
-        "original.txt should no longer exist"
-    );
+    assert!(!test_file.exists(), "original.txt should no longer exist");
 
     println!("✅ Fallback test passed - file renamed without git");
 }

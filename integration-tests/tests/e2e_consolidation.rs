@@ -16,13 +16,8 @@ async fn test_consolidate_rust_package_basic() {
     let workspace_path = workspace.path();
 
     // Copy the consolidation test fixture into the workspace
-    let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("fixtures/consolidation-test");
-    copy_dir_recursive(
-        &fixture_path,
-        workspace_path,
-    )
-    .expect("Failed to copy test fixture");
+    let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/consolidation-test");
+    copy_dir_recursive(&fixture_path, workspace_path).expect("Failed to copy test fixture");
 
     // Initialize MCP client
     let mut client = TestClient::new(workspace_path);
@@ -54,7 +49,10 @@ async fn test_consolidate_rust_package_basic() {
     eprintln!("DEBUG: Full response: {:?}", response);
 
     let result = response.get("result").unwrap_or_else(|| {
-        panic!("Response should have result field. Full response: {:?}", response)
+        panic!(
+            "Response should have result field. Full response: {:?}",
+            response
+        )
     });
 
     // Verify the response indicates success
@@ -78,8 +76,8 @@ async fn test_consolidate_rust_package_basic() {
     );
 
     // 3. Verify file contents were preserved
-    let lib_rs_content = fs::read_to_string(new_path.join("lib.rs"))
-        .expect("Should be able to read moved lib.rs");
+    let lib_rs_content =
+        fs::read_to_string(new_path.join("lib.rs")).expect("Should be able to read moved lib.rs");
     assert!(
         lib_rs_content.contains("say_hello"),
         "Moved file should preserve original content"
@@ -136,13 +134,8 @@ async fn test_consolidate_dry_run() {
     let workspace = TestWorkspace::new();
     let workspace_path = workspace.path();
 
-    let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("fixtures/consolidation-test");
-    copy_dir_recursive(
-        &fixture_path,
-        workspace_path,
-    )
-    .expect("Failed to copy test fixture");
+    let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/consolidation-test");
+    copy_dir_recursive(&fixture_path, workspace_path).expect("Failed to copy test fixture");
 
     let mut client = TestClient::new(workspace_path);
 

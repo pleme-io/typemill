@@ -239,11 +239,17 @@ impl RealLspService {
         if let Some(ref options) = self.initialization_options {
             if let Some(obj) = init_params.as_object_mut() {
                 obj.insert("initializationOptions".to_string(), options.clone());
-                eprintln!("🔧 TEST: Sending initializationOptions to LSP: {:?}", options);
+                eprintln!(
+                    "🔧 TEST: Sending initializationOptions to LSP: {:?}",
+                    options
+                );
             }
         }
 
-        eprintln!("🔧 TEST: Full initialize params: {}", serde_json::to_string_pretty(&init_params).unwrap());
+        eprintln!(
+            "🔧 TEST: Full initialize params: {}",
+            serde_json::to_string_pretty(&init_params).unwrap()
+        );
 
         let init_message = Message {
             id: Some("init".to_string()),

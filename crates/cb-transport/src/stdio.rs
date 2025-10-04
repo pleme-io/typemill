@@ -123,8 +123,7 @@ pub async fn start_stdio_server(
                     }),
                 };
 
-                let response_json =
-                    serde_json::to_string(&McpMessage::Response(error_response))?;
+                let response_json = serde_json::to_string(&McpMessage::Response(error_response))?;
                 transport.write_message(&response_json).await?;
                 continue;
             }
