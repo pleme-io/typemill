@@ -1,21 +1,21 @@
 # CodeBuddy MCP Tools API Reference
 
 **Version:** 1.0.0-beta
-**Last Updated:** 2025-10-02
+**Last Updated:** 2025-10-04
 
-Complete API documentation for all 42 MCP tools available in CodeBuddy.
+Complete API documentation for all 44 MCP tools available in CodeBuddy.
 
 ---
 
 ## Table of Contents
 
-- [Navigation & Intelligence](#navigation--intelligence) (14 tools)
+- [Navigation & Intelligence](#navigation--intelligence) (13 tools)
 - [Editing & Refactoring](#editing--refactoring) (10 tools)
 - [File Operations](#file-operations) (6 tools)
-- [Workspace Operations](#workspace-operations) (5 tools)
+- [Workspace Operations](#workspace-operations) (7 tools)
 - [Advanced Operations](#advanced-operations) (2 tools)
 - [LSP Lifecycle](#lsp-lifecycle) (3 tools)
-- [System & Health](#system--health) (2 tools)
+- [System & Health](#system--health) (3 tools)
 - [Common Patterns](#common-patterns)
 - [Error Reference](#error-reference)
 
@@ -23,7 +23,7 @@ Complete API documentation for all 42 MCP tools available in CodeBuddy.
 
 ## Navigation & Intelligence
 
-LSP-based navigation and code intelligence tools (14 tools). Language support depends on configured LSP servers.
+LSP-based navigation and code intelligence tools (13 tools). Language support depends on configured LSP servers.
 
 ### `find_definition`
 
@@ -1066,7 +1066,7 @@ List files in a directory.
 
 ## Workspace Operations
 
-Project-wide operations and analysis.
+Project-wide operations and analysis (7 tools).
 
 ### `rename_directory`
 
@@ -1254,6 +1254,100 @@ Update project dependencies using package manager.
 - `requirements.txt` or `setup.py` → pip
 - `Cargo.toml` → cargo
 - `go.mod` → go mod
+
+---
+
+### `update_dependency`
+
+Update a single dependency to a specific version.
+
+**Parameters:**
+```json
+{
+  "dependency_name": "react",        // Required: Name of the dependency
+  "version": "18.3.0",               // Required: Target version
+  "project_path": "/project",        // Optional: Project path (default: current dir)
+  "package_manager": "auto"          // Optional: npm|yarn|pnpm|pip|cargo|go (default: auto)
+}
+```
+
+**Returns:**
+```json
+{
+  "success": true,
+  "dependency": "react",
+  "old_version": "18.2.0",
+  "new_version": "18.3.0",
+  "package_manager": "npm"
+}
+```
+
+---
+
+### `batch_update_dependencies`
+
+Update multiple dependencies in a single operation.
+
+**Parameters:**
+```json
+{
+  "dependencies": [                   // Required: Array of dependency updates
+    {
+      "name": "react",
+      "version": "18.3.0"
+    },
+    {
+      "name": "typescript",
+      "version": "5.3.0"
+    }
+  ],
+  "project_path": "/project",        // Optional: Project path (default: current dir)
+  "package_manager": "auto"          // Optional: npm|yarn|pnpm|pip|cargo|go (default: auto)
+}
+```
+
+**Returns:**
+```json
+{
+  "success": true,
+  "package_manager": "npm",
+  "updated": [
+    {"name": "react", "old_version": "18.2.0", "new_version": "18.3.0"},
+    {"name": "typescript", "old_version": "5.2.0", "new_version": "5.3.0"}
+  ],
+  "failed": []
+}
+```
+
+---
+
+### `extract_module_to_package`
+
+Extract code from a module into a new package (Rust-specific).
+
+**Parameters:**
+```json
+{
+  "source_module": "src/utils.rs",     // Required: Source module path
+  "target_package": "my-utils",        // Required: New package name
+  "symbols": ["helper_fn", "MyStruct"] // Required: Symbols to extract
+}
+```
+
+**Returns:**
+```json
+{
+  "success": true,
+  "package_created": "my-utils",
+  "symbols_moved": 2,
+  "files_updated": 5
+}
+```
+
+**Notes:**
+- Rust-specific refactoring operation
+- Creates new Cargo package with extracted code
+- Updates all references and imports automatically
 
 ---
 
@@ -1636,7 +1730,7 @@ Notify LSP servers that a file was closed.
 
 ## System & Health
 
-System health monitoring and web fetching (2 tools).
+System health monitoring and web fetching (3 tools).
 
 ### `health_check`
 
@@ -1702,6 +1796,30 @@ Fetch content from a URL.
 **Notes:**
 - Returns plain text content
 - HTTPS only for security
+
+---
+
+### `system_status`
+
+Get basic system operational status.
+
+**Parameters:**
+```json
+{}  // No parameters required
+```
+
+**Returns:**
+```json
+{
+  "status": "ok",
+  "uptime_seconds": 3600,
+  "message": "System is operational"
+}
+```
+
+**Notes:**
+- Lightweight status check without detailed metrics
+- Use `health_check` for comprehensive diagnostics
 
 ---
 
