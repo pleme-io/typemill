@@ -14,6 +14,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use tokio::sync::Mutex;
 use tracing::debug;
 
 /// Parameter structures for refactoring operations
@@ -134,6 +135,38 @@ impl RefactoringHandler {
         arg.replace('\'', "'\\''")
     }
 
+    /// Read file content from local filesystem or remote workspace
+    async fn read_file_content(
+        workspace_id: Option<&str>,
+        file_path: &str,
+        file_service: &cb_services::services::FileService,
+        workspace_manager: &cb_core::workspaces::WorkspaceManager,
+    ) -> ServerResult<String> {
+        if let Some(workspace_id) = workspace_id {
+            let command = format!("cat '{}'", Self::escape_shell_arg(file_path));
+            crate::utils::remote_exec::execute_remote_command(
+                workspace_manager,
+                workspace_id,
+                &command,
+            )
+            .await
+        } else {
+            file_service
+                .read_file(Path::new(file_path))
+                .await
+        }
+    }
+
+    /// Create LSP refactoring service wrapper from adapter
+    async fn create_lsp_service(
+        lsp_adapter: &Arc<Mutex<Option<Arc<DirectLspAdapter>>>>,
+    ) -> Option<LspRefactoringServiceWrapper> {
+        let adapter_guard = lsp_adapter.lock().await;
+        adapter_guard
+            .as_ref()
+            .map(|adapter| LspRefactoringServiceWrapper::new(adapter.clone()))
+    }
+
 }
 
 impl Default for RefactoringHandler {
@@ -192,21 +225,13 @@ impl RefactoringHandler {
                     ServerError::InvalidRequest(format!("Invalid arguments: {}", e))
                 })?;
 
-                let content = if let Some(workspace_id) = &parsed.workspace_id {
-                    let command = format!("cat '{}'", Self::escape_shell_arg(&parsed.file_path));
-                    execute_remote_command(
-                        &context.app_state.workspace_manager,
-                        workspace_id,
-                        &command,
-                    )
-                    .await?
-                } else {
-                    context
-                        .app_state
-                        .file_service
-                        .read_file(Path::new(&parsed.file_path))
-                        .await?
-                };
+                let content = Self::read_file_content(
+                    parsed.workspace_id.as_deref(),
+                    &parsed.file_path,
+                    &context.app_state.file_service,
+                    &context.app_state.workspace_manager,
+                )
+                .await?;
 
                 let lines: Vec<&str> = content.lines().collect();
                 let end_col = if parsed.end_line > 0 && (parsed.end_line as usize) <= lines.len() {
@@ -223,12 +248,7 @@ impl RefactoringHandler {
                     end_col,
                 };
 
-                let lsp_service: Option<LspRefactoringServiceWrapper> = {
-                    let adapter_guard = context.lsp_adapter.lock().await;
-                    adapter_guard
-                        .as_ref()
-                        .map(|adapter| LspRefactoringServiceWrapper::new(adapter.clone()))
-                };
+                let lsp_service = Self::create_lsp_service(&context.lsp_adapter).await;
 
                 let plan = cb_ast::refactoring::plan_extract_function(
                     &content,
@@ -256,28 +276,15 @@ impl RefactoringHandler {
                     ServerError::InvalidRequest(format!("Invalid arguments: {}", e))
                 })?;
 
-                let content = if let Some(workspace_id) = &parsed.workspace_id {
-                    let command = format!("cat '{}'", Self::escape_shell_arg(&parsed.file_path));
-                    execute_remote_command(
-                        &context.app_state.workspace_manager,
-                        workspace_id,
-                        &command,
-                    )
-                    .await?
-                } else {
-                    context
-                        .app_state
-                        .file_service
-                        .read_file(Path::new(&parsed.file_path))
-                        .await?
-                };
+                let content = Self::read_file_content(
+                    parsed.workspace_id.as_deref(),
+                    &parsed.file_path,
+                    &context.app_state.file_service,
+                    &context.app_state.workspace_manager,
+                )
+                .await?;
 
-                let lsp_service: Option<LspRefactoringServiceWrapper> = {
-                    let adapter_guard = context.lsp_adapter.lock().await;
-                    adapter_guard
-                        .as_ref()
-                        .map(|adapter| LspRefactoringServiceWrapper::new(adapter.clone()))
-                };
+                let lsp_service = Self::create_lsp_service(&context.lsp_adapter).await;
 
                 let plan = cb_ast::refactoring::plan_inline_variable(
                     &content,
@@ -305,28 +312,15 @@ impl RefactoringHandler {
                     ServerError::InvalidRequest(format!("Invalid arguments: {}", e))
                 })?;
 
-                let content = if let Some(workspace_id) = &parsed.workspace_id {
-                    let command = format!("cat '{}'", Self::escape_shell_arg(&parsed.file_path));
-                    execute_remote_command(
-                        &context.app_state.workspace_manager,
-                        workspace_id,
-                        &command,
-                    )
-                    .await?
-                } else {
-                    context
-                        .app_state
-                        .file_service
-                        .read_file(Path::new(&parsed.file_path))
-                        .await?
-                };
+                let content = Self::read_file_content(
+                    parsed.workspace_id.as_deref(),
+                    &parsed.file_path,
+                    &context.app_state.file_service,
+                    &context.app_state.workspace_manager,
+                )
+                .await?;
 
-                let lsp_service: Option<LspRefactoringServiceWrapper> = {
-                    let adapter_guard = context.lsp_adapter.lock().await;
-                    adapter_guard
-                        .as_ref()
-                        .map(|adapter| LspRefactoringServiceWrapper::new(adapter.clone()))
-                };
+                let lsp_service = Self::create_lsp_service(&context.lsp_adapter).await;
 
                 let plan = cb_ast::refactoring::plan_extract_variable(
                     &content,
