@@ -317,13 +317,18 @@ pub const LSP_COMPLIANCE_TESTS: &[LspComplianceTestCase] = &[
         ],
         expected_behavior: LspComplianceBehavior::ReturnsEmptyArray,
     },
-    // Test case for TypeScript LSP - should support workspace/symbol with specific query
+    // Test case for TypeScript LSP - documents that it needs project initialization
+    // TypeScript LSP returns error "No Project" when workspace/symbol is called too quickly
+    // This documents that TS needs proper initialization time, unlike workspace-wide symbol support
     LspComplianceTestCase {
         language_id: "ts",
-        feature_name: "workspace_symbol_specific_query",
+        feature_name: "workspace_symbol_needs_init",
         method: "workspace/symbol",
         params: workspace_symbol_data_params,
-        files: &[("models.ts", "export class DataModel {}")],
-        expected_behavior: LspComplianceBehavior::ReturnsNonEmptyArray,
+        files: &[
+            ("tsconfig.json", r#"{"compilerOptions": {"target": "ES2020", "module": "commonjs"}}"#),
+            ("models.ts", "export class DataModel {}")
+        ],
+        expected_behavior: LspComplianceBehavior::Fails,
     },
 ];

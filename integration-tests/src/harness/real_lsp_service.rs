@@ -26,9 +26,43 @@ impl RealLspService {
     pub async fn new(extension: &str, root_path: &Path) -> Result<Self, ApiError> {
         let cmd = LspSetupHelper::get_lsp_command(extension)?;
 
+        // Augment PATH to include cargo bin and NVM node bin
+        let current_path = std::env::var("PATH").unwrap_or_default();
+        let mut path_additions = Vec::new();
+
+        // Add cargo bin directory
+        if let Ok(cargo_home) = std::env::var("CARGO_HOME") {
+            path_additions.push(format!("{}/bin", cargo_home));
+        } else if let Ok(home) = std::env::var("HOME") {
+            path_additions.push(format!("{}/.cargo/bin", home));
+        }
+
+        // Add NVM node bin directory (critical for typescript-language-server)
+        if let Ok(nvm_dir) = std::env::var("NVM_DIR") {
+            if let Ok(entries) = std::fs::read_dir(format!("{}/versions/node", nvm_dir)) {
+                if let Some(Ok(entry)) = entries.into_iter().next() {
+                    path_additions.push(format!("{}/bin", entry.path().display()));
+                }
+            }
+        } else if let Ok(home) = std::env::var("HOME") {
+            let nvm_default = format!("{}/.nvm/versions/node", home);
+            if let Ok(entries) = std::fs::read_dir(&nvm_default) {
+                if let Some(Ok(entry)) = entries.into_iter().next() {
+                    path_additions.push(format!("{}/bin", entry.path().display()));
+                }
+            }
+        }
+
+        let augmented_path = if path_additions.is_empty() {
+            current_path
+        } else {
+            format!("{}:{}", path_additions.join(":"), current_path)
+        };
+
         let mut command = Command::new(&cmd[0]);
         command
             .args(&cmd[1..])
+            .env("PATH", augmented_path)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
