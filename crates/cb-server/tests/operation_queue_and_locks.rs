@@ -1,6 +1,8 @@
 //! Integration tests for Phase 2 features
 //! These tests verify the operation queue, lock manager, and transaction support
 
+mod common;
+
 use cb_server::services::operation_queue::OperationTransaction;
 use cb_server::services::{FileOperation, LockManager, OperationQueue, OperationType};
 use serde_json::json;
@@ -12,7 +14,8 @@ use uuid::Uuid;
 #[tokio::test]
 async fn test_concurrent_reads() {
     // Test that multiple read operations can proceed concurrently
-    let lock_manager = Arc::new(LockManager::new());
+    let (app_state, _temp_dir) = common::create_test_app_state();
+    let lock_manager = app_state.lock_manager.clone();
     let test_file = PathBuf::from("/test/file.rs");
 
     let mut handles = vec![];
@@ -54,7 +57,8 @@ async fn test_concurrent_reads() {
 #[tokio::test]
 async fn test_write_blocks_reads() {
     // Test that a write operation blocks concurrent reads
-    let lock_manager = Arc::new(LockManager::new());
+    let (app_state, _temp_dir) = common::create_test_app_state();
+    let lock_manager = app_state.lock_manager.clone();
     let test_file = PathBuf::from("/test/file.rs");
 
     // Acquire write lock
@@ -86,8 +90,8 @@ async fn test_write_blocks_reads() {
 #[tokio::test]
 async fn test_priority_ordering() {
     // Test that operations are processed in priority order
-    let lock_manager = Arc::new(LockManager::new());
-    let queue = OperationQueue::new(lock_manager);
+    let (app_state, _temp_dir) = common::create_test_app_state();
+    let queue = app_state.operation_queue.clone();
 
     // Enqueue operations with different priorities
     let op1 = FileOperation {
@@ -136,8 +140,8 @@ async fn test_priority_ordering() {
 #[tokio::test]
 async fn test_operation_stats() {
     // Test operation queue statistics
-    let lock_manager = Arc::new(LockManager::new());
-    let queue = OperationQueue::new(lock_manager);
+    let (app_state, _temp_dir) = common::create_test_app_state();
+    let queue = app_state.operation_queue.clone();
 
     // Initial stats should be empty
     let stats = queue.get_stats().await;
@@ -167,8 +171,8 @@ async fn test_operation_stats() {
 #[tokio::test]
 async fn test_transaction_creation() {
     // Test that transactions group multiple file operations
-    let lock_manager = Arc::new(LockManager::new());
-    let queue = Arc::new(OperationQueue::new(lock_manager));
+    let (app_state, _temp_dir) = common::create_test_app_state();
+    let queue = app_state.operation_queue.clone();
 
     // Start a transaction
     let mut transaction = OperationTransaction::new(queue.clone());
@@ -208,8 +212,8 @@ async fn test_transaction_creation() {
 #[tokio::test]
 async fn test_clear_queue() {
     // Test clearing the operation queue
-    let lock_manager = Arc::new(LockManager::new());
-    let queue = OperationQueue::new(lock_manager);
+    let (app_state, _temp_dir) = common::create_test_app_state();
+    let queue = app_state.operation_queue.clone();
 
     // Add multiple operations
     for i in 0..5 {
