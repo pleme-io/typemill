@@ -697,7 +697,7 @@ async fn test_authentication_failure_websocket() {
     println!("Testing WebSocket connection without authentication...");
     let url = Url::parse("ws://127.0.0.1:3041").expect("Invalid WebSocket URL");
 
-    let connect_result = connect_async(url).await;
+    let connect_result = connect_async(url.as_str()).await;
     if let Ok((ws_stream, _)) = connect_result {
         let (mut ws_sender, mut ws_receiver) = ws_stream.split();
 
@@ -712,7 +712,7 @@ async fn test_authentication_failure_websocket() {
         });
 
         let send_result = ws_sender
-            .send(WsMessage::Text(init_message.to_string()))
+            .send(WsMessage::Text(init_message.to_string().into()))
             .await;
         if send_result.is_ok() {
             // Try to receive response
@@ -754,7 +754,7 @@ async fn test_authentication_failure_websocket() {
     println!("Testing WebSocket connection with invalid JWT token...");
     let url2 = Url::parse("ws://127.0.0.1:3041").expect("Invalid WebSocket URL");
 
-    let connect_result2 = connect_async(url2).await;
+    let connect_result2 = connect_async(url2.as_str()).await;
     if let Ok((ws_stream2, _)) = connect_result2 {
         let (mut ws_sender2, mut ws_receiver2) = ws_stream2.split();
 
@@ -770,7 +770,7 @@ async fn test_authentication_failure_websocket() {
         });
 
         let send_result2 = ws_sender2
-            .send(WsMessage::Text(init_message2.to_string()))
+            .send(WsMessage::Text(init_message2.to_string().into()))
             .await;
         if send_result2.is_ok() {
             if let Some(response_msg2) = ws_receiver2.next().await {
@@ -834,7 +834,7 @@ async fn test_authentication_failure_websocket() {
     .expect("Failed to create test JWT");
 
     let url3 = Url::parse("ws://127.0.0.1:3041").expect("Invalid WebSocket URL");
-    let connect_result3 = connect_async(url3).await;
+    let connect_result3 = connect_async(url3.as_str()).await;
 
     if let Ok((ws_stream3, _)) = connect_result3 {
         let (mut ws_sender3, mut ws_receiver3) = ws_stream3.split();
@@ -851,7 +851,7 @@ async fn test_authentication_failure_websocket() {
         });
 
         let send_result3 = ws_sender3
-            .send(WsMessage::Text(init_message3.to_string()))
+            .send(WsMessage::Text(init_message3.to_string().into()))
             .await;
         if send_result3.is_ok() {
             if let Some(response_msg3) = ws_receiver3.next().await {

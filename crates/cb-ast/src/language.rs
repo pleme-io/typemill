@@ -1281,7 +1281,7 @@ impl LanguageAdapter for GoAdapter {
         // Create tree-sitter parser with Go grammar
         let mut parser = tree_sitter::Parser::new();
         parser
-            .set_language(tree_sitter_go::language())
+            .set_language(&tree_sitter_go::LANGUAGE.into())
             .map_err(|e| AstError::analysis(format!("Failed to set Go language: {:?}", e)))?;
 
         // Parse the Go source code
@@ -1718,7 +1718,7 @@ impl LanguageAdapter for JavaAdapter {
         // Create tree-sitter parser with Java grammar
         let mut parser = tree_sitter::Parser::new();
         parser
-            .set_language(tree_sitter_java::language())
+            .set_language(&tree_sitter_java::LANGUAGE.into())
             .map_err(|e| AstError::analysis(format!("Failed to set Java language: {:?}", e)))?;
 
         // Parse the Java source code

@@ -20,7 +20,7 @@ clap = { version = "4.0", features = ["derive"] }
 clap_complete = "4.0"
 
 # WebSocket client
-tokio-tungstenite = "0.21"
+tokio-tungstenite = "0.28"
 futures-util = "0.3"
 url = "2.4"
 

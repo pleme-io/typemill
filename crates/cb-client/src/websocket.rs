@@ -96,7 +96,7 @@ impl WebSocketClient {
         let url = Url::parse(url)
             .map_err(|e| ClientError::ConnectionError(format!("Invalid URL: {}", e)))?;
 
-        let (ws_stream, _) = connect_async(&url)
+        let (ws_stream, _) = connect_async(url.as_str())
             .await
             .map_err(|e| ClientError::ConnectionError(format!("Failed to connect: {}", e)))?;
 
@@ -269,7 +269,7 @@ impl WebSocketClient {
         {
             let connection = self.connection.lock().await;
             if let Some(conn) = connection.as_ref() {
-                if let Err(e) = conn.sender.send(Message::Text(message)) {
+                if let Err(e) = conn.sender.send(Message::Text(message.into())) {
                     // Clean up pending request
                     let mut pending = self.pending_requests.lock().await;
                     pending.remove(&request_id);
