@@ -1,5 +1,6 @@
 //! MCP tool handlers module
 
+pub mod analysis_handler;
 pub mod compat;
 pub mod dependency_handler;
 pub mod file_operation_handler;
@@ -12,8 +13,9 @@ pub mod tool_registry;
 pub mod tools;
 pub mod workflow_handler;
 // Note: mcp_tools module removed - all functionality now handled by plugin system
-// Note: dead_code module removed - consolidated into system_handler
+// Note: dead_code module moved from system_handler to analysis_handler
 
+pub use analysis_handler::AnalysisHandler;
 pub use file_operation_handler::FileOperationHandler;
 pub use lsp_adapter::DirectLspAdapter;
 pub use plugin_dispatcher::{create_test_dispatcher, AppState, PluginDispatcher};
