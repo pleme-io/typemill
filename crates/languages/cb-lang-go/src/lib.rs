@@ -67,7 +67,7 @@ impl LanguageIntelligencePlugin for GoPlugin {
     }
 
     async fn analyze_manifest(&self, _path: &Path) -> PluginResult<ManifestData> {
-        Err(PluginError::unsupported("go.mod analysis not yet implemented."))
+        Err(PluginError::not_supported("go.mod analysis not yet implemented."))
     }
 
     fn handles_manifest(&self, filename: &str) -> bool {

@@ -33,6 +33,13 @@ impl LanguagePluginRegistry {
             registry.register(Box::new(cb_lang_rust::RustPlugin::new()));
         }
 
+        // Register Go plugin
+        #[cfg(feature = "lang-go")]
+        {
+            info!(plugin = "go", "Registering Go language plugin");
+            registry.register(Box::new(cb_lang_go::GoPlugin::new()));
+        }
+
         // Future language plugins will be registered here
         // #[cfg(feature = "lang-python")]
         // registry.register(Box::new(cb_lang_python::PythonPlugin::new()));

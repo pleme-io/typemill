@@ -4,8 +4,9 @@ version = "1.0.0-beta"
 edition = "2021"
 
 [features]
-default = ["lang-rust"]
+default = ["lang-rust", "lang-go"]
 lang-rust = ["cb-lang-rust"]
+lang-go = ["cb-lang-go"]
 # Future language features
 # lang-python = ["cb-lang-python"]
 # lang-typescript = ["cb-lang-typescript"]
@@ -22,6 +23,7 @@ cb-plugins = { path = "../cb-plugins" }
 
 # Language plugins (feature-gated)
 cb-lang-rust = { path = "../languages/cb-lang-rust", optional = true }
+cb-lang-go = { path = "../languages/cb-lang-go", optional = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
