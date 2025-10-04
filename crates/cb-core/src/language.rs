@@ -227,7 +227,7 @@ pub fn detect_package_manager(project_path: &Path) -> PackageManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
+    
 
     #[test]
     fn test_language_as_str() {

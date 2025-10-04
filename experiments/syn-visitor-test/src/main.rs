@@ -1,5 +1,5 @@
 use syn::visit::{self, Visit};
-use syn::{File, Item, UseTree};
+use syn::{File, UseTree};
 
 #[derive(Debug, Clone)]
 struct ModuleReference {

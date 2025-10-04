@@ -305,7 +305,7 @@ impl FileService {
 
             info!("File renamed successfully");
 
-            let edit_plan = self
+            let mut edit_plan = self
                 .import_service
                 .update_imports_for_rename(&old_abs, &new_abs, None, false, None)
                 .await
@@ -313,6 +313,29 @@ impl FileService {
                     warn!(error = %e, "File renamed but import updates failed");
                     ServerError::Internal(format!("Import updates failed: {}", e))
                 })?;
+
+            // Update the source_file in the edit plan to the new path
+            // since the file has been renamed
+            if edit_plan.source_file == old_abs.to_string_lossy() {
+                edit_plan.source_file = new_abs.to_string_lossy().to_string();
+            }
+
+            debug!(
+                edits_count = edit_plan.edits.len(),
+                dependency_updates_count = edit_plan.dependency_updates.len(),
+                source_file = %edit_plan.source_file,
+                "EditPlan before applying"
+            );
+
+            // Log dependency updates for debugging
+            for (i, dep_update) in edit_plan.dependency_updates.iter().enumerate() {
+                debug!(
+                    index = i,
+                    target_file = %dep_update.target_file,
+                    update_type = ?dep_update.update_type,
+                    "Dependency update"
+                );
+            }
 
             // Apply the edit plan to update imports
             let edit_result = self.apply_edit_plan(&edit_plan).await.map_err(|e| {

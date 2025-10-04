@@ -16,12 +16,59 @@ use serde_json::json;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+/// Spawn a background worker to process queued file operations in tests
+fn spawn_test_worker(queue: Arc<OperationQueue>) {
+    use cb_server::services::operation_queue::OperationType;
+    use tokio::fs;
+
+    tokio::spawn(async move {
+        queue
+            .process_with(|op| async move {
+                match op.operation_type {
+                    OperationType::CreateDir => {
+                        fs::create_dir_all(&op.file_path).await?;
+                    }
+                    OperationType::CreateFile | OperationType::Write => {
+                        let content = op
+                            .params
+                            .get("content")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("");
+                        fs::write(&op.file_path, content).await?;
+                    }
+                    OperationType::Delete => {
+                        if op.file_path.exists() {
+                            fs::remove_file(&op.file_path).await?;
+                        }
+                    }
+                    OperationType::Rename => {
+                        let new_path_str = op
+                            .params
+                            .get("new_path")
+                            .and_then(|v| v.as_str())
+                            .ok_or_else(|| {
+                                std::io::Error::new(std::io::ErrorKind::Other, "Missing new_path")
+                            })?;
+                        fs::rename(&op.file_path, new_path_str).await?;
+                    }
+                    _ => {}
+                }
+                Ok(serde_json::Value::Null)
+            })
+            .await;
+    });
+}
+
 /// Create a mock AppState for direct service testing
 async fn create_mock_state(workspace_root: PathBuf) -> Arc<AppState> {
     let ast_cache = Arc::new(AstCache::new());
     let ast_service: Arc<dyn AstService> = Arc::new(DefaultAstService::new(ast_cache.clone()));
     let lock_manager = Arc::new(LockManager::new());
     let operation_queue = Arc::new(OperationQueue::new(lock_manager.clone()));
+
+    // Spawn background worker to process queued operations
+    spawn_test_worker(operation_queue.clone());
+
     let config = cb_core::AppConfig::default();
     let file_service = Arc::new(FileService::new(
         workspace_root.clone(),
@@ -123,6 +170,9 @@ pub async fn run_create_file_test(case: &CreateFileTestCase, use_real_mcp: bool)
             .file_service
             .create_file(&file_path, Some(case.content), case.overwrite, false)
             .await;
+
+        // Wait for queue to process the operation
+        app_state.operation_queue.wait_until_idle().await;
 
         if case.expect_success {
             assert!(
@@ -319,6 +369,9 @@ pub async fn run_write_file_test(case: &WriteFileTestCase, use_real_mcp: bool) {
             .write_file(&file_path, case.content, false)
             .await;
 
+        // Wait for queue to process the operation
+        app_state.operation_queue.wait_until_idle().await;
+
         if case.expect_success {
             assert!(
                 result.is_ok(),
@@ -412,6 +465,9 @@ pub async fn run_delete_file_test(case: &DeleteFileTestCase, use_real_mcp: bool)
             .file_service
             .delete_file(&file_path, false, false)
             .await;
+
+        // Wait for queue to process the operation
+        app_state.operation_queue.wait_until_idle().await;
 
         if case.expect_success {
             assert!(
@@ -1020,6 +1076,9 @@ pub async fn run_rename_file_test(case: &RenameFileTestCase, use_real_mcp: bool)
                 &old_path, &new_path, false, // dry_run
             )
             .await;
+
+        // Wait for queue to process the operation
+        app_state.operation_queue.wait_until_idle().await;
 
         if case.expect_success {
             assert!(

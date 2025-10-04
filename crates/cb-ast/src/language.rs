@@ -392,7 +392,7 @@ impl LanguageAdapter for RustAdapter {
     }
 
     async fn parse_imports(&self, file_path: &Path) -> AstResult<Vec<String>> {
-        use std::collections::HashSet;
+        
         use tracing::debug;
 
         debug!(
@@ -473,7 +473,7 @@ impl LanguageAdapter for RustAdapter {
         _project_root: &Path,
         rename_info: Option<&serde_json::Value>,
     ) -> AstResult<(String, usize)> {
-        use syn::{File, Item};
+        
 
         // If no rename_info provided, no rewriting needed
         let rename_info = match rename_info {
