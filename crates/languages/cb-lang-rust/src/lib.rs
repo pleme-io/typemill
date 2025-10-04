@@ -26,7 +26,7 @@ mod manifest;
 mod parser;
 
 use async_trait::async_trait;
-use cb_plugin_api::{LanguagePlugin, ManifestData, ParsedSource, PluginResult};
+use cb_plugin_api::{LanguageIntelligencePlugin, ManifestData, ParsedSource, PluginResult};
 use std::path::Path;
 
 /// Rust language plugin implementation
@@ -52,7 +52,7 @@ impl Default for RustPlugin {
 }
 
 #[async_trait]
-impl LanguagePlugin for RustPlugin {
+impl LanguageIntelligencePlugin for RustPlugin {
     fn name(&self) -> &'static str {
         "Rust"
     }

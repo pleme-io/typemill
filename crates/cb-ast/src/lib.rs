@@ -5,6 +5,7 @@
 //! for performance optimization. It supports multiple languages (TypeScript, Python, etc.)
 //! and enables safe, automated code transformations.
 
+pub mod adapter_registry;
 pub mod analyzer;
 pub mod cache;
 pub mod cargo_utils;
@@ -23,6 +24,7 @@ mod python_refactoring_test;
 #[cfg(test)]
 mod java_language_test;
 
+pub use adapter_registry::LanguageAdapterRegistry;
 pub use analyzer::*;
 pub use cache::*;
 pub use error::{AstError, AstResult};

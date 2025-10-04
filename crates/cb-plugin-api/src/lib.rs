@@ -260,15 +260,19 @@ pub enum DependencySource {
 // Core Plugin Trait
 // ============================================================================
 
-/// The core trait that every language plugin must implement.
+/// The core trait that every language intelligence plugin must implement.
 ///
 /// This trait defines the contract for providing language-specific intelligence
 /// including parsing, manifest handling, and code analysis.
 ///
+/// This layer focuses on STATIC ANALYSIS and should be pure - no file I/O,
+/// no refactoring operations. For refactoring operations, see LanguageAdapter
+/// in cb-ast which composes this trait.
+///
 /// All methods are async to support both synchronous and asynchronous
 /// implementations (e.g., spawning Python subprocess for Python parsing).
 #[async_trait]
-pub trait LanguagePlugin: Send + Sync {
+pub trait LanguageIntelligencePlugin: Send + Sync {
     /// Returns the official name of the language (e.g., "Rust", "Python", "TypeScript")
     fn name(&self) -> &'static str;
 
@@ -370,12 +374,12 @@ pub trait LanguagePlugin: Send + Sync {
 // Plugin Registry
 // ============================================================================
 
-/// A registry for managing language plugins
+/// A registry for managing language intelligence plugins
 ///
 /// This will be used by the main server to register and look up plugins
 /// based on file extensions.
 pub struct PluginRegistry {
-    plugins: Vec<Box<dyn LanguagePlugin>>,
+    plugins: Vec<Box<dyn LanguageIntelligencePlugin>>,
 }
 
 impl PluginRegistry {
@@ -386,13 +390,13 @@ impl PluginRegistry {
         }
     }
 
-    /// Register a new language plugin
-    pub fn register(&mut self, plugin: Box<dyn LanguagePlugin>) {
+    /// Register a new language intelligence plugin
+    pub fn register(&mut self, plugin: Box<dyn LanguageIntelligencePlugin>) {
         self.plugins.push(plugin);
     }
 
     /// Find a plugin that handles the given file extension
-    pub fn find_by_extension(&self, extension: &str) -> Option<&dyn LanguagePlugin> {
+    pub fn find_by_extension(&self, extension: &str) -> Option<&dyn LanguageIntelligencePlugin> {
         self.plugins
             .iter()
             .find(|p| p.handles_extension(extension))
@@ -400,7 +404,7 @@ impl PluginRegistry {
     }
 
     /// Get all registered plugins
-    pub fn all(&self) -> &[Box<dyn LanguagePlugin>] {
+    pub fn all(&self) -> &[Box<dyn LanguageIntelligencePlugin>] {
         &self.plugins
     }
 }
@@ -422,7 +426,7 @@ mod tests {
     struct MockPlugin;
 
     #[async_trait]
-    impl LanguagePlugin for MockPlugin {
+    impl LanguageIntelligencePlugin for MockPlugin {
         fn name(&self) -> &'static str {
             "mock"
         }
