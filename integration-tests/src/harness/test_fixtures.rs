@@ -259,3 +259,46 @@ const result = myVariable + 10;
     },
     // Python Case - Add when ready
 ];
+
+// =============================================================================
+// LSP Compliance Test Cases - Server Behavior Documentation
+// =============================================================================
+
+/// Defines the expected behavior of an LSP server for a compliance test.
+#[derive(Debug, PartialEq, Eq)]
+pub enum LspComplianceBehavior {
+    /// Expects the response to be a JSON array with one or more elements.
+    ReturnsNonEmptyArray,
+    /// Expects the response to be a JSON array with zero elements.
+    ReturnsEmptyArray,
+    /// Expects the server to return an error for the request.
+    Fails,
+}
+
+/// Represents a single test case in the LSP compliance suite.
+pub struct LspComplianceTestCase {
+    /// The language server to test (e.g., "rust", "typescript").
+    pub language_id: &'static str,
+    /// A descriptive name for the feature being tested.
+    pub feature_name: &'static str,
+    /// The JSON-RPC request to send to the server.
+    pub request: serde_json::Value,
+    /// The expected behavior from the server.
+    pub expected_behavior: LspComplianceBehavior,
+}
+
+/// The central array of all compliance tests to be run.
+pub const LSP_COMPLIANCE_TESTS: &[LspComplianceTestCase] = &[
+    // Test case for rust-analyzer's handling of an empty workspace/symbol query.
+    // We expect it to return an empty array, which is the behavior we need to work around.
+    LspComplianceTestCase {
+        language_id: "rust",
+        feature_name: "workspace_symbol_empty_query",
+        request: serde_json::json!({
+            "method": "workspace/symbol",
+            "params": { "query": "" }
+        }),
+        expected_behavior: LspComplianceBehavior::ReturnsEmptyArray,
+    },
+    // Future test cases for other languages or features will be added here.
+];

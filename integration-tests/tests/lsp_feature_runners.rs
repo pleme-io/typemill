@@ -532,3 +532,60 @@ pub async fn run_rename_test(case: &RenameTestCase, use_real_lsp: bool) {
         }
     }
 }
+
+// =============================================================================
+// LSP Compliance Test Runner
+// =============================================================================
+
+use integration_tests::harness::test_fixtures::{LspComplianceBehavior, LspComplianceTestCase};
+
+/// Executes a single LSP compliance test case.
+pub async fn run_lsp_compliance_test(case: &LspComplianceTestCase) {
+    // 1. Set up the test harness for the specified language.
+    let mut builder = LspTestBuilder::new(case.language_id).with_real_lsp();
+
+    // 2. Build the service (skip if LSP server not installed)
+    let (service, _workspace) = match builder.build().await {
+        Ok(result) => result,
+        Err(_) => {
+            println!(
+                "Skipping test: LSP server for '{}' not found.",
+                case.language_id
+            );
+            return;
+        }
+    };
+
+    // 3. Give LSP time to initialize
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+
+    // 4. Extract method and params from the test case's request.
+    let method = case.request["method"].as_str().unwrap();
+    let params = case.request["params"].clone();
+
+    // 5. Send the request to the LSP server.
+    let message = cb_protocol::Message {
+        id: Some(format!("compliance-{}-{}", case.language_id, case.feature_name)),
+        method: method.to_string(),
+        params,
+    };
+
+    let response = service.request(message).await;
+
+    // 6. Assert that the actual behavior matches the expected behavior.
+    match case.expected_behavior {
+        LspComplianceBehavior::ReturnsNonEmptyArray => {
+            let result = response.expect("Request should have succeeded.");
+            let arr = result.params.as_array().expect("Result should be an array.");
+            assert!(!arr.is_empty(), "Expected a non-empty array, but got an empty one.");
+        }
+        LspComplianceBehavior::ReturnsEmptyArray => {
+            let result = response.expect("Request should have succeeded.");
+            let arr = result.params.as_array().expect("Result should be an array.");
+            assert!(arr.is_empty(), "Expected an empty array, but got a non-empty one.");
+        }
+        LspComplianceBehavior::Fails => {
+            assert!(response.is_err(), "Expected request to fail, but it succeeded.");
+        }
+    }
+}

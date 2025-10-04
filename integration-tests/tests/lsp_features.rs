@@ -244,3 +244,25 @@ async fn test_rename_real() {
         run_rename_test(case, true).await;
     }
 }
+
+// =============================================================================
+// LSP Compliance Suite
+// =============================================================================
+
+use integration_tests::harness::test_fixtures::LSP_COMPLIANCE_TESTS;
+
+#[tokio::test]
+#[ignore] // Requires real LSP servers to be installed
+async fn test_lsp_compliance_suite() {
+    for (idx, case) in LSP_COMPLIANCE_TESTS.iter().enumerate() {
+        println!(
+            "Running LSP compliance test {}/{}: Lang: {}, Feature: {}",
+            idx + 1,
+            LSP_COMPLIANCE_TESTS.len(),
+            case.language_id,
+            case.feature_name
+        );
+        // Note: This runner doesn't have a mock mode, it always uses a real LSP server.
+        run_lsp_compliance_test(case).await;
+    }
+}
