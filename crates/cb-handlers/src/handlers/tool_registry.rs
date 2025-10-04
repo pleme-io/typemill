@@ -14,11 +14,20 @@ use tracing::{debug, warn};
 ///
 /// The ToolRegistry maintains a mapping from tool names to their handlers,
 /// enabling automatic dispatch without hardcoded routing logic.
+///
+/// # Internal Tools
+///
+/// Tools marked as "internal" (via `ToolHandler::is_internal()`) are:
+/// - Hidden from `list_tools()` (MCP tool discovery)
+/// - Still callable via `handle_tool()` (for backend use)
+/// - Documented in `list_internal_tools()` for system visibility
 pub struct ToolRegistry {
     /// Map from tool name to handler
     handlers: HashMap<String, Arc<dyn ToolHandler>>,
     /// Map from tool name to handler type name (for diagnostics)
     handler_names: HashMap<String, String>,
+    /// Set of internal tool names (hidden from MCP listings)
+    internal_tools: std::collections::HashSet<String>,
 }
 
 impl ToolRegistry {
@@ -27,6 +36,7 @@ impl ToolRegistry {
         Self {
             handlers: HashMap::new(),
             handler_names: HashMap::new(),
+            internal_tools: std::collections::HashSet::new(),
         }
     }
 
@@ -40,8 +50,16 @@ impl ToolRegistry {
     /// * `handler` - The handler to register
     /// * `handler_name` - The name of the handler type (e.g., "SystemHandler")
     pub fn register_with_name(&mut self, handler: Arc<dyn ToolHandler>, handler_name: &str) {
+        let is_internal = handler.is_internal();
+
         for tool_name in handler.tool_names() {
-            debug!(tool_name = %tool_name, handler_name = %handler_name, "Registering tool handler");
+            debug!(
+                tool_name = %tool_name,
+                handler_name = %handler_name,
+                is_internal = %is_internal,
+                "Registering tool handler"
+            );
+
             if self
                 .handlers
                 .insert(tool_name.to_string(), handler.clone())
@@ -52,8 +70,14 @@ impl ToolRegistry {
                     "Tool handler replaced (duplicate registration)"
                 );
             }
+
             self.handler_names
                 .insert(tool_name.to_string(), handler_name.to_string());
+
+            // Track internal tools separately
+            if is_internal {
+                self.internal_tools.insert(tool_name.to_string());
+            }
         }
     }
 
@@ -108,13 +132,36 @@ impl ToolRegistry {
         self.handlers.contains_key(tool_name)
     }
 
-    /// Get all registered tool names
+    /// Get all public (non-internal) registered tool names
+    ///
+    /// This method filters out internal tools and is used for MCP tool discovery.
+    /// Internal tools are still callable via `handle_tool()` but hidden from
+    /// AI agents and MCP clients.
     ///
     /// # Returns
     ///
-    /// Returns a vector of all registered tool names, sorted alphabetically.
+    /// Returns a vector of public tool names, sorted alphabetically.
     pub fn list_tools(&self) -> Vec<String> {
-        let mut tools: Vec<String> = self.handlers.keys().cloned().collect();
+        let mut tools: Vec<String> = self
+            .handlers
+            .keys()
+            .filter(|name| !self.internal_tools.contains(*name))
+            .cloned()
+            .collect();
+        tools.sort();
+        tools
+    }
+
+    /// Get all internal (hidden) tool names
+    ///
+    /// Internal tools are hidden from MCP listings but still callable for backend use.
+    /// This method is useful for diagnostics and documentation.
+    ///
+    /// # Returns
+    ///
+    /// Returns a vector of internal tool names, sorted alphabetically.
+    pub fn list_internal_tools(&self) -> Vec<String> {
+        let mut tools: Vec<String> = self.internal_tools.iter().cloned().collect();
         tools.sort();
         tools
     }

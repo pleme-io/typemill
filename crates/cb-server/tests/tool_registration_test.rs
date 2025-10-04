@@ -1,14 +1,16 @@
 use cb_server::handlers::plugin_dispatcher::create_test_dispatcher;
 
 #[tokio::test]
-async fn test_all_45_tools_are_registered() {
+async fn test_all_42_public_tools_are_registered() {
     let dispatcher = create_test_dispatcher();
     dispatcher.initialize().await.unwrap();
 
     let registry = dispatcher.tool_registry.lock().await;
     let registered_tools = registry.list_tools();
 
-    const EXPECTED_TOOLS: [&str; 45] = [
+    // Note: This tests PUBLIC tools only (visible to AI agents via MCP).
+    // Internal tools (lifecycle hooks, etc.) are tested separately.
+    const EXPECTED_TOOLS: [&str; 42] = [
         // Navigation (14)
         "find_definition",
         "find_references",
@@ -54,10 +56,7 @@ async fn test_all_45_tools_are_registered() {
         // Advanced (2)
         "apply_edits",
         "batch_execute",
-        // Lifecycle (3)
-        "notify_file_opened",
-        "notify_file_saved",
-        "notify_file_closed",
+        // Lifecycle (0) - All lifecycle tools are now internal
         // System (2)
         "health_check",
         "system_status",
@@ -96,4 +95,48 @@ async fn test_all_45_tools_are_registered() {
         "The following tools are missing: {:?}",
         missing
     );
+}
+
+#[tokio::test]
+async fn test_internal_tools_are_hidden() {
+    let dispatcher = create_test_dispatcher();
+    dispatcher.initialize().await.unwrap();
+
+    let registry = dispatcher.tool_registry.lock().await;
+
+    // Internal tools that should be hidden from MCP tool listings
+    const EXPECTED_INTERNAL_TOOLS: [&str; 3] = [
+        "notify_file_opened",
+        "notify_file_saved",
+        "notify_file_closed",
+    ];
+
+    // Get public tools (should NOT include internal tools)
+    let public_tools = registry.list_tools();
+    for internal_tool in &EXPECTED_INTERNAL_TOOLS {
+        assert!(
+            !public_tools.contains(&internal_tool.to_string()),
+            "Internal tool '{}' should not be in public tool list",
+            internal_tool
+        );
+    }
+
+    // Get internal tools (should include all expected internal tools)
+    let internal_tools = registry.list_internal_tools();
+    for expected in &EXPECTED_INTERNAL_TOOLS {
+        assert!(
+            internal_tools.contains(&expected.to_string()),
+            "Expected internal tool '{}' not found in internal tool list",
+            expected
+        );
+    }
+
+    // Verify internal tools are still registered (can be looked up)
+    for tool_name in &EXPECTED_INTERNAL_TOOLS {
+        assert!(
+            registry.has_tool(tool_name),
+            "Internal tool '{}' should still be registered in the system",
+            tool_name
+        );
+    }
 }

@@ -32,6 +32,13 @@ impl ToolHandler for LifecycleHandler {
         ]
     }
 
+    fn is_internal(&self) -> bool {
+        // Lifecycle tools are internal - they're backend hooks for editors/IDEs
+        // to notify LSP servers and trigger plugin lifecycle events.
+        // AI agents don't need these - they directly read/write files.
+        true
+    }
+
     async fn handle_tool_call(
         &self,
         context: &ToolHandlerContext,

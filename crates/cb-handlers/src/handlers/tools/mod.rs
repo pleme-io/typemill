@@ -138,6 +138,14 @@ pub type ToolContext = ToolHandlerContext;
 /// This is the single, canonical trait that all handlers must implement.
 /// It provides direct access to the shared context and handles tool calls uniformly.
 ///
+/// # Tool Visibility
+///
+/// Tools can be marked as "internal" to hide them from MCP tool listings while keeping
+/// them available for internal system use. Internal tools are:
+/// - Not listed in `tools/list` MCP requests
+/// - Still callable via direct tool invocation
+/// - Used for backend plumbing (lifecycle hooks, LSP interop, etc.)
+///
 /// # Example
 ///
 /// ```rust,ignore
@@ -151,6 +159,10 @@ pub type ToolContext = ToolHandlerContext;
 /// impl ToolHandler for MyHandler {
 ///     fn tool_names(&self) -> &[&str] {
 ///         &["my_tool"]
+///     }
+///
+///     fn is_internal(&self) -> bool {
+///         false  // Public tool, visible to AI agents
 ///     }
 ///
 ///     async fn handle_tool_call(
@@ -169,6 +181,25 @@ pub trait ToolHandler: Send + Sync {
     ///
     /// Tool names must be unique across all handlers in the system.
     fn tool_names(&self) -> &[&str];
+
+    /// Indicates whether this handler's tools are internal (backend-only).
+    ///
+    /// Internal tools are:
+    /// - Hidden from MCP `tools/list` requests
+    /// - Still callable by the system internally
+    /// - Not intended for direct use by AI agents
+    ///
+    /// Examples of internal tools:
+    /// - Lifecycle hooks (`notify_file_opened`, etc.)
+    /// - LSP protocol interop tools (`apply_workspace_edit`)
+    /// - Backend coordination tools
+    ///
+    /// # Returns
+    ///
+    /// `true` if all tools in this handler are internal, `false` if public (default).
+    fn is_internal(&self) -> bool {
+        false  // Default: tools are public/visible
+    }
 
     /// Handles an incoming tool call.
     ///
