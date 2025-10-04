@@ -1,5 +1,5 @@
 # 🤖 Codebuddy
-Pure Rust MCP server bridging Language Server Protocol to AI coding assistants
+MCP server that exposes Language Server Protocol functionality to AI coding assistants
 
 ## 📋 Table of Contents
 - [Key Features](#-key-features)
@@ -16,31 +16,25 @@ Pure Rust MCP server bridging Language Server Protocol to AI coding assistants
 - [Support](#-support)
 
 ## ✨ Key Features
-- **🔍 Code Navigation** - Jump to definitions, find references, search symbols across projects
-- **🔧 Safe Refactoring** - Rename symbols with compile-time safety guarantees
-- **💡 Code Intelligence** - Hover documentation, completions, diagnostics, call hierarchies
-- **⚡ Batch Operations** - Execute multiple LSP operations atomically with parallel processing
-- **🌐 Multi-Language** - TypeScript, Python, Go, Rust + 15 more languages via LSP
-- **🚀 Production Ready** - WebSocket server with JWT authentication and health monitoring
+- **🔍 Navigation** - Find definitions, references, symbols via LSP
+- **🔧 Refactoring** - Rename symbols, extract functions, organize imports
+- **💡 Intelligence** - Completions, hover docs, diagnostics, call graphs
+- **⚡ Batch Operations** - Atomic multi-file edits and parallel execution
+- **🌐 Multi-Language** - TypeScript, Python, Go, Rust via configured LSP servers
+- **🛠️ Transport Options** - Stdio for MCP clients, WebSocket with JWT auth
 
 ## 🚀 Quick Start
 ```bash
-# Install via automated script (recommended)
-curl -fsSL https://raw.githubusercontent.com/goobits/codebuddy/main/install.sh | bash
-
-# Or install from source manually
+# Install from source
 git clone https://github.com/goobits/codebuddy.git
 cd codebuddy
 cargo build --release
 sudo cp target/release/codebuddy /usr/local/bin/
 
-# Or install via Cargo (when published)
-# cargo install codebuddy
-
-# Setup with auto-detection
+# Setup language servers (interactive wizard)
 codebuddy setup
 
-# Start MCP server for Claude Code
+# Start MCP server (stdio transport)
 codebuddy start
 
 # Or start WebSocket server
@@ -49,7 +43,7 @@ codebuddy serve
 
 ## 🛠️ Language Server Setup
 ```bash
-# TypeScript/JavaScript (works via npx, or install explicitly)
+# TypeScript/JavaScript
 npm install -g typescript-language-server typescript
 
 # Python
@@ -61,12 +55,12 @@ go install golang.org/x/tools/gopls@latest
 # Rust
 rustup component add rust-analyzer
 
-# Check configured servers
+# Verify installation
 codebuddy status
 ```
 
 ## 📚 MCP Integration
-The installer configures Claude Code automatically. For manual setup:
+Configure your MCP client to connect to Codebuddy:
 
 ```json
 {
@@ -81,16 +75,13 @@ The installer configures Claude Code automatically. For manual setup:
 
 ## ⚙️ Configuration
 ```bash
-# Interactive setup wizard
+# Interactive setup
 codebuddy setup
 
-# View current configuration
+# View configuration
 codebuddy status
 
-# Link to AI assistants
-codebuddy link
-
-# Manual configuration
+# Manual configuration (.codebuddy/config.json)
 cat > .codebuddy/config.json << 'EOF'
 {
   "servers": [
@@ -110,117 +101,83 @@ EOF
 
 ## 🎯 CLI Commands
 ```bash
-# Server management
-codebuddy start          # Start MCP server (stdio mode)
+# Server lifecycle
+codebuddy start          # Start stdio MCP server
 codebuddy serve          # Start WebSocket server
-codebuddy stop           # Stop running server
-codebuddy status         # Check server status
+codebuddy stop           # Stop server
+codebuddy status         # Show status
 
 # Configuration
-codebuddy setup          # Interactive setup wizard
-codebuddy doctor         # Diagnose configuration issues
-codebuddy link           # Link to AI assistants
-codebuddy unlink         # Remove AI integration
+codebuddy setup          # Setup wizard
+codebuddy doctor         # Diagnose issues
+codebuddy link           # Link AI assistants
+codebuddy unlink         # Remove links
 
-# Direct tool execution
-codebuddy tool <name>    # Call MCP tool directly
-codebuddy tools          # List available tools
+# Tools
+codebuddy tool <name>    # Execute MCP tool
+codebuddy tools          # List tools
 ```
 
 ## 🐳 Docker Deployment
-
-### Development
 ```bash
+# Development
 cd deployment/docker
-
-# Start all services
 docker-compose up -d
 
-# View logs
-docker-compose logs -f codebuddy
-```
-
-### Production
-```bash
-cd deployment/docker
-
-# Configure authentication
-export JWT_SECRET="your-secure-secret-key"
-
-# Start with nginx reverse proxy
+# Production (with JWT auth)
+export JWT_SECRET="your-secret-key"
 docker-compose -f docker-compose.production.yml up -d
 
-# Verify health
+# Health check
 curl http://localhost/health
 ```
 
-**Features**: Multi-stage Rust build, FUSE support, pre-installed LSP servers, nginx reverse proxy, multi-container workspaces
-
-See [`deployment/docker/README.md`](deployment/docker/README.md) for detailed documentation.
+See [`deployment/docker/README.md`](deployment/docker/README.md) for details.
 
 ## 📖 Documentation
-- **[API Reference](API.md)** - Complete MCP tools documentation
-- **[CLAUDE.md](CLAUDE.md)** - AI assistant integration guide
-- **[Architecture](docs/architecture/ARCHITECTURE.md)** - System design
-- **[Support Matrix](API.md#language-support-matrix)** - Language support by tool
+- **[API.md](API.md)** - MCP tools reference
+- **[CLAUDE.md](CLAUDE.md)** - AI assistant guide
+- **[docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)** - System design
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Development guide
 
 ## 🔧 Troubleshooting
-
-**LSP server not starting?**
 ```bash
-# Check server is installed
-codebuddy status
+# LSP server not starting
+codebuddy status                # Check installation
+RUST_LOG=debug codebuddy start  # View logs
 
-# View detailed logs
-RUST_LOG=debug codebuddy start
+# Import updates failing
+codebuddy setup                 # Reconfigure servers
 ```
 
-**Import updates not working?**
-- Ensure LSP server supports workspace edits
-- Check file is within workspace root
-- Try `codebuddy setup` to reconfigure servers
+Common issues:
+- LSP server not in PATH
+- File outside workspace root
+- LSP server doesn't support workspace edits
 
 ## 🔗 Related Projects
-- **[Model Context Protocol](https://github.com/modelcontextprotocol/servers)** - MCP specification and ecosystem
-- **[Language Server Protocol](https://langserver.org/)** - LSP specification and implementations
+- **[Model Context Protocol](https://github.com/modelcontextprotocol/servers)** - MCP specification
+- **[Language Server Protocol](https://langserver.org/)** - LSP specification
 
 ## 🧪 Development
 ```bash
-# Quick start (using Makefile)
-make setup       # One-time: install build optimization tools
-make             # Build debug version
-make test        # Run tests
-make install     # Install to ~/.local/bin
-
-# Or use cargo directly
+# Build and test
 cargo build --release
+cargo test
+cargo clippy
+cargo fmt
 
-# Run development version
+# Or use Makefile
+make setup       # Install dev tools (one-time)
+make             # Build debug
+make test        # Run tests
+make check       # fmt + clippy + test
+
+# Run locally
 cargo run -- start
-
-# Testing
-cargo test                    # Run all tests
-cargo test -- --nocapture     # With output
-
-# Code quality
-cargo clippy                  # Linting
-cargo fmt                     # Formatting
-cargo check                   # Type checking
-make clippy                   # Run clippy linter
-make fmt                      # Check code formatting
-make check                    # Run fmt + clippy + test
-make check-duplicates         # Detect duplicate code & complexity
 ```
 
-**Directory Structure:**
-- `apps/` - Binary applications (codebuddy CLI)
-- `crates/` - Library crates (cb-core, cb-server, cb-api, etc.)
-- `integration-tests/` - Integration and E2E tests
-- `benchmarks/` - Performance benchmarks
-- `examples/` - User-facing examples
-- `playground/` - Developer scratch space (gitignored)
-
-**Contributing:** See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed development setup and build optimization tips.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed development guide.
 
 ## 📝 License
 MIT - see [LICENSE](LICENSE)
