@@ -265,7 +265,7 @@ const result = myVariable + 10;
 // =============================================================================
 
 /// Defines the expected behavior of an LSP server for a compliance test.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LspComplianceBehavior {
     /// Expects the response to be a JSON array with one or more elements.
     ReturnsNonEmptyArray,
@@ -276,15 +276,23 @@ pub enum LspComplianceBehavior {
 }
 
 /// Represents a single test case in the LSP compliance suite.
+#[derive(Debug, Clone)]
 pub struct LspComplianceTestCase {
     /// The language server to test (e.g., "rust", "typescript").
     pub language_id: &'static str,
     /// A descriptive name for the feature being tested.
     pub feature_name: &'static str,
-    /// The JSON-RPC request to send to the server.
-    pub request: serde_json::Value,
+    /// The LSP method to call
+    pub method: &'static str,
+    /// The params as JSON value
+    pub params: fn() -> serde_json::Value,
     /// The expected behavior from the server.
     pub expected_behavior: LspComplianceBehavior,
+}
+
+/// Helper function to create params for workspace/symbol with empty query
+fn workspace_symbol_empty_params() -> serde_json::Value {
+    serde_json::json!({ "query": "" })
 }
 
 /// The central array of all compliance tests to be run.
@@ -294,10 +302,8 @@ pub const LSP_COMPLIANCE_TESTS: &[LspComplianceTestCase] = &[
     LspComplianceTestCase {
         language_id: "rust",
         feature_name: "workspace_symbol_empty_query",
-        request: serde_json::json!({
-            "method": "workspace/symbol",
-            "params": { "query": "" }
-        }),
+        method: "workspace/symbol",
+        params: workspace_symbol_empty_params,
         expected_behavior: LspComplianceBehavior::ReturnsEmptyArray,
     },
     // Future test cases for other languages or features will be added here.

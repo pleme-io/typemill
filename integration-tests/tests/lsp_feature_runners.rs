@@ -542,7 +542,7 @@ use integration_tests::harness::test_fixtures::{LspComplianceBehavior, LspCompli
 /// Executes a single LSP compliance test case.
 pub async fn run_lsp_compliance_test(case: &LspComplianceTestCase) {
     // 1. Set up the test harness for the specified language.
-    let mut builder = LspTestBuilder::new(case.language_id).with_real_lsp();
+    let builder = LspTestBuilder::new(case.language_id).with_real_lsp();
 
     // 2. Build the service (skip if LSP server not installed)
     let (service, _workspace) = match builder.build().await {
@@ -559,9 +559,9 @@ pub async fn run_lsp_compliance_test(case: &LspComplianceTestCase) {
     // 3. Give LSP time to initialize
     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
-    // 4. Extract method and params from the test case's request.
-    let method = case.request["method"].as_str().unwrap();
-    let params = case.request["params"].clone();
+    // 4. Get method and params from the test case.
+    let method = case.method;
+    let params = (case.params)();
 
     // 5. Send the request to the LSP server.
     let message = cb_protocol::Message {
