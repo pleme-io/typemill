@@ -3,19 +3,19 @@
 **Version:** 1.0.0-rc1
 **Last Updated:** 2025-10-04
 
-Complete API documentation for all 44 MCP tools available in CodeBuddy.
+Complete API documentation for all 40 public MCP tools available in CodeBuddy.
 
 ---
 
 ## Table of Contents
 
 - [Navigation & Intelligence](#navigation--intelligence) (13 tools)
-- [Editing & Refactoring](#editing--refactoring) (10 tools)
+- [Editing & Refactoring](#editing--refactoring) (9 tools)
 - [File Operations](#file-operations) (6 tools)
-- [Workspace Operations](#workspace-operations) (7 tools)
+- [Workspace Operations](#workspace-operations) (6 tools)
 - [Advanced Operations](#advanced-operations) (2 tools)
-- [LSP Lifecycle](#lsp-lifecycle) (3 tools)
 - [System & Health](#system--health) (3 tools)
+- [Internal Tools](#internal-tools) (5 tools - backend use only)
 - [Common Patterns](#common-patterns)
 - [Error Reference](#error-reference)
 
@@ -443,7 +443,7 @@ Find underlying type definition.
 
 ## Editing & Refactoring
 
-LSP-based editing and refactoring operations (10 tools).
+LSP-based editing and refactoring operations (9 tools).
 
 ### `rename_symbol`
 
@@ -1059,7 +1059,7 @@ List files in a directory with optional glob pattern filtering.
 
 ## Workspace Operations
 
-Project-wide operations and analysis (7 tools).
+Project-wide operations and analysis (6 tools).
 
 ### `rename_directory`
 
@@ -1617,173 +1617,6 @@ codebuddy tool batch_execute '{
 
 ---
 
-### `rename_symbol_with_imports`
-
-High-level workflow combining symbol rename with import updates.
-
-**Implementation:** Workflow-based via `achieve_intent`
-
-**Parameters:**
-```json
-{
-  "intent": "refactor.renameSymbolWithImports",
-  "arguments": {
-    "file_path": "src/utils.ts",
-    "old_name": "formatDate",
-    "new_name": "formatDateTime"
-  }
-}
-```
-
-**Workflow Steps:**
-1. Calls `rename_symbol` (LSP-based)
-2. LSP server generates `WorkspaceEdit` with import updates
-3. User confirmation prompt
-4. Apply edits atomically
-
-**Returns:**
-```json
-{
-  "workflow_id": "wf_abc123",
-  "status": "completed",
-  "steps": [
-    {"step": "rename_symbol", "status": "completed"},
-    {"step": "confirm", "status": "completed"},
-    {"step": "apply_edits", "status": "completed"}
-  ],
-  "result": {
-    "files_modified": 5,
-    "symbols_renamed": 12
-  }
-}
-```
-
-**Invocation:**
-```bash
-codebuddy tool achieve_intent '{"intent":"refactor.renameSymbolWithImports","arguments":{...}}'
-```
-
----
-
-### `achieve_intent`
-
-Execute high-level workflows via intent-based planning.
-
-**Parameters:**
-```json
-{
-  "intent": "refactor.renameSymbolWithImports",    // Required: Intent name
-  "arguments": {                                   // Required: Intent-specific args
-    "file_path": "src/app.ts",
-    "old_name": "foo",
-    "new_name": "bar"
-  },
-  "resume_workflow_id": null                       // Optional: Resume existing workflow
-}
-```
-
-**Returns (planning):**
-```json
-{
-  "workflow_id": "wf_abc123",
-  "status": "planned",
-  "steps": [
-    {"step": "rename_symbol", "status": "pending"},
-    {"step": "apply_edits", "status": "pending"}
-  ],
-  "requires_confirmation": true
-}
-```
-
-**Returns (completed):**
-```json
-{
-  "workflow_id": "wf_abc123",
-  "status": "completed",
-  "result": {
-    "success": true,
-    "files_modified": 3
-  }
-}
-```
-
-**Configuration:**
-- Workflows defined in `.codebuddy/workflows.json`
-- Custom workflows can be added without code changes
-
----
-
-## LSP Lifecycle
-
-Notify LSP servers of file lifecycle events.
-
-### `notify_file_opened`
-
-Notify LSP servers that a file was opened.
-
-**Parameters:**
-```json
-{
-  "file_path": "src/app.ts"    // Required: File path
-}
-```
-
-**Returns:**
-```json
-{
-  "success": true,
-  "notified_servers": ["typescript"]
-}
-```
-
-**Notes:**
-- Triggers plugin hooks
-- Enables proper LSP indexing
-
----
-
-### `notify_file_saved`
-
-Notify LSP servers that a file was saved.
-
-**Parameters:**
-```json
-{
-  "file_path": "src/app.ts"    // Required: File path
-}
-```
-
-**Returns:**
-```json
-{
-  "success": true,
-  "notified_servers": ["typescript"]
-}
-```
-
----
-
-### `notify_file_closed`
-
-Notify LSP servers that a file was closed.
-
-**Parameters:**
-```json
-{
-  "file_path": "src/app.ts"    // Required: File path
-}
-```
-
-**Returns:**
-```json
-{
-  "success": true,
-  "notified_servers": ["typescript"]
-}
-```
-
----
-
 ## System & Health
 
 System health monitoring and web fetching (3 tools).
@@ -1876,6 +1709,151 @@ Get basic system operational status.
 **Notes:**
 - Lightweight status check without detailed metrics
 - Use `health_check` for comprehensive diagnostics
+
+---
+
+## Internal Tools
+
+**Backend-only tools (5 tools) - Not exposed via MCP `tools/list`**
+
+These tools are used internally by the CodeBuddy workflow system and LSP protocol interop. They are **not visible** to AI agents via MCP tool listings, but remain callable by the backend for orchestration and plugin lifecycle management.
+
+**Why hidden:**
+- AI agents use higher-level tools (e.g., `rename_symbol` instead of `rename_symbol_with_imports`)
+- These tools are implementation details / workflow plumbing
+- Simplifies the API surface for AI agent developers
+
+### `notify_file_opened`
+
+**Purpose:** Notify LSP servers that a file was opened (lifecycle hook)
+
+**Parameters:**
+```json
+{
+  "file_path": "src/app.ts"    // Required: File path
+}
+```
+
+**Returns:**
+```json
+{
+  "success": true,
+  "notified_servers": ["typescript"]
+}
+```
+
+**Usage:** Backend editors/IDEs notify LSP servers to enable proper indexing and plugin hooks
+
+---
+
+### `notify_file_saved`
+
+**Purpose:** Notify LSP servers that a file was saved (lifecycle hook)
+
+**Parameters:**
+```json
+{
+  "file_path": "src/app.ts"    // Required: File path
+}
+```
+
+**Returns:**
+```json
+{
+  "success": true,
+  "notified_servers": ["typescript"]
+}
+```
+
+**Usage:** Backend editors/IDEs notify LSP servers after file saves
+
+---
+
+### `notify_file_closed`
+
+**Purpose:** Notify LSP servers that a file was closed (lifecycle hook)
+
+**Parameters:**
+```json
+{
+  "file_path": "src/app.ts"    // Required: File path
+}
+```
+
+**Returns:**
+```json
+{
+  "success": true,
+  "notified_servers": ["typescript"]
+}
+```
+
+**Usage:** Backend editors/IDEs notify LSP servers to clean up resources
+
+---
+
+### `rename_symbol_with_imports`
+
+**Purpose:** Internal workflow tool combining symbol rename with import updates
+
+**Implementation:** Workflow-based wrapper around `rename_symbol`
+
+**Parameters:**
+```json
+{
+  "file_path": "src/utils.ts",
+  "old_name": "formatDate",
+  "new_name": "formatDateTime",
+  "dry_run": false
+}
+```
+
+**Returns:**
+```json
+{
+  "success": true,
+  "files_modified": 5,
+  "symbols_renamed": 12
+}
+```
+
+**Usage:** Called by workflow planner when orchestrating multi-step refactorings. AI agents should use `rename_symbol` or `rename_symbol_strict` directly.
+
+---
+
+### `apply_workspace_edit`
+
+**Purpose:** Apply LSP workspace edits (multi-file refactoring operations)
+
+**Implementation:** Converts LSP `WorkspaceEdit` format to CodeBuddy `EditPlan` and applies atomically
+
+**Parameters:**
+```json
+{
+  "changes": {
+    "file:///path/to/file1.ts": [
+      {
+        "range": {
+          "start": {"line": 10, "character": 0},
+          "end": {"line": 10, "character": 10}
+        },
+        "newText": "newSymbolName"
+      }
+    ]
+  },
+  "dry_run": false
+}
+```
+
+**Returns:**
+```json
+{
+  "applied": true,
+  "files_modified": ["file1.ts", "file2.ts"]
+}
+```
+
+**Usage:** Called internally when LSP servers return workspace edits for refactoring operations. AI agents should use high-level refactoring tools like `rename_symbol`, `extract_function`, etc.
 
 ---
 

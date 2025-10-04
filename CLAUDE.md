@@ -10,18 +10,20 @@ Pure Rust MCP server bridging Language Server Protocol (LSP) functionality to AI
 
 ## MCP Tools
 
-Codebuddy provides 45 MCP tools for code intelligence and refactoring. See **[API.md](API.md)** for complete API reference.
+Codebuddy provides **40 public MCP tools** for code intelligence and refactoring. See **[API.md](API.md)** for complete API reference.
+
+**Note:** 5 additional internal tools exist for backend use only (lifecycle hooks, workflow plumbing). These are hidden from MCP `tools/list` to simplify the API surface. See [API.md Internal Tools](API.md#internal-tools) section.
 
 ### Quick Reference
 
-**Navigation & Intelligence** (14 tools)
+**Navigation & Intelligence** (13 tools)
 - `find_definition`, `find_references`, `search_workspace_symbols`
 - `get_document_symbols`, `get_hover`, `get_completions`
 - `get_signature_help`, `get_diagnostics`
 - `prepare_call_hierarchy`, `get_call_hierarchy_incoming_calls`, `get_call_hierarchy_outgoing_calls`
-- `find_implementations`, `find_type_definition`
+- `find_implementations`, `find_type_definition`, `web_fetch`
 
-**Editing & Refactoring** (10 tools)
+**Editing & Refactoring** (9 tools)
 - `rename_symbol`, `rename_symbol_strict`
 - `organize_imports`, `fix_imports`, `get_code_actions`, `format_document`
 - `extract_function`, `inline_variable`, `extract_variable`
@@ -31,22 +33,18 @@ Codebuddy provides 45 MCP tools for code intelligence and refactoring. See **[AP
 - `rename_file` (auto-updates imports)
 - `list_files`
 
-**Workspace Operations** (8 tools)
+**Workspace Operations** (6 tools)
 - `rename_directory` (auto-updates imports, supports Rust crate consolidation)
 - `analyze_imports`, `find_dead_code`, `update_dependencies`
 - `extract_module_to_package`, `update_dependency`, `batch_update_dependencies`
-- `apply_workspace_edit` (applies LSP workspace edits)
 
 **Advanced Operations** (2 tools)
 - `apply_edits` (atomic multi-file edits)
 - `batch_execute` (batch file operations)
 - See [docs/features/WORKFLOWS.md](docs/features/WORKFLOWS.md) for intent-based workflow automation
 
-**LSP Lifecycle** (3 tools)
-- `notify_file_opened`, `notify_file_saved`, `notify_file_closed`
-
-**System & Health** (2 tools)
-- `health_check`, `web_fetch`
+**System & Health** (3 tools)
+- `health_check`, `web_fetch`, `system_status`
 
 ### MCP Usage Pattern
 

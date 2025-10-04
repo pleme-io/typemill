@@ -3,7 +3,9 @@
 **Version:** 1.0.0-rc1
 **Last Updated:** 2025-10-04
 
-Quick reference for all 44 MCP tools. For detailed API documentation, see [API.md](API.md).
+Quick reference for all 40 public MCP tools. For detailed API documentation, see [API.md](API.md).
+
+**Note:** 5 additional internal tools exist for backend use only (lifecycle hooks, workflow plumbing). See [API.md Internal Tools](API.md#internal-tools) section for details.
 
 ---
 
@@ -27,13 +29,12 @@ Quick reference for all 44 MCP tools. For detailed API documentation, see [API.m
 
 ---
 
-## Editing & Refactoring (10 tools)
+## Editing & Refactoring (9 tools)
 
 | Tool | Description | Required Parameters | Returns |
 |------|-------------|---------------------|---------|
 | `rename_symbol` | Rename a symbol across the project by name | `file_path`, `symbol_name`, `new_name` | Workspace edits with file changes |
 | `rename_symbol_strict` | Rename a symbol at a specific position | `file_path`, `line`, `character`, `new_name` | Workspace edits with file changes |
-| `rename_symbol_with_imports` | Rename symbol and update all imports | `file_path`, `old_name`, `new_name` | Files modified count |
 | `organize_imports` | Organize and sort imports, remove unused | `file_path` | Import changes applied |
 | `fix_imports` | Alias for organize_imports | `file_path` | Import changes applied |
 | `get_code_actions` | Get available quick fixes and refactorings | `file_path` | Array of code actions |
@@ -57,7 +58,7 @@ Quick reference for all 44 MCP tools. For detailed API documentation, see [API.m
 
 ---
 
-## Workspace Operations (7 tools)
+## Workspace Operations (6 tools)
 
 | Tool | Description | Required Parameters | Returns |
 |------|-------------|---------------------|---------|
@@ -77,16 +78,6 @@ Quick reference for all 44 MCP tools. For detailed API documentation, see [API.m
 |------|-------------|---------------------|---------|
 | `apply_edits` | Apply atomic multi-file edits with rollback | `edit_plan` | Files modified, edits applied |
 | `batch_execute` | Execute multiple file operations atomically | `operations` (array) | Results per operation |
-
----
-
-## LSP Lifecycle (3 tools)
-
-| Tool | Description | Required Parameters | Returns |
-|------|-------------|---------------------|---------|
-| `notify_file_opened` | Notify LSP servers that file was opened | `file_path` | Notified servers list |
-| `notify_file_saved` | Notify LSP servers that file was saved | `file_path` | Notified servers list |
-| `notify_file_closed` | Notify LSP servers that file was closed | `file_path` | Notified servers list |
 
 ---
 

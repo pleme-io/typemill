@@ -73,6 +73,7 @@ async fn test_large_file_performance() {
 
     match response {
         Ok(resp) => {
+            eprintln!("GET_DOCUMENT_SYMBOLS RESPONSE: {}", serde_json::to_string_pretty(&resp).unwrap());
             println!(
                 "LSP document symbols on large file took: {:?}",
                 lsp_duration
@@ -80,10 +81,10 @@ async fn test_large_file_performance() {
             let result = resp
                 .get("result")
                 .expect("Response should have result field");
-            let content = result
+            let symbols = result
                 .get("content")
-                .expect("Response should have content field");
-            let symbols = content["symbols"].as_array().unwrap();
+                .and_then(|v| v.as_array())
+                .expect("Response should have content array");
             assert!(!symbols.is_empty());
         }
         Err(_) => {
@@ -176,10 +177,10 @@ export function process{}(data: Data{}): string {{
     let result = response
         .get("result")
         .expect("Response should have result field");
-    let content = result
+    let symbols = result
         .get("content")
-        .expect("Response should have content field");
-    let symbols = content["symbols"].as_array().unwrap();
+        .and_then(|v| v.as_array())
+        .expect("Response should have content array");
     println!(
         "Workspace symbol search found {} symbols in: {:?}",
         symbols.len(),
@@ -742,10 +743,10 @@ export class UserService{} {{
     let result = response
         .get("result")
         .expect("Response should have result field");
-    let content = result
+    let symbols = result
         .get("content")
-        .expect("Response should have content field");
-    let symbols = content["symbols"].as_array().unwrap();
+        .and_then(|v| v.as_array())
+        .expect("Response should have content array");
     println!(
         "Workspace symbol search found {} symbols in: {:?}",
         symbols.len(),
