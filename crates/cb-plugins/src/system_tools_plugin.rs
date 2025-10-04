@@ -378,7 +378,7 @@ impl SystemToolsPlugin {
         })?;
 
         // Convert HTML to Markdown for easier AI processing
-        let markdown_content = html2md::parse_html(&html_content);
+        let markdown_content = html2md_rs::to_md::from_html_to_md(html_content);
 
         Ok(json!({
             "url": args.url,

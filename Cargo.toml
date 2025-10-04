@@ -60,12 +60,7 @@ dashmap = "5.5"
 opt-level = 3
 lto = true
 codegen-units = 1
-# WORKAROUND: panic = "abort" disabled due to html2md dependency incompatibility
-# Status: Waiting for upstream fix or exploring alternatives
-# Impact: ~50KB larger binary, slightly slower panic handling
-# Rust Issue: https://github.com/rust-lang/rust/issues/64926
-# TODO: Re-evaluate in Q2 2025 or when html2md updates
-panic = "unwind"
+panic = "abort"  # Restored: html2md-rs is compatible with abort strategy
 
 [profile.dev]
 opt-level = 0
