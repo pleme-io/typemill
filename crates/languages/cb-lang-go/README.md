@@ -324,11 +324,15 @@ registry.register(Arc::new(cb_lang_go::GoPlugin::new()));
 
 ## Contributing
 
-See [CONTRIBUTING.md](../../../CONTRIBUTING.md) for:
+For creating new language plugins, see the **[Language Plugins Guide](../README.md)** which covers:
+- Plugin structure and schema requirements
+- `LanguageIntelligencePlugin` trait implementation
+- Plugin registration steps
+- Testing and logging standards
+
+For general contribution guidelines, see [CONTRIBUTING.md](../../../CONTRIBUTING.md):
 - Code standards
-- Testing requirements
 - PR process
-- Logging guidelines
 
 ## License
 

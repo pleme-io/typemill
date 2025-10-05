@@ -99,6 +99,17 @@ We use the standard Rust formatting and linting tools to maintain a consistent c
 
 5.  **Open a Pull Request:** Go to the repository on GitHub and open a new pull request. Provide a clear title and description of your changes.
 
+## Adding New Language Plugins
+
+To add support for a new programming language, see the **[Language Plugins Guide](crates/languages/README.md)** which provides:
+
+- Complete plugin structure and schema requirements
+- Required trait implementations (`LanguageIntelligencePlugin`)
+- Data types (ParsedSource, Symbol, ManifestData)
+- Plugin registration steps
+- Implementation patterns (dual-mode vs pure Rust)
+- Reference implementations (Rust, Go, TypeScript)
+
 ## Adding New MCP Tools
 
 This section explains how to add new tools and handlers to the system.

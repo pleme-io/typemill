@@ -625,12 +625,15 @@ ApiError ← CoreError ← ServerError ← Transport-specific errors
 4. **Add Tests**: Unit and integration tests
 5. **Update Documentation**: Tool-specific documentation
 
-### Plugin Development
+### Language Plugin Development
 
-1. **Create Plugin Crate**: New crate under `cb-plugins`
-2. **Implement Trait**: Implement `LanguagePlugin` trait
-3. **Register Plugin**: Add to plugin manager
-4. **Test Integration**: End-to-end testing
+For adding support for new programming languages, see the **[Language Plugins Guide](../../crates/languages/README.md)** which provides:
+
+1. **Plugin Structure**: Directory layout and file organization
+2. **Trait Implementation**: `LanguageIntelligencePlugin` trait requirements
+3. **Registration**: Plugin registration in `language_plugin_registry.rs`
+4. **Testing**: Unit and integration test requirements
+5. **Reference Examples**: Rust, Go, TypeScript plugin implementations
 
 This architecture provides a robust, scalable foundation for bridging MCP and LSP protocols while maintaining excellent performance and reliability characteristics through Rust's safety guarantees and zero-cost abstractions.
 

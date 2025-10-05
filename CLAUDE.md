@@ -441,7 +441,18 @@ cargo build --release
 - **Memory safety** - Rust's ownership system prevents common vulnerabilities
 - **Type safety** - Compile-time prevention of data races and null pointer errors
 
-## Adding New MCP Tools (For Contributors)
+## For Contributors
+
+### Adding New Language Plugins
+
+**See [crates/languages/README.md](crates/languages/README.md)** for complete guide on implementing language plugins:
+- Plugin structure and schema requirements
+- `LanguageIntelligencePlugin` trait implementation
+- Data types (ParsedSource, Symbol, ManifestData)
+- Plugin registration and testing
+- Reference implementations (Rust, Go, TypeScript)
+
+### Adding New MCP Tools
 
 **See [CONTRIBUTING.md](CONTRIBUTING.md)** for complete step-by-step guide on adding new tools with handler architecture, registration, and best practices.
 
