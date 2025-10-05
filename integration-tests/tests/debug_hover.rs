@@ -79,7 +79,7 @@ class StringProcessor implements DataProcessor<string> {
         })).await {
             Ok(response) => {
                 // Try to extract hover content
-                let hover_text = response
+                let hover_content = response
                     .get("result")
                     .and_then(|r| r.get("content"))
                     .and_then(|c| c.get("hover"))
@@ -89,11 +89,24 @@ class StringProcessor implements DataProcessor<string> {
                             .get("result")
                             .and_then(|r| r.get("content"))
                             .and_then(|c| c.get("contents"))
-                    })
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("<no text>");
+                    });
 
-                if hover_text.is_empty() || hover_text == "<no text>" {
+                // Handle LSP hover content which can be either:
+                // 1. An object with {kind: "markdown", value: "text"}
+                // 2. A plain string
+                let hover_text = if let Some(content) = hover_content {
+                    if let Some(obj) = content.as_object() {
+                        obj.get("value")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                    } else {
+                        content.as_str().unwrap_or("")
+                    }
+                } else {
+                    ""
+                };
+
+                if hover_text.is_empty() {
                     println!("  ❌ EMPTY or no hover");
                     println!("  Full response: {}", serde_json::to_string_pretty(&response).unwrap());
                 } else {

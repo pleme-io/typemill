@@ -519,7 +519,18 @@ function createProcessor<T>(type: string): DataProcessor<T> | null {
         .and_then(|h| h.get("contents"))
         .or_else(|| content_field.get("contents"))
         .expect("Content should have hover.contents or contents field");
-    let hover_text = hover_content.as_str().unwrap_or("");
+
+    // Handle LSP hover content which can be either:
+    // 1. An object with {kind: "markdown", value: "text"}
+    // 2. A plain string
+    let hover_text = if let Some(obj) = hover_content.as_object() {
+        obj.get("value")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+    } else {
+        hover_content.as_str().unwrap_or("")
+    };
+
     assert!(
         hover_text.contains("DataProcessor") || hover_text.contains("interface"),
         "Hover should show interface information, got: {}",
