@@ -107,6 +107,8 @@ impl LanguageIntelligencePlugin for PythonPlugin {
         match filename {
             "requirements.txt" => manifest::parse_requirements_txt(path).await,
             "pyproject.toml" => manifest::parse_pyproject_toml(path).await,
+            "setup.py" => manifest::parse_setup_py(path).await,
+            "Pipfile" => manifest::parse_pipfile(path).await,
             _ => Err(cb_plugin_api::PluginError::not_supported(format!(
                 "Unsupported Python manifest file: {}",
                 filename

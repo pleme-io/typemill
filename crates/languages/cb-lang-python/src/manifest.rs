@@ -194,6 +194,179 @@ fn dependency_spec_to_version(spec: &DependencySpec) -> String {
     }
 }
 
+/// Parse setup.py file
+///
+/// Extracts basic metadata and dependencies from setup.py
+/// Note: This is a best-effort parser for common setup.py patterns
+pub async fn parse_setup_py(path: &Path) -> PluginResult<ManifestData> {
+    let content = tokio::fs::read_to_string(path)
+        .await
+        .map_err(|e| PluginError::manifest(format!("Failed to read setup.py: {}", e)))?;
+
+    let mut name = "python-project".to_string();
+    let mut version = "0.1.0".to_string();
+    let mut dependencies = Vec::new();
+    let mut dev_dependencies = Vec::new();
+
+    // Extract name from setup(name="...")
+    if let Some(name_match) = regex::Regex::new(r#"name\s*=\s*["']([^"']+)["']"#)
+        .unwrap()
+        .captures(&content)
+    {
+        if let Some(n) = name_match.get(1) {
+            name = n.as_str().to_string();
+        }
+    }
+
+    // Extract version from setup(version="...")
+    if let Some(version_match) = regex::Regex::new(r#"version\s*=\s*["']([^"']+)["']"#)
+        .unwrap()
+        .captures(&content)
+    {
+        if let Some(v) = version_match.get(1) {
+            version = v.as_str().to_string();
+        }
+    }
+
+    // Extract install_requires dependencies
+    if let Some(install_requires) = extract_list_from_setup(&content, "install_requires") {
+        for dep in install_requires {
+            if let Some((dep_name, dep_version)) = parse_requirement_line(&dep) {
+                dependencies.push(Dependency {
+                    name: dep_name,
+                    source: DependencySource::Version(dep_version),
+                });
+            }
+        }
+    }
+
+    // Extract extras_require dependencies (treat as dev dependencies)
+    if let Some(extras_require) = extract_list_from_setup(&content, "extras_require") {
+        for dep in extras_require {
+            if let Some((dep_name, dep_version)) = parse_requirement_line(&dep) {
+                dev_dependencies.push(Dependency {
+                    name: dep_name,
+                    source: DependencySource::Version(dep_version),
+                });
+            }
+        }
+    }
+
+    debug!(
+        name = %name,
+        version = %version,
+        dependencies_count = dependencies.len(),
+        dev_dependencies_count = dev_dependencies.len(),
+        "Parsed setup.py"
+    );
+
+    Ok(ManifestData {
+        name,
+        version,
+        dependencies,
+        dev_dependencies,
+        raw_data: json!({ "format": "setup.py" }),
+    })
+}
+
+/// Extract list values from setup() call
+fn extract_list_from_setup(content: &str, key: &str) -> Option<Vec<String>> {
+    let pattern = format!(r#"{}\s*=\s*\[(.*?)\]"#, regex::escape(key));
+    let re = regex::Regex::new(&pattern).ok()?;
+
+    let captures = re.captures(content)?;
+    let list_content = captures.get(1)?.as_str();
+
+    let mut items = Vec::new();
+    for item in list_content.split(',') {
+        let item = item.trim();
+        // Remove quotes
+        let item = item.trim_matches(|c| c == '"' || c == '\'');
+        if !item.is_empty() {
+            items.push(item.to_string());
+        }
+    }
+
+    Some(items)
+}
+
+/// Parse Pipfile
+///
+/// Pipfile uses TOML-like format for dependency management
+pub async fn parse_pipfile(path: &Path) -> PluginResult<ManifestData> {
+    let content = tokio::fs::read_to_string(path)
+        .await
+        .map_err(|e| PluginError::manifest(format!("Failed to read Pipfile: {}", e)))?;
+
+    let pipfile: PipfileFormat = toml::from_str(&content)
+        .map_err(|e| PluginError::parse(format!("Failed to parse Pipfile: {}", e)))?;
+
+    // Extract project name from directory
+    let name = path
+        .parent()
+        .and_then(|p| p.file_name())
+        .and_then(|n| n.to_str())
+        .unwrap_or("python-project")
+        .to_string();
+
+    let version = "0.1.0".to_string(); // Pipfile doesn't specify version
+
+    let mut dependencies = Vec::new();
+    let mut dev_dependencies = Vec::new();
+
+    // Parse regular packages
+    if let Some(packages) = pipfile.packages {
+        for (name, spec) in packages {
+            let version = pipfile_spec_to_version(&spec);
+            dependencies.push(Dependency {
+                name,
+                source: DependencySource::Version(version),
+            });
+        }
+    }
+
+    // Parse dev-packages
+    if let Some(dev_packages) = pipfile.dev_packages {
+        for (name, spec) in dev_packages {
+            let version = pipfile_spec_to_version(&spec);
+            dev_dependencies.push(Dependency {
+                name,
+                source: DependencySource::Version(version),
+            });
+        }
+    }
+
+    debug!(
+        name = %name,
+        version = %version,
+        dependencies_count = dependencies.len(),
+        dev_dependencies_count = dev_dependencies.len(),
+        "Parsed Pipfile"
+    );
+
+    Ok(ManifestData {
+        name,
+        version,
+        dependencies,
+        dev_dependencies,
+        raw_data: json!({ "format": "Pipfile" }),
+    })
+}
+
+/// Convert Pipfile dependency spec to version string
+fn pipfile_spec_to_version(spec: &PipfileSpec) -> String {
+    match spec {
+        PipfileSpec::Simple(version) => version.clone(),
+        PipfileSpec::Detailed(details) => {
+            if let Some(version) = &details.version {
+                version.clone()
+            } else {
+                "*".to_string()
+            }
+        }
+    }
+}
+
 /// Update a dependency in requirements.txt
 pub async fn update_requirements_txt(
     path: &Path,
@@ -375,6 +548,33 @@ enum DependencySpec {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 struct DetailedDependency {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    git: Option<String>,
+}
+
+// Pipfile data structures
+
+#[derive(Debug, Deserialize, Serialize)]
+struct PipfileFormat {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    packages: Option<HashMap<String, PipfileSpec>>,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "dev-packages")]
+    dev_packages: Option<HashMap<String, PipfileSpec>>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(untagged)]
+enum PipfileSpec {
+    Simple(String),
+    Detailed(PipfileDetailedDependency),
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+struct PipfileDetailedDependency {
     #[serde(skip_serializing_if = "Option::is_none")]
     version: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

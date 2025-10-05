@@ -135,7 +135,8 @@ export { main, oldName };
 /// Create application state for testing with the given project root
 async fn create_test_app_state(project_root: PathBuf) -> Arc<AppState> {
     let ast_cache = Arc::new(AstCache::new());
-    let ast_service: Arc<dyn AstService> = Arc::new(DefaultAstService::new(ast_cache.clone()));
+    let plugin_registry = Arc::new(cb_plugin_api::PluginRegistry::new());
+    let ast_service: Arc<dyn AstService> = Arc::new(DefaultAstService::new(ast_cache.clone(), plugin_registry.clone()));
     let lock_manager = Arc::new(LockManager::new());
     let operation_queue = Arc::new(OperationQueue::new(lock_manager.clone()));
     let config = cb_core::AppConfig::default();
@@ -145,6 +146,7 @@ async fn create_test_app_state(project_root: PathBuf) -> Arc<AppState> {
         lock_manager.clone(),
         operation_queue.clone(),
         &config,
+        plugin_registry.clone(),
     ));
     let planner = cb_server::services::planner::DefaultPlanner::new();
     let plugin_manager = Arc::new(PluginManager::new());

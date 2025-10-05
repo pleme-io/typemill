@@ -55,6 +55,8 @@ fn detect_language(file_path: &str) -> &str {
         "typescript"
     } else if file_path.ends_with(".js") || file_path.ends_with(".jsx") {
         "javascript"
+    } else if file_path.ends_with(".py") {
+        "python"
     } else {
         "unknown"
     }
@@ -319,6 +321,17 @@ pub async fn plan_extract_function(
         "typescript" | "javascript" => {
             ast_extract_function_ts_js(source, range, new_function_name, file_path)
         }
+        #[cfg(feature = "lang-python")]
+        "python" => {
+            let python_range = cb_lang_python::refactoring::CodeRange {
+                start_line: range.start_line,
+                start_col: range.start_col,
+                end_line: range.end_line,
+                end_col: range.end_col,
+            };
+            cb_lang_python::refactoring::plan_extract_function(source, &python_range, new_function_name, file_path)
+                .map_err(|e| AstError::analysis(e.to_string()))
+        }
         _ => Err(AstError::analysis(format!(
             "Language not supported. LSP server may provide this via code actions for: {}",
             file_path
@@ -423,6 +436,11 @@ pub async fn plan_inline_variable(
         "typescript" | "javascript" => {
             let analysis = analyze_inline_variable(source, variable_line, variable_col, file_path)?;
             ast_inline_variable_ts_js(source, &analysis)
+        }
+        #[cfg(feature = "lang-python")]
+        "python" => {
+            cb_lang_python::refactoring::plan_inline_variable(source, variable_line, variable_col, file_path)
+                .map_err(|e| AstError::analysis(e.to_string()))
         }
         _ => Err(AstError::analysis(format!(
             "Language not supported. LSP server may provide this via code actions for: {}",
@@ -703,6 +721,13 @@ pub async fn plan_extract_variable(
                 source, start_line, start_col, end_line, end_col, file_path,
             )?;
             ast_extract_variable_ts_js(source, &analysis, variable_name, file_path)
+        }
+        #[cfg(feature = "lang-python")]
+        "python" => {
+            cb_lang_python::refactoring::plan_extract_variable(
+                source, start_line, start_col, end_line, end_col, variable_name, file_path
+            )
+                .map_err(|e| AstError::analysis(e.to_string()))
         }
         _ => Err(AstError::analysis(format!(
             "Language not supported. LSP server may provide this via code actions for: {}",

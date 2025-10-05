@@ -21,7 +21,7 @@ use tracing::{debug, warn};
 /// This function spawns a Python subprocess to perform the parsing.
 pub fn list_functions(source: &str) -> PluginResult<Vec<String>> {
     let python_executable = "python3";
-    let script_path = format!("{}/../../../../scripts/ast_tool.py", env!("CARGO_MANIFEST_DIR"));
+    let script_path = format!("{}/resources/ast_tool.py", env!("CARGO_MANIFEST_DIR"));
 
     let mut child = Command::new(python_executable)
         .arg(&script_path)
