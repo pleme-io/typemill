@@ -35,6 +35,10 @@ cb-lang-go = { path = "../languages/cb-lang-go" }
 cb-lang-typescript = { path = "../languages/cb-lang-typescript" }
 chrono = "0.4"
 
+[features]
+default = []
+mcp-proxy = ["cb-core/mcp-proxy", "cb-plugins/mcp-proxy"]
+
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 

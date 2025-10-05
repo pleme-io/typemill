@@ -24,6 +24,10 @@ reqwest = { version = "0.12", features = ["blocking", "rustls-tls"], default-fea
 html2md-rs = "0.10"
 url = "2.4"
 
+[features]
+default = []
+mcp-proxy = []
+
 [dev-dependencies]
 tokio-test = "0.4"
 insta = { version = "1.43", features = ["yaml"] }

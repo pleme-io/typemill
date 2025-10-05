@@ -431,9 +431,6 @@ mod tests {
     /// Test the placeholder resolution logic
     #[test]
     fn test_resolve_simple_placeholder() {
-        let plugin_manager = Arc::new(PluginManager::new());
-        let executor = DefaultWorkflowExecutor::new(plugin_manager);
-
         let mut step_results = HashMap::new();
         step_results.insert(
             0,
@@ -464,9 +461,6 @@ mod tests {
 
     #[test]
     fn test_resolve_nested_placeholders() {
-        let plugin_manager = Arc::new(PluginManager::new());
-        let executor = DefaultWorkflowExecutor::new(plugin_manager);
-
         let mut step_results = HashMap::new();
         step_results.insert(
             0,
@@ -492,9 +486,6 @@ mod tests {
 
     #[test]
     fn test_resolve_multiple_placeholders() {
-        let plugin_manager = Arc::new(PluginManager::new());
-        let executor = DefaultWorkflowExecutor::new(plugin_manager);
-
         let mut step_results = HashMap::new();
         step_results.insert(
             0,
@@ -520,9 +511,6 @@ mod tests {
 
     #[test]
     fn test_resolve_placeholder_not_executed() {
-        let plugin_manager = Arc::new(PluginManager::new());
-        let executor = DefaultWorkflowExecutor::new(plugin_manager);
-
         let step_results = HashMap::new();
         let params = json!({
             "value": "$steps.0.result"
@@ -542,9 +530,6 @@ mod tests {
 
     #[test]
     fn test_resolve_placeholder_missing_field() {
-        let plugin_manager = Arc::new(PluginManager::new());
-        let executor = DefaultWorkflowExecutor::new(plugin_manager);
-
         let mut step_results = HashMap::new();
         step_results.insert(
             0,
@@ -571,9 +556,6 @@ mod tests {
 
     #[test]
     fn test_resolve_invalid_placeholder_format() {
-        let plugin_manager = Arc::new(PluginManager::new());
-        let executor = DefaultWorkflowExecutor::new(plugin_manager);
-
         let step_results = HashMap::new();
         let params = json!({
             "value": "$steps.invalid"
@@ -599,9 +581,6 @@ mod tests {
 
     #[test]
     fn test_resolve_placeholder_in_array() {
-        let plugin_manager = Arc::new(PluginManager::new());
-        let executor = DefaultWorkflowExecutor::new(plugin_manager);
-
         let mut step_results = HashMap::new();
         step_results.insert(
             0,

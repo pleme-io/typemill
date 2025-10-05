@@ -45,7 +45,7 @@ tempfile = "3.0"
 
 [features]
 default = []
-mcp-proxy = ["cb-core/mcp-proxy"]
+mcp-proxy = ["cb-core/mcp-proxy", "cb-services/mcp-proxy"]
 test-helpers = []
 
 [dev-dependencies]

@@ -192,7 +192,7 @@ pub async fn register_mcp_proxy_if_enabled(
     external_mcp_config: Option<&cb_core::config::ExternalMcpConfig>,
 ) -> Result<(), cb_protocol::ApiError> {
     if let Some(config) = external_mcp_config {
-        use cb_mcp_proxy::McpProxyPlugin;
+        use cb_plugins::mcp::McpProxyPlugin;
         use cb_plugins::LanguagePlugin;
 
         tracing::info!(

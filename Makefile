@@ -1,7 +1,7 @@
 # CodeBuddy Makefile
 # Simple build automation for common development tasks
 
-.PHONY: build release test install uninstall clean setup help clippy fmt check check-duplicates dev watch ci
+.PHONY: build release test install uninstall clean setup help clippy fmt audit check check-duplicates dev watch ci
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -84,7 +84,11 @@ clippy:
 fmt:
 	cargo fmt --all --check
 
-check: fmt clippy test
+audit:
+	@echo "🔒 Running security audit..."
+	cargo audit
+
+check: fmt clippy test audit
 
 check-duplicates:
 	@./scripts/check-duplicates.sh
@@ -122,7 +126,8 @@ help:
 	@echo "✅ Code Quality:"
 	@echo "  make clippy   - Run clippy linter"
 	@echo "  make fmt      - Check code formatting"
-	@echo "  make check    - Run fmt + clippy + test"
+	@echo "  make audit    - Run security audit (cargo-audit)"
+	@echo "  make check    - Run fmt + clippy + test + audit"
 	@echo "  make check-duplicates - Detect duplicate code & complexity"
 	@echo "  make ci       - Run all CI checks (for CI/CD)"
 	@echo ""

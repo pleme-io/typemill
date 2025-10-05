@@ -5,7 +5,7 @@ use cb_core::config::{AppConfig, ExternalMcpConfig, ExternalMcpServerConfig};
 use std::path::Path;
 
 #[cfg(feature = "mcp-proxy")]
-use cb_mcp_proxy::presets;
+use cb_plugins::mcp::presets;
 
 /// List available MCP presets
 pub fn list_presets() -> Result<()> {
