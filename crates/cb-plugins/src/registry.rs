@@ -44,7 +44,7 @@ impl PluginRegistry {
     /// * `overrides` - Map of plugin name to priority value (higher = more preferred)
     ///
     /// # Example
-    /// ```ignore
+    /// ```text
     /// let mut overrides = HashMap::new();
     /// overrides.insert("typescript-plugin".to_string(), 100);
     /// overrides.insert("generic-lsp-plugin".to_string(), 50);
@@ -211,7 +211,7 @@ impl PluginRegistry {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```text
     /// let plugin = registry.find_best_plugin(
     ///     Path::new("src/main.ts"),
     ///     "find_definition"

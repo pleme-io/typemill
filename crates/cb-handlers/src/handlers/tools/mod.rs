@@ -61,7 +61,7 @@ mod dispatch {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```text
     /// let result = dispatch_to_language_plugin(
     ///     &context,
     ///     "src/main.rs",
@@ -154,7 +154,7 @@ pub type ToolContext = ToolHandlerContext;
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```text
 /// use cb_server::handlers::tools::{ToolHandler, ToolHandlerContext};
 /// use cb_core::model::mcp::ToolCall;
 /// use async_trait::async_trait;

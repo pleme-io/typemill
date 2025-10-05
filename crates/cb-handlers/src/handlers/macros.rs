@@ -7,7 +7,7 @@
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```text
 /// register_handlers!(registry, {
 ///     SystemHandler,
 ///     LifecycleHandler,
@@ -16,7 +16,7 @@
 /// ```
 ///
 /// This macro expands to:
-/// ```rust,ignore
+/// ```text
 /// registry.register(Arc::new(SystemHandler::new()));
 /// registry.register(Arc::new(LifecycleHandler::new()));
 /// registry.register(Arc::new(WorkspaceHandler::new()));
@@ -41,7 +41,7 @@ macro_rules! register_handlers {
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```text
 /// register_handlers_with_logging!(registry, {
 ///     SystemHandler => "SystemHandler with 3 tools (health_check, web_fetch, system_status)",
 ///     LifecycleHandler => "LifecycleHandler with 3 tools (notify_file_opened, notify_file_saved, notify_file_closed)",
@@ -76,14 +76,14 @@ macro_rules! register_handlers_with_logging {
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```text
 /// async fn handle_tool(&self, tool_call: ToolCall, context: &compat::ToolContext) -> ServerResult<Value> {
 ///     delegate_to_legacy!(self, context, tool_call)
 /// }
 /// ```
 ///
 /// This expands to:
-/// ```rust,ignore
+/// ```text
 /// {
 ///     let legacy_context = ToolContext {
 ///         app_state: context.app_state.clone(),
