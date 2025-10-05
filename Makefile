@@ -1,7 +1,10 @@
 # CodeBuddy Makefile
 # Simple build automation for common development tasks
 
-.PHONY: build release test install uninstall clean setup help clippy fmt check check-duplicates
+.PHONY: build release test install uninstall clean setup help clippy fmt check check-duplicates dev watch ci
+
+# Default target - show help
+.DEFAULT_GOAL := help
 
 # Configure sccache for faster builds (if installed)
 SCCACHE_BIN := $(shell command -v sccache 2>/dev/null)
@@ -66,11 +69,13 @@ uninstall:
 clean:
 	cargo clean
 
-# One-time developer setup (installs sccache and mold)
+# One-time developer setup (installs sccache and cargo-watch)
 setup:
-	@echo "Installing build optimization tools..."
-	@cargo install sccache
+	@echo "📦 Installing build optimization tools..."
+	@cargo install sccache 2>/dev/null || echo "✓ sccache already installed"
+	@cargo install cargo-watch 2>/dev/null || echo "✓ cargo-watch already installed"
 	@./scripts/setup-dev-tools.sh
+	@echo "✅ Setup complete!"
 
 # Code quality targets
 clippy:
@@ -84,30 +89,45 @@ check: fmt clippy test
 check-duplicates:
 	@./scripts/check-duplicates.sh
 
+# Development watch mode - auto-rebuild on file changes
+dev:
+	@command -v cargo-watch >/dev/null 2>&1 || { echo "⚠️  cargo-watch not found. Run 'make setup' first."; exit 1; }
+	@echo "🚀 Starting development watch mode..."
+	cargo watch -x 'build --release'
+
+# Alias for dev
+watch: dev
+
+# CI target - standardized checks for CI/CD
+ci: test check
+	@echo "✅ All CI checks passed"
+
 # Show available commands
 help:
 	@echo "CodeBuddy - Available Commands"
 	@echo "================================"
 	@echo ""
-	@echo "Build & Install:"
+	@echo "🔨 Build & Install:"
 	@echo "  make build    - Build debug version"
 	@echo "  make release  - Build optimized release version"
-	@echo "  make install  - Install to ~/.local/bin (run after 'make release')"
+	@echo "  make install  - Install to ~/.local/bin (auto-configures PATH)"
 	@echo "  make uninstall- Remove installed binary"
 	@echo ""
-	@echo "Development:"
+	@echo "🚀 Development:"
+	@echo "  make dev      - Build in watch mode (auto-rebuild on changes)"
 	@echo "  make test     - Run all tests"
 	@echo "  make clean    - Remove build artifacts"
-	@echo "  make setup    - Install build optimization tools (sccache, mold)"
+	@echo "  make setup    - Install build optimization tools (sccache, cargo-watch)"
 	@echo ""
-	@echo "Code Quality:"
+	@echo "✅ Code Quality:"
 	@echo "  make clippy   - Run clippy linter"
 	@echo "  make fmt      - Check code formatting"
 	@echo "  make check    - Run fmt + clippy + test"
 	@echo "  make check-duplicates - Detect duplicate code & complexity"
+	@echo "  make ci       - Run all CI checks (for CI/CD)"
 	@echo ""
-	@echo "Usage:"
-	@echo "  make setup    # First time only"
-	@echo "  make          # Build and develop"
-	@echo "  make test     # Test your changes"
-	@echo "  make install  # Install to system"
+	@echo "💡 Quick Start:"
+	@echo "  make setup    # First time only - install dev tools"
+	@echo "  make dev      # Develop with auto-rebuild"
+	@echo "  make check    # Before committing"
+	@echo "  make install  # Deploy to system"
