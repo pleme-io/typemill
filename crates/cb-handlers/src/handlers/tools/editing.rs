@@ -99,6 +99,134 @@ impl EditingHandler {
         }
     }
 
+    async fn handle_organize_imports(
+        &self,
+        context: &ToolHandlerContext,
+        tool_call: &ToolCall,
+    ) -> ServerResult<Value> {
+        let args = tool_call.arguments.clone().unwrap_or(json!({}));
+
+        let file_path_str = args
+            .get("file_path")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                cb_protocol::ApiError::InvalidRequest("Missing file_path parameter".into())
+            })?
+            .to_string();
+
+        let dry_run = args
+            .get("dry_run")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
+        let file_path = PathBuf::from(&file_path_str);
+        let mut request = PluginRequest::new("organize_imports".to_string(), file_path.clone());
+
+        // Set parameters
+        request = request.with_params(args);
+
+        match context.plugin_manager.handle_request(request).await {
+            Ok(response) => {
+                // LSP textDocument/codeAction returns an array of CodeAction objects
+                // Extract TextEdit[] from the first CodeAction's edit field
+                let code_actions = response.data.as_ref().and_then(|d| d.as_array());
+
+                if let Some(actions) = code_actions {
+                    if !actions.is_empty() {
+                        // Get first CodeAction with kind "source.organizeImports"
+                        let organize_action = actions.iter().find(|action| {
+                            action
+                                .get("kind")
+                                .and_then(|k| k.as_str())
+                                .map(|k| k.starts_with("source.organizeImports"))
+                                .unwrap_or(false)
+                        });
+
+                        if let Some(action) = organize_action {
+                            // Extract TextEdit[] from action.edit.changes[file_uri]
+                            if let Some(edit) = action.get("edit") {
+                                if let Some(changes) = edit.get("changes") {
+                                    // Get the first (and usually only) file's edits
+                                    if let Some(changes_obj) = changes.as_object() {
+                                        for (_uri, edits) in changes_obj {
+                                            if let Some(text_edits) = edits.as_array() {
+                                                if !text_edits.is_empty() {
+                                                    if dry_run {
+                                                        // Preview mode - don't apply changes
+                                                        return Ok(json!({
+                                                            "operation": "organize_imports",
+                                                            "dry_run": true,
+                                                            "modified": false,
+                                                            "status": "preview",
+                                                            "file_path": file_path_str,
+                                                            "plugin": response.metadata.plugin_name,
+                                                            "processing_time_ms": response.metadata.processing_time_ms,
+                                                            "preview": {
+                                                                "edits_count": text_edits.len(),
+                                                                "edits": text_edits
+                                                            }
+                                                        }));
+                                                    }
+
+                                                    // Apply mode - apply the text edits
+                                                    let content = context
+                                                        .app_state
+                                                        .file_service
+                                                        .read_file(&file_path)
+                                                        .await?;
+
+                                                    let organized_content =
+                                                        Self::apply_text_edits(&content, text_edits)?;
+
+                                                    context
+                                                        .app_state
+                                                        .file_service
+                                                        .write_file(&file_path, &organized_content, false)
+                                                        .await?;
+
+                                                    return Ok(json!({
+                                                        "organized": true,
+                                                        "file_path": file_path_str,
+                                                        "plugin": response.metadata.plugin_name,
+                                                        "processing_time_ms": response.metadata.processing_time_ms,
+                                                    }));
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // No organize imports action available or no edits needed
+                if dry_run {
+                    Ok(json!({
+                        "operation": "organize_imports",
+                        "dry_run": true,
+                        "modified": false,
+                        "status": "preview",
+                        "file_path": file_path_str,
+                        "plugin": response.metadata.plugin_name,
+                        "processing_time_ms": response.metadata.processing_time_ms,
+                    }))
+                } else {
+                    Ok(json!({
+                        "organized": false,
+                        "file_path": file_path_str,
+                        "plugin": response.metadata.plugin_name,
+                        "processing_time_ms": response.metadata.processing_time_ms,
+                    }))
+                }
+            }
+            Err(err) => Err(cb_protocol::ApiError::Internal(format!(
+                "Organize imports failed: {}",
+                err
+            ))),
+        }
+    }
+
     /// Apply LSP TextEdit array to content
     /// LSP formatting typically returns a single edit that replaces the entire document
     fn apply_text_edits(content: &str, edits: &[Value]) -> ServerResult<String> {
@@ -240,6 +368,7 @@ impl ToolHandler for EditingHandler {
         match tool_call.name.as_str() {
             "format_document" => self.handle_format_document(context, tool_call).await,
             "get_code_actions" => self.handle_get_code_actions(context, tool_call).await,
+            "organize_imports" => self.handle_organize_imports(context, tool_call).await,
             _ => crate::delegate_to_legacy!(self, context, tool_call),
         }
     }
