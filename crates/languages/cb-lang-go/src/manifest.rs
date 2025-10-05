@@ -240,7 +240,7 @@ fn parse_require_entry(entry: &str) -> PluginResult<GoRequire> {
 
     let path = parts[0].to_string();
     let version = parts[1].to_string();
-    let indirect = parts.get(2).map_or(false, |&s| s == "//indirect");
+    let indirect = parts.get(2).is_some_and(|&s| s == "//indirect");
 
     Ok(GoRequire {
         path,
@@ -293,8 +293,8 @@ fn parse_replace_entry(entry: &str) -> PluginResult<GoReplace> {
         )));
     }
 
-    let old_parts: Vec<&str> = parts[0].trim().split_whitespace().collect();
-    let new_parts: Vec<&str> = parts[1].trim().split_whitespace().collect();
+    let old_parts: Vec<&str> = parts[0].split_whitespace().collect();
+    let new_parts: Vec<&str> = parts[1].split_whitespace().collect();
 
     if old_parts.is_empty() || new_parts.is_empty() {
         return Err(PluginError::manifest(format!(
@@ -389,7 +389,7 @@ where
 }
 
 /// Apply a replacement to a dependency list
-fn apply_replacement(dependencies: &mut Vec<Dependency>, replace: &GoReplace) {
+fn apply_replacement(dependencies: &mut [Dependency], replace: &GoReplace) {
     for dep in dependencies.iter_mut() {
         if dep.name == replace.old_path {
             // Check if version matches (if specified)
