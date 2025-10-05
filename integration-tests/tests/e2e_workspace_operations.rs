@@ -343,7 +343,13 @@ console.log(expensiveProducts);
 "#,
     )
     .unwrap();
-    tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
+    // Wait for LSP to index all files
+    for file in [&models_file, &services_file, &main_file] {
+        client
+            .wait_for_lsp_ready(file, 5000)
+            .await
+            .expect("LSP should index file");
+    }
     for file in [&models_file, &services_file, &main_file] {
         let response = client
             .call_tool(
@@ -495,9 +501,11 @@ function createProcessor<T>(type: string): DataProcessor<T> | null {
 }
 "#;
     std::fs::write(&file_path, content).unwrap();
-    // LSP indexing delay: Give TypeScript LSP time to parse the file and build its AST.
-    // Most LSP servers don't provide a reliable "ready" signal.
-    tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+    // Wait for LSP to index the file using smart polling
+    client
+        .wait_for_lsp_ready(&file_path, 5000)
+        .await
+        .expect("LSP should index file");
     let response = client
         .call_tool(
             "get_hover",
@@ -670,9 +678,18 @@ def process_user_data(user_data):
             println!("  {:?}", entry.path());
         }
     }
-    // Give LSP servers time to initialize and index files (TypeScript LSP can be slow)
-    tokio::time::sleep(tokio::time::Duration::from_millis(3000)).await;
-    println!("DEBUG: Testing hover on Config interface...");
+    // Wait for LSP servers to index files using smart polling (much faster than sleep)
+    println!("DEBUG: Waiting for LSP to index TypeScript file...");
+    client
+        .wait_for_lsp_ready(&ts_file, 5000)
+        .await
+        .expect("TypeScript LSP should index file");
+    println!("DEBUG: TypeScript file indexed, waiting for Python file...");
+    client
+        .wait_for_lsp_ready(&py_file, 5000)
+        .await
+        .expect("Python LSP should index file");
+    println!("DEBUG: Both files indexed, testing hover on Config interface...");
     let hover_response = client
         .call_tool(
             "get_hover",

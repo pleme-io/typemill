@@ -445,6 +445,62 @@ impl TestClient {
 
         results
     }
+
+    /// Wait for LSP to finish indexing a file by polling document_symbols.
+    /// This is much faster than arbitrary sleeps and more reliable.
+    ///
+    /// # Arguments
+    /// * `file_path` - Path to the file to wait for
+    /// * `max_wait_ms` - Maximum time to wait in milliseconds
+    ///
+    /// # Returns
+    /// Ok(()) when LSP has indexed the file (symbols appear)
+    /// Err(String) if timeout is reached
+    pub async fn wait_for_lsp_ready(
+        &mut self,
+        file_path: &std::path::Path,
+        max_wait_ms: u64,
+    ) -> Result<(), String> {
+        use std::time::Instant;
+
+        let start = Instant::now();
+        let poll_interval = Duration::from_millis(100);
+        let max_duration = Duration::from_millis(max_wait_ms);
+
+        loop {
+            // Poll for symbols - when they appear, LSP has indexed the file
+            if let Ok(response) = self
+                .call_tool(
+                    "get_document_symbols",
+                    serde_json::json!({
+                        "file_path": file_path.to_string_lossy()
+                    }),
+                )
+                .await
+            {
+                if let Some(symbols) = response
+                    .get("result")
+                    .and_then(|r| r.get("content"))
+                    .and_then(|c| c.get("symbols"))
+                    .and_then(|s| s.as_array())
+                {
+                    if !symbols.is_empty() {
+                        return Ok(()); // LSP is ready!
+                    }
+                }
+            }
+
+            if start.elapsed() > max_duration {
+                return Err(format!(
+                    "LSP did not index file {} within {}ms",
+                    file_path.display(),
+                    max_wait_ms
+                ));
+            }
+
+            tokio::time::sleep(poll_interval).await;
+        }
+    }
 }
 
 /// Performance statistics for the server process.
