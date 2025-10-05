@@ -27,7 +27,7 @@ const result = oldFunctionName(5);
         )
         .await
         .unwrap();
-    assert!(response["applied"].as_bool().unwrap_or(false));
+    assert!(response["result"]["applied"].as_bool().unwrap_or(false));
     let content = std::fs::read_to_string(&file_path).unwrap();
     assert!(content.contains("newFunctionName"));
     assert!(!content.contains("oldFunctionName"));
@@ -76,7 +76,7 @@ const item: OldInterface = {
         )
         .await
         .unwrap();
-    assert!(response["applied"].as_bool().unwrap_or(false));
+    assert!(response["result"]["applied"].as_bool().unwrap_or(false));
     let content1 = std::fs::read_to_string(&file1).unwrap();
     let content2 = std::fs::read_to_string(&file2).unwrap();
     assert!(content1.contains("NewInterface"));
@@ -106,7 +106,7 @@ async fn test_apply_workspace_edit_atomic_failure() {
         .await;
     match response {
         Ok(resp) => {
-            assert!(resp["applied"].as_bool().unwrap_or(false));
+            assert!(resp["result"]["applied"].as_bool().unwrap_or(false));
         }
         Err(_) => {
             let content = std::fs::read_to_string(&existing_file).unwrap();
@@ -142,7 +142,7 @@ const user=createUser({name:"John",email:"john@example.com"});
         )
         .await
         .unwrap();
-    assert!(response["formatted"].as_bool().unwrap_or(false));
+    assert!(response["result"]["formatted"].as_bool().unwrap_or(false));
     let formatted_content = std::fs::read_to_string(&file_path).unwrap();
     assert!(formatted_content.contains("interface User"));
     assert!(formatted_content.contains("function createUser"));
@@ -170,7 +170,7 @@ function test(){return"hello";}
         )
         .await
         .unwrap();
-    assert!(response["formatted"].as_bool().unwrap_or(false));
+    assert!(response["result"]["formatted"].as_bool().unwrap_or(false));
     let formatted_content = std::fs::read_to_string(&file_path).unwrap();
     assert_ne!(formatted_content.trim(), content.trim());
 }
@@ -227,7 +227,7 @@ export function usedImport(x: string): string {
         )
         .await
         .unwrap();
-    let actions = response["actions"].as_array().unwrap();
+    let actions = response["result"]["actions"].as_array().unwrap();
     assert!(!actions.is_empty());
     let action_titles: Vec<String> = actions
         .iter()
@@ -283,7 +283,7 @@ class Calculator {
         )
         .await
         .unwrap();
-    let actions = response["actions"].as_array().unwrap();
+    let actions = response["result"]["actions"].as_array().unwrap();
     for action in actions {
         assert!(action.get("title").is_some());
         assert!(action.get("kind").is_some() || action.get("edit").is_some());
@@ -358,7 +358,7 @@ console.log(expensiveProducts);
             )
             .await
             .unwrap();
-        assert!(response["formatted"].as_bool().unwrap_or(false));
+        assert!(response["result"]["formatted"].as_bool().unwrap_or(false));
     }
     let response = client
         .call_tool(
@@ -402,7 +402,7 @@ console.log(expensiveProducts);
         )
         .await
         .unwrap();
-    assert!(response["applied"].as_bool().unwrap_or(false));
+    assert!(response["result"]["applied"].as_bool().unwrap_or(false));
     let models_content = std::fs::read_to_string(&models_file).unwrap();
     let services_content = std::fs::read_to_string(&services_file).unwrap();
     let main_content = std::fs::read_to_string(&main_file).unwrap();
@@ -453,7 +453,7 @@ console.log(value);
         .await;
     // Should fail because line 100 doesn't exist in the file
     assert!(
-        response.is_err() || !response.unwrap()["applied"].as_bool().unwrap_or(true),
+        response.is_err() || !response.unwrap()["result"]["applied"].as_bool().unwrap_or(true),
         "Workspace edit with invalid line number should fail validation"
     );
     let unchanged_content = std::fs::read_to_string(&file_path).unwrap();
