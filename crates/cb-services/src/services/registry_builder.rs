@@ -80,12 +80,12 @@ pub fn build_language_plugin_registry() -> Arc<PluginRegistry> {
         plugin_count += 1;
     }
 
-    // Future language plugins will be registered here
-    // #[cfg(feature = "lang-python")]
-    // {
-    //     registry.register(Arc::new(cb_lang_python::PythonPlugin::new()));
-    //     plugin_count += 1;
-    // }
+    // Register Python plugin
+    #[cfg(feature = "lang-python")]
+    {
+        registry.register(Arc::new(cb_lang_python::PythonPlugin::new()));
+        plugin_count += 1;
+    }
 
     let _ = plugin_count; // Suppress unused variable warning when no features enabled
 
@@ -135,6 +135,17 @@ mod tests {
         let plugin = registry.find_by_extension("ts");
         assert!(plugin.is_some());
         assert_eq!(plugin.unwrap().name(), "TypeScript");
+    }
+
+    #[cfg(feature = "lang-python")]
+    #[test]
+    fn test_registry_builder_includes_python_plugin() {
+        let registry = build_language_plugin_registry();
+
+        // Should be able to find plugin for .py files
+        let plugin = registry.find_by_extension("py");
+        assert!(plugin.is_some());
+        assert_eq!(plugin.unwrap().name(), "Python");
     }
 
     #[test]
