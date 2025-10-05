@@ -65,14 +65,35 @@ impl NavigationHandler {
                 // Try to get symbols from this plugin
                 match plugin.handle_request(request).await {
                     Ok(response) => {
+                        debug!(
+                            plugin = %plugin_name,
+                            has_data = response.data.is_some(),
+                            "Got response from plugin"
+                        );
                         if let Some(data) = response.data {
                             if let Some(symbols) = data.as_array() {
+                                debug!(
+                                    plugin = %plugin_name,
+                                    symbol_count = symbols.len(),
+                                    "Found symbols from plugin"
+                                );
                                 all_symbols.extend(symbols.clone());
                                 queried_plugins.push(plugin_name.clone());
+                            } else {
+                                debug!(
+                                    plugin = %plugin_name,
+                                    data_type = ?data,
+                                    "Data is not an array"
+                                );
                             }
                         }
                     }
-                    Err(_) => {
+                    Err(e) => {
+                        debug!(
+                            plugin = %plugin_name,
+                            error = %e,
+                            "Plugin query failed"
+                        );
                         // Plugin doesn't support workspace symbols or query failed
                         // Continue to next plugin
                     }
