@@ -26,6 +26,7 @@
 
 mod manifest;
 pub mod parser;
+mod workspace;
 
 use async_trait::async_trait;
 use cb_plugin_api::{LanguageIntelligencePlugin, ManifestData, ParsedSource, PluginResult};
@@ -389,6 +390,85 @@ impl LanguageIntelligencePlugin for RustPlugin {
 
         Ok(finder.into_references())
     }
+
+    async fn add_manifest_path_dependency(
+        &self,
+        manifest_content: &str,
+        dep_name: &str,
+        dep_path: &str,
+        source_path: &Path,
+    ) -> PluginResult<String> {
+        workspace::add_path_dependency(manifest_content, dep_name, dep_path, source_path)
+    }
+
+    async fn add_workspace_member(
+        &self,
+        workspace_content: &str,
+        new_member_path: &str,
+        workspace_root: &Path,
+    ) -> PluginResult<String> {
+        workspace::add_workspace_member(workspace_content, new_member_path, workspace_root)
+    }
+
+    async fn generate_workspace_manifest(
+        &self,
+        member_paths: &[&str],
+        workspace_root: &Path,
+    ) -> PluginResult<String> {
+        workspace::generate_workspace_manifest(member_paths, workspace_root)
+    }
+
+    async fn is_workspace_manifest(&self, manifest_content: &str) -> PluginResult<bool> {
+        Ok(workspace::is_workspace_manifest(manifest_content))
+    }
+
+    async fn remove_module_declaration(
+        &self,
+        source: &str,
+        module_name: &str,
+    ) -> PluginResult<String> {
+        let mut file = syn::parse_file(source).map_err(|e| {
+            cb_plugin_api::PluginError::parse(format!("Failed to parse Rust source: {}", e))
+        })?;
+
+        // Remove module declarations matching the module name
+        file.items.retain(|item| {
+            if let syn::Item::Mod(item_mod) = item {
+                item_mod.ident != module_name
+            } else {
+                true
+            }
+        });
+
+        // Convert back to source code
+        Ok(quote::quote!(#file).to_string())
+    }
+
+    async fn find_source_files(&self, dir: &Path) -> PluginResult<Vec<std::path::PathBuf>> {
+        use std::fs;
+        use cb_plugin_api::PluginError;
+
+        let mut source_files = Vec::new();
+        let entries = fs::read_dir(dir)
+            .map_err(|e| PluginError::internal(format!("Failed to read directory: {}", e)))?;
+
+        for entry in entries {
+            let entry = entry.map_err(|e| {
+                PluginError::internal(format!("Failed to read directory entry: {}", e))
+            })?;
+            let path = entry.path();
+
+            if path.is_file() {
+                if let Some(ext) = path.extension() {
+                    if ext == "rs" {
+                        source_files.push(path);
+                    }
+                }
+            }
+        }
+
+        Ok(source_files)
+    }
 }
 
 /// Visitor for finding module references in Rust code using syn::visit
@@ -502,6 +582,9 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for RustModuleFinder<'a> {
 // Re-export public API items
 pub use manifest::{load_cargo_toml, parse_cargo_toml, rename_dependency};
 pub use parser::{extract_symbols, list_functions, parse_imports, rewrite_use_tree};
+pub use workspace::{
+    add_path_dependency, add_workspace_member, generate_workspace_manifest, is_workspace_manifest,
+};
 
 #[cfg(test)]
 mod tests {
