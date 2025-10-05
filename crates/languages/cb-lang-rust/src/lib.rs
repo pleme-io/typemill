@@ -347,27 +347,62 @@ impl LanguageIntelligencePlugin for RustPlugin {
             "Rewriting Rust imports for crate rename"
         );
 
-        // Use our own parse_imports to get the import info
-        let _imports = parser::parse_imports(content).map_err(|e| {
-            cb_plugin_api::PluginError::parse(format!("Failed to parse imports: {}", e))
-        })?;
-
-        // For now, use simple string replacement
-        // TODO: Use crate::parser::rewrite_use_tree for proper AST-based rewriting
-        let mut updated_content = content.to_string();
+        let mut result = String::new();
         let mut changes_count = 0;
+        let lines: Vec<&str> = content.lines().collect();
 
-        for line in content.lines() {
-            if line.contains("use ") && line.contains(old_crate_name) {
-                changes_count += 1;
+        // Process line by line, using AST-based rewriting for use statements only
+        for (idx, line) in lines.iter().enumerate() {
+            let trimmed = line.trim();
+
+            // Check if this line is a use statement containing our crate name
+            if trimmed.starts_with("use ") && trimmed.contains(old_crate_name) {
+                // Try to parse this line as a use statement
+                match syn::parse_str::<syn::ItemUse>(trimmed) {
+                    Ok(item_use) => {
+                        // Try to rewrite using AST-based transformation
+                        if let Some(new_tree) =
+                            parser::rewrite_use_tree(&item_use.tree, old_crate_name, new_crate_name)
+                        {
+                            // Preserve original indentation
+                            let indent = line.len() - trimmed.len();
+                            let indent_str = &line[..indent];
+
+                            // Write rewritten use statement with original indentation
+                            result.push_str(indent_str);
+                            result.push_str(&format!("use {};", quote::quote!(#new_tree)));
+
+                            // Add newline if not last line
+                            if idx < lines.len() - 1 {
+                                result.push('\n');
+                            }
+                            changes_count += 1;
+                            continue;
+                        }
+                    }
+                    Err(_) => {
+                        // If parsing fails (e.g., multi-line use statement), keep original
+                        // This is safe - we won't break anything, just won't rewrite it
+                        debug!(
+                            line = %line,
+                            "Could not parse use statement, keeping original"
+                        );
+                    }
+                }
+            }
+
+            // Keep original line (either not a use statement, or parsing failed)
+            result.push_str(line);
+
+            // Add newline if not last line
+            if idx < lines.len() - 1 {
+                result.push('\n');
             }
         }
 
-        updated_content = updated_content.replace(old_crate_name, new_crate_name);
+        debug!(changes = changes_count, "Rewrote Rust imports using AST");
 
-        debug!(changes = changes_count, "Rewrote Rust imports");
-
-        Ok((updated_content, changes_count))
+        Ok((result, changes_count))
     }
 
     fn find_module_references(
@@ -663,5 +698,59 @@ impl MyStruct {
 
         let result = plugin.parse(invalid_source).await;
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_rewrite_imports_preserves_non_use_content() {
+        let plugin = RustPlugin::new();
+
+        // Source with use statements AND other content that contains the crate name
+        let source = r#"use old_crate::Foo;
+use old_crate::bar::Baz;
+
+/// Documentation mentioning old_crate
+pub struct Wrapper {
+    old_crate_field: String,  // Should NOT be changed
+}
+
+impl Wrapper {
+    fn init_old_crate() {  // Should NOT be changed
+        log::info!("Using old_crate");  // Should NOT be changed
+    }
+}"#;
+
+        let rename_info = serde_json::json!({
+            "old_crate_name": "old_crate",
+            "new_crate_name": "new_crate",
+        });
+
+        let (result, count) = plugin
+            .rewrite_imports_for_rename(
+                source,
+                Path::new(""),
+                Path::new(""),
+                Path::new(""),
+                Path::new(""),
+                Some(&rename_info),
+            )
+            .unwrap();
+
+        // Should have changed exactly 2 use statements
+        assert_eq!(count, 2);
+
+        // Verify use statements were rewritten (note: quote! adds spaces around ::)
+        assert!(result.contains("use new_crate"));
+        assert!(result.contains("Foo"));
+        assert!(result.contains("bar"));
+        assert!(result.contains("Baz"));
+
+        // Verify other content was NOT changed
+        assert!(result.contains("old_crate_field"));
+        assert!(result.contains("fn init_old_crate()"));
+        assert!(result.contains(r#"log::info!("Using old_crate");"#));
+        assert!(result.contains("/// Documentation mentioning old_crate"));
+
+        // Verify old use statements with old_crate are gone
+        assert!(!result.contains("use old_crate"));
     }
 }
