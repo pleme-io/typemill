@@ -1,5 +1,4 @@
 //! AST parsing functionality
-use crate::error::AstError;
 use crate::error::AstResult;
 use cb_protocol::{
     ImportGraph, ImportGraphMetadata, ImportInfo, ImportType, NamedImport, SourceLocation,
@@ -358,6 +357,7 @@ fn parse_python_imports(source: &str) -> AstResult<Vec<ImportInfo>> {
 /// - Glob imports: `use module::*;`
 /// - Aliased imports: `use std::collections::HashMap as Map;`
 /// - Nested groups: `use std::{io::{self, Read}, collections::*};`
+///
 /// Check if a module path represents an external dependency
 fn is_external_dependency(module_path: &str) -> bool {
     if module_path.starts_with("./") || module_path.starts_with("../") {

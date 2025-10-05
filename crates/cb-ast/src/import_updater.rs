@@ -341,6 +341,111 @@ fn create_text_edits_from_references(
         .collect()
 }
 
+/// Find inline fully-qualified crate references in code
+///
+/// This finds patterns like `old_crate::module::function()` that appear
+/// outside of `use` import statements.
+///
+/// # Arguments
+///
+/// * `content` - The file content to scan
+/// * `file_path` - Path to the file being scanned
+/// * `crate_name` - Name of the crate to search for (e.g., "cb_ast")
+///
+/// # Returns
+///
+/// Vec of ModuleReference for each inline occurrence found
+fn find_inline_crate_references(
+    content: &str,
+    file_path: &Path,
+    crate_name: &str,
+) -> Vec<cb_plugin_api::ModuleReference> {
+    use cb_plugin_api::{ModuleReference, ReferenceKind};
+
+    let mut references = Vec::new();
+
+    // Pattern to match: `crate_name::` followed by identifiers
+    // Regex: \bcrate_name::[\w:]+
+    // But we'll use simple string matching for robustness
+
+    for (line_num, line) in content.lines().enumerate() {
+        // Skip lines that are import statements (already handled)
+        if line.trim_start().starts_with("use ") || line.trim_start().starts_with("pub use ") {
+            continue;
+        }
+
+        // Skip comment lines
+        if line.trim_start().starts_with("//") || line.trim_start().starts_with("/*") {
+            continue;
+        }
+
+        // Find all occurrences of `crate_name::` in this line
+        let search_pattern = format!("{}::", crate_name);
+        let mut search_start = 0;
+
+        while let Some(pos) = line[search_start..].find(&search_pattern) {
+            let absolute_pos = search_start + pos;
+
+            // Ensure it's a word boundary (not part of a larger identifier)
+            let is_word_boundary = if absolute_pos == 0 {
+                true
+            } else {
+                let prev_char = line.chars().nth(absolute_pos - 1).unwrap_or(' ');
+                !prev_char.is_alphanumeric() && prev_char != '_'
+            };
+
+            if is_word_boundary {
+                // Extract the full qualified path (including trailing :: and identifiers)
+                let remaining = &line[absolute_pos..];
+                let mut path_end = search_pattern.len();
+
+                // Continue while we see `identifier::` or `identifier`
+                for ch in remaining[search_pattern.len()..].chars() {
+                    if ch.is_alphanumeric() || ch == '_' || ch == ':' {
+                        path_end += ch.len_utf8();
+                    } else {
+                        break;
+                    }
+                }
+
+                // Trim trailing `::`
+                while line[absolute_pos..absolute_pos + path_end].ends_with("::") {
+                    path_end -= 2;
+                }
+
+                let reference_text = &line[absolute_pos..absolute_pos + path_end];
+
+                debug!(
+                    file = ?file_path,
+                    line = line_num + 1,
+                    column = absolute_pos,
+                    text = %reference_text,
+                    "Found inline fully-qualified path reference"
+                );
+
+                references.push(ModuleReference {
+                    line: line_num + 1, // 1-based line numbers
+                    column: absolute_pos,
+                    length: reference_text.len(),
+                    text: reference_text.to_string(),
+                    kind: ReferenceKind::QualifiedPath,
+                });
+            }
+
+            search_start = absolute_pos + search_pattern.len();
+        }
+    }
+
+    debug!(
+        file = ?file_path,
+        crate_name = %crate_name,
+        references_found = references.len(),
+        "Inline crate reference scan complete"
+    );
+
+    references
+}
+
 /// Update import paths in all affected files after a file/directory rename
 ///
 /// Returns an EditPlan that can be applied via FileService.apply_edit_plan()
@@ -422,6 +527,29 @@ pub async fn update_imports_for_rename(
     let old_module_name = old_path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
     let new_module_name = new_path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
 
+    // For Rust crate renames, also extract crate names for inline reference updates
+    let (old_crate_name, new_crate_name) = if let Some(info) = rename_info {
+        let old_crate = info
+            .get("old_crate_name")
+            .and_then(|v| v.as_str())
+            .unwrap_or(old_module_name);
+        let new_crate = info
+            .get("new_crate_name")
+            .and_then(|v| v.as_str())
+            .unwrap_or(new_module_name);
+        (old_crate.to_string(), new_crate.to_string())
+    } else {
+        (old_module_name.to_string(), new_module_name.to_string())
+    };
+
+    debug!(
+        old_module = %old_module_name,
+        new_module = %new_module_name,
+        old_crate = %old_crate_name,
+        new_crate = %new_crate_name,
+        "Extracted rename information for import and inline reference updates"
+    );
+
     let mut all_edits = Vec::new();
     let mut edited_file_count = 0;
 
@@ -469,6 +597,35 @@ pub async fn update_imports_for_rename(
                     );
                     all_edits.extend(edits);
                     edited_file_count += 1;
+                }
+            }
+
+            // ADDITIONAL SCAN: Find inline fully-qualified paths
+            // This catches references like `old_crate::module::function()`
+            // that are NOT in import statements
+            if old_crate_name != new_crate_name {
+                let inline_refs =
+                    find_inline_crate_references(&content, &file_path, &old_crate_name);
+
+                if !inline_refs.is_empty() {
+                    debug!(
+                        file = ?file_path,
+                        inline_references = inline_refs.len(),
+                        old_crate = %old_crate_name,
+                        "Found inline fully-qualified path references"
+                    );
+
+                    // Create text edits for inline references
+                    let inline_edits = create_text_edits_from_references(
+                        &inline_refs,
+                        &file_path,
+                        &old_crate_name,
+                        &new_crate_name,
+                    );
+
+                    if !inline_edits.is_empty() {
+                        all_edits.extend(inline_edits);
+                    }
                 }
             }
         } else {

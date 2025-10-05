@@ -45,10 +45,9 @@
 
 use async_trait::async_trait;
 use cb_types::error::ApiError;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::Path;
-use std::sync::Arc;
 
 // ============================================================================
 // Error Types

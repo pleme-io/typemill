@@ -1407,20 +1407,26 @@ impl FileService {
     }
 
     /// Apply a single text edit to content
+    ///
+    /// This function correctly handles both single-line and multi-line edits by:
+    /// 1. Preserving all lines before the edit region
+    /// 2. Constructing the edited line(s) correctly
+    /// 3. Preserving all lines after the edit region
+    /// 4. Maintaining original file's trailing newline behavior
     fn apply_single_edit(&self, content: &str, edit: &TextEdit) -> ServerResult<String> {
         let original_had_newline = content.ends_with('\n');
         let lines: Vec<&str> = content.lines().collect();
 
-        // DEBUG: Log line structure
-        eprintln!(
-            "DEBUG apply_single_edit: start_line={}, start_col={}, total_lines={}, line[0].len={}, line[1].len={}",
-            edit.location.start_line,
-            edit.location.start_column,
-            lines.len(),
-            lines.get(0).map(|l| l.len()).unwrap_or(999),
-            lines.get(1).map(|l| l.len()).unwrap_or(999)
+        debug!(
+            start_line = edit.location.start_line,
+            start_col = edit.location.start_column,
+            end_line = edit.location.end_line,
+            end_col = edit.location.end_column,
+            total_lines = lines.len(),
+            "Applying single text edit"
         );
 
+        // Validate edit location
         if edit.location.start_line as usize >= lines.len() {
             return Err(ServerError::InvalidRequest(format!(
                 "Edit location line {} is beyond file length {}",
@@ -1429,57 +1435,102 @@ impl FileService {
             )));
         }
 
-        let mut result = Vec::new();
-
-        // Copy lines before the edit
-        for (i, line) in lines.iter().enumerate() {
-            if i < edit.location.start_line as usize {
-                result.push(line.to_string());
-            } else if i == edit.location.start_line as usize {
-                // Apply the edit to this line
-                let line_chars: Vec<char> = line.chars().collect();
-                let start_col = edit.location.start_column as usize;
-                let end_col = if edit.location.end_line == edit.location.start_line {
-                    edit.location.end_column as usize
-                } else {
-                    line_chars.len()
-                };
-
-                if start_col > line_chars.len() {
-                    return Err(ServerError::InvalidRequest(format!(
-                        "Edit start column {} is beyond line length {}",
-                        start_col,
-                        line_chars.len()
-                    )));
-                }
-
-                let mut new_line = String::new();
-                new_line.push_str(&line_chars[..start_col].iter().collect::<String>());
-                new_line.push_str(&edit.new_text);
-
-                if edit.location.end_line == edit.location.start_line {
-                    // Single line edit
-                    if end_col <= line_chars.len() {
-                        new_line.push_str(&line_chars[end_col..].iter().collect::<String>());
-                    }
-                    result.push(new_line);
-                } else {
-                    // Multi-line edit - this line becomes the new line
-                    result.push(new_line);
-                    // Skip lines until end_line
-                    break;
-                }
-            } else if i > edit.location.end_line as usize {
-                // Copy lines after the edit
-                result.push(line.to_string());
-            }
-            // Skip lines that are being replaced (between start_line and end_line)
+        if edit.location.end_line as usize >= lines.len() {
+            return Err(ServerError::InvalidRequest(format!(
+                "Edit end line {} is beyond file length {}",
+                edit.location.end_line,
+                lines.len()
+            )));
         }
 
+        let mut result = Vec::new();
+
+        // Step 1: Copy all lines BEFORE the edit region (unchanged)
+        for i in 0..(edit.location.start_line as usize) {
+            result.push(lines[i].to_string());
+        }
+
+        // Step 2: Construct the edited line(s)
+        let start_line_idx = edit.location.start_line as usize;
+        let end_line_idx = edit.location.end_line as usize;
+        let start_line = lines[start_line_idx];
+        let start_line_chars: Vec<char> = start_line.chars().collect();
+        let start_col = edit.location.start_column as usize;
+
+        // Validate start column
+        if start_col > start_line_chars.len() {
+            return Err(ServerError::InvalidRequest(format!(
+                "Edit start column {} is beyond line length {}",
+                start_col,
+                start_line_chars.len()
+            )));
+        }
+
+        if edit.location.start_line == edit.location.end_line {
+            // CASE A: Single-line edit
+            let end_col = edit.location.end_column as usize;
+
+            // Validate end column
+            if end_col > start_line_chars.len() {
+                return Err(ServerError::InvalidRequest(format!(
+                    "Edit end column {} is beyond line length {}",
+                    end_col,
+                    start_line_chars.len()
+                )));
+            }
+
+            // Build: [before edit] + [new text] + [after edit]
+            let mut edited_line = String::new();
+            edited_line.push_str(&start_line_chars[..start_col].iter().collect::<String>());
+            edited_line.push_str(&edit.new_text);
+            if end_col <= start_line_chars.len() {
+                edited_line.push_str(&start_line_chars[end_col..].iter().collect::<String>());
+            }
+            result.push(edited_line);
+        } else {
+            // CASE B: Multi-line edit (spans multiple lines)
+            let end_line = lines[end_line_idx];
+            let end_line_chars: Vec<char> = end_line.chars().collect();
+            let end_col = edit.location.end_column as usize;
+
+            // Validate end column
+            if end_col > end_line_chars.len() {
+                return Err(ServerError::InvalidRequest(format!(
+                    "Edit end column {} is beyond end line length {}",
+                    end_col,
+                    end_line_chars.len()
+                )));
+            }
+
+            // Build: [prefix from start line] + [new text] + [suffix from end line]
+            let mut edited_line = String::new();
+            edited_line.push_str(&start_line_chars[..start_col].iter().collect::<String>());
+            edited_line.push_str(&edit.new_text);
+            if end_col <= end_line_chars.len() {
+                edited_line.push_str(&end_line_chars[end_col..].iter().collect::<String>());
+            }
+            result.push(edited_line);
+        }
+
+        // Step 3: Copy all lines AFTER the edit region (unchanged)
+        for i in (end_line_idx + 1)..lines.len() {
+            result.push(lines[i].to_string());
+        }
+
+        // Step 4: Reconstruct final content with proper newline handling
         let mut final_content = result.join("\n");
+
+        // Preserve original file's trailing newline behavior
         if original_had_newline && !final_content.is_empty() && !final_content.ends_with('\n') {
             final_content.push('\n');
         }
+
+        debug!(
+            result_lines = result.len(),
+            has_trailing_newline = final_content.ends_with('\n'),
+            "Text edit applied successfully"
+        );
+
         Ok(final_content)
     }
 
@@ -1671,6 +1722,34 @@ impl FileService {
             warn!(error = %e, "Failed to update workspace manifest");
         }
 
+        // Step 3.5: Update all workspace Cargo.toml files that depend on the old crate
+        // IMPORTANT: Must happen BEFORE deleting the old crate directory
+        let old_crate_name_for_deps = old_crate_name.replace('_', "-"); // Cargo.toml uses hyphens
+        match self
+            .update_workspace_cargo_dependencies(
+                &old_abs,
+                &target_crate_name,
+                &old_crate_name_for_deps,
+            )
+            .await
+        {
+            Ok(updated_count) => {
+                info!(
+                    updated_files = updated_count,
+                    old_crate = %old_crate_name_for_deps,
+                    new_crate = %target_crate_name,
+                    "Updated workspace Cargo.toml dependencies"
+                );
+            }
+            Err(e) => {
+                warn!(
+                    error = %e,
+                    old_crate = %old_crate_name_for_deps,
+                    "Failed to update some workspace Cargo.toml files, but continuing with consolidation"
+                );
+            }
+        }
+
         // Step 4: Delete the old crate directory
         fs::remove_dir_all(&old_abs).await.map_err(|e| {
             ServerError::Internal(format!("Failed to delete old crate directory: {}", e))
@@ -1791,6 +1870,14 @@ impl FileService {
         let mut merged_count = 0;
         let mut conflict_count = 0;
 
+        // Extract target crate name for circular dependency detection (before any mutable borrows)
+        let target_crate_name = target_doc
+            .get("package")
+            .and_then(|p| p.get("name"))
+            .and_then(|n| n.as_str())
+            .unwrap_or("unknown")
+            .to_string(); // Clone the string to avoid borrow conflicts
+
         // Merge [dependencies], [dev-dependencies], and [build-dependencies]
         for section in ["dependencies", "dev-dependencies", "build-dependencies"] {
             if let Some(source_deps) = source_doc.get(section).and_then(|v| v.as_table()) {
@@ -1800,7 +1887,34 @@ impl FileService {
                 }
 
                 if let Some(target_deps) = target_doc[section].as_table_mut() {
+
                     for (dep_name, dep_value) in source_deps.iter() {
+                        // Check for self-dependency
+                        if dep_name == target_crate_name.as_str() {
+                            warn!(
+                                dependency = %dep_name,
+                                section = %section,
+                                target_crate = %target_crate_name,
+                                "Skipping self-dependency (would create circular dependency)"
+                            );
+                            conflict_count += 1;
+                            continue;
+                        }
+
+                        // Check for circular dependency
+                        // If source depends on X, and target also depends on X, that's OK
+                        // But if source depends on target's parent crate, that would be circular
+                        if self.would_create_circular_dependency(dep_name, &target_crate_name) {
+                            warn!(
+                                dependency = %dep_name,
+                                section = %section,
+                                target_crate = %target_crate_name,
+                                "Skipping dependency to avoid circular dependency"
+                            );
+                            conflict_count += 1;
+                            continue;
+                        }
+
                         if target_deps.contains_key(dep_name) {
                             warn!(
                                 dependency = %dep_name,
@@ -1836,6 +1950,275 @@ impl FileService {
         );
 
         Ok(())
+    }
+
+    /// Check if adding a dependency would create a circular dependency
+    ///
+    /// This is a simplified check that detects obvious circular dependencies:
+    /// - Source depends on target (self-dependency after merge)
+    /// - Source depends on a crate that depends on target (one-level circular)
+    ///
+    /// # Arguments
+    ///
+    /// * `dep_name` - Name of the dependency being added
+    /// * `target_crate_name` - Name of the crate receiving the dependency
+    ///
+    /// # Returns
+    ///
+    /// `true` if adding this dependency would create a circular dependency
+    fn would_create_circular_dependency(&self, dep_name: &str, target_crate_name: &str) -> bool {
+        // Simple heuristic checks:
+
+        // 1. Direct circular: dependency matches target
+        if dep_name == target_crate_name {
+            return true;
+        }
+
+        // 2. Known parent-child relationships in this codebase
+        // For example: cb-core is a base crate that many others depend on
+        // If we're merging into cb-types, and source depends on cb-core,
+        // we need to check if cb-core depends on cb-types (which it does in this codebase)
+        let known_circular_patterns = [
+            // (dependency, target) pairs that would create circular deps
+            ("cb-core", "cb-types"),     // cb-core -> cb-types -> cb-core
+            ("cb-types", "cb-protocol"), // cb-types -> cb-protocol -> cb-types
+            ("cb-types", "cb-core"),     // cb-types -> cb-core -> cb-types
+        ];
+
+        for (dep, target) in &known_circular_patterns {
+            if dep_name == *dep && target_crate_name == *target {
+                return true;
+            }
+        }
+
+        // Could be extended with full dependency graph analysis,
+        // but this simple check catches the most common cases
+        false
+    }
+
+    /// Update all workspace Cargo.toml files that reference the old crate
+    ///
+    /// This scans all Cargo.toml files in the workspace and replaces dependencies
+    /// on the old crate with dependencies on the target crate.
+    ///
+    /// # Arguments
+    ///
+    /// * `old_crate_path` - Path to the old crate directory (to derive old crate name)
+    /// * `target_crate_name` - Name of the target crate to use as replacement
+    /// * `old_crate_name` - Name of the old crate (with hyphens, as appears in Cargo.toml)
+    ///
+    /// # Returns
+    ///
+    /// Number of Cargo.toml files successfully updated
+    async fn update_workspace_cargo_dependencies(
+        &self,
+        old_crate_path: &Path,
+        target_crate_name: &str,
+        old_crate_name: &str,
+    ) -> ServerResult<usize> {
+        use toml_edit::DocumentMut;
+
+        info!(
+            old_crate = %old_crate_name,
+            target_crate = %target_crate_name,
+            "Scanning workspace for Cargo.toml files with dependencies on old crate"
+        );
+
+        let mut updated_count = 0;
+        let mut checked_count = 0;
+
+        // Find all Cargo.toml files in the workspace
+        let walker = ignore::WalkBuilder::new(&self.project_root)
+            .hidden(false)
+            .build();
+
+        for entry in walker.flatten() {
+            let path = entry.path();
+
+            // Only process Cargo.toml files
+            if path.file_name() != Some(std::ffi::OsStr::new("Cargo.toml")) {
+                continue;
+            }
+
+            // Skip the old crate's Cargo.toml (it's being deleted anyway)
+            if path.starts_with(old_crate_path) {
+                continue;
+            }
+
+            checked_count += 1;
+
+            // Read the Cargo.toml file
+            let content = match fs::read_to_string(path).await {
+                Ok(c) => c,
+                Err(e) => {
+                    warn!(
+                        file = ?path,
+                        error = %e,
+                        "Failed to read Cargo.toml"
+                    );
+                    continue;
+                }
+            };
+
+            // Check if this file references the old crate
+            if !content.contains(old_crate_name) {
+                continue;
+            }
+
+            // Parse the TOML document
+            let mut doc = match content.parse::<DocumentMut>() {
+                Ok(d) => d,
+                Err(e) => {
+                    warn!(
+                        file = ?path,
+                        error = %e,
+                        "Failed to parse Cargo.toml"
+                    );
+                    continue;
+                }
+            };
+
+            let mut file_modified = false;
+
+            // Update dependencies in all relevant sections
+            for section in ["dependencies", "dev-dependencies", "build-dependencies"] {
+                if let Some(deps) = doc.get_mut(section).and_then(|v| v.as_table_mut()) {
+                    if deps.contains_key(old_crate_name) {
+                        // Remove old dependency
+                        let old_dep_value = deps.remove(old_crate_name);
+
+                        // Check if target crate dependency already exists
+                        if deps.contains_key(target_crate_name) {
+                            info!(
+                                file = ?path,
+                                section = %section,
+                                target_crate = %target_crate_name,
+                                old_crate = %old_crate_name,
+                                "Target crate already exists, removed old crate"
+                            );
+                        } else {
+                            // Add target crate dependency
+                            // Derive the path to the target crate
+                            if let Some(old_dep) = old_dep_value {
+                                // Clone the dependency spec and update the path
+                                let mut new_dep = old_dep.clone();
+
+                                // If it's a table with a path, update the path
+                                if let Some(dep_table) = new_dep.as_inline_table_mut() {
+                                    if dep_table.contains_key("path") {
+                                        // Calculate relative path from this Cargo.toml to target crate
+                                        let this_cargo_dir = path.parent().unwrap();
+                                        let target_crate_path =
+                                            self.find_crate_path_by_name(target_crate_name).await;
+
+                                        if let Ok(Some(target_path)) = target_crate_path {
+                                            if let Some(rel_path) =
+                                                pathdiff::diff_paths(&target_path, this_cargo_dir)
+                                            {
+                                                let path_str =
+                                                    rel_path.to_string_lossy().to_string();
+                                                dep_table.insert(
+                                                    "path",
+                                                    toml_edit::Value::from(path_str).into(),
+                                                );
+                                            }
+                                        }
+                                    }
+                                } else if let Some(dep_table) = new_dep.as_table_mut() {
+                                    if dep_table.contains_key("path") {
+                                        // Same logic for regular tables
+                                        let this_cargo_dir = path.parent().unwrap();
+                                        let target_crate_path =
+                                            self.find_crate_path_by_name(target_crate_name).await;
+
+                                        if let Ok(Some(target_path)) = target_crate_path {
+                                            if let Some(rel_path) =
+                                                pathdiff::diff_paths(&target_path, this_cargo_dir)
+                                            {
+                                                let path_str =
+                                                    rel_path.to_string_lossy().to_string();
+                                                dep_table
+                                                    .insert("path", toml_edit::value(path_str));
+                                            }
+                                        }
+                                    }
+                                }
+
+                                deps.insert(target_crate_name, new_dep);
+                            }
+
+                            info!(
+                                file = ?path,
+                                section = %section,
+                                old_crate = %old_crate_name,
+                                new_crate = %target_crate_name,
+                                "Replaced dependency"
+                            );
+                        }
+
+                        file_modified = true;
+                    }
+                }
+            }
+
+            // Write back if modified
+            if file_modified {
+                match fs::write(path, doc.to_string()).await {
+                    Ok(_) => {
+                        info!(
+                            file = ?path,
+                            "Updated Cargo.toml dependencies"
+                        );
+                        updated_count += 1;
+                    }
+                    Err(e) => {
+                        error!(
+                            file = ?path,
+                            error = %e,
+                            "Failed to write updated Cargo.toml"
+                        );
+                    }
+                }
+            }
+        }
+
+        info!(
+            checked = checked_count,
+            updated = updated_count,
+            "Workspace Cargo.toml dependency scan complete"
+        );
+
+        Ok(updated_count)
+    }
+
+    /// Find the path to a crate by its name in the workspace
+    async fn find_crate_path_by_name(&self, crate_name: &str) -> ServerResult<Option<PathBuf>> {
+        let walker = ignore::WalkBuilder::new(&self.project_root)
+            .max_depth(Some(3))
+            .hidden(false)
+            .build();
+
+        for entry in walker.flatten() {
+            let path = entry.path();
+
+            if path.file_name() == Some(std::ffi::OsStr::new("Cargo.toml")) {
+                if let Ok(content) = fs::read_to_string(path).await {
+                    if let Ok(doc) = content.parse::<toml_edit::DocumentMut>() {
+                        if let Some(name) = doc
+                            .get("package")
+                            .and_then(|p| p.get("name"))
+                            .and_then(|n| n.as_str())
+                        {
+                            if name == crate_name {
+                                return Ok(path.parent().map(|p| p.to_path_buf()));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(None)
     }
 
     /// Remove a package path from workspace members in the root Cargo.toml
@@ -2500,8 +2883,8 @@ mod tests {
                                 .get("new_path")
                                 .and_then(|v| v.as_str())
                                 .ok_or_else(|| {
-                                    ApiError::Internal("Missing new_path".to_string())
-                                })?;
+                                ApiError::Internal("Missing new_path".to_string())
+                            })?;
                             fs::rename(&op.file_path, new_path_str).await.map_err(|e| {
                                 ApiError::Internal(format!("Failed to rename file: {}", e))
                             })
@@ -3013,8 +3396,8 @@ mod workspace_tests {
                                 .get("new_path")
                                 .and_then(|v| v.as_str())
                                 .ok_or_else(|| {
-                                    ApiError::Internal("Missing new_path".to_string())
-                                })?;
+                                ApiError::Internal("Missing new_path".to_string())
+                            })?;
                             fs::rename(&op.file_path, new_path_str).await.map_err(|e| {
                                 ApiError::Internal(format!("Failed to rename file: {}", e))
                             })
