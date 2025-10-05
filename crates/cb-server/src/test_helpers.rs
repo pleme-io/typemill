@@ -60,22 +60,20 @@ fn spawn_test_worker(queue: Arc<OperationQueue>) {
                         })?;
 
                         // CRITICAL: Sync file to disk BEFORE updating stats
-                        file.sync_all()
-                            .await
-                            .map_err(|e| {
-                                cb_protocol::ApiError::Internal(format!(
-                                    "Failed to sync file {}: {}",
-                                    op.file_path.display(),
-                                    e
-                                ))
-                            })
-                            .map(|_| {
-                                eprintln!(
-                                    "DEBUG: Wrote {} bytes to {} (with sync)",
-                                    content.len(),
-                                    op.file_path.display()
-                                );
-                            })
+                        file.sync_all().await.map_err(|e| {
+                            cb_protocol::ApiError::Internal(format!(
+                                "Failed to sync file {}: {}",
+                                op.file_path.display(),
+                                e
+                            ))
+                        })?;
+
+                        eprintln!(
+                            "DEBUG: Wrote {} bytes to {} (with sync)",
+                            content.len(),
+                            op.file_path.display()
+                        );
+                        Ok(())
                     }
                     OperationType::Delete => {
                         if op.file_path.exists() {

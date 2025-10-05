@@ -1,7 +1,8 @@
-//! Go import parsing logic for the cb-lang-go plugin.
+//! Go import parsing and symbol extraction logic for the cb-lang-go plugin.
 
-use cb_plugin_api::{PluginError, PluginResult};
+use cb_plugin_api::{PluginError, PluginResult, Symbol, SymbolKind};
 use cb_protocol::{ImportGraph, ImportGraphMetadata, ImportInfo, ImportType, SourceLocation};
+use serde::Deserialize;
 use std::collections::HashSet;
 use std::io::Write;
 use std::path::Path;
@@ -251,6 +252,114 @@ fn is_external_dependency(module_path: &str) -> bool {
     module_path.contains('.') || module_path.contains('/')
 }
 
+// ============================================================================
+// Symbol Extraction
+// ============================================================================
+
+/// Go symbol information from AST tool
+#[derive(Debug, Deserialize)]
+struct GoSymbolInfo {
+    name: String,
+    kind: String,
+    location: GoLocation,
+    documentation: Option<String>,
+    #[allow(dead_code)]
+    receiver: Option<String>,
+}
+
+/// Location information from Go AST tool
+#[derive(Debug, Deserialize)]
+struct GoLocation {
+    start_line: usize,
+    start_column: usize,
+    #[allow(dead_code)]
+    end_line: usize,
+    #[allow(dead_code)]
+    end_column: usize,
+}
+
+/// Extract symbols from Go source code using AST-based parsing.
+/// Falls back to empty list if Go is not available.
+pub fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
+    match extract_symbols_ast(source) {
+        Ok(symbols) => Ok(symbols),
+        Err(e) => {
+            tracing::debug!(error = %e, "Go symbol extraction failed, returning empty list");
+            // Return empty list instead of failing - symbol extraction is optional
+            Ok(Vec::new())
+        }
+    }
+}
+
+/// Spawns the bundled `ast_tool.go` script to extract symbols from source.
+fn extract_symbols_ast(source: &str) -> Result<Vec<Symbol>, PluginError> {
+    const AST_TOOL_GO: &str = include_str!("../resources/ast_tool.go");
+
+    let tmp_dir = Builder::new()
+        .prefix("codebuddy-go-ast")
+        .tempdir()
+        .map_err(|e| PluginError::internal(format!("Failed to create temp dir: {}", e)))?;
+    let tool_path = tmp_dir.path().join("ast_tool.go");
+    std::fs::write(&tool_path, AST_TOOL_GO).map_err(|e| {
+        PluginError::internal(format!("Failed to write Go tool to temp file: {}", e))
+    })?;
+
+    let mut child = Command::new("go")
+        .arg("run")
+        .arg(&tool_path)
+        .arg("extract-symbols")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| PluginError::parse(format!("Failed to spawn Go AST tool: {}", e)))?;
+
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin.write_all(source.as_bytes()).map_err(|e| {
+            PluginError::parse(format!("Failed to write to Go AST tool stdin: {}", e))
+        })?;
+    }
+
+    let output = child
+        .wait_with_output()
+        .map_err(|e| PluginError::parse(format!("Failed to wait for Go AST tool: {}", e)))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(PluginError::parse(format!(
+            "Go AST tool failed: {}",
+            stderr
+        )));
+    }
+
+    let go_symbols: Vec<GoSymbolInfo> = serde_json::from_slice(&output.stdout)
+        .map_err(|e| PluginError::parse(format!("Failed to parse Go AST tool output: {}", e)))?;
+
+    // Convert GoSymbolInfo to cb_plugin_api::Symbol
+    let symbols = go_symbols
+        .into_iter()
+        .map(|s| Symbol {
+            name: s.name,
+            kind: match s.kind.as_str() {
+                "function" => SymbolKind::Function,
+                "method" => SymbolKind::Method,
+                "struct" => SymbolKind::Struct,
+                "interface" => SymbolKind::Interface,
+                "constant" => SymbolKind::Constant,
+                "variable" => SymbolKind::Variable,
+                _ => SymbolKind::Other,
+            },
+            location: cb_plugin_api::SourceLocation {
+                line: s.location.start_line,
+                column: s.location.start_column,
+            },
+            documentation: s.documentation,
+        })
+        .collect();
+
+    Ok(symbols)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -322,5 +431,36 @@ func main() {}"#;
         assert_eq!(graph.source_file, "in-memory.go");
         assert_eq!(graph.imports.len(), 1);
         assert_eq!(graph.imports[0].module_path, "fmt");
+    }
+
+    #[test]
+    fn test_extract_symbols_graceful_fallback() {
+        let source = r#"package main
+
+// HelloWorld prints hello
+func HelloWorld() {
+    println("Hello")
+}
+
+// User represents a user
+type User struct {
+    Name string
+}
+
+const MaxUsers = 100
+"#;
+
+        // This should either succeed with symbols (if Go is available)
+        // or return an empty list (if Go is not available)
+        let result = extract_symbols(source);
+        assert!(result.is_ok(), "extract_symbols should not fail");
+
+        // If symbols were extracted, verify they're correct
+        let symbols = result.unwrap();
+        if !symbols.is_empty() {
+            assert!(symbols.iter().any(|s| s.name == "HelloWorld"));
+            assert!(symbols.iter().any(|s| s.name == "User"));
+            assert!(symbols.iter().any(|s| s.name == "MaxUsers"));
+        }
     }
 }

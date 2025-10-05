@@ -86,7 +86,7 @@ async fn test_operation_batching() {
     let queue_clone = queue.clone();
     let processor = tokio::spawn(async move {
         queue_clone
-            .process_with(move |op| {
+            .process_with(move |op, stats| {
                 let lock_acquisitions = lock_acquisitions_clone.clone();
 
                 async move {
@@ -94,6 +94,11 @@ async fn test_operation_batching() {
                     let mut lock_acqs = lock_acquisitions.lock().await;
                     lock_acqs.push(op.file_path.clone());
                     drop(lock_acqs);
+
+                    // Update stats
+                    let mut stats_guard = stats.lock().await;
+                    stats_guard.completed_operations += 1;
+                    drop(stats_guard);
 
                     Ok::<_, ApiError>(json!({"processed": op.id}))
                 }

@@ -111,7 +111,9 @@ fn spawn_operation_worker(queue: Arc<super::operation_queue::OperationQueue>) {
                                 op.file_path.display(),
                                 e
                             ))
-                        })
+                        })?;
+
+                        Ok(())
                     }
                     OperationType::Delete => {
                         if op.file_path.exists() {

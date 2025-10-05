@@ -1165,6 +1165,12 @@ impl FileService {
         let mut snapshots = HashMap::new();
 
         for file_path in file_paths {
+            // Acquire a read lock to ensure no other task modifies the file
+            // while we are creating the snapshot. This prevents race conditions
+            // where concurrent edits could truncate or modify files during snapshot.
+            let file_lock = self.lock_manager.get_lock(file_path).await;
+            let _guard = file_lock.read().await;
+
             // Open file with explicit handle and force cache drop
             let read_result = async {
                 use tokio::io::AsyncReadExt;
@@ -1215,6 +1221,17 @@ impl FileService {
                         content_len = content.len(),
                         "Snapshot created with content"
                     );
+                    // DEBUG: Check line structure
+                    let lines: Vec<&str> = content.lines().collect();
+                    if lines.len() > 1 {
+                        eprintln!(
+                            "DEBUG SNAPSHOT: {} - line_count={}, line[0].len={}, line[1].len={}",
+                            file_path.display(),
+                            lines.len(),
+                            lines.get(0).map(|l| l.len()).unwrap_or(0),
+                            lines.get(1).map(|l| l.len()).unwrap_or(0)
+                        );
+                    }
                     snapshots.insert(file_path.clone(), content);
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
@@ -1336,8 +1353,20 @@ impl FileService {
 
         // Apply edits from end to beginning to preserve positions
         let mut modified_content = original_content.to_string();
-        for edit in sorted_edits {
-            modified_content = self.apply_single_edit(&modified_content, &edit)?;
+        for (idx, edit) in sorted_edits.iter().enumerate() {
+            eprintln!(
+                "DEBUG: Before edit #{}, content.len={}, first 50 chars: {:?}",
+                idx,
+                modified_content.len(),
+                &modified_content.chars().take(50).collect::<String>()
+            );
+            modified_content = self.apply_single_edit(&modified_content, edit)?;
+            eprintln!(
+                "DEBUG: After edit #{}, content.len={}, first 50 chars: {:?}",
+                idx,
+                modified_content.len(),
+                &modified_content.chars().take(50).collect::<String>()
+            );
         }
 
         Ok(modified_content)
@@ -1381,6 +1410,16 @@ impl FileService {
     fn apply_single_edit(&self, content: &str, edit: &TextEdit) -> ServerResult<String> {
         let original_had_newline = content.ends_with('\n');
         let lines: Vec<&str> = content.lines().collect();
+
+        // DEBUG: Log line structure
+        eprintln!(
+            "DEBUG apply_single_edit: start_line={}, start_col={}, total_lines={}, line[0].len={}, line[1].len={}",
+            edit.location.start_line,
+            edit.location.start_column,
+            lines.len(),
+            lines.get(0).map(|l| l.len()).unwrap_or(999),
+            lines.get(1).map(|l| l.len()).unwrap_or(999)
+        );
 
         if edit.location.start_line as usize >= lines.len() {
             return Err(ServerError::InvalidRequest(format!(
