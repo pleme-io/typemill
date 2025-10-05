@@ -22,182 +22,6 @@ pub struct ExtractModuleToPackageParams {
     pub is_workspace_member: Option<bool>,
 }
 
-/// Recursively find all .rs files in a directory
-fn find_rust_files_in_dir(dir: &Path) -> AstResult<Vec<std::path::PathBuf>> {
-    let mut rust_files = Vec::new();
-
-    if !dir.exists() || !dir.is_dir() {
-        return Ok(rust_files);
-    }
-
-    let entries = std::fs::read_dir(dir).map_err(|e| crate::error::AstError::Analysis {
-        message: format!("Failed to read directory {}: {}", dir.display(), e),
-    })?;
-
-    for entry_result in entries {
-        let entry = entry_result.map_err(|e| crate::error::AstError::Analysis {
-            message: format!("Failed to read directory entry: {}", e),
-        })?;
-
-        let path = entry.path();
-
-        if path.is_dir() {
-            // Skip target and hidden directories
-            if let Some(dir_name) = path.file_name().and_then(|n| n.to_str()) {
-                if dir_name == "target" || dir_name.starts_with('.') {
-                    continue;
-                }
-            }
-
-            // Recursively search subdirectories
-            let mut sub_files = find_rust_files_in_dir(&path)?;
-            rust_files.append(&mut sub_files);
-        } else if path.extension().and_then(|e| e.to_str()) == Some("rs") {
-            rust_files.push(path);
-        }
-    }
-
-    Ok(rust_files)
-}
-
-/// Update a Cargo.toml file to add a new path dependency
-fn update_cargo_toml_dependency(
-    cargo_content: &str,
-    dep_name: &str,
-    dep_path: &str,
-    source_path: &Path,
-) -> AstResult<String> {
-    use toml_edit::DocumentMut;
-
-    let mut doc =
-        cargo_content
-            .parse::<DocumentMut>()
-            .map_err(|e| crate::error::AstError::Analysis {
-                message: format!("Failed to parse Cargo.toml: {}", e),
-            })?;
-
-    // Calculate relative path from source to target
-    let source_cargo_dir = source_path;
-    let target_path = Path::new(dep_path);
-    let relative_path = pathdiff::diff_paths(target_path, source_cargo_dir).ok_or_else(|| {
-        crate::error::AstError::Analysis {
-            message: "Failed to calculate relative path".to_string(),
-        }
-    })?;
-
-    // Add dependency to [dependencies] section
-    if !doc.contains_key("dependencies") {
-        doc["dependencies"] = toml_edit::table();
-    }
-
-    let deps =
-        doc["dependencies"]
-            .as_table_mut()
-            .ok_or_else(|| crate::error::AstError::Analysis {
-                message: "[dependencies] is not a table".to_string(),
-            })?;
-
-    // Create inline table for path dependency
-    let mut dep_table = toml_edit::InlineTable::new();
-    dep_table.insert(
-        "path",
-        toml_edit::Value::from(relative_path.to_string_lossy().as_ref()),
-    );
-
-    deps[dep_name] = toml_edit::value(toml_edit::Value::InlineTable(dep_table));
-
-    Ok(doc.to_string())
-}
-
-/// Update a workspace Cargo.toml to add a new member
-fn update_workspace_members(
-    workspace_content: &str,
-    new_member_path: &str,
-    workspace_root: &Path,
-) -> AstResult<String> {
-    use toml_edit::DocumentMut;
-
-    let mut doc =
-        workspace_content
-            .parse::<DocumentMut>()
-            .map_err(|e| crate::error::AstError::Analysis {
-                message: format!("Failed to parse workspace Cargo.toml: {}", e),
-            })?;
-
-    // Calculate relative path from workspace root to new member
-    let target_path = Path::new(new_member_path);
-    let relative_path = pathdiff::diff_paths(target_path, workspace_root).ok_or_else(|| {
-        crate::error::AstError::Analysis {
-            message: "Failed to calculate relative path for workspace member".to_string(),
-        }
-    })?;
-
-    // Ensure [workspace.members] exists
-    if !doc.contains_key("workspace") {
-        doc["workspace"] = toml_edit::table();
-    }
-
-    let workspace =
-        doc["workspace"]
-            .as_table_mut()
-            .ok_or_else(|| crate::error::AstError::Analysis {
-                message: "[workspace] is not a table".to_string(),
-            })?;
-
-    if !workspace.contains_key("members") {
-        workspace["members"] = toml_edit::value(toml_edit::Array::new());
-    }
-
-    let members =
-        workspace["members"]
-            .as_array_mut()
-            .ok_or_else(|| crate::error::AstError::Analysis {
-                message: "[workspace.members] is not an array".to_string(),
-            })?;
-
-    // Add new member if not already present
-    let member_str = relative_path.to_string_lossy();
-    let member_exists = members
-        .iter()
-        .any(|v| v.as_str() == Some(member_str.as_ref()));
-
-    if !member_exists {
-        members.push(member_str.as_ref());
-    }
-
-    Ok(doc.to_string())
-}
-
-/// Remove a module declaration from Rust source code
-///
-/// Parses the source with syn and removes the `mod module_name;` or `pub mod module_name;` declaration.
-fn remove_module_declaration(source: &str, module_name: &str) -> AstResult<String> {
-    use syn::{File, Item};
-
-    // Parse the Rust source
-    let mut syntax_tree: File =
-        syn::parse_str(source).map_err(|e| crate::error::AstError::Analysis {
-            message: format!("Failed to parse Rust source for mod removal: {}", e),
-        })?;
-
-    // Remove the module declaration
-    syntax_tree.items.retain(|item| {
-        if let Item::Mod(item_mod) = item {
-            // Check if this is the module we want to remove
-            item_mod.ident != module_name
-        } else {
-            true // Keep all other items
-        }
-    });
-
-    // Convert back to string
-    let updated_source = quote::quote!(#syntax_tree).to_string();
-
-    // Format with rustfmt-style spacing (basic)
-    // Note: This is a simple approximation, real rustfmt would be better
-    Ok(updated_source)
-}
-
 /// Main entry point for extracting a module to a package
 ///
 /// This function orchestrates the extraction process by:
@@ -432,8 +256,11 @@ pub async fn plan_extract_module_to_package_with_registry(
             if parent_file_path.exists() {
                 match tokio::fs::read_to_string(&parent_file_path).await {
                     Ok(parent_content) => {
-                        // Parse and remove the module declaration
-                        match remove_module_declaration(&parent_content, final_module_name) {
+                        // Parse and remove the module declaration using plugin method
+                        match plugin
+                            .remove_module_declaration(&parent_content, final_module_name)
+                            .await
+                        {
                             Ok(updated_content) => {
                                 if updated_content != parent_content {
                                     edits.push(TextEdit {
@@ -486,12 +313,15 @@ pub async fn plan_extract_module_to_package_with_registry(
     if source_cargo_toml.exists() {
         match tokio::fs::read_to_string(&source_cargo_toml).await {
             Ok(cargo_content) => {
-                match update_cargo_toml_dependency(
-                    &cargo_content,
-                    &params.target_package_name,
-                    &params.target_package_path,
-                    source_path,
-                ) {
+                match plugin
+                    .add_manifest_path_dependency(
+                        &cargo_content,
+                        &params.target_package_name,
+                        &params.target_package_path,
+                        source_path,
+                    )
+                    .await
+                {
                     Ok(updated_cargo) => {
                         if updated_cargo != cargo_content {
                             edits.push(TextEdit {
@@ -537,14 +367,17 @@ pub async fn plan_extract_module_to_package_with_registry(
             let potential_workspace = parent.join("Cargo.toml");
             if potential_workspace.exists() {
                 if let Ok(content) = tokio::fs::read_to_string(&potential_workspace).await {
-                    if content.contains("[workspace]") {
-                        workspace_root = parent.to_path_buf();
-                        found_workspace = true;
-                        debug!(
-                            workspace_root = %workspace_root.display(),
-                            "Found workspace root"
-                        );
-                        break;
+                    // Use plugin method to check if this is a workspace manifest
+                    if let Ok(is_workspace) = plugin.is_workspace_manifest(&content).await {
+                        if is_workspace {
+                            workspace_root = parent.to_path_buf();
+                            found_workspace = true;
+                            debug!(
+                                workspace_root = %workspace_root.display(),
+                                "Found workspace root"
+                            );
+                            break;
+                        }
                     }
                 }
             }
@@ -563,42 +396,32 @@ pub async fn plan_extract_module_to_package_with_registry(
 
                 // Create a new workspace Cargo.toml if it doesn't exist
                 if !workspace_cargo_toml.exists() {
-                    let source_crate_rel = pathdiff::diff_paths(source_path, &workspace_root)
-                        .unwrap_or_else(|| source_path.to_path_buf());
-                    let target_crate_rel =
-                        pathdiff::diff_paths(&params.target_package_path, &workspace_root)
-                            .unwrap_or_else(|| {
-                                Path::new(&params.target_package_path).to_path_buf()
-                            });
+                    let source_crate_str = source_path.to_string_lossy().to_string();
+                    let member_paths = vec![source_crate_str.as_str(), &params.target_package_path];
 
-                    let workspace_content = format!(
-                        r#"[workspace]
-members = [
-    "{}",
-    "{}",
-]
-resolver = "2"
-"#,
-                        source_crate_rel.to_string_lossy(),
-                        target_crate_rel.to_string_lossy()
-                    );
-
-                    edits.push(TextEdit {
-                        file_path: Some(workspace_cargo_toml.to_string_lossy().to_string()),
-                        edit_type: EditType::Insert,
-                        location: EditLocation {
-                            start_line: 0,
-                            start_column: 0,
-                            end_line: 0,
-                            end_column: 0,
-                        },
-                        original_text: String::new(),
-                        new_text: workspace_content,
-                        priority: 50,
-                        description: "Create workspace Cargo.toml with members".to_string(),
-                    });
-                    debug!("Created workspace Cargo.toml creation TextEdit");
-                    found_workspace = true;
+                    if let Ok(workspace_content) = plugin
+                        .generate_workspace_manifest(&member_paths, &workspace_root)
+                        .await
+                    {
+                        edits.push(TextEdit {
+                            file_path: Some(workspace_cargo_toml.to_string_lossy().to_string()),
+                            edit_type: EditType::Insert,
+                            location: EditLocation {
+                                start_line: 0,
+                                start_column: 0,
+                                end_line: 0,
+                                end_column: 0,
+                            },
+                            original_text: String::new(),
+                            new_text: workspace_content,
+                            priority: 50,
+                            description: "Create workspace Cargo.toml with members".to_string(),
+                        });
+                        debug!("Created workspace Cargo.toml creation TextEdit");
+                        found_workspace = true;
+                    } else {
+                        debug!("Failed to generate workspace manifest");
+                    }
                 }
             }
         }
@@ -608,13 +431,19 @@ resolver = "2"
             if workspace_cargo_toml.exists() && workspace_cargo_toml != source_cargo_toml {
                 match tokio::fs::read_to_string(&workspace_cargo_toml).await {
                     Ok(workspace_content) => {
-                        if workspace_content.contains("[workspace]") {
-                            match update_workspace_members(
-                                &workspace_content,
-                                &params.target_package_path,
-                                &workspace_root,
-                            ) {
-                                Ok(updated_workspace) => {
+                        // Use plugin method to check if this is a workspace manifest
+                        if let Ok(is_workspace) = plugin.is_workspace_manifest(&workspace_content).await
+                        {
+                            if is_workspace {
+                                match plugin
+                                    .add_workspace_member(
+                                        &workspace_content,
+                                        &params.target_package_path,
+                                        &workspace_root,
+                                    )
+                                    .await
+                                {
+                                    Ok(updated_workspace) => {
                                     if updated_workspace != workspace_content {
                                         edits.push(TextEdit {
                                             file_path: Some(
@@ -636,8 +465,9 @@ resolver = "2"
                                         debug!("Created workspace Cargo.toml update TextEdit");
                                     }
                                 }
-                                Err(e) => {
-                                    debug!(error = %e, "Failed to update workspace Cargo.toml");
+                                    Err(e) => {
+                                        debug!(error = %e, "Failed to update workspace Cargo.toml");
+                                    }
                                 }
                             }
                         }
@@ -656,8 +486,13 @@ resolver = "2"
     if params.update_imports.unwrap_or(true) {
         debug!("Starting use statement updates across workspace");
 
-        // Find all Rust files in the source crate
-        let rust_files = find_rust_files_in_dir(source_path)?;
+        // Find all source files in the source crate using plugin method
+        let rust_files = plugin
+            .find_source_files(source_path)
+            .await
+            .map_err(|e| crate::error::AstError::Analysis {
+                message: format!("Failed to find source files: {}", e),
+            })?;
 
         debug!(
             rust_files_count = rust_files.len(),
