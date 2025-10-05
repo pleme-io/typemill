@@ -47,8 +47,9 @@ for PLUGIN_DIR in $PLUGINS; do
     ISSUES=()
 
     # Check 1: Registry builder
-    if grep -q "#\[cfg(feature = \"${FEATURE_NAME}\")\]" "$REGISTRY_FILE" && \
-       grep -q "${PLUGIN_NAME}::.*Plugin::new()" "$REGISTRY_FILE"; then
+    # Use grep -A to check feature flag and registration are together
+    if grep -A 5 "#\[cfg(feature = \"${FEATURE_NAME}\")\]" "$REGISTRY_FILE" | \
+       grep -q "${PLUGIN_NAME}::"; then
         echo -e "  ${GREEN}✓${NC} Registered in registry_builder.rs"
     else
         echo -e "  ${RED}✗${NC} MISSING from registry_builder.rs"

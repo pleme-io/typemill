@@ -56,6 +56,12 @@ uuid = { version = "1.0", features = ["v4"] }
 dashmap = "5.5"
 futures = "0.3"
 
+# Language plugins
+cb-lang-rust = { path = "crates/languages/cb-lang-rust" }
+cb-lang-go = { path = "crates/languages/cb-lang-go" }
+cb-lang-typescript = { path = "crates/languages/cb-lang-typescript" }
+cb-lang-python = { path = "crates/languages/cb-lang-python" }
+
 [profile.release]
 opt-level = 3
 lto = true
