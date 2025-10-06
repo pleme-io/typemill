@@ -103,3 +103,4 @@ jscpd-report/
 *-report.json
 complexity-report.json
 test_scanner
+.claude/
