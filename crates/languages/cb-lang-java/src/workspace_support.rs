@@ -106,42 +106,64 @@ fn remove_workspace_member_impl(content: &str, member: &str) -> Result<String, S
 
 /// Rewrite pom.xml with new modules list
 fn rewrite_with_modules(content: &str, members: &[String]) -> Result<String, String> {
+    let is_workspace = is_workspace_manifest_impl(content);
+
+    if !is_workspace {
+        // No existing modules section - insert after packaging
+        let mut reader = Reader::from_str(content);
+        reader.trim_text(true);
+        let mut writer = Writer::new(Cursor::new(Vec::new()));
+        let mut buf = Vec::new();
+
+        loop {
+            match reader.read_event_into(&mut buf) {
+                Ok(Event::Eof) => break,
+                Ok(Event::End(ref e)) if e.name().as_ref() == b"packaging" => {
+                    writer.write_event(Event::End(e.clone())).map_err(|e| e.to_string())?;
+                    write_modules_section(&mut writer, members)?;
+                }
+                Ok(ref e) => {
+                    writer.write_event(e).map_err(|e| e.to_string())?;
+                }
+                Err(e) => return Err(format!("XML parse error: {}", e)),
+            }
+            buf.clear();
+        }
+
+        return String::from_utf8(writer.into_inner().into_inner())
+            .map_err(|e| format!("UTF-8 conversion error: {}", e));
+    }
+
+    // Has existing modules section - replace it
     let mut reader = Reader::from_str(content);
     reader.trim_text(true);
-
     let mut writer = Writer::new(Cursor::new(Vec::new()));
     let mut buf = Vec::new();
-    let mut in_modules = false;
-    let mut modules_written = false;
+    let mut skip_depth = 0;
 
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Eof) => break,
-            Ok(Event::Start(ref e)) if e.name().as_ref() == b"modules" && !in_modules => {
-                // Replace entire modules section
+            Ok(Event::Start(ref e)) if e.name().as_ref() == b"modules" && skip_depth == 0 => {
+                // Start skipping and write our replacement
                 write_modules_section(&mut writer, members)?;
-                in_modules = true;
-                modules_written = true;
-                // Don't write the original <modules> tag
+                skip_depth = 1;
             }
-            Ok(Event::End(ref e)) if e.name().as_ref() == b"modules" && in_modules => {
-                in_modules = false;
-                // Don't write the original </modules> tag since we already wrote our own
+            Ok(Event::Start(_)) if skip_depth > 0 => {
+                skip_depth += 1;
             }
-            Ok(Event::End(ref e)) if e.name().as_ref() == b"packaging" && !modules_written => {
-                // No modules section exists yet, add after packaging
-                writer.write_event(Event::End(e.clone())).map_err(|e| e.to_string())?;
-                write_modules_section(&mut writer, members)?;
-                modules_written = true;
+            Ok(Event::End(ref e)) if e.name().as_ref() == b"modules" && skip_depth == 1 => {
+                skip_depth = 0;
+                // Skipped the entire old modules section
             }
-            Ok(ref e) => {
-                // Only write events if we're not inside the modules section
-                if !in_modules {
-                    writer.write_event(e).map_err(|e| e.to_string())?;
-                }
-                // Otherwise skip (we're inside the old modules section)
+            Ok(Event::End(_)) if skip_depth > 0 => {
+                skip_depth -= 1;
+            }
+            Ok(ref e) if skip_depth == 0 => {
+                writer.write_event(e).map_err(|e| e.to_string())?;
             }
             Err(e) => return Err(format!("XML parse error: {}", e)),
+            _ => {} // Skip events inside modules section
         }
         buf.clear();
     }
@@ -343,11 +365,9 @@ mod tests {
         let support = JavaWorkspaceSupport::new();
 
         let result = support.add_workspace_member(SIMPLE_WORKSPACE_POM, "module-c");
-        println!("Result XML:\n{}", result);
         assert!(result.contains("<module>module-c</module>"));
 
         let members = support.list_workspace_members(&result);
-        println!("Members found: {:?}", members);
         assert_eq!(members.len(), 3);
         assert!(members.contains(&"module-c".to_string()));
     }
