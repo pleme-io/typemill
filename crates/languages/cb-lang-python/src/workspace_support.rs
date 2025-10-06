@@ -346,7 +346,7 @@ fn list_poetry_packages(doc: &DocumentMut) -> Result<Vec<String>, String> {
 
 /// Extract package name from path (e.g., "packages/my-pkg" -> "my_pkg")
 fn extract_package_name(path: &str) -> &str {
-    path.split('/').last().unwrap_or(path)
+    path.split('/').next_back().unwrap_or(path)
 }
 
 // ============================================================================

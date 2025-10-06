@@ -15,7 +15,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::path::Path;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 // ============================================================================
 // Analysis Handler
@@ -141,11 +141,11 @@ impl AnalysisHandler {
 
         for import_path in &imports {
             // Extract symbols from import path
-            let symbols = extract_imported_symbols(&content, &import_path);
+            let symbols = extract_imported_symbols(&content, import_path);
 
             if symbols.is_empty() {
                 // Check if the import path itself is used (side-effect imports)
-                if !is_module_used_in_code(&content, &import_path) {
+                if !is_module_used_in_code(&content, import_path) {
                     unused_imports.push(UnusedImport {
                         line: line_num,
                         source: import_path.clone(),
@@ -277,8 +277,8 @@ impl AnalysisHandler {
             "Complexity analysis complete"
         );
 
-        Ok(serde_json::to_value(report)
-            .map_err(|e| ServerError::Internal(format!("Failed to serialize report: {}", e)))?)
+        serde_json::to_value(report)
+            .map_err(|e| ServerError::Internal(format!("Failed to serialize report: {}", e)))
     }
 
     async fn handle_suggest_refactoring(
@@ -620,7 +620,6 @@ fn extract_imported_symbols(content: &str, import_path: &str) -> Vec<String> {
                             // Split by commas and clean up
                             for symbol in matched_str.split(',') {
                                 let clean_symbol = symbol
-                                    .trim()
                                     .split_whitespace()
                                     .next()
                                     .unwrap_or("")

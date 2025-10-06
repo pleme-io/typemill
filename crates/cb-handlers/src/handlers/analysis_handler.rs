@@ -318,7 +318,7 @@ fn discover_source_files(
     let mut source_files = Vec::new();
 
     // Use provided filter or default extensions
-    let default_extensions = vec!["rs", "ts", "tsx", "js", "jsx", "py", "go"];
+    let default_extensions = ["rs", "ts", "tsx", "js", "jsx", "py", "go"];
     let extensions_to_check: Vec<String> = if let Some(filter) = file_types_filter {
         filter
             .iter()

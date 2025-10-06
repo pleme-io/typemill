@@ -62,7 +62,7 @@ pub fn create_services_bundle(
 
 /// Spawn background worker to process file operations from the queue
 fn spawn_operation_worker(queue: Arc<super::operation_queue::OperationQueue>) {
-    use super::operation_queue::{OperationType, QueueStatsInternal};
+    use super::operation_queue::OperationType;
     use tokio::fs;
 
     tokio::spawn(async move {

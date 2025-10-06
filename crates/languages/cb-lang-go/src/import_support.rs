@@ -48,11 +48,10 @@ impl ImportSupport for GoImportSupport {
         for line in content.lines() {
             let trimmed = line.trim();
             if (trimmed.starts_with("import") || trimmed.starts_with("\""))
-                && trimmed.contains(&old_aliased) {
-                if !trimmed.contains(&new_aliased) {
+                && trimmed.contains(&old_aliased)
+                && !trimmed.contains(&new_aliased) {
                     changes += 1;
                 }
-            }
         }
 
         new_content = new_content.replace(&old_aliased, &new_aliased);

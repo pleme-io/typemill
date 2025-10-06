@@ -12,7 +12,8 @@ Complete API documentation for all MCP tools available in CodeBuddy.
 - [Language Support Matrix](#language-support-matrix) - Quick reference
 - [Language Plugin Architecture](#language-plugin-architecture) - Capability-based plugin system
 - [Navigation & Intelligence](#navigation--intelligence) (13 tools)
-- [Editing & Refactoring](#editing--refactoring) (9 tools)
+- [Editing & Refactoring](#editing--refactoring) (10 tools)
+- [Code Analysis](#code-analysis) (3 tools)
 - [File Operations](#file-operations) (6 tools)
 - [Workspace Operations](#workspace-operations) (5 tools)
 - [Advanced Operations](#advanced-operations) (2 tools)
@@ -25,7 +26,7 @@ Complete API documentation for all MCP tools available in CodeBuddy.
 
 ## Language Support Matrix
 
-**Total MCP Tools**: 42 (39 public + 3 lifecycle notifications)
+**Total MCP Tools**: 45 (41 public + 4 lifecycle notifications)
 
 ### Navigation & Intelligence (LSP-based)
 
@@ -52,12 +53,21 @@ Complete API documentation for all MCP tools available in CodeBuddy.
 | `rename_symbol` | ✅ | ✅ | ✅ | ✅ | ✅ | Supports dry_run |
 | `rename_symbol_strict` | ✅ | ✅ | ✅ | ✅ | ✅ | Position-specific rename |
 | `organize_imports` | ✅ | ✅ | ✅ | ✅ | ✅ | Language-specific conventions |
+| `optimize_imports` | ✅ | ✅ | ✅ | ✅ | ✅ | Organize + remove unused imports |
 | `get_code_actions` | ✅ | ✅ | ✅ | ✅ | ✅ | Quick fixes, refactors |
 | `format_document` | ✅ | ✅ | ✅ | ✅ | ✅ | Language server formatter |
 | `extract_function` | ✅ LSP/AST | ✅ LSP/AST | ✅ LSP/AST | ✅ LSP/AST | ✅ LSP/AST | LSP-first with AST fallback |
 | `inline_variable` | ✅ LSP/AST | ✅ LSP/AST | ✅ LSP/AST | ✅ LSP/AST | ✅ LSP/AST | LSP-first with AST fallback |
 | `extract_variable` | ✅ LSP/AST | ✅ LSP/AST | ✅ LSP/AST | ✅ LSP/AST | ✅ LSP/AST | LSP-first with AST fallback |
 | `fix_imports` | ✅ | ✅ | ✅ | ✅ | ✅ | Wrapper for organize_imports |
+
+### Code Analysis (AST-based)
+
+| Tool | TypeScript/JS | Python | Go | Rust | Java | Notes |
+|------|---------------|--------|-----|------|------|-------|
+| `find_unused_imports` | ✅ AST | ✅ AST | ✅ AST | ✅ AST | ✅ AST | Pattern-based import usage detection |
+| `analyze_complexity` | ✅ AST | ✅ AST | ✅ AST | ✅ AST | ✅ AST | Cyclomatic complexity metrics |
+| `suggest_refactoring` | ✅ AST | ✅ AST | ✅ AST | ✅ AST | ✅ AST | Pattern-based refactoring suggestions |
 
 ### File Operations
 
@@ -585,7 +595,7 @@ Find underlying type definition.
 
 ## Editing & Refactoring
 
-LSP-based editing and refactoring operations (9 tools).
+LSP-based editing and refactoring operations (10 tools).
 
 ### `rename_symbol`
 
@@ -891,6 +901,213 @@ Extract an expression into a new variable.
   "success": true
 }
 ```
+
+---
+
+### `optimize_imports`
+
+Organize imports AND remove unused imports (combines organize_imports + import cleanup).
+
+**Parameters:**
+```json
+{
+  "file_path": "src/app.ts",    // Required: File path
+  "dry_run": false              // Optional: Preview changes (default: false)
+}
+```
+
+**Returns:**
+```json
+{
+  "operation": "optimize_imports",
+  "file_path": "src/app.ts",
+  "dry_run": false,
+  "imports_organized": true,
+  "imports_removed": 3,
+  "total_imports": 12,
+  "optimized": true
+}
+```
+
+**Notes:**
+- First runs `organize_imports` (LSP-based sorting/grouping)
+- Then removes imports that appear only once in the file (unused)
+- Supports dry_run mode for preview
+
+---
+
+## Code Analysis
+
+AST-based code analysis tools for detecting code smells and optimization opportunities (3 tools).
+
+### `find_unused_imports`
+
+Detect unused imports in a file.
+
+**Parameters:**
+```json
+{
+  "file_path": "src/utils.ts"    // Required: File path
+}
+```
+
+**Returns:**
+```json
+{
+  "file_path": "src/utils.ts",
+  "unused_imports": [
+    {
+      "line": 2,
+      "source": "react",
+      "imported": ["useEffect"],
+      "suggestion": "Remove unused symbols: useEffect from react"
+    },
+    {
+      "line": 5,
+      "source": "./unused-module",
+      "imported": [],
+      "suggestion": "Remove entire import from ./unused-module"
+    }
+  ],
+  "total_unused": 2,
+  "total_imports": 8,
+  "analysis_complete": true
+}
+```
+
+**Notes:**
+- Uses pattern-based symbol usage detection
+- Supports all languages with ImportSupport trait
+- Detects both fully unused imports and partially unused symbols
+- Side-effect imports (no symbols) are checked separately
+
+---
+
+### `analyze_complexity`
+
+Calculate cyclomatic complexity metrics for functions in a file.
+
+**Parameters:**
+```json
+{
+  "file_path": "src/business-logic.ts"    // Required: File path
+}
+```
+
+**Returns:**
+```json
+{
+  "file_path": "src/business-logic.ts",
+  "functions": [
+    {
+      "name": "processOrder",
+      "line": 15,
+      "complexity": 8,
+      "rating": "moderate",
+      "recommendation": null
+    },
+    {
+      "name": "calculateDiscount",
+      "line": 50,
+      "complexity": 15,
+      "rating": "complex",
+      "recommendation": "Consider refactoring to reduce complexity"
+    },
+    {
+      "name": "validatePayment",
+      "line": 120,
+      "complexity": 25,
+      "rating": "verycomplex",
+      "recommendation": "Strongly recommended to refactor into smaller functions"
+    }
+  ],
+  "average_complexity": 12.5,
+  "max_complexity": 25,
+  "total_functions": 8,
+  "summary": "8 functions analyzed. 2 functions need attention (complexity > 10)."
+}
+```
+
+**Complexity Ratings:**
+- **Simple** (1-5): Low risk, easy to test
+- **Moderate** (6-10): Manageable complexity
+- **Complex** (11-20): Needs attention, harder to test - gets recommendation
+- **Very Complex** (21+): High risk, should be refactored - gets strong recommendation
+
+**Algorithm:**
+- Cyclomatic Complexity = decision points + 1
+- Decision points: if, else if, for, while, match/case, catch, &&, ||, ? (ternary)
+- Language-specific pattern detection for Rust, Go, Java, TypeScript, JavaScript, Python
+
+---
+
+### `suggest_refactoring`
+
+Analyze code and suggest refactoring opportunities based on patterns.
+
+**Parameters:**
+```json
+{
+  "file_path": "src/legacy-code.ts"    // Required: File path
+}
+```
+
+**Returns:**
+```json
+{
+  "file_path": "src/legacy-code.ts",
+  "language": "TypeScript",
+  "suggestions": [
+    {
+      "kind": "reduce_complexity",
+      "location": 50,
+      "function_name": "processData",
+      "description": "Function 'processData' has cyclomatic complexity of 18 (Needs attention, harder to test)",
+      "suggestion": "Consider refactoring to reduce complexity",
+      "priority": "medium"
+    },
+    {
+      "kind": "extract_function",
+      "location": 120,
+      "function_name": "handleRequest",
+      "description": "Function 'handleRequest' is 85 lines long (>50 lines)",
+      "suggestion": "Consider breaking this function into smaller, more focused functions",
+      "priority": "high"
+    },
+    {
+      "kind": "replace_magic_number",
+      "location": 1,
+      "function_name": null,
+      "description": "Magic number '86400' appears 4 times",
+      "suggestion": "Consider extracting '86400' to a named constant",
+      "priority": "medium"
+    }
+  ],
+  "total_suggestions": 3,
+  "complexity_report": {
+    "average_complexity": 10.5,
+    "max_complexity": 18,
+    "total_functions": 12
+  }
+}
+```
+
+**Suggestion Types:**
+- **reduce_complexity**: Function has high cyclomatic complexity (>10)
+- **extract_function**: Function is too long (>50 lines)
+- **replace_magic_number**: Numeric literal appears multiple times
+- **remove_duplication**: Duplicate code patterns detected (placeholder)
+- **extract_variable**: Complex expression should be named
+
+**Priority Levels:**
+- **high**: Critical issues (complexity >20, length >100, frequent duplicates)
+- **medium**: Should address (complexity 11-20, length 50-100, some duplicates)
+- **low**: Nice to have (minor improvements)
+
+**Notes:**
+- Combines complexity analysis with pattern-based detection
+- Results sorted by priority (high → medium → low)
+- Includes complexity report summary
 
 ---
 

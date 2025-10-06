@@ -1009,13 +1009,13 @@ impl FileService {
                 affected_files.insert(abs_path);
                 edits_by_file
                     .entry(file_path.clone())
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(edit);
             } else {
                 // Edit without explicit file_path goes to source_file
                 edits_by_file
                     .entry(plan.source_file.clone())
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(edit);
             }
         }
@@ -1225,7 +1225,7 @@ impl FileService {
                             "DEBUG SNAPSHOT: {} - line_count={}, line[0].len={}, line[1].len={}",
                             file_path.display(),
                             lines.len(),
-                            lines.get(0).map(|l| l.len()).unwrap_or(0),
+                            lines.first().map(|l| l.len()).unwrap_or(0),
                             lines.get(1).map(|l| l.len()).unwrap_or(0)
                         );
                     }
@@ -2134,7 +2134,7 @@ impl FileService {
                                             let path_str = rel_path.to_string_lossy().to_string();
                                             dep_table.insert(
                                                 "path",
-                                                toml_edit::Value::from(path_str).into(),
+                                                toml_edit::Value::from(path_str),
                                             );
                                         }
                                     }

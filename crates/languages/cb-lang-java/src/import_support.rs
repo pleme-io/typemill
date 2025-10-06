@@ -15,6 +15,12 @@ const JAVA_PARSER_JAR: &[u8] =
 /// Java import support implementation using AST parsing
 pub struct JavaImportSupport;
 
+impl Default for JavaImportSupport {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl JavaImportSupport {
     pub fn new() -> Self {
         Self
@@ -188,8 +194,7 @@ fn file_path_to_package(path: &Path) -> Option<String> {
             let package_part = &path_str[idx + marker.len()..];
             let package_path = package_part
                 .trim_end_matches(".java")
-                .replace('/', ".")
-                .replace('\\', "."); // Windows support
+                .replace(['/', '\\'], "."); // Windows support
             return Some(package_path);
         }
     }

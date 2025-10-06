@@ -67,7 +67,7 @@ pub fn plan_extract_function(
         file_path: None,
         edit_type: EditType::Insert,
         location: EditLocation {
-            start_line: start_line,
+            start_line,
             start_column: 0,
             end_line: start_line,
             end_column: 0,
