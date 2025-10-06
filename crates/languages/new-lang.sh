@@ -517,258 +517,45 @@ fi
 echo -e "${GREEN}✓${NC} Generated README.md"
 
 # ============================================================================
-# Phase 3: Auto-patch Workspace Files
+# Phase 3: Register Language in languages.toml
 # ============================================================================
 
 echo ""
-echo -e "${BLUE}Phase 3: Patching workspace configuration files${NC}"
+echo -e "${BLUE}Phase 3: Registering language in languages.toml${NC}"
 
-# 3.1: Patch root Cargo.toml workspace dependencies
-echo -e "${BLUE}  → Patching root Cargo.toml...${NC}"
-ROOT_CARGO="${WORKSPACE_ROOT}/Cargo.toml"
+LANGUAGES_TOML="${LANGUAGES_DIR}/languages.toml"
 
 if [ "$DRY_RUN" = false ]; then
-    # Check if dependency already exists
-    if grep -q "^${PLUGIN_NAME} = " "$ROOT_CARGO"; then
-        echo -e "${YELLOW}    ⚠ Dependency already exists in root Cargo.toml${NC}"
+    # Check if language already exists
+    if grep -q "^\[languages\.${LANG_TITLE}\]" "$LANGUAGES_TOML"; then
+        echo -e "${YELLOW}  ⚠ Language already registered in languages.toml${NC}"
     else
-        # Find the last language plugin line number and add after it
-        if grep -q "^cb-lang-" "$ROOT_CARGO"; then
-            # Use awk to insert after the last cb-lang- entry
-            awk -v line="${PLUGIN_NAME} = { path = \"crates/languages/${PLUGIN_NAME}\" }" '
-                /^cb-lang-/ { last_line = NR }
-                { lines[NR] = $0 }
-                END {
-                    for (i = 1; i <= NR; i++) {
-                        print lines[i]
-                        if (i == last_line) print line
-                    }
-                }
-            ' "$ROOT_CARGO" > "$ROOT_CARGO.tmp" && mv "$ROOT_CARGO.tmp" "$ROOT_CARGO"
-            echo -e "${GREEN}    ✓ Added to workspace dependencies${NC}"
-        else
-            echo -e "${RED}    ✗ Could not find language plugin section${NC}"
-        fi
+        # Append new language entry to languages.toml
+        cat >> "$LANGUAGES_TOML" << TOMLEOF
+
+[languages.${LANG_TITLE}]
+display_name = "${LANG_TITLE}"
+extensions = [${EXTENSIONS_ARRAY}]
+manifest_filename = "${MANIFEST}"
+source_dir = "${SOURCE_DIR}"
+entry_point = "${ENTRY_POINT}"
+module_separator = "${MODULE_SEP}"
+crate_name = "${PLUGIN_NAME}"
+feature_name = "lang-${LANG_LOWER}"
+TOMLEOF
+        echo -e "${GREEN}  ✓ Registered ${LANG_TITLE} in languages.toml${NC}"
     fi
 else
-    echo -e "${YELLOW}    [DRY RUN] Would add: ${PLUGIN_NAME} = { path = \"crates/languages/${PLUGIN_NAME}\" }${NC}"
-fi
-
-# 3.2: Patch crates/cb-handlers/Cargo.toml
-echo -e "${BLUE}  → Patching cb-handlers/Cargo.toml...${NC}"
-HANDLERS_CARGO="${WORKSPACE_ROOT}/crates/cb-handlers/Cargo.toml"
-
-if [ "$DRY_RUN" = false ]; then
-    # Add to dependencies section
-    if grep -q "^${PLUGIN_NAME} = " "$HANDLERS_CARGO"; then
-        echo -e "${YELLOW}    ⚠ Dependency already exists in cb-handlers/Cargo.toml${NC}"
-    else
-        # Insert after the last cb-lang- dependency using awk
-        awk -v line="${PLUGIN_NAME} = { path = \"../languages/${PLUGIN_NAME}\", optional = true }" '
-            /^cb-lang-.*optional = true/ { last_dep = NR }
-            { lines[NR] = $0 }
-            END {
-                for (i = 1; i <= NR; i++) {
-                    print lines[i]
-                    if (i == last_dep) print line
-                }
-            }
-        ' "$HANDLERS_CARGO" > "$HANDLERS_CARGO.tmp" && mv "$HANDLERS_CARGO.tmp" "$HANDLERS_CARGO"
-        echo -e "${GREEN}    ✓ Added optional dependency${NC}"
-    fi
-
-    # Add to features section
-    if grep -q "^lang-${LANG_LOWER} = " "$HANDLERS_CARGO"; then
-        echo -e "${YELLOW}    ⚠ Feature already exists in cb-handlers/Cargo.toml${NC}"
-    else
-        # Insert after the last lang- feature using awk
-        awk -v line="lang-${LANG_LOWER} = [\"dep:${PLUGIN_NAME}\"]" '
-            /^lang-.*= \[/ { last_feat = NR }
-            { lines[NR] = $0 }
-            END {
-                for (i = 1; i <= NR; i++) {
-                    print lines[i]
-                    if (i == last_feat) print line
-                }
-            }
-        ' "$HANDLERS_CARGO" > "$HANDLERS_CARGO.tmp" && mv "$HANDLERS_CARGO.tmp" "$HANDLERS_CARGO"
-        echo -e "${GREEN}    ✓ Added feature gate${NC}"
-    fi
-
-    # Add to default features
-    if grep "^default = " "$HANDLERS_CARGO" | grep -q "lang-${LANG_LOWER}"; then
-        echo -e "${YELLOW}    ⚠ Already in default features${NC}"
-    else
-        # Add to default features array using awk (portable across macOS/Linux)
-        awk -v lang="lang-${LANG_LOWER}" '
-            /^default = \[/ {
-                sub(/\]$/, ", \"" lang "\"]")
-            }
-            { print }
-        ' "$HANDLERS_CARGO" > "$HANDLERS_CARGO.tmp" && mv "$HANDLERS_CARGO.tmp" "$HANDLERS_CARGO"
-        echo -e "${GREEN}    ✓ Added to default features${NC}"
-    fi
-else
-    echo -e "${YELLOW}    [DRY RUN] Would add dependency and feature gate${NC}"
-fi
-
-# 3.3: Patch registry_builder.rs
-echo -e "${BLUE}  → Patching registry_builder.rs...${NC}"
-REGISTRY_FILE="${WORKSPACE_ROOT}/crates/cb-services/src/services/registry_builder.rs"
-
-if [ "$DRY_RUN" = false ]; then
-    # Check if already registered
-    if grep -q "cb_lang_${LANG_LOWER}" "$REGISTRY_FILE"; then
-        echo -e "${YELLOW}    ⚠ Plugin already registered${NC}"
-    else
-        # Create registration block in a temp file
-        cat > /tmp/plugin_registration.txt << REGEOF
-
-    // Register ${LANG_TITLE} plugin
-    #[cfg(feature = "lang-${LANG_LOWER}")]
-    {
-        registry.register(Arc::new(cb_lang_${LANG_LOWER}::${LANG_TITLE}Plugin::new()));
-        plugin_count += 1;
-    }
-REGEOF
-        # Insert before the final plugin_count line using awk
-        awk '
-            /let _ = plugin_count;/ {
-                while ((getline line < "/tmp/plugin_registration.txt") > 0) {
-                    print line
-                }
-                close("/tmp/plugin_registration.txt")
-            }
-            { print }
-        ' "$REGISTRY_FILE" > "$REGISTRY_FILE.tmp" && mv "$REGISTRY_FILE.tmp" "$REGISTRY_FILE"
-        rm -f /tmp/plugin_registration.txt
-        echo -e "${GREEN}    ✓ Registered plugin${NC}"
-    fi
-else
-    echo -e "${YELLOW}    [DRY RUN] Would register plugin${NC}"
-fi
-
-# 3.4: Patch Language enum in cb-core
-echo -e "${BLUE}  → Patching Language enum in cb-core...${NC}"
-LANGUAGE_FILE="${WORKSPACE_ROOT}/crates/cb-core/src/language.rs"
-
-if [ "$DRY_RUN" = false ]; then
-    # Add enum variant
-    if grep -q "^\s*${LANG_TITLE}," "$LANGUAGE_FILE"; then
-        echo -e "${YELLOW}    ⚠ Enum variant already exists${NC}"
-    else
-        # Insert before Unknown variant using awk
-        awk -v title="${LANG_TITLE}" -v manifest="${MANIFEST}" '
-            /\/\/\/ Unknown or mixed-language project/ {
-                print "    /// " title " projects (" manifest ")"
-                print "    " title ","
-            }
-            { print }
-        ' "$LANGUAGE_FILE" > "$LANGUAGE_FILE.tmp" && mv "$LANGUAGE_FILE.tmp" "$LANGUAGE_FILE"
-        echo -e "${GREEN}    ✓ Added enum variant${NC}"
-    fi
-
-    # Add to as_str() match
-    if grep -q "ProjectLanguage::${LANG_TITLE}" "$LANGUAGE_FILE"; then
-        echo -e "${YELLOW}    ⚠ as_str() already updated${NC}"
-    else
-        awk -v title="${LANG_TITLE}" -v lower="${LANG_LOWER}" '
-            /ProjectLanguage::Unknown => "unknown"/ {
-                print "            ProjectLanguage::" title " => \"" lower "\","
-            }
-            { print }
-        ' "$LANGUAGE_FILE" > "$LANGUAGE_FILE.tmp" && mv "$LANGUAGE_FILE.tmp" "$LANGUAGE_FILE"
-        echo -e "${GREEN}    ✓ Updated as_str()${NC}"
-    fi
-
-    # Add to manifest_filename() match
-    if grep -q "ProjectLanguage::${LANG_TITLE}.*=>.*\"${MANIFEST}\"" "$LANGUAGE_FILE"; then
-        echo -e "${YELLOW}    ⚠ manifest_filename() already updated${NC}"
-    else
-        awk -v title="${LANG_TITLE}" -v manifest="${MANIFEST}" '
-            /ProjectLanguage::Unknown => ""/ {
-                print "            ProjectLanguage::" title " => \"" manifest "\","
-            }
-            { print }
-        ' "$LANGUAGE_FILE" > "$LANGUAGE_FILE.tmp" && mv "$LANGUAGE_FILE.tmp" "$LANGUAGE_FILE"
-        echo -e "${GREEN}    ✓ Updated manifest_filename()${NC}"
-    fi
-
-    # Add to detect_project_language()
-    if grep -q "Check for ${LANG_TITLE}" "$LANGUAGE_FILE"; then
-        echo -e "${YELLOW}    ⚠ detect_project_language() already updated${NC}"
-    else
-        # Create detection block in temp file
-        cat > /tmp/detect_block.txt << DETECTEOF
-
-    // Check for ${LANG_TITLE}
-    if project_path.join("${MANIFEST}").exists() {
-        debug!("Detected ${LANG_TITLE} project (found ${MANIFEST})");
-        return ProjectLanguage::${LANG_TITLE};
-    }
-DETECTEOF
-        # Insert before "Could not detect" line
-        awk '
-            /debug!\("Could not detect project language"\)/ {
-                while ((getline line < "/tmp/detect_block.txt") > 0) {
-                    print line
-                }
-                close("/tmp/detect_block.txt")
-            }
-            { print }
-        ' "$LANGUAGE_FILE" > "$LANGUAGE_FILE.tmp" && mv "$LANGUAGE_FILE.tmp" "$LANGUAGE_FILE"
-        rm -f /tmp/detect_block.txt
-        echo -e "${GREEN}    ✓ Updated detect_project_language()${NC}"
-    fi
-else
-    echo -e "${YELLOW}    [DRY RUN] Would update Language enum and related functions${NC}"
-fi
-
-# 3.5: Patch LanguageMetadata constants
-echo -e "${BLUE}  → Patching LanguageMetadata in cb-plugin-api...${NC}"
-METADATA_FILE="${WORKSPACE_ROOT}/crates/cb-plugin-api/src/metadata.rs"
-
-if [ "$DRY_RUN" = false ]; then
-    # Check if constant already exists
-    if grep -q "pub const ${LANG_UPPER}: Self" "$METADATA_FILE"; then
-        echo -e "${YELLOW}    ⚠ Metadata constant already exists${NC}"
-    else
-        # Create the constant block in a temp file
-        cat > /tmp/metadata_const.txt << METAEOF
-
-    /// ${LANG_TITLE} language metadata constant
-    pub const ${LANG_UPPER}: Self = Self {
-        name: "${LANG_TITLE}",
-        extensions: &[${EXTENSIONS_ARRAY}],
-        manifest_filename: "${MANIFEST}",
-        source_dir: "${SOURCE_DIR}",
-        entry_point: "${ENTRY_POINT}",
-        module_separator: "${MODULE_SEP}",
-        language: ProjectLanguage::${LANG_TITLE},
-    };
-METAEOF
-        # Insert before the last closing brace of impl LanguageMetadata
-        # Find the line with the last "}" that closes the impl block
-        awk '
-            /^}$/ {
-                if (in_impl) {
-                    while ((getline line < "/tmp/metadata_const.txt") > 0) {
-                        print line
-                    }
-                    close("/tmp/metadata_const.txt")
-                    in_impl = 0
-                }
-                print
-                next
-            }
-            /^impl LanguageMetadata/ { in_impl = 1 }
-            { print }
-        ' "$METADATA_FILE" > "$METADATA_FILE.tmp" && mv "$METADATA_FILE.tmp" "$METADATA_FILE"
-        rm -f /tmp/metadata_const.txt
-        echo -e "${GREEN}    ✓ Added metadata constant${NC}"
-    fi
-else
-    echo -e "${YELLOW}    [DRY RUN] Would add LanguageMetadata::${LANG_UPPER}${NC}"
+    echo -e "${YELLOW}  [DRY RUN] Would append to languages.toml:${NC}"
+    echo -e "${YELLOW}    [languages.${LANG_TITLE}]${NC}"
+    echo -e "${YELLOW}    display_name = \"${LANG_TITLE}\"${NC}"
+    echo -e "${YELLOW}    extensions = [${EXTENSIONS_ARRAY}]${NC}"
+    echo -e "${YELLOW}    manifest_filename = \"${MANIFEST}\"${NC}"
+    echo -e "${YELLOW}    source_dir = \"${SOURCE_DIR}\"${NC}"
+    echo -e "${YELLOW}    entry_point = \"${ENTRY_POINT}\"${NC}"
+    echo -e "${YELLOW}    module_separator = \"${MODULE_SEP}\"${NC}"
+    echo -e "${YELLOW}    crate_name = \"${PLUGIN_NAME}\"${NC}"
+    echo -e "${YELLOW}    feature_name = \"lang-${LANG_LOWER}\"${NC}"
 fi
 
 # ============================================================================
@@ -783,17 +570,21 @@ echo ""
 echo -e "${BLUE}Plugin location:${NC}"
 echo -e "  ${PLUGIN_DIR}"
 echo ""
-echo -e "${BLUE}Auto-patched files:${NC}"
-echo -e "  ${GREEN}✓${NC} Cargo.toml (workspace dependencies)"
-echo -e "  ${GREEN}✓${NC} crates/cb-handlers/Cargo.toml (features & dependencies)"
-echo -e "  ${GREEN}✓${NC} crates/cb-services/src/services/registry_builder.rs"
-echo -e "  ${GREEN}✓${NC} crates/cb-core/src/language.rs (ProjectLanguage enum)"
-echo -e "  ${GREEN}✓${NC} crates/cb-plugin-api/src/metadata.rs (LanguageMetadata constant)"
+echo -e "${BLUE}Configuration:${NC}"
+echo -e "  ${GREEN}✓${NC} crates/languages/languages.toml (language registration)"
+echo ""
+echo -e "${YELLOW}Note: Build scripts will auto-generate integration code on next build.${NC}"
+echo -e "      Run 'cargo build' to regenerate:"
+echo -e "      - ProjectLanguage enum (cb-core)"
+echo -e "      - LanguageMetadata constants (cb-plugin-api)"
+echo -e "      - Plugin registration (cb-services)"
+echo -e "      - Workspace Cargo.toml dependencies"
 echo ""
 echo -e "${YELLOW}Next steps:${NC}"
 echo ""
-echo -e "1. ${BLUE}Verify the changes:${NC}"
+echo -e "1. ${BLUE}Build the workspace (this generates integration code):${NC}"
 echo -e "   ${GREEN}cargo build --features lang-${LANG_LOWER}${NC}"
+echo -e "   ${YELLOW}(Build scripts will generate code from languages.toml)${NC}"
 echo ""
 echo -e "2. ${BLUE}Implement parsing logic:${NC}"
 echo -e "   - Edit ${PLUGIN_DIR}/src/parser.rs"
