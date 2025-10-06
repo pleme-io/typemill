@@ -11,6 +11,113 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 The project underwent a complete architectural transformation from TypeScript/Node.js to pure Rust in 2025, bringing native performance, memory safety, and compile-time type guarantees.
 
+### [1.0.0-rc2] - 2025-10-06
+
+🚀 **Release Candidate 2** - Plugin architecture modernization, workspace operations, and 5-language support
+
+#### Added
+
+- **Java language support** - Complete implementation with AST-based parsing
+  - JavaParser subprocess integration for accurate symbol extraction
+  - Import manipulation (add, remove, rewrite, parse package declarations)
+  - Maven workspace support (pom.xml multi-module projects)
+  - Full ImportSupport and WorkspaceSupport trait implementations
+
+- **Workspace operations for all plugin languages**
+  - **Python**: Poetry (`pyproject.toml`), PDM, Hatch workspace support
+  - **TypeScript/JavaScript**: npm, yarn, pnpm workspace support
+  - **Go**: `go.work` workspace file management
+  - **Rust**: Cargo workspace support (existing, enhanced)
+  - **Java**: Maven multi-module project support
+
+- **Build-time code generation infrastructure**
+  - Single source of truth: `languages.toml` configuration file
+  - Automatic generation of `ProjectLanguage` enum from TOML
+  - Automatic generation of `LanguageMetadata` constants
+  - Automatic generation of plugin registration code
+  - Zero manual synchronization across crates
+
+- **Language plugin development tooling**
+  - `new-lang.sh` generator script with auto-integration
+  - `check-features.sh` validation script
+  - Comprehensive plugin development documentation
+  - Reference implementations (Rust, Go, TypeScript, Python, Java)
+
+- **Cross-language testing framework**
+  - Parameterized test harness for multi-language refactoring
+  - Comprehensive test scenarios for all 5 languages
+  - Behavior expectations (Success/NotSupported/PartialSuccess)
+  - Language-agnostic test infrastructure
+
+#### Changed
+
+- **Plugin architecture refactored to capability-based traits** (Phase 1A-1F, Phase 2)
+  - Replaced monolithic `LanguageIntelligencePlugin` (22 methods) with composable `LanguagePlugin` trait
+  - Optional `ImportSupport` and `WorkspaceSupport` capability traits
+  - Metadata access via `plugin.metadata()` instead of individual trait methods
+  - Downcasting pattern for plugin-specific methods
+  - **Benefit**: 29-42% LOC reduction per plugin, opt-in capabilities
+
+- **Refactoring operations switched to AST-first approach**
+  - `extract_function`, `inline_variable`, `extract_variable` now try AST before LSP
+  - **Rationale**: LSP servers have inconsistent multiline extraction behavior
+  - **Benefit**: Faster, more reliable, under our control
+  - 4/5 languages now support multiline extract via AST (Python, TypeScript, Rust, Go)
+
+- **Simplified language plugin generator** (`new-lang.sh`)
+  - Reduced from 817 to 607 lines (-210 lines, 25.7% reduction)
+  - Replaced 5-file patching with single TOML append
+  - Build scripts auto-generate all integration code
+  - Portable across macOS/Linux (no BSD sed issues)
+
+- **LSP infrastructure improvements**
+  - Replaced arbitrary sleeps with smart LSP polling (Bug #2 fix)
+  - Hybrid fallback for `find_dead_code` to support rust-analyzer
+  - Multi-plugin workspace symbol search (Bug #1 fix)
+
+- **Documentation overhaul**
+  - Updated all language support matrices to include Java (5 languages total)
+  - Added build-time code generation documentation
+  - Removed legacy manual integration steps
+  - Consolidated 4 obsolete planning documents
+
+#### Fixed
+
+- XML event handling in Java workspace module rewriting
+- Git operations tests failing with BrokenPipe errors
+- EditPlan structure in refactoring implementations
+- Python plugin delegation and manifest support
+- Language plugin configuration and validation
+- Test expectations for multiline extract operations
+
+#### Removed
+
+- Manual file patching in `new-lang.sh` (replaced with TOML + codegen)
+- Arbitrary sleep statements in LSP operations
+- Obsolete planning documents (4 files)
+  - `JAVA_AST_CAPABILITY_PLAN.md`
+  - `PHASE4_RESOLUTION.md`
+  - `TYPESCRIPT_TEST_FIX_PROPOSAL.md`
+  - `WORKSPACE_IMPLEMENTATION_PLANS.md`
+- `.claude/` directory from version control (kept locally)
+
+#### Technical Debt Improvements
+
+- Migrated Python tests to cross-language framework
+- Removed duplicate TypeScript refactoring tests
+- Updated test expectations to reflect reality (NotSupported → Success for AST-based operations)
+- Improved structured logging across refactoring operations
+- Enhanced error messages with actionable context
+
+#### Performance
+
+- Build-time code generation eliminates runtime overhead
+- AST-first refactoring avoids LSP round-trips
+- Smart LSP polling reduces unnecessary waiting
+- Multi-plugin symbol search parallelizes queries
+
+---
+
 ### [1.0.0-rc1] - 2025-10-04
 
 🎉 **Release Candidate 1** - Production-ready Rust MCP server with comprehensive tooling
