@@ -4,11 +4,12 @@ version = "1.0.0-beta"
 edition = "2021"
 
 [features]
-default = ["lang-rust", "lang-go", "lang-typescript", "lang-python"]
+default = ["lang-rust", "lang-go", "lang-typescript", "lang-python", "lang-java"]
 lang-rust = ["cb-lang-rust"]
 lang-go = ["cb-lang-go"]
 lang-typescript = ["cb-lang-typescript"]
 lang-python = ["cb-lang-python"]
+lang-java = ["dep:cb-lang-java"]
 
 [dependencies]
 cb-protocol = { path = "../cb-protocol" }
@@ -25,6 +26,7 @@ cb-lang-rust = { path = "../languages/cb-lang-rust", optional = true }
 cb-lang-go = { path = "../languages/cb-lang-go", optional = true }
 cb-lang-typescript = { path = "../languages/cb-lang-typescript", optional = true }
 cb-lang-python = { path = "../languages/cb-lang-python", optional = true }
+cb-lang-java = { path = "../languages/cb-lang-java", optional = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }

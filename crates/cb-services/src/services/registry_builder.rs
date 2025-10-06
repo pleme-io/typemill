@@ -87,6 +87,13 @@ pub fn build_language_plugin_registry() -> Arc<PluginRegistry> {
         plugin_count += 1;
     }
 
+    // Register Java plugin
+    #[cfg(feature = "lang-java")]
+    {
+        registry.register(Arc::new(cb_lang_java::JavaPlugin::new()));
+        plugin_count += 1;
+    }
+
     let _ = plugin_count; // Suppress unused variable warning when no features enabled
 
     Arc::new(registry)

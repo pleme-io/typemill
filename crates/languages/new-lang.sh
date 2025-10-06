@@ -85,8 +85,8 @@ tracing = { workspace = true }
 
 # Utilities (uncomment as needed)
 # regex = "1.10"
-# tempfile = "3.10"
 # chrono = { version = "0.4", features = ["serde"] }
+tempfile = "3.10"
 EOF
 
 # Create lib.rs with skeleton implementation
@@ -100,7 +100,7 @@ mod parser;
 mod manifest;
 
 use cb_plugin_api::{
-    LanguageIntelligencePlugin, ManifestData, ParsedSource, PluginError, PluginResult,
+    LanguageIntelligencePlugin, ManifestData, ParsedSource, PluginResult,
 };
 use async_trait::async_trait;
 use std::path::Path;
@@ -127,8 +127,6 @@ impl LanguageIntelligencePlugin for ${LANG_TITLE}Plugin {
     }
 
     fn file_extensions(&self) -> Vec<&'static str> {
-        // TODO: Add ${LANG_TITLE} file extensions
-        // Example: vec!["java"] for Java, vec!["kt", "kts"] for Kotlin
         vec!["${LANG_LOWER}"]
     }
 
@@ -141,25 +139,21 @@ impl LanguageIntelligencePlugin for ${LANG_TITLE}Plugin {
     }
 
     fn manifest_filename(&self) -> &'static str {
-        // TODO: Specify manifest filename
         // Examples: "pom.xml", "build.gradle", "Gemfile", "pyproject.toml"
         "manifest.${LANG_LOWER}"
     }
 
     fn source_dir(&self) -> &'static str {
-        // TODO: Specify source directory (empty string for project root)
         // Examples: "src" for Java/Kotlin, "" for Python/Ruby
         "src"
     }
 
     fn entry_point(&self) -> &'static str {
-        // TODO: Specify entry point filename
         // Examples: "Main.java", "main.kt", "__init__.py"
         "main.${LANG_LOWER}"
     }
 
     fn module_separator(&self) -> &'static str {
-        // TODO: Specify module path separator
         // Examples: "." for Java/Python, "::" for Rust, "/" for Go
         "."
     }
@@ -189,21 +183,12 @@ echo -e "${GREEN}✓${NC} Generating src/parser.rs..."
 cat > "$PLUGIN_DIR/src/parser.rs" << EOF
 //! ${LANG_TITLE} source code parsing and symbol extraction
 
-use cb_plugin_api::{ParsedSource, PluginError, PluginResult, Symbol, SymbolKind};
-use cb_protocol::SourceLocation;
+use cb_plugin_api::{ParsedSource, PluginResult};
 
 /// Parse ${LANG_TITLE} source code and extract symbols
 pub fn parse_source(source: &str) -> PluginResult<ParsedSource> {
-    // TODO: Implement ${LANG_TITLE} parsing
-    //
-    // Two approaches:
-    // 1. Dual-mode (recommended): Native AST parser subprocess + regex fallback
-    //    See cb-lang-go or cb-lang-typescript for examples
-    //
-    // 2. Pure Rust: Use a Rust parser crate if available
-    //    See cb-lang-rust for example using syn crate
-    //
-    // For now, return empty symbols
+    // A placeholder implementation that returns no symbols.
+    // This should be replaced with actual parsing logic.
     tracing::warn!("${LANG_TITLE} parsing not yet implemented");
 
     Ok(ParsedSource {
@@ -225,7 +210,7 @@ mod tests {
     #[test]
     fn test_parse_simple_source() {
         let source = r#"
-            // TODO: Add ${LANG_TITLE} source example
+            // A simple ${LANG_TITLE} source file
         "#;
         let result = parse_source(source);
         assert!(result.is_ok());
@@ -239,22 +224,15 @@ cat > "$PLUGIN_DIR/src/manifest.rs" << EOF
 //! ${LANG_TITLE} manifest file parsing
 //!
 //! Handles manifest files for ${LANG_TITLE} projects.
-//! TODO: Specify manifest format (e.g., pom.xml, build.gradle, Gemfile)
 
-use cb_plugin_api::{Dependency, DependencySource, ManifestData, PluginError, PluginResult};
+use cb_plugin_api::{ManifestData, PluginError, PluginResult};
 use std::path::Path;
 
 /// Analyze ${LANG_TITLE} manifest file
 pub async fn analyze_manifest(path: &Path) -> PluginResult<ManifestData> {
-    // TODO: Implement manifest parsing
-    //
-    // Examples:
-    // - Java: Parse pom.xml (Maven) or build.gradle (Gradle)
-    // - Kotlin: Parse build.gradle.kts
-    // - Ruby: Parse Gemfile
-    // - Python: Parse pyproject.toml or requirements.txt
-    //
-    // For now, return minimal data
+    // A placeholder implementation for manifest parsing.
+    // This should be replaced with actual logic for parsing manifest files
+    // like pom.xml, build.gradle, Gemfile, etc.
     tracing::warn!(
         manifest_path = %path.display(),
         "${LANG_TITLE} manifest parsing not yet implemented"
@@ -262,7 +240,7 @@ pub async fn analyze_manifest(path: &Path) -> PluginResult<ManifestData> {
 
     let content = tokio::fs::read_to_string(path)
         .await
-        .map_err(|e| PluginError::io(format!("Failed to read manifest: {}", e)))?;
+        .map_err(|e| PluginError::manifest(format!("Failed to read manifest: {}", e)))?;
 
     Ok(ManifestData {
         name: "unknown".to_string(),
@@ -301,46 +279,14 @@ ${LANG_TITLE} language support for Codebuddy via the \`LanguageIntelligencePlugi
 
 - [ ] AST parsing and symbol extraction
 - [ ] Import/dependency analysis
-- [ ] Manifest file parsing (TODO: specify format)
-- [ ] Refactoring support (rename, extract, etc.)
+- [ ] Manifest file parsing
+- [ ] Refactoring support
 
 ## Implementation Status
 
 🚧 **Under Development**
 
-### Completed
-- ✅ Plugin scaffolding
-- ✅ Basic trait implementation
-
-### TODO
-- [ ] Implement parser (see \`src/parser.rs\`)
-- [ ] Implement manifest analyzer (see \`src/manifest.rs\`)
-- [ ] Add comprehensive tests
-- [ ] Document ${LANG_TITLE}-specific behavior
-- [ ] Register in \`registry_builder.rs\`
-
-## Parser Strategy
-
-TODO: Choose and implement one of:
-
-### Option 1: Dual-Mode (Recommended)
-- **AST Mode**: Native ${LANG_TITLE} parser via subprocess
-- **Fallback Mode**: Regex-based parsing when native parser unavailable
-- **Examples**: See \`cb-lang-go\` or \`cb-lang-typescript\`
-
-### Option 2: Pure Rust Parser
-- Use a Rust ${LANG_TITLE} parser crate (if available)
-- **Example**: See \`cb-lang-rust\` using \`syn\` crate
-
-## Manifest Format
-
-TODO: Document manifest file format and location
-
-Examples:
-- Java: \`pom.xml\` (Maven) or \`build.gradle\` (Gradle)
-- Kotlin: \`build.gradle.kts\`
-- Python: \`pyproject.toml\`, \`requirements.txt\`, or \`setup.py\`
-- Ruby: \`Gemfile\`
+This plugin has been scaffolded but requires implementation of its core features.
 
 ## Testing
 
@@ -354,7 +300,7 @@ cargo test -p ${PLUGIN_NAME} -- --nocapture
 
 ## Registration
 
-After implementation, register in \`crates/cb-services/src/services/registry_builder.rs\`:
+The plugin must be registered in \`crates/cb-services/src/services/registry_builder.rs\`:
 
 \`\`\`rust
 // Register ${LANG_TITLE} plugin
@@ -379,28 +325,17 @@ echo ""
 echo -e "${YELLOW}Next steps:${NC}"
 echo ""
 echo -e "1. ${BLUE}Add to workspace dependencies${NC} in ${WORKSPACE_ROOT}/Cargo.toml:"
-echo -e "   ${GREEN}[features]${NC}"
-echo -e "   ${GREEN}lang-${LANG_LOWER} = [\"${PLUGIN_NAME}\"]${NC}"
-echo -e ""
 echo -e "   ${GREEN}[workspace.dependencies]${NC}"
 echo -e "   ${GREEN}${PLUGIN_NAME} = { path = \"crates/languages/${PLUGIN_NAME}\" }${NC}"
 echo ""
-echo -e "2. ${BLUE}Add to cb-handlers${NC} in ${WORKSPACE_ROOT}/crates/cb-handlers/Cargo.toml:"
+echo -e "2. ${BLUE}Add features to cb-handlers${NC} in ${WORKSPACE_ROOT}/crates/cb-handlers/Cargo.toml:"
 echo -e "   ${GREEN}[dependencies]${NC}"
 echo -e "   ${GREEN}${PLUGIN_NAME} = { workspace = true, optional = true }${NC}"
 echo -e ""
 echo -e "   ${GREEN}[features]${NC}"
 echo -e "   ${GREEN}lang-${LANG_LOWER} = [\"dep:${PLUGIN_NAME}\"]${NC}"
 echo ""
-echo -e "3. ${BLUE}Register plugin${NC} in ${WORKSPACE_ROOT}/crates/cb-services/src/services/registry_builder.rs:"
-echo -e "   Add around line 88:"
-echo ""
-echo -e "   ${GREEN}// Register ${LANG_TITLE} plugin${NC}"
-echo -e "   ${GREEN}#[cfg(feature = \"lang-${LANG_LOWER}\")]${NC}"
-echo -e "   ${GREEN}{${NC}"
-echo -e "   ${GREEN}    registry.register(Arc::new(${PLUGIN_NAME}::${LANG_TITLE}Plugin::new()));${NC}"
-echo -e "   ${GREEN}    plugin_count += 1;${NC}"
-echo -e "   ${GREEN}}${NC}"
+echo -e "3. ${BLUE}Register plugin${NC} in ${WORKSPACE_ROOT}/crates/cb-services/src/services/registry_builder.rs"
 echo ""
 echo -e "4. ${BLUE}Implement parsing logic${NC} in:"
 echo -e "   - ${PLUGIN_DIR}/src/parser.rs"

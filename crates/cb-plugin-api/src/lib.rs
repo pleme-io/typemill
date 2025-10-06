@@ -235,7 +235,7 @@ pub struct ManifestData {
 }
 
 /// A dependency entry
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Dependency {
     /// Dependency name
     pub name: String,
@@ -245,7 +245,7 @@ pub struct Dependency {
 }
 
 /// Where a dependency comes from
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum DependencySource {
     /// Registry version (e.g., "1.0.0", "^1.0", etc.)
     Version(String),

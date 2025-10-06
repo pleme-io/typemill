@@ -61,6 +61,7 @@ cb-lang-rust = { path = "crates/languages/cb-lang-rust" }
 cb-lang-go = { path = "crates/languages/cb-lang-go" }
 cb-lang-typescript = { path = "crates/languages/cb-lang-typescript" }
 cb-lang-python = { path = "crates/languages/cb-lang-python" }
+cb-lang-java = { path = "crates/languages/cb-lang-java" }
 
 [profile.release]
 opt-level = 3
