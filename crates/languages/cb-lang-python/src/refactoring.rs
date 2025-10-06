@@ -12,6 +12,7 @@ use crate::parser::{
     analyze_python_expression_range, extract_python_functions, extract_python_variables,
     find_variable_at_position, get_variable_usages_in_scope,
 };
+use cb_lang_common::LineExtractor;
 use cb_protocol::{
     EditLocation, EditPlan, EditPlanMetadata, EditType, TextEdit, ValidationRule, ValidationType,
 };
@@ -449,12 +450,7 @@ pub fn plan_extract_variable(
     let var_name = variable_name.unwrap_or_else(|| analysis.suggested_name.clone());
 
     // Get the indentation of the current line
-    let lines: Vec<&str> = source.lines().collect();
-    let current_line = lines.get((start_line) as usize).unwrap_or(&"");
-    let indent = current_line
-        .chars()
-        .take_while(|c| c.is_whitespace())
-        .collect::<String>();
+    let indent = LineExtractor::get_indentation_str(source, start_line);
 
     let mut edits = Vec::new();
 

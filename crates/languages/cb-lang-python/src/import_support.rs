@@ -21,12 +21,13 @@ impl ImportSupport for PythonImportSupport {
     fn parse_imports(&self, content: &str) -> Vec<String> {
         debug!("Parsing Python imports from content");
 
-        // Use existing parser function (returns Result, so handle errors)
-        match parser::parse_python_imports(content) {
-            Ok(import_infos) => {
-                let module_paths: Vec<String> = import_infos
-                    .iter()
-                    .map(|info| info.module_path.clone())
+        // Use analyze_imports helper (returns ImportGraph)
+        match parser::analyze_imports(content, None) {
+            Ok(graph) => {
+                let module_paths: Vec<String> = graph
+                    .imports
+                    .into_iter()
+                    .map(|info| info.module_path)
                     .collect();
 
                 debug!(

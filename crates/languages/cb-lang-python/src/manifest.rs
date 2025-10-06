@@ -7,6 +7,7 @@
 //! - Pipfile (Pipenv)
 
 use cb_plugin_api::{Dependency, DependencySource, ManifestData, PluginError, PluginResult};
+use cb_lang_common::read_manifest;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashMap;
@@ -17,9 +18,7 @@ use tracing::{debug, warn};
 ///
 /// Format: package==version or package>=version or package
 pub async fn parse_requirements_txt(path: &Path) -> PluginResult<ManifestData> {
-    let content = tokio::fs::read_to_string(path)
-        .await
-        .map_err(|e| PluginError::manifest(format!("Failed to read requirements.txt: {}", e)))?;
+    let content = read_manifest(path).await?;
 
     let mut dependencies = Vec::new();
     let dev_dependencies = Vec::new();
@@ -100,9 +99,7 @@ fn parse_requirement_line(line: &str) -> Option<(String, String)> {
 ///
 /// Supports both Poetry and PDM formats
 pub async fn parse_pyproject_toml(path: &Path) -> PluginResult<ManifestData> {
-    let content = tokio::fs::read_to_string(path)
-        .await
-        .map_err(|e| PluginError::manifest(format!("Failed to read pyproject.toml: {}", e)))?;
+    let content = read_manifest(path).await?;
 
     let toml: PyProjectToml = toml::from_str(&content)
         .map_err(|e| PluginError::parse(format!("Failed to parse pyproject.toml: {}", e)))?;
@@ -199,9 +196,7 @@ fn dependency_spec_to_version(spec: &DependencySpec) -> String {
 /// Extracts basic metadata and dependencies from setup.py
 /// Note: This is a best-effort parser for common setup.py patterns
 pub async fn parse_setup_py(path: &Path) -> PluginResult<ManifestData> {
-    let content = tokio::fs::read_to_string(path)
-        .await
-        .map_err(|e| PluginError::manifest(format!("Failed to read setup.py: {}", e)))?;
+    let content = read_manifest(path).await?;
 
     let mut name = "python-project".to_string();
     let mut version = "0.1.0".to_string();
@@ -294,9 +289,7 @@ fn extract_list_from_setup(content: &str, key: &str) -> Option<Vec<String>> {
 ///
 /// Pipfile uses TOML-like format for dependency management
 pub async fn parse_pipfile(path: &Path) -> PluginResult<ManifestData> {
-    let content = tokio::fs::read_to_string(path)
-        .await
-        .map_err(|e| PluginError::manifest(format!("Failed to read Pipfile: {}", e)))?;
+    let content = read_manifest(path).await?;
 
     let pipfile: PipfileFormat = toml::from_str(&content)
         .map_err(|e| PluginError::parse(format!("Failed to parse Pipfile: {}", e)))?;
@@ -374,9 +367,7 @@ pub async fn update_requirements_txt(
     new_name: &str,
     new_version: Option<&str>,
 ) -> PluginResult<String> {
-    let content = tokio::fs::read_to_string(path)
-        .await
-        .map_err(|e| PluginError::manifest(format!("Failed to read requirements.txt: {}", e)))?;
+    let content = read_manifest(path).await?;
 
     let mut lines = Vec::new();
     let mut updated = false;
@@ -421,9 +412,7 @@ pub async fn update_pyproject_toml(
     new_name: &str,
     new_version: Option<&str>,
 ) -> PluginResult<String> {
-    let content = tokio::fs::read_to_string(path)
-        .await
-        .map_err(|e| PluginError::manifest(format!("Failed to read pyproject.toml: {}", e)))?;
+    let content = read_manifest(path).await?;
 
     let mut toml: toml::Value = toml::from_str(&content)
         .map_err(|e| PluginError::parse(format!("Failed to parse pyproject.toml: {}", e)))?;

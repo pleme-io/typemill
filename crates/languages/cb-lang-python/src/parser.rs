@@ -11,51 +11,40 @@
 //! 2. Regex-based fallback parsing (always available, good for common cases)
 
 use cb_plugin_api::{PluginError, PluginResult, Symbol, SymbolKind};
-use cb_protocol::{ImportInfo, ImportType, NamedImport, SourceLocation};
+use cb_protocol::{ImportGraph, ImportInfo, ImportType, NamedImport, SourceLocation};
+use cb_lang_common::{SubprocessAstTool, run_ast_tool, parse_with_fallback, parse_import_alias, ImportGraphBuilder};
 use regex::Regex;
-use std::io::Write;
-use std::process::{Command, Stdio};
-use tracing::{debug, warn};
+use std::path::Path;
+use tracing::debug;
 
 /// List all function names in Python source code using Python's native AST parser.
 /// This function spawns a Python subprocess to perform the parsing.
 pub fn list_functions(source: &str) -> PluginResult<Vec<String>> {
-    let python_executable = "python3";
-    let script_path = format!("{}/resources/ast_tool.py", env!("CARGO_MANIFEST_DIR"));
+    const AST_TOOL_PY: &str = include_str!("../resources/ast_tool.py");
 
-    let mut child = Command::new(python_executable)
-        .arg(&script_path)
-        .arg("list-functions")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| {
-            warn!(error = %e, "Failed to spawn Python script, falling back to regex");
-            PluginError::parse(format!("Failed to spawn Python script: {}", e))
-        })?;
+    let tool = SubprocessAstTool::new("python3")
+        .with_embedded_str(AST_TOOL_PY)
+        .with_temp_filename("ast_tool.py")
+        .with_args(vec!["{script}".to_string(), "list-functions".to_string()]);
 
-    if let Some(mut stdin) = child.stdin.take() {
-        stdin.write_all(source.as_bytes()).map_err(|e| {
-            PluginError::parse(format!("Failed to write to Python script stdin: {}", e))
-        })?;
-    }
+    run_ast_tool(tool, source)
+}
 
-    let output = child.wait_with_output().map_err(|e| {
-        PluginError::parse(format!("Failed to wait for Python script: {}", e))
-    })?;
+/// Analyze Python imports and produce an import graph.
+/// Uses dual-mode parsing: Python AST parser with regex fallback.
+pub fn analyze_imports(source: &str, file_path: Option<&Path>) -> PluginResult<ImportGraph> {
+    let imports = parse_with_fallback(
+        || parse_python_imports(source),
+        || Ok(Vec::new()),
+        "Python import parsing"
+    )?;
 
-    if output.status.success() {
-        serde_json::from_slice(&output.stdout).map_err(|e| {
-            PluginError::parse(format!("Failed to parse JSON from Python script: {}", e))
-        })
-    } else {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        Err(PluginError::parse(format!(
-            "Python script failed: {}",
-            stderr
-        )))
-    }
+    Ok(ImportGraphBuilder::new("python")
+        .with_source_file(file_path)
+        .with_imports(imports)
+        .extract_external_dependencies(|path| !path.starts_with('.'))
+        .with_parser_version("0.1.0-plugin")
+        .build())
 }
 
 /// Parse Python imports using regex-based parsing
@@ -128,30 +117,21 @@ pub fn parse_python_imports(source: &str) -> PluginResult<Vec<ImportInfo>> {
 
 /// Parse import names from "from ... import ..." statements
 fn parse_import_names(imports_str: &str) -> Vec<NamedImport> {
-    let mut named_imports = Vec::new();
-
     if imports_str.trim() == "*" {
-        return named_imports; // Star imports don't have named elements
+        return Vec::new(); // Star imports don't have named elements
     }
 
-    for import_part in imports_str.split(',') {
-        let import_part = import_part.trim();
-        if let Some((name, alias)) = import_part.split_once(" as ") {
-            named_imports.push(NamedImport {
-                name: name.trim().to_string(),
-                alias: Some(alias.trim().to_string()),
+    imports_str
+        .split(',')
+        .map(|part| {
+            let (name, alias) = parse_import_alias(part.trim());
+            NamedImport {
+                name,
+                alias,
                 type_only: false,
-            });
-        } else {
-            named_imports.push(NamedImport {
-                name: import_part.to_string(),
-                alias: None,
-                type_only: false,
-            });
-        }
-    }
-
-    named_imports
+            }
+        })
+        .collect()
 }
 
 /// Extract Python function definitions with metadata
