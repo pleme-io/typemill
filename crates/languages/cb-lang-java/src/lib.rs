@@ -6,17 +6,21 @@ mod parser;
 mod manifest;
 
 use cb_plugin_api::{
-    LanguageIntelligencePlugin, ManifestData, ParsedSource, PluginResult,
+    LanguagePlugin, LanguageMetadata, LanguageCapabilities, ManifestData, ParsedSource, PluginResult,
 };
 use async_trait::async_trait;
 use std::path::Path;
 
 /// Java language plugin
-pub struct JavaPlugin;
+pub struct JavaPlugin {
+    metadata: LanguageMetadata,
+}
 
 impl JavaPlugin {
     pub fn new() -> Self {
-        Self
+        Self {
+            metadata: LanguageMetadata::JAVA,
+        }
     }
 }
 
@@ -27,13 +31,9 @@ impl Default for JavaPlugin {
 }
 
 #[async_trait]
-impl LanguageIntelligencePlugin for JavaPlugin {
-    fn name(&self) -> &'static str {
-        "Java"
-    }
-
-    fn file_extensions(&self) -> Vec<&'static str> {
-        vec!["java"]
+impl LanguagePlugin for JavaPlugin {
+    fn metadata(&self) -> &LanguageMetadata {
+        &self.metadata
     }
 
     async fn parse(&self, source: &str) -> PluginResult<ParsedSource> {
@@ -44,28 +44,15 @@ impl LanguageIntelligencePlugin for JavaPlugin {
         manifest::analyze_manifest(path).await
     }
 
-    fn handles_manifest(&self, filename: &str) -> bool {
-        matches!(filename, "pom.xml" | "build.gradle" | "build.gradle.kts")
+    fn capabilities(&self) -> LanguageCapabilities {
+        LanguageCapabilities {
+            imports: false,  // Java doesn't have import support yet
+            workspace: false, // Java doesn't have workspace support yet
+        }
     }
 
-    fn manifest_filename(&self) -> &'static str {
-        // Default to pom.xml for manifest generation
-        "pom.xml"
-    }
-
-    fn source_dir(&self) -> &'static str {
-        // Standard Maven/Gradle source directory
-        "src/main/java"
-    }
-
-    fn entry_point(&self) -> &'static str {
-        // Java has no single entry point file, can be any class with a main method
-        ""
-    }
-
-    fn module_separator(&self) -> &'static str {
-        // Java uses "." as a separator for package and class names.
-        "."
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -76,13 +63,33 @@ mod tests {
     #[test]
     fn test_plugin_creation() {
         let plugin = JavaPlugin::new();
-        assert_eq!(plugin.name(), "Java");
+        assert_eq!(plugin.metadata().name, "Java");
     }
 
     #[test]
     fn test_file_extensions() {
         let plugin = JavaPlugin::new();
-        let extensions = plugin.file_extensions();
+        let extensions = plugin.metadata().extensions;
         assert!(!extensions.is_empty());
+        assert!(extensions.contains(&"java"));
+    }
+
+    #[test]
+    fn test_java_capabilities() {
+        let plugin = JavaPlugin::new();
+        let caps = plugin.capabilities();
+
+        assert!(!caps.imports, "Java plugin should not support imports yet");
+        assert!(!caps.workspace, "Java plugin should not support workspace yet");
+    }
+
+    #[test]
+    fn test_java_metadata() {
+        let plugin = JavaPlugin::new();
+
+        assert_eq!(plugin.metadata().manifest_filename, "pom.xml");
+        assert_eq!(plugin.metadata().entry_point, "");
+        assert_eq!(plugin.metadata().module_separator, ".");
+        assert_eq!(plugin.metadata().source_dir, "src/main/java");
     }
 }

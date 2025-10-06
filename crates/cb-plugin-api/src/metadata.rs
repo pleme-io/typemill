@@ -77,4 +77,15 @@ impl LanguageMetadata {
         module_separator: ".",
         language: ProjectLanguage::Python,
     };
+
+    /// Java language metadata constant
+    pub const JAVA: Self = Self {
+        name: "Java",
+        extensions: &["java"],
+        manifest_filename: "pom.xml",
+        source_dir: "src/main/java",
+        entry_point: "",  // No single entry point
+        module_separator: ".",
+        language: ProjectLanguage::Java,
+    };
 }
