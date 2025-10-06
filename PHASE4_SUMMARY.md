@@ -278,13 +278,18 @@ Total refactoring test coverage: 17 scenarios (vs 4 before Phase 4)
 3. `integration-tests/tests/e2e_python_language_specific.rs` (95 lines)
 4. `docs/testing/CROSS_LANGUAGE_TESTING.md` (450 lines)
 
-### Modified Files (1)
+### Modified Files (2)
 1. `integration-tests/src/harness/mod.rs` (added refactoring_harness export)
+2. `integration-tests/tests/e2e_system_tools.rs` (removed 88 lines of duplicate tests)
 
 ### Deleted Files (1)
 1. `integration-tests/tests/e2e_python_refactoring.rs` (273 lines removed - migrated to cross-language)
 
-**Net Change:** +1152 lines (infrastructure) - 273 lines (removed duplicates) = **+879 lines**
+### Cleanup (Post-Phase 4)
+- Removed 2 duplicate TypeScript refactoring tests from `e2e_system_tools.rs`
+- See `DUPLICATE_TEST_CLEANUP.md` for detailed audit report
+
+**Net Change:** +1152 lines (infrastructure) - 273 lines (Python duplicates) - 88 lines (TypeScript duplicates) = **+791 lines**
 
 ## Future Enhancements
 
@@ -331,6 +336,6 @@ Phase 4 successfully delivered a **parameterized cross-language testing framewor
 
 **Test Results:** 5/5 tests passing (4 cross-language + 1 language-specific)
 **Coverage:** 17 language scenarios (4× improvement)
-**Code Efficiency:** Same coverage with 178 fewer lines
+**Code Efficiency:** Same coverage with 361 fewer lines of duplicate code eliminated (273 Python + 88 TypeScript)
 
 The framework is production-ready and provides a solid foundation for future language additions and refactoring operations.
