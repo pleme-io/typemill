@@ -985,7 +985,7 @@ Detect unused imports in a file.
 
 ### `analyze_complexity`
 
-Calculate cyclomatic complexity metrics for functions in a file.
+Calculate comprehensive complexity and code quality metrics for functions in a file.
 
 **Parameters:**
 ```json
@@ -1002,48 +1002,136 @@ Calculate cyclomatic complexity metrics for functions in a file.
     {
       "name": "processOrder",
       "line": 15,
-      "complexity": 8,
+      "cyclomatic": 8,
+      "cognitive": 12,
+      "max_nesting_depth": 3,
+      "sloc": 28,
+      "total_lines": 32,
+      "comment_lines": 4,
+      "comment_ratio": 0.14,
+      "parameters": 4,
       "rating": "moderate",
+      "issues": [],
       "recommendation": null
     },
     {
       "name": "calculateDiscount",
       "line": 50,
-      "complexity": 15,
+      "cyclomatic": 12,
+      "cognitive": 18,
+      "max_nesting_depth": 5,
+      "sloc": 45,
+      "total_lines": 52,
+      "comment_lines": 3,
+      "comment_ratio": 0.07,
+      "parameters": 6,
       "rating": "complex",
+      "issues": [
+        "High cognitive complexity (18) due to nesting depth (5)",
+        "Too many parameters (6 > 5 recommended)",
+        "Low comment ratio (0.07) for 45 lines of code"
+      ],
       "recommendation": "Consider refactoring to reduce complexity"
     },
     {
       "name": "validatePayment",
       "line": 120,
-      "complexity": 25,
+      "cyclomatic": 20,
+      "cognitive": 32,
+      "max_nesting_depth": 6,
+      "sloc": 68,
+      "total_lines": 75,
+      "comment_lines": 2,
+      "comment_ratio": 0.03,
+      "parameters": 8,
       "rating": "verycomplex",
+      "issues": [
+        "High cognitive complexity (32) due to nesting depth (6)",
+        "Too many parameters (8 > 5 recommended)",
+        "Deep nesting (6 levels) reduces readability",
+        "Low comment ratio (0.03) for 68 lines of code"
+      ],
       "recommendation": "Strongly recommended to refactor into smaller functions"
     }
   ],
-  "average_complexity": 12.5,
-  "max_complexity": 25,
+  "average_complexity": 13.3,
+  "average_cognitive_complexity": 20.7,
+  "max_complexity": 20,
+  "max_cognitive_complexity": 32,
   "total_functions": 8,
+  "total_sloc": 340,
+  "average_sloc": 42.5,
+  "total_issues": 7,
   "summary": "8 functions analyzed. 2 functions need attention (complexity > 10)."
 }
 ```
 
-**Complexity Ratings:**
+**Metrics Explained:**
+
+**Complexity Metrics:**
+- **cyclomatic**: Traditional cyclomatic complexity (decision points + 1)
+- **cognitive**: Cognitive complexity with nesting penalties (more accurate for readability)
+- **max_nesting_depth**: Maximum nesting level (includes function braces)
+
+**Code Quality Metrics:**
+- **sloc**: Source Lines of Code (excluding blanks and comments)
+- **total_lines**: Total lines including blanks and comments
+- **comment_lines**: Number of comment lines
+- **comment_ratio**: Comment density (comment_lines / sloc)
+- **parameters**: Number of function parameters (excludes self/this)
+
+**Complexity Ratings** (based on cognitive complexity):
 - **Simple** (1-5): Low risk, easy to test
 - **Moderate** (6-10): Manageable complexity
 - **Complex** (11-20): Needs attention, harder to test - gets recommendation
 - **Very Complex** (21+): High risk, should be refactored - gets strong recommendation
 
-**Algorithm:**
-- Cyclomatic Complexity = decision points + 1
+**Automatic Issue Detection:**
+- High cognitive complexity (>15)
+- Too many parameters (>5)
+- Deep nesting (>4 levels)
+- Low comment ratio (<0.1 for functions >20 SLOC)
+
+**Algorithms:**
+
+*Cyclomatic Complexity:* CC = decision points + 1
 - Decision points: if, else if, for, while, match/case, catch, &&, ||, ? (ternary)
-- Language-specific pattern detection for Rust, Go, Java, TypeScript, JavaScript, Python
+
+*Cognitive Complexity:* More accurate measure of comprehension difficulty
+- Base increment for each decision point (+1)
+- Nesting penalty (+1 per nesting level)
+- Early returns don't increase complexity (guard clauses are good)
+- Example: Nested if at level 3 = +1 (base) + 3 (nesting) = 4
+
+**Comparison Example:**
+```javascript
+// Cyclomatic: 4, Cognitive: 10 (deeply nested)
+function nested(a, b, c) {
+    if (a) {           // +1 base, +1 nesting = 2
+        if (b) {       // +1 base, +2 nesting = 3
+            if (c) {   // +1 base, +3 nesting = 4
+                return true;
+            }
+        }
+    }
+}
+
+// Cyclomatic: 4, Cognitive: 3 (flat structure)
+function flat(a, b, c) {
+    if (!a) return false;  // +1 (early return, no penalty)
+    if (!b) return false;  // +1
+    if (!c) return false;  // +1
+    return true;
+}
+```
+
+**Language Support:** Rust, Go, Java, TypeScript, JavaScript, Python
 
 ---
 
 ### `suggest_refactoring`
 
-Analyze code and suggest refactoring opportunities based on patterns.
+Analyze code and suggest refactoring opportunities based on cognitive complexity metrics and code patterns.
 
 **Parameters:**
 ```json
@@ -1062,17 +1150,41 @@ Analyze code and suggest refactoring opportunities based on patterns.
       "kind": "reduce_complexity",
       "location": 50,
       "function_name": "processData",
-      "description": "Function 'processData' has cyclomatic complexity of 18 (Needs attention, harder to test)",
-      "suggestion": "Consider refactoring to reduce complexity",
+      "description": "Function 'processData': High cognitive complexity (22) due to nesting depth (6)",
+      "suggestion": "This function has very high cognitive complexity (22). Consider:\n- Breaking it into smaller functions (extract method pattern)\n- Using early returns to reduce nesting\n- Extracting complex conditional logic into named boolean functions\n- Simplifying nested if statements with guard clauses",
+      "priority": "high"
+    },
+    {
+      "kind": "reduce_nesting",
+      "location": 50,
+      "function_name": "processData",
+      "description": "Function 'processData': Deep nesting (6 levels) reduces readability",
+      "suggestion": "Reduce nesting depth from 6 to 2-3 levels using:\n- Early returns (guard clauses): if (!condition) return;\n- Extract nested blocks into separate functions\n- Invert conditions to flatten structure\n- Replace nested if-else with strategy pattern or lookup tables",
+      "priority": "high"
+    },
+    {
+      "kind": "consolidate_parameters",
+      "location": 120,
+      "function_name": "handleRequest",
+      "description": "Function 'handleRequest': Too many parameters (8 > 5 recommended)",
+      "suggestion": "Consolidate 8 parameters using:\n- Create a configuration object/struct grouping related parameters\n- Use the builder pattern for complex initialization\n- Consider if this function is doing too much (Single Responsibility Principle)",
       "priority": "medium"
     },
     {
       "kind": "extract_function",
       "location": 120,
       "function_name": "handleRequest",
-      "description": "Function 'handleRequest' is 85 lines long (>50 lines)",
-      "suggestion": "Consider breaking this function into smaller, more focused functions",
+      "description": "Function 'handleRequest' has 85 source lines of code (>50 SLOC recommended)",
+      "suggestion": "Consider breaking this function into smaller, more focused functions. Extract logical blocks into separate functions with descriptive names.",
       "priority": "high"
+    },
+    {
+      "kind": "improve_documentation",
+      "location": 200,
+      "function_name": "calculatePrice",
+      "description": "Function 'calculatePrice': Low comment ratio (0.05) for 42 lines of code",
+      "suggestion": "Add documentation (current comment ratio: 0.05):\n- Add function/method docstring describing purpose\n- Document parameters and return values\n- Include usage examples for complex functions\n- Explain non-obvious business logic",
+      "priority": "low"
     },
     {
       "kind": "replace_magic_number",
@@ -1083,31 +1195,48 @@ Analyze code and suggest refactoring opportunities based on patterns.
       "priority": "medium"
     }
   ],
-  "total_suggestions": 3,
+  "total_suggestions": 6,
   "complexity_report": {
     "average_complexity": 10.5,
+    "average_cognitive_complexity": 15.2,
     "max_complexity": 18,
-    "total_functions": 12
+    "max_cognitive_complexity": 22,
+    "total_functions": 12,
+    "total_sloc": 485,
+    "average_sloc": 40.4,
+    "total_issues": 15
   }
 }
 ```
 
 **Suggestion Types:**
-- **reduce_complexity**: Function has high cyclomatic complexity (>10)
-- **extract_function**: Function is too long (>50 lines)
-- **replace_magic_number**: Numeric literal appears multiple times
-- **remove_duplication**: Duplicate code patterns detected (placeholder)
-- **extract_variable**: Complex expression should be named
+- **reduce_complexity**: Function has high cognitive complexity (>15) - Provides specific refactoring techniques
+- **reduce_nesting**: Function has deep nesting (>4 levels) - Suggests flattening strategies
+- **consolidate_parameters**: Too many parameters (>5) - Recommends object/struct consolidation
+- **improve_documentation**: Low comment ratio (<0.1) - Guides documentation improvements
+- **extract_function**: Function too long (>50 SLOC) - Suggests logical block extraction
+- **replace_magic_number**: Numeric literal appears multiple times - Recommends named constants
+- **remove_duplication**: Duplicate code patterns detected (future enhancement)
+- **extract_variable**: Complex expression should be named (future enhancement)
 
 **Priority Levels:**
-- **high**: Critical issues (complexity >20, length >100, frequent duplicates)
-- **medium**: Should address (complexity 11-20, length 50-100, some duplicates)
-- **low**: Nice to have (minor improvements)
+- **high**: Critical issues (cognitive >20, nesting >4, SLOC >100, parameters >7)
+- **medium**: Should address (cognitive 15-20, parameters 5-7, SLOC 50-100)
+- **low**: Nice to have (documentation, minor improvements)
+
+**Actionable Suggestions:**
+Each suggestion includes specific, actionable advice:
+- **ReduceComplexity**: Extract method pattern, early returns, guard clauses, boolean functions
+- **ReduceNesting**: Early returns, extract blocks, invert conditions, strategy pattern
+- **ConsolidateParameters**: Config objects, builder pattern, SRP evaluation
+- **ImproveDocumentation**: Docstrings, parameter docs, examples, business logic explanation
 
 **Notes:**
-- Combines complexity analysis with pattern-based detection
+- Uses **cognitive complexity** (more accurate than cyclomatic) for ratings
+- Automatically detects issues from comprehensive code metrics
+- Provides **multi-line, detailed suggestions** with bullet points
 - Results sorted by priority (high → medium → low)
-- Includes complexity report summary
+- Includes enhanced complexity report with SLOC and issue counts
 
 ---
 
