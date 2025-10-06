@@ -601,10 +601,14 @@ async fn test_memory_usage_large_operations() {
     let result = response
         .get("result")
         .expect("Response should have result field");
-    let content = result
-        .get("content")
-        .expect("Response should have content field");
-    let files = content["files"].as_array().unwrap();
+
+    // Debug: Print result structure
+    println!("list_files result structure: {:?}", result);
+
+    // list_files returns files directly in result, not in a content field
+    let files = result["files"].as_array()
+        .or_else(|| result.get("content").and_then(|c| c["files"].as_array()))
+        .expect("Response should have files array");
     println!("Listed {} files in: {:?}", files.len(), list_duration);
 
     assert!(files.len() >= 21); // large file + 20 small files
