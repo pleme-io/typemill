@@ -84,6 +84,39 @@ impl LspRefactoringService for LspRefactoringServiceWrapper {
     ) -> cb_ast::error::AstResult<Value> {
         let uri = format!("file://{}", file_path);
 
+        let extension = Self::get_extension(file_path).ok_or_else(|| {
+            cb_ast::error::AstError::analysis(format!(
+                "Could not determine file extension for: {}",
+                file_path
+            ))
+        })?;
+
+        let client = self
+            .lsp_adapter
+            .get_or_create_client(&extension)
+            .await
+            .map_err(|e| cb_ast::error::AstError::analysis(format!("LSP client error: {}", e)))?;
+
+        // Ensure file is opened in LSP server before requesting code actions
+        let content = tokio::fs::read_to_string(file_path)
+            .await
+            .map_err(|e| cb_ast::error::AstError::analysis(format!("Failed to read file: {}", e)))?;
+
+        let did_open_params = json!({
+            "textDocument": {
+                "uri": uri,
+                "languageId": extension,
+                "version": 1,
+                "text": content
+            }
+        });
+
+        // Send didOpen notification (fire and forget)
+        let _ = client.send_notification("textDocument/didOpen", did_open_params).await;
+
+        // Small delay to let LSP process the file
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
         let params = json!({
             "textDocument": {
                 "uri": uri
@@ -103,19 +136,6 @@ impl LspRefactoringService for LspRefactoringServiceWrapper {
                 "only": kinds.unwrap_or_default()
             }
         });
-
-        let extension = Self::get_extension(file_path).ok_or_else(|| {
-            cb_ast::error::AstError::analysis(format!(
-                "Could not determine file extension for: {}",
-                file_path
-            ))
-        })?;
-
-        let client = self
-            .lsp_adapter
-            .get_or_create_client(&extension)
-            .await
-            .map_err(|e| cb_ast::error::AstError::analysis(format!("LSP client error: {}", e)))?;
 
         client
             .send_request("textDocument/codeAction", params)
@@ -160,9 +180,17 @@ impl RefactoringHandler {
         lsp_adapter: &Arc<Mutex<Option<Arc<DirectLspAdapter>>>>,
     ) -> Option<LspRefactoringServiceWrapper> {
         let adapter_guard = lsp_adapter.lock().await;
-        adapter_guard
+        let result = adapter_guard
             .as_ref()
-            .map(|adapter| LspRefactoringServiceWrapper::new(adapter.clone()))
+            .map(|adapter| LspRefactoringServiceWrapper::new(adapter.clone()));
+
+        if result.is_none() {
+            debug!("LSP adapter is None - refactoring will fall back to AST");
+        } else {
+            debug!("LSP service created successfully");
+        }
+
+        result
     }
 }
 

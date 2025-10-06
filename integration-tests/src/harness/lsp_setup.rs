@@ -95,10 +95,15 @@ impl LspSetupHelper {
         let ts_lsp_path = Self::resolve_command_path("typescript-language-server")
             .unwrap_or_else(|| "typescript-language-server".to_string());
         let pylsp_path = Self::resolve_command_path("pylsp").unwrap_or_else(|| "pylsp".to_string());
+        let rust_analyzer_path = Self::resolve_command_path("rust-analyzer")
+            .unwrap_or_else(|| "rust-analyzer".to_string());
+        let gopls_path = Self::resolve_command_path("gopls").unwrap_or_else(|| "gopls".to_string());
 
         // Always log LSP paths for debugging test failures
         eprintln!("DEBUG: Resolved TypeScript LSP path: {}", ts_lsp_path);
         eprintln!("DEBUG: Resolved Python LSP path: {}", pylsp_path);
+        eprintln!("DEBUG: Resolved Rust LSP path: {}", rust_analyzer_path);
+        eprintln!("DEBUG: Resolved Go LSP path: {}", gopls_path);
 
         // Create a full AppConfig structure to ensure proper deserialization
         let config = json!({
@@ -118,6 +123,18 @@ impl LspSetupHelper {
                     {
                         "extensions": ["py"],
                         "command": [pylsp_path],
+                        "rootDir": null,
+                        "restartInterval": 5
+                    },
+                    {
+                        "extensions": ["rs"],
+                        "command": [rust_analyzer_path],
+                        "rootDir": null,
+                        "restartInterval": 5
+                    },
+                    {
+                        "extensions": ["go"],
+                        "command": [gopls_path],
                         "rootDir": null,
                         "restartInterval": 5
                     }

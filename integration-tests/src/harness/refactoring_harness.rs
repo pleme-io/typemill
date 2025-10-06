@@ -57,7 +57,7 @@ impl Language {
     pub fn supports_refactoring(&self) -> bool {
         match self {
             Language::Python | Language::TypeScript => true,
-            Language::Rust | Language::Go => false, // Not yet implemented - requires EditPlan schema updates
+            Language::Rust | Language::Go => false, // LSP adapter not initialized in stdio mode
         }
     }
 }
@@ -224,7 +224,7 @@ impl RefactoringScenarios {
                         end_line: 1,
                         end_char: 23,
                     },
-                    ExpectedBehavior::NotSupported,
+                    ExpectedBehavior::NotSupported, // Infrastructure ready, needs LSP adapter init in stdio mode
                 ),
                 Language::Go => (
                     "func calculate() int {\n    result := 10 + 20\n    return result\n}\n",
@@ -235,7 +235,7 @@ impl RefactoringScenarios {
                         end_line: 1,
                         end_char: 20,
                     },
-                    ExpectedBehavior::NotSupported,
+                    ExpectedBehavior::NotSupported, // Infrastructure ready, needs LSP adapter init in stdio mode
                 ),
             };
 
@@ -285,7 +285,7 @@ impl RefactoringScenarios {
                         end_line: 3,
                         end_char: 22,
                     },
-                    ExpectedBehavior::NotSupported,
+                    ExpectedBehavior::NotSupported, // Infrastructure ready, needs LSP adapter init in stdio mode
                 ),
                 Language::Go => (
                     "func main() {\n    x := 1\n    y := 2\n    result := x + y\n    fmt.Println(result)\n}\n",
@@ -296,7 +296,7 @@ impl RefactoringScenarios {
                         end_line: 3,
                         end_char: 19,
                     },
-                    ExpectedBehavior::NotSupported,
+                    ExpectedBehavior::NotSupported, // Infrastructure ready, needs LSP adapter init in stdio mode
                 ),
             };
 
@@ -339,7 +339,7 @@ impl RefactoringScenarios {
                         line: 1,
                         character: 8,
                     },
-                    ExpectedBehavior::NotSupported,
+                    ExpectedBehavior::NotSupported, // Infrastructure ready, needs LSP adapter init in stdio mode
                 ),
                 Language::Go => (
                     "func process() int {\n    multiplier := 2\n    result := 10 * multiplier\n    return result\n}\n",
@@ -347,7 +347,7 @@ impl RefactoringScenarios {
                         line: 1,
                         character: 4,
                     },
-                    ExpectedBehavior::NotSupported,
+                    ExpectedBehavior::NotSupported, // Infrastructure ready, needs LSP adapter init in stdio mode
                 ),
             };
 

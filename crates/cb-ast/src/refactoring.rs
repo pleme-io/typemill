@@ -57,6 +57,10 @@ fn detect_language(file_path: &str) -> &str {
         "javascript"
     } else if file_path.ends_with(".py") {
         "python"
+    } else if file_path.ends_with(".rs") {
+        "rust"
+    } else if file_path.ends_with(".go") {
+        "go"
     } else {
         "unknown"
     }
@@ -702,8 +706,12 @@ pub async fn plan_extract_variable(
     // Try LSP first if available
     if let Some(lsp) = lsp_service {
         let var_name = variable_name.as_deref().unwrap_or("extracted");
+        debug!(file_path = %file_path, "Attempting LSP extract variable");
         match lsp_extract_variable(lsp, file_path, &range, var_name).await {
-            Ok(plan) => return Ok(plan),
+            Ok(plan) => {
+                debug!(file_path = %file_path, "LSP extract variable succeeded");
+                return Ok(plan);
+            }
             Err(e) => {
                 debug!(
                     error = %e,
@@ -712,6 +720,8 @@ pub async fn plan_extract_variable(
                 );
             }
         }
+    } else {
+        debug!(file_path = %file_path, "No LSP service provided, using AST fallback");
     }
 
     // Fallback to AST-based implementation

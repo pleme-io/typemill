@@ -141,6 +141,7 @@ async fn run_single_language_test(
 #[tokio::test]
 async fn test_extract_simple_expression_cross_language() {
     let workspace = TestWorkspace::new();
+    workspace.setup_lsp_config(); // Setup LSP configuration for all languages
     let mut client = TestClient::new(workspace.path());
 
     let scenario = RefactoringScenarios::extract_simple_expression();
@@ -192,6 +193,7 @@ async fn test_extract_simple_expression_cross_language() {
 #[tokio::test]
 async fn test_extract_multiline_function_cross_language() {
     let workspace = TestWorkspace::new();
+    workspace.setup_lsp_config(); // Setup LSP configuration for all languages
     let mut client = TestClient::new(workspace.path());
 
     let scenario = RefactoringScenarios::extract_multiline_function();
@@ -243,6 +245,7 @@ async fn test_extract_multiline_function_cross_language() {
 #[tokio::test]
 async fn test_inline_simple_variable_cross_language() {
     let workspace = TestWorkspace::new();
+    workspace.setup_lsp_config(); // Setup LSP configuration for all languages
     let mut client = TestClient::new(workspace.path());
 
     let scenario = RefactoringScenarios::inline_simple_variable();
@@ -294,6 +297,7 @@ async fn test_inline_simple_variable_cross_language() {
 #[tokio::test]
 async fn test_unsupported_languages_decline_gracefully() {
     let workspace = TestWorkspace::new();
+    workspace.setup_lsp_config(); // Setup LSP configuration for all languages
     let mut client = TestClient::new(workspace.path());
 
     // Test Rust (currently unsupported)

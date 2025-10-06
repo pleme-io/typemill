@@ -1,17 +1,39 @@
-{"servers":[
-    {
-      "extensions": ["ts", "tsx", "js", "jsx"],
-      "command": ["typescript-language-server", "--stdio"]
-    }
-,
-    {
-      "extensions": ["py", "pyi"],
-      "command": ["/home/developer/.local/bin/pylsp"]
-    }
-,
-    {
-      "extensions": ["rs"],
-      "command": ["/home/developer/.cargo/bin/rust-analyzer"]
-    }
-]
+{
+  "server": {
+    "host": "127.0.0.1",
+    "port": 3000,
+    "timeoutMs": 30000
+  },
+  "lsp": {
+    "servers": [
+      {
+        "extensions": ["ts", "tsx", "js", "jsx"],
+        "command": ["typescript-language-server", "--stdio"]
+      },
+      {
+        "extensions": ["py", "pyi"],
+        "command": ["/home/developer/.local/bin/pylsp"]
+      },
+      {
+        "extensions": ["rs"],
+        "command": ["/home/developer/.cargo/bin/rust-analyzer"]
+      },
+      {
+        "extensions": ["go"],
+        "command": ["gopls"]
+      }
+    ],
+    "defaultTimeoutMs": 30000,
+    "enablePreload": true
+  },
+  "logging": {
+    "level": "debug",
+    "format": "json"
+  },
+  "cache": {
+    "enabled": true,
+    "maxSizeBytes": 104857600,
+    "ttlSeconds": 300,
+    "persistent": false
+  }
 }
