@@ -81,25 +81,56 @@ impl ImportSupport for MyLanguageImportSupport {
 - **Imports only**: See `crates/languages/cb-lang-typescript/src/lib.rs`
 - **Minimal**: See `crates/languages/cb-lang-python/src/lib.rs`
 
-## Original Quick Start
+## Automated Plugin Generation (Recommended)
 
-### Create a New Language Plugin
+### Create a New Language Plugin with Auto-Patching
+
+The `new-lang.sh` script generates a complete plugin structure **and automatically patches all integration points**:
 
 ```bash
-# Scaffold a complete plugin structure
-./new-lang.sh <language-name>
+# Basic usage (manifest filename is required)
+./new-lang.sh <language-name> --manifest <filename>
 
-# Example: Create a Java plugin
-./new-lang.sh java
+# Example: Create a C# plugin
+./new-lang.sh csharp --manifest "*.csproj" --extensions cs,csx
+
+# Example: Create a Kotlin plugin
+./new-lang.sh kotlin \
+  --manifest "build.gradle.kts" \
+  --extensions kt,kts \
+  --source-dir "src/main/kotlin" \
+  --entry-point "Main.kt"
+
+# Dry run to preview changes without modifying files
+./new-lang.sh ruby --manifest Gemfile --dry-run
 ```
 
-This generates:
-- Complete directory structure with `src/`, `resources/`
-- `Cargo.toml` with all workspace dependencies
-- Skeleton `lib.rs` with trait implementation
-- Template `parser.rs` and `manifest.rs` files
-- Comprehensive `README.md` with TODOs
-- Step-by-step next actions
+#### Available Options
+
+- `--manifest <filename>` - **Required** - Manifest filename (e.g., `pom.xml`, `Gemfile`, `*.csproj`)
+- `--extensions <ext1,ext2>` - File extensions (default: language name)
+- `--source-dir <dir>` - Source directory (default: `src`)
+- `--entry-point <file>` - Entry point filename (default: `main.<ext>`)
+- `--module-sep <sep>` - Module separator (default: `.`)
+- `--dry-run` - Preview changes without modifying files
+
+#### What Gets Generated & Patched Automatically
+
+**Phase 1: Plugin Files**
+- ✅ Complete directory structure (`src/`, `resources/`)
+- ✅ `Cargo.toml` with workspace dependencies
+- ✅ Modern `lib.rs` implementing `LanguagePlugin` trait
+- ✅ Template `parser.rs` and `manifest.rs` files
+- ✅ Comprehensive `README.md` with TODOs
+
+**Phase 2: Automatic Integration**
+- ✅ Root `Cargo.toml` - Added to workspace dependencies
+- ✅ `crates/cb-handlers/Cargo.toml` - Feature gate and dependency
+- ✅ `crates/cb-services/src/services/registry_builder.rs` - Plugin registration
+- ✅ `crates/cb-core/src/language.rs` - ProjectLanguage enum and detection
+- ✅ `crates/cb-plugin-api/src/metadata.rs` - LanguageMetadata constant
+
+**No manual file editing required!** The script handles all integration points automatically.
 
 ### Validate Configuration
 
@@ -469,26 +500,68 @@ Read these plugins' README.md files for language-specific implementation details
 ### Automated Approach (Recommended)
 
 ```bash
-# 1. Scaffold new plugin
+# 1. Scaffold new plugin with auto-patching
 cd crates/languages
-./new-lang.sh kotlin
+./new-lang.sh kotlin --manifest "build.gradle.kts" --extensions kt,kts
 
-# 2. Implement parsing logic
-# Edit: cb-lang-kotlin/src/parser.rs
-# Edit: cb-lang-kotlin/src/manifest.rs
+# Output shows all auto-patched files:
+# ✓ Cargo.toml (workspace dependencies)
+# ✓ crates/cb-handlers/Cargo.toml (features & dependencies)
+# ✓ crates/cb-services/src/services/registry_builder.rs
+# ✓ crates/cb-core/src/language.rs (ProjectLanguage enum)
+# ✓ crates/cb-plugin-api/src/metadata.rs (LanguageMetadata constant)
 
-# 3. Follow printed next steps to register plugin
+# 2. Verify the integration compiles
+cargo check -p cb-lang-kotlin
 
-# 4. Validate configuration
-./check-features.sh
+# 3. Implement parsing logic
+# Edit: cb-lang-kotlin/src/parser.rs - Add AST parsing and symbol extraction
+# Edit: cb-lang-kotlin/src/manifest.rs - Add manifest parsing
+
+# 4. Optionally add capability trait implementations
+# Create: cb-lang-kotlin/src/import_support.rs - ImportSupport trait
+# Create: cb-lang-kotlin/src/workspace_support.rs - WorkspaceSupport trait
+# Update: cb-lang-kotlin/src/lib.rs - Add support fields and override methods
 
 # 5. Run tests
 cargo test -p cb-lang-kotlin
 
-# 6. Test with real projects
+# 6. Validate configuration
+./check-features.sh
+
+# 7. Test with real projects
+cargo build --features lang-kotlin
 ```
 
-### Manual Checklist (If Not Using Scripts)
+### What to Implement (After Auto-Generation)
+
+The generator creates stub implementations that return empty data. You need to implement:
+
+**1. Parser (`src/parser.rs`)**
+- Choose parser approach (Pure Rust crate, subprocess, or regex)
+- Extract symbols (functions, classes, structs, etc.)
+- Return `ParsedSource` with AST data and symbols
+
+**2. Manifest (`src/manifest.rs`)**
+- Parse language-specific manifest format
+- Extract project name, version, and dependencies
+- Return `ManifestData` structure
+
+**3. Capabilities (Optional)**
+- Implement `ImportSupport` trait for import analysis
+- Implement `WorkspaceSupport` trait for workspace operations
+- Update `capabilities()` to return `true` for implemented features
+
+**4. Tests**
+- Add unit tests for parser edge cases
+- Add manifest parsing tests
+- Test capability implementations
+
+### Manual Checklist (If Not Using Auto-Generator)
+
+⚠️ **Not recommended** - The auto-generator handles all integration automatically.
+
+If you must create a plugin manually:
 
 - [ ] Create `crates/languages/cb-lang-{language}/` directory
 - [ ] Implement `LanguagePlugin` trait in `src/lib.rs`
@@ -496,10 +569,18 @@ cargo test -p cb-lang-kotlin
 - [ ] Implement manifest parsing in `src/manifest.rs`
 - [ ] Add unit tests (minimum 8-12 tests)
 - [ ] Add logging using structured key-value format
+- [ ] **Add to `crates/cb-core/src/language.rs`** - ProjectLanguage enum variant
+- [ ] **Add to `crates/cb-core/src/language.rs`** - Update `as_str()` and `manifest_filename()`
+- [ ] **Add to `crates/cb-core/src/language.rs`** - Add detection logic in `detect_project_language()`
+- [ ] **Add to `crates/cb-plugin-api/src/metadata.rs`** - LanguageMetadata constant
 - [ ] Register plugin in `crates/cb-services/src/services/registry_builder.rs`
 - [ ] Add feature flag to workspace `Cargo.toml`
+- [ ] Add workspace dependency to root `Cargo.toml`
 - [ ] Add dependency to `cb-handlers/Cargo.toml`
+- [ ] Add feature gate to `cb-handlers/Cargo.toml`
 - [ ] Create plugin-specific `README.md`
 - [ ] Test with real projects
 - [ ] Document any limitations or fallback behaviors
 - [ ] Run `./check-features.sh` to verify all configuration
+
+**Using the auto-generator eliminates all manual integration steps** (checkboxes in bold).
