@@ -105,7 +105,9 @@ impl ErrorBuilder {
     ///     .with_column(10);
     ///
     /// let context = builder.format_context();
-    /// assert_eq!(context, "line=42, column=10");
+    /// // HashMap iteration order is not guaranteed, check both keys are present
+    /// assert!(context.contains("line=42"));
+    /// assert!(context.contains("column=10"));
     /// ```
     pub fn format_context(&self) -> String {
         if self.context.is_empty() {
