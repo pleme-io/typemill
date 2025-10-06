@@ -80,11 +80,12 @@ mod manifest;
 pub mod parser;
 pub mod refactoring;
 pub mod import_support;
+pub mod workspace_support;
 
 use async_trait::async_trait;
 use cb_plugin_api::{
     ImportSupport, LanguagePlugin, LanguageMetadata, LanguageCapabilities, ManifestData,
-    ParsedSource, PluginResult,
+    ParsedSource, PluginResult, WorkspaceSupport,
 };
 use std::path::Path;
 
@@ -92,6 +93,7 @@ use std::path::Path;
 pub struct GoPlugin {
     metadata: LanguageMetadata,
     import_support: import_support::GoImportSupport,
+    workspace_support: workspace_support::GoWorkspaceSupport,
 }
 
 impl GoPlugin {
@@ -99,6 +101,7 @@ impl GoPlugin {
         Self {
             metadata: LanguageMetadata::GO,
             import_support: import_support::GoImportSupport,
+            workspace_support: workspace_support::GoWorkspaceSupport::new(),
         }
     }
 }
@@ -118,7 +121,7 @@ impl LanguagePlugin for GoPlugin {
     fn capabilities(&self) -> LanguageCapabilities {
         LanguageCapabilities {
             imports: true,
-            workspace: false,
+            workspace: true,  // ✅ Go workspace support via go.work
         }
     }
 
@@ -144,6 +147,10 @@ impl LanguagePlugin for GoPlugin {
 
     fn import_support(&self) -> Option<&dyn ImportSupport> {
         Some(&self.import_support)
+    }
+
+    fn workspace_support(&self) -> Option<&dyn WorkspaceSupport> {
+        Some(&self.workspace_support)
     }
 }
 
@@ -214,5 +221,25 @@ impl GoPlugin {
         } else {
             Ok((content.to_string(), 0))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_go_capabilities() {
+        let plugin = GoPlugin::new();
+        let caps = plugin.capabilities();
+
+        assert!(caps.imports, "Go plugin should support imports");
+        assert!(caps.workspace, "Go plugin should support workspace");
+    }
+
+    #[test]
+    fn test_go_workspace_support() {
+        let plugin = GoPlugin::new();
+        assert!(plugin.workspace_support().is_some(), "Go should have workspace support");
     }
 }
