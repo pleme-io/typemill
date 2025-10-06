@@ -49,8 +49,6 @@ fn main() {
     generate_metadata_constants(&config, &out_dir);
     generate_cargo_dependencies(&config, &out_dir);
     generate_registry_registration(&config, &out_dir);
-
-    println!("cargo:warning=Generated code from languages.toml");
 }
 
 fn generate_language_enum(config: &LanguagesConfig, out_dir: &PathBuf) {

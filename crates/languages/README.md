@@ -83,9 +83,38 @@ impl ImportSupport for MyLanguageImportSupport {
 
 ## Automated Plugin Generation (Recommended)
 
-### Create a New Language Plugin with Auto-Patching
+### How It Works: Build-Time Code Generation
 
-The `new-lang.sh` script generates a complete plugin structure **and automatically patches all integration points**:
+The plugin system uses **build-time code generation** for seamless integration:
+
+1. **Single Source of Truth**: `crates/languages/languages.toml` defines all language metadata
+2. **Build Scripts**: `build.rs` files in `cb-core`, `cb-plugin-api`, and `cb-services` read this TOML
+3. **Generated Code**: Build scripts auto-generate enums, constants, and registration code
+4. **Automatic Integration**: No manual file patching needed - everything happens at build time
+
+```toml
+# languages.toml - Single source of truth
+[languages.Rust]
+display_name = "Rust"
+extensions = ["rs"]
+manifest_filename = "Cargo.toml"
+source_dir = "src"
+entry_point = "lib.rs"
+module_separator = "::"
+crate_name = "cb-lang-rust"
+feature_name = "lang-rust"
+```
+
+**Benefits:**
+- ✅ No code duplication across 5+ files
+- ✅ Build scripts ensure consistency
+- ✅ Adding a language = adding one TOML entry
+- ✅ Type-safe generated code
+- ✅ Eliminates manual synchronization errors
+
+### Create a New Language Plugin
+
+The `new-lang.sh` script generates a complete plugin structure and registers it in `languages.toml`:
 
 ```bash
 # Basic usage (manifest filename is required)
@@ -114,7 +143,7 @@ The `new-lang.sh` script generates a complete plugin structure **and automatical
 - `--module-sep <sep>` - Module separator (default: `.`)
 - `--dry-run` - Preview changes without modifying files
 
-#### What Gets Generated & Patched Automatically
+#### What Gets Generated
 
 **Phase 1: Plugin Files**
 - ✅ Complete directory structure (`src/`, `resources/`)
@@ -123,14 +152,16 @@ The `new-lang.sh` script generates a complete plugin structure **and automatical
 - ✅ Template `parser.rs` and `manifest.rs` files
 - ✅ Comprehensive `README.md` with TODOs
 
-**Phase 2: Automatic Integration**
-- ✅ Root `Cargo.toml` - Added to workspace dependencies
-- ✅ `crates/cb-handlers/Cargo.toml` - Feature gate and dependency
-- ✅ `crates/cb-services/src/services/registry_builder.rs` - Plugin registration
-- ✅ `crates/cb-core/src/language.rs` - ProjectLanguage enum and detection
-- ✅ `crates/cb-plugin-api/src/metadata.rs` - LanguageMetadata constant
+**Phase 2: Registration**
+- ✅ Appends language entry to `languages.toml`
 
-**No manual file editing required!** The script handles all integration points automatically.
+**Phase 3: Build-Time Integration** (happens on next `cargo build`)
+- ✅ `ProjectLanguage` enum variant generated in `cb-core`
+- ✅ `LanguageMetadata` constant generated in `cb-plugin-api`
+- ✅ Plugin registration block generated in `cb-services`
+- ✅ Feature gate configuration generated
+
+**No manual file patching required!** Just run `cargo build` after the script completes.
 
 ### Validate Configuration
 
@@ -500,36 +531,45 @@ Read these plugins' README.md files for language-specific implementation details
 ### Automated Approach (Recommended)
 
 ```bash
-# 1. Scaffold new plugin with auto-patching
+# 1. Scaffold new plugin and register in languages.toml
 cd crates/languages
 ./new-lang.sh kotlin --manifest "build.gradle.kts" --extensions kt,kts
 
-# Output shows all auto-patched files:
-# ✓ Cargo.toml (workspace dependencies)
-# ✓ crates/cb-handlers/Cargo.toml (features & dependencies)
-# ✓ crates/cb-services/src/services/registry_builder.rs
-# ✓ crates/cb-core/src/language.rs (ProjectLanguage enum)
-# ✓ crates/cb-plugin-api/src/metadata.rs (LanguageMetadata constant)
+# Output shows:
+# ✓ Created plugin directory: crates/languages/cb-lang-kotlin
+# ✓ Generated lib.rs, parser.rs, manifest.rs, README.md
+# ✓ Registered Kotlin in languages.toml
 
-# 2. Verify the integration compiles
+# 2. Build workspace to generate integration code
+cd ../..
+cargo build --features lang-kotlin
+
+# Build scripts auto-generate:
+# - ProjectLanguage::Kotlin enum variant (cb-core)
+# - LanguageMetadata::KOTLIN constant (cb-plugin-api)
+# - Plugin registration block (cb-services)
+
+# 3. Verify the plugin compiles
 cargo check -p cb-lang-kotlin
 
-# 3. Implement parsing logic
+# 4. Implement parsing logic
 # Edit: cb-lang-kotlin/src/parser.rs - Add AST parsing and symbol extraction
 # Edit: cb-lang-kotlin/src/manifest.rs - Add manifest parsing
 
-# 4. Optionally add capability trait implementations
+# 5. Optionally add capability trait implementations
 # Create: cb-lang-kotlin/src/import_support.rs - ImportSupport trait
 # Create: cb-lang-kotlin/src/workspace_support.rs - WorkspaceSupport trait
 # Update: cb-lang-kotlin/src/lib.rs - Add support fields and override methods
 
-# 5. Run tests
+# 6. Run tests
 cargo test -p cb-lang-kotlin
 
-# 6. Validate configuration
+# 7. Validate configuration
+cd crates/languages
 ./check-features.sh
 
-# 7. Test with real projects
+# 8. Test with real projects
+cd ../..
 cargo build --features lang-kotlin
 ```
 
@@ -559,28 +599,29 @@ The generator creates stub implementations that return empty data. You need to i
 
 ### Manual Checklist (If Not Using Auto-Generator)
 
-⚠️ **Not recommended** - The auto-generator handles all integration automatically.
+⚠️ **Not recommended** - The auto-generator handles plugin creation and registration automatically.
 
 If you must create a plugin manually:
 
+**Plugin Implementation:**
 - [ ] Create `crates/languages/cb-lang-{language}/` directory
 - [ ] Implement `LanguagePlugin` trait in `src/lib.rs`
 - [ ] Implement symbol extraction in `src/parser.rs`
 - [ ] Implement manifest parsing in `src/manifest.rs`
 - [ ] Add unit tests (minimum 8-12 tests)
 - [ ] Add logging using structured key-value format
-- [ ] **Add to `crates/cb-core/src/language.rs`** - ProjectLanguage enum variant
-- [ ] **Add to `crates/cb-core/src/language.rs`** - Update `as_str()` and `manifest_filename()`
-- [ ] **Add to `crates/cb-core/src/language.rs`** - Add detection logic in `detect_project_language()`
-- [ ] **Add to `crates/cb-plugin-api/src/metadata.rs`** - LanguageMetadata constant
-- [ ] Register plugin in `crates/cb-services/src/services/registry_builder.rs`
-- [ ] Add feature flag to workspace `Cargo.toml`
-- [ ] Add workspace dependency to root `Cargo.toml`
-- [ ] Add dependency to `cb-handlers/Cargo.toml`
-- [ ] Add feature gate to `cb-handlers/Cargo.toml`
 - [ ] Create plugin-specific `README.md`
+
+**Registration (Build-Time Generation):**
+- [ ] **Add entry to `crates/languages/languages.toml`** - Single TOML entry with all metadata
+- [ ] Run `cargo build` to auto-generate integration code:
+  - `ProjectLanguage` enum variant (cb-core)
+  - `LanguageMetadata` constant (cb-plugin-api)
+  - Plugin registration block (cb-services)
+
+**Testing:**
 - [ ] Test with real projects
 - [ ] Document any limitations or fallback behaviors
 - [ ] Run `./check-features.sh` to verify all configuration
 
-**Using the auto-generator eliminates all manual integration steps** (checkboxes in bold).
+**Note:** The auto-generator and build-time code generation system handle all integration automatically. Simply add one entry to `languages.toml` and run `cargo build`.
