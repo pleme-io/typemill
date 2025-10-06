@@ -99,11 +99,12 @@ mod manifest;
 pub mod parser;
 pub mod refactoring;
 pub mod import_support;
+pub mod workspace_support;
 
 use async_trait::async_trait;
 use cb_plugin_api::{
     ImportSupport, LanguageCapabilities, LanguageMetadata, LanguagePlugin, ManifestData,
-    ParsedSource, PluginError, PluginResult,
+    ParsedSource, PluginError, PluginResult, WorkspaceSupport,
 };
 use std::path::Path;
 
@@ -111,6 +112,7 @@ use std::path::Path;
 pub struct TypeScriptPlugin {
     metadata: LanguageMetadata,
     import_support: import_support::TypeScriptImportSupport,
+    workspace_support: workspace_support::TypeScriptWorkspaceSupport,
 }
 
 impl TypeScriptPlugin {
@@ -118,6 +120,7 @@ impl TypeScriptPlugin {
         Self {
             metadata: LanguageMetadata::TYPESCRIPT,
             import_support: import_support::TypeScriptImportSupport::new(),
+            workspace_support: workspace_support::TypeScriptWorkspaceSupport::new(),
         }
     }
 }
@@ -137,7 +140,7 @@ impl LanguagePlugin for TypeScriptPlugin {
     fn capabilities(&self) -> LanguageCapabilities {
         LanguageCapabilities {
             imports: true,
-            workspace: false, // TypeScript doesn't have workspace methods
+            workspace: true,  // ✅ npm/yarn/pnpm workspace support
         }
     }
 
@@ -163,6 +166,10 @@ impl LanguagePlugin for TypeScriptPlugin {
 
     fn import_support(&self) -> Option<&dyn ImportSupport> {
         Some(&self.import_support)
+    }
+
+    fn workspace_support(&self) -> Option<&dyn WorkspaceSupport> {
+        Some(&self.workspace_support)
     }
 }
 
@@ -237,5 +244,25 @@ impl TypeScriptPlugin {
         } else {
             Ok((content.to_string(), 0))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_typescript_capabilities() {
+        let plugin = TypeScriptPlugin::new();
+        let caps = plugin.capabilities();
+
+        assert!(caps.imports, "TypeScript plugin should support imports");
+        assert!(caps.workspace, "TypeScript plugin should support workspace");
+    }
+
+    #[test]
+    fn test_typescript_workspace_support() {
+        let plugin = TypeScriptPlugin::new();
+        assert!(plugin.workspace_support().is_some(), "TypeScript should have workspace support");
     }
 }
