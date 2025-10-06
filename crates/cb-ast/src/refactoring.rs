@@ -323,9 +323,11 @@ pub async fn plan_extract_function(
     // Fallback to AST-based implementation
     match detect_language(file_path) {
         "typescript" | "javascript" => {
-            ast_extract_function_ts_js(source, range, new_function_name, file_path)
+            cb_lang_typescript::refactoring::plan_extract_function(
+                source, range.start_line, range.end_line, new_function_name, file_path
+            )
+                .map_err(|e| AstError::analysis(e.to_string()))
         }
-        #[cfg(feature = "lang-python")]
         "python" => {
             let python_range = cb_lang_python::refactoring::CodeRange {
                 start_line: range.start_line,
@@ -334,6 +336,18 @@ pub async fn plan_extract_function(
                 end_col: range.end_col,
             };
             cb_lang_python::refactoring::plan_extract_function(source, &python_range, new_function_name, file_path)
+                .map_err(|e| AstError::analysis(e.to_string()))
+        }
+        "rust" => {
+            cb_lang_rust::refactoring::plan_extract_function(
+                source, range.start_line, range.end_line, new_function_name, file_path
+            )
+                .map_err(|e| AstError::analysis(e.to_string()))
+        }
+        "go" => {
+            cb_lang_go::refactoring::plan_extract_function(
+                source, range.start_line, range.end_line, new_function_name, file_path
+            )
                 .map_err(|e| AstError::analysis(e.to_string()))
         }
         _ => Err(AstError::analysis(format!(
@@ -438,12 +452,19 @@ pub async fn plan_inline_variable(
     // Fallback to AST-based implementation
     match detect_language(file_path) {
         "typescript" | "javascript" => {
-            let analysis = analyze_inline_variable(source, variable_line, variable_col, file_path)?;
-            ast_inline_variable_ts_js(source, &analysis)
+            cb_lang_typescript::refactoring::plan_inline_variable(source, variable_line, variable_col, file_path)
+                .map_err(|e| AstError::analysis(e.to_string()))
         }
-        #[cfg(feature = "lang-python")]
         "python" => {
             cb_lang_python::refactoring::plan_inline_variable(source, variable_line, variable_col, file_path)
+                .map_err(|e| AstError::analysis(e.to_string()))
+        }
+        "rust" => {
+            cb_lang_rust::refactoring::plan_inline_variable(source, variable_line, variable_col, file_path)
+                .map_err(|e| AstError::analysis(e.to_string()))
+        }
+        "go" => {
+            cb_lang_go::refactoring::plan_inline_variable(source, variable_line, variable_col, file_path)
                 .map_err(|e| AstError::analysis(e.to_string()))
         }
         _ => Err(AstError::analysis(format!(
@@ -727,14 +748,25 @@ pub async fn plan_extract_variable(
     // Fallback to AST-based implementation
     match detect_language(file_path) {
         "typescript" | "javascript" => {
-            let analysis = analyze_extract_variable(
-                source, start_line, start_col, end_line, end_col, file_path,
-            )?;
-            ast_extract_variable_ts_js(source, &analysis, variable_name, file_path)
+            cb_lang_typescript::refactoring::plan_extract_variable(
+                source, start_line, start_col, end_line, end_col, variable_name.clone(), file_path
+            )
+                .map_err(|e| AstError::analysis(e.to_string()))
         }
-        #[cfg(feature = "lang-python")]
         "python" => {
             cb_lang_python::refactoring::plan_extract_variable(
+                source, start_line, start_col, end_line, end_col, variable_name, file_path
+            )
+                .map_err(|e| AstError::analysis(e.to_string()))
+        }
+        "rust" => {
+            cb_lang_rust::refactoring::plan_extract_variable(
+                source, start_line, start_col, end_line, end_col, variable_name, file_path
+            )
+                .map_err(|e| AstError::analysis(e.to_string()))
+        }
+        "go" => {
+            cb_lang_go::refactoring::plan_extract_variable(
                 source, start_line, start_col, end_line, end_col, variable_name, file_path
             )
                 .map_err(|e| AstError::analysis(e.to_string()))
