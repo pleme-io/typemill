@@ -1,27 +1,45 @@
-//! Cyclomatic Complexity Analysis
+//! Code Complexity Analysis
 //!
-//! This module provides language-agnostic cyclomatic complexity calculation
-//! for functions and methods. It works by counting decision points in the
-//! control flow graph.
+//! This module provides language-agnostic complexity and quality metrics
+//! for functions and methods.
 //!
-//! # Cyclomatic Complexity Formula
+//! # Cyclomatic Complexity
 //!
-//! CC = E - N + 2P
-//! Where:
-//! - E = number of edges in the control flow graph
-//! - N = number of nodes in the control flow graph
-//! - P = number of connected components (usually 1)
+//! CC = E - N + 2P (simplified: decision points + 1)
+//! - Measures number of linearly independent paths
+//! - Language-agnostic decision point counting
 //!
-//! Simplified: CC = number of decision points + 1
+//! # Cognitive Complexity
 //!
-//! # Decision Points
+//! More accurate measure of code understandability:
+//! - Adds nesting penalties (nested if = harder to understand)
+//! - Ignores "shortcut" structures (early returns are good)
+//! - Better predicts actual maintenance difficulty
 //!
-//! - if, else if
-//! - for, while, do-while loops
-//! - case statements in switch
-//! - && and || operators
-//! - ternary operators (? :)
-//! - catch blocks
+//! Example:
+//! ```ignore
+//! // Cyclomatic: 4, Cognitive: 7 (deeply nested)
+//! if (a) {
+//!     if (b) {
+//!         if (c) {
+//!             doSomething();
+//!         }
+//!     }
+//! }
+//!
+//! // Cyclomatic: 4, Cognitive: 3 (flat structure)
+//! if (!a) return;
+//! if (!b) return;
+//! if (!c) return;
+//! doSomething();
+//! ```
+//!
+//! # Code Metrics
+//!
+//! - SLOC (Source Lines of Code)
+//! - Parameter count
+//! - Comment ratio
+//! - Maximum nesting depth
 //!
 //! # Complexity Ratings
 //!
@@ -74,13 +92,44 @@ impl ComplexityRating {
     }
 }
 
-/// Complexity metrics for a single function
+/// Comprehensive complexity metrics (cyclomatic + cognitive)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ComplexityMetrics {
+    /// Cyclomatic complexity (decision points + 1)
+    pub cyclomatic: u32,
+    /// Cognitive complexity (with nesting penalties)
+    pub cognitive: u32,
+    /// Maximum nesting depth in the function
+    pub max_nesting_depth: u32,
+}
+
+/// Code quality metrics for a function
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CodeMetrics {
+    /// Source Lines of Code (excluding blanks and comments)
+    pub sloc: u32,
+    /// Total lines including blanks and comments
+    pub total_lines: u32,
+    /// Number of comment lines
+    pub comment_lines: u32,
+    /// Comment ratio (comment_lines / sloc)
+    pub comment_ratio: f64,
+    /// Number of function parameters
+    pub parameters: u32,
+}
+
+/// Complexity metrics for a single function (enhanced version)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunctionComplexity {
     pub name: String,
     pub line: usize,
-    pub complexity: u32,
+    #[serde(flatten)]
+    pub complexity: ComplexityMetrics,
+    #[serde(flatten)]
+    pub metrics: CodeMetrics,
     pub rating: ComplexityRating,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub issues: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub recommendation: Option<String>,
 }
@@ -91,8 +140,13 @@ pub struct ComplexityReport {
     pub file_path: String,
     pub functions: Vec<FunctionComplexity>,
     pub average_complexity: f64,
+    pub average_cognitive_complexity: f64,
     pub max_complexity: u32,
+    pub max_cognitive_complexity: u32,
     pub total_functions: usize,
+    pub total_sloc: u32,
+    pub average_sloc: f64,
+    pub total_issues: usize,
     pub summary: String,
 }
 
@@ -157,6 +211,84 @@ pub fn calculate_complexity(function_body: &str, language: &str) -> u32 {
     complexity
 }
 
+/// Calculate comprehensive complexity metrics (cyclomatic + cognitive + nesting)
+///
+/// Cognitive complexity adds nesting penalties to better reflect human comprehension difficulty.
+/// Unlike cyclomatic complexity, cognitive complexity penalizes nested structures more heavily.
+pub fn calculate_complexity_metrics(function_body: &str, language: &str) -> ComplexityMetrics {
+    let patterns = LanguagePatterns::for_language(language);
+
+    let mut cyclomatic: u32 = 1; // Base complexity
+    let mut cognitive: u32 = 0;
+    let mut nesting_level: u32 = 0;
+    let mut max_nesting: u32 = 0;
+
+    let lines: Vec<&str> = function_body.lines().collect();
+
+    for line in lines {
+        let trimmed = line.trim();
+
+        // Track nesting level by counting braces
+        for ch in line.chars() {
+            if ch == '{' {
+                nesting_level += 1;
+                max_nesting = max_nesting.max(nesting_level);
+            } else if ch == '}' {
+                nesting_level = nesting_level.saturating_sub(1);
+            }
+        }
+
+        // Count decision keywords
+        for keyword in &patterns.decision_keywords {
+            let occurrences = count_keyword_occurrences(trimmed, keyword);
+            if occurrences > 0 {
+                // Cyclomatic: simple count
+                cyclomatic += occurrences;
+
+                // Cognitive: base increment + nesting penalty
+                // Each decision point gets +1, plus +1 for each nesting level
+                cognitive += occurrences + (occurrences * nesting_level);
+            }
+        }
+
+        // Count logical operators
+        for operator in &patterns.logical_operators {
+            let occurrences = count_operator_occurrences(trimmed, operator);
+            if occurrences > 0 {
+                cyclomatic += occurrences;
+                cognitive += occurrences + (occurrences * nesting_level);
+            }
+        }
+
+        // Detect early returns (reduce cognitive complexity)
+        if is_early_return(trimmed, language) && nesting_level == 0 {
+            // Early returns at function level don't add cognitive complexity
+            // (they're actually good for readability)
+            cognitive = cognitive.saturating_sub(1);
+        }
+    }
+
+    ComplexityMetrics {
+        cyclomatic,
+        cognitive,
+        max_nesting_depth: max_nesting,
+    }
+}
+
+/// Check if a line contains an early return/continue/break
+fn is_early_return(line: &str, language: &str) -> bool {
+    let line = line.trim();
+    match language.to_lowercase().as_str() {
+        "rust" | "go" | "java" | "typescript" | "javascript" => {
+            line.starts_with("return") || line.starts_with("continue") || line.starts_with("break")
+        }
+        "python" => {
+            line.starts_with("return") || line.starts_with("continue") || line.starts_with("break")
+        }
+        _ => line.starts_with("return"),
+    }
+}
+
 /// Count occurrences of a keyword as a whole word (not part of another identifier)
 fn count_keyword_occurrences(code: &str, keyword: &str) -> u32 {
     let mut count = 0;
@@ -199,6 +331,120 @@ fn count_operator_occurrences(code: &str, operator: &str) -> u32 {
     count
 }
 
+/// Calculate code metrics for a function body
+///
+/// Analyzes SLOC, comment ratio, and other code quality metrics.
+pub fn calculate_code_metrics(function_body: &str, language: &str) -> CodeMetrics {
+    let lines: Vec<&str> = function_body.lines().collect();
+    let total_lines = lines.len() as u32;
+
+    let mut sloc = 0;
+    let mut comment_lines = 0;
+
+    // Language-specific comment patterns
+    let (single_line_comment, multi_line_start, multi_line_end) = match language.to_lowercase().as_str() {
+        "rust" | "go" | "java" | "typescript" | "javascript" => ("//", "/*", "*/"),
+        "python" => ("#", "\"\"\"", "\"\"\""),
+        _ => ("//", "/*", "*/"),
+    };
+
+    let mut in_multiline_comment = false;
+
+    for line in &lines {
+        let trimmed = line.trim();
+
+        // Skip empty lines
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        // Check for multi-line comment boundaries
+        if trimmed.contains(multi_line_start) {
+            in_multiline_comment = true;
+        }
+
+        // Check if this is a comment line
+        let is_comment = in_multiline_comment
+            || trimmed.starts_with(single_line_comment)
+            || trimmed.starts_with("*"); // Continuation of /** */ style
+
+        if is_comment {
+            comment_lines += 1;
+        } else {
+            sloc += 1;
+        }
+
+        if trimmed.contains(multi_line_end) {
+            in_multiline_comment = false;
+        }
+    }
+
+    let comment_ratio = if sloc > 0 {
+        comment_lines as f64 / sloc as f64
+    } else {
+        0.0
+    };
+
+    CodeMetrics {
+        sloc,
+        total_lines,
+        comment_lines,
+        comment_ratio,
+        parameters: 0, // Will be filled in by analyze_file_complexity
+    }
+}
+
+/// Count function parameters from symbol or function signature
+///
+/// This is a heuristic that counts commas in the parameter list.
+fn count_parameters(function_body: &str, language: &str) -> u32 {
+    // Find the function signature (first line typically)
+    let first_line = function_body.lines().next().unwrap_or("");
+
+    // Find parameter list between ( and )
+    if let Some(paren_start) = first_line.find('(') {
+        if let Some(paren_end) = first_line[paren_start..].find(')') {
+            let params_str = &first_line[paren_start + 1..paren_start + paren_end];
+
+            // Empty parameter list
+            if params_str.trim().is_empty() {
+                return 0;
+            }
+
+            // Count parameters by counting commas + 1
+            // Handle special cases like "self" in Python/Rust
+            let param_count = params_str.matches(',').count() as u32 + 1;
+
+            // Adjust for languages with implicit self/this
+            match language.to_lowercase().as_str() {
+                "python" => {
+                    // Python methods have "self" as first param
+                    if params_str.trim().starts_with("self,") || params_str.trim() == "self" {
+                        param_count.saturating_sub(1)
+                    } else {
+                        param_count
+                    }
+                }
+                "rust" => {
+                    // Rust methods might have &self, &mut self, self
+                    if params_str.trim().starts_with("&self")
+                        || params_str.trim().starts_with("self")
+                        || params_str.trim().starts_with("&mut self") {
+                        param_count.saturating_sub(1)
+                    } else {
+                        param_count
+                    }
+                }
+                _ => param_count,
+            }
+        } else {
+            0
+        }
+    } else {
+        0
+    }
+}
+
 /// Analyze complexity for all functions in a file
 ///
 /// This requires the parsed source with function/method symbols.
@@ -222,30 +468,92 @@ pub fn analyze_file_complexity(
         // Extract function body
         let function_body = extract_function_body(content, &symbol.location);
 
-        // Calculate complexity
-        let complexity = calculate_complexity(&function_body, language);
-        let rating = ComplexityRating::from_score(complexity);
+        // Calculate comprehensive metrics
+        let complexity = calculate_complexity_metrics(&function_body, language);
+        let mut code_metrics = calculate_code_metrics(&function_body, language);
+
+        // Count parameters
+        code_metrics.parameters = count_parameters(&function_body, language);
+
+        // Determine rating based on cognitive complexity (more accurate)
+        let rating = ComplexityRating::from_score(complexity.cognitive);
+
+        // Identify issues
+        let mut issues = Vec::new();
+
+        if complexity.cognitive > 15 {
+            issues.push(format!(
+                "High cognitive complexity ({}) due to nesting depth ({})",
+                complexity.cognitive, complexity.max_nesting_depth
+            ));
+        }
+
+        if code_metrics.parameters > 5 {
+            issues.push(format!(
+                "Too many parameters ({} > 5 recommended)",
+                code_metrics.parameters
+            ));
+        }
+
+        if complexity.max_nesting_depth > 4 {
+            issues.push(format!(
+                "Deep nesting ({} levels) reduces readability",
+                complexity.max_nesting_depth
+            ));
+        }
+
+        if code_metrics.comment_ratio < 0.1 && code_metrics.sloc > 20 {
+            issues.push(format!(
+                "Low comment ratio ({:.2}) for {} lines of code",
+                code_metrics.comment_ratio, code_metrics.sloc
+            ));
+        }
 
         functions.push(FunctionComplexity {
             name: symbol.name.clone(),
             line: symbol.location.line,
             complexity,
+            metrics: code_metrics,
             rating,
+            issues,
             recommendation: rating.recommendation().map(|s| s.to_string()),
         });
     }
 
     // Calculate statistics
     let total_functions = functions.len();
-    let total_complexity: u32 = functions.iter().map(|f| f.complexity).sum();
+    let total_complexity: u32 = functions.iter().map(|f| f.complexity.cyclomatic).sum();
+    let total_cognitive: u32 = functions.iter().map(|f| f.complexity.cognitive).sum();
+    let total_sloc: u32 = functions.iter().map(|f| f.metrics.sloc).sum();
+    let total_issues: usize = functions.iter().map(|f| f.issues.len()).sum();
+
     let average_complexity = if total_functions > 0 {
         total_complexity as f64 / total_functions as f64
     } else {
         0.0
     };
+
+    let average_cognitive_complexity = if total_functions > 0 {
+        total_cognitive as f64 / total_functions as f64
+    } else {
+        0.0
+    };
+
+    let average_sloc = if total_functions > 0 {
+        total_sloc as f64 / total_functions as f64
+    } else {
+        0.0
+    };
+
     let max_complexity = functions
         .iter()
-        .map(|f| f.complexity)
+        .map(|f| f.complexity.cyclomatic)
+        .max()
+        .unwrap_or(0);
+
+    let max_cognitive_complexity = functions
+        .iter()
+        .map(|f| f.complexity.cognitive)
         .max()
         .unwrap_or(0);
 
@@ -284,8 +592,13 @@ pub fn analyze_file_complexity(
         file_path: file_path.to_string(),
         functions,
         average_complexity,
+        average_cognitive_complexity,
         max_complexity,
+        max_cognitive_complexity,
         total_functions,
+        total_sloc,
+        average_sloc,
+        total_issues,
         summary,
     }
 }
