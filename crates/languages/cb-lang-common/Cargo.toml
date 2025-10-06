@@ -33,3 +33,4 @@ tempfile = "3.10"
 
 # Common utilities
 regex = "1.10"
+pathdiff = "0.2"
