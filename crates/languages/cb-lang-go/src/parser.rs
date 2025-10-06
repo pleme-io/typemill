@@ -2,96 +2,41 @@
 
 use cb_plugin_api::{PluginError, PluginResult, Symbol, SymbolKind};
 use cb_protocol::{ImportGraph, ImportGraphMetadata, ImportInfo, ImportType, SourceLocation};
+use cb_lang_common::{SubprocessAstTool, run_ast_tool, parse_with_fallback, ImportGraphBuilder};
 use serde::Deserialize;
-use std::collections::HashSet;
-use std::io::Write;
 use std::path::Path;
-use std::process::{Command, Stdio};
-use tempfile::Builder;
 
 /// Analyzes Go source code to produce an import graph.
 /// It attempts to use an AST-based approach first, falling back to regex on failure.
 pub fn analyze_imports(source: &str, file_path: Option<&Path>) -> PluginResult<ImportGraph> {
-    let imports = match parse_go_imports_ast(source) {
-        Ok(ast_imports) => ast_imports,
-        Err(e) => {
-            tracing::debug!(error = %e, "Go AST parsing failed, falling back to regex");
-            parse_go_imports_regex(source)?
-        }
-    };
+    let imports = parse_with_fallback(
+        || parse_go_imports_ast(source),
+        || parse_go_imports_regex(source),
+        "Go import parsing"
+    )?;
 
-    let external_dependencies = imports
-        .iter()
-        .filter_map(|imp| {
-            if is_external_dependency(&imp.module_path) {
-                Some(imp.module_path.clone())
-            } else {
-                None
-            }
-        })
-        .collect::<HashSet<_>>()
-        .into_iter()
-        .collect();
-
-    Ok(ImportGraph {
-        source_file: file_path
-            .map(|p| p.to_string_lossy().to_string())
-            .unwrap_or_else(|| "in-memory.go".to_string()),
-        imports,
-        importers: Vec::new(),
-        metadata: ImportGraphMetadata {
-            language: "go".to_string(),
-            parsed_at: chrono::Utc::now(),
-            parser_version: "0.1.0-plugin".to_string(),
-            circular_dependencies: Vec::new(),
-            external_dependencies,
-        },
-    })
+    Ok(ImportGraphBuilder::new("go")
+        .with_source_file(file_path)
+        .with_imports(imports)
+        .extract_external_dependencies(|path| is_external_dependency(path))
+        .with_parser_version("0.1.0-plugin")
+        .build())
 }
 
 /// Spawns the bundled `ast_tool.go` script to parse imports from source.
 fn parse_go_imports_ast(source: &str) -> Result<Vec<ImportInfo>, PluginError> {
     const AST_TOOL_GO: &str = include_str!("../resources/ast_tool.go");
 
-    let tmp_dir = Builder::new()
+    let tool = SubprocessAstTool::builder()
+        .command("go")
+        .args(vec!["run".to_string()])
+        .script_content(AST_TOOL_GO)
+        .script_extension("go")
+        .script_args(vec!["analyze-imports".to_string()])
         .prefix("codebuddy-go-ast")
-        .tempdir()
-        .map_err(|e| PluginError::internal(format!("Failed to create temp dir: {}", e)))?;
-    let tool_path = tmp_dir.path().join("ast_tool.go");
-    std::fs::write(&tool_path, AST_TOOL_GO).map_err(|e| {
-        PluginError::internal(format!("Failed to write Go tool to temp file: {}", e))
-    })?;
+        .build()?;
 
-    let mut child = Command::new("go")
-        .arg("run")
-        .arg(&tool_path)
-        .arg("analyze-imports")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| PluginError::parse(format!("Failed to spawn Go AST tool: {}", e)))?;
-
-    if let Some(mut stdin) = child.stdin.take() {
-        stdin.write_all(source.as_bytes()).map_err(|e| {
-            PluginError::parse(format!("Failed to write to Go AST tool stdin: {}", e))
-        })?;
-    }
-
-    let output = child
-        .wait_with_output()
-        .map_err(|e| PluginError::parse(format!("Failed to wait for Go AST tool: {}", e)))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(PluginError::parse(format!(
-            "Go AST tool failed: {}",
-            stderr
-        )));
-    }
-
-    serde_json::from_slice(&output.stdout)
-        .map_err(|e| PluginError::parse(format!("Failed to parse Go AST tool output: {}", e)))
+    run_ast_tool(tool, source)
 }
 
 /// Parse Go imports using regex (fallback implementation)
