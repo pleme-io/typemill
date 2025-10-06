@@ -9,7 +9,10 @@ license = "MIT"
 cb-core = { path = "../cb-core" }
 cb-protocol = { path = "../cb-protocol" }
 cb-plugin-api = { path = "../cb-plugin-api" }
-cb-lang-python = { workspace = true, optional = true }
+cb-lang-python = { workspace = true }
+cb-lang-typescript = { path = "../languages/cb-lang-typescript" }
+cb-lang-rust = { path = "../languages/cb-lang-rust" }
+cb-lang-go = { path = "../languages/cb-lang-go" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
@@ -47,8 +50,3 @@ toml_edit = "0.23" # For parsing and modifying Cargo.toml files
 
 [dev-dependencies]
 tempfile = "3.0"
-cb-lang-rust = { path = "../languages/cb-lang-rust" }
-
-[features]
-default = ["lang-python"]
-lang-python = ["dep:cb-lang-python"]
