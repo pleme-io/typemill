@@ -10,7 +10,6 @@ homepage.workspace = true
 # Our core plugin API
 cb-plugin-api = { path = "../../cb-plugin-api" }
 cb-protocol = { path = "../../cb-protocol" }
-cb-ast = { path = "../../cb-ast" }
 cb-core = { path = "../../cb-core" }
 
 # For parsing Rust code

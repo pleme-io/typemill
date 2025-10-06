@@ -57,7 +57,7 @@ impl Language {
     pub fn supports_refactoring(&self) -> bool {
         match self {
             Language::Python | Language::TypeScript => true,
-            Language::Rust | Language::Go => false, // Not yet implemented
+            Language::Rust | Language::Go => false, // Not yet implemented - requires EditPlan schema updates
         }
     }
 }
