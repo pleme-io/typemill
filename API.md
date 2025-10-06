@@ -95,30 +95,46 @@ Complete API documentation for all MCP tools available in CodeBuddy.
 
 ## Language Plugin Architecture
 
-### Capability-Based System
+### Capability-Based Design
 
-Plugins declare their features via capability flags:
+Language plugins use a capability-based architecture:
+
+**Core Trait**: `LanguagePlugin` with 9 methods (6 required, 3 default)
+- `metadata()` - Language metadata (name, extensions, etc.)
+- `parse()` - AST parsing and symbol extraction
+- `analyze_manifest()` - Manifest file analysis
+- `capabilities()` - Feature flags for optional capabilities
+- `import_support()` - Optional ImportSupport trait object
+- `workspace_support()` - Optional WorkspaceSupport trait object
+
+**Optional Capability Traits**:
+- `ImportSupport` - 6 sync methods for import operations
+- `WorkspaceSupport` - 5 sync methods for workspace operations
+
+### Accessing Capabilities
 
 ```rust
-let plugin = registry.find_by_extension("rs")?;
-let caps = plugin.capabilities();
-
-if caps.imports {
-    // Plugin supports import parsing and rewriting
+// Check if plugin supports imports
+if let Some(import_support) = plugin.import_support() {
+    let imports = import_support.parse_imports(&content);  // Sync call!
 }
-if caps.workspace {
-    // Plugin supports workspace manifest operations
+
+// Check via capability flags
+if plugin.capabilities().workspace {
+    if let Some(ws) = plugin.workspace_support() {
+        ws.add_workspace_member(&content, &member);  // Sync call!
+    }
 }
 ```
 
 ### Current Plugin Capabilities
 
-| Language | Import Support | Workspace Support |
-|----------|---------------|-------------------|
-| Rust | ✅ Yes | ✅ Yes |
-| TypeScript | ✅ Yes | ❌ No |
-| Go | ✅ Yes | ❌ No |
-| Python | ✅ Yes | ❌ No |
+| Plugin     | Import Support | Workspace Support |
+|------------|---------------|-------------------|
+| Rust       | ✅ Yes         | ✅ Yes            |
+| TypeScript | ✅ Yes         | ❌ No             |
+| Go         | ✅ Yes         | ❌ No             |
+| Python     | ✅ Yes         | ❌ No             |
 
 ### Metadata Access Pattern
 

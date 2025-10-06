@@ -442,16 +442,45 @@ pub struct AppState {
 }
 ```
 
-### Language Plugin Architecture
+## Language Plugin System (Updated - Phase 2 Complete)
 
-#### Capability-Based Design
+**Architecture**: Capability-based trait system with optional trait objects
+
+**Core Design**:
+- **Metadata Consolidation**: 7 methods → 1 struct (LanguageMetadata::RUST, etc.)
+- **Trait Reduction**: 22 methods → 9 methods (59% reduction)
+- **Sync Capabilities**: All capability methods are synchronous (no async overhead)
+- **O(1) Feature Detection**: Check capabilities() before attempting operations
+
+**Trait Structure**:
+```rust
+trait LanguagePlugin {
+    // Core (always available)
+    fn metadata() -> &LanguageMetadata;
+    fn parse(...) -> ParsedSource;
+    fn analyze_manifest(...) -> ManifestData;
+    fn capabilities() -> LanguageCapabilities;
+
+    // Optional capabilities (trait objects)
+    fn import_support() -> Option<&dyn ImportSupport>;
+    fn workspace_support() -> Option<&dyn WorkspaceSupport>;
+}
+```
+
+**Benefits**:
+- No more NotSupported errors - check capabilities first
+- Reduced boilerplate (29-42% LOC reduction per plugin)
+- Sync operations where appropriate
+- Easy to add new languages with only required features
+
+### Capability-Based Design
 
 The plugin system uses a capability-based architecture for optional features:
 
 **Core Trait** (`LanguagePlugin`):
-- 6 required methods + 4 default methods
+- 6 required methods + 3 default methods
 - Reduced from 22 methods in previous architecture
-- 91% reduction in trait definition size
+- 59% reduction in trait definition size
 
 **Capability Flags** (`LanguageCapabilities`):
 ```rust

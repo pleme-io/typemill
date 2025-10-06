@@ -11,22 +11,7 @@ use cb_plugin_api::{LanguagePlugin, LanguageMetadata, LanguageCapabilities};
 
 pub struct MyLanguagePlugin {
     metadata: LanguageMetadata,
-}
-
-impl MyLanguagePlugin {
-    pub fn new() -> Self {
-        Self {
-            metadata: LanguageMetadata {
-                name: "MyLanguage",
-                extensions: &["mylang"],
-                manifest_filename: "mylang.toml",
-                source_dir: "src",
-                entry_point: "main.mylang",
-                module_separator: "::",
-                language: cb_core::language::ProjectLanguage::Unknown,
-            },
-        }
-    }
+    import_support: import_support::MyLanguageImportSupport,  // Optional
 }
 ```
 
@@ -40,20 +25,24 @@ impl LanguagePlugin for MyLanguagePlugin {
     }
 
     async fn parse(&self, source: &str) -> PluginResult<ParsedSource> {
-        // TODO: Implement AST parsing for your language
+        // TODO: Implement AST parsing
         todo!()
     }
 
     async fn analyze_manifest(&self, path: &Path) -> PluginResult<ManifestData> {
-        // TODO: Parse your language's manifest file
+        // TODO: Parse manifest file
         todo!()
     }
 
     fn capabilities(&self) -> LanguageCapabilities {
         LanguageCapabilities {
-            imports: false,    // Set to true if you implement import methods
-            workspace: false,  // Set to true if you implement workspace methods
+            imports: true,  // Set based on your support
+            workspace: false,
         }
+    }
+
+    fn import_support(&self) -> Option<&dyn cb_plugin_api::ImportSupport> {
+        Some(&self.import_support)  // If you have import support
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
@@ -62,70 +51,29 @@ impl LanguagePlugin for MyLanguagePlugin {
 }
 ```
 
-### 3. Add Import Support (Optional)
+### 3. Implement Capability Traits (Optional)
 
-If your language has imports, add these public methods:
-
-```rust
-impl MyLanguagePlugin {
-    pub async fn parse_imports(&self, file_path: &Path) -> PluginResult<Vec<String>> {
-        // Parse import statements from file
-        todo!()
-    }
-
-    pub fn rewrite_imports_for_rename(
-        &self,
-        content: &str,
-        old_path: &Path,
-        new_path: &Path,
-        importing_file: &Path,
-        project_root: &Path,
-        rename_info: Option<&serde_json::Value>,
-    ) -> PluginResult<(String, usize)> {
-        // Rewrite imports when files are renamed
-        todo!()
-    }
-
-    pub fn find_module_references(
-        &self,
-        content: &str,
-        module_to_find: &str,
-        scope: cb_plugin_api::ScanScope,
-    ) -> PluginResult<Vec<cb_plugin_api::ModuleReference>> {
-        // Find all references to a module
-        todo!()
-    }
-}
-```
-
-Then set `capabilities().imports = true`.
-
-### 4. Add Workspace Support (Optional)
-
-If your language has workspace manifests (like Rust's Cargo.toml workspaces):
+If your language supports imports, create `src/import_support.rs`:
 
 ```rust
-impl MyLanguagePlugin {
-    pub async fn add_workspace_member(
-        &self,
-        workspace_content: &str,
-        new_member_path: &str,
-        workspace_root: &Path,
-    ) -> PluginResult<String> {
-        // Add member to workspace manifest
-        todo!()
+use cb_plugin_api::{ImportSupport, PluginResult};
+
+pub struct MyLanguageImportSupport;
+
+impl ImportSupport for MyLanguageImportSupport {
+    fn parse_imports(&self, content: &str) -> Vec<String> {
+        // Parse import statements
+        vec![]
     }
 
-    pub async fn is_workspace_manifest(&self, manifest_content: &str) -> PluginResult<bool> {
-        // Check if manifest is a workspace root
-        todo!()
+    fn rewrite_imports_for_rename(&self, content: &str, old: &str, new: &str) -> (String, usize) {
+        // Rewrite imports
+        (content.to_string(), 0)
     }
 
-    // ... other workspace methods
+    // ... implement other methods
 }
 ```
-
-Then set `capabilities().workspace = true`.
 
 ### Reference Implementations
 
