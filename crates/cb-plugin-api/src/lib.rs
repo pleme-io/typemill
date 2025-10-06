@@ -50,6 +50,20 @@ use serde_json::Value;
 use std::path::Path;
 
 // ============================================================================
+// Module Declarations
+// ============================================================================
+
+pub mod metadata;
+pub mod import_support;
+pub mod workspace_support;
+
+// Re-exports
+pub use cb_core::language::ProjectLanguage;
+pub use metadata::LanguageMetadata;
+pub use import_support::ImportSupport;
+pub use workspace_support::WorkspaceSupport;
+
+// ============================================================================
 // Error Types
 // ============================================================================
 
