@@ -179,6 +179,7 @@ homepage.workspace = true
 cb-plugin-api = { path = "../../cb-plugin-api" }
 cb-protocol = { path = "../../cb-protocol" }
 cb-core = { path = "../../cb-core" }
+cb-lang-common = { path = "../cb-lang-common" }
 
 # Async operations
 async-trait = { workspace = true }
@@ -198,7 +199,6 @@ tracing = { workspace = true }
 # regex = "1.10"
 # toml = "0.9"
 # toml_edit = "0.23"
-tempfile = "3.10"
 EOF
 fi
 echo -e "${GREEN}✓${NC} Generated Cargo.toml"
@@ -310,12 +310,38 @@ echo -e "${GREEN}✓${NC} Generated src/lib.rs"
 if [ "$DRY_RUN" = false ]; then
 cat > "$PLUGIN_DIR/src/parser.rs" << EOF
 //! ${LANG_TITLE} source code parsing and symbol extraction
+//!
+//! This module can use cb-lang-common utilities:
+//! - SubprocessAstTool for spawning external parsers
+//! - parse_with_fallback for AST + regex fallback pattern
+//! - ErrorBuilder for rich error context
 
 use cb_plugin_api::{ParsedSource, PluginResult};
+use cb_lang_common::{SubprocessAstTool, run_ast_tool, parse_with_fallback};
 
 /// Parse ${LANG_TITLE} source code and extract symbols
 ///
-/// TODO: Implement actual parsing logic using appropriate parser library
+/// TODO: Implement actual parsing logic
+///
+/// Example using subprocess AST parser:
+/// \`\`\`rust,ignore
+/// const AST_TOOL: &str = include_str!("../resources/ast_tool.py");
+///
+/// let tool = SubprocessAstTool::new("python3")
+///     .with_embedded_str(AST_TOOL)
+///     .with_temp_filename("ast_tool.py");
+///
+/// let symbols = run_ast_tool(tool, source)?;
+/// \`\`\`
+///
+/// Example using fallback pattern:
+/// \`\`\`rust,ignore
+/// let symbols = parse_with_fallback(
+///     || parse_with_ast(source),
+///     || parse_with_regex(source),
+///     "symbol extraction"
+/// )?;
+/// \`\`\`
 pub fn parse_source(source: &str) -> PluginResult<ParsedSource> {
     tracing::warn!(
         source_length = source.len(),
@@ -365,22 +391,37 @@ cat > "$PLUGIN_DIR/src/manifest.rs" << EOF
 //! ${LANG_TITLE} manifest file parsing
 //!
 //! Handles ${MANIFEST} files for ${LANG_TITLE} projects.
+//!
+//! This module can use cb-lang-common utilities:
+//! - read_manifest for async file reading with error handling
+//! - TomlWorkspace/JsonWorkspace for workspace operations
+//! - ErrorBuilder for rich error context
 
 use cb_plugin_api::{ManifestData, PluginError, PluginResult};
+use cb_lang_common::{read_manifest, ErrorBuilder};
 use std::path::Path;
 
 /// Analyze ${LANG_TITLE} manifest file
 ///
 /// TODO: Implement actual manifest parsing logic
+///
+/// Example using cb-lang-common:
+/// \`\`\`rust,ignore
+/// let content = read_manifest(path).await?;
+///
+/// let manifest: MyManifest = toml::from_str(&content)
+///     .map_err(|e| ErrorBuilder::manifest("Invalid TOML")
+///         .with_path(path)
+///         .with_context("error", e.to_string())
+///         .build())?;
+/// \`\`\`
 pub async fn analyze_manifest(path: &Path) -> PluginResult<ManifestData> {
     tracing::warn!(
         manifest_path = %path.display(),
         "${LANG_TITLE} manifest parsing not yet implemented"
     );
 
-    let content = tokio::fs::read_to_string(path)
-        .await
-        .map_err(|e| PluginError::manifest(format!("Failed to read manifest: {}", e)))?;
+    let content = read_manifest(path).await?;
 
     // TODO: Parse manifest content and extract:
     // - Project name
@@ -461,24 +502,25 @@ This plugin has been scaffolded but requires implementation of its core features
 ### Next Steps
 
 1. **Implement parser.rs**: Add actual AST parsing logic
-   - Choose appropriate parser library
+   - Use \`SubprocessAstTool\` from cb-lang-common for external parsers
+   - Use \`parse_with_fallback\` for AST + regex pattern
+   - Use \`ErrorBuilder\` for rich error context
    - Extract symbols (functions, classes, etc.)
-   - Handle syntax errors gracefully
 
 2. **Implement manifest.rs**: Parse ${MANIFEST} files
-   - Extract project metadata
-   - Parse dependencies
-   - Handle different manifest formats
+   - Use \`read_manifest\` from cb-lang-common
+   - Use \`TomlWorkspace\` or \`JsonWorkspace\` for workspace operations
+   - Use \`ErrorBuilder\` for manifest errors
+   - Extract project metadata and dependencies
 
 3. **Add Import Support** (optional): Implement \`ImportSupport\` trait
-   - Parse import statements
-   - Rewrite imports during refactoring
-   - Add missing imports
+   - Use \`ImportGraphBuilder\` from cb-lang-common
+   - Use \`parse_import_alias\` and \`split_import_list\` helpers
+   - Use \`ExternalDependencyDetector\` for dependency analysis
 
 4. **Add Workspace Support** (optional): Implement \`WorkspaceSupport\` trait
-   - Add workspace members
-   - Remove workspace members
-   - Update workspace manifests
+   - Use workspace utilities from cb-lang-common
+   - Use trait helper macros to reduce boilerplate
 
 ## Testing
 
@@ -502,15 +544,32 @@ This plugin has been automatically registered in:
 - \`crates/cb-core/src/language.rs\` (ProjectLanguage enum)
 - \`crates/cb-plugin-api/src/metadata.rs\` (LanguageMetadata constant)
 
+## Common Utilities (cb-lang-common)
+
+This plugin has access to **cb-lang-common**, a utility crate with:
+
+- **Subprocess utilities**: \`SubprocessAstTool\`, \`run_ast_tool\`
+- **Parsing patterns**: \`parse_with_fallback\`, \`try_parsers\`
+- **Error handling**: \`ErrorBuilder\` with context
+- **Import utilities**: \`ImportGraphBuilder\`, \`parse_import_alias\`, \`ExternalDependencyDetector\`
+- **File I/O**: \`read_manifest\`, \`read_source\`, \`find_source_files\`
+- **Location tracking**: \`LocationBuilder\`, \`offset_to_position\`
+- **Versioning**: \`detect_dependency_source\`, \`parse_git_url\`
+- **Workspace ops**: \`TomlWorkspace\`, \`JsonWorkspace\`
+- **Testing**: Test fixture generators and utilities
+
+See [cb-lang-common documentation](../cb-lang-common/src/lib.rs) for complete API.
+
 ## References
 
 - [Language Plugin Guide](../README.md)
+- [Common Utilities Guide](../cb-lang-common/src/lib.rs)
 - [API Documentation](../../cb-plugin-api/src/lib.rs)
 - Reference implementations:
   - \`cb-lang-rust\` - Full implementation with import and workspace support
-  - \`cb-lang-go\` - Dual-mode parser (tree-sitter + regex fallback)
-  - \`cb-lang-typescript\` - Tree-sitter based parser
-  - \`cb-lang-python\` - Python-specific patterns
+  - \`cb-lang-go\` - Dual-mode parser (subprocess + regex fallback)
+  - \`cb-lang-typescript\` - Subprocess-based parser with ImportGraph
+  - \`cb-lang-python\` - Python-specific patterns with subprocess
   - \`cb-lang-java\` - Java integration example
 EOF
 fi

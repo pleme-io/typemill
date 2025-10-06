@@ -2,12 +2,33 @@
 
 This directory contains language-specific plugins for Codebuddy. Each plugin implements the `LanguagePlugin` trait to provide AST parsing, symbol extraction, import analysis, and refactoring support for a specific programming language.
 
+## 🚀 Common Utilities (cb-lang-common)
+
+**Before implementing a plugin**, familiarize yourself with `cb-lang-common` - a comprehensive utility crate that reduces boilerplate by ~460 lines per plugin:
+
+### Available Utilities
+
+- **Subprocess utilities**: `SubprocessAstTool`, `run_ast_tool` - spawn external parsers
+- **Parsing patterns**: `parse_with_fallback`, `try_parsers` - resilient parsing strategies
+- **Error handling**: `ErrorBuilder` - rich error context with file/line info
+- **Import utilities**: `ImportGraphBuilder`, `parse_import_alias`, `ExternalDependencyDetector`
+- **File I/O**: `read_manifest`, `read_source`, `find_source_files`
+- **Location tracking**: `LocationBuilder`, `offset_to_position`
+- **Versioning**: `detect_dependency_source`, `parse_git_url`
+- **Workspace ops**: `TomlWorkspace`, `JsonWorkspace`
+- **Testing**: Test fixture generators and mock utilities
+
+See [cb-lang-common/src/lib.rs](cb-lang-common/src/lib.rs) for complete API documentation.
+
+---
+
 ## Quick Start: Implementing a New Language Plugin
 
 ### 1. Define Your Plugin Struct
 
 ```rust
 use cb_plugin_api::{LanguagePlugin, LanguageMetadata, LanguageCapabilities};
+use cb_lang_common::SubprocessAstTool;  // Use common utilities!
 
 pub struct MyLanguagePlugin {
     metadata: LanguageMetadata,
@@ -75,10 +96,71 @@ impl ImportSupport for MyLanguageImportSupport {
 }
 ```
 
+### Practical Examples Using cb-lang-common
+
+**Example 1: Subprocess AST Parsing**
+```rust
+use cb_lang_common::{SubprocessAstTool, run_ast_tool, parse_with_fallback};
+
+const PYTHON_AST: &str = include_str!("../resources/ast_tool.py");
+
+pub fn parse_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
+    // Primary: Use subprocess AST parser
+    let primary = || {
+        let tool = SubprocessAstTool::new("python3")
+            .with_embedded_str(PYTHON_AST)
+            .with_temp_filename("ast_tool.py");
+        run_ast_tool(tool, source)
+    };
+
+    // Fallback: Use regex parser
+    let fallback = || parse_symbols_regex(source);
+
+    parse_with_fallback(primary, fallback, "symbol extraction")
+}
+```
+
+**Example 2: Error Handling with Context**
+```rust
+use cb_lang_common::ErrorBuilder;
+
+fn parse_manifest(path: &Path) -> PluginResult<Manifest> {
+    let content = std::fs::read_to_string(path)
+        .map_err(|e| ErrorBuilder::manifest("Failed to read")
+            .with_path(path)
+            .with_context("io_error", e.to_string())
+            .build())?;
+
+    toml::from_str(&content)
+        .map_err(|e| ErrorBuilder::manifest("Invalid TOML")
+            .with_path(path)
+            .with_line(e.line_col().map(|(l, _)| l as u32).unwrap_or(0))
+            .build())
+}
+```
+
+**Example 3: ImportGraph Construction**
+```rust
+use cb_lang_common::ImportGraphBuilder;
+
+pub fn analyze_imports(source: &str, file_path: &Path) -> PluginResult<ImportGraph> {
+    let imports = parse_imports(source)?;
+
+    Ok(ImportGraphBuilder::new("mylang")
+        .with_source_file(Some(file_path))
+        .with_imports(imports)
+        .extract_external_dependencies(|path| {
+            !path.starts_with("./") && !path.starts_with("../")
+        })
+        .build())
+}
+```
+
 ### Reference Implementations
 
 - **Full example**: See `crates/languages/cb-lang-rust/src/lib.rs` (imports + workspace)
-- **Imports only**: See `crates/languages/cb-lang-typescript/src/lib.rs`
+- **Subprocess parser**: See `crates/languages/cb-lang-go/src/parser.rs` (fallback pattern)
+- **ImportGraph usage**: See `crates/languages/cb-lang-typescript/src/parser.rs`
 - **Minimal**: See `crates/languages/cb-lang-python/src/lib.rs`
 
 ## Automated Plugin Generation (Recommended)
