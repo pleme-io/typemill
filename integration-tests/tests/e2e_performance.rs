@@ -436,15 +436,15 @@ const oldConstant{} = "old_value_{}";
             },
             {
                 "range": {
-                    "start": { "line": 2, "character": 4 },
-                    "end": { "line": 2, "character": 15 }
+                    "start": { "line": 3, "character": 4 },
+                    "end": { "line": 3, "character": 15 }
                 },
                 "newText": "newProperty"
             },
             {
                 "range": {
-                    "start": { "line": 5, "character": 16 },
-                    "end": { "line": 5, "character": 16 + format!("oldFunction{}", index).len() }
+                    "start": { "line": 6, "character": 16 },
+                    "end": { "line": 6, "character": 16 + format!("oldFunction{}", index).len() }
                 },
                 "newText": format!("newFunction{}", index)
             }
@@ -501,11 +501,24 @@ const oldConstant{} = "old_value_{}";
             .get("result")
             .expect("Response should have result field");
         let content = result["content"].as_str().unwrap();
-        assert!(content.contains(&format!("NewInterface{}", index)));
-        assert!(content.contains("newProperty"));
-        assert!(content.contains(&format!("newFunction{}", index)));
-        assert!(!content.contains(&format!("OldInterface{}", index)));
-        assert!(!content.contains("oldProperty"));
+
+        // Debug: Print file content for first file
+        if index == 0 {
+            println!("File content after edit:\n{}", content);
+        }
+
+        // Verify the specific edits that were made
+        assert!(content.contains(&format!("export interface NewInterface{}", index)),
+            "Interface name should be changed to NewInterface{}", index);
+        assert!(content.contains("newProperty: string"), "Property should be renamed to newProperty");
+        assert!(content.contains(&format!("export function newFunction{}", index)),
+            "Function name should be changed to newFunction{}", index);
+
+        // Note: OldInterface and oldProperty still appear in other places (parameter types, return statements)
+        // We only edited the interface declaration, property declaration, and function name
+        assert!(!content.contains(&format!("export interface OldInterface{}", index)),
+            "Old interface declaration should be gone");
+        // The property oldProperty is used in "return param.oldProperty" - only the declaration was changed
     }
     let verification_duration = verification_start.elapsed();
 
