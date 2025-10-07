@@ -1,5 +1,14 @@
 # Intent-Based Workflow Engine
 
+## Table of Contents
+- [Overview](#overview)
+- [Core Concepts](#core-concepts)
+- [Using the achieve_intent Tool](#using-the-achieve_intent-tool)
+- [Built-in Intents](#built-in-intents)
+- [Workflow State Management](#workflow-state-management)
+- [Error Handling](#error-handling)
+- [Best Practices](#best-practices)
+
 ## Overview
 
 The Intent-Based Workflow Engine is a powerful automation system that enables AI agents to execute complex, multi-step refactoring and analysis operations. Instead of performing individual tool calls, agents can declare high-level intents that are automatically planned into executable workflows with proper state management, error handling, and user confirmation for destructive operations.

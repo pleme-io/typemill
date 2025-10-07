@@ -1,5 +1,13 @@
 # Internal Tools Policy
 
+## Table of Contents
+- [Overview](#overview)
+- [Internal vs Public Tools](#internal-vs-public-tools)
+- [Current Internal Tools](#current-internal-tools)
+- [Marking Tools as Internal](#marking-tools-as-internal)
+- [When to Make a Tool Internal](#when-to-make-a-tool-internal)
+- [Implementation Details](#implementation-details)
+
 ## Overview
 
 CodeBuddy distinguishes between **public tools** (exposed to AI agents via MCP) and **internal tools** (backend-only, hidden from MCP listings).

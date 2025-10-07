@@ -2,6 +2,15 @@
 
 This document explains the parameterized cross-language testing framework for refactoring operations.
 
+## Table of Contents
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Design Philosophy](#design-philosophy)
+- [Usage](#usage)
+- [Adding a New Scenario](#adding-a-new-scenario)
+- [Feature Matrix](#feature-matrix)
+- [Best Practices](#best-practices)
+
 ## Overview
 
 Instead of writing separate test files for each language (Python, TypeScript, Rust, Go), we use a **single parameterized test** that runs the same logical operation across all languages with language-specific syntax.
