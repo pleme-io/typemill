@@ -114,7 +114,7 @@ This is a comprehensive tool validation exercise that will test:
 - ✅ Move `crates/languages/cb-lang-common` → `crates/cb-lang-common`
   - ✅ Commit: `cb1024e` - "refactor: move cb-lang-common to flat crates layout"
 - ❌ Move `crates/cb-lang-java` → `crates/cb-lang-java`
-- ❌ Move `crates/cb-lang-python` → `crates/cb-lang-python`
+- ❌ Move `crates/languages/cb-lang-python` → `crates/cb-lang-python`
 - ❌ Move `crates/languages/cb-lang-rust` → `crates/cb-lang-rust`
 - ❌ Move `crates/languages/cb-lang-typescript` → `crates/cb-lang-typescript`
 - ⚠️ **BLOCKER**: `rename_directory` bug creating duplicate imports - fixing in parallel
@@ -279,7 +279,7 @@ rename_directory: crates/languages/cb-lang-common → crates/cb-lang-common
 
 # ⚠️ BLOCKED - Fixing rename_directory bugs first
 rename_directory: crates/cb-lang-java → crates/cb-lang-java
-rename_directory: crates/cb-lang-python → crates/cb-lang-python
+rename_directory: crates/languages/cb-lang-python → crates/cb-lang-python
 rename_directory: crates/languages/cb-lang-rust → crates/cb-lang-rust
 rename_directory: crates/languages/cb-lang-typescript → crates/cb-lang-typescript
 ```

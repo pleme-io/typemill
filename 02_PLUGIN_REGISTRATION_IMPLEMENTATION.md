@@ -233,7 +233,7 @@ Should pass with no errors.
 
 ## 📁 PHASE 2: Python Plugin (Agent 2: Riley-Python)
 
-### File 3: CREATE `crates/cb-lang-python/src/test_fixtures.rs`
+### File 3: CREATE `crates/languages/cb-lang-python/src/test_fixtures.rs`
 
 **Purpose:** Python's self-provided test scenarios.
 
@@ -347,7 +347,7 @@ pub fn python_test_fixtures() -> LanguageTestFixtures {
 
 ---
 
-### File 4: EDIT `crates/cb-lang-python/src/lib.rs`
+### File 4: EDIT `crates/languages/cb-lang-python/src/lib.rs`
 
 **Change 1: Add module declaration**
 

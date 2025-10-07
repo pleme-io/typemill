@@ -58,8 +58,8 @@
   Mission: Migrate Python test fixtures from test harness to plugin
 
   Files:
-  - CREATE: crates/cb-lang-python/src/test_fixtures.rs
-  - EDIT: crates/cb-lang-python/src/lib.rs
+  - CREATE: crates/languages/cb-lang-python/src/test_fixtures.rs
+  - EDIT: crates/languages/cb-lang-python/src/lib.rs
 
   Dependencies: Agent 1 MUST complete first
 
@@ -141,10 +141,10 @@
   MISSION: Migrate Python test fixtures from test harness to plugin
 
   FILES YOU WILL CREATE:
-  1. crates/cb-lang-python/src/test_fixtures.rs (NEW - ~120 lines)
+  1. crates/languages/cb-lang-python/src/test_fixtures.rs (NEW - ~120 lines)
 
   FILES YOU WILL EDIT:
-  2. crates/cb-lang-python/src/lib.rs (ADD 1 module, 1 method)
+  2. crates/languages/cb-lang-python/src/lib.rs (ADD 1 module, 1 method)
 
   SOURCE DATA (extract from):
   - integration-tests/src/harness/complexity_harness.rs (lines 66-127: Python scenarios)

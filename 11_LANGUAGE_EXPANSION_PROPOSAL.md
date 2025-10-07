@@ -35,7 +35,7 @@ CodeBuddy currently supports 4 languages via LSP integration and language plugin
 
 ### Phase 1: Complete Existing Support (🔴 High Priority)
 
-- [ ] **Python Language Plugin** (`crates/cb-lang-python`)
+- [ ] **Python Language Plugin** (`crates/languages/cb-lang-python`)
   - AST parsing for import analysis
   - Manifest parsing (`requirements.txt`, `pyproject.toml`, `setup.py`)
   - Extract function/variable refactoring support
