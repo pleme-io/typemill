@@ -1,5 +1,71 @@
 # Project Structure Reorganization Proposal
 
+## 🔄 Debug & Test Strategy
+
+**CRITICAL WORKFLOW**: When debugging CodeBuddy functionality, follow this cycle strictly:
+
+### The Debug Cycle
+
+1. **Run Test** - Execute CodeBuddy command (e.g., `rename_directory`)
+2. **Check Result** - Did it work correctly?
+   - ✅ **YES** → Commit the changes surgically (only that specific fix)
+   - ❌ **NO** → Proceed to debug cycle below
+
+3. **Stash Changes** (if test failed)
+   ```bash
+   git add . && git stash
+   ```
+   - Always stash before debugging to avoid accumulating broken changes
+   - Keeps working tree clean for next iteration
+
+4. **Debug in `.debug/` Directory**
+   - Create isolated reproduction in `.debug/[feature-name]/`
+   - Test fixes WITHOUT rebuilding entire project
+   - Iterate quickly on solutions
+   - Example: `.debug/import-bug-investigation/test_import_rewrite.rs`
+
+5. **Apply Fix to Main Project**
+   - Once satisfied with `.debug/` solution, apply to actual codebase
+   - Build and verify: `cargo build --release`
+
+6. **Test Again** - Return to step 1
+
+### Key Principles
+
+- **Never commit broken changes** - If test fails, stash immediately
+- **Surgical commits** - If you find ANY working fix (even partial), commit it separately
+- **Use `.debug/` liberally** - Faster iteration than full rebuilds
+- **Document findings** - Keep analysis docs in `.debug/` for reference
+- **One fix at a time** - Don't batch fixes, commit incrementally
+
+### Example Debug Session
+
+```bash
+# Test fails
+./target/release/codebuddy tool rename_directory '{"old_path": "foo", "new_path": "bar"}'
+# Observe duplicate imports
+
+# Stash the broken result
+git add . && git stash
+
+# Debug in isolation
+mkdir -p .debug/import-fix
+# Create standalone test, iterate on solution
+
+# Apply fix to codebase
+# Edit crates/cb-services/src/services/file_service.rs
+cargo build --release
+
+# Test again
+./target/release/codebuddy tool rename_directory '{"old_path": "foo", "new_path": "bar"}'
+
+# Success! Commit the fix
+git add crates/cb-services/src/services/file_service.rs
+git commit -m "fix: prevent duplicate imports in rename_directory"
+```
+
+---
+
 ## 🎯 Primary Goal: Dogfood ALL CodeBuddy Tools
 
 **The entire point of this proposal is to ensure ALL of CodeBuddy's MCP tools work correctly by using them on CodeBuddy's own codebase.**
