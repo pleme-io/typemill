@@ -124,13 +124,14 @@ Handlers are organized by functionality:
 
 | Handler | Location | Purpose | Example Tools |
 |---------|----------|---------|---------------|
-| **SystemHandler** | `crates/cb-handlers/src/handlers/tools/system.rs` | System operations | `health_check`, `web_fetch` |
-| **LifecycleHandler** | `crates/cb-handlers/src/handlers/tools/lifecycle.rs` | File lifecycle events | `notify_file_opened` |
+| **AnalysisHandler** | `crates/cb-handlers/src/handlers/tools/analysis.rs` | Code analysis | `find_unused_imports`, `analyze_complexity` |
+| **AdvancedHandler** | `crates/cb-handlers/src/handlers/tools/advanced.rs` | Advanced operations | `apply_edits`, `batch_execute` |
+| **EditingHandler** | `crates/cb-handlers/src/handlers/tools/editing.rs` | Code editing | `rename_symbol`, `format_document`, `optimize_imports` |
+| **FileOpsHandler** | `crates/cb-handlers/src/handlers/tools/file_ops.rs` | File operations | `create_file`, `read_file`, `write_file`, `delete_file`, `rename_file`, `list_files` |
+| **LifecycleHandler** | `crates/cb-handlers/src/handlers/tools/lifecycle.rs` | File lifecycle events | `notify_file_opened`, `notify_file_saved`, `notify_file_closed` |
 | **NavigationHandler** | `crates/cb-handlers/src/handlers/tools/navigation.rs` | Code navigation | `find_definition`, `find_references` |
-| **EditingHandler** | `crates/cb-handlers/src/handlers/tools/editing.rs` | Code editing | `rename_symbol`, `format_document` |
-| **RefactoringHandler** | `crates/cb-handlers/src/handlers/tools/advanced.rs` | Advanced refactoring | `extract_function`, `inline_variable` |
-| **FileOpsHandler** | `crates/cb-handlers/src/handlers/tools/file_ops.rs` | File operations | `read_file`, `write_file` |
-| **WorkspaceHandler** | `crates/cb-handlers/src/handlers/tools/workspace.rs` | Workspace operations | `list_files`, `find_dead_code` |
+| **SystemHandler** | `crates/cb-handlers/src/handlers/tools/system.rs` | System operations | `health_check`, `web_fetch`, `system_status` |
+| **WorkspaceHandler** | `crates/cb-handlers/src/handlers/tools/workspace.rs` | Workspace operations | `rename_directory`, `analyze_imports`, `find_dead_code` |
 
 #### Step 2: Add the Tool Name
 

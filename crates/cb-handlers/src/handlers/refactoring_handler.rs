@@ -1,6 +1,6 @@
 //! Refactoring operations tool handler
 //!
-//! Handles: extract_function, inline_variable, extract_variable, extract_module_to_package, fix_imports
+//! Handles: extract_function, extract_module_to_package, extract_variable, inline_variable
 
 use super::compat::{ToolContext, ToolHandler};
 use super::lsp_adapter::DirectLspAdapter;

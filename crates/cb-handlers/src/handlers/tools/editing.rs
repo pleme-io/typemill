@@ -1,8 +1,8 @@
 //! Editing and refactoring tool handlers
 //!
-//! Handles: rename_symbol, rename_symbol_strict, rename_symbol_with_imports,
-//! organize_imports, fix_imports, get_code_actions, format_document,
-//! extract_function, extract_variable, inline_variable
+//! Handles: extract_function, extract_variable, format_document, get_code_actions,
+//! inline_variable, optimize_imports, organize_imports, rename_symbol,
+//! rename_symbol_strict
 
 use super::{ToolHandler, ToolHandlerContext};
 use crate::handlers::compat::ToolHandler as LegacyToolHandler;

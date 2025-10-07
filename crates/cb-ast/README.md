@@ -1,62 +1,109 @@
 # cb-ast
 
-AST parsing and transformation crate for Codeflow Buddy.
+AST parsing and code analysis crate for Codebuddy.
 
-## Current Status
+## Overview
 
-✅ **SWC Integration Complete**: This crate uses SWC (Speedy Web Compiler) for production-grade AST parsing of TypeScript and JavaScript.
+Provides TypeScript/JavaScript AST parsing using SWC, dependency graph analysis, code complexity metrics, and refactoring utilities.
 
 ## Features
 
-### TypeScript/JavaScript Parsing
-- **Primary Parser**: SWC (`swc_ecma_parser` v24)
-- **Fallback**: Enhanced regex patterns for malformed code
-- **Capabilities**:
-  - ES module imports (`import ... from ...`)
-  - Dynamic imports (`import(...)`)
-  - CommonJS (`require(...)`)
-  - Type-only imports (`import type ...`)
-  - Namespace imports (`import * as ...`)
-  - Full AST traversal with `swc_ecma_visit`
+### TypeScript/JavaScript Parsing (SWC)
+- Production-grade parsing via `swc_ecma_parser` v24
+- ES modules, CommonJS, dynamic imports, type-only imports
+- Graceful fallback to regex parsing for malformed code
+- Full AST traversal with `swc_ecma_visit`
 
-### Language Plugin Architecture
-- **Python, Go, Rust**: Handled by dedicated language plugins in `crates/languages/`
-- See `crates/languages/README.md` for plugin implementation details
-- Plugins provide AST parsing, symbol extraction, and refactoring support
+### Code Complexity Analysis
+- Cyclomatic complexity (control flow branches)
+- Cognitive complexity (human understanding difficulty)
+- Per-function metrics with detailed breakdowns
+- Supports TypeScript, JavaScript, Python, Rust, Go
 
-### Architecture
-- **parser.rs**: Import graph building with SWC
-- **refactoring.rs**: AST-powered refactoring operations
-- **Import resolution**: Dependency graph analysis with `petgraph`
-- **Performance**: Thread-safe caching with `dashmap`
+### Dependency Graph Analysis
+- Project-wide import/dependency graphs
+- Circular dependency detection
+- Import relationship analysis
+- Uses `petgraph` for graph operations
 
-## Implementation Details
+### Refactoring Support
+- AST-powered symbol renaming
+- Import path updates across files
+- Edit plan generation for refactoring operations
+- Thread-safe caching with `dashmap`
 
-```rust
-// SWC is tried first, with regex fallback for robustness
-match parse_js_ts_imports_swc(source, path) {
-    Ok(swc_imports) => swc_imports,
-    Err(_) => parse_js_ts_imports_enhanced(source)? // Fallback
-}
-```
+## Language Support
 
-Parser version: `0.3.0-swc`
+**TypeScript/JavaScript**: Native SWC parser in this crate
+
+**Other Languages**: Handled by language plugins in `crates/languages/`:
+- Python → `cb-lang-python`
+- Go → `cb-lang-go`
+- Rust → `cb-lang-rust`
+
+See [crates/languages/README.md](../languages/README.md) for plugin details.
 
 ## API
 
-### Core Functions
+### Import Analysis
 
-**`build_import_graph(source: &str, path: &Path) -> AstResult<ImportGraph>`**
-- Parse source code and build import graph
-- Language detection based on file extension
-- Returns import information with metadata
+```rust
+use cb_ast::build_import_graph;
 
-**`build_dependency_graph(import_graphs: &[ImportGraph]) -> DependencyGraph`**
-- Build project-wide dependency graph
-- Detect circular dependencies
-- Analyze import/importer relationships
+// Parse source and build import graph
+let graph = build_import_graph(source, path)?;
+```
 
-**`plan_refactor(intent: &IntentSpec, file_path: &Path) -> AstResult<EditPlan>`**
-- Generate edit plans for refactoring operations
-- AST-powered symbol renaming
-- Import path updates across files
+### Dependency Graphs
+
+```rust
+use cb_ast::build_dependency_graph;
+
+// Build project-wide dependency graph
+let dep_graph = build_dependency_graph(&import_graphs);
+
+// Detect circular dependencies
+if dep_graph.has_cycles() { /* ... */ }
+```
+
+### Complexity Analysis
+
+```rust
+use cb_ast::complexity::analyze_complexity;
+
+// Get complexity metrics for a file
+let metrics = analyze_complexity(source, language)?;
+
+for func in metrics.functions {
+    println!("{}: cyclomatic={}, cognitive={}",
+        func.name, func.cyclomatic_complexity, func.cognitive_complexity);
+}
+```
+
+### Refactoring
+
+```rust
+use cb_ast::plan_refactor;
+
+// Generate edit plan for refactoring
+let plan = plan_refactor(&intent_spec, file_path)?;
+```
+
+## Implementation
+
+- **parser.rs**: Import graph building with SWC
+- **complexity.rs**: Code complexity analysis
+- **refactoring.rs**: AST-powered refactoring operations
+- **dependency_graph.rs**: Dependency analysis with petgraph
+
+Parser version: `0.3.0-swc`
+
+## Testing
+
+```bash
+cargo test -p cb-ast
+```
+
+## Documentation
+
+For complete architecture details, see [docs/architecture/ARCHITECTURE.md](../../docs/architecture/ARCHITECTURE.md).

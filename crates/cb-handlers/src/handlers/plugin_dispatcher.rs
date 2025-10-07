@@ -221,9 +221,9 @@ impl PluginDispatcher {
                     WorkspaceHandler => "WorkspaceHandler with 6 tools (rename_directory, analyze_imports, find_dead_code, update_dependencies, extract_module_to_package, update_dependency)",
                     AdvancedHandler => "AdvancedHandler with 2 tools (apply_edits, batch_execute)",
                     FileOpsHandler => "FileOpsHandler with 6 tools (create_file, read_file, write_file, delete_file, rename_file, list_files)",
-                    EditingHandler => "EditingHandler with 9 tools (rename_symbol, rename_symbol_strict, organize_imports, fix_imports, get_code_actions, format_document, extract_function, extract_variable, inline_variable)",
+                    EditingHandler => "EditingHandler with 10 tools (rename_symbol, rename_symbol_strict, organize_imports, optimize_imports, get_code_actions, format_document, extract_function, extract_variable, inline_variable)",
                     NavigationHandler => "NavigationHandler with 13 tools (find_definition, find_references, find_implementations, find_type_definition, get_document_symbols, search_workspace_symbols, get_hover, get_completions, get_signature_help, get_diagnostics, prepare_call_hierarchy, get_call_hierarchy_incoming_calls, get_call_hierarchy_outgoing_calls)",
-                    AnalysisHandler => "AnalysisHandler with 3 tools (find_unused_imports, analyze_complexity, suggest_refactoring)",
+                    AnalysisHandler => "AnalysisHandler with 5 tools (find_unused_imports, analyze_complexity, suggest_refactoring, analyze_project_complexity, find_complexity_hotspots)",
                 });
             }
 

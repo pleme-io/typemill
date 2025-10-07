@@ -1,9 +1,10 @@
 //! System operations tool handler
 //!
 //! Handles: health_check, notify_file_opened, notify_file_saved,
-//!          notify_file_closed, fix_imports
+//!          notify_file_closed
 //!
-//! Note: find_dead_code has been moved to analysis_handler.rs
+//! Note: find_dead_code moved to analysis_handler.rs
+//! Note: fix_imports replaced by optimize_imports in editing.rs
 
 use super::compat::{ToolContext, ToolHandler};
 use super::lsp_adapter::DirectLspAdapter;

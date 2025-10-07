@@ -1,11 +1,29 @@
-# CodeBuddy MCP Tools Quick Reference
+# MCP Tools Quick Reference
+
+**Purpose:** Fast lookup table for all CodeBuddy MCP tools
+**Format:** Tool name → Parameters → Returns (no examples or details)
+**For detailed documentation:** See [API.md](API.md)
 
 **Version:** 1.0.0-rc1
 **Last Updated:** 2025-10-04
 
-Quick reference for all 39 public MCP tools. For detailed API documentation, see [API.md](API.md).
+---
 
-**Note:** 5 additional internal tools exist for backend use only (lifecycle hooks, workflow plumbing). See [API.md Internal Tools](API.md#internal-tools) section for details.
+## What's the Difference?
+
+| This File | API.md |
+|-----------|--------|
+| **Quick cheat sheet** (113 lines) | **Complete reference** (2,760 lines) |
+| Tool names + parameters only | Examples, errors, patterns |
+| 30-second scan | Implementation guide |
+
+**Use this when:** You need to remember parameter names or check if a tool exists
+**Use API.md when:** You need to understand how to use a tool or handle errors
+
+---
+
+**Tools:** 45 public MCP tools
+**Internal tools:** 5 backend-only tools (see [API.md Internal Tools](API.md#internal-tools))
 
 ---
 
@@ -29,13 +47,14 @@ Quick reference for all 39 public MCP tools. For detailed API documentation, see
 
 ---
 
-## Editing & Refactoring (9 tools)
+## Editing & Refactoring (10 tools)
 
 | Tool | Description | Required Parameters | Returns |
 |------|-------------|---------------------|---------|
 | `rename_symbol` | Rename a symbol across the project by name | `file_path`, `symbol_name`, `new_name` | Workspace edits with file changes |
 | `rename_symbol_strict` | Rename a symbol at a specific position | `file_path`, `line`, `character`, `new_name` | Workspace edits with file changes |
 | `organize_imports` | Organize and sort imports, remove unused | `file_path` | Import changes applied |
+| `optimize_imports` | Organize imports AND remove unused imports | `file_path` | Optimized import summary |
 | `get_code_actions` | Get available quick fixes and refactorings | `file_path` | Array of code actions |
 | `format_document` | Format document using language server | `file_path` | Formatting changes |
 | `extract_function` | Extract code into a new function | `file_path`, `start_line`, `end_line`, `function_name` | Workspace edits |
@@ -57,7 +76,19 @@ Quick reference for all 39 public MCP tools. For detailed API documentation, see
 
 ---
 
-## Workspace Operations (5 tools)
+## Code Analysis (5 tools)
+
+| Tool | Description | Required Parameters | Returns |
+|------|-------------|---------------------|---------|
+| `find_unused_imports` | Detect unused imports in a file | `file_path` | Array of unused import details |
+| `analyze_complexity` | Calculate complexity metrics for functions | `file_path` | Complexity report with metrics |
+| `suggest_refactoring` | Suggest refactoring opportunities | `file_path` | Array of refactoring suggestions |
+| `analyze_project_complexity` | Scan directory for complexity metrics | `directory_path` | Project-wide complexity statistics |
+| `find_complexity_hotspots` | Find most complex functions/classes | `directory_path` | Top N complexity hotspots |
+
+---
+
+## Workspace Operations (6 tools)
 
 | Tool | Description | Required Parameters | Returns |
 |------|-------------|---------------------|---------|

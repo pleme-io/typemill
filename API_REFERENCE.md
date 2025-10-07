@@ -26,7 +26,7 @@ Complete API documentation for all MCP tools available in CodeBuddy.
 
 ## Language Support Matrix
 
-**Total MCP Tools**: 47 (43 public + 4 lifecycle notifications)
+**Total MCP Tools**: 50 (45 public + 5 internal)
 
 ### Navigation & Intelligence (LSP-based)
 
@@ -59,7 +59,6 @@ Complete API documentation for all MCP tools available in CodeBuddy.
 | `extract_function` | ✅ LSP/AST | ✅ LSP/AST | ✅ LSP/AST | ✅ LSP/AST | ✅ LSP/AST | LSP-first with AST fallback |
 | `inline_variable` | ✅ LSP/AST | ✅ LSP/AST | ✅ LSP/AST | ✅ LSP/AST | ✅ LSP/AST | LSP-first with AST fallback |
 | `extract_variable` | ✅ LSP/AST | ✅ LSP/AST | ✅ LSP/AST | ✅ LSP/AST | ✅ LSP/AST | LSP-first with AST fallback |
-| `fix_imports` | ✅ | ✅ | ✅ | ✅ | ✅ | Wrapper for organize_imports |
 
 ### Code Analysis (AST-based)
 
@@ -2756,5 +2755,5 @@ async function callMcpTool(toolName: string, args: any) {
 
 - [Language Support Matrix](#language-support-matrix) - See above for language support table
 - [docs/architecture/ARCHITECTURE.md](./docs/architecture/ARCHITECTURE.md) - Implementation architecture
-- [docs/deployment/OPERATIONS.md](./docs/deployment/OPERATIONS.md) - Operations & CLI usage guide
+- [deployment/docker/README.md](../deployment/docker/README.md) - Docker deployment guide
 - [.codebuddy/workflows.json](./.codebuddy/workflows.json) - Workflow definitions

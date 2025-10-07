@@ -49,24 +49,29 @@ We will respond within 48 hours and provide a timeline for fixes.
    - Use structured error handling
    - Never log sensitive data
 
-## Current Security Audit Status
+## Running Security Audits
 
-Last audit: [Run `cargo audit` to check]
+Check current security status:
 
-### Known Issues
+```bash
+# Run security audit
+cargo audit
 
-#### RUSTSEC-2023-0071 (RSA Marvin Attack)
-- **Severity**: Medium (5.9 CVSS)
-- **Affected**: `rsa` crate via `jsonwebtoken`
-- **Status**: **Not applicable to our use case**
-- **Justification**: We only use HMAC (symmetric) JWT signing, not RSA operations
-- **Action**: Monitor for jsonwebtoken updates
+# Check for warnings
+cargo audit --deny warnings
 
-#### RUSTSEC-2024-0375 (atty unmaintained)
-- **Severity**: Warning
-- **Affected**: `atty` crate via `cb-client`
-- **Status**: Tracked for replacement
-- **Action**: Replace with `std::io::IsTerminal` (Rust 1.70+)
+# Update advisory database
+cargo audit --update-only
+```
+
+**Recommendation**: Run `cargo audit` before each release and monthly for production deployments.
+
+### Interpreting Results
+
+- **Critical/High**: Address immediately before deploying
+- **Medium**: Review and plan fix in next release
+- **Low/Warning**: Document as known issue if not applicable
+- **Unmaintained dependencies**: Evaluate replacement options
 
 ## Security Features
 

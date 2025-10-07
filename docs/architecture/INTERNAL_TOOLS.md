@@ -82,7 +82,7 @@ A tool should be internal if it meets **any** of these criteria:
 ### 3. Redundancy
 - Functionality fully covered by other public tools
 - Internal convenience for specific backend use cases
-- Example: `rename_symbol_with_imports` (covered by `rename_symbol` + `fix_imports`)
+- Example: `rename_symbol_with_imports` (covered by `rename_symbol` + `optimize_imports`)
 
 ### 4. Dangerous/Unstable
 - Experimental features not ready for general use
@@ -94,7 +94,7 @@ A tool should be internal if it meets **any** of these criteria:
 These tools are being evaluated for internal status:
 
 ### Potential Internal Tools (4-7)
-- `rename_symbol_with_imports` - Redundant with `rename_symbol` + `fix_imports`
+- `rename_symbol_with_imports` - Redundant with `rename_symbol` + `optimize_imports`
 - `update_dependency` - Redundant with `update_dependencies`
 - `batch_update_dependencies` - Redundant with `update_dependencies`
 - `apply_workspace_edit` - LSP protocol interop (low-level)

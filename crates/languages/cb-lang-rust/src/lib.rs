@@ -35,7 +35,7 @@ pub mod workspace_support;
 
 use async_trait::async_trait;
 use cb_plugin_api::{LanguagePlugin, LanguageMetadata, LanguageCapabilities, ManifestData, ParsedSource, PluginResult};
-use cb_lang_common::read_manifest;
+use cb_lang_common::{read_manifest, manifest_templates::{ManifestTemplate, TomlManifestTemplate}};
 use std::path::Path;
 
 /// Rust language plugin implementation
@@ -243,22 +243,18 @@ impl RustPlugin {
 
     /// Generate a Cargo.toml manifest
     pub fn generate_manifest(&self, package_name: &str, dependencies: &[String]) -> String {
-        let mut lines = vec![
-            "[package]".to_string(),
-            format!("name = \"{}\"", package_name),
-            "version = \"0.1.0\"".to_string(),
-            "edition = \"2021\"".to_string(),
-            String::new(),
-        ];
+        let template = TomlManifestTemplate::new("package");
+        let mut manifest = template.generate(package_name, "0.1.0", dependencies);
 
-        if !dependencies.is_empty() {
-            lines.push("[dependencies]".to_string());
-            for dep in dependencies {
-                lines.push(format!("{} = \"*\"", dep));
+        // Add Rust-specific edition field
+        if let Some(version_pos) = manifest.find("version = \"0.1.0\"") {
+            let insert_pos = manifest[version_pos..].find('\n').map(|p| version_pos + p + 1);
+            if let Some(pos) = insert_pos {
+                manifest.insert_str(pos, "edition = \"2021\"\n");
             }
         }
 
-        lines.join("\n")
+        manifest
     }
 
     /// Remove module declaration from source

@@ -68,7 +68,7 @@ impl SystemToolsPlugin {
     /// This plugin provides system-level tools that work across all file types, including:
     /// - File system operations (list_files, analyze_imports)
     /// - Dependency management (bulk_update_dependencies)
-    /// - Code quality tools (fix_imports)
+    /// - Code quality tools (optimize_imports)
     /// - Refactoring operations (extract_function, inline_variable, extract_variable)
     ///
     /// The plugin advertises all available tools through its capabilities, even though
