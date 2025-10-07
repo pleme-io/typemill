@@ -76,6 +76,7 @@ struct ImportInfo {
     path: String,
     #[serde(rename = "isStatic")]
     is_static: bool,
+    #[allow(dead_code)]
     #[serde(rename = "isWildcard")]
     is_wildcard: bool,
 }

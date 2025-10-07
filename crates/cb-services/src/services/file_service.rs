@@ -1368,6 +1368,7 @@ impl FileService {
 
     /// Legacy wrapper for apply_edits_to_content that reads from file and writes back
     /// Used for backward compatibility with existing code
+    #[allow(dead_code)]
     async fn apply_file_edits(&self, file_path: &Path, edits: &[TextEdit]) -> ServerResult<()> {
         if edits.is_empty() {
             return Ok(());
@@ -2199,6 +2200,7 @@ impl FileService {
     }
 
     /// Find the path to a crate by its name in the workspace
+    #[allow(dead_code)]
     async fn find_crate_path_by_name(&self, crate_name: &str) -> ServerResult<Option<PathBuf>> {
         let walker = ignore::WalkBuilder::new(&self.project_root)
             .max_depth(Some(3))

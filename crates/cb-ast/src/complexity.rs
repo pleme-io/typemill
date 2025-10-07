@@ -763,11 +763,7 @@ fn extract_class_name(function_name: &str, language: &str) -> Option<String> {
     match language.to_lowercase().as_str() {
         "python" | "typescript" | "javascript" | "java" => {
             // Look for ClassName.methodName pattern
-            if let Some(dot_pos) = function_name.rfind('.') {
-                Some(function_name[..dot_pos].to_string())
-            } else {
-                None // Top-level function
-            }
+            function_name.rfind('.').map(|dot_pos| function_name[..dot_pos].to_string())
         }
         "rust" | "go" => {
             // For Rust and Go, we'll use file-level grouping

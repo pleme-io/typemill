@@ -483,6 +483,7 @@ pub fn update_dependency(content: &str, dep_name: &str, new_version: &str) -> Pl
 }
 
 /// Generate a new go.mod file
+#[allow(dead_code)]
 pub fn generate_manifest(module_name: &str, go_version: &str) -> String {
     format!("module {}\n\ngo {}\n", module_name, go_version)
 }

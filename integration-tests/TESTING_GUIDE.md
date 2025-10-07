@@ -210,13 +210,159 @@ cargo test --test lsp_features test_go_to_definition_mock
 cargo test --test lsp_features -- --ignored --test-threads=1
 ```
 
+## Testing Workflow Execution
+
+The `e2e_workflow_execution.rs` test suite verifies the workflow executor and planner, which orchestrate complex multi-step operations.
+
+### Workflow Test Categories
+
+1. **Simple Workflows** - Single-step operations
+2. **Complex Workflows with Dependencies** - Multi-step operations with dependency resolution
+3. **Failure Handling** - Error scenarios and graceful degradation
+4. **Dry-Run Mode** - Preview changes without execution
+5. **Rollback on Failure** - Atomic operations with rollback
+6. **Batch Operations** - Multiple operations in a single workflow
+7. **Dependency Resolution** - Analyzing and updating dependencies
+8. **Workflow Planning** - Complex operation planning and execution
+
+### Adding a Workflow Test
+
+```rust
+#[tokio::test]
+async fn test_my_workflow() {
+    let workspace = TestWorkspace::new();
+    let mut client = TestClient::new(workspace.path());
+
+    // Setup test files
+    let file = workspace.path().join("test.ts");
+    std::fs::write(&file, "export function test() {}").unwrap();
+
+    // Wait for LSP initialization
+    tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+
+    // Execute workflow operation
+    let response = client
+        .call_tool("tool_name", json!({ "params": "values" }))
+        .await;
+
+    // Verify workflow results
+    assert!(response.is_ok());
+    // Add specific assertions
+}
+```
+
+### Running Workflow Tests
+
+```bash
+# Run all workflow tests
+cargo test --test e2e_workflow_execution
+
+# Run specific workflow test
+cargo test --test e2e_workflow_execution test_execute_simple_workflow
+
+# Run with output
+cargo test --test e2e_workflow_execution -- --nocapture
+```
+
+## Testing Code Analysis Tools
+
+The `e2e_analysis_features.rs` test suite now includes tests for:
+
+- `analyze_project_complexity` - Project-wide complexity analysis
+- `find_complexity_hotspots` - Identify most complex code
+- `find_dead_code` - Detect unused code
+
+### Example: Testing Complexity Analysis
+
+```rust
+#[tokio::test]
+async fn test_analyze_project_complexity_typescript() {
+    let workspace = TestWorkspace::new();
+    let mut client = TestClient::new(workspace.path());
+
+    // Create files with varying complexity
+    let simple = workspace.path().join("simple.ts");
+    std::fs::write(&simple, "export function simple() { return 1; }").unwrap();
+
+    let complex = workspace.path().join("complex.ts");
+    std::fs::write(&complex, "export function complex(a, b) { /* complex logic */ }").unwrap();
+
+    // Call analysis tool
+    let response = client.call_tool("analyze_project_complexity", json!({})).await;
+
+    // Verify results
+    assert!(response.is_ok());
+    let result = response.unwrap();
+    assert!(result["result"]["files"].as_array().unwrap().len() >= 2);
+}
+```
+
+## Current Test Coverage
+
+### LSP Feature Tests (Data-Driven)
+- **Languages Covered**: TypeScript, Python, Go, Rust
+- **Features**: Go to Definition, Find References, Hover, Document Symbols, Workspace Symbols, Completion, Rename
+
+### E2E Integration Tests
+- **Analysis Features**: 9 tests (find_dead_code, analyze_project_complexity, find_complexity_hotspots)
+- **Workflow Execution**: 10 tests (simple workflows, complex workflows, failure handling, dry-run, rollback, batch operations)
+- **File Operations**: Tests for create, read, write, delete, rename
+- **Refactoring**: Cross-language refactoring tests
+- **Workspace Operations**: Directory rename, consolidation, dependency updates
+- **Error Scenarios**: Resilience and error handling
+- **Performance**: Load and stress testing
+- **Server Lifecycle**: LSP server management
+
+### Running All Tests
+
+```bash
+# Run all unit tests
+cargo test --lib
+
+# Run all integration tests
+cargo test --test '*'
+
+# Run specific test suite
+cargo test --test lsp_features
+cargo test --test e2e_analysis_features
+cargo test --test e2e_workflow_execution
+
+# Run with verbose output
+cargo test -- --nocapture
+
+# Run ignored tests (real LSP servers)
+cargo test -- --ignored --test-threads=1
+```
+
+## Test Organization
+
+```
+integration-tests/
+├── src/
+│   └── harness/           # Test infrastructure
+│       ├── test_fixtures.rs    # Language-specific test data
+│       ├── test_helpers.rs     # Helper functions
+│       ├── test_builder.rs     # Test workspace builder
+│       └── ...
+├── tests/                 # Integration test files
+│   ├── lsp_features.rs         # Data-driven LSP tests
+│   ├── lsp_feature_runners.rs  # Test runners
+│   ├── e2e_analysis_features.rs    # Analysis tool tests
+│   ├── e2e_workflow_execution.rs   # Workflow tests
+│   ├── e2e_refactoring_cross_language.rs
+│   ├── e2e_workspace_operations.rs
+│   └── ...
+└── test-fixtures/         # Static test data
+```
+
 ## Next Steps
 
 To expand test coverage:
 
-1. **Add more languages**: Add Go, Rust, Java cases to fixture arrays
-2. **Add more features**: Implement formatting, code actions, etc.
-3. **Enhance assertions**: Add more specific validation in runners
-4. **Add edge cases**: Test error conditions, multi-file scenarios
+1. **Add Java to LSP fixtures** - Extend test coverage to Java language
+2. **Add more edge cases** - Test error conditions, multi-file scenarios
+3. **Add property-based tests** - Use proptest for fuzzing
+4. **Add performance benchmarks** - Track performance over time
+5. **Add more workflow scenarios** - Complex multi-step operations
 
 The architecture makes all of these expansions straightforward!

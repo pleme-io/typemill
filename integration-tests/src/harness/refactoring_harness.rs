@@ -98,9 +98,9 @@ impl RefactoringOperation {
             RefactoringOperation::ExtractFunction {
                 new_name,
                 start_line,
-                start_char,
+                start_char: _,
                 end_line,
-                end_char,
+                end_char: _,
             } => json!({
                 "file_path": file_path,
                 "start_line": start_line,

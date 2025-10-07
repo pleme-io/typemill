@@ -562,6 +562,7 @@ fn generate_suggestion_text(kind: &RefactoringKind, func: &cb_ast::complexity::F
 }
 
 /// Extract function body for refactoring analysis (simplified version)
+#[allow(dead_code)]
 fn extract_function_body_for_refactoring(content: &str, location: &cb_plugin_api::SourceLocation) -> String {
     let lines: Vec<&str> = content.lines().collect();
     let start_line = location.line.saturating_sub(1);

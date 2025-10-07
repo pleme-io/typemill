@@ -374,6 +374,7 @@ pub async fn plan_extract_function(
 }
 
 /// Generate edit plan for extract function refactoring (TypeScript/JavaScript) using AST
+#[allow(dead_code)]
 fn ast_extract_function_ts_js(
     source: &str,
     range: &CodeRange,
@@ -491,6 +492,7 @@ pub async fn plan_inline_variable(
 }
 
 /// Generate edit plan for inline variable refactoring (TypeScript/JavaScript) using AST
+#[allow(dead_code)]
 fn ast_inline_variable_ts_js(
     source: &str,
     analysis: &InlineVariableAnalysis,
@@ -795,6 +797,7 @@ pub async fn plan_extract_variable(
 }
 
 /// Generate edit plan for extract variable refactoring (TypeScript/JavaScript)
+#[allow(dead_code)]
 fn ast_extract_variable_ts_js(
     source: &str,
     analysis: &ExtractVariableAnalysis,
@@ -1102,6 +1105,7 @@ fn extract_range_text(source: &str, range: &CodeRange) -> AstResult<String> {
     }
 }
 
+#[allow(dead_code)]
 fn generate_extracted_function(
     source: &str,
     analysis: &ExtractableFunction,
@@ -1162,6 +1166,7 @@ fn generate_extracted_function(
     ))
 }
 
+#[allow(dead_code)]
 fn generate_function_call(
     analysis: &ExtractableFunction,
     function_name: &str,

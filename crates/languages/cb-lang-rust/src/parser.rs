@@ -354,7 +354,7 @@ pub fn analyze_imports(source: &str, file_path: Option<&std::path::Path>) -> Plu
     Ok(ImportGraphBuilder::new("rust")
         .with_source_file(file_path)
         .with_imports(imports)
-        .extract_external_dependencies(|path| is_external_dependency(path))
+        .extract_external_dependencies(is_external_dependency)
         .with_parser_version("0.1.0-plugin")
         .build())
 }

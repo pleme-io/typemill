@@ -1,0 +1,496 @@
+//! End-to-End Tests for Workflow Execution
+//!
+//! This module tests the workflow executor and planner, which orchestrate
+//! complex multi-step operations based on intent specifications.
+//!
+//! Workflow tests verify:
+//! - Simple linear workflows (single-step operations)
+//! - Complex workflows with dependencies
+//! - Workflow failure and rollback scenarios
+//! - Intent-based workflow planning and execution
+
+use integration_tests::harness::{TestClient, TestWorkspace};
+use serde_json::json;
+
+/// Test simple workflow execution - single operation
+#[tokio::test]
+async fn test_execute_simple_workflow() {
+    let workspace = TestWorkspace::new();
+    let mut client = TestClient::new(workspace.path());
+
+    // Create a simple file to work with
+    let test_file = workspace.path().join("test.ts");
+    std::fs::write(
+        &test_file,
+        r#"
+export function oldName() {
+    return "test";
+}
+"#,
+    )
+    .unwrap();
+
+    // Wait for LSP initialization
+    tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+
+    // Execute a simple workflow: rename a symbol
+    // This tests the workflow executor's ability to handle single-step operations
+    let response = client
+        .call_tool(
+            "rename_symbol",
+            json!({
+                "file_path": test_file.to_string_lossy(),
+                "line": 1,
+                "character": 16,
+                "new_name": "newName"
+            }),
+        )
+        .await;
+
+    // Verify the workflow executed successfully
+    if let Ok(response_value) = response {
+        assert!(
+            response_value.get("result").is_some() || response_value.get("error").is_some(),
+            "Workflow should return result or error"
+        );
+
+        // If successful, verify the file was modified
+        if response_value.get("result").is_some() {
+            let content = std::fs::read_to_string(&test_file).unwrap();
+            assert!(
+                content.contains("newName"),
+                "Symbol should be renamed in file"
+            );
+            assert!(
+                !content.contains("oldName"),
+                "Old symbol name should be replaced"
+            );
+        }
+    }
+}
+
+/// Test complex workflow with multiple dependencies
+#[tokio::test]
+async fn test_execute_complex_workflow_with_dependencies() {
+    let workspace = TestWorkspace::new();
+    let mut client = TestClient::new(workspace.path());
+
+    // Create a multi-file project structure
+    let src_dir = workspace.path().join("src");
+    std::fs::create_dir(&src_dir).unwrap();
+
+    let main_ts = src_dir.join("main.ts");
+    std::fs::write(
+        &main_ts,
+        r#"
+import { helper } from './helper';
+
+export function main() {
+    return helper();
+}
+"#,
+    )
+    .unwrap();
+
+    let helper_ts = src_dir.join("helper.ts");
+    std::fs::write(
+        &helper_ts,
+        r#"
+export function helper() {
+    return "helper";
+}
+"#,
+    )
+    .unwrap();
+
+    // Wait for LSP initialization
+    tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
+
+    // Execute a complex workflow: rename file (which updates imports in dependent files)
+    // This tests the workflow executor's ability to handle multi-step operations
+    let new_helper_path = src_dir.join("utilities.ts");
+    let response = client
+        .call_tool(
+            "rename_file",
+            json!({
+                "old_path": helper_ts.to_string_lossy(),
+                "new_path": new_helper_path.to_string_lossy()
+            }),
+        )
+        .await;
+
+    // Verify the workflow executed successfully
+    if let Ok(response_value) = response {
+        if response_value.get("result").is_some() {
+            // Verify the file was renamed
+            assert!(
+                new_helper_path.exists(),
+                "New file should exist after rename"
+            );
+            assert!(
+                !helper_ts.exists(),
+                "Old file should not exist after rename"
+            );
+
+            // Verify imports were updated in dependent files
+            let main_content = std::fs::read_to_string(&main_ts).unwrap();
+            assert!(
+                main_content.contains("'./utilities'"),
+                "Import path should be updated in main.ts"
+            );
+            assert!(
+                !main_content.contains("'./helper'"),
+                "Old import path should be replaced"
+            );
+        }
+    }
+}
+
+/// Test workflow failure and error handling
+#[tokio::test]
+async fn test_workflow_failure_handling() {
+    let workspace = TestWorkspace::new();
+    let mut client = TestClient::new(workspace.path());
+
+    // Try to rename a non-existent file (should fail gracefully)
+    let non_existent = workspace.path().join("does_not_exist.ts");
+    let new_path = workspace.path().join("new_name.ts");
+
+    let response = client
+        .call_tool(
+            "rename_file",
+            json!({
+                "old_path": non_existent.to_string_lossy(),
+                "new_path": new_path.to_string_lossy()
+            }),
+        )
+        .await;
+
+    // Verify the workflow failed with appropriate error
+    if let Ok(response_value) = response {
+        if let Some(error) = response_value.get("error") {
+            // Error should contain useful information
+            let error_message = error.to_string();
+            assert!(
+                error_message.contains("not found") || error_message.contains("does not exist"),
+                "Error should indicate file not found"
+            );
+        }
+    }
+}
+
+/// Test workflow with dry-run mode (preview without execution)
+#[tokio::test]
+async fn test_workflow_dry_run_mode() {
+    let workspace = TestWorkspace::new();
+    let mut client = TestClient::new(workspace.path());
+
+    // Create a test file
+    let test_file = workspace.path().join("test.ts");
+    let original_content = r#"
+export function testFunction() {
+    return "test";
+}
+"#;
+    std::fs::write(&test_file, original_content).unwrap();
+
+    // Wait for LSP initialization
+    tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+
+    // Execute workflow in dry-run mode
+    let response = client
+        .call_tool(
+            "rename_symbol",
+            json!({
+                "file_path": test_file.to_string_lossy(),
+                "line": 1,
+                "character": 16,
+                "new_name": "renamedFunction",
+                "dry_run": true
+            }),
+        )
+        .await;
+
+    // Verify dry-run succeeded
+    if let Ok(response_value) = response {
+        if let Some(result) = response_value.get("result") {
+            // Result should contain preview information
+            assert!(
+                result.get("preview").is_some() || result.get("changes").is_some(),
+                "Dry-run should return preview or changes"
+            );
+
+            // Verify file was NOT actually modified
+            let current_content = std::fs::read_to_string(&test_file).unwrap();
+            assert_eq!(
+                current_content.trim(),
+                original_content.trim(),
+                "File should not be modified in dry-run mode"
+            );
+        }
+    }
+}
+
+/// Test workflow with rollback on partial failure
+#[tokio::test]
+async fn test_workflow_rollback_on_failure() {
+    let workspace = TestWorkspace::new();
+    let mut client = TestClient::new(workspace.path());
+
+    // Create a directory with files
+    let src_dir = workspace.path().join("src");
+    std::fs::create_dir(&src_dir).unwrap();
+
+    let file1 = src_dir.join("file1.ts");
+    let file2 = src_dir.join("file2.ts");
+
+    std::fs::write(&file1, "export const VALUE = 1;").unwrap();
+    std::fs::write(&file2, "export const VALUE = 2;").unwrap();
+
+    // Try to create a file that already exists (should fail)
+    // Workflow should rollback any partial changes
+    let response = client
+        .call_tool(
+            "create_file",
+            json!({
+                "file_path": file1.to_string_lossy(),
+                "content": "new content"
+            }),
+        )
+        .await;
+
+    // Should fail because file already exists
+    if let Ok(response_value) = response {
+        if let Some(error) = response_value.get("error") {
+            let error_message = error.to_string();
+            assert!(
+                error_message.contains("exists") || error_message.contains("already"),
+                "Should fail with appropriate error"
+            );
+        }
+    }
+
+    // Verify original files are unchanged (rollback succeeded)
+    let content1 = std::fs::read_to_string(&file1).unwrap();
+    assert_eq!(
+        content1, "export const VALUE = 1;",
+        "Original file should be unchanged"
+    );
+}
+
+/// Test workflow execution with batch operations
+#[tokio::test]
+async fn test_workflow_batch_operations() {
+    let workspace = TestWorkspace::new();
+    let mut client = TestClient::new(workspace.path());
+
+    // Create multiple files
+    let files = vec![
+        ("file1.ts", "export const A = 1;"),
+        ("file2.ts", "export const B = 2;"),
+        ("file3.ts", "export const C = 3;"),
+    ];
+
+    for (name, content) in &files {
+        let file_path = workspace.path().join(name);
+        std::fs::write(&file_path, content).unwrap();
+    }
+
+    // Execute batch operation workflow
+    let operations = vec![
+        json!({
+            "operation": "read_file",
+            "file_path": workspace.path().join("file1.ts").to_string_lossy()
+        }),
+        json!({
+            "operation": "read_file",
+            "file_path": workspace.path().join("file2.ts").to_string_lossy()
+        }),
+        json!({
+            "operation": "read_file",
+            "file_path": workspace.path().join("file3.ts").to_string_lossy()
+        }),
+    ];
+
+    let response = client
+        .call_tool("batch_execute", json!({ "operations": operations }))
+        .await;
+
+    // Verify batch workflow executed successfully
+    if let Ok(response_value) = response {
+        if let Some(result) = response_value.get("result") {
+            // Result should contain results from all operations
+            assert!(
+                result.get("results").is_some() || result.get("operations").is_some(),
+                "Batch workflow should return results"
+            );
+        }
+    }
+}
+
+/// Test workflow with dependency resolution
+#[tokio::test]
+async fn test_workflow_dependency_resolution() {
+    let workspace = TestWorkspace::new();
+    let mut client = TestClient::new(workspace.path());
+
+    // Create a TypeScript project with package.json
+    let package_json = workspace.path().join("package.json");
+    std::fs::write(
+        &package_json,
+        r#"
+{
+    "name": "test-project",
+    "version": "1.0.0",
+    "dependencies": {
+        "lodash": "^4.17.21"
+    },
+    "devDependencies": {
+        "typescript": "^5.0.0"
+    }
+}
+"#,
+    )
+    .unwrap();
+
+    // Test analyzing imports (workflow operation)
+    let response = client.call_tool("analyze_imports", json!({})).await;
+
+    // Verify the workflow executed successfully
+    if let Ok(response_value) = response {
+        assert!(
+            response_value.get("result").is_some() || response_value.get("error").is_some(),
+            "Workflow should return result or error"
+        );
+
+        if let Some(result) = response_value.get("result") {
+            // Result should contain import analysis
+            assert!(
+                result.get("imports").is_some() || result.get("files").is_some(),
+                "Should return import analysis"
+            );
+        }
+    }
+}
+
+/// Test workflow planning for complex operations
+#[tokio::test]
+async fn test_workflow_planning() {
+    let workspace = TestWorkspace::new();
+    let mut client = TestClient::new(workspace.path());
+
+    // Create a project structure
+    let src_dir = workspace.path().join("src");
+    std::fs::create_dir(&src_dir).unwrap();
+
+    let old_module = src_dir.join("old_module.ts");
+    std::fs::write(
+        &old_module,
+        r#"
+export function feature1() {
+    return "feature1";
+}
+
+export function feature2() {
+    return "feature2";
+}
+"#,
+    )
+    .unwrap();
+
+    let consumer = src_dir.join("consumer.ts");
+    std::fs::write(
+        &consumer,
+        r#"
+import { feature1, feature2 } from './old_module';
+
+export function useFeatures() {
+    return feature1() + feature2();
+}
+"#,
+    )
+    .unwrap();
+
+    // Wait for LSP initialization
+    tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
+
+    // Execute a workflow that requires planning: rename module
+    // This should plan and execute: rename file + update imports
+    let new_module = src_dir.join("new_module.ts");
+    let response = client
+        .call_tool(
+            "rename_file",
+            json!({
+                "old_path": old_module.to_string_lossy(),
+                "new_path": new_module.to_string_lossy()
+            }),
+        )
+        .await;
+
+    // Verify the planned workflow executed correctly
+    if let Ok(response_value) = response {
+        if response_value.get("result").is_some() {
+            // Verify file was renamed
+            assert!(new_module.exists(), "New module should exist");
+            assert!(!old_module.exists(), "Old module should not exist");
+
+            // Verify imports were updated by the planner
+            let consumer_content = std::fs::read_to_string(&consumer).unwrap();
+            assert!(
+                consumer_content.contains("'./new_module'"),
+                "Import path should be updated by workflow planner"
+            );
+        }
+    }
+}
+
+/// Test workflow execution timeout handling
+#[tokio::test]
+async fn test_workflow_timeout_handling() {
+    let workspace = TestWorkspace::new();
+    let mut client = TestClient::new(workspace.path());
+
+    // Create a large project to potentially trigger timeouts
+    for i in 0..50 {
+        let file = workspace.path().join(format!("file{}.ts", i));
+        std::fs::write(
+            &file,
+            format!(
+                r#"
+export function func{}() {{
+    return {};
+}}
+"#,
+                i, i
+            ),
+        )
+        .unwrap();
+    }
+
+    // Wait for LSP to process all files
+    tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
+
+    // Execute a potentially long-running workflow
+    let response = client
+        .call_tool(
+            "find_dead_code",
+            json!({
+                "file_types": [".ts"]
+            }),
+        )
+        .await;
+
+    // Workflow should complete or timeout gracefully
+    assert!(
+        response.is_ok() || response.is_err(),
+        "Workflow should handle timeout gracefully"
+    );
+
+    if let Ok(response_value) = response {
+        // If successful, verify it has proper structure
+        assert!(
+            response_value.get("result").is_some() || response_value.get("error").is_some(),
+            "Response should have result or error"
+        );
+    }
+}

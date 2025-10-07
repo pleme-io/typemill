@@ -97,6 +97,50 @@ util();"#,
         trigger_point: ("main.py", 0, 19),
         expected_location: ("helper.py", 0, 4),
     },
+    // Go Case
+    GoToDefinitionTestCase {
+        language_id: "go",
+        files: &[
+            (
+                "main.go",
+                r#"package main
+
+import "fmt"
+
+func main() {
+    result := helper()
+    fmt.Println(result)
+}
+
+func helper() string {
+    return "test"
+}
+"#,
+            ),
+        ],
+        trigger_point: ("main.go", 5, 14), // Position on "helper" call
+        expected_location: ("main.go", 9, 5), // Position of "helper" definition
+    },
+    // Rust Case
+    GoToDefinitionTestCase {
+        language_id: "rs",
+        files: &[
+            (
+                "main.rs",
+                r#"fn main() {
+    let result = helper();
+    println!("{}", result);
+}
+
+fn helper() -> &'static str {
+    "test"
+}
+"#,
+            ),
+        ],
+        trigger_point: ("main.rs", 1, 17), // Position on "helper" call
+        expected_location: ("main.rs", 5, 3), // Position of "helper" definition
+    },
 ];
 
 // =============================================================================
@@ -117,7 +161,60 @@ pub const FIND_REFERENCES_TESTS: &[FindReferencesTestCase] = &[
         trigger_point: ("utils.ts", 0, 17),
         expected_min_count: 1,
     },
-    // Python Case - Add when ready
+    // Python Case
+    FindReferencesTestCase {
+        language_id: "py",
+        files: &[
+            ("utils.py", "def calculate(x):\n    return x * 2"),
+            ("main.py", "from utils import calculate\nresult = calculate(5)"),
+        ],
+        trigger_point: ("utils.py", 0, 4),
+        expected_min_count: 1,
+    },
+    // Go Case
+    FindReferencesTestCase {
+        language_id: "go",
+        files: &[
+            (
+                "main.go",
+                r#"package main
+
+func process(x int) int {
+    return x * 2
+}
+
+func main() {
+    val1 := process(5)
+    val2 := process(10)
+    _ = val1 + val2
+}
+"#,
+            ),
+        ],
+        trigger_point: ("main.go", 2, 5), // Position on "process" definition
+        expected_min_count: 2, // Two calls to process()
+    },
+    // Rust Case
+    FindReferencesTestCase {
+        language_id: "rs",
+        files: &[
+            (
+                "main.rs",
+                r#"fn compute(x: i32) -> i32 {
+    x * 2
+}
+
+fn main() {
+    let a = compute(5);
+    let b = compute(10);
+    println!("{} {}", a, b);
+}
+"#,
+            ),
+        ],
+        trigger_point: ("main.rs", 0, 3), // Position on "compute" definition
+        expected_min_count: 2, // Two calls to compute()
+    },
 ];
 
 // =============================================================================
@@ -150,6 +247,42 @@ result = add(1, 2)
         trigger_point: ("test.py", 4, 9),
         should_have_contents: true,
     },
+    // Go Case
+    HoverTestCase {
+        language_id: "go",
+        files: &[(
+            "test.go",
+            r#"package main
+
+func multiply(a int, b int) int {
+    return a * b
+}
+
+func main() {
+    result := multiply(3, 4)
+}
+"#,
+        )],
+        trigger_point: ("test.go", 7, 14), // Position on "multiply" call
+        should_have_contents: true,
+    },
+    // Rust Case
+    HoverTestCase {
+        language_id: "rs",
+        files: &[(
+            "test.rs",
+            r#"fn divide(a: f64, b: f64) -> f64 {
+    a / b
+}
+
+fn main() {
+    let result = divide(10.0, 2.0);
+}
+"#,
+        )],
+        trigger_point: ("test.rs", 5, 17), // Position on "divide" call
+        should_have_contents: true,
+    },
 ];
 
 // =============================================================================
@@ -172,7 +305,75 @@ export class MyClass {
         document_path: "symbols.ts",
         expected_min_count: 1,
     },
-    // Python Case - Add when ready
+    // Python Case
+    DocumentSymbolsTestCase {
+        language_id: "py",
+        files: &[(
+            "module.py",
+            r#"
+VERSION = "1.0.0"
+
+class DataProcessor:
+    def process(self, data):
+        return data
+
+def helper_function():
+    pass
+"#,
+        )],
+        document_path: "module.py",
+        expected_min_count: 1,
+    },
+    // Go Case
+    DocumentSymbolsTestCase {
+        language_id: "go",
+        files: &[(
+            "package.go",
+            r#"package mypackage
+
+const Version = "1.0.0"
+
+type DataService struct {
+    name string
+}
+
+func (ds *DataService) Process() {
+}
+
+func HelperFunc() {
+}
+"#,
+        )],
+        document_path: "package.go",
+        expected_min_count: 1,
+    },
+    // Rust Case
+    DocumentSymbolsTestCase {
+        language_id: "rs",
+        files: &[(
+            "lib.rs",
+            r#"pub const VERSION: &str = "1.0.0";
+
+pub struct Service {
+    name: String,
+}
+
+impl Service {
+    pub fn new(name: String) -> Self {
+        Service { name }
+    }
+
+    pub fn process(&self) {
+    }
+}
+
+pub fn helper() {
+}
+"#,
+        )],
+        document_path: "lib.rs",
+        expected_min_count: 1,
+    },
 ];
 
 // =============================================================================
@@ -235,7 +436,69 @@ myObj.
         trigger_point: ("test.ts", 2, 6),
         should_have_items: true,
     },
-    // Python Case - Add when ready
+    // Python Case
+    CompletionTestCase {
+        language_id: "py",
+        files: &[(
+            "test.py",
+            r#"
+class MyClass:
+    def method1(self):
+        pass
+    def method2(self):
+        pass
+
+obj = MyClass()
+obj.
+"#,
+        )],
+        trigger_point: ("test.py", 8, 4),
+        should_have_items: true,
+    },
+    // Go Case
+    CompletionTestCase {
+        language_id: "go",
+        files: &[(
+            "test.go",
+            r#"package main
+
+type MyStruct struct {
+    Field1 string
+    Field2 int
+}
+
+func main() {
+    obj := MyStruct{}
+    obj.
+}
+"#,
+        )],
+        trigger_point: ("test.go", 9, 8),
+        should_have_items: true,
+    },
+    // Rust Case
+    CompletionTestCase {
+        language_id: "rs",
+        files: &[(
+            "test.rs",
+            r#"
+struct MyStruct {
+    field1: String,
+    field2: i32,
+}
+
+fn main() {
+    let obj = MyStruct {
+        field1: String::from("test"),
+        field2: 42,
+    };
+    obj.
+}
+"#,
+        )],
+        trigger_point: ("test.rs", 11, 8),
+        should_have_items: true,
+    },
 ];
 
 // =============================================================================
@@ -257,7 +520,56 @@ const result = myVariable + 10;
         new_name: "renamedVariable",
         should_have_changes: true,
     },
-    // Python Case - Add when ready
+    // Python Case
+    RenameTestCase {
+        language_id: "py",
+        files: &[(
+            "test.py",
+            r#"
+my_value = 100
+total = my_value * 2
+print(total)
+"#,
+        )],
+        trigger_point: ("test.py", 1, 0),
+        new_name: "renamed_value",
+        should_have_changes: true,
+    },
+    // Go Case
+    RenameTestCase {
+        language_id: "go",
+        files: &[(
+            "test.go",
+            r#"package main
+
+func main() {
+    myVar := 42
+    result := myVar * 2
+    _ = result
+}
+"#,
+        )],
+        trigger_point: ("test.go", 3, 4),
+        new_name: "renamedVar",
+        should_have_changes: true,
+    },
+    // Rust Case
+    RenameTestCase {
+        language_id: "rs",
+        files: &[(
+            "test.rs",
+            r#"
+fn main() {
+    let my_variable = 42;
+    let result = my_variable * 2;
+    println!("{}", result);
+}
+"#,
+        )],
+        trigger_point: ("test.rs", 2, 8),
+        new_name: "renamed_variable",
+        should_have_changes: true,
+    },
 ];
 
 // =============================================================================
