@@ -29,6 +29,7 @@
 //! ```
 
 use cb_plugin_api::{Dependency, DependencySource, ManifestData, PluginError, PluginResult};
+use cb_lang_common::read_manifest;
 use serde_json::{Map, Value};
 use std::path::Path;
 use tracing::{debug, warn};
@@ -243,10 +244,7 @@ pub fn generate_manifest(package_name: &str, dependencies: &[String]) -> String 
 
 /// Load and parse a package.json file from a path
 pub async fn load_package_json(path: &Path) -> PluginResult<ManifestData> {
-    let content = tokio::fs::read_to_string(path)
-        .await
-        .map_err(|e| PluginError::manifest(format!("Failed to read package.json: {}", e)))?;
-
+    let content = read_manifest(path).await?;
     parse_package_json(&content)
 }
 

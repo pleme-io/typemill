@@ -106,6 +106,7 @@ use cb_plugin_api::{
     ImportSupport, LanguageCapabilities, LanguageMetadata, LanguagePlugin, ManifestData,
     ParsedSource, PluginError, PluginResult, WorkspaceSupport,
 };
+use cb_lang_common::read_manifest;
 use std::path::Path;
 
 /// TypeScript/JavaScript language plugin implementation.
@@ -186,9 +187,7 @@ impl TypeScriptPlugin {
         new_version: Option<&str>,
     ) -> PluginResult<String> {
         // Read the manifest file
-        let content = tokio::fs::read_to_string(manifest_path)
-            .await
-            .map_err(|e| PluginError::manifest(format!("Failed to read package.json: {}", e)))?;
+        let content = read_manifest(manifest_path).await?;
 
         // Update the dependency
         let version = new_version.ok_or_else(|| {

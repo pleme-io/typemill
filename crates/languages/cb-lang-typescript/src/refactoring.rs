@@ -3,6 +3,7 @@
 //! This module provides AST-based refactoring capabilities for TypeScript/JavaScript code.
 
 use cb_protocol::{EditPlan, EditPlanMetadata, EditLocation, EditType, TextEdit, ValidationRule, ValidationType};
+use cb_lang_common::LineExtractor;
 use std::collections::HashMap;
 use std::error::Error;
 
@@ -144,9 +145,7 @@ pub fn plan_extract_function(
     let selected_code = selected_lines.join("\n");
 
     // Get indentation of first line
-    let first_line = lines[start_line as usize];
-    let indent_count = first_line.len() - first_line.trim_start().len();
-    let indent = " ".repeat(indent_count);
+    let indent = LineExtractor::get_indentation_str(source, start_line);
 
     // Generate new function
     let new_function = format!(
@@ -257,9 +256,7 @@ pub fn plan_extract_variable(
     let var_name = variable_name.unwrap_or_else(|| "extracted".to_string());
 
     // Get indentation
-    let line = lines[start_line as usize];
-    let indent_count = line.len() - line.trim_start().len();
-    let indent = " ".repeat(indent_count);
+    let indent = LineExtractor::get_indentation_str(source, start_line);
 
     // Generate variable declaration
     let declaration = format!("{}const {} = {};\n", indent, var_name, expression.trim());

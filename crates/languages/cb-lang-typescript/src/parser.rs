@@ -1,52 +1,26 @@
 //! TypeScript/JavaScript import parsing and symbol extraction logic.
 
 use cb_plugin_api::{PluginError, PluginResult, Symbol, SymbolKind};
-use cb_protocol::{ImportGraph, ImportGraphMetadata, ImportInfo, ImportType, SourceLocation};
+use cb_protocol::{ImportGraph, ImportInfo, ImportType, SourceLocation};
+use cb_lang_common::{SubprocessAstTool, run_ast_tool, parse_with_fallback, ImportGraphBuilder};
 use serde::Deserialize;
-use std::collections::HashSet;
-use std::io::Write;
 use std::path::Path;
-use std::process::{Command, Stdio};
-use tempfile::Builder;
 
 /// Analyzes TypeScript/JavaScript source code to produce an import graph.
 /// It attempts to use an AST-based approach first, falling back to regex on failure.
 pub fn analyze_imports(source: &str, file_path: Option<&Path>) -> PluginResult<ImportGraph> {
-    let imports = match parse_imports_ast(source) {
-        Ok(ast_imports) => ast_imports,
-        Err(e) => {
-            tracing::debug!(error = %e, "TypeScript AST parsing failed, falling back to regex");
-            parse_imports_regex(source)?
-        }
-    };
+    let imports = parse_with_fallback(
+        || parse_imports_ast(source),
+        || parse_imports_regex(source),
+        "TypeScript import parsing"
+    )?;
 
-    let external_dependencies = imports
-        .iter()
-        .filter_map(|imp| {
-            if is_external_dependency(&imp.module_path) {
-                Some(imp.module_path.clone())
-            } else {
-                None
-            }
-        })
-        .collect::<HashSet<_>>()
-        .into_iter()
-        .collect();
-
-    Ok(ImportGraph {
-        source_file: file_path
-            .map(|p| p.to_string_lossy().to_string())
-            .unwrap_or_else(|| "in-memory.ts".to_string()),
-        imports,
-        importers: Vec::new(),
-        metadata: ImportGraphMetadata {
-            language: "typescript".to_string(),
-            parsed_at: chrono::Utc::now(),
-            parser_version: "0.1.0-plugin".to_string(),
-            circular_dependencies: Vec::new(),
-            external_dependencies,
-        },
-    })
+    Ok(ImportGraphBuilder::new("typescript")
+        .with_source_file(file_path)
+        .with_imports(imports)
+        .extract_external_dependencies(|path| is_external_dependency(path))
+        .with_parser_version("0.1.0-plugin")
+        .build())
 }
 
 /// TypeScript import information from AST tool
@@ -80,45 +54,12 @@ struct TsLocation {
 fn parse_imports_ast(source: &str) -> Result<Vec<ImportInfo>, PluginError> {
     const AST_TOOL_JS: &str = include_str!("../resources/ast_tool.js");
 
-    let tmp_dir = Builder::new()
-        .prefix("codebuddy-ts-ast")
-        .tempdir()
-        .map_err(|e| PluginError::internal(format!("Failed to create temp dir: {}", e)))?;
-    let tool_path = tmp_dir.path().join("ast_tool.js");
-    std::fs::write(&tool_path, AST_TOOL_JS).map_err(|e| {
-        PluginError::internal(format!("Failed to write JS tool to temp file: {}", e))
-    })?;
+    let tool = SubprocessAstTool::new("node")
+        .with_embedded_str(AST_TOOL_JS)
+        .with_temp_filename("ast_tool.js")
+        .with_arg("analyze-imports");
 
-    let mut child = Command::new("node")
-        .arg(&tool_path)
-        .arg("analyze-imports")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| PluginError::parse(format!("Failed to spawn Node.js AST tool: {}", e)))?;
-
-    if let Some(mut stdin) = child.stdin.take() {
-        stdin.write_all(source.as_bytes()).map_err(|e| {
-            PluginError::parse(format!("Failed to write to Node.js AST tool stdin: {}", e))
-        })?;
-    }
-
-    let output = child
-        .wait_with_output()
-        .map_err(|e| PluginError::parse(format!("Failed to wait for Node.js AST tool: {}", e)))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(PluginError::parse(format!(
-            "Node.js AST tool failed: {}",
-            stderr
-        )));
-    }
-
-    let ts_imports: Vec<TsImportInfo> = serde_json::from_slice(&output.stdout).map_err(|e| {
-        PluginError::parse(format!("Failed to parse Node.js AST tool output: {}", e))
-    })?;
+    let ts_imports: Vec<TsImportInfo> = run_ast_tool(tool, source)?;
 
     // Convert TsImportInfo to ImportInfo
     Ok(ts_imports
@@ -304,45 +245,12 @@ pub fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
 fn extract_symbols_ast(source: &str) -> Result<Vec<Symbol>, PluginError> {
     const AST_TOOL_JS: &str = include_str!("../resources/ast_tool.js");
 
-    let tmp_dir = Builder::new()
-        .prefix("codebuddy-ts-ast")
-        .tempdir()
-        .map_err(|e| PluginError::internal(format!("Failed to create temp dir: {}", e)))?;
-    let tool_path = tmp_dir.path().join("ast_tool.js");
-    std::fs::write(&tool_path, AST_TOOL_JS).map_err(|e| {
-        PluginError::internal(format!("Failed to write JS tool to temp file: {}", e))
-    })?;
+    let tool = SubprocessAstTool::new("node")
+        .with_embedded_str(AST_TOOL_JS)
+        .with_temp_filename("ast_tool.js")
+        .with_arg("extract-symbols");
 
-    let mut child = Command::new("node")
-        .arg(&tool_path)
-        .arg("extract-symbols")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| PluginError::parse(format!("Failed to spawn Node.js AST tool: {}", e)))?;
-
-    if let Some(mut stdin) = child.stdin.take() {
-        stdin.write_all(source.as_bytes()).map_err(|e| {
-            PluginError::parse(format!("Failed to write to Node.js AST tool stdin: {}", e))
-        })?;
-    }
-
-    let output = child
-        .wait_with_output()
-        .map_err(|e| PluginError::parse(format!("Failed to wait for Node.js AST tool: {}", e)))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(PluginError::parse(format!(
-            "Node.js AST tool failed: {}",
-            stderr
-        )));
-    }
-
-    let ts_symbols: Vec<TsSymbolInfo> = serde_json::from_slice(&output.stdout).map_err(|e| {
-        PluginError::parse(format!("Failed to parse Node.js AST tool output: {}", e))
-    })?;
+    let ts_symbols: Vec<TsSymbolInfo> = run_ast_tool(tool, source)?;
 
     // Convert TsSymbolInfo to cb_plugin_api::Symbol
     let symbols = ts_symbols
