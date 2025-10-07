@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Before working with this codebase, please read:**
 
-1. **[API.md](API.md)** - **READ THIS FIRST** - Complete MCP tools API reference
+1. **[API_REFERENCE.md](API_REFERENCE.md)** - **READ THIS FIRST** - Complete MCP tools API reference
    - Tool parameters, return types, and examples
-   - [Language Support Matrix](API.md#language-support-matrix) - Which tools work with which languages
+   - [Language Support Matrix](API_REFERENCE.md#language-support-matrix) - Which tools work with which languages
    - Internal vs public tools distinction
 
 2. **[docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)** - System architecture
@@ -38,9 +38,9 @@ Pure Rust MCP server bridging Language Server Protocol (LSP) functionality to AI
 
 ## MCP Tools
 
-Codebuddy provides comprehensive MCP tools for code intelligence and refactoring. See **[API.md](API.md)** for complete API reference with detailed parameters, return types, and examples.
+Codebuddy provides comprehensive MCP tools for code intelligence and refactoring. See **[API_REFERENCE.md](API_REFERENCE.md)** for complete API reference with detailed parameters, return types, and examples.
 
-**Note:** Additional internal tools exist for backend use only (lifecycle hooks, workflow plumbing). These are hidden from MCP `tools/list` to simplify the API surface. See [API.md Internal Tools](API.md#internal-tools) section.
+**Note:** Additional internal tools exist for backend use only (lifecycle hooks, workflow plumbing). These are hidden from MCP `tools/list` to simplify the API surface. See [API_REFERENCE.md Internal Tools](API_REFERENCE.md#internal-tools) section.
 
 ### Quick Reference
 
@@ -155,7 +155,7 @@ pub mod module;  // Exposes the consolidated code
 - Merging experimental features back into main crate
 - Consolidating related functionality into a single package
 
-For detailed parameters, return types, and examples, see **[API.md](API.md)**.
+For detailed parameters, return types, and examples, see **[API_REFERENCE.md](API_REFERENCE.md)**.
 
 ## Development Commands
 
@@ -497,5 +497,5 @@ All debug scripts, test analysis, and experimental code goes in `.debug/` (gitig
 - **[docs/features/WORKFLOWS.md](docs/features/WORKFLOWS.md)** - Workflow automation engine
 
 ### For Tool Reference
-- **[API.md](API.md)** - Complete MCP tools API with examples
-- **[API.md#language-support-matrix](API.md#language-support-matrix)** - Language support by tool
+- **[API_REFERENCE.md](API_REFERENCE.md)** - Complete MCP tools API with examples
+- **[API_REFERENCE.md#language-support-matrix](API_REFERENCE.md#language-support-matrix)** - Language support by tool

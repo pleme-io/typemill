@@ -2,7 +2,7 @@
 
 **Purpose:** Fast lookup table for all CodeBuddy MCP tools
 **Format:** Tool name → Parameters → Returns (no examples or details)
-**For detailed documentation:** See [API.md](API.md)
+**For detailed documentation:** See [API_REFERENCE.md](API_REFERENCE.md)
 
 **Version:** 1.0.0-rc1
 **Last Updated:** 2025-10-04
@@ -11,19 +11,19 @@
 
 ## What's the Difference?
 
-| This File | API.md |
+| This File | API_REFERENCE.md |
 |-----------|--------|
 | **Quick cheat sheet** (113 lines) | **Complete reference** (2,760 lines) |
 | Tool names + parameters only | Examples, errors, patterns |
 | 30-second scan | Implementation guide |
 
 **Use this when:** You need to remember parameter names or check if a tool exists
-**Use API.md when:** You need to understand how to use a tool or handle errors
+**Use API_REFERENCE.md when:** You need to understand how to use a tool or handle errors
 
 ---
 
 **Tools:** 45 public MCP tools
-**Internal tools:** 5 backend-only tools (see [API.md Internal Tools](API.md#internal-tools))
+**Internal tools:** 5 backend-only tools (see [API_REFERENCE.md Internal Tools](API_REFERENCE.md#internal-tools))
 
 ---
 
@@ -141,4 +141,4 @@ LSP-based tools depend on configured language servers. Native tools (file ops, A
 
 ---
 
-**For detailed parameters, return types, examples, and error handling, see [API.md](API.md)**
+**For detailed parameters, return types, examples, and error handling, see [API_REFERENCE.md](API_REFERENCE.md)**

@@ -173,9 +173,9 @@ curl http://localhost/health
 See [`docs/deployment/DOCKER_DEPLOYMENT.md`](docs/deployment/DOCKER_DEPLOYMENT.md) for details.
 
 ## 📖 Documentation
-- **[API_REFERENCE.md](API_REFERENCE.md)** - MCP tools reference
-- **[CLAUDE.md](CLAUDE.md)** - AI assistant guide
-- **[docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)** - System design
+- **[API_REFERENCE.md](API_REFERENCE.md)** - Complete MCP tools API reference
+- **[TOOLS_QUICK_REFERENCE.md](TOOLS_QUICK_REFERENCE.md)** - Quick tool lookup table
+- **[docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)** - System architecture
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** - Development guide
 
 ## 🔧 Troubleshooting
