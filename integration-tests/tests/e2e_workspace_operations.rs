@@ -523,11 +523,32 @@ console.log(value);
             ),
         )
         .await;
+
     // Should fail because line 100 doesn't exist in the file
-    assert!(
-        response.is_err() || !response.unwrap()["result"]["applied"].as_bool().unwrap_or(true),
-        "Workspace edit with invalid line number should fail validation"
-    );
+    // Check response structure - error field vs result field
+    match response {
+        Ok(resp) => {
+            // MCP call succeeded, check if validation failed
+            if resp.get("error").is_some() {
+                // Validation failed - this is expected behavior
+                println!("Validation correctly failed: {:?}", resp["error"]["message"]);
+            } else if let Some(result) = resp.get("result") {
+                // No error - check applied is false
+                assert!(
+                    !result["applied"].as_bool().unwrap_or(true),
+                    "Workspace edit with invalid line number should not be applied"
+                );
+            } else {
+                panic!("Response has neither error nor result field: {:?}", resp);
+            }
+        }
+        Err(e) => {
+            // Network/MCP error - also expected for validation failure
+            println!("Request failed as expected: {:?}", e);
+        }
+    }
+
+    // Verify file unchanged
     let unchanged_content = std::fs::read_to_string(&file_path).unwrap();
     assert_eq!(unchanged_content.trim(), content.trim());
 }
