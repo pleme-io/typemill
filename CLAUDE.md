@@ -462,38 +462,24 @@ cargo build --release
 
 ## Debug and Development Code Organization
 
-**IMPORTANT: Use `.debug/` directory for ALL debugging purposes!**
+**⚠️ IMPORTANT: Use `.debug/` directory for ALL debugging work**
 
-All debug scripts, test utilities, analysis documents, and development tools **MUST** be created in the `.debug/` directory:
+All debug scripts, test analysis, and experimental code goes in `.debug/` (gitignored):
 
-- **Location**: `.debug/` (gitignored, not committed to repository)
-- **Purpose**:
-  - Temporary debugging code and scripts
-  - Test failure analysis documents
-  - Timing tests and performance investigations
-  - Integration flow analysis
-  - Experimental code
-  - Problem-solving documentation
-- **Guidelines**:
-  - Create subdirectories for organization (e.g., `.debug/test-failures/`, `.debug/experiments/`)
-  - Document root causes and solutions in markdown files
-  - Keep analysis documents even after fixes (for historical reference)
-  - Delete temporary scripts after use
-  - Never commit `.debug/` to repository
+**What to put in `.debug/`:**
+- Test failure analysis documents (`.debug/test-failures/`)
+- Temporary debugging scripts
+- Performance investigations
+- Experimental prototypes
+
+**Guidelines:**
+- Organize with subdirectories
+- Keep analysis docs for reference, delete temp scripts after use
+- Never commit to repository
 
 **Examples:**
-- `.debug/test-failures/ATOMIC_FAILURE_ANALYSIS.md` - Test failure root cause analysis
-- `.debug/test_integration_timing.rs` - Temporary timing test
-- `.debug/analyze_lsp_flow/` - LSP integration investigation
-- `.debug/experiments/new_feature_prototype.rs` - Experimental code
-
-**When to use `.debug/`:**
-- ✅ Debugging failing tests
-- ✅ Investigating performance issues
-- ✅ Analyzing complex bugs
-- ✅ Prototyping solutions
-- ✅ Documenting problem-solving process
-- ✅ Creating temporary test utilities
+- `.debug/test-failures/ATOMIC_FAILURE_ANALYSIS.md` - Root cause analysis
+- `.debug/test_timing.rs` - Temporary test script
 
 ## 📖 Additional Documentation
 
