@@ -66,6 +66,7 @@ pub async fn plan_extract_module_to_package_with_registry(
         ProjectLanguage::Python => "txt",
         ProjectLanguage::Go => "mod",
         ProjectLanguage::Java => "xml",
+        ProjectLanguage::Swift => "swift",
         ProjectLanguage::Unknown => {
             return Err(crate::error::AstError::Analysis {
                 message: "Could not detect project language - no manifest files found".to_string(),

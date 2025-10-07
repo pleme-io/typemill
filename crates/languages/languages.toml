@@ -58,3 +58,13 @@ entry_point = ""  # No single entry point
 module_separator = "."
 crate_name = "cb-lang-java"
 feature_name = "lang-java"
+
+[languages.Swift]
+display_name = "Swift"
+extensions = ["swift"]
+manifest_filename = "Package.swift"
+source_dir = "Sources"
+entry_point = "main.swift"
+module_separator = "."
+crate_name = "cb-lang-swift"
+feature_name = "lang-swift"
