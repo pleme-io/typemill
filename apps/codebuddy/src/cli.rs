@@ -1,6 +1,6 @@
 //! CLI command handling for the codebuddy server
 
-use cb_core::config::{AppConfig, LogFormat};
+use cb_core::config::AppConfig;
 use cb_core::utils::system::command_exists;
 use clap::{Parser, Subcommand};
 use fs2::FileExt;
@@ -8,8 +8,6 @@ use std::fs::{File, OpenOptions};
 use std::path::PathBuf;
 use std::process;
 use tracing::{error, info};
-use tracing_subscriber::fmt;
-use tracing_subscriber::prelude::*;
 
 /// Parse JSON argument from string
 #[allow(dead_code)]
@@ -86,7 +84,7 @@ pub async fn run() {
         Commands::Start { .. } | Commands::Serve { .. } => {
             // Load configuration to determine log format
             let config = AppConfig::load().unwrap_or_default();
-            initialize_tracing(&config);
+            cb_core::logging::initialize(&config);
         }
         _ => {
             // For other commands, we want direct console output
@@ -739,29 +737,3 @@ fn output_error(error: &cb_protocol::ApiError, format: &str) {
     eprintln!("{}", output);
 }
 
-/// Initialize tracing based on configuration
-fn initialize_tracing(config: &AppConfig) {
-    // Parse log level from config, with fallback to INFO
-    let log_level = config.logging.level.parse().unwrap_or(tracing::Level::INFO);
-
-    // Create env filter with configured level and allow env overrides
-    let env_filter =
-        tracing_subscriber::EnvFilter::from_default_env().add_directive(log_level.into());
-
-    match config.logging.format {
-        LogFormat::Json => {
-            // Use JSON formatter for structured logging
-            tracing_subscriber::registry()
-                .with(env_filter)
-                .with(fmt::layer().json())
-                .init();
-        }
-        LogFormat::Pretty => {
-            // Use pretty (human-readable) formatter
-            tracing_subscriber::registry()
-                .with(env_filter)
-                .with(fmt::layer())
-                .init();
-        }
-    }
-}

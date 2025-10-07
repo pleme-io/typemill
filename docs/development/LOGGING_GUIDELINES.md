@@ -227,6 +227,61 @@ export RUST_LOG=cb_server::handlers=debug,cb_plugins=info
 }
 ```
 
+### Centralized Initialization
+
+All logging is initialized through `cb_core::logging::initialize()` which provides:
+
+**Configuration Sources** (in priority order):
+1. `RUST_LOG` environment variable (most powerful, module-level filtering)
+2. `LOG_LEVEL` environment variable (simple level override)
+3. `LOG_FORMAT` environment variable (json or pretty)
+4. Application configuration file (`config.logging`)
+
+**Standard Environment Variables**:
+- `RUST_LOG`: Module-level filtering (e.g., `cb_handlers=debug,cb_lsp=info`)
+- `LOG_LEVEL`: Simple level control (trace, debug, info, warn, error)
+- `LOG_FORMAT`: Format override (json, pretty, human)
+
+**Examples**:
+```bash
+# Development with debug logging
+LOG_LEVEL=debug cargo run
+
+# Production with JSON logs
+LOG_LEVEL=info LOG_FORMAT=json ./codebuddy serve
+
+# Module-specific filtering (most control)
+RUST_LOG=cb_handlers=debug,cb_lsp=info cargo run
+```
+
+### Request Context Propagation (via Spans)
+
+Use `cb_core::logging::request_span()` at transport layer to create spans with request context:
+
+```rust
+// In transport layer (ws.rs, stdio.rs)
+let request_id = uuid::Uuid::new_v4();
+let span = cb_core::logging::request_span(&request_id.to_string(), "websocket");
+let _enter = span.enter();
+
+// All logs within this scope automatically include:
+// - request_id: Unique identifier for the request
+// - transport: "websocket" or "stdio"
+
+handle_request().await;
+```
+
+**Benefits**:
+- Automatic context inheritance for all nested operations
+- No manual field addition in every log statement
+- Consistent request tracing across components
+- Compatible with distributed tracing systems
+
+**Standard Span Fields**:
+- `request_id`: Unique identifier for the request
+- `transport`: Transport type (websocket, stdio)
+- Additional fields can be added via `span.record()`
+
 ## Migration Guidelines
 
 When updating existing code:

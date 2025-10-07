@@ -124,6 +124,15 @@ impl TestClient {
 
     /// Send a JSON-RPC request and wait for response.
     pub fn send_request(&mut self, request: Value) -> Result<Value, Box<dyn std::error::Error>> {
+        self.send_request_with_timeout(request, Duration::from_secs(15))
+    }
+
+    /// Send a JSON-RPC request with a custom timeout.
+    pub fn send_request_with_timeout(
+        &mut self,
+        request: Value,
+        timeout: Duration,
+    ) -> Result<Value, Box<dyn std::error::Error>> {
         const FRAME_DELIMITER: &[u8] = b"\n---FRAME---\n";
 
         let request_str = serde_json::to_string(&request)?;
@@ -133,7 +142,7 @@ impl TestClient {
         self.stdin.flush()?;
 
         // Wait for response with extended timeout for resilience tests
-        let response_str = self.stdout_receiver.recv_timeout(Duration::from_secs(15))?;
+        let response_str = self.stdout_receiver.recv_timeout(timeout)?;
         let response: Value = serde_json::from_str(&response_str)?;
         Ok(response)
     }
@@ -233,21 +242,6 @@ impl TestClient {
         Ok((result, duration))
     }
 
-    /// Call multiple tools sequentially and return results with timings.
-    pub async fn call_multiple_tools(
-        &mut self,
-        calls: Vec<(&str, Value)>,
-    ) -> Vec<Result<(Value, Duration), Box<dyn std::error::Error>>> {
-        let mut results = Vec::new();
-
-        for (tool_name, arguments) in calls {
-            let result = self.call_tool_with_timing(tool_name, arguments).await;
-            results.push(result);
-        }
-
-        results
-    }
-
     /// Call a tool with a custom timeout.
     pub async fn call_tool_with_timeout(
         &mut self,
@@ -268,18 +262,22 @@ impl TestClient {
             }
         });
 
-        const FRAME_DELIMITER: &[u8] = b"\n---FRAME---\n";
+        self.send_request_with_timeout(request, timeout)
+    }
 
-        let request_str = serde_json::to_string(&request)?;
-        // Send request followed by frame delimiter (same as send_request)
-        self.stdin.write_all(request_str.as_bytes())?;
-        self.stdin.write_all(FRAME_DELIMITER)?;
-        self.stdin.flush()?;
+    /// Call multiple tools sequentially and return results with timings.
+    pub async fn call_multiple_tools(
+        &mut self,
+        calls: Vec<(&str, Value)>,
+    ) -> Vec<Result<(Value, Duration), Box<dyn std::error::Error>>> {
+        let mut results = Vec::new();
 
-        // Wait for response with custom timeout
-        let response_str = self.stdout_receiver.recv_timeout(timeout)?;
-        let response: Value = serde_json::from_str(&response_str)?;
-        Ok(response)
+        for (tool_name, arguments) in calls {
+            let result = self.call_tool_with_timing(tool_name, arguments).await;
+            results.push(result);
+        }
+
+        results
     }
 
     /// Simulate a connection error by terminating stdin.

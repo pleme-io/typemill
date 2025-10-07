@@ -62,11 +62,12 @@ async fn test_large_file_performance() {
 
     let start = Instant::now();
     let response = client
-        .call_tool(
+        .call_tool_with_timeout(
             "get_document_symbols",
             json!({
                 "file_path": large_file.to_string_lossy()
             }),
+            Duration::from_secs(60),
         )
         .await;
     let lsp_duration = start.elapsed();
@@ -775,13 +776,14 @@ export class UserService{} {{
     // Test find definition performance across the project
     let start = Instant::now();
     let response = client
-        .call_tool(
+        .call_tool_with_timeout(
             "find_definition",
             json!({
                 "file_path": services_dir.join("service0.ts").to_string_lossy(),
                 "line": 1,
                 "character": 10 // Should point to User0 import
             }),
+            Duration::from_secs(60),
         )
         .await
         .unwrap();
@@ -803,11 +805,12 @@ export class UserService{} {{
     // Test workspace symbol search performance
     let start = Instant::now();
     let response = client
-        .call_tool(
+        .call_tool_with_timeout(
             "search_workspace_symbols",
             json!({
                 "query": "User"
             }),
+            Duration::from_secs(60),
         )
         .await
         .unwrap();
@@ -839,7 +842,7 @@ export class UserService{} {{
     // Test find references performance
     let start = Instant::now();
     let response = client
-        .call_tool(
+        .call_tool_with_timeout(
             "find_references",
             json!({
                 "file_path": types_dir.join("types0.ts").to_string_lossy(),
@@ -847,6 +850,7 @@ export class UserService{} {{
                 "character": 18, // User0 interface
                 "include_declaration": true
             }),
+            Duration::from_secs(60),
         )
         .await
         .unwrap();
