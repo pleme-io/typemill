@@ -1392,7 +1392,7 @@ Use this checklist to ensure your plugin is complete:
 | Use Case | Best Reference | Location |
 |----------|---------------|----------|
 | **Subprocess AST (compiled language)** | Go plugin | `/workspace/crates/languages/cb-lang-go/` |
-| **Subprocess AST (dynamic language)** | Python plugin | `/workspace/crates/languages/cb-lang-python/` |
+| **Subprocess AST (dynamic language)** | Python plugin | `/workspace/crates/cb-lang-python/` |
 | **Subprocess AST (JavaScript ecosystem)** | TypeScript plugin | `/workspace/crates/languages/cb-lang-typescript/` |
 | **Native Rust parsing** | Rust plugin | `/workspace/crates/languages/cb-lang-rust/` |
 | **ImportSupport implementation** | All plugins | `src/import_support.rs` in any plugin |

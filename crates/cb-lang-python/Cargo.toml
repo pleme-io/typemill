@@ -8,10 +8,10 @@ homepage.workspace = true
 
 [dependencies]
 # Core plugin API
-cb-plugin-api = { path = "../../cb-plugin-api" }
-cb-protocol = { path = "../../cb-protocol" }
-cb-core = { path = "../../cb-core" }
-cb-lang-common = { path = "../../cb-lang-common" }
+cb-plugin-api = { path = "../cb-plugin-api" }
+cb-protocol = { path = "../cb-protocol" }
+cb-core = { path = "../cb-core" }
+cb-lang-common = { path = "../cb-lang-common" }
 
 # Async operations
 async-trait = { workspace = true }

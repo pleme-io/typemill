@@ -37,7 +37,7 @@ cb-plugins = { path = "../cb-plugins" }
 cb-lang-rust = { path = "../languages/cb-lang-rust", optional = true }
 cb-lang-go = { path = "../cb-lang-go", optional = true }
 cb-lang-typescript = { path = "../languages/cb-lang-typescript", optional = true }
-cb-lang-python = { path = "../languages/cb-lang-python", optional = true }
+cb-lang-python = { path = "../cb-lang-python", optional = true }
 cb-lang-java = { path = "../cb-lang-java", optional = true }
 chrono = "0.4"
 

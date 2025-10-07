@@ -57,7 +57,7 @@ futures = "0.3"
 cb-lang-rust = { path = "crates/languages/cb-lang-rust" }
 cb-lang-go = { path = "crates/cb-lang-go" }
 cb-lang-typescript = { path = "crates/languages/cb-lang-typescript" }
-cb-lang-python = { path = "crates/languages/cb-lang-python" }
+cb-lang-python = { path = "crates/cb-lang-python" }
 cb-lang-java = { path = "crates/cb-lang-java" }
 
 [profile.release]
