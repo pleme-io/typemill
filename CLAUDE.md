@@ -462,12 +462,38 @@ cargo build --release
 
 ## Debug and Development Code Organization
 
-All debug scripts, test utilities, and development tools should be created in the `.debug/` directory:
-- **Location**: `.debug/` (gitignored, not committed to repository)
-- **Purpose**: Temporary debugging code, timing tests, integration flow analysis
-- **Cleanup**: Debug tools can be deleted after use - they are not part of the codebase
+**IMPORTANT: Use `.debug/` directory for ALL debugging purposes!**
 
-Example: `.debug/test_integration_timing.rs`, `.debug/analyze_lsp_flow/`
+All debug scripts, test utilities, analysis documents, and development tools **MUST** be created in the `.debug/` directory:
+
+- **Location**: `.debug/` (gitignored, not committed to repository)
+- **Purpose**:
+  - Temporary debugging code and scripts
+  - Test failure analysis documents
+  - Timing tests and performance investigations
+  - Integration flow analysis
+  - Experimental code
+  - Problem-solving documentation
+- **Guidelines**:
+  - Create subdirectories for organization (e.g., `.debug/test-failures/`, `.debug/experiments/`)
+  - Document root causes and solutions in markdown files
+  - Keep analysis documents even after fixes (for historical reference)
+  - Delete temporary scripts after use
+  - Never commit `.debug/` to repository
+
+**Examples:**
+- `.debug/test-failures/ATOMIC_FAILURE_ANALYSIS.md` - Test failure root cause analysis
+- `.debug/test_integration_timing.rs` - Temporary timing test
+- `.debug/analyze_lsp_flow/` - LSP integration investigation
+- `.debug/experiments/new_feature_prototype.rs` - Experimental code
+
+**When to use `.debug/`:**
+- ✅ Debugging failing tests
+- ✅ Investigating performance issues
+- ✅ Analyzing complex bugs
+- ✅ Prototyping solutions
+- ✅ Documenting problem-solving process
+- ✅ Creating temporary test utilities
 
 ## 📖 Additional Documentation
 

@@ -565,7 +565,8 @@ pub fn version_info() -> String {
 
 /// Check if running in a terminal (for color/emoji detection)
 pub fn is_terminal() -> bool {
-    atty::is(atty::Stream::Stdout)
+    use std::io::IsTerminal;
+    std::io::stdout().is_terminal()
 }
 
 #[cfg(test)]
