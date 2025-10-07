@@ -14,7 +14,7 @@
 //! - Module file location and reference finding
 //!
 //! # Example
-//!
+pub use parser :: { extract_symbols , list_functions , parse_imports , rewrite_use_tree } ;
 //! ```rust,ignore
 //! use cb_lang_rust::RustPlugin;
 //! use cb_plugin_api::LanguagePlugin;
@@ -377,15 +377,32 @@ impl RustPlugin {
         })?;
 
         let mut references = Vec::new();
+        let lines: Vec<&str> = content.lines().collect();
 
         for (line_num, item) in ast.items.iter().enumerate() {
             if let Item::Use(item_use) = item {
                 let use_str = quote::quote!(#item_use).to_string();
                 if use_str.contains(module_to_find) {
+                    // Get the actual line length from source content, not from quote-generated string
+                    // The quote-generated string may have different formatting/whitespace
+                    let actual_line = if line_num < lines.len() {
+                        lines[line_num]
+                    } else {
+                        ""
+                    };
+
+                    // Find the actual position of the module name in the source line
+                    let (column, length) = if let Some(start_pos) = actual_line.find(module_to_find) {
+                        (start_pos, module_to_find.len())
+                    } else {
+                        // Fallback: replace entire line
+                        (0, actual_line.len())
+                    };
+
                     references.push(ModuleReference {
                         line: line_num + 1, // 1-based
-                        column: 0,
-                        length: use_str.len(),
+                        column,
+                        length,
                         text: use_str,
                         kind: ReferenceKind::Declaration,
                     });

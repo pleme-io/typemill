@@ -1,5 +1,5 @@
 //! Import path resolution and updating functionality
-
+use std :: collections :: HashMap ;
 use crate::error::{AstError, AstResult};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -787,15 +787,25 @@ pub async fn find_project_files(
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = AstResult<()>> + Send + 'a>> {
         Box::pin(async move {
             if dir.is_dir() {
-                // Skip node_modules and other common directories to ignore
+                // Skip common build/cache directories
                 if let Some(dir_name) = dir.file_name() {
+                    const IGNORED_DIRS: &[&str] = &[
+                        ".build",
+                        ".git",
+                        ".next",
+                        ".pytest_cache",
+                        ".tox",
+                        ".venv",
+                        "__pycache__",
+                        "build",
+                        "dist",
+                        "node_modules",
+                        "target",
+                        "venv",
+                    ];
+
                     let name = dir_name.to_string_lossy();
-                    if name == "node_modules"
-                        || name == ".git"
-                        || name == "dist"
-                        || name == "build"
-                        || name == "target"
-                    {
+                    if IGNORED_DIRS.contains(&name.as_ref()) {
                         return Ok(());
                     }
                 }
