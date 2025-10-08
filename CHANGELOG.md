@@ -11,6 +11,96 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 The project underwent a complete architectural transformation from TypeScript/Node.js to pure Rust in 2025, bringing native performance, memory safety, and compile-time type guarantees.
 
+### [1.0.1] - 2025-10-08
+
+🐛 **Patch Release** - Bug fixes and code quality improvements
+
+#### Fixed
+
+- **Code quality improvements** - Resolved dead code, unused variables, and test warnings
+- **Deterministic output** - Ensured consistent ordering in `manifest_updates` output from `rename_directory`
+
+#### Changed
+
+- **Benchmark organization** - Moved benchmarks to `crates/codebuddy-bench` for better project structure (Phase 3)
+
+#### Documentation
+
+- Updated `10_TREE_PROPOSAL.md` to mark Phase 3 complete
+
+---
+
+### [1.0.0] - 2025-10-07
+
+🎉 **First Stable Release** - Production-ready with advanced analysis tools and enhanced workspace operations
+
+#### Added
+
+- **Advanced MCP Analysis Tools** (3 new tools)
+  - `find_unused_imports` - Detect and report unused import statements across codebases
+  - `optimize_imports` - Automatically optimize import organization
+  - `analyze_complexity` - Comprehensive code complexity analysis with cognitive complexity metrics
+  - `suggest_refactoring` - AI-powered refactoring suggestions based on code metrics and complexity analysis
+
+- **Cognitive Complexity Metrics**
+  - Enhanced code metrics with cognitive complexity scoring
+  - Comprehensive complexity analysis features in cb-ast
+  - Multi-dimensional code quality assessment
+
+- **Enhanced `rename_directory` Workspace Operations**
+  - Auto-update Cargo.toml path dependencies when renaming directories
+  - Capture and surface workspace manifest updates in operation output
+  - Expand manifest updates to all dependency sections (dependencies, dev-dependencies, build-dependencies)
+  - Full integration with Rust workspace dependency tracking
+
+- **cb-lang-common Utility Library**
+  - Comprehensive utility modules for language plugins
+  - ImportGraph builder and parsing utilities
+  - Shared error handling and parsing helpers
+  - Cross-language code reuse infrastructure
+
+#### Changed
+
+- **Language Plugin Integration** - All language plugins now integrate with cb-lang-common utilities
+  - Go plugin: Import parsing utilities
+  - Python plugin: Comprehensive utility integration
+  - TypeScript plugin: Common utility integration
+  - Rust plugin: Shared utility integration
+
+- **Crate Organization** (Phase 2-3 completion)
+  - Moved all language plugins to flat `crates/` layout for consistency
+  - Relocated `cb-lang-java`, `cb-lang-python`, `cb-lang-rust`, `cb-lang-typescript`, `cb-lang-common`
+  - Improved project structure and dependency management
+
+#### Fixed
+
+- **Import Handling**
+  - Prevent duplicate imports in `rename_directory` operations
+  - Replace entire import line instead of just module name for accuracy
+  - Column position errors in `rename_directory` resolved
+
+- **Testing Infrastructure**
+  - Fixed 4 failing tests to achieve 100% test pass rate (550/550 tests passing)
+  - LSP performance tests fixed (indexing issues, response structure, line number offsets)
+  - Memory usage and workspace edit performance tests corrected
+  - Error handling in atomic failure and validation tests
+
+#### Performance
+
+- Cognitive complexity analysis integrated into refactoring suggestions
+- Optimized import analysis and manipulation across all language plugins
+- Enhanced AST-based complexity calculation features
+
+#### Documentation
+
+- Complete API.md documentation for MCP Tools Enhancement
+- Comprehensive documentation for 1.0.0 release
+- Enhanced .debug/ directory documentation in CLAUDE.md
+- Synchronization of all documentation with codebase
+- Fixed API.md references to API_REFERENCE.md throughout docs
+
+---
+
 ### [1.0.0-rc2] - 2025-10-06
 
 🚀 **Release Candidate 2** - Plugin architecture modernization, workspace operations, and 5-language support
