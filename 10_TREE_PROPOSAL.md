@@ -122,10 +122,13 @@ This is a comprehensive tool validation exercise that will test:
   - ✅ Commit: `e133a0c` - "refactor: move cb-lang-typescript to flat crates layout"
 - ✅ **BLOCKER RESOLVED**: Fixed `rename_directory` manifest update bugs, all moves completed successfully with automatic Cargo.toml updates
 
-### ❌ Phase 3: Reorganize Workspace Crates (NOT STARTED)
-- ❌ Move `crates/codebuddy-bench` → `crates/codebuddy-bench`
-- ❌ Update `crates/codebuddy-bench/Cargo.toml` (package name)
-- ❌ Update root `Cargo.toml` (workspace members)
+### ✅ Phase 3: Reorganize Workspace Crates (COMPLETE)
+- ✅ Move `benchmarks` → `crates/codebuddy-bench`
+  - ✅ Commit: `8fec74d` - "refactor: move benchmarks to crates/codebuddy-bench (Phase 3)"
+  - ✅ Package name automatically updated: `benchmarks` → `codebuddy-bench`
+  - ✅ Workspace members automatically updated in root Cargo.toml
+  - ✅ Path dependencies automatically updated: `../crates/*` → `../../crates/*`
+  - ✅ Documentation references updated (3 files, 8 references)
 
 ### ❌ Phase 4: Split Integration Tests (NOT STARTED)
 - ❌ Create `crates/test-support/` crate structure
