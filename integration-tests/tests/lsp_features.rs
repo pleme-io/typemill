@@ -25,6 +25,7 @@
 
 mod lsp_feature_runners;
 
+use futures::future::join_all;
 use integration_tests::harness::test_fixtures::*;
 use lsp_feature_runners::*;
 
@@ -34,29 +35,20 @@ use lsp_feature_runners::*;
 
 #[tokio::test]
 async fn test_go_to_definition_mock() {
-    for (idx, case) in GO_TO_DEFINITION_TESTS.iter().enumerate() {
-        println!(
-            "Running mock go-to-definition test {}/{} for language: {}",
-            idx + 1,
-            GO_TO_DEFINITION_TESTS.len(),
-            case.language_id
-        );
-        run_go_to_definition_test(case, false).await;
-    }
+    let futures = GO_TO_DEFINITION_TESTS
+        .iter()
+        .map(|case| run_go_to_definition_test(case, false));
+    join_all(futures).await;
 }
 
 #[tokio::test]
 #[ignore] // Requires LSP servers to be installed
+#[cfg(feature = "lsp-tests")]
 async fn test_go_to_definition_real() {
-    for (idx, case) in GO_TO_DEFINITION_TESTS.iter().enumerate() {
-        println!(
-            "Running real go-to-definition test {}/{} for language: {}",
-            idx + 1,
-            GO_TO_DEFINITION_TESTS.len(),
-            case.language_id
-        );
-        run_go_to_definition_test(case, true).await;
-    }
+    let futures = GO_TO_DEFINITION_TESTS
+        .iter()
+        .map(|case| run_go_to_definition_test(case, true));
+    join_all(futures).await;
 }
 
 // =============================================================================
@@ -65,29 +57,20 @@ async fn test_go_to_definition_real() {
 
 #[tokio::test]
 async fn test_find_references_mock() {
-    for (idx, case) in FIND_REFERENCES_TESTS.iter().enumerate() {
-        println!(
-            "Running mock find-references test {}/{} for language: {}",
-            idx + 1,
-            FIND_REFERENCES_TESTS.len(),
-            case.language_id
-        );
-        run_find_references_test(case, false).await;
-    }
+    let futures = FIND_REFERENCES_TESTS
+        .iter()
+        .map(|case| run_find_references_test(case, false));
+    join_all(futures).await;
 }
 
 #[tokio::test]
 #[ignore] // Requires LSP servers to be installed
+#[cfg(feature = "lsp-tests")]
 async fn test_find_references_real() {
-    for (idx, case) in FIND_REFERENCES_TESTS.iter().enumerate() {
-        println!(
-            "Running real find-references test {}/{} for language: {}",
-            idx + 1,
-            FIND_REFERENCES_TESTS.len(),
-            case.language_id
-        );
-        run_find_references_test(case, true).await;
-    }
+    let futures = FIND_REFERENCES_TESTS
+        .iter()
+        .map(|case| run_find_references_test(case, true));
+    join_all(futures).await;
 }
 
 // =============================================================================
@@ -96,29 +79,16 @@ async fn test_find_references_real() {
 
 #[tokio::test]
 async fn test_hover_mock() {
-    for (idx, case) in HOVER_TESTS.iter().enumerate() {
-        println!(
-            "Running mock hover test {}/{} for language: {}",
-            idx + 1,
-            HOVER_TESTS.len(),
-            case.language_id
-        );
-        run_hover_test(case, false).await;
-    }
+    let futures = HOVER_TESTS.iter().map(|case| run_hover_test(case, false));
+    join_all(futures).await;
 }
 
 #[tokio::test]
 #[ignore] // Requires LSP servers to be installed
+#[cfg(feature = "lsp-tests")]
 async fn test_hover_real() {
-    for (idx, case) in HOVER_TESTS.iter().enumerate() {
-        println!(
-            "Running real hover test {}/{} for language: {}",
-            idx + 1,
-            HOVER_TESTS.len(),
-            case.language_id
-        );
-        run_hover_test(case, true).await;
-    }
+    let futures = HOVER_TESTS.iter().map(|case| run_hover_test(case, true));
+    join_all(futures).await;
 }
 
 // =============================================================================
@@ -127,29 +97,20 @@ async fn test_hover_real() {
 
 #[tokio::test]
 async fn test_document_symbols_mock() {
-    for (idx, case) in DOCUMENT_SYMBOLS_TESTS.iter().enumerate() {
-        println!(
-            "Running mock document-symbols test {}/{} for language: {}",
-            idx + 1,
-            DOCUMENT_SYMBOLS_TESTS.len(),
-            case.language_id
-        );
-        run_document_symbols_test(case, false).await;
-    }
+    let futures = DOCUMENT_SYMBOLS_TESTS
+        .iter()
+        .map(|case| run_document_symbols_test(case, false));
+    join_all(futures).await;
 }
 
 #[tokio::test]
 #[ignore] // Requires LSP servers to be installed
+#[cfg(feature = "lsp-tests")]
 async fn test_document_symbols_real() {
-    for (idx, case) in DOCUMENT_SYMBOLS_TESTS.iter().enumerate() {
-        println!(
-            "Running real document-symbols test {}/{} for language: {}",
-            idx + 1,
-            DOCUMENT_SYMBOLS_TESTS.len(),
-            case.language_id
-        );
-        run_document_symbols_test(case, true).await;
-    }
+    let futures = DOCUMENT_SYMBOLS_TESTS
+        .iter()
+        .map(|case| run_document_symbols_test(case, true));
+    join_all(futures).await;
 }
 
 // =============================================================================
@@ -158,29 +119,20 @@ async fn test_document_symbols_real() {
 
 #[tokio::test]
 async fn test_workspace_symbols_mock() {
-    for (idx, case) in WORKSPACE_SYMBOLS_TESTS.iter().enumerate() {
-        println!(
-            "Running mock workspace-symbols test {}/{} for language: {}",
-            idx + 1,
-            WORKSPACE_SYMBOLS_TESTS.len(),
-            case.language_id
-        );
-        run_workspace_symbols_test(case, false).await;
-    }
+    let futures = WORKSPACE_SYMBOLS_TESTS
+        .iter()
+        .map(|case| run_workspace_symbols_test(case, false));
+    join_all(futures).await;
 }
 
 #[tokio::test]
 #[ignore] // Requires LSP servers to be installed
+#[cfg(feature = "lsp-tests")]
 async fn test_workspace_symbols_real() {
-    for (idx, case) in WORKSPACE_SYMBOLS_TESTS.iter().enumerate() {
-        println!(
-            "Running real workspace-symbols test {}/{} for language: {}",
-            idx + 1,
-            WORKSPACE_SYMBOLS_TESTS.len(),
-            case.language_id
-        );
-        run_workspace_symbols_test(case, true).await;
-    }
+    let futures = WORKSPACE_SYMBOLS_TESTS
+        .iter()
+        .map(|case| run_workspace_symbols_test(case, true));
+    join_all(futures).await;
 }
 
 // =============================================================================
@@ -189,29 +141,20 @@ async fn test_workspace_symbols_real() {
 
 #[tokio::test]
 async fn test_completion_mock() {
-    for (idx, case) in COMPLETION_TESTS.iter().enumerate() {
-        println!(
-            "Running mock completion test {}/{} for language: {}",
-            idx + 1,
-            COMPLETION_TESTS.len(),
-            case.language_id
-        );
-        run_completion_test(case, false).await;
-    }
+    let futures = COMPLETION_TESTS
+        .iter()
+        .map(|case| run_completion_test(case, false));
+    join_all(futures).await;
 }
 
 #[tokio::test]
 #[ignore] // Requires LSP servers to be installed
+#[cfg(feature = "lsp-tests")]
 async fn test_completion_real() {
-    for (idx, case) in COMPLETION_TESTS.iter().enumerate() {
-        println!(
-            "Running real completion test {}/{} for language: {}",
-            idx + 1,
-            COMPLETION_TESTS.len(),
-            case.language_id
-        );
-        run_completion_test(case, true).await;
-    }
+    let futures = COMPLETION_TESTS
+        .iter()
+        .map(|case| run_completion_test(case, true));
+    join_all(futures).await;
 }
 
 // =============================================================================
@@ -220,49 +163,28 @@ async fn test_completion_real() {
 
 #[tokio::test]
 async fn test_rename_mock() {
-    for (idx, case) in RENAME_TESTS.iter().enumerate() {
-        println!(
-            "Running mock rename test {}/{} for language: {}",
-            idx + 1,
-            RENAME_TESTS.len(),
-            case.language_id
-        );
-        run_rename_test(case, false).await;
-    }
+    let futures = RENAME_TESTS.iter().map(|case| run_rename_test(case, false));
+    join_all(futures).await;
 }
 
 #[tokio::test]
 #[ignore] // Requires LSP servers to be installed
+#[cfg(feature = "lsp-tests")]
 async fn test_rename_real() {
-    for (idx, case) in RENAME_TESTS.iter().enumerate() {
-        println!(
-            "Running real rename test {}/{} for language: {}",
-            idx + 1,
-            RENAME_TESTS.len(),
-            case.language_id
-        );
-        run_rename_test(case, true).await;
-    }
+    let futures = RENAME_TESTS.iter().map(|case| run_rename_test(case, true));
+    join_all(futures).await;
 }
 
 // =============================================================================
 // LSP Compliance Suite
 // =============================================================================
 
-use integration_tests::harness::test_fixtures::LSP_COMPLIANCE_TESTS;
-
 #[tokio::test]
 #[ignore] // Requires real LSP servers to be installed
+#[cfg(feature = "lsp-tests")]
 async fn test_lsp_compliance_suite() {
-    for (idx, case) in LSP_COMPLIANCE_TESTS.iter().enumerate() {
-        println!(
-            "Running LSP compliance test {}/{}: Lang: {}, Feature: {}",
-            idx + 1,
-            LSP_COMPLIANCE_TESTS.len(),
-            case.language_id,
-            case.feature_name
-        );
-        // Note: This runner doesn't have a mock mode, it always uses a real LSP server.
-        run_lsp_compliance_test(case).await;
-    }
+    let futures = LSP_COMPLIANCE_TESTS
+        .iter()
+        .map(|case| run_lsp_compliance_test(case));
+    join_all(futures).await;
 }

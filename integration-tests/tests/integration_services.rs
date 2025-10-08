@@ -8,7 +8,6 @@
 //! instantiate service components and test their integration.
 
 use cb_ast::AstCache;
-use cb_core::model::IntentSpec;
 use cb_plugins::PluginManager;
 use cb_protocol::AstService;
 use cb_server::handlers::AppState;
@@ -27,8 +26,6 @@ struct TestProject {
     pub root: PathBuf,
     /// Temporary directory handle (kept alive for cleanup)
     pub _temp_dir: TempDir,
-    /// Path to utils.ts file
-    pub utils_file: PathBuf,
     /// Path to main.ts file
     pub main_file: PathBuf,
 }
@@ -43,9 +40,9 @@ fn setup_test_project() -> std::io::Result<TestProject> {
     fs::create_dir_all(&src_dir)?;
 
     // Create utils.ts with exportable function
-    let utils_file = src_dir.join("utils.ts");
+    let _utils_file = src_dir.join("utils.ts");
     fs::write(
-        &utils_file,
+        &_utils_file,
         r#"// Utility functions module
 export const oldName = () => {
     return "Hello from oldName function!";
@@ -127,7 +124,6 @@ export { main, oldName };
     Ok(TestProject {
         root,
         _temp_dir: temp_dir,
-        utils_file,
         main_file,
     })
 }

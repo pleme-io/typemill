@@ -5,6 +5,7 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 #[tokio::test]
+#[cfg(feature = "heavy-tests")]
 async fn test_large_file_performance() {
     let workspace = TestWorkspace::new();
     workspace.setup_lsp_config();
@@ -107,6 +108,7 @@ async fn test_large_file_performance() {
 }
 
 #[tokio::test]
+#[cfg(feature = "heavy-tests")]
 #[ignore = "TypeScript LSP workspace/symbol requires tsconfig.json or didOpen notifications"]
 async fn test_many_small_files_performance() {
     let workspace = TestWorkspace::new();
@@ -225,6 +227,7 @@ export function process{}(data: Data{}): string {{
 }
 
 #[tokio::test]
+#[cfg(feature = "heavy-tests")]
 async fn test_rapid_operations_performance() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
@@ -342,6 +345,7 @@ export class RapidClass{} {{
 }
 
 #[tokio::test]
+#[cfg(feature = "heavy-tests")]
 async fn test_workspace_edit_performance() {
     let workspace = TestWorkspace::new();
     workspace.setup_lsp_config();
@@ -527,6 +531,7 @@ const oldConstant{} = "old_value_{}";
 }
 
 #[tokio::test]
+#[cfg(feature = "heavy-tests")]
 async fn test_memory_usage_large_operations() {
     let workspace = TestWorkspace::new();
     workspace.setup_lsp_config();
@@ -629,6 +634,7 @@ async fn test_memory_usage_large_operations() {
 }
 
 #[tokio::test]
+#[cfg(feature = "heavy-tests")]
 async fn test_lsp_performance_complex_project() {
     let workspace = TestWorkspace::new();
     workspace.setup_lsp_config();
@@ -889,6 +895,7 @@ export class UserService{} {{
 }
 
 #[tokio::test]
+#[cfg(feature = "heavy-tests")]
 async fn test_stress_test_rapid_operations() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());

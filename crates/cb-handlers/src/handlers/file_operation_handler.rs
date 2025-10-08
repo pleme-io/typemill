@@ -173,7 +173,7 @@ impl FileOperationHandler {
         let result = context
             .app_state
             .file_service
-            .rename_file_with_imports(Path::new(old_path), Path::new(new_path), dry_run)
+            .rename_file_with_imports(Path::new(old_path), Path::new(new_path), dry_run, None)
             .await?;
 
         wrap_dry_run_result(result)

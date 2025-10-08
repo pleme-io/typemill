@@ -177,6 +177,7 @@ impl ToolHandler for AdvancedHandler {
                                         &PathBuf::from(&old_path),
                                         &PathBuf::from(&new_path),
                                         true,
+                                        None,
                                     )
                                     .await
                                     .map(|dry_result| dry_result.result)

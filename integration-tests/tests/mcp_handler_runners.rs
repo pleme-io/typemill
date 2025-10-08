@@ -1097,7 +1097,7 @@ pub async fn run_rename_file_test(case: &RenameFileTestCase, use_real_mcp: bool)
         let result = app_state
             .file_service
             .rename_file_with_imports(
-                &old_path, &new_path, false, // dry_run
+                &old_path, &new_path, false, None, // dry_run
             )
             .await;
 
