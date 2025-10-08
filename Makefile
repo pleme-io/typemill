@@ -1,7 +1,7 @@
 # CodeBuddy Makefile
 # Simple build automation for common development tasks
 
-.PHONY: build release test install uninstall clean setup help clippy fmt audit check check-duplicates dev watch ci
+.PHONY: build release test install uninstall clean setup help clippy fmt audit check check-duplicates dev watch ci build-parsers check-parser-deps
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -106,6 +106,39 @@ watch: dev
 ci: test check
 	@echo "✅ All CI checks passed"
 
+# Build all external language parsers that require a separate build step
+build-parsers:
+	@echo "🔨 Building external language parsers..."
+	@if [ -f "crates/cb-lang-java/resources/java-parser/pom.xml" ]; then \
+		echo "  → Building Java parser..."; \
+		(cd crates/cb-lang-java/resources/java-parser && mvn -q package) && echo "  ✅ Java parser built." || echo "  ⚠️  Java parser build failed."; \
+	else \
+		echo "  ⏭  Skipping Java parser (not found)."; \
+	fi
+	@if [ -d "crates/cb-lang-csharp/resources/csharp-parser" ]; then \
+		echo "  → Building C# parser..."; \
+		(cd crates/cb-lang-csharp/resources/csharp-parser && dotnet publish -c Release -r linux-x64 --self-contained > /dev/null) && echo "  ✅ C# parser built." || echo "  ⚠️  C# parser build failed."; \
+	else \
+		echo "  ⏭  Skipping C# parser (not found)."; \
+	fi
+	@if [ -f "crates/cb-lang-typescript/resources/package.json" ]; then \
+		echo "  → Installing TypeScript parser dependencies..."; \
+		(cd crates/cb-lang-typescript/resources && npm install > /dev/null 2>&1) && echo "  ✅ TypeScript dependencies installed." || echo "  ⚠️  TypeScript dependencies installation failed."; \
+	else \
+		echo "  ⏭  Skipping TypeScript parser (not found)."; \
+	fi
+	@echo "✨ Parser build complete."
+
+# Check for external dependencies required to build parsers
+check-parser-deps:
+	@echo "🔍 Checking for external parser build dependencies..."
+	@command -v mvn >/dev/null 2>&1 && echo "  ✅ Maven (Java parser)" || echo "  ❌ Maven not found (needed for Java parser)"
+	@command -v java >/dev/null 2>&1 && echo "  ✅ Java" || echo "  ❌ Java not found (needed for Java parser)"
+	@command -v dotnet >/dev/null 2>&1 && echo "  ✅ .NET SDK (C# parser)" || echo "  ❌ .NET SDK not found (needed for C# parser)"
+	@command -v node >/dev/null 2>&1 && echo "  ✅ Node.js (TypeScript parser)" || echo "  ✅ Node.js" || echo "  ❌ Node.js not found (needed for TypeScript parser)"
+	@command -v sourcekitten >/dev/null 2>&1 && echo "  ✅ SourceKitten (Swift parser - optional)" || echo "  ⚠️  SourceKitten not found (optional for Swift)"
+	@echo "✅ Dependency check complete."
+
 # Show available commands
 help:
 	@echo "CodeBuddy - Available Commands"
@@ -130,6 +163,10 @@ help:
 	@echo "  make check    - Run fmt + clippy + test + audit"
 	@echo "  make check-duplicates - Detect duplicate code & complexity"
 	@echo "  make ci       - Run all CI checks (for CI/CD)"
+	@echo ""
+	@echo "🔧 Language Parsers:"
+	@echo "  make build-parsers     - Build all external language parsers"
+	@echo "  make check-parser-deps - Check parser build dependencies"
 	@echo ""
 	@echo "💡 Quick Start:"
 	@echo "  make setup    # First time only - install dev tools"

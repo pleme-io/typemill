@@ -22,6 +22,50 @@ Language-specific plugins for Codebuddy, implementing the `LanguagePlugin` trait
 
 ---
 
+## ⏱️ Feature Implementation Complexity
+
+Understanding the scope of work before you start is crucial. Use this matrix to estimate the effort and coordination required for different features.
+
+| Feature | Time Estimate | System Changes? | Prerequisites | Status |
+|---------|---------------|-----------------|---------------|--------|
+| **Basic Parsing** | 1-2 hours | ❌ No | Language runtime (for parser) | Required |
+| **Manifest Parsing** | 1-2 hours | ❌ No | - | Required |
+| **ImportSupport** | 2-4 hours | ❌ No | Trait exists | Optional |
+| **WorkspaceSupport** | 2-4 hours | ❌ No | Trait exists | Optional |
+| **RefactoringSupport** | 8-16 hours | ⚠️ **Maybe** | May need trait creation | Optional |
+
+### What "System Changes" Means
+
+- **No**: You can implement the feature entirely within your plugin's crate.
+- **Maybe**: The feature may require creating a new trait or modifying core components in `cb-plugin-api` or `cb-ast`. This requires coordination with the core team.
+
+### Before Implementing Advanced Features
+
+If you plan to implement `RefactoringSupport` or a similar new, cross-cutting feature:
+1. **Check if a trait already exists.**
+2. If not, **create a GitHub issue** to discuss the design of the new trait.
+3. **Do not proceed without design approval**, as this affects all language plugins.
+
+---
+
+## ⚠️ Common Pitfalls
+
+When developing a new language plugin, you may encounter the following common issues.
+
+### 1. Workspace Dependency Errors
+- **Problem**: Your plugin's `Cargo.toml` uses `tempfile = { workspace = true }`, but `tempfile` is not defined as a workspace dependency in the root `Cargo.toml`. The build will fail with an unhelpful message.
+- **Solution**: If you add a dependency manually, ensure it either exists in the root `Cargo.toml`'s `[workspace.dependencies]` table or specify a version directly in your plugin's `Cargo.toml` (e.g., `tempfile = "3.10.0"`).
+
+### 2. External Parser Build Failures
+- **Problem**: Your local build fails because a parser for another language (e.g., Java's `.jar` file) is missing.
+- **Solution**: Run `make build-parsers` from the root directory to build all required external parser artifacts. For detailed setup for each language, see the Language Plugin Prerequisites documentation.
+
+### 3. Non-Exhaustive Match Errors
+- **Problem**: After adding your new language to `languages.toml`, the build fails with a "non-exhaustive pattern" error in a seemingly unrelated crate like `cb-ast`.
+- **Solution**: The `ProjectLanguage` enum is used in `match` statements in several places. You must find these `match` statements and add a case for your new language. A global search for `ProjectLanguage::` should reveal the locations that need updating.
+
+---
+
 ## 🏗️ Architecture Overview
 
 ### Plugin System
@@ -29,11 +73,13 @@ Language-specific plugins for Codebuddy, implementing the `LanguagePlugin` trait
 Each language plugin is a separate Rust crate implementing the `LanguagePlugin` trait from `cb-plugin-api`:
 
 ```
-crates/languages/
+crates/
 ├── cb-lang-common/       # Shared utilities (~460 LOC saved per plugin)
 ├── cb-lang-go/           # Go language plugin
+├── cb-lang-java/         # Java language plugin
 ├── cb-lang-python/       # Python language plugin
 ├── cb-lang-rust/         # Rust language plugin
+├── cb-lang-swift/        # Swift language plugin
 ├── cb-lang-typescript/   # TypeScript/JavaScript plugin
 └── cb-plugin-api/        # Core traits and types
 ```
@@ -61,17 +107,11 @@ pub trait LanguagePlugin: Send + Sync {
 
 ### New Plugin Development
 
-Use the automated scaffolding script:
+Use the automated scaffolding script (when available):
 
 ```bash
-cd crates/languages
-./new-lang.sh java
-
-# This creates:
-# - crates/cb-lang-java/
-# - src/lib.rs (skeleton implementation)
-# - Cargo.toml
-# - tests/
+# Script location: scripts/new-lang.sh (to be created)
+# Creates plugin structure in crates/cb-lang-<name>/
 ```
 
 Then follow the **[PLUGIN_DEVELOPMENT_GUIDE.md](PLUGIN_DEVELOPMENT_GUIDE.md)** for step-by-step implementation.
