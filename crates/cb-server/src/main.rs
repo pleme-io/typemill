@@ -1,6 +1,6 @@
 //! cb-server main binary
 
-use cb_core::{config::LogFormat, AppConfig};
+use cb_core::AppConfig;
 use clap::{Parser, Subcommand};
 use std::sync::Arc;
 
@@ -29,7 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Arc::new(AppConfig::load()?);
 
     // Initialize tracing based on configuration
-    initialize_tracing(&config);
+    cb_core::logging::initialize(&config);
 
     tracing::info!("Starting Codeflow Buddy Server");
 
@@ -100,51 +100,3 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// Initialize tracing based on configuration
-fn initialize_tracing(config: &AppConfig) {
-    use tracing_subscriber::{fmt, prelude::*};
-
-    // Parse log level from config
-    let log_level = match config.logging.level.to_lowercase().as_str() {
-        "trace" => tracing::Level::TRACE,
-        "debug" => tracing::Level::DEBUG,
-        "info" => tracing::Level::INFO,
-        "warn" => tracing::Level::WARN,
-        "error" => tracing::Level::ERROR,
-        _ => {
-            eprintln!(
-                "Invalid log level '{}', falling back to INFO",
-                config.logging.level
-            );
-            tracing::Level::INFO
-        }
-    };
-
-    // Create env filter with configured level and allow env overrides (RUST_LOG takes precedence)
-    let env_filter =
-        tracing_subscriber::EnvFilter::from_default_env().add_directive(log_level.into());
-
-    // Use configured format
-    // IMPORTANT: Always write logs to stderr to keep stdout clean for JSON-RPC messages
-    match config.logging.format {
-        LogFormat::Json => {
-            // Use JSON formatter for structured logging
-            tracing_subscriber::registry()
-                .with(env_filter)
-                .with(
-                    fmt::layer()
-                        .with_ansi(false)
-                        .compact()
-                        .with_writer(std::io::stderr),
-                )
-                .init();
-        }
-        LogFormat::Pretty => {
-            // Use pretty (human-readable) formatter
-            tracing_subscriber::registry()
-                .with(env_filter)
-                .with(fmt::layer().pretty().with_writer(std::io::stderr))
-                .init();
-        }
-    }
-}

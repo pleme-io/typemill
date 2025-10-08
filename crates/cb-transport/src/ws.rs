@@ -191,8 +191,12 @@ async fn handle_connection(
         match msg {
             Ok(Message::Text(text)) => {
                 let request_id = uuid::Uuid::new_v4();
+
+                // Create request span for automatic context propagation
+                let span = cb_core::logging::request_span(&request_id.to_string(), "websocket");
+                let _enter = span.enter();
+
                 tracing::debug!(
-                    request_id = %request_id,
                     message_size = text.len(),
                     "Received message"
                 );
