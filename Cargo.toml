@@ -52,6 +52,10 @@ uuid = { version = "1.0", features = ["v4"] }
 dashmap = "5.5"
 futures = "0.3"
 
+# Note: Multiple versions of hashbrown, bitflags, dirs, and getrandom exist
+# due to transitive dependencies from upstream crates (dashmap, lsp-types, swc_*, etc.)
+# These cannot be consolidated without upstream updates
+
 # Language plugins
 cb-lang-rust = { path = "crates/cb-lang-rust" }
 cb-lang-go = { path = "crates/cb-lang-go" }

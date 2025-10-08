@@ -8,6 +8,9 @@
 // Prevent technical debt accumulation
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
+// Allow unwrap/expect in tests - tests should panic on failure
+#![cfg_attr(test, allow(clippy::unwrap_used))]
+#![cfg_attr(test, allow(clippy::expect_used))]
 
 pub mod client_config;
 pub mod commands;
@@ -624,6 +627,6 @@ mod tests {
     fn test_version_info() {
         let version = version_info();
         assert!(version.contains("cb-client"));
-        assert!(version.contains("1.0.0-beta"));
+        assert!(version.contains("1.0.1-beta"));
     }
 }

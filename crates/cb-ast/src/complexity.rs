@@ -1381,8 +1381,6 @@ function validate(data: any): boolean {
 
     #[test]
     fn test_aggregate_class_complexity_python() {
-        use cb_plugin_api::SourceLocation;
-
         // Create sample function complexities
         let functions = vec![
             FunctionComplexity {

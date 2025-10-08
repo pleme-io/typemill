@@ -626,7 +626,6 @@ pub async fn plan_extract_module_to_package_with_registry(
 mod tests {
     use super::*;
     use cb_lang_rust::RustPlugin;
-    use cb_plugin_api::LanguagePlugin;
     use cb_protocol::EditType;
     use std::fs;
     use std::sync::Arc;

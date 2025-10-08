@@ -247,13 +247,6 @@ pub fn run_ast_tool_raw(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde::Deserialize;
-
-    #[derive(Debug, Deserialize, PartialEq)]
-    struct TestOutput {
-        message: String,
-    }
-
     #[test]
     fn test_subprocess_tool_builder() {
         let tool = SubprocessAstTool::new("python3")

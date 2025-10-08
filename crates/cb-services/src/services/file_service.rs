@@ -3234,7 +3234,7 @@ mod tests {
     #[tokio::test]
     async fn test_create_and_read_file() {
         let temp_dir = TempDir::new().unwrap();
-        let (service, queue) = create_test_service(&temp_dir);
+        let (service, _queue) = create_test_service(&temp_dir);
 
         let file_path = Path::new("test.txt");
         let content = "Hello, World!";
@@ -3256,7 +3256,7 @@ mod tests {
     #[tokio::test]
     async fn test_rename_file() {
         let temp_dir = TempDir::new().unwrap();
-        let (service, queue) = create_test_service(&temp_dir);
+        let (service, _queue) = create_test_service(&temp_dir);
 
         // Create initial file
         let old_path = Path::new("old.txt");
@@ -3283,7 +3283,7 @@ mod tests {
     #[tokio::test]
     async fn test_delete_file() {
         let temp_dir = TempDir::new().unwrap();
-        let (service, queue) = create_test_service(&temp_dir);
+        let (service, _queue) = create_test_service(&temp_dir);
 
         let file_path = Path::new("to_delete.txt");
 
@@ -3305,7 +3305,7 @@ mod tests {
         use cb_protocol::{DependencyUpdateType, EditLocation, EditType};
 
         let temp_dir = TempDir::new().unwrap();
-        let (service, queue) = create_test_service(&temp_dir);
+        let (service, _queue) = create_test_service(&temp_dir);
 
         // Create test files
         let main_file = "main.ts";
@@ -3384,7 +3384,7 @@ mod tests {
         use cb_protocol::{DependencyUpdateType, EditLocation, EditType};
 
         let temp_dir = TempDir::new().unwrap();
-        let (service, queue) = create_test_service(&temp_dir);
+        let (service, _queue) = create_test_service(&temp_dir);
 
         // Create test files with specific content
         let main_file = "main.ts";
@@ -3459,7 +3459,7 @@ mod tests {
         use cb_protocol::{DependencyUpdateType, EditLocation, EditType};
 
         let temp_dir = TempDir::new().unwrap();
-        let (service, queue) = create_test_service(&temp_dir);
+        let (service, _queue) = create_test_service(&temp_dir);
 
         // Create main file
         let main_file = "main.ts";
@@ -3537,7 +3537,7 @@ mod tests {
         use cb_protocol::{DependencyUpdateType, EditLocation, EditType};
 
         let temp_dir = TempDir::new().unwrap();
-        let (service, queue) = create_test_service(&temp_dir);
+        let (service, _queue) = create_test_service(&temp_dir);
 
         // Create multiple files
         let main_file = "main.ts";
@@ -3775,7 +3775,7 @@ members = [
         let new_crate_dir = project_root.join("crates/my-renamed-crate");
 
         // Setup FileService
-        let (service, queue) = create_test_service(&temp_dir);
+        let (service, _queue) = create_test_service(&temp_dir);
 
         // Run the update
         service

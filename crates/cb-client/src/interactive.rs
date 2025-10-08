@@ -382,14 +382,14 @@ mod tests {
 
     #[test]
     fn test_interactive_creation() {
-        let interactive = Interactive::new();
+        let _interactive = Interactive::new();
         assert!(true); // Just ensure it can be created
     }
 
     #[test]
     fn test_formatter_integration() {
         let formatter = Formatter::with_settings(false, false);
-        let interactive = Interactive::with_formatter(formatter);
+        let _interactive = Interactive::with_formatter(formatter);
         assert!(true); // Just ensure it can be created with custom formatter
     }
 

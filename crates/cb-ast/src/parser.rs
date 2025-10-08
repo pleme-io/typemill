@@ -421,7 +421,6 @@ fn find_cycles_dfs(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
     // TypeScript/JavaScript import parsing tests have been moved to cb-lang-typescript plugin tests
     // Python import parsing tests have been moved to cb-lang-python plugin tests
     #[test]
