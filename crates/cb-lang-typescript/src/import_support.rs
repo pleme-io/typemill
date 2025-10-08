@@ -89,51 +89,9 @@ impl ImportSupport for TypeScriptImportSupport {
         old_path: &Path,
         new_path: &Path,
     ) -> (String, usize) {
-        // Calculate relative import paths
-        // For now, we'll use a simplified approach
-        // In a real implementation, we'd need the importing file's path
-
-        let old_import = path_to_import_string(old_path);
-        let new_import = path_to_import_string(new_path);
-
-        if old_import == new_import {
-            return (content.to_string(), 0);
-        }
-
-        let mut new_content = content.to_string();
-        let mut changes = 0;
-
-        // ES6 imports: from 'old_path'
-        let es6_pattern = format!(r#"from\s+['"]{}['"]"#, regex::escape(&old_import));
-        if let Ok(re) = regex::Regex::new(&es6_pattern) {
-            let replaced = re.replace_all(&new_content, format!(r#"from "{}""#, new_import));
-            if replaced != new_content {
-                new_content = replaced.to_string();
-                changes += 1;
-            }
-        }
-
-        // CommonJS require: require('old_path')
-        let require_pattern = format!(r#"require\s*\(\s*['"]{}['"]\s*\)"#, regex::escape(&old_import));
-        if let Ok(re) = regex::Regex::new(&require_pattern) {
-            let replaced = re.replace_all(&new_content, format!(r#"require("{}")"#, new_import));
-            if replaced != new_content {
-                new_content = replaced.to_string();
-                changes += 1;
-            }
-        }
-
-        // Dynamic import: import('old_path')
-        let dynamic_pattern = format!(r#"import\s*\(\s*['"]{}['"]\s*\)"#, regex::escape(&old_import));
-        if let Ok(re) = regex::Regex::new(&dynamic_pattern) {
-            let replaced = re.replace_all(&new_content, format!(r#"import("{}")"#, new_import));
-            if replaced != new_content {
-                new_content = replaced.to_string();
-                changes += 1;
-            }
-        }
-
-        (new_content, changes)
+        // Legacy method - delegates to context-aware version with default importing_file
+        // Note: This won't work correctly without knowing the importing file's location
+        rewrite_imports_for_move_with_context(content, old_path, new_path, old_path)
     }
 
     fn contains_import(&self, content: &str, module: &str) -> bool {
@@ -259,30 +217,134 @@ fn parse_imports_simple(content: &str) -> Vec<String> {
     imports
 }
 
-/// Convert a file path to an import string
-fn path_to_import_string(path: &Path) -> String {
-    let path_str = path.to_string_lossy();
+/// Rewrite imports when a file is moved, with full context
+/// This is a standalone function that can be used without the ImportSupport trait
+pub fn rewrite_imports_for_move_with_context(
+    content: &str,
+    old_path: &Path,
+    new_path: &Path,
+    importing_file: &Path,
+) -> (String, usize) {
+    // Calculate relative import paths FROM the importing file
+    let old_import = calculate_relative_import(importing_file, old_path);
+    let new_import = calculate_relative_import(importing_file, new_path);
 
-    // Remove file extensions
-    let without_ext = path_str
-        .trim_end_matches(".ts")
-        .trim_end_matches(".tsx")
-        .trim_end_matches(".js")
-        .trim_end_matches(".jsx")
-        .trim_end_matches(".mjs")
-        .trim_end_matches(".cjs");
-
-    // If it starts with ./ or ../, keep it
-    // Otherwise, make it relative
-    if without_ext.starts_with("./") || without_ext.starts_with("../") {
-        without_ext.to_string()
-    } else if without_ext.starts_with('/') {
-        // Absolute path - convert to relative
-        format!("./{}", without_ext.trim_start_matches('/'))
-    } else {
-        // Assume it's a package name
-        without_ext.to_string()
+    if old_import == new_import {
+        return (content.to_string(), 0);
     }
+
+    let mut new_content = content.to_string();
+    let mut changes = 0;
+
+    // ES6 imports: from 'old_path' or "old_path"
+    // Preserve the original quote style
+    for quote_char in &['\'', '"'] {
+        let es6_pattern = format!(r#"from\s+{}{}{}"#, quote_char, regex::escape(&old_import), quote_char);
+        if let Ok(re) = regex::Regex::new(&es6_pattern) {
+            let replacement = format!(r#"from {}{}{}"#, quote_char, new_import, quote_char);
+            let replaced = re.replace_all(&new_content, replacement.as_str());
+            if replaced != new_content {
+                new_content = replaced.to_string();
+                changes += 1;
+            }
+        }
+    }
+
+    // CommonJS require: require('old_path') or require("old_path")
+    // Preserve the original quote style
+    for quote_char in &['\'', '"'] {
+        let require_pattern = format!(r#"require\s*\(\s*{}{}{}\s*\)"#, quote_char, regex::escape(&old_import), quote_char);
+        if let Ok(re) = regex::Regex::new(&require_pattern) {
+            let replacement = format!(r#"require({}{}{})"#, quote_char, new_import, quote_char);
+            let replaced = re.replace_all(&new_content, replacement.as_str());
+            if replaced != new_content {
+                new_content = replaced.to_string();
+                changes += 1;
+            }
+        }
+    }
+
+    // Dynamic import: import('old_path') or import("old_path")
+    // Preserve the original quote style
+    for quote_char in &['\'', '"'] {
+        let dynamic_pattern = format!(r#"import\s*\(\s*{}{}{}\s*\)"#, quote_char, regex::escape(&old_import), quote_char);
+        if let Ok(re) = regex::Regex::new(&dynamic_pattern) {
+            let replacement = format!(r#"import({}{}{})"#, quote_char, new_import, quote_char);
+            let replaced = re.replace_all(&new_content, replacement.as_str());
+            if replaced != new_content {
+                new_content = replaced.to_string();
+                changes += 1;
+            }
+        }
+    }
+
+    (new_content, changes)
+}
+
+/// Convert a file path to an import string
+/// Calculate relative import path from importing_file to target_file
+/// Returns a string like "./helper" or "../utils/helper"
+fn calculate_relative_import(importing_file: &Path, target_file: &Path) -> String {
+    // Get parent directories
+    let from_dir = importing_file.parent().unwrap_or(Path::new(""));
+    let to_file = target_file;
+
+    // Try to compute relative path
+    let relative = if let (Ok(from), Ok(to)) = (from_dir.canonicalize(), to_file.canonicalize()) {
+        pathdiff::diff_paths(to, from).unwrap_or_else(|| to_file.to_path_buf())
+    } else {
+        // Fallback: manually compute relative path
+        let from_components: Vec<_> = from_dir.components().collect();
+        let to_components: Vec<_> = to_file.components().collect();
+
+        // Find common prefix
+        let mut common = 0;
+        for (a, b) in from_components.iter().zip(to_components.iter()) {
+            if a == b {
+                common += 1;
+            } else {
+                break;
+            }
+        }
+
+        // Build relative path
+        let mut result = std::path::PathBuf::new();
+
+        // Add ../ for each directory we need to go up
+        for _ in common..from_components.len() {
+            result.push("..");
+        }
+
+        // Add the remaining path components from target
+        for component in &to_components[common..] {
+            result.push(component);
+        }
+
+        if result.as_os_str().is_empty() {
+            to_file.to_path_buf()
+        } else {
+            result
+        }
+    };
+
+    // Convert to string and remove file extension
+    let mut import_str = relative.to_string_lossy().to_string();
+
+    // Remove common file extensions
+    for ext in &[".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"] {
+        if import_str.ends_with(ext) {
+            import_str = import_str[..import_str.len() - ext.len()].to_string();
+            break;
+        }
+    }
+
+    // Ensure it starts with ./ if it's a relative path in the same directory
+    if !import_str.starts_with("./") && !import_str.starts_with("../") && !import_str.starts_with('/') {
+        import_str = format!("./{}", import_str);
+    }
+
+    // Normalize path separators to forward slashes for imports
+    import_str.replace('\\', "/")
 }
 
 #[cfg(test)]

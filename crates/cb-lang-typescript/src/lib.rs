@@ -214,15 +214,17 @@ impl TypeScriptPlugin {
         content: &str,
         old_path: &Path,
         new_path: &Path,
-        _importing_file: &Path,
+        importing_file: &Path,
         _project_root: &Path,
         _rename_info: Option<&serde_json::Value>,
     ) -> PluginResult<(String, usize)> {
-        if let Some(import_support) = self.import_support() {
-            Ok(import_support.rewrite_imports_for_move(content, old_path, new_path))
-        } else {
-            Ok((content.to_string(), 0))
-        }
+        // Use the standalone function with full context
+        Ok(import_support::rewrite_imports_for_move_with_context(
+            content,
+            old_path,
+            new_path,
+            importing_file,
+        ))
     }
 }
 #[cfg(test)]

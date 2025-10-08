@@ -1,7 +1,7 @@
 # Codebuddy MCP Tools API Reference
 
-**Version:** 1.0.0-rc1
-**Last Updated:** 2025-10-04
+**Version:** 1.0.0-rc3
+**Last Updated:** 2025-10-08
 
 Your complete guide to all MCP tools available in Codebuddy. Use this reference to understand parameters, return types, and see practical examples for each tool.
 

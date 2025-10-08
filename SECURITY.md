@@ -12,7 +12,7 @@
 We take security seriously. If you discover a security vulnerability in Codebuddy, please report it privately:
 
 1. **DO NOT** open a public GitHub issue
-2. Email the maintainers at: [your-security-email@example.com]
+2. Email security issues to: security@goobits.com
 3. Include:
    - Description of the vulnerability
    - Steps to reproduce

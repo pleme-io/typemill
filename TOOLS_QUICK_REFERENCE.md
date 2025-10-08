@@ -4,8 +4,8 @@
 **Format:** Tool name → Parameters → Returns (no examples or details)
 **For detailed documentation:** See [API_REFERENCE.md](API_REFERENCE.md)
 
-**Version:** 1.0.0-rc1
-**Last Updated:** 2025-10-04
+**Version:** 1.0.0-rc3
+**Last Updated:** 2025-10-08
 
 ---
 

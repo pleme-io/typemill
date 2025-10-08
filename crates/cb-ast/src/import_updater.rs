@@ -459,13 +459,31 @@ pub async fn update_imports_for_rename(
 ) -> AstResult<cb_protocol::EditPlan> {
     let resolver = ImportPathResolver::new(project_root);
 
+    debug!(
+        plugins_count = plugins.len(),
+        old_path = ?old_path,
+        new_path = ?new_path,
+        project_root = ?project_root,
+        "Starting update_imports_for_rename"
+    );
+
     // Find all files that the plugins handle
     let project_files = find_project_files(project_root, plugins).await?;
+
+    debug!(
+        project_files_count = project_files.len(),
+        "Found project files"
+    );
 
     // Find files that import the renamed file
     let mut affected_files = resolver
         .find_affected_files(old_path, &project_files)
         .await?;
+
+    debug!(
+        affected_files_count = affected_files.len(),
+        "Found affected files that import the renamed file"
+    );
 
     // If scan_scope is provided, use enhanced scanning to find additional references
     if let Some(scope) = scan_scope {

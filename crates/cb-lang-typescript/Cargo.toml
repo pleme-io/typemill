@@ -23,6 +23,7 @@ serde_json = { workspace = true }
 regex = "1.10"
 chrono = { version = "0.4", features = ["serde"] }
 tempfile = "3.10"
+pathdiff = "0.2"
 
 # Error handling
 thiserror = { workspace = true }
