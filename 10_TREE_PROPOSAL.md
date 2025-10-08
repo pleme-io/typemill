@@ -132,8 +132,8 @@ This is a comprehensive tool validation exercise that will test:
 
 ### ❌ Phase 4: Split Integration Tests (NOT STARTED)
 - ❌ Create `crates/test-support/` crate structure
-- ❌ Move `integration-tests/src/harness` → `crates/test-support/src/harness`
-- ❌ Move `integration-tests/fixtures` → `crates/test-support/fixtures`
+- ❌ Move `crates/test-support/src/harness` → `crates/test-support/src/harness`
+- ❌ Move `crates/test-support/fixtures` → `crates/test-support/fixtures`
 - ❌ Move `integration-tests/tests` → `apps/codebuddy/tests`
 - ❌ Move helper files to test-support
 - ❌ Update `apps/codebuddy/Cargo.toml` (add test-support dev-dependency)
@@ -337,8 +337,8 @@ rename_directory: crates/cb-bench → crates/cb-bench
 **MCP Tool**: `rename_directory` (move test utilities)
 
 ```bash
-rename_directory: integration-tests/src/harness → crates/test-support/src/harness
-rename_directory: integration-tests/fixtures → crates/test-support/fixtures
+rename_directory: crates/test-support/src/harness → crates/test-support/src/harness
+rename_directory: crates/test-support/fixtures → crates/test-support/fixtures
 rename_directory: integration-tests/tests → apps/codebuddy/tests
 ```
 

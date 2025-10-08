@@ -14,6 +14,7 @@ cb-server = { path = "../crates/cb-server", features = ["test-helpers"] }
 cb-client = { path = "../crates/cb-client" }
 cb-plugins = { path = "../crates/cb-plugins" }
 cb-handlers = { path = "../crates/cb-handlers" }
+test-support = { path = "../crates/test-support" }
 tokio = { workspace = true }
 async-trait = { workspace = true }
 mockall = { workspace = true }

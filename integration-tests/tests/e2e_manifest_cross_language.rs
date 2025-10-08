@@ -1,4 +1,4 @@
-//! Cross-Language Manifest Update Integration Tests
+use integration_tests :: harness :: { TestClient , TestWorkspace } ;
 //!
 //! This module tests update_dependency tool across all supported languages
 //! with their respective manifest formats:

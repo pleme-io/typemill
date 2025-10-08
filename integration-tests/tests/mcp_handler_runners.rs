@@ -1,11 +1,11 @@
-//! Generic test runners for MCP file operation handlers
+use integration_tests :: harness :: mcp_fixtures :: * ;
 //!
 //! This module contains the actual test logic for each MCP file operation.
 //! Each runner function is parameterized to accept a fixture struct,
 //! making them reusable across multiple test scenarios.
 
-use cb_ast::AstCache;
-use cb_plugins::PluginManager;
+use integration_tests :: harness :: mcp_fixtures :: * ;
+use integration_tests :: harness :: { TestClient , TestWorkspace } ;
 use cb_protocol::AstService;
 use cb_server::handlers::AppState;
 use cb_server::services::{DefaultAstService, FileService, LockManager, OperationQueue};

@@ -1,4 +1,4 @@
-//! Resilience and advanced workflow tests for Rust MCP server
+use crate :: harness :: { create_typescript_project , TestClient , TestWorkspace } ;
 //! These tests validate error handling, crash recovery, and complex multi-step workflows
 
 use crate::harness::{create_typescript_project, TestClient, TestWorkspace};

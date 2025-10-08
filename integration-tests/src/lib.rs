@@ -6,9 +6,7 @@
 //! plugin system operations, LSP integration, and performance validation.
 //! The testing framework validates both correctness and performance characteristics.
 
-pub mod harness;
-pub mod helpers;
-pub mod mocks;
+pub use test_support::{harness, helpers, mocks};
 
 #[cfg(test)]
 pub mod dry_run_integration;

@@ -1,4 +1,4 @@
-use integration_tests::harness::{TestClient, TestWorkspace};
+use integration_tests :: harness :: { TestClient , TestWorkspace } ;
 use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;

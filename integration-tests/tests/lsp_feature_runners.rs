@@ -1,6 +1,6 @@
 //! Generic test runners for LSP features
-//!
-//! This module contains the actual test logic for each LSP feature.
+use integration_tests :: harness :: test_fixtures :: * ;
+use integration_tests :: harness :: LspTestBuilder ;
 //! Each runner function is parameterized to accept a fixture struct,
 //! making them reusable across multiple languages.
 
@@ -9,7 +9,7 @@ use integration_tests::harness::test_fixtures::*;
 use integration_tests::harness::LspTestBuilder;
 use serde_json::json;
 
-/// Run a "go to definition" test with the given test case
+use integration_tests :: harness :: test_fixtures :: { LspComplianceBehavior , LspComplianceTestCase } ;
 pub async fn run_go_to_definition_test(case: &GoToDefinitionTestCase, use_real_lsp: bool) {
     let mut builder = LspTestBuilder::new(case.language_id);
     if use_real_lsp {

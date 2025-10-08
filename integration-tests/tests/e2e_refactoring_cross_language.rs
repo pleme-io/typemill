@@ -1,4 +1,4 @@
-//! Cross-Language Refactoring Integration Tests
+use integration_tests :: harness :: { ExpectedBehavior , Language , RefactoringScenarios , TestClient , TestWorkspace , } ;
 //!
 //! This module contains parameterized tests that run the SAME logical refactoring
 //! operation across ALL supported programming languages (Python, TypeScript, Rust, Go).

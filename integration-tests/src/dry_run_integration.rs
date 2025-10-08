@@ -1,4 +1,4 @@
-//! Integration tests for dry_run functionality across all file-modifying tools
+use crate :: harness :: { TestClient , TestWorkspace } ;
 //!
 //! This test suite ensures that when dry_run=true is specified, no actual
 //! file system modifications occur. This is critical for safety and user trust.

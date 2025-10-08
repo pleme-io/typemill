@@ -1,4 +1,4 @@
-//! End-to-End Tests for Analysis Features
+use integration_tests :: harness :: { discover_plugins_with_fixtures , plugin_language_name , TestClient , TestWorkspace , } ;
 //!
 //! This module tests analysis tools like find_dead_code with real LSP integration.
 //! Unlike the data-driven tests in mcp_file_operations.rs, these tests focus on

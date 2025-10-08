@@ -1,4 +1,4 @@
-//! End-to-end integration tests for git-aware file operations
+use integration_tests :: harness :: TestClient ;
 //!
 //! These tests verify that file operations correctly use `git mv` and `git rm`
 //! when the project is a git repository and git integration is enabled in config.

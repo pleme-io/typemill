@@ -19,7 +19,10 @@ members = [
     "crates/cb-lang-rust",
     "crates/cb-lang-typescript",
     "apps/codebuddy",
-    "integration-tests", "crates/cb-lang-swift", "crates/cb-bench",
+    "integration-tests",
+    "crates/cb-lang-swift",
+    "crates/cb-bench",
+    "crates/test-support",
 ]
 resolver = "2"
 
@@ -51,6 +54,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 
 # Testing
 mockall = "0.13"
+tempfile = "3.8"
 
 # Utilities
 uuid = { version = "1.0", features = ["v4"] }

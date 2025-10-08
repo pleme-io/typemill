@@ -1,6 +1,6 @@
 //! End-to-end server lifecycle tests
 //!
-//! Tests server startup, shutdown, configuration, and transport layer functionality.
+use integration_tests :: harness :: { TestClient , TestWorkspace } ;
 //! Combines tests from e2e_flow.rs and e2e_transport.rs into a unified server lifecycle suite.
 
 use cb_core::AppConfig;

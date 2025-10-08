@@ -1,4 +1,4 @@
-use integration_tests::harness::{TestClient, TestWorkspace, LspSetupHelper};
+use integration_tests :: harness :: { TestClient , TestWorkspace , LspSetupHelper } ;
 use serde_json::json;
 
 #[tokio::test]

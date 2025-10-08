@@ -1,5 +1,5 @@
 //! Data-Driven MCP File Operation Tests
-//!
+use integration_tests :: harness :: mcp_fixtures :: * ;
 //! This module provides comprehensive tests for MCP file operation handlers.
 //! Tests are split into mock tests (fast, using FileService directly) and real tests
 //! (marked with #[ignore], using TestClient and MCP protocol).

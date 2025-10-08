@@ -1,4 +1,4 @@
-//! End-to-end integration tests for Rust package consolidation feature
+use integration_tests :: harness :: { TestClient , TestWorkspace } ;
 //!
 //! Tests the complete workflow of consolidating one Rust crate into another,
 //! including file moving, dependency merging, workspace updates, and import rewriting.

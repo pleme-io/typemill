@@ -1,0 +1,23 @@
+[package]
+name = "test-support"
+version = "1.0.0-rc3"
+edition = "2021"
+publish = false
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }
+async-trait = { workspace = true }
+uuid = { workspace = true }
+mockall = { workspace = true }
+once_cell = "1.19"
+shellexpand = "3.1"
+chrono = { version = "0.4", features = ["serde"] }
+
+# Internal dependencies
+cb-core = { path = "../cb-core" }
+cb-protocol = { path = "../cb-protocol" }
+cb-plugin-api = { path = "../cb-plugin-api" }
+cb-handlers = { path = "../cb-handlers" }

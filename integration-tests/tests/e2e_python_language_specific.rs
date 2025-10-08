@@ -1,4 +1,4 @@
-//! Python Language-Specific Integration Tests
+use integration_tests :: harness :: { TestClient , TestWorkspace } ;
 //!
 //! This module contains Python-specific tests that CANNOT be parameterized
 //! across all languages because they test unique Python features or integrations.

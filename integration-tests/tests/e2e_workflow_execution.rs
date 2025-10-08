@@ -1,4 +1,4 @@
-//! End-to-End Tests for Workflow Execution
+use integration_tests :: harness :: { TestClient , TestWorkspace } ;
 //!
 //! This module tests the workflow executor and planner, which orchestrate
 //! complex multi-step operations based on intent specifications.

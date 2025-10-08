@@ -1,6 +1,6 @@
 //! Data-Driven LSP Feature Tests
 //!
-//! This module provides comprehensive tests for LSP features across multiple languages.
+use integration_tests :: harness :: test_fixtures :: * ;
 //! Tests are split into mock tests (fast, no dependencies) and real tests (marked with #[ignore]).
 //!
 //! ## Architecture
