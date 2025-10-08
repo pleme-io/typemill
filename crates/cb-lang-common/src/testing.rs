@@ -18,9 +18,7 @@ use tempfile::{NamedTempFile, TempDir};
 /// // Use file.path() in tests
 /// ```
 pub async fn create_temp_manifest(content: &str, filename: &str) -> std::io::Result<NamedTempFile> {
-    let mut file = tempfile::Builder::new()
-        .suffix(filename)
-        .tempfile()?;
+    let mut file = tempfile::Builder::new().suffix(filename).tempfile()?;
 
     file.write_all(content.as_bytes())?;
     file.flush()?;
@@ -142,8 +140,7 @@ macro_rules! assert_plugin_err {
 /// Create a simple test source file
 pub fn create_test_source(language: &str) -> String {
     match language {
-        "rust" => {
-            r#"
+        "rust" => r#"
 /// A test function
 fn test_function() {
     println!("Hello");
@@ -153,10 +150,8 @@ struct TestStruct {
     field: i32,
 }
 "#
-            .to_string()
-        }
-        "python" => {
-            r#"
+        .to_string(),
+        "python" => r#"
 def test_function():
     """A test function"""
     print("Hello")
@@ -164,10 +159,8 @@ def test_function():
 class TestClass:
     pass
 "#
-            .to_string()
-        }
-        "typescript" | "javascript" => {
-            r#"
+        .to_string(),
+        "typescript" | "javascript" => r#"
 /**
  * A test function
  */
@@ -178,10 +171,8 @@ function testFunction() {
 class TestClass {
 }
 "#
-            .to_string()
-        }
-        "go" => {
-            r#"
+        .to_string(),
+        "go" => r#"
 package main
 
 // testFunction is a test function
@@ -193,8 +184,7 @@ type TestStruct struct {
     Field int
 }
 "#
-            .to_string()
-        }
+        .to_string(),
         _ => "// Generic test source".to_string(),
     }
 }
@@ -281,10 +271,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_temp_project() {
-        let files = vec![
-            ("src/main.rs", "fn main() {}"),
-            ("Cargo.toml", "[package]"),
-        ];
+        let files = vec![("src/main.rs", "fn main() {}"), ("Cargo.toml", "[package]")];
 
         let dir = create_temp_project(&files).await.unwrap();
 

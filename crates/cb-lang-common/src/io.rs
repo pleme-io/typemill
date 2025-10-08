@@ -21,11 +21,7 @@ pub async fn read_manifest(path: &Path) -> PluginResult<String> {
     debug!(path = %path.display(), "Reading manifest file");
 
     fs::read_to_string(path).await.map_err(|e| {
-        PluginError::manifest(format!(
-            "Failed to read manifest {}: {}",
-            path.display(),
-            e
-        ))
+        PluginError::manifest(format!("Failed to read manifest {}: {}", path.display(), e))
     })
 }
 
@@ -70,13 +66,16 @@ pub async fn find_source_files(dir: &Path, extensions: &[&str]) -> PluginResult<
             ))
         })?;
 
-        while let Some(entry) = entries.next_entry().await.map_err(|e| {
-            PluginError::internal(format!("Failed to read entry: {}", e))
-        })? {
+        while let Some(entry) = entries
+            .next_entry()
+            .await
+            .map_err(|e| PluginError::internal(format!("Failed to read entry: {}", e)))?
+        {
             let path = entry.path();
-            let metadata = entry.metadata().await.map_err(|e| {
-                PluginError::internal(format!("Failed to get metadata: {}", e))
-            })?;
+            let metadata = entry
+                .metadata()
+                .await
+                .map_err(|e| PluginError::internal(format!("Failed to get metadata: {}", e)))?;
 
             if metadata.is_dir() {
                 queue.push(path);
@@ -193,9 +192,7 @@ mod tests {
         let manifest_path = temp_dir.path().join("Cargo.toml");
 
         let mut file = File::create(&manifest_path).await.unwrap();
-        file.write_all(b"[package]\nname = \"test\"")
-            .await
-            .unwrap();
+        file.write_all(b"[package]\nname = \"test\"").await.unwrap();
         file.flush().await.unwrap();
         drop(file); // Ensure file is closed
 
@@ -214,17 +211,13 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
 
         // Create test files
-        File::create(temp_dir.path().join("main.rs"))
-            .await
-            .unwrap();
+        File::create(temp_dir.path().join("main.rs")).await.unwrap();
         File::create(temp_dir.path().join("lib.rs")).await.unwrap();
         File::create(temp_dir.path().join("readme.md"))
             .await
             .unwrap();
 
-        let files = find_source_files(temp_dir.path(), &["rs"])
-            .await
-            .unwrap();
+        let files = find_source_files(temp_dir.path(), &["rs"]).await.unwrap();
 
         assert_eq!(files.len(), 2);
         assert!(files.iter().all(|p| p.extension().unwrap() == "rs"));
@@ -265,10 +258,8 @@ mod tests {
 
     #[test]
     fn test_normalize_module_path() {
-        let normalized = normalize_module_path(
-            Path::new("/project/src/main.rs"),
-            Path::new("/project"),
-        );
+        let normalized =
+            normalize_module_path(Path::new("/project/src/main.rs"), Path::new("/project"));
         assert_eq!(normalized, "src/main.rs");
     }
 }

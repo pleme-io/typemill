@@ -4,6 +4,9 @@
 //! synchronous methods for parsing, analyzing, and rewriting import statements.
 
 use cb_plugin_api::import_support::ImportSupport;
+use cb_lang_common::import_helpers::{
+    find_last_matching_line, insert_line_at, remove_lines_matching,
+};
 use std::path::Path;
 use tracing::debug;
 
@@ -126,24 +129,16 @@ impl ImportSupport for RustImportSupport {
         debug!(module = %module, "Adding import to Rust code");
 
         // Find the position after the last import statement
-        let lines: Vec<&str> = content.lines().collect();
-        let mut last_import_idx = None;
-
-        for (idx, line) in lines.iter().enumerate() {
-            let trimmed = line.trim();
-            if trimmed.starts_with("use ") {
-                last_import_idx = Some(idx);
-            }
-        }
+        let last_import_idx = find_last_matching_line(content, |line| {
+            line.trim().starts_with("use ")
+        });
 
         // Build the new import statement
         let import_stmt = format!("use {};", module);
 
         if let Some(idx) = last_import_idx {
-            // Insert after the last import
-            let mut new_lines = lines.clone();
-            new_lines.insert(idx + 1, &import_stmt);
-            new_lines.join("\n")
+            // Insert after the last import (idx + 1)
+            insert_line_at(content, idx + 1, &import_stmt)
         } else {
             // No existing imports, add at the top
             if content.is_empty() {
@@ -157,29 +152,27 @@ impl ImportSupport for RustImportSupport {
     fn remove_import(&self, content: &str, module: &str) -> String {
         debug!(module = %module, "Removing import from Rust code");
 
-        let lines: Vec<&str> = content.lines().collect();
-        let mut result_lines = Vec::new();
-
-        for line in lines {
+        // Remove all lines that are use statements matching the module
+        let (result, removed_count) = remove_lines_matching(content, |line| {
             let trimmed = line.trim();
 
-            // Skip lines that are use statements matching the module
+            // Check if this is a use statement containing our module
             if trimmed.starts_with("use ") && trimmed.contains(module) {
                 // Try to parse to ensure it's really this module
                 if let Ok(item_use) = syn::parse_str::<syn::ItemUse>(trimmed) {
                     // Check if this use statement references our module
                     let use_tree_str = quote::quote!(#item_use.tree).to_string();
                     if use_tree_str.contains(module) {
-                        debug!(line = %line, "Removing import line");
-                        continue; // Skip this line
+                        return true; // Remove this line
                     }
                 }
             }
 
-            result_lines.push(line);
-        }
+            false // Keep this line
+        });
 
-        result_lines.join("\n")
+        debug!(removed = removed_count, "Removed import lines");
+        result
     }
 }
 

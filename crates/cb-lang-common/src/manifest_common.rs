@@ -25,9 +25,7 @@ impl TomlWorkspace {
             if let Some(members_item) = workspace.get_mut("members") {
                 if let Some(members) = members_item.as_array_mut() {
                     // Check if member already exists
-                    let member_exists = members
-                        .iter()
-                        .any(|v| v.as_str() == Some(member));
+                    let member_exists = members.iter().any(|v| v.as_str() == Some(member));
 
                     if !member_exists {
                         members.push(member);
@@ -50,9 +48,7 @@ impl TomlWorkspace {
                 if let Some(workspace) = poetry.get_mut("workspace") {
                     if let Some(members_item) = workspace.get_mut("members") {
                         if let Some(members) = members_item.as_array_mut() {
-                            let member_exists = members
-                                .iter()
-                                .any(|v| v.as_str() == Some(member));
+                            let member_exists = members.iter().any(|v| v.as_str() == Some(member));
 
                             if !member_exists {
                                 members.push(member);
@@ -280,7 +276,10 @@ impl JsonWorkspace {
         let mut json: JsonValue = serde_json::from_str(content)
             .map_err(|e| PluginError::parse(format!("Failed to parse JSON: {}", e)))?;
 
-        if let Some(workspaces) = json.as_object_mut().and_then(|obj| obj.get_mut("workspaces")) {
+        if let Some(workspaces) = json
+            .as_object_mut()
+            .and_then(|obj| obj.get_mut("workspaces"))
+        {
             match workspaces {
                 JsonValue::Array(arr) => {
                     arr.retain(|v| v.as_str() != Some(member));

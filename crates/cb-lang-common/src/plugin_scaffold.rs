@@ -368,11 +368,7 @@ cargo test -p cb-lang-{lang_lower}
             self.entry_point,
             self.module_separator,
             if self.has_import_support { "x" } else { " " },
-            if self.has_workspace_support {
-                "x"
-            } else {
-                " "
-            },
+            if self.has_workspace_support { "x" } else { " " },
         )
     }
 }

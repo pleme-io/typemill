@@ -5,10 +5,10 @@
 //! `sourcekitten` to be installed in the environment.
 
 use cb_lang_common::ErrorBuilder;
-use cb_plugin_api::{Symbol, SymbolKind, SourceLocation, ParsedSource, PluginResult};
+use cb_plugin_api::{ParsedSource, PluginResult, SourceLocation, Symbol, SymbolKind};
 use serde::Deserialize;
-use std::process::Command;
 use std::io::Write;
+use std::process::Command;
 use tempfile::NamedTempFile;
 use tracing::{debug, warn};
 
@@ -41,7 +41,8 @@ fn map_kind(kind_str: &str) -> Option<SymbolKind> {
         "source.lang.swift.decl.enum" => Some(SymbolKind::Enum),
         "source.lang.swift.decl.protocol" => Some(SymbolKind::Interface),
         "source.lang.swift.decl.var.global" => Some(SymbolKind::Variable),
-        "source.lang.swift.decl.function.method.instance" | "source.lang.swift.decl.function.method.static" => Some(SymbolKind::Method),
+        "source.lang.swift.decl.function.method.instance"
+        | "source.lang.swift.decl.function.method.static" => Some(SymbolKind::Method),
         _ => None,
     }
 }
@@ -49,7 +50,8 @@ fn map_kind(kind_str: &str) -> Option<SymbolKind> {
 /// Recursively traverses the SourceKitten AST to extract symbols.
 fn extract_symbols_from_nodes(nodes: &[SourceKittenNode], symbols: &mut Vec<Symbol>) {
     for node in nodes {
-        if let (Some(kind), Some(name), Some(line)) = (map_kind(&node.kind), &node.name, node.line) {
+        if let (Some(kind), Some(name), Some(line)) = (map_kind(&node.kind), &node.name, node.line)
+        {
             symbols.push(Symbol {
                 name: name.clone(),
                 kind,
@@ -89,10 +91,9 @@ pub fn parse_source(source: &str) -> PluginResult<ParsedSource> {
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(ErrorBuilder::parse(format!(
-            "`sourcekitten` failed with error: {}",
-            stderr
-        )).build());
+        return Err(
+            ErrorBuilder::parse(format!("`sourcekitten` failed with error: {}", stderr)).build(),
+        );
     }
 
     let structure: SourceKittenStructure = serde_json::from_slice(&output.stdout).map_err(|e| {
@@ -140,7 +141,11 @@ mod tests {
         let result = parse_source(source).unwrap();
         assert_eq!(result.symbols.len(), 4);
 
-        let global_func = result.symbols.iter().find(|s| s.name == "globalFunction").unwrap();
+        let global_func = result
+            .symbols
+            .iter()
+            .find(|s| s.name == "globalFunction")
+            .unwrap();
         assert_eq!(global_func.kind, SymbolKind::Function);
         assert_eq!(global_func.location.line, 2);
 
@@ -148,11 +153,19 @@ mod tests {
         assert_eq!(my_class.kind, SymbolKind::Class);
         assert_eq!(my_class.location.line, 3);
 
-        let nested_struct = result.symbols.iter().find(|s| s.name == "NestedStruct").unwrap();
+        let nested_struct = result
+            .symbols
+            .iter()
+            .find(|s| s.name == "NestedStruct")
+            .unwrap();
         assert_eq!(nested_struct.kind, SymbolKind::Struct);
         assert_eq!(nested_struct.location.line, 4);
 
-        let my_method = result.symbols.iter().find(|s| s.name == "myMethod").unwrap();
+        let my_method = result
+            .symbols
+            .iter()
+            .find(|s| s.name == "myMethod")
+            .unwrap();
         assert_eq!(my_method.kind, SymbolKind::Method);
         assert_eq!(my_method.location.line, 5);
     }

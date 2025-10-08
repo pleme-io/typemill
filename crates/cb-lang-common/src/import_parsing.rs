@@ -4,8 +4,6 @@
 //! Does NOT contain language-specific regex patterns - those should be in
 //! individual language plugins.
 
-use regex::Regex;
-
 /// Parse "name as alias" pattern common across many languages
 ///
 /// This pattern appears in:
@@ -33,128 +31,6 @@ pub fn parse_import_alias(text: &str) -> (String, Option<String>) {
         (name.trim().to_string(), Some(alias.trim().to_string()))
     } else {
         (text.to_string(), None)
-    }
-}
-
-/// Split comma-separated import list into individual items with aliases
-///
-/// Handles patterns like:
-/// - `foo, bar, baz`
-/// - `foo as f, bar, baz as b`
-/// - `{ foo, bar as b }` (strips braces)
-///
-/// # Example
-///
-/// ```rust
-/// use cb_lang_common::import_parsing::split_import_list;
-///
-/// let items = split_import_list("foo, bar as b, baz");
-/// assert_eq!(items.len(), 3);
-/// assert_eq!(items[0], ("foo".to_string(), None));
-/// assert_eq!(items[1], ("bar".to_string(), Some("b".to_string())));
-/// assert_eq!(items[2], ("baz".to_string(), None));
-/// ```
-pub fn split_import_list(text: &str) -> Vec<(String, Option<String>)> {
-    let text = text.trim();
-
-    // Remove surrounding braces if present
-    let text = text
-        .strip_prefix('{')
-        .and_then(|s| s.strip_suffix('}'))
-        .unwrap_or(text)
-        .trim();
-
-    // Split by comma and parse each item
-    text.split(',')
-        .map(|item| parse_import_alias(item.trim()))
-        .filter(|(name, _)| !name.is_empty())
-        .collect()
-}
-
-/// Detector for external vs internal dependencies
-///
-/// Configurable patterns for detecting whether an import path refers to
-/// an external dependency (from a package manager) or an internal module
-/// (relative/workspace import).
-///
-/// # Example
-///
-/// ```rust
-/// use cb_lang_common::import_parsing::ExternalDependencyDetector;
-///
-/// let detector = ExternalDependencyDetector::new()
-///     .with_relative_prefix("./")
-///     .with_relative_prefix("../")
-///     .with_internal_pattern(r"^@/");
-///
-/// assert!(!detector.is_external("./utils/helpers"));
-/// assert!(!detector.is_external("../shared/config"));
-/// assert!(!detector.is_external("@/components/Button"));
-/// assert!(detector.is_external("react"));
-/// assert!(detector.is_external("@types/node"));
-/// ```
-pub struct ExternalDependencyDetector {
-    relative_prefixes: Vec<String>,
-    internal_patterns: Vec<Regex>,
-}
-
-impl ExternalDependencyDetector {
-    /// Create a new detector with no patterns
-    pub fn new() -> Self {
-        Self {
-            relative_prefixes: Vec::new(),
-            internal_patterns: Vec::new(),
-        }
-    }
-
-    /// Add a relative path prefix (e.g., "./", "../")
-    pub fn with_relative_prefix(mut self, prefix: impl Into<String>) -> Self {
-        self.relative_prefixes.push(prefix.into());
-        self
-    }
-
-    /// Add an internal module pattern (regex)
-    ///
-    /// Use this for workspace-specific patterns like `@/` for path aliases.
-    pub fn with_internal_pattern(mut self, pattern: &str) -> Self {
-        if let Ok(regex) = Regex::new(pattern) {
-            self.internal_patterns.push(regex);
-        }
-        self
-    }
-
-    /// Check if a module path is an external dependency
-    ///
-    /// Returns `false` if the path matches any relative prefix or internal pattern,
-    /// `true` otherwise.
-    pub fn is_external(&self, path: &str) -> bool {
-        // Check for relative imports
-        for prefix in &self.relative_prefixes {
-            if path.starts_with(prefix) {
-                return false;
-            }
-        }
-
-        // Check for internal patterns
-        for pattern in &self.internal_patterns {
-            if pattern.is_match(path) {
-                return false;
-            }
-        }
-
-        // If none of the internal patterns matched, it's external
-        true
-    }
-
-    /// Check if a module path is an internal/relative import
-    pub fn is_internal(&self, path: &str) -> bool {
-        !self.is_external(path)
-    }
-}
-
-impl Default for ExternalDependencyDetector {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -201,6 +77,10 @@ pub fn extract_package_name(path: &str) -> String {
 /// Normalize import path by removing quotes and whitespace
 ///
 /// Handles various quote styles and trims whitespace.
+///
+/// **Note:** This function is planned for deprecation in favor of language-specific
+/// path normalization in each plugin. Use with caution.
+#[deprecated(since = "0.2.0", note = "Use language-specific import parsing instead")]
 pub fn normalize_import_path(path: &str) -> String {
     path.trim()
         .trim_matches('"')
@@ -214,6 +94,7 @@ pub fn normalize_import_path(path: &str) -> String {
 mod tests {
     use super::*;
 
+    #[allow(deprecated)]
     #[test]
     fn test_parse_import_alias() {
         let (name, alias) = parse_import_alias("foo as bar");
@@ -229,34 +110,7 @@ mod tests {
         assert_eq!(alias, Some("bar".to_string()));
     }
 
-    #[test]
-    fn test_split_import_list() {
-        let items = split_import_list("foo, bar as b, baz");
-        assert_eq!(items.len(), 3);
-        assert_eq!(items[0], ("foo".to_string(), None));
-        assert_eq!(items[1], ("bar".to_string(), Some("b".to_string())));
-        assert_eq!(items[2], ("baz".to_string(), None));
-
-        let items = split_import_list("{ foo, bar }");
-        assert_eq!(items.len(), 2);
-        assert_eq!(items[0], ("foo".to_string(), None));
-        assert_eq!(items[1], ("bar".to_string(), None));
-    }
-
-    #[test]
-    fn test_external_dependency_detector() {
-        let detector = ExternalDependencyDetector::new()
-            .with_relative_prefix("./")
-            .with_relative_prefix("../")
-            .with_internal_pattern(r"^@/");
-
-        assert!(!detector.is_external("./utils/helpers"));
-        assert!(!detector.is_external("../shared/config"));
-        assert!(!detector.is_external("@/components/Button"));
-        assert!(detector.is_external("react"));
-        assert!(detector.is_external("@types/node"));
-    }
-
+    #[allow(deprecated)]
     #[test]
     fn test_extract_package_name() {
         assert_eq!(extract_package_name("@types/node"), "@types/node");
@@ -273,6 +127,7 @@ mod tests {
         );
     }
 
+    #[allow(deprecated)]
     #[test]
     fn test_normalize_import_path() {
         assert_eq!(normalize_import_path("\"./foo\""), "./foo");

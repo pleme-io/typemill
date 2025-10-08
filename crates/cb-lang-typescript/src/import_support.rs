@@ -3,6 +3,9 @@
 //! Provides synchronous import parsing, analysis, and rewriting capabilities
 //! for TypeScript and JavaScript source code.
 
+use cb_lang_common::import_helpers::{
+    find_last_matching_line, insert_line_at, remove_lines_matching,
+};
 use cb_plugin_api::import_support::ImportSupport;
 use std::path::Path;
 use tracing::{debug, warn};
@@ -120,31 +123,18 @@ impl ImportSupport for TypeScriptImportSupport {
             return content.to_string();
         }
 
-        // Find the last import statement
-        let lines: Vec<&str> = content.lines().collect();
-        let mut last_import_idx = None;
-
-        for (idx, line) in lines.iter().enumerate() {
+        // Find the last import statement using primitive
+        let last_import_idx = find_last_matching_line(content, |line| {
             let trimmed = line.trim();
-            if trimmed.starts_with("import ") || trimmed.starts_with("const ") && trimmed.contains("require(") {
-                last_import_idx = Some(idx);
-            } else if !trimmed.is_empty() && !trimmed.starts_with("//") && !trimmed.starts_with("/*") {
-                // Stop at first non-import, non-comment line
-                if last_import_idx.is_some() {
-                    break;
-                }
-            }
-        }
+            trimmed.starts_with("import ") || (trimmed.starts_with("const ") && trimmed.contains("require("))
+        });
 
         let new_import = format!("import {{ }} from '{}';", module);
 
         match last_import_idx {
             Some(idx) => {
-                // Insert after the last import
-                let mut new_lines = lines[..=idx].to_vec();
-                new_lines.push(&new_import);
-                new_lines.extend_from_slice(&lines[idx + 1..]);
-                new_lines.join("\n")
+                // Insert after the last import using primitive
+                insert_line_at(content, idx + 1, &new_import)
             }
             None => {
                 // No imports found, add at the beginning
@@ -154,12 +144,10 @@ impl ImportSupport for TypeScriptImportSupport {
     }
 
     fn remove_import(&self, content: &str, module: &str) -> String {
-        let lines: Vec<&str> = content.lines().collect();
-        let mut result = Vec::new();
-
-        for line in lines {
+        // Use primitive to remove all lines that import the specified module
+        let (new_content, _count) = remove_lines_matching(content, |line| {
             // Check if this line imports the specified module
-            let should_remove = if let Some(_pos) = line.find(module) {
+            if let Some(_pos) = line.find(module) {
                 // Verify it's actually an import statement
                 let trimmed = line.trim();
                 (trimmed.starts_with("import ") && trimmed.contains(&format!("'{}'", module)))
@@ -168,14 +156,10 @@ impl ImportSupport for TypeScriptImportSupport {
                     || (trimmed.contains("require(") && trimmed.contains(&format!("\"{}\"", module)))
             } else {
                 false
-            };
-
-            if !should_remove {
-                result.push(line);
             }
-        }
+        });
 
-        result.join("\n")
+        new_content
     }
 }
 

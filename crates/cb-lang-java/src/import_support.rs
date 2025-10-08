@@ -1,11 +1,9 @@
 //! Java import support using AST-based JavaParser tool
 
+use cb_lang_common::subprocess::{run_ast_tool_raw, SubprocessAstTool};
 use cb_plugin_api::ImportSupport;
 use serde::Deserialize;
 use std::path::Path;
-use std::process::{Command, Stdio};
-use std::io::Write;
-use tempfile::Builder;
 use tracing::{debug, warn};
 
 /// Embedded JavaParser JAR
@@ -28,46 +26,20 @@ impl JavaImportSupport {
 
     /// Run JavaParser command and return output
     fn run_parser_command(&self, command: &str, source: &str, args: &[&str]) -> Result<String, String> {
-        // Create temp directory
-        let tmp_dir = Builder::new()
-            .prefix("codebuddy-java-parser")
-            .tempdir()
-            .map_err(|e| format!("Failed to create temp dir: {}", e))?;
+        // Build tool configuration
+        let mut tool = SubprocessAstTool::new("java")
+            .with_embedded_bytes(JAVA_PARSER_JAR)
+            .with_temp_filename("java-parser.jar")
+            .with_temp_prefix("codebuddy-java-parser")
+            .with_arg(command);
 
-        // Write JAR to temp file
-        let jar_path = tmp_dir.path().join("java-parser.jar");
-        std::fs::write(&jar_path, JAVA_PARSER_JAR)
-            .map_err(|e| format!("Failed to write JAR: {}", e))?;
-
-        // Build command args
-        let mut cmd_args = vec!["-jar", jar_path.to_str().unwrap(), command];
-        cmd_args.extend_from_slice(args);
-
-        // Spawn Java process
-        let mut child = Command::new("java")
-            .args(&cmd_args)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|e| format!("Failed to spawn Java: {}", e))?;
-
-        // Write source to stdin
-        if let Some(mut stdin) = child.stdin.take() {
-            stdin.write_all(source.as_bytes())
-                .map_err(|e| format!("Failed to write stdin: {}", e))?;
+        // Add additional args
+        for arg in args {
+            tool = tool.with_arg(*arg);
         }
 
-        // Get output
-        let output = child.wait_with_output()
-            .map_err(|e| format!("Failed to wait for process: {}", e))?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("JavaParser failed: {}", stderr));
-        }
-
-        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+        // Execute and return output
+        run_ast_tool_raw(tool, source).map_err(|e| e.to_string())
     }
 }
 

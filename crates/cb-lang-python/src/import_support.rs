@@ -3,6 +3,7 @@
 //! Provides synchronous import parsing, analysis, and rewriting for Python code.
 //! Implements the `ImportSupport` trait from cb-plugin-api.
 
+use cb_lang_common::import_helpers::{remove_lines_matching, replace_in_lines};
 use cb_plugin_api::import_support::ImportSupport;
 use std::path::Path;
 use tracing::debug;
@@ -55,25 +56,8 @@ impl ImportSupport for PythonImportSupport {
             "Rewriting Python imports for rename"
         );
 
-        let mut result = String::new();
-        let mut changes = 0;
-
-        for line in content.lines() {
-            let trimmed = line.trim();
-
-            // Check if this is an import line that contains the old name
-            if (trimmed.starts_with("import ") || trimmed.starts_with("from "))
-                && trimmed.contains(old_name)
-            {
-                // Simple string replacement for module names
-                let new_line = line.replace(old_name, new_name);
-                result.push_str(&new_line);
-                changes += 1;
-            } else {
-                result.push_str(line);
-            }
-            result.push('\n');
-        }
+        // Use primitive to replace all occurrences in import lines
+        let (result, changes) = replace_in_lines(content, old_name, new_name);
 
         debug!(
             changes_count = changes,
@@ -226,20 +210,16 @@ impl ImportSupport for PythonImportSupport {
     fn remove_import(&self, content: &str, module: &str) -> String {
         debug!(module = %module, "Removing import from Python content");
 
-        let mut result = String::new();
-        let mut removed = false;
-
-        for line in content.lines() {
+        // Use primitive to remove matching import lines
+        let (result, removed_count) = remove_lines_matching(content, |line| {
             let trimmed = line.trim();
-            let mut skip_line = false;
 
             // Check for "import module" or "import module as ..."
             if trimmed.starts_with("import ") {
                 let import_part = trimmed.strip_prefix("import ").unwrap_or("");
                 let module_name = import_part.split(" as ").next().unwrap_or("").trim();
                 if module_name == module {
-                    skip_line = true;
-                    removed = true;
+                    return true;
                 }
             }
 
@@ -248,19 +228,15 @@ impl ImportSupport for PythonImportSupport {
                 let from_part = trimmed.strip_prefix("from ").unwrap_or("");
                 let module_name = from_part.split(" import ").next().unwrap_or("").trim();
                 if module_name == module {
-                    skip_line = true;
-                    removed = true;
+                    return true;
                 }
             }
 
-            if !skip_line {
-                result.push_str(line);
-                result.push('\n');
-            }
-        }
+            false
+        });
 
-        if removed {
-            debug!("Import removed successfully");
+        if removed_count > 0 {
+            debug!(removed_count = removed_count, "Import removed successfully");
         } else {
             debug!("Import not found, content unchanged");
         }

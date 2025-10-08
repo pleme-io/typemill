@@ -12,11 +12,11 @@
       },
       {
         "extensions": ["py", "pyi"],
-        "command": ["/home/developer/.local/bin/pylsp"]
+        "command": ["pylsp"]
       },
       {
         "extensions": ["rs"],
-        "command": ["/home/developer/.cargo/bin/rust-analyzer"]
+        "command": ["rust-analyzer"]
       },
       {
         "extensions": ["go"],

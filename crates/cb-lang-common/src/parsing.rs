@@ -153,11 +153,7 @@ mod tests {
 
     #[test]
     fn test_parse_with_fallback_primary_succeeds() {
-        let result = parse_with_fallback(
-            || Ok::<_, String>("primary"),
-            || Ok("fallback"),
-            "test"
-        );
+        let result = parse_with_fallback(|| Ok::<_, String>("primary"), || Ok("fallback"), "test");
 
         assert_eq!(result.unwrap(), "primary");
     }
@@ -167,7 +163,7 @@ mod tests {
         let result = parse_with_fallback(
             || Err::<&str, _>("primary error"),
             || Ok("fallback"),
-            "test"
+            "test",
         );
 
         assert_eq!(result.unwrap(), "fallback");
@@ -178,7 +174,7 @@ mod tests {
         let result = parse_with_fallback(
             || Err::<&str, _>("primary error"),
             || Err("fallback error"),
-            "test"
+            "test",
         );
 
         assert!(result.is_err());
@@ -190,7 +186,7 @@ mod tests {
         let result = parse_with_optional_fallback(
             || Err::<&str, _>("primary error"),
             Some(|| Ok("fallback")),
-            "test"
+            "test",
         );
 
         assert_eq!(result.unwrap(), "fallback");
@@ -201,7 +197,7 @@ mod tests {
         let result = parse_with_optional_fallback(
             || Err::<&str, _>("primary error"),
             None::<fn() -> Result<&'static str, &'static str>>,
-            "test"
+            "test",
         );
 
         assert!(result.is_err());
@@ -216,7 +212,7 @@ mod tests {
                 Box::new(|| Ok("second")),
                 Box::new(|| Ok("third")),
             ],
-            "test"
+            "test",
         );
 
         assert_eq!(result.unwrap(), "first");
@@ -230,7 +226,7 @@ mod tests {
                 Box::new(|| Ok("second")),
                 Box::new(|| Ok("third")),
             ],
-            "test"
+            "test",
         );
 
         assert_eq!(result.unwrap(), "second");
@@ -244,7 +240,7 @@ mod tests {
                 Box::new(|| Err("second error")),
                 Box::new(|| Err("third error")),
             ],
-            "test"
+            "test",
         );
 
         assert!(result.is_err());

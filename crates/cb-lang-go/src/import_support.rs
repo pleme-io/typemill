@@ -2,6 +2,9 @@
 //!
 //! Provides synchronous import parsing, analysis, and rewriting capabilities for Go source code.
 
+use cb_lang_common::import_helpers::{
+    insert_line_at, remove_lines_matching, replace_in_lines,
+};
 use cb_plugin_api::ImportSupport;
 use std::path::Path;
 
@@ -27,34 +30,11 @@ impl ImportSupport for GoImportSupport {
         new_name: &str,
     ) -> (String, usize) {
         // Go imports are module paths, so renaming affects the import path itself
-        // We need to replace the old module path with the new one in import statements
+        // Replace quoted module paths in import statements
+        let old_quoted = format!("\"{}\"", old_name);
+        let new_quoted = format!("\"{}\"", new_name);
 
-        let mut new_content = content.to_string();
-        let mut changes = 0;
-
-        // Handle single import: import "old/path"
-        let old_single = format!("import \"{}\"", old_name);
-        let new_single = format!("import \"{}\"", new_name);
-        if new_content.contains(&old_single) {
-            new_content = new_content.replace(&old_single, &new_single);
-            changes += 1;
-        }
-
-        // Handle aliased import: import alias "old/path"
-        let old_aliased = format!("\"{}\"", old_name);
-        let new_aliased = format!("\"{}\"", new_name);
-
-        // Count and replace occurrences in import blocks
-        for line in content.lines() {
-            let trimmed = line.trim();
-            if (trimmed.starts_with("import") || trimmed.starts_with("\""))
-                && trimmed.contains(&old_aliased)
-                && !trimmed.contains(&new_aliased) {
-                    changes += 1;
-                }
-        }
-
-        new_content = new_content.replace(&old_aliased, &new_aliased);
+        let (new_content, changes) = replace_in_lines(content, &old_quoted, &new_quoted);
 
         tracing::debug!(
             old_name = %old_name,
@@ -90,20 +70,11 @@ impl ImportSupport for GoImportSupport {
             return (content.to_string(), 0);
         }
 
-        let mut new_content = content.to_string();
-        let mut changes = 0;
-
         // Replace import paths containing the old package
-        let old_import = format!("\"{}\"", old_package);
-        let new_import = format!("\"{}\"", new_package);
+        let old_quoted = format!("\"{}\"", old_package);
+        let new_quoted = format!("\"{}\"", new_package);
 
-        for line in content.lines() {
-            if line.contains("import") && line.contains(&old_import) {
-                changes += 1;
-            }
-        }
-
-        new_content = new_content.replace(&old_import, &new_import);
+        let (new_content, changes) = replace_in_lines(content, &old_quoted, &new_quoted);
 
         tracing::debug!(
             old_path = ?old_path,
@@ -139,95 +110,64 @@ impl ImportSupport for GoImportSupport {
         }
 
         let lines: Vec<&str> = content.lines().collect();
-        let mut result = String::new();
-        let mut import_added = false;
 
-        for (i, line) in lines.iter().enumerate() {
-            result.push_str(line);
-            result.push('\n');
+        // Check if there's an import block
+        let import_block_idx = lines
+            .iter()
+            .position(|line| line.trim().starts_with("import ("));
 
-            // Add after package declaration
-            if !import_added && line.trim().starts_with("package ") {
-                // Look ahead to see if there's already an import block
-                let has_import_block = lines.iter().skip(i + 1).any(|l| {
-                    let trimmed = l.trim();
-                    trimmed.starts_with("import (") || trimmed.starts_with("import \"")
-                });
-
-                if !has_import_block {
-                    // Add a new import statement
-                    result.push('\n');
-                    result.push_str(&format!("import \"{}\"\n", module));
-                    import_added = true;
-                    tracing::debug!(module = %module, "Added new import after package declaration");
-                } else {
-                    // Find the import block and add there
-                    // This will be handled in subsequent iterations
-                }
-            }
-
-            // Add to existing import block
-            if !import_added && line.trim().starts_with("import (") {
-                result.push_str(&format!("\t\"{}\"\n", module));
-                import_added = true;
-                tracing::debug!(module = %module, "Added import to existing import block");
-            }
+        if let Some(block_idx) = import_block_idx {
+            // Add to existing import block (right after "import (")
+            let new_import = format!("\t\"{}\"", module);
+            let result = insert_line_at(content, block_idx + 1, &new_import);
+            tracing::debug!(module = %module, "Added import to existing import block");
+            return result;
         }
 
-        // If we still haven't added it, append at the end (shouldn't happen in well-formed Go)
-        if !import_added {
-            result.push_str(&format!("\nimport \"{}\"\n", module));
-            tracing::debug!(module = %module, "Added import at end of file");
+        // No import block - find package declaration and add after it
+        let package_idx = lines
+            .iter()
+            .position(|line| line.trim().starts_with("package "));
+
+        if let Some(pkg_idx) = package_idx {
+            // Add new import statement after package declaration
+            let new_import = format!("\nimport \"{}\"", module);
+            let result = insert_line_at(content, pkg_idx + 1, &new_import);
+            tracing::debug!(module = %module, "Added new import after package declaration");
+            return result;
         }
 
+        // Fallback: append at end (shouldn't happen in well-formed Go)
+        let last_line_idx = if lines.is_empty() { 0 } else { lines.len() };
+        let new_import = format!("\nimport \"{}\"", module);
+        let result = insert_line_at(content, last_line_idx, &new_import);
+        tracing::debug!(module = %module, "Added import at end of file");
         result
     }
 
     fn remove_import(&self, content: &str, module: &str) -> String {
-        let lines: Vec<&str> = content.lines().collect();
-        let mut result = Vec::new();
-        let mut in_import_block = false;
-        let mut removed = false;
+        let quoted_module = format!("\"{}\"", module);
 
-        for line in lines {
+        // Remove lines that match the import pattern
+        let (result, removed_count) = remove_lines_matching(content, |line| {
             let trimmed = line.trim();
+            // Match single import: import "module"
+            // Or import within block: "module" or alias "module"
+            (trimmed.starts_with("import ") && trimmed.contains(&quoted_module))
+                || (trimmed.starts_with("\"") && trimmed.contains(&quoted_module))
+        });
 
-            // Start of import block
-            if trimmed.starts_with("import (") {
-                in_import_block = true;
-                result.push(line.to_string());
-                continue;
-            }
-
-            // End of import block
-            if in_import_block && trimmed == ")" {
-                in_import_block = false;
-                result.push(line.to_string());
-                continue;
-            }
-
-            // Single import statement
-            if trimmed.starts_with("import ") && trimmed.contains(&format!("\"{}\"", module)) {
-                removed = true;
-                tracing::debug!(module = %module, "Removed single import statement");
-                continue; // Skip this line
-            }
-
-            // Import within block
-            if in_import_block && trimmed.contains(&format!("\"{}\"", module)) {
-                removed = true;
-                tracing::debug!(module = %module, "Removed import from block");
-                continue; // Skip this line
-            }
-
-            result.push(line.to_string());
-        }
-
-        if !removed {
+        if removed_count > 0 {
+            tracing::debug!(
+                module = %module,
+                removed_count = removed_count,
+                "Removed import statement(s)"
+            );
+        } else {
             tracing::debug!(module = %module, "Import not found, content unchanged");
         }
 
-        result.join("\n")
+        result
     }
 }
 

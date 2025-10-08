@@ -47,21 +47,21 @@ pub fn detect_dependency_source(spec: &str) -> DependencySource {
         || spec.starts_with("../")
         || spec.starts_with("file:")
         || spec.starts_with('/')
-        || (cfg!(windows) && (
-            // C:\path style
-            (spec.len() >= 3 && spec.chars().nth(1) == Some(':'))
+        || (cfg!(windows)
+            && (
+                // C:\path style
+                (spec.len() >= 3 && spec.chars().nth(1) == Some(':'))
             // \\server\share UNC style
             || spec.starts_with(r"\\")
-        ))
+            ))
     {
         return DependencySource::Path(spec.to_string());
     }
 
     // HTTP/HTTPS tarballs
-    if (spec.starts_with("http://") || spec.starts_with("https://"))
-        && !spec.contains(".git") {
-            return DependencySource::Path(spec.to_string());
-        }
+    if (spec.starts_with("http://") || spec.starts_with("https://")) && !spec.contains(".git") {
+        return DependencySource::Path(spec.to_string());
+    }
 
     // Default: version specifier
     DependencySource::Version(spec.to_string())
@@ -198,7 +198,6 @@ mod tests {
         }
     }
 
-
     #[test]
     fn test_detect_dependency_source_version() {
         assert!(matches!(
@@ -246,8 +245,7 @@ mod tests {
 
     #[test]
     fn test_parse_git_url() {
-        let (url, ref_spec) =
-            parse_git_url("git+https://github.com/user/repo.git#main");
+        let (url, ref_spec) = parse_git_url("git+https://github.com/user/repo.git#main");
         assert_eq!(url, "https://github.com/user/repo.git");
         assert_eq!(ref_spec, Some("main".to_string()));
 

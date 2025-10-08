@@ -203,19 +203,31 @@ mod tests {
     #[test]
     fn test_default_extensions() {
         assert_eq!(
-            ImportGraphBuilder::new("rust").with_source_file(None).build().source_file,
+            ImportGraphBuilder::new("rust")
+                .with_source_file(None)
+                .build()
+                .source_file,
             "in-memory.rs"
         );
         assert_eq!(
-            ImportGraphBuilder::new("python").with_source_file(None).build().source_file,
+            ImportGraphBuilder::new("python")
+                .with_source_file(None)
+                .build()
+                .source_file,
             "in-memory.py"
         );
         assert_eq!(
-            ImportGraphBuilder::new("go").with_source_file(None).build().source_file,
+            ImportGraphBuilder::new("go")
+                .with_source_file(None)
+                .build()
+                .source_file,
             "in-memory.go"
         );
         assert_eq!(
-            ImportGraphBuilder::new("java").with_source_file(None).build().source_file,
+            ImportGraphBuilder::new("java")
+                .with_source_file(None)
+                .build()
+                .source_file,
             "in-memory.java"
         );
     }

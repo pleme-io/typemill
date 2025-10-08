@@ -2,17 +2,17 @@
 //!
 //! Provides AST parsing, symbol extraction, and manifest analysis for Swift.
 
-mod parser;
-mod manifest;
 mod import_support;
+mod manifest;
+mod parser;
 
-use cb_plugin_api::{
-    LanguagePlugin, LanguageMetadata, LanguageCapabilities, ManifestData,
-    ParsedSource, PluginResult, ImportSupport,
-};
-use async_trait::async_trait;
-use std::path::Path;
 use crate::import_support::SwiftImportSupport;
+use async_trait::async_trait;
+use cb_plugin_api::{
+    ImportSupport, LanguageCapabilities, LanguageMetadata, LanguagePlugin, ManifestData,
+    ParsedSource, PluginResult,
+};
+use std::path::Path;
 
 /// Swift language plugin implementation
 pub struct SwiftPlugin {

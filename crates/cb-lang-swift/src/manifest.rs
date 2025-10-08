@@ -2,9 +2,7 @@
 //!
 //! Handles Package.swift files for Swift projects.
 use cb_lang_common::ErrorBuilder;
-use cb_plugin_api::{
-    Dependency, DependencySource, ManifestData, PluginResult,
-};
+use cb_plugin_api::{Dependency, DependencySource, ManifestData, PluginResult};
 use serde::Deserialize;
 use std::path::Path;
 use std::process::Stdio;
@@ -99,10 +97,12 @@ pub async fn analyze_manifest(path: &Path) -> PluginResult<ManifestData> {
             stderr = %stderr,
             "The `swift package dump-package` command failed"
         );
-        return Err(ErrorBuilder::manifest("`swift package dump-package` failed")
-            .with_path(path)
-            .with_context("stderr", stderr.to_string())
-            .build());
+        return Err(
+            ErrorBuilder::manifest("`swift package dump-package` failed")
+                .with_path(path)
+                .with_context("stderr", stderr.to_string())
+                .build(),
+        );
     }
 
     let manifest: SwiftManifest = serde_json::from_slice(&output.stdout).map_err(|e| {
@@ -132,7 +132,11 @@ pub async fn analyze_manifest(path: &Path) -> PluginResult<ManifestData> {
         })
         .collect();
 
-    let version = manifest.platforms.first().map(|p| p.version.clone()).unwrap_or_else(|| "0.0.0".to_string());
+    let version = manifest
+        .platforms
+        .first()
+        .map(|p| p.version.clone())
+        .unwrap_or_else(|| "0.0.0".to_string());
 
     Ok(ManifestData {
         name: manifest.name,
@@ -199,7 +203,10 @@ let package = Package(
         }
 
         // DEBUGGING: Print the PATH and find swift
-        println!("PATH inside test: {}", std::env::var("PATH").unwrap_or_default());
+        println!(
+            "PATH inside test: {}",
+            std::env::var("PATH").unwrap_or_default()
+        );
         let _ = Command::new("which").arg("swift").status().await;
 
         let temp_dir = tempdir().unwrap();
@@ -207,7 +214,11 @@ let package = Package(
 
         // Create a valid Swift package structure
         fs::create_dir_all(package_path.join("Sources/MyAwesomePackage")).unwrap();
-        fs::write(package_path.join("Sources/MyAwesomePackage/MyAwesomePackage.swift"), "public struct MyAwesomePackage {}").unwrap();
+        fs::write(
+            package_path.join("Sources/MyAwesomePackage/MyAwesomePackage.swift"),
+            "public struct MyAwesomePackage {}",
+        )
+        .unwrap();
 
         let manifest_path = package_path.join("Package.swift");
         let mut temp_file = fs::File::create(&manifest_path).unwrap();
@@ -215,7 +226,11 @@ let package = Package(
 
         let result = analyze_manifest(&manifest_path).await;
 
-        assert!(result.is_ok(), "analyze_manifest failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "analyze_manifest failed: {:?}",
+            result.err()
+        );
 
         let manifest_data = result.unwrap();
 

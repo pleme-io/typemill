@@ -270,11 +270,7 @@ impl IndentationDetector {
             return (' ', 4); // Default to 4 spaces
         }
 
-        let gcd = space_counts
-            .iter()
-            .copied()
-            .reduce(gcd)
-            .unwrap_or(4);
+        let gcd = space_counts.iter().copied().reduce(gcd).unwrap_or(4);
 
         (' ', gcd.max(1))
     }

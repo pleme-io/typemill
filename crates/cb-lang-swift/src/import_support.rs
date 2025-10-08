@@ -4,6 +4,9 @@
 //! synchronous methods for parsing, analyzing, and rewriting import statements
 //! using a regex-based approach as a fallback.
 
+use cb_lang_common::import_helpers::{
+    find_last_matching_line, insert_line_at, remove_lines_matching,
+};
 use cb_plugin_api::import_support::ImportSupport;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -25,9 +28,8 @@ impl ImportSupport for SwiftImportSupport {
         IMPORT_REGEX
             .captures_iter(content)
             .filter_map(|cap| {
-                cap.get(1).map(|m| {
-                    m.as_str().split('.').next().unwrap_or("").to_string()
-                })
+                cap.get(1)
+                    .map(|m| m.as_str().split('.').next().unwrap_or("").to_string())
             })
             .collect()
     }
@@ -73,33 +75,31 @@ impl ImportSupport for SwiftImportSupport {
         }
 
         let new_import_line = format!("import {}", module);
-        let mut lines: Vec<&str> = content.lines().collect();
 
         // Find the last import statement to add the new one after it.
-        let last_import_line_index = lines.iter().rposition(|line| IMPORT_REGEX.is_match(line));
-
-        if let Some(index) = last_import_line_index {
-            lines.insert(index + 1, &new_import_line);
-            lines.join("\n")
+        if let Some(index) = find_last_matching_line(content, |line| IMPORT_REGEX.is_match(line)) {
+            insert_line_at(content, index + 1, &new_import_line)
         } else {
             // No imports found, add it at the top.
-            format!("{}\n{}", new_import_line, content)
+            if content.is_empty() {
+                // For empty files, add trailing newline to match original behavior
+                format!("{}\n", new_import_line)
+            } else {
+                insert_line_at(content, 0, &new_import_line)
+            }
         }
     }
 
     fn remove_import(&self, content: &str, module: &str) -> String {
-        let lines: Vec<&str> = content
-            .lines()
-            .filter(|line| {
-                if let Some(caps) = IMPORT_REGEX.captures(line) {
-                    if let Some(m) = caps.get(1) {
-                        return m.as_str() != module;
-                    }
+        let (new_content, _count) = remove_lines_matching(content, |line| {
+            if let Some(caps) = IMPORT_REGEX.captures(line) {
+                if let Some(m) = caps.get(1) {
+                    return m.as_str() == module;
                 }
-                true
-            })
-            .collect();
-        lines.join("\n")
+            }
+            false
+        });
+        new_content
     }
 }
 
@@ -167,7 +167,8 @@ import UIKit
     fn test_rename_swift_import() {
         let support = SwiftImportSupport;
         let content = "import OldModule";
-        let (new_content, count) = support.rewrite_imports_for_rename(content, "OldModule", "NewModule");
+        let (new_content, count) =
+            support.rewrite_imports_for_rename(content, "OldModule", "NewModule");
         assert_eq!(count, 1);
         assert_eq!(new_content, "import NewModule");
     }

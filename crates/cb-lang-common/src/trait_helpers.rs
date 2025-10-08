@@ -263,7 +263,11 @@ pub trait WorkspaceSupportInternal {
     fn add_workspace_member_internal(&self, content: &str, member: &str) -> Result<String, String>;
 
     /// Remove a workspace member
-    fn remove_workspace_member_internal(&self, content: &str, member: &str) -> Result<String, String>;
+    fn remove_workspace_member_internal(
+        &self,
+        content: &str,
+        member: &str,
+    ) -> Result<String, String>;
 
     /// Check if content represents a workspace manifest
     fn is_workspace_manifest_internal(&self, content: &str) -> bool;
@@ -272,7 +276,8 @@ pub trait WorkspaceSupportInternal {
     fn list_workspace_members_internal(&self, content: &str) -> Result<Vec<String>, String>;
 
     /// Update the package/module name
-    fn update_package_name_internal(&self, content: &str, new_name: &str) -> Result<String, String>;
+    fn update_package_name_internal(&self, content: &str, new_name: &str)
+        -> Result<String, String>;
 
     /// Merge dependencies from source manifest into base manifest
     fn merge_dependencies_internal(&self, base: &str, source: &str) -> Result<String, String>;
@@ -312,7 +317,11 @@ mod tests {
             Ok(content.to_string())
         }
 
-        fn remove_import_internal(&self, content: &str, _import_path: &str) -> Result<String, String> {
+        fn remove_import_internal(
+            &self,
+            content: &str,
+            _import_path: &str,
+        ) -> Result<String, String> {
             Ok(content.to_string())
         }
     }

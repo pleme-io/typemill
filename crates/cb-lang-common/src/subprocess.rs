@@ -109,9 +109,7 @@ fn execute_subprocess(tool: SubprocessAstTool, source: &str) -> PluginResult<Vec
     let tmp_dir = Builder::new()
         .prefix(&tool.temp_prefix)
         .tempdir()
-        .map_err(|e| {
-            PluginError::internal(format!("Failed to create temp dir: {}", e))
-        })?;
+        .map_err(|e| PluginError::internal(format!("Failed to create temp dir: {}", e)))?;
 
     // Write embedded tool to temporary file
     let tool_path = tmp_dir.path().join(&tool.temp_filename);
@@ -211,10 +209,7 @@ fn execute_subprocess(tool: SubprocessAstTool, source: &str) -> PluginResult<Vec
 /// - Failed to spawn subprocess
 /// - Subprocess returned non-zero exit code
 /// - Failed to deserialize JSON output
-pub fn run_ast_tool<T: DeserializeOwned>(
-    tool: SubprocessAstTool,
-    source: &str,
-) -> PluginResult<T> {
+pub fn run_ast_tool<T: DeserializeOwned>(tool: SubprocessAstTool, source: &str) -> PluginResult<T> {
     let stdout = execute_subprocess(tool, source)?;
 
     // Deserialize JSON output
@@ -225,10 +220,7 @@ pub fn run_ast_tool<T: DeserializeOwned>(
             stdout_preview = %stdout_preview.chars().take(200).collect::<String>(),
             "Failed to parse JSON output"
         );
-        PluginError::parse(format!(
-            "Failed to parse JSON from AST tool: {}",
-            e
-        ))
+        PluginError::parse(format!("Failed to parse JSON from AST tool: {}", e))
     })
 }
 
@@ -236,10 +228,7 @@ pub fn run_ast_tool<T: DeserializeOwned>(
 ///
 /// Useful when the tool doesn't return JSON or when you need to parse
 /// the output in a custom way.
-pub fn run_ast_tool_raw(
-    tool: SubprocessAstTool,
-    source: &str,
-) -> PluginResult<String> {
+pub fn run_ast_tool_raw(tool: SubprocessAstTool, source: &str) -> PluginResult<String> {
     let stdout = execute_subprocess(tool, source)?;
     Ok(String::from_utf8_lossy(&stdout).to_string())
 }

@@ -63,7 +63,8 @@ impl ErrorBuilder {
 
     /// Add file path context
     pub fn with_path(mut self, path: &Path) -> Self {
-        self.context.insert("path".to_string(), path.display().to_string());
+        self.context
+            .insert("path".to_string(), path.display().to_string());
         self
     }
 
@@ -75,7 +76,8 @@ impl ErrorBuilder {
 
     /// Add column number context
     pub fn with_column(mut self, column: u32) -> Self {
-        self.context.insert("column".to_string(), column.to_string());
+        self.context
+            .insert("column".to_string(), column.to_string());
         self
     }
 

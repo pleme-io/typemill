@@ -3,6 +3,14 @@
 //! This crate provides shared functionality to reduce code duplication across
 //! language plugin implementations (Rust, Python, Go, TypeScript, Java, etc.).
 //!
+//! # Migration to v2 API (2024-10)
+//!
+//! The following functions have been removed due to zero usage:
+//! - `split_import_list` - Each language has unique import syntax, generic splitting was never used
+//! - `ExternalDependencyDetector` - Overly complex for actual needs, no plugin ever used it
+//!
+//! See docs/design/CB_LANG_COMMON_API_V2.md for planned v2 utilities.
+//!
 //! # Modules
 //!
 //! ## Core Utilities
@@ -70,60 +78,59 @@
 //! ## Import parsing
 //!
 //! ```rust,ignore
-//! use cb_lang_common::import_parsing::{parse_import_alias, ExternalDependencyDetector};
+//! use cb_lang_common::import_parsing::parse_import_alias;
 //!
 //! let (name, alias) = parse_import_alias("foo as bar");
-//! let detector = ExternalDependencyDetector::new()
-//!     .with_relative_prefix("./")
-//!     .with_relative_prefix("../");
 //! ```
 
 // Core modules (Phase 1)
-pub mod subprocess;
-pub mod refactoring;
-pub mod trait_helpers;
 pub mod manifest_common;
+pub mod refactoring;
+pub mod subprocess;
+pub mod trait_helpers;
 
 // Phase 2 modules (High ROI)
 pub mod error_helpers;
-pub mod io;
+pub mod import_helpers;
 pub mod import_parsing;
+pub mod io;
 
 // Phase 3 modules (Medium ROI)
-pub mod location;
-pub mod versioning;
 pub mod ast_deserialization;
+pub mod location;
 pub mod manifest_templates;
+pub mod versioning;
 
 // Phase 4 modules (Quality of Life)
-pub mod testing;
 pub mod plugin_scaffold;
+pub mod testing;
 
 // Additional utility modules
 pub mod import_graph;
 pub mod parsing;
 
 // Re-export commonly used types for convenience
-pub use refactoring::{CodeRange, LineExtractor, IndentationDetector};
-pub use subprocess::{SubprocessAstTool, run_ast_tool, run_ast_tool_raw};
-pub use manifest_common::{TomlWorkspace, JsonWorkspace};
+pub use ast_deserialization::{parse_ast_output, AstSymbol, AstToolOutput};
 pub use error_helpers::ErrorBuilder;
-pub use import_parsing::{
-    parse_import_alias, split_import_list, ExternalDependencyDetector,
-    extract_package_name, normalize_import_path,
-};
-pub use location::{
-    LocationBuilder, offset_to_position, position_to_offset, extract_text_at_location,
-};
-pub use versioning::{
-    detect_dependency_source, extract_version_number, parse_git_url, normalize_version,
-};
-pub use ast_deserialization::{AstSymbol, AstToolOutput, parse_ast_output};
 pub use import_graph::ImportGraphBuilder;
+pub use import_helpers::{
+    find_last_matching_line, insert_line_at, remove_lines_matching, replace_in_lines,
+};
+#[allow(deprecated)]
+pub use import_parsing::{extract_package_name, normalize_import_path, parse_import_alias};
+pub use location::{
+    extract_text_at_location, offset_to_position, position_to_offset, LocationBuilder,
+};
+pub use manifest_common::{JsonWorkspace, TomlWorkspace};
 pub use parsing::{parse_with_fallback, parse_with_optional_fallback, try_parsers};
+pub use refactoring::{CodeRange, IndentationDetector, LineExtractor};
+pub use subprocess::{run_ast_tool, run_ast_tool_raw, SubprocessAstTool};
+pub use versioning::{
+    detect_dependency_source, extract_version_number, normalize_version, parse_git_url,
+};
 
 // Re-export IO utilities
-pub use io::{read_manifest, read_source, find_source_files, file_path_to_module};
+pub use io::{file_path_to_module, find_source_files, read_manifest, read_source};
 
 // Re-export macros
 pub use trait_helpers::{ImportSupportInternal, WorkspaceSupportInternal};
