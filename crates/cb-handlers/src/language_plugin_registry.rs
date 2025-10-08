@@ -83,6 +83,42 @@ impl LanguagePluginRegistry {
         self.inner.find_by_extension(extension).is_some()
     }
 
+    /// Get all plugins that provide test fixtures
+    ///
+    /// This method filters the registered plugins to return only those
+    /// that have implemented the `test_fixtures()` method and returned
+    /// `Some(fixtures)`.
+    ///
+    /// Used by integration tests to discover available test scenarios.
+    ///
+    /// # Returns
+    ///
+    /// A vector of tuples containing:
+    /// - Reference to the plugin
+    /// - The test fixtures it provides
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// let registry = LanguagePluginRegistry::new();
+    /// for (plugin, fixtures) in registry.plugins_with_fixtures() {
+    ///     println!("Testing {}", plugin.metadata().name);
+    ///     for scenario in &fixtures.complexity_scenarios {
+    ///         // Run test with scenario
+    ///     }
+    /// }
+    /// ```
+    pub fn plugins_with_fixtures(&self) -> Vec<(&dyn LanguagePlugin, cb_plugin_api::LanguageTestFixtures)> {
+        self.inner
+            .all()
+            .iter()
+            .filter_map(|plugin| {
+                let fixtures = plugin.test_fixtures()?;
+                Some((plugin.as_ref(), fixtures))
+            })
+            .collect()
+    }
+
     /// Get a plugin that can handle a specific manifest file
     ///
     /// # Arguments

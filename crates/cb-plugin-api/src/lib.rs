@@ -56,12 +56,16 @@ use std::path::Path;
 pub mod metadata;
 pub mod import_support;
 pub mod workspace_support;
+pub mod test_fixtures;
 
 // Re-exports
 pub use cb_core::language::ProjectLanguage;
 pub use metadata::LanguageMetadata;
 pub use import_support::ImportSupport;
 pub use workspace_support::WorkspaceSupport;
+pub use test_fixtures::{
+    ComplexityFixture, LanguageTestFixtures, RefactoringFixture, RefactoringOperation,
+};
 
 // ============================================================================
 // Error Types
@@ -353,6 +357,32 @@ pub trait LanguagePlugin: Send + Sync {
 
     /// Get workspace support if available
     fn workspace_support(&self) -> Option<&dyn WorkspaceSupport> {
+        None
+    }
+
+    /// Provide test fixtures for integration testing (optional)
+    ///
+    /// Language plugins can optionally provide test fixtures that define
+    /// expected behavior for complexity analysis, refactoring operations, etc.
+    /// This enables plugins to self-document their capabilities and participate
+    /// in cross-language integration tests without modifying the test framework.
+    ///
+    /// When a plugin returns `Some(fixtures)`, those fixtures will be
+    /// automatically discovered and tested by the integration test suite.
+    ///
+    /// # Returns
+    ///
+    /// - `Some(fixtures)` if the plugin provides test scenarios
+    /// - `None` if the plugin does not participate in cross-language tests
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// fn test_fixtures(&self) -> Option<LanguageTestFixtures> {
+    ///     Some(python_test_fixtures())
+    /// }
+    /// ```
+    fn test_fixtures(&self) -> Option<LanguageTestFixtures> {
         None
     }
 

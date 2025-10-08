@@ -25,6 +25,7 @@ pub mod import_support;
 pub mod manifest;
 pub mod parser;
 pub mod refactoring;
+pub mod test_fixtures;
 pub mod workspace_support;
 
 use async_trait::async_trait;
@@ -167,6 +168,10 @@ impl LanguagePlugin for PythonPlugin {
 
     fn workspace_support(&self) -> Option<&dyn WorkspaceSupport> {
         Some(&self.workspace_support)
+    }
+
+    fn test_fixtures(&self) -> Option<cb_plugin_api::LanguageTestFixtures> {
+        Some(test_fixtures::python_test_fixtures())
     }
 }
 
