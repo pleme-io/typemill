@@ -1,6 +1,6 @@
 [package]
 name = "cb-core"
-version = "1.0.0-beta"
+version = "1.0.1-beta"
 edition = "2021"
 description = "Core types, configuration, and error handling for Codeflow Buddy"
 license = "MIT"

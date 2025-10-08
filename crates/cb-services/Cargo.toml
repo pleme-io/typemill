@@ -1,6 +1,6 @@
 [package]
 name = "cb-services"
-version = "1.0.0-beta"
+version = "1.0.1-beta"
 edition = "2021"
 
 [build-dependencies]
