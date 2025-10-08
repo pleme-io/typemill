@@ -237,6 +237,7 @@ impl FileService {
         old_path: &Path,
         new_path: &Path,
         dry_run: bool,
+        scan_scope: Option<cb_plugin_api::ScanScope>,
     ) -> ServerResult<DryRunnable<Value>> {
         info!(old_path = ?old_path, new_path = ?new_path, dry_run, "Renaming file");
 
@@ -263,7 +264,7 @@ impl FileService {
 
             let edit_plan = self
                 .import_service
-                .update_imports_for_rename(&old_abs, &new_abs, None, true, None)
+                .update_imports_for_rename(&old_abs, &new_abs, None, true, scan_scope.clone())
                 .await?;
 
             Ok(DryRunnable::new(
@@ -304,7 +305,7 @@ impl FileService {
 
             let mut edit_plan = self
                 .import_service
-                .update_imports_for_rename(&old_abs, &new_abs, None, false, None)
+                .update_imports_for_rename(&old_abs, &new_abs, None, false, scan_scope)
                 .await
                 .map_err(|e| {
                     warn!(error = %e, "File renamed but import updates failed");
@@ -3269,7 +3270,7 @@ mod tests {
 
         // Rename file
         let result = service
-            .rename_file_with_imports(old_path, new_path, false)
+            .rename_file_with_imports(old_path, new_path, false, None)
             .await
             .unwrap();
         assert!(result.result["success"].as_bool().unwrap_or(false));

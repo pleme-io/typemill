@@ -43,6 +43,7 @@ rustflags = ["-C", "link-arg=-fuse-ld=/opt/homebrew/opt/mold/libexec/mold"]
 [profile.dev]
 # Enable incremental compilation
 incremental = true
+codegen-units = 256  # ADD: More parallelism for faster dev builds (default: 16)
 
 # Optimize dependencies for better runtime performance during development
 # while keeping our code unoptimized for fast compile times
@@ -70,3 +71,12 @@ strip = true        # Strip symbols to reduce binary size
 PATH = { value = "$HOME/.local/bin:$HOME/.cargo/bin:/usr/bin:$PATH", force = true, relative = false }
 # Set CC for dependencies that need a C compiler
 CC = "/usr/bin/gcc"
+
+# =============================================================================
+# Sparse Registry Protocol for Faster Dependency Resolution
+# =============================================================================
+# Uses the modern sparse index protocol instead of the legacy git-based index
+# See: https://rust-lang.github.io/rfcs/2789-sparse-index.html
+
+[registries.crates-io]
+protocol = "sparse"

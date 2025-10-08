@@ -194,6 +194,31 @@ cargo check
 ./target/release/codebuddy unlink   # Remove AI from config
 ```
 
+## Testing Workflow
+
+The test suite is organized into categories for fast iteration:
+
+```bash
+# Fast tests only (mock-based, ~10s)
+cargo test --workspace
+cargo nextest run --workspace  # Recommended (faster)
+
+# With LSP server tests (~60s, requires LSP servers installed)
+cargo test --workspace --features lsp-tests -- --include-ignored
+
+# Full suite with heavy tests (~80s)
+cargo test --workspace --all-features -- --include-ignored
+
+# Performance benchmarks
+cargo test --workspace --features heavy-tests
+```
+
+**Test Categories:**
+- `fast-tests` (default): Mock-based unit and integration tests
+- `lsp-tests`: Tests requiring real LSP servers (TypeScript, Python, Rust)
+- `e2e-tests`: End-to-end workflow tests
+- `heavy-tests`: Performance benchmarks and property-based testing
+
 ## Architecture & Configuration
 
 For detailed system architecture, see **[docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)**.

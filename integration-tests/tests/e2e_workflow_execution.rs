@@ -353,23 +353,65 @@ async fn test_workflow_dependency_resolution() {
     )
     .unwrap();
 
+    // Create a file that uses the dependency
+    let main_ts = workspace.path().join("main.ts");
+    std::fs::write(
+        &main_ts,
+        r#"import _ from 'lodash';
+
+console.log(_.partition([1, 2, 3, 4], n => n % 2));
+"#,
+    )
+    .unwrap();
+
+    // Wait for LSP to initialize
+    tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+
     // Test analyzing imports (workflow operation)
-    let response = client.call_tool("analyze_imports", json!({})).await;
+    let response = client
+        .call_tool(
+            "analyze_imports",
+            json!({ "file_path": main_ts.to_string_lossy() }),
+        )
+        .await;
 
     // Verify the workflow executed successfully
     if let Ok(response_value) = response {
-        assert!(
-            response_value.get("result").is_some() || response_value.get("error").is_some(),
-            "Workflow should return result or error"
-        );
-
-        if let Some(result) = response_value.get("result") {
-            // Result should contain import analysis
-            assert!(
-                result.get("imports").is_some() || result.get("files").is_some(),
-                "Should return import analysis"
-            );
+        if let Some(error) = response_value.get("error") {
+            panic!("Workflow should not return an error, but got: {:?}", error);
         }
+
+        let result = response_value
+            .get("result")
+            .expect("Workflow should return a result");
+
+        // The tool returns a PluginResponse, which has a `data` field
+        let data = result
+            .get("data")
+            .unwrap_or_else(|| panic!("Result should have a 'data' field. Full result: {:?}", result));
+
+        // The data should contain the import graph
+        let import_graph = data
+            .get("importGraph")
+            .or_else(|| data.get("import_graph"))
+            .expect("Data should have importGraph field");
+
+        let imports = import_graph
+            .get("imports")
+            .and_then(|v| v.as_array())
+            .expect("Import graph should have imports array");
+
+        assert_eq!(imports.len(), 1, "Should find one import");
+
+        let lodash_import = imports
+            .iter()
+            .find(|i| i["specifier"].as_str() == Some("lodash"))
+            .expect("Should find lodash import");
+
+        assert_eq!(lodash_import["specifier"], "lodash");
+        assert_eq!(lodash_import["is_external"], true);
+    } else {
+        panic!("Tool call failed: {:?}", response.err());
     }
 }
 
