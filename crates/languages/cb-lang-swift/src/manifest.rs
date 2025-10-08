@@ -3,7 +3,7 @@
 //! Handles Package.swift files for Swift projects.
 use cb_lang_common::ErrorBuilder;
 use cb_plugin_api::{
-    Dependency, DependencySource, ManifestData, PluginError, PluginResult,
+    Dependency, DependencySource, ManifestData, PluginResult,
 };
 use serde::Deserialize;
 use std::path::Path;
