@@ -11,6 +11,8 @@ fn codebuddy_cmd() -> Command {
     let binary_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap()
+        .parent()
+        .unwrap()
         .join("target/debug/codebuddy");
 
     if !binary_path.exists() {
