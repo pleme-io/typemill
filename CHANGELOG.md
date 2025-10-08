@@ -11,6 +11,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 The project underwent a complete architectural transformation from TypeScript/Node.js to pure Rust in 2025, bringing native performance, memory safety, and compile-time type guarantees.
 
+### [1.0.0-rc3] - 2025-10-08
+
+🚀 **Release Candidate 3** - Swift language support, comprehensive documentation overhaul, build/test optimizations, and critical import handling fixes
+
+#### Added
+
+- **Swift language support** - Complete implementation with comprehensive AST-based parsing
+  - Swift AST parsing for accurate symbol extraction
+  - Import manipulation (add, remove, rewrite, parse module declarations)
+  - Swift Package Manager workspace support (Package.swift)
+  - Full ImportSupport and WorkspaceSupport trait implementations
+  - **Note**: Developed in separate branch, documentation updated for unmerged status
+
+- **Build and test performance optimizations** (implemented from PROPOSAL_BUILD_TEST_OPTIMIZATION.md)
+  - Build configuration: Added `codegen-units=256` and sparse registry protocol in `.cargo/config.toml`
+  - Test gating: Feature flags for `fast`/`lsp`/`e2e`/`heavy` test categories
+  - Test parallelization: Used `join_all` for concurrent test execution
+  - Tooling: Added `cargo-nextest` support and `clean-cache` Makefile target
+  - **Performance Impact**: Faster builds and more flexible test execution
+
+- **Import support refactoring** (implemented from PROPOSAL_IMPORT_REFACTORING.md)
+  - Comprehensive import support refactoring across all 6 language plugins
+  - New `cb-lang-common` primitives: `find_last_matching_line`, `insert_line_at`, `remove_lines_matching`, `replace_in_lines`
+  - **Code Reduction**: 260 lines saved (15% reduction) with zero regressions
+  - **Test Coverage**: 37 unit tests + 27 property-based tests (~2,700 generated cases)
+  - **Performance**: All primitives exceed targets by 3-50×
+  - All 6 plugins migrated successfully (Swift, Go, Python, TypeScript, Rust, Java)
+
+#### Fixed
+
+- **Import handling in `rename_directory`** - Exclude files inside moved directory from import updates
+  - Prevents duplicate imports being created when directory contents are moved
+  - Fixes wrong lines being replaced in import statements
+  - Resolves malformed spacing in import statements
+  - Files inside a moved directory use relative imports that don't need updating
+
+#### Documentation
+
+- **Comprehensive documentation audit** (20+ issues addressed)
+  - Standardized version to `1.0.0-rc3` across all Cargo.toml files
+  - Updated all outdated file paths (e.g., `crates/languages/` → correct paths)
+  - Corrected script paths and trait names throughout documentation
+  - Removed hardcoded metrics (line counts, test counts, tool counts) for maintainability
+  - Fixed Docker documentation (port 3040 → 3000, corrected `docker-compose` commands)
+  - Added `cargo-nextest` installation instructions
+  - Added disclaimers to C# and Swift reviews for unmerged branches
+  - Standardized position indexing descriptions in API_REFERENCE.md
+  - Clarified logging guidelines (file logging unsupported, use shell redirection)
+  - Added Swift to all language support matrices
+  - Synchronized CLAUDE.md and GEMINI.md with source of truth markers
+
+#### Removed
+
+- **Completed proposal documents** (1398 lines removed)
+  - `PROPOSAL_BUILD_TEST_OPTIMIZATION.md` (implemented in 977344f)
+  - `PROPOSAL_IMPORT_REFACTORING.md` (implemented in fc71336)
+
+---
+
 ### [1.0.1] - 2025-10-08
 
 🐛 **Patch Release** - Bug fixes and code quality improvements
