@@ -41,9 +41,9 @@ pub fn add_workspace_member(
     new_member_path: &str,
     workspace_root: &Path,
 ) -> PluginResult<String> {
-    let mut doc = workspace_content
-        .parse::<DocumentMut>()
-        .map_err(|e| PluginError::manifest(format!("Failed to parse workspace Cargo.toml: {}", e)))?;
+    let mut doc = workspace_content.parse::<DocumentMut>().map_err(|e| {
+        PluginError::manifest(format!("Failed to parse workspace Cargo.toml: {}", e))
+    })?;
 
     // Calculate relative path from workspace root to new member
     let target_path = Path::new(new_member_path);
@@ -132,9 +132,8 @@ pub fn add_path_dependency(
     // Calculate relative path from source to target
     let source_cargo_dir = source_path;
     let target_path = Path::new(dep_path);
-    let relative_path = pathdiff::diff_paths(target_path, source_cargo_dir).ok_or_else(|| {
-        PluginError::internal("Failed to calculate relative path for dependency")
-    })?;
+    let relative_path = pathdiff::diff_paths(target_path, source_cargo_dir)
+        .ok_or_else(|| PluginError::internal("Failed to calculate relative path for dependency"))?;
 
     // Add dependency to [dependencies] section
     if !doc.contains_key("dependencies") {
@@ -238,12 +237,9 @@ mod tests {
 members = ["crate1"]
 "#;
 
-        let result = add_workspace_member(
-            content,
-            "/workspace/crate2",
-            &PathBuf::from("/workspace"),
-        )
-        .unwrap();
+        let result =
+            add_workspace_member(content, "/workspace/crate2", &PathBuf::from("/workspace"))
+                .unwrap();
 
         assert!(result.contains("[workspace]"));
         assert!(result.contains("crate1"));
@@ -257,12 +253,9 @@ members = ["crate1"]
 members = ["crate1"]
 "#;
 
-        let result = add_workspace_member(
-            content,
-            "/workspace/crate1",
-            &PathBuf::from("/workspace"),
-        )
-        .unwrap();
+        let result =
+            add_workspace_member(content, "/workspace/crate1", &PathBuf::from("/workspace"))
+                .unwrap();
 
         // Should not duplicate
         assert!(result.contains("crate1"));

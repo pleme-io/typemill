@@ -156,7 +156,10 @@ mod tests {
             .iter()
             .find(|d| d.name == "com.google.code.gson:gson")
             .unwrap();
-        assert_eq!(gson_dep.source, DependencySource::Version("2.10.1".to_string()));
+        assert_eq!(
+            gson_dep.source,
+            DependencySource::Version("2.10.1".to_string())
+        );
     }
 
     #[tokio::test]

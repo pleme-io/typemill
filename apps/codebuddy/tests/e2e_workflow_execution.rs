@@ -1,4 +1,4 @@
-use integration_tests :: harness :: { TestClient , TestWorkspace } ;
+//! Workflow execution tests
 //!
 //! This module tests the workflow executor and planner, which orchestrate
 //! complex multi-step operations based on intent specifications.
@@ -9,8 +9,8 @@ use integration_tests :: harness :: { TestClient , TestWorkspace } ;
 //! - Workflow failure and rollback scenarios
 //! - Intent-based workflow planning and execution
 
-use integration_tests::harness::{TestClient, TestWorkspace};
 use serde_json::json;
+use test_support::harness::{TestClient, TestWorkspace};
 
 /// Test simple workflow execution - single operation
 #[tokio::test]

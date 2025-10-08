@@ -1,13 +1,13 @@
 //! End-to-end server lifecycle tests
 //!
-use integration_tests :: harness :: { TestClient , TestWorkspace } ;
 //! Combines tests from e2e_flow.rs and e2e_transport.rs into a unified server lifecycle suite.
 
 use cb_core::AppConfig;
 use cb_server::{bootstrap, ServerOptions};
-use integration_tests::harness::{TestClient, TestWorkspace};
-use integration_tests::{create_test_config, TestHarnessError};
 use serde_json::json;
+use test_support::harness::{TestClient, TestWorkspace};
+use test_support::create_test_config;
+use integration_tests::TestHarnessError;
 
 // ============================================================================
 // Server Bootstrap and Configuration Tests

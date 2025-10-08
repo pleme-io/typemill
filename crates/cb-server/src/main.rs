@@ -99,4 +99,3 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Server stopped");
     Ok(())
 }
-

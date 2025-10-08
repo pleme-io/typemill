@@ -1,6 +1,5 @@
 //! Data-Driven LSP Feature Tests
 //!
-use integration_tests :: harness :: test_fixtures :: * ;
 //! Tests are split into mock tests (fast, no dependencies) and real tests (marked with #[ignore]).
 //!
 //! ## Architecture
@@ -26,8 +25,8 @@ use integration_tests :: harness :: test_fixtures :: * ;
 mod lsp_feature_runners;
 
 use futures::future::join_all;
-use integration_tests::harness::test_fixtures::*;
 use lsp_feature_runners::*;
+use test_support::harness::test_fixtures::*;
 
 // =============================================================================
 // Go To Definition Tests

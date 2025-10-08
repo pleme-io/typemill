@@ -2,9 +2,9 @@
 //!
 //! This module provides functionality for parsing Rust source code into ASTs,
 //! extracting symbols, and analyzing imports.
+use cb_lang_common::ImportGraphBuilder;
 use cb_plugin_api::{PluginError, PluginResult, SourceLocation, Symbol, SymbolKind};
 use cb_protocol::{ImportGraph, ImportInfo, ImportType, NamedImport};
-use cb_lang_common::ImportGraphBuilder;
 use syn::{visit::Visit, File, Item, ItemUse, UseTree};
 /// A visitor that walks the AST and collects function names
 struct FunctionVisitor {
@@ -27,94 +27,87 @@ struct SymbolVisitor {
 }
 impl<'ast> Visit<'ast> for SymbolVisitor {
     fn visit_item_fn(&mut self, i: &'ast syn::ItemFn) {
-        self.symbols
-            .push(Symbol {
-                name: i.sig.ident.to_string(),
-                kind: SymbolKind::Function,
-                location: SourceLocation {
-                    line: self.current_line,
-                    column: 0,
-                },
-                documentation: extract_doc_comments(&i.attrs),
-            });
+        self.symbols.push(Symbol {
+            name: i.sig.ident.to_string(),
+            kind: SymbolKind::Function,
+            location: SourceLocation {
+                line: self.current_line,
+                column: 0,
+            },
+            documentation: extract_doc_comments(&i.attrs),
+        });
         syn::visit::visit_item_fn(self, i);
     }
     fn visit_item_struct(&mut self, i: &'ast syn::ItemStruct) {
-        self.symbols
-            .push(Symbol {
-                name: i.ident.to_string(),
-                kind: SymbolKind::Struct,
-                location: SourceLocation {
-                    line: self.current_line,
-                    column: 0,
-                },
-                documentation: extract_doc_comments(&i.attrs),
-            });
+        self.symbols.push(Symbol {
+            name: i.ident.to_string(),
+            kind: SymbolKind::Struct,
+            location: SourceLocation {
+                line: self.current_line,
+                column: 0,
+            },
+            documentation: extract_doc_comments(&i.attrs),
+        });
         syn::visit::visit_item_struct(self, i);
     }
     fn visit_item_enum(&mut self, i: &'ast syn::ItemEnum) {
-        self.symbols
-            .push(Symbol {
-                name: i.ident.to_string(),
-                kind: SymbolKind::Enum,
-                location: SourceLocation {
-                    line: self.current_line,
-                    column: 0,
-                },
-                documentation: extract_doc_comments(&i.attrs),
-            });
+        self.symbols.push(Symbol {
+            name: i.ident.to_string(),
+            kind: SymbolKind::Enum,
+            location: SourceLocation {
+                line: self.current_line,
+                column: 0,
+            },
+            documentation: extract_doc_comments(&i.attrs),
+        });
         syn::visit::visit_item_enum(self, i);
     }
     fn visit_item_const(&mut self, i: &'ast syn::ItemConst) {
-        self.symbols
-            .push(Symbol {
-                name: i.ident.to_string(),
-                kind: SymbolKind::Constant,
-                location: SourceLocation {
-                    line: self.current_line,
-                    column: 0,
-                },
-                documentation: extract_doc_comments(&i.attrs),
-            });
+        self.symbols.push(Symbol {
+            name: i.ident.to_string(),
+            kind: SymbolKind::Constant,
+            location: SourceLocation {
+                line: self.current_line,
+                column: 0,
+            },
+            documentation: extract_doc_comments(&i.attrs),
+        });
         syn::visit::visit_item_const(self, i);
     }
     fn visit_item_static(&mut self, i: &'ast syn::ItemStatic) {
-        self.symbols
-            .push(Symbol {
-                name: i.ident.to_string(),
-                kind: SymbolKind::Variable,
-                location: SourceLocation {
-                    line: self.current_line,
-                    column: 0,
-                },
-                documentation: extract_doc_comments(&i.attrs),
-            });
+        self.symbols.push(Symbol {
+            name: i.ident.to_string(),
+            kind: SymbolKind::Variable,
+            location: SourceLocation {
+                line: self.current_line,
+                column: 0,
+            },
+            documentation: extract_doc_comments(&i.attrs),
+        });
         syn::visit::visit_item_static(self, i);
     }
     fn visit_item_mod(&mut self, i: &'ast syn::ItemMod) {
-        self.symbols
-            .push(Symbol {
-                name: i.ident.to_string(),
-                kind: SymbolKind::Module,
-                location: SourceLocation {
-                    line: self.current_line,
-                    column: 0,
-                },
-                documentation: extract_doc_comments(&i.attrs),
-            });
+        self.symbols.push(Symbol {
+            name: i.ident.to_string(),
+            kind: SymbolKind::Module,
+            location: SourceLocation {
+                line: self.current_line,
+                column: 0,
+            },
+            documentation: extract_doc_comments(&i.attrs),
+        });
         syn::visit::visit_item_mod(self, i);
     }
     fn visit_impl_item_fn(&mut self, i: &'ast syn::ImplItemFn) {
-        self.symbols
-            .push(Symbol {
-                name: i.sig.ident.to_string(),
-                kind: SymbolKind::Method,
-                location: SourceLocation {
-                    line: self.current_line,
-                    column: 0,
-                },
-                documentation: extract_doc_comments(&i.attrs),
-            });
+        self.symbols.push(Symbol {
+            name: i.sig.ident.to_string(),
+            kind: SymbolKind::Method,
+            location: SourceLocation {
+                line: self.current_line,
+                column: 0,
+            },
+            documentation: extract_doc_comments(&i.attrs),
+        });
         syn::visit::visit_impl_item_fn(self, i);
     }
     fn visit_item(&mut self, node: &'ast Item) {
@@ -128,23 +121,24 @@ fn extract_doc_comments(attrs: &[syn::Attribute]) -> Option<String> {
         .iter()
         .filter_map(|attr| {
             if attr.path().is_ident("doc") {
-                attr.meta
-                    .require_name_value()
-                    .ok()
-                    .and_then(|nv| {
-                        if let syn::Expr::Lit(expr_lit) = &nv.value {
-                            if let syn::Lit::Str(lit_str) = &expr_lit.lit {
-                                return Some(lit_str.value().trim().to_string());
-                            }
+                attr.meta.require_name_value().ok().and_then(|nv| {
+                    if let syn::Expr::Lit(expr_lit) = &nv.value {
+                        if let syn::Lit::Str(lit_str) = &expr_lit.lit {
+                            return Some(lit_str.value().trim().to_string());
                         }
-                        None
-                    })
+                    }
+                    None
+                })
             } else {
                 None
             }
         })
         .collect();
-    if docs.is_empty() { None } else { Some(docs.join("\n")) }
+    if docs.is_empty() {
+        None
+    } else {
+        Some(docs.join("\n"))
+    }
 }
 /// Parses Rust source code and returns a list of all function and method names
 pub fn list_functions(source: &str) -> PluginResult<Vec<String>> {
@@ -201,62 +195,61 @@ pub fn parse_imports(source: &str) -> PluginResult<Vec<ImportInfo>> {
                     } else {
                         prefix.clone()
                     };
-                    self.imports
-                        .push(ImportInfo {
-                            module_path: module_path.clone(),
-                            import_type: ImportType::EsModule,
-                            named_imports: vec![
-                                NamedImport { name : name.ident.to_string(), alias : None,
-                                type_only : false, }
-                            ],
-                            default_import: None,
-                            namespace_import: None,
+                    self.imports.push(ImportInfo {
+                        module_path: module_path.clone(),
+                        import_type: ImportType::EsModule,
+                        named_imports: vec![NamedImport {
+                            name: name.ident.to_string(),
+                            alias: None,
                             type_only: false,
-                            location: cb_protocol::SourceLocation {
-                                start_line: line,
-                                start_column: 0,
-                                end_line: line,
-                                end_column: 0,
-                            },
-                        });
+                        }],
+                        default_import: None,
+                        namespace_import: None,
+                        type_only: false,
+                        location: cb_protocol::SourceLocation {
+                            start_line: line,
+                            start_column: 0,
+                            end_line: line,
+                            end_column: 0,
+                        },
+                    });
                 }
                 UseTree::Rename(rename) => {
                     let module_path = prefix.clone();
-                    self.imports
-                        .push(ImportInfo {
-                            module_path: module_path.clone(),
-                            import_type: ImportType::EsModule,
-                            named_imports: vec![
-                                NamedImport { name : rename.ident.to_string(), alias :
-                                Some(rename.rename.to_string()), type_only : false, }
-                            ],
-                            default_import: None,
-                            namespace_import: None,
+                    self.imports.push(ImportInfo {
+                        module_path: module_path.clone(),
+                        import_type: ImportType::EsModule,
+                        named_imports: vec![NamedImport {
+                            name: rename.ident.to_string(),
+                            alias: Some(rename.rename.to_string()),
                             type_only: false,
-                            location: cb_protocol::SourceLocation {
-                                start_line: line,
-                                start_column: 0,
-                                end_line: line,
-                                end_column: 0,
-                            },
-                        });
+                        }],
+                        default_import: None,
+                        namespace_import: None,
+                        type_only: false,
+                        location: cb_protocol::SourceLocation {
+                            start_line: line,
+                            start_column: 0,
+                            end_line: line,
+                            end_column: 0,
+                        },
+                    });
                 }
                 UseTree::Glob(_) => {
-                    self.imports
-                        .push(ImportInfo {
-                            module_path: prefix.clone(),
-                            import_type: ImportType::EsModule,
-                            named_imports: Vec::new(),
-                            default_import: None,
-                            namespace_import: Some(prefix),
-                            type_only: false,
-                            location: cb_protocol::SourceLocation {
-                                start_line: line,
-                                start_column: 0,
-                                end_line: line,
-                                end_column: 0,
-                            },
-                        });
+                    self.imports.push(ImportInfo {
+                        module_path: prefix.clone(),
+                        import_type: ImportType::EsModule,
+                        named_imports: Vec::new(),
+                        default_import: None,
+                        namespace_import: Some(prefix),
+                        type_only: false,
+                        location: cb_protocol::SourceLocation {
+                            start_line: line,
+                            start_column: 0,
+                            end_line: line,
+                            end_column: 0,
+                        },
+                    });
                 }
                 UseTree::Group(group) => {
                     for tree in &group.items {
@@ -274,29 +267,17 @@ pub fn parse_imports(source: &str) -> PluginResult<Vec<ImportInfo>> {
     Ok(visitor.imports)
 }
 /// Rewrite a use tree to replace an old crate name with a new one
-pub fn rewrite_use_tree(
-    tree: &UseTree,
-    old_crate: &str,
-    new_crate: &str,
-) -> Option<UseTree> {
+pub fn rewrite_use_tree(tree: &UseTree, old_crate: &str, new_crate: &str) -> Option<UseTree> {
     match tree {
         UseTree::Path(path) => {
             if path.ident == old_crate {
                 let mut new_path = path.clone();
                 new_path.ident = syn::Ident::new(new_crate, path.ident.span());
-                if let Some(new_subtree) = rewrite_use_tree(
-                    &path.tree,
-                    old_crate,
-                    new_crate,
-                ) {
+                if let Some(new_subtree) = rewrite_use_tree(&path.tree, old_crate, new_crate) {
                     new_path.tree = Box::new(new_subtree);
                 }
                 Some(UseTree::Path(new_path))
-            } else if let Some(new_subtree) = rewrite_use_tree(
-                &path.tree,
-                old_crate,
-                new_crate,
-            ) {
+            } else if let Some(new_subtree) = rewrite_use_tree(&path.tree, old_crate, new_crate) {
                 let mut new_path = path.clone();
                 new_path.tree = Box::new(new_subtree);
                 Some(UseTree::Path(new_path))
@@ -313,11 +294,7 @@ pub fn rewrite_use_tree(
                 .items
                 .iter()
                 .map(|item| {
-                    if let Some(new_item) = rewrite_use_tree(
-                        item,
-                        old_crate,
-                        new_crate,
-                    ) {
+                    if let Some(new_item) = rewrite_use_tree(item, old_crate, new_crate) {
                         modified = true;
                         new_item
                     } else {
@@ -342,18 +319,17 @@ pub fn analyze_imports(
     file_path: Option<&std::path::Path>,
 ) -> PluginResult<ImportGraph> {
     let imports = parse_imports(source)?;
-    Ok(
-        ImportGraphBuilder::new("rust")
-            .with_source_file(file_path)
-            .with_imports(imports)
-            .extract_external_dependencies(is_external_dependency)
-            .with_parser_version("0.1.0-plugin")
-            .build(),
-    )
+    Ok(ImportGraphBuilder::new("rust")
+        .with_source_file(file_path)
+        .with_imports(imports)
+        .extract_external_dependencies(is_external_dependency)
+        .with_parser_version("0.1.0-plugin")
+        .build())
 }
 /// Check if a module path represents an external dependency
 fn is_external_dependency(module_path: &str) -> bool {
-    !module_path.starts_with("crate") && !module_path.starts_with("self")
+    !module_path.starts_with("crate")
+        && !module_path.starts_with("self")
         && !module_path.starts_with("super")
 }
 #[cfg(test)]
@@ -377,10 +353,10 @@ mod my_mod {
 "#;
         let functions = list_functions(source).unwrap();
         assert_eq!(functions.len(), 4);
-        assert!(functions.contains(& "top_level".to_string()));
-        assert!(functions.contains(& "my_method".to_string()));
-        assert!(functions.contains(& "another_method".to_string()));
-        assert!(functions.contains(& "function_in_mod".to_string()));
+        assert!(functions.contains(&"top_level".to_string()));
+        assert!(functions.contains(&"my_method".to_string()));
+        assert!(functions.contains(&"another_method".to_string()));
+        assert!(functions.contains(&"function_in_mod".to_string()));
     }
     #[test]
     fn test_list_nested_functions() {
@@ -391,8 +367,8 @@ fn outer() {
 "#;
         let functions = list_functions(source).unwrap();
         assert_eq!(functions.len(), 2);
-        assert!(functions.contains(& "outer".to_string()));
-        assert!(functions.contains(& "inner".to_string()));
+        assert!(functions.contains(&"outer".to_string()));
+        assert!(functions.contains(&"inner".to_string()));
     }
     #[test]
     fn test_syntax_error() {
@@ -420,21 +396,18 @@ enum MyEnum {
 const MY_CONST: i32 = 42;
 "#;
         let symbols = extract_symbols(source).unwrap();
-        assert!(
-            symbols.iter().any(| s | s.name == "my_function" && s.kind ==
-            SymbolKind::Function)
-        );
-        assert!(
-            symbols.iter().any(| s | s.name == "MyStruct" && s.kind ==
-            SymbolKind::Struct)
-        );
-        assert!(
-            symbols.iter().any(| s | s.name == "MyEnum" && s.kind == SymbolKind::Enum)
-        );
-        assert!(
-            symbols.iter().any(| s | s.name == "MY_CONST" && s.kind ==
-            SymbolKind::Constant)
-        );
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "my_function" && s.kind == SymbolKind::Function));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "MyStruct" && s.kind == SymbolKind::Struct));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "MyEnum" && s.kind == SymbolKind::Enum));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "MY_CONST" && s.kind == SymbolKind::Constant));
     }
     #[test]
     fn test_parse_imports() {

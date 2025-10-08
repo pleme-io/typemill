@@ -470,7 +470,7 @@ impl FileService {
             match self
                 .import_service
                 .update_imports_for_rename(
-                    &old_abs_dir,  // Use directory paths instead of individual files
+                    &old_abs_dir, // Use directory paths instead of individual files
                     &new_abs_dir,
                     rename_info.as_ref(),
                     false,
@@ -478,33 +478,29 @@ impl FileService {
                 )
                 .await
             {
-                Ok(edit_plan) => {
-                    match self.apply_edit_plan(&edit_plan).await {
-                        Ok(result) => {
-                            total_edits_applied += edit_plan.edits.len();
-                            let files_modified_count = result.modified_files.len();
-                            for file in result.modified_files {
-                                total_files_updated.insert(file);
-                            }
-                            if let Some(errors) = result.errors {
-                                all_errors.extend(errors);
-                            }
-                            info!(
-                                edits_applied = edit_plan.edits.len(),
-                                files_modified = files_modified_count,
-                                "Successfully updated imports for directory rename"
-                            );
+                Ok(edit_plan) => match self.apply_edit_plan(&edit_plan).await {
+                    Ok(result) => {
+                        total_edits_applied += edit_plan.edits.len();
+                        let files_modified_count = result.modified_files.len();
+                        for file in result.modified_files {
+                            total_files_updated.insert(file);
                         }
-                        Err(e) => {
-                            let error_msg = format!(
-                                "Failed to apply import edits for directory rename: {}",
-                                e
-                            );
-                            warn!(error = %e, "Import update failed for directory");
-                            all_errors.push(error_msg);
+                        if let Some(errors) = result.errors {
+                            all_errors.extend(errors);
                         }
+                        info!(
+                            edits_applied = edit_plan.edits.len(),
+                            files_modified = files_modified_count,
+                            "Successfully updated imports for directory rename"
+                        );
                     }
-                }
+                    Err(e) => {
+                        let error_msg =
+                            format!("Failed to apply import edits for directory rename: {}", e);
+                        warn!(error = %e, "Import update failed for directory");
+                        all_errors.push(error_msg);
+                    }
+                },
                 Err(e) => {
                     warn!(error = %e, old_dir = ?old_abs_dir, "Failed to update imports for directory");
                     all_errors.push(format!("Failed to update imports for directory: {}", e));
@@ -535,8 +531,13 @@ impl FileService {
                 // Update path dependencies in other crates that depend on this one
                 if let Some(ref info) = rename_info {
                     // Use old_package_name (with hyphens) for Cargo.toml dependency lookups
-                    if let Some(old_package_name) = info.get("old_package_name").and_then(|v| v.as_str()) {
-                        match self.update_dependent_crate_paths(old_package_name, &new_abs_dir).await {
+                    if let Some(old_package_name) =
+                        info.get("old_package_name").and_then(|v| v.as_str())
+                    {
+                        match self
+                            .update_dependent_crate_paths(old_package_name, &new_abs_dir)
+                            .await
+                        {
                             Ok(updated_files) => {
                                 if !updated_files.is_empty() {
                                     info!(
@@ -548,7 +549,8 @@ impl FileService {
                             }
                             Err(e) => {
                                 warn!(error = %e, "Failed to update dependent crate paths");
-                                let error_msg = format!("Failed to update dependent crate paths: {}", e);
+                                let error_msg =
+                                    format!("Failed to update dependent crate paths: {}", e);
                                 all_errors.push(error_msg.clone());
                                 manifest_errors.push(error_msg);
                             }
@@ -1998,7 +2000,6 @@ impl FileService {
                 }
 
                 if let Some(target_deps) = target_doc[section].as_table_mut() {
-
                     for (dep_name, dep_value) in source_deps.iter() {
                         // Check for self-dependency
                         if dep_name == target_crate_name.as_str() {
@@ -2226,10 +2227,8 @@ impl FileService {
                                             pathdiff::diff_paths(target_crate_path, this_cargo_dir)
                                         {
                                             let path_str = rel_path.to_string_lossy().to_string();
-                                            dep_table.insert(
-                                                "path",
-                                                toml_edit::Value::from(path_str),
-                                            );
+                                            dep_table
+                                                .insert("path", toml_edit::Value::from(path_str));
                                         }
                                     }
                                 } else if let Some(dep_table) = new_dep.as_table_mut() {
@@ -2656,13 +2655,14 @@ impl FileService {
                     // Also update relative path dependencies in the moved package's Cargo.toml
                     let package_cargo_toml = new_package_path.join("Cargo.toml");
                     if package_cargo_toml.exists() {
-                        let package_updated = self.update_package_relative_paths(
-                            &package_cargo_toml,
-                            old_package_path,
-                            new_package_path,
-                            path,
-                        )
-                        .await?;
+                        let package_updated = self
+                            .update_package_relative_paths(
+                                &package_cargo_toml,
+                                old_package_path,
+                                new_package_path,
+                                path,
+                            )
+                            .await?;
 
                         if package_updated {
                             updated_files.push(package_cargo_toml);
@@ -2709,7 +2709,10 @@ impl FileService {
                 }
 
                 // Try to update this Cargo.toml if it depends on the moved crate
-                match self.update_cargo_toml_dependency_path(path, moved_crate_name, new_crate_path).await {
+                match self
+                    .update_cargo_toml_dependency_path(path, moved_crate_name, new_crate_path)
+                    .await
+                {
                     Ok(true) => {
                         info!(cargo_toml = %path.display(), "Updated path dependency");
                         updated_files.push(path.to_path_buf());
@@ -2758,19 +2761,31 @@ impl FileService {
         let cargo_toml_dir = cargo_toml_path.parent().unwrap();
 
         // Helper to update a dependency table
-        let update_dep_in_table = |dep: &mut toml_edit::Item, updated: &mut bool| -> ServerResult<()> {
+        let update_dep_in_table = |dep: &mut toml_edit::Item,
+                                   updated: &mut bool|
+         -> ServerResult<()> {
             if let Some(dep_table) = dep.as_inline_table_mut() {
                 if dep_table.contains_key("path") {
                     let new_rel_path = pathdiff::diff_paths(new_crate_path, cargo_toml_dir)
-                        .ok_or_else(|| ServerError::Internal("Failed to calculate relative path".to_string()))?;
-                    dep_table.insert("path", toml_edit::Value::from(new_rel_path.to_string_lossy().to_string()));
+                        .ok_or_else(|| {
+                            ServerError::Internal("Failed to calculate relative path".to_string())
+                        })?;
+                    dep_table.insert(
+                        "path",
+                        toml_edit::Value::from(new_rel_path.to_string_lossy().to_string()),
+                    );
                     *updated = true;
                 }
             } else if let Some(dep_table) = dep.as_table_mut() {
                 if dep_table.contains_key("path") {
                     let new_rel_path = pathdiff::diff_paths(new_crate_path, cargo_toml_dir)
-                        .ok_or_else(|| ServerError::Internal("Failed to calculate relative path".to_string()))?;
-                    dep_table.insert("path", toml_edit::value(new_rel_path.to_string_lossy().to_string()));
+                        .ok_or_else(|| {
+                            ServerError::Internal("Failed to calculate relative path".to_string())
+                        })?;
+                    dep_table.insert(
+                        "path",
+                        toml_edit::value(new_rel_path.to_string_lossy().to_string()),
+                    );
                     *updated = true;
                 }
             }
@@ -2788,7 +2803,10 @@ impl FileService {
 
         // Check [workspace.dependencies]
         if let Some(workspace) = doc.get_mut("workspace").and_then(|w| w.as_table_mut()) {
-            if let Some(deps) = workspace.get_mut("dependencies").and_then(|d| d.as_table_like_mut()) {
+            if let Some(deps) = workspace
+                .get_mut("dependencies")
+                .and_then(|d| d.as_table_like_mut())
+            {
                 if let Some(dep) = deps.get_mut(moved_crate_name) {
                     update_dep_in_table(dep, &mut updated)?;
                 }
@@ -2800,7 +2818,10 @@ impl FileService {
             for (_target_name, target_table) in target.iter_mut() {
                 if let Some(target_table) = target_table.as_table_mut() {
                     for dep_section in ["dependencies", "dev-dependencies", "build-dependencies"] {
-                        if let Some(deps) = target_table.get_mut(dep_section).and_then(|d| d.as_table_like_mut()) {
+                        if let Some(deps) = target_table
+                            .get_mut(dep_section)
+                            .and_then(|d| d.as_table_like_mut())
+                        {
                             if let Some(dep) = deps.get_mut(moved_crate_name) {
                                 update_dep_in_table(dep, &mut updated)?;
                             }
@@ -2932,7 +2953,10 @@ impl FileService {
             for (_target_spec, target_value) in target.iter_mut() {
                 if let Some(target_table) = target_value.as_table_mut() {
                     for dep_section in ["dependencies", "dev-dependencies", "build-dependencies"] {
-                        if let Some(deps) = target_table.get_mut(dep_section).and_then(|d| d.as_table_mut()) {
+                        if let Some(deps) = target_table
+                            .get_mut(dep_section)
+                            .and_then(|d| d.as_table_mut())
+                        {
                             update_deps_in_table(deps, &mut updated_count);
                         }
                     }

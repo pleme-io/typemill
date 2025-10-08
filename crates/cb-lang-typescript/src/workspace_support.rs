@@ -24,24 +24,20 @@ impl Default for TypeScriptWorkspaceSupport {
 impl WorkspaceSupport for TypeScriptWorkspaceSupport {
     fn add_workspace_member(&self, content: &str, member: &str) -> String {
         match detect_format(content) {
-            WorkspaceFormat::PackageJson => {
-                match add_package_json_member(content, member) {
-                    Ok(result) => result,
-                    Err(e) => {
-                        warn!(error = %e, member = %member, "Failed to add workspace member to package.json");
-                        content.to_string()
-                    }
+            WorkspaceFormat::PackageJson => match add_package_json_member(content, member) {
+                Ok(result) => result,
+                Err(e) => {
+                    warn!(error = %e, member = %member, "Failed to add workspace member to package.json");
+                    content.to_string()
                 }
-            }
-            WorkspaceFormat::PnpmYaml => {
-                match add_pnpm_member(content, member) {
-                    Ok(result) => result,
-                    Err(e) => {
-                        warn!(error = %e, member = %member, "Failed to add workspace member to pnpm-workspace.yaml");
-                        content.to_string()
-                    }
+            },
+            WorkspaceFormat::PnpmYaml => match add_pnpm_member(content, member) {
+                Ok(result) => result,
+                Err(e) => {
+                    warn!(error = %e, member = %member, "Failed to add workspace member to pnpm-workspace.yaml");
+                    content.to_string()
                 }
-            }
+            },
             WorkspaceFormat::Unknown => {
                 warn!(format = "unknown", "Unknown workspace format");
                 content.to_string()
@@ -51,24 +47,20 @@ impl WorkspaceSupport for TypeScriptWorkspaceSupport {
 
     fn remove_workspace_member(&self, content: &str, member: &str) -> String {
         match detect_format(content) {
-            WorkspaceFormat::PackageJson => {
-                match remove_package_json_member(content, member) {
-                    Ok(result) => result,
-                    Err(e) => {
-                        warn!(error = %e, member = %member, "Failed to remove workspace member from package.json");
-                        content.to_string()
-                    }
+            WorkspaceFormat::PackageJson => match remove_package_json_member(content, member) {
+                Ok(result) => result,
+                Err(e) => {
+                    warn!(error = %e, member = %member, "Failed to remove workspace member from package.json");
+                    content.to_string()
                 }
-            }
-            WorkspaceFormat::PnpmYaml => {
-                match remove_pnpm_member(content, member) {
-                    Ok(result) => result,
-                    Err(e) => {
-                        warn!(error = %e, member = %member, "Failed to remove workspace member from pnpm-workspace.yaml");
-                        content.to_string()
-                    }
+            },
+            WorkspaceFormat::PnpmYaml => match remove_pnpm_member(content, member) {
+                Ok(result) => result,
+                Err(e) => {
+                    warn!(error = %e, member = %member, "Failed to remove workspace member from pnpm-workspace.yaml");
+                    content.to_string()
                 }
-            }
+            },
             WorkspaceFormat::Unknown => {
                 warn!(format = "unknown", "Unknown workspace format");
                 content.to_string()
@@ -85,36 +77,28 @@ impl WorkspaceSupport for TypeScriptWorkspaceSupport {
                     false
                 }
             }
-            WorkspaceFormat::PnpmYaml => {
-                content.contains("packages:")
-            }
+            WorkspaceFormat::PnpmYaml => content.contains("packages:"),
             WorkspaceFormat::Unknown => false,
         }
     }
 
     fn list_workspace_members(&self, content: &str) -> Vec<String> {
         match detect_format(content) {
-            WorkspaceFormat::PackageJson => {
-                list_package_json_members(content).unwrap_or_default()
-            }
-            WorkspaceFormat::PnpmYaml => {
-                list_pnpm_members(content).unwrap_or_default()
-            }
+            WorkspaceFormat::PackageJson => list_package_json_members(content).unwrap_or_default(),
+            WorkspaceFormat::PnpmYaml => list_pnpm_members(content).unwrap_or_default(),
             WorkspaceFormat::Unknown => Vec::new(),
         }
     }
 
     fn update_package_name(&self, content: &str, new_name: &str) -> String {
         match detect_format(content) {
-            WorkspaceFormat::PackageJson => {
-                match update_package_json_name(content, new_name) {
-                    Ok(result) => result,
-                    Err(e) => {
-                        warn!(error = %e, new_name = %new_name, "Failed to update package name");
-                        content.to_string()
-                    }
+            WorkspaceFormat::PackageJson => match update_package_json_name(content, new_name) {
+                Ok(result) => result,
+                Err(e) => {
+                    warn!(error = %e, new_name = %new_name, "Failed to update package name");
+                    content.to_string()
                 }
-            }
+            },
             WorkspaceFormat::PnpmYaml => {
                 // pnpm-workspace.yaml doesn't have package names
                 debug!("pnpm-workspace.yaml doesn't support package name updates");
@@ -228,14 +212,14 @@ fn list_package_json_members(content: &str) -> Result<Vec<String>, String> {
     let workspaces = parsed.get("workspaces");
 
     match workspaces {
-        Some(Value::Array(arr)) => {
-            Ok(arr.iter()
-                .filter_map(|v| v.as_str().map(String::from))
-                .collect())
-        }
+        Some(Value::Array(arr)) => Ok(arr
+            .iter()
+            .filter_map(|v| v.as_str().map(String::from))
+            .collect()),
         Some(Value::Object(obj)) => {
             if let Some(Value::Array(packages)) = obj.get("packages") {
-                Ok(packages.iter()
+                Ok(packages
+                    .iter()
                     .filter_map(|v| v.as_str().map(String::from))
                     .collect())
             } else {
@@ -286,7 +270,11 @@ fn add_pnpm_member(content: &str, member: &str) -> Result<String, String> {
         }
 
         // Check if we're leaving packages section
-        if in_packages && !trimmed.is_empty() && !trimmed.starts_with('-') && !trimmed.starts_with('#') {
+        if in_packages
+            && !trimmed.is_empty()
+            && !trimmed.starts_with('-')
+            && !trimmed.starts_with('#')
+        {
             // Add member before leaving section
             if !added {
                 result.push_str(&format!("  - '{}'\n", member));
@@ -326,8 +314,10 @@ fn remove_pnpm_member(content: &str, member: &str) -> Result<String, String> {
         let trimmed = line.trim();
 
         // Skip lines that match the member
-        if trimmed == member_line || trimmed == member_line_alt ||
-           trimmed == format!("- {}", member) {
+        if trimmed == member_line
+            || trimmed == member_line_alt
+            || trimmed == format!("- {}", member)
+        {
             continue;
         }
 
@@ -352,7 +342,11 @@ fn list_pnpm_members(content: &str) -> Result<Vec<String>, String> {
         }
 
         // Check if we're leaving packages section
-        if in_packages && !trimmed.is_empty() && !trimmed.starts_with('-') && !trimmed.starts_with('#') {
+        if in_packages
+            && !trimmed.is_empty()
+            && !trimmed.starts_with('-')
+            && !trimmed.starts_with('#')
+        {
             break;
         }
 

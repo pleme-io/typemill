@@ -34,8 +34,14 @@ pub mod import_support;
 pub mod workspace_support;
 
 use async_trait::async_trait;
-use cb_plugin_api::{LanguagePlugin, LanguageMetadata, LanguageCapabilities, ManifestData, ParsedSource, PluginResult};
-use cb_lang_common::{read_manifest, manifest_templates::{ManifestTemplate, TomlManifestTemplate}};
+use cb_lang_common::{
+    manifest_templates::{ManifestTemplate, TomlManifestTemplate},
+    read_manifest,
+};
+use cb_plugin_api::{
+    LanguageCapabilities, LanguageMetadata, LanguagePlugin, ManifestData, ParsedSource,
+    PluginResult,
+};
 use std::path::Path;
 
 /// Rust language plugin implementation
@@ -248,7 +254,9 @@ impl RustPlugin {
 
         // Add Rust-specific edition field
         if let Some(version_pos) = manifest.find("version = \"0.1.0\"") {
-            let insert_pos = manifest[version_pos..].find('\n').map(|p| version_pos + p + 1);
+            let insert_pos = manifest[version_pos..]
+                .find('\n')
+                .map(|p| version_pos + p + 1);
             if let Some(pos) = insert_pos {
                 manifest.insert_str(pos, "edition = \"2021\"\n");
             }
@@ -369,8 +377,8 @@ impl RustPlugin {
         module_to_find: &str,
         _scope: cb_plugin_api::ScanScope,
     ) -> PluginResult<Vec<cb_plugin_api::ModuleReference>> {
-        use syn::{File, Item};
         use cb_plugin_api::{ModuleReference, ReferenceKind};
+        use syn::{File, Item};
 
         let ast: File = syn::parse_file(content).map_err(|e| {
             cb_plugin_api::PluginError::parse(format!("Failed to parse Rust code: {}", e))
@@ -543,11 +551,8 @@ impl Wrapper {
 
         // Use the ImportSupport trait method instead
         let import_support = plugin.import_support().unwrap();
-        let (result, count) = import_support.rewrite_imports_for_rename(
-            source,
-            "old_crate",
-            "new_crate",
-        );
+        let (result, count) =
+            import_support.rewrite_imports_for_rename(source, "old_crate", "new_crate");
 
         // Should have changed exactly 2 use statements
         assert_eq!(count, 2);

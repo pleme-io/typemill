@@ -108,7 +108,9 @@ impl LanguagePluginRegistry {
     ///     }
     /// }
     /// ```
-    pub fn plugins_with_fixtures(&self) -> Vec<(&dyn LanguagePlugin, cb_plugin_api::LanguageTestFixtures)> {
+    pub fn plugins_with_fixtures(
+        &self,
+    ) -> Vec<(&dyn LanguagePlugin, cb_plugin_api::LanguageTestFixtures)> {
         self.inner
             .all()
             .iter()
@@ -128,10 +130,7 @@ impl LanguagePluginRegistry {
     /// # Returns
     ///
     /// A reference to the language plugin if found, `None` otherwise
-    pub fn get_plugin_for_manifest(
-        &self,
-        filename: &str,
-    ) -> Option<&dyn LanguagePlugin> {
+    pub fn get_plugin_for_manifest(&self, filename: &str) -> Option<&dyn LanguagePlugin> {
         debug!(filename = filename, "Looking up plugin for manifest");
 
         for plugin in self.inner.all() {

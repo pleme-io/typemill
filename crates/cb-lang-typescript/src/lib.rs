@@ -94,17 +94,17 @@
 //! - `.jsx` - JavaScript with JSX
 //! - `.mjs` - ES Module JavaScript
 //! - `.cjs` - CommonJS JavaScript
+pub mod import_support;
 mod manifest;
 pub mod parser;
 pub mod refactoring;
-pub mod import_support;
 pub mod workspace_support;
 use async_trait::async_trait;
+use cb_lang_common::read_manifest;
 use cb_plugin_api::{
     ImportSupport, LanguageCapabilities, LanguageMetadata, LanguagePlugin, ManifestData,
     ParsedSource, PluginError, PluginResult, WorkspaceSupport,
 };
-use cb_lang_common::read_manifest;
 use std::path::Path;
 /// TypeScript/JavaScript language plugin implementation.
 pub struct TypeScriptPlugin {
@@ -168,19 +168,12 @@ impl TypeScriptPlugin {
         new_version: Option<&str>,
     ) -> PluginResult<String> {
         let content = read_manifest(manifest_path).await?;
-        let version = new_version
-            .ok_or_else(|| {
-                PluginError::invalid_input(
-                    "Version required for package.json dependency updates",
-                )
-            })?;
+        let version = new_version.ok_or_else(|| {
+            PluginError::invalid_input("Version required for package.json dependency updates")
+        })?;
         manifest::update_dependency(&content, new_name, version)
     }
-    pub fn generate_manifest(
-        &self,
-        package_name: &str,
-        dependencies: &[String],
-    ) -> String {
+    pub fn generate_manifest(&self, package_name: &str, dependencies: &[String]) -> String {
         manifest::generate_manifest(package_name, dependencies)
     }
     /// Find module references (minimal implementation for compatibility)
@@ -193,17 +186,14 @@ impl TypeScriptPlugin {
         use cb_plugin_api::{ModuleReference, ReferenceKind};
         let mut references = Vec::new();
         for (line_num, line) in content.lines().enumerate() {
-            if (line.contains("import") || line.contains("from"))
-                && line.contains(module_to_find)
-            {
-                references
-                    .push(ModuleReference {
-                        line: line_num + 1,
-                        column: 0,
-                        length: line.len(),
-                        text: line.to_string(),
-                        kind: ReferenceKind::Declaration,
-                    });
+            if (line.contains("import") || line.contains("from")) && line.contains(module_to_find) {
+                references.push(ModuleReference {
+                    line: line_num + 1,
+                    column: 0,
+                    length: line.len(),
+                    text: line.to_string(),
+                    kind: ReferenceKind::Declaration,
+                });
             }
         }
         references

@@ -441,9 +441,7 @@ mod tests {
 
     #[test]
     fn test_find_last_import_swift() {
-        let idx = find_last_matching_line(SWIFT_IMPORTS, |line| {
-            line.trim().starts_with("import")
-        });
+        let idx = find_last_matching_line(SWIFT_IMPORTS, |line| line.trim().starts_with("import"));
         assert!(idx.is_some());
         let line = SWIFT_IMPORTS.lines().nth(idx.unwrap()).unwrap();
         assert!(line.contains("Combine"));
@@ -451,10 +449,8 @@ mod tests {
 
     #[test]
     fn test_insert_import_after_last_swift() {
-        let idx = find_last_matching_line(SWIFT_IMPORTS, |line| {
-            line.trim().starts_with("import")
-        })
-        .unwrap();
+        let idx = find_last_matching_line(SWIFT_IMPORTS, |line| line.trim().starts_with("import"))
+            .unwrap();
 
         let result = insert_line_at(SWIFT_IMPORTS, idx + 1, "import NewModule");
         assert!(result.contains("import NewModule"));
@@ -463,9 +459,8 @@ mod tests {
 
     #[test]
     fn test_remove_all_imports_rust() {
-        let (result, count) = remove_lines_matching(RUST_IMPORTS, |line| {
-            line.trim().starts_with("use")
-        });
+        let (result, count) =
+            remove_lines_matching(RUST_IMPORTS, |line| line.trim().starts_with("use"));
 
         assert_eq!(count, 5);
         assert!(!result.contains("use std::"));
@@ -484,10 +479,9 @@ mod tests {
     #[test]
     fn test_complex_imports_manipulation() {
         // Find last import
-        let idx = find_last_matching_line(COMPLEX_IMPORTS, |line| {
-            line.trim().starts_with("import")
-        })
-        .unwrap();
+        let idx =
+            find_last_matching_line(COMPLEX_IMPORTS, |line| line.trim().starts_with("import"))
+                .unwrap();
 
         // Insert new import
         let with_new = insert_line_at(COMPLEX_IMPORTS, idx + 1, "import { NEW } from '@/lib';");

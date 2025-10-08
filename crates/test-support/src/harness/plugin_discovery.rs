@@ -14,7 +14,6 @@ use once_cell::sync::Lazy;
 // duration of the test run, solving the lifetime issue.
 static REGISTRY: Lazy<LanguagePluginRegistry> = Lazy::new(LanguagePluginRegistry::new);
 
-
 /// Discover all installed language plugins that provide test fixtures
 ///
 /// This function queries the plugin registry and returns all plugins
@@ -36,7 +35,8 @@ static REGISTRY: Lazy<LanguagePluginRegistry> = Lazy::new(LanguagePluginRegistry
 ///     println!("  - {} refactoring scenarios", fixtures.refactoring_scenarios.len());
 /// }
 /// ```
-pub fn discover_plugins_with_fixtures() -> Vec<(&'static dyn LanguagePlugin, LanguageTestFixtures)> {
+pub fn discover_plugins_with_fixtures() -> Vec<(&'static dyn LanguagePlugin, LanguageTestFixtures)>
+{
     REGISTRY.plugins_with_fixtures()
 }
 

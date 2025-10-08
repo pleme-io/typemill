@@ -1,12 +1,12 @@
-use integration_tests :: harness :: { TestClient , TestWorkspace } ;
+//! Rust crate consolidation tests
 //!
 //! Tests the complete workflow of consolidating one Rust crate into another,
 //! including file moving, dependency merging, workspace updates, and import rewriting.
 
-use integration_tests::harness::{TestClient, TestWorkspace};
 use serde_json::json;
 use std::fs;
 use std::path::Path;
+use test_support::harness::{TestClient, TestWorkspace};
 
 /// Test basic consolidation: move source_crate into target_crate
 #[tokio::test]
@@ -144,7 +144,10 @@ async fn test_consolidate_rust_package_basic() {
         .expect("Should be able to read consumer Cargo.toml");
 
     // The consumer's dependency should have been automatically updated from source-crate to target-crate
-    eprintln!("DEBUG: Consumer Cargo.toml content:\n{}", consumer_toml_content);
+    eprintln!(
+        "DEBUG: Consumer Cargo.toml content:\n{}",
+        consumer_toml_content
+    );
 
     assert!(
         consumer_toml_content.contains("target-crate"),
@@ -164,11 +167,13 @@ async fn test_consolidate_rust_package_basic() {
 
     let consumer_lib_rs = workspace_path.join("consumer_crate/src/lib.rs");
     if consumer_lib_rs.exists() {
-        let consumer_lib_content = fs::read_to_string(&consumer_lib_rs)
-            .expect("Should be able to read consumer lib.rs");
+        let consumer_lib_content =
+            fs::read_to_string(&consumer_lib_rs).expect("Should be able to read consumer lib.rs");
 
-        eprintln!("DEBUG: Consumer lib.rs still has source_crate references (expected without LSP):\n{}",
-            &consumer_lib_content[..200.min(consumer_lib_content.len())]);
+        eprintln!(
+            "DEBUG: Consumer lib.rs still has source_crate references (expected without LSP):\n{}",
+            &consumer_lib_content[..200.min(consumer_lib_content.len())]
+        );
 
         // In a real scenario with LSP running, these would be updated:
         // - source_crate::say_hello() -> target_crate::source::say_hello()
@@ -546,10 +551,7 @@ my-plugin = { path = "../my-plugin" }
     );
 
     // === Verify files were actually moved ===
-    assert!(
-        !old_path.exists(),
-        "Old directory should no longer exist"
-    );
+    assert!(!old_path.exists(), "Old directory should no longer exist");
 
     assert!(
         new_path.join("src/lib.rs").exists(),
@@ -570,7 +572,8 @@ my-plugin = { path = "../my-plugin" }
     // === Verify workspace structure is maintained ===
     // Check that workspace members array was updated to reflect new location
     assert!(
-        root_toml.contains(r#""plugins/my-plugin""#) || root_toml.contains(r#"'plugins/my-plugin'"#),
+        root_toml.contains(r#""plugins/my-plugin""#)
+            || root_toml.contains(r#"'plugins/my-plugin'"#),
         "Workspace members should include new path. Content:\n{}",
         root_toml
     );

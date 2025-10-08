@@ -1,5 +1,5 @@
-use integration_tests :: harness :: { TestClient , TestWorkspace } ;
 use serde_json::{json, Value};
+use test_support::harness::{TestClient, TestWorkspace};
 #[tokio::test]
 async fn test_health_check_basic() {
     let workspace = TestWorkspace::new();
@@ -334,7 +334,7 @@ async fn test_system_tools_integration() {
     let health_result = health_response["result"]
         .as_object()
         .expect("Should have result field");
-    let initial_status = health_result["status"].as_str().unwrap();
+    let _initial_status = health_result["status"].as_str().unwrap();
     let package_json = workspace.path().join("package.json");
     let initial_package = json!(
         { "name" : "integration-test", "version" : "0.1.0", "scripts" : { "start" :

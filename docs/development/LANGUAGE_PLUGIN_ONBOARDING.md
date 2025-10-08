@@ -153,7 +153,7 @@ Based on your chosen scope, implement the optional traits (`ImportSupport`, `Wor
 
 ### Step 6: Integration Testing (1-2 hours)
 
-**File**: `integration-tests/tests/e2e_<language>_features.rs` (new file)
+**File**: `apps/codebuddy/tests/e2e_<language>_features.rs` (new file)
 
 Add end-to-end tests that use the `TestClient` to call your plugin's features on real code samples. This is crucial for ensuring your plugin works correctly within the larger system.
 

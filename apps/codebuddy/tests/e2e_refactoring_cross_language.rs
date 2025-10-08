@@ -1,4 +1,4 @@
-use integration_tests :: harness :: { ExpectedBehavior , Language , RefactoringScenarios , TestClient , TestWorkspace , } ;
+//! Cross-language refactoring tests
 //!
 //! This module contains parameterized tests that run the SAME logical refactoring
 //! operation across ALL supported programming languages (Python, TypeScript, Rust, Go).
@@ -28,7 +28,7 @@ use integration_tests :: harness :: { ExpectedBehavior , Language , RefactoringS
 //! - Execute refactoring via MCP tools
 //! - Validate results consistently across languages
 
-use integration_tests::harness::{
+use test_support::harness::{
     ExpectedBehavior, Language, RefactoringScenarios, TestClient, TestWorkspace,
 };
 
@@ -38,7 +38,7 @@ async fn run_single_language_test(
     client: &mut TestClient,
     language: Language,
     source_code: &str,
-    operation: &integration_tests::harness::RefactoringOperation,
+    operation: &test_support::harness::RefactoringOperation,
     expected: &ExpectedBehavior,
 ) -> bool {
     // Create test file with appropriate extension
@@ -70,10 +70,7 @@ async fn run_single_language_test(
                 // If there's an error, check if language doesn't support refactoring yet
                 if let Some(error) = response_value.get("error") {
                     if !language.supports_refactoring() {
-                        eprintln!(
-                            "[{:?}] Refactoring not yet supported - skipping",
-                            language
-                        );
+                        eprintln!("[{:?}] Refactoring not yet supported - skipping", language);
                         return false;
                     }
                     eprintln!("[{:?}] Error details: {:?}", language, error);

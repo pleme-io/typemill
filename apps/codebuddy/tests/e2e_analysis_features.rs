@@ -1,16 +1,13 @@
-use integration_tests :: harness :: { discover_plugins_with_fixtures , plugin_language_name , TestClient , TestWorkspace , } ;
+//! End-to-end analysis features tests
 //!
 //! This module tests analysis tools like find_dead_code with real LSP integration.
 //! Unlike the data-driven tests in mcp_file_operations.rs, these tests focus on
 //! end-to-end workflows and LSP fallback scenarios.
 
-use integration_tests::harness::{
-    discover_plugins_with_fixtures,
-    plugin_language_name,
-    TestClient,
-    TestWorkspace,
-};
 use serde_json::json;
+use test_support::harness::{
+    discover_plugins_with_fixtures, plugin_language_name, TestClient, TestWorkspace,
+};
 
 /// Test find_dead_code with TypeScript - basic case
 #[tokio::test]

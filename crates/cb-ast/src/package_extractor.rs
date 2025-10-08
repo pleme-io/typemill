@@ -144,7 +144,8 @@ pub async fn plan_extract_module_to_package_with_registry(
     );
 
     // Step 5: Generate new crate manifest
-    let generated_manifest = rust_plugin.generate_manifest(&params.target_package_name, &dependencies);
+    let generated_manifest =
+        rust_plugin.generate_manifest(&params.target_package_name, &dependencies);
 
     debug!(
         manifest_lines = generated_manifest.lines().count(),

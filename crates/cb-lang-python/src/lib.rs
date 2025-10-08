@@ -129,7 +129,7 @@ impl LanguagePlugin for PythonPlugin {
     fn capabilities(&self) -> LanguageCapabilities {
         LanguageCapabilities {
             imports: true,
-            workspace: true,  // ✅ Poetry/PDM/Hatch workspace support
+            workspace: true, // ✅ Poetry/PDM/Hatch workspace support
         }
     }
 
@@ -286,6 +286,9 @@ class MyClass:
     #[test]
     fn test_python_workspace_support() {
         let plugin = PythonPlugin::new();
-        assert!(plugin.workspace_support().is_some(), "Python should have workspace support");
+        assert!(
+            plugin.workspace_support().is_some(),
+            "Python should have workspace support"
+        );
     }
 }

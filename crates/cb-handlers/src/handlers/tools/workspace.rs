@@ -174,22 +174,31 @@ impl WorkspaceHandler {
         // us to use FileService for reading and benefit from caching/locking.
 
         // Downcast to concrete plugin types to access update_dependency
+        use cb_lang_go::GoPlugin;
         use cb_lang_rust::RustPlugin;
         use cb_lang_typescript::TypeScriptPlugin;
-        use cb_lang_go::GoPlugin;
 
-        let updated_content = if let Some(rust_plugin) = plugin.as_any().downcast_ref::<RustPlugin>() {
-            rust_plugin.update_dependency(path, old_dep_name, new_dep_name, new_path).await
-        } else if let Some(ts_plugin) = plugin.as_any().downcast_ref::<TypeScriptPlugin>() {
-            ts_plugin.update_dependency(path, old_dep_name, new_dep_name, new_path).await
-        } else if let Some(go_plugin) = plugin.as_any().downcast_ref::<GoPlugin>() {
-            go_plugin.update_dependency(path, old_dep_name, new_dep_name, new_path).await
-        } else {
-            Err(cb_plugin_api::PluginError::not_supported("update_dependency"))
-        }
-        .map_err(|e| {
-            cb_protocol::ApiError::Internal(format!("Failed to update dependency: {}", e))
-        })?;
+        let updated_content =
+            if let Some(rust_plugin) = plugin.as_any().downcast_ref::<RustPlugin>() {
+                rust_plugin
+                    .update_dependency(path, old_dep_name, new_dep_name, new_path)
+                    .await
+            } else if let Some(ts_plugin) = plugin.as_any().downcast_ref::<TypeScriptPlugin>() {
+                ts_plugin
+                    .update_dependency(path, old_dep_name, new_dep_name, new_path)
+                    .await
+            } else if let Some(go_plugin) = plugin.as_any().downcast_ref::<GoPlugin>() {
+                go_plugin
+                    .update_dependency(path, old_dep_name, new_dep_name, new_path)
+                    .await
+            } else {
+                Err(cb_plugin_api::PluginError::not_supported(
+                    "update_dependency",
+                ))
+            }
+            .map_err(|e| {
+                cb_protocol::ApiError::Internal(format!("Failed to update dependency: {}", e))
+            })?;
 
         // Write the updated content back using FileService for caching/locking/virtual workspace support
         context

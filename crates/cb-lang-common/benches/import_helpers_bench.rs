@@ -23,8 +23,8 @@
 //! - **remove_lines_matching**: < 500us for 1K lines
 //! - **replace_in_lines**: < 1ms for 1K lines with 100 replacements
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use cb_lang_common::import_helpers::*;
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 
 // ============================================================================
 // Test Data Generation
@@ -101,9 +101,7 @@ fn bench_find_last_matching_line(c: &mut Criterion) {
             size,
             |b, _| {
                 b.iter(|| {
-                    find_last_matching_line(black_box(&content), |line| {
-                        line.starts_with("import")
-                    })
+                    find_last_matching_line(black_box(&content), |line| line.starts_with("import"))
                 });
             },
         );
@@ -123,9 +121,7 @@ fn bench_find_last_matching_line(c: &mut Criterion) {
 
     group.bench_function("10K_lines_50%_matches", |b| {
         b.iter(|| {
-            find_last_matching_line(black_box(&content_dense), |line| {
-                line.starts_with("import")
-            })
+            find_last_matching_line(black_box(&content_dense), |line| line.starts_with("import"))
         });
     });
 
@@ -155,31 +151,19 @@ fn bench_insert_line_at(c: &mut Criterion) {
 
         // Insert at beginning
         group.throughput(Throughput::Elements(*size as u64));
-        group.bench_with_input(
-            BenchmarkId::new("beginning", size),
-            size,
-            |b, _| {
-                b.iter(|| insert_line_at(black_box(&content), 0, "NEW_IMPORT"));
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("beginning", size), size, |b, _| {
+            b.iter(|| insert_line_at(black_box(&content), 0, "NEW_IMPORT"));
+        });
 
         // Insert at middle
-        group.bench_with_input(
-            BenchmarkId::new("middle", size),
-            size,
-            |b, _| {
-                b.iter(|| insert_line_at(black_box(&content), size / 2, "NEW_IMPORT"));
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("middle", size), size, |b, _| {
+            b.iter(|| insert_line_at(black_box(&content), size / 2, "NEW_IMPORT"));
+        });
 
         // Insert at end
-        group.bench_with_input(
-            BenchmarkId::new("end", size),
-            size,
-            |b, _| {
-                b.iter(|| insert_line_at(black_box(&content), *size, "NEW_IMPORT"));
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("end", size), size, |b, _| {
+            b.iter(|| insert_line_at(black_box(&content), *size, "NEW_IMPORT"));
+        });
     }
 
     // Benchmark with CRLF line endings
@@ -205,9 +189,7 @@ fn bench_remove_lines_matching(c: &mut Criterion) {
         group.throughput(Throughput::Elements(1_000));
         group.bench_function(format!("1K_lines_remove_{}", label), |b| {
             b.iter(|| {
-                remove_lines_matching(black_box(&content), |line| {
-                    line.starts_with("import")
-                })
+                remove_lines_matching(black_box(&content), |line| line.starts_with("import"))
             });
         });
     }
@@ -242,9 +224,7 @@ fn bench_remove_lines_matching(c: &mut Criterion) {
             size,
             |b, _| {
                 b.iter(|| {
-                    remove_lines_matching(black_box(&content), |line| {
-                        line.starts_with("import")
-                    })
+                    remove_lines_matching(black_box(&content), |line| line.starts_with("import"))
                 });
             },
         );
@@ -344,9 +324,8 @@ fn bench_combined_operations(c: &mut Criterion) {
     // Workflow: Remove old imports, replace module name
     group.bench_function("remove_and_replace_imports", |b| {
         b.iter(|| {
-            let (result, _) = remove_lines_matching(black_box(&content), |line| {
-                line.contains("deprecated_")
-            });
+            let (result, _) =
+                remove_lines_matching(black_box(&content), |line| line.contains("deprecated_"));
             replace_in_lines(&result, "old_module", "new_module")
         });
     });
@@ -355,17 +334,14 @@ fn bench_combined_operations(c: &mut Criterion) {
     group.bench_function("full_refactoring_pipeline", |b| {
         b.iter(|| {
             // 1. Remove deprecated imports
-            let (step1, _) = remove_lines_matching(black_box(&content), |line| {
-                line.contains("deprecated")
-            });
+            let (step1, _) =
+                remove_lines_matching(black_box(&content), |line| line.contains("deprecated"));
 
             // 2. Replace old module name
             let (step2, _) = replace_in_lines(&step1, "module_0", "core_module");
 
             // 3. Find last import and add new one
-            let idx = find_last_matching_line(&step2, |line| {
-                line.trim().starts_with("import")
-            });
+            let idx = find_last_matching_line(&step2, |line| line.trim().starts_with("import"));
 
             if let Some(idx) = idx {
                 insert_line_at(&step2, idx + 1, "import feature_module;")
@@ -396,7 +372,10 @@ fn bench_edge_cases(c: &mut Criterion) {
     });
 
     // Many short lines
-    let many_short_lines = (0..100_000).map(|i| format!("i{}", i)).collect::<Vec<_>>().join("\n");
+    let many_short_lines = (0..100_000)
+        .map(|i| format!("i{}", i))
+        .collect::<Vec<_>>()
+        .join("\n");
     group.bench_function("100K_very_short_lines", |b| {
         b.iter(|| {
             find_last_matching_line(black_box(&many_short_lines), |line| {
@@ -408,11 +387,7 @@ fn bench_edge_cases(c: &mut Criterion) {
     // Empty lines
     let empty_lines = "\n".repeat(10_000);
     group.bench_function("10K_empty_lines", |b| {
-        b.iter(|| {
-            find_last_matching_line(black_box(&empty_lines), |line| {
-                !line.is_empty()
-            })
-        });
+        b.iter(|| find_last_matching_line(black_box(&empty_lines), |line| !line.is_empty()));
     });
 
     // Unicode content
@@ -421,11 +396,7 @@ fn bench_edge_cases(c: &mut Criterion) {
         .collect::<Vec<_>>()
         .join("\n");
     group.bench_function("1K_lines_unicode", |b| {
-        b.iter(|| {
-            find_last_matching_line(black_box(&unicode_content), |line| {
-                line.contains("�e")
-            })
-        });
+        b.iter(|| find_last_matching_line(black_box(&unicode_content), |line| line.contains("�e")));
     });
 
     group.finish();

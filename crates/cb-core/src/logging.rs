@@ -27,8 +27,7 @@ pub fn initialize(config: &AppConfig) {
     let log_level = config.logging.level.parse().unwrap_or(tracing::Level::INFO);
 
     // Create env filter (RUST_LOG takes precedence over config)
-    let env_filter = EnvFilter::from_default_env()
-        .add_directive(log_level.into());
+    let env_filter = EnvFilter::from_default_env().add_directive(log_level.into());
 
     // Check for LOG_FORMAT env override
     let format = std::env::var("LOG_FORMAT")
@@ -50,7 +49,7 @@ pub fn initialize(config: &AppConfig) {
                     fmt::layer()
                         .json()
                         // .with_current_span(true) // Disabled due to performance issues in high-throughput tests
-                        .with_writer(std::io::stderr)
+                        .with_writer(std::io::stderr),
                 )
                 .init();
         }

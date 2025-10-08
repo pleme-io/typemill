@@ -1,30 +1,23 @@
 //! TypeScript/JavaScript import parsing and symbol extraction logic.
+use cb_lang_common::{parse_with_fallback, run_ast_tool, ImportGraphBuilder, SubprocessAstTool};
 use cb_plugin_api::{PluginError, PluginResult, Symbol, SymbolKind};
 use cb_protocol::{ImportGraph, ImportInfo, ImportType, SourceLocation};
-use cb_lang_common::{
-    SubprocessAstTool, run_ast_tool, parse_with_fallback, ImportGraphBuilder,
-};
 use serde::Deserialize;
 use std::path::Path;
 /// Analyzes TypeScript/JavaScript source code to produce an import graph.
 /// It attempts to use an AST-based approach first, falling back to regex on failure.
-pub fn analyze_imports(
-    source: &str,
-    file_path: Option<&Path>,
-) -> PluginResult<ImportGraph> {
+pub fn analyze_imports(source: &str, file_path: Option<&Path>) -> PluginResult<ImportGraph> {
     let imports = parse_with_fallback(
         || parse_imports_ast(source),
         || parse_imports_regex(source),
         "TypeScript import parsing",
     )?;
-    Ok(
-        ImportGraphBuilder::new("typescript")
-            .with_source_file(file_path)
-            .with_imports(imports)
-            .extract_external_dependencies(is_external_dependency)
-            .with_parser_version("0.1.0-plugin")
-            .build(),
-    )
+    Ok(ImportGraphBuilder::new("typescript")
+        .with_source_file(file_path)
+        .with_imports(imports)
+        .extract_external_dependencies(is_external_dependency)
+        .with_parser_version("0.1.0-plugin")
+        .build())
 }
 /// TypeScript import information from AST tool
 #[derive(Debug, Deserialize)]
@@ -58,106 +51,98 @@ fn parse_imports_ast(source: &str) -> Result<Vec<ImportInfo>, PluginError> {
         .with_temp_filename("ast_tool.js")
         .with_arg("analyze-imports");
     let ts_imports: Vec<TsImportInfo> = run_ast_tool(tool, source)?;
-    Ok(
-        ts_imports
-            .into_iter()
-            .map(|imp| ImportInfo {
-                module_path: imp.module_path,
-                import_type: match imp.import_type.as_str() {
-                    "es_module" => ImportType::EsModule,
-                    "commonjs" => ImportType::CommonJs,
-                    "dynamic" => ImportType::Dynamic,
-                    _ => ImportType::EsModule,
-                },
-                named_imports: imp
-                    .named_imports
-                    .iter()
-                    .map(|n| cb_protocol::NamedImport {
-                        name: n.name.clone(),
-                        alias: n.alias.clone(),
-                        type_only: n.type_only,
-                    })
-                    .collect(),
-                default_import: imp.default_import,
-                namespace_import: imp.namespace_import,
-                type_only: imp.type_only,
-                location: SourceLocation {
-                    start_line: imp.location.start_line as u32,
-                    start_column: imp.location.start_column as u32,
-                    end_line: imp.location.end_line as u32,
-                    end_column: imp.location.end_column as u32,
-                },
-            })
-            .collect(),
-    )
+    Ok(ts_imports
+        .into_iter()
+        .map(|imp| ImportInfo {
+            module_path: imp.module_path,
+            import_type: match imp.import_type.as_str() {
+                "es_module" => ImportType::EsModule,
+                "commonjs" => ImportType::CommonJs,
+                "dynamic" => ImportType::Dynamic,
+                _ => ImportType::EsModule,
+            },
+            named_imports: imp
+                .named_imports
+                .iter()
+                .map(|n| cb_protocol::NamedImport {
+                    name: n.name.clone(),
+                    alias: n.alias.clone(),
+                    type_only: n.type_only,
+                })
+                .collect(),
+            default_import: imp.default_import,
+            namespace_import: imp.namespace_import,
+            type_only: imp.type_only,
+            location: SourceLocation {
+                start_line: imp.location.start_line as u32,
+                start_column: imp.location.start_column as u32,
+                end_line: imp.location.end_line as u32,
+                end_column: imp.location.end_column as u32,
+            },
+        })
+        .collect())
 }
 /// Parse TypeScript/JavaScript imports using regex (fallback implementation)
 fn parse_imports_regex(source: &str) -> PluginResult<Vec<ImportInfo>> {
     let mut imports = Vec::new();
     let lines: Vec<&str> = source.lines().collect();
-    let es6_import_re = regex::Regex::new(r#"^import\s+.*?from\s+['"]([^'"]+)['"]"#)
-        .unwrap();
-    let require_re = regex::Regex::new(r#"require\s*\(\s*['"]([^'"]+)['"]\s*\)"#)
-        .unwrap();
-    let dynamic_import_re = regex::Regex::new(r#"import\s*\(\s*['"]([^'"]+)['"]\s*\)"#)
-        .unwrap();
+    let es6_import_re = regex::Regex::new(r#"^import\s+.*?from\s+['"]([^'"]+)['"]"#).unwrap();
+    let require_re = regex::Regex::new(r#"require\s*\(\s*['"]([^'"]+)['"]\s*\)"#).unwrap();
+    let dynamic_import_re = regex::Regex::new(r#"import\s*\(\s*['"]([^'"]+)['"]\s*\)"#).unwrap();
     for (line_idx, line) in lines.iter().enumerate() {
         let line_num = (line_idx + 1) as u32;
         if let Some(caps) = es6_import_re.captures(line) {
             let module_path = caps.get(1).unwrap().as_str().to_string();
-            imports
-                .push(ImportInfo {
-                    module_path,
-                    import_type: ImportType::EsModule,
-                    named_imports: Vec::new(),
-                    default_import: None,
-                    namespace_import: None,
-                    type_only: line.contains("import type"),
-                    location: SourceLocation {
-                        start_line: line_num,
-                        start_column: 0,
-                        end_line: line_num,
-                        end_column: line.len() as u32,
-                    },
-                });
+            imports.push(ImportInfo {
+                module_path,
+                import_type: ImportType::EsModule,
+                named_imports: Vec::new(),
+                default_import: None,
+                namespace_import: None,
+                type_only: line.contains("import type"),
+                location: SourceLocation {
+                    start_line: line_num,
+                    start_column: 0,
+                    end_line: line_num,
+                    end_column: line.len() as u32,
+                },
+            });
         }
         if let Some(caps) = require_re.captures(line) {
             let module_path = caps.get(1).unwrap().as_str().to_string();
             let start_col = line.find("require").unwrap_or(0) as u32;
-            imports
-                .push(ImportInfo {
-                    module_path,
-                    import_type: ImportType::CommonJs,
-                    named_imports: Vec::new(),
-                    default_import: None,
-                    namespace_import: None,
-                    type_only: false,
-                    location: SourceLocation {
-                        start_line: line_num,
-                        start_column: start_col,
-                        end_line: line_num,
-                        end_column: line.len() as u32,
-                    },
-                });
+            imports.push(ImportInfo {
+                module_path,
+                import_type: ImportType::CommonJs,
+                named_imports: Vec::new(),
+                default_import: None,
+                namespace_import: None,
+                type_only: false,
+                location: SourceLocation {
+                    start_line: line_num,
+                    start_column: start_col,
+                    end_line: line_num,
+                    end_column: line.len() as u32,
+                },
+            });
         }
         if let Some(caps) = dynamic_import_re.captures(line) {
             let module_path = caps.get(1).unwrap().as_str().to_string();
             let start_col = line.find("import(").unwrap_or(0) as u32;
-            imports
-                .push(ImportInfo {
-                    module_path,
-                    import_type: ImportType::Dynamic,
-                    named_imports: Vec::new(),
-                    default_import: None,
-                    namespace_import: None,
-                    type_only: false,
-                    location: SourceLocation {
-                        start_line: line_num,
-                        start_column: start_col,
-                        end_line: line_num,
-                        end_column: line.len() as u32,
-                    },
-                });
+            imports.push(ImportInfo {
+                module_path,
+                import_type: ImportType::Dynamic,
+                named_imports: Vec::new(),
+                default_import: None,
+                namespace_import: None,
+                type_only: false,
+                location: SourceLocation {
+                    start_line: line_num,
+                    start_column: start_col,
+                    end_line: line_num,
+                    end_column: line.len() as u32,
+                },
+            });
         }
     }
     Ok(imports)
@@ -261,26 +246,22 @@ import('./dynamic-module');
 "#;
         let imports = parse_imports_regex(source).unwrap();
         assert_eq!(imports.len(), 6);
-        assert!(
-            imports.iter().any(| i | i.module_path == "react" && matches!(i.import_type,
-            ImportType::EsModule))
-        );
-        assert!(
-            imports.iter().any(| i | i.module_path == "./utils" && matches!(i
-            .import_type, ImportType::EsModule))
-        );
-        assert!(
-            imports.iter().any(| i | i.module_path == "fs" && matches!(i.import_type,
-            ImportType::CommonJs))
-        );
-        assert!(
-            imports.iter().any(| i | i.module_path == "path" && matches!(i.import_type,
-            ImportType::CommonJs))
-        );
-        assert!(
-            imports.iter().any(| i | i.module_path == "./dynamic-module" && matches!(i
-            .import_type, ImportType::Dynamic))
-        );
+        assert!(imports
+            .iter()
+            .any(|i| i.module_path == "react" && matches!(i.import_type, ImportType::EsModule)));
+        assert!(imports
+            .iter()
+            .any(|i| i.module_path == "./utils" && matches!(i.import_type, ImportType::EsModule)));
+        assert!(imports
+            .iter()
+            .any(|i| i.module_path == "fs" && matches!(i.import_type, ImportType::CommonJs)));
+        assert!(imports
+            .iter()
+            .any(|i| i.module_path == "path" && matches!(i.import_type, ImportType::CommonJs)));
+        assert!(imports
+            .iter()
+            .any(|i| i.module_path == "./dynamic-module"
+                && matches!(i.import_type, ImportType::Dynamic)));
     }
     #[test]
     fn test_is_external_dependency() {
@@ -288,9 +269,9 @@ import('./dynamic-module');
         assert!(is_external_dependency("@types/node"));
         assert!(is_external_dependency("lodash"));
         assert!(is_external_dependency("fs"));
-        assert!(! is_external_dependency("./local"));
-        assert!(! is_external_dependency("../parent"));
-        assert!(! is_external_dependency("/absolute/path"));
+        assert!(!is_external_dependency("./local"));
+        assert!(!is_external_dependency("../parent"));
+        assert!(!is_external_dependency("/absolute/path"));
     }
     #[test]
     fn test_analyze_imports() {
@@ -304,8 +285,14 @@ const lodash = require('lodash');
         assert_eq!(graph.source_file, "in-memory.ts");
         assert!(graph.imports.len() >= 2);
         assert!(
-            graph.metadata.external_dependencies.contains(& "react".to_string()) || graph
-            .metadata.external_dependencies.contains(& "lodash".to_string())
+            graph
+                .metadata
+                .external_dependencies
+                .contains(&"react".to_string())
+                || graph
+                    .metadata
+                    .external_dependencies
+                    .contains(&"lodash".to_string())
         );
     }
     #[test]
@@ -334,10 +321,10 @@ enum Status {
         assert!(result.is_ok(), "extract_symbols should not fail");
         let symbols = result.unwrap();
         if !symbols.is_empty() {
-            assert!(symbols.iter().any(| s | s.name == "hello"));
-            assert!(symbols.iter().any(| s | s.name == "MyClass"));
-            assert!(symbols.iter().any(| s | s.name == "IUser"));
-            assert!(symbols.iter().any(| s | s.name == "Status"));
+            assert!(symbols.iter().any(|s| s.name == "hello"));
+            assert!(symbols.iter().any(|s| s.name == "MyClass"));
+            assert!(symbols.iter().any(|s| s.name == "IUser"));
+            assert!(symbols.iter().any(|s| s.name == "Status"));
         }
     }
 }

@@ -1,12 +1,12 @@
-use integration_tests :: harness :: TestClient ;
+//! Git integration tests
 //!
 //! These tests verify that file operations correctly use `git mv` and `git rm`
 //! when the project is a git repository and git integration is enabled in config.
 
-use integration_tests::harness::TestClient;
 use serde_json::json;
 use std::process::Command;
 use tempfile::TempDir;
+use test_support::harness::TestClient;
 
 #[tokio::test]
 async fn test_rename_file_uses_git_mv() {

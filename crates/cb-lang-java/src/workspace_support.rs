@@ -119,7 +119,9 @@ fn rewrite_with_modules(content: &str, members: &[String]) -> Result<String, Str
             match reader.read_event_into(&mut buf) {
                 Ok(Event::Eof) => break,
                 Ok(Event::End(ref e)) if e.name().as_ref() == b"packaging" => {
-                    writer.write_event(Event::End(e.clone())).map_err(|e| e.to_string())?;
+                    writer
+                        .write_event(Event::End(e.clone()))
+                        .map_err(|e| e.to_string())?;
                     write_modules_section(&mut writer, members)?;
                 }
                 Ok(ref e) => {
@@ -246,18 +248,23 @@ fn update_package_name_impl(content: &str, new_name: &str) -> Result<String, Str
                     // Only match top-level artifactId (direct child of project)
                     in_artifact_id = true;
                 }
-                writer.write_event(Event::Start(e.clone())).map_err(|e| e.to_string())?;
+                writer
+                    .write_event(Event::Start(e.clone()))
+                    .map_err(|e| e.to_string())?;
                 if e.name().as_ref() == b"project" {
                     depth += 1;
                 }
             }
             Ok(Event::Text(_)) if in_artifact_id => {
                 // Always replace the artifactId text with new_name
-                writer.write_event(Event::Text(BytesText::new(new_name)))
+                writer
+                    .write_event(Event::Text(BytesText::new(new_name)))
                     .map_err(|e| e.to_string())?;
             }
             Ok(Event::End(ref e)) => {
-                writer.write_event(Event::End(e.clone())).map_err(|e| e.to_string())?;
+                writer
+                    .write_event(Event::End(e.clone()))
+                    .map_err(|e| e.to_string())?;
                 if e.name().as_ref() == b"artifactId" {
                     in_artifact_id = false;
                 }
@@ -282,31 +289,39 @@ fn write_modules_section<W: std::io::Write>(
     writer: &mut Writer<W>,
     members: &[String],
 ) -> Result<(), String> {
-    writer.write_event(Event::Text(BytesText::new("\n    ")))
+    writer
+        .write_event(Event::Text(BytesText::new("\n    ")))
         .map_err(|e| e.to_string())?;
 
     let modules_start = BytesStart::new("modules");
-    writer.write_event(Event::Start(modules_start.borrow()))
+    writer
+        .write_event(Event::Start(modules_start.borrow()))
         .map_err(|e| e.to_string())?;
 
     for member in members {
-        writer.write_event(Event::Text(BytesText::new("\n        ")))
+        writer
+            .write_event(Event::Text(BytesText::new("\n        ")))
             .map_err(|e| e.to_string())?;
 
-        writer.write_event(Event::Start(BytesStart::new("module")))
+        writer
+            .write_event(Event::Start(BytesStart::new("module")))
             .map_err(|e| e.to_string())?;
 
-        writer.write_event(Event::Text(BytesText::new(member)))
+        writer
+            .write_event(Event::Text(BytesText::new(member)))
             .map_err(|e| e.to_string())?;
 
-        writer.write_event(Event::End(BytesEnd::new("module")))
+        writer
+            .write_event(Event::End(BytesEnd::new("module")))
             .map_err(|e| e.to_string())?;
     }
 
-    writer.write_event(Event::Text(BytesText::new("\n    ")))
+    writer
+        .write_event(Event::Text(BytesText::new("\n    ")))
         .map_err(|e| e.to_string())?;
 
-    writer.write_event(Event::End(BytesEnd::new("modules")))
+    writer
+        .write_event(Event::End(BytesEnd::new("modules")))
         .map_err(|e| e.to_string())?;
 
     Ok(())
@@ -406,10 +421,7 @@ mod tests {
     fn test_update_package_name() {
         let support = JavaWorkspaceSupport::new();
 
-        let result = support.update_package_name(
-            SINGLE_MODULE_POM,
-            "renamed-module"
-        );
+        let result = support.update_package_name(SINGLE_MODULE_POM, "renamed-module");
 
         assert!(result.contains("<artifactId>renamed-module</artifactId>"));
         assert!(!result.contains("<artifactId>single-module</artifactId>"));

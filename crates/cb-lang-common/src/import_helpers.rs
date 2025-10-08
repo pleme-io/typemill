@@ -222,4 +222,3 @@ pub fn replace_in_lines(content: &str, old: &str, new: &str) -> (String, usize) 
 
     (result, count)
 }
-

@@ -224,7 +224,7 @@ impl RefactoringScenarios {
                         end_char: 23,
                     },
                     // AST fallback stub now exists (will be fully implemented later)
-                    ExpectedBehavior::Success
+                    ExpectedBehavior::Success,
                 ),
                 Language::Go => (
                     "func calculate() int {\n    result := 10 + 20\n    return result\n}\n",
@@ -236,7 +236,7 @@ impl RefactoringScenarios {
                         end_char: 20,
                     },
                     // AST fallback stub now exists (will be fully implemented later)
-                    ExpectedBehavior::Success
+                    ExpectedBehavior::Success,
                 ),
             };
 

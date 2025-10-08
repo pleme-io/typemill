@@ -1,4 +1,4 @@
-use integration_tests :: harness :: { TestClient , TestWorkspace } ;
+//! Python-specific language tests
 //!
 //! This module contains Python-specific tests that CANNOT be parameterized
 //! across all languages because they test unique Python features or integrations.
@@ -18,8 +18,8 @@ use integration_tests :: harness :: { TestClient , TestWorkspace } ;
 //! Only tests that are UNIQUE to Python and cannot be parameterized remain here:
 //! - test_python_refactoring_with_imports - Tests integration with import analysis
 
-use integration_tests::harness::{TestClient, TestWorkspace};
 use serde_json::json;
+use test_support::harness::{TestClient, TestWorkspace};
 
 /// Test Python refactoring with import graph updates
 ///
@@ -74,10 +74,7 @@ def helper_function(items):
     // Verify import analysis works
     if let Ok(response_value) = import_response {
         if let Some(result) = response_value.get("result") {
-            assert!(
-                result.get("imports").is_some(),
-                "Should have imports field"
-            );
+            assert!(result.get("imports").is_some(), "Should have imports field");
             let imports = result["imports"].as_array().unwrap();
             assert!(
                 !imports.is_empty(),

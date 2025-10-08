@@ -155,10 +155,10 @@ Aggressive cleanup of MCP API surface now that we're in beta (no backwards compa
 - `CLAUDE.md` - Update tool listings
 
 ### Tests
-- `integration-tests/tests/intelligence_tests.rs` - Call hierarchy tests
-- `integration-tests/tests/editing_tests.rs` - Import tests
-- `integration-tests/tests/analysis_tests.rs` - Complexity tests
-- `integration-tests/tests/system_tests.rs` - Health check tests
+- `apps/codebuddy/tests/intelligence_tests.rs` - Call hierarchy tests
+- `apps/codebuddy/tests/editing_tests.rs` - Import tests
+- `apps/codebuddy/tests/analysis_tests.rs` - Complexity tests
+- `apps/codebuddy/tests/system_tests.rs` - Health check tests
 
 ---
 

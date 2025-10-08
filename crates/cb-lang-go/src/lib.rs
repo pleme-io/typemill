@@ -76,15 +76,15 @@
 //! This ensures the plugin works in environments without Go installed, while providing
 //! full features when Go is available.
 
+pub mod import_support;
 mod manifest;
 pub mod parser;
 pub mod refactoring;
-pub mod import_support;
 pub mod workspace_support;
 
 use async_trait::async_trait;
 use cb_plugin_api::{
-    ImportSupport, LanguagePlugin, LanguageMetadata, LanguageCapabilities, ManifestData,
+    ImportSupport, LanguageCapabilities, LanguageMetadata, LanguagePlugin, ManifestData,
     ParsedSource, PluginResult, WorkspaceSupport,
 };
 use std::path::Path;
@@ -121,7 +121,7 @@ impl LanguagePlugin for GoPlugin {
     fn capabilities(&self) -> LanguageCapabilities {
         LanguageCapabilities {
             imports: true,
-            workspace: true,  // ✅ Go workspace support via go.work
+            workspace: true, // ✅ Go workspace support via go.work
         }
     }
 
@@ -169,11 +169,15 @@ impl GoPlugin {
     ) -> PluginResult<String> {
         let content = tokio::fs::read_to_string(manifest_path)
             .await
-            .map_err(|e| cb_plugin_api::PluginError::manifest(format!("Failed to read go.mod: {}", e)))?;
+            .map_err(|e| {
+                cb_plugin_api::PluginError::manifest(format!("Failed to read go.mod: {}", e))
+            })?;
 
         // Use the manifest update_dependency function
         let version = new_version.ok_or_else(|| {
-            cb_plugin_api::PluginError::invalid_input("Version required for go.mod dependency updates")
+            cb_plugin_api::PluginError::invalid_input(
+                "Version required for go.mod dependency updates",
+            )
         })?;
 
         manifest::update_dependency(&content, new_name, version)
@@ -240,6 +244,9 @@ mod tests {
     #[test]
     fn test_go_workspace_support() {
         let plugin = GoPlugin::new();
-        assert!(plugin.workspace_support().is_some(), "Go should have workspace support");
+        assert!(
+            plugin.workspace_support().is_some(),
+            "Go should have workspace support"
+        );
     }
 }

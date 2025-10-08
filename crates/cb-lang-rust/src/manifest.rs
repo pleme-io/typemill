@@ -3,8 +3,8 @@
 //! This module provides functionality for parsing and manipulating Cargo.toml
 //! manifest files, extracting dependency information, and updating dependencies.
 
-use cb_plugin_api::{Dependency, DependencySource, ManifestData, PluginError, PluginResult};
 use cb_lang_common::read_manifest;
+use cb_plugin_api::{Dependency, DependencySource, ManifestData, PluginError, PluginResult};
 use std::path::Path;
 use toml_edit::{value, DocumentMut, Item};
 

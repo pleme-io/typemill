@@ -101,10 +101,7 @@ pub async fn start_stdio_server(
         let span = cb_core::logging::request_span(&request_id.to_string(), "stdio");
         let _enter = span.enter();
 
-        tracing::debug!(
-            message_length = message.len(),
-            "Received framed message"
-        );
+        tracing::debug!(message_length = message.len(), "Received framed message");
 
         // Parse the JSON-RPC message
         let mcp_message: McpMessage = match serde_json::from_str(&message) {

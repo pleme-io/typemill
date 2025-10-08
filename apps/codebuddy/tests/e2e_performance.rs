@@ -1,8 +1,8 @@
-use integration_tests :: harness :: { TestClient , TestWorkspace } ;
 use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;
 use std::time::{Duration, Instant};
+use test_support::harness::{TestClient, TestWorkspace};
 
 #[tokio::test]
 #[cfg(feature = "heavy-tests")]
@@ -513,16 +513,27 @@ const oldConstant{} = "old_value_{}";
         }
 
         // Verify the specific edits that were made
-        assert!(content.contains(&format!("export interface NewInterface{}", index)),
-            "Interface name should be changed to NewInterface{}", index);
-        assert!(content.contains("newProperty: string"), "Property should be renamed to newProperty");
-        assert!(content.contains(&format!("export function newFunction{}", index)),
-            "Function name should be changed to newFunction{}", index);
+        assert!(
+            content.contains(&format!("export interface NewInterface{}", index)),
+            "Interface name should be changed to NewInterface{}",
+            index
+        );
+        assert!(
+            content.contains("newProperty: string"),
+            "Property should be renamed to newProperty"
+        );
+        assert!(
+            content.contains(&format!("export function newFunction{}", index)),
+            "Function name should be changed to newFunction{}",
+            index
+        );
 
         // Note: OldInterface and oldProperty still appear in other places (parameter types, return statements)
         // We only edited the interface declaration, property declaration, and function name
-        assert!(!content.contains(&format!("export interface OldInterface{}", index)),
-            "Old interface declaration should be gone");
+        assert!(
+            !content.contains(&format!("export interface OldInterface{}", index)),
+            "Old interface declaration should be gone"
+        );
         // The property oldProperty is used in "return param.oldProperty" - only the declaration was changed
     }
     let verification_duration = verification_start.elapsed();
@@ -625,7 +636,8 @@ async fn test_memory_usage_large_operations() {
     println!("list_files result structure: {:?}", result);
 
     // list_files returns files directly in result, not in a content field
-    let files = result["files"].as_array()
+    let files = result["files"]
+        .as_array()
         .or_else(|| result.get("content").and_then(|c| c["files"].as_array()))
         .expect("Response should have files array");
     println!("Listed {} files in: {:?}", files.len(), list_duration);
@@ -837,13 +849,21 @@ export class UserService{} {{
 
     // Debug: Print first few symbols
     for (i, symbol) in symbols.iter().enumerate().take(15) {
-        println!("Symbol {}: {}", i, symbol.get("name").and_then(|v| v.as_str()).unwrap_or("?"));
+        println!(
+            "Symbol {}: {}",
+            i,
+            symbol.get("name").and_then(|v| v.as_str()).unwrap_or("?")
+        );
     }
 
     // TypeScript LSP may not index all files immediately
     // This is a known limitation - symbol search depends on LSP server indexing
     // For now, just verify we got some symbols back
-    assert!(symbols.len() > 0, "Should find at least some User-related symbols (got {})", symbols.len());
+    assert!(
+        symbols.len() > 0,
+        "Should find at least some User-related symbols (got {})",
+        symbols.len()
+    );
 
     // Test find references performance
     let start = Instant::now();
@@ -874,7 +894,10 @@ export class UserService{} {{
                     references.len(),
                     references_duration
                 );
-                assert!(!references.is_empty(), "Should find at least some references");
+                assert!(
+                    !references.is_empty(),
+                    "Should find at least some references"
+                );
             }
         }
     }

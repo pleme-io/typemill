@@ -3,10 +3,10 @@
 //! This module implements the `ImportSupport` trait for Rust, providing
 //! synchronous methods for parsing, analyzing, and rewriting import statements.
 
-use cb_plugin_api::import_support::ImportSupport;
 use cb_lang_common::import_helpers::{
     find_last_matching_line, insert_line_at, remove_lines_matching,
 };
+use cb_plugin_api::import_support::ImportSupport;
 use std::path::Path;
 use tracing::debug;
 
@@ -20,10 +20,8 @@ impl ImportSupport for RustImportSupport {
         // Use our parser module to parse imports
         match crate::parser::parse_imports(content) {
             Ok(imports) => {
-                let module_paths: Vec<String> = imports
-                    .iter()
-                    .map(|imp| imp.module_path.clone())
-                    .collect();
+                let module_paths: Vec<String> =
+                    imports.iter().map(|imp| imp.module_path.clone()).collect();
 
                 debug!(imports_count = module_paths.len(), "Parsed imports");
                 module_paths
@@ -129,9 +127,8 @@ impl ImportSupport for RustImportSupport {
         debug!(module = %module, "Adding import to Rust code");
 
         // Find the position after the last import statement
-        let last_import_idx = find_last_matching_line(content, |line| {
-            line.trim().starts_with("use ")
-        });
+        let last_import_idx =
+            find_last_matching_line(content, |line| line.trim().starts_with("use "));
 
         // Build the new import statement
         let import_stmt = format!("use {};", module);
@@ -206,7 +203,8 @@ use old_crate::module::Thing;
 use other::stuff;
 "#;
 
-        let (result, changes) = support.rewrite_imports_for_rename(content, "old_crate", "new_crate");
+        let (result, changes) =
+            support.rewrite_imports_for_rename(content, "old_crate", "new_crate");
         assert_eq!(changes, 1);
         assert!(result.contains("new_crate"));
         assert!(!result.contains("use old_crate"));

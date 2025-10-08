@@ -2,9 +2,7 @@
 //!
 //! Provides synchronous import parsing, analysis, and rewriting capabilities for Go source code.
 
-use cb_lang_common::import_helpers::{
-    insert_line_at, remove_lines_matching, replace_in_lines,
-};
+use cb_lang_common::import_helpers::{insert_line_at, remove_lines_matching, replace_in_lines};
 use cb_plugin_api::ImportSupport;
 use std::path::Path;
 
@@ -56,15 +54,9 @@ impl ImportSupport for GoImportSupport {
         // Go imports are based on package paths, not file paths
         // For simplicity, we'll use the directory name as the package identifier
 
-        let old_package = old_path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("");
+        let old_package = old_path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
 
-        let new_package = new_path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("");
+        let new_package = new_path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
 
         if old_package.is_empty() || new_package.is_empty() || old_package == new_package {
             return (content.to_string(), 0);
@@ -91,7 +83,9 @@ impl ImportSupport for GoImportSupport {
     fn contains_import(&self, content: &str, module: &str) -> bool {
         // Parse imports and check if the module is present
         let imports = self.parse_imports(content);
-        let found = imports.iter().any(|imp| imp == module || imp.ends_with(&format!("/{}", module)));
+        let found = imports
+            .iter()
+            .any(|imp| imp == module || imp.ends_with(&format!("/{}", module)));
 
         tracing::debug!(
             module = %module,

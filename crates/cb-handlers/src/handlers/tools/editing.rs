@@ -175,13 +175,18 @@ impl EditingHandler {
                                                         .read_file(&file_path)
                                                         .await?;
 
-                                                    let organized_content =
-                                                        Self::apply_text_edits(&content, text_edits)?;
+                                                    let organized_content = Self::apply_text_edits(
+                                                        &content, text_edits,
+                                                    )?;
 
                                                     context
                                                         .app_state
                                                         .file_service
-                                                        .write_file(&file_path, &organized_content, false)
+                                                        .write_file(
+                                                            &file_path,
+                                                            &organized_content,
+                                                            false,
+                                                        )
                                                         .await?;
 
                                                     return Ok(json!({
@@ -369,7 +374,9 @@ impl EditingHandler {
         let mut organize_call = tool_call.clone();
         organize_call.name = "organize_imports".to_string();
 
-        let organize_result = self.handle_organize_imports(context, &organize_call).await?;
+        let organize_result = self
+            .handle_organize_imports(context, &organize_call)
+            .await?;
 
         // Step 2: Find unused imports
         let file_path = Path::new(file_path_str);
@@ -379,7 +386,10 @@ impl EditingHandler {
             .extension()
             .and_then(|ext| ext.to_str())
             .ok_or_else(|| {
-                cb_protocol::ApiError::InvalidRequest(format!("File has no extension: {}", file_path_str))
+                cb_protocol::ApiError::InvalidRequest(format!(
+                    "File has no extension: {}",
+                    file_path_str
+                ))
             })?;
 
         // Read current file content

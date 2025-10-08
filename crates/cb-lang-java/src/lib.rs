@@ -2,16 +2,16 @@
 //!
 //! Provides AST parsing, symbol extraction, and manifest analysis for Java.
 
-mod parser;
-mod manifest;
 pub mod import_support;
+mod manifest;
+mod parser;
 pub mod workspace_support;
 
+use async_trait::async_trait;
 use cb_plugin_api::{
-    ImportSupport, LanguagePlugin, LanguageMetadata, LanguageCapabilities, ManifestData,
+    ImportSupport, LanguageCapabilities, LanguageMetadata, LanguagePlugin, ManifestData,
     ParsedSource, PluginResult, WorkspaceSupport,
 };
-use async_trait::async_trait;
 use std::path::Path;
 
 /// Java language plugin
@@ -53,8 +53,8 @@ impl LanguagePlugin for JavaPlugin {
 
     fn capabilities(&self) -> LanguageCapabilities {
         LanguageCapabilities {
-            imports: true,    // ✅ AST-based import support via JavaParser
-            workspace: true,  // ✅ Maven multi-module workspace support via quick-xml
+            imports: true,   // ✅ AST-based import support via JavaParser
+            workspace: true, // ✅ Maven multi-module workspace support via quick-xml
         }
     }
 
@@ -95,19 +95,28 @@ mod tests {
         let caps = plugin.capabilities();
 
         assert!(caps.imports, "Java plugin should support imports via AST");
-        assert!(caps.workspace, "Java plugin should support workspace via quick-xml");
+        assert!(
+            caps.workspace,
+            "Java plugin should support workspace via quick-xml"
+        );
     }
 
     #[test]
     fn test_java_import_support() {
         let plugin = JavaPlugin::new();
-        assert!(plugin.import_support().is_some(), "Java should have import support");
+        assert!(
+            plugin.import_support().is_some(),
+            "Java should have import support"
+        );
     }
 
     #[test]
     fn test_java_workspace_support() {
         let plugin = JavaPlugin::new();
-        assert!(plugin.workspace_support().is_some(), "Java should have workspace support");
+        assert!(
+            plugin.workspace_support().is_some(),
+            "Java should have workspace support"
+        );
     }
 
     #[test]

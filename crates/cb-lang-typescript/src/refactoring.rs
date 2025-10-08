@@ -2,8 +2,10 @@
 //!
 //! This module provides AST-based refactoring capabilities for TypeScript/JavaScript code.
 
-use cb_protocol::{EditPlan, EditPlanMetadata, EditLocation, EditType, TextEdit, ValidationRule, ValidationType};
 use cb_lang_common::LineExtractor;
+use cb_protocol::{
+    EditLocation, EditPlan, EditPlanMetadata, EditType, TextEdit, ValidationRule, ValidationType,
+};
 use std::collections::HashMap;
 use std::error::Error;
 
@@ -122,7 +124,8 @@ pub fn plan_inline_variable(
         Err(format!(
             "Could not find variable declaration at {}:{}",
             variable_line, variable_col
-        ).into())
+        )
+        .into())
     }
 }
 
@@ -150,10 +153,7 @@ pub fn plan_extract_function(
     // Generate new function
     let new_function = format!(
         "\n{}function {}() {{\n{}\n{}}}\n",
-        indent,
-        function_name,
-        selected_code,
-        indent
+        indent, function_name, selected_code, indent
     );
 
     // Generate function call
@@ -184,9 +184,9 @@ pub fn plan_extract_function(
         file_path: None,
         edit_type: EditType::Replace,
         location: EditLocation {
-            start_line,  // Already using the correct line index from source
+            start_line, // Already using the correct line index from source
             start_column: 0,
-            end_line,  // Already using the correct line index from source
+            end_line, // Already using the correct line index from source
             end_column: lines[end_line as usize].len() as u32,
         },
         original_text: selected_code.clone(),

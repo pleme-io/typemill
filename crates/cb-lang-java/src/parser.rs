@@ -57,19 +57,24 @@ fn extract_symbols_ast(source: &str) -> Result<Vec<Symbol>, PluginError> {
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|e| PluginError::parse(format!("Failed to spawn Java parser tool. Is Java installed and in your PATH? Error: {}", e)))?;
+        .map_err(|e| {
+            PluginError::parse(format!(
+                "Failed to spawn Java parser tool. Is Java installed and in your PATH? Error: {}",
+                e
+            ))
+        })?;
 
     // Write the source code to the process's stdin
     if let Some(mut stdin) = child.stdin.take() {
-        stdin
-            .write_all(source.as_bytes())
-            .map_err(|e| PluginError::parse(format!("Failed to write to Java parser stdin: {}", e)))?;
+        stdin.write_all(source.as_bytes()).map_err(|e| {
+            PluginError::parse(format!("Failed to write to Java parser stdin: {}", e))
+        })?;
     }
 
     // Wait for the process to complete and get the output
-    let output = child
-        .wait_with_output()
-        .map_err(|e| PluginError::parse(format!("Failed to wait for Java parser process: {}", e)))?;
+    let output = child.wait_with_output().map_err(|e| {
+        PluginError::parse(format!("Failed to wait for Java parser process: {}", e))
+    })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -80,12 +85,13 @@ fn extract_symbols_ast(source: &str) -> Result<Vec<Symbol>, PluginError> {
     }
 
     // Deserialize the JSON output from stdout
-    let java_symbols: Vec<JavaSymbolInfo> = serde_json::from_slice(&output.stdout).map_err(|e| {
-        PluginError::parse(format!(
-            "Failed to parse JSON output from Java parser: {}",
-            e
-        ))
-    })?;
+    let java_symbols: Vec<JavaSymbolInfo> =
+        serde_json::from_slice(&output.stdout).map_err(|e| {
+            PluginError::parse(format!(
+                "Failed to parse JSON output from Java parser: {}",
+                e
+            ))
+        })?;
 
     // Convert the Java-specific symbols to the generic Symbol type
     let symbols = java_symbols
@@ -154,7 +160,11 @@ mod tests {
             let class_symbol = parsed.symbols.iter().find(|s| s.name == "MyClass").unwrap();
             assert_eq!(class_symbol.kind, SymbolKind::Class);
 
-            let method_symbol = parsed.symbols.iter().find(|s| s.name == "myMethod").unwrap();
+            let method_symbol = parsed
+                .symbols
+                .iter()
+                .find(|s| s.name == "myMethod")
+                .unwrap();
             assert_eq!(method_symbol.kind, SymbolKind::Method);
         } else {
             // If there was an error, fail the test

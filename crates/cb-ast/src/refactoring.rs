@@ -308,12 +308,14 @@ pub async fn plan_extract_function(
 ) -> AstResult<EditPlan> {
     // Try AST first (faster, more reliable, under our control)
     let ast_result = match detect_language(file_path) {
-        "typescript" | "javascript" => {
-            cb_lang_typescript::refactoring::plan_extract_function(
-                source, range.start_line, range.end_line, new_function_name, file_path
-            )
-                .map_err(|e| AstError::analysis(e.to_string()))
-        }
+        "typescript" | "javascript" => cb_lang_typescript::refactoring::plan_extract_function(
+            source,
+            range.start_line,
+            range.end_line,
+            new_function_name,
+            file_path,
+        )
+        .map_err(|e| AstError::analysis(e.to_string())),
         "python" => {
             let python_range = cb_lang_python::refactoring::CodeRange {
                 start_line: range.start_line,
@@ -321,24 +323,36 @@ pub async fn plan_extract_function(
                 end_line: range.end_line,
                 end_col: range.end_col,
             };
-            cb_lang_python::refactoring::plan_extract_function(source, &python_range, new_function_name, file_path)
-                .map_err(|e| AstError::analysis(e.to_string()))
-        }
-        "rust" => {
-            cb_lang_rust::refactoring::plan_extract_function(
-                source, range.start_line, range.end_line, new_function_name, file_path
+            cb_lang_python::refactoring::plan_extract_function(
+                source,
+                &python_range,
+                new_function_name,
+                file_path,
             )
-                .map_err(|e| AstError::analysis(e.to_string()))
+            .map_err(|e| AstError::analysis(e.to_string()))
         }
-        "go" => {
-            cb_lang_go::refactoring::plan_extract_function(
-                source, range.start_line, range.end_line, new_function_name, file_path
-            )
-                .map_err(|e| AstError::analysis(e.to_string()))
-        }
+        "rust" => cb_lang_rust::refactoring::plan_extract_function(
+            source,
+            range.start_line,
+            range.end_line,
+            new_function_name,
+            file_path,
+        )
+        .map_err(|e| AstError::analysis(e.to_string())),
+        "go" => cb_lang_go::refactoring::plan_extract_function(
+            source,
+            range.start_line,
+            range.end_line,
+            new_function_name,
+            file_path,
+        )
+        .map_err(|e| AstError::analysis(e.to_string())),
         _ => {
             // Unsupported language - will try LSP fallback below
-            Err(AstError::analysis(format!("AST implementation not available for: {}", file_path)))
+            Err(AstError::analysis(format!(
+                "AST implementation not available for: {}",
+                file_path
+            )))
         }
     };
 
@@ -468,22 +482,34 @@ pub async fn plan_inline_variable(
 
     // Fallback to AST-based implementation
     match detect_language(file_path) {
-        "typescript" | "javascript" => {
-            cb_lang_typescript::refactoring::plan_inline_variable(source, variable_line, variable_col, file_path)
-                .map_err(|e| AstError::analysis(e.to_string()))
-        }
-        "python" => {
-            cb_lang_python::refactoring::plan_inline_variable(source, variable_line, variable_col, file_path)
-                .map_err(|e| AstError::analysis(e.to_string()))
-        }
-        "rust" => {
-            cb_lang_rust::refactoring::plan_inline_variable(source, variable_line, variable_col, file_path)
-                .map_err(|e| AstError::analysis(e.to_string()))
-        }
-        "go" => {
-            cb_lang_go::refactoring::plan_inline_variable(source, variable_line, variable_col, file_path)
-                .map_err(|e| AstError::analysis(e.to_string()))
-        }
+        "typescript" | "javascript" => cb_lang_typescript::refactoring::plan_inline_variable(
+            source,
+            variable_line,
+            variable_col,
+            file_path,
+        )
+        .map_err(|e| AstError::analysis(e.to_string())),
+        "python" => cb_lang_python::refactoring::plan_inline_variable(
+            source,
+            variable_line,
+            variable_col,
+            file_path,
+        )
+        .map_err(|e| AstError::analysis(e.to_string())),
+        "rust" => cb_lang_rust::refactoring::plan_inline_variable(
+            source,
+            variable_line,
+            variable_col,
+            file_path,
+        )
+        .map_err(|e| AstError::analysis(e.to_string())),
+        "go" => cb_lang_go::refactoring::plan_inline_variable(
+            source,
+            variable_line,
+            variable_col,
+            file_path,
+        )
+        .map_err(|e| AstError::analysis(e.to_string())),
         _ => Err(AstError::analysis(format!(
             "Language not supported. LSP server may provide this via code actions for: {}",
             file_path
@@ -765,30 +791,46 @@ pub async fn plan_extract_variable(
 
     // Fallback to AST-based implementation
     match detect_language(file_path) {
-        "typescript" | "javascript" => {
-            cb_lang_typescript::refactoring::plan_extract_variable(
-                source, start_line, start_col, end_line, end_col, variable_name.clone(), file_path
-            )
-                .map_err(|e| AstError::analysis(e.to_string()))
-        }
-        "python" => {
-            cb_lang_python::refactoring::plan_extract_variable(
-                source, start_line, start_col, end_line, end_col, variable_name, file_path
-            )
-                .map_err(|e| AstError::analysis(e.to_string()))
-        }
-        "rust" => {
-            cb_lang_rust::refactoring::plan_extract_variable(
-                source, start_line, start_col, end_line, end_col, variable_name, file_path
-            )
-                .map_err(|e| AstError::analysis(e.to_string()))
-        }
-        "go" => {
-            cb_lang_go::refactoring::plan_extract_variable(
-                source, start_line, start_col, end_line, end_col, variable_name, file_path
-            )
-                .map_err(|e| AstError::analysis(e.to_string()))
-        }
+        "typescript" | "javascript" => cb_lang_typescript::refactoring::plan_extract_variable(
+            source,
+            start_line,
+            start_col,
+            end_line,
+            end_col,
+            variable_name.clone(),
+            file_path,
+        )
+        .map_err(|e| AstError::analysis(e.to_string())),
+        "python" => cb_lang_python::refactoring::plan_extract_variable(
+            source,
+            start_line,
+            start_col,
+            end_line,
+            end_col,
+            variable_name,
+            file_path,
+        )
+        .map_err(|e| AstError::analysis(e.to_string())),
+        "rust" => cb_lang_rust::refactoring::plan_extract_variable(
+            source,
+            start_line,
+            start_col,
+            end_line,
+            end_col,
+            variable_name,
+            file_path,
+        )
+        .map_err(|e| AstError::analysis(e.to_string())),
+        "go" => cb_lang_go::refactoring::plan_extract_variable(
+            source,
+            start_line,
+            start_col,
+            end_line,
+            end_col,
+            variable_name,
+            file_path,
+        )
+        .map_err(|e| AstError::analysis(e.to_string())),
         _ => Err(AstError::analysis(format!(
             "Language not supported. LSP server may provide this via code actions for: {}",
             file_path

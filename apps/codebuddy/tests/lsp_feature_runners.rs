@@ -1,15 +1,12 @@
 //! Generic test runners for LSP features
-use integration_tests :: harness :: test_fixtures :: * ;
-use integration_tests :: harness :: LspTestBuilder ;
+//!
 //! Each runner function is parameterized to accept a fixture struct,
 //! making them reusable across multiple languages.
 
 use cb_protocol::LspService;
-use integration_tests::harness::test_fixtures::*;
-use integration_tests::harness::LspTestBuilder;
 use serde_json::json;
-
-use integration_tests :: harness :: test_fixtures :: { LspComplianceBehavior , LspComplianceTestCase } ;
+use test_support::harness::test_fixtures::*;
+use test_support::harness::LspTestBuilder;
 pub async fn run_go_to_definition_test(case: &GoToDefinitionTestCase, use_real_lsp: bool) {
     let mut builder = LspTestBuilder::new(case.language_id);
     if use_real_lsp {
@@ -537,7 +534,7 @@ pub async fn run_rename_test(case: &RenameTestCase, use_real_lsp: bool) {
 // LSP Compliance Test Runner
 // =============================================================================
 
-use integration_tests::harness::test_fixtures::{LspComplianceBehavior, LspComplianceTestCase};
+use test_support::harness::test_fixtures::{LspComplianceBehavior, LspComplianceTestCase};
 
 /// Executes a single LSP compliance test case.
 pub async fn run_lsp_compliance_test(case: &LspComplianceTestCase) {

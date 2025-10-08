@@ -147,7 +147,11 @@ impl ImportSupport for PythonImportSupport {
 
             // Track docstrings
             if trimmed.starts_with("\"\"\"") || trimmed.starts_with("'''") {
-                let quote = if trimmed.starts_with("\"\"\"") { "\"\"\"" } else { "'''" };
+                let quote = if trimmed.starts_with("\"\"\"") {
+                    "\"\"\""
+                } else {
+                    "'''"
+                };
 
                 // Check if it's a single-line docstring
                 let after_opening = &trimmed[3..];
@@ -271,7 +275,10 @@ fn path_to_python_module(path: &Path) -> String {
     // Join with dots, remove __init__ if present
     let mut module = components.join(".");
     if module.ends_with(".__init__") {
-        module = module.strip_suffix(".__init__").unwrap_or(&module).to_string();
+        module = module
+            .strip_suffix(".__init__")
+            .unwrap_or(&module)
+            .to_string();
     }
 
     module
@@ -307,7 +314,8 @@ from old_module import something
 from other_module import stuff
 "#;
 
-        let (result, changes) = support.rewrite_imports_for_rename(source, "old_module", "new_module");
+        let (result, changes) =
+            support.rewrite_imports_for_rename(source, "old_module", "new_module");
         assert_eq!(changes, 2);
         assert!(result.contains("import new_module"));
         assert!(result.contains("from new_module import something"));
@@ -373,10 +381,7 @@ def main():
             path_to_python_module(Path::new("foo/bar/__init__.py")),
             "foo.bar"
         );
-        assert_eq!(
-            path_to_python_module(Path::new("example.py")),
-            "example"
-        );
+        assert_eq!(path_to_python_module(Path::new("example.py")), "example");
     }
 
     #[test]

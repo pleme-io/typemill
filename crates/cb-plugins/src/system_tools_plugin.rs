@@ -226,12 +226,13 @@ impl SystemToolsPlugin {
             })?;
 
         // Find appropriate plugin from injected registry
-        let plugin = self.plugin_registry.find_by_extension(extension).ok_or_else(|| {
-            PluginError::PluginRequestFailed {
+        let plugin = self
+            .plugin_registry
+            .find_by_extension(extension)
+            .ok_or_else(|| PluginError::PluginRequestFailed {
                 plugin: "system-tools".to_string(),
                 message: format!("No plugin found for .{} files", extension),
-            }
-        })?;
+            })?;
 
         // Build import graph using the plugin
         let import_graph = build_import_graph_with_plugin(&content, path, plugin)?;

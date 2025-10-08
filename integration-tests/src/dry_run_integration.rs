@@ -1,4 +1,4 @@
-use crate :: harness :: { TestClient , TestWorkspace } ;
+//! Dry run integration tests
 //!
 //! This test suite ensures that when dry_run=true is specified, no actual
 //! file system modifications occur. This is critical for safety and user trust.

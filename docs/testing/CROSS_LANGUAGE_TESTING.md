@@ -26,7 +26,7 @@ Instead of writing separate test files for each language (Python, TypeScript, Ru
    - `ExpectedBehavior` - Expected test outcomes
    - `RefactoringScenarios` - Predefined equivalent scenarios
 
-2. **Cross-Language Tests** (`integration-tests/tests/e2e_refactoring_cross_language.rs`)
+2. **Cross-Language Tests** (`apps/codebuddy/tests/e2e_refactoring_cross_language.rs`)
    - Parameterized test functions
    - Language-agnostic test logic
    - Per-language result reporting
@@ -183,7 +183,7 @@ impl RefactoringScenarios {
 ### Step 3: Create Parameterized Test
 
 ```rust
-// In integration-tests/tests/e2e_refactoring_cross_language.rs
+// In apps/codebuddy/tests/e2e_refactoring_cross_language.rs
 
 #[tokio::test]
 async fn test_your_new_scenario_cross_language() {
@@ -456,5 +456,5 @@ Check if the language is marked as `NotSupported` - it might be skipping instead
 ## See Also
 
 - [crates/test-support/src/harness/refactoring_harness.rs](../../crates/test-support/src/harness/refactoring_harness.rs) - Harness implementation
-- [integration-tests/tests/e2e_refactoring_cross_language.rs](../../integration-tests/tests/e2e_refactoring_cross_language.rs) - Test examples
+- [apps/codebuddy/tests/e2e_refactoring_cross_language.rs](../../apps/codebuddy/tests/e2e_refactoring_cross_language.rs) - Test examples
 - [crates/languages/README.md](../../crates/languages/README.md) - Language plugin guide

@@ -1,8 +1,8 @@
 //! Go import parsing and symbol extraction logic for the cb-lang-go plugin.
 
+use cb_lang_common::{parse_with_fallback, run_ast_tool, ImportGraphBuilder, SubprocessAstTool};
 use cb_plugin_api::{PluginError, PluginResult, Symbol, SymbolKind};
 use cb_protocol::{ImportGraph, ImportInfo, ImportType, SourceLocation};
-use cb_lang_common::{SubprocessAstTool, run_ast_tool, parse_with_fallback, ImportGraphBuilder};
 use serde::Deserialize;
 use std::path::Path;
 
@@ -12,7 +12,7 @@ pub fn analyze_imports(source: &str, file_path: Option<&Path>) -> PluginResult<I
     let imports = parse_with_fallback(
         || parse_go_imports_ast(source),
         || parse_go_imports_regex(source),
-        "Go import parsing"
+        "Go import parsing",
     )?;
 
     Ok(ImportGraphBuilder::new("go")
@@ -30,7 +30,11 @@ fn parse_go_imports_ast(source: &str) -> Result<Vec<ImportInfo>, PluginError> {
     let tool = SubprocessAstTool::new("go")
         .with_embedded_str(AST_TOOL_GO)
         .with_temp_filename("ast_tool.go")
-        .with_args(vec!["run".to_string(), "{script}".to_string(), "analyze-imports".to_string()]);
+        .with_args(vec![
+            "run".to_string(),
+            "{script}".to_string(),
+            "analyze-imports".to_string(),
+        ]);
 
     run_ast_tool(tool, source)
 }
@@ -225,7 +229,7 @@ pub fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
     parse_with_fallback(
         || extract_symbols_ast(source),
         || Ok(Vec::new()),
-        "Go symbol extraction"
+        "Go symbol extraction",
     )
 }
 
@@ -236,7 +240,11 @@ fn extract_symbols_ast(source: &str) -> Result<Vec<Symbol>, PluginError> {
     let tool = SubprocessAstTool::new("go")
         .with_embedded_str(AST_TOOL_GO)
         .with_temp_filename("ast_tool.go")
-        .with_args(vec!["run".to_string(), "{script}".to_string(), "extract-symbols".to_string()]);
+        .with_args(vec![
+            "run".to_string(),
+            "{script}".to_string(),
+            "extract-symbols".to_string(),
+        ]);
 
     let go_symbols: Vec<GoSymbolInfo> = run_ast_tool(tool, source)?;
 

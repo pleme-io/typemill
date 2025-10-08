@@ -736,4 +736,3 @@ fn output_error(error: &cb_protocol::ApiError, format: &str) {
     };
     eprintln!("{}", output);
 }
-

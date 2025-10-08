@@ -47,9 +47,7 @@ impl ToolHandler for AnalysisHandler {
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         match tool_call.name.as_str() {
-            "find_unused_imports" => {
-                self.handle_find_unused_imports(context, tool_call).await
-            }
+            "find_unused_imports" => self.handle_find_unused_imports(context, tool_call).await,
             "analyze_complexity" => self.handle_analyze_complexity(context, tool_call).await,
             "suggest_refactoring" => self.handle_suggest_refactoring(context, tool_call).await,
             "analyze_project_complexity" => {
@@ -276,8 +274,12 @@ impl AnalysisHandler {
         );
 
         // Analyze complexity using cb-ast module
-        let report =
-            cb_ast::complexity::analyze_file_complexity(file_path_str, &content, &parsed.symbols, language);
+        let report = cb_ast::complexity::analyze_file_complexity(
+            file_path_str,
+            &content,
+            &parsed.symbols,
+            language,
+        );
 
         info!(
             file_path = %file_path_str,
@@ -357,8 +359,12 @@ impl AnalysisHandler {
         let mut suggestions = Vec::new();
 
         // 1. Analyze complexity and code metrics
-        let complexity_report =
-            cb_ast::complexity::analyze_file_complexity(file_path_str, &content, &parsed.symbols, language);
+        let complexity_report = cb_ast::complexity::analyze_file_complexity(
+            file_path_str,
+            &content,
+            &parsed.symbols,
+            language,
+        );
 
         for func in &complexity_report.functions {
             // Add all issues detected by complexity analysis
@@ -403,7 +409,8 @@ impl AnalysisHandler {
                         cb_ast::complexity::ComplexityRating::VeryComplex => "high",
                         cb_ast::complexity::ComplexityRating::Complex => "medium",
                         _ => "low",
-                    }.to_string(),
+                    }
+                    .to_string(),
                 });
             }
 
@@ -501,7 +508,10 @@ enum RefactoringKind {
 // ============================================================================
 
 /// Generate actionable suggestion text based on refactoring kind and function metrics
-fn generate_suggestion_text(kind: &RefactoringKind, func: &cb_ast::complexity::FunctionComplexity) -> String {
+fn generate_suggestion_text(
+    kind: &RefactoringKind,
+    func: &cb_ast::complexity::FunctionComplexity,
+) -> String {
     match kind {
         RefactoringKind::ReduceComplexity => {
             if func.complexity.cognitive > 20 {
@@ -563,7 +573,10 @@ fn generate_suggestion_text(kind: &RefactoringKind, func: &cb_ast::complexity::F
 
 /// Extract function body for refactoring analysis (simplified version)
 #[allow(dead_code)]
-fn extract_function_body_for_refactoring(content: &str, location: &cb_plugin_api::SourceLocation) -> String {
+fn extract_function_body_for_refactoring(
+    content: &str,
+    location: &cb_plugin_api::SourceLocation,
+) -> String {
     let lines: Vec<&str> = content.lines().collect();
     let start_line = location.line.saturating_sub(1);
 
@@ -616,7 +629,11 @@ fn detect_duplicate_patterns(_content: &str, _language: &str) -> Vec<Refactoring
 }
 
 /// Detect magic numbers (numeric literals that should be named constants)
-fn detect_magic_numbers(content: &str, _symbols: &[cb_plugin_api::Symbol], language: &str) -> Vec<RefactoringSuggestion> {
+fn detect_magic_numbers(
+    content: &str,
+    _symbols: &[cb_plugin_api::Symbol],
+    language: &str,
+) -> Vec<RefactoringSuggestion> {
     let mut suggestions = Vec::new();
 
     // Language-specific numeric literal patterns
@@ -626,9 +643,7 @@ fn detect_magic_numbers(content: &str, _symbols: &[cb_plugin_api::Symbol], langu
             // Exclude: 0, 1 (commonly used and acceptable)
             Regex::new(r"\b(?:[2-9]|[1-9]\d+)(?:\.\d+)?\b").ok()
         }
-        "python" => {
-            Regex::new(r"\b(?:[2-9]|[1-9]\d+)(?:\.\d+)?\b").ok()
-        }
+        "python" => Regex::new(r"\b(?:[2-9]|[1-9]\d+)(?:\.\d+)?\b").ok(),
         _ => None,
     };
 
@@ -654,14 +669,8 @@ fn detect_magic_numbers(content: &str, _symbols: &[cb_plugin_api::Symbol], langu
                     kind: RefactoringKind::ReplaceMagicNumber,
                     location: 1, // Would need better location tracking
                     function_name: None,
-                    description: format!(
-                        "Magic number '{}' appears {} times",
-                        number, count
-                    ),
-                    suggestion: format!(
-                        "Consider extracting '{}' to a named constant",
-                        number
-                    ),
+                    description: format!("Magic number '{}' appears {} times", number, count),
+                    suggestion: format!("Consider extracting '{}' to a named constant", number),
                     priority: if count > 3 { "medium" } else { "low" }.to_string(),
                 });
             }
@@ -717,11 +726,8 @@ fn extract_imported_symbols(content: &str, import_path: &str) -> Vec<String> {
                         if !matched_str.is_empty() {
                             // Split by commas and clean up
                             for symbol in matched_str.split(',') {
-                                let clean_symbol = symbol
-                                    .split_whitespace()
-                                    .next()
-                                    .unwrap_or("")
-                                    .to_string();
+                                let clean_symbol =
+                                    symbol.split_whitespace().next().unwrap_or("").to_string();
                                 if !clean_symbol.is_empty() {
                                     symbols.push(clean_symbol);
                                 }
@@ -798,7 +804,9 @@ impl AnalysisHandler {
         let directory_path = args
             .get("directory_path")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| ServerError::InvalidRequest("Missing directory_path parameter".into()))?;
+            .ok_or_else(|| {
+                ServerError::InvalidRequest("Missing directory_path parameter".into())
+            })?;
 
         let pattern = args.get("pattern").and_then(|v| v.as_str());
         let include_tests = args
@@ -940,8 +948,11 @@ impl AnalysisHandler {
             );
 
             // Aggregate class-level complexity
-            let file_classes =
-                aggregate_class_complexity(&file_path.to_string_lossy(), &report.functions, language);
+            let file_classes = aggregate_class_complexity(
+                &file_path.to_string_lossy(),
+                &report.functions,
+                language,
+            );
 
             // Update project-level stats
             total_functions += report.total_functions;
@@ -1062,12 +1073,11 @@ impl AnalysisHandler {
         let directory_path = args
             .get("directory_path")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| ServerError::InvalidRequest("Missing directory_path parameter".into()))?;
+            .ok_or_else(|| {
+                ServerError::InvalidRequest("Missing directory_path parameter".into())
+            })?;
 
-        let limit = args
-            .get("limit")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(10) as usize;
+        let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(10) as usize;
 
         let metric = args
             .get("metric")
@@ -1182,8 +1192,11 @@ impl AnalysisHandler {
             }
 
             // Aggregate class complexity
-            let file_classes =
-                aggregate_class_complexity(&file_path.to_string_lossy(), &report.functions, language);
+            let file_classes = aggregate_class_complexity(
+                &file_path.to_string_lossy(),
+                &report.functions,
+                language,
+            );
             all_classes.extend(file_classes);
         }
 
@@ -1211,12 +1224,7 @@ impl AnalysisHandler {
         // Generate summary
         let very_complex_count = top_functions
             .iter()
-            .filter(|f| {
-                matches!(
-                    f.rating,
-                    cb_ast::complexity::ComplexityRating::VeryComplex
-                )
-            })
+            .filter(|f| matches!(f.rating, cb_ast::complexity::ComplexityRating::VeryComplex))
             .count();
 
         let summary = if very_complex_count > 0 {

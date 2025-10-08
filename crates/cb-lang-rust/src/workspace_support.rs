@@ -114,10 +114,7 @@ fn remove_workspace_member_impl(content: &str, member: &str) -> Result<String, S
 
     // Get workspace members array
     if let Some(workspace) = doc.get_mut("workspace").and_then(|w| w.as_table_mut()) {
-        if let Some(members) = workspace
-            .get_mut("members")
-            .and_then(|m| m.as_array_mut())
-        {
+        if let Some(members) = workspace.get_mut("members").and_then(|m| m.as_array_mut()) {
             // Find and remove the member
             let original_len = members.len();
             members.retain(|v| v.as_str() != Some(member));

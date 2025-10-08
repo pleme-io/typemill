@@ -1,20 +1,20 @@
-use integration_tests :: harness :: mcp_fixtures :: * ;
+//! MCP handler test runners
 //!
 //! This module contains the actual test logic for each MCP file operation.
 //! Each runner function is parameterized to accept a fixture struct,
 //! making them reusable across multiple test scenarios.
 
-use integration_tests :: harness :: mcp_fixtures :: * ;
-use integration_tests :: harness :: { TestClient , TestWorkspace } ;
 use cb_protocol::AstService;
 use cb_server::handlers::AppState;
 use cb_server::services::{DefaultAstService, FileService, LockManager, OperationQueue};
 use cb_server::workspaces::WorkspaceManager;
-use integration_tests::harness::mcp_fixtures::*;
-use integration_tests::harness::{TestClient, TestWorkspace};
+use cb_ast::AstCache;
+use cb_plugins::PluginManager;
 use serde_json::json;
 use std::path::PathBuf;
 use std::sync::Arc;
+use test_support::harness::mcp_fixtures::*;
+use test_support::harness::{TestClient, TestWorkspace};
 
 /// Spawn a background worker to process queued file operations in tests
 fn spawn_test_worker(queue: Arc<OperationQueue>) {
@@ -85,7 +85,10 @@ fn spawn_test_worker(queue: Arc<OperationQueue>) {
 async fn create_mock_state(workspace_root: PathBuf) -> Arc<AppState> {
     let ast_cache = Arc::new(AstCache::new());
     let plugin_registry = cb_server::services::registry_builder::build_language_plugin_registry();
-    let ast_service: Arc<dyn AstService> = Arc::new(DefaultAstService::new(ast_cache.clone(), plugin_registry.clone()));
+    let ast_service: Arc<dyn AstService> = Arc::new(DefaultAstService::new(
+        ast_cache.clone(),
+        plugin_registry.clone(),
+    ));
     let lock_manager = Arc::new(LockManager::new());
     let operation_queue = Arc::new(OperationQueue::new(lock_manager.clone()));
 
@@ -605,7 +608,8 @@ pub async fn run_list_files_test(case: &ListFilesTestCase, use_real_mcp: bool) {
         }
 
         // Use the actual SystemToolsPlugin to test the real application logic
-        let plugin_registry = Arc::new(cb_plugin_api::PluginRegistry::new());
+        let plugin_registry =
+            cb_server::services::registry_builder::build_language_plugin_registry();
         let plugin = SystemToolsPlugin::new(plugin_registry);
         let request = PluginRequest {
             method: "list_files".to_string(),
@@ -741,7 +745,8 @@ pub async fn run_analyze_imports_test(case: &AnalyzeImportsTestCase, use_real_mc
             "file_path": file_path.to_string_lossy()
         });
 
-        let plugin_registry = cb_server::services::registry_builder::build_language_plugin_registry();
+        let plugin_registry =
+            cb_server::services::registry_builder::build_language_plugin_registry();
         let plugin = SystemToolsPlugin::new(plugin_registry);
         let request = PluginRequest {
             method: "analyze_imports".to_string(),

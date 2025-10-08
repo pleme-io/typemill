@@ -25,7 +25,12 @@ impl JavaImportSupport {
     }
 
     /// Run JavaParser command and return output
-    fn run_parser_command(&self, command: &str, source: &str, args: &[&str]) -> Result<String, String> {
+    fn run_parser_command(
+        &self,
+        command: &str,
+        source: &str,
+        args: &[&str],
+    ) -> Result<String, String> {
         // Build tool configuration
         let mut tool = SubprocessAstTool::new("java")
             .with_embedded_bytes(JAVA_PARSER_JAR)
@@ -56,21 +61,22 @@ struct ImportInfo {
 impl ImportSupport for JavaImportSupport {
     fn parse_imports(&self, content: &str) -> Vec<String> {
         match self.run_parser_command("parse-imports", content, &[]) {
-            Ok(json_output) => {
-                match serde_json::from_str::<Vec<ImportInfo>>(&json_output) {
-                    Ok(imports) => imports.into_iter().map(|i| {
+            Ok(json_output) => match serde_json::from_str::<Vec<ImportInfo>>(&json_output) {
+                Ok(imports) => imports
+                    .into_iter()
+                    .map(|i| {
                         if i.is_static {
                             format!("static {}", i.path)
                         } else {
                             i.path
                         }
-                    }).collect(),
-                    Err(e) => {
-                        warn!(error = %e, "Failed to parse imports JSON");
-                        Vec::new()
-                    }
+                    })
+                    .collect(),
+                Err(e) => {
+                    warn!(error = %e, "Failed to parse imports JSON");
+                    Vec::new()
                 }
-            }
+            },
             Err(e) => {
                 warn!(error = %e, "Failed to parse imports");
                 Vec::new()
@@ -86,7 +92,11 @@ impl ImportSupport for JavaImportSupport {
     ) -> (String, usize) {
         match self.run_parser_command("rewrite-imports", content, &[old_name, new_name]) {
             Ok(new_content) => {
-                let changes = if new_content.trim() != content.trim() { 1 } else { 0 };
+                let changes = if new_content.trim() != content.trim() {
+                    1
+                } else {
+                    0
+                };
                 (new_content, changes)
             }
             Err(e) => {

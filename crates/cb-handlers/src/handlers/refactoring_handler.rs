@@ -98,9 +98,9 @@ impl LspRefactoringService for LspRefactoringServiceWrapper {
             .map_err(|e| cb_ast::error::AstError::analysis(format!("LSP client error: {}", e)))?;
 
         // Ensure file is opened in LSP server before requesting code actions
-        let content = tokio::fs::read_to_string(file_path)
-            .await
-            .map_err(|e| cb_ast::error::AstError::analysis(format!("Failed to read file: {}", e)))?;
+        let content = tokio::fs::read_to_string(file_path).await.map_err(|e| {
+            cb_ast::error::AstError::analysis(format!("Failed to read file: {}", e))
+        })?;
 
         let did_open_params = json!({
             "textDocument": {
@@ -112,7 +112,9 @@ impl LspRefactoringService for LspRefactoringServiceWrapper {
         });
 
         // Send didOpen notification (fire and forget)
-        let _ = client.send_notification("textDocument/didOpen", did_open_params).await;
+        let _ = client
+            .send_notification("textDocument/didOpen", did_open_params)
+            .await;
 
         // Small delay to let LSP process the file
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;

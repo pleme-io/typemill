@@ -516,19 +516,26 @@ pub async fn update_imports_for_rename(
                 if let Ok(content) = tokio::fs::read_to_string(file_path).await {
                     // Find module references using the enhanced scanner
                     // We need to downcast to concrete plugin types to access find_module_references
+                    use cb_lang_go::GoPlugin;
                     use cb_lang_rust::RustPlugin;
                     use cb_lang_typescript::TypeScriptPlugin;
-                    use cb_lang_go::GoPlugin;
 
-                    let refs_opt = if let Some(rust_plugin) = plugin.as_any().downcast_ref::<RustPlugin>() {
-                        rust_plugin.find_module_references(&content, module_name, scope).ok()
-                    } else if let Some(ts_plugin) = plugin.as_any().downcast_ref::<TypeScriptPlugin>() {
-                        Some(ts_plugin.find_module_references(&content, module_name, scope))
-                    } else if let Some(go_plugin) = plugin.as_any().downcast_ref::<GoPlugin>() {
-                        go_plugin.find_module_references(&content, module_name, scope).ok()
-                    } else {
-                        None
-                    };
+                    let refs_opt =
+                        if let Some(rust_plugin) = plugin.as_any().downcast_ref::<RustPlugin>() {
+                            rust_plugin
+                                .find_module_references(&content, module_name, scope)
+                                .ok()
+                        } else if let Some(ts_plugin) =
+                            plugin.as_any().downcast_ref::<TypeScriptPlugin>()
+                        {
+                            Some(ts_plugin.find_module_references(&content, module_name, scope))
+                        } else if let Some(go_plugin) = plugin.as_any().downcast_ref::<GoPlugin>() {
+                            go_plugin
+                                .find_module_references(&content, module_name, scope)
+                                .ok()
+                        } else {
+                            None
+                        };
 
                     if let Some(refs) = refs_opt {
                         if !refs.is_empty() {
@@ -634,16 +641,20 @@ pub async fn update_imports_for_rename(
         // If scan_scope is provided, use find_module_references for precise edits
         if let Some(scope) = scan_scope {
             // Downcast to concrete plugin types to access find_module_references
+            use cb_lang_go::GoPlugin;
             use cb_lang_rust::RustPlugin;
             use cb_lang_typescript::TypeScriptPlugin;
-            use cb_lang_go::GoPlugin;
 
             let refs_opt = if let Some(rust_plugin) = plugin.as_any().downcast_ref::<RustPlugin>() {
-                rust_plugin.find_module_references(&content, old_module_name, scope).ok()
+                rust_plugin
+                    .find_module_references(&content, old_module_name, scope)
+                    .ok()
             } else if let Some(ts_plugin) = plugin.as_any().downcast_ref::<TypeScriptPlugin>() {
                 Some(ts_plugin.find_module_references(&content, old_module_name, scope))
             } else if let Some(go_plugin) = plugin.as_any().downcast_ref::<GoPlugin>() {
-                go_plugin.find_module_references(&content, old_module_name, scope).ok()
+                go_plugin
+                    .find_module_references(&content, old_module_name, scope)
+                    .ok()
             } else {
                 None
             };
@@ -697,19 +708,47 @@ pub async fn update_imports_for_rename(
         } else {
             // Fallback to the old rewrite logic
             // Downcast to concrete plugin types to access rewrite_imports_for_rename
+            use cb_lang_go::GoPlugin;
             use cb_lang_rust::RustPlugin;
             use cb_lang_typescript::TypeScriptPlugin;
-            use cb_lang_go::GoPlugin;
 
-            let rewrite_result = if let Some(rust_plugin) = plugin.as_any().downcast_ref::<RustPlugin>() {
-                rust_plugin.rewrite_imports_for_rename(&content, old_path, new_path, &file_path, project_root, rename_info).ok()
-            } else if let Some(ts_plugin) = plugin.as_any().downcast_ref::<TypeScriptPlugin>() {
-                ts_plugin.rewrite_imports_for_rename(&content, old_path, new_path, &file_path, project_root, rename_info).ok()
-            } else if let Some(go_plugin) = plugin.as_any().downcast_ref::<GoPlugin>() {
-                go_plugin.rewrite_imports_for_rename(&content, old_path, new_path, &file_path, project_root, rename_info).ok()
-            } else {
-                None
-            };
+            let rewrite_result =
+                if let Some(rust_plugin) = plugin.as_any().downcast_ref::<RustPlugin>() {
+                    rust_plugin
+                        .rewrite_imports_for_rename(
+                            &content,
+                            old_path,
+                            new_path,
+                            &file_path,
+                            project_root,
+                            rename_info,
+                        )
+                        .ok()
+                } else if let Some(ts_plugin) = plugin.as_any().downcast_ref::<TypeScriptPlugin>() {
+                    ts_plugin
+                        .rewrite_imports_for_rename(
+                            &content,
+                            old_path,
+                            new_path,
+                            &file_path,
+                            project_root,
+                            rename_info,
+                        )
+                        .ok()
+                } else if let Some(go_plugin) = plugin.as_any().downcast_ref::<GoPlugin>() {
+                    go_plugin
+                        .rewrite_imports_for_rename(
+                            &content,
+                            old_path,
+                            new_path,
+                            &file_path,
+                            project_root,
+                            rename_info,
+                        )
+                        .ok()
+                } else {
+                    None
+                };
 
             match rewrite_result {
                 Some((updated_content, count)) => {

@@ -101,8 +101,14 @@ impl ImportSupport for TypeScriptImportSupport {
         // Check for various import patterns
         let patterns = [
             format!(r#"from\s+['"]{module}['"]"#, module = regex::escape(module)),
-            format!(r#"require\s*\(\s*['"]{module}['"]\s*\)"#, module = regex::escape(module)),
-            format!(r#"import\s*\(\s*['"]{module}['"]\s*\)"#, module = regex::escape(module)),
+            format!(
+                r#"require\s*\(\s*['"]{module}['"]\s*\)"#,
+                module = regex::escape(module)
+            ),
+            format!(
+                r#"import\s*\(\s*['"]{module}['"]\s*\)"#,
+                module = regex::escape(module)
+            ),
         ];
 
         for pattern in &patterns {
@@ -126,7 +132,8 @@ impl ImportSupport for TypeScriptImportSupport {
         // Find the last import statement using primitive
         let last_import_idx = find_last_matching_line(content, |line| {
             let trimmed = line.trim();
-            trimmed.starts_with("import ") || (trimmed.starts_with("const ") && trimmed.contains("require("))
+            trimmed.starts_with("import ")
+                || (trimmed.starts_with("const ") && trimmed.contains("require("))
         });
 
         let new_import = format!("import {{ }} from '{}';", module);
@@ -151,9 +158,11 @@ impl ImportSupport for TypeScriptImportSupport {
                 // Verify it's actually an import statement
                 let trimmed = line.trim();
                 (trimmed.starts_with("import ") && trimmed.contains(&format!("'{}'", module)))
-                    || (trimmed.starts_with("import ") && trimmed.contains(&format!("\"{}\"", module)))
+                    || (trimmed.starts_with("import ")
+                        && trimmed.contains(&format!("\"{}\"", module)))
                     || (trimmed.contains("require(") && trimmed.contains(&format!("'{}'", module)))
-                    || (trimmed.contains("require(") && trimmed.contains(&format!("\"{}\"", module)))
+                    || (trimmed.contains("require(")
+                        && trimmed.contains(&format!("\"{}\"", module)))
             } else {
                 false
             }
@@ -223,7 +232,12 @@ pub fn rewrite_imports_for_move_with_context(
     // ES6 imports: from 'old_path' or "old_path"
     // Preserve the original quote style
     for quote_char in &['\'', '"'] {
-        let es6_pattern = format!(r#"from\s+{}{}{}"#, quote_char, regex::escape(&old_import), quote_char);
+        let es6_pattern = format!(
+            r#"from\s+{}{}{}"#,
+            quote_char,
+            regex::escape(&old_import),
+            quote_char
+        );
         if let Ok(re) = regex::Regex::new(&es6_pattern) {
             let replacement = format!(r#"from {}{}{}"#, quote_char, new_import, quote_char);
             let replaced = re.replace_all(&new_content, replacement.as_str());
@@ -237,7 +251,12 @@ pub fn rewrite_imports_for_move_with_context(
     // CommonJS require: require('old_path') or require("old_path")
     // Preserve the original quote style
     for quote_char in &['\'', '"'] {
-        let require_pattern = format!(r#"require\s*\(\s*{}{}{}\s*\)"#, quote_char, regex::escape(&old_import), quote_char);
+        let require_pattern = format!(
+            r#"require\s*\(\s*{}{}{}\s*\)"#,
+            quote_char,
+            regex::escape(&old_import),
+            quote_char
+        );
         if let Ok(re) = regex::Regex::new(&require_pattern) {
             let replacement = format!(r#"require({}{}{})"#, quote_char, new_import, quote_char);
             let replaced = re.replace_all(&new_content, replacement.as_str());
@@ -251,7 +270,12 @@ pub fn rewrite_imports_for_move_with_context(
     // Dynamic import: import('old_path') or import("old_path")
     // Preserve the original quote style
     for quote_char in &['\'', '"'] {
-        let dynamic_pattern = format!(r#"import\s*\(\s*{}{}{}\s*\)"#, quote_char, regex::escape(&old_import), quote_char);
+        let dynamic_pattern = format!(
+            r#"import\s*\(\s*{}{}{}\s*\)"#,
+            quote_char,
+            regex::escape(&old_import),
+            quote_char
+        );
         if let Ok(re) = regex::Regex::new(&dynamic_pattern) {
             let replacement = format!(r#"import({}{}{})"#, quote_char, new_import, quote_char);
             let replaced = re.replace_all(&new_content, replacement.as_str());
@@ -323,7 +347,10 @@ fn calculate_relative_import(importing_file: &Path, target_file: &Path) -> Strin
     }
 
     // Ensure it starts with ./ if it's a relative path in the same directory
-    if !import_str.starts_with("./") && !import_str.starts_with("../") && !import_str.starts_with('/') {
+    if !import_str.starts_with("./")
+        && !import_str.starts_with("../")
+        && !import_str.starts_with('/')
+    {
         import_str = format!("./{}", import_str);
     }
 
@@ -407,7 +434,8 @@ import oldFunction from './utils';
 import { oldFunction as alias } from './utils';
 "#;
 
-        let (updated, changes) = support.rewrite_imports_for_rename(source, "oldFunction", "newFunction");
+        let (updated, changes) =
+            support.rewrite_imports_for_rename(source, "oldFunction", "newFunction");
         assert!(updated.contains("{ newFunction }"));
         assert!(updated.contains("import newFunction from"));
         assert!(updated.contains("newFunction as alias"));
@@ -428,13 +456,13 @@ import('./old/path');
         let new_path = workspace.join("new").join("path.ts");
         let importing_file = workspace.join("main.ts");
 
-        let (updated, changes) = rewrite_imports_for_move_with_context(
-            source,
-            &old_path,
-            &new_path,
-            &importing_file,
+        let (updated, changes) =
+            rewrite_imports_for_move_with_context(source, &old_path, &new_path, &importing_file);
+        assert!(
+            updated.contains("from './new/path'"),
+            "Expected single quotes preserved, got: {}",
+            updated
         );
-        assert!(updated.contains("from './new/path'"), "Expected single quotes preserved, got: {}", updated);
         assert!(updated.contains("require('./new/path')"));
         assert!(updated.contains("import('./new/path')"));
         assert!(changes > 0);

@@ -100,10 +100,9 @@ util();"#,
     // Go Case
     GoToDefinitionTestCase {
         language_id: "go",
-        files: &[
-            (
-                "main.go",
-                r#"package main
+        files: &[(
+            "main.go",
+            r#"package main
 
 import "fmt"
 
@@ -116,18 +115,16 @@ func helper() string {
     return "test"
 }
 "#,
-            ),
-        ],
+        )],
         trigger_point: ("main.go", 5, 14), // Position on "helper" call
         expected_location: ("main.go", 9, 5), // Position of "helper" definition
     },
     // Rust Case
     GoToDefinitionTestCase {
         language_id: "rs",
-        files: &[
-            (
-                "main.rs",
-                r#"fn main() {
+        files: &[(
+            "main.rs",
+            r#"fn main() {
     let result = helper();
     println!("{}", result);
 }
@@ -136,8 +133,7 @@ fn helper() -> &'static str {
     "test"
 }
 "#,
-            ),
-        ],
+        )],
         trigger_point: ("main.rs", 1, 17), // Position on "helper" call
         expected_location: ("main.rs", 5, 3), // Position of "helper" definition
     },
@@ -166,7 +162,10 @@ pub const FIND_REFERENCES_TESTS: &[FindReferencesTestCase] = &[
         language_id: "py",
         files: &[
             ("utils.py", "def calculate(x):\n    return x * 2"),
-            ("main.py", "from utils import calculate\nresult = calculate(5)"),
+            (
+                "main.py",
+                "from utils import calculate\nresult = calculate(5)",
+            ),
         ],
         trigger_point: ("utils.py", 0, 4),
         expected_min_count: 1,
@@ -174,10 +173,9 @@ pub const FIND_REFERENCES_TESTS: &[FindReferencesTestCase] = &[
     // Go Case
     FindReferencesTestCase {
         language_id: "go",
-        files: &[
-            (
-                "main.go",
-                r#"package main
+        files: &[(
+            "main.go",
+            r#"package main
 
 func process(x int) int {
     return x * 2
@@ -189,18 +187,16 @@ func main() {
     _ = val1 + val2
 }
 "#,
-            ),
-        ],
+        )],
         trigger_point: ("main.go", 2, 5), // Position on "process" definition
-        expected_min_count: 2, // Two calls to process()
+        expected_min_count: 2,            // Two calls to process()
     },
     // Rust Case
     FindReferencesTestCase {
         language_id: "rs",
-        files: &[
-            (
-                "main.rs",
-                r#"fn compute(x: i32) -> i32 {
+        files: &[(
+            "main.rs",
+            r#"fn compute(x: i32) -> i32 {
     x * 2
 }
 
@@ -210,10 +206,9 @@ fn main() {
     println!("{} {}", a, b);
 }
 "#,
-            ),
-        ],
+        )],
         trigger_point: ("main.rs", 0, 3), // Position on "compute" definition
-        expected_min_count: 2, // Two calls to compute()
+        expected_min_count: 2,            // Two calls to compute()
     },
 ];
 

@@ -230,9 +230,7 @@ impl LanguagePatterns {
     fn for_language(language: &str) -> Self {
         match language.to_lowercase().as_str() {
             "rust" | "go" | "java" => Self {
-                decision_keywords: vec![
-                    "if", "else if", "for", "while", "match", "case", "catch",
-                ],
+                decision_keywords: vec!["if", "else if", "for", "while", "match", "case", "catch"],
                 logical_operators: vec!["&&", "||"],
             },
             "typescript" | "javascript" => Self {
@@ -471,11 +469,12 @@ pub fn calculate_code_metrics(function_body: &str, language: &str) -> CodeMetric
     let mut comment_lines = 0;
 
     // Language-specific comment patterns
-    let (single_line_comment, multi_line_start, multi_line_end) = match language.to_lowercase().as_str() {
-        "rust" | "go" | "java" | "typescript" | "javascript" => ("//", "/*", "*/"),
-        "python" => ("#", "\"\"\"", "\"\"\""),
-        _ => ("//", "/*", "*/"),
-    };
+    let (single_line_comment, multi_line_start, multi_line_end) =
+        match language.to_lowercase().as_str() {
+            "rust" | "go" | "java" | "typescript" | "javascript" => ("//", "/*", "*/"),
+            "python" => ("#", "\"\"\"", "\"\"\""),
+            _ => ("//", "/*", "*/"),
+        };
 
     let mut in_multiline_comment = false;
 
@@ -577,7 +576,8 @@ fn count_parameters(function_body: &str, language: &str) -> u32 {
                     // Rust methods might have &self, &mut self, self
                     if params_str.trim().starts_with("&self")
                         || params_str.trim().starts_with("self")
-                        || params_str.trim().starts_with("&mut self") {
+                        || params_str.trim().starts_with("&mut self")
+                    {
                         param_count.saturating_sub(1)
                     } else {
                         param_count
@@ -712,9 +712,7 @@ pub fn analyze_file_complexity(
     }
 
     // Generate summary
-    let needs_attention = rating_counts
-        .get(&ComplexityRating::Complex)
-        .unwrap_or(&0)
+    let needs_attention = rating_counts.get(&ComplexityRating::Complex).unwrap_or(&0)
         + rating_counts
             .get(&ComplexityRating::VeryComplex)
             .unwrap_or(&0);
@@ -763,7 +761,9 @@ fn extract_class_name(function_name: &str, language: &str) -> Option<String> {
     match language.to_lowercase().as_str() {
         "python" | "typescript" | "javascript" | "java" => {
             // Look for ClassName.methodName pattern
-            function_name.rfind('.').map(|dot_pos| function_name[..dot_pos].to_string())
+            function_name
+                .rfind('.')
+                .map(|dot_pos| function_name[..dot_pos].to_string())
         }
         "rust" | "go" => {
             // For Rust and Go, we'll use file-level grouping
@@ -794,8 +794,8 @@ pub fn aggregate_class_complexity(
     let mut class_groups: HashMap<String, Vec<&FunctionComplexity>> = HashMap::new();
 
     for func in functions {
-        let class_name = extract_class_name(&func.name, language)
-            .unwrap_or_else(|| "<module>".to_string());
+        let class_name =
+            extract_class_name(&func.name, language).unwrap_or_else(|| "<module>".to_string());
         class_groups.entry(class_name).or_default().push(func);
     }
 
@@ -808,10 +808,7 @@ pub fn aggregate_class_complexity(
             .iter()
             .map(|f| f.complexity.cyclomatic)
             .sum();
-        let total_cognitive: u32 = class_functions
-            .iter()
-            .map(|f| f.complexity.cognitive)
-            .sum();
+        let total_cognitive: u32 = class_functions.iter().map(|f| f.complexity.cognitive).sum();
         let total_sloc: u32 = class_functions.iter().map(|f| f.metrics.sloc).sum();
 
         let average_complexity = if function_count > 0 {
@@ -857,11 +854,7 @@ pub fn aggregate_class_complexity(
         }
 
         // Get first function line as class line (approximation)
-        let line = class_functions
-            .iter()
-            .map(|f| f.line)
-            .min()
-            .unwrap_or(0);
+        let line = class_functions.iter().map(|f| f.line).min().unwrap_or(0);
 
         classes.push(ClassComplexity {
             name: class_name,
@@ -1005,14 +998,8 @@ fn with_logic(x: i32, y: i32) {
     #[test]
     fn test_complexity_rating() {
         assert_eq!(ComplexityRating::from_score(3), ComplexityRating::Simple);
-        assert_eq!(
-            ComplexityRating::from_score(8),
-            ComplexityRating::Moderate
-        );
-        assert_eq!(
-            ComplexityRating::from_score(15),
-            ComplexityRating::Complex
-        );
+        assert_eq!(ComplexityRating::from_score(8), ComplexityRating::Moderate);
+        assert_eq!(ComplexityRating::from_score(15), ComplexityRating::Complex);
         assert_eq!(
             ComplexityRating::from_score(25),
             ComplexityRating::VeryComplex
@@ -1107,9 +1094,12 @@ fn flat(a: bool, b: bool, c: bool) {
         assert_eq!(flat_metrics.cyclomatic, 4);
 
         // But cognitive complexity is different
-        assert!(nested_metrics.cognitive > flat_metrics.cognitive,
+        assert!(
+            nested_metrics.cognitive > flat_metrics.cognitive,
             "Nested code should have higher cognitive complexity. Nested: {}, Flat: {}",
-            nested_metrics.cognitive, flat_metrics.cognitive);
+            nested_metrics.cognitive,
+            flat_metrics.cognitive
+        );
 
         // Nesting depth is different (includes function braces)
         assert_eq!(nested_metrics.max_nesting_depth, 4); // function + 3 nested ifs
@@ -1139,9 +1129,12 @@ fn complex(items: Vec<i32>) {
         // if (nesting 2): +1 +2 = 3
         // if (nesting 3): +1 +3 = 4
         // Total cognitive: 2 + 3 + 4 = 9
-        assert!(metrics.cognitive > metrics.cyclomatic,
+        assert!(
+            metrics.cognitive > metrics.cyclomatic,
             "Cognitive ({}) should be > cyclomatic ({}) for nested code",
-            metrics.cognitive, metrics.cyclomatic);
+            metrics.cognitive,
+            metrics.cyclomatic
+        );
         assert!(metrics.max_nesting_depth >= 3);
     }
 
@@ -1161,7 +1154,10 @@ fn process(x: i32) {
         // Cyclomatic = 1 + 3 = 4
         // Cognitive = 3 * (1 + 1) = 6 (each if gets +1 base + 1 nesting penalty)
         // Note: Early return detection requires nesting_level == 0, but these are at level 1
-        assert_eq!(metrics.cyclomatic, 4, "Cyclomatic should be 4 (3 ifs + 1 base)");
+        assert_eq!(
+            metrics.cyclomatic, 4,
+            "Cyclomatic should be 4 (3 ifs + 1 base)"
+        );
         assert_eq!(metrics.cognitive, 6, "Cognitive should be 6 (3 ifs * 2)");
         assert_eq!(metrics.max_nesting_depth, 2, "Max nesting should be 2");
     }
@@ -1211,8 +1207,10 @@ fn process() {
         let good_metrics = calculate_code_metrics(well_documented, "rust");
         let poor_metrics = calculate_code_metrics(poorly_documented, "rust");
 
-        assert!(good_metrics.comment_ratio > poor_metrics.comment_ratio,
-            "Well-documented code should have higher comment ratio");
+        assert!(
+            good_metrics.comment_ratio > poor_metrics.comment_ratio,
+            "Well-documented code should have higher comment ratio"
+        );
     }
 
     #[test]
@@ -1228,7 +1226,10 @@ fn example() {
 "#;
         let metrics = calculate_code_metrics(code, "rust");
 
-        assert!(metrics.comment_lines >= 3, "Should detect multi-line comments");
+        assert!(
+            metrics.comment_lines >= 3,
+            "Should detect multi-line comments"
+        );
         assert_eq!(metrics.sloc, 3); // fn, let, closing brace
     }
 
@@ -1279,7 +1280,10 @@ fn process_user(id: i32, name: String, email: String, age: i32, role: String, ac
         let code_metrics = calculate_code_metrics(complex_function, "rust");
 
         // Should detect high cognitive complexity due to nesting
-        assert!(metrics.cognitive > 15, "Should detect high cognitive complexity");
+        assert!(
+            metrics.cognitive > 15,
+            "Should detect high cognitive complexity"
+        );
         assert!(metrics.max_nesting_depth >= 5, "Should detect deep nesting");
 
         // Should detect too many parameters
@@ -1303,12 +1307,21 @@ def process(items):
         let metrics = calculate_complexity_metrics(python_code, "python");
 
         // Python complexity: for, if, if, and
-        assert_eq!(metrics.cyclomatic, 5, "Cyclomatic: 1 base + for + if + if + and");
+        assert_eq!(
+            metrics.cyclomatic, 5,
+            "Cyclomatic: 1 base + for + if + if + and"
+        );
 
         // Note: Python uses indentation, not braces, so max_nesting_depth will be 0
         // Cognitive complexity is still calculated based on keywords
-        assert!(metrics.cognitive > 0, "Should calculate cognitive complexity for Python");
-        assert_eq!(metrics.max_nesting_depth, 0, "Python has no braces, so nesting depth is 0");
+        assert!(
+            metrics.cognitive > 0,
+            "Should calculate cognitive complexity for Python"
+        );
+        assert_eq!(
+            metrics.max_nesting_depth, 0,
+            "Python has no braces, so nesting depth is 0"
+        );
     }
 
     #[test]
@@ -1331,7 +1344,10 @@ function validate(data: any): boolean {
 
         assert!(metrics.cyclomatic >= 4);
         // Verify it detected some complexity
-        assert!(metrics.cognitive > 0, "Should calculate cognitive complexity");
+        assert!(
+            metrics.cognitive > 0,
+            "Should calculate cognitive complexity"
+        );
         assert!(metrics.max_nesting_depth >= 1, "Should track nesting");
     }
 
@@ -1461,7 +1477,10 @@ function validate(data: any): boolean {
 
         // Find module-level functions
         let module = classes.iter().find(|c| c.name == "<module>");
-        assert!(module.is_some(), "Should find <module> for top-level functions");
+        assert!(
+            module.is_some(),
+            "Should find <module> for top-level functions"
+        );
 
         let module = module.unwrap();
         assert_eq!(module.function_count, 1);

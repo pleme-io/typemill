@@ -1,4 +1,4 @@
-use integration_tests :: harness :: { TestClient , TestWorkspace } ;
+//! Cross-language manifest tests
 //!
 //! This module tests update_dependency tool across all supported languages
 //! with their respective manifest formats:
@@ -7,9 +7,9 @@ use integration_tests :: harness :: { TestClient , TestWorkspace } ;
 //! - Rust: Cargo.toml
 //! - Go: go.mod
 
-use integration_tests::harness::{TestClient, TestWorkspace};
 use serde_json::json;
 use std::fs;
+use test_support::harness::{TestClient, TestWorkspace};
 
 /// Test update_dependency for Python requirements.txt
 #[tokio::test]

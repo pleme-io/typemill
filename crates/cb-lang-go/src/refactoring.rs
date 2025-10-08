@@ -2,8 +2,10 @@
 //!
 //! This module provides AST-based refactoring capabilities for Go code.
 
-use cb_protocol::{EditPlan, EditPlanMetadata, EditLocation, EditType, TextEdit, ValidationRule, ValidationType};
 use cb_lang_common::LineExtractor;
+use cb_protocol::{
+    EditLocation, EditPlan, EditPlanMetadata, EditType, TextEdit, ValidationRule, ValidationType,
+};
 use std::collections::HashMap;
 
 /// Code range for refactoring operations
@@ -50,10 +52,7 @@ pub fn plan_extract_function(
     // Generate new function
     let new_function = format!(
         "\n{}func {}() {{\n{}\n{}}}\n",
-        indent,
-        function_name,
-        selected_code,
-        indent
+        indent, function_name, selected_code, indent
     );
 
     // Generate function call
@@ -309,6 +308,7 @@ pub fn plan_inline_variable(
         Err(format!(
             "Could not find variable declaration at {}:{}",
             variable_line, variable_col
-        ).into())
+        )
+        .into())
     }
 }

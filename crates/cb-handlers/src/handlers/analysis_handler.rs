@@ -261,7 +261,9 @@ async fn collect_symbols_by_document(
     // Query each file for its document symbols
     for file_path in &source_files {
         // Convert to absolute path and create proper file:// URI
-        let absolute_path = file_path.canonicalize().unwrap_or_else(|_| file_path.clone());
+        let absolute_path = file_path
+            .canonicalize()
+            .unwrap_or_else(|_| file_path.clone());
         let uri = format!("file://{}", absolute_path.display());
 
         match lsp_adapter

@@ -1,4 +1,5 @@
-use crate :: harness :: { create_typescript_project , TestClient , TestWorkspace } ;
+//! Resilience and error recovery tests
+//!
 //! These tests validate error handling, crash recovery, and complex multi-step workflows
 
 use crate::harness::{create_typescript_project, TestClient, TestWorkspace};

@@ -70,16 +70,17 @@ impl WorkspaceSupport for PythonWorkspaceSupport {
 /// Python workspace tool detection
 #[derive(Debug, PartialEq)]
 enum PythonWorkspaceTool {
-    PDM,     // [tool.pdm.workspace.members]
-    Poetry,  // [tool.poetry.packages]
-    Hatch,   // [tool.hatch.envs]
+    PDM,    // [tool.pdm.workspace.members]
+    Poetry, // [tool.poetry.packages]
+    Hatch,  // [tool.hatch.envs]
     None,
 }
 
 /// Detect which Python tool is being used
 fn detect_tool(doc: &DocumentMut) -> PythonWorkspaceTool {
     // Check for PDM workspace
-    if doc.get("tool")
+    if doc
+        .get("tool")
         .and_then(|t| t.get("pdm"))
         .and_then(|p| p.get("workspace"))
         .is_some()
@@ -88,7 +89,8 @@ fn detect_tool(doc: &DocumentMut) -> PythonWorkspaceTool {
     }
 
     // Check for Poetry packages
-    if doc.get("tool")
+    if doc
+        .get("tool")
         .and_then(|t| t.get("poetry"))
         .and_then(|p| p.get("packages"))
         .is_some()
@@ -97,7 +99,8 @@ fn detect_tool(doc: &DocumentMut) -> PythonWorkspaceTool {
     }
 
     // Check for Hatch envs (minimal support)
-    if doc.get("tool")
+    if doc
+        .get("tool")
         .and_then(|t| t.get("hatch"))
         .and_then(|h| h.get("envs"))
         .is_some()
@@ -187,7 +190,8 @@ fn update_package_name_impl(content: &str, new_name: &str) -> Result<String, Str
     }
 
     // Fallback to Poetry ([tool.poetry.name])
-    if let Some(poetry) = doc.get_mut("tool")
+    if let Some(poetry) = doc
+        .get_mut("tool")
         .and_then(|t| t.get_mut("poetry"))
         .and_then(|p| p.as_table_mut())
     {
@@ -209,21 +213,22 @@ fn create_pdm_workspace(doc: &mut DocumentMut, member: &str) -> Result<(), Strin
         doc["tool"] = Item::Table(Table::new());
     }
 
-    let tool = doc["tool"].as_table_mut()
-        .ok_or("[tool] is not a table")?;
+    let tool = doc["tool"].as_table_mut().ok_or("[tool] is not a table")?;
 
     if !tool.contains_key("pdm") {
         tool["pdm"] = Item::Table(Table::new());
     }
 
-    let pdm = tool["pdm"].as_table_mut()
+    let pdm = tool["pdm"]
+        .as_table_mut()
         .ok_or("[tool.pdm] is not a table")?;
 
     if !pdm.contains_key("workspace") {
         pdm["workspace"] = Item::Table(Table::new());
     }
 
-    let workspace = pdm["workspace"].as_table_mut()
+    let workspace = pdm["workspace"]
+        .as_table_mut()
         .ok_or("[tool.pdm.workspace] is not a table")?;
 
     // Create members array
@@ -268,14 +273,16 @@ fn remove_pdm_member(doc: &mut DocumentMut, member: &str) -> Result<(), String> 
 
 /// List PDM workspace members
 fn list_pdm_members(doc: &DocumentMut) -> Result<Vec<String>, String> {
-    let members = doc.get("tool")
+    let members = doc
+        .get("tool")
         .and_then(|t| t.get("pdm"))
         .and_then(|p| p.get("workspace"))
         .and_then(|w| w.get("members"))
         .and_then(|m| m.as_array())
         .ok_or("PDM workspace members not found")?;
 
-    Ok(members.iter()
+    Ok(members
+        .iter()
         .filter_map(|v| v.as_str().map(String::from))
         .collect())
 }
@@ -329,18 +336,16 @@ fn remove_poetry_package(doc: &mut DocumentMut, member: &str) -> Result<(), Stri
 
 /// List Poetry packages
 fn list_poetry_packages(doc: &DocumentMut) -> Result<Vec<String>, String> {
-    let packages = doc.get("tool")
+    let packages = doc
+        .get("tool")
         .and_then(|t| t.get("poetry"))
         .and_then(|p| p.get("packages"))
         .and_then(|p| p.as_array_of_tables())
         .ok_or("Poetry packages not found")?;
 
-    Ok(packages.iter()
-        .filter_map(|pkg| {
-            pkg.get("from")
-                .and_then(|v| v.as_str())
-                .map(String::from)
-        })
+    Ok(packages
+        .iter()
+        .filter_map(|pkg| pkg.get("from").and_then(|v| v.as_str()).map(String::from))
         .collect())
 }
 
@@ -355,15 +360,14 @@ fn extract_package_name(path: &str) -> &str {
 
 /// List Hatch environments (minimal support)
 fn list_hatch_envs(doc: &DocumentMut) -> Result<Vec<String>, String> {
-    let envs = doc.get("tool")
+    let envs = doc
+        .get("tool")
         .and_then(|t| t.get("hatch"))
         .and_then(|h| h.get("envs"))
         .and_then(|e| e.as_table())
         .ok_or("Hatch envs not found")?;
 
-    Ok(envs.iter()
-        .map(|(k, _)| k.to_string())
-        .collect())
+    Ok(envs.iter().map(|(k, _)| k.to_string()).collect())
 }
 
 #[cfg(test)]

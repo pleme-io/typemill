@@ -1,5 +1,5 @@
-use integration_tests :: harness :: { TestClient , TestWorkspace } ;
 use serde_json::json;
+use test_support::harness::{TestClient, TestWorkspace};
 #[tokio::test]
 async fn test_apply_workspace_edit_single_file() {
     let workspace = TestWorkspace::new();
@@ -111,7 +111,10 @@ async fn test_apply_workspace_edit_atomic_failure() {
             if resp.get("error").is_some() {
                 // Error in response means atomic rollback happened - verify file unchanged
                 let content = std::fs::read_to_string(&existing_file).unwrap();
-                assert_eq!(content, "const x = 1;", "File should be unchanged after rollback");
+                assert_eq!(
+                    content, "const x = 1;",
+                    "File should be unchanged after rollback"
+                );
             } else if let Some(result) = resp.get("result") {
                 // No error - check if applied is false
                 assert!(
@@ -120,7 +123,10 @@ async fn test_apply_workspace_edit_atomic_failure() {
                 );
                 // Verify file unchanged
                 let content = std::fs::read_to_string(&existing_file).unwrap();
-                assert_eq!(content, "const x = 1;", "File should be unchanged when not applied");
+                assert_eq!(
+                    content, "const x = 1;",
+                    "File should be unchanged when not applied"
+                );
             } else {
                 panic!("Response has neither error nor result field");
             }
@@ -128,7 +134,11 @@ async fn test_apply_workspace_edit_atomic_failure() {
         Err(e) => {
             // Network/MCP error - also verify file unchanged
             let content = std::fs::read_to_string(&existing_file).unwrap();
-            assert_eq!(content, "const x = 1;", "File should be unchanged after error: {:?}", e);
+            assert_eq!(
+                content, "const x = 1;",
+                "File should be unchanged after error: {:?}",
+                e
+            );
         }
     }
 }
@@ -311,7 +321,9 @@ export function usedImport(x: string): string {
     });
 
     if !has_relevant_actions {
-        println!("Skipping test - TypeScript LSP returned only refactoring actions, not quick fixes");
+        println!(
+            "Skipping test - TypeScript LSP returned only refactoring actions, not quick fixes"
+        );
         println!("This is expected LSP behavior and not a codebuddy issue");
         return;
     }
@@ -505,7 +517,10 @@ console.log(value);
             // MCP call succeeded, check if validation failed
             if resp.get("error").is_some() {
                 // Validation failed - this is expected behavior
-                println!("Validation correctly failed: {:?}", resp["error"]["message"]);
+                println!(
+                    "Validation correctly failed: {:?}",
+                    resp["error"]["message"]
+                );
             } else if let Some(result) = resp.get("result") {
                 // No error - check applied is false
                 assert!(
@@ -533,7 +548,7 @@ console.log(value);
 
 #[tokio::test]
 async fn test_advanced_lsp_features_availability() {
-    use integration_tests::harness::LspSetupHelper;
+    use test_support::harness::LspSetupHelper;
 
     let workspace = TestWorkspace::new();
     workspace.setup_typescript_project_with_lsp("advanced-features");
@@ -599,9 +614,7 @@ function createProcessor<T>(type: string): DataProcessor<T> | null {
     // 1. An object with {kind: "markdown", value: "text"}
     // 2. A plain string
     let hover_text = if let Some(obj) = hover_content.as_object() {
-        obj.get("value")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
+        obj.get("value").and_then(|v| v.as_str()).unwrap_or("")
     } else {
         hover_content.as_str().unwrap_or("")
     };
@@ -663,8 +676,8 @@ function createProcessor<T>(type: string): DataProcessor<T> | null {
 
 #[tokio::test]
 async fn test_cross_language_project() {
-    use integration_tests::harness::LspSetupHelper;
     use std::time::Duration;
+    use test_support::harness::LspSetupHelper;
 
     let workspace = TestWorkspace::new();
     if let Err(msg) = LspSetupHelper::check_lsp_servers_available() {

@@ -49,7 +49,11 @@ impl NavigationHandler {
 
         // Query each plugin for workspace symbols
         for plugin_name in plugin_names {
-            if let Some(plugin) = context.plugin_manager.get_plugin_by_name(&plugin_name).await {
+            if let Some(plugin) = context
+                .plugin_manager
+                .get_plugin_by_name(&plugin_name)
+                .await
+            {
                 // Create a dummy file path with extension for this plugin
                 // Use first extension from plugin's supported extensions
                 let extensions = plugin.supported_extensions();
@@ -59,7 +63,8 @@ impl NavigationHandler {
                     continue; // Skip plugins with no extensions
                 };
 
-                let mut request = PluginRequest::new("search_workspace_symbols".to_string(), file_path);
+                let mut request =
+                    PluginRequest::new("search_workspace_symbols".to_string(), file_path);
                 request = request.with_params(args.clone());
 
                 // Try to get symbols from this plugin

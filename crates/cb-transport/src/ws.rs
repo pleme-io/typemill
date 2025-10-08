@@ -196,10 +196,7 @@ async fn handle_connection(
                 let span = cb_core::logging::request_span(&request_id.to_string(), "websocket");
                 let _enter = span.enter();
 
-                tracing::debug!(
-                    message_size = text.len(),
-                    "Received message"
-                );
+                tracing::debug!(message_size = text.len(), "Received message");
 
                 // Parse MCP message
                 let mcp_message: McpMessage = match serde_json::from_str(&text) {

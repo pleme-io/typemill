@@ -53,19 +53,19 @@ use std::path::Path;
 // Module Declarations
 // ============================================================================
 
-pub mod metadata;
 pub mod import_support;
-pub mod workspace_support;
+pub mod metadata;
 pub mod test_fixtures;
+pub mod workspace_support;
 
 // Re-exports
 pub use cb_core::language::ProjectLanguage;
-pub use metadata::LanguageMetadata;
 pub use import_support::ImportSupport;
-pub use workspace_support::WorkspaceSupport;
+pub use metadata::LanguageMetadata;
 pub use test_fixtures::{
     ComplexityFixture, LanguageTestFixtures, RefactoringFixture, RefactoringOperation,
 };
+pub use workspace_support::WorkspaceSupport;
 
 // ============================================================================
 // Error Types
