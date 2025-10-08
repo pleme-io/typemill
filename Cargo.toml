@@ -54,7 +54,7 @@ dashmap = "5.5"
 futures = "0.3"
 
 # Language plugins
-cb-lang-rust = { path = "crates/languages/cb-lang-rust" }
+cb-lang-rust = { path = "crates/cb-lang-rust" }
 cb-lang-go = { path = "crates/cb-lang-go" }
 cb-lang-typescript = { path = "crates/languages/cb-lang-typescript" }
 cb-lang-python = { path = "crates/cb-lang-python" }

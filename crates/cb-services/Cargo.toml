@@ -34,7 +34,7 @@ swc_ecma_parser = "24"
 swc_ecma_ast = "15"
 swc_ecma_codegen = "17"
 cb-plugins = { path = "../cb-plugins" }
-cb-lang-rust = { path = "../languages/cb-lang-rust", optional = true }
+cb-lang-rust = { path = "../cb-lang-rust", optional = true }
 cb-lang-go = { path = "../cb-lang-go", optional = true }
 cb-lang-typescript = { path = "../languages/cb-lang-typescript", optional = true }
 cb-lang-python = { path = "../cb-lang-python", optional = true }
