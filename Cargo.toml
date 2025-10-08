@@ -19,8 +19,7 @@ members = [
     "crates/cb-lang-rust",
     "crates/cb-lang-typescript",
     "apps/codebuddy",
-    "integration-tests",
-    "crates/codebuddy-bench", "crates/cb-lang-swift",
+    "integration-tests", "crates/cb-lang-swift", "crates/cb-bench",
 ]
 resolver = "2"
 

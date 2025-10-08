@@ -123,8 +123,8 @@ This is a comprehensive tool validation exercise that will test:
 - ✅ **BLOCKER RESOLVED**: Fixed `rename_directory` manifest update bugs, all moves completed successfully with automatic Cargo.toml updates
 
 ### ✅ Phase 3: Reorganize Workspace Crates (COMPLETE)
-- ✅ Move `benchmarks` → `crates/codebuddy-bench`
-  - ✅ Commit: `8fec74d` - "refactor: move benchmarks to crates/codebuddy-bench (Phase 3)"
+- ✅ Move `benchmarks` → `crates/cb-bench`
+  - ✅ Commit: `8fec74d` - "refactor: move benchmarks to crates/cb-bench (Phase 3)"
   - ✅ Package name automatically updated: `benchmarks` → `codebuddy-bench`
   - ✅ Workspace members automatically updated in root Cargo.toml
   - ✅ Path dependencies automatically updated: `../crates/*` → `../../crates/*`
@@ -200,7 +200,7 @@ use cb_plugin_api::import_support::ImportSupport;     // ORIGINAL
 │   ├── cb-lang-python/            # TO MOVE from crates/languages/
 │   ├── cb-lang-rust/              # TO MOVE from crates/languages/
 │   ├── cb-lang-typescript/        # TO MOVE from crates/languages/
-│   ├── codebuddy-bench/           # TO MOVE from crates/codebuddy-bench/
+│   ├── codebuddy-bench/           # TO MOVE from crates/cb-bench/
 │   └── test-support/              # TO CREATE (extracted from integration-tests/)
 │       ├── src/
 │       │   ├── harness/
@@ -238,7 +238,7 @@ use cb_plugin_api::import_support::ImportSupport;     // ORIGINAL
 
 # REMOVED after completion:
 # - crates/languages/              # After all language crates moved
-# - crates/codebuddy-bench/                    # After moving to crates/codebuddy-bench/
+# - crates/cb-bench/                    # After moving to crates/cb-bench/
 # - integration-tests/             # After splitting into test-support + apps/codebuddy/tests/
 ```
 
@@ -308,13 +308,13 @@ rename_directory: crates/cb-lang-typescript → crates/cb-lang-typescript
 **MCP Tool**: `rename_directory`
 
 ```bash
-rename_directory: crates/codebuddy-bench → crates/codebuddy-bench
+rename_directory: crates/cb-bench → crates/cb-bench
 ```
 
 **Manual Edits Required**:
 ```bash
 # Update root Cargo.toml workspace members
-# Update crates/codebuddy-bench/Cargo.toml package name
+# Update crates/cb-bench/Cargo.toml package name
 ```
 
 **Validation**: `cargo check --workspace`
@@ -449,7 +449,7 @@ This proposal serves as a **complete validation suite** for CodeBuddy's capabili
 
 ### Upcoming Tests (Phases 3-5)
 - ⏳ `batch_execute` with multiple operations
-- ⏳ Complex directory moves (crates/codebuddy-bench → crates)
+- ⏳ Complex directory moves (crates/cb-bench → crates)
 - ⏳ Test fixture reorganization
 - ⏳ Documentation reference updates
 - ⏳ `delete_file` for cleanup
