@@ -480,15 +480,9 @@ pub async fn update_imports_for_rename(
         .find_affected_files(old_path, &project_files)
         .await?;
 
-    // Filter out files that are inside the moved directory
-    // These files use relative imports and don't need updating
-    affected_files.retain(|file| {
-        !file.starts_with(new_path)
-    });
-
     debug!(
         affected_files_count = affected_files.len(),
-        "Found affected files that import the renamed file (excluding files inside moved directory)"
+        "Found affected files that import the renamed file"
     );
 
     // If scan_scope is provided, use enhanced scanning to find additional references
@@ -553,12 +547,18 @@ pub async fn update_imports_for_rename(
         affected_files = all_affected.into_iter().collect();
     }
 
+    // Filter out files inside the moved directory (applies after scan_scope rebuild too)
+    // These files use relative imports and don't need updating
+    affected_files.retain(|file| {
+        !file.starts_with(new_path)
+    });
+
     info!(
         dry_run = dry_run,
         affected_files = affected_files.len(),
         old_path = ?old_path,
         scan_scope = ?scan_scope,
-        "Found files potentially affected by rename"
+        "Found files potentially affected by rename (excluding files inside moved directory)"
     );
 
     // Get module names for reference replacement
