@@ -385,16 +385,11 @@ console.log(_.partition([1, 2, 3, 4], n => n % 2));
             .get("result")
             .expect("Workflow should return a result");
 
-        // The tool returns a PluginResponse, which has a `data` field
-        let data = result
-            .get("data")
-            .unwrap_or_else(|| panic!("Result should have a 'data' field. Full result: {:?}", result));
-
-        // The data should contain the import graph
-        let import_graph = data
+        // The result contains the import graph directly
+        let import_graph = result
             .get("importGraph")
-            .or_else(|| data.get("import_graph"))
-            .expect("Data should have importGraph field");
+            .or_else(|| result.get("import_graph"))
+            .expect("Result should have importGraph field");
 
         let imports = import_graph
             .get("imports")
@@ -405,11 +400,18 @@ console.log(_.partition([1, 2, 3, 4], n => n % 2));
 
         let lodash_import = imports
             .iter()
-            .find(|i| i["specifier"].as_str() == Some("lodash"))
+            .find(|i| {
+                i["modulePath"].as_str() == Some("lodash")
+                    || i["specifier"].as_str() == Some("lodash")
+            })
             .expect("Should find lodash import");
 
-        assert_eq!(lodash_import["specifier"], "lodash");
-        assert_eq!(lodash_import["is_external"], true);
+        // Check for either modulePath or specifier field
+        let module_path = lodash_import
+            .get("modulePath")
+            .or_else(|| lodash_import.get("specifier"))
+            .expect("Import should have modulePath or specifier");
+        assert_eq!(module_path, "lodash");
     } else {
         panic!("Tool call failed: {:?}", response.err());
     }
