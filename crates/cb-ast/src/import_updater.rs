@@ -480,9 +480,15 @@ pub async fn update_imports_for_rename(
         .find_affected_files(old_path, &project_files)
         .await?;
 
+    // Filter out files that are inside the moved directory
+    // These files use relative imports and don't need updating
+    affected_files.retain(|file| {
+        !file.starts_with(new_path)
+    });
+
     debug!(
         affected_files_count = affected_files.len(),
-        "Found affected files that import the renamed file"
+        "Found affected files that import the renamed file (excluding files inside moved directory)"
     );
 
     // If scan_scope is provided, use enhanced scanning to find additional references
