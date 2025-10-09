@@ -1,14 +1,14 @@
 use cb_server::handlers::plugin_dispatcher::create_test_dispatcher;
 
 #[tokio::test]
-async fn test_all_32_public_tools_are_registered() {
+async fn test_all_33_public_tools_are_registered() {
     let dispatcher = create_test_dispatcher();
     dispatcher.initialize().await.unwrap();
 
     let registry = dispatcher.tool_registry.lock().await;
     let registered_tools = registry.list_tools();
 
-    const EXPECTED_TOOLS: [&str; 32] = [
+    const EXPECTED_TOOLS: [&str; 33] = [
         // Navigation (9)
         "find_definition",
         "find_references",
@@ -27,10 +27,11 @@ async fn test_all_32_public_tools_are_registered() {
         "extract_function",
         "inline_variable",
         "extract_variable",
-        // Analysis (3)
+        // Analysis (4)
         "find_unused_imports",
         "analyze_code",
         "analyze_project",
+        "analyze_imports",
         // File Operations (6)
         "create_file",
         "read_file",

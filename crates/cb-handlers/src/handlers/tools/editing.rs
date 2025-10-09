@@ -216,18 +216,25 @@ impl EditingHandler {
                 .await?;
         }
 
-        Ok(json!({
+        let mut result = json!({
             "operation": "organize_imports",
             "file_path": file_path_str,
             "dry_run": dry_run,
-            "modified": modified,
+            "modified": if dry_run { false } else { modified },
             "details": {
                 "lsp_organized": lsp_organized,
                 "dead_imports_removed": removed_count,
                 "total_imports_analyzed": total_imports,
             },
             "plugin": lsp_plugin_name,
-        }))
+        });
+
+        // Add status field for dry-run mode
+        if dry_run {
+            result["status"] = json!("preview");
+        }
+
+        Ok(result)
     }
 
     /// Apply LSP TextEdit array to content

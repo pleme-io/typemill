@@ -16,12 +16,72 @@ impl AnalysisHandler {
     pub fn new() -> Self {
         Self
     }
+
+    /// Delegate tool call to the plugin system
+    /// Used for tools that are implemented in plugins (e.g., SystemToolsPlugin)
+    async fn delegate_to_plugin_system(
+        &self,
+        context: &ToolHandlerContext,
+        tool_call: &ToolCall,
+    ) -> ServerResult<serde_json::Value> {
+        use cb_plugins::PluginRequest;
+        use serde_json::json;
+        use std::path::PathBuf;
+
+        // Extract file_path from arguments
+        let args = tool_call.arguments.clone().unwrap_or(json!({}));
+        let file_path = args
+            .get("file_path")
+            .and_then(|v| v.as_str())
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(".")); // Default for workspace operations
+
+        // Create plugin request
+        let plugin_request = PluginRequest {
+            method: tool_call.name.clone(),
+            file_path,
+            position: None,
+            range: None,
+            params: args,
+            request_id: None,
+        };
+
+        // Get the SystemToolsPlugin directly by name
+        let system_plugin = context
+            .plugin_manager
+            .get_plugin_by_name("system")
+            .await
+            .ok_or_else(|| ServerError::Internal("SystemToolsPlugin not found".to_string()))?;
+
+        // Call the plugin directly
+        match system_plugin.handle_request(plugin_request).await {
+            Ok(response) => {
+                if response.success {
+                    Ok(response.data.unwrap_or(json!(null)))
+                } else {
+                    Err(ServerError::Internal(
+                        response
+                            .error
+                            .map(|e| e.to_string())
+                            .unwrap_or_else(|| "Plugin request failed".to_string()),
+                    ))
+                }
+            }
+            Err(e) => {
+                tracing::error!(error = %e, tool = %tool_call.name, "Plugin request failed");
+                Err(ServerError::Internal(format!(
+                    "Failed to execute {}: {}",
+                    tool_call.name, e
+                )))
+            }
+        }
+    }
 }
 
 #[async_trait]
 impl ToolHandler for AnalysisHandler {
     fn tool_names(&self) -> &[&str] {
-        &["find_unused_imports", "analyze_code", "analyze_project"]
+        &["find_unused_imports", "analyze_code", "analyze_project", "analyze_imports"]
     }
 
     async fn handle_tool_call(
@@ -35,6 +95,10 @@ impl ToolHandler for AnalysisHandler {
             }
             "analyze_code" => code::handle_analyze_code(context, tool_call).await,
             "analyze_project" => project::handle_analyze_project(context, tool_call).await,
+            "analyze_imports" => {
+                // Delegate to the plugin system (SystemToolsPlugin handles this)
+                self.delegate_to_plugin_system(context, tool_call).await
+            }
             _ => Err(ServerError::InvalidRequest(format!(
                 "Unknown analysis tool: {}",
                 tool_call.name

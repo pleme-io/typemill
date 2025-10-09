@@ -91,7 +91,7 @@ impl FileService {
             Ok(DryRunnable::new(
                 true,
                 json!({
-                    "operation": "rename_file",
+                    "operation": "move_file",
                     "old_path": old_abs.to_string_lossy(),
                     "new_path": new_abs.to_string_lossy(),
                     "affected_files": affected_files.len(),
@@ -172,7 +172,7 @@ impl FileService {
             Ok(DryRunnable::new(
                 false,
                 json!({
-                    "operation": "rename_file",
+                    "operation": "move_file",
                     "old_path": old_abs.to_string_lossy(),
                     "new_path": new_abs.to_string_lossy(),
                     "success": true,
@@ -236,7 +236,7 @@ impl FileService {
             Ok(DryRunnable::new(
                 true,
                 json!({
-                    "operation": "rename_directory",
+                    "operation": "move_directory",
                     "old_path": old_abs_dir.to_string_lossy(),
                     "new_path": new_abs_dir.to_string_lossy(),
                     "files_to_move": files_to_move.len(),
@@ -433,7 +433,7 @@ impl FileService {
             };
 
             let mut result = json!({
-                "operation": "rename_directory",
+                "operation": "move_directory",
                 "old_path": old_abs_dir.to_string_lossy(),
                 "new_path": new_abs_dir.to_string_lossy(),
                 "files_moved": files_to_move.len(),
