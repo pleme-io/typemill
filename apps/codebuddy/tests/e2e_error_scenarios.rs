@@ -54,7 +54,6 @@ async fn test_malformed_tool_requests() {
 }
 
 #[tokio::test]
-#[ignore = "Server stability issue - broken pipe errors in CI"]
 async fn test_file_corruption_scenarios() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
@@ -163,7 +162,6 @@ async fn test_file_corruption_scenarios() {
 }
 
 #[tokio::test]
-#[ignore = "Server stability issue - rapid operations cause failures"]
 async fn test_rapid_file_access_operations() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
@@ -445,7 +443,6 @@ export class Class{} implements Interface{} {{
 }
 
 #[tokio::test]
-#[ignore = "Server stability issue - resource exhaustion test causes failures"]
 async fn test_resource_exhaustion() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
@@ -563,7 +560,6 @@ async fn test_invalid_characters_in_paths() {
 }
 
 #[tokio::test]
-#[ignore = "Server stability issue - broken pipe errors in CI"]
 async fn test_error_recovery_and_continuity() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());

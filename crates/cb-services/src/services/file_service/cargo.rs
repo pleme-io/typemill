@@ -123,7 +123,12 @@ impl FileService {
         for entry in walker.flatten() {
             let path = entry.path();
             if path.is_file() {
-                let relative_path = path.strip_prefix(&old_src_dir).unwrap();
+                let relative_path = path.strip_prefix(&old_src_dir).map_err(|_| {
+                    ServerError::Internal(format!(
+                        "File path is not under source directory: {}",
+                        path.display()
+                    ))
+                })?;
                 let target_path = new_abs.join(relative_path);
 
                 // Ensure parent directory exists
@@ -577,7 +582,12 @@ impl FileService {
                                 if let Some(dep_table) = new_dep.as_inline_table_mut() {
                                     if dep_table.contains_key("path") {
                                         // Calculate relative path from this Cargo.toml to target crate
-                                        let this_cargo_dir = path.parent().unwrap();
+                                        let this_cargo_dir = path.parent().ok_or_else(|| {
+                                            ServerError::Internal(format!(
+                                                "Cannot get parent directory of Cargo.toml: {}",
+                                                path.display()
+                                            ))
+                                        })?;
                                         if let Some(rel_path) =
                                             pathdiff::diff_paths(target_crate_path, this_cargo_dir)
                                         {
@@ -591,7 +601,12 @@ impl FileService {
                                 } else if let Some(dep_table) = new_dep.as_table_mut() {
                                     if dep_table.contains_key("path") {
                                         // Same logic for regular tables
-                                        let this_cargo_dir = path.parent().unwrap();
+                                        let this_cargo_dir = path.parent().ok_or_else(|| {
+                                            ServerError::Internal(format!(
+                                                "Cannot get parent directory of Cargo.toml: {}",
+                                                path.display()
+                                            ))
+                                        })?;
                                         if let Some(rel_path) =
                                             pathdiff::diff_paths(target_crate_path, this_cargo_dir)
                                         {
@@ -1123,7 +1138,12 @@ impl FileService {
             .map_err(|e| ServerError::Internal(format!("Failed to parse Cargo.toml: {}", e)))?;
 
         let mut updated = false;
-        let cargo_toml_dir = cargo_toml_path.parent().unwrap();
+        let cargo_toml_dir = cargo_toml_path.parent().ok_or_else(|| {
+            ServerError::Internal(format!(
+                "Cannot get parent directory of Cargo.toml: {}",
+                cargo_toml_path.display()
+            ))
+        })?;
 
         // Helper to update a dependency table
         let update_dep_in_table =
