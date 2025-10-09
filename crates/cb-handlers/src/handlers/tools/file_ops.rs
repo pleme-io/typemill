@@ -3,7 +3,6 @@
 //! Handles: create_file, read_file, write_file, delete_file, rename_file, list_files
 
 use super::{ToolHandler, ToolHandlerContext};
-use crate::handlers::compat::{ToolContext, ToolHandler as LegacyToolHandler};
 use crate::handlers::file_operation_handler::FileOperationHandler as LegacyFileHandler;
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
@@ -41,19 +40,14 @@ impl ToolHandler for FileOpsHandler {
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         if tool_call.name == "move_file" {
-            let legacy_context = ToolContext {
-                user_id: context.user_id.clone(),
-                app_state: context.app_state.clone(),
-                plugin_manager: context.plugin_manager.clone(),
-                lsp_adapter: context.lsp_adapter.clone(),
-            };
             let mut legacy_tool_call = tool_call.clone();
             legacy_tool_call.name = "rename_file".to_string();
             self.legacy_handler
-                .handle_tool(legacy_tool_call, &legacy_context)
+                .handle_tool_call(context, &legacy_tool_call)
                 .await
         } else {
-            crate::delegate_to_legacy!(self, context, tool_call)
+            // FileOperationHandler now uses the new trait, so just delegate directly
+            self.legacy_handler.handle_tool_call(context, tool_call).await
         }
     }
 }

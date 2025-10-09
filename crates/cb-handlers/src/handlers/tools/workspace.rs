@@ -3,7 +3,6 @@
 //! Handles: rename_directory, analyze_imports, find_dead_code, update_dependencies, extract_module_to_package
 
 use super::{ToolHandler, ToolHandlerContext};
-use crate::handlers::compat::{ToolContext, ToolHandler as LegacyToolHandler};
 use crate::handlers::file_operation_handler::FileOperationHandler as LegacyFileHandler;
 use crate::handlers::refactoring_handler::RefactoringHandler as LegacyRefactoringHandler;
 use crate::handlers::system_handler::SystemHandler as LegacySystemHandler;
@@ -91,15 +90,7 @@ impl ToolHandler for WorkspaceHandler {
         context: &ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
-        // Convert new context to legacy context
-        let legacy_context = ToolContext {
-            user_id: context.user_id.clone(),
-            app_state: context.app_state.clone(),
-            plugin_manager: context.plugin_manager.clone(),
-            lsp_adapter: context.lsp_adapter.clone(),
-        };
-
-        // Route to appropriate legacy handler
+        // Route to appropriate handler
         let mut call = tool_call.clone();
         if call.name == "move_directory" {
             call.name = "rename_directory".to_string();
@@ -107,13 +98,15 @@ impl ToolHandler for WorkspaceHandler {
 
         match call.name.as_str() {
             "rename_directory" => {
+                // FileOperationHandler now uses the new trait, so delegate directly
                 self.file_handler
-                    .handle_tool(call, &legacy_context)
+                    .handle_tool_call(context, &call)
                     .await
             }
             "find_dead_code" | "update_dependencies" => {
+                // SystemHandler now uses the new trait, so pass context directly
                 self.system_handler
-                    .handle_tool(call, &legacy_context)
+                    .handle_tool_call(context, &call)
                     .await
             }
             "update_dependency" => self.handle_update_dependency(context, &call).await,

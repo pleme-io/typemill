@@ -2,7 +2,7 @@
 //!
 //! Handles: rename_file, create_file, delete_file, read_file, write_file, list_files
 
-use super::compat::{ToolContext, ToolHandler};
+use super::tools::{ToolHandler, ToolHandlerContext};
 use crate::utils::{dry_run::wrap_dry_run_result, remote_exec};
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
@@ -33,8 +33,8 @@ impl Default for FileOperationHandler {
 
 #[async_trait]
 impl ToolHandler for FileOperationHandler {
-    fn supported_tools(&self) -> Vec<&'static str> {
-        vec![
+    fn tool_names(&self) -> &[&str] {
+        &[
             "rename_file",
             "rename_directory",
             "create_file",
@@ -45,17 +45,21 @@ impl ToolHandler for FileOperationHandler {
         ]
     }
 
-    async fn handle_tool(&self, tool_call: ToolCall, context: &ToolContext) -> ServerResult<Value> {
+    async fn handle_tool_call(
+        &self,
+        context: &ToolHandlerContext,
+        tool_call: &ToolCall,
+    ) -> ServerResult<Value> {
         debug!(tool_name = %tool_call.name, "Handling file operation");
 
         match tool_call.name.as_str() {
-            "rename_file" => self.handle_rename_file(tool_call, context).await,
-            "rename_directory" => self.handle_rename_directory(tool_call, context).await,
-            "create_file" => self.handle_create_file(tool_call, context).await,
-            "delete_file" => self.handle_delete_file(tool_call, context).await,
-            "read_file" => self.handle_read_file(tool_call, context).await,
-            "write_file" => self.handle_write_file(tool_call, context).await,
-            "list_files" => self.handle_list_files(tool_call, context).await,
+            "rename_file" => self.handle_rename_file(tool_call.clone(), context).await,
+            "rename_directory" => self.handle_rename_directory(tool_call.clone(), context).await,
+            "create_file" => self.handle_create_file(tool_call.clone(), context).await,
+            "delete_file" => self.handle_delete_file(tool_call.clone(), context).await,
+            "read_file" => self.handle_read_file(tool_call.clone(), context).await,
+            "write_file" => self.handle_write_file(tool_call.clone(), context).await,
+            "list_files" => self.handle_list_files(tool_call.clone(), context).await,
             _ => Err(ServerError::Unsupported(format!(
                 "Unknown file operation: {}",
                 tool_call.name
@@ -68,7 +72,7 @@ impl FileOperationHandler {
     async fn handle_rename_file(
         &self,
         tool_call: ToolCall,
-        context: &ToolContext,
+        context: &ToolHandlerContext,
     ) -> ServerResult<Value> {
         let args = tool_call.arguments.ok_or_else(|| {
             ServerError::InvalidRequest("Missing arguments for rename_file".into())
@@ -99,7 +103,7 @@ impl FileOperationHandler {
     async fn handle_rename_directory(
         &self,
         tool_call: ToolCall,
-        context: &ToolContext,
+        context: &ToolHandlerContext,
     ) -> ServerResult<Value> {
         let args = tool_call.arguments.ok_or_else(|| {
             ServerError::InvalidRequest("Missing arguments for rename_directory".into())
@@ -163,7 +167,7 @@ impl FileOperationHandler {
     async fn handle_create_file(
         &self,
         tool_call: ToolCall,
-        context: &ToolContext,
+        context: &ToolHandlerContext,
     ) -> ServerResult<Value> {
         let args = tool_call.arguments.ok_or_else(|| {
             ServerError::InvalidRequest("Missing arguments for create_file".into())
@@ -195,7 +199,7 @@ impl FileOperationHandler {
     async fn handle_delete_file(
         &self,
         tool_call: ToolCall,
-        context: &ToolContext,
+        context: &ToolHandlerContext,
     ) -> ServerResult<Value> {
         let args = tool_call.arguments.ok_or_else(|| {
             ServerError::InvalidRequest("Missing arguments for delete_file".into())
@@ -223,7 +227,7 @@ impl FileOperationHandler {
     async fn handle_read_file(
         &self,
         tool_call: ToolCall,
-        context: &ToolContext,
+        context: &ToolHandlerContext,
     ) -> ServerResult<Value> {
         let args = tool_call
             .arguments
@@ -270,7 +274,7 @@ impl FileOperationHandler {
     async fn handle_write_file(
         &self,
         tool_call: ToolCall,
-        context: &ToolContext,
+        context: &ToolHandlerContext,
     ) -> ServerResult<Value> {
         let args = tool_call.arguments.ok_or_else(|| {
             ServerError::InvalidRequest("Missing arguments for write_file".into())
@@ -339,7 +343,7 @@ impl FileOperationHandler {
     async fn handle_list_files(
         &self,
         tool_call: ToolCall,
-        context: &ToolContext,
+        context: &ToolHandlerContext,
     ) -> ServerResult<Value> {
         let args = tool_call.arguments.unwrap_or_else(|| json!({}));
 

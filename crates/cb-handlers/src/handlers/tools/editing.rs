@@ -5,7 +5,6 @@
 //! rename_symbol_strict
 
 use super::{ToolHandler, ToolHandlerContext};
-use crate::handlers::compat::ToolHandler as LegacyToolHandler;
 use crate::handlers::refactoring_handler::RefactoringHandler as LegacyRefactoringHandler;
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
@@ -378,7 +377,8 @@ impl ToolHandler for EditingHandler {
             "format_document" => self.handle_format_document(context, tool_call).await,
             "get_code_actions" => self.handle_get_code_actions(context, tool_call).await,
             "organize_imports" => self.handle_organize_imports(context, tool_call).await,
-            _ => crate::delegate_to_legacy!(self, context, tool_call),
+            // RefactoringHandler now uses the new trait, so delegate directly
+            _ => self.legacy_handler.handle_tool_call(context, tool_call).await,
         }
     }
 }
