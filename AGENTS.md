@@ -1,7 +1,7 @@
-<!-- This file is synchronized with GEMINI.md. Please make changes here, as this is the source of truth. -->
-# CLAUDE.md
+<!-- This is the source of truth for AI agent instructions. CLAUDE.md and GEMINI.md are synchronized from this file. -->
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to AI assistants when working with code in this repository.
 
 ## 📚 Essential Documentation for AI Agents
 
@@ -186,9 +186,10 @@ cargo fmt
 cargo check
 
 # CLI commands for configuration and management
+./target/release/codebuddy --version # Show version information
 ./target/release/codebuddy setup    # Smart setup with auto-detection
 ./target/release/codebuddy status   # Show what's working right now
-./target/release/codebuddy start    # Start the MCP server for Claude Code
+./target/release/codebuddy start    # Start the MCP server for AI assistants
 ./target/release/codebuddy stop     # Stop the running MCP server
 ./target/release/codebuddy serve    # Start WebSocket server
 ./target/release/codebuddy link     # Link to AI assistants

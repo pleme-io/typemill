@@ -1,6 +1,6 @@
 # Codebuddy MCP Tools API Reference
 
-**Version:** 1.0.0-rc3
+**Version:** 1.0.0-rc4
 **Last Updated:** 2025-10-08
 
 Your complete guide to all MCP tools available in Codebuddy. Use this reference to understand parameters, return types, and see practical examples for each tool.
@@ -255,7 +255,7 @@ Find all references to a symbol.
   "file_path": "src/utils.ts",          // Required: File path
   "line": 5,                            // Required: Line number (1-indexed)
   "character": 10,                      // Required: Character position (0-indexed)
-  "symbol_name": "formatDate",          // Required: Symbol name
+  "symbol_name": "formatDate",          // Optional: Symbol name (LSP can infer from position)
   "include_declaration": true,          // Optional: Include definition (default: true)
   "symbol_kind": "function"             // Optional: Symbol type hint
 }
@@ -989,10 +989,10 @@ Detect unused imports in a file.
   "file_path": "src/utils.ts",
   "unused_imports": [
     {
-      "line": 2,
-      "source": "react",
-      "imported": ["useEffect"],
-      "suggestion": "Remove unused symbols: useEffect from react"
+      "line": 2,                      // Line number of the import statement (1-indexed).
+      "source": "react",                // The module from which symbols are imported (e.g., 'react', './utils').
+      "imported": ["useEffect"],        // List of specific symbols from the import that are unused. Empty if the entire import is unused.
+      "suggestion": "A human-readable suggestion for how to fix the unused import."
     },
     {
       "line": 5,
@@ -1001,9 +1001,9 @@ Detect unused imports in a file.
       "suggestion": "Remove entire import from ./unused-module"
     }
   ],
-  "total_unused": 2,
-  "total_imports": 8,
-  "analysis_complete": true
+  "total_unused": 2,                  // Total number of unused import statements or symbols found.
+  "total_imports": 8,                 // Total number of import statements in the file.
+  "analysis_complete": true           // Indicates if the analysis completed successfully.
 }
 ```
 
