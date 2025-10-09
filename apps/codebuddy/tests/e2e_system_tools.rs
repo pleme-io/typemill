@@ -603,7 +603,7 @@ edition = "2021"
     let mut client = TestClient::new(workspace.path());
     let result = client
         .call_tool(
-            "rename_directory",
+            "move_directory",
             json!({ "old_path" : "crates/crate_b", "new_path" : "crates/crate_renamed" }),
         )
         .await;

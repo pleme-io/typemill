@@ -20,7 +20,7 @@ async fn test_rename_file_dry_run_does_not_modify_disk() {
     // 2. Call rename_file with dry_run=true
     let response = client
         .call_tool(
-            "rename_file",
+            "move_file",
             json!({
                 "old_path": old_file_path.to_str().unwrap(),
                 "new_path": new_file_path.to_str().unwrap(),
@@ -151,7 +151,7 @@ async fn test_rename_directory_dry_run_does_not_modify_disk() {
     // 2. Call rename_directory with dry_run=true
     let response = client
         .call_tool(
-            "rename_directory",
+            "move_directory",
             json!({
                 "old_path": old_dir.to_str().unwrap(),
                 "new_path": new_dir.to_str().unwrap(),

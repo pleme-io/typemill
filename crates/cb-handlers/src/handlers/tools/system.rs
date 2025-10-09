@@ -37,6 +37,7 @@ impl ToolHandler for SystemHandler {
             // The new health_check combines the legacy health_check (plugins, etc.)
             // with the system status information.
             let legacy_context = ToolContext {
+                user_id: context.user_id.clone(),
                 app_state: context.app_state.clone(),
                 plugin_manager: context.plugin_manager.clone(),
                 lsp_adapter: context.lsp_adapter.clone(),

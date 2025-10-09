@@ -94,7 +94,7 @@ enabled = false
         "id": "git-test-1",
         "method": "tools/call",
         "params": {
-            "name": "rename_file",
+            "name": "move_file",
             "arguments": {
                 "old_path": project_path.join("original.txt").to_str().unwrap(),
                 "new_path": project_path.join("renamed.txt").to_str().unwrap()
@@ -190,7 +190,7 @@ operations = ["mv", "rm"]
         "id": "fallback-test-1",
         "method": "tools/call",
         "params": {
-            "name": "rename_file",
+            "name": "move_file",
             "arguments": {
                 "old_path": project_path.join("original.txt").to_str().unwrap(),
                 "new_path": project_path.join("renamed.txt").to_str().unwrap()
@@ -299,7 +299,7 @@ operations = ["mv", "rm"]
         "id": "disabled-test-1",
         "method": "tools/call",
         "params": {
-            "name": "rename_file",
+            "name": "move_file",
             "arguments": {
                 "old_path": project_path.join("original.txt").to_str().unwrap(),
                 "new_path": project_path.join("renamed.txt").to_str().unwrap()

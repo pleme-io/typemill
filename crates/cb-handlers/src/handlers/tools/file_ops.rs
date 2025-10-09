@@ -42,6 +42,7 @@ impl ToolHandler for FileOpsHandler {
     ) -> ServerResult<Value> {
         if tool_call.name == "move_file" {
             let legacy_context = ToolContext {
+                user_id: context.user_id.clone(),
                 app_state: context.app_state.clone(),
                 plugin_manager: context.plugin_manager.clone(),
                 lsp_adapter: context.lsp_adapter.clone(),

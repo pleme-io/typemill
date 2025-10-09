@@ -4,7 +4,7 @@ use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
-use tracing::{info, warn};
+use tracing::info;
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
@@ -19,7 +19,7 @@ pub async fn handle_analyze_project(
     tool_call: &ToolCall,
 ) -> ServerResult<Value> {
     use cb_ast::complexity::{
-        aggregate_class_complexity, analyze_file_complexity, ClassComplexity,
+        aggregate_class_complexity, analyze_file_complexity,
         ComplexityHotspotsReport, FileComplexitySummary, FunctionHotspot, ProjectComplexityReport,
     };
 

@@ -590,7 +590,7 @@ function createProcessor<T>(type: string): DataProcessor<T> | null {
         .expect("LSP should index file");
     let response = client
         .call_tool(
-            "get_hover",
+            "get_symbol_info",
             json!(
                 { "file_path" : file_path.to_string_lossy(), "line" : 1, "character" : 20
                 }
@@ -772,7 +772,7 @@ def process_user_data(user_data):
     println!("DEBUG: Both files indexed, testing hover on Config interface...");
     let hover_response = client
         .call_tool(
-            "get_hover",
+            "get_symbol_info",
             json!(
                 { "file_path" : ts_file.to_string_lossy(), "line" : 2, "character" : 10 }
             ),
@@ -875,7 +875,7 @@ def process_user_data(user_data):
         "Python file should have detectable symbols"
     );
     let response = client
-        .call_tool("search_workspace_symbols", json!({ "query" : "validate" }))
+        .call_tool("search_symbols", json!({ "query" : "validate" }))
         .await
         .expect("Workspace symbol search should succeed");
     if let Some(error) = response.get("error") {

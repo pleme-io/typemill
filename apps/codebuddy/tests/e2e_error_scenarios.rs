@@ -422,7 +422,7 @@ export class Class{} implements Interface{} {{
     // Try search that might be slow
     let response = client
         .call_tool(
-            "search_workspace_symbols",
+            "search_symbols",
             json!({
                 "query": "Interface"
             }),

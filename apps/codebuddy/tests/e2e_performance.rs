@@ -168,7 +168,7 @@ export function process{}(data: Data{}): string {{
     let start = Instant::now();
     let response = client
         .call_tool(
-            "search_workspace_symbols",
+            "search_symbols",
             json!({
                 "query": "Data"
             }),
@@ -824,7 +824,7 @@ export class UserService{} {{
     let start = Instant::now();
     let response = client
         .call_tool_with_timeout(
-            "search_workspace_symbols",
+            "search_symbols",
             json!({
                 "query": "User"
             }),

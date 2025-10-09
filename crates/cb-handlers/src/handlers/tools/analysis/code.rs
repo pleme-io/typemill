@@ -217,7 +217,7 @@ enum RefactoringKind {
 
 fn generate_suggestion_text(
     kind: &RefactoringKind,
-    func: &cb_ast::complexity::FunctionComplexity,
+    _func: &cb_ast::complexity::FunctionComplexity,
 ) -> String {
     match kind {
         RefactoringKind::ReduceComplexity => "Consider refactoring to reduce complexity.".to_string(),

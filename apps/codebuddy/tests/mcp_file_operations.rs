@@ -331,7 +331,7 @@ async fn test_rename_directory_dry_run() {
     // Call rename_directory with dry_run: true
     let response = client
         .call_tool(
-            "rename_directory",
+            "move_directory",
             json!({
                 "old_path": src_dir.to_str().unwrap(),
                 "new_path": workspace.path().join("lib").to_str().unwrap(),
@@ -350,8 +350,8 @@ async fn test_rename_directory_dry_run() {
         "Response should have status 'preview' for dry-run"
     );
     assert_eq!(
-        result["operation"], "rename_directory",
-        "Response should indicate rename_directory operation"
+        result["operation"], "move_directory",
+        "Response should indicate move_directory operation"
     );
     assert!(
         result.get("files_to_move").is_some(),

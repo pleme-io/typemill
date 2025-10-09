@@ -918,7 +918,7 @@ pub async fn run_rename_directory_test(case: &RenameDirectoryTestCase, use_real_
             "dry_run": false
         });
 
-        let response = client.call_tool("rename_directory", params).await;
+        let response = client.call_tool("move_directory", params).await;
 
         if case.expect_success {
             let response = response.unwrap();
@@ -1042,7 +1042,7 @@ pub async fn run_rename_file_test(case: &RenameFileTestCase, use_real_mcp: bool)
             "new_path": new_path.to_string_lossy()
         });
 
-        let response = client.call_tool("rename_file", params).await;
+        let response = client.call_tool("move_file", params).await;
 
         if case.expect_success {
             let response = response.unwrap();

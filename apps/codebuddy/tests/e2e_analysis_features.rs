@@ -435,9 +435,10 @@ async fn test_analyze_project_complexity_cross_language() {
             // Call analyze_project_complexity with extended timeout (30 seconds)
             let response = client
                 .call_tool_with_timeout(
-                    "analyze_project_complexity",
+                    "analyze_project",
                     json!({
-                        "directory_path": workspace.path().to_str().unwrap()
+                        "directory_path": workspace.path().to_str().unwrap(),
+                        "report_format": "full"
                     }),
                     std::time::Duration::from_secs(30),
                 )
@@ -564,9 +565,10 @@ async fn test_find_complexity_hotspots_cross_language() {
         // Call find_complexity_hotspots with extended timeout (30 seconds)
         let response = client
             .call_tool_with_timeout(
-                "find_complexity_hotspots",
+                "analyze_project",
                 json!({
                     "directory_path": workspace.path().to_str().unwrap(),
+                    "report_format": "hotspots",
                     "limit": 5
                 }),
                 std::time::Duration::from_secs(30),

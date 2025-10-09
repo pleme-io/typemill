@@ -33,7 +33,7 @@ async fn test_consolidate_rust_package_basic() {
 
     let response = client
         .call_tool(
-            "rename_directory",
+            "move_directory",
             json!({
                 "old_path": old_path.to_str().unwrap(),
                 "new_path": new_path.to_str().unwrap(),
@@ -208,7 +208,7 @@ async fn test_consolidate_dry_run() {
     // Run with dry_run=true
     let response = client
         .call_tool(
-            "rename_directory",
+            "move_directory",
             json!({
                 "old_path": old_path.to_str().unwrap(),
                 "new_path": new_path.to_str().unwrap(),
@@ -316,7 +316,7 @@ edition = "2021"
 
     let response = client
         .call_tool(
-            "rename_directory",
+            "move_directory",
             json!({
                 "old_path": old_path.to_str().unwrap(),
                 "new_path": new_path.to_str().unwrap(),
@@ -460,7 +460,7 @@ my-plugin = { path = "../my-plugin" }
 
     let response = client
         .call_tool(
-            "rename_directory",
+            "move_directory",
             json!({
                 "old_path": old_path.to_str().unwrap(),
                 "new_path": new_path.to_str().unwrap(),
