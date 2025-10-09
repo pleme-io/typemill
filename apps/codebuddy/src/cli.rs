@@ -18,6 +18,7 @@ fn parse_json(s: &str) -> Result<serde_json::Value, String> {
 #[derive(Parser)]
 #[command(name = "codebuddy")]
 #[command(about = "Pure Rust MCP server bridging Language Server Protocol functionality")]
+#[command(version)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
