@@ -9,14 +9,17 @@ use std::path::Path;
 use test_support::harness::{TestClient, TestWorkspace};
 
 /// Test basic consolidation: move source_crate into target_crate
+use serial_test::serial;
+
 #[tokio::test]
+#[serial]
 async fn test_consolidate_rust_package_basic() {
     // Create a temporary workspace
     let workspace = TestWorkspace::new();
     let workspace_path = workspace.path();
 
     // Copy the consolidation test fixture into the workspace
-    let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/consolidation-test");
+    let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../crates/test-support/fixtures/consolidation-test");
     copy_dir_recursive(&fixture_path, workspace_path).expect("Failed to copy test fixture");
 
     // Initialize MCP client
@@ -40,7 +43,8 @@ async fn test_consolidate_rust_package_basic() {
 
     // Assert the response was successful
     if let Err(e) = &response {
-        panic!("Consolidation failed: {:?}", e);
+        let stderr = client.get_stderr_logs().join("\n");
+        panic!("Consolidation failed: {:?}\n\nSERVER STDERR:\n{}", e, stderr);
     }
 
     let response = response.unwrap();
@@ -184,11 +188,12 @@ async fn test_consolidate_rust_package_basic() {
 
 /// Test consolidation dry-run mode
 #[tokio::test]
+#[serial]
 async fn test_consolidate_dry_run() {
     let workspace = TestWorkspace::new();
     let workspace_path = workspace.path();
 
-    let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/consolidation-test");
+    let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../crates/test-support/fixtures/consolidation-test");
     copy_dir_recursive(&fixture_path, workspace_path).expect("Failed to copy test fixture");
 
     let mut client = TestClient::new(workspace_path);
@@ -207,8 +212,13 @@ async fn test_consolidate_dry_run() {
                 "dry_run": true
             }),
         )
-        .await
-        .expect("Dry run should succeed");
+        .await;
+
+    if let Err(e) = &response {
+        let stderr = client.get_stderr_logs().join("\n");
+        panic!("Dry run failed: {:?}\n\nSERVER STDERR:\n{}", e, stderr);
+    }
+    let response = response.unwrap();
 
     let result = response
         .get("result")
@@ -234,6 +244,7 @@ async fn test_consolidate_dry_run() {
 
 /// Bug #3 Regression Test: Verify circular dependency detection
 #[tokio::test]
+#[serial]
 async fn test_consolidation_prevents_circular_dependencies() {
     let workspace = TestWorkspace::new();
     let workspace_path = workspace.path();
@@ -312,10 +323,13 @@ edition = "2021"
         .await;
 
     // The operation should succeed, but circular dependencies should be filtered out
-    assert!(
-        response.is_ok(),
-        "Consolidation should succeed but skip circular dependencies"
-    );
+    if let Err(e) = &response {
+        let stderr = client.get_stderr_logs().join("\n");
+        panic!(
+            "Consolidation failed when it should have succeeded gracefully: {:?}\n\nSERVER STDERR:\n{}",
+            e, stderr
+        );
+    }
 
     // Verify crate_b's Cargo.toml does NOT have a self-dependency
     let crate_b_toml_content =
@@ -341,6 +355,7 @@ edition = "2021"
 
 /// Test manifest updates with workspace.dependencies, patch, and target sections
 #[tokio::test]
+#[serial]
 async fn test_rename_directory_updates_all_manifest_sections() {
     let workspace = TestWorkspace::new();
     let workspace_path = workspace.path();
@@ -447,8 +462,13 @@ my-plugin = { path = "../my-plugin" }
                 "new_path": new_path.to_str().unwrap(),
             }),
         )
-        .await
-        .expect("rename_directory should succeed");
+        .await;
+
+    if let Err(e) = &response {
+        let stderr = client.get_stderr_logs().join("\n");
+        panic!("rename_directory failed: {:?}\n\nSERVER STDERR:\n{}", e, stderr);
+    }
+    let response = response.unwrap();
 
     let result = response
         .get("result")

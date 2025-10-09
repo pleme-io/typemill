@@ -275,7 +275,7 @@ impl RefactoringHandler {
 
                 let lsp_service = Self::create_lsp_service(&context.lsp_adapter).await;
 
-                let plan = cb_ast::refactoring::plan_extract_function(
+                let plan = cb_ast::refactoring::extract_function::plan_extract_function(
                     &content,
                     &range,
                     &parsed.function_name,
@@ -311,7 +311,7 @@ impl RefactoringHandler {
 
                 let lsp_service = Self::create_lsp_service(&context.lsp_adapter).await;
 
-                let plan = cb_ast::refactoring::plan_inline_variable(
+                let plan = cb_ast::refactoring::inline_variable::plan_inline_variable(
                     &content,
                     parsed.line,
                     parsed.character.unwrap_or(0),
@@ -347,7 +347,7 @@ impl RefactoringHandler {
 
                 let lsp_service = Self::create_lsp_service(&context.lsp_adapter).await;
 
-                let plan = cb_ast::refactoring::plan_extract_variable(
+                let plan = cb_ast::refactoring::extract_variable::plan_extract_variable(
                     &content,
                     parsed.start_line,
                     parsed.start_character,
