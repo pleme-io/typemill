@@ -161,25 +161,81 @@ check-parser-deps:
 
 # First-time developer setup workflow
 first-time-setup:
-	@echo "=== 🚀 First-Time Developer Setup ==="
+	@echo "╔══════════════════════════════════════════════════════════╗"
+	@echo "║  🚀 First-Time Developer Setup for Codebuddy            ║"
+	@echo "║  This will install tools and build the project (~5min)  ║"
+	@echo "╚══════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "📋 Step 1/5: Checking parser build dependencies..."
 	@make check-parser-deps
+	@echo ""
+	@echo "🔧 Step 2/5: Installing Rust development tools..."
 	@make setup
+	@echo ""
+	@echo "🔨 Step 3/5: Building external language parsers..."
 	@make build-parsers
+	@echo ""
+	@echo "🏗️  Step 4/5: Building main Rust project (this may take a few minutes)..."
 	@make build
-	@echo "✅ Setup complete! Next steps:"
-	@echo "  1. Run 'codebuddy setup' to configure language servers."
-	@echo "  2. Run 'make validate-setup' to verify your environment."
+	@echo ""
+	@echo "🔍 Step 5/5: Validating installation..."
+	@make validate-setup
+	@echo ""
+	@echo "╔══════════════════════════════════════════════════════════╗"
+	@echo "║  ✅ Setup Complete! Development Environment Ready       ║"
+	@echo "╚══════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "📝 Next Steps:"
+	@echo "  1. Configure LSP servers:  codebuddy setup"
+	@echo "  2. Verify everything works: make test"
+	@echo "  3. Start developing:        cargo build"
+	@echo ""
+	@echo "📚 Documentation:"
+	@echo "  • Development workflow:  CONTRIBUTING.md"
+	@echo "  • Project structure:     docs/architecture/ARCHITECTURE.md"
+	@echo "  • Tool reference:        API_REFERENCE.md"
+	@echo ""
+	@echo "💡 Quick commands:"
+	@echo "  make test        - Run fast tests (~10s)"
+	@echo "  make dev         - Auto-rebuild on file changes"
+	@echo "  make help        - Show all available commands"
 
 # Validate that the development environment is correctly configured
 validate-setup:
-	@echo "🕵️  Validating setup..."
-	@make check-parser-deps
+	@echo "🕵️  Validating development environment..."
+	@echo ""
+	@echo "Checking Rust toolchain:"
+	@command -v cargo >/dev/null 2>&1 && echo "  ✅ cargo" || echo "  ❌ cargo not found"
+	@command -v rustc >/dev/null 2>&1 && echo "  ✅ rustc" || echo "  ❌ rustc not found"
+	@command -v cargo-nextest >/dev/null 2>&1 && echo "  ✅ cargo-nextest" || echo "  ⚠️  cargo-nextest not installed (run: make setup)"
+	@command -v sccache >/dev/null 2>&1 && echo "  ✅ sccache" || echo "  ⚠️  sccache not installed (run: make setup)"
+	@echo ""
+	@echo "Checking parser build dependencies:"
+	@command -v mvn >/dev/null 2>&1 && echo "  ✅ Maven" || echo "  ⚠️  Maven not found (Java parser won't build)"
+	@command -v java >/dev/null 2>&1 && echo "  ✅ Java" || echo "  ⚠️  Java not found (Java parser won't build)"
+	@command -v dotnet >/dev/null 2>&1 && echo "  ✅ .NET SDK" || echo "  ⚠️  .NET SDK not found (C# parser won't build)"
+	@command -v node >/dev/null 2>&1 && echo "  ✅ Node.js" || echo "  ⚠️  Node.js not found (TypeScript parser won't build)"
+	@echo ""
+	@echo "Checking build artifacts:"
 	@if [ -f "target/debug/codebuddy" ]; then \
-		echo "  ✅ Main binary found."; \
+		echo "  ✅ Debug binary (target/debug/codebuddy)"; \
+		./target/debug/codebuddy --version | sed 's/^/     /'; \
 	else \
-		echo "  ❌ Main binary not found. Please run 'make build'."; \
+		echo "  ❌ Debug binary not found (run: make build)"; \
 	fi
-	@echo "✅ Validation complete."
+	@if [ -f "target/release/codebuddy" ]; then \
+		echo "  ✅ Release binary (target/release/codebuddy)"; \
+	else \
+		echo "  ⚠️  Release binary not found (run: make release)"; \
+	fi
+	@echo ""
+	@if [ -f "target/debug/codebuddy" ] && command -v cargo-nextest >/dev/null 2>&1; then \
+		echo "✅ Development environment is ready!"; \
+		echo "   Run 'make test' to verify everything works."; \
+	else \
+		echo "⚠️  Development environment has issues (see above)."; \
+		echo "   Run 'make first-time-setup' to fix automatically."; \
+	fi
 
 # Show available commands
 help:
