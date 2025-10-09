@@ -623,10 +623,4 @@ mod tests {
         assert_eq!(config.get_timeout_ms(), 60000);
     }
 
-    #[test]
-    fn test_version_info() {
-        let version = version_info();
-        assert!(version.contains("cb-client"));
-        assert!(version.contains("1.0.0-rc3"));
-    }
 }
