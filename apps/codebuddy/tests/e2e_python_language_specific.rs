@@ -19,7 +19,7 @@
 //! - test_python_refactoring_with_imports - Tests integration with import analysis
 
 use serde_json::json;
-use test_support::harness::{TestClient, TestWorkspace};
+use cb_test_support::harness::{TestClient, TestWorkspace};
 
 /// Test Python refactoring with import graph updates
 ///

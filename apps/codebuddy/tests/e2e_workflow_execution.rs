@@ -10,7 +10,7 @@
 //! - Intent-based workflow planning and execution
 
 use serde_json::json;
-use test_support::harness::{TestClient, TestWorkspace};
+use cb_test_support::harness::{TestClient, TestWorkspace};
 
 /// Test simple workflow execution - single operation
 #[tokio::test]

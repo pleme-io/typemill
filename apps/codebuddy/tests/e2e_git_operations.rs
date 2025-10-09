@@ -6,7 +6,7 @@
 use serde_json::json;
 use std::process::Command;
 use tempfile::TempDir;
-use test_support::harness::TestClient;
+use cb_test_support::harness::TestClient;
 
 #[tokio::test]
 async fn test_rename_file_uses_git_mv() {

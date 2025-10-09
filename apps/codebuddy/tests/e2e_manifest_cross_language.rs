@@ -9,7 +9,7 @@
 
 use serde_json::json;
 use std::fs;
-use test_support::harness::{TestClient, TestWorkspace};
+use cb_test_support::harness::{TestClient, TestWorkspace};
 
 /// Test update_dependency for Python requirements.txt
 #[tokio::test]

@@ -2,7 +2,7 @@ use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;
 use std::time::{Duration, Instant};
-use test_support::harness::{TestClient, TestWorkspace};
+use cb_test_support::harness::{TestClient, TestWorkspace};
 
 #[tokio::test]
 #[cfg(feature = "heavy-tests")]

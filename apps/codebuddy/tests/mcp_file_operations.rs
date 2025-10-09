@@ -27,7 +27,7 @@
 mod mcp_handler_runners;
 
 use mcp_handler_runners::*;
-use test_support::harness::mcp_fixtures::*;
+use cb_test_support::harness::mcp_fixtures::*;
 
 // =============================================================================
 // Create File Tests
@@ -314,7 +314,7 @@ async fn test_rename_file_real() {
 #[tokio::test]
 async fn test_rename_directory_dry_run() {
     use serde_json::json;
-    use test_support::harness::{TestClient, TestWorkspace};
+    use cb_test_support::harness::{TestClient, TestWorkspace};
 
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());

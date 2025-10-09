@@ -26,7 +26,7 @@ mod lsp_feature_runners;
 
 use futures::future::join_all;
 use lsp_feature_runners::*;
-use test_support::harness::test_fixtures::*;
+use cb_test_support::harness::test_fixtures::*;
 
 // =============================================================================
 // Go To Definition Tests

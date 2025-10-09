@@ -5,8 +5,8 @@
 use cb_core::AppConfig;
 use cb_server::{bootstrap, ServerOptions};
 use serde_json::json;
-use test_support::harness::{TestClient, TestWorkspace};
-use test_support::create_test_config;
+use cb_test_support::harness::{TestClient, TestWorkspace};
+use cb_test_support::create_test_config;
 use integration_tests::TestHarnessError;
 
 // ============================================================================

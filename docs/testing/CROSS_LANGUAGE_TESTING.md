@@ -19,7 +19,7 @@ Instead of writing separate test files for each language (Python, TypeScript, Ru
 
 ### Components
 
-1. **Refactoring Harness** (`crates/test-support/src/harness/refactoring_harness.rs`)
+1. **Refactoring Harness** (`crates/cb-test-support/src/harness/refactoring_harness.rs`)
    - `Language` enum - Supported languages with metadata
    - `RefactoringOperation` enum - Operations that can be tested
    - `LanguageFixture` - Language-specific code fixtures
@@ -100,7 +100,7 @@ Testing Go...
 ### Step 1: Define Language-Equivalent Fixtures
 
 ```rust
-// In crates/test-support/src/harness/refactoring_harness.rs
+// In crates/cb-test-support/src/harness/refactoring_harness.rs
 
 impl RefactoringScenarios {
     pub fn your_new_scenario() -> RefactoringTestCase {
@@ -240,7 +240,7 @@ async fn test_your_new_scenario_cross_language() {
 ### Step 1: Add to Language Enum
 
 ```rust
-// In crates/test-support/src/harness/refactoring_harness.rs
+// In crates/cb-test-support/src/harness/refactoring_harness.rs
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Language {
@@ -455,6 +455,6 @@ Check if the language is marked as `NotSupported` - it might be skipping instead
 
 ## See Also
 
-- [crates/test-support/src/harness/refactoring_harness.rs](../../crates/test-support/src/harness/refactoring_harness.rs) - Harness implementation
+- [crates/cb-test-support/src/harness/refactoring_harness.rs](../../crates/cb-test-support/src/harness/refactoring_harness.rs) - Harness implementation
 - [apps/codebuddy/tests/e2e_refactoring_cross_language.rs](../../apps/codebuddy/tests/e2e_refactoring_cross_language.rs) - Test examples
 - [crates/languages/README.md](../../crates/languages/README.md) - Language plugin guide

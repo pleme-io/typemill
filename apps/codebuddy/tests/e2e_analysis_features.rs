@@ -5,7 +5,7 @@
 //! end-to-end workflows and LSP fallback scenarios.
 
 use serde_json::json;
-use test_support::harness::{
+use cb_test_support::harness::{
     discover_plugins_with_fixtures, plugin_language_name, TestClient, TestWorkspace,
 };
 

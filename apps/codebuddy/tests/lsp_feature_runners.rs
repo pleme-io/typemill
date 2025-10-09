@@ -5,8 +5,8 @@
 
 use cb_protocol::LspService;
 use serde_json::json;
-use test_support::harness::test_fixtures::*;
-use test_support::harness::LspTestBuilder;
+use cb_test_support::harness::test_fixtures::*;
+use cb_test_support::harness::LspTestBuilder;
 pub async fn run_go_to_definition_test(case: &GoToDefinitionTestCase, use_real_lsp: bool) {
     let mut builder = LspTestBuilder::new(case.language_id);
     if use_real_lsp {
@@ -534,7 +534,7 @@ pub async fn run_rename_test(case: &RenameTestCase, use_real_lsp: bool) {
 // LSP Compliance Test Runner
 // =============================================================================
 
-use test_support::harness::test_fixtures::{LspComplianceBehavior, LspComplianceTestCase};
+use cb_test_support::harness::test_fixtures::{LspComplianceBehavior, LspComplianceTestCase};
 
 /// Executes a single LSP compliance test case.
 pub async fn run_lsp_compliance_test(case: &LspComplianceTestCase) {

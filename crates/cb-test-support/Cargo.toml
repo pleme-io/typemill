@@ -1,5 +1,5 @@
 [package]
-name = "test-support"
+name = "cb-test-support"
 version = "1.0.0-rc3"
 edition = "2021"
 publish = false

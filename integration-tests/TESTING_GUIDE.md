@@ -6,7 +6,7 @@ The test suite uses a **data-driven architecture** that separates test logic fro
 
 ### Three-Layer Architecture
 
-1. **Fixtures** (`crates/test-support/src/harness/test_fixtures.rs`)
+1. **Fixtures** (`crates/cb-test-support/src/harness/test_fixtures.rs`)
    - Language-specific test data
    - Contains code snippets, file names, and expected outcomes
    - Static data structures
@@ -27,7 +27,7 @@ To add test support for Go, you only need to edit **one file**:
 
 ### Step 1: Add Test Cases to Fixtures
 
-Edit `crates/test-support/src/harness/test_fixtures.rs`:
+Edit `crates/cb-test-support/src/harness/test_fixtures.rs`:
 
 ```rust
 pub const GO_TO_DEFINITION_TESTS: &[GoToDefinitionTestCase] = &[
@@ -90,7 +90,7 @@ To add tests for a new LSP feature (e.g., "call hierarchy"):
 
 ### Step 1: Define Fixture Struct
 
-Add to `crates/test-support/src/harness/test_fixtures.rs`:
+Add to `crates/cb-test-support/src/harness/test_fixtures.rs`:
 
 ```rust
 #[derive(Debug, Clone)]

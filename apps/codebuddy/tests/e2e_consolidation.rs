@@ -6,7 +6,7 @@
 use serde_json::json;
 use std::fs;
 use std::path::Path;
-use test_support::harness::{TestClient, TestWorkspace};
+use cb_test_support::harness::{TestClient, TestWorkspace};
 
 /// Test basic consolidation: move source_crate into target_crate
 use serial_test::serial;

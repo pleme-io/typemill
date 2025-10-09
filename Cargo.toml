@@ -21,8 +21,7 @@ members = [
     "apps/codebuddy",
     "integration-tests",
     "crates/cb-lang-swift",
-    "crates/cb-bench",
-    "crates/test-support",
+    "crates/cb-bench", "crates/cb-test-support",
 ]
 resolver = "2"
 
