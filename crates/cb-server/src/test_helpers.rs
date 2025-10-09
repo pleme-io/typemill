@@ -107,7 +107,7 @@ fn spawn_test_worker(queue: Arc<OperationQueue>) {
                             ))
                         })
                     }
-                    OperationType::Read | OperationType::Format | OperationType::Refactor => {
+                    OperationType::Read | OperationType::Format | OperationType::Refactor | OperationType::UpdateDependency => {
                         // These operations don't modify filesystem, just log
                         eprintln!(
                             "DEBUG: Skipping non-modifying operation: {:?}",

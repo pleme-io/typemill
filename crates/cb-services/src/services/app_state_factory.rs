@@ -37,7 +37,7 @@ pub fn create_services_bundle(
     let operation_queue = Arc::new(OperationQueue::new(lock_manager.clone()));
 
     // Spawn operation queue worker to process file operations
-    spawn_operation_worker(operation_queue.clone());
+    spawn_operation_worker(operation_queue.clone(), plugin_manager.clone());
 
     let file_service = Arc::new(FileService::new(
         project_root,
@@ -61,132 +61,140 @@ pub fn create_services_bundle(
 }
 
 /// Spawn background worker to process file operations from the queue
-fn spawn_operation_worker(queue: Arc<super::operation_queue::OperationQueue>) {
+fn spawn_operation_worker(
+    queue: Arc<super::operation_queue::OperationQueue>,
+    plugin_manager: Arc<cb_plugins::PluginManager>,
+) {
     use super::operation_queue::OperationType;
     use tokio::fs;
 
     tokio::spawn(async move {
         tracing::info!("Operation queue worker started");
         queue
-            .process_with(|op, stats| async move {
-                tracing::info!(
-                    op_type = ?op.operation_type,
-                    file_path = %op.file_path.display(),
-                    "Processing queued operation"
-                );
+            .process_with(move |op, stats| {
+                let plugin_manager = plugin_manager.clone();
+                async move {
+                    tracing::info!(
+                        op_type = ?op.operation_type,
+                        file_path = %op.file_path.display(),
+                        "Processing queued operation"
+                    );
 
-                // Process the operation
-                let result = match op.operation_type {
-                    OperationType::CreateDir => {
-                        fs::create_dir_all(&op.file_path).await.map_err(|e| {
-                            cb_protocol::ApiError::Internal(format!(
-                                "Failed to create directory {}: {}",
-                                op.file_path.display(),
-                                e
-                            ))
-                        })
-                    }
-                    OperationType::CreateFile | OperationType::Write => {
-                        let content = op
-                            .params
-                            .get("content")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("");
-
-                        // Write and explicitly sync to disk to avoid caching issues
-                        let mut file = fs::File::create(&op.file_path).await.map_err(|e| {
-                            cb_protocol::ApiError::Internal(format!(
-                                "Failed to create file {}: {}",
-                                op.file_path.display(),
-                                e
-                            ))
-                        })?;
-
-                        use tokio::io::AsyncWriteExt;
-                        file.write_all(content.as_bytes()).await.map_err(|e| {
-                            cb_protocol::ApiError::Internal(format!(
-                                "Failed to write content to {}: {}",
-                                op.file_path.display(),
-                                e
-                            ))
-                        })?;
-
-                        // CRITICAL: Sync file to disk BEFORE updating stats
-                        file.sync_all().await.map_err(|e| {
-                            cb_protocol::ApiError::Internal(format!(
-                                "Failed to sync file {}: {}",
-                                op.file_path.display(),
-                                e
-                            ))
-                        })?;
-
-                        Ok(())
-                    }
-                    OperationType::Delete => {
-                        if op.file_path.exists() {
-                            fs::remove_file(&op.file_path).await.map_err(|e| {
+                    // Process the operation
+                    let result = match op.operation_type {
+                        OperationType::CreateDir => fs::create_dir_all(&op.file_path).await.map_err(
+                            |e| {
                                 cb_protocol::ApiError::Internal(format!(
-                                    "Failed to delete file {}: {}",
+                                    "Failed to create directory {}: {}",
                                     op.file_path.display(),
                                     e
                                 ))
-                            })
-                        } else {
+                            },
+                        ),
+                        OperationType::CreateFile | OperationType::Write => {
+                            let content = op
+                                .params
+                                .get("content")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("");
+
+                            let mut file = fs::File::create(&op.file_path).await.map_err(|e| {
+                                cb_protocol::ApiError::Internal(format!(
+                                    "Failed to create file {}: {}",
+                                    op.file_path.display(),
+                                    e
+                                ))
+                            })?;
+
+                            use tokio::io::AsyncWriteExt;
+                            file.write_all(content.as_bytes()).await.map_err(|e| {
+                                cb_protocol::ApiError::Internal(format!(
+                                    "Failed to write content to {}: {}",
+                                    op.file_path.display(),
+                                    e
+                                ))
+                            })?;
+
+                            file.sync_all().await.map_err(|e| {
+                                cb_protocol::ApiError::Internal(format!(
+                                    "Failed to sync file {}: {}",
+                                    op.file_path.display(),
+                                    e
+                                ))
+                            })?;
+
                             Ok(())
                         }
-                    }
-                    OperationType::Rename => {
-                        let new_path_str = op
-                            .params
-                            .get("new_path")
-                            .and_then(|v| v.as_str())
-                            .ok_or_else(|| {
-                                cb_protocol::ApiError::InvalidRequest(
-                                    "Rename operation missing new_path".to_string(),
-                                )
-                            })?;
-                        fs::rename(&op.file_path, new_path_str).await.map_err(|e| {
-                            cb_protocol::ApiError::Internal(format!(
-                                "Failed to rename file {} to {}: {}",
-                                op.file_path.display(),
-                                new_path_str,
-                                e
-                            ))
-                        })
-                    }
-                    OperationType::Read | OperationType::Format | OperationType::Refactor => {
-                        // These operations don't modify filesystem, just log
-                        tracing::trace!(
-                            op_type = ?op.operation_type,
-                            path = %op.file_path.display(),
-                            "Operation queued"
-                        );
-                        Ok(())
-                    }
-                };
+                        OperationType::Delete => {
+                            if op.file_path.exists() {
+                                fs::remove_file(&op.file_path).await.map_err(|e| {
+                                    cb_protocol::ApiError::Internal(format!(
+                                        "Failed to delete file {}: {}",
+                                        op.file_path.display(),
+                                        e
+                                    ))
+                                })
+                            } else {
+                                Ok(())
+                            }
+                        }
+                        OperationType::Rename => {
+                            let new_path_str = op
+                                .params
+                                .get("new_path")
+                                .and_then(|v| v.as_str())
+                                .ok_or_else(|| {
+                                    cb_protocol::ApiError::InvalidRequest(
+                                        "Rename operation missing new_path".to_string(),
+                                    )
+                                })?;
+                            fs::rename(&op.file_path, new_path_str).await.map_err(|e| {
+                                cb_protocol::ApiError::Internal(format!(
+                                    "Failed to rename file {} to {}: {}",
+                                    op.file_path.display(),
+                                    new_path_str,
+                                    e
+                                ))
+                            })
+                        }
+                        OperationType::UpdateDependency => {
+                            use cb_plugins::protocol::PluginRequest;
+                            let request = PluginRequest::new(
+                                "update_dependency",
+                                op.file_path.clone(),
+                            )
+                            .with_params(op.params.clone());
 
-                // Update stats AFTER all I/O is complete (including sync_all)
-                let mut stats_guard = stats.lock().await;
-                match result {
-                    Ok(_) => {
-                        stats_guard.completed_operations += 1;
-                        tracing::debug!(
-                            completed = stats_guard.completed_operations,
-                            "Operation completed and stats updated"
-                        );
+                            plugin_manager
+                                .handle_request(request)
+                                .await
+                                .map(|_| ())
+                                .map_err(|e| cb_protocol::ApiError::Plugin(e.to_string()))
+                        }
+                        OperationType::Read | OperationType::Format | OperationType::Refactor => {
+                            tracing::trace!(
+                                op_type = ?op.operation_type,
+                                path = %op.file_path.display(),
+                                "Operation queued"
+                            );
+                            Ok(())
+                        }
+                    };
+
+                    let mut stats_guard = stats.lock().await;
+                    match result {
+                        Ok(_) => {
+                            stats_guard.completed_operations += 1;
+                        }
+                        Err(ref e) => {
+                            stats_guard.failed_operations += 1;
+                            tracing::error!(error = %e, "Operation failed");
+                        }
                     }
-                    Err(ref e) => {
-                        stats_guard.failed_operations += 1;
-                        tracing::error!(
-                            error = %e,
-                            failed = stats_guard.failed_operations,
-                            "Operation failed and stats updated"
-                        );
-                    }
+                    drop(stats_guard);
+
+                    result.map(|_| serde_json::json!({"success": true}))
                 }
-                drop(stats_guard); // Explicitly release lock
-
-                result.map(|_| serde_json::json!({"success": true}))
             })
             .await;
     });

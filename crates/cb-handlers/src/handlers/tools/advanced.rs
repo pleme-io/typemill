@@ -84,6 +84,12 @@ impl ToolHandler for AdvancedHandler {
                         new_path: String,
                         dry_run: Option<bool>,
                     },
+                    UpdateDependency {
+                        manifest_path: Option<String>,
+                        dependency_name: String,
+                        version: String,
+                        dry_run: Option<bool>,
+                    },
                 }
 
                 // Define the structure for the overall batch_execute parameters
@@ -115,7 +121,10 @@ impl ToolHandler for AdvancedHandler {
                         BatchOperation::CreateFile { dry_run, .. }
                         | BatchOperation::DeleteFile { dry_run, .. }
                         | BatchOperation::WriteFile { dry_run, .. }
-                        | BatchOperation::RenameFile { dry_run, .. } => dry_run.unwrap_or(false),
+                        | BatchOperation::RenameFile { dry_run, .. }
+                        | BatchOperation::UpdateDependency { dry_run, .. } => {
+                            dry_run.unwrap_or(false)
+                        }
                     };
 
                     // If dry_run, execute directly and collect results
@@ -188,6 +197,31 @@ impl ToolHandler for AdvancedHandler {
                                         ))
                                     })?
                             }
+                            BatchOperation::UpdateDependency {
+                                manifest_path,
+                                dependency_name,
+                                version,
+                                ..
+                            } => {
+                                use cb_plugins::protocol::PluginRequest;
+                                let plugin_manager = &context.plugin_manager;
+                                let params = json!({
+                                    "manifest_path": manifest_path.clone(),
+                                    "dependency_name": dependency_name,
+                                    "version": version,
+                                    "dry_run": true,
+                                });
+                                let file_path = PathBuf::from(
+                                    manifest_path.unwrap_or_else(|| ".".to_string()),
+                                );
+                                let request = PluginRequest::new("update_dependency", file_path)
+                                    .with_params(params);
+                                plugin_manager
+                                    .handle_request(request)
+                                    .await
+                                    .map(|response| response.data.unwrap_or_default())
+                                    .map_err(|e| cb_protocol::ApiError::Plugin(e.to_string()))?
+                            }
                         };
                         results.push(result);
                         continue;
@@ -236,6 +270,22 @@ impl ToolHandler for AdvancedHandler {
                                 "dry_run": dry_run.unwrap_or(false)
                             });
                             (OperationType::Rename, PathBuf::from(old_path), params)
+                        }
+                        BatchOperation::UpdateDependency {
+                            manifest_path,
+                            dependency_name,
+                            version,
+                            dry_run,
+                        } => {
+                            let params = json!({
+                                "manifest_path": manifest_path.clone(),
+                                "dependency_name": dependency_name,
+                                "version": version,
+                                "dry_run": dry_run.unwrap_or(false)
+                            });
+                            let file_path =
+                                PathBuf::from(manifest_path.unwrap_or_else(|| ".".to_string()));
+                            (OperationType::UpdateDependency, file_path, params)
                         }
                     };
 
