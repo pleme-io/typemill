@@ -133,7 +133,12 @@ pub fn plan_extract_variable(
 
     let insertion_statement = find_ancestor_of_kind(selected_node, "local_declaration_statement")
         .or_else(|| find_ancestor_of_kind(selected_node, "expression_statement"))
-        .ok_or_else(|| RefactoringError::Analysis("Could not find statement to insert before.".to_string()))?;
+        .or_else(|| find_ancestor_of_kind(selected_node, "return_statement"))
+        .or_else(|| find_ancestor_of_kind(selected_node, "assignment_expression"))
+        .or_else(|| find_ancestor_of_kind(selected_node, "argument"))
+        .ok_or_else(|| RefactoringError::Analysis(
+            "Could not find an appropriate statement to insert the variable before.".to_string()
+        ))?;
 
     let indent = get_indentation(source, insertion_statement.start_position().row);
     let var_name = variable_name.unwrap_or_else(|| "extracted".to_string());
@@ -258,22 +263,28 @@ pub fn plan_inline_variable(
 
 // Helper functions
 fn find_smallest_node_containing_range<'a>(node: Node<'a>, start: Point, end: Point) -> Option<Node<'a>> {
-    let mut best_fit = None;
-    let mut cursor = node.walk();
+    // Start from root and descend to the smallest node that contains the range
+    let mut current = node;
 
-    loop {
-        let current_node = cursor.node();
-        if current_node.start_position() <= start && current_node.end_position() >= end {
-            best_fit = Some(current_node);
-            if !cursor.goto_first_child() {
-                break;
+    'outer: loop {
+        // Check if any child fully contains the range
+        let mut cursor = current.walk();
+        for child in current.children(&mut cursor) {
+            if child.start_position() <= start && child.end_position() >= end {
+                // This child contains the range, descend into it
+                current = child;
+                continue 'outer;
             }
-        } else if !cursor.goto_next_sibling() {
-            break;
         }
+        // No child fully contains the range, so current is the smallest node
+        break;
     }
 
-    best_fit
+    if current.start_position() <= start && current.end_position() >= end {
+        Some(current)
+    } else {
+        None
+    }
 }
 
 fn find_node_at_point<'a>(node: Node<'a>, point: Point) -> Option<Node<'a>> {
@@ -302,21 +313,45 @@ fn node_to_location(node: Node) -> CommonCodeRange {
 
 fn extract_csharp_var_info<'a>(node: Node<'a>, source: &str) -> RefactoringResult<(String, String, Node<'a>)> {
     let declaration_statement = find_ancestor_of_kind(node, "local_declaration_statement")
-        .ok_or_else(|| RefactoringError::Analysis("Not a local variable declaration".to_string()))?;
+        .ok_or_else(|| RefactoringError::Analysis(format!(
+            "Not a local variable declaration. Node kind: {}", node.kind()
+        )))?;
 
-    let var_declaration = declaration_statement.child_by_field_name("declaration")
-        .ok_or_else(|| RefactoringError::Analysis("Invalid declaration statement: missing variable_declaration".to_string()))?;
+    // Get variable_declaration child directly (not via field name)
+    let mut cursor = declaration_statement.walk();
+    let var_declaration = declaration_statement.children(&mut cursor)
+        .find(|n| n.kind() == "variable_declaration")
+        .ok_or_else(|| {
+            let child_kinds: Vec<_> = declaration_statement.children(&mut declaration_statement.walk())
+                .map(|n| n.kind())
+                .collect();
+            RefactoringError::Analysis(format!(
+                "Invalid declaration statement: missing variable_declaration. Children: {:?}",
+                child_kinds
+            ))
+        })?;
 
-    let declarator = var_declaration
-        .child_by_field_name("variables")
-        .and_then(|v| v.child(0))
+    // Get variable_declarator from variable_declaration
+    let mut cursor_decl = var_declaration.walk();
+    let declarator = var_declaration.children(&mut cursor_decl)
+        .find(|n| n.kind() == "variable_declarator")
         .ok_or_else(|| RefactoringError::Analysis("Invalid declaration: missing variable_declarator".to_string()))?;
 
-    let name_node = declarator.child_by_field_name("name")
+    // Get the identifier (variable name) from declarator
+    let mut cursor_name = declarator.walk();
+    let name_node = declarator.children(&mut cursor_name)
+        .find(|n| n.kind() == "identifier")
         .ok_or_else(|| RefactoringError::Analysis("Could not find variable name".to_string()))?;
 
-    let value_node = declarator.child_by_field_name("initializer")
-        .and_then(|i| i.child_by_field_name("value"))
+    // Get the value from equals_value_clause
+    let mut cursor_value = declarator.walk();
+    let equals_clause = declarator.children(&mut cursor_value)
+        .find(|n| n.kind() == "equals_value_clause")
+        .ok_or_else(|| RefactoringError::Analysis("Could not find equals_value_clause".to_string()))?;
+
+    let mut cursor_expr = equals_clause.walk();
+    let value_node = equals_clause.children(&mut cursor_expr)
+        .find(|n| n.kind() != "=")
         .ok_or_else(|| RefactoringError::Analysis("Could not find variable initializer value".to_string()))?;
 
     let name = name_node.utf8_text(source.as_bytes()).unwrap().to_string();
@@ -341,7 +376,10 @@ class Program
         Console.WriteLine(x);
     }
 }"#;
-        let plan = plan_extract_variable(source, 6, 18, 6, 25, Some("sum".to_string()), "test.cs").unwrap();
+        // Coordinates are 1-indexed. "10 + 20" starts at col 17 and ends at col 23 (1-indexed)
+        // In the line "        var x = 10 + 20;", counting from 1:
+        // Position 17 is '1', position 23 is '0' (end of 20)
+        let plan = plan_extract_variable(source, 6, 17, 6, 23, Some("sum".to_string()), "test.cs").unwrap();
         assert_eq!(plan.edits.len(), 2);
         let insert_edit = plan.edits.iter().find(|e| e.edit_type == EditType::Insert).unwrap();
         assert_eq!(insert_edit.new_text, "        var sum = 10 + 20;\n");
@@ -379,7 +417,9 @@ class Program
         Console.WriteLine(greeting);
     }
 }"#;
-        let plan = plan_inline_variable(source, 5, 12, "test.cs").unwrap();
+        // "greeting" identifier starts at column 13 on line 6 (1-indexed)
+        // The test was originally calling with (5, 12) which seems wrong
+        let plan = plan_inline_variable(source, 6, 13, "test.cs").unwrap();
         assert_eq!(plan.edits.len(), 2);
 
         let inline_edit = plan.edits.iter().find(|e| e.description.starts_with("Inline")).unwrap();

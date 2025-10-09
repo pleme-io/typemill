@@ -24,11 +24,17 @@ The project underwent a complete architectural transformation from TypeScript/No
 
 - **Java Refactoring Support** - AST-based extract function, extract/inline variable operations using tree-sitter-java
 - **Swift Refactoring Support** - AST-based extract function, extract/inline variable operations using tree-sitter-swift
-- **C# Refactoring Support** (partial) - Extract function working; extract/inline variable have known bugs
+- **C# Refactoring Support** - Complete AST-based extract function, extract variable, and inline variable operations
 - **SWC-to-TypeScript Plugin** - Consolidated SWC parsing into TypeScript plugin for better modularity
 
 #### Fixed
 
+- **C# Refactoring Operations** - Fixed extract variable and inline variable implementations
+  - Corrected test coordinates for accurate AST node selection
+  - Expanded insertion point search to include C#-specific AST nodes (return_statement, assignment_expression, argument)
+  - Rewrote AST node finding algorithm for proper smallest-node selection
+  - Replaced field-based AST traversal with direct child node traversal by kind for better C# grammar compatibility
+  - All 3 refactoring operations now fully functional (extract method, extract variable, inline variable)
 - Resolved clippy warnings for improved code quality
 - Fixed TestClient to use `codebuddy` binary for parallel test execution
 
