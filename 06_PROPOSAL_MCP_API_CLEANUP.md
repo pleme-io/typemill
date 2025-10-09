@@ -1,15 +1,10 @@
-# PROPOSAL: MCP API Cleanup (Beta Breaking Changes)
-
-**Status:** Ready for Implementation
-**Date:** 2025-10-08
-**Total Effort:** ~34 hours
-**Impact:** 44 tools → 31 tools (-30%)
-
----
+# MCP API Cleanup (Breaking Changes)
 
 ## Summary
 
-Aggressive cleanup of MCP API surface now that we're in beta (no backwards compatibility needed). This proposal consolidates redundant tools, removes/internalizes non-essential tools, improves semantic naming, and standardizes the API.
+Aggressive cleanup of MCP API surface to consolidate redundant tools, remove/internalize non-essential tools, improve semantic naming, and standardize the API.
+
+**Impact:** 44 tools → 31 tools (-30%)
 
 **⚠️ IMPORTANT: This is a COMPLETE implementation proposal. All changes listed below must be implemented together as a single cohesive refactoring. Do NOT implement only part of this proposal - it's all or nothing.**
 
@@ -19,26 +14,24 @@ The changes are organized by type (MERGE, DELETE, RENAME, etc.) for clarity, but
 
 ## Complete Changes Table
 
-| Action | Tool(s) | New State | Reason | Effort |
-|--------|---------|-----------|--------|--------|
-| **MERGE** | `optimize_imports` + `organize_imports` | `organize_imports(remove_unused: bool)` | Single tool, remove_unused=true by default | 2h |
-| **MERGE** | `system_status` + `health_check` | `health_check(level: "basic"\|"full")` | Same operation, different detail levels | 2h |
-| **MERGE** | `suggest_refactoring` + `analyze_complexity` | `analyze_code(include_suggestions: bool)` | Suggestions use complexity metrics anyway | 4h |
-| **MERGE** | `find_complexity_hotspots` + `analyze_project_complexity` | `analyze_project(output: "full"\|"hotspots"\|"summary", limit: int)` | Same scan, different views | 6h |
-| **MERGE** | `prepare_call_hierarchy` + `get_call_hierarchy_incoming_calls` + `get_call_hierarchy_outgoing_calls` | `get_call_hierarchy(file, line, char, direction: "incoming"\|"outgoing"\|"both")` | Hide LSP 2-step protocol | 8h |
-| **DELETE** | `web_fetch` | ❌ Removed | Claude has built-in WebFetch, security risk | 1h |
-| **DELETE** | `rename_symbol_strict` | ❌ Removed | `rename_symbol` handles position already | 1h |
-| **INTERNAL** | `get_completions` | 🔒 Internal only | AI doesn't need autocomplete | 2h |
-| **INTERNAL** | `get_signature_help` | 🔒 Internal only | Not useful for AI agents | 2h |
-| **RENAME** | `apply_edits` | `execute_edits` | Verb-noun consistency | 1h |
-| **RENAME** | `batch_execute` | `execute_batch` | Verb-noun consistency | 1h |
-| **RENAME** | `get_hover` | `get_symbol_info` | Semantic over LSP-specific term | 1h |
-| **RENAME** | `rename_file` | `move_file` | Accurately describes cross-directory moves | 1h |
-| **RENAME** | `rename_directory` | `move_directory` | Accurately describes cross-directory moves + consolidation | 1h |
-| **RENAME** | `search_workspace_symbols` | `search_symbols` | "workspace" is implied; shorter and clearer | 1h |
-| **KEEP** | `update_dependency` + `update_dependencies` | No change | Different operations (pin vs bulk) | 0h |
-
-**Total Effort:** ~34 hours
+| Action | Tool(s) | New State | Reason |
+|--------|---------|-----------|--------|
+| **MERGE** | `optimize_imports` + `organize_imports` | `organize_imports(remove_unused: bool)` | Single tool, remove_unused=true by default |
+| **MERGE** | `system_status` + `health_check` | `health_check(level: "basic"\|"full")` | Same operation, different detail levels |
+| **MERGE** | `suggest_refactoring` + `analyze_complexity` | `analyze_code(include_suggestions: bool)` | Suggestions use complexity metrics anyway |
+| **MERGE** | `find_complexity_hotspots` + `analyze_project_complexity` | `analyze_project(output: "full"\|"hotspots"\|"summary", limit: int)` | Same scan, different views |
+| **MERGE** | `prepare_call_hierarchy` + `get_call_hierarchy_incoming_calls` + `get_call_hierarchy_outgoing_calls` | `get_call_hierarchy(file, line, char, direction: "incoming"\|"outgoing"\|"both")` | Hide LSP 2-step protocol |
+| **DELETE** | `web_fetch` | ❌ Removed | Claude has built-in WebFetch, security risk |
+| **DELETE** | `rename_symbol_strict` | ❌ Removed | `rename_symbol` handles position already |
+| **INTERNAL** | `get_completions` | 🔒 Internal only | AI doesn't need autocomplete |
+| **INTERNAL** | `get_signature_help` | 🔒 Internal only | Not useful for AI agents |
+| **RENAME** | `apply_edits` | `execute_edits` | Verb-noun consistency |
+| **RENAME** | `batch_execute` | `execute_batch` | Verb-noun consistency |
+| **RENAME** | `get_hover` | `get_symbol_info` | Semantic over LSP-specific term |
+| **RENAME** | `rename_file` | `move_file` | Accurately describes cross-directory moves |
+| **RENAME** | `rename_directory` | `move_directory` | Accurately describes cross-directory moves + consolidation |
+| **RENAME** | `search_workspace_symbols` | `search_symbols` | "workspace" is implied; shorter and clearer |
+| **KEEP** | `update_dependency` + `update_dependencies` | No change | Different operations (pin vs bulk) |
 
 ---
 
@@ -177,9 +170,9 @@ The changes are organized by type (MERGE, DELETE, RENAME, etc.) for clarity, but
 
 ## Implementation Checklist
 
-**⚠️ ALL items below must be completed. This is not a phased implementation.**
+**⚠️ ALL items below must be completed. This is not incremental.**
 
-### Category 1: Tool Renames (Verb-Noun Consistency) - 6 items, ~6 hours
+### Category 1: Tool Renames (Verb-Noun Consistency) - 6 items
 
 - [ ] `apply_edits` → `execute_edits`
 - [ ] `batch_execute` → `execute_batch`
@@ -194,7 +187,7 @@ The changes are organized by type (MERGE, DELETE, RENAME, etc.) for clarity, but
 - Update workflow files (`.codebuddy/workflows.json`)
 - Update all documentation references
 
-### Category 2: Tool Deletions - 2 items, ~2 hours
+### Category 2: Tool Deletions - 2 items
 
 - [ ] Delete `web_fetch` (Claude has built-in WebFetch, security risk)
 - [ ] Delete `rename_symbol_strict` (redundant with `rename_symbol`)
@@ -206,7 +199,7 @@ The changes are organized by type (MERGE, DELETE, RENAME, etc.) for clarity, but
 - Clean up documentation references
 - Remove workflows that depend on deleted tools
 
-### Category 3: Internalize Tools - 2 items, ~2 hours
+### Category 3: Internalize Tools - 2 items
 
 - [ ] Mark `get_completions` as internal-only
 - [ ] Mark `get_signature_help` as internal-only
@@ -217,7 +210,7 @@ The changes are organized by type (MERGE, DELETE, RENAME, etc.) for clarity, but
 - Set `is_internal() = true` so they don't appear in public MCP listings
 - Keep functionality for potential backend use
 
-### Category 4: Simple Tool Merges - 2 items, ~4 hours
+### Category 4: Simple Tool Merges - 2 items
 
 - [ ] Merge `optimize_imports` into `organize_imports(remove_unused: bool)`
   - Add `remove_unused` parameter (default: true)
@@ -235,7 +228,7 @@ The changes are organized by type (MERGE, DELETE, RENAME, etc.) for clarity, but
 - Keep backward compatibility in parameter defaults
 - Update parameter types in `crates/cb-protocol/src/types.rs`
 
-### Category 5: Complex Tool Merges - 3 items, ~18 hours
+### Category 5: Complex Tool Merges - 3 items
 
 - [ ] Merge `analyze_complexity` + `suggest_refactoring` → `analyze_code(include_suggestions: bool)`
   - Add `include_suggestions` parameter (default: true)
@@ -368,10 +361,10 @@ If issues arise:
 
 ## Risks
 
-- **Breaking Changes:** All existing MCP clients must update (acceptable for beta)
+- **Breaking Changes:** All existing MCP clients must update
 - **Migration Effort:** Users need to update tool calls
 - **Testing Burden:** Comprehensive integration tests required for merged tools
-- **Self-Refactoring Risk:** Phase 1 tests tools on real codebase (mitigated by dry-run mode)
+- **Self-Refactoring Risk:** Tests tools on real codebase (mitigated by dry-run mode)
 
 ---
 
@@ -392,7 +385,7 @@ If issues arise:
 5. **Use `move_file`/`move_directory` vs `rename_*`?**
    - ✅ `move_*` - Accurately describes cross-directory capability
 
-6. **Self-refactoring for Phase 1?**
+6. **Self-refactoring?**
    - ✅ YES - Validates production readiness, uses dry-run for safety
 
 ---
@@ -424,25 +417,10 @@ If issues arise:
 
 ---
 
-## Next Steps
+## Implementation Status Tracking
 
 **⚠️ CRITICAL: Do NOT implement this proposal partially. It must be completed in its entirety.**
 
-1. ✅ Review and approve proposal
-2. 🔨 **Implement ALL changes** (~34 hours total)
-   - Complete all 6 renames
-   - Complete all 2 deletions
-   - Complete all 2 internalizations
-   - Complete all 2 simple merges
-   - Complete all 3 complex merges
-   - Update all documentation
-   - Fix all tests
-3. ✅ Verify all success criteria pass
-4. 🚀 Release as breaking v1.0.0 or v2.0.0
-
-**Estimated Timeline:** 3-5 days of focused work
-
-**Status Tracking:**
 - [ ] Category 1: Tool Renames (6 items)
 - [ ] Category 2: Tool Deletions (2 items)
 - [ ] Category 3: Internalize Tools (2 items)
@@ -456,11 +434,6 @@ If issues arise:
 
 ## Historical Note
 
-**⚠️ WARNING:** A previous implementation attempted to do "Phase 1 only" of this proposal. That partial implementation is INCOMPLETE and should NOT be considered done. This proposal requires ALL categories to be completed together to achieve the final API design.
+**⚠️ WARNING:** A previous implementation attempted to do only part of this proposal. That partial implementation is INCOMPLETE and should NOT be considered done. This proposal requires ALL categories to be completed together to achieve the final API design.
 
 The branch `feature/mcp-api-cleanup` contains only partial work (renames, deletions, internalizations) but is missing all the tool merges. If continuing from that branch, you must complete Categories 4-5 and ensure all success criteria pass.
-
----
-
-**Implementation Owner:** TBD
-**Target Release:** v2.0.0 (breaking changes)
