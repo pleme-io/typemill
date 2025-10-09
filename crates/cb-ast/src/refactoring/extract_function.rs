@@ -96,6 +96,12 @@ pub async fn plan_extract_function(
         "typescript" | "javascript" => {
             ast_extract_function_ts_js(source, range, new_function_name, file_path)
         }
+        "python" => {
+            ast_extract_function_python(source, range, new_function_name, file_path)
+        }
+        "rust" => {
+            ast_extract_function_rust(source, range, new_function_name, file_path)
+        }
         _ => {
             // Unsupported language - will try LSP fallback below
             Err(AstError::analysis(format!(
@@ -202,6 +208,50 @@ fn ast_extract_function_ts_js(
             impact_areas: vec!["function_extraction".to_string()],
         },
     })
+}
+
+/// Generate edit plan for extract function refactoring (Python) using AST
+fn ast_extract_function_python(
+    source: &str,
+    range: &CodeRange,
+    new_function_name: &str,
+    file_path: &str,
+) -> AstResult<EditPlan> {
+    // Convert cb-ast CodeRange to cb-lang-python CodeRange
+    let python_range = cb_lang_python::refactoring::CodeRange {
+        start_line: range.start_line,
+        start_col: range.start_col,
+        end_line: range.end_line,
+        end_col: range.end_col,
+    };
+
+    cb_lang_python::refactoring::plan_extract_function(
+        source,
+        &python_range,
+        new_function_name,
+        file_path,
+    )
+    .map_err(|e| AstError::analysis(format!("Python refactoring error: {}", e)))
+}
+
+/// Generate edit plan for extract function refactoring (Rust) using AST
+fn ast_extract_function_rust(
+    source: &str,
+    range: &CodeRange,
+    new_function_name: &str,
+    file_path: &str,
+) -> AstResult<EditPlan> {
+    let start_line = range.start_line;
+    let end_line = range.end_line;
+
+    cb_lang_rust::refactoring::plan_extract_function(
+        source,
+        start_line,
+        end_line,
+        new_function_name,
+        file_path,
+    )
+    .map_err(|e| AstError::analysis(format!("Rust refactoring error: {}", e)))
 }
 
 /// Visitor for analyzing code selection for function extraction

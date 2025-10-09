@@ -71,7 +71,7 @@ async fn lsp_inline_variable(
 /// 1. If LSP service is provided, try LSP code actions first
 /// 2. Fall back to AST-based analysis if LSP is unavailable or fails
 pub async fn plan_inline_variable(
-    _source: &str,
+    source: &str,
     variable_line: u32,
     variable_col: u32,
     file_path: &str,
@@ -91,10 +91,45 @@ pub async fn plan_inline_variable(
         }
     }
 
-    // Fallback: No AST-based implementation available without language plugin
-    let _lang = detect_language(file_path);
-    Err(AstError::analysis(format!(
-        "Inline variable refactoring requires LSP service for file: {}. Language plugins provide AST fallback.",
-        file_path
-    )))
+    // Fallback to AST-based implementation
+    match detect_language(file_path) {
+        "python" => ast_inline_variable_python(source, variable_line, variable_col, file_path),
+        "rust" => ast_inline_variable_rust(source, variable_line, variable_col, file_path),
+        _ => Err(AstError::analysis(format!(
+            "Inline variable refactoring requires LSP service for file: {}. Language plugins provide AST fallback.",
+            file_path
+        ))),
+    }
+}
+
+/// Generate edit plan for inline variable refactoring (Python) using AST
+fn ast_inline_variable_python(
+    source: &str,
+    variable_line: u32,
+    variable_col: u32,
+    file_path: &str,
+) -> AstResult<EditPlan> {
+    cb_lang_python::refactoring::plan_inline_variable(
+        source,
+        variable_line,
+        variable_col,
+        file_path,
+    )
+    .map_err(|e| AstError::analysis(format!("Python refactoring error: {}", e)))
+}
+
+/// Generate edit plan for inline variable refactoring (Rust) using AST
+fn ast_inline_variable_rust(
+    source: &str,
+    variable_line: u32,
+    variable_col: u32,
+    file_path: &str,
+) -> AstResult<EditPlan> {
+    cb_lang_rust::refactoring::plan_inline_variable(
+        source,
+        variable_line,
+        variable_col,
+        file_path,
+    )
+    .map_err(|e| AstError::analysis(format!("Rust refactoring error: {}", e)))
 }

@@ -209,6 +209,24 @@ pub async fn plan_extract_variable(
             variable_name,
             file_path,
         ),
+        "python" => ast_extract_variable_python(
+            source,
+            start_line,
+            start_col,
+            end_line,
+            end_col,
+            variable_name,
+            file_path,
+        ),
+        "rust" => ast_extract_variable_rust(
+            source,
+            start_line,
+            start_col,
+            end_line,
+            end_col,
+            variable_name,
+            file_path,
+        ),
         _ => Err(AstError::analysis(format!(
             "Language not supported. LSP server may provide this via code actions for: {}",
             file_path
@@ -293,4 +311,50 @@ fn ast_extract_variable_ts_js(
             impact_areas: vec!["variable_extraction".to_string()],
         },
     })
+}
+
+/// Generate edit plan for extract variable refactoring (Python) using AST
+#[allow(clippy::too_many_arguments)]
+fn ast_extract_variable_python(
+    source: &str,
+    start_line: u32,
+    start_col: u32,
+    end_line: u32,
+    end_col: u32,
+    variable_name: Option<String>,
+    file_path: &str,
+) -> AstResult<EditPlan> {
+    cb_lang_python::refactoring::plan_extract_variable(
+        source,
+        start_line,
+        start_col,
+        end_line,
+        end_col,
+        variable_name,
+        file_path,
+    )
+    .map_err(|e| AstError::analysis(format!("Python refactoring error: {}", e)))
+}
+
+/// Generate edit plan for extract variable refactoring (Rust) using AST
+#[allow(clippy::too_many_arguments)]
+fn ast_extract_variable_rust(
+    source: &str,
+    start_line: u32,
+    start_col: u32,
+    end_line: u32,
+    end_col: u32,
+    variable_name: Option<String>,
+    file_path: &str,
+) -> AstResult<EditPlan> {
+    cb_lang_rust::refactoring::plan_extract_variable(
+        source,
+        start_line,
+        start_col,
+        end_line,
+        end_col,
+        variable_name,
+        file_path,
+    )
+    .map_err(|e| AstError::analysis(format!("Rust refactoring error: {}", e)))
 }
