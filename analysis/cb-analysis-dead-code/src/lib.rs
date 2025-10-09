@@ -7,10 +7,10 @@ pub mod utils;
 
 use async_trait::async_trait;
 use cb_analysis_common::{AnalysisEngine, AnalysisError, AnalysisMetadata, LspProvider};
-use config::DeadCodeConfig;
+pub use config::DeadCodeConfig;
 use detector::run_analysis;
 use std::path::Path;
-use types::DeadCodeReport;
+pub use types::DeadCodeReport;
 
 pub struct DeadCodeAnalyzer;
 

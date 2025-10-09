@@ -23,6 +23,7 @@ pub async fn run_analysis(
     config: &DeadCodeConfig,
 ) -> Result<DeadCodeReport, AnalysisError> {
     let start_time = Instant::now();
+    let mut files_analyzed = 0;
 
     // 1. Collect all symbols from the workspace
     let mut all_symbols = collect_workspace_symbols(lsp.clone()).await?;
@@ -31,28 +32,48 @@ pub async fn run_analysis(
         "Collected symbols from workspace/symbol"
     );
 
-    if all_symbols.is_empty() {
+    if !all_symbols.is_empty() {
+        // If we got symbols from the workspace, we still need to know how many files were considered.
+        // We also need to filter by file_types if provided.
+        let source_files = discover_source_files(workspace_path, config.file_types.as_ref())?;
+        files_analyzed = source_files.len();
+
+        if let Some(filter) = &config.file_types {
+            let extensions: HashSet<String> = filter.iter().map(|s| s.trim_start_matches('.').to_lowercase()).collect();
+            all_symbols.retain(|symbol| {
+                symbol.get("location")
+                    .and_then(|loc| loc.get("uri"))
+                    .and_then(|uri| uri.as_str())
+                    .and_then(|uri_str| Path::new(uri_str.strip_prefix("file://").unwrap_or(uri_str)).extension())
+                    .and_then(|ext| ext.to_str())
+                    .map(|ext_str| extensions.contains(&ext_str.to_lowercase()))
+                    .unwrap_or(false)
+            });
+        }
+    } else {
         warn!("workspace/symbol returned 0 symbols - using per-file fallback");
-        all_symbols =
+        let (symbols, num_files) =
             collect_symbols_by_document(lsp.clone(), workspace_path, config.file_types.as_ref())
                 .await?;
+        all_symbols = symbols;
+        files_analyzed = num_files;
         debug!(
             total_symbols = all_symbols.len(),
             "Collected symbols via fallback (textDocument/documentSymbol)"
         );
+    }
 
-        if all_symbols.is_empty() {
-            return Ok(DeadCodeReport {
-                workspace_path: workspace_path.to_path_buf(),
-                dead_symbols: vec![],
-                stats: AnalysisStats {
-                    files_analyzed: 0,
-                    symbols_analyzed: 0,
-                    dead_symbols_found: 0,
-                    duration_ms: start_time.elapsed().as_millis(),
-                },
-            });
-        }
+    if all_symbols.is_empty() {
+        return Ok(DeadCodeReport {
+            workspace_path: workspace_path.to_path_buf(),
+            dead_symbols: vec![],
+            stats: AnalysisStats {
+                files_analyzed,
+                symbols_analyzed: 0,
+                dead_symbols_found: 0,
+                duration_ms: start_time.elapsed().as_millis(),
+            },
+        });
     }
 
     // 2. Filter to analyzable symbols
@@ -74,12 +95,6 @@ pub async fn run_analysis(
     );
 
     // 4. Compute stats and build the final report
-    let files_analyzed = dead_symbols
-        .iter()
-        .map(|s| s.file_path.as_str())
-        .collect::<HashSet<_>>()
-        .len();
-
     let report = DeadCodeReport {
         workspace_path: workspace_path.to_path_buf(),
         stats: AnalysisStats {
@@ -100,18 +115,23 @@ async fn collect_workspace_symbols(
 ) -> Result<Vec<Value>, AnalysisError> {
     let query_attempts = vec!["*", ""];
     for query in query_attempts {
-        match lsp.workspace_symbols(query).await {
-            Ok(symbols) if !symbols.is_empty() => {
+        let lsp_call = lsp.workspace_symbols(query);
+        match timeout(Duration::from_secs(30), lsp_call).await {
+            Ok(Ok(symbols)) if !symbols.is_empty() => {
                 debug!(
                     symbol_count = symbols.len(),
                     query, "Collected symbols from workspace"
                 );
                 return Ok(symbols);
             }
-            Ok(_) => continue, // Empty result, try next query
-            Err(e) => {
+            Ok(Ok(_)) => continue, // Empty result, try next query
+            Ok(Err(e)) => {
                 debug!(error = %e, query, "Failed to get workspace symbols");
                 // Don't return error, just try next query
+            }
+            Err(_) => {
+                warn!(query, "Timeout getting workspace symbols");
+                // Timeout, try next query
             }
         }
     }
@@ -124,26 +144,29 @@ async fn collect_symbols_by_document(
     lsp: Arc<dyn LspProvider>,
     workspace_path: &Path,
     file_types_filter: Option<&Vec<String>>,
-) -> Result<Vec<Value>, AnalysisError> {
+) -> Result<(Vec<Value>, usize), AnalysisError> {
     let source_files = discover_source_files(workspace_path, file_types_filter)?;
+    let num_source_files = source_files.len();
     debug!(
-        file_count = source_files.len(),
+        file_count = num_source_files,
         "Discovered source files for symbol collection"
     );
 
     let mut all_symbols = Vec::new();
     for file_path in &source_files {
         let uri = format!("file://{}", file_path.display());
-        match lsp.document_symbols(&uri).await {
-            Ok(symbols) => {
+        let lsp_call = lsp.document_symbols(&uri);
+        match timeout(Duration::from_secs(5), lsp_call).await {
+            Ok(Ok(symbols)) => {
                 for symbol in symbols {
                     flatten_document_symbol(&symbol, &uri, &mut all_symbols);
                 }
             }
-            Err(e) => debug!(error = %e, file_path = %file_path.display(), "Failed to get document symbols"),
+            Ok(Err(e)) => debug!(error = %e, file_path = %file_path.display(), "Failed to get document symbols"),
+            Err(_) => warn!(file_path = %file_path.display(), "Timeout getting document symbols"),
         }
     }
-    Ok(all_symbols)
+    Ok((all_symbols, num_source_files))
 }
 
 /// Discover source files in the workspace, optionally filtering by file types.
