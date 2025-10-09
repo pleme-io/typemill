@@ -25,6 +25,7 @@ pub enum OperationType {
     Refactor,
     CreateDir,
     CreateFile,
+    UpdateDependency,
 }
 
 impl OperationType {
@@ -39,6 +40,7 @@ impl OperationType {
                 | OperationType::Refactor
                 | OperationType::CreateDir
                 | OperationType::CreateFile
+                | OperationType::UpdateDependency
         )
     }
 
