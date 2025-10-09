@@ -4,9 +4,27 @@
 
 ---
 
-## 🎯 Goal
+## 🎯 Major Goals
 
-Recreate `feature/mcp-api-cleanup` Phase 1 changes using **only Codebuddy's MCP tools**. No manual file editing!
+| Goal | Target | Tool(s) | Success Metric | Why Important |
+|------|--------|---------|----------------|---------------|
+| **Test LSP Integration** | Rename 3 Rust methods | `rename_symbol` | All references updated automatically | ⭐⭐⭐ Core capability |
+| **Rename MCP Tools** | `apply_edits` → `execute_edits`, `batch_execute` → `execute_batch` | `rename_symbol` + `write_file` | Tool names updated everywhere | Verb-noun consistency |
+| **Remove Tool** | Delete `web_fetch` completely | `write_file` | 54 lines removed, no references | Security improvement |
+| **Internalize Tools** | Hide `get_completions`, `get_signature_help` | `write_file` | Not in `tools/list` output | API cleanup |
+| **Batch Efficiency** | Update 4 docs at once | `batch_execute` | Single operation for all docs | Prove batch works |
+| **Production Readiness** | Full test suite passes | All tools | `cargo test --workspace` ✅ | Ready for self-modification |
+
+**Bottom Line:** Prove Codebuddy can refactor itself using only its own MCP tools. If this works, the tools are production-ready! 🚀
+
+---
+
+## 📊 Quick Stats
+
+- **30 changes** across **12 files**
+- **3 tools** used (`rename_symbol`, `write_file`, `batch_execute`)
+- **~1-2 hours** estimated time
+- **44 → 34 tools** (10 fewer public tools)
 
 ---
 
