@@ -1,0 +1,17 @@
+[package]
+name = "jules-cli"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Jules MCP Contributors"]
+repository = "https://github.com/your-org/jules-mcp" # This should be updated later if needed
+
+[dependencies]
+jules-api = { path = "../jules-api" }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
