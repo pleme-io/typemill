@@ -25,7 +25,7 @@ members = [
     "crates/cb-test-support",
     "crates/cb-lang-csharp",
     "analysis/cb-analysis-common",
-    "analysis/cb-analysis-deep-dead-code",
+    "analysis/cb-analysis-dead-code",
 ]
 resolver = "2"
 
@@ -75,6 +75,10 @@ futures = "0.3"
 
 # Core API crates
 cb-plugin-api = { path = "crates/cb-plugin-api" }
+
+# Analysis crates
+cb-analysis-common = { path = "analysis/cb-analysis-common" }
+cb-analysis-dead-code = { path = "analysis/cb-analysis-dead-code" }
 
 # Note: Multiple versions of hashbrown, bitflags, dirs, and getrandom exist
 # due to transitive dependencies from upstream crates (dashmap, lsp-types, swc_*, etc.)

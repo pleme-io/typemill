@@ -21,9 +21,11 @@ pub struct DeadSymbol {
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AnalysisStats {
     pub files_analyzed: usize,
     pub symbols_analyzed: usize,
     pub dead_symbols_found: usize,
+    #[serde(rename = "analysisDurationMs")]
     pub duration_ms: u128,
 }

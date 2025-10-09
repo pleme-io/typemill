@@ -19,7 +19,7 @@ mod analysis_impl {
     use crate::handlers::compat::ToolContext;
     use async_trait::async_trait;
     use cb_analysis_common::{AnalysisEngine, AnalysisError, LspProvider};
-    use cb_analysis_deep_dead_code::{DeepDeadCodeAnalyzer, DeepDeadCodeConfig, DeepDeadCodeReport};
+    use cb_analysis_dead_code::{DeadCodeAnalyzer, DeadCodeConfig, DeadCodeReport};
     use cb_core::model::mcp::ToolCall;
     use cb_plugins::LspService;
     use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
@@ -81,13 +81,38 @@ mod analysis_impl {
     }
 
     /// Parses tool call arguments into the analysis configuration.
-    fn config_from_params(_args: &Value) -> DeepDeadCodeConfig {
-        DeepDeadCodeConfig::default()
+    fn config_from_params(args: &Value) -> DeadCodeConfig {
+        let mut config = DeadCodeConfig::default();
+
+        if let Some(file_types) = args.get("file_types").and_then(|v| v.as_array()) {
+            let types: Vec<String> = file_types.iter().filter_map(|v| v.as_str().map(String::from)).collect();
+            if !types.is_empty() {
+                config.file_types = Some(types);
+            }
+        }
+
+        if let Some(include_exported) = args.get("include_exported").and_then(|v| v.as_bool()) {
+            config.include_exported = include_exported;
+        }
+
+        if let Some(max_results) = args.get("max_results").and_then(|v| v.as_u64()) {
+            config.max_results = Some(max_results as usize);
+        }
+
+        if let Some(min_refs) = args.get("min_reference_threshold").and_then(|v| v.as_u64()) {
+            config.min_reference_threshold = min_refs as usize;
+        }
+
+        if let Some(timeout_secs) = args.get("timeout_seconds").and_then(|v| v.as_u64()) {
+            config.timeout = Some(std::time::Duration::from_secs(timeout_secs));
+        }
+
+        config
     }
 
     /// Formats the analysis report into the final JSON response for the user.
     fn format_mcp_response(
-        report: DeepDeadCodeReport,
+        report: DeadCodeReport,
         workspace_path: &Path,
     ) -> ServerResult<Value> {
         let dead_symbols_json: Vec<Value> = report
@@ -96,8 +121,10 @@ mod analysis_impl {
             .map(|s| {
                 json!({
                     "name": s.name,
+                    "kind": s.kind,
                     "file": s.file_path,
-                    "is_public": s.is_public,
+                    "line": s.line,
+                    "column": s.column,
                 })
             })
             .collect();
@@ -105,13 +132,11 @@ mod analysis_impl {
         Ok(json!({
             "workspacePath": workspace_path.display().to_string(),
             "deadSymbols": dead_symbols_json,
-            "analysisStats": {
-                "deadSymbolsFound": dead_symbols_json.len(),
-            },
+            "analysisStats": report.stats,
         }))
     }
 
-    /// The new implementation of find_dead_code using the deep analysis crate.
+    /// The new implementation of find_dead_code using the analysis crate.
     pub async fn handle_find_dead_code_impl(
         tool_call: ToolCall,
         context: &ToolContext,
@@ -124,7 +149,7 @@ mod analysis_impl {
         let workspace_path = Path::new(workspace_path_str);
         let config = config_from_params(&args);
 
-        debug!(?config, "Handling deep find_dead_code request");
+        debug!(?config, "Handling find_dead_code request");
 
         let lsp_adapter_lock = context.lsp_adapter.lock().await;
         let lsp_adapter = lsp_adapter_lock
@@ -133,7 +158,7 @@ mod analysis_impl {
             .clone();
 
         let lsp_provider = Arc::new(DirectLspProviderAdapter::new(lsp_adapter));
-        let analyzer = DeepDeadCodeAnalyzer;
+        let analyzer = DeadCodeAnalyzer;
         let report = analyzer
             .analyze(lsp_provider, workspace_path, config)
             .await
