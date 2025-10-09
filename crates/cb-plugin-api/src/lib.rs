@@ -182,7 +182,7 @@ impl From<PluginError> for ApiError {
 // ============================================================================
 
 /// Location in source code (line and column)
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SourceLocation {
     pub line: usize,
     pub column: usize,
@@ -202,7 +202,7 @@ pub struct ParsedSource {
 }
 
 /// A symbol in the source code (function, class, variable, etc.)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Symbol {
     /// Symbol name
     pub name: String,
@@ -218,7 +218,7 @@ pub struct Symbol {
 }
 
 /// Kind of symbol
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SymbolKind {
     Function,
     Class,
