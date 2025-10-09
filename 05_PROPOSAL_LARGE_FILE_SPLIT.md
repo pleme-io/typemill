@@ -1,83 +1,111 @@
 # Large File Split Checklist
 
-**Status**: Ready for implementation  
-**Goal**: Shrink the six over-sized modules into focused files without widening public APIs  
+**Status**: Partially complete - 3 splits done, 4 remaining
+**Goal**: Shrink over-sized modules into focused files without widening public APIs
 **Target**: Each new module stays comfortably ≤400 lines
 
 ## 📋 Phase 1 – Low-Risk Splits
 
 These files have minimal coupling to other large modules, so we can refactor them independently.
 
-### 1. `file_service.rs` (3,849 → ≤400 each)
-- [ ] Create `crates/cb-services/src/services/file_service/`
-- [ ] Introduce lean modules:
-  - [ ] `mod.rs` – `FileService` struct, constructor, shared state wiring, re-exports (~150 lines)
-  - [ ] `basic_ops.rs` – `create_file`, `delete_file`, `read_file`, `write_file`, `list_files` and queue helpers (~400 lines)
-  - [ ] `rename.rs` – file & directory rename logic with import updates (~350 lines)
-  - [ ] `edit_plan.rs` – `apply_edit_plan`, coordination, snapshots/rollback, edit helpers, `EditPlanResult` (~350 lines)
-  - [ ] `cargo.rs` – `consolidate_rust_package`, dependency merging, workspace/path updates (~400 lines)
-  - [ ] `utils.rs` – `run_validation`, `to_absolute_path`, `adjust_relative_path`, shared dry-run helpers (~250 lines)
-  - [ ] `tests.rs` – move the existing `#[cfg(test)]` block and keep submodules local
-- [ ] Run targeted regression: `cargo test -p cb-services -- file_service`
+### 1. ✅ `file_service.rs` (COMPLETED)
+- [x] Create `crates/cb-services/src/services/file_service/`
+- [x] Introduce lean modules:
+  - [x] `mod.rs` – `FileService` struct, constructor, shared state wiring, re-exports
+  - [x] `basic_ops.rs` – `create_file`, `delete_file`, `read_file`, `write_file`, `list_files` and queue helpers
+  - [x] `rename.rs` – file & directory rename logic with import updates
+  - [x] `edit_plan.rs` – `apply_edit_plan`, coordination, snapshots/rollback, edit helpers, `EditPlanResult`
+  - [x] `cargo.rs` – `consolidate_rust_package`, dependency merging, workspace/path updates (1,318 lines)
+  - [x] `utils.rs` – `run_validation`, `to_absolute_path`, `adjust_relative_path`, shared dry-run helpers
+  - [x] `tests.rs` – move the existing `#[cfg(test)]` block and keep submodules local
+- [x] Run targeted regression: `cargo test -p cb-services -- file_service`
 
-### 2. `lsp_adapter.rs` (≈1,100 → ≤250 each)
+### 2. `lsp_adapter.rs` (1,100 lines → ≤300 each)
 - [ ] Create `crates/cb-plugins/src/adapters/lsp_adapter/`
 - [ ] Split into focused modules:
-  - [ ] `mod.rs` – `LspAdapterPlugin`, `LanguagePlugin` impl, re-exports (~180 lines)
-  - [ ] `constructors.rs` – `new()`, language-specific constructors, capability presets (~200 lines)
-  - [ ] `translator.rs` – request translation & cache (`translate_request`, `build_lsp_params`) (~250 lines)
-  - [ ] `responses.rs` – `translate_response` and `normalize_*` helpers (~220 lines)
-  - [ ] `tools.rs` – `tool_definitions()` JSON specs (~200 lines)
-  - [ ] `tests.rs` – preserve adapter tests beside implementation
+  - [ ] `mod.rs` – `LspAdapterPlugin` struct, `LanguagePlugin` impl, re-exports (~200 lines)
+  - [ ] `constructors.rs` – `new()`, `typescript()`, `python()`, `go()`, `rust()`, capability presets (~200 lines)
+  - [ ] `request_translator.rs` – `translate_request`, `build_lsp_params`, method cache (~260 lines)
+  - [ ] `response_normalizer.rs` – `translate_response`, `normalize_locations`, `normalize_symbols`, `normalize_hover`, `normalize_completions`, `normalize_workspace_edit` (~200 lines)
+  - [ ] `tool_definitions.rs` – `tool_definitions()` with complete JSON schemas (~350 lines)
+  - [ ] `tests.rs` – preserve adapter tests beside implementation (~200 lines)
 - [ ] Validation: `cargo test -p cb-plugins -- lsp_adapter`
 
-### 3. `package_extractor.rs` (1,147 → ≤250 each)
+### 3. `package_extractor.rs` (1,148 lines → ≤300 each)
 - [ ] Create `crates/cb-ast/src/package_extractor/`
-- [ ] Move logic into four modules:
-  - [ ] `mod.rs` – `ExtractModuleToPackageParams`, public entry point (~180 lines)
-  - [ ] `planner.rs` – orchestration (`plan_extract_module_to_package_with_registry`) (~250 lines)
-  - [ ] `edits.rs` – file copy & edit builders, dependency aggregation (~220 lines)
-  - [ ] `workspace.rs` – workspace discovery, manifest updates, membership helpers (~220 lines)
-  - [ ] `tests.rs` – relocate the current `#[cfg(test)]` block intact
+- [ ] Move logic into modules:
+  - [ ] `mod.rs` – `ExtractModuleToPackageParams`, public entry point, re-exports (~100 lines)
+  - [ ] `planner.rs` – `plan_extract_module_to_package_with_registry` orchestration (~300 lines)
+  - [ ] `manifest.rs` – manifest generation and dependency extraction (~150 lines)
+  - [ ] `edits.rs` – TextEdit builders for file operations (create, delete, update) (~250 lines)
+  - [ ] `workspace.rs` – workspace discovery, member updates, parent module modifications (~200 lines)
+  - [ ] `tests.rs` – relocate the current `#[cfg(test)]` block intact (~450 lines)
 - [ ] Check: `cargo test -p cb-ast -- package_extractor`
 
-## 📋 Phase 2 – Coordinated Splits
+### 4. `import_updater.rs` (1,011 lines → ≤300 each)
+- [ ] Create `crates/cb-ast/src/import_updater/`
+- [ ] Split into focused modules:
+  - [ ] `mod.rs` – Public API, re-exports, `update_imports_for_rename` entry point (~150 lines)
+  - [ ] `path_resolver.rs` – `ImportPathResolver` struct, cache management, path calculations (~300 lines)
+  - [ ] `file_scanner.rs` – `find_affected_files`, `find_project_files`, import detection (~250 lines)
+  - [ ] `reference_finder.rs` – `find_inline_crate_references`, `create_text_edits_from_references` (~150 lines)
+  - [ ] `edit_builder.rs` – EditPlan construction, plugin coordination (~200 lines)
+  - [ ] `tests.rs` – relocate existing tests (~100 lines)
+- [ ] Validation: `cargo test -p cb-ast -- import_updater`
+
+## 📋 Phase 2 – Coordinated Splits (COMPLETED ✅)
 
 These modules are consumed by other large files; refactor and immediately update the dependents.
 
-### 4. `complexity.rs` + `tools/analysis.rs`
-- [ ] Create `crates/cb-ast/src/complexity/` with:
-  - [ ] `mod.rs` – re-export public API used by handlers
-  - [ ] `analyzer.rs` – `analyze_file_complexity` traversal
-  - [ ] `aggregation.rs` – `aggregate_class_complexity`, workspace totals
-  - [ ] `metrics.rs` – counting helpers, language heuristics
-  - [ ] `models.rs` – `ComplexityRating`, `ComplexityReport`, DTOs
-  - [ ] `tests.rs` – move existing tests
-- [ ] Update `crates/cb-handlers/src/handlers/tools/analysis.rs` to use the new module paths (consider adding a tiny `complexity::api` facade for stability)
-- [ ] Run: `cargo test -p cb-ast -- complexity` and `cargo test -p cb-handlers -- analysis`
+### 5. ✅ `complexity.rs` + `tools/analysis.rs` (COMPLETED)
+- [x] Create `crates/cb-ast/src/complexity/` with:
+  - [x] `mod.rs` – re-export public API used by handlers
+  - [x] `analyzer.rs` – `analyze_file_complexity` traversal
+  - [x] `aggregation.rs` – `aggregate_class_complexity`, workspace totals
+  - [x] `metrics.rs` – counting helpers, language heuristics
+  - [x] `models.rs` – `ComplexityRating`, `ComplexityReport`, DTOs
+  - [x] `tests.rs` – move existing tests
+- [x] Update `crates/cb-handlers/src/handlers/tools/analysis.rs` to use the new module paths
+- [x] Run: `cargo test -p cb-ast -- complexity` and `cargo test -p cb-handlers -- analysis`
 
-### 5. `refactoring.rs` + `refactoring_handler.rs`
-- [ ] Create `crates/cb-ast/src/refactoring/` comprising:
-  - [ ] `mod.rs` – shared types, public re-exports
-  - [ ] `extract_function.rs`
-  - [ ] `extract_variable.rs`
-  - [ ] `inline_variable.rs`
-  - [ ] `common.rs` – shared AST utilities & edit builders
-  - [ ] `tests.rs`
-- [ ] Update `crates/cb-handlers/src/handlers/refactoring_handler.rs` to import the new modules (optionally split handler helpers once AST modules are in place)
-- [ ] Run: `cargo test -p cb-ast -- refactoring` and `cargo test -p cb-handlers -- refactoring_handler`
+### 6. ✅ `refactoring.rs` + `refactoring_handler.rs` (COMPLETED)
+- [x] Create `crates/cb-ast/src/refactoring/` comprising:
+  - [x] `mod.rs` – shared types, public re-exports
+  - [x] `extract_function.rs`
+  - [x] `extract_variable.rs`
+  - [x] `inline_variable.rs`
+  - [x] `common.rs` – shared AST utilities & edit builders
+  - [x] `tests.rs`
+- [x] Update `crates/cb-handlers/src/handlers/refactoring_handler.rs` to import the new modules
+- [x] Run: `cargo test -p cb-ast -- refactoring` and `cargo test -p cb-handlers -- refactoring_handler`
 
-### 6. `tools/analysis.rs` follow-up
-- [ ] Create `crates/cb-handlers/src/handlers/tools/analysis/`
-- [ ] Reorganize into:
-  - [ ] `mod.rs` – dispatcher & `AnalysisHandler`
-  - [ ] `unused_imports.rs`
-  - [ ] `complexity.rs` – now thin wrappers over the refactored AST complexity API
-  - [ ] `refactoring.rs` – refactoring suggestions
-  - [ ] `hotspots.rs` – project complexity & hotspot analysis
-  - [ ] `tests.rs` – relocate handler-specific tests
-- [ ] Ensure imports are updated and no duplicate logic remains
-- [ ] Run: `cargo test -p cb-handlers -- analysis`
+### 7. ✅ `tools/analysis.rs` follow-up (COMPLETED)
+- [x] Create `crates/cb-handlers/src/handlers/tools/analysis/`
+- [x] Reorganize into:
+  - [x] `mod.rs` – dispatcher & `AnalysisHandler`
+  - [x] `unused_imports.rs`
+  - [x] `complexity.rs` – thin wrappers over the refactored AST complexity API
+  - [x] `refactoring.rs` – refactoring suggestions
+  - [x] `hotspots.rs` – project complexity & hotspot analysis
+  - [x] `tests.rs` – relocate handler-specific tests
+- [x] Ensure imports are updated and no duplicate logic remains
+- [x] Run: `cargo test -p cb-handlers -- analysis`
+
+## 📋 Phase 3 – Test Support (Optional)
+
+Lower priority test infrastructure improvements.
+
+### 8. `project_fixtures.rs` (1,506 lines → ≤300 each) [OPTIONAL]
+- [ ] Create `crates/cb-test-support/src/harness/project_fixtures/`
+- [ ] Split by language/scenario:
+  - [ ] `mod.rs` – `ProjectFixtures` struct, re-exports (~50 lines)
+  - [ ] `typescript.rs` – `create_large_typescript_project` (~400 lines)
+  - [ ] `python.rs` – `create_python_project` (~350 lines)
+  - [ ] `rust.rs` – `create_rust_project` (~250 lines)
+  - [ ] `monorepo.rs` – `create_monorepo_project` (~280 lines)
+  - [ ] `errors.rs` – `create_error_project` (~130 lines)
+  - [ ] `performance.rs` – `create_performance_project` (~100 lines)
+- [ ] Validation: `cargo test -p cb-test-support`
 
 ## ✅ Validation
 
