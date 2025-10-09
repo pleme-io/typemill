@@ -118,6 +118,28 @@ impl PluginDispatcher {
             debug!("App config loaded successfully");
             let lsp_config = app_config.lsp;
 
+            // Create a single, unified LSP adapter that can handle all configured languages.
+            // This avoids creating a separate adapter for each language and ensures that
+            // tool handlers have access to a comprehensive adapter.
+            let all_extensions: Vec<String> = lsp_config
+                .servers
+                .iter()
+                .flat_map(|s| s.extensions.clone())
+                .collect();
+
+            let unified_lsp_adapter = Arc::new(DirectLspAdapter::new(
+                lsp_config.clone(),
+                all_extensions,
+                "unified-lsp-direct".to_string(),
+            ));
+
+            // Store the unified adapter for all tool handlers to use.
+            {
+                let mut stored_adapter = self.lsp_adapter.lock().await;
+                *stored_adapter = Some(unified_lsp_adapter.clone());
+                debug!("Stored unified LSP adapter for all tool handlers");
+            }
+
             // Dynamically register plugins based on configured LSP servers
             let mut registered_plugins = 0;
             for server_config in &lsp_config.servers {
@@ -126,24 +148,8 @@ impl PluginDispatcher {
                     continue;
                 }
 
-                // Create a DirectLspAdapter for this server
-                let adapter_name = format!("{}-lsp-direct", server_config.extensions.join("-"));
-                debug!(extensions = ?server_config.extensions, "Creating LSP adapter");
-
-                let lsp_adapter = Arc::new(DirectLspAdapter::new(
-                    lsp_config.clone(),
-                    server_config.extensions.clone(),
-                    adapter_name.clone(),
-                ));
-
-                // Store the first LSP adapter for refactoring operations
-                {
-                    let mut stored_adapter = self.lsp_adapter.lock().await;
-                    if stored_adapter.is_none() {
-                        *stored_adapter = Some(lsp_adapter.clone());
-                        debug!("Stored LSP adapter for refactoring operations");
-                    }
-                }
+                // Each plugin now shares the same unified LSP adapter.
+                let lsp_adapter = unified_lsp_adapter.clone();
 
                 // Determine plugin type based on primary extension
                 let primary_extension = &server_config.extensions[0];

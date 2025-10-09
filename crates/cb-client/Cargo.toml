@@ -1,5 +1,6 @@
 [package]
 name = "cb-client"
+version = "1.0.0-rc3"
 edition = "2021"
 description = "Codeflow Buddy client implementation"
 license = "MIT"

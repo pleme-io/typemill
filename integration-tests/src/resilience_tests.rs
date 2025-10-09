@@ -315,29 +315,34 @@ async fn test_find_dead_code_workflow() {
         project_path
     );
 
-    // Run find_dead_code on our test project
-    let dead_code_request = json!({
-        "jsonrpc": "2.0",
-        "id": "dead-code-1",
-        "method": "tools/call",
-        "params": {
-            "name": "find_dead_code",
-            "arguments": {
-                "files": [
-                    format!("{}/src/main.ts", project_path),
-                    format!("{}/src/utils.ts", project_path),
-                    format!("{}/src/processor.ts", project_path)
-                ],
-                "exclude_tests": true,
-                "min_references": 1
-            }
-        }
+    // Run find_dead_code on our test project with an extended timeout,
+    // as the analysis can be slow on cold runs.
+    let arguments = json!({
+        "files": [
+            format!("{}/src/main.ts", project_path),
+            format!("{}/src/utils.ts", project_path),
+            format!("{}/src/processor.ts", project_path)
+        ],
+        "exclude_tests": true,
+        "min_references": 1
     });
 
-    let response = client
-        .send_request(dead_code_request)
-        .expect("find_dead_code should respond");
-    assert_eq!(response["id"], "dead-code-1");
+    let response_result = client
+        .call_tool_with_timeout("find_dead_code", arguments, Duration::from_secs(60))
+        .await;
+
+    let response = match response_result {
+        Ok(res) => res,
+        Err(e) => {
+            let stderr_logs = client.get_stderr_logs();
+            eprintln!("--- Server Stderr Logs on Timeout ---");
+            for log in stderr_logs {
+                eprintln!("{}", log);
+            }
+            eprintln!("------------------------------------");
+            panic!("find_dead_code call failed: {}", e);
+        }
+    };
 
     eprintln!(
         "Full response: {}",

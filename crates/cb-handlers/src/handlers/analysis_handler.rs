@@ -13,10 +13,12 @@ use cb_plugins::LspService;
 use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use futures::stream::{FuturesUnordered, StreamExt};
 use serde_json::{json, Value};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tokio::sync::Semaphore;
+use tokio::time::timeout;
 use tracing::{debug, info, warn};
 
 // ============================================================================
@@ -257,6 +259,7 @@ async fn collect_symbols_by_document(
 
     let mut all_symbols = Vec::new();
     let file_count = source_files.len();
+    let mut opened_files = HashSet::new();
 
     // Query each file for its document symbols
     for file_path in &source_files {
@@ -264,16 +267,21 @@ async fn collect_symbols_by_document(
         let absolute_path = file_path.canonicalize().unwrap_or_else(|_| file_path.clone());
         let uri = format!("file://{}", absolute_path.display());
 
-        match lsp_adapter
-            .request(
-                "textDocument/documentSymbol",
-                json!({
-                    "textDocument": { "uri": uri }
-                }),
-            )
-            .await
-        {
-            Ok(response) => {
+        // NEW: Skip if already opened to prevent duplicate textDocument/didOpen
+        if !opened_files.insert(uri.clone()) {
+            debug!(uri = %uri, "Skipping already opened file");
+            continue;
+        }
+
+        let request_future = lsp_adapter.request(
+            "textDocument/documentSymbol",
+            json!({
+                "textDocument": { "uri": uri.clone() }
+            }),
+        );
+
+        match timeout(Duration::from_secs(5), request_future).await {
+            Ok(Ok(response)) => {
                 // documentSymbol can return either DocumentSymbol[] or SymbolInformation[]
                 // We need to handle both and convert to workspace symbol format
                 if let Some(symbols) = response.as_array() {
@@ -283,11 +291,17 @@ async fn collect_symbols_by_document(
                     }
                 }
             }
-            Err(e) => {
+            Ok(Err(e)) => {
                 debug!(
                     error = %e,
                     file_path = %file_path.display(),
                     "Failed to get document symbols for file"
+                );
+            }
+            Err(_) => {
+                warn!(
+                    file_path = %file_path.display(),
+                    "Timeout getting document symbols for file"
                 );
             }
         }
@@ -526,19 +540,31 @@ async fn check_single_symbol_references(
         "context": { "includeDeclaration": true }
     });
 
-    if let Ok(response) = lsp_adapter.request("textDocument/references", params).await {
-        let ref_count = response.as_array().map_or(0, |a| a.len());
+    let request_future = lsp_adapter.request("textDocument/references", params);
 
-        // Symbol is dead if it has ≤ min_reference_threshold references
-        if ref_count <= min_reference_threshold {
-            return Some(DeadSymbol {
-                name,
-                kind: lsp_kind_to_string(kind),
-                file_path: file_path.to_string(),
-                line,
-                column: character,
-                reference_count: ref_count,
-            });
+    match timeout(Duration::from_secs(5), request_future).await {
+        Ok(Ok(response)) => {
+            let ref_count = response.as_array().map_or(0, |a| a.len());
+
+            // Symbol is dead if it has ≤ min_reference_threshold references
+            if ref_count <= min_reference_threshold {
+                return Some(DeadSymbol {
+                    name,
+                    kind: lsp_kind_to_string(kind),
+                    file_path: file_path.to_string(),
+                    line,
+                    column: character,
+                    reference_count: ref_count,
+                });
+            }
+        }
+        _ => {
+            // This will catch both timeout errors and request errors.
+            warn!(
+                symbol_name = %name,
+                file_path = %file_path,
+                "Timeout or error checking references for symbol"
+            );
         }
     }
 
