@@ -21,7 +21,9 @@ members = [
     "apps/codebuddy",
     "integration-tests",
     "crates/cb-lang-swift",
-    "crates/cb-bench", "crates/cb-test-support",
+    "crates/cb-bench",
+    "crates/cb-test-support",
+    "crates/cb-lang-csharp",
 ]
 resolver = "2"
 
@@ -83,6 +85,7 @@ cb-lang-typescript = { path = "crates/cb-lang-typescript" }
 cb-lang-python = { path = "crates/cb-lang-python" }
 cb-lang-java = { path = "crates/cb-lang-java" }
 cb-lang-swift = { path = "crates/cb-lang-swift" }
+cb-lang-csharp = { path = "crates/cb-lang-csharp" }
 
 # Optimize build times for dev dependencies
 [profile.dev.build-override]

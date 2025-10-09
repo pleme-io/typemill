@@ -68,3 +68,13 @@ entry_point = "main.swift"
 module_separator = "."
 crate_name = "cb-lang-swift"
 feature_name = "lang-swift"
+
+[languages.CSharp]
+display_name = "C#"
+extensions = ["cs"]
+manifest_filename = "*.csproj"
+source_dir = "src"
+entry_point = "main.cs"
+module_separator = "."
+crate_name = "cb-lang-csharp"
+feature_name = "lang-csharp"

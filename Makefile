@@ -138,7 +138,9 @@ build-parsers:
 	fi
 	@if [ -d "crates/cb-lang-csharp/resources/csharp-parser" ]; then \
 		echo "  → Building C# parser..."; \
-		(cd crates/cb-lang-csharp/resources/csharp-parser && dotnet publish -c Release -r linux-x64 --self-contained > /dev/null) && echo "  ✅ C# parser built." || echo "  ⚠️  C# parser build failed."; \
+		(cd crates/cb-lang-csharp/resources/csharp-parser && dotnet publish -c Release -r linux-x64 --self-contained > /dev/null) && \
+		cp crates/cb-lang-csharp/resources/csharp-parser/bin/Release/net8.0/linux-x64/publish/csharp-parser crates/cb-lang-csharp/csharp-parser && \
+		echo "  ✅ C# parser built." || echo "  ⚠️  C# parser build failed."; \
 	else \
 		echo "  ⏭  Skipping C# parser (not found)."; \
 	fi

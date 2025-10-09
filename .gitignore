@@ -104,3 +104,6 @@ jscpd-report/
 complexity-report.json
 test_scanner
 .claude/
+
+# Language-specific build artifacts
+/crates/cb-lang-csharp/csharp-parser

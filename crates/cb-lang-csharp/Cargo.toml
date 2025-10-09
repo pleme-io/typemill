@@ -1,0 +1,35 @@
+[package]
+name = "cb-lang-csharp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[dependencies]
+# Codebuddy workspace dependencies
+cb-plugin-api = { path = "../cb-plugin-api" }
+cb-protocol = { path = "../cb-protocol" }
+cb-core = { path = "../cb-core" }
+cb-lang-common = { path = "../cb-lang-common" }
+
+# Async operations
+async-trait = { workspace = true }
+tokio = { workspace = true }
+
+# Serialization/Deserialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+
+# Utilities
+regex = "1.10"
+quick-xml = { version = "0.31", features = ["serialize"] }
+
+[dev-dependencies]
+tempfile = { workspace = true }
