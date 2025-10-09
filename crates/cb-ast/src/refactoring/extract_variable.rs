@@ -227,6 +227,15 @@ pub async fn plan_extract_variable(
             variable_name,
             file_path,
         ),
+        "go" => ast_extract_variable_go(
+            source,
+            start_line,
+            start_col,
+            end_line,
+            end_col,
+            variable_name,
+            file_path,
+        ),
         _ => Err(AstError::analysis(format!(
             "Language not supported. LSP server may provide this via code actions for: {}",
             file_path
@@ -357,4 +366,27 @@ fn ast_extract_variable_rust(
         file_path,
     )
     .map_err(|e| AstError::analysis(format!("Rust refactoring error: {}", e)))
+}
+
+/// Generate edit plan for extract variable refactoring (Go) using AST
+#[allow(clippy::too_many_arguments)]
+fn ast_extract_variable_go(
+    source: &str,
+    start_line: u32,
+    start_col: u32,
+    end_line: u32,
+    end_col: u32,
+    variable_name: Option<String>,
+    file_path: &str,
+) -> AstResult<EditPlan> {
+    cb_lang_go::refactoring::plan_extract_variable(
+        source,
+        start_line,
+        start_col,
+        end_line,
+        end_col,
+        variable_name,
+        file_path,
+    )
+    .map_err(|e| AstError::analysis(format!("Go refactoring error: {}", e)))
 }

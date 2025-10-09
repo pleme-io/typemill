@@ -102,6 +102,9 @@ pub async fn plan_extract_function(
         "rust" => {
             ast_extract_function_rust(source, range, new_function_name, file_path)
         }
+        "go" => {
+            ast_extract_function_go(source, range, new_function_name, file_path)
+        }
         _ => {
             // Unsupported language - will try LSP fallback below
             Err(AstError::analysis(format!(
@@ -252,6 +255,26 @@ fn ast_extract_function_rust(
         file_path,
     )
     .map_err(|e| AstError::analysis(format!("Rust refactoring error: {}", e)))
+}
+
+/// Generate edit plan for extract function refactoring (Go) using AST
+fn ast_extract_function_go(
+    source: &str,
+    range: &CodeRange,
+    new_function_name: &str,
+    file_path: &str,
+) -> AstResult<EditPlan> {
+    let start_line = range.start_line;
+    let end_line = range.end_line;
+
+    cb_lang_go::refactoring::plan_extract_function(
+        source,
+        start_line,
+        end_line,
+        new_function_name,
+        file_path,
+    )
+    .map_err(|e| AstError::analysis(format!("Go refactoring error: {}", e)))
 }
 
 /// Visitor for analyzing code selection for function extraction
