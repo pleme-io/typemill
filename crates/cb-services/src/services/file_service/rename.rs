@@ -286,16 +286,25 @@ impl FileService {
             let mut total_files_updated = std::collections::HashSet::new();
             let mut all_errors = Vec::new();
 
+            // If this is a cargo package, we need to scan the entire workspace for
+            // `use` statements and fully-qualified paths. Otherwise, respect the provided scope.
+            let effective_scan_scope = if is_cargo_pkg {
+                info!("Cargo package rename detected, forcing workspace-wide import scan.");
+                Some(cb_plugin_api::ScanScope::AllUseStatements)
+            } else {
+                scan_scope
+            };
+
             // Call update_imports_for_rename ONCE for the entire directory rename
             // This prevents creating duplicate edits for the same affected files
             match self
                 .import_service
                 .update_imports_for_rename(
-                    &old_abs_dir,  // Use directory paths instead of individual files
+                    &old_abs_dir, // Use directory paths instead of individual files
                     &new_abs_dir,
                     rename_info.as_ref(),
                     false,
-                    scan_scope,
+                    effective_scan_scope,
                 )
                 .await
             {
@@ -356,8 +365,18 @@ impl FileService {
                 // Update path dependencies in other crates that depend on this one
                 if let Some(ref info) = rename_info {
                     // Use old_package_name (with hyphens) for Cargo.toml dependency lookups
-                    if let Some(old_package_name) = info.get("old_package_name").and_then(|v| v.as_str()) {
-                        match self.update_dependent_crate_paths(old_package_name, &new_abs_dir).await {
+                    if let (Some(old_package_name), Some(new_package_name)) = (
+                        info.get("old_package_name").and_then(|v| v.as_str()),
+                        info.get("new_package_name").and_then(|v| v.as_str()),
+                    ) {
+                        match self
+                            .update_dependent_crate_paths(
+                                old_package_name,
+                                new_package_name,
+                                &new_abs_dir,
+                            )
+                            .await
+                        {
                             Ok(updated_files) => {
                                 if !updated_files.is_empty() {
                                     info!(
@@ -369,7 +388,8 @@ impl FileService {
                             }
                             Err(e) => {
                                 warn!(error = %e, "Failed to update dependent crate paths");
-                                let error_msg = format!("Failed to update dependent crate paths: {}", e);
+                                let error_msg =
+                                    format!("Failed to update dependent crate paths: {}", e);
                                 all_errors.push(error_msg.clone());
                                 manifest_errors.push(error_msg);
                             }
