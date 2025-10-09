@@ -22,6 +22,24 @@ The project underwent a complete architectural transformation from TypeScript/No
 
 #### Added
 
+- **Java Refactoring Support** - Cherry-picked from `feat/add-refactoring-for-more-languages` branch
+  - Complete AST-based refactoring implementation using tree-sitter-java v0.20
+  - Extract function, extract variable, and inline variable operations
+  - Full integration with cb-ast refactoring subsystem
+  - 100% test pass rate (3/3 refactoring tests passing)
+
+- **Swift Refactoring Support** - Cherry-picked from `feat/add-refactoring-for-more-languages` branch
+  - Complete AST-based refactoring implementation using tree-sitter-swift v0.3
+  - Extract function, extract variable, and inline variable operations
+  - Full integration with cb-ast refactoring subsystem
+  - 100% test pass rate (3/3 refactoring tests passing)
+
+- **C# Refactoring Support** - Cherry-picked from `feat/add-refactoring-for-more-languages` branch (partial)
+  - AST-based refactoring implementation using tree-sitter-c-sharp v0.20
+  - Extract function operation working correctly (1/3 tests passing)
+  - Extract variable and inline variable have known bugs documented in PROPOSAL_CSHARP_REFACTORING_FIXES.md
+  - .NET SDK 8.0 support on Ubuntu 24.04
+
 - **SWC-to-TypeScript Plugin Refactoring** - Consolidated SWC dependencies into TypeScript language plugin
   - Moved SWC parsing functionality from core to `cb-lang-typescript` plugin
   - Reduced core dependencies and improved modularity
@@ -37,6 +55,15 @@ The project underwent a complete architectural transformation from TypeScript/No
 - **Crate Naming** - Renamed `test-support` crate to `cb-test-support` for consistency (4b24e1f:1)
 
 #### Documentation
+
+- **Documentation Rename** - Renamed CLAUDE.md to AGENTS.md with symlink for backwards compatibility
+  - AGENTS.md is now the primary documentation file for AI agent instructions
+  - CLAUDE.md symlinks to AGENTS.md for compatibility with existing tooling
+
+- **Language Support Updates** - Updated API_REFERENCE.md to reflect new language support
+  - Added Java, Swift, and C# columns to all language support matrices
+  - Documented refactoring support for newly added languages
+  - Updated LSP-based and AST-based tool compatibility tables
 
 - **MCP API Cleanup** - Consolidated MCP API cleanup proposals into single document (f0123c5:1)
 - **Self-Refactoring Planning** - Added execution plan with major goals table for MCP API cleanup (67b9b71:1, a7505c9:1)
