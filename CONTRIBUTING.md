@@ -11,6 +11,8 @@ First off, thank you for considering contributing! It's people like you that mak
 
 Building the full project requires the following tools. You can verify them all at once by running `make check-parser-deps`.
 
+**Note:** A complete build and a passing test suite require the installation of external SDKs (Java, .NET, Node.js). Without these, parser builds will fail, which will cause tests for the corresponding language plugins to fail.
+
 - **Rust Toolchain:** Get it from [rustup.rs](https://rustup.rs/).
 - **Java SDK & Maven:** Required to build the Java parser.
 - **.NET SDK:** Required to build the C# parser.

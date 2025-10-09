@@ -59,6 +59,8 @@ cd codebuddy
 make first-time-setup  # Installs all tools, builds parsers, runs tests (~3-5 min)
 ```
 
+**Note:** Building all features requires external SDKs like the Java SDK, .NET SDK, and Node.js. See [CONTRIBUTING.md](CONTRIBUTING.md) for a full list of prerequisites.
+
 **What gets installed:**
 - cargo-nextest, sccache, cargo-watch, cargo-audit (via cargo-binstall)
 - mold linker (if sudo available)
@@ -161,6 +163,7 @@ codebuddy setup    # Configure languages
 
 ```bash
 # Server lifecycle
+codebuddy --version      # Show version information
 codebuddy start          # Start stdio MCP server
 codebuddy serve          # Start WebSocket server
 codebuddy stop           # Stop server
