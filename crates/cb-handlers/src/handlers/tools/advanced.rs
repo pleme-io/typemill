@@ -3,7 +3,6 @@
 //! Handles: apply_edits, achieve_intent, batch_execute
 
 use super::{ToolHandler, ToolHandlerContext};
-use crate::handlers::compat::{ToolContext, ToolHandler as LegacyToolHandler};
 use crate::handlers::workflow_handler::WorkflowHandler as LegacyWorkflowHandler;
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
@@ -41,21 +40,13 @@ impl ToolHandler for AdvancedHandler {
 
         match tool_name.as_str() {
             "execute_edits" => {
-                // Note: This handler wraps the workflow_handler, but the macro expects legacy_handler field
-                // Convert new context to legacy context
-                let legacy_context = ToolContext {
-                    user_id: context.user_id.clone(),
-                    app_state: context.app_state.clone(),
-                    plugin_manager: context.plugin_manager.clone(),
-                    lsp_adapter: context.lsp_adapter.clone(),
-                };
-
                 // The legacy tool was `apply_edits`, so we need to clone and modify the call
                 let mut legacy_tool_call = tool_call.clone();
                 legacy_tool_call.name = "apply_edits".to_string();
 
+                // WorkflowHandler now uses the new trait, so delegate directly
                 self.workflow_handler
-                    .handle_tool(legacy_tool_call, &legacy_context)
+                    .handle_tool_call(context, &legacy_tool_call)
                     .await
             }
             "execute_batch" => {

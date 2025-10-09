@@ -3,7 +3,6 @@
 //! Handles: health_check
 
 use super::{ToolHandler, ToolHandlerContext};
-use crate::handlers::compat::{ToolContext, ToolHandler as LegacyToolHandler};
 use crate::handlers::system_handler::SystemHandler as LegacySystemHandler;
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
@@ -36,15 +35,9 @@ impl ToolHandler for SystemHandler {
         if tool_call.name == "health_check" {
             // The new health_check combines the legacy health_check (plugins, etc.)
             // with the system status information.
-            let legacy_context = ToolContext {
-                user_id: context.user_id.clone(),
-                app_state: context.app_state.clone(),
-                plugin_manager: context.plugin_manager.clone(),
-                lsp_adapter: context.lsp_adapter.clone(),
-            };
             let mut health_report = self
                 .legacy_handler
-                .handle_tool(tool_call.clone(), &legacy_context)
+                .handle_tool_call(context, tool_call)
                 .await?;
 
             if let Some(obj) = health_report.as_object_mut() {

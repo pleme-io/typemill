@@ -6,7 +6,7 @@
 //! Note: find_dead_code moved to analysis_handler.rs
 //! Note: fix_imports replaced by optimize_imports in editing.rs
 
-use super::compat::{ToolContext, ToolHandler};
+use super::tools::{ToolHandler, ToolHandlerContext};
 use super::lsp_adapter::DirectLspAdapter;
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
@@ -41,8 +41,8 @@ impl Default for SystemHandler {
 
 #[async_trait]
 impl ToolHandler for SystemHandler {
-    fn supported_tools(&self) -> Vec<&'static str> {
-        vec![
+    fn tool_names(&self) -> &[&str] {
+        &[
             "health_check",
             "notify_file_opened",
             "notify_file_saved",
@@ -53,27 +53,31 @@ impl ToolHandler for SystemHandler {
         ]
     }
 
-    async fn handle_tool(&self, tool_call: ToolCall, context: &ToolContext) -> ServerResult<Value> {
+    async fn handle_tool_call(
+        &self,
+        context: &ToolHandlerContext,
+        tool_call: &ToolCall,
+    ) -> ServerResult<Value> {
         debug!(tool_name = %tool_call.name, "Handling system operation");
 
         match tool_call.name.as_str() {
-            "health_check" => self.handle_health_check(tool_call, context).await,
-            "notify_file_opened" => self.handle_notify_file_opened(tool_call, context).await,
-            "notify_file_saved" => self.handle_notify_file_saved(tool_call, context).await,
-            "notify_file_closed" => self.handle_notify_file_closed(tool_call, context).await,
+            "health_check" => self.handle_health_check(tool_call.clone(), context).await,
+            "notify_file_opened" => self.handle_notify_file_opened(tool_call.clone(), context).await,
+            "notify_file_saved" => self.handle_notify_file_saved(tool_call.clone(), context).await,
+            "notify_file_closed" => self.handle_notify_file_closed(tool_call.clone(), context).await,
 
             // Delegate to AnalysisHandler
-            "find_dead_code" => self.analysis_handler.handle_tool(tool_call, context).await,
+            "find_dead_code" => self.analysis_handler.handle_tool_call(context, tool_call).await,
 
             // Delegate to DependencyHandler
             "update_dependencies" => {
                 self.dependency_handler
-                    .handle_tool(tool_call, context)
+                    .handle_tool_call(context, tool_call)
                     .await
             }
 
             // Delegate to plugin system (SystemToolsPlugin handles this)
-            "analyze_imports" => self.delegate_to_plugin_system(tool_call, context).await,
+            "analyze_imports" => self.delegate_to_plugin_system(tool_call.clone(), context).await,
 
             _ => Err(ServerError::Unsupported(format!(
                 "Unknown system operation: {}",
@@ -89,7 +93,7 @@ impl SystemHandler {
     async fn delegate_to_plugin_system(
         &self,
         tool_call: ToolCall,
-        context: &ToolContext,
+        context: &ToolHandlerContext,
     ) -> ServerResult<Value> {
         use cb_plugins::PluginRequest;
         use std::path::PathBuf;
@@ -146,7 +150,7 @@ impl SystemHandler {
     async fn handle_health_check(
         &self,
         _tool_call: ToolCall,
-        context: &ToolContext,
+        context: &ToolHandlerContext,
     ) -> ServerResult<Value> {
         info!("Handling health check request");
 
@@ -187,7 +191,7 @@ impl SystemHandler {
     async fn handle_notify_file_opened(
         &self,
         tool_call: ToolCall,
-        context: &ToolContext,
+        context: &ToolHandlerContext,
     ) -> ServerResult<Value> {
         debug!(tool_name = %tool_call.name, "Handling notify_file_opened");
 
@@ -280,7 +284,7 @@ impl SystemHandler {
     async fn handle_notify_file_saved(
         &self,
         tool_call: ToolCall,
-        context: &ToolContext,
+        context: &ToolHandlerContext,
     ) -> ServerResult<Value> {
         debug!(tool_name = %tool_call.name, "Handling notify_file_saved");
 
@@ -319,7 +323,7 @@ impl SystemHandler {
     async fn handle_notify_file_closed(
         &self,
         tool_call: ToolCall,
-        context: &ToolContext,
+        context: &ToolHandlerContext,
     ) -> ServerResult<Value> {
         debug!(tool_name = %tool_call.name, "Handling notify_file_closed");
 

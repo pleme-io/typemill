@@ -1,7 +1,6 @@
 //! MCP tool handlers module
 
 pub mod analysis_handler;
-pub mod compat;
 pub mod dependency_handler;
 pub mod file_operation_handler;
 pub mod lsp_adapter;

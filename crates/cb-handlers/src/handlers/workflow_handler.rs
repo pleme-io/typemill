@@ -2,7 +2,7 @@
 //!
 //! Handles: achieve_intent, apply_edits
 
-use super::compat::{ToolContext, ToolHandler};
+use super::tools::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
 use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
@@ -25,16 +25,16 @@ impl Default for WorkflowHandler {
 
 #[async_trait]
 impl ToolHandler for WorkflowHandler {
-    fn supported_tools(&self) -> Vec<&'static str> {
-        vec!["achieve_intent", "apply_edits"]
+    fn tool_names(&self) -> &[&str] {
+        &["achieve_intent", "apply_edits"]
     }
 
-    async fn handle_tool(&self, tool_call: ToolCall, context: &ToolContext) -> ServerResult<Value> {
+    async fn handle_tool_call(&self, context: &ToolHandlerContext, tool_call: &ToolCall) -> ServerResult<Value> {
         debug!(tool_name = %tool_call.name, "Handling workflow operation");
 
         match tool_call.name.as_str() {
-            "achieve_intent" => self.handle_achieve_intent(tool_call, context).await,
-            "apply_edits" => self.handle_apply_edits(tool_call, context).await,
+            "achieve_intent" => self.handle_achieve_intent(tool_call.clone(), context).await,
+            "apply_edits" => self.handle_apply_edits(tool_call.clone(), context).await,
             _ => Err(ServerError::Unsupported(format!(
                 "Unknown workflow operation: {}",
                 tool_call.name
@@ -47,7 +47,7 @@ impl WorkflowHandler {
     async fn handle_achieve_intent(
         &self,
         tool_call: ToolCall,
-        context: &ToolContext,
+        context: &ToolHandlerContext,
     ) -> ServerResult<Value> {
         debug!(tool_name = %tool_call.name, "Planning or resuming workflow");
 
@@ -144,7 +144,7 @@ impl WorkflowHandler {
     async fn handle_apply_edits(
         &self,
         tool_call: ToolCall,
-        context: &ToolContext,
+        context: &ToolHandlerContext,
     ) -> ServerResult<Value> {
         debug!(tool_name = %tool_call.name, "Handling apply_edits");
 

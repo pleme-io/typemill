@@ -5,7 +5,7 @@
 //! This module contains deep static analysis tools that examine code quality,
 //! identify unused code, and provide insights into codebase health.
 
-use super::compat::{ToolContext, ToolHandler};
+use super::tools::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
 use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
@@ -16,7 +16,7 @@ use tracing::debug;
 #[cfg(feature = "analysis-dead-code")]
 mod analysis_impl {
     use super::super::lsp_adapter::DirectLspAdapter;
-    use crate::handlers::compat::ToolContext;
+    use super::super::tools::ToolHandlerContext;
     use async_trait::async_trait;
     use cb_analysis_common::{AnalysisEngine, AnalysisError, LspProvider};
     use cb_analysis_dead_code::{DeadCodeAnalyzer, DeadCodeConfig, DeadCodeReport};
@@ -139,7 +139,7 @@ mod analysis_impl {
     /// The new implementation of find_dead_code using the analysis crate.
     pub async fn handle_find_dead_code_impl(
         tool_call: ToolCall,
-        context: &ToolContext,
+        context: &ToolHandlerContext,
     ) -> ServerResult<Value> {
         let args = tool_call.arguments.unwrap_or_default();
         let workspace_path_str = args
@@ -184,15 +184,19 @@ impl Default for AnalysisHandler {
 
 #[async_trait]
 impl ToolHandler for AnalysisHandler {
-    fn supported_tools(&self) -> Vec<&'static str> {
-        vec!["find_dead_code"]
+    fn tool_names(&self) -> &[&str] {
+        &["find_dead_code"]
     }
 
-    async fn handle_tool(&self, tool_call: ToolCall, context: &ToolContext) -> ServerResult<Value> {
+    async fn handle_tool_call(
+        &self,
+        context: &ToolHandlerContext,
+        tool_call: &ToolCall,
+    ) -> ServerResult<Value> {
         debug!(tool_name = %tool_call.name, "Handling code analysis operation");
 
         match tool_call.name.as_str() {
-            "find_dead_code" => self.handle_find_dead_code(tool_call, context).await,
+            "find_dead_code" => self.handle_find_dead_code(tool_call.clone(), context).await,
             _ => Err(ServerError::Unsupported(format!(
                 "Unknown analysis operation: {}",
                 tool_call.name
@@ -206,7 +210,7 @@ impl AnalysisHandler {
     async fn handle_find_dead_code(
         &self,
         tool_call: ToolCall,
-        context: &ToolContext,
+        context: &ToolHandlerContext,
     ) -> ServerResult<Value> {
         analysis_impl::handle_find_dead_code_impl(tool_call, context).await
     }
@@ -215,7 +219,7 @@ impl AnalysisHandler {
     async fn handle_find_dead_code(
         &self,
         _tool_call: ToolCall,
-        _context: &ToolContext,
+        _context: &ToolHandlerContext,
     ) -> ServerResult<Value> {
         Err(ServerError::Unsupported(
             "The 'find_dead_code' tool is not available because the 'analysis-dead-code' feature is not enabled.".to_string(),

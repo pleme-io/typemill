@@ -1,6 +1,6 @@
 //! Tool handler for fine-grained dependency management.
 
-use super::compat::{ToolContext, ToolHandler};
+use super::tools::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
 use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
@@ -245,17 +245,17 @@ impl Default for DependencyHandler {
 
 #[async_trait]
 impl ToolHandler for DependencyHandler {
-    fn supported_tools(&self) -> Vec<&'static str> {
-        vec!["update_dependencies"]
+    fn tool_names(&self) -> &[&str] {
+        &["update_dependencies"]
     }
 
-    async fn handle_tool(
+    async fn handle_tool_call(
         &self,
-        tool_call: ToolCall,
-        _context: &ToolContext,
+        _context: &ToolHandlerContext,
+        tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         let args: UpdateDependenciesArgs =
-            serde_json::from_value(tool_call.arguments.unwrap_or_default()).map_err(|e| {
+            serde_json::from_value(tool_call.arguments.clone().unwrap_or_default()).map_err(|e| {
                 ServerError::InvalidRequest(format!("Invalid update_dependencies args: {}", e))
             })?;
 
