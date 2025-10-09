@@ -6,7 +6,7 @@ Aggressive cleanup of MCP API surface to consolidate redundant tools, remove/int
 
 **Impact:** 44 tools → 31 tools (-30%)
 
-**⚠️ IMPORTANT: This is a COMPLETE implementation proposal. All changes listed below must be implemented together as a single cohesive refactoring. Do NOT implement only part of this proposal - it's all or nothing.**
+**⚠️ IMPORTANT: This is a COMPLETE implementation specification. All changes listed below must be implemented together as a single cohesive refactoring. Do NOT implement only part of this - it's all or nothing.**
 
 The changes are organized by type (MERGE, DELETE, RENAME, etc.) for clarity, but ALL items must be completed to achieve the final API design of 31 tools.
 
@@ -304,18 +304,12 @@ The changes are organized by type (MERGE, DELETE, RENAME, etc.) for clarity, but
 
 ### Recommended Approach
 
-**Option A: Manual Implementation (Recommended for correctness)**
+**Manual Implementation (Recommended for correctness)**
 - Systematically work through each category in the checklist above
 - Start with renames (simpler), then deletions, then merges (most complex)
 - Run `cargo test --workspace` after each category
 - Run `cargo clippy` to catch any issues
 - Update documentation as you go
-
-**Option B: Hybrid Approach (Faster but riskier)**
-- Use `rename_symbol` tool for Rust function/method renames
-- Manually implement parameter additions and merges
-- Use `write_file` for documentation updates
-- Note: Tool merges require careful logic changes that can't be automated
 
 ### Testing Strategy
 
@@ -384,9 +378,6 @@ If issues arise:
 
 5. **Use `move_file`/`move_directory` vs `rename_*`?**
    - ✅ `move_*` - Accurately describes cross-directory capability
-
-6. **Self-refactoring?**
-   - ✅ YES - Validates production readiness, uses dry-run for safety
 
 ---
 

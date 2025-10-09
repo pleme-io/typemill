@@ -6,7 +6,7 @@ The CodeBuddy server can manage remote workspace containers, execute commands wi
 
 **Critical Security Gap**: The current implementation has no user isolation - all clients can see and access all workspaces.
 
-This proposal implements multi-tenancy with scoped access to enable secure multi-user operation.
+This document describes implementing multi-tenancy with scoped access to enable secure multi-user operation.
 
 **Files to Modify**: 15 files (11 existing + 1 new + 3 docs)
 
@@ -58,23 +58,23 @@ This proposal implements multi-tenancy with scoped access to enable secure multi
 - If containers are ephemeral, embrace it - make registration fast/automatic
 - If containers are long-lived, need full state management
 
-## Implementation Plan
+## Implementation
 
-### Core Changes (2 files)
+### Core Changes
 
-| File | Changes | Lines | Complexity |
-|------|---------|-------|------------|
-| `crates/cb-core/src/workspaces.rs` | Change `DashMap<String, Workspace>` to `DashMap<(String, String), Workspace>`. Update 3 methods: `register()`, `list()`, `get()` | 48 | 🟡 Medium |
-| `crates/cb-core/src/auth/jwt.rs` | Add `user_id: Option<String>` field to `Claims` struct. Update `generate_token()` to accept user_id | 167 | 🟢 Easy |
+#### WorkspaceManager (crates/cb-core/src/workspaces.rs)
 
-**Implementation:**
+**Change:** `DashMap<String, Workspace>` → `DashMap<(String, String), Workspace>`
+**Lines affected:** 48
+**Complexity:** 🟡 Medium
+
 ```rust
-// workspaces.rs - BEFORE
+// BEFORE
 pub struct WorkspaceManager {
     workspaces: Arc<DashMap<String, Workspace>>,
 }
 
-// workspaces.rs - AFTER
+// AFTER
 pub struct WorkspaceManager {
     workspaces: Arc<DashMap<(String, String), Workspace>>,  // (user_id, workspace_id)
 }
@@ -100,8 +100,14 @@ impl WorkspaceManager {
 }
 ```
 
+#### JWT Claims (crates/cb-core/src/auth/jwt.rs)
+
+**Change:** Add `user_id: Option<String>` field
+**Lines affected:** 167
+**Complexity:** 🟢 Easy
+
 ```rust
-// jwt.rs - ADD THIS FIELD
+// ADD THIS FIELD
 pub struct Claims {
     pub sub: Option<String>,
     pub exp: Option<usize>,
@@ -113,13 +119,14 @@ pub struct Claims {
 }
 ```
 
-### Endpoint Changes (1 file)
+### Endpoint Changes
 
-| File | Changes | Lines | Complexity |
-|------|---------|-------|------------|
-| `crates/cb-transport/src/admin.rs` | Add JWT extraction helper. Update 3 endpoints: `register_workspace()`, `list_workspaces()`, `execute_command()` to extract user_id and scope operations | 368 | 🟡 Medium |
+#### Admin API (crates/cb-transport/src/admin.rs)
 
-**Implementation:**
+**Changes:** Add JWT extraction helper, update 3 endpoints
+**Lines affected:** 368
+**Complexity:** 🟡 Medium
+
 ```rust
 // NEW helper function
 fn extract_user_id_from_jwt(
@@ -187,17 +194,15 @@ async fn execute_command(
 }
 ```
 
-### Handler Changes (3 files)
+### Handler Changes
 
-| File | Changes | Lines | Complexity |
-|------|---------|-------|------------|
-| `crates/cb-handlers/src/utils/remote_exec.rs` | Add `user_id` parameter, pass to `workspace_manager.get()` | 25 | 🟢 Easy |
-| `crates/cb-handlers/src/handlers/file_operation_handler.rs` | Extract user_id from context, pass to `remote_exec::execute_in_workspace()` | 439 | 🟢 Easy |
-| `crates/cb-handlers/src/handlers/refactoring_handler.rs` | Extract user_id from context, pass to `remote_exec::execute_in_workspace()` | ~400 | 🟢 Easy |
+#### Remote Execution Utils (crates/cb-handlers/src/utils/remote_exec.rs)
 
-**Implementation:**
+**Changes:** Add `user_id` parameter
+**Lines affected:** 25
+**Complexity:** 🟢 Easy
+
 ```rust
-// remote_exec.rs
 pub async fn execute_in_workspace(
     workspace_manager: &WorkspaceManager,
     user_id: &str,  // NEW parameter
@@ -210,19 +215,51 @@ pub async fn execute_in_workspace(
 }
 ```
 
-### Test Changes (5 files)
+#### File Operation Handler (crates/cb-handlers/src/handlers/file_operation_handler.rs)
 
-| File | Changes | Lines | Complexity |
-|------|---------|-------|------------|
-| `crates/cb-server/src/test_helpers.rs` | Update helper to create JWTs with user_id | ~100 | 🟢 Easy |
-| `crates/cb-server/tests/common/mod.rs` | Update test setup with user_id | ~50 | 🟢 Easy |
-| `apps/codebuddy/tests/integration_services.rs` | Update test cases with user_id | ~200 | 🟡 Medium |
-| `apps/codebuddy/tests/mcp_handler_runners.rs` | Update test helpers with user_id | ~150 | 🟢 Easy |
-| **`crates/cb-core/tests/multitenancy_tests.rs`** | **NEW FILE** - User isolation tests | ~200 | 🟡 Medium |
+**Changes:** Extract user_id from context, pass to `remote_exec::execute_in_workspace()`
+**Lines affected:** 439
+**Complexity:** 🟢 Easy
 
-**New test file:**
+#### Refactoring Handler (crates/cb-handlers/src/handlers/refactoring_handler.rs)
+
+**Changes:** Extract user_id from context, pass to `remote_exec::execute_in_workspace()`
+**Lines affected:** ~400
+**Complexity:** 🟢 Easy
+
+### Test Changes
+
+#### Test Helpers (crates/cb-server/src/test_helpers.rs)
+
+**Changes:** Update helper to create JWTs with user_id
+**Lines affected:** ~100
+**Complexity:** 🟢 Easy
+
+#### Test Setup (crates/cb-server/tests/common/mod.rs)
+
+**Changes:** Update test setup with user_id
+**Lines affected:** ~50
+**Complexity:** 🟢 Easy
+
+#### Integration Tests (apps/codebuddy/tests/integration_services.rs)
+
+**Changes:** Update test cases with user_id
+**Lines affected:** ~200
+**Complexity:** 🟡 Medium
+
+#### MCP Handler Tests (apps/codebuddy/tests/mcp_handler_runners.rs)
+
+**Changes:** Update test helpers with user_id
+**Lines affected:** ~150
+**Complexity:** 🟢 Easy
+
+#### Multi-Tenancy Tests (crates/cb-core/tests/multitenancy_tests.rs)
+
+**NEW FILE** - User isolation tests
+**Lines:** ~200
+**Complexity:** 🟡 Medium
+
 ```rust
-// crates/cb-core/tests/multitenancy_tests.rs
 #[test]
 fn test_user_isolation() {
     let manager = WorkspaceManager::new();
@@ -263,30 +300,28 @@ fn test_same_workspace_id_different_users() {
 }
 ```
 
-### Documentation Changes (4 files)
+### Documentation Changes
 
-| File | Changes | Complexity |
-|------|---------|------------|
-| `API_REFERENCE.md` | Document JWT user_id requirement | 🟢 Easy |
-| `docs/architecture/ARCHITECTURE.md` | Document multi-tenancy design | 🟢 Easy |
-| `CHANGELOG.md` | Add breaking change notice | 🟢 Easy |
-| `20_BACKEND_MULTITENANCY_PROPOSAL.md` | Mark as implemented | 🟢 Easy |
+- **API_REFERENCE.md** - Document JWT user_id requirement (🟢 Easy)
+- **docs/architecture/ARCHITECTURE.md** - Document multi-tenancy design (🟢 Easy)
+- **CHANGELOG.md** - Add breaking change notice (🟢 Easy)
+- **20_BACKEND_MULTITENANCY_PROPOSAL.md** - Mark as implemented (🟢 Easy)
 
 ## Testing Strategy
 
-**Unit Tests:**
+### Unit Tests
 - User isolation in WorkspaceManager
 - JWT user_id extraction and validation
 - Same workspace ID for different users
 
-**Integration Tests:**
+### Integration Tests
 - Register workspace with JWT user_id
 - List workspaces scoped to user
 - Execute command in user's workspace
 - Reject access to other users' workspaces
 - Reject JWTs without user_id claim
 
-**Manual Testing:**
+### Manual Testing
 ```bash
 # 1. Generate tokens for two users
 curl -X POST http://localhost:3001/auth/generate-token \
@@ -316,11 +351,11 @@ curl http://localhost:3001/workspaces \
 # Should only return bob-workspace
 ```
 
-## Migration Path
+## Migration
 
 **Breaking Change:** All workspace operations now require JWT with user_id
 
-**Migration Steps:**
+**Steps:**
 1. Update JWT generation to include user_id claim
 2. Update all clients to include user_id in tokens
 3. Deploy new server version
@@ -331,36 +366,36 @@ curl http://localhost:3001/workspaces \
 
 ## Implementation Checklist
 
-**Core Implementation:**
+### Core Implementation
 - [ ] Update `WorkspaceManager` to use `(user_id, workspace_id)` composite key
 - [ ] Add `user_id` field to JWT `Claims` struct
 - [ ] Update `generate_token()` to accept user_id parameter
 
-**Endpoint Updates:**
+### Endpoint Updates
 - [ ] Add `extract_user_id_from_jwt()` helper function
 - [ ] Update `register_workspace()` endpoint to extract and use user_id
 - [ ] Update `list_workspaces()` endpoint to scope by user_id
 - [ ] Update `execute_command()` endpoint to scope by user_id
 
-**Handler Updates:**
+### Handler Updates
 - [ ] Update `remote_exec::execute_in_workspace()` with user_id parameter
 - [ ] Update `file_operation_handler.rs` to pass user_id
 - [ ] Update `refactoring_handler.rs` to pass user_id
 
-**Testing:**
+### Testing
 - [ ] Create `crates/cb-core/tests/multitenancy_tests.rs`
 - [ ] Add user isolation tests
 - [ ] Add same-workspace-id-different-users test
 - [ ] Update existing tests with user_id
 - [ ] Add integration tests for JWT validation
 
-**Documentation:**
+### Documentation
 - [ ] Update API_REFERENCE.md with user_id requirement
 - [ ] Update docs/architecture/ARCHITECTURE.md with multi-tenancy design
 - [ ] Add breaking change notice to CHANGELOG.md
 - [ ] Mark this proposal as implemented
 
-**Verification:**
+### Verification
 - [ ] `cargo test --workspace` passes
 - [ ] `cargo clippy --workspace` clean
 - [ ] Manual testing confirms user isolation

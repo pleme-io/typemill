@@ -1,9 +1,7 @@
-# Proposal: Add AST-Based Refactoring to Go, Java, Swift, and C#
+# Add AST-Based Refactoring to Go, Java, Swift, and C#
 
 **Date**: 2025-10-09
 **Status**: Draft
-**Priority**: Medium
-**Effort**: High (each language ~3-5 days)
 
 ---
 
@@ -64,11 +62,22 @@ We successfully wired up Python and Rust refactoring by:
 
 Add AST-based refactoring support to the 4 remaining languages following the proven pattern from Python, Rust, and TypeScript.
 
-### Phase 1: Go (Highest Priority)
+### Language Priority Order
+
+1. **Go** - Simplest, proves pattern works for new language
+2. **Java** - High demand, moderate complexity
+3. **Swift** - Growing demand, unique features
+4. **C#** - Most complex, but completes the set
+
+---
+
+## Implementation Details
+
+### Go Implementation
 
 **Rationale**: Go has excellent parsing libraries and simpler syntax than Java/C#/Swift.
 
-**Implementation Steps:**
+**Tasks:**
 
 1. **Create `crates/cb-lang-go/src/refactoring.rs`**
    - Use existing Go parser (likely `tree-sitter-go` or `go-parser` crate)
@@ -79,7 +88,6 @@ Add AST-based refactoring support to the 4 remaining languages following the pro
 
 2. **Add Go-specific types**:
    ```rust
-   // crates/cb-lang-go/src/refactoring.rs
    pub struct CodeRange {
        pub start_line: u32,
        pub start_col: u32,
@@ -123,10 +131,10 @@ Add AST-based refactoring support to the 4 remaining languages following the pro
    ```
 
 **Estimated Effort**: 3-4 days
-- Day 1: Research Go parsing libraries, design AST approach
-- Day 2: Implement extract_variable (simplest operation)
-- Day 3: Implement extract_function and inline_variable
-- Day 4: Testing, edge cases, documentation
+- Research Go parsing libraries, design AST approach
+- Implement extract_variable (simplest operation)
+- Implement extract_function and inline_variable
+- Testing, edge cases, documentation
 
 **Parsing Library Options**:
 - `tree-sitter-go` - Fast, battle-tested
@@ -135,7 +143,7 @@ Add AST-based refactoring support to the 4 remaining languages following the pro
 
 ---
 
-### Phase 2: Java (High Priority)
+### Java Implementation
 
 **Rationale**: Java is widely used in enterprise environments, high demand.
 
@@ -169,7 +177,7 @@ private int calculateSum() {
 
 ---
 
-### Phase 3: Swift (Medium Priority)
+### Swift Implementation
 
 **Rationale**: Growing iOS/macOS development community, unique syntax features.
 
@@ -202,7 +210,7 @@ func extractedFunction() -> String {
 
 ---
 
-### Phase 4: C# (Medium Priority)
+### C# Implementation
 
 **Rationale**: .NET ecosystem is large, especially in enterprise.
 
@@ -238,21 +246,7 @@ private List<User> ExtractedMethod()
 
 ---
 
-## Implementation Plan
-
-### Recommended Order
-
-1. **Go** (Week 1) - Simplest, proves pattern works for new language
-2. **Java** (Week 2) - High demand, moderate complexity
-3. **Swift** (Week 3) - Growing demand, unique features
-4. **C#** (Week 4) - Most complex, but completes the set
-
-### Parallel Work Possible
-
-- Go and Swift can be developed in parallel (different developers)
-- Java and C# should be sequential (similar enough to learn from each other)
-
-### Shared Infrastructure
+## Shared Infrastructure
 
 All languages will reuse:
 - ✅ `cb-protocol::EditPlan` - Already exists
@@ -370,7 +364,6 @@ mod tests {
 The test harness in `crates/cb-test-support/src/harness/refactoring_harness.rs` already supports all languages. Once you add AST support, update the expectations:
 
 ```rust
-// In refactoring_harness.rs
 pub fn extract_simple_expression() -> RefactoringScenario {
     RefactoringScenario {
         scenario_name: "extract_simple_expression",
@@ -520,55 +513,6 @@ Based on existing implementations:
 - Platform dependencies
 
 **Decision**: Rejected - In-process AST parsing is faster and more reliable
-
----
-
-## Next Steps
-
-### Immediate (This Week)
-
-1. **Approve proposal** - Get stakeholder buy-in
-2. **Prioritize Go** - Start with simplest language
-3. **Set up tree-sitter dependencies** - Add to Cargo.toml
-
-### Week 1: Go Implementation
-
-1. Create `crates/cb-lang-go/src/refactoring.rs`
-2. Implement extract_variable (simplest operation)
-3. Add routing and wrapper functions
-4. Write unit tests
-5. Verify integration tests pass
-
-### Week 2: Java Implementation
-
-1. Create `crates/cb-lang-java/src/refactoring.rs`
-2. Implement all 3 operations
-3. Add routing and wrapper functions
-4. Write unit tests
-5. Verify integration tests pass
-
-### Week 3: Swift Implementation
-
-1. Create `crates/cb-lang-swift/src/refactoring.rs`
-2. Implement all 3 operations
-3. Handle Swift-specific features (optionals)
-4. Write unit tests
-5. Verify integration tests pass
-
-### Week 4: C# Implementation
-
-1. Create `crates/cb-lang-csharp/src/refactoring.rs`
-2. Implement all 3 operations
-3. Handle C#-specific features (LINQ, async)
-4. Write unit tests
-5. Verify integration tests pass
-
-### Week 5: Finalization
-
-1. Update documentation (`API_REFERENCE.md`)
-2. Performance benchmarks
-3. Update test expectations
-4. Create release notes
 
 ---
 
@@ -729,5 +673,3 @@ Adding AST-based refactoring to Go, Java, Swift, and C# will:
 4. **Simplify maintenance** with consistent patterns
 
 The pattern is proven (Python and Rust work perfectly), the effort is manageable (16-20 days), and the benefits are significant.
-
-**Recommendation**: Approve and begin with Go implementation next week.

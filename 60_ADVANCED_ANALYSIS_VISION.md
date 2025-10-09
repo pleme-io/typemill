@@ -1,13 +1,13 @@
-# Proposal: Advanced Code Analysis Capabilities
+# Advanced Code Analysis Capabilities
 
 **Status**: Concept - Open for Discussion
 **Date**: 2025-10-02
 
-## 1. Vision
+## Vision
 
 Extend CodeBuddy beyond real-time code intelligence (LSP) into **batch whole-program analysis** - the kind of deep insights that require cross-file understanding and are too expensive for interactive tools.
 
-## 2. Why This Matters
+## Why This Matters
 
 **Current limitations of LSP/linters:**
 - Single-file context only
@@ -21,7 +21,7 @@ Extend CodeBuddy beyond real-time code intelligence (LSP) into **batch whole-pro
 - AST + semantic analysis combined
 - Architecture-level insights
 
-## 3. Proposed Analysis Capabilities
+## Proposed Analysis Capabilities
 
 ### High-Value, Proven Demand
 
@@ -74,46 +74,46 @@ Extend CodeBuddy beyond real-time code intelligence (LSP) into **batch whole-pro
 - McCabe complexity, nesting depth
 - Guide refactoring priorities
 
-## 4. Implementation Checklist
+## Implementation Components
 
-### Phase 1: Foundation (Existing)
+### Foundation (Existing)
 - [x] AST parsing (cb-ast)
 - [x] Multi-file traversal
 - [x] LSP integration for type info
 
-### Phase 2: Graph Construction
+### Graph Construction
 - [ ] Build dependency graph (imports, calls, data flow)
 - [ ] Persist graph for incremental updates
 - [ ] Cache expensive computations
 
-### Phase 3: Analysis Algorithms - High Value
+### Analysis Algorithms - High Value
 - [ ] Implement circular dependency detection
 - [ ] Implement dead code analysis (beyond functions)
 - [ ] Implement API breaking change impact analysis
 - [ ] Implement security vulnerability pattern detection
 
-### Phase 3b: Analysis Algorithms - Medium Value
+### Analysis Algorithms - Medium Value
 - [ ] Implement code duplication/clone detection
 - [ ] Implement architectural boundary violations
 - [ ] Implement error handling coverage
 
-### Phase 3c: Analysis Algorithms - Exploratory
+### Analysis Algorithms - Exploratory
 - [ ] Implement performance hotspot prediction
 - [ ] Implement data flow tracing
 - [ ] Implement code complexity heatmap
 
-### Phase 4: Delivery
+### Delivery
 - [ ] Create MCP tools (run from AI assistants)
 - [ ] Create CLI commands (`codebuddy analyze --dead-code`)
 - [ ] Add CI/CD integration (GitHub Actions, pre-commit hooks)
 
-### Phase 5: Business Model
+### Business Model
 - [ ] Validate demand via user interviews
 - [ ] Prototype circular deps + dead code analysis
 - [ ] Alpha test with early adopters
 - [ ] Finalize pricing model
 
-## 5. Business Model Fit
+## Business Model Fit
 
 **Why pay-per-request API works here:**
 - Analyses are **expensive** (whole-program, cross-file)
@@ -135,7 +135,7 @@ OR: $99/month unlimited for <100k LOC
 - Single-file analysis free (via MCP)
 - Upsell to unlimited for teams
 
-## 6. Differentiation
+## Differentiation
 
 **vs. SonarQube:** Deeper semantic analysis, AI-assisted fixes
 **vs. GitHub CodeQL:** Lighter weight, faster, no custom query language
@@ -143,14 +143,14 @@ OR: $99/month unlimited for <100k LOC
 
 **Unique advantage:** Already integrated with AI assistants via MCP - analyses can suggest fixes directly in conversation.
 
-## 7. Open Questions
+## Open Questions
 
 - Which analyses have most demand? (Start with user interviews)
 - Incremental analysis strategy? (Graph invalidation on file changes)
 - Language coverage priority? (TypeScript/Python first, or multi-language from start?)
 - Self-hosted vs. API-only? (Both, like current architecture)
 
-## 8. Next Steps
+## Next Steps
 
 1. **Validate demand** - Survey potential users (library maintainers, platform teams)
 2. **Prototype #1 & #2** - Circular deps + dead code (proven value, achievable)
