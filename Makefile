@@ -1,7 +1,7 @@
 # CodeBuddy Makefile
 # Simple build automation for common development tasks
 
-.PHONY: build release test test-fast test-full test-lsp install uninstall clean clean-cache first-time-setup install-lsp-servers validate-setup help clippy fmt audit check check-duplicates dev watch ci build-parsers check-parser-deps
+.PHONY: build release test test-fast test-full test-lsp install uninstall clean clean-cache first-time-setup install-lsp-servers dev-extras validate-setup help clippy fmt audit check check-duplicates dev watch ci build-parsers check-parser-deps
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -155,6 +155,37 @@ install-lsp-servers:
 	@echo "✅ LSP server installation complete!"
 	@echo ""
 	@echo "💡 Verify installation with: codebuddy status"
+
+# Install optional development tools (quality analysis and debugging)
+dev-extras:
+	@echo "🛠️  Installing optional development tools..."
+	@echo ""
+	@echo "📦 Code Quality & Analysis Tools:"
+	@if ! command -v cargo-binstall >/dev/null 2>&1; then \
+		echo "  ⚠️  cargo-binstall not found. Installing..."; \
+		curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash; \
+	fi
+	@cargo binstall --no-confirm cargo-deny cargo-bloat
+	@echo "  ✅ cargo-deny (dependency linting - licenses, security, bans)"
+	@echo "  ✅ cargo-bloat (binary size analysis)"
+	@echo ""
+	@echo "🐛 Advanced Debugging Tools:"
+	@cargo binstall --no-confirm cargo-expand cargo-flamegraph
+	@echo "  ✅ cargo-expand (macro expansion for debugging)"
+	@echo "  ✅ cargo-flamegraph (performance profiling)"
+	@if [ "$$(uname)" = "Linux" ] && ! command -v perf >/dev/null 2>&1; then \
+		echo ""; \
+		echo "  ⚠️  Note: cargo-flamegraph requires 'perf' on Linux"; \
+		echo "     Install with: sudo apt-get install linux-tools-generic linux-tools-common"; \
+	fi
+	@echo ""
+	@echo "✅ Optional tools installed!"
+	@echo ""
+	@echo "📖 Usage Examples:"
+	@echo "  cargo deny check                # Check dependencies for issues"
+	@echo "  cargo bloat --release           # Analyze binary size"
+	@echo "  cargo expand module::path       # Expand macros"
+	@echo "  cargo flamegraph --bin codebuddy # Generate performance flamegraph"
 
 # Code quality targets
 clippy:
@@ -347,6 +378,7 @@ help:
 	@echo "💻 Development:"
 	@echo "  make dev               - Build in watch mode (auto-rebuild on file changes)"
 	@echo "  make install-lsp-servers - Install LSP servers for testing"
+	@echo "  make dev-extras        - Install optional tools (cargo-deny, cargo-bloat, cargo-expand, cargo-flamegraph)"
 	@echo ""
 	@echo "✅ Testing (uses cargo-nextest):"
 	@echo "  make test              - Run fast tests (~10s, auto-installs cargo-nextest)"
