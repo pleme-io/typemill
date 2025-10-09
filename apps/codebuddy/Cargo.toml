@@ -36,6 +36,7 @@ test-support = { path = "../../crates/test-support" }
 integration-tests = { path = "../../integration-tests" }
 cb-server = { path = "../../crates/cb-server", features = ["test-helpers"] }
 cb-handlers = { path = "../../crates/cb-handlers" }
+cb-plugin-api = { workspace = true }
 tokio = { workspace = true }
 async-trait = { workspace = true }
 mockall = { workspace = true }
