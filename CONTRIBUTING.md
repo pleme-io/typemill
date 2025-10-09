@@ -59,11 +59,42 @@ For the best first-time setup experience, we recommend using the `Makefile` targ
 
 ## Running Tests
 
-We have a comprehensive test suite to ensure code quality and prevent regressions.
+This project uses [cargo-nextest](https://nexte.st/) for running tests. It's faster, provides better output, and has become the standard for modern Rust projects.
 
-To run all tests for the entire Rust workspace:
+### Installation
+
+If you ran `make setup`, `cargo-nextest` is already installed. If not, you can install it manually:
+
 ```bash
-cargo test --workspace
+cargo install cargo-nextest --locked
+```
+
+### Usage
+
+The easiest way to run tests is with the `Makefile`:
+
+```bash
+# Run fast tests (recommended for local development)
+make test
+
+# Run the full test suite, including skipped tests
+make test-full
+
+# Run tests that require LSP servers
+make test-lsp
+```
+
+You can also run `cargo-nextest` directly for more granular control:
+
+```bash
+# Run all workspace tests
+cargo nextest run --workspace
+
+# Run a specific test file
+cargo nextest run --test lsp_features
+
+# Run ignored/skipped tests
+cargo nextest run --status-level skip
 ```
 
 ## Code Style and Linting
@@ -100,9 +131,9 @@ We use the standard Rust formatting and linting tools to maintain a consistent c
     git commit -m "feat: Add new feature" -m "Detailed description of the changes."
     ```
 
-3.  **Ensure Tests Pass:** Run the full test suite one last time to make sure everything is working correctly.
+3.  **Ensure Tests Pass:** Run the tests one last time to make sure everything is working correctly.
     ```bash
-    cargo test --workspace
+    make test
     ```
 
 4.  **Push to Your Branch:**
@@ -416,7 +447,7 @@ With sccache and mold installed:
 | `cargo check` | ~30s | 2-5s |
 | `cargo build` | ~2m | 5-20s |
 | `cargo build --release` | ~3m | 30-60s |
-| `cargo test` | ~2.5m | 10-30s |
+| `cargo nextest run` (`make test`) | ~2m | 8-25s |
 
 **Note:** Times vary based on:
 - CPU cores (6+ cores recommended)

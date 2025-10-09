@@ -40,7 +40,7 @@ cargo build --features lang-kotlin
 # Edit: cb-lang-kotlin/src/manifest.rs
 
 # 4. Run tests
-cargo test -p cb-lang-kotlin
+cargo nextest run -p cb-lang-kotlin
 
 # 5. Validate configuration
 cd crates/languages
@@ -773,13 +773,13 @@ class MyClass:
 
 ```bash
 # Single plugin tests
-cargo test -p cb-lang-python
+cargo nextest run -p cb-lang-python
 
 # With output
-cargo test -p cb-lang-python -- --nocapture
+cargo nextest run -p cb-lang-python --no-capture
 
 # All language plugin tests
-cargo test --workspace --lib
+cargo nextest run --workspace --lib
 ```
 
 ---
@@ -1302,19 +1302,19 @@ fn write_temp_manifest(content: &str) -> PathBuf {
 
 ```bash
 # Run all plugin tests
-cargo test -p cb-lang-mylanguage
+cargo nextest run -p cb-lang-mylanguage
 
 # Run with output
-cargo test -p cb-lang-mylanguage -- --nocapture
+cargo nextest run -p cb-lang-mylanguage --no-capture
 
 # Run specific test
-cargo test -p cb-lang-mylanguage test_parse_function
+cargo nextest run -p cb-lang-mylanguage test_parse_function
 
 # Run all language plugin tests
-cargo test --workspace --lib
+cargo nextest run --workspace --lib
 
 # Run with verbose logging
-RUST_LOG=debug cargo test -p cb-lang-mylanguage
+RUST_LOG=debug cargo nextest run -p cb-lang-mylanguage
 ```
 
 ---
@@ -1359,7 +1359,7 @@ Use this checklist to ensure your plugin is complete:
   - [ ] Import parsing tests (10+)
   - [ ] Manifest parsing tests (5+)
   - [ ] Refactoring tests (5+)
-  - [ ] All tests pass: `cargo test -p cb-lang-{language}`
+  - [ ] All tests pass: `cargo nextest run -p cb-lang-{language}`
 
 - [ ] **Logging**
   - [ ] Uses structured logging (key-value format)

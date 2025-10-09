@@ -22,23 +22,20 @@ release:
 	@command -v sccache >/dev/null 2>&1 || { echo "⚠️  Warning: sccache not found. Run 'make setup' for faster builds."; echo ""; }
 	cargo build --release
 
-# Run all tests (legacy)
+# Run fast tests (uses cargo-nextest). This is the recommended command for local development.
 test:
-	@echo "Running legacy test command. For faster tests, use 'make test-fast' or 'make test-full'."
-	cargo test --workspace
-
-# New, faster test targets
-test-fast:
 	@command -v cargo-nextest >/dev/null 2>&1 || { echo "⚠️  cargo-nextest not found. Run 'make setup' first."; exit 1; }
 	cargo nextest run --workspace
 
+# Run the entire test suite, including ignored/skipped tests
 test-full:
 	@command -v cargo-nextest >/dev/null 2>&1 || { echo "⚠️  cargo-nextest not found. Run 'make setup' first."; exit 1; }
-	cargo nextest run --workspace --all-features -- --include-ignored
+	cargo nextest run --workspace --all-features --status-level skip
 
+# Run tests requiring LSP servers
 test-lsp:
 	@command -v cargo-nextest >/dev/null 2>&1 || { echo "⚠️  cargo-nextest not found. Run 'make setup' first."; exit 1; }
-	cargo nextest run --workspace --features lsp-tests -- --include-ignored
+	cargo nextest run --workspace --features lsp-tests --status-level skip
 
 # Install to ~/.local/bin (ensure it's in your PATH)
 install: release
@@ -109,7 +106,7 @@ audit:
 	@echo "🔒 Running security audit..."
 	cargo audit
 
-check: fmt clippy test-fast audit
+check: fmt clippy test audit
 
 check-duplicates:
 	@./scripts/check-duplicates.sh
@@ -202,11 +199,10 @@ help:
 	@echo "  make dev               - Build in watch mode (auto-rebuild on changes)"
 	@echo "  make setup             - Install build optimization tools (sccache, cargo-watch, cargo-nextest)"
 	@echo ""
-	@echo "✅ Testing:"
-	@echo "  make test-fast         - Run fast tests (~10s, recommended for local dev)"
+	@echo "✅ Testing (uses cargo-nextest):"
+	@echo "  make test              - Run fast tests (~10s, recommended for local dev)"
 	@echo "  make test-lsp          - Run tests requiring LSP servers (~60s)"
-	@echo "  make test-full         - Run the entire test suite (~80s)"
-	@echo "  make test              - Run all tests with default cargo test (legacy)"
+	@echo "  make test-full         - Run the entire test suite, including skipped tests (~80s)"
 	@echo ""
 	@echo "🧹 Cleanup:"
 	@echo "  make clean             - Remove build artifacts"
@@ -216,7 +212,7 @@ help:
 	@echo "  make clippy            - Run clippy linter"
 	@echo "  make fmt               - Check code formatting"
 	@echo "  make audit             - Run security audit (cargo-audit)"
-	@echo "  make check             - Run fmt + clippy + test-fast + audit"
+	@echo "  make check             - Run fmt + clippy + test + audit"
 	@echo "  make check-duplicates  - Detect duplicate code & complexity"
 	@echo "  make validate-setup    - Check if your dev environment is set up correctly"
 	@echo "  make ci                - Run all CI checks (for CI/CD)"

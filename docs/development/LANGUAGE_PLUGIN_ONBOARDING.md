@@ -101,7 +101,7 @@ cargo build --features lang-<language>
 
 **Test**:
 ```bash
-cargo test -p cb-lang-<language>
+cargo nextest run -p cb-lang-<language>
 ```
 **Checkpoint ✅**: Manifest parsing works.
 
@@ -121,7 +121,7 @@ cargo test -p cb-lang-<language>
 
 **Test**:
 ```bash
-cargo test -p cb-lang-<language>
+cargo nextest run -p cb-lang-<language>
 ```
 **Checkpoint ✅**: Source parsing works.
 
@@ -135,7 +135,7 @@ cargo test -p cb-lang-<language>
 
 **Test**:
 ```bash
-cargo test -p cb-lang-<language>
+cargo nextest run -p cb-lang-<language>
 cargo build --features lang-<language>
 ```
 **Checkpoint ✅**: Basic plugin works end-to-end.
@@ -177,7 +177,7 @@ Update these files:
    ```
 2. **Run All Tests**:
    ```bash
-   cargo test --workspace
+   cargo nextest run --workspace
    ```
 3. **Create Pull Request**:
    Use a descriptive title and fill out the PR template, detailing the features you've implemented, any external dependencies, and how you tested your work.

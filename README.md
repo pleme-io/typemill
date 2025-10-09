@@ -221,7 +221,7 @@ Want to contribute or modify Codebuddy? We'd love to have you! The codebase is p
 ```bash
 # Build and test
 cargo build --release
-cargo test
+cargo nextest run
 cargo clippy
 cargo fmt
 

@@ -171,10 +171,10 @@ cargo build --release
 cargo run
 
 # Run tests
-cargo test
+cargo nextest run
 
 # Run tests with output
-cargo test -- --nocapture
+cargo nextest run --no-capture
 
 # Run clippy for linting
 cargo clippy
@@ -201,17 +201,17 @@ The test suite is organized into categories for fast iteration:
 
 ```bash
 # Fast tests only (mock-based, ~10s)
-cargo test --workspace
-cargo nextest run --workspace  # Recommended (faster). To install: cargo install nextest
+# To install nextest: cargo install cargo-nextest --locked
+cargo nextest run --workspace
 
 # With LSP server tests (~60s, requires LSP servers installed)
-cargo test --workspace --features lsp-tests -- --include-ignored
+cargo nextest run --workspace --features lsp-tests --status-level skip
 
 # Full suite with heavy tests (~80s)
-cargo test --workspace --all-features -- --include-ignored
+cargo nextest run --workspace --all-features --status-level skip
 
 # Performance benchmarks
-cargo test --workspace --features heavy-tests
+cargo nextest run --workspace --features heavy-tests
 ```
 
 **Test Categories:**
@@ -380,7 +380,7 @@ The project uses Rust's built-in tooling for code quality:
 Run quality checks before committing:
 
 ```bash
-cargo fmt && cargo clippy && cargo test
+cargo fmt && cargo clippy && cargo nextest run
 
 # Or use Makefile targets
 make check                # Run fmt + clippy + test

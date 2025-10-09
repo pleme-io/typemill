@@ -66,13 +66,13 @@ All languages tested identically:
 
 ```bash
 # Run all cross-language refactoring tests
-cargo test -p integration-tests --test e2e_refactoring_cross_language
+cargo nextest run -p integration-tests --test e2e_refactoring_cross_language
 
 # Run specific scenario
-cargo test -p integration-tests --test e2e_refactoring_cross_language test_extract_simple_expression
+cargo nextest run -p integration-tests --test e2e_refactoring_cross_language test_extract_simple_expression
 
 # Run with output to see per-language results
-cargo test -p integration-tests --test e2e_refactoring_cross_language -- --nocapture
+cargo nextest run -p integration-tests --test e2e_refactoring_cross_language --no-capture
 ```
 
 ### Example Output
@@ -297,7 +297,7 @@ Language::YourNewLanguage => (
 ### Step 3: Run Tests
 
 ```bash
-cargo test -p integration-tests --test e2e_refactoring_cross_language -- --nocapture
+cargo nextest run -p integration-tests --test e2e_refactoring_cross_language --no-capture
 ```
 
 Your new language will automatically be tested in all scenarios!

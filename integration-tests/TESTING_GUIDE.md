@@ -73,10 +73,10 @@ pub const GO_TO_DEFINITION_TESTS: &[GoToDefinitionTestCase] = &[
 
 ```bash
 # Run mock tests (fast, no dependencies)
-cargo test --test lsp_features
+cargo nextest run --test lsp_features
 
 # Run with output to see all languages being tested
-cargo test --test lsp_features test_go_to_definition_mock -- --nocapture
+cargo nextest run --test lsp_features test_go_to_definition_mock --no-capture
 
 # Output:
 # Running mock go-to-definition test 1/3 for language: ts
@@ -174,7 +174,7 @@ async fn test_call_hierarchy_real() {
 ## Example: Current Test Coverage
 
 ```bash
-$ cargo test --test lsp_features -- --list
+$ cargo nextest run --test lsp_features -- --list
 
 test test_completion_mock
 test test_completion_real (ignored)
@@ -198,23 +198,23 @@ Each test runs for multiple languages automatically!
 
 ```bash
 # Run all mock tests (fast, no LSP servers needed)
-cargo test --test lsp_features
+cargo nextest run --test lsp_features
 
 # Run with verbose output to see language coverage
-cargo test --test lsp_features -- --nocapture
+cargo nextest run --test lsp_features --no-capture
 
 # Run a specific test
-cargo test --test lsp_features test_go_to_definition_mock
+cargo nextest run --test lsp_features test_go_to_definition_mock
 
 # Run real LSP tests (requires LSP servers installed)
-cargo test --features lsp-tests --test lsp_features -- --ignored --test-threads=1
+cargo nextest run --features lsp-tests --test lsp_features --status-level skip --test-threads=1
 ```
 
 ## Test Feature Flags
 
 The test suite uses Cargo feature flags to categorize tests, allowing you to run subsets of the test suite for faster iteration.
 
--   `fast-tests` (default): Runs mock-based unit and integration tests that do not require external dependencies like LSP servers. These are very fast and are run by default with `cargo test`.
+-   `fast-tests` (default): Runs mock-based unit and integration tests that do not require external dependencies like LSP servers. These are very fast and are run by default with `cargo nextest run`.
 -   `lsp-tests`: Enables tests that require real LSP servers to be installed and available in the environment. Use this to validate real-world integration.
 -   `e2e-tests`: End-to-end workflow tests that may be slower and require a more complete environment setup.
 -   `heavy-tests`: Includes performance benchmarks and property-based tests that are very slow and not typically run during development.
@@ -223,13 +223,13 @@ The test suite uses Cargo feature flags to categorize tests, allowing you to run
 
 ```bash
 # Run only the fast tests (default behavior)
-cargo test --workspace
+cargo nextest run --workspace
 
 # Run fast tests and the LSP integration tests
-cargo test --workspace --features lsp-tests
+cargo nextest run --workspace --features lsp-tests
 
 # Run the full test suite, including all categories
-cargo test --workspace --all-features -- --include-ignored
+cargo nextest run --workspace --all-features --status-level skip
 ```
 
 ## Testing Workflow Execution
@@ -277,13 +277,13 @@ async fn test_my_workflow() {
 
 ```bash
 # Run all workflow tests
-cargo test --test e2e_workflow_execution
+cargo nextest run --test e2e_workflow_execution
 
 # Run specific workflow test
-cargo test --test e2e_workflow_execution test_execute_simple_workflow
+cargo nextest run --test e2e_workflow_execution test_execute_simple_workflow
 
 # Run with output
-cargo test --test e2e_workflow_execution -- --nocapture
+cargo nextest run --test e2e_workflow_execution --no-capture
 ```
 
 ## Testing Code Analysis Tools
@@ -339,21 +339,21 @@ async fn test_analyze_project_complexity_typescript() {
 
 ```bash
 # Run all unit tests
-cargo test --lib
+cargo nextest run --lib
 
 # Run all integration tests
-cargo test --test '*'
+cargo nextest run --test '*'
 
 # Run specific test suite
-cargo test --test lsp_features
-cargo test --test e2e_analysis_features
-cargo test --test e2e_workflow_execution
+cargo nextest run --test lsp_features
+cargo nextest run --test e2e_analysis_features
+cargo nextest run --test e2e_workflow_execution
 
 # Run with verbose output
-cargo test -- --nocapture
+cargo nextest run --no-capture
 
 # Run ignored tests (real LSP servers)
-cargo test -- --ignored --test-threads=1
+cargo nextest run --status-level skip --test-threads=1
 ```
 
 ## Test Infrastructure: TestClient and Binaries
