@@ -1,34 +1,31 @@
-//! Cross-language refactoring tests
-//!
-//! This module contains parameterized tests that run the SAME logical refactoring
-//! operation across ALL supported programming languages (Python, TypeScript, Rust, Go).
-//!
-//! ## Design Philosophy
-//!
-//! Instead of duplicating test logic across language-specific test files, we use
-//! a single parameterized test that:
-//!
-//! 1. Defines language-equivalent code fixtures (same logic, different syntax)
-//! 2. Runs the same refactoring operation through each language plugin
-//! 3. Validates consistent behavior across all languages
-//! 4. Clearly marks unsupported language/operation combinations
-//!
-//! ## Benefits
-//!
-//! - **DRY**: One test covers all languages (no duplication)
-//! - **Consistency**: All languages tested identically
-//! - **Extensibility**: Easy to add new languages or operations
-//! - **Feature Matrix**: Clear visibility into which operations work per language
-//!
-//! ## Test Structure
-//!
-//! Each test uses the `RefactoringScenarios` harness to:
-//! - Get language-equivalent fixtures
-//! - Create test files with proper extensions
-//! - Execute refactoring via MCP tools
-//! - Validate results consistently across languages
-
-use test_support::harness::{
+// This module contains parameterized tests that run the SAME logical refactoring
+// operation across ALL supported programming languages (Python, TypeScript, Rust, Go).
+//
+// ## Design Philosophy
+//
+// Instead of duplicating test logic across language-specific test files, we use
+// a single parameterized test that:
+//
+// 1. Defines language-equivalent code fixtures (same logic, different syntax)
+// 2. Runs the same refactoring operation through each language plugin
+// 3. Validates consistent behavior across all languages
+// 4. Clearly marks unsupported language/operation combinations
+//
+// ## Benefits
+//
+// - **DRY**: One test covers all languages (no duplication)
+// - **Consistency**: All languages tested identically
+// - **Extensibility**: Easy to add new languages or operations
+// - **Feature Matrix**: Clear visibility into which operations work per language
+//
+// ## Test Structure
+//
+// Each test uses the `RefactoringScenarios` harness to:
+// - Get language-equivalent fixtures
+// - Create test files with proper extensions
+// - Execute refactoring via MCP tools
+// - Validate results consistently across languages
+use integration_tests::harness::{
     ExpectedBehavior, Language, RefactoringScenarios, TestClient, TestWorkspace,
 };
 
@@ -38,7 +35,7 @@ async fn run_single_language_test(
     client: &mut TestClient,
     language: Language,
     source_code: &str,
-    operation: &test_support::harness::RefactoringOperation,
+    operation: &integration_tests::harness::RefactoringOperation,
     expected: &ExpectedBehavior,
 ) -> bool {
     // Create test file with appropriate extension
@@ -70,7 +67,10 @@ async fn run_single_language_test(
                 // If there's an error, check if language doesn't support refactoring yet
                 if let Some(error) = response_value.get("error") {
                     if !language.supports_refactoring() {
-                        eprintln!("[{:?}] Refactoring not yet supported - skipping", language);
+                        eprintln!(
+                            "[{:?}] Refactoring not yet supported - skipping",
+                            language
+                        );
                         return false;
                     }
                     eprintln!("[{:?}] Error details: {:?}", language, error);
