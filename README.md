@@ -30,21 +30,17 @@ Supports TypeScript, Python, Go, Rust, Java—any language with an LSP server. B
 
 ## 🚀 Quick Start
 
-> **👨‍💻 Developer?** Building from source? See **[CONTRIBUTING.md](CONTRIBUTING.md)** for the complete developer setup guide.
+### For End Users
 
 Ready to get started? The setup is straightforward—just install, configure your language servers, and you're ready to go.
 
-**For end-users,** the easiest way to install is with the `install.sh` script:
+The easiest way to install is with the `install.sh` script:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/goobits/codebuddy/main/install.sh | bash
 ```
 
 Once installed, run the setup wizard:
 ```bash
-# Run the interactive setup wizard
-# It'll detect your project languages and help configure the right servers
-codebuddy setup
-
 # Run the interactive setup wizard
 # It'll detect your project languages and help configure the right servers
 codebuddy setup
@@ -57,6 +53,36 @@ codebuddy serve
 ```
 
 That's it! Your AI assistant now has deep code intelligence for your entire project.
+
+### For Developers (Building from Source)
+
+Building from source requires additional tools for external language parsers. Don't worry—the build will tell you what's missing!
+
+**Prerequisites:**
+- **Rust** (get from [rustup.rs](https://rustup.rs/))
+- **Java SDK + Maven** (for Java parser) - optional but recommended
+- **.NET SDK** (for C# parser) - optional but recommended
+- **Node.js** (for TypeScript parser) - optional but recommended
+
+> 💡 **Missing a tool?** The core Rust project builds fine without external parsers. Only install what you need for the languages you use.
+
+**Quick setup:**
+```bash
+# Clone the repository
+git clone https://github.com/goobits/codebuddy.git
+cd codebuddy
+
+# Check what you have installed
+make check-parser-deps
+
+# One-command setup (installs tools, builds parsers, runs tests)
+make first-time-setup
+
+# Or use VS Code Dev Container for zero-setup development
+# (Includes all tools pre-configured)
+```
+
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** for detailed development workflow, architecture, and how to add new MCP tools.
 
 ## 🛠️ Language Server Setup
 
