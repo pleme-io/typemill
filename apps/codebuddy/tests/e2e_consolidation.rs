@@ -16,7 +16,9 @@ async fn test_consolidate_rust_package_basic() {
     let workspace_path = workspace.path();
 
     // Copy the consolidation test fixture into the workspace
-    let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/consolidation-test");
+    // Fixture is in test-support crate, use workspace root to find it
+    let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../crates/test-support/fixtures/consolidation-test");
     copy_dir_recursive(&fixture_path, workspace_path).expect("Failed to copy test fixture");
 
     // Initialize MCP client
@@ -188,7 +190,9 @@ async fn test_consolidate_dry_run() {
     let workspace = TestWorkspace::new();
     let workspace_path = workspace.path();
 
-    let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/consolidation-test");
+    // Fixture is in test-support crate, use workspace root to find it
+    let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../crates/test-support/fixtures/consolidation-test");
     copy_dir_recursive(&fixture_path, workspace_path).expect("Failed to copy test fixture");
 
     let mut client = TestClient::new(workspace_path);
