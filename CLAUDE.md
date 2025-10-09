@@ -201,7 +201,7 @@ The test suite is organized into categories for fast iteration:
 
 ```bash
 # Fast tests only (mock-based, ~10s)
-# To install nextest: cargo install cargo-nextest --locked
+# Note: make test auto-installs cargo-nextest if needed
 cargo nextest run --workspace
 
 # With LSP server tests (~60s, requires LSP servers installed)

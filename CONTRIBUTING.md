@@ -20,14 +20,14 @@ Building the full project requires the following tools. You can verify them all 
 
 ### Setup Tools Explained
 
-We use a few different tools for setup. Here’s what each one is for:
+We use a few different tools for setup. Here's what each one is for:
 
 | Tool | Who is it for? | Purpose |
 |---|---|---|
 | `install.sh` | **End Users** | Automated installer. Builds from source and copies the `codebuddy` binary to your system. |
-| `make setup` | **Developers** | One-time installation of development tools like `sccache`, `cargo-nextest`, and `mold`. |
-| `make build-parsers` | **Developers** | Builds the external language parsers (Java, C#, TypeScript) that require their own toolchains. |
-| `make build` | **Developers** | Builds the core Rust project. |
+| `make first-time-setup` | **Developers** | **THE complete setup command**. Installs all dev tools (cargo-nextest, sccache, mold), builds parsers, builds project, installs LSP servers, validates everything (~3-5 min). |
+| `make build-parsers` | **Developers** | Builds only the external language parsers (Java, C#, TypeScript). Usually not needed directly—included in `first-time-setup`. |
+| `make build` | **Developers** | Builds the core Rust project only. |
 | `codebuddy setup` | **Both** | A runtime configuration wizard that helps you configure Language Server Protocol (LSP) servers for your projects. |
 
 ### Developer Setup Workflow
@@ -63,11 +63,7 @@ This project uses [cargo-nextest](https://nexte.st/) for running tests. It's fas
 
 ### Installation
 
-If you ran `make setup`, `cargo-nextest` is already installed. If not, you can install it manually:
-
-```bash
-cargo install cargo-nextest --locked
-```
+If you ran `make first-time-setup`, `cargo-nextest` is already installed. Otherwise, `make test` will auto-install it for you.
 
 ### Usage
 

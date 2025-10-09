@@ -239,7 +239,6 @@ cargo clippy
 cargo fmt
 
 # Or use the Makefile for convenience
-make setup       # Install dev tools (one-time)
 make build       # Build debug version
 make test        # Run tests
 make check       # Run fmt + clippy + test
