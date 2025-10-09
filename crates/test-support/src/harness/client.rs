@@ -17,12 +17,32 @@ pub struct TestClient {
 }
 
 impl TestClient {
-    /// Spawns cb-server in stdio mode with the given working directory.
+    /// Spawns codebuddy server in stdio mode with the given working directory.
     pub fn new(working_dir: &Path) -> Self {
-        // Determine the path to the cb-server binary relative to the workspace root
+        // Determine the path to the codebuddy binary relative to the workspace root
+        // The manifest dir could be from various crates (test-support, codebuddy, integration-tests)
+        // We need to find the workspace root and then locate target/debug/codebuddy
         let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
             .expect("CARGO_MANIFEST_DIR not set. Please run tests with `cargo test`.");
-        let server_path = std::path::Path::new(&manifest_dir).join("../target/debug/cb-server");
+
+        let manifest_path = std::path::Path::new(&manifest_dir);
+
+        // Try to find workspace root by looking for Cargo.toml with [workspace]
+        let mut workspace_root = manifest_path;
+        while let Some(parent) = workspace_root.parent() {
+            let cargo_toml = parent.join("Cargo.toml");
+            if cargo_toml.exists() {
+                if let Ok(contents) = std::fs::read_to_string(&cargo_toml) {
+                    if contents.contains("[workspace]") {
+                        workspace_root = parent;
+                        break;
+                    }
+                }
+            }
+            workspace_root = parent;
+        }
+
+        let server_path = workspace_root.join("target/debug/codebuddy");
 
         eprintln!(
             "DEBUG: TestClient using server path: {}",
@@ -45,7 +65,7 @@ impl TestClient {
                 .to_lowercase()
                 .contains("debug")
             {
-                eprintln!("DEBUG: Expanded PATH for cb-server (shellexpand)");
+                eprintln!("DEBUG: Expanded PATH for codebuddy server (shellexpand)");
                 eprintln!("DEBUG:   Original: {}", path);
                 eprintln!("DEBUG:   Expanded: {}", result);
             }
@@ -54,7 +74,7 @@ impl TestClient {
             std::env::var("PATH").unwrap_or_default()
         };
 
-        let mut process = Command::new(server_path)
+        let mut process = Command::new(&server_path)
             .arg("start")
             .current_dir(working_dir)
             .env("PATH", expanded_path)
@@ -62,7 +82,13 @@ impl TestClient {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .expect("Failed to start cb-server binary");
+            .unwrap_or_else(|e| {
+                panic!(
+                    "Failed to start codebuddy binary at {:?}: {}. \n\
+                     Make sure to build the binary first with: cargo build",
+                    server_path, e
+                )
+            });
 
         let stdin = process.stdin.take().unwrap();
         let stdout = process.stdout.take().unwrap();
