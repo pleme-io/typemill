@@ -2,10 +2,10 @@
 
 **Purpose:** Fast lookup table for all Codebuddy MCP tools
 **Format:** Tool name → Parameters → Returns (no examples or details)
-**For detailed documentation:** See [API_REFERENCE.md](API_REFERENCE.md)
+**For detailed documentation:** See [API_REFERENCE.md](../API_REFERENCE.md)
 
-**Version:** 1.0.0-rc3
-**Last Updated:** 2025-10-08
+**Version:** 1.0.0-rc4
+**Last Updated:** 2025-10-09
 
 ---
 
@@ -23,7 +23,7 @@
 ---
 
 **Tools:** 44 public MCP tools
-**Internal tools:** 5 backend-only tools (see [API_REFERENCE.md Internal Tools](API_REFERENCE.md#internal-tools))
+**Internal tools:** 5 backend-only tools (see [API_REFERENCE.md Internal Tools](../API_REFERENCE.md#internal-tools))
 
 ---
 
@@ -135,10 +135,16 @@
 LSP-based tools depend on configured language servers. Native tools (file ops, AST-based) support:
 - TypeScript/JavaScript (SWC parser)
 - Python (native AST)
-- Go (go/parser)
+- Go (tree-sitter-go)
 - Rust (syn crate)
-- Java (tree-sitter)
+- Java (tree-sitter-java)
+- Swift (tree-sitter-swift)
+- C# (tree-sitter-c-sharp)
+
+**AST Refactoring Support:**
+- ✅ Full: TypeScript/JavaScript, Python, Rust, Go, Java, Swift
+- ⚠️ Partial: C# (extract_function works, extract/inline_variable have bugs)
 
 ---
 
-**For detailed parameters, return types, examples, and error handling, see [API_REFERENCE.md](API_REFERENCE.md)**
+**For detailed parameters, return types, examples, and error handling, see [API_REFERENCE.md](../API_REFERENCE.md)**

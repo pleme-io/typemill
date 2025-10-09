@@ -196,7 +196,7 @@ See [`docs/deployment/DOCKER_DEPLOYMENT.md`](docs/deployment/DOCKER_DEPLOYMENT.m
 
 ## 📖 Documentation
 - **[API_REFERENCE.md](API_REFERENCE.md)** - Complete MCP tools API reference
-- **[TOOLS_QUICK_REFERENCE.md](TOOLS_QUICK_REFERENCE.md)** - Quick tool lookup table
+- **[docs/TOOLS_QUICK_REFERENCE.md](docs/TOOLS_QUICK_REFERENCE.md)** - Quick tool lookup table
 - **[docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)** - System architecture
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** - Development guide
 
