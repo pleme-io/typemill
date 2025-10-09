@@ -5,11 +5,19 @@ set -e
 echo "🚀 Setting up Codebuddy development environment..."
 echo ""
 
-# Install cargo-nextest, sccache, and other dev tools
-echo "📦 Installing Rust development tools..."
-cargo install cargo-nextest --locked 2>/dev/null || echo "✓ cargo-nextest already installed"
-cargo install sccache --locked 2>/dev/null || echo "✓ sccache already installed"
-cargo install cargo-watch --locked 2>/dev/null || echo "✓ cargo-watch already installed"
+# Install cargo-binstall for fast binary downloads
+echo "📦 Installing Rust development tools (via cargo-binstall for speed)..."
+if ! command -v cargo-binstall &> /dev/null; then
+    echo "  → Installing cargo-binstall..."
+    curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+else
+    echo "  ✓ cargo-binstall already installed"
+fi
+
+# Install dev tools via binstall (downloads pre-built binaries, much faster)
+echo "  → Installing cargo tools (pre-built binaries)..."
+cargo binstall --no-confirm cargo-nextest sccache cargo-watch 2>/dev/null
+echo "  ✓ Rust dev tools installed"
 
 # Install language servers for testing
 echo ""

@@ -24,7 +24,15 @@ release:
 
 # Run fast tests (uses cargo-nextest). This is the recommended command for local development.
 test:
-	@command -v cargo-nextest >/dev/null 2>&1 || { echo "⚠️  cargo-nextest not found. Run 'make setup' first."; exit 1; }
+	@if ! command -v cargo-nextest >/dev/null 2>&1; then \
+		echo "⚠️  cargo-nextest not found. Installing now..."; \
+		if command -v cargo-binstall >/dev/null 2>&1; then \
+			cargo binstall --no-confirm cargo-nextest; \
+		else \
+			cargo install cargo-nextest --locked; \
+		fi; \
+		echo "✅ cargo-nextest installed"; \
+	fi
 	cargo nextest run --workspace
 
 # Run the entire test suite, including ignored/skipped tests
@@ -86,14 +94,123 @@ clean-cache:
 	cargo clean
 	@echo "💡 Tip: Install cargo-sweep for smarter cleanup: cargo install cargo-sweep"
 
-# One-time developer setup (installs sccache, cargo-watch, and cargo-nextest)
+# Quick setup - installs only essential tools (~30 seconds with binstall)
 setup:
-	@echo "📦 Installing build optimization tools..."
-	@cargo install sccache 2>/dev/null || echo "✓ sccache already installed"
-	@cargo install cargo-watch 2>/dev/null || echo "✓ cargo-watch already installed"
-	@cargo install cargo-nextest 2>/dev/null || echo "✓ cargo-nextest already installed"
-	@./scripts/setup-dev-tools.sh
-	@echo "✅ Setup complete!"
+	@echo "📦 Installing essential build tools (fast setup)..."
+	@echo ""
+	@# Install cargo-binstall if not present (downloads pre-built binaries)
+	@if ! command -v cargo-binstall >/dev/null 2>&1; then \
+		echo "  → Installing cargo-binstall (enables fast binary downloads)..."; \
+		curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash; \
+		echo "  ✅ cargo-binstall installed"; \
+	else \
+		echo "  ✅ cargo-binstall already installed"; \
+	fi
+	@echo ""
+	@# Install essential tools via binstall (pre-built binaries, super fast)
+	@echo "  → Installing cargo-nextest (test runner)..."
+	@cargo binstall --no-confirm cargo-nextest 2>/dev/null || cargo install cargo-nextest --locked
+	@echo "  ✅ cargo-nextest installed"
+	@echo ""
+	@echo "✅ Essential setup complete! (~30 seconds)"
+	@echo ""
+	@echo "💡 Optional enhancements:"
+	@echo "  make setup-full         - Install all dev tools (sccache, cargo-watch, etc.)"
+	@echo "  make install-lsp-servers - Install LSP servers for testing"
+
+# Full developer setup - installs all optimization tools (~2-3 minutes with binstall)
+setup-full:
+	@echo "📦 Installing full development environment..."
+	@echo "   This includes sccache, mold, cargo-watch, and more (~2-3 min)"
+	@echo ""
+	@# Ensure binstall is available
+	@if ! command -v cargo-binstall >/dev/null 2>&1; then \
+		echo "  → Installing cargo-binstall first..."; \
+		curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash; \
+	fi
+	@echo ""
+	@echo "  → Installing cargo tools via binstall (pre-built binaries)..."
+	@cargo binstall --no-confirm cargo-nextest sccache cargo-watch cargo-audit cargo-edit
+	@echo ""
+	@# Install mold linker (system package, requires sudo)
+	@echo "  → Installing mold linker (fast linking)..."
+	@if command -v mold >/dev/null 2>&1; then \
+		echo "  ✅ mold already installed"; \
+	elif command -v brew >/dev/null 2>&1; then \
+		brew install mold && echo "  ✅ mold installed via Homebrew"; \
+	elif command -v apt-get >/dev/null 2>&1; then \
+		sudo apt-get update -qq && sudo apt-get install -y mold clang && echo "  ✅ mold installed via apt"; \
+	elif command -v dnf >/dev/null 2>&1; then \
+		sudo dnf install -y mold clang && echo "  ✅ mold installed via dnf"; \
+	elif command -v pacman >/dev/null 2>&1; then \
+		sudo pacman -S --needed --noconfirm mold clang && echo "  ✅ mold installed via pacman"; \
+	else \
+		echo "  ⚠️  No package manager found, skipping mold"; \
+		echo "     Install manually: https://github.com/rui314/mold#installation"; \
+	fi
+	@echo ""
+	@echo "✅ Full setup complete!"
+	@echo ""
+	@echo "💡 Next: Run 'make install-lsp-servers' for LSP testing support"
+
+# Install LSP servers for testing (TypeScript, Python, Go, Rust)
+install-lsp-servers:
+	@echo "🌐 Installing LSP servers for testing..."
+	@echo ""
+	@# TypeScript/JavaScript
+	@if command -v npm >/dev/null 2>&1; then \
+		if command -v typescript-language-server >/dev/null 2>&1; then \
+			echo "  ✅ typescript-language-server already installed"; \
+		else \
+			echo "  → Installing typescript-language-server..."; \
+			npm install -g typescript-language-server typescript && echo "  ✅ typescript-language-server installed" || echo "  ⚠️  Failed to install typescript-language-server"; \
+		fi; \
+	else \
+		echo "  ⚠️  npm not found, skipping TypeScript LSP server"; \
+		echo "     Install Node.js from: https://nodejs.org/"; \
+	fi
+	@echo ""
+	@# Python
+	@if command -v pip >/dev/null 2>&1 || command -v pip3 >/dev/null 2>&1; then \
+		if command -v pylsp >/dev/null 2>&1; then \
+			echo "  ✅ pylsp already installed"; \
+		else \
+			echo "  → Installing python-lsp-server..."; \
+			(pip install --user "python-lsp-server[all]" || pip3 install --user "python-lsp-server[all]") && echo "  ✅ pylsp installed" || echo "  ⚠️  Failed to install pylsp"; \
+		fi; \
+	else \
+		echo "  ⚠️  pip not found, skipping Python LSP server"; \
+		echo "     Install Python from: https://www.python.org/"; \
+	fi
+	@echo ""
+	@# Go
+	@if command -v go >/dev/null 2>&1; then \
+		if command -v gopls >/dev/null 2>&1; then \
+			echo "  ✅ gopls already installed"; \
+		else \
+			echo "  → Installing gopls..."; \
+			go install golang.org/x/tools/gopls@latest && echo "  ✅ gopls installed" || echo "  ⚠️  Failed to install gopls"; \
+		fi; \
+	else \
+		echo "  ⚠️  go not found, skipping Go LSP server"; \
+		echo "     Install Go from: https://go.dev/"; \
+	fi
+	@echo ""
+	@# Rust
+	@if command -v rustup >/dev/null 2>&1; then \
+		if command -v rust-analyzer >/dev/null 2>&1; then \
+			echo "  ✅ rust-analyzer already installed"; \
+		else \
+			echo "  → Installing rust-analyzer..."; \
+			rustup component add rust-analyzer && echo "  ✅ rust-analyzer installed" || echo "  ⚠️  Failed to install rust-analyzer"; \
+		fi; \
+	else \
+		echo "  ⚠️  rustup not found, skipping Rust LSP server"; \
+	fi
+	@echo ""
+	@echo "✅ LSP server installation complete!"
+	@echo ""
+	@echo "💡 Verify installation with: codebuddy status"
 
 # Code quality targets
 clippy:
@@ -208,13 +325,19 @@ validate-setup:
 	@command -v cargo >/dev/null 2>&1 && echo "  ✅ cargo" || echo "  ❌ cargo not found"
 	@command -v rustc >/dev/null 2>&1 && echo "  ✅ rustc" || echo "  ❌ rustc not found"
 	@command -v cargo-nextest >/dev/null 2>&1 && echo "  ✅ cargo-nextest" || echo "  ⚠️  cargo-nextest not installed (run: make setup)"
-	@command -v sccache >/dev/null 2>&1 && echo "  ✅ sccache" || echo "  ⚠️  sccache not installed (run: make setup)"
+	@command -v sccache >/dev/null 2>&1 && echo "  ✅ sccache" || echo "  ⚠️  sccache not installed (run: make setup-full)"
 	@echo ""
 	@echo "Checking parser build dependencies:"
 	@command -v mvn >/dev/null 2>&1 && echo "  ✅ Maven" || echo "  ⚠️  Maven not found (Java parser won't build)"
 	@command -v java >/dev/null 2>&1 && echo "  ✅ Java" || echo "  ⚠️  Java not found (Java parser won't build)"
 	@command -v dotnet >/dev/null 2>&1 && echo "  ✅ .NET SDK" || echo "  ⚠️  .NET SDK not found (C# parser won't build)"
 	@command -v node >/dev/null 2>&1 && echo "  ✅ Node.js" || echo "  ⚠️  Node.js not found (TypeScript parser won't build)"
+	@echo ""
+	@echo "Checking LSP servers (for testing):"
+	@command -v typescript-language-server >/dev/null 2>&1 && echo "  ✅ typescript-language-server" || echo "  ⚠️  typescript-language-server not installed (run: make install-lsp-servers)"
+	@command -v pylsp >/dev/null 2>&1 && echo "  ✅ pylsp" || echo "  ⚠️  pylsp not installed (run: make install-lsp-servers)"
+	@command -v gopls >/dev/null 2>&1 && echo "  ✅ gopls" || echo "  ⚠️  gopls not installed (run: make install-lsp-servers)"
+	@command -v rust-analyzer >/dev/null 2>&1 && echo "  ✅ rust-analyzer" || echo "  ⚠️  rust-analyzer not installed (run: make install-lsp-servers)"
 	@echo ""
 	@echo "Checking build artifacts:"
 	@if [ -f "target/debug/codebuddy" ]; then \
@@ -232,6 +355,7 @@ validate-setup:
 	@if [ -f "target/debug/codebuddy" ] && command -v cargo-nextest >/dev/null 2>&1; then \
 		echo "✅ Development environment is ready!"; \
 		echo "   Run 'make test' to verify everything works."; \
+		echo "   LSP tests require: make install-lsp-servers"; \
 	else \
 		echo "⚠️  Development environment has issues (see above)."; \
 		echo "   Run 'make first-time-setup' to fix automatically."; \
@@ -253,10 +377,12 @@ help:
 	@echo ""
 	@echo "💻 Development:"
 	@echo "  make dev               - Build in watch mode (auto-rebuild on changes)"
-	@echo "  make setup             - Install build optimization tools (sccache, cargo-watch, cargo-nextest)"
+	@echo "  make setup             - Quick setup: cargo-nextest only (~30s)"
+	@echo "  make setup-full        - Full setup: sccache, mold, cargo-watch, etc. (~2-3min)"
+	@echo "  make install-lsp-servers - Install LSP servers for testing"
 	@echo ""
 	@echo "✅ Testing (uses cargo-nextest):"
-	@echo "  make test              - Run fast tests (~10s, recommended for local dev)"
+	@echo "  make test              - Run fast tests (~10s, auto-installs cargo-nextest)"
 	@echo "  make test-lsp          - Run tests requiring LSP servers (~60s)"
 	@echo "  make test-full         - Run the entire test suite, including skipped tests (~80s)"
 	@echo ""
