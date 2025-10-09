@@ -1,48 +1,61 @@
 # Contributing to Codebuddy
 
+> **📌 New to the project?** This guide is for developers building from source.
+> End users: see [README.md](README.md) for installation instructions.
+
 First off, thank you for considering contributing! It's people like you that make Codebuddy such a great tool.
 
 ## Getting Started
 
 ### Prerequisites
 
-- **Rust Toolchain:** This project is built with Rust. If you don't have it installed, you can get it from [rustup.rs](https://rustup.rs/).
+Building the full project requires the following tools. You can verify them all at once by running `make check-parser-deps`.
 
-### Setup
+- **Rust Toolchain:** Get it from [rustup.rs](https://rustup.rs/).
+- **Java SDK & Maven:** Required to build the Java parser.
+- **.NET SDK:** Required to build the C# parser.
+- **Node.js & npm:** Required to build the TypeScript parser.
+- **Git:** For cloning the repository.
+- **(Optional) SourceKitten:** For Swift language support.
 
-1.  **Quick start with install script:**
-    ```bash
-    # Automated installation (installs Rust if needed)
-    curl -fsSL https://raw.githubusercontent.com/goobits/codebuddy/main/install.sh | bash
-    ```
+### Setup Tools Explained
 
-2.  **Or clone the repository manually:**
+We use a few different tools for setup. Here’s what each one is for:
+
+| Tool | Who is it for? | Purpose |
+|---|---|---|
+| `install.sh` | **End Users** | Automated installer. Builds from source and copies the `codebuddy` binary to your system. |
+| `make setup` | **Developers** | One-time installation of development tools like `sccache`, `cargo-nextest`, and `mold`. |
+| `make build-parsers` | **Developers** | Builds the external language parsers (Java, C#, TypeScript) that require their own toolchains. |
+| `make build` | **Developers** | Builds the core Rust project. |
+| `codebuddy setup` | **Both** | A runtime configuration wizard that helps you configure Language Server Protocol (LSP) servers for your projects. |
+
+### Developer Setup Workflow
+
+For the best first-time setup experience, we recommend using the `Makefile` targets.
+
+1.  **Clone the repository:**
     ```bash
     git clone https://github.com/goobits/codebuddy.git
     cd codebuddy
     ```
 
-3.  **Install build optimization tools (HIGHLY RECOMMENDED):**
+2.  **Run the first-time setup command:**
     ```bash
-    ./scripts/setup-dev-tools.sh
+    make first-time-setup
     ```
-    This installs `sccache` (compilation cache) and `mold` (fast linker), which can speed up builds by 2-10x.
+    This single command will:
+    a. Check that you have all the necessary prerequisites.
+    b. Install recommended development tools (`sccache`, `mold`).
+    c. Build all the external language parsers.
+    d. Build the main Rust project.
 
-    **Expected improvements:**
-    - Incremental builds: 2-5x faster
-    - Link times: 3-10x faster
-    - Clean builds: Cached across git branches
-
-    The tools are automatically configured in `.cargo/config.toml`.
-
-4.  **Build the project:**
+3.  **Configure Language Servers:**
     ```bash
-    cargo build
+    # Run the interactive setup wizard
+    codebuddy setup
     ```
-    This will download all dependencies and compile the Rust crates.
-
-    **First build:** ~2 minutes (one-time dependency compilation)
-    **Incremental builds:** 5-20 seconds with sccache/mold
+    This will detect your project languages and help you set up the necessary LSP servers.
 
 ## Running Tests
 

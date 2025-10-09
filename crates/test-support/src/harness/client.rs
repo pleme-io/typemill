@@ -19,29 +19,11 @@ pub struct TestClient {
 impl TestClient {
     /// Spawns codebuddy server in stdio mode with the given working directory.
     pub fn new(working_dir: &Path) -> Self {
-        // Determine the path to the codebuddy binary relative to the workspace root
-        // The manifest dir could be from various crates (test-support, codebuddy, integration-tests)
-        // We need to find the workspace root and then locate target/debug/codebuddy
+        // Determine the path to the codebuddy binary by finding the workspace root
         let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
             .expect("CARGO_MANIFEST_DIR not set. Please run tests with `cargo test`.");
-
-        let manifest_path = std::path::Path::new(&manifest_dir);
-
-        // Try to find workspace root by looking for Cargo.toml with [workspace]
-        let mut workspace_root = manifest_path;
-        while let Some(parent) = workspace_root.parent() {
-            let cargo_toml = parent.join("Cargo.toml");
-            if cargo_toml.exists() {
-                if let Ok(contents) = std::fs::read_to_string(&cargo_toml) {
-                    if contents.contains("[workspace]") {
-                        workspace_root = parent;
-                        break;
-                    }
-                }
-            }
-            workspace_root = parent;
-        }
-
+        let workspace_root = find_workspace_root(&manifest_dir)
+            .expect("Failed to find workspace root. Ensure tests are run within a Cargo workspace.");
         let server_path = workspace_root.join("target/debug/codebuddy");
 
         eprintln!(
@@ -571,5 +553,23 @@ impl Drop for TestClient {
     fn drop(&mut self) {
         let _ = self.process.kill();
         let _ = self.process.wait();
+    }
+}
+
+/// Finds the workspace root by traversing up from a starting directory.
+fn find_workspace_root(start_dir: &str) -> Option<std::path::PathBuf> {
+    let mut current_dir = std::path::PathBuf::from(start_dir);
+    loop {
+        let cargo_toml_path = current_dir.join("Cargo.toml");
+        if cargo_toml_path.exists() {
+            if let Ok(content) = std::fs::read_to_string(&cargo_toml_path) {
+                if content.contains("[workspace]") {
+                    return Some(current_dir);
+                }
+            }
+        }
+        if !current_dir.pop() {
+            return None;
+        }
     }
 }

@@ -30,14 +30,20 @@ Supports TypeScript, Python, Go, Rust, Java—any language with an LSP server. B
 
 ## 🚀 Quick Start
 
+> **👨‍💻 Developer?** Building from source? See **[CONTRIBUTING.md](CONTRIBUTING.md)** for the complete developer setup guide.
+
 Ready to get started? The setup is straightforward—just install, configure your language servers, and you're ready to go.
 
+**For end-users,** the easiest way to install is with the `install.sh` script:
 ```bash
-# Install from source
-git clone https://github.com/goobits/codebuddy.git
-cd codebuddy
-cargo build --release
-sudo cp target/release/codebuddy /usr/local/bin/
+curl -fsSL https://raw.githubusercontent.com/goobits/codebuddy/main/install.sh | bash
+```
+
+Once installed, run the setup wizard:
+```bash
+# Run the interactive setup wizard
+# It'll detect your project languages and help configure the right servers
+codebuddy setup
 
 # Run the interactive setup wizard
 # It'll detect your project languages and help configure the right servers

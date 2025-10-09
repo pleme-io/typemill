@@ -160,45 +160,65 @@ check-parser-deps:
 	@command -v sourcekitten >/dev/null 2>&1 && echo "  ✅ SourceKitten (Swift parser - optional)" || echo "  ⚠️  SourceKitten not found (optional for Swift)"
 	@echo "✅ Dependency check complete."
 
+# First-time developer setup workflow
+first-time-setup:
+	@echo "=== 🚀 First-Time Developer Setup ==="
+	@make check-parser-deps
+	@make setup
+	@make build-parsers
+	@make build
+	@echo "✅ Setup complete! Next steps:"
+	@echo "  1. Run 'codebuddy setup' to configure language servers."
+	@echo "  2. Run 'make validate-setup' to verify your environment."
+
+# Validate that the development environment is correctly configured
+validate-setup:
+	@echo "🕵️  Validating setup..."
+	@make check-parser-deps
+	@if [ -f "target/debug/codebuddy" ]; then \
+		echo "  ✅ Main binary found."; \
+	else \
+		echo "  ❌ Main binary not found. Please run 'make build'."; \
+	fi
+	@echo "✅ Validation complete."
+
 # Show available commands
 help:
 	@echo "CodeBuddy - Available Commands"
 	@echo "================================"
 	@echo ""
-	@echo "🔨 Build & Install:"
-	@echo "  make build    - Build debug version"
-	@echo "  make release  - Build optimized release version"
-	@echo "  make install  - Install to ~/.local/bin (auto-configures PATH)"
-	@echo "  make uninstall- Remove installed binary"
+	@echo "🚀 First-Time Setup:"
+	@echo "  make first-time-setup  - Run this once to set up your entire development environment."
 	@echo ""
-	@echo "🚀 Development:"
-	@echo "  make dev      - Build in watch mode (auto-rebuild on changes)"
-	@echo "  make setup    - Install build optimization tools (sccache, cargo-watch, cargo-nextest)"
+	@echo "🔨 Build & Install:"
+	@echo "  make build             - Build debug version"
+	@echo "  make release           - Build optimized release version"
+	@echo "  make install           - Install to ~/.local/bin (auto-configures PATH)"
+	@echo "  make uninstall         - Remove installed binary"
+	@echo ""
+	@echo "💻 Development:"
+	@echo "  make dev               - Build in watch mode (auto-rebuild on changes)"
+	@echo "  make setup             - Install build optimization tools (sccache, cargo-watch, cargo-nextest)"
 	@echo ""
 	@echo "✅ Testing:"
-	@echo "  make test-fast  - Run fast tests (~10s, recommended for local dev)"
-	@echo "  make test-lsp   - Run tests requiring LSP servers (~60s)"
-	@echo "  make test-full  - Run the entire test suite (~80s)"
-	@echo "  make test       - Run all tests with default cargo test (legacy)"
+	@echo "  make test-fast         - Run fast tests (~10s, recommended for local dev)"
+	@echo "  make test-lsp          - Run tests requiring LSP servers (~60s)"
+	@echo "  make test-full         - Run the entire test suite (~80s)"
+	@echo "  make test              - Run all tests with default cargo test (legacy)"
 	@echo ""
 	@echo "🧹 Cleanup:"
-	@echo "  make clean      - Remove build artifacts"
-	@echo "  make clean-cache- Remove all build artifacts (frees ~30-40GB)"
+	@echo "  make clean             - Remove build artifacts"
+	@echo "  make clean-cache       - Remove all build artifacts (frees ~30-40GB)"
 	@echo ""
-	@echo "🔍 Code Quality:"
-	@echo "  make clippy   - Run clippy linter"
-	@echo "  make fmt      - Check code formatting"
-	@echo "  make audit    - Run security audit (cargo-audit)"
-	@echo "  make check    - Run fmt + clippy + test-fast + audit"
-	@echo "  make check-duplicates - Detect duplicate code & complexity"
-	@echo "  make ci       - Run all CI checks (for CI/CD)"
+	@echo "🔍 Code Quality & Validation:"
+	@echo "  make clippy            - Run clippy linter"
+	@echo "  make fmt               - Check code formatting"
+	@echo "  make audit             - Run security audit (cargo-audit)"
+	@echo "  make check             - Run fmt + clippy + test-fast + audit"
+	@echo "  make check-duplicates  - Detect duplicate code & complexity"
+	@echo "  make validate-setup    - Check if your dev environment is set up correctly"
+	@echo "  make ci                - Run all CI checks (for CI/CD)"
 	@echo ""
 	@echo "🔧 Language Parsers:"
 	@echo "  make build-parsers     - Build all external language parsers"
 	@echo "  make check-parser-deps - Check parser build dependencies"
-	@echo ""
-	@echo "💡 Quick Start:"
-	@echo "  make setup      # First time only - install dev tools"
-	@echo "  make dev        # Develop with auto-rebuild"
-	@echo "  make test-fast  # Run quick tests before committing"
-	@echo "  make install    # Deploy to system"
