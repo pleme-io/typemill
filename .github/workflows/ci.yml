@@ -6,240 +6,248 @@ on:
   pull_request:
     branches: [ main ]
 
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
 jobs:
   test:
+    name: Test Suite
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    timeout-minutes: 30
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        node-version: [18.x, 20.x, 22.x]
+        rust: [stable]
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Setup Bun
-      uses: oven-sh/setup-bun@v2
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: ${{ matrix.rust }}
+        components: rustfmt, clippy
 
-    - name: Install dependencies
-      run: bun install
+    - name: Install cargo-nextest
+      uses: taiki-e/install-action@nextest
 
-    - name: Run linter
-      run: bun run lint
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/registry/index
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-registry-
 
-    - name: Run type check
-      run: bun run typecheck
+    - name: Cache cargo dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/registry/cache
+        key: ${{ runner.os }}-cargo-deps-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-deps-
 
-    - name: Run unit tests
-      run: bun run test
+    - name: Cache cargo build
+      uses: actions/cache@v4
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-build-${{ matrix.rust }}-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-build-${{ matrix.rust }}-
+          ${{ runner.os }}-cargo-build-
 
-    - name: Build all packages
-      run: bun run build
+    - name: Run cargo check
+      run: cargo check --workspace --all-features
 
-  rust-test:
+    - name: Run fast tests (unit + integration)
+      run: cargo nextest run --workspace --profile ci
+      continue-on-error: false
+
+    - name: Run doc tests
+      run: cargo test --workspace --doc
+
+  lint:
+    name: Linting & Formatting
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/registry/index
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache cargo dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/registry/cache
+        key: ${{ runner.os }}-cargo-deps-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Run rustfmt
+      run: cargo fmt --all -- --check
+
+    - name: Run clippy
+      run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+  build:
+    name: Build Release
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/registry/index
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache cargo dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/registry/cache
+        key: ${{ runner.os }}-cargo-deps-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache cargo build
+      uses: actions/cache@v4
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Build release binary
+      run: cargo build --release --workspace
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: codebuddy-${{ matrix.os }}
+        path: |
+          target/release/codebuddy${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+          target/release/cb${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+        if-no-files-found: warn
+
+  lsp-tests:
+    name: LSP Integration Tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Setup Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        profile: minimal
-        override: true
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
 
-    - name: Cache cargo registry
+    - name: Install Node.js (for typescript-language-server)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+
+    - name: Install Python (for pylsp)
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+
+    - name: Install LSP servers
+      run: |
+        npm install -g typescript-language-server typescript
+        pip install python-lsp-server
+
+    - name: Cache cargo
       uses: actions/cache@v4
       with:
-        path: ~/.cargo/registry
-        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+        path: |
+          ~/.cargo/registry/index
+          ~/.cargo/registry/cache
+          target
+        key: ${{ runner.os }}-cargo-lsp-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Cache cargo index
-      uses: actions/cache@v4
-      with:
-        path: ~/.cargo/git
-        key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+    - name: Run LSP integration tests
+      run: cargo test --workspace --features lsp-tests -- --include-ignored
 
-    - name: Cache cargo build
-      uses: actions/cache@v4
-      with:
-        path: rust/target
-        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Build Rust project
-      run: cd rust && cargo build --release
-
-    - name: Run Rust tests
-      run: cd rust && cargo test
-
-    - name: Run benchmarks (compile only)
-      run: cargo bench --no-run
-
-  performance-benchmarks:
+  security-audit:
+    name: Security Audit
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install cargo-audit
+      run: cargo install cargo-audit
+
+    - name: Run security audit
+      run: cargo audit
+
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Setup Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        profile: minimal
-        override: true
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
 
-    - name: Cache cargo registry
+    - name: Install cargo-tarpaulin
+      run: cargo install cargo-tarpaulin
+
+    - name: Generate coverage
+      run: cargo tarpaulin --workspace --out xml --skip-clean
+
+    - name: Upload to codecov.io
+      uses: codecov/codecov-action@v4
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        fail_ci_if_error: false
+
+  benchmarks:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache cargo
       uses: actions/cache@v4
       with:
-        path: ~/.cargo/registry
-        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Cache cargo index
-      uses: actions/cache@v4
-      with:
-        path: ~/.cargo/git
-        key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Cache cargo build
-      uses: actions/cache@v4
-      with:
-        path: target
-        key: ${{ runner.os }}-cargo-bench-target-${{ hashFiles('**/Cargo.lock') }}
+        path: |
+          ~/.cargo/registry/index
+          ~/.cargo/registry/cache
+          target
+        key: ${{ runner.os }}-cargo-bench-${{ hashFiles('**/Cargo.lock') }}
 
     - name: Run benchmarks
-      run: cargo bench --bench dispatch_benchmark -- --output-format bencher | tee benchmark-results.txt
-
-    - name: Download previous benchmark results
-      continue-on-error: true
-      uses: actions/cache@v4
-      with:
-        path: benchmark-baseline.txt
-        key: benchmark-baseline-${{ github.ref }}-${{ github.sha }}
-        restore-keys: |
-          benchmark-baseline-${{ github.ref }}-
-          benchmark-baseline-
-
-    - name: Compare with baseline
-      id: compare
-      continue-on-error: true
-      run: |
-        if [ -f benchmark-baseline.txt ]; then
-          echo "Comparing with baseline..."
-
-          # Extract timing data and compare (simple threshold-based check)
-          # If any benchmark regressed by more than 5%, flag it
-
-          REGRESSION_FOUND=false
-
-          # Parse current results
-          while IFS= read -r line; do
-            if [[ $line =~ ^test[[:space:]](.+)[[:space:]]bench:[[:space:]]+([0-9,]+)[[:space:]]ns/iter ]]; then
-              test_name="${BASH_REMATCH[1]}"
-              current_ns="${BASH_REMATCH[2]//,/}"
-
-              # Find corresponding baseline
-              baseline_line=$(grep "^test $test_name " benchmark-baseline.txt 2>/dev/null || echo "")
-              if [[ $baseline_line =~ bench:[[:space:]]+([0-9,]+)[[:space:]]ns/iter ]]; then
-                baseline_ns="${BASH_REMATCH[1]//,/}"
-
-                # Calculate percentage change
-                if [ "$baseline_ns" -gt 0 ]; then
-                  change=$(awk "BEGIN {printf \"%.2f\", (($current_ns - $baseline_ns) / $baseline_ns) * 100}")
-
-                  echo "$test_name: baseline=${baseline_ns}ns, current=${current_ns}ns, change=${change}%"
-
-                  # Check if regression exceeds 5%
-                  if (( $(awk "BEGIN {print ($change > 5)}") )); then
-                    echo "⚠️ REGRESSION DETECTED: $test_name regressed by ${change}%"
-                    REGRESSION_FOUND=true
-                  fi
-                fi
-              fi
-            fi
-          done < benchmark-results.txt
-
-          if [ "$REGRESSION_FOUND" = true ]; then
-            echo "regression_detected=true" >> $GITHUB_OUTPUT
-          else
-            echo "regression_detected=false" >> $GITHUB_OUTPUT
-          fi
-        else
-          echo "No baseline found, establishing new baseline"
-          echo "regression_detected=false" >> $GITHUB_OUTPUT
-        fi
-
-    - name: Save new baseline
-      if: steps.compare.outputs.regression_detected != 'true'
-      uses: actions/cache/save@v4
-      with:
-        path: benchmark-results.txt
-        key: benchmark-baseline-${{ github.ref }}-${{ github.sha }}
+      run: cargo bench --workspace --features heavy-tests -- --output-format bencher | tee benchmark-results.txt
 
     - name: Upload benchmark results
       uses: actions/upload-artifact@v4
       with:
         name: benchmark-results
         path: benchmark-results.txt
-
-    - name: Comment on PR with regression warning
-      if: steps.compare.outputs.regression_detected == 'true' && github.event_name == 'pull_request'
-      uses: actions/github-script@v7
-      with:
-        script: |
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: '⚠️ **Performance Regression Detected**\n\nOne or more benchmarks have regressed by more than 5%. Please review the benchmark results artifact for details.'
-          })
-
-  release:
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20.x'
-        registry-url: 'https://registry.npmjs.org'
-
-    - name: Setup Bun
-      uses: oven-sh/setup-bun@v2
-
-    - name: Install dependencies
-      run: bun install
-
-    - name: Build all packages
-      run: bun run build
-
-    - name: Check if version should be published
-      id: version
-      run: |
-        CURRENT_VERSION=$(node -p "require('./packages/server/package.json').version")
-        # Use the correct scoped package name
-        PUBLISHED_VERSION=$(npm view @goobits/codebuddy version 2>/dev/null || echo "0.0.0")
-        
-        echo "Current version: $CURRENT_VERSION"
-        echo "Published version: $PUBLISHED_VERSION"
-        
-        if [ "$CURRENT_VERSION" != "$PUBLISHED_VERSION" ]; then
-          echo "changed=true" >> $GITHUB_OUTPUT
-          echo "Version changed from $PUBLISHED_VERSION to $CURRENT_VERSION"
-        else
-          echo "changed=false" >> $GITHUB_OUTPUT
-          echo "Version unchanged: $CURRENT_VERSION"
-        fi
-
-    - name: Publish server package to npm
-      if: steps.version.outputs.changed == 'true'
-      run: cd packages/server && npm publish
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
