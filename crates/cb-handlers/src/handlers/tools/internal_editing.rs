@@ -6,26 +6,26 @@
 //! Tools: rename_symbol_with_imports
 
 use super::{ToolHandler, ToolHandlerContext};
-use crate::handlers::refactoring_handler::RefactoringHandler as LegacyRefactoringHandler;
+use crate::handlers::refactoring_handler::RefactoringHandler;
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
 use cb_protocol::ApiResult as ServerResult;
 use serde_json::Value;
 
-pub struct InternalEditingHandler {
-    legacy_handler: LegacyRefactoringHandler,
+pub struct InternalEditingToolsHandler {
+    refactoring_handler: RefactoringHandler,
 }
 
-impl InternalEditingHandler {
+impl InternalEditingToolsHandler {
     pub fn new() -> Self {
         Self {
-            legacy_handler: LegacyRefactoringHandler::new(),
+            refactoring_handler: RefactoringHandler::new(),
         }
     }
 }
 
 #[async_trait]
-impl ToolHandler for InternalEditingHandler {
+impl ToolHandler for InternalEditingToolsHandler {
     fn tool_names(&self) -> &[&str] {
         &["rename_symbol_with_imports"]
     }
@@ -42,6 +42,8 @@ impl ToolHandler for InternalEditingHandler {
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         // RefactoringHandler now uses the new trait, so delegate directly
-        self.legacy_handler.handle_tool_call(context, tool_call).await
+        self.refactoring_handler
+            .handle_tool_call(context, tool_call)
+            .await
     }
 }

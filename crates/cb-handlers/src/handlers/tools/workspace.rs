@@ -3,9 +3,9 @@
 //! Handles: rename_directory, analyze_imports, find_dead_code, update_dependencies, extract_module_to_package
 
 use super::{ToolHandler, ToolHandlerContext};
-use crate::handlers::file_operation_handler::FileOperationHandler as LegacyFileHandler;
-use crate::handlers::refactoring_handler::RefactoringHandler as LegacyRefactoringHandler;
-use crate::handlers::system_handler::SystemHandler as LegacySystemHandler;
+use crate::handlers::file_operation_handler::FileOperationHandler;
+use crate::handlers::refactoring_handler::RefactoringHandler;
+use crate::handlers::system_handler::SystemHandler;
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
 use cb_protocol::ApiResult as ServerResult;
@@ -57,25 +57,25 @@ impl UpdateMode {
     }
 }
 
-pub struct WorkspaceHandler {
-    file_handler: LegacyFileHandler,
-    system_handler: LegacySystemHandler,
+pub struct WorkspaceToolsHandler {
+    file_op_handler: FileOperationHandler,
+    system_handler: SystemHandler,
     #[allow(dead_code)] // Reserved for future workspace-level refactoring operations
-    refactoring_handler: LegacyRefactoringHandler,
+    refactoring_handler: RefactoringHandler,
 }
 
-impl WorkspaceHandler {
+impl WorkspaceToolsHandler {
     pub fn new() -> Self {
         Self {
-            file_handler: LegacyFileHandler::new(),
-            system_handler: LegacySystemHandler::new(),
-            refactoring_handler: LegacyRefactoringHandler::new(),
+            file_op_handler: FileOperationHandler::new(),
+            system_handler: SystemHandler::new(),
+            refactoring_handler: RefactoringHandler::new(),
         }
     }
 }
 
 #[async_trait]
-impl ToolHandler for WorkspaceHandler {
+impl ToolHandler for WorkspaceToolsHandler {
     fn tool_names(&self) -> &[&str] {
         &[
             "move_directory",
@@ -99,15 +99,11 @@ impl ToolHandler for WorkspaceHandler {
         match call.name.as_str() {
             "rename_directory" => {
                 // FileOperationHandler now uses the new trait, so delegate directly
-                self.file_handler
-                    .handle_tool_call(context, &call)
-                    .await
+                self.file_op_handler.handle_tool_call(context, &call).await
             }
             "find_dead_code" | "update_dependencies" => {
                 // SystemHandler now uses the new trait, so pass context directly
-                self.system_handler
-                    .handle_tool_call(context, &call)
-                    .await
+                self.system_handler.handle_tool_call(context, &call).await
             }
             "update_dependency" => self.handle_update_dependency(context, &call).await,
             _ => Err(cb_protocol::ApiError::InvalidRequest(format!(
@@ -118,7 +114,7 @@ impl ToolHandler for WorkspaceHandler {
     }
 }
 
-impl WorkspaceHandler {
+impl WorkspaceToolsHandler {
     /// Helper to update a manifest dependency with the given parameters
     /// Returns the updated manifest content as a string
     ///
@@ -174,7 +170,10 @@ impl WorkspaceHandler {
                     .update_dependency(path, old_dep_name, new_dep_name, new_path)
                     .await
                     .map_err(|e| {
-                        cb_protocol::ApiError::Internal(format!("Failed to update dependency: {}", e))
+                        cb_protocol::ApiError::Internal(format!(
+                            "Failed to update dependency: {}",
+                            e
+                        ))
                     })?;
 
                 context
@@ -202,7 +201,10 @@ impl WorkspaceHandler {
                     .update_dependency(path, old_dep_name, new_dep_name, new_path)
                     .await
                     .map_err(|e| {
-                        cb_protocol::ApiError::Internal(format!("Failed to update dependency: {}", e))
+                        cb_protocol::ApiError::Internal(format!(
+                            "Failed to update dependency: {}",
+                            e
+                        ))
                     })?;
 
                 context
@@ -224,7 +226,8 @@ impl WorkspaceHandler {
         // No plugin supports update_dependency
         // Note: Only Rust and TypeScript supported after language reduction
         Err(cb_protocol::ApiError::Internal(
-            "No language plugin found with update_dependency support for this manifest type".to_string()
+            "No language plugin found with update_dependency support for this manifest type"
+                .to_string(),
         ))
     }
 

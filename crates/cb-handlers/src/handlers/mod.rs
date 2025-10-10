@@ -19,11 +19,11 @@ pub use file_operation_handler::FileOperationHandler;
 pub use lsp_adapter::DirectLspAdapter;
 pub use plugin_dispatcher::{create_test_dispatcher, AppState, PluginDispatcher};
 pub use refactoring_handler::RefactoringHandler;
-pub use system_handler::SystemHandler as LegacySystemHandler;
+pub use system_handler::SystemHandler;
 pub use tool_registry::ToolRegistry;
 pub use tools::{
-    AdvancedHandler, EditingHandler, FileOpsHandler, LifecycleHandler, NavigationHandler,
-    SystemHandler, ToolHandler, ToolHandlerContext, WorkspaceHandler,
+    AdvancedToolsHandler, EditingToolsHandler, FileToolsHandler, LifecycleHandler,
+    NavigationHandler, SystemToolsHandler, ToolHandler, ToolHandlerContext, WorkspaceToolsHandler,
 };
 pub use workflow_handler::WorkflowHandler;
 // Note: register_all_tools is no longer needed - plugins auto-register

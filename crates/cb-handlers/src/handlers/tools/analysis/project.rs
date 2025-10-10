@@ -19,8 +19,8 @@ pub async fn handle_analyze_project(
     tool_call: &ToolCall,
 ) -> ServerResult<Value> {
     use cb_ast::complexity::{
-        aggregate_class_complexity, analyze_file_complexity,
-        ComplexityHotspotsReport, FileComplexitySummary, FunctionHotspot, ProjectComplexityReport,
+        aggregate_class_complexity, analyze_file_complexity, ComplexityHotspotsReport,
+        FileComplexitySummary, FunctionHotspot, ProjectComplexityReport,
     };
 
     let args = tool_call.arguments.clone().unwrap_or(json!({}));
@@ -55,10 +55,8 @@ pub async fn handle_analyze_project(
         .list_files(dir_path, true)
         .await?;
 
-    let supported_extensions: Vec<String> = context
-        .app_state
-        .language_plugins
-        .supported_extensions();
+    let supported_extensions: Vec<String> =
+        context.app_state.language_plugins.supported_extensions();
 
     let analyzable_files: Vec<PathBuf> = files
         .iter()
@@ -111,8 +109,12 @@ pub async fn handle_analyze_project(
             }
         };
 
-        let report =
-            analyze_file_complexity(&file_path.to_string_lossy(), &content, &parsed.symbols, &language);
+        let report = analyze_file_complexity(
+            &file_path.to_string_lossy(),
+            &content,
+            &parsed.symbols,
+            &language,
+        );
 
         let file_classes =
             aggregate_class_complexity(&file_path.to_string_lossy(), &report.functions, &language);
@@ -149,14 +151,34 @@ pub async fn handle_analyze_project(
             let total_sloc: u32 = all_classes.iter().map(|c| c.total_sloc).sum();
 
             let average_complexity = if total_functions > 0 {
-                all_file_summaries.iter().map(|f| f.average_complexity * f.function_count as f64).sum::<f64>() / total_functions as f64
-            } else { 0.0 };
+                all_file_summaries
+                    .iter()
+                    .map(|f| f.average_complexity * f.function_count as f64)
+                    .sum::<f64>()
+                    / total_functions as f64
+            } else {
+                0.0
+            };
             let average_cognitive = if total_functions > 0 {
-                all_file_summaries.iter().map(|f| f.average_cognitive_complexity * f.function_count as f64).sum::<f64>() / total_functions as f64
-            } else { 0.0 };
+                all_file_summaries
+                    .iter()
+                    .map(|f| f.average_cognitive_complexity * f.function_count as f64)
+                    .sum::<f64>()
+                    / total_functions as f64
+            } else {
+                0.0
+            };
 
-            let max_complexity = all_file_summaries.iter().map(|f| f.max_complexity).max().unwrap_or(0);
-            let max_cognitive_complexity = all_function_hotspots.iter().map(|f| f.cognitive_complexity).max().unwrap_or(0);
+            let max_complexity = all_file_summaries
+                .iter()
+                .map(|f| f.max_complexity)
+                .max()
+                .unwrap_or(0);
+            let max_cognitive_complexity = all_function_hotspots
+                .iter()
+                .map(|f| f.cognitive_complexity)
+                .max()
+                .unwrap_or(0);
 
             let report = ProjectComplexityReport {
                 directory: directory_path.to_string(),
@@ -190,7 +212,8 @@ pub async fn handle_analyze_project(
 
             all_classes.sort_by(|a, b| {
                 if metric == "cognitive" {
-                    b.total_cognitive_complexity.cmp(&a.total_cognitive_complexity)
+                    b.total_cognitive_complexity
+                        .cmp(&a.total_cognitive_complexity)
                 } else {
                     b.total_complexity.cmp(&a.total_complexity)
                 }

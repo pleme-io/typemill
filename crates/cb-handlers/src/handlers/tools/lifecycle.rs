@@ -44,6 +44,8 @@ impl ToolHandler for LifecycleHandler {
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         // Delegate directly to SystemHandler (which now implements the new trait)
-        self.system_handler.handle_tool_call(context, tool_call).await
+        self.system_handler
+            .handle_tool_call(context, tool_call)
+            .await
     }
 }

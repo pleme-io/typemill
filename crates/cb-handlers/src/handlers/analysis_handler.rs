@@ -85,7 +85,10 @@ mod analysis_impl {
         let mut config = DeadCodeConfig::default();
 
         if let Some(file_types) = args.get("file_types").and_then(|v| v.as_array()) {
-            let types: Vec<String> = file_types.iter().filter_map(|v| v.as_str().map(String::from)).collect();
+            let types: Vec<String> = file_types
+                .iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect();
             if !types.is_empty() {
                 config.file_types = Some(types);
             }
@@ -111,10 +114,7 @@ mod analysis_impl {
     }
 
     /// Formats the analysis report into the final JSON response for the user.
-    fn format_mcp_response(
-        report: DeadCodeReport,
-        workspace_path: &Path,
-    ) -> ServerResult<Value> {
+    fn format_mcp_response(report: DeadCodeReport, workspace_path: &Path) -> ServerResult<Value> {
         let dead_symbols_json: Vec<Value> = report
             .dead_symbols
             .iter()

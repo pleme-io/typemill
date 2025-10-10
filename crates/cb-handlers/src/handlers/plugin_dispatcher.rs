@@ -172,15 +172,15 @@ impl PluginDispatcher {
                 use super::tools::*;
                 let mut registry = self.tool_registry.lock().await;
                 register_handlers_with_logging!(registry, {
-                    SystemHandler => "SystemHandler with 1 tool (health_check)",
-                    WorkspaceHandler => "WorkspaceHandler with 4 tools (move_directory, find_dead_code, update_dependencies, update_dependency)",
-                    AdvancedHandler => "AdvancedHandler with 2 tools (execute_edits, execute_batch)",
-                    FileOpsHandler => "FileOpsHandler with 6 tools (create_file, read_file, write_file, delete_file, move_file, list_files)",
-                    EditingHandler => "EditingHandler with 7 tools (rename_symbol, organize_imports, get_code_actions, format_document, extract_function, extract_variable, inline_variable)",
+                    SystemToolsHandler => "SystemToolsHandler with 1 tool (health_check)",
+                    WorkspaceToolsHandler => "WorkspaceToolsHandler with 4 tools (move_directory, find_dead_code, update_dependencies, update_dependency)",
+                    AdvancedToolsHandler => "AdvancedToolsHandler with 2 tools (execute_edits, execute_batch)",
+                    FileToolsHandler => "FileToolsHandler with 6 tools (create_file, read_file, write_file, delete_file, move_file, list_files)",
+                    EditingToolsHandler => "EditingToolsHandler with 7 tools (rename_symbol, organize_imports, get_code_actions, format_document, extract_function, extract_variable, inline_variable)",
                     NavigationHandler => "NavigationHandler with 9 tools (find_definition, find_references, find_implementations, find_type_definition, get_document_symbols, search_symbols, get_symbol_info, get_diagnostics, get_call_hierarchy)",
                     AnalysisHandler => "AnalysisHandler with 3 tools (find_unused_imports, analyze_code, analyze_project)",
                     LifecycleHandler => "LifecycleHandler with 3 INTERNAL tools (notify_file_opened, notify_file_saved, notify_file_closed)",
-                    InternalEditingHandler => "InternalEditingHandler with 1 INTERNAL tool (rename_symbol_with_imports)",
+                    InternalEditingToolsHandler => "InternalEditingToolsHandler with 1 INTERNAL tool (rename_symbol_with_imports)",
                     InternalWorkspaceHandler => "InternalWorkspaceHandler with 1 INTERNAL tool (apply_workspace_edit)",
                     InternalIntelligenceHandler => "InternalIntelligenceHandler with 2 INTERNAL tools (get_completions, get_signature_help)"
                 });
@@ -204,14 +204,12 @@ impl PluginDispatcher {
         match message {
             McpMessage::Request(request) => self.handle_request(request, session_info).await,
             McpMessage::Response(response) => Ok(McpMessage::Response(response)),
-            McpMessage::Notification(_) => {
-                Ok(McpMessage::Response(McpResponse {
-                    jsonrpc: "2.0".to_string(),
-                    id: None,
-                    result: Some(json!({"status": "ok"})),
-                    error: None,
-                }))
-            }
+            McpMessage::Notification(_) => Ok(McpMessage::Response(McpResponse {
+                jsonrpc: "2.0".to_string(),
+                id: None,
+                result: Some(json!({"status": "ok"})),
+                error: None,
+            })),
             _ => Err(ServerError::Unsupported("Unknown message type".into())),
         }
     }
@@ -328,7 +326,6 @@ impl PluginDispatcher {
         // Server is ready - return empty response for notification
         Ok(json!({}))
     }
-
 
     pub fn plugin_manager(&self) -> &PluginManager {
         &self.plugin_manager

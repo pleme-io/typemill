@@ -26,7 +26,8 @@ pub async fn handle_analyze_code(
         .ok_or_else(|| ServerError::InvalidRequest("Missing file_path parameter".into()))?;
 
     let report_format: AnalysisReportFormat =
-        serde_json::from_value(args.get("report_format").cloned().unwrap_or(json!("full"))).unwrap_or(AnalysisReportFormat::Full);
+        serde_json::from_value(args.get("report_format").cloned().unwrap_or(json!("full")))
+            .unwrap_or(AnalysisReportFormat::Full);
 
     debug!(
         file_path = %file_path_str,
@@ -142,11 +143,16 @@ pub async fn handle_analyze_code(
                 function_name: Some(func.name.clone()),
                 description: format!(
                     "Function '{}' has {} source lines of code (>50 SLOC recommended)",
-                    func.name,
-                    func.metrics.sloc
+                    func.name, func.metrics.sloc
                 ),
-                suggestion: "Consider breaking this function into smaller, more focused functions.".to_string(),
-                priority: if func.metrics.sloc > 100 { "high" } else { "medium" }.to_string(),
+                suggestion: "Consider breaking this function into smaller, more focused functions."
+                    .to_string(),
+                priority: if func.metrics.sloc > 100 {
+                    "high"
+                } else {
+                    "medium"
+                }
+                .to_string(),
             });
         }
     }
@@ -220,14 +226,30 @@ fn generate_suggestion_text(
     _func: &cb_ast::complexity::FunctionComplexity,
 ) -> String {
     match kind {
-        RefactoringKind::ReduceComplexity => "Consider refactoring to reduce complexity.".to_string(),
-        RefactoringKind::ReduceNesting => "Reduce nesting depth using early returns or guard clauses.".to_string(),
-        RefactoringKind::ConsolidateParameters => "Consolidate parameters using a configuration object/struct.".to_string(),
-        RefactoringKind::ImproveDocumentation => "Add documentation to explain the function's purpose.".to_string(),
-        RefactoringKind::ExtractFunction => "Extract logical blocks into separate functions.".to_string(),
-        RefactoringKind::ExtractVariable => "Extract complex expressions into named variables.".to_string(),
-        RefactoringKind::RemoveDuplication => "Extract duplicate code into a shared function.".to_string(),
-        RefactoringKind::ReplaceMagicNumber => "Replace magic numbers with named constants.".to_string(),
+        RefactoringKind::ReduceComplexity => {
+            "Consider refactoring to reduce complexity.".to_string()
+        }
+        RefactoringKind::ReduceNesting => {
+            "Reduce nesting depth using early returns or guard clauses.".to_string()
+        }
+        RefactoringKind::ConsolidateParameters => {
+            "Consolidate parameters using a configuration object/struct.".to_string()
+        }
+        RefactoringKind::ImproveDocumentation => {
+            "Add documentation to explain the function's purpose.".to_string()
+        }
+        RefactoringKind::ExtractFunction => {
+            "Extract logical blocks into separate functions.".to_string()
+        }
+        RefactoringKind::ExtractVariable => {
+            "Extract complex expressions into named variables.".to_string()
+        }
+        RefactoringKind::RemoveDuplication => {
+            "Extract duplicate code into a shared function.".to_string()
+        }
+        RefactoringKind::ReplaceMagicNumber => {
+            "Replace magic numbers with named constants.".to_string()
+        }
     }
 }
 
@@ -256,7 +278,10 @@ fn detect_magic_numbers(
             }
             for cap in pattern.find_iter(line) {
                 let number = cap.as_str();
-                found_numbers.entry(number.to_string()).or_insert_with(Vec::new).push(i + 1);
+                found_numbers
+                    .entry(number.to_string())
+                    .or_insert_with(Vec::new)
+                    .push(i + 1);
             }
         }
 

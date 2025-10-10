@@ -2,8 +2,8 @@
 //!
 //! Handles: extract_function, extract_module_to_package, extract_variable, inline_variable
 
-use super::tools::{ToolHandler, ToolHandlerContext};
 use super::lsp_adapter::DirectLspAdapter;
+use super::tools::{ToolHandler, ToolHandlerContext};
 use crate::utils::remote_exec;
 use async_trait::async_trait;
 use cb_ast::refactoring::{CodeRange, LspRefactoringService};
@@ -171,13 +171,8 @@ impl RefactoringHandler {
                 )
             })?;
             let command = format!("cat '{}'", Self::escape_shell_arg(file_path));
-            remote_exec::execute_in_workspace(
-                workspace_manager,
-                user_id,
-                workspace_id,
-                &command,
-            )
-            .await
+            remote_exec::execute_in_workspace(workspace_manager, user_id, workspace_id, &command)
+                .await
         } else {
             file_service.read_file(Path::new(file_path)).await
         }
@@ -219,7 +214,11 @@ impl ToolHandler for RefactoringHandler {
         ]
     }
 
-    async fn handle_tool_call(&self, context: &ToolHandlerContext, tool_call: &ToolCall) -> ServerResult<Value> {
+    async fn handle_tool_call(
+        &self,
+        context: &ToolHandlerContext,
+        tool_call: &ToolCall,
+    ) -> ServerResult<Value> {
         debug!(tool_name = %tool_call.name, "Handling refactoring operation");
 
         match tool_call.name.as_str() {
@@ -227,7 +226,8 @@ impl ToolHandler for RefactoringHandler {
             | "inline_variable"
             | "extract_variable"
             | "extract_module_to_package" => {
-                self.handle_refactoring_operation(tool_call.clone(), context).await
+                self.handle_refactoring_operation(tool_call.clone(), context)
+                    .await
             }
             _ => Err(ServerError::Unsupported(format!(
                 "Unknown refactoring operation: {}",
