@@ -207,9 +207,11 @@ async fn handle_setup() {
             println!();
             println!("📝 Default LSP servers configured:");
             println!("   • TypeScript/JavaScript: typescript-language-server");
-            println!("   • Python: pylsp");
-            println!("   • Go: gopls");
             println!("   • Rust: rust-analyzer");
+            println!();
+            println!("ℹ️  Note: Language support temporarily reduced to TypeScript + Rust");
+            println!("   during unified API refactoring. Python/Go/Java support available");
+            println!("   in git tag 'pre-language-reduction'");
             println!();
             println!(
                 "💡 You can edit {} to customize LSP servers and other settings.",

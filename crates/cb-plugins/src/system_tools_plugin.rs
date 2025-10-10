@@ -765,7 +765,7 @@ impl LanguagePlugin for SystemToolsPlugin {
             }),
             json!({
                 "name": "extract_module_to_package",
-                "description": "Extract a module from an existing package into a new standalone package. Works across Rust, TypeScript, Python, Go, and Java. Automatically updates imports and package manifests.",
+                "description": "Extract a module from an existing package into a new standalone package. Currently supports Rust and TypeScript. Automatically updates imports and package manifests. Note: Language support temporarily reduced during unified API refactoring.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
