@@ -2,6 +2,9 @@
 
 Learn how to test refactoring operations across multiple languages using our parameterized testing framework. Write once, test everywhere.
 
+> **Note**: Language support temporarily reduced to TypeScript + Rust during unified API refactoring.
+> Python/Go/Java support available in git tag `pre-language-reduction`.
+
 ## Table of Contents
 - [Overview](#overview)
 - [Architecture](#architecture)
@@ -13,7 +16,9 @@ Learn how to test refactoring operations across multiple languages using our par
 
 ## Overview
 
-Instead of writing separate test files for each language (Python, TypeScript, Rust, Go), we use a **single parameterized test** that runs the same logical operation across all languages with language-specific syntax.
+Instead of writing separate test files for each language, we use a **single parameterized test** that runs the same logical operation across all supported languages with language-specific syntax.
+
+**Currently supported languages**: TypeScript, Rust
 
 ## Architecture
 
@@ -38,19 +43,17 @@ Instead of writing separate test files for each language (Python, TypeScript, Ru
 **❌ Old Approach** (duplicated logic):
 ```
 tests/
-├── e2e_python_refactoring.rs       (120 lines)
 ├── e2e_typescript_refactoring.rs   (120 lines)
-├── e2e_rust_refactoring.rs         (120 lines)
-└── e2e_go_refactoring.rs           (120 lines)
+└── e2e_rust_refactoring.rs         (120 lines)
 ```
-Total: 480 lines of duplicated test logic
+Total: 240 lines of duplicated test logic
 
 **✅ New Approach** (parameterized):
 ```
 tests/
-└── e2e_refactoring_cross_language.rs  (300 lines)
+└── e2e_refactoring_cross_language.rs  (150 lines)
 ```
-Total: 300 lines covering all 4 languages
+Total: 150 lines covering both languages
 
 ### Consistency
 
@@ -80,17 +83,11 @@ cargo nextest run -p integration-tests --test e2e_refactoring_cross_language --n
 ```
 === Testing: extract_simple_expression ===
 
-Testing Python...
-[Python] ✓ Refactoring succeeded
-
 Testing TypeScript...
 [TypeScript] ✓ Refactoring succeeded
 
 Testing Rust...
-[Rust] Not supported - skipping
-
-Testing Go...
-[Go] Not supported - skipping
+[Rust] ✓ Refactoring succeeded
 
 === Results: 2/2 supported languages passed ===
 ```
@@ -106,17 +103,6 @@ impl RefactoringScenarios {
     pub fn your_new_scenario() -> RefactoringTestCase {
         RefactoringTestCase::new("your_scenario_name").with_all_languages(|lang| {
             let (source, operation, behavior) = match lang {
-                Language::Python => (
-                    "def example():\n    # Python code here\n",
-                    RefactoringOperation::ExtractVariable {
-                        variable_name: "result".to_string(),
-                        start_line: 1,
-                        start_char: 4,
-                        end_line: 1,
-                        end_char: 10,
-                    },
-                    ExpectedBehavior::Success,
-                ),
                 Language::TypeScript => (
                     "function example() {\n    // TypeScript code here\n}\n",
                     RefactoringOperation::ExtractVariable {
@@ -137,18 +123,7 @@ impl RefactoringScenarios {
                         end_line: 1,
                         end_char: 10,
                     },
-                    ExpectedBehavior::NotSupported, // Not yet implemented
-                ),
-                Language::Go => (
-                    "func example() {\n    // Go code here\n}\n",
-                    RefactoringOperation::ExtractVariable {
-                        variable_name: "result".to_string(),
-                        start_line: 1,
-                        start_char: 4,
-                        end_line: 1,
-                        end_char: 10,
-                    },
-                    ExpectedBehavior::NotSupported, // Not yet implemented
+                    ExpectedBehavior::Success,
                 ),
             };
 
@@ -237,6 +212,8 @@ async fn test_your_new_scenario_cross_language() {
 
 ## Adding a New Language
 
+> **Note**: When adding new languages, update the Language enum to only include actively supported languages.
+
 ### Step 1: Add to Language Enum
 
 ```rust
@@ -244,40 +221,31 @@ async fn test_your_new_scenario_cross_language() {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Language {
-    Python,
     TypeScript,
     Rust,
-    Go,
     YourNewLanguage,  // Add here
 }
 
 impl Language {
     pub fn all() -> Vec<Language> {
         vec![
-            Language::Python,
             Language::TypeScript,
             Language::Rust,
-            Language::Go,
             Language::YourNewLanguage,  // Add here
         ]
     }
 
     pub fn file_extension(&self) -> &'static str {
         match self {
-            Language::Python => "py",
             Language::TypeScript => "ts",
             Language::Rust => "rs",
-            Language::Go => "go",
             Language::YourNewLanguage => "ext",  // Add here
         }
     }
 
     pub fn supports_refactoring(&self) -> bool {
-        match self {
-            Language::Python | Language::TypeScript => true,
-            Language::Rust | Language::Go => false,
-            Language::YourNewLanguage => true,  // Set based on implementation
-        }
+        // All currently supported languages have refactoring support
+        true
     }
 }
 ```
@@ -341,13 +309,14 @@ Test expects:
 
 ## Current Feature Matrix
 
-| Operation          | Python | TypeScript | Rust | Go |
-|--------------------|--------|------------|------|-----|
-| Extract Variable   | ✅     | ✅         | ❌   | ❌  |
-| Extract Function   | ✅     | ✅         | ❌   | ❌  |
-| Inline Variable    | ✅     | ⚠️*        | ❌   | ❌  |
+| Operation          | TypeScript | Rust |
+|--------------------|------------|------|
+| Extract Variable   | ✅         | ✅   |
+| Extract Function   | ✅         | ✅   |
+| Inline Variable    | ✅         | ✅   |
 
-*TypeScript inline variable has coordinate detection issues in test harness (functionality works via LSP)
+> **Note**: Language support temporarily reduced to TypeScript + Rust.
+> See git tag `pre-language-reduction` for Python/Go/Java implementations.
 
 ## Benefits
 
@@ -374,12 +343,6 @@ Test expects:
 
 ### 1. Keep Fixtures Logically Equivalent
 
-Python:
-```python
-def calculate():
-    result = 10 + 20
-```
-
 TypeScript:
 ```typescript
 function calculate() {
@@ -394,23 +357,17 @@ fn calculate() -> i32 {
 }
 ```
 
-Go:
-```go
-func calculate() int {
-    result := 10 + 20
-}
-```
-
 Same logic, different syntax!
 
 ### 2. Use Accurate Coordinates
 
 Line and character positions are 0-indexed. Count carefully!
 
-```python
-def process():
-    multiplier = 2
-    #   ^^^^^^^^^ line:1, char:4 to char:14
+```typescript
+function process() {
+    const multiplier = 2;
+    //    ^^^^^^^^^ line:1, char:10 to char:20
+}
 ```
 
 ### 3. Test One Thing
@@ -424,11 +381,11 @@ Each scenario should test ONE refactoring behavior:
 If a language/operation combo doesn't work, use `ExpectedError` or `NotSupported` and add a comment:
 
 ```rust
-Language::TypeScript => (
+Language::Rust => (
     source,
     operation,
-    // TypeScript inline variable has coordinate detection issues
-    ExpectedBehavior::ExpectedError { message_contains: None },
+    // Rust inline variable not yet fully implemented in AST fallback
+    ExpectedBehavior::NotSupported,
 ),
 ```
 
@@ -439,7 +396,7 @@ Language::TypeScript => (
 Check your line/character coordinates:
 - Are they 0-indexed?
 - Did you count spaces/tabs correctly?
-- Try running the test with `--nocapture` to see error details
+- Try running the test with `--no-capture` to see error details
 
 ### Test Passes for Wrong Reason
 

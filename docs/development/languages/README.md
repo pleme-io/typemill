@@ -2,6 +2,11 @@
 
 Language-specific plugins for Codebuddy, implementing the `LanguagePlugin` trait to provide AST parsing, symbol extraction, import analysis, and refactoring support.
 
+> **⚠️ IMPORTANT**: Language support temporarily reduced to **TypeScript + Rust** during unified API refactoring.
+>
+> Python/Go/Java/Swift plugins are available in git tag `pre-language-reduction` and will be re-enabled
+> after the API unification work is complete. This documentation reflects the reduced language set.
+
 ---
 
 ## 📚 Documentation
@@ -57,8 +62,8 @@ When developing a new language plugin, you may encounter the following common is
 - **Solution**: If you add a dependency manually, ensure it either exists in the root `Cargo.toml`'s `[workspace.dependencies]` table or specify a version directly in your plugin's `Cargo.toml` (e.g., `tempfile = "3.10.0"`).
 
 ### 2. External Parser Build Failures
-- **Problem**: Your local build fails because a parser for another language (e.g., Java's `.jar` file) is missing.
-- **Solution**: Run `make build-parsers` from the root directory to build all required external parser artifacts. For detailed setup for each language, see the Language Plugin Prerequisites documentation.
+- **Problem**: Your local build fails because a parser for another language is missing.
+- **Solution**: Run `make build-parsers` from the root directory to build all required external parser artifacts. Currently only TypeScript and Rust are supported.
 
 ### 3. Non-Exhaustive Match Errors
 - **Problem**: After adding your new language to `languages.toml`, the build fails with a "non-exhaustive pattern" error in a seemingly unrelated crate like `cb-ast`.
@@ -74,15 +79,13 @@ Each language plugin is a separate Rust crate implementing the `LanguagePlugin` 
 
 ```
 crates/
-├── cb-lang-common/       # Shared utilities (~460 LOC saved per plugin)
-├── cb-lang-go/           # Go language plugin
-├── cb-lang-java/         # Java language plugin
-├── cb-lang-python/       # Python language plugin
-├── cb-lang-rust/         # Rust language plugin
-├── cb-lang-swift/        # Swift language plugin
-├── cb-lang-typescript/   # TypeScript/JavaScript plugin
+├── cb-lang-common/       # Shared utilities
+├── cb-lang-rust/         # Rust language plugin (active)
+├── cb-lang-typescript/   # TypeScript/JavaScript plugin (active)
 └── cb-plugin-api/        # Core traits and types
 ```
+
+**Note**: Python, Go, Java, and Swift plugins temporarily disabled. See git tag `pre-language-reduction`.
 
 ### Core Trait
 
@@ -136,16 +139,18 @@ See **[CB_LANG_COMMON.md](CB_LANG_COMMON.md)** for complete utility reference.
 
 ---
 
-## 📦 Existing Plugins
+## 📦 Active Plugins
 
-### Production-Ready
+### Currently Supported
 
 | Language | Crate | Manifest | AST Parser | Import Support | Workspace |
 |----------|-------|----------|------------|----------------|-----------|
 | **TypeScript/JavaScript** | `cb-lang-typescript` | package.json | Node.js + Babel | ✅ | ✅ npm/yarn/pnpm |
-| **Python** | `cb-lang-python` | requirements.txt, pyproject.toml | Python + ast | ✅ | ✅ Poetry/pip |
-| **Go** | `cb-lang-go` | go.mod | Go + go/parser | ✅ | ✅ Go modules |
 | **Rust** | `cb-lang-rust` | Cargo.toml | Native syn | ✅ | ✅ Cargo workspaces |
+
+### Temporarily Disabled
+
+Python, Go, Java, and Swift plugins are temporarily disabled during unified API refactoring. They are available in git tag `pre-language-reduction` and will be re-enabled after the API unification is complete.
 
 ### Example: TypeScript Plugin
 
@@ -301,9 +306,9 @@ pub fn initialize_plugins() -> PluginRegistry {
     let mut registry = PluginRegistry::new();
 
     registry.register_language(Box::new(TypeScriptPlugin::new()));
-    registry.register_language(Box::new(PythonPlugin::new()));
-    registry.register_language(Box::new(GoPlugin::new()));
     registry.register_language(Box::new(RustPlugin::new()));
+
+    // Python, Go, Java, Swift temporarily disabled during API refactoring
 
     registry
 }
