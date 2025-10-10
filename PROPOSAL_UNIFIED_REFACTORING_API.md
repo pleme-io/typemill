@@ -10,6 +10,8 @@
 
 Consolidate 35 refactoring commands into **14 unified commands** using a consistent **plan → apply** pattern. This reduces API surface by 60% while improving safety, composability, and discoverability.
 
+**Context**: This is a beta product with no external users. We can make breaking changes immediately without migration paths or legacy support.
+
 ---
 
 ## Problem
@@ -351,33 +353,17 @@ workspace.apply_edit(plan, options) → Result
 
 ---
 
-## Migration Path
+## Implementation Approach
 
-### Phase 1: Add New Commands (Weeks 1-2)
-- Implement `*.plan` commands for all 7 operation families
-- Wire to existing refactoring infrastructure
-- All new commands return plans only (no writes)
+**No migration needed**: This is a beta product with no external users.
 
-### Phase 2: Unify Apply (Weeks 2-3)
-- Extend `workspace.apply_edit` to handle all plan types
-- Add validation and rollback support
-- Add dry-run preview formatting
+**Direct implementation**:
+1. Implement all 14 new commands (`*.plan` + `workspace.apply_edit`)
+2. Remove all 35 legacy commands immediately
+3. Update all internal callsites to use new API
+4. Update documentation
 
-### Phase 3: Legacy Wrappers (Week 3)
-- Keep existing 35 commands as thin wrappers
-- Map old params → new `*.plan` calls → `workspace.apply_edit`
-- Mark legacy commands as `@deprecated` in docs and schemas
-
-### Phase 4: Deprecation (Weeks 4-8)
-- Add deprecation warnings to legacy command responses
-- Emit telemetry events tracking legacy vs new command usage
-- Publish migration guide with side-by-side examples
-
-### Phase 5: Cleanup (Weeks 9-12)
-- Review telemetry: if legacy usage < 5%, proceed with removal
-- Remove legacy commands from codebase
-- Final API surface: **14 commands**
-- **Hard deadline**: 3 months from Phase 3 start, regardless of usage
+**No deprecation period, no legacy wrappers, no telemetry tracking.**
 
 ---
 
@@ -449,14 +435,14 @@ workspace.apply_edit(plan, options) → Result
 - `validate_checksums` option defaults to `true`
 - `force: true` escape hatch for recovery scenarios
 
-### 3. Legacy Deprecation: 3-Month Hard Deadline (LOCKED)
-**Decision**: Legacy commands removed 3 months after Phase 3, or when usage < 5%.
+### 3. No Legacy Support (LOCKED)
+**Decision**: Remove all 35 legacy commands immediately, no wrappers.
 
 **Rationale**:
-- Clear timeline prevents indefinite maintenance burden
-- Telemetry tracks actual usage for data-driven decisions
-- Deprecation warnings give users time to migrate
-- Migration guide published in Phase 4
+- Beta product with no external users
+- No migration burden or compatibility constraints
+- Clean slate implementation of new API
+- Simpler codebase without dual API support
 
 ### 4. Dry-run Default: False (LOCKED)
 **Decision**: `dry_run` defaults to `false` in `workspace.apply_edit`.
@@ -480,9 +466,10 @@ workspace.apply_edit(plan, options) → Result
 
 - [ ] All 14 new commands implemented and tested
 - [ ] `workspace.apply_edit` handles all 7 plan types
-- [ ] Legacy 35 commands wrapped and deprecated
+- [ ] All 35 legacy commands removed from codebase
 - [ ] Integration tests cover all operation kinds
-- [ ] Documentation updated with migration guide
+- [ ] All internal callsites updated to new API
+- [ ] Documentation updated
 - [ ] CI validates no direct file writes in `*.plan` commands
 
 ---

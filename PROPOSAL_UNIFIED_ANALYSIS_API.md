@@ -10,6 +10,8 @@
 
 Consolidate 35+ analysis commands into **6 unified commands** using a consistent **analyze → results** pattern. This reduces API surface by 80%+ while providing actionable insights that bridge directly into refactoring workflows.
 
+**Context**: This is a beta product with no external users. We can make breaking changes immediately without migration paths or legacy support.
+
 ---
 
 ## Problem
@@ -560,31 +562,19 @@ analyze.batch([
 
 ---
 
-## Migration Path
+## Implementation Approach
 
-### Phase 1: Add New Commands (Weeks 1-2)
-- Implement 6 `analyze.*` commands
-- Wire to existing analysis infrastructure
-- All commands return unified `AnalysisResult` structure
+**No migration needed**: This is a beta product with no external users.
 
-### Phase 2: Add Suggestions (Week 3)
-- Generate actionable suggestions for each finding
-- Link suggestions to refactoring commands
-- Add estimated impact calculations
+**Direct implementation**:
+1. Implement all 6 `analyze.*` commands with unified `AnalysisResult` structure
+2. Add actionable suggestions linking to refactoring commands
+3. Implement `analyze.batch` with shared parsing optimization
+4. Remove all 37 legacy commands immediately
+5. Update all internal callsites to use new API
+6. Update documentation
 
-### Phase 3: Batch Support (Week 3)
-- Implement `analyze.batch` for multi-analysis workflows
-- Optimize shared computation (e.g., single AST parse)
-
-### Phase 4: Legacy Wrappers (Week 4)
-- Keep existing 35+ commands as thin wrappers
-- Map old params → new `analyze.*` calls
-- Mark legacy commands as deprecated in docs
-
-### Phase 5: Cleanup (Week 5+)
-- Remove legacy commands after migration period
-- Update all documentation and examples
-- Final API surface: **6-7 commands**
+**No deprecation period, no legacy wrappers, no telemetry tracking.**
 
 ---
 
@@ -744,9 +734,10 @@ console.log(`Complexity reduced from ${quality.findings[0].metrics.cyclomatic_co
 - [ ] All 6 `analyze.*` commands implemented and tested
 - [ ] Unified `AnalysisResult` structure used consistently
 - [ ] Actionable suggestions generated for all finding types
-- [ ] `analyze.batch` supports multi-analysis workflows
-- [ ] Legacy 35+ commands wrapped and deprecated
+- [ ] `analyze.batch` supports multi-analysis workflows with shared parsing
+- [ ] All 37 legacy commands removed from codebase
 - [ ] Integration tests cover all analysis kinds
+- [ ] All internal callsites updated to new API
 - [ ] Documentation shows analyze → refactor workflows
 - [ ] CI validates suggestion `refactor_call` references valid commands
 
