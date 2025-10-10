@@ -5,6 +5,7 @@
 //! on other cb-* crates to prevent circular dependencies.
 
 pub mod error;
+pub mod plugin_protocol;
 
 pub use error::{ApiError, ApiResult};
 

@@ -131,7 +131,7 @@ export { main, oldName };
 /// Create application state for testing with the given project root
 async fn create_test_app_state(project_root: PathBuf) -> Arc<AppState> {
     let ast_cache = Arc::new(AstCache::new());
-    let plugin_registry = cb_server::services::registry_builder::build_language_plugin_registry();
+    let plugin_registry = cb_server::services::registry_builder::build_language_plugin_registry().await;
     let ast_service: Arc<dyn AstService> = Arc::new(DefaultAstService::new(
         ast_cache.clone(),
         plugin_registry.clone(),

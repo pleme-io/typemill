@@ -28,6 +28,9 @@ pub struct AppConfig {
     /// Plugin selection configuration
     #[serde(default)]
     pub plugin_selection: PluginSelectionConfig,
+    /// External language plugin configuration
+    #[serde(default)]
+    pub language_plugins: LanguagePluginsConfig,
     /// External MCP server configuration (optional)
     #[cfg(feature = "mcp-proxy")]
     pub external_mcp: Option<ExternalMcpConfig>,
@@ -123,6 +126,29 @@ pub struct PluginSelectionConfig {
 
 fn default_error_on_ambiguity() -> bool {
     false
+}
+
+/// Configuration for external language plugins
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LanguagePluginsConfig {
+    /// List of external language plugin configurations
+    #[serde(default)]
+    pub plugins: Vec<ExternalPluginConfig>,
+}
+
+/// Configuration for a single external language plugin
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExternalPluginConfig {
+    /// A unique name for the plugin (e.g., "rust")
+    pub name: String,
+    /// File extensions this plugin handles
+    pub extensions: Vec<String>,
+    /// Command to run the plugin executable
+    pub command: Vec<String>,
+    /// The manifest filename this plugin recognizes (e.g., "Cargo.toml")
+    pub manifest_filename: String,
 }
 
 /// External MCP server configuration (optional)

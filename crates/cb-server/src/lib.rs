@@ -78,7 +78,8 @@ pub async fn bootstrap(options: ServerOptions) -> ServerResult<ServerHandle> {
         cache_settings,
         plugin_manager.clone(),
         &options.config,
-    );
+    )
+    .await;
 
     let workspace_manager = Arc::new(cb_core::workspaces::WorkspaceManager::new());
 
@@ -93,7 +94,7 @@ pub async fn bootstrap(options: ServerOptions) -> ServerResult<ServerHandle> {
         operation_queue: services.operation_queue,
         start_time: std::time::Instant::now(),
         workspace_manager,
-        language_plugins: cb_handlers::LanguagePluginRegistry::new(),
+        language_plugins: cb_handlers::LanguagePluginRegistry::new().await,
     });
 
     // Create dispatcher
@@ -160,7 +161,8 @@ pub async fn create_dispatcher_with_workspace(
         cache_settings,
         plugin_manager.clone(),
         &config,
-    );
+    )
+    .await;
 
     // Start background processor for operation queue
     {
@@ -282,7 +284,7 @@ pub async fn create_dispatcher_with_workspace(
         operation_queue: services.operation_queue,
         start_time: std::time::Instant::now(),
         workspace_manager,
-        language_plugins: cb_handlers::LanguagePluginRegistry::new(),
+        language_plugins: cb_handlers::LanguagePluginRegistry::new().await,
     });
 
     // Create and return dispatcher

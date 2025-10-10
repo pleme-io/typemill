@@ -19,14 +19,14 @@ pub struct ServicesBundle {
 }
 
 /// Create services bundle with default configuration
-pub fn create_services_bundle(
+pub async fn create_services_bundle(
     project_root: &PathBuf,
     cache_settings: cb_ast::CacheSettings,
     plugin_manager: Arc<cb_plugins::PluginManager>,
     config: &cb_core::AppConfig,
 ) -> ServicesBundle {
     // Build the language plugin registry (centralized)
-    let plugin_registry = super::registry_builder::build_language_plugin_registry();
+    let plugin_registry = super::registry_builder::build_language_plugin_registry_async().await;
 
     let ast_cache = Arc::new(AstCache::with_settings(cache_settings));
     let ast_service = Arc::new(DefaultAstService::new(

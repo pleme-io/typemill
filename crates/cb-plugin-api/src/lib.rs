@@ -55,6 +55,7 @@ use std::path::Path;
 
 pub mod import_support;
 pub mod metadata;
+pub mod server;
 pub mod test_fixtures;
 pub mod workspace_support;
 
@@ -62,6 +63,7 @@ pub mod workspace_support;
 pub use cb_core::language::ProjectLanguage;
 pub use import_support::ImportSupport;
 pub use metadata::LanguageMetadata;
+pub use server::PluginServer;
 pub use test_fixtures::{
     ComplexityFixture, LanguageTestFixtures, RefactoringFixture, RefactoringOperation,
 };
@@ -192,7 +194,7 @@ pub struct SourceLocation {
 ///
 /// This is a generic container for parsed AST data. Each language plugin
 /// can store its language-specific AST in the `data` field as JSON.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParsedSource {
     /// Language-specific AST data (serialized as JSON for flexibility)
     pub data: Value,
@@ -245,7 +247,7 @@ pub struct LanguageCapabilities {
 }
 
 /// Manifest file data (package.json, Cargo.toml, etc.)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ManifestData {
     /// Package/project name
     pub name: String,
@@ -264,7 +266,7 @@ pub struct ManifestData {
 }
 
 /// A dependency entry
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Dependency {
     /// Dependency name
     pub name: String,
@@ -274,7 +276,7 @@ pub struct Dependency {
 }
 
 /// Where a dependency comes from
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DependencySource {
     /// Registry version (e.g., "1.0.0", "^1.0", etc.)
     Version(String),

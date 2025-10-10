@@ -12,7 +12,12 @@ use once_cell::sync::Lazy;
 // Create a single, static instance of the plugin registry.
 // This ensures that the registry and its plugins live for the entire
 // duration of the test run, solving the lifetime issue.
-static REGISTRY: Lazy<LanguagePluginRegistry> = Lazy::new(LanguagePluginRegistry::new);
+// Note: This uses a sync initialization via block_on to work with static/lazy initialization
+static REGISTRY: Lazy<LanguagePluginRegistry> = Lazy::new(|| {
+    tokio::runtime::Runtime::new()
+        .expect("Failed to create runtime for plugin registry")
+        .block_on(LanguagePluginRegistry::new())
+});
 
 /// Discover all installed language plugins that provide test fixtures
 ///
