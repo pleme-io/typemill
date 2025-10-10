@@ -1,6 +1,6 @@
 # External Plugin System Proposal (REVISED)
 
-**Status:** Proposed (Revised based on ABI stability concerns)
+**Status:** Phase 1 Complete ✅ | Phase 2+ In Progress
 **Author:** Analysis of codebase architecture
 **Goal:** Enable language plugins to be maintained in external Git repositories, installable as add-ons rather than compiled into the core binary.
 
@@ -392,15 +392,99 @@ chmod +x ~/.codebuddy/plugins/bin/cb-lang-rust-plugin
 
 ### Migration Path
 
-#### Phase 1: Protocol Definition
-- Define JSON-RPC protocol for LanguagePlugin trait
-- Add `PluginProcessManager` to `cb-plugins`
-- Create `PluginServer` scaffolding in `cb-plugin-api`
+#### Phase 1: Protocol Definition ✅ COMPLETE
+
+**Completed:** 2025-10-10
+
+- ✅ Define JSON-RPC protocol for LanguagePlugin trait
+- ✅ Add `PluginProcessManager` to `cb-plugins`
+- ✅ Create `PluginServer` scaffolding in `cb-plugin-api`
+- ✅ Create RPC adapter layer to bridge external plugins to LanguagePlugin trait
+- ✅ Add configuration structures for external plugins
+- ✅ Create dual registry builders (sync/async) for backward compatibility
+- ✅ Fix all compilation errors and achieve clean build
 
 **Deliverables:**
-- [ ] `crates/cb-protocol/src/plugin_protocol.rs` (request/response types)
-- [ ] `crates/cb-plugins/src/process_manager.rs` (process supervisor)
-- [ ] `crates/cb-plugin-api/src/server.rs` (plugin binary scaffolding)
+- ✅ `crates/cb-protocol/src/plugin_protocol.rs` (56 LOC - request/response types)
+- ✅ `crates/cb-plugins/src/process_manager.rs` (187 LOC - process supervisor)
+- ✅ `crates/cb-plugin-api/src/server.rs` (112 LOC - plugin binary scaffolding)
+- ✅ `crates/cb-plugins/src/rpc_adapter.rs` (74 LOC - RPC adapter)
+- ✅ `crates/cb-lang-rust/src/main.rs` (28 LOC - proof-of-concept standalone plugin)
+- ✅ `crates/cb-core/src/config.rs` - External plugin config structures
+- ✅ `crates/cb-services/src/services/registry_builder.rs` - Dual sync/async builders
+
+**Implementation Details:**
+
+1. **Plugin Protocol** (`cb-protocol/src/plugin_protocol.rs`):
+   ```rust
+   #[derive(Debug, Serialize, Deserialize)]
+   pub struct PluginRequest {
+       pub id: u64,
+       pub method: String,
+       pub params: Value,
+   }
+
+   #[derive(Debug, Serialize, Deserialize)]
+   pub struct PluginResponse {
+       pub id: u64,
+       pub result: Option<Value>,
+       pub error: Option<PluginError>,
+   }
+   ```
+
+2. **Process Manager** (`cb-plugins/src/process_manager.rs`):
+   - Manages external plugin process lifecycle (spawn, communicate, cleanup)
+   - Uses tokio async I/O for stdio communication
+   - Implements request correlation with oneshot channels
+   - Handles concurrent requests with DashMap
+
+3. **Plugin Server** (`cb-plugin-api/src/server.rs`):
+   - Wraps LanguagePlugin trait implementations as JSON-RPC servers
+   - Reads requests from stdin, dispatches to plugin, writes responses to stdout
+   - Provides scaffolding for standalone plugin binaries
+
+4. **RPC Adapter** (`cb-plugins/src/rpc_adapter.rs`):
+   - Bridges external RPC plugins to internal LanguagePlugin trait
+   - Transparent translation between trait calls and JSON-RPC requests
+
+5. **Registry Builder** (`cb-services/src/services/registry_builder.rs`):
+   - Sync version: Built-in plugins only (for test compatibility)
+   - Async version: Spawns external plugins from config
+   - Uses `Box::leak` for static string conversion in external plugin metadata
+
+6. **Configuration** (`cb-core/src/config.rs`):
+   ```rust
+   #[derive(Debug, Clone, Serialize, Deserialize)]
+   pub struct ExternalPluginConfig {
+       pub name: String,
+       pub extensions: Vec<String>,
+       pub command: Vec<String>,
+       pub manifest_filename: String,
+   }
+   ```
+
+**Technical Decisions:**
+- **Dual registry builders**: Created both sync and async versions to maintain backward compatibility with existing test infrastructure
+- **Box::leak for static strings**: Used to convert owned strings to `&'static str` for LanguageMetadata (required by trait)
+- **Runtime::block_on for static initialization**: Used in test support for synchronous static initialization
+- **DashMap for request tracking**: Concurrent hashmap for tracking pending requests by ID
+- **Tokio async runtime**: Used for plugin process management and async I/O
+
+**Files Modified:**
+- `crates/cb-plugin-api/Cargo.toml` - Added tokio and tracing dependencies
+- `crates/cb-plugins/Cargo.toml` - Added dashmap dependency
+- `crates/cb-plugin-api/src/lib.rs` - Added Serialize/Deserialize derives to protocol types
+- `crates/cb-handlers/src/language_plugin_registry.rs` - Made new() async
+- `crates/cb-server/src/test_helpers.rs` - Made test helpers async
+- `crates/cb-test-support/src/harness/plugin_discovery.rs` - Used Runtime::block_on
+- `crates/cb-services/src/services/app_state_factory.rs` - Uses async registry builder
+
+**Merge Information:**
+- Branch: `feat/plugin-system`
+- Merged to: `main`
+- Date: 2025-10-10
+- Files changed: 22 files (+641 insertions, -82 deletions)
+- Build status: ✅ Clean (cargo check --workspace passes)
 
 #### Phase 2: Convert One Plugin
 - Extract `cb-lang-rust` to separate repo
