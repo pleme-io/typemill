@@ -53,7 +53,7 @@ impl PluginProcess {
         let stdout = child.stdout.take().unwrap();
         let stderr = child.stderr.take().unwrap();
 
-        let pending_requests = Arc::new(DashMap::new());
+        let pending_requests: Arc<DashMap<u64, oneshot::Sender<Result<PluginResponse, String>>>> = Arc::new(DashMap::new());
         let pending_requests_clone = pending_requests.clone();
 
         let plugin_name_for_stdout = name.to_string();

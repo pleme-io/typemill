@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use cb_ast::refactoring::{CodeRange, LspRefactoringService};
 use cb_core::model::mcp::ToolCall;
 use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
-use cb_services::services::build_language_plugin_registry;
+use cb_services::services::{build_language_plugin_registry_async};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::path::Path;
@@ -388,7 +388,7 @@ impl RefactoringHandler {
                     })?;
 
                 // Use centralized language plugin registry
-                let registry = build_language_plugin_registry().await;
+                let registry = build_language_plugin_registry_async().await;
 
                 let plan = cb_ast::package_extractor::plan_extract_module_to_package_with_registry(
                     parsed, &registry,

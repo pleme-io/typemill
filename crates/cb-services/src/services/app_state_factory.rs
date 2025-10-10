@@ -26,7 +26,7 @@ pub async fn create_services_bundle(
     config: &cb_core::AppConfig,
 ) -> ServicesBundle {
     // Build the language plugin registry (centralized)
-    let plugin_registry = super::registry_builder::build_language_plugin_registry().await;
+    let plugin_registry = super::registry_builder::build_language_plugin_registry_async().await;
 
     let ast_cache = Arc::new(AstCache::with_settings(cache_settings));
     let ast_service = Arc::new(DefaultAstService::new(

@@ -72,9 +72,3 @@ impl LanguagePlugin for RpcAdapterPlugin {
     // to be implemented on the adapter, making their own RPC calls. For now,
     // we will leave them as None.
 }
-
-impl From<serde_json::Error> for PluginError {
-    fn from(err: serde_json::Error) -> Self {
-        PluginError::internal(format!("JSON serialization error: {}", err))
-    }
-}

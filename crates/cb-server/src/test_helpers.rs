@@ -144,7 +144,7 @@ fn spawn_test_worker(queue: Arc<OperationQueue>) {
 }
 
 /// Create a test dispatcher for integration tests with a custom project root
-pub fn create_test_dispatcher_with_root(project_root: std::path::PathBuf) -> PluginDispatcher {
+pub async fn create_test_dispatcher_with_root(project_root: std::path::PathBuf) -> PluginDispatcher {
     // Build language plugin registry (centralized)
     let plugin_registry = cb_services::services::build_language_plugin_registry();
 
@@ -186,15 +186,15 @@ pub fn create_test_dispatcher_with_root(project_root: std::path::PathBuf) -> Plu
         operation_queue,
         start_time: std::time::Instant::now(),
         workspace_manager,
-        language_plugins: cb_handlers::LanguagePluginRegistry::new(),
+        language_plugins: cb_handlers::LanguagePluginRegistry::new().await,
     });
 
     PluginDispatcher::new(app_state, plugin_manager)
 }
 
 /// Create a test dispatcher with a temporary directory (for backward compatibility)
-pub fn create_test_dispatcher() -> PluginDispatcher {
+pub async fn create_test_dispatcher() -> PluginDispatcher {
     let temp_dir = std::env::temp_dir().join(format!("codebuddy-test-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&temp_dir).expect("Failed to create temp dir");
-    create_test_dispatcher_with_root(temp_dir)
+    create_test_dispatcher_with_root(temp_dir).await
 }

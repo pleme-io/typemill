@@ -70,7 +70,8 @@ impl<P: LanguagePlugin + 'static> PluginServer<P> {
                 // `PluginError` has a `From` impl for `ApiError`, which can be converted
                 // to the JSON-RPC error format.
                 let api_error: cb_types::error::ApiError = e.into();
-                return PluginResponse::error(req.id, api_error.code as i32, &api_error.message);
+                // JSON-RPC error code: -32603 = Internal error
+                return PluginResponse::error(req.id, -32603, &api_error.message);
             }
         };
 
@@ -84,10 +85,6 @@ impl<P: LanguagePlugin + 'static> PluginServer<P> {
     /// Dispatches a method call to the appropriate `LanguagePlugin` function.
     async fn dispatch(&self, method: &str, params: Value) -> PluginResult<Value> {
         match method {
-            "metadata" => {
-                let meta = self.plugin.metadata();
-                Ok(serde_json::to_value(meta)?)
-            }
             "parse" => {
                 let source: String = serde_json::from_value(params)?;
                 let parsed = self.plugin.parse(&source).await?;

@@ -184,7 +184,7 @@ impl From<PluginError> for ApiError {
 // ============================================================================
 
 /// Location in source code (line and column)
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SourceLocation {
     pub line: usize,
     pub column: usize,
@@ -194,7 +194,7 @@ pub struct SourceLocation {
 ///
 /// This is a generic container for parsed AST data. Each language plugin
 /// can store its language-specific AST in the `data` field as JSON.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParsedSource {
     /// Language-specific AST data (serialized as JSON for flexibility)
     pub data: Value,
@@ -204,7 +204,7 @@ pub struct ParsedSource {
 }
 
 /// A symbol in the source code (function, class, variable, etc.)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Symbol {
     /// Symbol name
     pub name: String,
@@ -220,7 +220,7 @@ pub struct Symbol {
 }
 
 /// Kind of symbol
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SymbolKind {
     Function,
     Class,
@@ -247,7 +247,7 @@ pub struct LanguageCapabilities {
 }
 
 /// Manifest file data (package.json, Cargo.toml, etc.)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ManifestData {
     /// Package/project name
     pub name: String,
@@ -266,7 +266,7 @@ pub struct ManifestData {
 }
 
 /// A dependency entry
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Dependency {
     /// Dependency name
     pub name: String,
@@ -276,7 +276,7 @@ pub struct Dependency {
 }
 
 /// Where a dependency comes from
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DependencySource {
     /// Registry version (e.g., "1.0.0", "^1.0", etc.)
     Version(String),

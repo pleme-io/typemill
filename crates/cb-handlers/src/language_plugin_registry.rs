@@ -5,7 +5,7 @@
 //! of language-specific operations based on file extensions.
 
 use cb_plugin_api::{LanguagePlugin, PluginRegistry};
-use cb_services::services::build_language_plugin_registry;
+use cb_services::services::{build_language_plugin_registry_async};
 use std::sync::Arc;
 use tracing::debug;
 
@@ -15,7 +15,7 @@ use tracing::debug;
 /// provides additional functionality for integration with the handler system.
 ///
 /// **IMPORTANT**: This registry uses the centralized builder from
-/// `cb_services::build_language_plugin_registry()` to ensure all plugins are
+/// `cb_services::build_language_plugin_registry_async()` to ensure all plugins are
 /// registered in a single location.
 #[derive(Clone)]
 pub struct LanguagePluginRegistry {
@@ -30,7 +30,7 @@ impl LanguagePluginRegistry {
     /// `crates/cb-services/src/services/registry_builder.rs`.
     pub async fn new() -> Self {
         // Use the centralized builder - this is the ONLY correct way to create a registry
-        let registry = build_language_plugin_registry().await;
+        let registry = build_language_plugin_registry_async().await;
 
         Self { inner: registry }
     }

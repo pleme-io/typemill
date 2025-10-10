@@ -107,7 +107,7 @@ impl PluginDispatcher {
             info!("Initializing plugin system with DirectLspAdapter (bypassing hard-coded mappings)");
 
             // Build centralized language plugin registry for SystemToolsPlugin
-            let plugin_registry = cb_services::services::build_language_plugin_registry().await;
+            let plugin_registry = cb_services::services::build_language_plugin_registry_async().await;
 
             // Get LSP configuration from app config
             let app_config = cb_core::config::AppConfig::load()
@@ -549,7 +549,7 @@ impl McpDispatcher for PluginDispatcher {
 
 /// Create a test dispatcher for testing purposes
 /// This is exposed publicly to support integration tests
-pub fn create_test_dispatcher() -> PluginDispatcher {
+pub async fn create_test_dispatcher() -> PluginDispatcher {
     let temp_dir = tempfile::TempDir::new().unwrap();
     let project_root = temp_dir.path().to_path_buf();
 
@@ -562,7 +562,7 @@ pub fn create_test_dispatcher() -> PluginDispatcher {
         cache_settings,
         plugin_manager.clone(),
         &config,
-    );
+    ).await;
 
     let workspace_manager = Arc::new(WorkspaceManager::new());
 
@@ -576,7 +576,7 @@ pub fn create_test_dispatcher() -> PluginDispatcher {
         operation_queue: services.operation_queue,
         start_time: std::time::Instant::now(),
         workspace_manager,
-        language_plugins: crate::LanguagePluginRegistry::new(),
+        language_plugins: crate::LanguagePluginRegistry::new().await,
     });
 
     PluginDispatcher::new(app_state, plugin_manager)
@@ -591,7 +591,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
 
         // Build centralized language plugin registry
-        let plugin_registry = cb_services::services::build_language_plugin_registry().await;
+        let plugin_registry = cb_services::services::build_language_plugin_registry_async().await;
 
         let ast_cache = Arc::new(cb_ast::AstCache::new());
         let ast_service = Arc::new(cb_services::services::DefaultAstService::new(
