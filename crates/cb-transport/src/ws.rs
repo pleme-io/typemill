@@ -432,6 +432,7 @@ mod tests {
             plugin_selection: Default::default(),
             git: Default::default(),
             validation: Default::default(),
+            language_plugins: Default::default(),
             #[cfg(feature = "mcp-proxy")]
             external_mcp: None,
         }
