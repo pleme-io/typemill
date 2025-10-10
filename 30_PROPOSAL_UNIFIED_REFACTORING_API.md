@@ -449,44 +449,52 @@ workspace.apply_edit(plan, options) → Result
 
 ## Implementation Approach
 
-**No migration needed**: This is a beta product with no external users.
+**IMPORTANT**: This proposal should be implemented as a **single, complete implementation** with all components delivered together. This is a beta product with no external users, so we can make breaking changes immediately.
 
-**Phased implementation** (see [35_IMPLEMENTATION_SEQUENCING.md](35_IMPLEMENTATION_SEQUENCING.md) for detailed timeline):
+**Prerequisites**: Phase 0 (self-registration system) is already complete ✅
 
-### Phase 0: Foundation (PREREQUISITE)
-- **Self-registration system** for plugin capability discovery
-- Registry descriptors enable dynamic validation of `kind` values
-- **Blocks**: All unified API work until complete
-- **Timeline**: 2-3 weeks
+### Complete Implementation Scope
 
-### Phase 1A: Core Refactoring (4-5 weeks)
-1. Implement all 14 new commands (`*.plan` + `workspace.apply_edit`)
-2. Plan validation (checksums, types)
-3. Rollback mechanism
-4. **No config/validation yet** - inline options only
+Implement all components in a single pass:
 
-### Phase 1B: Configuration (1-2 weeks, parallel with 1C)
-1. `.codebuddy/refactor.toml` loader
-2. Preset resolution with overrides
-3. Config validation against registry
+1. **Core Plan Types** (`crates/cb-protocol/src/refactor_plan.rs`)
+   - Define all 7 plan types: `RenamePlan`, `ExtractPlan`, `InlinePlan`, `MovePlan`, `ReorderPlan`, `TransformPlan`, `DeletePlan`
+   - Include checksums, metadata, warnings, validation fields
+   - Add plan version discriminators
 
-### Phase 1C: Post-Apply Validation (1-2 weeks, parallel with 1B)
-1. Command executor in `workspace.apply_edit`
-2. Automatic rollback on validation failure
-3. Timeout handling
+2. **All 14 Commands** (7 operation families × 2 commands each)
+   - `rename.plan()` + handler
+   - `extract.plan()` + handler
+   - `inline.plan()` + handler
+   - `move.plan()` + handler
+   - `reorder.plan()` + handler
+   - `transform.plan()` + handler
+   - `delete.plan()` + handler
+   - `workspace.apply_edit()` - single executor for all plan types
 
-### Phase 4: Client Utilities (1-2 weeks)
-1. `formatPlan(plan)` utility in client library
-2. Plan diff visualization
+3. **Plan Validation & Safety**
+   - File checksum validation (SHA-256)
+   - Plan type discriminator validation
+   - Atomic rollback mechanism
+   - Post-apply validation with automatic rollback
 
-### Legacy Removal
-- Remove all 35 legacy commands after Phase 1C complete
-- Update all internal callsites to use new API
-- Update documentation
+4. **Configuration Support**
+   - `.codebuddy/refactor.toml` loader
+   - Preset system with override support
+   - Default configuration values
 
-**Critical dependency**: Phase 0 (self-registration) must complete before Phase 1A.
+5. **Legacy Command Removal**
+   - Remove all 35 legacy refactoring commands
+   - Update all internal callsites to new API
+   - Remove old handler implementations
 
-**No deprecation period, no legacy wrappers during beta.**
+6. **Testing & Documentation**
+   - Integration tests for all 7 operation families
+   - Validation scenario tests (pass/fail/timeout)
+   - Update API_REFERENCE.md
+   - Update CLAUDE.md with new tool list
+
+**No phased rollout, no partial implementations, no legacy compatibility.**
 
 ---
 
@@ -665,4 +673,300 @@ console.log(`Plan: ${description}`);
 
 This unified API reduces complexity while improving safety and composability. The plan/apply pattern provides a foundation for advanced features like plan validation, batch operations, and workflow automation.
 
-**Recommendation**: Approve and begin Phase 1 implementation.
+**Recommendation**: Implement this proposal in its entirety as a single, complete deliverable.
+
+---
+
+## Implementation Instructions for AI Agents
+
+### Step-by-Step Implementation Guide
+
+This section provides detailed instructions for implementing the entire Unified Refactoring API in one complete pass.
+
+#### Step 1: Create Core Plan Types (NEW FILE)
+
+**File**: `crates/cb-protocol/src/refactor_plan.rs` (~300-400 lines)
+
+Create all plan type definitions:
+
+```rust
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+/// Discriminated union type for all refactoring plans
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "plan_type")]
+pub enum RefactorPlan {
+    RenamePlan(RenamePlan),
+    ExtractPlan(ExtractPlan),
+    InlinePlan(InlinePlan),
+    MovePlan(MovePlan),
+    ReorderPlan(ReorderPlan),
+    TransformPlan(TransformPlan),
+    DeletePlan(DeletePlan),
+}
+
+/// Base structure shared by all plans
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlanMetadata {
+    pub plan_version: String,  // Always "1.0"
+    pub kind: String,
+    pub language: String,
+    pub estimated_impact: String,  // "low" | "medium" | "high"
+    pub created_at: String,  // ISO 8601 timestamp
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlanSummary {
+    pub affected_files: usize,
+    pub created_files: usize,
+    pub deleted_files: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlanWarning {
+    pub code: String,
+    pub message: String,
+    pub candidates: Option<Vec<String>>,
+}
+
+// Define each plan type (RenamePlan, ExtractPlan, etc.) following the spec
+// Include: edits, summary, warnings, metadata, file_checksums fields
+```
+
+**Export in** `crates/cb-protocol/src/lib.rs`:
+```rust
+pub mod refactor_plan;
+pub use refactor_plan::*;
+```
+
+#### Step 2: Implement All 7 Operation Handlers (NEW FILES)
+
+Create these handler files in `crates/cb-handlers/src/handlers/`:
+
+1. **`rename_handler.rs`** (~300 lines)
+   - Implement `rename.plan()` for symbols, files, directories
+   - Parse target, validate inputs, generate RenamePlan
+   - Leverage existing `rename_symbol`, `rename_file`, `rename_directory` logic
+
+2. **`extract_handler.rs`** (~250 lines)
+   - Implement `extract.plan()` for functions, variables, modules
+   - Migrate logic from `RefactoringHandler::extract_function`, `extract_variable`
+   - Generate ExtractPlan with proper edits
+
+3. **`inline_handler.rs`** (~200 lines)
+   - Implement `inline.plan()` for variables, functions, constants
+   - Migrate logic from `RefactoringHandler::inline_variable`
+   - Generate InlinePlan
+
+4. **`move_handler.rs`** (~250 lines)
+   - Implement `move.plan()` for symbols, modules, consolidation
+   - Support crate consolidation mode (Rust-specific)
+   - Generate MovePlan
+
+5. **`reorder_handler.rs`** (~200 lines)
+   - Implement `reorder.plan()` for parameters, imports, members
+   - Support both manual order (`new_order: [1,0,2]`) and strategy (`"alphabetical"`)
+   - Generate ReorderPlan
+
+6. **`transform_handler.rs`** (~200 lines)
+   - Implement `transform.plan()` for language-specific transformations
+   - Support: `to_async`, `loop_to_iterator`, etc.
+   - Generate TransformPlan
+
+7. **`delete_handler.rs`** (~200 lines)
+   - Implement `delete.plan()` for unused imports, dead code, files
+   - Support scope inference (file/directory/workspace)
+   - Generate DeletePlan
+
+#### Step 3: Implement Unified Apply Handler (NEW FILE)
+
+**File**: `crates/cb-handlers/src/handlers/workspace_apply_handler.rs` (~400 lines)
+
+```rust
+pub struct WorkspaceApplyHandler;
+
+impl WorkspaceApplyHandler {
+    /// Single executor for all plan types
+    pub async fn apply_edit(
+        plan: RefactorPlan,
+        options: ApplyOptions,
+        context: &ToolHandlerContext,
+    ) -> ServerResult<ApplyResult> {
+        // 1. Validate plan_type discriminator
+        // 2. Validate file checksums if enabled
+        // 3. Apply edits atomically using file_service.apply_edit_plan()
+        // 4. If validation command provided, run it
+        // 5. If validation fails, automatic rollback
+        // 6. Return result with validation details
+    }
+
+    fn validate_checksums(plan: &RefactorPlan, file_service: &FileService) -> Result<()>;
+    fn run_validation(validation: &ValidationConfig) -> Result<ValidationResult>;
+}
+```
+
+#### Step 4: Register All Handlers
+
+**File**: `crates/cb-handlers/src/handlers/plugin_dispatcher.rs`
+
+Add to `create_tool_handlers()`:
+```rust
+handlers.push(Arc::new(RenameHandler::new()) as Arc<dyn ToolHandler>);
+handlers.push(Arc::new(ExtractHandler::new()) as Arc<dyn ToolHandler>);
+handlers.push(Arc::new(InlineHandler::new()) as Arc<dyn ToolHandler>);
+handlers.push(Arc::new(MoveHandler::new()) as Arc<dyn ToolHandler>);
+handlers.push(Arc::new(ReorderHandler::new()) as Arc<dyn ToolHandler>);
+handlers.push(Arc::new(TransformHandler::new()) as Arc<dyn ToolHandler>);
+handlers.push(Arc::new(DeleteHandler::new()) as Arc<dyn ToolHandler>);
+handlers.push(Arc::new(WorkspaceApplyHandler::new()) as Arc<dyn ToolHandler>);
+```
+
+**File**: `crates/cb-handlers/src/handlers/mod.rs`
+
+Export new handlers:
+```rust
+pub mod rename_handler;
+pub mod extract_handler;
+pub mod inline_handler;
+pub mod move_handler;
+pub mod reorder_handler;
+pub mod transform_handler;
+pub mod delete_handler;
+pub mod workspace_apply_handler;
+
+pub use rename_handler::RenameHandler;
+pub use extract_handler::ExtractHandler;
+// ... export all
+```
+
+#### Step 5: Implement Configuration Support (NEW FILE)
+
+**File**: `crates/cb-core/src/refactor_config.rs` (~200 lines)
+
+```rust
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RefactorConfig {
+    pub presets: HashMap<String, RefactorPreset>,
+    pub defaults: RefactorDefaults,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RefactorPreset {
+    pub strict: Option<bool>,
+    pub validate_scope: Option<bool>,
+    pub update_imports: Option<bool>,
+    // ... other options
+}
+
+impl RefactorConfig {
+    pub fn load() -> Result<Self> {
+        // Load from .codebuddy/refactor.toml
+        // Merge with defaults
+    }
+
+    pub fn apply_preset(&self, preset_name: &str, options: &mut PlanOptions) -> Result<()>;
+}
+```
+
+#### Step 6: Remove Legacy Commands
+
+**Delete or deprecate**:
+- `crates/cb-handlers/src/handlers/refactoring_handler.rs` (or adapt to delegate to new handlers)
+- Remove legacy tool registrations from `plugin_dispatcher.rs`
+- Remove from `tool_names()` lists
+
+**Update callsites** (search for):
+- `extract_function` → use `extract.plan("function", ...)`
+- `inline_variable` → use `inline.plan("variable", ...)`
+- `rename_symbol` → use `rename.plan({ kind: "symbol", ... }, ...)`
+- etc.
+
+#### Step 7: Add Tests
+
+**File**: `integration-tests/test_unified_refactoring_api.rs` (~500-800 lines)
+
+Test all 7 operation families:
+```rust
+#[tokio::test]
+async fn test_rename_symbol_plan_and_apply() { }
+
+#[tokio::test]
+async fn test_extract_function_plan_and_apply() { }
+
+#[tokio::test]
+async fn test_validation_rollback_on_failure() { }
+
+#[tokio::test]
+async fn test_checksum_validation() { }
+
+#[tokio::test]
+async fn test_config_preset_loading() { }
+// ... more tests
+```
+
+#### Step 8: Update Documentation
+
+1. **API_REFERENCE.md**: Add new tools, remove legacy tools
+2. **CLAUDE.md**: Update MCP tools list
+3. **docs/design/unified_api_contracts.md**: Add formal API specs (if doesn't exist, create it)
+
+### Files to Create (7 new files)
+
+1. `crates/cb-protocol/src/refactor_plan.rs` - Plan types
+2. `crates/cb-handlers/src/handlers/rename_handler.rs`
+3. `crates/cb-handlers/src/handlers/extract_handler.rs`
+4. `crates/cb-handlers/src/handlers/inline_handler.rs`
+5. `crates/cb-handlers/src/handlers/move_handler.rs`
+6. `crates/cb-handlers/src/handlers/reorder_handler.rs`
+7. `crates/cb-handlers/src/handlers/transform_handler.rs`
+8. `crates/cb-handlers/src/handlers/delete_handler.rs`
+9. `crates/cb-handlers/src/handlers/workspace_apply_handler.rs`
+10. `crates/cb-core/src/refactor_config.rs` - Config support
+11. `integration-tests/test_unified_refactoring_api.rs` - Tests
+
+### Files to Modify (8-12 files)
+
+1. `crates/cb-protocol/src/lib.rs` - Export plan types
+2. `crates/cb-handlers/src/handlers/mod.rs` - Export new handlers
+3. `crates/cb-handlers/src/handlers/plugin_dispatcher.rs` - Register handlers
+4. `crates/cb-handlers/src/handlers/refactoring_handler.rs` - Deprecate or adapt
+5. `crates/cb-handlers/src/handlers/file_operation_handler.rs` - May need adaptation
+6. `crates/cb-handlers/src/handlers/tools/editing.rs` - Update tool wrappers
+7. `crates/cb-core/src/lib.rs` - Export refactor_config
+8. `API_REFERENCE.md` - Update tool list
+9. `CLAUDE.md` - Update tool list
+10. `docs/design/unified_api_contracts.md` - Add/update formal specs
+
+### Validation Checklist
+
+After implementation, verify:
+
+- [ ] All 14 commands (7 `*.plan` + 7 handlers + 1 `workspace.apply_edit`) implemented
+- [ ] All plan types include: `plan_type`, `plan_version`, `edits`, `summary`, `warnings`, `metadata`, `file_checksums`
+- [ ] Checksum validation works (rejects stale plans)
+- [ ] Rollback works (reverts changes on error)
+- [ ] Post-apply validation works (runs command, rolls back on failure)
+- [ ] Configuration loading works (`.codebuddy/refactor.toml`)
+- [ ] Preset system works (apply preset, override options)
+- [ ] All 35 legacy commands removed
+- [ ] All tests pass (`cargo nextest run --workspace`)
+- [ ] Documentation updated (API_REFERENCE.md, CLAUDE.md)
+
+### Expected Outcome
+
+After completing these steps, the codebase should have:
+- ✅ 14 new unified refactoring commands (60% reduction from 35 legacy commands)
+- ✅ Consistent plan/apply pattern across all operations
+- ✅ Type-safe plan validation with checksums
+- ✅ Atomic rollback on errors
+- ✅ Post-apply validation with automatic rollback
+- ✅ Configuration system with presets
+- ✅ Zero legacy refactoring commands
+- ✅ Complete test coverage
+- ✅ Updated documentation
+
+**Estimated Total**: ~15-25 files modified/created, ~3,000-4,000 lines of new code (mostly straightforward adaptations of existing logic).
