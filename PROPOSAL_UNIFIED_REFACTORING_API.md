@@ -3,6 +3,7 @@
 **Status**: Draft
 **Author**: Project Team
 **Date**: 2025-10-10
+**Formal Spec**: [docs/design/unified_api_contracts.md](docs/design/unified_api_contracts.md)
 
 ---
 
