@@ -28,6 +28,20 @@ Current API has fragmentation:
 
 ## Solution
 
+### Pillar 1: Refactoring Primitives (Code Transformation)
+
+These atomic operations provide the building blocks for restructuring code safely:
+
+- **Rename** – change the name of a symbol (variable, function, class, file, or directory).
+- **Extract** – pull a block of code into a new function, file, or module.
+- **Inject / Insert** – add code to an existing structure without disturbing surrounding logic.
+- **Move** – relocate code between files, modules, or directories.
+- **Inline** – replace a reference with its value or implementation.
+- **Reorder** – adjust the sequence of code elements to improve clarity or enforce conventions.
+- *(Optional)* **Duplicate / Delete** – copy or remove code snippets when higher-level workflows require it.
+
+These refactoring primitives compose into the richer plan-based workflows defined in this proposal.
+
 ### Core Pattern: Plan → Apply
 
 Every refactoring operation follows two steps:

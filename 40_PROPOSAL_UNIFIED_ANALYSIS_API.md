@@ -29,6 +29,18 @@ Current API has fragmentation:
 
 ## Solution
 
+### Pillar 2: Analysis Primitives (Code Understanding)
+
+These building blocks deliver insight and precision before refactoring happens:
+
+- **Linting** – surface style violations and simple correctness bugs early.
+- **Complexity Analysis** – highlight high-risk functions or modules as they grow unwieldy.
+- **Dead Code Detection** – identify unused or unreachable symbols so the codebase can be reclaimed.
+- **Code Smell Detection** – spot maintainability red flags (long methods, god objects, magic numbers, etc.).
+- **Dependency Analysis** – map relationships and cycles across files, modules, and packages.
+
+Together, these analysis primitives establish the foundation for understanding code health and guiding subsequent refactors.
+
 ### Core Pattern: Analyze → Results
 
 Every analysis operation follows a single-step pattern:
