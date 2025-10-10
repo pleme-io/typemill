@@ -23,4 +23,4 @@ pub use git_service::GitService;
 pub use import_service::ImportService;
 pub use lock_manager::{LockManager, LockType};
 pub use operation_queue::{FileOperation, OperationQueue, OperationType, QueueStats};
-pub use registry_builder::{build_language_plugin_registry, build_language_plugin_registry_async};
+pub use registry_builder::build_language_plugin_registry;

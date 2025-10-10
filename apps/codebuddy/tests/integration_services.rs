@@ -164,7 +164,7 @@ async fn create_test_app_state(project_root: PathBuf) -> Arc<AppState> {
         operation_queue,
         start_time: Instant::now(),
         workspace_manager,
-        language_plugins: cb_handlers::LanguagePluginRegistry::new().await,
+        language_plugins: cb_handlers::LanguagePluginRegistry::new(),
     })
 }
 

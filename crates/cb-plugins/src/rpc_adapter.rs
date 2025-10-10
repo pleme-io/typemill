@@ -4,7 +4,7 @@
 use crate::process_manager::PluginProcess;
 use async_trait::async_trait;
 use cb_plugin_api::{
-    LanguageCapabilities, LanguageMetadata, LanguagePlugin, ManifestData, ParsedSource,
+    PluginCapabilities, LanguageMetadata, LanguagePlugin, ManifestData, ParsedSource,
     PluginError, PluginResult,
 };
 use serde_json::Value;
@@ -46,10 +46,10 @@ impl LanguagePlugin for RpcAdapterPlugin {
         &self.metadata
     }
 
-    fn capabilities(&self) -> LanguageCapabilities {
+    fn capabilities(&self) -> PluginCapabilities {
         // For now, assume external plugins support everything.
         // A more advanced implementation would fetch capabilities from the plugin.
-        LanguageCapabilities {
+        PluginCapabilities {
             imports: true,
             workspace: true,
         }

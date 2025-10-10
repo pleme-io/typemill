@@ -42,11 +42,10 @@ impl DefaultAstService {
         // For backward compatibility, build a registry
         // In production code, this should be passed in
         let plugin_registry = {
-            let mut registry = PluginRegistry::new();
-            #[cfg(feature = "lang-rust")]
-            registry.register(Arc::new(cb_lang_rust::RustPlugin::new()));
-            #[cfg(feature = "lang-typescript")]
-            registry.register(Arc::new(cb_lang_typescript::TypeScriptPlugin::new()));
+            // This is deprecated and should not be used.
+            // In a real scenario, the registry is built with all discovered plugins.
+            // For backward compatibility in tests, we create an empty one.
+            let registry = PluginRegistry::new();
             Arc::new(registry)
         };
         debug!("DefaultAstService created with new cache instance (deprecated method)");

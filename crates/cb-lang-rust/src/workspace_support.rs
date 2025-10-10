@@ -8,6 +8,7 @@ use toml_edit::DocumentMut;
 use tracing::debug;
 
 /// Rust workspace support implementation
+#[derive(Default)]
 pub struct RustWorkspaceSupport;
 
 impl WorkspaceSupport for RustWorkspaceSupport {

@@ -2,10 +2,6 @@
 name = "cb-services"
 edition = "2021"
 
-[build-dependencies]
-serde = { workspace = true }
-toml = "0.9"
-
 [dependencies]
 cb-types = { path = "../cb-types" }
 cb-core = { path = "../cb-core" }
@@ -13,6 +9,7 @@ cb-ast = { path = "../cb-ast" }
 cb-lsp = { path = "../cb-lsp" }
 cb-protocol = { path = "../cb-protocol" }
 cb-plugin-api = { path = "../cb-plugin-api" }
+cb-plugin-registry = { path = "../cb-plugin-registry" }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
@@ -29,15 +26,12 @@ globset = "0.4"
 toml_edit = "0.23"
 pathdiff = "0.2"
 cb-plugins = { path = "../cb-plugins" }
-cb-lang-rust = { workspace = true, optional = true }
-cb-lang-typescript = { workspace = true, optional = true }
+cb-lang-rust = { workspace = true }
+cb-lang-typescript = { workspace = true }
 chrono = "0.4"
 
 [features]
-default = ["lang-rust", "lang-typescript"]
-# Note: Language support temporarily reduced to TS + Rust during unified API refactoring
-lang-rust = ["dep:cb-lang-rust"]
-lang-typescript = ["dep:cb-lang-typescript"]
+default = []
 mcp-proxy = ["cb-core/mcp-proxy", "cb-plugins/mcp-proxy"]
 
 [target.'cfg(unix)'.dependencies]

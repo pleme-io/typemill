@@ -13,35 +13,6 @@
 //! - Manifest file handling (Cargo.toml, package.json, etc.)
 //! - Code analysis and intelligence
 //! - Refactoring operations
-//!
-//! # Example
-//!
-//! ```rust,ignore
-//! use cb_plugin_api::{LanguagePlugin, PluginResult, ParsedSource, ManifestData};
-//! use std::path::Path;
-//!
-//! struct RustPlugin;
-//!
-//! impl LanguagePlugin for RustPlugin {
-//!     fn name(&self) -> &'static str {
-//!         "rust"
-//!     }
-//!
-//!     fn file_extensions(&self) -> Vec<&'static str> {
-//!         vec!["rs"]
-//!     }
-//!
-//!     fn parse(&self, source: &str) -> PluginResult<ParsedSource> {
-//!         // Use syn crate to parse Rust code
-//!         todo!("Implement Rust parsing")
-//!     }
-//!
-//!     fn analyze_manifest(&self, path: &Path) -> PluginResult<ManifestData> {
-//!         // Parse Cargo.toml
-//!         todo!("Implement Cargo.toml parsing")
-//!     }
-//! }
-//! ```
 
 use async_trait::async_trait;
 use cb_types::error::ApiError;
@@ -60,7 +31,6 @@ pub mod test_fixtures;
 pub mod workspace_support;
 
 // Re-exports
-pub use cb_core::language::ProjectLanguage;
 pub use import_support::ImportSupport;
 pub use metadata::LanguageMetadata;
 pub use server::PluginServer;
@@ -239,11 +209,37 @@ pub enum SymbolKind {
 ///
 /// Indicates which optional features a language plugin supports.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct LanguageCapabilities {
+pub struct PluginCapabilities {
     /// Supports import parsing and rewriting
     pub imports: bool,
     /// Supports workspace manifest operations
     pub workspace: bool,
+}
+
+impl PluginCapabilities {
+    /// Creates a new `PluginCapabilities` with all features enabled.
+    pub const fn all() -> Self {
+        Self {
+            imports: true,
+            workspace: true,
+        }
+    }
+}
+
+/// Configuration for a Language Server Protocol (LSP) server.
+#[derive(Debug, Clone)]
+pub struct LspConfig {
+    /// The command to execute to start the LSP server (e.g., "rust-analyzer").
+    pub command: &'static str,
+    /// The arguments to pass to the LSP server command.
+    pub arguments: &'static [&'static str],
+}
+
+impl LspConfig {
+    /// Creates a new `LspConfig`.
+    pub const fn new(command: &'static str, arguments: &'static [&'static str]) -> Self {
+        Self { command, arguments }
+    }
 }
 
 /// Manifest file data (package.json, Cargo.toml, etc.)
@@ -350,7 +346,7 @@ pub trait LanguagePlugin: Send + Sync {
     async fn analyze_manifest(&self, path: &Path) -> PluginResult<ManifestData>;
 
     /// Get plugin capabilities
-    fn capabilities(&self) -> LanguageCapabilities;
+    fn capabilities(&self) -> PluginCapabilities;
 
     /// Get import support if available
     fn import_support(&self) -> Option<&dyn ImportSupport> {
@@ -363,27 +359,6 @@ pub trait LanguagePlugin: Send + Sync {
     }
 
     /// Provide test fixtures for integration testing (optional)
-    ///
-    /// Language plugins can optionally provide test fixtures that define
-    /// expected behavior for complexity analysis, refactoring operations, etc.
-    /// This enables plugins to self-document their capabilities and participate
-    /// in cross-language integration tests without modifying the test framework.
-    ///
-    /// When a plugin returns `Some(fixtures)`, those fixtures will be
-    /// automatically discovered and tested by the integration test suite.
-    ///
-    /// # Returns
-    ///
-    /// - `Some(fixtures)` if the plugin provides test scenarios
-    /// - `None` if the plugin does not participate in cross-language tests
-    ///
-    /// # Example
-    ///
-    /// ```rust,ignore
-    /// fn test_fixtures(&self) -> Option<LanguageTestFixtures> {
-    ///     Some(python_test_fixtures())
-    /// }
-    /// ```
     fn test_fixtures(&self) -> Option<LanguageTestFixtures> {
         None
     }
@@ -482,7 +457,6 @@ mod tests {
                     source_dir: "src",
                     entry_point: "lib.mock",
                     module_separator: "::",
-                    language: cb_core::language::ProjectLanguage::Unknown,
                 },
             }
         }
@@ -511,8 +485,8 @@ mod tests {
             })
         }
 
-        fn capabilities(&self) -> LanguageCapabilities {
-            LanguageCapabilities::default()
+        fn capabilities(&self) -> PluginCapabilities {
+            PluginCapabilities::default()
         }
 
         fn as_any(&self) -> &dyn std::any::Any {

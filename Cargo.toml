@@ -4,6 +4,7 @@ members = [
     "crates/cb-types",
     "crates/cb-protocol",
     "crates/cb-plugin-api",
+    "crates/cb-plugin-registry",
     "crates/cb-ast",
     "crates/cb-plugins",
     "crates/cb-lsp",

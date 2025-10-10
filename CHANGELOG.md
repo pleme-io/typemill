@@ -277,12 +277,11 @@ The project underwent a complete architectural transformation from TypeScript/No
   - **Rust**: Cargo workspace support (existing, enhanced)
   - **Java**: Maven multi-module project support
 
-- **Build-time code generation infrastructure**
-  - Single source of truth: `languages.toml` configuration file
-  - Automatic generation of `ProjectLanguage` enum from TOML
-  - Automatic generation of `LanguageMetadata` constants
-  - Automatic generation of plugin registration code
-  - Zero manual synchronization across crates
+- **Plugin Self-Registration System**
+  - Replaced build-time code generation with a link-time self-registration mechanism using the new `cb-plugin-registry` crate.
+  - Plugins now use the `codebuddy_plugin!` macro to self-register.
+  - The server automatically discovers all linked plugins at startup, removing the need for `languages.toml` and build scripts.
+  - This change completely decouples language plugins from core crates.
 
 - **Language plugin development tooling**
   - `new-lang.sh` generator script with auto-integration

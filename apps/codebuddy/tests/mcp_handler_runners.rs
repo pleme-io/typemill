@@ -121,7 +121,7 @@ async fn create_mock_state(workspace_root: PathBuf) -> Arc<AppState> {
         operation_queue,
         start_time: std::time::Instant::now(),
         workspace_manager,
-        language_plugins: cb_handlers::LanguagePluginRegistry::new().await,
+        language_plugins: cb_handlers::LanguagePluginRegistry::new(),
     })
 }
 

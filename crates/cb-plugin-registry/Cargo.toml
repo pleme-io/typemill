@@ -1,0 +1,11 @@
+[package]
+name = "cb-plugin-registry"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Self-registration for Codebuddy language plugins."
+
+[dependencies]
+inventory = "0.3"
+lazy_static = "1.4"
+cb-plugin-api = { path = "../cb-plugin-api" }

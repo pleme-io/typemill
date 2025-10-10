@@ -186,7 +186,7 @@ pub async fn create_test_dispatcher_with_root(project_root: std::path::PathBuf) 
         operation_queue,
         start_time: std::time::Instant::now(),
         workspace_manager,
-        language_plugins: cb_handlers::LanguagePluginRegistry::new().await,
+        language_plugins: cb_handlers::LanguagePluginRegistry::new(),
     });
 
     PluginDispatcher::new(app_state, plugin_manager)

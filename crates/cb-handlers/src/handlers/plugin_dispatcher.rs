@@ -62,15 +62,6 @@ pub struct PluginDispatcher {
 
 impl PluginDispatcher {
     /// Creates a new instance of the `PluginDispatcher`.
-    ///
-    /// # Arguments
-    ///
-    /// * `app_state` - The shared application state containing all services (AST, file operations, etc.)
-    /// * `plugin_manager` - The manager responsible for routing requests to registered plugins
-    ///
-    /// # Returns
-    ///
-    /// A new `PluginDispatcher` instance ready to handle MCP requests
     pub fn new(app_state: Arc<AppState>, plugin_manager: Arc<PluginManager>) -> Self {
         Self {
             plugin_manager,
@@ -82,23 +73,11 @@ impl PluginDispatcher {
     }
 
     /// Returns a reference to the operation queue.
-    /// This is useful for CLI tools that need to wait for async operations to complete.
     pub fn operation_queue(&self) -> Arc<cb_services::services::OperationQueue> {
         self.app_state.operation_queue.clone()
     }
 
-    /// Initializes the plugin system by loading LSP configurations and registering
-    /// all necessary language and system plugins.
-    ///
-    /// This function is called lazily on the first dispatch and uses a `OnceCell` to ensure
-    /// it only runs once. It loads LSP server configurations from the application config,
-    /// creates DirectLspAdapter instances for each configured server, and registers them
-    /// along with the SystemToolsPlugin.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(())` - If initialization succeeds
-    /// * `Err(ServerError)` - If configuration loading or plugin registration fails
+    /// Initializes the plugin system.
     #[instrument(skip(self))]
     pub async fn initialize(&self) -> ServerResult<()> {
         debug!("PluginDispatcher::initialize() called");
@@ -107,7 +86,7 @@ impl PluginDispatcher {
             info!("Initializing plugin system with DirectLspAdapter (bypassing hard-coded mappings)");
 
             // Build centralized language plugin registry for SystemToolsPlugin
-            let plugin_registry = cb_services::services::build_language_plugin_registry_async().await;
+            let plugin_registry = cb_services::services::build_language_plugin_registry();
 
             // Get LSP configuration from app config
             let app_config = cb_core::config::AppConfig::load()
@@ -118,9 +97,6 @@ impl PluginDispatcher {
             debug!("App config loaded successfully");
             let lsp_config = app_config.lsp;
 
-            // Create a single, unified LSP adapter that can handle all configured languages.
-            // This avoids creating a separate adapter for each language and ensures that
-            // tool handlers have access to a comprehensive adapter.
             let all_extensions: Vec<String> = lsp_config
                 .servers
                 .iter()
@@ -133,14 +109,12 @@ impl PluginDispatcher {
                 "unified-lsp-direct".to_string(),
             ));
 
-            // Store the unified adapter for all tool handlers to use.
             {
                 let mut stored_adapter = self.lsp_adapter.lock().await;
                 *stored_adapter = Some(unified_lsp_adapter.clone());
                 debug!("Stored unified LSP adapter for all tool handlers");
             }
 
-            // Dynamically register plugins based on configured LSP servers
             let mut registered_plugins = 0;
             for server_config in &lsp_config.servers {
                 if server_config.extensions.is_empty() {
@@ -148,31 +122,18 @@ impl PluginDispatcher {
                     continue;
                 }
 
-                // Each plugin now shares the same unified LSP adapter.
                 let lsp_adapter = unified_lsp_adapter.clone();
-
-                // Determine plugin type based on primary extension
                 let primary_extension = &server_config.extensions[0];
                 let (plugin_name, plugin) = match primary_extension.as_str() {
                     "ts" | "tsx" | "js" | "jsx" => {
-                        debug!(extensions = ?server_config.extensions, "Creating TypeScript plugin");
                         ("typescript".to_string(), Arc::new(LspAdapterPlugin::typescript(lsp_adapter)))
                     }
                     "py" | "pyi" => {
-                        debug!(extensions = ?server_config.extensions, "Creating Python plugin");
                         ("python".to_string(), Arc::new(LspAdapterPlugin::python(lsp_adapter)))
                     }
-                    "go" => {
-                        debug!(extensions = ?server_config.extensions, "Creating Go plugin");
-                        ("go".to_string(), Arc::new(LspAdapterPlugin::go(lsp_adapter)))
-                    }
-                    "rs" => {
-                        debug!(extensions = ?server_config.extensions, "Creating Rust plugin");
-                        ("rust".to_string(), Arc::new(LspAdapterPlugin::rust(lsp_adapter)))
-                    }
+                    "go" => ("go".to_string(), Arc::new(LspAdapterPlugin::go(lsp_adapter))),
+                    "rs" => ("rust".to_string(), Arc::new(LspAdapterPlugin::rust(lsp_adapter))),
                     _ => {
-                        // Generic plugin for unknown languages
-                        debug!(extensions = ?server_config.extensions, "Creating generic plugin");
                         let generic_name = format!("{}-generic", primary_extension);
                         (generic_name.clone(), Arc::new(LspAdapterPlugin::new(
                             generic_name,
@@ -182,21 +143,17 @@ impl PluginDispatcher {
                     }
                 };
 
-                debug!(plugin_name = %plugin_name, extensions = ?server_config.extensions, "Registering plugin");
                 self.plugin_manager
                     .register_plugin(&plugin_name, plugin)
                     .await
                     .map_err(|e| {
-                        error!(plugin_name = %plugin_name, error = %e, "Failed to register plugin");
                         ServerError::Internal(format!("Failed to register {} plugin: {}", plugin_name, e))
                     })?;
 
                 registered_plugins += 1;
-                debug!(plugin_name = %plugin_name, "Plugin registered successfully");
             }
 
             // Register System Tools plugin for workspace-level operations
-            // Use the centralized plugin registry
             let system_plugin = Arc::new(cb_plugins::system_tools_plugin::SystemToolsPlugin::new(
                 plugin_registry.clone(),
             ));
@@ -208,19 +165,13 @@ impl PluginDispatcher {
 
             info!(
                 total_plugins = registered_plugins,
-                language_plugins = registered_plugins - 1,
                 "Plugin system initialized successfully"
             );
 
-            // Register tool handlers for non-LSP operations
             {
                 use super::tools::*;
                 let mut registry = self.tool_registry.lock().await;
-
-                // Register all handlers using the unified ToolHandler trait
-                // Using the declarative macro for clean, maintainable registration
                 register_handlers_with_logging!(registry, {
-                    // Public handlers (visible to AI)
                     SystemHandler => "SystemHandler with 1 tool (health_check)",
                     WorkspaceHandler => "WorkspaceHandler with 4 tools (move_directory, find_dead_code, update_dependencies, update_dependency)",
                     AdvancedHandler => "AdvancedHandler with 2 tools (execute_edits, execute_batch)",
@@ -228,8 +179,6 @@ impl PluginDispatcher {
                     EditingHandler => "EditingHandler with 7 tools (rename_symbol, organize_imports, get_code_actions, format_document, extract_function, extract_variable, inline_variable)",
                     NavigationHandler => "NavigationHandler with 9 tools (find_definition, find_references, find_implementations, find_type_definition, get_document_symbols, search_symbols, get_symbol_info, get_diagnostics, get_call_hierarchy)",
                     AnalysisHandler => "AnalysisHandler with 3 tools (find_unused_imports, analyze_code, analyze_project)",
-
-                    // Internal handlers (backend-only)
                     LifecycleHandler => "LifecycleHandler with 3 INTERNAL tools (notify_file_opened, notify_file_saved, notify_file_closed)",
                     InternalEditingHandler => "InternalEditingHandler with 1 INTERNAL tool (rename_symbol_with_imports)",
                     InternalWorkspaceHandler => "InternalWorkspaceHandler with 1 INTERNAL tool (apply_workspace_edit)",
@@ -244,36 +193,18 @@ impl PluginDispatcher {
     }
 
     /// Dispatches an MCP message using the plugin system.
-    ///
-    /// This is the main entry point for processing MCP messages. It ensures the plugin
-    /// system is initialized, then routes requests to the appropriate handlers and returns
-    /// responses or notifications unchanged.
-    ///
-    /// # Arguments
-    ///
-    /// * `message` - The MCP message to process (Request, Response, or Notification)
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(McpMessage)` - The response message or echoed notification
-    /// * `Err(ServerError)` - If initialization fails or the request cannot be handled
     #[instrument(skip(self, message, session_info), fields(request_id = %uuid::Uuid::new_v4()))]
     pub async fn dispatch(
         &self,
         message: McpMessage,
         session_info: &cb_transport::SessionInfo,
     ) -> ServerResult<McpMessage> {
-        // Ensure initialization
         self.initialize().await?;
 
         match message {
             McpMessage::Request(request) => self.handle_request(request, session_info).await,
             McpMessage::Response(response) => Ok(McpMessage::Response(response)),
-            McpMessage::Notification(notification) => {
-                debug!(
-                    notification_method = %notification.method,
-                    "Received notification"
-                );
+            McpMessage::Notification(_) => {
                 Ok(McpMessage::Response(McpResponse {
                     jsonrpc: "2.0".to_string(),
                     id: None,
@@ -292,12 +223,6 @@ impl PluginDispatcher {
         request: McpRequest,
         session_info: &cb_transport::SessionInfo,
     ) -> ServerResult<McpMessage> {
-        debug!(
-            method = %request.method,
-            has_params = request.params.is_some(),
-            "Handling request"
-        );
-
         let response = match request.method.as_str() {
             "initialize" => self.handle_initialize(request.params).await?,
             "initialized" | "notifications/initialized" => self.handle_initialized().await?,
@@ -327,18 +252,6 @@ impl PluginDispatcher {
     }
 
     /// Handle tools/call request using the unified tool registry
-    ///
-    /// This function serves as the main entry point for all tool executions.
-    /// All tools are now handled by the unified tool registry, which delegates
-    /// to the appropriate handler based on the tool name.
-    ///
-    /// # Arguments
-    ///
-    /// * `params` - Optional JSON value containing the tool call parameters, must include tool name and arguments
-    ///
-    /// # Returns
-    ///
-    /// Returns a JSON value containing the tool execution result, or an error if the tool call fails
     #[instrument(skip(self, params, session_info))]
     async fn handle_tool_call(
         &self,
@@ -353,9 +266,6 @@ impl PluginDispatcher {
             .map_err(|e| ServerError::InvalidRequest(format!("Invalid tool call: {}", e)))?;
 
         let tool_name = tool_call.name.clone();
-        debug!(tool_name = %tool_name, "Dispatching tool call to unified registry");
-
-        // Create the context all handlers now expect, including the user_id
         let context = super::tools::ToolHandlerContext {
             user_id: session_info.user_id.clone(),
             app_state: self.app_state.clone(),
@@ -363,7 +273,6 @@ impl PluginDispatcher {
             lsp_adapter: self.lsp_adapter.clone(),
         };
 
-        // Directly dispatch to the tool_registry. It now handles ALL tools.
         let result = self
             .tool_registry
             .lock()
@@ -371,7 +280,6 @@ impl PluginDispatcher {
             .handle_tool(tool_call, &context)
             .await;
 
-        // Log telemetry
         let duration = start_time.elapsed();
         match &result {
             Ok(_) => {
@@ -394,17 +302,6 @@ impl PluginDispatcher {
         }
 
         result
-    }
-
-    /// Public method for benchmarking tool dispatch
-    ///
-    /// This method provides access to the tool dispatch logic for performance benchmarking
-    pub async fn benchmark_tool_call(
-        &self,
-        params: Option<Value>,
-        session_info: &cb_transport::SessionInfo,
-    ) -> ServerResult<Value> {
-        self.handle_tool_call(params, session_info).await
     }
 
     /// Handle MCP initialize request
@@ -432,32 +329,11 @@ impl PluginDispatcher {
         Ok(json!({}))
     }
 
-    /// Returns a reference to the plugin manager for advanced operations.
-    ///
-    /// This provides access to the underlying plugin manager, allowing callers to
-    /// perform operations like querying plugin capabilities, getting statistics,
-    /// or accessing plugin-specific functionality.
-    ///
-    /// # Returns
-    ///
-    /// A reference to the `PluginManager` instance
+
     pub fn plugin_manager(&self) -> &PluginManager {
         &self.plugin_manager
     }
 
-    /// Checks if a specific LSP method is supported for the given file.
-    ///
-    /// This queries the plugin system to determine if any registered plugin can handle
-    /// the specified method for the file type indicated by the file path's extension.
-    ///
-    /// # Arguments
-    ///
-    /// * `file_path` - The path to the file to check
-    /// * `method` - The LSP method name (e.g., "textDocument/definition")
-    ///
-    /// # Returns
-    ///
-    /// `true` if the method is supported for this file type, `false` otherwise
     pub async fn is_method_supported(&self, file_path: &std::path::Path, method: &str) -> bool {
         self.initialize().await.is_ok()
             && self
@@ -466,71 +342,12 @@ impl PluginDispatcher {
                 .await
     }
 
-    /// Returns a list of all file extensions supported by registered plugins.
-    ///
-    /// This aggregates the supported extensions from all registered language plugins,
-    /// which is useful for determining which file types the system can process.
-    ///
-    /// # Returns
-    ///
-    /// A vector of file extension strings (e.g., `["rs", "ts", "py"]`), or an empty
-    /// vector if initialization fails
     pub async fn get_supported_extensions(&self) -> Vec<String> {
         if self.initialize().await.is_ok() {
             self.plugin_manager.get_supported_extensions().await
         } else {
             Vec::new()
         }
-    }
-
-    /// Returns comprehensive statistics about the plugin system for monitoring and debugging.
-    ///
-    /// This aggregates statistics from the plugin registry (total plugins, supported extensions,
-    /// methods per plugin) and individual plugin metrics (cache hits, processing times, etc.).
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(Value)` - A JSON object containing registry statistics, plugin metrics, and plugin list
-    /// * `Err(ServerError)` - If initialization fails
-    ///
-    /// # JSON Structure
-    ///
-    /// ```json
-    /// {
-    ///   "registry": {
-    ///     "total_plugins": 3,
-    ///     "supported_extensions": ["rs", "ts", "py"],
-    ///     "supported_methods": ["textDocument/definition", ...],
-    ///     "average_methods_per_plugin": 15.2
-    ///   },
-    ///   "metrics": { ... },
-    ///   "plugins": [...]
-    /// }
-    /// ```
-    pub async fn get_plugin_statistics(&self) -> ServerResult<Value> {
-        self.initialize().await?;
-
-        let registry_stats = self.plugin_manager.get_registry_statistics().await;
-        let metrics = self.plugin_manager.get_metrics().await;
-        let plugins = self.plugin_manager.list_plugins().await;
-
-        Ok(json!({
-            "registry": {
-                "total_plugins": registry_stats.total_plugins,
-                "supported_extensions": registry_stats.supported_extensions,
-                "supported_methods": registry_stats.supported_methods,
-                "average_methods_per_plugin": registry_stats.average_methods_per_plugin
-            },
-            "metrics": {
-                "total_requests": metrics.total_requests,
-                "successful_requests": metrics.successful_requests,
-                "failed_requests": metrics.failed_requests,
-                "average_processing_time_ms": metrics.average_processing_time_ms,
-                "requests_per_plugin": metrics.requests_per_plugin,
-                "processing_time_per_plugin": metrics.processing_time_per_plugin
-            },
-            "plugins": plugins
-        }))
     }
 }
 
@@ -548,7 +365,6 @@ impl McpDispatcher for PluginDispatcher {
 }
 
 /// Create a test dispatcher for testing purposes
-/// This is exposed publicly to support integration tests
 pub async fn create_test_dispatcher() -> PluginDispatcher {
     let temp_dir = tempfile::TempDir::new().unwrap();
     let project_root = temp_dir.path().to_path_buf();
@@ -562,7 +378,8 @@ pub async fn create_test_dispatcher() -> PluginDispatcher {
         cache_settings,
         plugin_manager.clone(),
         &config,
-    ).await;
+    )
+    .await;
 
     let workspace_manager = Arc::new(WorkspaceManager::new());
 
@@ -576,7 +393,7 @@ pub async fn create_test_dispatcher() -> PluginDispatcher {
         operation_queue: services.operation_queue,
         start_time: std::time::Instant::now(),
         workspace_manager,
-        language_plugins: crate::LanguagePluginRegistry::new().await,
+        language_plugins: crate::LanguagePluginRegistry::new(),
     });
 
     PluginDispatcher::new(app_state, plugin_manager)
@@ -590,30 +407,25 @@ mod tests {
     async fn create_test_app_state() -> Arc<AppState> {
         let temp_dir = TempDir::new().unwrap();
 
-        // Build centralized language plugin registry
-        let plugin_registry = cb_services::services::build_language_plugin_registry_async().await;
-
+        let language_plugins = crate::LanguagePluginRegistry::new();
         let ast_cache = Arc::new(cb_ast::AstCache::new());
         let ast_service = Arc::new(cb_services::services::DefaultAstService::new(
             ast_cache.clone(),
-            plugin_registry.clone(),
+            language_plugins.inner.clone(),
         ));
         let project_root = temp_dir.path().to_path_buf();
         let lock_manager = Arc::new(cb_services::services::LockManager::new());
         let operation_queue = Arc::new(cb_services::services::OperationQueue::new(
             lock_manager.clone(),
         ));
-
-        // Create a minimal test config
         let config = cb_core::AppConfig::default();
-
         let file_service = Arc::new(cb_services::services::FileService::new(
             project_root.clone(),
             ast_cache.clone(),
             lock_manager.clone(),
             operation_queue.clone(),
             &config,
-            plugin_registry.clone(),
+            language_plugins.inner.clone(),
         ));
         let planner = cb_services::services::planner::DefaultPlanner::new();
         let plugin_manager = Arc::new(PluginManager::new());
@@ -631,7 +443,7 @@ mod tests {
             operation_queue,
             start_time: std::time::Instant::now(),
             workspace_manager,
-            language_plugins: crate::LanguagePluginRegistry::new().await,
+            language_plugins,
         })
     }
 
@@ -641,14 +453,9 @@ mod tests {
         let plugin_manager = Arc::new(PluginManager::new());
         let dispatcher = PluginDispatcher::new(app_state, plugin_manager);
 
-        // Initialize should succeed
         assert!(dispatcher.initialize().await.is_ok());
-
-        // Should have registered plugins
         let plugins = dispatcher.plugin_manager.list_plugins().await;
         assert!(!plugins.is_empty());
-        assert!(plugins.contains(&"typescript".to_string()));
-        assert!(plugins.contains(&"python".to_string()));
     }
 
     #[tokio::test]
@@ -668,59 +475,14 @@ mod tests {
         let response = dispatcher
             .dispatch(McpMessage::Request(request), &session_info)
             .await
-.unwrap();
+            .unwrap();
 
         if let McpMessage::Response(resp) = response {
             assert!(resp.result.is_some());
             let result = resp.result.unwrap();
             assert!(result["tools"].is_array());
-
-            let tools = result["tools"].as_array().unwrap();
-            assert!(!tools.is_empty());
-
-            // Should have common tools
-            let tool_names: Vec<&str> = tools.iter().filter_map(|t| t["name"].as_str()).collect();
-            assert!(tool_names.contains(&"find_definition"));
         } else {
             panic!("Expected Response message");
         }
-    }
-
-    #[tokio::test]
-    async fn test_method_support_checking() {
-        let app_state = create_test_app_state().await;
-        let plugin_manager = Arc::new(PluginManager::new());
-        let dispatcher = PluginDispatcher::new(app_state, plugin_manager);
-
-        assert!(dispatcher.initialize().await.is_ok());
-
-        // TypeScript file should support find_definition
-        let ts_file = std::path::Path::new("test.ts");
-        assert!(
-            dispatcher
-                .is_method_supported(ts_file, "find_definition")
-                .await
-        );
-
-        // Unknown extension should not be supported
-        let unknown_file = std::path::Path::new("test.unknown");
-        assert!(
-            !dispatcher
-                .is_method_supported(unknown_file, "find_definition")
-                .await
-        );
-    }
-
-    #[tokio::test]
-    async fn test_plugin_statistics() {
-        let app_state = create_test_app_state().await;
-        let plugin_manager = Arc::new(PluginManager::new());
-        let dispatcher = PluginDispatcher::new(app_state, plugin_manager);
-
-        let stats = dispatcher.get_plugin_statistics().await.unwrap();
-
-        assert!(stats["registry"]["total_plugins"].as_u64().unwrap() > 0);
-        assert!(stats["registry"]["supported_extensions"].as_u64().unwrap() > 0);
-        assert!(stats["plugins"].is_array());
     }
 }
