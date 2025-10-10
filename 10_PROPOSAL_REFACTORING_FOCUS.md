@@ -827,6 +827,14 @@ Repositioning TypeMill as a **refactoring-first tool** with **Refactoring Primit
 
 ### Overall Primitive Coverage
 
+The table above reflects analysis primitives only. When combined with the refactoring inventory (24 primitives), the total footprint is 59 primitives overall:
+
+| Status | Count | Percentage |
+|--------|-------|------------|
+| ✅ Implemented | 20 | 34% |
+| ⚠️ Partial | 8 | 14% |
+| ❌ Missing | 31 | 53% |
+
 **Total Primitives**: 59
 **Implemented**: 20 (34%)
 **Partial**: 8 (14%)

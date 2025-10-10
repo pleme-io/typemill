@@ -100,7 +100,20 @@ mill serve
 - `target/release/codebuddy` → `target/release/mill`
 - `/usr/local/bin/codebuddy` → `/usr/local/bin/mill`
 
-### 4. Documentation Updates
+### 4. Environment Variables
+
+**Prefix Migration:**
+- `CODEBUDDY__*` (multilevel config) → `TYPEMILL__*`
+- `CODEBUDDY_*` (CLI/runtime helpers) → `TYPEMILL_*`
+
+**Migration Strategy:**
+- Maintain dual-read support for legacy variables for at least two release cycles
+- Emit structured `warn!` logs when legacy variables are detected
+- Provide a one-time migration helper (`mill env migrate`) to rewrite `.env`/shell exports
+- Update docs and examples to prefer the new prefix while noting backward compatibility
+- Coordinate updates across `cb-core` config loaders and `cb-client` CLI parsing (see `crates/cb-core/src/config.rs` and `crates/cb-client/src/client_config.rs`)
+
+### 5. Documentation Updates
 
 **Files to Update:**
 - `README.md` - Project name, CLI examples, installation
@@ -122,7 +135,7 @@ cargo run --bin mill
 ./target/release/mill setup
 ```
 
-### 5. Code References
+### 6. Code References
 
 **Rust Code:**
 - Module imports: `use codebuddy::*` → `use typemill::*`
@@ -135,7 +148,7 @@ cargo run --bin mill
 - Sample configurations
 - Docker compose files
 
-### 6. Infrastructure
+### 7. Infrastructure
 
 **Docker:**
 - Image names: `codebuddy:latest` → `typemill:latest`
@@ -165,6 +178,7 @@ cargo run --bin mill
    - Run global search for all instances of `codebuddy`, `cb-*`, `.codebuddy`
    - Document external dependencies (CI, deployment scripts, user guides)
    - Identify breaking changes for users
+   - Inventory all `CODEBUDDY_*` and `CODEBUDDY__*` environment variables in code and docs
 
 3. **Communication Plan**
    - Draft migration guide for existing users
@@ -197,6 +211,12 @@ cargo run --bin mill
 2. Add migration code to auto-detect and migrate `.codebuddy/` → `.typemill/`
 3. Update all config examples and schemas
 
+**Priority 4: Environment Variables**
+1. Extend config loaders (`cb-core`) and CLI parsing (`cb-client`) to read both `CODEBUDDY*` and `TYPEMILL*`
+2. Emit structured warnings when legacy prefixes are used to encourage migration
+3. Implement the `mill env migrate` helper to rewrite `.env`/shell export files
+4. Update acceptance tests to cover dual-prefix support and warning output
+
 ### Phase 3: Documentation (Week 2-3)
 
 1. **Core Documentation**
@@ -214,6 +234,7 @@ cargo run --bin mill
    - Update all code snippets in documentation
    - Update integration test examples
    - Update plugin development guides
+   - Document new `TYPEMILL__*` / `TYPEMILL_*` environment variables and migration guidance
 
 ### Phase 4: Infrastructure (Week 3)
 
