@@ -7,7 +7,7 @@ use cb_protocol::AstService;
 use cb_server::handlers::AppState;
 use cb_server::services::{DefaultAstService, FileService, LockManager, OperationQueue};
 use cb_server::workspaces::WorkspaceManager;
-use integration_tests::harness::{
+use cb_test_support::harness::{
     mcp_fixtures::{
         AnalyzeImportsTestCase, CreateFileTestCase, DeleteFileTestCase, FindDeadCodeTestCase,
         ListFilesTestCase, ReadFileTestCase, RenameDirectoryTestCase, RenameFileTestCase,

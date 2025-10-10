@@ -8,8 +8,6 @@
 use cb_handlers::LanguagePluginRegistry;
 use cb_plugin_api::{LanguagePlugin, LanguageTestFixtures};
 use once_cell::sync::OnceCell;
-use std::sync::Mutex;
-use tokio::runtime::Handle;
 
 // Create a single, static instance of the plugin registry.
 // This ensures that the registry and its plugins live for the entire
@@ -19,25 +17,20 @@ use tokio::runtime::Handle;
 // in a tokio runtime (e.g., inside #[tokio::test]). If so, it uses that
 // runtime to avoid the "Cannot start a runtime from within a runtime" panic.
 // If no runtime exists, it creates one in a separate thread.
-static REGISTRY: OnceCell<Mutex<Option<LanguagePluginRegistry>>> = OnceCell::new();
+static REGISTRY: OnceCell<LanguagePluginRegistry> = OnceCell::new();
 
-fn initialize_registry() -> LanguagePluginRegistry {
-    match Handle::try_current() {
-        Ok(handle) => {
-            // We're in a tokio runtime - use it
-            handle.block_on(LanguagePluginRegistry::new())
-        }
-        Err(_) => {
-            // No runtime - create one in a new thread to avoid nesting issues
-            std::thread::spawn(|| {
-                tokio::runtime::Runtime::new()
-                    .expect("Failed to create runtime for plugin registry")
-                    .block_on(LanguagePluginRegistry::new())
-            })
-            .join()
-            .expect("Failed to join registry initialization thread")
-        }
-    }
+fn get_or_init_registry() -> &'static LanguagePluginRegistry {
+    REGISTRY.get_or_init(|| {
+        // ALWAYS spawn in a separate thread to avoid nested runtime issues
+        // Even if we're in a tokio runtime, we can't block_on() from within it
+        std::thread::spawn(|| {
+            tokio::runtime::Runtime::new()
+                .expect("Failed to create runtime for plugin registry")
+                .block_on(LanguagePluginRegistry::new())
+        })
+        .join()
+        .expect("Failed to join registry initialization thread")
+    })
 }
 
 /// Discover all installed language plugins that provide test fixtures
@@ -63,13 +56,7 @@ fn initialize_registry() -> LanguagePluginRegistry {
 /// ```
 pub fn discover_plugins_with_fixtures() -> Vec<(&'static dyn LanguagePlugin, LanguageTestFixtures)>
 {
-    let cell = REGISTRY.get_or_init(|| {
-        let registry = initialize_registry();
-        Mutex::new(Some(registry))
-    });
-
-    let guard = cell.lock().expect("Failed to lock registry");
-    let registry = guard.as_ref().expect("Registry not initialized");
+    let registry = get_or_init_registry();
     registry.plugins_with_fixtures()
 }
 

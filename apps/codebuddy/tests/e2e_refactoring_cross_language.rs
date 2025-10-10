@@ -25,7 +25,7 @@
 // - Create test files with proper extensions
 // - Execute refactoring via MCP tools
 // - Validate results consistently across languages
-use integration_tests::harness::{
+use cb_test_support::harness::{
     ExpectedBehavior, Language, RefactoringScenarios, TestClient, TestWorkspace,
 };
 
@@ -35,7 +35,7 @@ async fn run_single_language_test(
     client: &mut TestClient,
     language: Language,
     source_code: &str,
-    operation: &integration_tests::harness::RefactoringOperation,
+    operation: &cb_test_support::harness::RefactoringOperation,
     expected: &ExpectedBehavior,
 ) -> bool {
     // Create test file with appropriate extension
