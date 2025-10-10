@@ -27,7 +27,7 @@ resolver = "2"
 
 # Package metadata for cargo install
 [workspace.package]
-version = "1.0.0-rc5"
+version = "0.5.0"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/goobits/codebuddy"

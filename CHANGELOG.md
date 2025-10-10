@@ -15,9 +15,9 @@ The project underwent a complete architectural transformation from TypeScript/No
 
 ---
 
-### [1.0.0-rc5] - 2025-10-10
+### [0.5.0] - 2025-10-10
 
-🚀 **Release Candidate 5** - Temporary language reduction for unified API refactoring
+🚀 **Version 0.5.0** - Temporary language reduction for unified API refactoring
 
 #### Breaking Changes
 
@@ -46,15 +46,15 @@ The project underwent a complete architectural transformation from TypeScript/No
 
 #### Migration Notes
 
-- **For users needing Python/Go/Java/Swift/C# support**: Use git tag `pre-language-reduction` or version `1.0.0-rc4`
+- **For users needing Python/Go/Java/Swift/C# support**: Use git tag `pre-language-reduction` or version `0.4.0`
 - **For contributors**: Multi-language support will be restored in future release after unified API implementation
 - **Git tag preservation**: `git checkout pre-language-reduction` to access full multi-language implementation
 
 ---
 
-### [1.0.0-rc4] - 2025-10-09
+### [0.4.0] - 2025-10-09
 
-🚀 **Release Candidate 4** - Analysis subsystem architecture, Go refactoring parity, and major setup simplification
+🚀 **Version 0.4.0** - Analysis subsystem architecture, Go refactoring parity, and major setup simplification
 
 #### Added
 
@@ -87,9 +87,9 @@ The project underwent a complete architectural transformation from TypeScript/No
 
 ---
 
-### [1.0.0-rc3] - 2025-10-09
+### [0.3.0] - 2025-10-09
 
-🚀 **Release Candidate 3** - Swift language support, comprehensive documentation overhaul, build/test optimizations, and critical import handling fixes
+🚀 **Version 0.3.0** - Swift language support, comprehensive documentation overhaul, build/test optimizations, and critical import handling fixes
 
 #### Added
 
@@ -115,9 +115,9 @@ The project underwent a complete architectural transformation from TypeScript/No
 
 ---
 
-### [1.0.0-rc2] - 2025-10-05
+### [0.2.0] - 2025-10-05
 
-🚀 **Release Candidate 2** - Plugin architecture modernization, workspace operations, and 5-language support
+🚀 **Version 0.2.0** - Plugin architecture modernization, workspace operations, and 5-language support
 
 #### Added
 
@@ -143,9 +143,9 @@ The project underwent a complete architectural transformation from TypeScript/No
 
 ---
 
-### [1.0.0-rc1] - 2025-10-03
+### [0.1.0] - 2025-10-03
 
-🎉 **Release Candidate 1** - Production-ready Rust MCP server with comprehensive tooling
+🎉 **Version 0.1.0** - Production-ready Rust MCP server with comprehensive tooling
 
 #### Added
 
