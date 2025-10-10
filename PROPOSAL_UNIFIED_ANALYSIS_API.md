@@ -152,16 +152,16 @@ analyze.quality("readability", { type: "file", path: "src/app.rs" })
 ```
 
 **Replaces**:
-- `analyze_complexity` ✅
-- `analyze_project_complexity` ✅
-- `find_complexity_hotspots` ✅
-- `suggest_refactoring` ✅
-- `find_magic_numbers` ⚠️
-- `find_long_methods` ⚠️
-- `find_god_classes` ❌
-- `analyze_nesting_depth` ⚠️
-- `analyze_parameter_count` ⚠️
-- `analyze_function_length` ⚠️
+- `analyze_complexity` ✅ (already implemented)
+- `analyze_project_complexity` ✅ (already implemented)
+- `find_complexity_hotspots` ✅ (already implemented)
+- `suggest_refactoring` ✅ (already implemented)
+- `find_magic_numbers` ⚠️ (via kind="smells" or kind="readability", not yet implemented)
+- `find_long_methods` ⚠️ (via kind="smells" or kind="readability", not yet implemented)
+- `find_god_classes` ⚠️ (via kind="smells", not yet implemented)
+- `analyze_nesting_depth` ⚠️ (via kind="readability", not yet implemented)
+- `analyze_parameter_count` ⚠️ (via kind="readability", not yet implemented)
+- `analyze_function_length` ⚠️ (via kind="readability", not yet implemented)
 
 ---
 
@@ -215,12 +215,12 @@ analyze.dead_code("unreachable_code", { type: "workspace" }, { aggressive: true 
 ```
 
 **Replaces**:
-- `find_dead_code` ✅
-- `find_unused_imports` ✅
-- `find_unused_parameters` ❌
-- `find_unreachable_code` ❌
-- `find_unused_variables` ❌
-- `find_unused_types` ❌
+- `find_dead_code` ✅ (already implemented)
+- `find_unused_imports` ✅ (already implemented)
+- `find_unused_parameters` ⚠️ (via kind="unused_parameters", not yet implemented)
+- `find_unreachable_code` ⚠️ (via kind="unreachable_code", not yet implemented)
+- `find_unused_variables` ⚠️ (via kind="unused_variables", not yet implemented)
+- `find_unused_types` ⚠️ (via kind="unused_types", not yet implemented)
 
 ---
 
@@ -406,10 +406,10 @@ analyze.documentation("todos", { type: "workspace" }, {
 ```
 
 **Replaces**:
-- `analyze_comment_ratio` ⚠️
-- `find_undocumented_exports` ❌
-- `find_outdated_comments` ❌
-- `find_todo_comments` ❌
+- `analyze_comment_ratio` ⚠️ (via kind="coverage", embedded in current system)
+- `find_undocumented_exports` ⚠️ (via kind="missing", not yet implemented)
+- `find_outdated_comments` ⚠️ (via kind="outdated", not yet implemented)
+- `find_todo_comments` ⚠️ (via kind="todos", not yet implemented)
 
 ---
 
@@ -464,10 +464,10 @@ analyze.tests("smells", { type: "directory", path: "tests/" })
 ```
 
 **Replaces**:
-- `analyze_test_coverage` ❌
-- `find_untested_code` ❌
-- `analyze_test_quality` ❌
-- `find_test_smells` ❌
+- `analyze_test_coverage` ⚠️ (via kind="coverage", not yet implemented)
+- `find_untested_code` ⚠️ (via kind="untested", not yet implemented)
+- `analyze_test_quality` ⚠️ (via kind="quality", not yet implemented)
+- `find_test_smells` ⚠️ (via kind="smells", not yet implemented)
 
 ---
 
@@ -639,7 +639,8 @@ analyze.batch([
 **Legend**:
 - ✅ = Already implemented in current system
 - ⚠️ = Covered by new API via `kind` parameter, implementation pending
-- ❌ = Not covered, would be a regression
+
+**All 37 legacy commands are covered** - zero regressions. Commands marked ⚠️ require implementing the corresponding `kind` value, but the API design supports them.
 
 ---
 
