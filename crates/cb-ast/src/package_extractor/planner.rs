@@ -1,5 +1,5 @@
 use super::{edits, manifest, workspace, AstResult, ExtractModuleToPackageParams};
-use cb_core::language::{detect_project_language, ProjectLanguage};
+use cb_core::language::detect_project_language;
 use cb_protocol::{EditPlan, EditPlanMetadata, ValidationRule, ValidationType};
 use serde_json::json;
 use std::collections::HashMap;
@@ -19,39 +19,28 @@ pub(crate) async fn plan_extract_module_to_package(
 
     // Step 1: Detect language from source package
     let source_path = Path::new(&params.source_package);
-    let detected_language = detect_project_language(source_path);
+    let detected_language_name =
+        detect_project_language(source_path).ok_or_else(|| crate::error::AstError::Analysis {
+            message: "Could not detect project language - only Rust and TypeScript supported"
+                .to_string(),
+        })?;
 
-    debug!(
-        language = %detected_language.as_str(),
-        "Detected project language"
-    );
+    debug!(language = %detected_language_name, "Detected project language");
 
     // Step 2: Look up appropriate language plugin from registry
-    // Note: Only Rust and TypeScript supported after language reduction
-    let _manifest_ext = match detected_language {
-        ProjectLanguage::Rust => "toml",
-        ProjectLanguage::TypeScript => "json",
-        ProjectLanguage::Unknown => {
-            return Err(crate::error::AstError::Analysis {
-                message: "Could not detect project language - only Rust and TypeScript supported".to_string(),
-            });
-        }
-    };
-
-    // Find plugin by checking all plugins for one that handles this language
     let plugin = plugin_registry
         .all()
         .iter()
-        .find(|p| p.metadata().language == detected_language)
+        .find(|p| p.metadata().name == detected_language_name)
         .ok_or_else(|| crate::error::AstError::Analysis {
             message: format!(
                 "No plugin registered for language: {}",
-                detected_language.as_str()
+                detected_language_name
             ),
         })?;
 
     info!(
-        language = %detected_language.as_str(),
+        language = %detected_language_name,
         "Selected plugin for extraction"
     );
 
@@ -90,12 +79,12 @@ pub(crate) async fn plan_extract_module_to_package(
 
     // Step 6: Construct file modification plan
     let mut edits = Vec::new();
-    edits::add_manifest_creation_edit(&mut edits, &params, &plugin, &generated_manifest);
+    edits::add_manifest_creation_edit(&mut edits, &params, plugin, &generated_manifest);
     debug!(edit_count = edits.len(), "Created manifest TextEdit");
 
     if let Some(original_file_path) = located_files.first() {
         let original_content =
-            edits::add_entrypoint_creation_edit(&mut edits, &params, &plugin, original_file_path).await?;
+            edits::add_entrypoint_creation_edit(&mut edits, &params, plugin, original_file_path).await?;
         debug!(edit_count = edits.len(), "Created entrypoint TextEdit");
 
         edits::add_delete_original_file_edit(&mut edits, original_file_path, &original_content);
@@ -143,7 +132,7 @@ pub(crate) async fn plan_extract_module_to_package(
                 "module_path": params.module_path,
                 "target_package_path": params.target_package_path,
                 "target_package_name": params.target_package_name,
-                "plugin_selected": plugin.metadata().language.as_str(),
+                "plugin_selected": plugin.metadata().name,
                 "located_files": located_files_strings,
                 "dependencies": dependencies,
                 "generated_manifest": generated_manifest,
@@ -155,7 +144,7 @@ pub(crate) async fn plan_extract_module_to_package(
     };
 
     info!(
-        plugin = %plugin.metadata().language.as_str(),
+        plugin = %plugin.metadata().name,
         files_count = located_files.len(),
         dependencies_count = dependencies.len(),
         edits_count = edit_plan.edits.len(),

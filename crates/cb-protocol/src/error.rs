@@ -1,5 +1,6 @@
 //! API error types for the codebuddy system
 
+use cb_types::error::{error_codes, ApiError as CoreApiError};
 use serde::Serialize;
 use thiserror::Error;
 
@@ -140,64 +141,62 @@ impl ApiError {
     ///
     /// This converts the internal error enum to a structured error format
     /// suitable for API responses with error codes and optional details.
-    pub fn to_api_response(&self) -> cb_core::ApiError {
-        use cb_types::error::error_codes::*;
+    pub fn to_api_response(&self) -> CoreApiError {
+        use error_codes::*;
 
         match self {
-            ApiError::Config { message } => cb_core::ApiError::new(E1001_INVALID_REQUEST, message),
-            ApiError::Bootstrap { message } => cb_core::ApiError::new(
+            ApiError::Config { message } => CoreApiError::new(E1001_INVALID_REQUEST, message),
+            ApiError::Bootstrap { message } => CoreApiError::new(
                 E1000_INTERNAL_SERVER_ERROR,
                 format!("Bootstrap error: {}", message),
             ),
-            ApiError::Runtime { message } => cb_core::ApiError::new(
+            ApiError::Runtime { message } => CoreApiError::new(
                 E1000_INTERNAL_SERVER_ERROR,
                 format!("Runtime error: {}", message),
             ),
-            ApiError::InvalidRequest(msg) => cb_core::ApiError::new(E1001_INVALID_REQUEST, msg),
-            ApiError::Unsupported(msg) => cb_core::ApiError::new(E1007_NOT_SUPPORTED, msg),
-            ApiError::Auth(msg) => cb_core::ApiError::new(E1005_PERMISSION_DENIED, msg),
-            ApiError::NotFound(msg) => cb_core::ApiError::new(E1002_FILE_NOT_FOUND, msg),
-            ApiError::AlreadyExists(msg) => cb_core::ApiError::new(
-                E1001_INVALID_REQUEST,
-                format!("Resource already exists: {}", msg),
-            ),
-            ApiError::Internal(msg) => cb_core::ApiError::new(E1000_INTERNAL_SERVER_ERROR, msg),
+            ApiError::InvalidRequest(msg) => CoreApiError::new(E1001_INVALID_REQUEST, msg),
+            ApiError::Unsupported(msg) => CoreApiError::new(E1007_NOT_SUPPORTED, msg),
+            ApiError::Auth(msg) => CoreApiError::new(E1005_PERMISSION_DENIED, msg),
+            ApiError::NotFound(msg) => CoreApiError::new(E1002_FILE_NOT_FOUND, msg),
+            ApiError::AlreadyExists(msg) => {
+                CoreApiError::new(E1001_INVALID_REQUEST, format!("Resource already exists: {}", msg))
+            }
+            ApiError::Internal(msg) => CoreApiError::new(E1000_INTERNAL_SERVER_ERROR, msg),
             ApiError::Io(e) => {
-                cb_core::ApiError::new(E1000_INTERNAL_SERVER_ERROR, format!("I/O error: {}", e))
+                CoreApiError::new(E1000_INTERNAL_SERVER_ERROR, format!("I/O error: {}", e))
             }
             ApiError::Serialization(e) => {
-                cb_core::ApiError::new(E1008_INVALID_DATA, format!("Serialization error: {}", e))
+                CoreApiError::new(E1008_INVALID_DATA, format!("Serialization error: {}", e))
             }
-            ApiError::Parse { message } => cb_core::ApiError::new(E1008_INVALID_DATA, message),
-            ApiError::Lsp(msg) => cb_core::ApiError::new(E1003_LSP_ERROR, msg),
+            ApiError::Parse { message } => CoreApiError::new(E1008_INVALID_DATA, message),
+            ApiError::Lsp(msg) => CoreApiError::new(E1003_LSP_ERROR, msg),
             ApiError::Ast(msg) => {
-                cb_core::ApiError::new(E1000_INTERNAL_SERVER_ERROR, format!("AST error: {}", msg))
+                CoreApiError::new(E1000_INTERNAL_SERVER_ERROR, format!("AST error: {}", msg))
             }
-            ApiError::Plugin(msg) => cb_core::ApiError::new(
-                E1000_INTERNAL_SERVER_ERROR,
-                format!("Plugin error: {}", msg),
-            ),
+            ApiError::Plugin(msg) => {
+                CoreApiError::new(E1000_INTERNAL_SERVER_ERROR, format!("Plugin error: {}", msg))
+            }
         }
     }
 }
 
-/// Convert from cb_core::CoreError to ApiError
-impl From<cb_core::CoreError> for ApiError {
-    fn from(error: cb_core::CoreError) -> Self {
+/// Convert from cb_types::error::CoreError to ApiError
+impl From<cb_types::error::CoreError> for ApiError {
+    fn from(error: cb_types::error::CoreError) -> Self {
         match error {
-            cb_core::CoreError::Config { message } => ApiError::Config { message },
-            cb_core::CoreError::NotFound { resource } => ApiError::NotFound(resource),
-            cb_core::CoreError::InvalidData { message } => ApiError::InvalidRequest(message),
-            cb_core::CoreError::Internal { message } => ApiError::Internal(message),
-            cb_core::CoreError::NotSupported { operation } => ApiError::Unsupported(operation),
+            cb_types::error::CoreError::Config { message } => ApiError::Config { message },
+            cb_types::error::CoreError::NotFound { resource } => ApiError::NotFound(resource),
+            cb_types::error::CoreError::InvalidData { message } => ApiError::InvalidRequest(message),
+            cb_types::error::CoreError::Internal { message } => ApiError::Internal(message),
+            cb_types::error::CoreError::NotSupported { operation } => ApiError::Unsupported(operation),
             _ => ApiError::Internal(error.to_string()),
         }
     }
 }
 
-/// Convert from cb_core::model::mcp::McpError to ApiError
-impl From<cb_core::model::mcp::McpError> for ApiError {
-    fn from(error: cb_core::model::mcp::McpError) -> Self {
+/// Convert from cb_types::model::mcp::McpError to ApiError
+impl From<cb_types::model::mcp::McpError> for ApiError {
+    fn from(error: cb_types::model::mcp::McpError) -> Self {
         ApiError::InvalidRequest(error.message)
     }
 }

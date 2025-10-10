@@ -39,16 +39,35 @@ The project underwent a complete architectural transformation from TypeScript/No
 - **Comprehensive Documentation Updates** - All docs updated for language reduction with disclaimers and git tag references
 - **API Contracts and Proposals** - Refined unified API implementation plans
 
+#### Added
+
+- **Plugin Self-Registration System** - Self-registering language plugins with link-time discovery
+  - New `cb-plugin-registry` crate with `PluginDescriptor` and `codebuddy_plugin!` macro
+  - Plugins self-register using `inventory` crate for automatic discovery at link time
+  - Core crates (`cb-core`, `cb-services`, `cb-ast`) completely decoupled from specific languages
+  - No more `languages.toml` or build-time code generation required
+  - Adding/removing languages requires no core crate changes - just link the crate
+  - Contract tests automatically validate all discovered plugins
+
+#### Changed
+
+- **Plugin Architecture** - Complete decoupling of language plugins from core system
+  - Replaced build-time code generation with runtime discovery via `iter_plugins()`
+  - Language detection now iterates over registered plugins dynamically
+  - Registry builder discovers all plugins at startup automatically
+
 #### Removed
 
 - **Language Plugin Source Code** - Temporarily removed 5 language plugins: Python, Go, Java, Swift, and C# (preserved in git tag `pre-language-reduction`)
 - **Language-Specific Tests** - Removed tests for deleted languages
+- **Build Scripts** - Removed `languages.toml` and all language-related `build.rs` files from core crates
 
 #### Migration Notes
 
 - **For users needing Python/Go/Java/Swift/C# support**: Use git tag `pre-language-reduction` or version `0.4.0`
 - **For contributors**: Multi-language support will be restored in future release after unified API implementation
 - **Git tag preservation**: `git checkout pre-language-reduction` to access full multi-language implementation
+- **Plugin developers**: Use `codebuddy_plugin!` macro in your plugin's `lib.rs` to enable self-registration
 
 ---
 
@@ -121,11 +140,30 @@ The project underwent a complete architectural transformation from TypeScript/No
 
 #### Added
 
-- **Java language support** - Complete implementation with AST-based parsing, import manipulation, and Maven workspace support
-- **Workspace operations for all plugin languages** - Added Python, TypeScript/JavaScript, Go, Rust, and Java workspace support
-- **Build-time code generation infrastructure** - Single source of truth `languages.toml` with automatic code generation
-- **Language plugin development tooling** - Added `new-lang.sh` generator script and comprehensive development documentation
-- **Cross-language testing framework** - Parameterized test harness for multi-language refactoring across all 5 languages
+- **Java language support** - Complete implementation with AST-based parsing
+  - JavaParser subprocess integration for accurate symbol extraction
+  - Import manipulation (add, remove, rewrite, parse package declarations)
+  - Maven workspace support (pom.xml multi-module projects)
+  - Full ImportSupport and WorkspaceSupport trait implementations
+
+- **Workspace operations for all plugin languages**
+  - **Python**: Poetry (`pyproject.toml`), PDM, Hatch workspace support
+  - **TypeScript/JavaScript**: npm, yarn, pnpm workspace support
+  - **Go**: `go.work` workspace file management
+  - **Rust**: Cargo workspace support (existing, enhanced)
+  - **Java**: Maven multi-module project support
+
+- **Language plugin development tooling**
+  - `new-lang.sh` generator script with auto-integration
+  - `check-features.sh` validation script
+  - Comprehensive plugin development documentation
+  - Reference implementations (Rust, Go, TypeScript, Python, Java)
+
+- **Cross-language testing framework**
+  - Parameterized test harness for multi-language refactoring
+  - Comprehensive test scenarios for all 5 languages
+  - Behavior expectations (Success/NotSupported/PartialSuccess)
+  - Language-agnostic test infrastructure
 
 #### Changed
 

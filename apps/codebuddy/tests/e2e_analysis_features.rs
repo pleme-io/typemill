@@ -419,7 +419,7 @@ async fn test_analyze_project_complexity_cross_language() {
     }
 
     for (plugin, fixtures) in plugins_with_fixtures {
-        let lang_name = plugin_language_name(plugin);
+        let lang_name = plugin_language_name(plugin.as_ref());
 
         for scenario in &fixtures.complexity_scenarios {
             let workspace = TestWorkspace::new();
@@ -528,7 +528,7 @@ async fn test_find_complexity_hotspots_cross_language() {
     }
 
     for (plugin, fixtures) in plugins_with_fixtures {
-        let lang_name = plugin_language_name(plugin);
+        let lang_name = plugin_language_name(plugin.as_ref());
         let file_ext = plugin.metadata().extensions[0];
 
         // Find simple and complex scenarios

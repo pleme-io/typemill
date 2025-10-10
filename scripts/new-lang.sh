@@ -17,7 +17,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 CRATES_DIR="$WORKSPACE_ROOT/crates"
-LANGUAGES_TOML="$WORKSPACE_ROOT/config/languages/languages.toml"
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -100,7 +99,6 @@ fi
 
 # Generate language name variants
 LANG_LOWER=$(echo "$LANG_NAME" | tr '[:upper:]' '[:lower:]')
-LANG_UPPER=$(echo "$LANG_NAME" | tr '[:lower:]' '[:upper:]')
 LANG_TITLE=$(echo "$LANG_LOWER" | sed 's/.*/\u&/')
 
 # Set defaults based on language name
@@ -114,13 +112,13 @@ if [ -z "$ENTRY_POINT" ]; then
 fi
 
 # Convert extensions to array format for Rust
-EXTENSIONS_ARRAY=""
+EXTENSIONS_ARRAY_QUOTED=""
 IFS=',' read -ra EXT_ARR <<< "$EXTENSIONS"
 for ext in "${EXT_ARR[@]}"; do
-    if [ -z "$EXTENSIONS_ARRAY" ]; then
-        EXTENSIONS_ARRAY="\"$ext\""
+    if [ -z "$EXTENSIONS_ARRAY_QUOTED" ]; then
+        EXTENSIONS_ARRAY_QUOTED="\"$ext\""
     else
-        EXTENSIONS_ARRAY="$EXTENSIONS_ARRAY, \"$ext\""
+        EXTENSIONS_ARRAY_QUOTED="$EXTENSIONS_ARRAY_QUOTED, \"$ext\""
     fi
 done
 
@@ -128,6 +126,7 @@ PLUGIN_NAME="cb-lang-${LANG_LOWER}"
 PLUGIN_DIR="${CRATES_DIR}/${PLUGIN_NAME}"
 
 echo -e "${BLUE}Creating ${LANG_TITLE} language plugin...${NC}"
+echo -e "  Plugin Crate: ${GREEN}$PLUGIN_NAME${NC}"
 echo -e "  Extensions: ${GREEN}$EXTENSIONS${NC}"
 echo -e "  Manifest: ${GREEN}$MANIFEST${NC}"
 echo -e "  Source dir: ${GREEN}$SOURCE_DIR${NC}"
@@ -169,17 +168,15 @@ if [ "$DRY_RUN" = false ]; then
 cat > "$PLUGIN_DIR/Cargo.toml" << EOF
 [package]
 name = "${PLUGIN_NAME}"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-repository.workspace = true
-homepage.workspace = true
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "A Codebuddy language plugin for ${LANG_TITLE}"
 
 [dependencies]
 # Codebuddy workspace dependencies
 cb-plugin-api = { path = "../cb-plugin-api" }
-cb-protocol = { path = "../cb-protocol" }
-cb-core = { path = "../cb-core" }
+cb-plugin-registry = { path = "../cb-plugin-registry" }
 cb-lang-common = { path = "../cb-lang-common" }
 
 # Async operations
@@ -195,11 +192,6 @@ thiserror = { workspace = true }
 
 # Logging
 tracing = { workspace = true }
-
-# Utilities (uncomment as needed)
-# regex = "1.10"
-# toml = "0.9"
-# toml_edit = "0.23"
 EOF
 fi
 echo -e "${GREEN}✓${NC} Generated Cargo.toml"
@@ -215,43 +207,59 @@ mod parser;
 mod manifest;
 
 use cb_plugin_api::{
-    LanguagePlugin, LanguageMetadata, LanguageCapabilities, ManifestData,
-    ParsedSource, PluginResult,
+    LanguagePlugin, LanguageMetadata, PluginCapabilities, ManifestData,
+    ParsedSource, PluginResult, LspConfig,
 };
+use cb_plugin_registry::codebuddy_plugin;
 use async_trait::async_trait;
 use std::path::Path;
 
-/// ${LANG_TITLE} language plugin implementation
-pub struct ${LANG_TITLE}Plugin {
-    metadata: LanguageMetadata,
+// Register the plugin with the Codebuddy system.
+// This macro creates a static descriptor that is collected at link-time.
+codebuddy_plugin! {
+    name: "${LANG_LOWER}",
+    extensions: [${EXTENSIONS_ARRAY_QUOTED}],
+    manifest: "${MANIFEST}",
+    capabilities: ${LANG_TITLE}Plugin::CAPABILITIES,
+    factory: ${LANG_TITLE}Plugin::new,
+    lsp: None, // TODO: Add LSP config if applicable, e.g., Some(LspConfig::new("gopls", &["gopls"]))
 }
+
+/// ${LANG_TITLE} language plugin implementation.
+#[derive(Default)]
+pub struct ${LANG_TITLE}Plugin;
 
 impl ${LANG_TITLE}Plugin {
-    /// Create a new ${LANG_TITLE} plugin instance
-    pub fn new() -> Self {
-        Self {
-            metadata: LanguageMetadata::${LANG_UPPER},
-        }
-    }
-}
+    /// Static metadata for the ${LANG_TITLE} language.
+    pub const METADATA: LanguageMetadata = LanguageMetadata {
+        name: "${LANG_LOWER}",
+        extensions: &[${EXTENSIONS_ARRAY_QUOTED}],
+        manifest_filename: "${MANIFEST}",
+        source_dir: "${SOURCE_DIR}",
+        entry_point: "${ENTRY_POINT}",
+        module_separator: "${MODULE_SEP}",
+    };
 
-impl Default for ${LANG_TITLE}Plugin {
-    fn default() -> Self {
-        Self::new()
+    /// The capabilities of this plugin.
+    pub const CAPABILITIES: PluginCapabilities = PluginCapabilities {
+        imports: false,  // TODO: Set to true when ImportSupport is implemented
+        workspace: false, // TODO: Set to true when WorkspaceSupport is implemented
+    };
+
+    /// Creates a new, boxed instance of the plugin.
+    pub fn new() -> Box<dyn LanguagePlugin> {
+        Box::new(Self::default())
     }
 }
 
 #[async_trait]
 impl LanguagePlugin for ${LANG_TITLE}Plugin {
     fn metadata(&self) -> &LanguageMetadata {
-        &self.metadata
+        &Self::METADATA
     }
 
-    fn capabilities(&self) -> LanguageCapabilities {
-        LanguageCapabilities {
-            imports: false,  // TODO: Set to true when import support is implemented
-            workspace: false, // TODO: Set to true when workspace support is implemented
-        }
+    fn capabilities(&self) -> PluginCapabilities {
+        Self::CAPABILITIES
     }
 
     async fn parse(&self, source: &str) -> PluginResult<ParsedSource> {
@@ -265,33 +273,19 @@ impl LanguagePlugin for ${LANG_TITLE}Plugin {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-
-    // Optional: Override import_support() when ready
-    // fn import_support(&self) -> Option<&dyn ImportSupport> {
-    //     Some(&self.import_support)
-    // }
-
-    // Optional: Override workspace_support() when ready
-    // fn workspace_support(&self) -> Option<&dyn WorkspaceSupport> {
-    //     Some(&self.workspace_support)
-    // }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use cb_plugin_api::LanguagePlugin;
 
     #[test]
-    fn test_plugin_creation() {
+    fn test_plugin_creation_and_metadata() {
         let plugin = ${LANG_TITLE}Plugin::new();
-        assert_eq!(plugin.metadata().name, "${LANG_TITLE}");
-    }
-
-    #[test]
-    fn test_file_extensions() {
-        let plugin = ${LANG_TITLE}Plugin::new();
-        let extensions = plugin.metadata().extensions;
-        assert!(!extensions.is_empty());
+        let metadata = plugin.metadata();
+        assert_eq!(metadata.name, "${LANG_LOWER}");
+        assert!(metadata.extensions.contains(&"${EXTENSIONS}".split(',').next().unwrap()));
     }
 
     #[test]
@@ -309,120 +303,42 @@ echo -e "${GREEN}✓${NC} Generated src/lib.rs"
 
 # Create parser.rs
 if [ "$DRY_RUN" = false ]; then
-cat > "$PLUGIN_DIR/src/parser.rs" << 'EOF'
-//! ${LANG_TITLE} source code parsing and symbol extraction
-//!
-//! This module can use cb-lang-common utilities:
-//! - SubprocessAstTool for spawning external parsers
-//! - parse_with_fallback for AST + regex fallback pattern
-//! - ErrorBuilder for rich error context
+cat > "$PLUGIN_DIR/src/parser.rs" << EOF
+//! ${LANG_TITLE} source code parsing and symbol extraction.
+use cb_plugin_api::{ParsedSource, PluginResult, PluginError};
 
-use cb_plugin_api::{ParsedSource, PluginResult};
-
-/// Parse ${LANG_TITLE} source code and extract symbols
-///
-/// TODO: Implement actual parsing logic
-///
-/// Example using subprocess AST parser:
-/// ```rust,ignore
-/// use cb_lang_common::{SubprocessAstTool, run_ast_tool};
-///
-/// const AST_TOOL: &str = include_str!("../resources/ast_tool.py");
-///
-/// let tool = SubprocessAstTool::new("python3")
-///     .with_embedded_str(AST_TOOL)
-///     .with_temp_filename("ast_tool.py");
-///
-/// let symbols = run_ast_tool(tool, source)?;
-/// ```
-///
-/// Example using fallback pattern:
-/// ```rust,ignore
-/// use cb_lang_common::parse_with_fallback;
-///
-/// let symbols = parse_with_fallback(
-///     || parse_with_ast(source),
-///     || parse_with_regex(source),
-///     "symbol extraction"
-/// )?;
-/// ```
 pub fn parse_source(source: &str) -> PluginResult<ParsedSource> {
     tracing::warn!(
         source_length = source.len(),
         "${LANG_TITLE} parsing not yet implemented - returning empty symbols"
     );
 
+    // TODO: Implement parsing logic here.
+    // This could involve:
+    // - Using a tree-sitter grammar.
+    // - Spawning an external tool via cb_lang_common::SubprocessAstTool.
+    // - Using regex for a simpler, less accurate parser.
+
     Ok(ParsedSource {
         data: serde_json::json!({
-            "language": "${LANG_TITLE}",
-            "source_length": source.len(),
+            "language": "${LANG_LOWER}",
+            "status": "unimplemented",
         }),
         symbols: vec![],
     })
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_empty_source() {
-        let result = parse_source("");
-        assert!(result.is_ok());
-        let parsed = result.unwrap();
-        assert_eq!(parsed.symbols.len(), 0);
-    }
-
-    #[test]
-    fn test_parse_simple_source() {
-        let source = r#"
-            // A simple ${LANG_TITLE} source file
-            function hello() {
-                console.log("Hello, World!");
-            }
-        "#;
-        let result = parse_source(source);
-        assert!(result.is_ok());
-    }
-}
 EOF
-# Replace template variables in parser.rs
-sed -i "s/\${LANG_TITLE}/$LANG_TITLE/g" "$PLUGIN_DIR/src/parser.rs"
 fi
 echo -e "${GREEN}✓${NC} Generated src/parser.rs"
 
 # Create manifest.rs
 if [ "$DRY_RUN" = false ]; then
-cat > "$PLUGIN_DIR/src/manifest.rs" << 'EOF'
-//! ${LANG_TITLE} manifest file parsing
-//!
-//! Handles ${MANIFEST} files for ${LANG_TITLE} projects.
-//!
-//! This module can use cb-lang-common utilities:
-//! - read_manifest for async file reading with error handling
-//! - TomlWorkspace/JsonWorkspace for workspace operations
-//! - ErrorBuilder for rich error context
-
-use cb_plugin_api::{ManifestData, PluginResult};
+cat > "$PLUGIN_DIR/src/manifest.rs" << EOF
+//! ${LANG_TITLE} manifest file parsing for ${MANIFEST}.
+use cb_plugin_api::{ManifestData, PluginResult, PluginError};
 use cb_lang_common::read_manifest;
 use std::path::Path;
 
-/// Analyze ${LANG_TITLE} manifest file
-///
-/// TODO: Implement actual manifest parsing logic
-///
-/// Example using cb-lang-common:
-/// ```rust,ignore
-/// use cb_lang_common::ErrorBuilder;
-///
-/// let content = read_manifest(path).await?;
-///
-/// let manifest: MyManifest = toml::from_str(&content)
-///     .map_err(|e| ErrorBuilder::manifest("Invalid TOML")
-///         .with_path(path)
-///         .with_context("error", e.to_string())
-///         .build())?;
-/// ```
 pub async fn analyze_manifest(path: &Path) -> PluginResult<ManifestData> {
     tracing::warn!(
         manifest_path = %path.display(),
@@ -431,54 +347,17 @@ pub async fn analyze_manifest(path: &Path) -> PluginResult<ManifestData> {
 
     let content = read_manifest(path).await?;
 
-    // TODO: Parse manifest content and extract:
-    // - Project name
-    // - Version
-    // - Dependencies
-    // - Dev dependencies
+    // TODO: Parse manifest content and extract project metadata.
 
     Ok(ManifestData {
-        name: path
-            .parent()
-            .and_then(|p| p.file_name())
-            .and_then(|n| n.to_str())
-            .unwrap_or("unknown")
-            .to_string(),
+        name: path.parent().and_then(|p| p.file_name()).and_then(|n| n.to_str()).unwrap_or("unknown").to_string(),
         version: "0.0.0".to_string(),
         dependencies: vec![],
         dev_dependencies: vec![],
-        raw_data: serde_json::json!({
-            "content_length": content.len(),
-            "path": path.display().to_string(),
-        }),
+        raw_data: serde_json::Value::String(content),
     })
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use tempfile::NamedTempFile;
-    use std::io::Write;
-
-    #[tokio::test]
-    async fn test_analyze_empty_manifest() {
-        let mut temp_file = NamedTempFile::new().unwrap();
-        writeln!(temp_file, "# Empty manifest").unwrap();
-
-        let result = analyze_manifest(temp_file.path()).await;
-        assert!(result.is_ok());
-    }
-
-    #[tokio::test]
-    async fn test_analyze_nonexistent_manifest() {
-        let result = analyze_manifest(Path::new("/nonexistent/manifest")).await;
-        assert!(result.is_err());
-    }
-}
 EOF
-# Replace template variables in manifest.rs
-sed -i "s/\${LANG_TITLE}/$LANG_TITLE/g" "$PLUGIN_DIR/src/manifest.rs"
-sed -i "s/\${MANIFEST}/$MANIFEST/g" "$PLUGIN_DIR/src/manifest.rs"
 fi
 echo -e "${GREEN}✓${NC} Generated src/manifest.rs"
 
@@ -489,20 +368,19 @@ cat > "$PLUGIN_DIR/README.md" << EOF
 
 ${LANG_TITLE} language support for Codebuddy via the \`LanguagePlugin\` trait.
 
+This plugin self-registers with the Codebuddy system using the \`codebuddy_plugin!\` macro.
+
 ## Configuration
 
 - **Extensions**: ${EXTENSIONS}
 - **Manifest**: ${MANIFEST}
-- **Source Directory**: ${SOURCE_DIR}
-- **Entry Point**: ${ENTRY_POINT}
-- **Module Separator**: ${MODULE_SEP}
 
 ## Features
 
 - [ ] AST parsing and symbol extraction
-- [ ] Import/dependency analysis (ImportSupport trait)
-- [ ] Workspace operations (WorkspaceSupport trait)
 - [ ] Manifest file parsing
+- [ ] Import/dependency analysis (\`ImportSupport\` trait)
+- [ ] Workspace operations (\`WorkspaceSupport\` trait)
 
 ## Implementation Status
 
@@ -512,100 +390,15 @@ This plugin has been scaffolded but requires implementation of its core features
 
 ### Next Steps
 
-1. **Implement parser.rs**: Add actual AST parsing logic
-   - Use \`SubprocessAstTool\` from cb-lang-common for external parsers
-   - Use \`parse_with_fallback\` for AST + regex pattern
-   - Extract symbols (functions, classes, etc.)
+1.  **Implement \`parser.rs\`**: Add actual AST parsing logic.
+2.  **Implement \`manifest.rs\`**: Parse \`${MANIFEST}\` files to extract dependencies and project metadata.
+3.  **Add Capabilities**: Implement \`ImportSupport\` or \`WorkspaceSupport\` traits as needed and update the \`CAPABILITIES\` constant in \`lib.rs\`.
+4.  **Add Tests**: Write comprehensive unit and integration tests for all implemented features.
 
-2. **Implement manifest.rs**: Parse ${MANIFEST} files
-   - Use \`read_manifest\` from cb-lang-common
-   - Extract project metadata and dependencies
-
-3. **Add Import Support** (optional): Implement \`ImportSupport\` trait
-   - Use \`ImportGraphBuilder\` from cb-lang-common
-   - Estimated time: 2-4 hours
-
-4. **Add Workspace Support** (optional): Implement \`WorkspaceSupport\` trait
-   - Use workspace utilities from cb-lang-common
-   - Estimated time: 2-4 hours
-
-See [docs/development/LANGUAGE_PLUGIN_ONBOARDING.md](../../docs/development/LANGUAGE_PLUGIN_ONBOARDING.md) for detailed guidance.
-
-## Testing
-
-\`\`\`bash
-# Run plugin tests
-cargo test -p ${PLUGIN_NAME}
-
-# Run with output
-cargo test -p ${PLUGIN_NAME} -- --nocapture
-
-# Test specific module
-cargo test -p ${PLUGIN_NAME} parser::tests
-\`\`\`
-
-## Integration
-
-This plugin will be automatically registered when you run \`cargo build\`:
-- Root \`Cargo.toml\` workspace dependencies
-- \`crates/cb-handlers/Cargo.toml\` with feature gate \`lang-${LANG_LOWER}\`
-- \`crates/cb-services/src/services/registry_builder.rs\`
-- \`crates/cb-core/src/language.rs\` (ProjectLanguage enum)
-- \`crates/cb-plugin-api/src/metadata.rs\` (LanguageMetadata constant)
-
-## References
-
-- [Language Plugin Onboarding](../../docs/development/LANGUAGE_PLUGIN_ONBOARDING.md)
-- [Language Plugin Guide](../../docs/development/languages/README.md)
-- [CB Lang Common Utilities](../cb-lang-common/README.md)
-- Reference implementations:
-  - \`cb-lang-rust\` - Full implementation with import and workspace support
-  - \`cb-lang-typescript\` - Subprocess-based parser with ImportGraph
-  - \`cb-lang-python\` - Python-specific patterns
-  - \`cb-lang-go\` - Dual-mode parser (subprocess + regex fallback)
+See \`docs/development/languages/README.md\` for detailed guidance.
 EOF
 fi
 echo -e "${GREEN}✓${NC} Generated README.md"
-
-# ============================================================================
-# Phase 3: Register Language in languages.toml
-# ============================================================================
-
-echo ""
-echo -e "${BLUE}Phase 3: Registering language in config/languages/languages.toml${NC}"
-
-if [ "$DRY_RUN" = false ]; then
-    # Check if language already exists
-    if grep -q "^\[languages\.${LANG_TITLE}\]" "$LANGUAGES_TOML"; then
-        echo -e "${YELLOW}  ⚠ Language already registered in languages.toml${NC}"
-    else
-        # Append new language entry to languages.toml
-        cat >> "$LANGUAGES_TOML" << TOMLEOF
-
-[languages.${LANG_TITLE}]
-display_name = "${LANG_TITLE}"
-extensions = [${EXTENSIONS_ARRAY}]
-manifest_filename = "${MANIFEST}"
-source_dir = "${SOURCE_DIR}"
-entry_point = "${ENTRY_POINT}"
-module_separator = "${MODULE_SEP}"
-crate_name = "${PLUGIN_NAME}"
-feature_name = "lang-${LANG_LOWER}"
-TOMLEOF
-        echo -e "${GREEN}  ✓ Registered ${LANG_TITLE} in languages.toml${NC}"
-    fi
-else
-    echo -e "${YELLOW}  [DRY RUN] Would append to languages.toml:${NC}"
-    echo -e "${YELLOW}    [languages.${LANG_TITLE}]${NC}"
-    echo -e "${YELLOW}    display_name = \"${LANG_TITLE}\"${NC}"
-    echo -e "${YELLOW}    extensions = [${EXTENSIONS_ARRAY}]${NC}"
-    echo -e "${YELLOW}    manifest_filename = \"${MANIFEST}\"${NC}"
-    echo -e "${YELLOW}    source_dir = \"${SOURCE_DIR}\"${NC}"
-    echo -e "${YELLOW}    entry_point = \"${ENTRY_POINT}\"${NC}"
-    echo -e "${YELLOW}    module_separator = \"${MODULE_SEP}\"${NC}"
-    echo -e "${YELLOW}    crate_name = \"${PLUGIN_NAME}\"${NC}"
-    echo -e "${YELLOW}    feature_name = \"lang-${LANG_LOWER}\"${NC}"
-fi
 
 # ============================================================================
 # Summary and Next Steps
@@ -619,38 +412,22 @@ echo ""
 echo -e "${BLUE}Plugin location:${NC}"
 echo -e "  ${PLUGIN_DIR}"
 echo ""
-echo -e "${BLUE}Configuration:${NC}"
-echo -e "  ${GREEN}✓${NC} config/languages/languages.toml (language registration)"
-echo ""
-echo -e "${YELLOW}Note: Build scripts will auto-generate integration code on next build.${NC}"
-echo -e "      Run 'cargo build' to regenerate:"
-echo -e "      - ProjectLanguage enum (cb-core)"
-echo -e "      - LanguageMetadata constants (cb-plugin-api)"
-echo -e "      - Plugin registration (cb-services)"
-echo -e "      - Workspace Cargo.toml dependencies"
-echo ""
 echo -e "${YELLOW}Next steps:${NC}"
 echo ""
-echo -e "1. ${BLUE}Build the workspace (this generates integration code):${NC}"
-echo -e "   ${GREEN}cargo build --features lang-${LANG_LOWER}${NC}"
-echo -e "   ${YELLOW}(Build scripts will generate code from languages.toml)${NC}"
+echo -e "1. ${BLUE}Add the new crate to the workspace:${NC}"
+echo -e "   Add the following line to the \`[workspace.members]\` array in the root \`Cargo.toml\`:"
+echo -e "   ${GREEN}\"crates/${PLUGIN_NAME}\"${NC}"
 echo ""
-echo -e "2. ${BLUE}Implement parsing logic:${NC}"
+echo -e "2. ${BLUE}Build the project to integrate the new plugin:${NC}"
+echo -e "   ${GREEN}cargo build${NC}"
+echo ""
+echo -e "3. ${BLUE}Implement the parsing logic:${NC}"
 echo -e "   - Edit ${PLUGIN_DIR}/src/parser.rs"
 echo -e "   - Edit ${PLUGIN_DIR}/src/manifest.rs"
 echo ""
-echo -e "3. ${BLUE}Run tests:${NC}"
+echo -e "4. ${BLUE}Run tests for your new plugin:${NC}"
 echo -e "   ${GREEN}cargo test -p ${PLUGIN_NAME}${NC}"
 echo ""
-echo -e "4. ${BLUE}Optional - Add capability traits:${NC}"
-echo -e "   - Implement ImportSupport for import analysis (2-4h)"
-echo -e "   - Implement WorkspaceSupport for workspace operations (2-4h)"
-echo ""
 echo -e "${BLUE}For detailed guidance, see:${NC}"
-echo -e "  ${GREEN}docs/development/LANGUAGE_PLUGIN_ONBOARDING.md${NC}"
-echo ""
-echo -e "${BLUE}For implementation examples, see:${NC}"
-echo -e "  - Full-featured: ${GREEN}crates/cb-lang-rust${NC}"
-echo -e "  - Dual parser:   ${GREEN}crates/cb-lang-go${NC}"
-echo -e "  - Tree-sitter:   ${GREEN}crates/cb-lang-typescript${NC}"
+echo -e "  ${GREEN}docs/development/languages/README.md${NC}"
 echo ""

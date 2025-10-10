@@ -440,151 +440,64 @@ pub struct AppState {
 }
 ```
 
-## Language Plugin System (Updated - Phase 2 Complete)
+## Language Plugin System
 
-**Architecture**: Capability-based trait system with optional trait objects
+**Architecture**: Self-registering plugins with link-time discovery.
 
 **Core Design**:
-- **Metadata Consolidation**: 7 methods → 1 struct (LanguageMetadata::RUST, etc.)
-- **Trait Reduction**: 22 methods → 9 methods (59% reduction)
-- **Sync Capabilities**: All capability methods are synchronous (no async overhead)
-- **O(1) Feature Detection**: Check capabilities() before attempting operations
+- **Decoupling**: The core system (`cb-services`, `cb-core`, etc.) has no direct knowledge of specific language plugins.
+- **Self-Registration**: Each language plugin crate is responsible for registering itself with the system.
+- **Link-Time Discovery**: The main server binary discovers all available plugins at link time, meaning no runtime file scanning or complex configuration is needed. Adding a language is as simple as adding the crate to the workspace.
 
-**Trait Structure**:
+### The `cb-plugin-registry` Crate
+
+This crate is the heart of the self-registration mechanism. It provides:
+- A `PluginDescriptor` struct that holds all metadata about a language plugin (its name, file extensions, capabilities, and a factory function to create an instance).
+- A macro, `codebuddy_plugin!`, that language plugins use to declare their metadata.
+- An iterator, `iter_plugins()`, which the server uses at startup to get a list of all registered plugins.
+
+The magic is handled by the `inventory` crate, which collects all the static `PluginDescriptor` instances created by the macro into a single, iterable collection that the application can access.
+
+### How a Plugin Registers Itself
+
+Inside a language plugin crate (e.g., `cb-lang-rust`), registration is a single macro call:
+
 ```rust
-trait LanguagePlugin {
-    // Core (always available)
-    fn metadata() -> &LanguageMetadata;
-    fn parse(...) -> ParsedSource;
-    fn analyze_manifest(...) -> ManifestData;
-    fn capabilities() -> LanguageCapabilities;
+// In crates/cb-lang-rust/src/lib.rs
+use cb_plugin_registry::codebuddy_plugin;
 
-    // Optional capabilities (trait objects)
-    fn import_support() -> Option<&dyn ImportSupport>;
-    fn workspace_support() -> Option<&dyn WorkspaceSupport>;
+codebuddy_plugin! {
+    name: "rust",
+    extensions: ["rs"],
+    manifest: "Cargo.toml",
+    capabilities: PluginCapabilities::all(),
+    factory: RustPlugin::new,
+    lsp: Some(LspConfig::new("rust-analyzer", &["rust-analyzer"]))
+}
+```
+
+This macro expands into a static `PluginDescriptor` that `inventory` picks up.
+
+### How the Server Discovers Plugins
+
+At startup, the `PluginRegistry` is built by simply iterating over the discovered plugins:
+
+```rust
+// In crates/cb-services/src/services/registry_builder.rs
+pub fn build_language_plugin_registry() -> Arc<PluginRegistry> {
+    let mut registry = PluginRegistry::new();
+    for descriptor in cb_plugin_registry::iter_plugins() {
+        let plugin = (descriptor.factory)();
+        registry.register(plugin);
+    }
+    Arc::new(registry)
 }
 ```
 
 **Benefits**:
-- No more NotSupported errors - check capabilities first
-- Reduced boilerplate (29-42% LOC reduction per plugin)
-- Sync operations where appropriate
-- Easy to add new languages with only required features
-
-### Capability-Based Design
-
-The plugin system uses a capability-based architecture for optional features:
-
-**Core Trait** (`LanguagePlugin`):
-- 6 required methods + 3 default methods
-- Reduced from 22 methods in previous architecture
-- 59% reduction in trait definition size
-
-**Capability Flags** (`LanguageCapabilities`):
-```rust
-pub struct LanguageCapabilities {
-    pub imports: bool,    // Import parsing and rewriting support
-    pub workspace: bool,  // Workspace manifest operations support
-}
-```
-
-**Benefits**:
-- O(1) feature detection (no try/catch overhead)
-- Opt-in functionality (implement only what you need)
-- Clear API contracts (no NotSupported errors)
-- Reduced boilerplate (29-42% LOC reduction per plugin)
-
-#### Trait Structure
-
-```rust
-#[async_trait]
-pub trait LanguagePlugin: Send + Sync {
-    // Core functionality
-    fn metadata(&self) -> &LanguageMetadata;
-    async fn parse(&self, source: &str) -> PluginResult<ParsedSource>;
-    async fn analyze_manifest(&self, path: &Path) -> PluginResult<ManifestData>;
-
-    // Capability system
-    fn capabilities(&self) -> LanguageCapabilities;
-    fn import_support(&self) -> Option<&dyn ImportSupport>;
-    fn workspace_support(&self) -> Option<&dyn WorkspaceSupport>;
-
-    // Downcasting support
-    fn as_any(&self) -> &dyn std::any::Any;
-
-    // Default implementations
-    async fn list_functions(&self, source: &str) -> PluginResult<Vec<String>>;
-    fn handles_extension(&self, ext: &str) -> bool;
-    fn handles_manifest(&self, filename: &str) -> bool;
-}
-```
-
-#### Metadata Consolidation
-
-Replaced 7 separate methods with a single struct accessor:
-
-**Old Pattern** (removed):
-```rust
-fn name(&self) -> &str;
-fn file_extensions(&self) -> Vec<&str>;
-fn manifest_filename(&self) -> &str;
-fn source_dir(&self) -> &str;
-fn entry_point(&self) -> &str;
-fn module_separator(&self) -> &str;
-fn language(&self) -> ProjectLanguage;
-```
-
-**New Pattern** (current):
-```rust
-fn metadata(&self) -> &LanguageMetadata;
-
-// Usage:
-let name = plugin.metadata().name;
-let exts = plugin.metadata().extensions;
-let manifest = plugin.metadata().manifest_filename;
-```
-
-Pre-defined constants eliminate boilerplate:
-```rust
-impl LanguageMetadata {
-    pub const RUST: Self = Self { ... };
-    pub const TYPESCRIPT: Self = Self { ... };
-    pub const GO: Self = Self { ... };
-    pub const PYTHON: Self = Self { ... };
-}
-```
-
-#### Downcasting Pattern
-
-For implementation-specific methods not in the core trait:
-
-```rust
-use cb_lang_rust::RustPlugin;
-
-// Get plugin from registry
-let plugin = registry.find_by_extension("rs")?;
-
-// Downcast to access Rust-specific methods
-if let Some(rust_plugin) = plugin.as_any().downcast_ref::<RustPlugin>() {
-    let imports = rust_plugin.parse_imports(path).await?;
-    let workspace = rust_plugin.generate_workspace_manifest(&members, root).await?;
-}
-```
-
-**Why Downcasting?**
-- Keeps core trait small and focused
-- Allows language-specific functionality
-- Type-safe access to concrete implementations
-- Service layers can access specialized methods as needed
-
-#### Current Implementation Status
-
-| Language | Imports | Workspace | Parse | Manifest |
-|----------|---------|-----------|-------|----------|
-| Rust | ✅ | ✅ | ✅ | ✅ |
-| TypeScript | ✅ | ❌ | ✅ | ✅ |
-| Go | ✅ | ❌ | ✅ | ✅ |
-| Python | ✅ | ❌ | ✅ | ✅ |
+- **True Modularity**: Adding or removing a language plugin requires no changes to core crates.
+- **Simplicity**: No more `languages.toml`, build scripts, or feature flags for managing languages.
+- **Compile-Time Safety**: The plugin is either linked and registered, or it's not. No runtime errors from misconfiguration.
 
 ### LSP Integration
 
@@ -783,7 +696,7 @@ For adding support for new programming languages, see the **[Language Plugins Gu
 
 1. **Plugin Structure**: Directory layout and file organization
 2. **Trait Implementation**: `LanguagePlugin` trait requirements
-3. **Registration**: Plugin registration in `language_plugin_registry.rs`
+3. **Registration**: Calling the `codebuddy_plugin!` macro to enable self-registration.
 4. **Testing**: Unit and integration test requirements
 5. **Reference Examples**: Rust, Go, TypeScript plugin implementations
 

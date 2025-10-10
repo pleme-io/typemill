@@ -11,6 +11,7 @@ use std::path::Path;
 use tracing::debug;
 
 /// Rust import support implementation
+#[derive(Default)]
 pub struct RustImportSupport;
 
 impl ImportSupport for RustImportSupport {

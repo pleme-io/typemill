@@ -3,26 +3,6 @@
 //! This crate provides complete Rust language support, implementing both:
 //! - `LanguagePlugin` - AST parsing and symbol extraction
 //! - Import and workspace support traits
-//!
-//! # Features
-//!
-//! - Full AST parsing using `syn`
-//! - Symbol extraction (functions, structs, enums, etc.)
-//! - Import analysis and rewriting
-//! - Cargo.toml manifest parsing and manipulation
-//! - Documentation extraction from doc comments
-//! - Module file location and reference finding
-//!
-//! # Example
-//!
-//! ```rust,ignore
-//! use cb_lang_rust::RustPlugin;
-//! use cb_plugin_api::LanguagePlugin;
-//!
-//! let plugin = RustPlugin::new();
-//! let source = "fn main() { println!(\"Hello\"); }";
-//! let functions = plugin.list_functions(source).await.unwrap();
-//! ```
 
 mod manifest;
 pub mod parser;
@@ -39,52 +19,60 @@ use cb_lang_common::{
     read_manifest,
 };
 use cb_plugin_api::{
-    LanguageCapabilities, LanguageMetadata, LanguagePlugin, ManifestData, ParsedSource,
+    LanguagePlugin, LanguageMetadata, PluginCapabilities, LspConfig, ManifestData, ParsedSource,
     PluginResult,
 };
+use cb_plugin_registry::codebuddy_plugin;
 use std::path::Path;
 
-/// Rust language plugin implementation
-///
-/// This plugin provides comprehensive Rust language support including:
-/// - AST parsing and symbol extraction
-/// - Import/use statement analysis
-/// - Cargo.toml manifest handling
-/// - Documentation extraction
+// Self-register the plugin with the Codebuddy system.
+codebuddy_plugin! {
+    name: "rust",
+    extensions: ["rs"],
+    manifest: "Cargo.toml",
+    capabilities: RustPlugin::CAPABILITIES,
+    factory: RustPlugin::new,
+    lsp: Some(LspConfig::new("rust-analyzer", &["rust-analyzer"]))
+}
+
+/// Rust language plugin implementation.
+#[derive(Default)]
 pub struct RustPlugin {
-    metadata: LanguageMetadata,
     import_support: import_support::RustImportSupport,
     workspace_support: workspace_support::RustWorkspaceSupport,
 }
 
 impl RustPlugin {
-    /// Create a new Rust plugin instance
-    pub fn new() -> Self {
-        Self {
-            metadata: LanguageMetadata::RUST,
-            import_support: import_support::RustImportSupport,
-            workspace_support: workspace_support::RustWorkspaceSupport,
-        }
-    }
-}
+    /// Static metadata for the Rust language.
+    pub const METADATA: LanguageMetadata = LanguageMetadata {
+        name: "rust",
+        extensions: &["rs"],
+        manifest_filename: "Cargo.toml",
+        source_dir: "src",
+        entry_point: "lib.rs",
+        module_separator: "::",
+    };
 
-impl Default for RustPlugin {
-    fn default() -> Self {
-        Self::new()
+    /// The capabilities of this plugin.
+    pub const CAPABILITIES: PluginCapabilities = PluginCapabilities {
+        imports: true,
+        workspace: true,
+    };
+
+    /// Creates a new, boxed instance of the plugin.
+    pub fn new() -> Box<dyn LanguagePlugin> {
+        Box::new(Self::default())
     }
 }
 
 #[async_trait]
 impl LanguagePlugin for RustPlugin {
     fn metadata(&self) -> &LanguageMetadata {
-        &self.metadata
+        &Self::METADATA
     }
 
-    fn capabilities(&self) -> LanguageCapabilities {
-        LanguageCapabilities {
-            imports: true,
-            workspace: true,
-        }
+    fn capabilities(&self) -> PluginCapabilities {
+        Self::CAPABILITIES
     }
 
     async fn parse(&self, source: &str) -> PluginResult<ParsedSource> {
@@ -458,16 +446,18 @@ mod tests {
     #[tokio::test]
     async fn test_rust_plugin_basic() {
         let plugin = RustPlugin::new();
+        let plugin_trait: &dyn LanguagePlugin = plugin.as_ref();
 
-        assert_eq!(plugin.metadata().name, "Rust");
-        assert_eq!(plugin.metadata().extensions, &["rs"]);
-        assert!(plugin.handles_extension("rs"));
-        assert!(!plugin.handles_extension("py"));
+        assert_eq!(plugin_trait.metadata().name, "rust");
+        assert_eq!(plugin_trait.metadata().extensions, &["rs"]);
+        assert!(plugin_trait.handles_extension("rs"));
+        assert!(!plugin_trait.handles_extension("py"));
     }
 
     #[tokio::test]
     async fn test_rust_plugin_parse() {
         let plugin = RustPlugin::new();
+        let plugin_trait: &dyn LanguagePlugin = plugin.as_ref();
         let source = r#"
 /// A test function
 fn test_function() {
@@ -479,7 +469,7 @@ struct TestStruct {
 }
 "#;
 
-        let parsed = plugin.parse(source).await.unwrap();
+        let parsed = plugin_trait.parse(source).await.unwrap();
 
         // Should extract both function and struct
         assert_eq!(parsed.symbols.len(), 2);
@@ -505,6 +495,7 @@ struct TestStruct {
     #[tokio::test]
     async fn test_rust_plugin_list_functions() {
         let plugin = RustPlugin::new();
+        let plugin_trait: &dyn LanguagePlugin = plugin.as_ref();
         let source = r#"
 fn first() {}
 fn second() {}
@@ -514,7 +505,7 @@ impl MyStruct {
 }
 "#;
 
-        let functions = plugin.list_functions(source).await.unwrap();
+        let functions = plugin_trait.list_functions(source).await.unwrap();
         assert_eq!(functions.len(), 3);
         assert!(functions.contains(&"first".to_string()));
         assert!(functions.contains(&"second".to_string()));
@@ -524,15 +515,17 @@ impl MyStruct {
     #[tokio::test]
     async fn test_rust_plugin_parse_error() {
         let plugin = RustPlugin::new();
+        let plugin_trait: &dyn LanguagePlugin = plugin.as_ref();
         let invalid_source = "fn incomplete_function {";
 
-        let result = plugin.parse(invalid_source).await;
+        let result = plugin_trait.parse(invalid_source).await;
         assert!(result.is_err());
     }
 
     #[tokio::test]
     async fn test_rewrite_imports_preserves_non_use_content() {
         let plugin = RustPlugin::new();
+        let plugin_trait: &dyn LanguagePlugin = plugin.as_ref();
 
         // Source with use statements AND other content that contains the crate name
         let source = r#"use old_crate::Foo;
@@ -550,7 +543,7 @@ impl Wrapper {
 }"#;
 
         // Use the ImportSupport trait method instead
-        let import_support = plugin.import_support().unwrap();
+        let import_support = plugin_trait.import_support().unwrap();
         let (result, count) =
             import_support.rewrite_imports_for_rename(source, "old_crate", "new_crate");
 

@@ -14,7 +14,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // The core application will capture and log stderr from this process.
 
     // Instantiate the plugin implementation from the library part of this crate.
-    let plugin = RustPlugin::new();
+    let plugin = RustPlugin::default();
 
     // Create a new server that will handle the JSON-RPC protocol.
     let server = PluginServer::new(plugin);

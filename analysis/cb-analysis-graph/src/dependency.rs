@@ -3,7 +3,6 @@
 //! This data structure represents the relationships between files/modules
 //! in a codebase, tracking imports, exports, and re-exports.
 
-use cb_core::language::ProjectLanguage as Language;
 use cb_plugin_api::Symbol;
 use petgraph::graph::{DiGraph, NodeIndex};
 use serde::{Deserialize, Serialize};
@@ -18,8 +17,8 @@ pub type NodeId = NodeIndex;
 pub struct ModuleNode {
     /// The absolute path to the file.
     pub path: PathBuf,
-    /// The programming language of the module.
-    pub language: Language,
+    /// The programming language of the module (e.g., "rust", "typescript").
+    pub language: String,
     /// A list of symbols exported by this module.
     pub exports: Vec<Symbol>,
 }
@@ -84,16 +83,16 @@ impl DependencyGraph {
         from: &Path,
         to: &Path,
         dependency: Dependency,
-        default_lang: Language,
+        default_lang: &str,
     ) {
         let from_node = ModuleNode {
             path: from.to_path_buf(),
-            language: default_lang,
+            language: default_lang.to_string(),
             exports: vec![],
         };
         let to_node = ModuleNode {
             path: to.to_path_buf(),
-            language: default_lang,
+            language: default_lang.to_string(),
             exports: vec![],
         };
 
@@ -166,19 +165,19 @@ mod tests {
             &path_a,
             &path_b,
             Dependency { kind: DependencyKind::Import, symbols: vec![] },
-            Language::Rust,
+            "rust",
         );
         graph.add_dependency(
             &path_b,
             &path_c,
             Dependency { kind: DependencyKind::Import, symbols: vec![] },
-            Language::Rust,
+            "rust",
         );
         graph.add_dependency(
             &path_a,
             &path_d,
             Dependency { kind: DependencyKind::Import, symbols: vec![] },
-            Language::Rust,
+            "rust",
         );
 
         (graph, path_a, path_b, path_c, path_d)

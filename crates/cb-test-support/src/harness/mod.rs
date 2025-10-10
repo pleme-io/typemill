@@ -1,5 +1,6 @@
 pub mod client;
 pub mod complexity_harness;
+pub mod contract_tests;
 pub mod fixtures;
 pub mod lsp_setup;
 pub mod mcp_fixtures;

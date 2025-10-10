@@ -65,24 +65,21 @@ When developing a new language plugin, you may encounter the following common is
 - **Problem**: Your local build fails because a parser for another language is missing.
 - **Solution**: Run `make build-parsers` from the root directory to build all required external parser artifacts. Currently only TypeScript and Rust are supported.
 
-### 3. Non-Exhaustive Match Errors
-- **Problem**: After adding your new language to `languages.toml`, the build fails with a "non-exhaustive pattern" error in a seemingly unrelated crate like `cb-ast`.
-- **Solution**: The `ProjectLanguage` enum is used in `match` statements in several places. You must find these `match` statements and add a case for your new language. A global search for `ProjectLanguage::` should reveal the locations that need updating.
-
 ---
 
 ## 🏗️ Architecture Overview
 
 ### Plugin System
 
-Each language plugin is a separate Rust crate implementing the `LanguagePlugin` trait from `cb-plugin-api`:
+Each language plugin is a separate Rust crate implementing the `LanguagePlugin` trait from `cb-plugin-api`. Plugins use the `codebuddy_plugin!` macro to self-register with the system, making them automatically discoverable at runtime.
 
 ```
 crates/
 ├── cb-lang-common/       # Shared utilities
 ├── cb-lang-rust/         # Rust language plugin (active)
 ├── cb-lang-typescript/   # TypeScript/JavaScript plugin (active)
-└── cb-plugin-api/        # Core traits and types
+├── cb-plugin-api/        # Core traits and types
+└── cb-plugin-registry/   # Self-registration mechanism
 ```
 
 **Note**: Python, Go, Java, and Swift plugins temporarily disabled. See git tag `pre-language-reduction`.
@@ -296,26 +293,6 @@ See reference implementations for complete test coverage examples.
 
 ---
 
-## 🔗 Registry Integration
-
-Plugins are registered in the main codebase at plugin initialization:
-
-```rust
-// In crates/cb-plugins/src/lib.rs
-pub fn initialize_plugins() -> PluginRegistry {
-    let mut registry = PluginRegistry::new();
-
-    registry.register_language(Box::new(TypeScriptPlugin::new()));
-    registry.register_language(Box::new(RustPlugin::new()));
-
-    // Python, Go, Java, Swift temporarily disabled during API refactoring
-
-    registry
-}
-```
-
----
-
 ## 📝 Contributing
 
 When adding a new language plugin:
@@ -324,7 +301,7 @@ When adding a new language plugin:
 2. Implement following **[PLUGIN_DEVELOPMENT_GUIDE.md](PLUGIN_DEVELOPMENT_GUIDE.md)**
 3. Use utilities from **[CB_LANG_COMMON.md](CB_LANG_COMMON.md)**
 4. Write comprehensive tests (target: 30+ tests)
-5. Update `crates/cb-plugins/src/lib.rs` to register plugin
+5. Call the `codebuddy_plugin!` macro in your plugin's `lib.rs` to enable self-registration.
 6. Run `./check-features.sh` to verify integration
 7. Submit PR with example code snippets
 
