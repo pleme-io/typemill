@@ -94,6 +94,9 @@ pub async fn plan_inline_variable(
     // Fallback to AST-based implementation
     match detect_language(file_path) {
         "python" => ast_inline_variable_python(source, variable_line, variable_col, file_path),
+        "typescript" | "javascript" => {
+            ast_inline_variable_typescript(source, variable_line, variable_col, file_path)
+        }
         "rust" => ast_inline_variable_rust(source, variable_line, variable_col, file_path),
         "go" => ast_inline_variable_go(source, variable_line, variable_col, file_path),
         "java" => ast_inline_variable_java(source, variable_line, variable_col, file_path),
@@ -104,6 +107,22 @@ pub async fn plan_inline_variable(
             file_path
         ))),
     }
+}
+
+/// Generate edit plan for inline variable refactoring (TypeScript/JavaScript) using AST
+fn ast_inline_variable_typescript(
+    source: &str,
+    variable_line: u32,
+    variable_col: u32,
+    file_path: &str,
+) -> AstResult<EditPlan> {
+    cb_lang_typescript::refactoring::plan_inline_variable(
+        source,
+        variable_line,
+        variable_col,
+        file_path,
+    )
+    .map_err(|e| AstError::analysis(format!("TypeScript refactoring error: {}", e)))
 }
 
 /// Generate edit plan for inline variable refactoring (Java) using AST
