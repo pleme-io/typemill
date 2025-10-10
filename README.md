@@ -30,48 +30,37 @@ Currently supports **TypeScript and Rust** with full AST analysis and refactorin
 
 ## 🚀 Quick Start
 
-### For End Users (Use the tool)
+The installer script downloads the correct pre-built binary for your operating system and architecture. No Rust or other development tools are required.
 
-Install the pre-built binary:
+### Recommended Method (Safe & Transparent)
 
+This two-step process allows you to inspect the script before running it.
+
+```bash
+# 1. Download the installer
+curl -fsSL -o install.sh https://raw.githubusercontent.com/goobits/codebuddy/main/install.sh
+
+# 2. Run the installer
+bash install.sh
+```
+
+### One-Liner (Convenient)
+
+For a faster setup, you can pipe the script directly to bash:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/goobits/codebuddy/main/install.sh | bash
 ```
 
-Then configure and start:
+### First Steps
+
+Once installed, configure Codebuddy for your project and start the server:
 
 ```bash
 codebuddy setup    # Configure LSP servers for your project
 codebuddy start    # Start the MCP server
 ```
 
-**That's it!** Your AI assistant now has deep code intelligence.
-
----
-
-### For Developers (Build from source)
-
-**One command does everything:**
-
-```bash
-git clone https://github.com/goobits/codebuddy.git
-cd codebuddy
-make first-time-setup  # Installs all tools, builds parsers, runs tests (~3-5 min)
-```
-
-**Note:** Building requires Node.js for the TypeScript language plugin. See [CONTRIBUTING.md](CONTRIBUTING.md) for prerequisites.
-
-**What gets installed:**
-- cargo-nextest, sccache, cargo-watch, cargo-audit (via cargo-binstall)
-- mold linker (if sudo available)
-- LSP servers: typescript-language-server, rust-analyzer
-- TypeScript parser (if Node.js available)
-
-**Or use Dev Container for zero-setup:**
-- Open in VS Code → Automatically installs everything
-- Perfect for quick experimentation
-
-See **[CONTRIBUTING.md](CONTRIBUTING.md)** for development workflow and architecture.
+**That's it!** Your AI assistant now has deep code intelligence. For more details on building from source, see the [Development](#-development) section.
 
 ## 🛠️ Language Server Setup
 
@@ -225,6 +214,33 @@ codebuddy setup
 ## 🧪 Development
 
 Want to contribute or modify Codebuddy? We'd love to have you! The codebase is pure Rust with a focus on clarity and performance.
+
+### Building from Source
+
+If you prefer to build from source, you'll need Rust, Node.js, and Make.
+
+```bash
+# Clone the repository
+git clone https://github.com/goobits/codebuddy.git
+cd codebuddy
+
+# Run the first-time setup script (installs tools, builds parsers, runs tests)
+make first-time-setup
+```
+
+**What gets installed:**
+- cargo-nextest, sccache, cargo-watch, cargo-audit (via cargo-binstall)
+- mold linker (if sudo available)
+- LSP servers: typescript-language-server, rust-analyzer
+- TypeScript parser (if Node.js available)
+
+**Or use Dev Container for zero-setup:**
+- Open in VS Code → Automatically installs everything
+- Perfect for quick experimentation
+
+### Common Commands
+
+Once your environment is set up, you can use these commands for a typical development workflow:
 
 ```bash
 # Build and test
