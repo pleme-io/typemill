@@ -99,95 +99,19 @@ The project underwent a complete architectural transformation from TypeScript/No
 - **Enhanced `rename_directory` Workspace Operations** - Auto-update Cargo.toml path dependencies and manifest updates
 - **cb-lang-common Utility Library** - Shared utility modules for language plugins with ImportGraph builder
 
-- **Swift language support** - Complete implementation with comprehensive AST-based parsing
-  - Swift AST parsing for accurate symbol extraction
-  - Import manipulation (add, remove, rewrite, parse module declarations)
-  - Swift Package Manager workspace support (Package.swift)
-  - Full ImportSupport and WorkspaceSupport trait implementations
-  - **Note**: Developed in separate branch, documentation updated for unmerged status
-
-- **Build and test performance optimizations** (implemented from PROPOSAL_BUILD_TEST_OPTIMIZATION.md)
-  - Build configuration: Added `codegen-units=256` and sparse registry protocol in `.cargo/config.toml`
-  - Test gating: Feature flags for `fast`/`lsp`/`e2e`/`heavy` test categories
-  - Test parallelization: Used `join_all` for concurrent test execution
-  - Tooling: Added `cargo-nextest` support and `clean-cache` Makefile target
-  - **Performance Impact**: Faster builds and more flexible test execution
-
-- **Import support refactoring** (implemented from PROPOSAL_IMPORT_REFACTORING.md)
-  - Comprehensive import support refactoring across all 6 language plugins
-  - New `cb-lang-common` primitives: `find_last_matching_line`, `insert_line_at`, `remove_lines_matching`, `replace_in_lines`
-  - **Code Reduction**: 260 lines saved (15% reduction) with zero regressions
-  - **Test Coverage**: 37 unit tests + 27 property-based tests (~2,700 generated cases)
-  - **Performance**: All primitives exceed targets by 3-50×
-  - All 6 plugins migrated successfully (Swift, Go, Python, TypeScript, Rust, Java)
+- **Swift language support** - Complete implementation with AST-based parsing, import manipulation, and Swift Package Manager support
+- **Build and test performance optimizations** - Added test feature flags (`fast`/`lsp`/`e2e`/`heavy`), cargo-nextest support, and build configuration improvements
+- **Import support refactoring** - Refactored import support across all 6 language plugins (260 lines saved, 15% reduction, zero regressions)
 
 #### Changed
 
 - **Language Plugin Integration** - All language plugins now integrate with cb-lang-common utilities
-  - Go plugin: Import parsing utilities
-  - Python plugin: Comprehensive utility integration
-  - TypeScript plugin: Common utility integration
-  - Rust plugin: Shared utility integration
-
-- **Crate Organization** (Phase 2-3 completion)
-  - Moved all language plugins to flat `crates/` layout for consistency
-  - Relocated `cb-lang-java`, `cb-lang-python`, `cb-lang-rust`, `cb-lang-typescript`, `cb-lang-common`
-  - Improved project structure and dependency management
-
-- **Benchmark organization** - Moved benchmarks to `crates/cb-bench` for better project structure (Phase 3)
+- **Crate Organization** - Moved all language plugins to flat `crates/` layout for consistency
 
 #### Fixed
 
-- **Code quality improvements** - Resolved dead code, unused variables, and test warnings
-- **Deterministic output** - Ensured consistent ordering in `manifest_updates` output from `rename_directory`
-
-- **Import Handling**
-  - Prevent duplicate imports in `rename_directory` operations
-  - Replace entire import line instead of just module name for accuracy
-  - Column position errors in `rename_directory` resolved
-  - Exclude files inside moved directory from import updates
-  - Prevents duplicate imports being created when directory contents are moved
-  - Fixes wrong lines being replaced in import statements
-  - Resolves malformed spacing in import statements
-  - Files inside a moved directory use relative imports that don't need updating
-
-- **Testing Infrastructure**
-  - Fixed 4 failing tests to achieve 100% test pass rate (550/550 tests passing)
-  - LSP performance tests fixed (indexing issues, response structure, line number offsets)
-  - Memory usage and workspace edit performance tests corrected
-  - Error handling in atomic failure and validation tests
-
-#### Performance
-
-- Cognitive complexity analysis integrated into refactoring suggestions
-- Optimized import analysis and manipulation across all language plugins
-- Enhanced AST-based complexity calculation features
-
-#### Documentation
-
-- **Comprehensive documentation audit** (20+ issues addressed)
-  - Standardized version to `1.0.0-rc3` across all Cargo.toml files
-  - Updated all outdated file paths (e.g., `crates/languages/` → correct paths)
-  - Corrected script paths and trait names throughout documentation
-  - Removed hardcoded metrics (line counts, test counts, tool counts) for maintainability
-  - Fixed Docker documentation (port 3040 → 3000, corrected `docker-compose` commands)
-  - Added `cargo-nextest` installation instructions
-  - Added disclaimers to C# and Swift reviews for unmerged branches
-  - Standardized position indexing descriptions in API_REFERENCE.md
-  - Clarified logging guidelines (file logging unsupported, use shell redirection)
-  - Added Swift to all language support matrices
-  - Synchronized CLAUDE.md and GEMINI.md with source of truth markers
-- Complete API.md documentation for MCP Tools Enhancement
-- Enhanced .debug/ directory documentation in CLAUDE.md
-- Synchronization of all documentation with codebase
-- Fixed API.md references to API_REFERENCE.md throughout docs
-- Updated `10_TREE_PROPOSAL.md` to mark Phase 3 complete
-
-#### Removed
-
-- **Completed proposal documents** (1398 lines removed)
-  - `PROPOSAL_BUILD_TEST_OPTIMIZATION.md` (implemented in 977344f)
-  - `PROPOSAL_IMPORT_REFACTORING.md` (implemented in fc71336)
+- **Import Handling** - Fixed duplicate imports, column position errors, and malformed spacing in `rename_directory` operations
+- **Testing Infrastructure** - Fixed 4 failing tests to achieve 100% test pass rate (550/550 tests passing)
 
 ---
 
@@ -197,69 +121,18 @@ The project underwent a complete architectural transformation from TypeScript/No
 
 #### Added
 
-- **Java language support** - Complete implementation with AST-based parsing
-  - JavaParser subprocess integration for accurate symbol extraction
-  - Import manipulation (add, remove, rewrite, parse package declarations)
-  - Maven workspace support (pom.xml multi-module projects)
-  - Full ImportSupport and WorkspaceSupport trait implementations
-
-- **Workspace operations for all plugin languages**
-  - **Python**: Poetry (`pyproject.toml`), PDM, Hatch workspace support
-  - **TypeScript/JavaScript**: npm, yarn, pnpm workspace support
-  - **Go**: `go.work` workspace file management
-  - **Rust**: Cargo workspace support (existing, enhanced)
-  - **Java**: Maven multi-module project support
-
-- **Build-time code generation infrastructure**
-  - Single source of truth: `languages.toml` configuration file
-  - Automatic generation of `ProjectLanguage` enum from TOML
-  - Automatic generation of `LanguageMetadata` constants
-  - Automatic generation of plugin registration code
-  - Zero manual synchronization across crates
-
-- **Language plugin development tooling**
-  - `new-lang.sh` generator script with auto-integration
-  - `check-features.sh` validation script
-  - Comprehensive plugin development documentation
-  - Reference implementations (Rust, Go, TypeScript, Python, Java)
-
-- **Cross-language testing framework**
-  - Parameterized test harness for multi-language refactoring
-  - Comprehensive test scenarios for all 5 languages
-  - Behavior expectations (Success/NotSupported/PartialSuccess)
-  - Language-agnostic test infrastructure
+- **Java language support** - Complete implementation with AST-based parsing, import manipulation, and Maven workspace support
+- **Workspace operations for all plugin languages** - Added Python, TypeScript/JavaScript, Go, Rust, and Java workspace support
+- **Build-time code generation infrastructure** - Single source of truth `languages.toml` with automatic code generation
+- **Language plugin development tooling** - Added `new-lang.sh` generator script and comprehensive development documentation
+- **Cross-language testing framework** - Parameterized test harness for multi-language refactoring across all 5 languages
 
 #### Changed
 
-- **Plugin architecture refactored to capability-based traits** (Phase 1A-1F, Phase 2)
-  - Replaced monolithic `LanguageIntelligencePlugin` (22 methods) with composable `LanguagePlugin` trait
-  - Optional `ImportSupport` and `WorkspaceSupport` capability traits
-  - Metadata access via `plugin.metadata()` instead of individual trait methods
-  - Downcasting pattern for plugin-specific methods
-  - **Benefit**: 29-42% LOC reduction per plugin, opt-in capabilities
-
-- **Refactoring operations switched to AST-first approach**
-  - `extract_function`, `inline_variable`, `extract_variable` now try AST before LSP
-  - **Rationale**: LSP servers have inconsistent multiline extraction behavior
-  - **Benefit**: Faster, more reliable, under our control
-  - 4/5 languages now support multiline extract via AST (Python, TypeScript, Rust, Go)
-
-- **Simplified language plugin generator** (`new-lang.sh`)
-  - Reduced from 817 to 607 lines (-210 lines, 25.7% reduction)
-  - Replaced 5-file patching with single TOML append
-  - Build scripts auto-generate all integration code
-  - Portable across macOS/Linux (no BSD sed issues)
-
-- **LSP infrastructure improvements**
-  - Replaced arbitrary sleeps with smart LSP polling (Bug #2 fix)
-  - Hybrid fallback for `find_dead_code` to support rust-analyzer
-  - Multi-plugin workspace symbol search (Bug #1 fix)
-
-- **Documentation overhaul**
-  - Updated all language support matrices to include Java (5 languages total)
-  - Added build-time code generation documentation
-  - Removed legacy manual integration steps
-  - Consolidated 4 obsolete planning documents
+- **Plugin architecture refactored to capability-based traits** - Replaced monolithic plugin with composable traits (29-42% LOC reduction per plugin)
+- **Refactoring operations switched to AST-first approach** - AST tried before LSP for faster, more reliable operations (4/5 languages support multiline extract)
+- **Simplified language plugin generator** - Reduced `new-lang.sh` from 817 to 607 lines with TOML-based generation
+- **LSP infrastructure improvements** - Replaced arbitrary sleeps with smart LSP polling and added hybrid fallback for `find_dead_code`
 
 #### Fixed
 
@@ -267,34 +140,6 @@ The project underwent a complete architectural transformation from TypeScript/No
 - Git operations tests failing with BrokenPipe errors
 - EditPlan structure in refactoring implementations
 - Python plugin delegation and manifest support
-- Language plugin configuration and validation
-- Test expectations for multiline extract operations
-
-#### Removed
-
-- Manual file patching in `new-lang.sh` (replaced with TOML + codegen)
-- Arbitrary sleep statements in LSP operations
-- Obsolete planning documents (4 files)
-  - `JAVA_AST_CAPABILITY_PLAN.md`
-  - `PHASE4_RESOLUTION.md`
-  - `TYPESCRIPT_TEST_FIX_PROPOSAL.md`
-  - `WORKSPACE_IMPLEMENTATION_PLANS.md`
-- `.claude/` directory from version control (kept locally)
-
-#### Technical Debt Improvements
-
-- Migrated Python tests to cross-language framework
-- Removed duplicate TypeScript refactoring tests
-- Updated test expectations to reflect reality (NotSupported → Success for AST-based operations)
-- Improved structured logging across refactoring operations
-- Enhanced error messages with actionable context
-
-#### Performance
-
-- Build-time code generation eliminates runtime overhead
-- AST-first refactoring avoids LSP round-trips
-- Smart LSP polling reduces unnecessary waiting
-- Multi-plugin symbol search parallelizes queries
 
 ---
 
@@ -304,97 +149,26 @@ The project underwent a complete architectural transformation from TypeScript/No
 
 #### Added
 
-- **Cross-platform installation script** (`install.sh`)
-  - Enterprise-grade security (package verification, timeout protection)
-  - Support for macOS (Homebrew), Ubuntu/Debian (APT), Fedora/RHEL (DNF), Arch (Pacman)
-  - Automatic Rust and git installation
-  - Delegates to Makefile for consistent build process
-  - Comprehensive error handling with actionable fixes
-
-- **Complete documentation overhaul**
-  - Fixed tool count accuracy (44 tools verified)
-  - Updated all binary references (cb-server → codebuddy)
-  - Consolidated contracts.md into ARCHITECTURE.md (-501 lines)
-  - Added workflow cross-references
-  - Removed redundant documentation files
-
-- **Plugin architecture completion**
-  - Full language adapter migration completed
-  - Composable plugin system with multi-tiered priority
-  - Zero deprecated adapters remaining
-
-- **Java AST support**
-  - Tree-sitter based parser integration
-  - Full test coverage for Java language operations
-
-- **Refactoring tools**: Full AST-based implementation for extract_function, inline_variable, and extract_variable
-  - Python: Full AST analysis with parameter detection and scope handling
-  - TypeScript/JavaScript: Functional implementation with SWC parser
-  - Atomic operations with automatic rollback on failure
-  - Dry-run mode for previewing changes
-- **SWC-based AST parsing** for TypeScript/JavaScript (production-ready since parser v0.3.0)
-  - Full TypeScript/JavaScript AST parsing with regex fallback for robustness
-  - Native Rust performance via swc_ecma_parser
-- **VFS (Virtual Filesystem)** support as optional experimental feature (Unix only)
-  - Feature-gated with `#[cfg(all(unix, feature = "vfs"))]`
-  - Build with: `cargo build --features vfs`
-  - Not included in default build
+- **Cross-platform installation script** - Enterprise-grade `install.sh` with support for macOS, Ubuntu/Debian, Fedora/RHEL, and Arch
+- **Plugin architecture completion** - Full language adapter migration with composable plugin system
+- **Java AST support** - Tree-sitter based parser integration
+- **Refactoring tools** - Full AST-based implementation for extract_function, inline_variable, and extract_variable
+- **SWC-based AST parsing** - TypeScript/JavaScript AST parsing with native Rust performance
+- **VFS (Virtual Filesystem)** - Optional experimental feature (Unix only, feature-gated)
 - **44 MCP Tools** - Complete implementation across all categories
-  - Navigation & Intelligence (14 tools)
-  - Editing & Refactoring (10 tools)
-  - File Operations (6 tools)
-  - Workspace Operations (7 tools)
-  - Advanced Operations (2 tools)
-  - LSP Lifecycle (3 tools)
-  - System & Health (2 tools)
 
 #### Changed
 
-- **CLI port default**: WebSocket server now defaults to port 3040 (consistent with config)
-- **Installation methods**: install.sh now recommended over manual installation
-- **Build integration**: install.sh delegates to Makefile for single source of truth
-
-- **Structured logging**: All production code now uses tracing framework
-  - Production code uses structured key-value logging
-  - CLI uses println for user-facing output
-- **Error handling**: Replaced all `.unwrap()` calls in production code with `.expect()` containing descriptive messages
-  - LSP client: 4 unwraps → expect() (command parsing, JSON serialization, directory access)
-  - AST parser: ~10 unwraps → expect() (regex compilation and capture groups)
-  - Python parser: ~10 unwraps → expect() (import/function/variable parsing)
-  - CLI: 5 production unwraps → expect()
-- **Dependencies**: Unified thiserror to v2.0 and jsonwebtoken to v10.0 across workspace
-- **VFS excluded** from default workspace build (faster builds, smaller binary)
+- **Structured logging** - All production code now uses tracing framework with structured key-value logging
+- **Error handling** - Replaced all `.unwrap()` calls with `.expect()` containing descriptive messages
+- **Dependencies** - Unified thiserror to v2.0 and jsonwebtoken to v10.0 across workspace
 
 #### Fixed
 
-- **Critical**: install.sh now installs git before attempting to clone repository
-- **Documentation accuracy**: All tool counts corrected to 44
-- **Port consistency**: CLI default port matches config default (3040)
-- **Java tests**: Resolved compilation errors and unused imports
-- **LSP tools**: Fixed plugin delegation in analyze_imports
-- **Text edits**: Correctly apply edits to target files in EditPlan
-- Production code error handling improved with descriptive expect() messages
-- Structured logging in cb-ast/parser.rs (2 eprintln! → tracing::debug!)
-
-#### Removed
-
-- **Deprecated code**: All adapter methods with zero callers removed
-- **Completed proposals**: Java AST proposal (implementation complete)
-- **Redundant documentation**: contracts.md (merged), USAGE.md (redundant)
-- Stale benchmark suite (238 lines) - API changed, unmaintainable
-- cb-vfs from default workspace members (feature-gated, optional)
-
-#### Performance
-
-- **Build optimization**: sccache and mold integration via Makefile
-- **Native compilation**: Zero-cost abstractions throughout
-- **Memory safety**: Compile-time guarantees, no garbage collection overhead
-
-#### Documentation
-
-All documentation now 100% accurate and synchronized with codebase:
-- README.md, API_REFERENCE.md, CLAUDE.md
-- CONTRIBUTING.md, ARCHITECTURE.md, WORKFLOWS.md
+- install.sh now installs git before attempting to clone repository
+- Java tests compilation errors and unused imports
+- LSP tools plugin delegation in analyze_imports
+- Text edits correctly apply to target files in EditPlan
 
 ---
 
