@@ -36,6 +36,12 @@ This proposal outlines the rationale, scope, and implementation plan for renamin
    - "Type" connects to type systems, TypeScript support, and static analysis
    - Better SEO and searchability in developer tools space
 
+5. **Domain Assets**
+   - Project owns both `typemill.org` and `typemill.com`
+   - `.org` hosts the open-source mill CLI and documentation
+   - `.com` reserved for future Design Evolve product (visual/commercial layer)
+   - Complete brand protection and clear product positioning
+
 ## Scope of Changes
 
 ### 1. Crate and Package Names
@@ -403,8 +409,8 @@ sed -i 's/codebuddy/mill/g' scripts/*.sh
 4. **NPM Package** (if applicable): Claim `typemill` package name?
    - Recommendation: **Reserve name early** to prevent squatting
 
-5. **Domain Name**: Register `typemill.dev` or similar?
-   - Recommendation: **Consider for future** if project becomes public-facing
+5. **Domain Strategy**: How to launch the .org and .com sites?
+   - Recommendation: **Launch typemill.org immediately** with CLI docs; point typemill.com to "coming soon"
 
 ## Alternatives Considered
 
