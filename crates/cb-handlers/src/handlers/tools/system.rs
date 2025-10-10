@@ -3,26 +3,26 @@
 //! Handles: health_check
 
 use super::{ToolHandler, ToolHandlerContext};
-use crate::handlers::system_handler::SystemHandler as LegacySystemHandler;
+use crate::handlers::system_handler::SystemHandler;
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
 use cb_protocol::{ApiError, ApiResult as ServerResult};
 use serde_json::{json, Value};
 
-pub struct SystemHandler {
-    legacy_handler: LegacySystemHandler,
+pub struct SystemToolsHandler {
+    system_handler: SystemHandler,
 }
 
-impl SystemHandler {
+impl SystemToolsHandler {
     pub fn new() -> Self {
         Self {
-            legacy_handler: LegacySystemHandler::new(),
+            system_handler: SystemHandler::new(),
         }
     }
 }
 
 #[async_trait]
-impl ToolHandler for SystemHandler {
+impl ToolHandler for SystemToolsHandler {
     fn tool_names(&self) -> &[&str] {
         &["health_check"]
     }
@@ -36,7 +36,7 @@ impl ToolHandler for SystemHandler {
             // The new health_check combines the legacy health_check (plugins, etc.)
             // with the system status information.
             let mut health_report = self
-                .legacy_handler
+                .system_handler
                 .handle_tool_call(context, tool_call)
                 .await?;
 

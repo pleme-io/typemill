@@ -3,26 +3,26 @@
 //! Handles: apply_edits, achieve_intent, batch_execute
 
 use super::{ToolHandler, ToolHandlerContext};
-use crate::handlers::workflow_handler::WorkflowHandler as LegacyWorkflowHandler;
+use crate::handlers::workflow_handler::WorkflowHandler;
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
 use cb_protocol::ApiResult as ServerResult;
 use serde_json::Value;
 
-pub struct AdvancedHandler {
-    workflow_handler: LegacyWorkflowHandler,
+pub struct AdvancedToolsHandler {
+    workflow_handler: WorkflowHandler,
 }
 
-impl AdvancedHandler {
+impl AdvancedToolsHandler {
     pub fn new() -> Self {
         Self {
-            workflow_handler: LegacyWorkflowHandler::new(),
+            workflow_handler: WorkflowHandler::new(),
         }
     }
 }
 
 #[async_trait]
-impl ToolHandler for AdvancedHandler {
+impl ToolHandler for AdvancedToolsHandler {
     fn tool_names(&self) -> &[&str] {
         &["execute_edits", "execute_batch"]
     }
@@ -207,9 +207,8 @@ impl ToolHandler for AdvancedHandler {
                                     "version": version,
                                     "dry_run": true,
                                 });
-                                let file_path = PathBuf::from(
-                                    manifest_path.unwrap_or_else(|| ".".to_string()),
-                                );
+                                let file_path =
+                                    PathBuf::from(manifest_path.unwrap_or_else(|| ".".to_string()));
                                 let request = PluginRequest::new("update_dependency", file_path)
                                     .with_params(params);
                                 plugin_manager

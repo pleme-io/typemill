@@ -6,8 +6,8 @@
 //! Note: find_dead_code moved to analysis_handler.rs
 //! Note: fix_imports replaced by optimize_imports in editing.rs
 
-use super::tools::{ToolHandler, ToolHandlerContext};
 use super::lsp_adapter::DirectLspAdapter;
+use super::tools::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
 use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
@@ -62,12 +62,25 @@ impl ToolHandler for SystemHandler {
 
         match tool_call.name.as_str() {
             "health_check" => self.handle_health_check(tool_call.clone(), context).await,
-            "notify_file_opened" => self.handle_notify_file_opened(tool_call.clone(), context).await,
-            "notify_file_saved" => self.handle_notify_file_saved(tool_call.clone(), context).await,
-            "notify_file_closed" => self.handle_notify_file_closed(tool_call.clone(), context).await,
+            "notify_file_opened" => {
+                self.handle_notify_file_opened(tool_call.clone(), context)
+                    .await
+            }
+            "notify_file_saved" => {
+                self.handle_notify_file_saved(tool_call.clone(), context)
+                    .await
+            }
+            "notify_file_closed" => {
+                self.handle_notify_file_closed(tool_call.clone(), context)
+                    .await
+            }
 
             // Delegate to AnalysisHandler
-            "find_dead_code" => self.analysis_handler.handle_tool_call(context, tool_call).await,
+            "find_dead_code" => {
+                self.analysis_handler
+                    .handle_tool_call(context, tool_call)
+                    .await
+            }
 
             // Delegate to DependencyHandler
             "update_dependencies" => {
@@ -77,7 +90,10 @@ impl ToolHandler for SystemHandler {
             }
 
             // Delegate to plugin system (SystemToolsPlugin handles this)
-            "analyze_imports" => self.delegate_to_plugin_system(tool_call.clone(), context).await,
+            "analyze_imports" => {
+                self.delegate_to_plugin_system(tool_call.clone(), context)
+                    .await
+            }
 
             _ => Err(ServerError::Unsupported(format!(
                 "Unknown system operation: {}",

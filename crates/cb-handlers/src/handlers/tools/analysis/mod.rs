@@ -81,7 +81,12 @@ impl AnalysisHandler {
 #[async_trait]
 impl ToolHandler for AnalysisHandler {
     fn tool_names(&self) -> &[&str] {
-        &["find_unused_imports", "analyze_code", "analyze_project", "analyze_imports"]
+        &[
+            "find_unused_imports",
+            "analyze_code",
+            "analyze_project",
+            "analyze_imports",
+        ]
     }
 
     async fn handle_tool_call(

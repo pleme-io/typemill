@@ -255,9 +255,9 @@ impl ToolHandler for DependencyHandler {
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         let args: UpdateDependenciesArgs =
-            serde_json::from_value(tool_call.arguments.clone().unwrap_or_default()).map_err(|e| {
-                ServerError::InvalidRequest(format!("Invalid update_dependencies args: {}", e))
-            })?;
+            serde_json::from_value(tool_call.arguments.clone().unwrap_or_default()).map_err(
+                |e| ServerError::InvalidRequest(format!("Invalid update_dependencies args: {}", e)),
+            )?;
 
         let is_dry_run = args.dry_run.unwrap_or(false);
 

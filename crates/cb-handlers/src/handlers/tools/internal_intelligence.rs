@@ -12,9 +12,9 @@ use std::path::PathBuf;
 
 fn to_api_error(plugin_error: cb_plugins::PluginError) -> ApiError {
     match plugin_error {
-        cb_plugins::PluginError::MethodNotSupported { method, plugin } => {
-            ApiError::Unsupported(format!("Method '{}' not supported by plugin '{}'", method, plugin))
-        }
+        cb_plugins::PluginError::MethodNotSupported { method, plugin } => ApiError::Unsupported(
+            format!("Method '{}' not supported by plugin '{}'", method, plugin),
+        ),
         cb_plugins::PluginError::SerializationError { message } => ApiError::Parse { message },
         e => ApiError::Internal(e.to_string()),
     }

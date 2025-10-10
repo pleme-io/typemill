@@ -54,7 +54,10 @@ impl ToolHandler for FileOperationHandler {
 
         match tool_call.name.as_str() {
             "rename_file" => self.handle_rename_file(tool_call.clone(), context).await,
-            "rename_directory" => self.handle_rename_directory(tool_call.clone(), context).await,
+            "rename_directory" => {
+                self.handle_rename_directory(tool_call.clone(), context)
+                    .await
+            }
             "create_file" => self.handle_create_file(tool_call.clone(), context).await,
             "delete_file" => self.handle_delete_file(tool_call.clone(), context).await,
             "read_file" => self.handle_read_file(tool_call.clone(), context).await,

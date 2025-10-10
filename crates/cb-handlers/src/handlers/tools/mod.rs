@@ -28,17 +28,17 @@ pub mod system;
 pub mod workspace;
 
 // Re-export handlers
-pub use advanced::AdvancedHandler;
+pub use advanced::AdvancedToolsHandler;
 pub use analysis::AnalysisHandler;
-pub use editing::EditingHandler;
-pub use file_ops::FileOpsHandler;
-pub use internal_editing::InternalEditingHandler;
+pub use editing::EditingToolsHandler;
+pub use file_ops::FileToolsHandler;
+pub use internal_editing::InternalEditingToolsHandler;
 pub use internal_intelligence::InternalIntelligenceHandler;
 pub use internal_workspace::InternalWorkspaceHandler;
 pub use lifecycle::LifecycleHandler;
 pub use navigation::NavigationHandler;
-pub use system::SystemHandler;
-pub use workspace::WorkspaceHandler;
+pub use system::SystemToolsHandler;
+pub use workspace::WorkspaceToolsHandler;
 
 // Re-export dispatch helpers
 pub use dispatch::dispatch_to_language_plugin;

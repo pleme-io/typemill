@@ -5,7 +5,7 @@
 //! rename_symbol_strict
 
 use super::{ToolHandler, ToolHandlerContext};
-use crate::handlers::refactoring_handler::RefactoringHandler as LegacyRefactoringHandler;
+use crate::handlers::refactoring_handler::RefactoringHandler;
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
 use cb_plugins::PluginRequest;
@@ -13,14 +13,14 @@ use cb_protocol::ApiResult as ServerResult;
 use serde_json::{json, Value};
 use std::path::PathBuf;
 
-pub struct EditingHandler {
-    legacy_handler: LegacyRefactoringHandler,
+pub struct EditingToolsHandler {
+    refactoring_handler: RefactoringHandler,
 }
 
-impl EditingHandler {
+impl EditingToolsHandler {
     pub fn new() -> Self {
         Self {
-            legacy_handler: LegacyRefactoringHandler::new(),
+            refactoring_handler: RefactoringHandler::new(),
         }
     }
 
@@ -122,7 +122,8 @@ impl EditingHandler {
             .unwrap_or(false);
 
         let file_path = Path::new(&file_path_str);
-        let mut request = PluginRequest::new("organize_imports".to_string(), file_path.to_path_buf());
+        let mut request =
+            PluginRequest::new("organize_imports".to_string(), file_path.to_path_buf());
 
         // Set parameters
         request = request.with_params(args.clone());
@@ -187,7 +188,10 @@ impl EditingHandler {
         let mut removed_count = 0;
         let mut total_imports = 0;
 
-        let extension = file_path.extension().and_then(|ext| ext.to_str()).unwrap_or("");
+        let extension = file_path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .unwrap_or("");
         if let Some(plugin) = context.app_state.language_plugins.get_plugin(extension) {
             if let Some(import_support) = plugin.import_support() {
                 let imports = import_support.parse_imports(&final_content);
@@ -354,7 +358,7 @@ impl EditingHandler {
 }
 
 #[async_trait]
-impl ToolHandler for EditingHandler {
+impl ToolHandler for EditingToolsHandler {
     fn tool_names(&self) -> &[&str] {
         &[
             "rename_symbol",
@@ -378,7 +382,11 @@ impl ToolHandler for EditingHandler {
             "get_code_actions" => self.handle_get_code_actions(context, tool_call).await,
             "organize_imports" => self.handle_organize_imports(context, tool_call).await,
             // RefactoringHandler now uses the new trait, so delegate directly
-            _ => self.legacy_handler.handle_tool_call(context, tool_call).await,
+            _ => {
+                self.refactoring_handler
+                    .handle_tool_call(context, tool_call)
+                    .await
+            }
         }
     }
 }
