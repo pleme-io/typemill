@@ -106,13 +106,30 @@
       },
       "steps": [
         {
-          "tool": "rename_symbol",
+          "tool": "rename.plan",
           "params": {
-            "file_path": "{file_path}",
-            "symbol_name": "{old_name}",
+            "target": {
+              "kind": "symbol",
+              "path": "{file_path}",
+              "selector": {
+                "symbol_name": "{old_name}"
+              }
+            },
             "new_name": "{new_name}"
           },
-          "description": "Rename symbol '{old_name}' to '{new_name}' across the project",
+          "description": "Generate rename plan for '{old_name}' → '{new_name}'",
+          "requires_confirmation": null
+        },
+        {
+          "tool": "workspace.apply_edit",
+          "params": {
+            "plan": "$steps.0.plan",
+            "options": {
+              "validate_checksums": true,
+              "dry_run": false
+            }
+          },
+          "description": "Apply rename changes across the project",
           "requires_confirmation": true
         }
       ],

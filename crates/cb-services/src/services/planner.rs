@@ -511,28 +511,26 @@ mod tests {
             workflow.name,
             "Rename symbol 'OldStruct' to 'NewStruct' with import updates"
         );
-        assert_eq!(workflow.steps.len(), 1, "Should have exactly 1 step");
+        assert_eq!(workflow.steps.len(), 2, "Should have exactly 2 steps (plan + apply)");
         assert_eq!(workflow.metadata.complexity, 2);
 
-        // Check the rename_symbol step
-        let step = &workflow.steps[0];
-        assert_eq!(step.tool, "rename_symbol");
+        // Check step 1: rename.plan
+        let step1 = &workflow.steps[0];
+        assert_eq!(step1.tool, "rename.plan");
+        assert!(step1.params.get("target").is_some(), "Should have target");
         assert_eq!(
-            step.params.get("file_path").unwrap().as_str().unwrap(),
-            "src/example.rs"
-        );
-        assert_eq!(
-            step.params.get("symbol_name").unwrap().as_str().unwrap(),
-            "OldStruct"
-        );
-        assert_eq!(
-            step.params.get("new_name").unwrap().as_str().unwrap(),
+            step1.params.get("new_name").unwrap().as_str().unwrap(),
             "NewStruct"
         );
+
+        // Check step 2: workspace.apply_edit
+        let step2 = &workflow.steps[1];
+        assert_eq!(step2.tool, "workspace.apply_edit");
+        assert!(step2.params.get("plan").is_some(), "Should have plan reference");
         assert_eq!(
-            step.requires_confirmation,
+            step2.requires_confirmation,
             Some(true),
-            "Should require user confirmation"
+            "Apply step should require user confirmation"
         );
     }
 }
