@@ -1,25 +1,23 @@
 use cb_server::handlers::plugin_dispatcher::create_test_dispatcher;
 
 #[tokio::test]
-async fn test_all_24_public_tools_are_registered() {
+async fn test_all_17_public_tools_are_registered() {
     let dispatcher = create_test_dispatcher().await;
     dispatcher.initialize().await.unwrap();
 
     let registry = dispatcher.tool_registry.lock().await;
     let registered_tools = registry.list_tools();
 
-    const EXPECTED_TOOLS: [&str; 24] = [
-        // Navigation (9)
+    const EXPECTED_TOOLS: [&str; 17] = [
+        // Navigation (8) - get_document_symbols moved to internal
         "find_definition",
         "find_references",
         "find_implementations",
         "find_type_definition",
-        "get_document_symbols",
         "search_symbols",
         "get_symbol_info",
         "get_diagnostics",
         "get_call_hierarchy",
-        // Editing - removed organize_imports, get_code_actions, format_document (LSP-dependent)
         // Refactoring Plans (7)
         "rename.plan",
         "extract.plan",
@@ -28,17 +26,8 @@ async fn test_all_24_public_tools_are_registered() {
         "reorder.plan",
         "transform.plan",
         "delete.plan",
-        // Analysis (4)
-        "find_unused_imports",
-        "analyze_code",
-        "analyze_project",
-        "analyze_imports",
-        // File Utilities - moved read_file, write_file, list_files to internal
         // Workspace (1)
         "workspace.apply_edit",
-        // Advanced (2)
-        "execute_edits",
-        "execute_batch",
         // System (1)
         "health_check",
     ];
@@ -77,13 +66,13 @@ async fn test_all_24_public_tools_are_registered() {
 }
 
 #[tokio::test]
-async fn test_all_18_internal_tools_are_registered_and_hidden() {
+async fn test_all_25_internal_tools_are_registered_and_hidden() {
     let dispatcher = create_test_dispatcher().await;
     dispatcher.initialize().await.unwrap();
 
     let registry = dispatcher.tool_registry.lock().await;
 
-    const EXPECTED_INTERNAL_TOOLS: [&str; 18] = [
+    const EXPECTED_INTERNAL_TOOLS: [&str; 25] = [
         // Lifecycle (3)
         "notify_file_opened",
         "notify_file_saved",
@@ -109,6 +98,16 @@ async fn test_all_18_internal_tools_are_registered_and_hidden() {
         "read_file",
         "write_file",
         "list_files",
+        // Legacy Analysis (4) - Made internal, replaced by Unified Analysis API
+        "find_unused_imports",
+        "analyze_code",
+        "analyze_project",
+        "analyze_imports",
+        // Structure Analysis (1) - Made internal, replaced by analyze.structure
+        "get_document_symbols",
+        // Advanced (2) - Made internal, low-level plumbing
+        "execute_edits",
+        "execute_batch",
     ];
 
     // 1. Verify they are NOT in the public list

@@ -89,6 +89,15 @@ impl ToolHandler for AnalysisHandler {
         ]
     }
 
+    fn is_internal(&self) -> bool {
+        // Legacy analysis tools are internal - replaced by Unified Analysis API
+        // - find_unused_imports → analyze.dead_code("unused_imports")
+        // - analyze_code → analyze.quality("complexity"|"smells")
+        // - analyze_project → analyze.quality("maintainability")
+        // - analyze_imports → analyze.dependencies("imports")
+        true
+    }
+
     async fn handle_tool_call(
         &self,
         context: &ToolHandlerContext,

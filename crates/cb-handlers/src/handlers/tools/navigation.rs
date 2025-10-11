@@ -183,7 +183,6 @@ impl ToolHandler for NavigationHandler {
             "find_references",
             "find_implementations",
             "find_type_definition",
-            "get_document_symbols",
             "search_symbols",
             "get_symbol_info",
             "get_diagnostics",
@@ -229,6 +228,66 @@ impl ToolHandler for NavigationHandler {
 
         // Convert to plugin request and delegate to plugin system
         let plugin_request = self.convert_tool_call_to_plugin_request(&call)?;
+
+        match context.plugin_manager.handle_request(plugin_request).await {
+            Ok(response) => Ok(json!({
+                "content": response.data.unwrap_or(json!(null)),
+                "plugin": response.metadata.plugin_name,
+                "processing_time_ms": response.metadata.processing_time_ms,
+                "cached": response.metadata.cached
+            })),
+            Err(err) => Err(cb_protocol::ApiError::Internal(format!(
+                "Plugin request failed: {}",
+                err
+            ))),
+        }
+    }
+}
+
+/// Internal navigation handler for structure analysis tools
+/// These are replaced by the Unified Analysis API
+pub struct InternalNavigationHandler;
+
+impl InternalNavigationHandler {
+    pub fn new() -> Self {
+        Self
+    }
+
+    fn convert_tool_call_to_plugin_request(
+        &self,
+        tool_call: &ToolCall,
+    ) -> Result<PluginRequest, cb_protocol::ApiError> {
+        let args = tool_call.arguments.clone().unwrap_or(json!({}));
+        let file_path_str = args
+            .get("file_path")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                cb_protocol::ApiError::InvalidRequest("Missing file_path parameter".into())
+            })?;
+
+        let file_path = PathBuf::from(file_path_str);
+        let request = PluginRequest::new(tool_call.name.clone(), file_path);
+        Ok(request.with_params(args))
+    }
+}
+
+#[async_trait]
+impl ToolHandler for InternalNavigationHandler {
+    fn tool_names(&self) -> &[&str] {
+        &["get_document_symbols"]
+    }
+
+    fn is_internal(&self) -> bool {
+        // get_document_symbols is internal - replaced by analyze.structure("symbols")
+        true
+    }
+
+    async fn handle_tool_call(
+        &self,
+        context: &ToolHandlerContext,
+        tool_call: &ToolCall,
+    ) -> ServerResult<Value> {
+        let plugin_request = self.convert_tool_call_to_plugin_request(tool_call)?;
 
         match context.plugin_manager.handle_request(plugin_request).await {
             Ok(response) => Ok(json!({

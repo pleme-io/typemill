@@ -36,7 +36,7 @@ pub use internal_editing::InternalEditingToolsHandler;
 pub use internal_intelligence::InternalIntelligenceHandler;
 pub use internal_workspace::InternalWorkspaceHandler;
 pub use lifecycle::LifecycleHandler;
-pub use navigation::NavigationHandler;
+pub use navigation::{InternalNavigationHandler, NavigationHandler};
 pub use system::SystemToolsHandler;
 pub use workspace::WorkspaceToolsHandler;
 
