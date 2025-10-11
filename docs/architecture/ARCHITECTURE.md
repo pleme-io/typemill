@@ -4,6 +4,8 @@
 
 Codebuddy is a pure Rust MCP server that bridges Model Context Protocol (MCP) with Language Server Protocol (LSP) functionality. The architecture follows a service-oriented design with clear crate separation, AI-friendly boundaries, and comprehensive code intelligence tools.
 
+**For the conceptual framework underlying the tool design, see [PRIMITIVES.md](PRIMITIVES.md)** - which explains the two-pillar philosophy (Refactoring Primitives and Analysis Primitives) that guides how all 44+ MCP tools are organized.
+
 ## High-Level Architecture
 
 The system is built on a multi-crate architecture with focused responsibilities and clear dependency hierarchies:
