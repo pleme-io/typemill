@@ -427,21 +427,19 @@ impl PluginRegistry {
                 capabilities.navigation.call_hierarchy,
             ),
             // Editing methods
-            ("rename_symbol", capabilities.editing.rename),
             ("format_document", capabilities.editing.format_document),
             ("format_range", capabilities.editing.format_range),
             ("get_code_actions", capabilities.editing.code_actions),
             ("organize_imports", capabilities.editing.organize_imports),
-            // Refactoring methods
-            (
-                "extract_function",
-                capabilities.refactoring.extract_function,
-            ),
-            (
-                "extract_variable",
-                capabilities.refactoring.extract_variable,
-            ),
-            ("inline_variable", capabilities.refactoring.inline_variable),
+            // Unified Refactoring API - Plan generators
+            ("rename.plan", capabilities.editing.rename),
+            ("extract.plan", capabilities.refactoring.extract_function),
+            ("inline.plan", capabilities.refactoring.inline_variable),
+            ("move.plan", capabilities.refactoring.move_refactor),
+            ("reorder.plan", true),
+            ("transform.plan", true),
+            ("delete.plan", true),
+            ("workspace.apply_edit", true),
             // Intelligence methods
             ("get_hover", capabilities.intelligence.hover),
             ("get_completions", capabilities.intelligence.completions),

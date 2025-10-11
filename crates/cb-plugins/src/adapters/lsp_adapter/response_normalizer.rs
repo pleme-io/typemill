@@ -29,10 +29,6 @@ impl LspAdapterPlugin {
                 // LSP returns CompletionList | CompletionItem[]
                 self.normalize_completions(lsp_result)?
             }
-            "rename_symbol" => {
-                // LSP returns WorkspaceEdit
-                self.normalize_workspace_edit(lsp_result)?
-            }
             _ => {
                 // Pass through other responses
                 lsp_result

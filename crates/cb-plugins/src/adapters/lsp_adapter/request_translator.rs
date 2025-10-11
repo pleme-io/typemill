@@ -33,7 +33,6 @@ impl LspAdapterPlugin {
             "get_call_hierarchy_outgoing_calls" => "callHierarchy/outgoingCalls",
 
             // Editing methods
-            "rename_symbol" => "textDocument/rename",
             "format_document" => "textDocument/formatting",
             "format_range" => "textDocument/rangeFormatting",
             "get_code_actions" => "textDocument/codeAction",
@@ -111,15 +110,6 @@ impl LspAdapterPlugin {
                 params["context"] = json!({
                     "includeDeclaration": request.get_bool_param("include_declaration").unwrap_or(true)
                 });
-            }
-            "textDocument/rename" => {
-                if let Some(new_name) = request.get_string_param("new_name") {
-                    params["newName"] = json!(new_name);
-                } else {
-                    return Err(PluginError::configuration_error(
-                        "rename_symbol requires new_name parameter",
-                    ));
-                }
             }
             "workspace/symbol" => {
                 if let Some(query) = request.get_string_param("query") {

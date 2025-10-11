@@ -107,7 +107,7 @@ async fn test_priority_ordering() {
     let op2 = FileOperation {
         id: "refactor".to_string(),
         operation_type: OperationType::Refactor,
-        tool_name: "rename_symbol".to_string(),
+        tool_name: "rename.plan".to_string(),
         file_path: PathBuf::from("/test.rs"),
         params: json!({"old": "foo", "new": "bar"}),
         created_at: Instant::now(),
@@ -131,7 +131,7 @@ async fn test_priority_ordering() {
 
     // Should be ordered by priority: Refactor (1), Write (5), Format (10)
     assert_eq!(pending.len(), 3);
-    assert!(pending[0].1.contains("rename_symbol"));
+    assert!(pending[0].1.contains("rename.plan"));
     assert!(pending[1].1.contains("write_file"));
     assert!(pending[2].1.contains("format_document"));
 }
@@ -180,7 +180,7 @@ async fn test_transaction_creation() {
     let op1 = FileOperation {
         id: Uuid::new_v4().to_string(),
         operation_type: OperationType::Refactor,
-        tool_name: "rename_symbol_file1".to_string(),
+        tool_name: "refactor_file1".to_string(),
         file_path: PathBuf::from("/src/main.rs"),
         params: json!({"edit": "rename foo to bar"}),
         created_at: Instant::now(),
@@ -191,7 +191,7 @@ async fn test_transaction_creation() {
     let op2 = FileOperation {
         id: Uuid::new_v4().to_string(),
         operation_type: OperationType::Refactor,
-        tool_name: "rename_symbol_file2".to_string(),
+        tool_name: "refactor_file2".to_string(),
         file_path: PathBuf::from("/src/lib.rs"),
         params: json!({"edit": "rename foo to bar"}),
         created_at: Instant::now(),

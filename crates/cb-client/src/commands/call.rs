@@ -234,11 +234,6 @@ impl CallCommand {
                 "get_diagnostics",
                 r#"{"file_path": "src/lib.rs"}"#,
             ),
-            (
-                "Rename a symbol",
-                "rename_symbol",
-                r#"{"file_path": "src/main.rs", "symbol_name": "old_name", "new_name": "new_name"}"#,
-            ),
         ];
 
         for (description, tool, params) in examples {
@@ -271,7 +266,6 @@ impl CallCommand {
             "get_document_symbols" | "format_document" | "get_diagnostics" => {
                 self.build_file_params(ctx).await
             }
-            "rename_symbol" => self.build_rename_params(ctx).await,
             _ => self.build_generic_params(ctx).await,
         }
     }
@@ -295,23 +289,6 @@ impl CallCommand {
 
         let params = serde_json::json!({
             "file_path": file_path
-        });
-
-        Ok(Some(params))
-    }
-
-    /// Build parameters for rename tool
-    async fn build_rename_params(&self, ctx: &CommandContext) -> ClientResult<Option<Value>> {
-        let file_path = ctx.interactive.required_input("File path", None)?;
-        let symbol_name = ctx
-            .interactive
-            .required_input("Current symbol name", None)?;
-        let new_name = ctx.interactive.required_input("New symbol name", None)?;
-
-        let params = serde_json::json!({
-            "file_path": file_path,
-            "symbol_name": symbol_name,
-            "new_name": new_name
         });
 
         Ok(Some(params))

@@ -1,14 +1,14 @@
 use cb_server::handlers::plugin_dispatcher::create_test_dispatcher;
 
 #[tokio::test]
-async fn test_all_33_public_tools_are_registered() {
+async fn test_all_37_public_tools_are_registered() {
     let dispatcher = create_test_dispatcher().await;
     dispatcher.initialize().await.unwrap();
 
     let registry = dispatcher.tool_registry.lock().await;
     let registered_tools = registry.list_tools();
 
-    const EXPECTED_TOOLS: [&str; 33] = [
+    const EXPECTED_TOOLS: [&str; 37] = [
         // Navigation (9)
         "find_definition",
         "find_references",
@@ -19,14 +19,18 @@ async fn test_all_33_public_tools_are_registered() {
         "get_symbol_info",
         "get_diagnostics",
         "get_call_hierarchy",
-        // Editing (7)
-        "rename_symbol",
+        // Editing (3)
         "organize_imports",
         "get_code_actions",
         "format_document",
-        "extract_function",
-        "inline_variable",
-        "extract_variable",
+        // Refactoring Plans (7)
+        "rename.plan",
+        "extract.plan",
+        "inline.plan",
+        "move.plan",
+        "reorder.plan",
+        "transform.plan",
+        "delete.plan",
         // Analysis (4)
         "find_unused_imports",
         "analyze_code",
@@ -39,11 +43,12 @@ async fn test_all_33_public_tools_are_registered() {
         "delete_file",
         "move_file",
         "list_files",
-        // Workspace (4)
+        // Workspace (5)
         "move_directory",
         "find_dead_code",
         "update_dependencies",
         "update_dependency",
+        "workspace.apply_edit",
         // Advanced (2)
         "execute_edits",
         "execute_batch",

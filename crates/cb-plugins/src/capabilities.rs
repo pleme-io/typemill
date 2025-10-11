@@ -169,16 +169,20 @@ impl Capabilities {
             "get_call_hierarchy_outgoing_calls" => self.navigation.call_hierarchy,
 
             // Editing capabilities
-            "rename_symbol" => self.editing.rename,
             "format_document" => self.editing.format_document,
             "format_range" => self.editing.format_range,
             "get_code_actions" => self.editing.code_actions,
             "organize_imports" => self.editing.organize_imports,
 
-            // Refactoring capabilities
-            "extract_function" => self.refactoring.extract_function,
-            "extract_variable" => self.refactoring.extract_variable,
-            "inline_variable" => self.refactoring.inline_variable,
+            // Unified Refactoring API - Plan generators
+            "rename.plan" => self.editing.rename,
+            "extract.plan" => self.refactoring.extract_function,
+            "inline.plan" => self.refactoring.inline_variable,
+            "move.plan" => self.refactoring.move_refactor,
+            "reorder.plan" => true,
+            "transform.plan" => true,
+            "delete.plan" => true,
+            "workspace.apply_edit" => true,
 
             // Intelligence capabilities
             "get_hover" => self.intelligence.hover,
@@ -214,15 +218,22 @@ impl Capabilities {
             | "get_call_hierarchy_outgoing_calls" => Some(ToolScope::File),
 
             // File-scoped editing tools
-            "rename_symbol"
-            | "rename_symbol_strict"
-            | "format_document"
+            "format_document"
             | "format_range"
             | "get_code_actions"
             | "organize_imports" => Some(ToolScope::File),
 
-            // File-scoped refactoring tools
-            "extract_function" | "extract_variable" | "inline_variable" => Some(ToolScope::File),
+            // Unified Refactoring API - File-scoped plan generators
+            "rename.plan"
+            | "extract.plan"
+            | "inline.plan"
+            | "move.plan"
+            | "reorder.plan"
+            | "transform.plan"
+            | "delete.plan" => Some(ToolScope::File),
+
+            // Workspace-scoped unified API
+            "workspace.apply_edit" => Some(ToolScope::Workspace),
 
             // File-scoped intelligence tools
             "get_hover" | "get_completions" | "get_signature_help" => Some(ToolScope::File),
@@ -309,10 +320,10 @@ mod tests {
             caps.get_tool_scope("find_definition"),
             Some(ToolScope::File)
         );
-        assert_eq!(caps.get_tool_scope("rename_symbol"), Some(ToolScope::File));
+        assert_eq!(caps.get_tool_scope("rename.plan"), Some(ToolScope::File));
         assert_eq!(caps.get_tool_scope("get_hover"), Some(ToolScope::File));
         assert_eq!(
-            caps.get_tool_scope("extract_function"),
+            caps.get_tool_scope("extract.plan"),
             Some(ToolScope::File)
         );
 

@@ -385,7 +385,6 @@ async fn handle_initialize(
             tools: vec![
                 "find_definition".to_string(),
                 "find_references".to_string(),
-                "rename_symbol".to_string(),
                 "get_completions".to_string(),
                 "get_diagnostics".to_string(),
                 "format_document".to_string(),

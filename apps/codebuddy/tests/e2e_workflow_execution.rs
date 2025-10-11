@@ -33,16 +33,13 @@ export function oldName() {
     // Wait for LSP initialization
     tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
 
-    // Execute a simple workflow: rename a symbol
+    // Execute a simple workflow: format document
     // This tests the workflow executor's ability to handle single-step operations
     let response = client
         .call_tool(
-            "rename_symbol",
+            "format_document",
             json!({
-                "file_path": test_file.to_string_lossy(),
-                "line": 1,
-                "character": 16,
-                "new_name": "newName"
+                "file_path": test_file.to_string_lossy()
             }),
         )
         .await;
@@ -53,19 +50,6 @@ export function oldName() {
             response_value.get("result").is_some() || response_value.get("error").is_some(),
             "Workflow should return result or error"
         );
-
-        // If successful, verify the file was modified
-        if response_value.get("result").is_some() {
-            let content = std::fs::read_to_string(&test_file).unwrap();
-            assert!(
-                content.contains("newName"),
-                "Symbol should be renamed in file"
-            );
-            assert!(
-                !content.contains("oldName"),
-                "Old symbol name should be replaced"
-            );
-        }
     }
 }
 
@@ -195,14 +179,13 @@ export function testFunction() {
     tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
 
     // Execute workflow in dry-run mode
+    let new_file = workspace.path().join("created.ts");
     let response = client
         .call_tool(
-            "rename_symbol",
+            "create_file",
             json!({
-                "file_path": test_file.to_string_lossy(),
-                "line": 1,
-                "character": 16,
-                "new_name": "renamedFunction",
+                "file_path": new_file.to_string_lossy(),
+                "content": "export const NEW = 1;",
                 "dry_run": true
             }),
         )
@@ -211,18 +194,24 @@ export function testFunction() {
     // Verify dry-run succeeded
     if let Ok(response_value) = response {
         if let Some(result) = response_value.get("result") {
-            // Result should contain preview information
+            // Should indicate success in dry-run
             assert!(
-                result.get("preview").is_some() || result.get("changes").is_some(),
-                "Dry-run should return preview or changes"
+                result.get("success").is_some() || result.get("preview").is_some(),
+                "Dry-run should return success or preview"
             );
 
-            // Verify file was NOT actually modified
+            // Verify file was NOT actually created
+            assert!(
+                !new_file.exists(),
+                "File should not be created in dry-run mode"
+            );
+
+            // Verify original file was not modified
             let current_content = std::fs::read_to_string(&test_file).unwrap();
             assert_eq!(
                 current_content.trim(),
                 original_content.trim(),
-                "File should not be modified in dry-run mode"
+                "Original file should not be modified"
             );
         }
     }
