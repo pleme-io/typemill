@@ -29,7 +29,7 @@ Successfully aligned the entire codebase with the strategic architecture defined
 
 ## Final Architecture
 
-### Public API (27 Tools)
+### Public API (24 Tools)
 **These are what AI agents and MCP clients see:**
 
 | Category | Tools | Count |
@@ -37,13 +37,12 @@ Successfully aligned the entire codebase with the strategic architecture defined
 | **Navigation** | find_definition, find_references, find_implementations, find_type_definition, get_document_symbols, search_symbols, get_symbol_info, get_diagnostics, get_call_hierarchy | 9 |
 | **Refactoring Plans** | rename.plan, extract.plan, inline.plan, move.plan, reorder.plan, transform.plan, delete.plan | 7 |
 | **Analysis** | find_unused_imports, analyze_code, analyze_project, analyze_imports | 4 |
-| **File Utilities** | read_file, write_file, list_files | 3 |
 | **Workspace** | workspace.apply_edit | 1 |
 | **Advanced** | execute_edits, execute_batch | 2 |
 | **System** | health_check | 1 |
-| **TOTAL** | | **27** |
+| **TOTAL** | | **24** |
 
-### Internal API (15 Tools)
+### Internal API (18 Tools)
 **These are hidden from AI agents but callable by backend:**
 
 | Category | Tools | Count |
@@ -54,7 +53,8 @@ Successfully aligned the entire codebase with the strategic architecture defined
 | **Internal Intelligence** | get_completions, get_signature_help | 2 |
 | **Workspace Tools** | move_directory, find_dead_code, update_dependencies, update_dependency | 4 |
 | **File Operations** | create_file, delete_file, rename_file, rename_directory | 4 |
-| **TOTAL** | | **15** |
+| **File Utilities** | read_file, write_file, list_files | 3 |
+| **TOTAL** | | **18** |
 
 ---
 
@@ -73,8 +73,8 @@ All refactoring follows the **plan → apply** pattern:
 2. **`workspace.apply_edit`** - Single execution command with atomic rollback
 
 ### 3. File Operations Split
-- **Legacy operations** (create, delete, rename) → Internal
-- **Utility operations** (read, write, list) → Public via FileToolsHandler
+- **Legacy operations** (create, delete, rename) → Internal via FileOperationHandler
+- **Utility operations** (read, write, list) → Internal via FileToolsHandler
 - **Refactoring operations** (move, extract) → Public via Unified API
 
 ---
@@ -115,13 +115,14 @@ Summary [91.299s] 565 tests run: 565 passed, 7 skipped
 ## Benefits Achieved
 
 ### For AI Agents
-- **Simpler API**: 27 focused tools instead of 42 mixed tools
+- **Simpler API**: 24 focused tools instead of 42 mixed tools
 - **Clear intent**: Unified API makes refactoring patterns obvious
 - **Safety**: Two-step plan/apply prevents destructive mistakes
+- **No low-level file I/O**: AI agents work with high-level semantic operations only
 
 ### For Backend
-- **Full access**: All 42 tools (27 public + 15 internal) still callable
-- **Flexibility**: Legacy tools available for edge cases
+- **Full access**: All 42 tools (24 public + 18 internal) still callable
+- **Flexibility**: Legacy and utility tools available for edge cases
 - **Migration path**: Clear roadmap for future API consolidation
 
 ### For Maintainers
