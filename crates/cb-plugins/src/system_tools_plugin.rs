@@ -51,9 +51,9 @@ impl Default for SystemToolsPlugin {
         let plugin_registry = {
             let mut registry = cb_plugin_api::PluginRegistry::new();
             #[cfg(feature = "lang-rust")]
-            registry.register(Arc::new(cb_lang_rust::RustPlugin::new()));
+            registry.register(cb_lang_rust::RustPlugin::new().into());
             #[cfg(feature = "lang-typescript")]
-            registry.register(Arc::new(cb_lang_typescript::TypeScriptPlugin::new()));
+            registry.register(cb_lang_typescript::TypeScriptPlugin::new().into());
             Arc::new(registry)
         };
         Self::new(plugin_registry)

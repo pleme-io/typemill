@@ -12,15 +12,7 @@ use tracing::debug;
 pub struct TomlWorkspace;
 
 impl TomlWorkspace {
-    /// Add a member to a TOML workspace
-    ///
-    /// Supports both Cargo-style and Poetry/PDM-style workspace sections
-    pub fn add_member(content: &str, member: &str) -> PluginResult<String> {
-        let mut doc = content
-            .parse::<DocumentMut>()
-            .map_err(|e| PluginError::parse(format!("Failed to parse TOML: {}", e)))?;
-
-        // Try Cargo-style [workspace] first
+    fn add_cargo_member(doc: &mut DocumentMut, member: &str) -> bool {
         if let Some(workspace) = doc.get_mut("workspace") {
             if let Some(members_item) = workspace.get_mut("members") {
                 if let Some(members) = members_item.as_array_mut() {
@@ -29,7 +21,7 @@ impl TomlWorkspace {
 
                     if !member_exists {
                         members.push(member);
-                        debug!(member = %member, "Added member to workspace");
+                        debug!(member = %member, "Added member to Cargo workspace");
                     }
                 }
             } else {
@@ -38,11 +30,12 @@ impl TomlWorkspace {
                 members.push(member);
                 workspace["members"] = value(members);
             }
-
-            return Ok(doc.to_string());
+            return true;
         }
+        false
+    }
 
-        // Try Poetry-style [tool.poetry.workspace] or PDM-style
+    fn add_poetry_member(doc: &mut DocumentMut, member: &str) -> bool {
         if let Some(tool) = doc.get_mut("tool") {
             if let Some(poetry) = tool.get_mut("poetry") {
                 if let Some(workspace) = poetry.get_mut("workspace") {
@@ -52,49 +45,73 @@ impl TomlWorkspace {
 
                             if !member_exists {
                                 members.push(member);
+                                debug!(member = %member, "Added member to Poetry workspace");
                             }
-                            return Ok(doc.to_string());
+                            return true;
                         }
                     }
                 }
             }
+        }
+        false
+    }
+    /// Add a member to a TOML workspace
+    ///
+    /// Supports both Cargo-style and Poetry/PDM-style workspace sections
+    pub fn add_member(content: &str, member: &str) -> PluginResult<String> {
+        let mut doc = content
+            .parse::<DocumentMut>()
+            .map_err(|e| PluginError::parse(format!("Failed to parse TOML: {}", e)))?;
+
+        if Self::add_cargo_member(&mut doc, member) {
+            return Ok(doc.to_string());
+        }
+
+        if Self::add_poetry_member(&mut doc, member) {
+            return Ok(doc.to_string());
         }
 
         // No workspace section found, return original
         Ok(content.to_string())
     }
 
+    fn remove_cargo_member(doc: &mut DocumentMut, member: &str) -> bool {
+        if let Some(workspace) = doc.get_mut("workspace") {
+            if let Some(members_item) = workspace.get_mut("members") {
+                if let Some(members) = members_item.as_array_mut() {
+                    let initial_len = members.len();
+                    members.retain(|v| v.as_str() != Some(member));
+                    return initial_len != members.len();
+                }
+            }
+        }
+        false
+    }
+
+    fn remove_poetry_member(doc: &mut DocumentMut, member: &str) -> bool {
+        if let Some(tool) = doc.get_mut("tool") {
+            if let Some(poetry) = tool.get_mut("poetry") {
+                if let Some(workspace) = poetry.get_mut("workspace") {
+                    if let Some(members_item) = workspace.get_mut("members") {
+                        if let Some(members) = members_item.as_array_mut() {
+                            let initial_len = members.len();
+                            members.retain(|v| v.as_str() != Some(member));
+                            return initial_len != members.len();
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
     /// Remove a member from a TOML workspace
     pub fn remove_member(content: &str, member: &str) -> PluginResult<String> {
         let mut doc = content
             .parse::<DocumentMut>()
             .map_err(|e| PluginError::parse(format!("Failed to parse TOML: {}", e)))?;
 
-        let mut modified = false;
-
-        // Check Cargo-style [workspace]
-        if let Some(workspace) = doc.get_mut("workspace") {
-            if let Some(members_item) = workspace.get_mut("members") {
-                if let Some(members) = members_item.as_array_mut() {
-                    members.retain(|v| v.as_str() != Some(member));
-                    modified = true;
-                }
-            }
-        }
-
-        // Check Poetry-style [tool.poetry.workspace]
-        if let Some(tool) = doc.get_mut("tool") {
-            if let Some(poetry) = tool.get_mut("poetry") {
-                if let Some(workspace) = poetry.get_mut("workspace") {
-                    if let Some(members_item) = workspace.get_mut("members") {
-                        if let Some(members) = members_item.as_array_mut() {
-                            members.retain(|v| v.as_str() != Some(member));
-                            modified = true;
-                        }
-                    }
-                }
-            }
-        }
+        let modified = Self::remove_cargo_member(&mut doc, member)
+            || Self::remove_poetry_member(&mut doc, member);
 
         if modified {
             debug!(member = %member, "Removed member from workspace");
@@ -103,47 +120,44 @@ impl TomlWorkspace {
         Ok(doc.to_string())
     }
 
+    fn list_cargo_members(doc: &DocumentMut) -> Option<Vec<String>> {
+        doc.get("workspace")
+            .and_then(|w| w.get("members"))
+            .and_then(|m| m.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
+    }
+
+    fn list_poetry_members(doc: &DocumentMut) -> Option<Vec<String>> {
+        doc.get("tool")
+            .and_then(|t| t.get("poetry"))
+            .and_then(|p| p.get("workspace"))
+            .and_then(|w| w.get("members"))
+            .and_then(|m| m.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
+    }
     /// List all workspace members from TOML
     pub fn list_members(content: &str) -> PluginResult<Vec<String>> {
         let doc = content
             .parse::<DocumentMut>()
             .map_err(|e| PluginError::parse(format!("Failed to parse TOML: {}", e)))?;
 
-        let mut members = Vec::new();
-
-        // Check Cargo-style [workspace]
-        if let Some(workspace) = doc.get("workspace") {
-            if let Some(members_item) = workspace.get("members") {
-                if let Some(arr) = members_item.as_array() {
-                    for item in arr.iter() {
-                        if let Some(member) = item.as_str() {
-                            members.push(member.to_string());
-                        }
-                    }
-                }
-            }
+        if let Some(members) = Self::list_cargo_members(&doc) {
+            return Ok(members);
         }
 
-        // Check Poetry-style [tool.poetry.workspace]
-        if members.is_empty() {
-            if let Some(tool) = doc.get("tool") {
-                if let Some(poetry) = tool.get("poetry") {
-                    if let Some(workspace) = poetry.get("workspace") {
-                        if let Some(members_item) = workspace.get("members") {
-                            if let Some(arr) = members_item.as_array() {
-                                for item in arr.iter() {
-                                    if let Some(member) = item.as_str() {
-                                        members.push(member.to_string());
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+        if let Some(members) = Self::list_poetry_members(&doc) {
+            return Ok(members);
         }
 
-        Ok(members)
+        Ok(Vec::new())
     }
 
     /// Check if TOML content is a workspace manifest
@@ -234,36 +248,23 @@ impl TomlWorkspace {
 pub struct JsonWorkspace;
 
 impl JsonWorkspace {
+    /// Returns a mutable reference to the workspaces array if it exists
+    fn get_workspaces_mut(json: &mut JsonValue) -> Option<&mut Vec<JsonValue>> {
+        let workspaces = json.as_object_mut()?.get_mut("workspaces")?;
+        match workspaces {
+            JsonValue::Array(arr) => Some(arr),
+            JsonValue::Object(obj) => obj.get_mut("packages").and_then(|v| v.as_array_mut()),
+            _ => None,
+        }
+    }
     /// Add a member to a JSON workspace (npm/yarn/pnpm workspaces)
     pub fn add_member(content: &str, member: &str) -> PluginResult<String> {
         let mut json: JsonValue = serde_json::from_str(content)
             .map_err(|e| PluginError::parse(format!("Failed to parse JSON: {}", e)))?;
 
-        // Get or create workspaces array
-        let workspaces = json
-            .as_object_mut()
-            .and_then(|obj| obj.get_mut("workspaces"))
-            .ok_or_else(|| PluginError::parse("No workspaces field found"))?;
-
-        // Handle both array format and object format
-        match workspaces {
-            JsonValue::Array(arr) => {
-                if !arr.iter().any(|v| v.as_str() == Some(member)) {
-                    arr.push(JsonValue::String(member.to_string()));
-                }
-            }
-            JsonValue::Object(obj) => {
-                // pnpm-style: { "packages": [...] }
-                if let Some(JsonValue::Array(packages)) = obj.get_mut("packages") {
-                    if !packages.iter().any(|v| v.as_str() == Some(member)) {
-                        packages.push(JsonValue::String(member.to_string()));
-                    }
-                }
-            }
-            _ => {
-                return Err(PluginError::parse(
-                    "workspaces field must be array or object",
-                ))
+        if let Some(workspaces) = Self::get_workspaces_mut(&mut json) {
+            if !workspaces.iter().any(|v| v.as_str() == Some(member)) {
+                workspaces.push(JsonValue::String(member.to_string()));
             }
         }
 
@@ -276,57 +277,36 @@ impl JsonWorkspace {
         let mut json: JsonValue = serde_json::from_str(content)
             .map_err(|e| PluginError::parse(format!("Failed to parse JSON: {}", e)))?;
 
-        if let Some(workspaces) = json
-            .as_object_mut()
-            .and_then(|obj| obj.get_mut("workspaces"))
-        {
-            match workspaces {
-                JsonValue::Array(arr) => {
-                    arr.retain(|v| v.as_str() != Some(member));
-                }
-                JsonValue::Object(obj) => {
-                    if let Some(JsonValue::Array(packages)) = obj.get_mut("packages") {
-                        packages.retain(|v| v.as_str() != Some(member));
-                    }
-                }
-                _ => {}
-            }
+        if let Some(workspaces) = Self::get_workspaces_mut(&mut json) {
+            workspaces.retain(|v| v.as_str() != Some(member));
         }
 
         serde_json::to_string_pretty(&json)
             .map_err(|e| PluginError::parse(format!("Failed to serialize JSON: {}", e)))
     }
 
+    fn get_workspaces(json: &JsonValue) -> Option<&Vec<JsonValue>> {
+        let workspaces = json.as_object()?.get("workspaces")?;
+        match workspaces {
+            JsonValue::Array(arr) => Some(arr),
+            JsonValue::Object(obj) => obj.get("packages").and_then(|v| v.as_array()),
+            _ => None,
+        }
+    }
     /// List all workspace members from JSON
     pub fn list_members(content: &str) -> PluginResult<Vec<String>> {
         let json: JsonValue = serde_json::from_str(content)
             .map_err(|e| PluginError::parse(format!("Failed to parse JSON: {}", e)))?;
 
-        let mut members = Vec::new();
-
-        if let Some(workspaces) = json.as_object().and_then(|obj| obj.get("workspaces")) {
-            match workspaces {
-                JsonValue::Array(arr) => {
-                    for item in arr {
-                        if let Some(member) = item.as_str() {
-                            members.push(member.to_string());
-                        }
-                    }
-                }
-                JsonValue::Object(obj) => {
-                    if let Some(JsonValue::Array(packages)) = obj.get("packages") {
-                        for item in packages {
-                            if let Some(member) = item.as_str() {
-                                members.push(member.to_string());
-                            }
-                        }
-                    }
-                }
-                _ => {}
-            }
+        if let Some(workspaces) = Self::get_workspaces(&json) {
+            let members = workspaces
+                .iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect();
+            return Ok(members);
         }
 
-        Ok(members)
+        Ok(Vec::new())
     }
 
     /// Check if JSON content is a workspace manifest
