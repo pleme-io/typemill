@@ -170,7 +170,7 @@ impl PluginDispatcher {
 
             {
                 use super::tools::{
-                    AdvancedToolsHandler, AnalysisHandler,
+                    AdvancedToolsHandler, AnalysisHandler, FileToolsHandler,
                     InternalEditingToolsHandler, InternalIntelligenceHandler,
                     InternalWorkspaceHandler, LifecycleHandler, NavigationHandler,
                     SystemToolsHandler,
@@ -182,6 +182,7 @@ impl PluginDispatcher {
                 let mut registry = self.tool_registry.lock().await;
                 register_handlers_with_logging!(registry, {
                     SystemToolsHandler => "SystemToolsHandler with 1 tool (health_check)",
+                    FileToolsHandler => "FileToolsHandler with 3 utility tools (read_file, write_file, list_files)",
                     AdvancedToolsHandler => "AdvancedToolsHandler with 2 tools (execute_edits, execute_batch)",
                     NavigationHandler => "NavigationHandler with 9 tools (find_definition, find_references, find_implementations, find_type_definition, get_document_symbols, search_symbols, get_symbol_info, get_diagnostics, get_call_hierarchy)",
                     AnalysisHandler => "AnalysisHandler with 3 tools (find_unused_imports, analyze_code, analyze_project)",

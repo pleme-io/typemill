@@ -32,17 +32,15 @@ async fn test_extract_function_plan_basic_workflow() {
         .call_tool(
             "extract.plan",
             json!({
-                "target": {
-                    "kind": "function",
-                    "path": file_path.to_string_lossy(),
-                    "selector": {
-                        "range": {
-                            "start": {"line": 1, "character": 4},
-                            "end": {"line": 2, "character": 26}
-                        }
-                    }
+                "kind": "function",
+                "source": {
+                    "file_path": file_path.to_string_lossy(),
+                    "range": {
+                        "start": {"line": 1, "character": 4},
+                        "end": {"line": 2, "character": 26}
+                    },
+                    "name": "compute_sum_doubled"
                 },
-                "new_name": "compute_sum_doubled",
                 "options": {}
             }),
         )
@@ -116,17 +114,15 @@ async fn test_extract_variable_dry_run() {
         .call_tool(
             "extract.plan",
             json!({
-                "target": {
-                    "kind": "variable",
-                    "path": file_path.to_string_lossy(),
-                    "selector": {
-                        "range": {
-                            "start": {"line": 1, "character": 17},
-                            "end": {"line": 1, "character": 27}
-                        }
-                    }
-                },
-                "new_name": "base_value"
+                "kind": "variable",
+                "source": {
+                    "file_path": file_path.to_string_lossy(),
+                    "range": {
+                        "start": {"line": 1, "character": 17},
+                        "end": {"line": 1, "character": 27}
+                    },
+                    "name": "base_value"
+                }
             }),
         )
         .await;
@@ -196,17 +192,15 @@ async fn test_extract_constant_checksum_validation() {
         .call_tool(
             "extract.plan",
             json!({
-                "target": {
-                    "kind": "constant",
-                    "path": file_path.to_string_lossy(),
-                    "selector": {
-                        "range": {
-                            "start": {"line": 1, "character": 4},
-                            "end": {"line": 1, "character": 6}
-                        }
-                    }
-                },
-                "new_name": "MAGIC_NUMBER"
+                "kind": "constant",
+                "source": {
+                    "file_path": file_path.to_string_lossy(),
+                    "range": {
+                        "start": {"line": 1, "character": 4},
+                        "end": {"line": 1, "character": 6}
+                    },
+                    "name": "MAGIC_NUMBER"
+                }
             }),
         )
         .await;
@@ -278,17 +272,15 @@ async fn test_extract_plan_metadata_structure() {
         .call_tool(
             "extract.plan",
             json!({
-                "target": {
-                    "kind": "variable",
-                    "path": file_path.to_string_lossy(),
-                    "selector": {
-                        "range": {
-                            "start": {"line": 2, "character": 4},
-                            "end": {"line": 2, "character": 9}
-                        }
-                    }
-                },
-                "new_name": "multiplier"
+                "kind": "variable",
+                "source": {
+                    "file_path": file_path.to_string_lossy(),
+                    "range": {
+                        "start": {"line": 2, "character": 4},
+                        "end": {"line": 2, "character": 9}
+                    },
+                    "name": "multiplier"
+                }
             }),
         )
         .await;

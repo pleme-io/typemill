@@ -286,7 +286,7 @@ impl ExtractHandler {
 
         let metadata = PlanMetadata {
             plan_version: "1.0".to_string(),
-            kind: kind.to_string(),
+            kind: "extract".to_string(),
             language: language.to_string(),
             estimated_impact: estimated_impact.to_string(),
             created_at: chrono::Utc::now().to_rfc3339(),

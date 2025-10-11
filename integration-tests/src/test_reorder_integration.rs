@@ -33,9 +33,10 @@ pub fn test() {}
             json!({
                 "target": {
                     "kind": "imports",
-                    "path": file_path.to_string_lossy()
+                    "file_path": file_path.to_string_lossy(),
+                    "position": {"line": 0, "character": 0}
                 },
-                "order": "alphabetical"
+                "new_order": []
             }),
         )
         .await;
@@ -112,12 +113,10 @@ pub fn test() {
             json!({
                 "target": {
                     "kind": "parameters",
-                    "path": file_path.to_string_lossy(),
-                    "selector": {
-                        "position": {"line": 0, "character": 7}
-                    }
+                    "file_path": file_path.to_string_lossy(),
+                    "position": {"line": 0, "character": 7}
                 },
-                "new_order": [2, 0, 1]
+                "new_order": ["z", "x", "y"]
             }),
         )
         .await;
@@ -193,12 +192,10 @@ async fn test_reorder_fields_checksum_validation() {
             json!({
                 "target": {
                     "kind": "fields",
-                    "path": file_path.to_string_lossy(),
-                    "selector": {
-                        "position": {"line": 0, "character": 11}
-                    }
+                    "file_path": file_path.to_string_lossy(),
+                    "position": {"line": 0, "character": 11}
                 },
-                "new_order": [2, 1, 0]
+                "new_order": ["z", "y", "x"]
             }),
         )
         .await;
@@ -276,15 +273,10 @@ async fn test_reorder_statements_plan_structure() {
             json!({
                 "target": {
                     "kind": "statements",
-                    "path": file_path.to_string_lossy(),
-                    "selector": {
-                        "range": {
-                            "start": {"line": 1, "character": 0},
-                            "end": {"line": 3, "character": 0}
-                        }
-                    }
+                    "file_path": file_path.to_string_lossy(),
+                    "position": {"line": 1, "character": 0}
                 },
-                "new_order": [2, 1, 0]
+                "new_order": ["let a = 1;", "let b = 2;", "let c = 3;"]
             }),
         )
         .await;

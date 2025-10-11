@@ -246,10 +246,7 @@ async fn test_move_module_plan_structure() {
                     "kind": "file",
                     "path": source.to_string_lossy()
                 },
-                "destination": dest.to_string_lossy(),
-                "options": {
-                    "update_imports": true
-                }
+                "destination": dest.to_string_lossy()
             }),
         )
         .await

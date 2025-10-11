@@ -156,7 +156,37 @@ impl ToolHandler for WorkspaceApplyHandler {
         let workspace_edit = extract_workspace_edit(&params.plan);
 
         // Step 3: Convert LSP WorkspaceEdit to internal EditPlan format
-        let edit_plan = convert_to_edit_plan(workspace_edit, &params.plan)?;
+        let mut edit_plan = convert_to_edit_plan(workspace_edit, &params.plan)?;
+
+        // Handle DeletePlan explicitly by reading from the deletions field
+        if let RefactorPlan::DeletePlan(delete_plan) = &params.plan {
+            debug!(
+                deletion_count = delete_plan.deletions.len(),
+                "Adding delete operations from DeletePlan"
+            );
+
+            for target in &delete_plan.deletions {
+                debug!(
+                    path = %target.path,
+                    kind = %target.kind,
+                    "Adding delete operation"
+                );
+                edit_plan.edits.push(cb_protocol::TextEdit {
+                    file_path: Some(target.path.clone()),
+                    edit_type: cb_protocol::EditType::Delete,
+                    location: cb_protocol::EditLocation {
+                        start_line: 0,
+                        start_column: 0,
+                        end_line: 0,
+                        end_column: 0,
+                    },
+                    original_text: String::new(),
+                    new_text: String::new(),
+                    priority: 0,
+                    description: format!("Delete {}: {}", target.kind, target.path),
+                });
+            }
+        }
 
         // Step 4: Dry run preview
         if params.options.dry_run {
@@ -353,7 +383,12 @@ fn extract_workspace_edit(plan: &RefactorPlan) -> WorkspaceEdit {
         RefactorPlan::MovePlan(p) => p.edits.clone(),
         RefactorPlan::ReorderPlan(p) => p.edits.clone(),
         RefactorPlan::TransformPlan(p) => p.edits.clone(),
-        RefactorPlan::DeletePlan(p) => p.edits.clone(),
+        // DeletePlan uses explicit deletions field, not WorkspaceEdit
+        RefactorPlan::DeletePlan(_) => WorkspaceEdit {
+            changes: None,
+            document_changes: None,
+            change_annotations: None,
+        },
     }
 }
 
@@ -589,19 +624,21 @@ fn extract_impact_areas(plan: &RefactorPlan) -> Vec<String> {
 }
 
 /// Extract created files from edit plan
-fn extract_created_files(_plan: &EditPlan) -> Vec<String> {
-    // Files that appear in edits but don't exist yet
-    // This is a simplified heuristic - in practice, plan types
-    // should explicitly mark created files
-    Vec::new()
+fn extract_created_files(plan: &EditPlan) -> Vec<String> {
+    plan.edits
+        .iter()
+        .filter(|edit| matches!(edit.edit_type, cb_protocol::EditType::Create))
+        .filter_map(|edit| edit.file_path.clone())
+        .collect()
 }
 
 /// Extract deleted files from edit plan
-fn extract_deleted_files(_plan: &EditPlan) -> Vec<String> {
-    // Files marked for deletion
-    // This is a simplified heuristic - in practice, DeletePlan
-    // should explicitly mark deleted files
-    Vec::new()
+fn extract_deleted_files(plan: &EditPlan) -> Vec<String> {
+    plan.edits
+        .iter()
+        .filter(|edit| matches!(edit.edit_type, cb_protocol::EditType::Delete))
+        .filter_map(|edit| edit.file_path.clone())
+        .collect()
 }
 
 /// Create dry-run result preview

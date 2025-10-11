@@ -10,10 +10,9 @@ use crate::handlers::tools::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
 use cb_protocol::{
-    refactor_plan::{DeletePlan, PlanMetadata, PlanSummary, PlanWarning},
+    refactor_plan::{DeletePlan, DeletionTarget, PlanMetadata, PlanSummary, PlanWarning},
     ApiError as ServerError, ApiResult as ServerResult, RefactorPlan,
 };
-use lsp_types::WorkspaceEdit;
 use serde::Deserialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -161,12 +160,8 @@ impl DeleteHandler {
             calculate_checksum(&content),
         );
 
-        // Create empty WorkspaceEdit (placeholder - AST-based symbol deletion not implemented)
-        let workspace_edit = WorkspaceEdit {
-            changes: None,
-            document_changes: None,
-            change_annotations: None,
-        };
+        // Create empty deletions list (placeholder - AST-based symbol deletion not implemented)
+        let deletions = Vec::new();
 
         // Build summary
         let summary = PlanSummary {
@@ -196,7 +191,7 @@ impl DeleteHandler {
         };
 
         Ok(DeletePlan {
-            edits: workspace_edit,
+            deletions,
             summary,
             warnings,
             metadata,
@@ -243,12 +238,15 @@ impl DeleteHandler {
             calculate_checksum(&content),
         );
 
-        // Create WorkspaceEdit representing file deletion
-        let workspace_edit = WorkspaceEdit {
-            changes: None,
-            document_changes: None,
-            change_annotations: None,
-        };
+        // Canonicalize path to ensure proper path handling
+        let abs_file_path = std::fs::canonicalize(file_path)
+            .unwrap_or_else(|_| file_path.to_path_buf());
+
+        // Create explicit deletion target
+        let deletions = vec![DeletionTarget {
+            path: abs_file_path.to_string_lossy().to_string(),
+            kind: "file".to_string(),
+        }];
 
         // Build summary
         let summary = PlanSummary {
@@ -296,7 +294,7 @@ impl DeleteHandler {
         };
 
         Ok(DeletePlan {
-            edits: workspace_edit,
+            deletions,
             summary,
             warnings,
             metadata,
@@ -349,12 +347,11 @@ impl DeleteHandler {
             }
         }
 
-        // Create WorkspaceEdit representing directory deletion
-        let workspace_edit = WorkspaceEdit {
-            changes: None,
-            document_changes: None,
-            change_annotations: None,
-        };
+        // Create explicit deletion target for directory
+        let deletions = vec![DeletionTarget {
+            path: abs_dir.to_string_lossy().to_string(),
+            kind: "directory".to_string(),
+        }];
 
         // Build summary
         let summary = PlanSummary {
@@ -404,7 +401,7 @@ impl DeleteHandler {
         };
 
         Ok(DeletePlan {
-            edits: workspace_edit,
+            deletions,
             summary,
             warnings,
             metadata,
@@ -423,12 +420,8 @@ impl DeleteHandler {
             "Planning dead code delete (placeholder)"
         );
 
-        // Create empty WorkspaceEdit (placeholder - dead code analysis not yet integrated)
-        let workspace_edit = WorkspaceEdit {
-            changes: None,
-            document_changes: None,
-            change_annotations: None,
-        };
+        // Create empty deletions list (placeholder - dead code analysis not yet integrated)
+        let deletions = Vec::new();
 
         // Build summary
         let summary = PlanSummary {
@@ -454,7 +447,7 @@ impl DeleteHandler {
         };
 
         Ok(DeletePlan {
-            edits: workspace_edit,
+            deletions,
             summary,
             warnings,
             metadata,

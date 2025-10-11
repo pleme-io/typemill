@@ -173,19 +173,30 @@ impl FileService {
                     }
                 }
                 EditType::Delete => {
-                    // File deletion operation
+                    // File or directory deletion operation
                     if let Some(file_path_str) = &edit.file_path {
                         let file_path = Path::new(file_path_str);
 
-                        info!(file_path = %file_path_str, "Executing file delete operation");
+                        info!(file_path = %file_path_str, "Executing delete operation");
 
-                        // Delete the file
-                        fs::remove_file(file_path).await.map_err(|e| {
-                            ServerError::Internal(format!(
-                                "Failed to delete file {}: {}",
-                                file_path_str, e
-                            ))
-                        })?;
+                        // Check if it's a file or directory
+                        if file_path.is_dir() {
+                            // Delete directory recursively
+                            fs::remove_dir_all(file_path).await.map_err(|e| {
+                                ServerError::Internal(format!(
+                                    "Failed to delete directory {}: {}",
+                                    file_path_str, e
+                                ))
+                            })?;
+                        } else {
+                            // Delete single file
+                            fs::remove_file(file_path).await.map_err(|e| {
+                                ServerError::Internal(format!(
+                                    "Failed to delete file {}: {}",
+                                    file_path_str, e
+                                ))
+                            })?;
+                        }
 
                         deleted_files.push(file_path_str.clone());
                     }

@@ -2,6 +2,13 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use lsp_types::{WorkspaceEdit};
 
+/// Represents a target for deletion (file or directory)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeletionTarget {
+    pub path: String,
+    pub kind: String, // "file" or "directory"
+}
+
 /// Discriminated union type for all refactoring plans
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "plan_type")]
@@ -95,7 +102,7 @@ pub struct TransformPlan {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeletePlan {
-    pub edits: WorkspaceEdit,
+    pub deletions: Vec<DeletionTarget>,
     pub summary: PlanSummary,
     pub warnings: Vec<PlanWarning>,
     pub metadata: PlanMetadata,

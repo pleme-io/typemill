@@ -31,12 +31,10 @@ async fn test_inline_variable_plan_and_apply() {
         .call_tool(
             "inline.plan",
             json!({
+                "kind": "variable",
                 "target": {
-                    "kind": "variable",
-                    "path": file_path.to_string_lossy(),
-                    "selector": {
-                        "position": {"line": 1, "character": 8}
-                    }
+                    "file_path": file_path.to_string_lossy(),
+                    "position": {"line": 1, "character": 8}
                 }
             }),
         )
@@ -112,12 +110,10 @@ pub fn test() -> i32 {
         .call_tool(
             "inline.plan",
             json!({
+                "kind": "function",
                 "target": {
-                    "kind": "function",
-                    "path": file_path.to_string_lossy(),
-                    "selector": {
-                        "position": {"line": 0, "character": 3}
-                    }
+                    "file_path": file_path.to_string_lossy(),
+                    "position": {"line": 0, "character": 3}
                 }
             }),
         )
@@ -190,12 +186,10 @@ pub fn get_buffer() -> Vec<u8> {
         .call_tool(
             "inline.plan",
             json!({
+                "kind": "constant",
                 "target": {
-                    "kind": "constant",
-                    "path": file_path.to_string_lossy(),
-                    "selector": {
-                        "position": {"line": 0, "character": 6}
-                    }
+                    "file_path": file_path.to_string_lossy(),
+                    "position": {"line": 0, "character": 6}
                 }
             }),
         )
@@ -277,12 +271,10 @@ pub fn use_twice() -> i32 {
         .call_tool(
             "inline.plan",
             json!({
+                "kind": "function",
                 "target": {
-                    "kind": "function",
-                    "path": file_path.to_string_lossy(),
-                    "selector": {
-                        "position": {"line": 0, "character": 7}
-                    }
+                    "file_path": file_path.to_string_lossy(),
+                    "position": {"line": 0, "character": 7}
                 }
             }),
         )

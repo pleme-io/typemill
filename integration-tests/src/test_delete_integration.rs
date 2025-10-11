@@ -36,6 +36,9 @@ async fn test_delete_file_plan_and_apply() {
         .and_then(|r| r.get("content"))
         .expect("Plan should exist");
 
+    // DEBUG: Print plan to see what's inside
+    eprintln!("DEBUG DELETE PLAN: {}", serde_json::to_string_pretty(&plan).unwrap());
+
     assert_eq!(
         plan.get("plan_type").and_then(|v| v.as_str()),
         Some("DeletePlan"),
@@ -61,6 +64,9 @@ async fn test_delete_file_plan_and_apply() {
         .get("result")
         .and_then(|r| r.get("content"))
         .expect("Apply result should exist");
+
+    // DEBUG: Print apply result
+    eprintln!("DEBUG APPLY RESULT: {}", serde_json::to_string_pretty(&result).unwrap());
 
     assert_eq!(
         result.get("success").and_then(|v| v.as_bool()),

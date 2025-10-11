@@ -1,7 +1,12 @@
-//! Dry run integration tests
+//! Dry run integration tests for Unified Refactoring API
 //!
-//! This test suite ensures that when dry_run=true is specified, no actual
-//! file system modifications occur. This is critical for safety and user trust.
+//! This test suite ensures that workspace.apply_edit with dry_run=true does not
+//! modify the file system. This is critical for safety and user trust.
+//!
+//! NOTE: These tests use the Unified Refactoring API pattern:
+//! 1. Generate a plan with *.plan() command
+//! 2. Apply with workspace.apply_edit(plan, { dry_run: true })
+//! 3. Verify no file system modifications occurred
 
 use crate::harness::{TestClient, TestWorkspace};
 use serde_json::json;
@@ -17,25 +22,48 @@ async fn test_rename_file_dry_run_does_not_modify_disk() {
     let old_file_path = workspace.path().join("original.txt");
     let new_file_path = workspace.path().join("renamed.txt");
 
-    // 2. Call rename_file with dry_run=true
-    let response = client
+    // 2. Generate rename plan using unified API
+    let plan_response = client
         .call_tool(
-            "move_file",
+            "rename.plan",
             json!({
-                "old_path": old_file_path.to_str().unwrap(),
-                "new_path": new_file_path.to_str().unwrap(),
-                "dry_run": true
+                "target": {
+                    "kind": "file",
+                    "path": old_file_path.to_str().unwrap()
+                },
+                "new_name": new_file_path.to_str().unwrap()
             }),
         )
         .await
         .unwrap();
 
-    // 3. Assertions on response
-    let result = &response["result"];
-    assert_eq!(
-        result["status"], "preview",
-        "Response should indicate a preview"
-    );
+    // Debug: Print the full response to understand what's happening
+    eprintln!("DEBUG plan_response: {}", serde_json::to_string_pretty(&plan_response).unwrap());
+
+    // Check if there's an error instead of a result
+    if !plan_response["error"].is_null() {
+        panic!("rename.plan failed with error: {}", plan_response["error"]);
+    }
+
+    let plan = &plan_response["result"]["content"];
+    assert_eq!(plan["plan_type"], "RenamePlan", "Should generate a RenamePlan");
+
+    // 3. Apply plan with dry_run=true
+    let apply_response = client
+        .call_tool(
+            "workspace.apply_edit",
+            json!({
+                "plan": plan,
+                "options": {
+                    "dry_run": true
+                }
+            }),
+        )
+        .await
+        .unwrap();
+
+    let result = &apply_response["result"]["content"];
+    assert_eq!(result["success"], true, "Dry run should succeed");
 
     // 4. CRITICAL: Verify file system is unchanged
     assert!(
@@ -55,39 +83,67 @@ async fn test_rename_file_dry_run_does_not_modify_disk() {
 
 #[tokio::test]
 async fn test_create_file_dry_run_does_not_create_file() {
+    // NOTE: File creation is typically part of extract/move operations in unified API
+    // This test demonstrates using delete.plan (which can represent file operations)
+    // For creating files outside refactoring context, use FileService directly or write_file utility
+
     // 1. Setup
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
-    let new_file_path = workspace.path().join("new_file.txt");
 
-    // 2. Call create_file with dry_run=true
-    let response = client
+    // Create a source file to extract from
+    workspace.create_file("source.rs", "const VALUE: i32 = 42;");
+    let source_path = workspace.path().join("source.rs");
+    let new_file_path = workspace.path().join("extracted.rs");
+
+    // 2. Generate extract plan that creates a new file
+    let plan_response = client
         .call_tool(
-            "create_file",
+            "extract.plan",
             json!({
-                "file_path": new_file_path.to_str().unwrap(),
-                "content": "This should not be written",
-                "dry_run": true
+                "kind": "constant",
+                "source": {
+                    "file_path": source_path.to_str().unwrap(),
+                    "range": {
+                        "start": { "line": 0, "character": 0 },
+                        "end": { "line": 0, "character": 23 }
+                    },
+                    "name": "VALUE",
+                    "destination": new_file_path.to_str().unwrap()
+                }
             }),
         )
         .await
         .unwrap();
 
-    // 3. Assertions on response
-    let result = &response["result"];
-    assert_eq!(
-        result["status"], "preview",
-        "Response should indicate a preview"
-    );
-    assert_eq!(
-        result["operation"], "create_file",
-        "Operation should be create_file"
-    );
+    let plan = &plan_response["result"]["content"];
+    assert_eq!(plan["plan_type"], "ExtractPlan", "Should generate an ExtractPlan");
 
-    // 4. CRITICAL: Verify file was NOT created
+    // 3. Apply plan with dry_run=true
+    let apply_response = client
+        .call_tool(
+            "workspace.apply_edit",
+            json!({
+                "plan": plan,
+                "options": {
+                    "dry_run": true
+                }
+            }),
+        )
+        .await
+        .unwrap();
+
+    let result = &apply_response["result"]["content"];
+    assert_eq!(result["success"], true, "Dry run should succeed");
+
+    // 4. CRITICAL: Verify no new file was created
     assert!(
-        !workspace.file_exists("new_file.txt"),
-        "File should NOT exist after dry run create"
+        !workspace.file_exists("extracted.rs"),
+        "New file should NOT be created after dry run"
+    );
+    assert!(
+        workspace.file_exists("source.rs"),
+        "Source file should still exist"
     );
 }
 
@@ -101,28 +157,39 @@ async fn test_delete_file_dry_run_does_not_delete_file() {
     workspace.create_file("to_delete.txt", "important content");
     let file_path = workspace.path().join("to_delete.txt");
 
-    // 2. Call delete_file with dry_run=true
-    let response = client
+    // 2. Generate delete plan using unified API
+    let plan_response = client
         .call_tool(
-            "delete_file",
+            "delete.plan",
             json!({
-                "file_path": file_path.to_str().unwrap(),
-                "dry_run": true
+                "target": {
+                    "kind": "file",
+                    "path": file_path.to_str().unwrap()
+                }
             }),
         )
         .await
         .unwrap();
 
-    // 3. Assertions on response
-    let result = &response["result"];
-    assert_eq!(
-        result["status"], "preview",
-        "Response should indicate a preview"
-    );
-    assert_eq!(
-        result["operation"], "delete_file",
-        "Operation should be delete_file"
-    );
+    let plan = &plan_response["result"]["content"];
+    assert_eq!(plan["plan_type"], "DeletePlan", "Should generate a DeletePlan");
+
+    // 3. Apply plan with dry_run=true
+    let apply_response = client
+        .call_tool(
+            "workspace.apply_edit",
+            json!({
+                "plan": plan,
+                "options": {
+                    "dry_run": true
+                }
+            }),
+        )
+        .await
+        .unwrap();
+
+    let result = &apply_response["result"]["content"];
+    assert_eq!(result["success"], true, "Dry run should succeed");
 
     // 4. CRITICAL: Verify file still exists
     assert!(
@@ -148,25 +215,40 @@ async fn test_rename_directory_dry_run_does_not_modify_disk() {
     let old_dir = workspace.path().join("old_dir");
     let new_dir = workspace.path().join("new_dir");
 
-    // 2. Call rename_directory with dry_run=true
-    let response = client
+    // 2. Generate rename plan for directory using unified API
+    let plan_response = client
         .call_tool(
-            "move_directory",
+            "rename.plan",
             json!({
-                "old_path": old_dir.to_str().unwrap(),
-                "new_path": new_dir.to_str().unwrap(),
-                "dry_run": true
+                "target": {
+                    "kind": "directory",
+                    "path": old_dir.to_str().unwrap()
+                },
+                "new_name": new_dir.to_str().unwrap()
             }),
         )
         .await
         .unwrap();
 
-    // 3. Assertions on response
-    let result = &response["result"];
-    assert_eq!(
-        result["status"], "preview",
-        "Response should indicate a preview"
-    );
+    let plan = &plan_response["result"]["content"];
+    assert_eq!(plan["plan_type"], "RenamePlan", "Should generate a RenamePlan");
+
+    // 3. Apply plan with dry_run=true
+    let apply_response = client
+        .call_tool(
+            "workspace.apply_edit",
+            json!({
+                "plan": plan,
+                "options": {
+                    "dry_run": true
+                }
+            }),
+        )
+        .await
+        .unwrap();
+
+    let result = &apply_response["result"]["content"];
+    assert_eq!(result["success"], true, "Dry run should succeed");
 
     // 4. CRITICAL: Verify directory is unchanged
     assert!(
