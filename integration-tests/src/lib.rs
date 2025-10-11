@@ -46,6 +46,9 @@ pub mod test_workspace_apply_integration;
 #[cfg(test)]
 pub mod test_analyze_quality;
 
+#[cfg(test)]
+pub mod test_analyze_dead_code;
+
 pub use harness::{TestClient, TestWorkspace};
 pub use helpers::*;
 pub use mocks::{MockAstService, MockLspService};
