@@ -42,6 +42,10 @@ pub mod test_delete_integration;
 #[cfg(test)]
 pub mod test_workspace_apply_integration;
 
+// Unified Analysis API integration tests (Proposal 40)
+#[cfg(test)]
+pub mod test_analyze_quality;
+
 pub use harness::{TestClient, TestWorkspace};
 pub use helpers::*;
 pub use mocks::{MockAstService, MockLspService};

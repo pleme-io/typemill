@@ -4,10 +4,12 @@
 //! that are shared across all workspace crates. It has no dependencies
 //! on other cb-* crates to prevent circular dependencies.
 
+pub mod analysis_result;
 pub mod error;
 pub mod plugin_protocol;
 pub mod refactor_plan;
 
+pub use analysis_result::*;
 pub use error::{ApiError, ApiResult};
 pub use refactor_plan::*;
 

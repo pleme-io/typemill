@@ -5,7 +5,10 @@ use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 
 pub mod code;
 pub mod project;
+pub mod quality;
 pub mod unused_imports;
+
+pub use quality::QualityHandler;
 
 #[cfg(test)]
 mod tests;
