@@ -1,6 +1,44 @@
 # Implementation Sequencing Guide
 
+**Status**: Phase 0-1 ✅ **COMPLETE** | Phase 2-3 🔄 **PENDING** | Phase 4 🟡 **PARTIAL**
+
 **Purpose**: Define the correct implementation order for unified API features to avoid dependency conflicts and enable incremental delivery.
+
+**Last Updated**: 2025-10-11
+
+---
+
+## Implementation Status Summary
+
+### ✅ Completed Phases (2025-10-11)
+
+**Phase 0: Foundation (Self-Registration)** - All plugins expose capabilities for dynamic validation
+
+**Phase 1A: Refactoring API Core** - All 7 plan commands + workspace.apply_edit with validation and rollback
+- `rename.plan`, `extract.plan`, `inline.plan`, `move.plan`, `reorder.plan`, `transform.plan`, `delete.plan`
+- Unified `workspace.apply_edit` executor with checksum validation
+- Atomic rollback mechanism
+
+**Phase 1B: Refactoring API Config** - Project-level presets via `.codebuddy/refactor.toml`
+- Preset system with override support
+- Configuration validation against plugin registry
+- Integration test coverage
+
+**Phase 1C: Post-Apply Validation** - Validation command execution with automatic rollback
+- Post-apply validation with timeout handling
+- Automatic rollback on validation failure
+- Comprehensive test coverage (pass/fail/timeout)
+
+**Phase 4: Client Utilities (Partial)** - `formatPlan` utility for Rust
+- Human-readable plan descriptions
+- Handles all 7 plan types with proper pluralization
+- Exported from `crates/cb-client`
+
+### 🔄 Pending Phases
+
+**Phase 2A-C: Unified Analysis API** - Not started (separate proposal)
+**Phase 3: Batch Operations** - Not started
+**Phase 4 (Remaining)**: Plan diff visualization, TypeScript client utilities
 
 ---
 
@@ -29,23 +67,25 @@ trait PluginRegistry {
 - Plugin additions require manual updates to config schema
 - No way to validate suggestion `refactor_call` arguments dynamically
 
-**Status**: Must implement before Phase 1 of either unified API.
+**Status**: ✅ **COMPLETE** - Self-registration implemented.
 
 ---
 
 ## Implementation Phases
 
-### Phase 0: Foundation (Self-Registration)
+### Phase 0: Foundation (Self-Registration) ✅ **COMPLETE**
+
+**Status**: ✅ Completed 2025-10-11
 
 **Goal**: Enable dynamic capability discovery
 
 **Deliverables**:
-1. Registry descriptor system for plugins
-2. Plugin capability advertisement (supported kinds, argument schemas)
-3. Runtime validation of commands against registry
-4. CI validation that all plugins expose descriptors
+1. ✅ Registry descriptor system for plugins
+2. ✅ Plugin capability advertisement (supported kinds, argument schemas)
+3. ✅ Runtime validation of commands against registry
+4. ✅ CI validation that all plugins expose descriptors
 
-**Timeline**: 2-3 weeks
+**Timeline**: 2-3 weeks (actual: completed)
 **Blockers**: None
 **Blocks**: Phase 1 of both unified APIs
 
@@ -57,72 +97,78 @@ trait PluginRegistry {
 
 ---
 
-### Phase 1A: Refactoring API Core (No Config)
+### Phase 1A: Refactoring API Core (No Config) ✅ **COMPLETE**
+
+**Status**: ✅ Completed 2025-10-11
 
 **Goal**: Implement plan → apply pattern without presets
 
 **Deliverables**:
-1. All 14 `*.plan` commands (7 operations × 2 commands each)
-2. `workspace.apply_edit` with all validation except post-apply validation
-3. Plan structure with checksums and metadata
-4. Rollback mechanism
+1. ✅ All 7 `*.plan` commands (rename, extract, inline, move, reorder, transform, delete)
+2. ✅ `workspace.apply_edit` with checksum validation and rollback
+3. ✅ Plan structure with checksums and metadata
+4. ✅ Rollback mechanism
 
-**Timeline**: 4-5 weeks
-**Blockers**: Phase 0 (self-registration)
-**Blocks**: Phase 1B (refactoring config)
+**Timeline**: 4-5 weeks (actual: completed)
+**Blockers**: Phase 0 (self-registration) ✅
+**Blocks**: Phase 1B (refactoring config) ✅
 
 **Success criteria**:
-- [ ] All `*.plan` commands implemented
-- [ ] `workspace.apply_edit` handles all 7 plan types
-- [ ] Checksum validation works
-- [ ] Rollback on error works
-- [ ] No config/preset support yet
+- [x] All `*.plan` commands implemented
+- [x] `workspace.apply_edit` handles all 7 plan types
+- [x] Checksum validation works
+- [x] Rollback on error works
+- [x] No config/preset support yet (moved to Phase 1B)
 
 ---
 
-### Phase 1B: Refactoring API Config
+### Phase 1B: Refactoring API Config ✅ **COMPLETE**
+
+**Status**: ✅ Completed 2025-10-11
 
 **Goal**: Add project-level presets for refactoring
 
 **Deliverables**:
-1. `.codebuddy/refactor.toml` loader
-2. Preset resolution with override support
-3. Config validation against registry (uses Phase 0)
-4. Integration tests for preset loading
+1. ✅ `.codebuddy/refactor.toml` loader (`crates/cb-core/src/refactor_config.rs`)
+2. ✅ Preset resolution with override support
+3. ✅ Config validation against registry (uses Phase 0)
+4. ✅ Integration tests for preset loading
 
-**Timeline**: 1-2 weeks
-**Blockers**: Phase 1A (refactoring core)
-**Blocks**: None (parallel with Phase 1C)
+**Timeline**: 1-2 weeks (actual: completed)
+**Blockers**: Phase 1A (refactoring core) ✅
+**Blocks**: None (parallel with Phase 1C) ✅
 
 **Success criteria**:
-- [ ] Config loader reads `.codebuddy/refactor.toml`
-- [ ] Presets override defaults correctly
-- [ ] Per-call options override presets
-- [ ] CI validates config files in test fixtures
+- [x] Config loader reads `.codebuddy/refactor.toml`
+- [x] Presets override defaults correctly
+- [x] Per-call options override presets
+- [x] CI validates config files in test fixtures
 
 ---
 
-### Phase 1C: Post-Apply Validation
+### Phase 1C: Post-Apply Validation ✅ **COMPLETE**
+
+**Status**: ✅ Completed 2025-10-11
 
 **Goal**: Add validation command execution with rollback
 
 **Deliverables**:
-1. Command executor in `workspace.apply_edit`
-2. Validation result capture (exit code, stdout, stderr, timing)
-3. Automatic rollback on validation failure
-4. Timeout handling
-5. Integration tests for validation scenarios
+1. ✅ Command executor in `workspace.apply_edit`
+2. ✅ Validation result capture (exit code, stdout, stderr, timing)
+3. ✅ Automatic rollback on validation failure
+4. ✅ Timeout handling
+5. ✅ Integration tests for validation scenarios
 
-**Timeline**: 1-2 weeks
-**Blockers**: Phase 1A (refactoring core)
-**Blocks**: None (parallel with Phase 1B)
+**Timeline**: 1-2 weeks (actual: completed)
+**Blockers**: Phase 1A (refactoring core) ✅
+**Blocks**: None (parallel with Phase 1B) ✅
 
 **Success criteria**:
-- [ ] Validation command runs after edits applied
-- [ ] Rollback triggered on non-zero exit
-- [ ] Timeout enforced (default 60s)
-- [ ] Validation output captured in result
-- [ ] Tests cover pass/fail/timeout scenarios
+- [x] Validation command runs after edits applied
+- [x] Rollback triggered on non-zero exit
+- [x] Timeout enforced (default 60s)
+- [x] Validation output captured in result
+- [x] Tests cover pass/fail/timeout scenarios
 
 ---
 
@@ -215,24 +261,27 @@ trait PluginRegistry {
 
 ---
 
-### Phase 4: Client Library Utilities
+### Phase 4: Client Library Utilities 🟡 **PARTIAL**
+
+**Status**: 🟡 Partially Complete (formatPlan done, others pending)
 
 **Goal**: Add helper functions for client convenience
 
 **Deliverables**:
-1. `formatPlan(plan)` utility
-2. Plan diff visualization
-3. Suggestion filtering helpers
-4. Safety decision helpers for AI agents
+1. ✅ `formatPlan(plan)` utility (Rust implementation complete)
+2. 🔄 Plan diff visualization (pending)
+3. 🔄 Suggestion filtering helpers (pending - requires Phase 2C)
+4. 🔄 Safety decision helpers for AI agents (pending - requires Phase 2C)
 
-**Timeline**: 1-2 weeks
-**Blockers**: Phase 1A (refactoring core), Phase 2C (safety metadata)
+**Timeline**: 1-2 weeks (partial: formatPlan completed)
+**Blockers**: Phase 1A (refactoring core) ✅, Phase 2C (safety metadata) 🔄
 **Blocks**: None
 
 **Success criteria**:
-- [ ] `formatPlan` generates human-readable descriptions
-- [ ] AI agent helpers for safety decisions
-- [ ] Documentation with examples
+- [x] `formatPlan` generates human-readable descriptions (Rust only)
+- [ ] TypeScript/JavaScript `formatPlan` in separate `@codebuddy/client` package
+- [ ] AI agent helpers for safety decisions (requires Phase 2C)
+- [ ] Documentation with examples (formatPlan documented)
 
 ---
 
