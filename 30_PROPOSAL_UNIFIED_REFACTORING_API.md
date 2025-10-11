@@ -1,6 +1,6 @@
 # Proposal: Unified Refactoring API
 
-**Status**: Draft
+**Status**: Draft (not implemented on `main`)
 **Author**: Project Team
 **Date**: 2025-10-10
 **Formal Spec**: [docs/design/unified_api_contracts.md](docs/design/unified_api_contracts.md)
@@ -12,6 +12,19 @@
 Consolidate 35 refactoring commands into **14 unified commands** using a consistent **plan → apply** pattern. This reduces API surface by 60% while improving safety, composability, and discoverability.
 
 **Context**: This is a beta product with no external users. We can make breaking changes immediately without migration paths or legacy support.
+
+---
+
+## Current Implementation Status (main @ 2025-10-10)
+
+The codebase still uses the legacy refactoring stack; the unified API has not begun implementation.
+
+- Legacy tools such as `rename_symbol`, `extract_function`, `extract_variable`, and `inline_variable` remain the active handlers in `crates/cb-handlers/src/handlers/refactoring_handler.rs`.
+- The dispatcher continues to register the legacy editing tools and does not expose any `*.plan` or `workspace.apply_edit` commands (`crates/cb-handlers/src/handlers/plugin_dispatcher.rs`).
+- The protocol crate exports only the historical modules; there are no `RefactorPlan` types or related metadata structures in `crates/cb-protocol/src/lib.rs`.
+- Supporting pieces described in this proposal—`workspace_apply_handler.rs`, `refactor_config.rs`, unified integration tests, and documentation updates—do not yet exist in the repository.
+
+The remainder of this document captures the target design for when implementation work begins.
 
 ---
 

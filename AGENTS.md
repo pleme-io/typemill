@@ -7,15 +7,14 @@ This file provides guidance to AI assistants when working with code in this repo
 
 **Before working with this codebase, please read:**
 
-1. **[API_REFERENCE.md](API_REFERENCE.md)** - **READ THIS FIRST** - Complete MCP tools API reference
-   - Tool parameters, return types, and examples
-   - [Language Support Matrix](API_REFERENCE.md#language-support-matrix) - Which tools work with which languages
-   - Internal vs public tools distinction
+1. **[API_REFERENCE.md](API_REFERENCE.md)** - **READ THIS FIRST** - Complete MCP tools API reference.
+2. **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - A one-page cheat sheet for common commands and tools.
 
-2. **[docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)** - System architecture
-   - Component overview and data flow
-   - LSP integration patterns
-   - Plugin system design
+---
+- **[docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)** - System architecture
+  - Component overview and data flow
+  - LSP integration patterns
+  - Plugin system design
 
 3. **[CONTRIBUTING.md](CONTRIBUTING.md)** - Contributor guide
    - How to add new MCP tools
