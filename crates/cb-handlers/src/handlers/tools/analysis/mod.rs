@@ -9,11 +9,13 @@ pub mod dependencies;
 pub mod engine;
 pub mod project;
 pub mod quality;
+pub mod structure;
 pub mod unused_imports;
 
 pub use dead_code::DeadCodeHandler;
 pub use dependencies::DependenciesHandler;
 pub use quality::QualityHandler;
+pub use structure::StructureHandler;
 
 #[cfg(test)]
 mod tests;
