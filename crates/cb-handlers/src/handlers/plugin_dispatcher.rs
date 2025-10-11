@@ -173,7 +173,7 @@ impl PluginDispatcher {
                     AdvancedToolsHandler, AnalysisHandler, FileToolsHandler,
                     InternalEditingToolsHandler, InternalIntelligenceHandler,
                     InternalWorkspaceHandler, LifecycleHandler, NavigationHandler,
-                    SystemToolsHandler,
+                    SystemToolsHandler, WorkspaceToolsHandler,
                 };
                 use super::{
                     DeleteHandler, ExtractHandler, InlineHandler, MoveHandler,
@@ -190,6 +190,7 @@ impl PluginDispatcher {
                     InternalEditingToolsHandler => "InternalEditingToolsHandler with 1 INTERNAL tool (rename_symbol_with_imports)",
                     InternalWorkspaceHandler => "InternalWorkspaceHandler with 1 INTERNAL tool (apply_workspace_edit)",
                     InternalIntelligenceHandler => "InternalIntelligenceHandler with 2 INTERNAL tools (get_completions, get_signature_help)",
+                    WorkspaceToolsHandler => "WorkspaceToolsHandler with 4 INTERNAL tools (move_directory, find_dead_code, update_dependencies, update_dependency)",
 
                     // New unified refactoring handlers
                     RenameHandler => "Unified rename handler",
