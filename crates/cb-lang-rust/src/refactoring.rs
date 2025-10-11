@@ -229,13 +229,24 @@ pub fn plan_inline_variable(
 
     let line_text = lines[variable_line as usize];
 
-    // Simple pattern matching for variable declarations
-    // Supports: let x = ..., let mut x = ...
-    let var_pattern = regex::Regex::new(r"let\s+(mut\s+)?(\w+)\s*=\s*(.+?)(?:;|$)")?;
+    // Guard clause: This function handles `let` bindings and `const` declarations
+    // Prevents catastrophic backtracking on fn declarations
+    let trimmed = line_text.trim();
+    if !trimmed.starts_with("let ") && !trimmed.starts_with("const ") {
+        return Err(format!(
+            "Not a `let` binding or `const` declaration at line {}. Only variables and constants can be inlined with this function.",
+            variable_line + 1
+        )
+        .into());
+    }
+
+    // Pattern matching for variable declarations and constants
+    // Supports: let x = ..., let mut x = ..., const X: Type = ...
+    let var_pattern = regex::Regex::new(r"(?:let\s+(?:mut\s+)?|const\s+)(\w+)(?::\s*[^=]+)?\s*=\s*(.+?)(?:;|$)")?;
 
     if let Some(captures) = var_pattern.captures(line_text) {
-        let var_name = captures.get(2).unwrap().as_str();
-        let initializer = captures.get(3).unwrap().as_str().trim();
+        let var_name = captures.get(1).unwrap().as_str();
+        let initializer = captures.get(2).unwrap().as_str().trim();
 
         // Find all usages of this variable in the rest of the source
         let mut edits = Vec::new();

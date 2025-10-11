@@ -833,7 +833,7 @@ mod tests {
     #[test]
     fn test_format_plan_delete_with_file_removal() {
         let plan = RefactorPlan::DeletePlan(DeletePlan {
-            edits: WorkspaceEdit::default(),
+            deletions: vec![],
             summary: create_test_summary(3, 0, 2),
             warnings: vec![],
             metadata: create_test_metadata("dead_code"),
@@ -847,7 +847,7 @@ mod tests {
     #[test]
     fn test_format_plan_delete_without_file_removal() {
         let plan = RefactorPlan::DeletePlan(DeletePlan {
-            edits: WorkspaceEdit::default(),
+            deletions: vec![],
             summary: create_test_summary(1, 0, 0),
             warnings: vec![],
             metadata: create_test_metadata("unused_imports"),
