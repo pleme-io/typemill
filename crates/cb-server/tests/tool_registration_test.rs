@@ -1,14 +1,14 @@
 use cb_server::handlers::plugin_dispatcher::create_test_dispatcher;
 
 #[tokio::test]
-async fn test_all_31_public_tools_are_registered() {
+async fn test_all_27_public_tools_are_registered() {
     let dispatcher = create_test_dispatcher().await;
     dispatcher.initialize().await.unwrap();
 
     let registry = dispatcher.tool_registry.lock().await;
     let registered_tools = registry.list_tools();
 
-    const EXPECTED_TOOLS: [&str; 31] = [
+    const EXPECTED_TOOLS: [&str; 27] = [
         // Navigation (9)
         "find_definition",
         "find_references",
@@ -33,11 +33,7 @@ async fn test_all_31_public_tools_are_registered() {
         "analyze_code",
         "analyze_project",
         "analyze_imports",
-        // File Operations (7) - includes FileOperationHandler tools
-        "create_file",
-        "delete_file",
-        "rename_file",
-        "rename_directory",
+        // File Utilities (3) - basic file operations
         "read_file",
         "write_file",
         "list_files",
@@ -84,13 +80,13 @@ async fn test_all_31_public_tools_are_registered() {
 }
 
 #[tokio::test]
-async fn test_all_11_internal_tools_are_registered_and_hidden() {
+async fn test_all_15_internal_tools_are_registered_and_hidden() {
     let dispatcher = create_test_dispatcher().await;
     dispatcher.initialize().await.unwrap();
 
     let registry = dispatcher.tool_registry.lock().await;
 
-    const EXPECTED_INTERNAL_TOOLS: [&str; 11] = [
+    const EXPECTED_INTERNAL_TOOLS: [&str; 15] = [
         // Lifecycle (3)
         "notify_file_opened",
         "notify_file_saved",
@@ -107,6 +103,11 @@ async fn test_all_11_internal_tools_are_registered_and_hidden() {
         "find_dead_code",
         "update_dependencies",
         "update_dependency",
+        // File Operations (4) - Made internal, replaced by Unified API
+        "create_file",
+        "delete_file",
+        "rename_file",
+        "rename_directory",
     ];
 
     // 1. Verify they are NOT in the public list

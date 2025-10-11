@@ -39,10 +39,15 @@ impl ToolHandler for FileOperationHandler {
             "rename_directory",
             "create_file",
             "delete_file",
-            "read_file",
-            "write_file",
-            "list_files",
         ]
+    }
+
+    fn is_internal(&self) -> bool {
+        // These legacy file operations are internal - used by backend/workflows but not exposed to AI agents.
+        // - create_file, delete_file: Replaced by Unified Refactoring API (delete.plan, extract.plan)
+        // - rename_file, rename_directory: Replaced by move.plan with appropriate parameters
+        // Note: read_file, write_file, list_files are handled by FileToolsHandler (not registered here)
+        true
     }
 
     async fn handle_tool_call(
