@@ -681,7 +681,7 @@ console.log(`Plan: ${description}`);
 - [x] `workspace.apply_edit` handles all 7 plan types
 - [x] Post-apply validation with automatic rollback implemented and covered by tests
 - [x] Project-level configuration (`.codebuddy/refactor.toml`) with preset support
-- [ ] Plan formatting utility (`formatPlan(plan)`) in client library
+- [x] Plan formatting utility (`formatPlan(plan)`) in Rust client library
 - [x] All 35 legacy commands removed from codebase
 - [x] Integration tests cover all operation kinds
 - [x] Integration tests cover validation scenarios (pass/fail/timeout)
@@ -694,13 +694,17 @@ console.log(`Plan: ${description}`);
 
 The core unified refactoring API is **fully implemented and functional in this repository**. The unchecked items are out-of-scope for the main `codebuddy` server codebase:
 
-1. **Plan formatting utility** (`formatPlan(plan)`) - **OUT OF SCOPE**
-   - **Repository**: Separate client library package (`@codebuddy/client`)
-   - **Status**: Not started - requires separate npm/TypeScript package
-   - Purpose: Human-readable plan descriptions for logging/debugging
-   - Not required for server functionality
-   - Example: `formatPlan(plan)` → `"Renames function 'old' to 'new' across 3 files"`
-   - **Action**: Track in separate repository/project when client library work begins
+1. **Plan formatting utility** (`formatPlan(plan)`) - **PARTIALLY COMPLETE**
+   - **Rust Implementation**: ✅ **COMPLETE** - Available in `crates/cb-client/src/formatting.rs`
+     - Exported as `cb_client::format_plan(&RefactorPlan) -> String`
+     - Comprehensive test coverage (10 test cases)
+     - Handles all 7 plan types with proper pluralization
+     - Example: `format_plan(&plan)` → `"Renames function across 3 files"`
+   - **TypeScript/JavaScript Implementation**: ❌ **NOT STARTED**
+     - **Repository**: Separate client library package (`@codebuddy/client`)
+     - Purpose: Human-readable plan descriptions for JS/TS consumers
+     - Not required for server functionality
+     - **Action**: Track in separate repository/project when client library work begins
 
 2. **CI validations** - **OUT OF SCOPE (CI/CD Infrastructure)**
    - **Repository**: CI/CD pipeline configuration (e.g., `.github/workflows/`)

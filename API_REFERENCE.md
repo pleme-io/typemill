@@ -898,6 +898,46 @@ codebuddy tool workspace.apply_edit "{\"plan\": $PLAN}"
 
 ---
 
+### Formatting Plans (Rust Client Utility)
+
+The Rust client library (`crates/cb-client`) provides a `format_plan` utility for generating human-readable descriptions of refactoring plans.
+
+**Function Signature:**
+```rust
+pub fn format_plan(plan: &RefactorPlan) -> String
+```
+
+**Usage:**
+```rust
+use cb_client::format_plan;
+use cb_protocol::refactor_plan::RefactorPlan;
+
+// After generating a plan
+let plan: RefactorPlan = /* from rename.plan, extract.plan, etc. */;
+let description = format_plan(&plan);
+println!("{}", description);
+// Output: "Renames function across 3 files"
+```
+
+**Example Outputs:**
+- RenamePlan: `"Renames function across 3 files"`
+- ExtractPlan: `"Extracts function into a new declaration in 2 files"`
+- InlinePlan: `"Inlines constant in 2 files"`
+- MovePlan: `"Moves symbol affecting 3 files"`
+- ReorderPlan: `"Reorders parameters in 1 file"`
+- TransformPlan: `"Transforms code (to_async) in 2 files"`
+- DeletePlan: `"Deletes dead_code from 3 files (2 files removed)"`
+
+**Features:**
+- Handles all 7 plan types
+- Proper pluralization (file vs. files)
+- Reports file creation/deletion when applicable
+- Lightweight utility for logging, debugging, and UI display
+
+**Note:** This utility is available in the Rust client only. A TypeScript/JavaScript implementation would be provided in a separate `@codebuddy/client` npm package for JS/TS consumers.
+
+---
+
 ## Code Analysis
 
 AST-based code analysis tools for detecting code smells and optimization opportunities.
