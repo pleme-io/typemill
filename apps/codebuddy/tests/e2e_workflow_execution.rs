@@ -54,7 +54,7 @@ export function helper() {
     let new_helper_path = src_dir.join("utilities.ts");
     let response = client
         .call_tool(
-            "move_file",
+            "rename_file",
             json!({
                 "old_path": helper_ts.to_string_lossy(),
                 "new_path": new_helper_path.to_string_lossy()
@@ -98,7 +98,7 @@ async fn test_workflow_failure_handling() {
 
     let response = client
         .call_tool(
-            "move_file",
+            "rename_file",
             json!({
                 "old_path": non_existent.to_string_lossy(),
                 "new_path": new_path.to_string_lossy()
@@ -304,7 +304,7 @@ export function useFeatures() {
     let new_module = src_dir.join("new_module.ts");
     let response = client
         .call_tool(
-            "move_file",
+            "rename_file",
             json!({
                 "old_path": old_module.to_string_lossy(),
                 "new_path": new_module.to_string_lossy()

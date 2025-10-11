@@ -985,3 +985,241 @@ This unified analysis API reduces complexity by 84% while providing actionable i
 **Implementation strategy**: Build first, remove second. Each category is implemented and tested before removing its legacy commands. No functionality gaps, no regressions.
 
 **Recommendation**: Approve and begin with Quality Analysis category (easiest, most used). Coordinate with Refactoring API implementation (30_PROPOSAL_UNIFIED_REFACTORING_API.md) for end-to-end workflows.
+
+---
+
+## Implementation Checklist: Complete File Manifest
+
+This section provides a comprehensive checklist of all files that need to be created, edited, or removed when implementing this proposal.
+
+### Files to CREATE (31 new files)
+
+#### Protocol Types (1 file)
+- [ ] `crates/cb-protocol/src/analysis_result.rs` - Unified analysis result structures
+  - `AnalysisResult`, `QualityReport`, `DeadCodeReport`, `DependencyReport`, `StructureReport`, `DocumentationReport`, `TestReport`
+  - `Finding`, `AnalysisSummary`, `AnalysisMetadata`, `Suggestion`
+
+#### Configuration (1 file)
+- [ ] `crates/cb-core/src/analysis_config.rs` - Configuration loader for `.codebuddy/analysis.toml`
+  - `AnalysisConfig`, `AnalysisPreset`, `AnalysisDefaults`
+  - Preset loading and application logic
+
+#### Handler Files (7 files)
+- [ ] `crates/cb-handlers/src/handlers/analysis/quality_handler.rs` - `analyze.quality` implementation
+- [ ] `crates/cb-handlers/src/handlers/analysis/dead_code_handler.rs` - `analyze.dead_code` implementation
+- [ ] `crates/cb-handlers/src/handlers/analysis/dependency_handler.rs` - `analyze.dependencies` implementation
+- [ ] `crates/cb-handlers/src/handlers/analysis/structure_handler.rs` - `analyze.structure` implementation
+- [ ] `crates/cb-handlers/src/handlers/analysis/documentation_handler.rs` - `analyze.documentation` implementation
+- [ ] `crates/cb-handlers/src/handlers/analysis/test_handler.rs` - `analyze.tests` implementation
+- [ ] `crates/cb-handlers/src/handlers/analysis/batch_handler.rs` - `analyze.batch` implementation
+
+#### Analysis Engine Implementations (14 files)
+- [ ] `analysis/cb-analysis-quality/Cargo.toml` - Quality analysis package manifest
+- [ ] `analysis/cb-analysis-quality/src/lib.rs` - Quality analysis engine
+- [ ] `analysis/cb-analysis-quality/src/complexity.rs` - Complexity analyzer
+- [ ] `analysis/cb-analysis-quality/src/smells.rs` - Code smell detector
+- [ ] `analysis/cb-analysis-quality/src/maintainability.rs` - Maintainability metrics
+- [ ] `analysis/cb-analysis-quality/src/readability.rs` - Readability analyzer
+
+- [ ] `analysis/cb-analysis-dependency/Cargo.toml` - Dependency analysis package manifest
+- [ ] `analysis/cb-analysis-dependency/src/lib.rs` - Dependency analysis engine
+- [ ] `analysis/cb-analysis-dependency/src/circular.rs` - Circular dependency detector
+- [ ] `analysis/cb-analysis-dependency/src/coupling.rs` - Coupling analyzer
+
+- [ ] `analysis/cb-analysis-structure/Cargo.toml` - Structure analysis package manifest
+- [ ] `analysis/cb-analysis-structure/src/lib.rs` - Structure analysis engine
+- [ ] `analysis/cb-analysis-structure/src/hierarchy.rs` - Hierarchy analyzer
+
+- [ ] `analysis/cb-analysis-documentation/Cargo.toml` - Documentation analysis package manifest
+- [ ] `analysis/cb-analysis-documentation/src/lib.rs` - Documentation analysis engine
+
+- [ ] `analysis/cb-analysis-test/Cargo.toml` - Test analysis package manifest
+- [ ] `analysis/cb-analysis-test/src/lib.rs` - Test analysis engine
+
+#### Integration Tests (7 files)
+- [ ] `integration-tests/src/test_unified_analysis_quality.rs` - Quality analysis tests
+- [ ] `integration-tests/src/test_unified_analysis_dead_code.rs` - Dead code analysis tests
+- [ ] `integration-tests/src/test_unified_analysis_dependencies.rs` - Dependency analysis tests
+- [ ] `integration-tests/src/test_unified_analysis_structure.rs` - Structure analysis tests
+- [ ] `integration-tests/src/test_unified_analysis_documentation.rs` - Documentation analysis tests
+- [ ] `integration-tests/src/test_unified_analysis_tests.rs` - Test coverage analysis tests
+- [ ] `integration-tests/src/test_unified_analysis_batch.rs` - Batch analysis tests
+
+---
+
+### Files to EDIT (24 existing files)
+
+#### Core Registration & Routing (5 files)
+- [ ] `crates/cb-handlers/src/handlers/mod.rs` - Add `pub mod analysis;` directory
+- [ ] `crates/cb-protocol/src/lib.rs` - Export `analysis_result` module
+- [ ] `crates/cb-core/src/lib.rs` - Export `analysis_config` module
+- [ ] `crates/cb-handlers/src/handlers/tool_registry.rs` - Register 6 new `analyze.*` tools
+- [ ] `crates/cb-handlers/src/handlers/plugin_dispatcher.rs` - Route analysis commands to handlers
+  - Add analysis handler registration via `register_handlers_with_logging!`
+
+#### Cargo Configuration (2 files)
+- [ ] `Cargo.toml` - Add new analysis crates to workspace members:
+  - `analysis/cb-analysis-quality`
+  - `analysis/cb-analysis-dependency`
+  - `analysis/cb-analysis-structure`
+  - `analysis/cb-analysis-documentation`
+  - `analysis/cb-analysis-test`
+
+- [ ] `crates/cb-handlers/Cargo.toml` - Add dependencies on new analysis crates
+
+#### Test Infrastructure (1 file)
+- [ ] `crates/cb-test-support/src/harness/mcp_fixtures.rs` - Add analysis test fixtures
+
+#### Documentation (7 files)
+- [ ] `API_REFERENCE.md` - Replace 37 legacy commands with 6 unified commands
+  - Document each `kind` value per category
+  - Add result structure examples
+  - Show analyze → refactor workflows
+
+- [ ] `QUICK_REFERENCE.md` - Update with new analysis commands
+
+- [ ] `CLAUDE.md` - Update AI agent instructions
+  - Remove legacy analysis commands
+  - Add unified analysis API guidance
+
+- [ ] `AGENTS.md` - Same as CLAUDE.md (synchronized)
+
+- [ ] `docs/TOOLS_QUICK_REFERENCE.md` - Update tool reference
+
+- [ ] `CONTRIBUTING.md` - Document new analysis handler patterns
+
+- [ ] `CHANGELOG.md` - Document unified analysis API release
+
+#### Build Configuration (1 file)
+- [ ] `Makefile` - Add analysis test targets:
+  - `make test-analysis` - Run all analysis tests
+  - `make test-analysis-quality` - Per-category testing
+  - (Additional per-category targets)
+
+#### Existing Analysis Infrastructure (7 files - migrate/adapt)
+- [ ] `analysis/cb-analysis-dead-code/src/detector.rs` - Adapt to unified `AnalysisResult`
+- [ ] `analysis/cb-analysis-dead-code/src/types.rs` - Migrate to `analysis_result.rs` structures
+- [ ] `analysis/cb-analysis-dead-code/src/config.rs` - Merge into `analysis_config.rs`
+- [ ] `analysis/cb-analysis-graph/src/dependency.rs` - Adapt for `analyze.dependencies`
+- [ ] `crates/cb-ast/src/complexity/analyzer.rs` - Integrate with `analyze.quality`
+- [ ] `crates/cb-lang-typescript/src/import_support.rs` - Extend for dependency analysis
+- [ ] `crates/cb-lang-rust/src/parser.rs` - Extend for structure analysis
+
+---
+
+### Files to REMOVE (7 files - after migration complete)
+
+#### Legacy Handler Files
+- [ ] `crates/cb-handlers/src/handlers/analysis_handler.rs` - Replaced by category handlers
+- [ ] `crates/cb-handlers/src/handlers/dependency_handler.rs` - Replaced by `analysis/dependency_handler.rs`
+- [ ] `crates/cb-handlers/src/handlers/tools/analysis/code.rs` - Replaced by `quality_handler.rs`
+- [ ] `crates/cb-handlers/src/handlers/tools/analysis/project.rs` - Replaced by `quality_handler.rs`
+- [ ] `crates/cb-handlers/src/handlers/tools/analysis/unused_imports.rs` - Replaced by `dead_code_handler.rs`
+
+#### Legacy Test Files
+- [ ] `integration-tests/src/test_analysis_features.rs` - Replace with category-specific tests (after migration)
+
+#### Legacy Config
+- [ ] `analysis/cb-analysis-dead-code/src/config.rs` - Merged into unified `analysis_config.rs`
+
+---
+
+### Implementation Effort Estimate
+
+| Phase | New Files | Edited Files | Removed Files | Estimated Effort |
+|-------|-----------|--------------|---------------|------------------|
+| Protocol & Config | 2 | 3 | 0 | 2-3 days |
+| Quality Analysis | 6 | 4 | 2 | 1-2 weeks |
+| Dead Code Analysis | 1 | 3 | 2 | 1 week |
+| Dependency Analysis | 4 | 3 | 1 | 1-2 weeks |
+| Structure Analysis | 3 | 2 | 0 | 1-2 weeks |
+| Documentation Analysis | 2 | 2 | 0 | 1 week |
+| Test Analysis | 2 | 2 | 0 | 1 week |
+| Batch Support | 2 | 2 | 0 | 1 week |
+| Documentation | 0 | 7 | 1 | 3-4 days |
+| Testing & CI | 7 | 2 | 1 | 1 week |
+| **TOTAL** | **29** | **30** | **7** | **8-11 weeks** |
+
+**Total Files Changed: ~66 files**
+
+---
+
+### Implementation Order (Recommended)
+
+1. **Protocol Foundation** (Days 1-3)
+   - Create `analysis_result.rs` with all types
+   - Create `analysis_config.rs` with preset system
+   - Update module exports
+
+2. **Quality Analysis** (Weeks 1-2) - Highest value, most used
+   - Implement `analyze.quality` with all 4 kinds
+   - Write integration tests
+   - Remove legacy complexity commands
+
+3. **Dead Code Analysis** (Week 3) - Already partially implemented
+   - Implement `analyze.dead_code` with all 6 kinds
+   - Migrate existing `find_dead_code` logic
+   - Remove legacy dead code commands
+
+4. **Dependency Analysis** (Weeks 4-5)
+   - Implement `analyze.dependencies` with all 6 kinds
+   - Write integration tests
+   - Remove legacy dependency commands
+
+5. **Structure Analysis** (Weeks 6-7)
+   - Implement `analyze.structure` with all 5 kinds
+   - Write integration tests
+   - Remove legacy structure commands
+
+6. **Documentation Analysis** (Week 8)
+   - Implement `analyze.documentation` with all 5 kinds
+   - Write integration tests
+
+7. **Test Analysis** (Week 9)
+   - Implement `analyze.tests` with all 4 kinds
+   - Write integration tests
+
+8. **Batch Support** (Week 10)
+   - Implement `analyze.batch` with shared AST parsing
+   - Performance benchmarks
+   - Cache optimization tests
+
+9. **Documentation & Cleanup** (Week 11)
+   - Update all documentation
+   - Final verification
+   - CI validation setup
+
+---
+
+### Validation Checklist
+
+Use this checklist to verify completeness during implementation:
+
+#### Per-Category Completion
+For each of 6 analysis categories, verify:
+- [ ] Handler file created with all `kind` implementations
+- [ ] Analysis engine crate created (if needed)
+- [ ] Integration tests passing for all kinds
+- [ ] Suggestions include safety/confidence/reversible metadata
+- [ ] Suggestion ranking implemented (safety → confidence → impact)
+- [ ] Legacy commands removed for this category
+- [ ] Documentation updated
+- [ ] Tool registered in `tool_registry.rs`
+- [ ] Handler registered in `plugin_dispatcher.rs`
+
+#### Overall Completion
+- [ ] All 6 `analyze.*` commands working end-to-end
+- [ ] `analyze.batch` supports multi-analysis with shared parsing
+- [ ] `.codebuddy/analysis.toml` configuration loading works
+- [ ] Preset system with overrides functional
+- [ ] All 37 legacy analysis commands removed
+- [ ] All 7 integration test files passing
+- [ ] Navigation commands preserved (search_workspace_symbols, find_definition, etc.)
+- [ ] API_REFERENCE.md fully updated
+- [ ] All documentation synchronized
+- [ ] CI validates suggestion metadata
+- [ ] Build passes with zero warnings in new code
+
+---
+
+This checklist ensures no files are missed during implementation and provides clear tracking for the 8-11 week implementation timeline.

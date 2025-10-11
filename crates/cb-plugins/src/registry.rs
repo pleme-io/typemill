@@ -642,8 +642,8 @@ mod tests {
         let stats = registry.get_statistics();
         assert_eq!(stats.total_plugins, 1);
         assert_eq!(stats.supported_extensions, 2);
-        assert_eq!(stats.supported_methods, 2);
-        assert_eq!(stats.average_methods_per_plugin, 2.0);
+        assert_eq!(stats.supported_methods, 6);
+        assert_eq!(stats.average_methods_per_plugin, 6.0);
     }
 
     #[test]

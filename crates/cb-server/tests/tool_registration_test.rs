@@ -1,14 +1,14 @@
 use cb_server::handlers::plugin_dispatcher::create_test_dispatcher;
 
 #[tokio::test]
-async fn test_all_27_public_tools_are_registered() {
+async fn test_all_31_public_tools_are_registered() {
     let dispatcher = create_test_dispatcher().await;
     dispatcher.initialize().await.unwrap();
 
     let registry = dispatcher.tool_registry.lock().await;
     let registered_tools = registry.list_tools();
 
-    const EXPECTED_TOOLS: [&str; 27] = [
+    const EXPECTED_TOOLS: [&str; 31] = [
         // Navigation (9)
         "find_definition",
         "find_references",
@@ -33,11 +33,15 @@ async fn test_all_27_public_tools_are_registered() {
         "analyze_code",
         "analyze_project",
         "analyze_imports",
-        // File Operations (3) - removed create_file, delete_file, move_file
+        // File Operations (7) - includes FileOperationHandler tools
+        "create_file",
+        "delete_file",
+        "rename_file",
+        "rename_directory",
         "read_file",
         "write_file",
         "list_files",
-        // Workspace (1) - removed move_directory, find_dead_code, update_dependencies, update_dependency
+        // Workspace (1) - moved move_directory, find_dead_code, update_dependencies, update_dependency to internal
         "workspace.apply_edit",
         // Advanced (2)
         "execute_edits",
