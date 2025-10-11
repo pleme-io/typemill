@@ -156,6 +156,48 @@ To add support for a new programming language, see the **[Language Plugins Guide
 
 This section explains how to add new tools and handlers to the system.
 
+### Understanding the Unified Refactoring API
+
+Codebuddy uses a **unified refactoring API** with a consistent `plan -> apply` pattern for all code refactorings. This architecture provides:
+
+1. **Safety**: All `.plan` commands are read-only and never modify files
+2. **Preview**: Users can inspect changes before applying them
+3. **Atomicity**: `workspace.apply_edit` applies all changes atomically with automatic rollback on failure
+4. **Consistency**: All refactoring operations follow the same pattern
+
+**Current Refactoring Tools:**
+
+| Tool | Purpose | Returns |
+|------|---------|---------|
+| `rename.plan` | Plan symbol/file/directory rename | `RenamePlan` |
+| `extract.plan` | Plan extract function/variable/constant | `ExtractPlan` |
+| `inline.plan` | Plan inline variable/function | `InlinePlan` |
+| `move.plan` | Plan move symbol to another file | `MovePlan` |
+| `reorder.plan` | Plan reorder parameters/imports | `ReorderPlan` |
+| `transform.plan` | Plan transform (e.g., to async) | `TransformPlan` |
+| `delete.plan` | Plan delete unused code/imports | `DeletePlan` |
+| `workspace.apply_edit` | Execute any plan | Execution result |
+
+**Example Flow:**
+```bash
+# Step 1: Generate a plan (read-only, safe to explore)
+PLAN=$(codebuddy tool rename.plan '{
+  "target": {"kind": "symbol", "path": "src/app.ts", "selector": {"position": {"line": 15, "character": 8}}},
+  "new_name": "newUser"
+}')
+
+# Step 2: Inspect the plan (it contains edits, summary, warnings)
+echo $PLAN | jq .
+
+# Step 3: Apply the plan (atomic, with rollback on failure)
+codebuddy tool workspace.apply_edit "{\"plan\": $PLAN}"
+```
+
+**Internal Tools (Hidden from MCP):**
+- Legacy tools like `rename_symbol_with_imports` are now internal and hidden from MCP `tools/list`
+- These are used by the workflow system but not exposed to AI agents
+- See [docs/architecture/INTERNAL_TOOLS.md](../docs/architecture/INTERNAL_TOOLS.md) for details
+
 ### Adding a Tool to an Existing Handler
 
 Adding a new tool to an existing handler requires modifying just one file.
@@ -168,10 +210,19 @@ Handlers are organized by functionality:
 |---------|----------|---------|---------------|
 | **AnalysisHandler** | `crates/cb-handlers/src/handlers/tools/analysis.rs` | Code analysis | `find_unused_imports`, `analyze_complexity` |
 | **AdvancedHandler** | `crates/cb-handlers/src/handlers/tools/advanced.rs` | Advanced operations | `apply_edits`, `batch_execute` |
-| **EditingHandler** | `crates/cb-handlers/src/handlers/tools/editing.rs` | Code editing | `rename_symbol`, `format_document`, `optimize_imports` |
 | **FileOpsHandler** | `crates/cb-handlers/src/handlers/tools/file_ops.rs` | File operations | `create_file`, `read_file`, `write_file`, `delete_file`, `rename_file`, `list_files` |
+| **InternalEditingHandler** | `crates/cb-handlers/src/handlers/tools/internal_editing.rs` | Internal editing tools (hidden from MCP) | `format_document`, `optimize_imports` |
+| **InternalWorkspaceHandler** | `crates/cb-handlers/src/handlers/tools/internal_workspace.rs` | Internal workspace tools (hidden from MCP) | `rename_symbol_with_imports`, `apply_workspace_edit` |
 | **LifecycleHandler** | `crates/cb-handlers/src/handlers/tools/lifecycle.rs` | File lifecycle events | `notify_file_opened`, `notify_file_saved`, `notify_file_closed` |
 | **NavigationHandler** | `crates/cb-handlers/src/handlers/tools/navigation.rs` | Code navigation | `find_definition`, `find_references` |
+| **RenameHandler** | `crates/cb-handlers/src/handlers/rename_handler.rs` | Rename refactoring (plan step) | `rename.plan` |
+| **ExtractHandler** | `crates/cb-handlers/src/handlers/extract_handler.rs` | Extract refactoring (plan step) | `extract.plan` |
+| **InlineHandler** | `crates/cb-handlers/src/handlers/inline_handler.rs` | Inline refactoring (plan step) | `inline.plan` |
+| **MoveHandler** | `crates/cb-handlers/src/handlers/move_handler.rs` | Move refactoring (plan step) | `move.plan` |
+| **ReorderHandler** | `crates/cb-handlers/src/handlers/reorder_handler.rs` | Reorder refactoring (plan step) | `reorder.plan` |
+| **TransformHandler** | `crates/cb-handlers/src/handlers/transform_handler.rs` | Transform refactoring (plan step) | `transform.plan` |
+| **DeleteHandler** | `crates/cb-handlers/src/handlers/delete_handler.rs` | Delete refactoring (plan step) | `delete.plan` |
+| **WorkspaceApplyHandler** | `crates/cb-handlers/src/handlers/workspace_apply_handler.rs` | Apply refactoring plans | `workspace.apply_edit` |
 | **SystemHandler** | `crates/cb-handlers/src/handlers/tools/system.rs` | System operations | `health_check`, `web_fetch`, `system_status` |
 | **WorkspaceHandler** | `crates/cb-handlers/src/handlers/tools/workspace.rs` | Workspace operations | `rename_directory`, `analyze_imports`, `find_dead_code` |
 
@@ -180,12 +231,24 @@ Handlers are organized by functionality:
 Open the appropriate handler file and add your tool name to the `TOOL_NAMES` constant:
 
 ```rust
+// Example: Adding a tool to NavigationHandler
 // crates/cb-handlers/src/handlers/tools/navigation.rs
 
 const TOOL_NAMES: &[&str] = &[
     "find_definition",
     "find_references",
     "get_call_graph", // ← Add your new tool here
+];
+```
+
+**For refactoring tools**, handlers are in `crates/cb-handlers/src/handlers/` (not in `tools/` subdirectory):
+
+```rust
+// Example: RenameHandler
+// crates/cb-handlers/src/handlers/rename_handler.rs
+
+const TOOL_NAMES: &[&str] = &[
+    "rename.plan",  // Note: Only the .plan command
 ];
 ```
 
@@ -210,9 +273,30 @@ async fn handle_tool_call(
 }
 ```
 
+**For refactoring handlers**, the pattern is similar but returns a Plan object:
+
+```rust
+// Example from RenameHandler
+async fn handle_tool_call(
+    &self,
+    context: &ToolHandlerContext,
+    tool_call: &ToolCall,
+) -> ServerResult<Value> {
+    match tool_call.name.as_str() {
+        "rename.plan" => self.handle_rename_plan(context, tool_call).await,
+        _ => Err(ServerError::Unsupported(format!(
+            "Unsupported rename tool: {}",
+            tool_call.name
+        ))),
+    }
+}
+```
+
 #### Step 4: Implement the Tool Method
 
 Add the implementation as a private method:
+
+**For standard tools** (navigation, analysis, file ops):
 
 ```rust
 impl NavigationHandler {
@@ -249,17 +333,85 @@ impl NavigationHandler {
 }
 ```
 
+**For refactoring plan handlers**, return a Plan structure:
+
+```rust
+impl RenameHandler {
+    /// Generate a rename plan (read-only, never modifies files)
+    async fn handle_rename_plan(
+        &self,
+        context: &ToolHandlerContext,
+        tool_call: &ToolCall,
+    ) -> ServerResult<Value> {
+        // 1. Parse and validate parameters
+        let params: RenameParams = serde_json::from_value(
+            tool_call.arguments.clone().unwrap_or_default()
+        )?;
+
+        // 2. Use LSP or plugin to generate workspace edits
+        let workspace_edit = match params.target.kind {
+            RenameKind::Symbol => {
+                // Use LSP textDocument/rename
+                context.lsp_client.rename(/* ... */).await?
+            },
+            RenameKind::File | RenameKind::Directory => {
+                // Use file service + plugin system for import updates
+                /* ... */
+            }
+        };
+
+        // 3. Calculate file checksums for validation
+        let checksums = calculate_checksums(&workspace_edit)?;
+
+        // 4. Return a RenamePlan (never modifies files)
+        Ok(json!({
+            "plan_type": "RenamePlan",
+            "edits": workspace_edit,
+            "summary": {
+                "files_affected": affected_files.len(),
+                "created_files": created.len(),
+                "deleted_files": deleted.len(),
+            },
+            "file_checksums": checksums,
+            "warnings": warnings,
+        }))
+    }
+}
+```
+
 ### Creating a New Handler
 
 Create a new handler when adding a category of related tools that doesn't fit existing handlers.
 
+#### Handler Types
+
+There are two main types of handlers:
+
+1. **Standard Tool Handlers** (in `crates/cb-handlers/src/handlers/tools/`):
+   - Navigation, analysis, file operations, etc.
+   - Return immediate results
+   - Example: `NavigationHandler`, `AnalysisHandler`
+
+2. **Refactoring Plan Handlers** (in `crates/cb-handlers/src/handlers/`):
+   - Part of the unified refactoring API
+   - Generate read-only plans that must be applied with `workspace.apply_edit`
+   - Example: `RenameHandler`, `ExtractHandler`, `InlineHandler`
+
 #### Step 1: Create the Handler File
 
+**For standard tools:**
 ```bash
 touch crates/cb-handlers/src/handlers/tools/diagnostics.rs
 ```
 
+**For refactoring tools:**
+```bash
+touch crates/cb-handlers/src/handlers/my_refactoring_handler.rs
+```
+
 #### Step 2: Define the Handler Struct
+
+**For standard tools:**
 
 ```rust
 //! Diagnostic tools for code quality and analysis
@@ -280,6 +432,30 @@ const TOOL_NAMES: &[&str] = &[
 ];
 
 impl DiagnosticsHandler {
+    pub fn new() -> Self {
+        Self
+    }
+}
+```
+
+**For refactoring plan handlers:**
+
+```rust
+//! My refactoring operation handler (plan step)
+
+use crate::handlers::ToolHandler;
+use crate::{ServerError, ServerResult, ToolHandlerContext};
+use async_trait::async_trait;
+use cb_core::model::mcp::ToolCall;
+use serde_json::Value;
+use tracing::{debug, error};
+
+/// Handler for my_refactoring.plan
+pub struct MyRefactoringHandler;
+
+const TOOL_NAMES: &[&str] = &["my_refactoring.plan"];
+
+impl MyRefactoringHandler {
     pub fn new() -> Self {
         Self
     }
@@ -334,8 +510,39 @@ register_handlers_with_logging!(registry, {
 
 #### Naming Conventions
 - **Tool names**: snake_case (e.g., `get_diagnostics`)
-- **Handler names**: PascalCase with "Handler" suffix (e.g., `DiagnosticsHandler`)
-- **File names**: snake_case matching handler (e.g., `diagnostics.rs`)
+- **Refactoring plan tools**: `<operation>.plan` (e.g., `rename.plan`, `extract.plan`)
+- **Handler names**: PascalCase with "Handler" suffix (e.g., `DiagnosticsHandler`, `RenameHandler`)
+- **File names**: snake_case matching handler (e.g., `diagnostics.rs`, `rename_handler.rs`)
+
+#### Refactoring Plan Structure
+
+All refactoring `.plan` handlers must return a consistent plan structure:
+
+```rust
+// Required fields in all plan responses
+{
+    "plan_type": "RenamePlan",  // One of: RenamePlan, ExtractPlan, InlinePlan, MovePlan, etc.
+    "edits": [/* LSP WorkspaceEdit array */],
+    "summary": {
+        "files_affected": 3,
+        "created_files": 0,
+        "deleted_files": 0
+    },
+    "file_checksums": {
+        "src/app.ts": "sha256_hash",
+        "src/utils.ts": "sha256_hash"
+    },
+    "warnings": ["Optional warning messages"],
+    // Optional plan-specific fields
+}
+```
+
+**Key principles:**
+- **Read-only**: `.plan` commands must NEVER modify files
+- **Idempotent**: Multiple calls with same params should produce same plan
+- **Checksums**: Always include file checksums for validation
+- **Summary**: Provide clear summary of what will change
+- **Warnings**: Include any potential issues detected during planning
 
 #### Structured Logging
 Always use structured key-value logging (see [docs/development/LOGGING_GUIDELINES.md](docs/development/LOGGING_GUIDELINES.md)):
@@ -386,6 +593,7 @@ async fn get_diagnostics(...) -> ServerResult<Value> {
 #### Testing
 Add tests for your tools (see [integration-tests/TESTING_GUIDE.md](integration-tests/TESTING_GUIDE.md)):
 
+**Standard tool tests:**
 ```rust
 #[cfg(test)]
 mod tests {
@@ -406,6 +614,51 @@ mod tests {
     }
 }
 ```
+
+**Refactoring plan handler tests:**
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_rename_plan_generates_valid_plan() {
+        let context = create_test_context().await;
+        let handler = RenameHandler::new();
+
+        let tool_call = ToolCall {
+            name: "rename.plan".to_string(),
+            arguments: Some(json!({
+                "target": {
+                    "kind": "symbol",
+                    "path": "src/test.ts",
+                    "selector": {"position": {"line": 10, "character": 5}}
+                },
+                "new_name": "newName"
+            })),
+        };
+
+        let result = handler.handle_tool_call(&context, &tool_call).await;
+        assert!(result.is_ok());
+
+        // Verify plan structure
+        let plan = result.unwrap();
+        assert_eq!(plan["plan_type"], "RenamePlan");
+        assert!(plan["edits"].is_array());
+        assert!(plan["summary"].is_object());
+        assert!(plan["file_checksums"].is_object());
+
+        // Verify read-only: Plan should not modify any files
+        // (Test by checking file timestamps or content before/after)
+    }
+}
+```
+
+**Integration tests for unified refactoring API:**
+- Test in `integration-tests/src/test_<operation>_integration.rs`
+- Cover both plan generation and application via `workspace.apply_edit`
+- Test rollback behavior on errors
+- Test checksum validation
 
 ## Build Performance Tips
 

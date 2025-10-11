@@ -2,18 +2,262 @@
 
 Automate complex, multi-step operations with high-level intents. Instead of calling individual tools, declare what you want to achieve and let Codebuddy plan and execute the workflow.
 
+**Note:** This document describes the legacy intent-based workflow system. For refactoring operations, prefer the **Unified Refactoring API** which provides a simpler, safer two-step pattern: `*.plan` to preview changes, then `workspace.apply_edit` to execute. See the [Unified Refactoring API](#unified-refactoring-api) section below.
+
 ## Table of Contents
-- [Overview](#overview)
-- [Core Concepts](#core-concepts)
-- [Using the achieve_intent Tool](#using-the-achieve_intent-tool)
-- [Built-in Intents](#built-in-intents)
-- [Workflow State Management](#workflow-state-management)
-- [Error Handling](#error-handling)
-- [Best Practices](#best-practices)
+- [Unified Refactoring API](#unified-refactoring-api)
+  - [Pattern Overview](#pattern-overview)
+  - [Available Refactorings](#available-refactorings)
+  - [Safety and Preview Benefits](#safety-and-preview-benefits)
+- [Legacy Intent-Based Workflows](#legacy-intent-based-workflows)
+  - [Overview](#overview)
+  - [Core Concepts](#core-concepts)
+  - [Using the achieve_intent Tool](#using-the-achieve_intent-tool)
+  - [Built-in Intents](#built-in-intents)
+  - [Workflow State Management](#workflow-state-management)
+  - [Error Handling](#error-handling)
+  - [Best Practices](#best-practices)
+
+## Unified Refactoring API
+
+The Unified Refactoring API provides a safe, consistent pattern for all refactoring operations. Instead of legacy workflow-based tools, all refactorings now follow a simple two-step pattern that emphasizes safety and preview-ability.
+
+### Pattern Overview
+
+Every refactoring operation follows this pattern:
+
+1. **Plan** - Generate a preview of changes without modifying files
+2. **Apply** - Execute the planned changes with workspace.apply_edit
+
+```json
+// Step 1: Preview the refactoring
+{
+  "method": "tools/call",
+  "params": {
+    "name": "rename.plan",
+    "arguments": {
+      "file_path": "src/api.ts",
+      "line": 10,
+      "character": 5,
+      "new_name": "getData"
+    }
+  }
+}
+
+// Response includes detailed preview of all changes
+{
+  "edit_id": "550e8400-e29b-41d4-a716-446655440000",
+  "changes": {
+    "src/api.ts": [...],
+    "src/client.ts": [...],
+    "src/tests/api.test.ts": [...]
+  },
+  "summary": "Rename 'fetchData' to 'getData' (3 files, 12 occurrences)"
+}
+
+// Step 2: Apply the changes
+{
+  "method": "tools/call",
+  "params": {
+    "name": "workspace.apply_edit",
+    "arguments": {
+      "edit_id": "550e8400-e29b-41d4-a716-446655440000"
+    }
+  }
+}
+```
+
+### Available Refactorings
+
+All refactoring operations use this unified pattern:
+
+#### `rename.plan`
+Rename a symbol across the entire workspace with LSP-powered accuracy.
+
+**Parameters:**
+- `file_path` (string): Path to the file containing the symbol
+- `line` (number): Line number of the symbol
+- `character` (number): Character position of the symbol
+- `new_name` (string): Desired new name
+
+**Example:**
+```json
+{
+  "name": "rename.plan",
+  "arguments": {
+    "file_path": "src/database.ts",
+    "line": 15,
+    "character": 9,
+    "new_name": "establishDatabaseConnection"
+  }
+}
+```
+
+#### `extract.plan`
+Extract a block of code into a new function or method.
+
+**Parameters:**
+- `file_path` (string): Path to the file
+- `range` (object): Range of code to extract
+  - `start` (object): { `line`: number, `character`: number }
+  - `end` (object): { `line`: number, `character`: number }
+- `new_name` (string): Name for the new function
+
+**Example:**
+```json
+{
+  "name": "extract.plan",
+  "arguments": {
+    "file_path": "src/validator.ts",
+    "range": {
+      "start": { "line": 45, "character": 0 },
+      "end": { "line": 62, "character": 0 }
+    },
+    "new_name": "validateEmailFormat"
+  }
+}
+```
+
+#### `inline.plan`
+Inline a variable, replacing all its usages with its value.
+
+**Parameters:**
+- `file_path` (string): Path to the file
+- `line` (number): Line number of the variable
+- `character` (number): Character position of the variable
+
+**Example:**
+```json
+{
+  "name": "inline.plan",
+  "arguments": {
+    "file_path": "src/utils.ts",
+    "line": 20,
+    "character": 6
+  }
+}
+```
+
+#### `workspace.apply_edit`
+Apply a previously planned refactoring edit.
+
+**Parameters:**
+- `edit_id` (string): UUID from the plan operation
+- `options` (object, optional):
+  - `dry_run` (boolean): Preview final application without writing
+
+**Example:**
+```json
+{
+  "name": "workspace.apply_edit",
+  "arguments": {
+    "edit_id": "550e8400-e29b-41d4-a716-446655440000",
+    "options": {
+      "dry_run": false
+    }
+  }
+}
+```
+
+### Safety and Preview Benefits
+
+The unified API provides multiple layers of safety:
+
+#### 1. Mandatory Preview
+Every refactoring requires an explicit preview step. You can't accidentally apply changes without seeing them first.
+
+```json
+// This is safe - only generates a plan
+{ "name": "rename.plan", "arguments": {...} }
+
+// This requires the edit_id from the plan
+{ "name": "workspace.apply_edit", "arguments": { "edit_id": "..." } }
+```
+
+#### 2. Detailed Change Preview
+Plan operations return comprehensive information:
+- All files affected
+- Exact line-by-line changes
+- Total count of modifications
+- Human-readable summary
+
+#### 3. Double Preview with Dry Run
+Even after planning, you can do a final dry-run before committing:
+
+```json
+{
+  "name": "workspace.apply_edit",
+  "arguments": {
+    "edit_id": "550e8400-e29b-41d4-a716-446655440000",
+    "options": { "dry_run": true }
+  }
+}
+```
+
+#### 4. Atomic Operations
+All changes in a workspace edit are applied atomically:
+- Either all files are updated successfully
+- Or no files are modified (transaction rollback on error)
+
+#### 5. Edit Caching
+Planned edits are cached for 5 minutes, allowing:
+- Time to review changes carefully
+- Discussion with team members
+- Validation against test suites
+
+### Workflow Integration
+
+The unified API integrates seamlessly with automated workflows:
+
+```json
+// Automated safe refactoring workflow
+{
+  "steps": [
+    {
+      "tool": "rename.plan",
+      "params": {
+        "file_path": "{file_path}",
+        "line": "{line}",
+        "character": "{character}",
+        "new_name": "{new_name}"
+      },
+      "description": "Plan the rename operation"
+    },
+    {
+      "tool": "workspace.apply_edit",
+      "params": {
+        "edit_id": "$steps.0.edit_id"
+      },
+      "description": "Apply the rename changes",
+      "requires_confirmation": true
+    }
+  ]
+}
+```
+
+### Migration from Legacy Tools
+
+The unified API replaces these legacy tools:
+
+| Legacy Tool | Unified API |
+|-------------|-------------|
+| `rename_symbol` | `rename.plan` + `workspace.apply_edit` |
+| `extract_function` | `extract.plan` + `workspace.apply_edit` |
+| `inline_variable` | `inline.plan` + `workspace.apply_edit` |
+| `refactor.renameSymbol` intent | `rename.plan` + `workspace.apply_edit` |
+| `refactor.extractFunction` intent | `extract.plan` + `workspace.apply_edit` |
+
+---
+
+## Legacy Intent-Based Workflows
+
+**Note:** The workflow system below is maintained for non-refactoring operations (research, documentation, etc.). For refactoring operations, use the Unified Refactoring API above.
 
 ## Overview
 
-The Intent-Based Workflow Engine is a powerful automation system that enables AI agents to execute complex, multi-step refactoring and analysis operations. Instead of performing individual tool calls, agents can declare high-level intents that are automatically planned into executable workflows with proper state management, error handling, and user confirmation for destructive operations.
+The Intent-Based Workflow Engine is a powerful automation system that enables AI agents to execute complex, multi-step analysis and documentation operations. Instead of performing individual tool calls, agents can declare high-level intents that are automatically planned into executable workflows with proper state management, error handling, and user confirmation for destructive operations.
+
+**Note:** This workflow system is now primarily used for non-refactoring operations like documentation generation and research. For refactoring operations, use the [Unified Refactoring API](#unified-refactoring-api) which provides better safety guarantees and a simpler two-step pattern.
 
 ## Core Concepts
 
@@ -215,21 +459,19 @@ This combines both types:
 
 ## Available Recipes
 
-### 1. `refactor.renameSymbol`
+### Refactoring Intents (Deprecated)
 
-Renames a symbol across the entire project with LSP-powered accuracy.
+**Note:** The refactoring intents below are deprecated. Use the [Unified Refactoring API](#unified-refactoring-api) instead for better safety and preview capabilities.
 
-**Required Parameters:**
-- `file_path` (string): Path to the file containing the symbol
-- `old_name` (string): Current name of the symbol
-- `new_name` (string): Desired new name
+#### ~~`refactor.renameSymbol`~~ (Deprecated)
 
-**Workflow Steps:**
-1. Find all references to the symbol using `find_references`
-2. Apply workspace edits to rename all occurrences (requires confirmation)
+**Use instead:** `rename.plan` + `workspace.apply_edit`
 
-**Example:**
+Legacy workflow that renames a symbol across the entire project.
+
+**Migration Example:**
 ```json
+// OLD: refactor.renameSymbol intent
 {
   "name": "refactor.renameSymbol",
   "params": {
@@ -238,27 +480,39 @@ Renames a symbol across the entire project with LSP-powered accuracy.
     "new_name": "establishDatabaseConnection"
   }
 }
-```
 
-**Complexity:** 2 steps
+// NEW: Unified API (two steps)
+// Step 1: Plan
+{
+  "name": "rename.plan",
+  "arguments": {
+    "file_path": "src/database.ts",
+    "line": 15,
+    "character": 9,
+    "new_name": "establishDatabaseConnection"
+  }
+}
+
+// Step 2: Apply
+{
+  "name": "workspace.apply_edit",
+  "arguments": {
+    "edit_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
 
 ---
 
-### 2. `refactor.extractFunction`
+#### ~~`refactor.extractFunction`~~ (Deprecated)
 
-Extracts a block of code into a new function.
+**Use instead:** `extract.plan` + `workspace.apply_edit`
 
-**Required Parameters:**
-- `file_path` (string): Path to the file
-- `start_line` (number): Starting line of code to extract
-- `end_line` (number): Ending line of code to extract
-- `function_name` (string): Name for the new function
+Legacy workflow that extracts a block of code into a new function.
 
-**Workflow Steps:**
-1. Extract the code block into a new function using `extract_function`
-
-**Example:**
+**Migration Example:**
 ```json
+// OLD: refactor.extractFunction intent
 {
   "name": "refactor.extractFunction",
   "params": {
@@ -268,13 +522,35 @@ Extracts a block of code into a new function.
     "function_name": "validateEmailFormat"
   }
 }
-```
 
-**Complexity:** 1 step
+// NEW: Unified API (two steps)
+// Step 1: Plan
+{
+  "name": "extract.plan",
+  "arguments": {
+    "file_path": "src/validator.ts",
+    "range": {
+      "start": { "line": 45, "character": 0 },
+      "end": { "line": 62, "character": 0 }
+    },
+    "new_name": "validateEmailFormat"
+  }
+}
+
+// Step 2: Apply
+{
+  "name": "workspace.apply_edit",
+  "arguments": {
+    "edit_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
 
 ---
 
-### 3. `docs.generateDocstring`
+### Non-Refactoring Intents
+
+#### 1. `docs.generateDocstring`
 
 Generates documentation for a function or method.
 
@@ -302,7 +578,7 @@ Generates documentation for a function or method.
 
 ---
 
-### 4. `research.topic`
+#### 2. `research.topic`
 
 Researches a topic by searching the web and fetching content from the top result.
 
@@ -398,11 +674,22 @@ Workflows are externalized in `.codebuddy/workflows.json`. This allows for:
 
 ## Best Practices
 
+### For Refactoring Operations
+
+1. **Use the Unified API**: Always prefer `*.plan` + `workspace.apply_edit` over legacy workflow intents
+2. **Always Preview First**: Call `*.plan` to see exactly what will change before applying
+3. **Review Changes Carefully**: Examine the detailed change preview returned by plan operations
+4. **Use Dry Run for Final Check**: Even after planning, use `workspace.apply_edit` with `dry_run: true` for a final review
+5. **Leverage Atomic Operations**: Trust that all changes succeed together or none are applied
+
+### For Legacy Workflow Engine
+
 1. **Start with Planning**: Always preview a workflow before executing
 2. **Use Dry-Run**: Test destructive workflows with `dry_run: true` first
 3. **Review Confirmations**: Carefully review changes when workflows pause
 4. **Check Logs**: Execution logs provide detailed information about each step
 5. **Handle Errors**: Workflows fail fast - check error messages for debugging
+6. **Prefer Unified API**: For refactoring, migrate to the Unified Refactoring API
 
 ## Future Enhancements
 

@@ -30,9 +30,10 @@ Together, these pillars form a complete code intelligence ecosystem: **analysis 
 **Concept**: Change the name of a symbol (variable, function, class, module, or file) throughout the codebase.
 
 **Implemented Tools**:
-- `rename_symbol` - Rename variables, functions, classes, and other symbols
-- `rename_file` - Rename files with automatic import updates
-- `rename_directory` - Rename directories with automatic import updates
+- `rename.plan` - Plan renaming of symbols, files, or directories (unified API)
+- `workspace.apply_edit` - Execute rename plans with atomic application
+- `rename_file` - Legacy direct file rename with automatic import updates
+- `rename_directory` - Legacy direct directory rename with automatic import updates
 
 **Key Characteristics**:
 - Scope-aware (local vs. global scope)
@@ -51,9 +52,9 @@ Together, these pillars form a complete code intelligence ecosystem: **analysis 
 **Concept**: Pull a block of code into its own function, file, or module for better organization and reusability.
 
 **Implemented Tools**:
-- `extract_function` - Extract code block into a new function
-- `extract_variable` - Extract expression into a named variable
-- `extract_module_to_package` - Extract module into a separate package
+- `extract.plan` - Plan code extraction (function, variable, constant) (unified API)
+- `workspace.apply_edit` - Execute extraction plans with atomic application
+- `extract_module_to_package` - Extract module into a separate package (workspace-level)
 
 **Key Characteristics**:
 - Scope preservation (captures necessary parameters)
@@ -117,8 +118,8 @@ Together, these pillars form a complete code intelligence ecosystem: **analysis 
 **Concept**: Replace a reference with its value or implementation, reducing indirection.
 
 **Implemented Tools**:
-- `inline_variable` - Replace variable references with the variable's value
-- `inline_function` - Replace function calls with function body
+- `inline.plan` - Plan inlining of variables or functions (unified API)
+- `workspace.apply_edit` - Execute inlining plans with atomic application
 
 **Key Characteristics**:
 - Scope-aware replacement
@@ -138,7 +139,9 @@ Together, these pillars form a complete code intelligence ecosystem: **analysis 
 **Concept**: Change the sequence of code elements for clarity or convention compliance.
 
 **Implemented Tools**:
-- Code actions from `get_code_actions` - Organize imports, reorder members
+- `reorder.plan` - Plan reordering of parameters, imports, etc. (unified API)
+- `workspace.apply_edit` - Execute reordering plans with atomic application
+- Code actions from `get_code_actions` - Quick fixes for import organization
 - `format_document` - Format code according to style guidelines
 
 **Key Characteristics**:
@@ -159,9 +162,11 @@ Together, these pillars form a complete code intelligence ecosystem: **analysis 
 **Concept**: Modify code structure while preserving behavior (control flow, data structures).
 
 **Implemented Tools**:
-- `get_code_actions` - Provides transformation suggestions
+- `transform.plan` - Plan code transformations (async conversion, etc.) (unified API)
+- `workspace.apply_edit` - Execute transformation plans with atomic application
+- `get_code_actions` - Provides transformation suggestions via LSP
 - `format_document` - Apply formatting transformations
-- `apply_edits` - Execute complex transformations
+- `apply_edits` - Execute complex multi-file transformations
 
 **Key Characteristics**:
 - Behavior preservation
@@ -181,8 +186,10 @@ Together, these pillars form a complete code intelligence ecosystem: **analysis 
 
 #### Delete
 **Implemented Tools**:
-- `delete_file` - Remove files from the workspace
-- Code actions - Remove unused imports, dead code elimination
+- `delete.plan` - Plan deletion of unused code (imports, dead code) (unified API)
+- `workspace.apply_edit` - Execute deletion plans with atomic application
+- `delete_file` - Remove files from the workspace (file-level)
+- Code actions - Quick fixes for removing unused imports
 
 **Key Characteristics**:
 - Dependency detection
@@ -332,9 +339,9 @@ The power of this framework comes from composing primitives to achieve complex g
 **Primitive Sequence**:
 1. **Analyze Dependencies** (`analyze_imports`) - Understand current structure
 2. **Detect Complexity** (`get_document_symbols`) - Identify extraction candidates
-3. **Extract Functions** (`extract_function`) - Pull out logical units
-4. **Move to New Files** (`rename_file` + `write_file`) - Create new module structure
-5. **Update Imports** (automatic via `rename_file`) - Maintain references
+3. **Extract Functions** (`extract.plan` + `workspace.apply_edit`) - Pull out logical units
+4. **Move to New Files** (`move.plan` + `workspace.apply_edit`) - Create new module structure
+5. **Update Imports** (automatic via unified API) - Maintain references
 6. **Verify No Dead Code** (`find_dead_code`) - Ensure clean migration
 7. **Format All Files** (`format_document`) - Apply consistent style
 
@@ -346,11 +353,103 @@ The power of this framework comes from composing primitives to achieve complex g
 
 **Primitive Sequence**:
 1. **Analyze Complexity** (`prepare_call_hierarchy`) - Identify hot paths
-2. **Inline Hot Variables** (`inline_variable`) - Reduce overhead
-3. **Extract Reusable Parts** (`extract_function`) - Enable caching
+2. **Inline Hot Variables** (`inline.plan` + `workspace.apply_edit`) - Reduce overhead
+3. **Extract Reusable Parts** (`extract.plan` + `workspace.apply_edit`) - Enable caching
 4. **Verify References** (`find_references`) - Ensure no breaking changes
 5. **Run Diagnostics** (`get_diagnostics`) - Check for introduced errors
-6. **Transform Patterns** (`get_code_actions`) - Apply optimization patterns
+6. **Transform Patterns** (`transform.plan` + `workspace.apply_edit`) - Apply optimization patterns
+
+---
+
+## The Unified Refactoring API Pattern
+
+Codebuddy implements a consistent, safe `plan -> apply` pattern for all refactoring operations. This two-step approach enhances safety by allowing preview and validation before making changes.
+
+### Two-Step Process
+
+1. **Planning Phase** (`*.plan` commands)
+   - **Always read-only** - Never modifies files
+   - Generates a detailed refactoring plan
+   - Includes checksums for affected files
+   - Returns warnings about potential issues
+   - Available for: `rename.plan`, `extract.plan`, `inline.plan`, `move.plan`, `reorder.plan`, `transform.plan`, `delete.plan`
+
+2. **Application Phase** (`workspace.apply_edit`)
+   - **Single execution command** for all refactoring types
+   - Validates checksums to prevent stale edits
+   - Atomic execution (all changes succeed or all rollback)
+   - Optional validation command execution (e.g., `cargo check`)
+   - Automatic rollback on failure
+
+### Safety Features
+
+**Checksum Validation**:
+- Each plan includes SHA-256 hashes of files to be modified
+- `workspace.apply_edit` verifies files haven't changed since plan creation
+- Prevents applying stale plans to modified code
+
+**Atomic Application**:
+- All file changes succeed together or rollback together
+- No partial application that leaves code in broken state
+- Transaction-like semantics for multi-file refactorings
+
+**Optional Validation**:
+- Run build/test commands after applying changes
+- Automatic rollback if validation fails
+- Example: `{"validation": {"command": "cargo check", "timeout_seconds": 60}}`
+
+### Example Workflow
+
+```bash
+# Step 1: Generate rename plan (read-only, safe to explore)
+PLAN=$(codebuddy tool rename.plan '{
+  "target": {
+    "kind": "symbol",
+    "path": "src/app.ts",
+    "selector": { "position": { "line": 15, "character": 8 } }
+  },
+  "new_name": "newUser"
+}')
+
+# Step 2: Inspect plan (optional)
+echo "$PLAN" | jq '.edits | length'  # See number of changes
+echo "$PLAN" | jq '.warnings'        # Check for warnings
+
+# Step 3: Apply plan with validation
+codebuddy tool workspace.apply_edit "{
+  \"plan\": $PLAN,
+  \"options\": {
+    \"validate_checksums\": true,
+    \"rollback_on_error\": true,
+    \"validation\": {
+      \"command\": \"npm test\",
+      \"timeout_seconds\": 120
+    }
+  }
+}"
+```
+
+### Benefits Over Legacy Tools
+
+**Before (Legacy)**:
+- Direct execution: `rename_symbol`, `extract_function`, `inline_variable`
+- No preview capability
+- Limited rollback support
+- Inconsistent safety features across tools
+
+**After (Unified API)**:
+- Consistent `plan -> apply` pattern
+- Preview changes before application
+- Uniform checksum validation
+- Centralized atomic execution
+- Single apply command for all refactoring types
+
+### Coexistence with Legacy Tools
+
+The unified API coexists with legacy file/directory operations:
+- **Use unified API** for: symbol renaming, code extraction, inlining, transformations
+- **Use legacy tools** for: simple file operations (`rename_file`, `delete_file`)
+- Legacy file tools may be migrated to unified API in future versions
 
 ---
 
@@ -392,14 +491,14 @@ All primitives **preserve correctness**. This guarantees:
 
 | Primitive | MCP Tools | Handler |
 |-----------|-----------|---------|
-| **Rename** | `rename_symbol`, `rename_file`, `rename_directory` | EditingHandler, FileOpsHandler, WorkspaceHandler |
-| **Extract** | `extract_function`, `extract_variable`, `extract_module_to_package` | RefactoringHandler, WorkspaceHandler |
+| **Rename** | `rename.plan`, `workspace.apply_edit`, `rename_file`, `rename_directory` | RefactoringHandler, FileOpsHandler, WorkspaceHandler |
+| **Extract** | `extract.plan`, `workspace.apply_edit`, `extract_module_to_package` | RefactoringHandler, WorkspaceHandler |
 | **Inject/Insert** | `apply_edits`, `write_file`, code actions | EditingHandler, FileOpsHandler |
-| **Move** | `rename_file`, `rename_directory` | FileOpsHandler, WorkspaceHandler |
-| **Inline** | `inline_variable`, `inline_function` | RefactoringHandler |
-| **Reorder** | `format_document`, code actions | EditingHandler |
-| **Transform** | `get_code_actions`, `apply_edits` | EditingHandler |
-| **Delete** | `delete_file`, code actions | FileOpsHandler |
+| **Move** | `move.plan`, `workspace.apply_edit`, `rename_file`, `rename_directory` | RefactoringHandler, FileOpsHandler, WorkspaceHandler |
+| **Inline** | `inline.plan`, `workspace.apply_edit` | RefactoringHandler |
+| **Reorder** | `reorder.plan`, `workspace.apply_edit`, `format_document`, code actions | RefactoringHandler, EditingHandler |
+| **Transform** | `transform.plan`, `workspace.apply_edit`, `get_code_actions`, `apply_edits` | RefactoringHandler, EditingHandler |
+| **Delete** | `delete.plan`, `workspace.apply_edit`, `delete_file`, code actions | RefactoringHandler, FileOpsHandler |
 
 ### Analysis Primitives → MCP Tools
 

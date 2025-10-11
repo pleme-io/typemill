@@ -20,13 +20,13 @@ Codebuddy distinguishes between **public tools** (exposed to AI agents via MCP) 
 - Listed in MCP `tools/list` requests
 - Designed for direct use by AI agents
 - Well-documented, user-friendly APIs
-- Examples: `find_definition`, `rename_symbol`, `read_file`
+- Examples: `find_definition`, `rename.plan`, `workspace.apply_edit`, `read_file`
 
 ### Internal Tools (Hidden from AI Agents)
 - **Hidden** from MCP `tools/list` requests
 - **Still callable** via direct tool invocation (for backend use)
 - Used for system plumbing, protocol interop, and backend coordination
-- Examples: `notify_file_opened`, `apply_workspace_edit`
+- Examples: `notify_file_opened`, `rename_symbol_with_imports`
 
 ## Current Internal Tools
 
@@ -92,24 +92,26 @@ A tool should be internal if it meets **any** of these criteria:
 ### 3. Redundancy
 - Functionality fully covered by other public tools
 - Internal convenience for specific backend use cases
-- Example: `rename_symbol_with_imports` (covered by `rename_symbol` + `optimize_imports`)
+- Example: `rename_symbol_with_imports` (covered by unified refactoring API: `rename.plan` + `workspace.apply_edit`)
 
 ### 4. Dangerous/Unstable
 - Experimental features not ready for general use
 - Could cause data loss or corruption if misused
 - Should be reviewed before making public
 
-## Candidates Under Review
+## Current Internal Tools (Continued)
 
-These tools are being evaluated for internal status:
+### Workflow Orchestration (2 tools)
+**Handler**: `InternalEditingHandler`, `InternalWorkspaceHandler`
 
-### Potential Internal Tools (4-7)
-- `rename_symbol_with_imports` - Redundant with `rename_symbol` + `optimize_imports`
-- `update_dependency` - Redundant with `update_dependencies`
-- `batch_update_dependencies` - Redundant with `update_dependencies`
-- `apply_workspace_edit` - LSP protocol interop (low-level)
+- `rename_symbol_with_imports`
+- `apply_workspace_edit`
 
-**Status**: Under discussion - need to verify if used by other backend functionality.
+**Rationale**: These are legacy workflow wrappers and low-level LSP protocol interop tools. AI agents should use the unified refactoring API instead:
+- Instead of `rename_symbol_with_imports`: Use `rename.plan` + `workspace.apply_edit`
+- Instead of `apply_workspace_edit` (low-level): Use the public `workspace.apply_edit` with a plan from any `*.plan` command
+
+The internal `apply_workspace_edit` accepts raw LSP `WorkspaceEdit` format, while the public `workspace.apply_edit` accepts structured refactoring plans with enhanced safety features (checksums, validation, rollback).
 
 ## Implementation Details
 

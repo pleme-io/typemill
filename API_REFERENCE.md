@@ -1133,7 +1133,7 @@ Analyze code and suggest refactoring opportunities based on cognitive complexity
       "priority": "medium"
     },
     {
-      "kind": "extract_function",
+      "kind": "extract",
       "location": 120,
       "function_name": "handleRequest",
       "description": "Function 'handleRequest' has 85 source lines of code (>50 SLOC recommended)",
@@ -1176,7 +1176,7 @@ Analyze code and suggest refactoring opportunities based on cognitive complexity
 - **reduce_nesting**: Function has deep nesting (>4 levels) - Suggests flattening strategies
 - **consolidate_parameters**: Too many parameters (>5) - Recommends object/struct consolidation
 - **improve_documentation**: Low comment ratio (<0.1) - Guides documentation improvements
-- **extract_function**: Function too long (>50 SLOC) - Suggests logical block extraction
+- **extract**: Function too long (>50 SLOC) - Suggests using `extract.plan` to break into smaller functions
 - **replace_magic_number**: Numeric literal appears multiple times - Recommends named constants
 - **remove_duplication**: Duplicate code patterns detected (future enhancement)
 - **extract_variable**: Complex expression should be named (future enhancement)
@@ -2314,7 +2314,7 @@ Get basic system operational status.
 These tools are used internally by the Codebuddy workflow system and LSP protocol interop. They are **not visible** to AI agents via MCP tool listings, but remain callable by the backend for orchestration and plugin lifecycle management.
 
 **Why hidden:**
-- AI agents use higher-level tools (e.g., `rename_symbol` instead of `rename_symbol_with_imports`)
+- AI agents use the unified refactoring API (e.g., `rename.plan` + `workspace.apply_edit` instead of `rename_symbol_with_imports`)
 - These tools are implementation details / workflow plumbing
 - Simplifies the API surface for AI agent developers
 
@@ -2391,7 +2391,7 @@ These tools are used internally by the Codebuddy workflow system and LSP protoco
 
 **Purpose:** Internal workflow tool combining symbol rename with import updates
 
-**Implementation:** Workflow-based wrapper around `rename_symbol`
+**Implementation:** Legacy workflow wrapper - replaced by unified refactoring API
 
 **Parameters:**
 ```json
@@ -2412,7 +2412,7 @@ These tools are used internally by the Codebuddy workflow system and LSP protoco
 }
 ```
 
-**Usage:** Called by workflow planner when orchestrating multi-step refactorings. AI agents should use `rename_symbol` or `rename_symbol_strict` directly.
+**Usage:** Called by workflow planner when orchestrating multi-step refactorings. AI agents should use the unified refactoring API instead: `rename.plan` followed by `workspace.apply_edit`.
 
 ---
 
@@ -2448,7 +2448,7 @@ These tools are used internally by the Codebuddy workflow system and LSP protoco
 }
 ```
 
-**Usage:** Called internally when LSP servers return workspace edits for refactoring operations. AI agents should use high-level refactoring tools like `rename_symbol`, `extract_function`, etc.
+**Usage:** Called internally when LSP servers return workspace edits for refactoring operations. AI agents should use the unified refactoring API: `*.plan` commands (e.g., `rename.plan`, `extract.plan`, `inline.plan`, `move.plan`) followed by `workspace.apply_edit`.
 
 ---
 
@@ -2470,8 +2470,27 @@ All tools return errors in this format:
 
 ### Dry-Run Pattern
 
-Tools supporting dry-run preview changes:
+The unified refactoring API uses a two-step **plan-then-apply** pattern for safe refactoring:
 
+```bash
+# Step 1: Generate plan (always dry-run, never modifies files)
+PLAN=$(codebuddy tool rename.plan '{
+  "target": {
+    "kind": "symbol",
+    "path": "src/app.ts",
+    "selector": { "position": { "line": 15, "character": 8 } }
+  },
+  "new_name": "newUser"
+}')
+
+# Step 2: Apply the plan
+codebuddy tool workspace.apply_edit "{\"plan\": $PLAN}"
+
+# Optional: Preview final application with dry_run
+codebuddy tool workspace.apply_edit "{\"plan\": $PLAN, \"options\": {\"dry_run\": true}}"
+```
+
+**File operations with dry_run support:**
 ```bash
 # Preview
 codebuddy tool rename_directory '{"old_path":"src","new_path":"lib","dry_run":true}'
@@ -2481,9 +2500,11 @@ codebuddy tool rename_directory '{"old_path":"src","new_path":"lib"}'
 ```
 
 **Tools with dry_run support:**
-- File operations: `create_file`, `write_file`, `delete_file`, `rename_file`
-- Directory operations: `rename_directory`
-- Refactoring: `rename_symbol`, `rename_symbol_strict`, `extract_function`, `inline_variable`, `extract_variable`
+- **Refactoring (Unified API)**: All `*.plan` commands are always dry-run. Use `workspace.apply_edit` to execute plans.
+  - `rename.plan`, `extract.plan`, `inline.plan`, `move.plan`, `reorder.plan`, `transform.plan`, `delete.plan`
+  - `workspace.apply_edit` accepts optional `dry_run: true` for final preview before execution
+- **File operations**: `create_file`, `write_file`, `delete_file`, `rename_file`
+- **Directory operations**: `rename_directory` (including consolidation mode)
 
 ### Safety Parameters
 

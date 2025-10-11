@@ -10,7 +10,7 @@ use std::path::PathBuf;
 /// Protocol-agnostic request sent to plugins
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginRequest {
-    /// The method being requested (e.g., "find_definition", "rename_symbol")
+    /// The method being requested (e.g., "find_definition", "rename.plan")
     pub method: String,
     /// The file path being operated on
     pub file_path: PathBuf,

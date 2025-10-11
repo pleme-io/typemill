@@ -32,7 +32,7 @@ impl ToolHandler for InternalEditingToolsHandler {
 
     fn is_internal(&self) -> bool {
         // These tools are internal - used by workflows but not for direct AI agent use.
-        // AI agents should use rename_symbol + optimize_imports explicitly for clarity.
+        // AI agents should use rename.plan + workspace.apply_edit pattern explicitly for clarity.
         true
     }
 

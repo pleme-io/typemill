@@ -179,8 +179,8 @@ register_handlers_with_logging!(registry, {
     SystemHandler => "SystemHandler with 3 tools: health_check, web_fetch, ping",
     LifecycleHandler => "LifecycleHandler with 3 tools: notify_file_opened, notify_file_saved, notify_file_closed",
     NavigationHandler => "NavigationHandler with 10 tools: find_definition, find_references, ...",
-    EditingHandler => "EditingHandler with 9 tools: rename_symbol, format_document, ...",
-    RefactoringHandler => "RefactoringHandler with 4 tools: extract_function, inline_variable, ...",
+    EditingHandler => "EditingHandler with 9 tools: format_document, get_code_actions, ...",
+    RefactoringHandler => "RefactoringHandler with 8 tools: rename.plan, extract.plan, inline.plan, move.plan, reorder.plan, transform.plan, delete.plan, workspace.apply_edit",
     FileOpsHandler => "FileOpsHandler with 6 tools: read_file, write_file, ...",
     WorkspaceHandler => "WorkspaceHandler with 7 tools: list_files, find_dead_code, ...",
 });
@@ -269,7 +269,7 @@ Tools are classified by scope to optimize plugin selection:
 ```rust
 pub enum ToolScope {
     /// Tool operates on a specific file (requires file_path)
-    File,        // Example: find_definition, rename_symbol
+    File,        // Example: find_definition, rename.plan
     /// Tool operates at workspace level (no file_path required)
     Workspace,   // Example: search_workspace_symbols, list_files
 }
@@ -283,7 +283,7 @@ impl Capabilities {
         match method {
             // File-scoped tools
             | "find_definition"
-            | "rename_symbol"
+            | "rename.plan"
             | "format_document" => Some(ToolScope::File),
 
             // Workspace-scoped tools
@@ -328,12 +328,12 @@ When `error_on_ambiguity: false` (default):
 | **SystemHandler** | 3 | System | Health checks, web fetch, ping |
 | **LifecycleHandler** | 3 | Lifecycle | File open/save/close notifications |
 | **NavigationHandler** | 10 | LSP | Symbol navigation, references, definitions |
-| **EditingHandler** | 9 | LSP | Symbol renaming, formatting, code actions |
-| **RefactoringHandler** | 4 | AST | Extract function/variable, inline operations |
+| **EditingHandler** | 9 | LSP | Formatting, code actions, diagnostics |
+| **RefactoringHandler** | 8 | Unified API | Unified refactoring: *.plan commands + workspace.apply_edit |
 | **FileOpsHandler** | 6 | File | File read/write/delete/create operations |
 | **WorkspaceHandler** | 7 | Workspace | Workspace-wide analysis and refactoring |
 
-**Total: 44 Tools across 7 Handlers**
+**Total: 46 Tools across 7 Handlers**
 
 ### Dispatch Flow
 
@@ -560,11 +560,19 @@ The system provides comprehensive code intelligence through various tool categor
 - **Path Resolution**: Canonical path handling
 - **File Watching**: Real-time file system monitoring
 
-### 6. Refactoring Tools
-- **Extract Function**: Code extraction into new functions
-- **Extract Variable**: Expression extraction into variables
-- **Inline Operations**: Variable and function inlining
-- **Import Organization**: Automatic import cleanup
+### 6. Refactoring Tools (Unified API)
+The unified refactoring API provides a consistent `plan -> apply` pattern for all refactoring operations:
+
+- **Planning Tools**: Generate refactoring plans without modifying files
+  - `rename.plan` - Plan symbol, file, or directory rename
+  - `extract.plan` - Plan code extraction (function, variable, constant)
+  - `inline.plan` - Plan inlining (variable, function)
+  - `move.plan` - Plan moving code between files/modules
+  - `reorder.plan` - Plan reordering (parameters, imports)
+  - `transform.plan` - Plan code transformations (async conversion, etc.)
+  - `delete.plan` - Plan deletion of unused code
+- **Application Tool**: Execute any refactoring plan
+  - `workspace.apply_edit` - Apply plans with atomic execution, checksum validation, and rollback
 
 ## Configuration Management
 

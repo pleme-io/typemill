@@ -13,6 +13,33 @@ The project underwent a complete architectural transformation from TypeScript/No
 
 ### [Unreleased]
 
+#### Added
+
+- **Unified Refactoring API** - Complete implementation of `plan -> apply` refactoring pattern
+  - New `*.plan` commands for safe, dry-run refactoring previews: `rename.plan`, `extract.plan`, `inline.plan`
+  - New `workspace.apply_edit` command to execute refactoring plans atomically
+  - All refactoring operations now use unified two-step workflow for enhanced safety
+  - Plan commands generate detailed previews without filesystem modifications
+  - Apply command executes plans with atomic multi-file updates and automatic rollback
+
+#### Changed
+
+- **Refactoring Tools Migration** - Migrated from legacy single-step tools to unified API
+  - `rename_symbol` → `rename.plan` + `workspace.apply_edit` (legacy tool removed)
+  - `extract_function` → `extract.plan` + `workspace.apply_edit` (legacy tool removed)
+  - `inline_variable` → `inline.plan` + `workspace.apply_edit` (legacy tool removed)
+  - `extract_variable` → `extract.plan` + `workspace.apply_edit` (legacy tool removed)
+  - All refactoring operations now follow consistent `plan -> apply` pattern
+
+#### Removed
+
+- **Legacy Refactoring Tools** - Single-step refactoring tools removed in favor of unified API
+  - Removed `rename_symbol` (replaced by `rename.plan` + `workspace.apply_edit`)
+  - Removed `rename_symbol_strict` (functionality merged into `rename.plan`)
+  - Removed `extract_function` (replaced by `extract.plan` + `workspace.apply_edit`)
+  - Removed `inline_variable` (replaced by `inline.plan` + `workspace.apply_edit`)
+  - Removed `extract_variable` (replaced by `extract.plan` + `workspace.apply_edit`)
+
 ---
 
 ### [0.5.0] - 2025-10-10
@@ -193,7 +220,7 @@ The project underwent a complete architectural transformation from TypeScript/No
 - **Cross-platform installation script** - Enterprise-grade `install.sh` with support for macOS, Ubuntu/Debian, Fedora/RHEL, and Arch
 - **Plugin architecture completion** - Full language adapter migration with composable plugin system
 - **Java AST support** - Tree-sitter based parser integration
-- **Refactoring tools** - Full AST-based implementation for extract_function, inline_variable, and extract_variable
+- **Refactoring tools** - Full AST-based implementation for extract_function, inline_variable, and extract_variable (later migrated to unified `*.plan` + `workspace.apply_edit` API)
 - **SWC-based AST parsing** - TypeScript/JavaScript AST parsing with native Rust performance
 - **VFS (Virtual Filesystem)** - Optional experimental feature (Unix only, feature-gated)
 - **44 MCP Tools** - Complete implementation across all categories
@@ -498,7 +525,7 @@ This release represents a complete architectural transformation, implementing ad
   - Symlink handling - correctly resolves and edits target files
   - Multi-file workspace edits for complex rename operations across multiple files
   - Comprehensive validation for file existence, permissions, and types
-  - `dry_run` parameter for safe preview mode on both `rename_symbol` and `rename_symbol_strict`
+  - `dry_run` parameter for safe preview mode on both `rename_symbol` and `rename_symbol_strict` (legacy tools, later replaced by unified `rename.plan` + `workspace.apply_edit` API in Rust implementation)
 
 ### Enhanced
 
@@ -652,7 +679,7 @@ Your contributions help make codebuddy better for everyone! 🙏
 - **BREAKING**: Complete redesign of MCP tool API from position-based to symbol name/kind-based lookup
 - `find_definition` now accepts `symbol_name` and `symbol_kind` instead of `line` and `character`
 - `find_references` now accepts `symbol_name` and `symbol_kind` instead of `line` and `character`
-- `rename_symbol` now accepts `symbol_name` and `symbol_kind` instead of `line` and `character`
+- `rename_symbol` now accepts `symbol_name` and `symbol_kind` instead of `line` and `character` (legacy tool, later replaced by unified `rename.plan` + `workspace.apply_edit` API in Rust implementation)
 - Enhanced LSP stderr forwarding directly to MCP stderr for better debugging
 - Improved position accuracy for `SymbolInformation` with file content analysis
 
@@ -660,7 +687,7 @@ Your contributions help make codebuddy better for everyone! 🙏
 
 - `textDocument/documentSymbol` LSP functionality for comprehensive symbol discovery
 - Automatic symbol matching by name and kind for improved LLM accuracy
-- `rename_symbol_strict` tool for precise position-based renaming when multiple matches exist
+- `rename_symbol_strict` tool for precise position-based renaming when multiple matches exist (legacy tool, later merged into unified `rename.plan` API in Rust implementation)
 - Symbol kind validation with helpful error messages listing valid options
 - Comprehensive debug logging throughout the symbol resolution pipeline
 - File content analysis for precise symbol position detection in `SymbolInformation`
@@ -754,7 +781,7 @@ Your contributions help make codebuddy better for everyone! 🙏
 
 ### Added
 
-- `rename_symbol` MCP tool for refactoring symbols across codebases
+- `rename_symbol` MCP tool for refactoring symbols across codebases (legacy tool, later replaced by unified `rename.plan` + `workspace.apply_edit` API in Rust implementation)
 - Enhanced error handling for LSP server failures
 
 ### Changed

@@ -181,7 +181,7 @@ impl PluginRegistry {
     /// # Selection Strategy
     ///
     /// 1. **Tool Scope Detection**: Determines if the tool is File-scoped or Workspace-scoped
-    ///    - File-scoped tools (e.g., `find_definition`, `rename_symbol`) require a specific file context
+    ///    - File-scoped tools (e.g., `find_definition`, `rename.plan`) require a specific file context
     ///    - Workspace-scoped tools (e.g., `search_workspace_symbols`, `list_files`) operate globally
     ///
     /// 2. **Candidate Filtering**:

@@ -22,7 +22,7 @@
 
 ---
 
-**Tools:** 44 public MCP tools
+**Tools:** 48 public MCP tools
 **Internal tools:** 5 backend-only tools (see [API_REFERENCE.md Internal Tools](../API_REFERENCE.md#internal-tools))
 
 ---
@@ -47,19 +47,22 @@
 
 ---
 
-## Editing & Refactoring (9 tools)
+## Editing & Refactoring (13 tools)
 
 | Tool | Description | Required Parameters | Returns |
 |------|-------------|---------------------|---------|
 | `rename_symbol` | Rename a symbol across the project by name | `file_path`, `symbol_name`, `new_name` | Workspace edits with file changes |
 | `rename_symbol_strict` | Rename a symbol at a specific position | `file_path`, `line`, `character`, `new_name` | Workspace edits with file changes |
+| `rename.plan` | **Plan** rename refactoring (dry-run, part of unified API) | `file_path`, `symbol_name`, `new_name` | Refactoring plan (not applied) |
+| `extract.plan` | **Plan** extract function/variable (dry-run, part of unified API) | `file_path`, `start_line`, `end_line`, `name`, `kind` | Refactoring plan (not applied) |
+| `inline.plan` | **Plan** inline variable refactoring (dry-run, part of unified API) | `file_path`, `symbol_name`, `line` | Refactoring plan (not applied) |
+| `move.plan` | **Plan** move symbol refactoring (dry-run, part of unified API) | `file_path`, `symbol_name`, `target_path` | Refactoring plan (not applied) |
+| `workspace.apply_edit` | **Apply** a refactoring plan from *.plan tools | `edit` (from *.plan result) | Applied changes |
 | `organize_imports` | Organize and sort imports, remove unused | `file_path` | Import changes applied |
 | `optimize_imports` | Organize imports AND remove unused imports | `file_path` | Optimized import summary |
 | `get_code_actions` | Get available quick fixes and refactorings | `file_path` | Array of code actions |
 | `format_document` | Format document using language server | `file_path` | Formatting changes |
-| `extract_function` | Extract code into a new function | `file_path`, `start_line`, `end_line`, `function_name` | Workspace edits |
 | `extract_variable` | Extract expression into a new variable | `file_path`, `start_line`, `start_character`, `end_line`, `end_character`, `variable_name` | Workspace edits |
-| `inline_variable` | Inline a variable's value at usage sites | `file_path`, `variable_name`, `line` | Workspace edits |
 
 ---
 
@@ -122,8 +125,19 @@
 
 ## Quick Notes
 
+### Unified Refactoring API (Two-Step Pattern)
+The new unified API uses a **plan → apply** pattern for safe refactoring:
+1. **`*.plan` tools** (e.g., `rename.plan`, `extract.plan`, `inline.plan`, `move.plan`) - Generate refactoring plan (dry-run, never writes to filesystem)
+2. **`workspace.apply_edit`** - Apply the plan to make actual changes
+
+**Benefits:**
+- Preview all changes before applying
+- Safe by design (*.plan commands are always dry-run)
+- Consistent pattern across all refactorings
+- Can use `dry_run: true` in `workspace.apply_edit` for final preview
+
 ### Common Optional Parameters
-- **`dry_run`**: Preview changes without applying (many editing/file tools)
+- **`dry_run`**: Preview changes without applying (many editing/file tools, workspace.apply_edit)
 - **`workspace_id`**: Execute in remote workspace (read_file, write_file)
 - **`include_declaration`**: Include definition in results (find_references)
 

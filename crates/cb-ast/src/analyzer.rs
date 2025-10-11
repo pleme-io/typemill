@@ -18,12 +18,14 @@ pub fn plan_refactor(
     plugin_registry: &PluginRegistry,
 ) -> AstResult<EditPlan> {
     match intent.name() {
-        "rename_symbol" => plan_rename_symbol(intent, source),
+        // Unified Refactoring API intent names
+        "rename.plan" | "rename_symbol" => plan_rename_symbol(intent, source),
+        "extract.plan" | "extract_function" => plan_extract_function(intent, source),
+        "inline.plan" | "inline_function" => plan_inline_function(intent, source),
+        // Import-related operations (still used internally)
         "add_import" => plan_add_import(intent, source),
         "remove_import" => plan_remove_import(intent, source, plugin_registry),
         "update_import_path" => plan_update_import_path(intent, source),
-        "extract_function" => plan_extract_function(intent, source),
-        "inline_function" => plan_inline_function(intent, source),
         _ => Err(AstError::unsupported_syntax(format!(
             "Intent: {}",
             intent.name()
