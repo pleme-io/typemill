@@ -418,10 +418,23 @@ fn detect_smells(
     let magic_number_findings = detect_magic_numbers_for_smells(content, file_path, language);
     findings.extend(magic_number_findings);
 
+    // 4. Duplicate code patterns
+    // TODO: Implement duplicate code detection using token-based similarity analysis
+    // Requires: AST token extraction, sliding window comparison, similarity threshold tuning
+    // Estimated effort: ~1 week (non-trivial algorithm)
+    // Priority: Medium (valuable but complex)
+    // Approach: Consider using tree-sitter or similar for token extraction
+
     findings
 }
 
 /// Helper for magic number detection (adapted from code.rs)
+///
+/// TODO: Future enhancement - Use AST-level context awareness to filter numbers
+/// in string literals and improve detection accuracy. Current implementation uses
+/// line-level filtering which is effective for MVP but could be refined using
+/// language plugin's Symbol data to distinguish literal vs code contexts.
+/// Estimated effort: ~1-2 days. Priority: Low (current approach is effective).
 fn detect_magic_numbers_for_smells(
     content: &str,
     file_path: &str,
@@ -439,9 +452,11 @@ fn detect_magic_numbers_for_smells(
     if let Some(pattern) = number_pattern {
         let mut found_numbers = std::collections::HashMap::new();
         for (i, line) in content.lines().enumerate() {
+            // Skip comment lines (basic context filtering for MVP)
             if line.trim().starts_with("//") || line.trim().starts_with('#') {
                 continue;
             }
+            // TODO: Also filter string literal contexts - requires AST awareness
             for cap in pattern.find_iter(line) {
                 let number = cap.as_str();
                 found_numbers
