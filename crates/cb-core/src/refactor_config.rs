@@ -15,10 +15,9 @@ pub struct RefactorConfig {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RefactorPreset {
-    pub strict: Option<bool>,
-    pub validate_scope: Option<bool>,
-    pub update_imports: Option<bool>,
-    // ... other options
+    pub dry_run: Option<bool>,
+    pub validate_checksums: Option<bool>,
+    pub rollback_on_error: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -51,11 +50,10 @@ impl RefactorConfig {
         Ok(config)
     }
 
-    /// Apply a preset to ApplyOptions (from workspace_apply_handler)
+    /// Apply a preset to RefactorDefaults
     ///
-    /// Merges preset values into options, with explicit option values taking precedence.
-    /// This allows users to define presets in .codebuddy/refactor.toml and apply them
-    /// via the preset parameter.
+    /// Merges preset values into defaults. Preset values override defaults.
+    /// This allows users to define presets in .codebuddy/refactor.toml.
     ///
     /// # Example
     ///
@@ -67,41 +65,31 @@ impl RefactorConfig {
     /// validate_checksums = true
     ///
     /// [presets.strict]
-    /// strict = true
-    /// validate_scope = true
-    /// update_imports = true
+    /// validate_checksums = true
+    /// rollback_on_error = true
     ///
     /// [presets.quick]
-    /// strict = false
-    /// validate_scope = false
-    /// ```
-    ///
-    /// Usage in workspace.apply_edit:
-    /// ```json
-    /// {
-    ///   "plan": { ... },
-    ///   "options": {
-    ///     "preset": "strict",
-    ///     "dry_run": true  // Overrides preset if present
-    ///   }
-    /// }
+    /// validate_checksums = false
+    /// rollback_on_error = false
     /// ```
     pub fn apply_preset_to_defaults(&self, preset_name: &str) -> Result<RefactorDefaults> {
-        let _preset = self
+        let preset = self
             .presets
             .get(preset_name)
             .ok_or_else(|| anyhow::anyhow!("Preset '{}' not found", preset_name))?;
 
-        let defaults = self.defaults.clone();
+        let mut defaults = self.defaults.clone();
 
-        // Apply preset values to defaults
-        // Note: Currently RefactorPreset has different fields than RefactorDefaults
-        // This is a starting point - extend as needed when the types converge
-
-        // For now, we just return the defaults since preset fields don't overlap
-        // In a full implementation, you'd have fields like:
-        // - if let Some(dry_run) = preset.dry_run { defaults.dry_run = dry_run; }
-        // - if let Some(validate) = preset.validate_checksums { defaults.validate_checksums = validate; }
+        // Apply preset values to defaults (preset overrides defaults)
+        if let Some(dry_run) = preset.dry_run {
+            defaults.dry_run = dry_run;
+        }
+        if let Some(validate_checksums) = preset.validate_checksums {
+            defaults.validate_checksums = validate_checksums;
+        }
+        if let Some(rollback_on_error) = preset.rollback_on_error {
+            defaults.rollback_on_error = rollback_on_error;
+        }
 
         Ok(defaults)
     }

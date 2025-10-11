@@ -208,22 +208,30 @@ mod tests {
                     },
                     "steps": [
                         {
-                            "tool": "find_references",
+                            "tool": "rename.plan",
                             "params": {
-                                "file_path": "{file_path}",
-                                "symbol_name": "{old_name}"
+                                "target": {
+                                    "kind": "symbol",
+                                    "path": "{file_path}",
+                                    "selector": {
+                                        "symbol_name": "{old_name}"
+                                    }
+                                },
+                                "new_name": "{new_name}"
                             },
-                            "description": "Find all references to the symbol '{old_name}'.",
+                            "description": "Generate rename plan for '{old_name}' → '{new_name}'",
                             "requires_confirmation": null
                         },
                         {
-                            "tool": "apply_workspace_edit",
+                            "tool": "workspace.apply_edit",
                             "params": {
-                                "new_name": "{new_name}",
-                                "description": "This will be populated by the output of the previous step.",
-                                "changes": {}
+                                "plan": "$steps.0.plan",
+                                "options": {
+                                    "validate_checksums": true,
+                                    "dry_run": false
+                                }
                             },
-                            "description": "Apply the rename changes across all found references.",
+                            "description": "Apply rename changes across the project",
                             "requires_confirmation": true
                         }
                     ],
@@ -236,15 +244,32 @@ mod tests {
                     },
                     "steps": [
                         {
-                            "tool": "extract_function",
+                            "tool": "extract.plan",
                             "params": {
-                                "file_path": "{file_path}",
-                                "start_line": "{start_line}",
-                                "end_line": "{end_line}",
-                                "function_name": "{function_name}"
+                                "kind": "function",
+                                "source": {
+                                    "file_path": "{file_path}",
+                                    "range": {
+                                        "start": {"line": "{start_line}", "character": 0},
+                                        "end": {"line": "{end_line}", "character": 0}
+                                    },
+                                    "name": "{function_name}"
+                                }
                             },
-                            "description": "Extract lines {start_line}-{end_line} into function '{function_name}'",
+                            "description": "Generate extract plan for function '{function_name}'",
                             "requires_confirmation": null
+                        },
+                        {
+                            "tool": "workspace.apply_edit",
+                            "params": {
+                                "plan": "$steps.0.plan",
+                                "options": {
+                                    "validate_checksums": true,
+                                    "dry_run": false
+                                }
+                            },
+                            "description": "Apply extraction changes",
+                            "requires_confirmation": true
                         }
                     ],
                     "required_params": ["file_path", "start_line", "end_line", "function_name"]
@@ -334,37 +359,25 @@ mod tests {
         assert_eq!(workflow.steps.len(), 2);
         assert_eq!(workflow.metadata.complexity, 2);
 
-        // Check first step (find_references)
-        assert_eq!(workflow.steps[0].tool, "find_references");
+        // Check first step (rename.plan)
+        assert_eq!(workflow.steps[0].tool, "rename.plan");
+        assert!(workflow.steps[0].params.get("target").is_some());
         assert_eq!(
             workflow.steps[0]
-                .params
-                .get("file_path")
-                .unwrap()
-                .as_str()
-                .unwrap(),
-            "src/test.ts"
-        );
-        assert_eq!(
-            workflow.steps[0]
-                .params
-                .get("symbol_name")
-                .unwrap()
-                .as_str()
-                .unwrap(),
-            "oldFunc"
-        );
-
-        // Check second step (apply_workspace_edit)
-        assert_eq!(workflow.steps[1].tool, "apply_workspace_edit");
-        assert_eq!(
-            workflow.steps[1]
                 .params
                 .get("new_name")
                 .unwrap()
                 .as_str()
                 .unwrap(),
             "newFunc"
+        );
+
+        // Check second step (workspace.apply_edit)
+        assert_eq!(workflow.steps[1].tool, "workspace.apply_edit");
+        assert!(workflow.steps[1].params.get("plan").is_some());
+        assert_eq!(
+            workflow.steps[1].requires_confirmation,
+            Some(true)
         );
     }
 
@@ -386,21 +399,19 @@ mod tests {
 
         let workflow = result.unwrap();
         assert_eq!(workflow.name, "Extract function 'extractedFunc'");
-        assert_eq!(workflow.steps.len(), 1);
+        assert_eq!(workflow.steps.len(), 2);
         assert_eq!(workflow.metadata.complexity, 1);
 
+        // Check first step (extract.plan)
         let step = &workflow.steps[0];
-        assert_eq!(step.tool, "extract_function");
-        assert_eq!(
-            step.params.get("file_path").unwrap().as_str().unwrap(),
-            "src/main.ts"
-        );
-        assert_eq!(step.params.get("start_line").unwrap().as_u64().unwrap(), 10);
-        assert_eq!(step.params.get("end_line").unwrap().as_u64().unwrap(), 20);
-        assert_eq!(
-            step.params.get("function_name").unwrap().as_str().unwrap(),
-            "extractedFunc"
-        );
+        assert_eq!(step.tool, "extract.plan");
+        assert!(step.params.get("kind").is_some());
+        assert!(step.params.get("source").is_some());
+
+        // Check second step (workspace.apply_edit)
+        let step2 = &workflow.steps[1];
+        assert_eq!(step2.tool, "workspace.apply_edit");
+        assert!(step2.params.get("plan").is_some());
     }
 
     #[test]
