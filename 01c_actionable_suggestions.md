@@ -1,10 +1,10 @@
 # Proposal: Actionable Suggestions with Safety Metadata
 
-**Status**: 📋 **PROPOSED** (Phase 2C of Unified Analysis API)
+**Status**: 📋 **PROPOSED**
 **Author**: Project Team
 **Date**: 2025-10-12
 **Parent Proposal**: [01b_unified_analysis_api.md](01b_unified_analysis_api.md)
-**Dependencies**: 01a (Refactoring API ✅), 01b Phase 2A/2B (Analysis Core ✅)
+**Dependencies**: 01a (Refactoring API ✅), 01b (Analysis Core ✅)
 
 ---
 
@@ -15,8 +15,6 @@
 **Why**: Complete the "closed-loop workflow" (analyze → suggest → refactor → re-analyze) by bridging analysis findings to refactoring commands with risk assessment.
 
 **Impact**: Transform analysis from static reports into an autonomous coding agent that fixes safe issues automatically and flags risky ones for human review.
-
-**Timeline**: 2-3 weeks for core implementation, 1 week for validation/testing
 
 ---
 
@@ -50,7 +48,7 @@ Analysis tools return findings with basic messages:
 - ❌ No reversibility info (can we undo if wrong?)
 - ❌ No actionable refactor_call (how exactly do we fix it?)
 
-### Desired State (Phase 2C Complete)
+### Desired State
 
 ```json
 {
@@ -254,11 +252,11 @@ where
 
 ---
 
-## Implementation Plan
+## Implementation Details
 
-### Phase 1: Core Infrastructure (Week 1)
+### Core Infrastructure
 
-#### 1.1 Create Suggestion Generation Framework
+#### Suggestion Generation Framework
 
 **Files to create**:
 - `crates/cb-handlers/src/handlers/tools/analysis/suggestions/mod.rs`
@@ -361,7 +359,7 @@ impl SuggestionGenerator {
 }
 ```
 
-#### 1.2 Implement Safety Classifier
+#### Safety Classifier
 
 **Algorithm**:
 
@@ -471,7 +469,7 @@ impl SafetyClassifier {
 | Rename | RequiresReview | Local scope | Public API |
 | Transform | Experimental | N/A | Always experimental |
 
-#### 1.3 Implement Confidence Scorer
+#### Confidence Scorer
 
 **Algorithm**:
 
@@ -565,7 +563,7 @@ impl ConfidenceScorer {
 }
 ```
 
-#### 1.4 Implement Suggestion Ranker
+#### Suggestion Ranker
 
 ```rust
 // crates/cb-handlers/src/handlers/tools/analysis/suggestions/ranker.rs
@@ -621,11 +619,9 @@ impl SuggestionRanker {
 
 ---
 
-### Phase 2: Refactoring-Specific Generators (Week 2)
+### Refactoring-Specific Generators
 
-Implement suggestion generators for each finding kind:
-
-#### 2.1 Complexity Suggestions
+#### Complexity Suggestions
 
 ```rust
 impl SuggestionGenerator {
@@ -684,7 +680,7 @@ impl SuggestionGenerator {
 }
 ```
 
-#### 2.2 Dead Code Suggestions
+#### Dead Code Suggestions
 
 ```rust
 impl SuggestionGenerator {
@@ -768,7 +764,7 @@ impl SuggestionGenerator {
 }
 ```
 
-#### 2.3 Duplicate Code Suggestions
+#### Duplicate Code Suggestions
 
 ```rust
 impl SuggestionGenerator {
@@ -828,7 +824,7 @@ impl SuggestionGenerator {
 }
 ```
 
-#### 2.4 Build Refactor Call
+#### Refactor Call Builder
 
 ```rust
 impl SuggestionGenerator {
@@ -874,9 +870,9 @@ impl SuggestionGenerator {
 
 ---
 
-### Phase 3: Integration (Week 3)
+### Integration Points
 
-#### 3.1 Update Analysis Handlers
+#### Analysis Handler Integration
 
 Integrate suggestion generator into all 6 analysis categories:
 
@@ -924,7 +920,7 @@ Apply same pattern to:
 - `analyze_documentation` (crates/cb-handlers/src/handlers/tools/analysis/documentation.rs)
 - `analyze_tests` (crates/cb-handlers/src/handlers/tools/analysis/tests.rs)
 
-#### 3.2 Update `analyze.batch`
+#### Batch Analysis Integration
 
 ```rust
 // crates/cb-handlers/src/handlers/tools/analysis/batch.rs
@@ -961,7 +957,9 @@ pub async fn analyze_batch(
 }
 ```
 
-#### 3.3 Configuration Support
+---
+
+## Configuration
 
 Add suggestion-related config to `.codebuddy/analysis.toml`:
 
@@ -1023,9 +1021,9 @@ impl SuggestionGenerator {
 
 ---
 
-### Phase 4: Testing & Validation (Week 4)
+## Testing Strategy
 
-#### 4.1 Unit Tests
+### Unit Tests
 
 ```rust
 // crates/cb-handlers/src/handlers/tools/analysis/suggestions/tests.rs
@@ -1092,7 +1090,7 @@ mod tests {
 }
 ```
 
-#### 4.2 Integration Tests
+### Integration Tests
 
 ```rust
 // integration-tests/src/test_actionable_suggestions.rs
@@ -1199,7 +1197,7 @@ async fn test_closed_loop_workflow() {
 }
 ```
 
-#### 4.3 CI Validation
+### CI Validation
 
 Add CI check to ensure all suggestions have required metadata:
 
@@ -1261,7 +1259,7 @@ mod tests {
 
 ## Success Criteria
 
-### Phase 1 (Core Infrastructure)
+### Core Infrastructure
 - [x] `ActionableSuggestion` data structure defined
 - [ ] `SuggestionGenerator` framework implemented
 - [ ] `SafetyClassifier` with rule-based classification
@@ -1269,7 +1267,7 @@ mod tests {
 - [ ] `SuggestionRanker` with safety → confidence → impact ordering
 - [ ] Unit tests for each component (>80% coverage)
 
-### Phase 2 (Refactoring-Specific)
+### Refactoring-Specific Generators
 - [ ] Complexity suggestions (extract method, simplify boolean)
 - [ ] Dead code suggestions (remove unused, delete unreachable)
 - [ ] Duplicate code suggestions (extract common code)
@@ -1278,21 +1276,21 @@ mod tests {
 - [ ] Test suggestions (add missing tests, improve assertions)
 - [ ] All suggestions include `refactor_call` with valid arguments
 
-### Phase 3 (Integration)
+### Integration
 - [ ] All 6 analysis categories generate suggestions
 - [ ] `analyze.batch` generates suggestions with AST caching
 - [ ] Configuration system supports suggestion filters
 - [ ] Suggestions respect min_confidence threshold
 - [ ] Suggestions respect safety level filters
 
-### Phase 4 (Testing & Validation)
+### Testing & Validation
 - [ ] Unit tests for all suggestion generators
 - [ ] Integration tests for closed-loop workflow
 - [ ] CI validation ensures all suggestions have required metadata
 - [ ] Performance benchmarks (suggestion generation <100ms per finding)
 - [ ] Documentation updated with examples
 
-### User-Facing Success Metrics
+### User-Facing Metrics
 - [ ] AI agent can auto-apply ≥50% of "safe" suggestions without errors
 - [ ] "Requires review" suggestions have <10% false positive rate
 - [ ] Closed-loop workflow completes in <5 seconds for typical file
@@ -1300,9 +1298,9 @@ mod tests {
 
 ---
 
-## Configuration
+## Configuration Example
 
-### `.codebuddy/analysis.toml`
+`.codebuddy/analysis.toml`:
 
 ```toml
 [suggestions]
@@ -1357,7 +1355,7 @@ max_per_finding = 5
 
 ## Example Output
 
-### Before Phase 2C (Current State)
+### Before (Current State)
 
 ```json
 {
@@ -1382,7 +1380,7 @@ max_per_finding = 5
 }
 ```
 
-### After Phase 2C (With Actionable Suggestions)
+### After (With Actionable Suggestions)
 
 ```json
 {
@@ -1459,7 +1457,7 @@ max_per_finding = 5
 
 ## Open Questions & Future Work
 
-### Open Questions for Phase 2C
+### Open Questions
 1. **Historical success tracking**: Should we persist refactoring success rates to improve confidence scoring?
    - **Proposal**: Add telemetry collection (opt-in) to track applied suggestions and their outcomes
 2. **User feedback loop**: How do users provide feedback on suggestion quality?
@@ -1467,7 +1465,7 @@ max_per_finding = 5
 3. **Language-specific tuning**: Do safety rules differ significantly per language?
    - **Proposal**: Start with language-agnostic rules, add overrides as needed
 
-### Future Enhancements (Post Phase 2C)
+### Future Enhancements
 1. **Machine learning confidence scoring**: Train model on historical data
 2. **Semantic similarity for duplicate detection**: Beyond exact matches
 3. **Impact estimation based on call graph**: Analyze downstream effects
@@ -1508,19 +1506,6 @@ max_per_finding = 5
 
 ---
 
-## Timeline
-
-| Week | Phase | Deliverables | Status |
-|------|-------|--------------|--------|
-| 1 | Core Infrastructure | Data structures, generator framework, classifier, scorer, ranker | 🔄 In Progress |
-| 2 | Refactoring-Specific | Generators for all 6 categories + refactor_call builders | ⏳ Pending |
-| 3 | Integration | Update all handlers, batch support, configuration | ⏳ Pending |
-| 4 | Testing & Validation | Unit tests, integration tests, CI validation, benchmarks | ⏳ Pending |
-
-**Total Estimate**: 3-4 weeks
-
----
-
 ## References
 
 - **Parent Proposal**: [01b_unified_analysis_api.md](01b_unified_analysis_api.md)
@@ -1553,4 +1538,3 @@ Complete matrix of refactoring types → default safety levels:
 ---
 
 **Status**: 📋 Ready for Implementation
-**Next Step**: Create `crates/cb-handlers/src/handlers/tools/analysis/suggestions/` directory and begin Phase 1
