@@ -1,14 +1,14 @@
 use cb_server::handlers::plugin_dispatcher::create_test_dispatcher;
 
 #[tokio::test]
-async fn test_all_23_public_tools_are_registered() {
+async fn test_all_24_public_tools_are_registered() {
     let dispatcher = create_test_dispatcher().await;
     dispatcher.initialize().await.unwrap();
 
     let registry = dispatcher.tool_registry.lock().await;
     let registered_tools = registry.list_tools();
 
-    const EXPECTED_TOOLS: [&str; 23] = [
+    const EXPECTED_TOOLS: [&str; 24] = [
         // Navigation (8) - get_document_symbols moved to internal
         "find_definition",
         "find_references",
@@ -30,13 +30,14 @@ async fn test_all_23_public_tools_are_registered() {
         "workspace.apply_edit",
         // System (1)
         "health_check",
-        // Analysis (6) - Unified Analysis API
+        // Analysis (7) - Unified Analysis API
         "analyze.quality",
         "analyze.dead_code",
         "analyze.dependencies",
         "analyze.documentation",
         "analyze.structure",
         "analyze.tests",
+        "analyze.batch",
     ];
 
     fn find_missing<'a>(expected: &'a [&str], actual: &[String]) -> Vec<&'a str> {

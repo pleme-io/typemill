@@ -970,6 +970,39 @@ impl LanguagePlugin for SystemToolsPlugin {
                     "required": ["kind", "scope"]
                 }
             }),
+            json!({
+                "name": "analyze.batch",
+                "description": "Execute batch analysis across multiple files with optimized AST caching. Parse files once, analyze multiple times for maximum performance. Returns aggregated results with detailed statistics and metadata.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "files": {
+                            "type": "array",
+                            "items": { "type": "string" },
+                            "description": "Array of file paths to analyze (absolute paths recommended)"
+                        },
+                        "category": {
+                            "type": "string",
+                            "enum": ["quality", "dead_code", "dependencies", "structure", "documentation", "tests"],
+                            "description": "Analysis category to execute"
+                        },
+                        "kinds": {
+                            "type": "array",
+                            "items": { "type": "string" },
+                            "description": "Array of detection kinds to run (e.g., ['complexity', 'smells'] for quality category)"
+                        },
+                        "config": {
+                            "type": "object",
+                            "description": "Optional analysis configuration (thresholds, filters, etc.)",
+                            "properties": {
+                                "presets": { "type": "object" },
+                                "categories": { "type": "object" }
+                            }
+                        }
+                    },
+                    "required": ["files", "category", "kinds"]
+                }
+            }),
             // Note: rename_file and rename_directory are handled by FileOperationHandler
             // and WorkspaceHandler respectively, not by this plugin
         ]
