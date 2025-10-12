@@ -4,7 +4,7 @@
 
 ---
 
-## Public Tools (23 final, 17 current)
+## Public Tools (23 total)
 
 ### Navigation (8) - Point Queries for IDE Workflows
 - `find_definition`
@@ -31,17 +31,17 @@
 ### System (1) - Health Monitoring
 - `health_check`
 
-### Analysis (6) - **NOT YET IMPLEMENTED** - Unified Analysis API
-- `analyze.quality` *(future)*
-- `analyze.dead_code` *(future)*
-- `analyze.dependencies` *(future)*
-- `analyze.structure` *(future)*
-- `analyze.documentation` *(future)*
-- `analyze.tests` *(future)*
+### Analysis (6) - Unified Analysis API ✅ **IMPLEMENTED**
+- `analyze.quality` - Code quality analysis (complexity, smells, maintainability, readability)
+- `analyze.dead_code` - Unused code detection (imports, symbols, parameters, variables, types, unreachable)
+- `analyze.dependencies` - Dependency analysis (imports, graph, circular, coupling, cohesion, depth)
+- `analyze.structure` - Code structure analysis (symbols, hierarchy, interfaces, inheritance, modules)
+- `analyze.documentation` - Documentation quality (coverage, quality, style, examples, todos)
+- `analyze.tests` - Test analysis (coverage, quality, assertions, organization)
 
 ---
 
-## Internal Tools (32 final, 25 current)
+## Internal Tools (25 total)
 
 ### Lifecycle (3) - Event Notifications
 - `notify_file_opened`
@@ -104,9 +104,9 @@
 - Event lifecycle hooks
 
 ### Migration Path
-1. **Current state**: 24 public, 18 internal (file utilities recently internalized)
-2. **Next step**: Make 7 legacy tools internal → 17 public, 25 internal
-3. **Future state**: Implement Unified Analysis API → 23 public, 32 internal
+1. **Previous state**: 17 public, 25 internal (before Unified Analysis API)
+2. **Current state**: 23 public, 25 internal (Unified Analysis API implemented)
+3. **Note**: Analysis tools now public (analyze.quality, analyze.dead_code, analyze.dependencies, analyze.structure, analyze.documentation, analyze.tests)
 
 ---
 

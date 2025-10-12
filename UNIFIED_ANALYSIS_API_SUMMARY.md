@@ -105,11 +105,11 @@ Legacy AnalysisHandler tools:
 
 ## Multi-Language Support
 
-All handlers support:
+All handlers currently support:
 - **Rust** (.rs)
 - **TypeScript/JavaScript** (.ts, .tsx, .js, .jsx)
-- **Python** (.py)
-- **Go** (.go)
+
+**Note**: Language support temporarily reduced during unified API refactoring. Multi-language support (Python, Go, Java, Swift, C#) preserved in git tag `pre-language-reduction`.
 
 Detection logic uses regex patterns (MVP). AST-based detection planned for future enhancement.
 
@@ -303,7 +303,7 @@ The Unified Analysis API is **COMPLETE** and **PRODUCTION READY**:
 - ✅ Tool registration and handler integration
 - ✅ Comprehensive unit test coverage (25/25 passing)
 - ✅ Integration tests for working categories (analyze.quality 6/6 passing)
-- ✅ Multi-language support (Rust, TypeScript, Python, Go)
+- ✅ Language support (Rust, TypeScript/JavaScript) - temporarily reduced during refactoring
 - ✅ Backward compatibility (legacy tools remain as internal)
 - ✅ Clean compilation (zero errors)
 - ✅ Extensible architecture for future enhancements
@@ -311,5 +311,7 @@ The Unified Analysis API is **COMPLETE** and **PRODUCTION READY**:
 **Total Lines of Code**: ~12,500 lines across handlers, infrastructure, and tests
 
 **Public API Surface**: 6 new MCP tools (bringing total to 23 public tools)
+
+**Language Support**: Currently Rust + TypeScript/JavaScript. Additional languages (Python, Go, Java, Swift, C#) available in git tag `pre-language-reduction`.
 
 **Status**: Ready for production use and further enhancement

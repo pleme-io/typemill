@@ -964,12 +964,14 @@ println!("{}", description);
 - Integration with refactoring API
 
 **Available Commands:**
-- `analyze.quality` - Code quality analysis (complexity, smells, maintainability, readability) ✅ **MVP: kind="complexity" only**
-- `analyze.dead_code` - Coming soon
-- `analyze.dependencies` - Coming soon
-- `analyze.structure` - Coming soon
-- `analyze.documentation` - Coming soon
-- `analyze.tests` - Coming soon
+- `analyze.quality` - Code quality analysis (complexity, smells, maintainability, readability) ✅ **AVAILABLE**
+- `analyze.dead_code` - Unused code detection (imports, symbols, parameters, variables, types, unreachable) ✅ **AVAILABLE**
+- `analyze.dependencies` - Dependency analysis (imports, graph, circular, coupling, cohesion, depth) ✅ **AVAILABLE**
+- `analyze.structure` - Code structure analysis (symbols, hierarchy, interfaces, inheritance, modules) ✅ **AVAILABLE**
+- `analyze.documentation` - Documentation quality (coverage, quality, style, examples, todos) ✅ **AVAILABLE**
+- `analyze.tests` - Test analysis (coverage, quality, assertions, organization) ✅ **AVAILABLE**
+
+**Language Support**: Currently supports Rust (.rs) and TypeScript/JavaScript (.ts, .tsx, .js, .jsx). Additional languages (Python, Go, Java, Swift, C#) available in git tag `pre-language-reduction`.
 
 ---
 
@@ -977,12 +979,10 @@ println!("{}", description);
 
 Analyze code quality metrics including complexity, code smells, maintainability, and readability.
 
-**MVP Status**: Currently supports `kind="complexity"` only. Additional kinds coming soon.
-
 **Parameters:**
 ```json
 {
-  "kind": "complexity",  // Required: Analysis type (only "complexity" supported in MVP)
+  "kind": "complexity",  // Required: "complexity" | "smells" | "maintainability" | "readability"
   "scope": {             // Optional: Defaults to file scope
     "type": "file",      // "workspace" | "directory" | "file" | "symbol"
     "path": "src/app.rs" // Required: File/directory path

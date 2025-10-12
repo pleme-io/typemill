@@ -16,11 +16,23 @@ The project underwent a complete architectural transformation from TypeScript/No
 #### Added
 
 - **Unified Refactoring API** - Complete implementation of `plan -> apply` refactoring pattern
-  - New `*.plan` commands for safe, dry-run refactoring previews: `rename.plan`, `extract.plan`, `inline.plan`
+  - New `*.plan` commands for safe, dry-run refactoring previews: `rename.plan`, `extract.plan`, `inline.plan`, `move.plan`, `reorder.plan`, `transform.plan`, `delete.plan`
   - New `workspace.apply_edit` command to execute refactoring plans atomically
   - All refactoring operations now use unified two-step workflow for enhanced safety
   - Plan commands generate detailed previews without filesystem modifications
   - Apply command executes plans with atomic multi-file updates and automatic rollback
+
+- **Unified Analysis API** - Complete implementation of 6 analysis categories (23 public tools total)
+  - `analyze.quality` - Code quality analysis (complexity, smells, maintainability, readability)
+  - `analyze.dead_code` - Unused code detection (imports, symbols, parameters, variables, types, unreachable)
+  - `analyze.dependencies` - Dependency analysis (imports, graph, circular, coupling, cohesion, depth)
+  - `analyze.structure` - Code structure analysis (symbols, hierarchy, interfaces, inheritance, modules)
+  - `analyze.documentation` - Documentation quality (coverage, quality, style, examples, todos)
+  - `analyze.tests` - Test analysis (coverage, quality, assertions, organization)
+  - 30 detection kinds across all categories with actionable suggestions
+  - Shared analysis engine eliminating ~100 LOC boilerplate per detection kind
+  - Configuration system with 3 presets (strict, default, relaxed)
+  - Batch analysis infrastructure with AST caching optimization
 
 #### Changed
 
@@ -30,6 +42,22 @@ The project underwent a complete architectural transformation from TypeScript/No
   - `inline_variable` → `inline.plan` + `workspace.apply_edit` (legacy tool removed)
   - `extract_variable` → `extract.plan` + `workspace.apply_edit` (legacy tool removed)
   - All refactoring operations now follow consistent `plan -> apply` pattern
+
+- **Analysis Tools Migration** - Migrated from legacy analysis tools to unified API (internal-only)
+  - `find_unused_imports` → `analyze.dead_code("unused_imports")` (legacy tool now internal)
+  - `analyze_code` → `analyze.quality("complexity"|"smells")` (legacy tool now internal)
+  - `analyze_project` → `analyze.quality("maintainability")` (legacy tool now internal)
+  - `analyze_imports` → `analyze.dependencies("imports")` (legacy tool now internal)
+  - `get_document_symbols` → `analyze.structure("symbols")` (legacy tool now internal)
+
+#### Fixed
+
+- **Documentation Consistency** - Corrected documentation discrepancies across all reference docs
+  - Updated UNIFIED_ANALYSIS_API_SUMMARY.md to reflect correct language support (Rust + TypeScript/JavaScript only)
+  - Fixed TOOLS_VISIBILITY_SPEC.md tool count (23 public tools, 25 internal tools)
+  - Updated API_REFERENCE.md to remove "coming soon" status for all 6 analyze.* commands
+  - Fixed QUICK_REFERENCE.md to include all 6 analysis tools with examples
+  - Corrected language support claims across all documentation (multi-language support in `pre-language-reduction` git tag)
 
 #### Removed
 

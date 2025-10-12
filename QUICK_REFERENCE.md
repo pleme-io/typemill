@@ -2,7 +2,9 @@
 
 This guide is for experienced developers who want to get productive with Codebuddy in under 15 minutes. It assumes you are familiar with AI assistants, LSP, and your command line.
 
-**Current Public API**: 17 tools (see table below) | **Internal Tools**: 25 backend-only tools
+**Current Public API**: 23 tools (see table below) | **Internal Tools**: 25 backend-only tools
+
+**Language Support**: Rust (.rs) + TypeScript/JavaScript (.ts, .tsx, .js, .jsx). Additional languages (Python, Go, Java, Swift, C#) available in git tag `pre-language-reduction`.
 
 ---
 
@@ -66,7 +68,7 @@ codebuddy tool find_definition '{"file_path":"src/app.ts","line":10,"character":
 
 ---
 
-## 4. Top 17 Public MCP Tools
+## 4. All 23 Public MCP Tools
 
 These are the public-facing tools for AI agents and MCP clients. See `API_REFERENCE.md` for complete details.
 
@@ -99,6 +101,16 @@ These are the public-facing tools for AI agents and MCP clients. See `API_REFERE
 | `workspace.apply_edit` | Execute a refactoring plan | `{"plan":{...}}` |
 | `health_check` | Get server health status | `{"include_details":true}` |
 
+### Analysis (6 tools - Unified Analysis API)
+| Tool | Description | Example |
+|------|-------------|---------|
+| `analyze.quality` | Code quality analysis (complexity, smells, maintainability, readability) | `{"kind":"complexity","scope":{"type":"file","path":"src/app.ts"}}` |
+| `analyze.dead_code` | Unused code detection (imports, symbols, parameters, variables, types, unreachable) | `{"kind":"unused_imports","scope":{"type":"file","path":"src/app.ts"}}` |
+| `analyze.dependencies` | Dependency analysis (imports, graph, circular, coupling, cohesion, depth) | `{"kind":"imports","scope":{"type":"file","path":"src/app.ts"}}` |
+| `analyze.structure` | Code structure analysis (symbols, hierarchy, interfaces, inheritance, modules) | `{"kind":"symbols","scope":{"type":"file","path":"src/app.ts"}}` |
+| `analyze.documentation` | Documentation quality (coverage, quality, style, examples, todos) | `{"kind":"coverage","scope":{"type":"file","path":"src/app.ts"}}` |
+| `analyze.tests` | Test analysis (coverage, quality, assertions, organization) | `{"kind":"coverage","scope":{"type":"file","path":"tests/app.test.ts"}}` |
+
 ---
 
 ## 5. Internal Tools (Backend Only - 25 tools)
@@ -110,9 +122,9 @@ These tools are **not visible** in MCP `tools/list` but are used internally by w
 - **File Operations (4)**: create_file, delete_file, rename_file, rename_directory
 - **File Utilities (3)**: read_file, write_file, list_files
 - **Workspace Tools (4)**: move_directory, find_dead_code, update_dependencies, update_dependency
-- **Legacy Analysis (4)**: find_unused_imports → `analyze.dead_code` (future), analyze_code → `analyze.quality` (future), analyze_project → `analyze.quality` (future), analyze_imports → `analyze.dependencies` (future)
-- **Structure Analysis (1)**: get_document_symbols → `analyze.structure` (future)
-- **Advanced Plumbing (2)**: execute_edits → replaced by `workspace.apply_edit`, execute_batch → `analyze.batch` (future)
+- **Legacy Analysis (4)**: find_unused_imports → replaced by `analyze.dead_code`, analyze_code → replaced by `analyze.quality`, analyze_project → replaced by `analyze.quality`, analyze_imports → replaced by `analyze.dependencies`
+- **Structure Analysis (1)**: get_document_symbols → replaced by `analyze.structure`
+- **Advanced Plumbing (2)**: execute_edits → replaced by `workspace.apply_edit`, execute_batch
 - **Legacy Editing (1)**: rename_symbol_with_imports
 - **Legacy Workspace (1)**: apply_workspace_edit
 - **Intelligence (2)**: get_completions, get_signature_help
