@@ -164,14 +164,96 @@ pub async fn run_analysis(
     kind: &str,
     analysis_fn: AnalysisFn,
 ) -> ServerResult<Value> {
+    run_analysis_with_config(context, tool_call, category, kind, analysis_fn, None).await
+}
+
+/// Orchestrates the entire analysis workflow with optional configuration
+///
+/// This is an enhanced version of `run_analysis` that accepts an optional
+/// configuration to customize analysis behavior (thresholds, enabled kinds, etc.).
+///
+/// # Configuration Support
+/// - Checks if the analysis kind is enabled in the configuration
+/// - Passes threshold values to detection functions via context (future enhancement)
+/// - Falls back to default behavior if no configuration is provided
+///
+/// # Arguments
+/// - `context`: The tool handler context with app state and services
+/// - `tool_call`: The MCP tool call with arguments
+/// - `category`: The analysis category (e.g., "quality", "security")
+/// - `kind`: The analysis kind (e.g., "complexity", "smells")
+/// - `analysis_fn`: The custom analysis function to execute
+/// - `config`: Optional analysis configuration to customize behavior
+///
+/// # Returns
+/// A `ServerResult` containing the serialized AnalysisResult or an error
+///
+/// # Errors
+/// - Returns `ServerError::InvalidRequest` if the kind is disabled in configuration
+///
+/// # TODO
+/// - Pass threshold values to analysis functions via extended context
+/// - Support workspace-level configuration caching
+/// - Add configuration validation at handler registration time
+///
+/// # Example
+/// ```no_run
+/// use cb_handlers::handlers::tools::analysis::engine::{run_analysis_with_config, AnalysisFn};
+/// use cb_handlers::handlers::tools::analysis::config::AnalysisConfig;
+///
+/// fn my_analysis_fn(
+///     complexity_report: &cb_ast::complexity::ComplexityReport,
+///     content: &str,
+///     symbols: &[cb_plugin_api::Symbol],
+///     language: &str,
+///     file_path: &str,
+/// ) -> Vec<Finding> {
+///     vec![]
+/// }
+///
+/// // With configuration:
+/// let config = AnalysisConfig::default();
+/// run_analysis_with_config(
+///     context,
+///     tool_call,
+///     "quality",
+///     "complexity",
+///     my_analysis_fn,
+///     Some(&config)
+/// ).await
+/// ```
+pub async fn run_analysis_with_config(
+    context: &ToolHandlerContext,
+    tool_call: &ToolCall,
+    category: &str,
+    kind: &str,
+    analysis_fn: AnalysisFn,
+    config: Option<&super::config::AnalysisConfig>,
+) -> ServerResult<Value> {
     let start_time = Instant::now();
     let args = tool_call.arguments.clone().unwrap_or(serde_json::json!({}));
 
-    debug!(
-        category = %category,
-        kind = %kind,
-        "Starting analysis workflow"
-    );
+    // Check if kind is enabled in configuration
+    if let Some(cfg) = config {
+        if !cfg.is_kind_enabled(category, kind) {
+            return Err(ServerError::InvalidRequest(format!(
+                "Analysis kind '{}' is disabled in configuration for category '{}'",
+                kind, category
+            )));
+        }
+        debug!(
+            category = %category,
+            kind = %kind,
+            preset = ?cfg.preset,
+            "Starting analysis workflow with config"
+        );
+    } else {
+        debug!(
+            category = %category,
+            kind = %kind,
+            "Starting analysis workflow"
+        );
+    }
 
     // Step 1: Parse scope parameter
     let scope_param = parse_scope_param(&args)?;

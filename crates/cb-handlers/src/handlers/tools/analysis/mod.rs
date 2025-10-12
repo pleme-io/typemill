@@ -4,6 +4,7 @@ use cb_core::model::mcp::ToolCall;
 use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 
 pub mod code;
+pub mod config;
 pub mod dead_code;
 pub mod dependencies;
 pub mod documentation;
@@ -14,6 +15,7 @@ pub mod structure;
 pub mod tests_handler;
 pub mod unused_imports;
 
+pub use config::{AnalysisConfig, CategoryConfig, ConfigError};
 pub use dead_code::DeadCodeHandler;
 pub use dependencies::DependenciesHandler;
 pub use documentation::DocumentationHandler;
