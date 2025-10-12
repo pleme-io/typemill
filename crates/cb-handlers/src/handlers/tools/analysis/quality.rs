@@ -277,7 +277,7 @@ impl QualityHandler {
 }
 
 /// Detect code smells in a file
-fn detect_smells(
+pub fn detect_smells(
     complexity_report: &cb_ast::complexity::ComplexityReport,
     content: &str,
     _symbols: &[cb_plugin_api::Symbol],
@@ -512,7 +512,7 @@ fn detect_magic_numbers_for_smells(content: &str, file_path: &str, language: &st
 }
 
 /// Analyze readability issues in functions
-fn analyze_readability(
+pub fn analyze_readability(
     complexity_report: &cb_ast::complexity::ComplexityReport,
     _content: &str,
     _symbols: &[cb_plugin_api::Symbol],
@@ -740,7 +740,7 @@ fn analyze_readability(
 }
 
 /// Analyze overall maintainability metrics for a file or workspace
-fn analyze_maintainability(
+pub fn analyze_maintainability(
     complexity_report: &cb_ast::complexity::ComplexityReport,
     _content: &str,
     _symbols: &[cb_plugin_api::Symbol],
