@@ -4,6 +4,7 @@ use crate::import_updater::{
     path_resolver::ImportPathResolver,
     reference_finder::{create_text_edits_from_references, find_inline_crate_references},
 };
+use cb_plugin_api::LanguagePlugin;
 use cb_protocol::{EditPlan, EditPlanMetadata};
 use std::path::{Path, PathBuf};
 use tracing::{debug, info, warn};
@@ -111,23 +112,28 @@ pub(crate) async fn build_import_update_plan(
     }
 
     // Filter out files that shouldn't be updated based on the type of move
-    // Two cases:
-    // 1. Moving within same parent (e.g., renaming subdir): exclude all files in that parent
-    // 2. Moving to different parent: exclude files inside the new destination
-    if let (Some(old_parent), Some(new_parent)) = (old_path.parent(), new_path.parent()) {
-        if old_parent == new_parent {
-            // Case 1: Renaming within same parent directory
-            // Files in the parent use relative imports and don't need updating
-            affected_files.retain(|file| !file.starts_with(old_parent));
+    // This logic applies ONLY to directory renames, not file renames
+    // For file renames, all affected files (including those in the same directory) need updates
+    let is_directory = old_path.is_dir() || (!old_path.exists() && new_path.extension().is_none());
+
+    if is_directory {
+        // Only filter when renaming directories
+        if let (Some(old_parent), Some(new_parent)) = (old_path.parent(), new_path.parent()) {
+            if old_parent == new_parent {
+                // Case 1: Renaming directory within same parent
+                // Files in the parent use relative imports and don't need updating
+                affected_files.retain(|file| !file.starts_with(old_parent));
+            } else {
+                // Case 2: Moving directory to a different parent
+                // Exclude files inside the moved directory (they use relative imports)
+                affected_files.retain(|file| !file.starts_with(new_path));
+            }
         } else {
-            // Case 2: Moving to a different parent directory
-            // Exclude files inside the moved directory (they use relative imports)
+            // Fallback: exclude files inside new_path if we can't determine parents
             affected_files.retain(|file| !file.starts_with(new_path));
         }
-    } else {
-        // Fallback: exclude files inside new_path if we can't determine parents
-        affected_files.retain(|file| !file.starts_with(new_path));
     }
+    // For file renames, do NOT filter affected_files - all importers need updates
 
     info!(
         dry_run = dry_run,
@@ -260,9 +266,10 @@ pub(crate) async fn build_import_update_plan(
         } else {
             // Fallback to the old rewrite logic
             // Downcast to concrete plugin types to access rewrite_imports_for_rename
-            // Note: Only Rust and TypeScript supported after language reduction
+            // Note: Rust, TypeScript, and Markdown supported after language reduction
             use cb_lang_rust::RustPlugin;
             use cb_lang_typescript::TypeScriptPlugin;
+            use cb_lang_markdown::MarkdownPlugin;
 
             let rewrite_result =
                 if let Some(rust_plugin) = plugin.as_any().downcast_ref::<RustPlugin>() {
@@ -287,6 +294,21 @@ pub(crate) async fn build_import_update_plan(
                             rename_info,
                         )
                         .ok()
+                } else if let Some(md_plugin) = plugin.as_any().downcast_ref::<MarkdownPlugin>() {
+                    // For markdown, use ImportSupport's rewrite_imports_for_rename
+                    // Pass both full paths (for absolute link matching) and filenames (for relative link matching)
+                    if let Some(import_support) = md_plugin.import_support() {
+                        // The markdown plugin will match against old_path and replace with appropriate
+                        // relative or absolute path based on what was in the original link
+                        let old_name = old_path.to_string_lossy();
+                        let new_name = new_path.file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or_else(|| new_path.to_str().unwrap_or(""));
+                        let result = import_support.rewrite_imports_for_rename(&content, &old_name, new_name);
+                        Some(result)
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 };

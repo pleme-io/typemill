@@ -124,6 +124,18 @@ mod tests {
     }
 
     #[test]
+    fn test_registry_builder_includes_markdown_plugin() {
+        let registry = build_language_plugin_registry();
+
+        let plugin = registry.find_by_extension("md");
+        assert!(
+            plugin.is_some(),
+            "Markdown plugin not found for extension 'md'"
+        );
+        assert_eq!(plugin.unwrap().metadata().name, "Markdown");
+    }
+
+    #[test]
     fn test_registry_builder_returns_arc() {
         let registry = build_language_plugin_registry();
         let registry2 = registry.clone();

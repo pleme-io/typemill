@@ -179,7 +179,16 @@ impl ImportSupport for MarkdownImportSupport {
             if Self::is_file_reference(path) {
                 let clean_path = Self::path_without_anchor(path);
 
-                if clean_path == old_name || clean_path == format!("./{}", old_name) {
+                // Match against:
+                // 1. Full path (e.g., "docs/architecture/ARCHITECTURE.md")
+                // 2. With ./ prefix (e.g., "./docs/architecture/ARCHITECTURE.md")
+                // 3. Just filename (e.g., "ARCHITECTURE.md")
+                // 4. Path ends with the old name
+                if clean_path == old_name
+                    || clean_path == format!("./{}", old_name)
+                    || old_name.ends_with(clean_path)
+                    || old_name.ends_with(&format!("/{}", clean_path))
+                {
                     count += 1;
                     return Self::build_link(full_match, link_text, new_name, path);
                 }
@@ -197,7 +206,16 @@ impl ImportSupport for MarkdownImportSupport {
             if Self::is_file_reference(path) {
                 let clean_path = Self::path_without_anchor(path);
 
-                if clean_path == old_name || clean_path == format!("./{}", old_name) {
+                // Match against:
+                // 1. Full path (e.g., "docs/architecture/ARCHITECTURE.md")
+                // 2. With ./ prefix (e.g., "./docs/architecture/ARCHITECTURE.md")
+                // 3. Just filename (e.g., "ARCHITECTURE.md")
+                // 4. Path ends with the old name
+                if clean_path == old_name
+                    || clean_path == format!("./{}", old_name)
+                    || old_name.ends_with(clean_path)
+                    || old_name.ends_with(&format!("/{}", clean_path))
+                {
                     count += 1;
                     return Self::build_ref_definition(full_match, ref_label, new_name, path);
                 }
@@ -214,7 +232,16 @@ impl ImportSupport for MarkdownImportSupport {
             if Self::is_file_reference(path) {
                 let clean_path = Self::path_without_anchor(path);
 
-                if clean_path == old_name || clean_path == format!("./{}", old_name) {
+                // Match against:
+                // 1. Full path (e.g., "docs/architecture/ARCHITECTURE.md")
+                // 2. With ./ prefix (e.g., "./docs/architecture/ARCHITECTURE.md")
+                // 3. Just filename (e.g., "ARCHITECTURE.md")
+                // 4. Path ends with the old name
+                if clean_path == old_name
+                    || clean_path == format!("./{}", old_name)
+                    || old_name.ends_with(clean_path)
+                    || old_name.ends_with(&format!("/{}", clean_path))
+                {
                     count += 1;
                     return Self::build_autolink(new_name, path);
                 }
