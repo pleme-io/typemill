@@ -138,29 +138,23 @@ impl AnalysisConfig {
     ///     .unwrap_or_else(|_| AnalysisConfig::default());
     /// ```
     pub fn load(workspace_root: &Path) -> Result<Self, ConfigError> {
-        // TODO: Implement TOML file loading
-        // For MVP, this is stubbed to return default config
-        //
-        // Full implementation would:
-        // 1. Construct path: workspace_root/.codebuddy/analysis.toml
-        // 2. Read file contents
-        // 3. Parse TOML into AnalysisConfig
-        // 4. Apply preset if specified
-        // 5. Validate configuration
-        //
-        // Example implementation:
-        // let config_path = workspace_root.join(".codebuddy").join("analysis.toml");
-        // let contents = std::fs::read_to_string(config_path)?;
-        // let mut config: AnalysisConfig = toml::from_str(&contents)?;
-        // if let Some(preset) = &config.preset.clone() {
-        //     config.apply_preset(preset)?;
-        // }
-        // Ok(config)
+        let config_path = workspace_root.join(".codebuddy").join("analysis.toml");
 
-        let _ = workspace_root; // Suppress unused warning for MVP
-        Err(ConfigError::NotImplemented(
-            "TOML loading not yet implemented - using default config".to_string(),
-        ))
+        // If file doesn't exist, return default config
+        if !config_path.exists() {
+            return Ok(Self::default());
+        }
+
+        // Read and parse TOML file
+        let contents = std::fs::read_to_string(&config_path)?;
+        let mut config: AnalysisConfig = toml::from_str(&contents)?;
+
+        // Apply preset if specified
+        if let Some(preset) = config.preset.clone() {
+            config.apply_preset(&preset)?;
+        }
+
+        Ok(config)
     }
 
     /// Get default configuration
@@ -783,5 +777,59 @@ mod tests {
                 category
             );
         }
+    }
+
+    #[test]
+    fn test_load_from_toml_file() {
+        use std::io::Write;
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let workspace_root = temp_dir.path();
+
+        // Create .codebuddy directory
+        let config_dir = workspace_root.join(".codebuddy");
+        std::fs::create_dir_all(&config_dir).unwrap();
+
+        // Write test config
+        let config_path = config_dir.join("analysis.toml");
+        let mut file = std::fs::File::create(&config_path).unwrap();
+        writeln!(file, "preset = \"strict\"").unwrap();
+        writeln!(file, "").unwrap();
+        writeln!(file, "[overrides.quality]").unwrap();
+        writeln!(file, "enabled = [\"complexity\"]").unwrap();
+        writeln!(file, "").unwrap();
+        writeln!(file, "[overrides.quality.thresholds]").unwrap();
+        writeln!(file, "complexity_threshold = 25.0").unwrap();
+
+        // Load config
+        let config = AnalysisConfig::load(workspace_root).unwrap();
+
+        // Verify loaded correctly
+        assert_eq!(config.preset, Some("strict".to_string()));
+        assert!(config.overrides.contains_key("quality"));
+
+        let quality_config = config.overrides.get("quality").unwrap();
+        assert_eq!(
+            quality_config.enabled.as_ref().unwrap(),
+            &vec!["complexity".to_string()]
+        );
+
+        let threshold = config.get_threshold("quality", "complexity_threshold");
+        assert_eq!(threshold, Some(25.0));
+    }
+
+    #[test]
+    fn test_load_missing_file_returns_default() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let workspace_root = temp_dir.path();
+
+        // Don't create config file
+        let config = AnalysisConfig::load(workspace_root).unwrap();
+
+        // Should return default config
+        assert_eq!(config.preset, Some("default".to_string()));
     }
 }
