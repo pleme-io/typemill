@@ -8,6 +8,7 @@ lang-rust = ["cb-lang-rust"]
 lang-typescript = ["cb-lang-typescript"]
 analysis-dead-code = ["dep:cb-analysis-dead-code", "dep:cb-analysis-common"]
 analysis-circular-deps = ["dep:cb-analysis-circular-deps", "dep:cb-analysis-graph"]
+analysis-deep-dead-code = ["dep:cb-analysis-deep-dead-code", "dep:cb-analysis-common"]
 
 [dependencies]
 cb-protocol = { path = "../cb-protocol" }
@@ -28,6 +29,7 @@ cb-analysis-common = { path = "../../analysis/cb-analysis-common", optional = tr
 cb-analysis-dead-code = { path = "../../analysis/cb-analysis-dead-code", optional = true }
 cb-analysis-circular-deps = { path = "../../analysis/cb-analysis-circular-deps", optional = true }
 cb-analysis-graph = { path = "../../analysis/cb-analysis-graph", optional = true }
+cb-analysis-deep-dead-code = { path = "../../analysis/cb-analysis-deep-dead-code", optional = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }

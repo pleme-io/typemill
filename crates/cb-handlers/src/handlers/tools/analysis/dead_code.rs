@@ -1619,7 +1619,7 @@ impl DeadCodeHandler {
                     "dead-symbol-{}-{}-{}",
                     dead_symbol.file_path, dead_symbol.line, dead_symbol.name
                 ),
-                kind: format!("unused_{}", dead_symbol.kind),
+                    kind: "unused_symbol".to_string(),
                 severity: Severity::Medium,
                 location: FindingLocation {
                     file_path: dead_symbol.file_path.clone(),
@@ -1688,6 +1688,169 @@ impl DeadCodeHandler {
              File-level analysis is available without this feature.".to_string(),
         ))
     }
+
+    #[cfg(feature = "analysis-deep-dead-code")]
+    async fn handle_workspace_deep_dead_code(
+        &self,
+        context: &ToolHandlerContext,
+        args: &Value,
+        scope_param: &super::engine::ScopeParam,
+        kind: &str,
+    ) -> ServerResult<Value> {
+        use crate::handlers::lsp_adapter::DirectLspAdapter;
+        use cb_analysis_common::{AnalysisEngine, LspProvider};
+        use cb_analysis_deep_dead_code::{DeepDeadCodeAnalyzer, DeepDeadCodeConfig};
+        use cb_protocol::analysis_result::{AnalysisResult, AnalysisScope};
+        use std::path::Path;
+        use std::sync::Arc;
+        use std::time::Instant;
+        use tracing::info;
+
+        /// Adapter to make DirectLspAdapter compatible with LspProvider trait
+        struct DirectLspProviderAdapter {
+            adapter: Arc<DirectLspAdapter>,
+        }
+
+        impl DirectLspProviderAdapter {
+            fn new(adapter: Arc<DirectLspAdapter>) -> Self {
+                Self { adapter }
+            }
+        }
+
+        #[async_trait::async_trait]
+        impl LspProvider for DirectLspProviderAdapter {
+            async fn workspace_symbols(
+                &self,
+                query: &str,
+            ) -> Result<Vec<Value>, cb_analysis_common::AnalysisError> {
+                use cb_plugins::LspService;
+                self.adapter
+                    .request("workspace/symbol", json!({ "query": query }))
+                    .await
+                    .map(|v| v.as_array().cloned().unwrap_or_default())
+                    .map_err(|e| cb_analysis_common::AnalysisError::LspError(e.to_string()))
+            }
+
+            async fn find_references(
+                &self,
+                uri: &str,
+                line: u32,
+                character: u32,
+            ) -> Result<Vec<Value>, cb_analysis_common::AnalysisError> {
+                use cb_plugins::LspService;
+                let params = json!({
+                    "textDocument": { "uri": uri },
+                    "position": { "line": line, "character": character },
+                    "context": { "includeDeclaration": true }
+                });
+
+                self.adapter
+                    .request("textDocument/references", params)
+                    .await
+                    .map(|v| v.as_array().cloned().unwrap_or_default())
+                    .map_err(|e| cb_analysis_common::AnalysisError::LspError(e.to_string()))
+            }
+
+            async fn document_symbols(
+                &self,
+                uri: &str,
+            ) -> Result<Vec<Value>, cb_analysis_common::AnalysisError> {
+                use cb_plugins::LspService;
+                self.adapter
+                    .request(
+                        "textDocument/documentSymbol",
+                        json!({ "textDocument": { "uri": uri } }),
+                    )
+                    .await
+                    .map(|v| v.as_array().cloned().unwrap_or_default())
+                    .map_err(|e| cb_analysis_common::AnalysisError::LspError(e.to_string()))
+            }
+        }
+
+        let start_time = Instant::now();
+
+        let workspace_path_str = scope_param.path.as_ref().ok_or_else(|| {
+            ServerError::InvalidRequest("Missing path for workspace scope.".into())
+        })?;
+
+        let workspace_path = Path::new(workspace_path_str);
+
+        info!(
+            workspace_path = %workspace_path_str,
+            kind = %kind,
+            "Starting workspace deep dead code analysis with LSP"
+        );
+
+        let mut config = DeepDeadCodeConfig::default();
+        if let Some(check_exports) = args.get("check_public_exports").and_then(|v| v.as_bool()) {
+            config.check_public_exports = check_exports;
+        }
+
+        let lsp_adapter_lock = context.lsp_adapter.lock().await;
+        let lsp_adapter = lsp_adapter_lock.as_ref().unwrap().clone();
+        drop(lsp_adapter_lock);
+
+        let lsp_provider = Arc::new(DirectLspProviderAdapter::new(lsp_adapter));
+
+        let analyzer = DeepDeadCodeAnalyzer;
+        let report = analyzer
+            .analyze(lsp_provider, workspace_path, config)
+            .await
+            .map_err(|e| ServerError::Internal(format!("LSP analysis failed: {}", e)))?;
+
+        let scope = AnalysisScope {
+            scope_type: "workspace".to_string(),
+            path: workspace_path_str.clone(),
+            include: scope_param.include.clone(),
+            exclude: scope_param.exclude.clone(),
+        };
+
+        let mut result = AnalysisResult::new("dead_code", kind, scope);
+
+        for dead_symbol in report.dead_symbols {
+            let mut metrics = HashMap::new();
+            metrics.insert("symbol_name".to_string(), json!(dead_symbol.name));
+            metrics.insert("symbol_kind".to_string(), json!(dead_symbol.kind));
+
+            let finding = Finding {
+                id: format!(
+                    "dead-symbol-{}-{}-{:?}",
+                    dead_symbol.file_path, dead_symbol.name, dead_symbol.kind
+                ),
+                kind: format!("unused_{:?}", dead_symbol.kind).to_lowercase(),
+                severity: Severity::Medium,
+                location: FindingLocation {
+                    file_path: dead_symbol.file_path.clone(),
+                    range: None, // Deep analysis doesn't provide a range yet
+                    symbol: Some(dead_symbol.name.clone()),
+                    symbol_kind: Some(format!("{:?}", dead_symbol.kind).to_lowercase()),
+                },
+                metrics: Some(metrics),
+                message: format!(
+                    "Symbol '{}' is defined but never used in the workspace",
+                    dead_symbol.name
+                ),
+                suggestions: vec![Suggestion {
+                    action: "remove_symbol".to_string(),
+                    description: format!("Remove unused symbol '{}'", dead_symbol.name),
+                    target: None,
+                    estimated_impact: "Reduces code complexity and improves maintainability"
+                        .to_string(),
+                    safety: SafetyLevel::RequiresReview,
+                    confidence: 0.85,
+                    reversible: true,
+                    refactor_call: None,
+                }],
+            };
+
+            result.add_finding(finding);
+        }
+
+        result.finalize(start_time.elapsed().as_millis() as u64);
+
+        serde_json::to_value(result)
+            .map_err(|e| ServerError::Internal(format!("Failed to serialize result: {}", e)))
+    }
 }
 
 #[async_trait]
@@ -1714,18 +1877,25 @@ impl ToolHandler for DeadCodeHandler {
             .ok_or_else(|| ServerError::InvalidRequest("Missing 'kind' parameter".into()))?;
 
         // Validate kind
-        if !matches!(
-            kind,
+        let is_valid = match kind {
             "unused_imports"
-                | "unused_symbols"
-                | "unreachable_code"
-                | "unused_parameters"
-                | "unused_types"
-                | "unused_variables"
-        ) {
+            | "unused_symbols"
+            | "unreachable_code"
+            | "unused_parameters"
+            | "unused_types"
+            | "unused_variables" => true,
+            #[cfg(feature = "analysis-deep-dead-code")]
+            "deep" => true,
+            _ => false,
+        };
+
+        if !is_valid {
+            let mut supported = "'unused_imports', 'unused_symbols', 'unreachable_code', 'unused_parameters', 'unused_types', 'unused_variables'".to_string();
+            #[cfg(feature = "analysis-deep-dead-code")]
+            supported.push_str(", 'deep'");
             return Err(ServerError::InvalidRequest(format!(
-                "Unsupported kind '{}'. Supported: 'unused_imports', 'unused_symbols', 'unreachable_code', 'unused_parameters', 'unused_types', 'unused_variables'",
-                kind
+                "Unsupported kind '{}'. Supported: {}",
+                kind, supported
             )));
         }
 
@@ -1740,6 +1910,13 @@ impl ToolHandler for DeadCodeHandler {
 
         if scope_type == "workspace" {
             // Use LSP-based workspace analysis
+            #[cfg(feature = "analysis-deep-dead-code")]
+            if kind == "deep" {
+                return self
+                    .handle_workspace_deep_dead_code(context, &args, &scope_param, kind)
+                    .await;
+            }
+
             self.handle_workspace_dead_code(context, &args, &scope_param, kind)
                 .await
         } else {

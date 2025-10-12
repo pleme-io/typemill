@@ -50,6 +50,9 @@ pub mod test_analyze_quality;
 pub mod test_analyze_dead_code;
 
 #[cfg(test)]
+pub mod test_analyze_deep_dead_code;
+
+#[cfg(test)]
 pub mod test_analyze_dependencies;
 
 #[cfg(test)]

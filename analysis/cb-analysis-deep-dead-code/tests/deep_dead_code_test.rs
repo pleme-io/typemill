@@ -91,6 +91,52 @@ async fn test_deep_dead_code_analysis() {
     assert!(result.is_ok());
     let report = result.unwrap();
 
+    // In default (non-aggressive) mode, public symbols are entry points, so nothing should be dead.
+    assert_eq!(report.dead_symbols.len(), 0);
+}
+
+#[tokio::test]
+async fn test_deep_dead_code_analysis_with_aggressive_mode() {
+    let main_uri = "file:///main.rs";
+    let lib_uri = "file:///lib.rs";
+
+    let symbols = vec![
+        create_symbol(main_uri, "main", 0, 12), // public function
+        create_symbol(lib_uri, "uncalled_public_function", 2, 12), // public function
+    ];
+
+    let references = HashMap::new();
+
+    let mock_lsp = Arc::new(MockLspProvider {
+        symbols,
+        references,
+    });
+    let analyzer = DeepDeadCodeAnalyzer;
+    let workspace_path = Path::new(".");
+
+    // Test with aggressive mode enabled
+    let aggressive_config = DeepDeadCodeConfig {
+        check_public_exports: true,
+        ..Default::default()
+    };
+    let result = analyzer
+        .analyze(
+            mock_lsp.clone(),
+            workspace_path,
+            aggressive_config,
+        )
+        .await;
+    assert!(result.is_ok());
+    let report = result.unwrap();
     assert_eq!(report.dead_symbols.len(), 1);
-    assert_eq!(report.dead_symbols[0].name, "unused_function");
+    assert_eq!(report.dead_symbols[0].name, "uncalled_public_function");
+
+    // Test with aggressive mode disabled
+    let default_config = DeepDeadCodeConfig::default();
+    let result = analyzer
+        .analyze(mock_lsp, workspace_path, default_config)
+        .await;
+    assert!(result.is_ok());
+    let report = result.unwrap();
+    assert_eq!(report.dead_symbols.len(), 0);
 }

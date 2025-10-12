@@ -61,7 +61,7 @@ async fn test_import_cache_usage() {
     // First call - should populate cache
     let project_files = vec![file_a.clone(), fileb.clone(), file_c.clone()];
     let affected = resolver
-        .find_affected_files(&fileb, &project_files)
+        .find_affected_files(&fileb, &project_files, &vec![])
         .await
         .unwrap();
     assert_eq!(affected.len(), 1);
@@ -74,7 +74,7 @@ async fn test_import_cache_usage() {
 
     // Second call - should use cache (file hasn't been modified)
     let affected2 = resolver
-        .find_affected_files(&fileb, &project_files)
+        .find_affected_files(&fileb, &project_files, &vec![])
         .await
         .unwrap();
     assert_eq!(affected2, affected, "Cached results should match");
@@ -87,7 +87,7 @@ async fn test_import_cache_usage() {
 
     // Third call - cache should be invalidated for fileA
     let affected3 = resolver
-        .find_affected_files(&fileb, &project_files)
+        .find_affected_files(&fileb, &project_files, &vec![])
         .await
         .unwrap();
     assert_eq!(affected3.len(), 1);

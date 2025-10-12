@@ -1,12 +1,13 @@
 // analysis/cb-analysis-deep-dead-code/src/graph_builder.rs
 
 use cb_analysis_common::{
-    graph::{DependencyGraph, SymbolNode},
+    graph::{DependencyGraph, SymbolKind, SymbolNode, UsageContext},
     AnalysisError, LspProvider,
 };
-use lsp_types::{Location, Range, SymbolKind};
+use lsp_types::{Location, Range, SymbolKind as LspSymbolKind};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::{debug, info, warn};
 
@@ -14,6 +15,7 @@ use tracing::{debug, info, warn};
 struct ParsedSymbol {
     id: String,
     name: String,
+    kind: SymbolKind,
     uri_str: String,
     range: Range,
     is_public: bool,
@@ -21,11 +23,15 @@ struct ParsedSymbol {
 
 pub struct GraphBuilder {
     lsp: Arc<dyn LspProvider>,
+    workspace_path: PathBuf,
 }
 
 impl GraphBuilder {
-    pub fn new(lsp: Arc<dyn LspProvider>) -> Self {
-        Self { lsp }
+    pub fn new(lsp: Arc<dyn LspProvider>, workspace_path: PathBuf) -> Self {
+        Self {
+            lsp,
+            workspace_path,
+        }
     }
 
     pub async fn build(&self) -> Result<DependencyGraph, AnalysisError> {
@@ -48,10 +54,18 @@ impl GraphBuilder {
                 graph.add_symbol(SymbolNode {
                     id: parsed.id.clone(),
                     name: parsed.name.clone(),
-                    file_path: parsed.uri_str.strip_prefix("file://").unwrap_or(&parsed.uri_str).to_string(),
+                    kind: parsed.kind.clone(),
+                    file_path: parsed
+                        .uri_str
+                        .strip_prefix("file://")
+                        .unwrap_or(&parsed.uri_str)
+                        .to_string(),
                     is_public: parsed.is_public,
                 });
-                file_symbol_map.entry(parsed.uri_str.clone()).or_default().push(parsed.clone());
+                file_symbol_map
+                    .entry(parsed.uri_str.clone())
+                    .or_default()
+                    .push(parsed.clone());
                 parsed_symbols.push(parsed);
             }
         }
@@ -74,7 +88,11 @@ impl GraphBuilder {
                 if let Some(target_symbols) = file_symbol_map.get(loc.uri.as_str()) {
                     if let Some(target_symbol) = self.find_containing_symbol(target_symbols, loc.range) {
                         debug!("Adding dependency from {} to {}", target_symbol.id, source_symbol.id);
-                        graph.add_dependency(&target_symbol.id, &source_symbol.id);
+                        graph.add_dependency(
+                            &target_symbol.id,
+                            &source_symbol.id,
+                            UsageContext::Unknown,
+                        );
                     } else {
                         debug!("No containing symbol found for reference at {:?}", loc.range);
                     }
@@ -92,20 +110,33 @@ impl GraphBuilder {
         let uri_str = location.get("uri")?.as_str()?.to_string();
         let range: Range = serde_json::from_value(location.get("range")?.clone()).ok()?;
 
+        let file_path = PathBuf::from(uri_str.strip_prefix("file://").unwrap_or(&uri_str));
+        let relative_path = pathdiff::diff_paths(&file_path, &self.workspace_path)
+            .unwrap_or(file_path);
+
         let id = format!(
             "{}::{}@L{}",
-            uri_str, name, range.start.line
+            relative_path.display(),
+            name,
+            range.start.line
         );
 
-        let symbol_kind: SymbolKind = serde_json::from_value(symbol_val.get("kind")?.clone()).ok()?;
+        let lsp_kind: LspSymbolKind =
+            serde_json::from_value(symbol_val.get("kind")?.clone()).ok()?;
+        let kind: SymbolKind = lsp_kind.into();
+
         let is_public = matches!(
-            symbol_kind,
-            SymbolKind::FUNCTION | SymbolKind::CLASS | SymbolKind::INTERFACE | SymbolKind::CONSTRUCTOR
+            lsp_kind,
+            LspSymbolKind::FUNCTION
+                | LspSymbolKind::CLASS
+                | LspSymbolKind::INTERFACE
+                | LspSymbolKind::CONSTRUCTOR
         );
 
         Some(ParsedSymbol {
             id,
             name,
+            kind,
             uri_str,
             range,
             is_public,

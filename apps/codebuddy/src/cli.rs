@@ -76,6 +76,33 @@ pub enum Commands {
     #[cfg(feature = "mcp-proxy")]
     #[command(subcommand)]
     Mcp(cb_client::McpCommands),
+    /// Perform static analysis on the codebase
+    Analyze(Analyze),
+}
+
+#[derive(Parser)]
+pub struct Analyze {
+    #[command(subcommand)]
+    pub command: AnalyzeCommands,
+}
+
+#[derive(Subcommand)]
+pub enum AnalyzeCommands {
+    /// Find dead code
+    DeadCode(DeadCode),
+}
+
+#[derive(Parser)]
+pub struct DeadCode {
+    /// Types of symbols to check
+    #[arg(long, value_delimiter = ',', default_value = "all")]
+    pub symbol_types: Vec<String>,
+    /// Check public exports (aggressive mode)
+    #[arg(long)]
+    pub include_public: bool,
+    /// The path to analyze
+    #[arg(long, default_value = ".")]
+    pub path: String,
 }
 
 /// Main CLI entry point
@@ -158,6 +185,9 @@ pub async fn run() {
         Commands::Mcp(mcp_command) => {
             handle_mcp_command(mcp_command).await;
         }
+        Commands::Analyze(analyze_command) => {
+            handle_analyze_command(analyze_command).await;
+        }
     }
 }
 
@@ -180,6 +210,28 @@ async fn handle_mcp_command(command: cb_client::McpCommands) {
         error!(error = %e, "MCP command failed");
         process::exit(1);
     }
+}
+
+async fn handle_analyze_command(command: Analyze) {
+    match command.command {
+        AnalyzeCommands::DeadCode(dead_code_command) => {
+            handle_dead_code_command(dead_code_command).await;
+        }
+    }
+}
+
+async fn handle_dead_code_command(command: DeadCode) {
+    let args = serde_json::json!({
+        "kind": "deep",
+        "scope": {
+            "scope_type": "workspace",
+            "path": command.path,
+        },
+        "check_public_exports": command.include_public,
+        "symbol_types": command.symbol_types,
+    });
+    let args_json = serde_json::to_string(&args).unwrap();
+    handle_tool_command("analyze.dead_code", &args_json, "pretty").await;
 }
 
 /// Handle the setup command

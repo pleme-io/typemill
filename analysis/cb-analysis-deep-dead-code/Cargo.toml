@@ -16,6 +16,7 @@ thiserror = "1.0"
 tracing = "0.1"
 lsp-types = "0.97"
 petgraph = "0.6"
+pathdiff = "0.2"
 
 [dev-dependencies]
 mockall = "0.13"

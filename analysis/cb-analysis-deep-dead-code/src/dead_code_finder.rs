@@ -1,5 +1,6 @@
 // analysis/cb-analysis-deep-dead-code/src/dead_code_finder.rs
 
+use crate::DeepDeadCodeConfig;
 use cb_analysis_common::graph::{DependencyGraph, SymbolNode};
 use std::collections::HashSet;
 use tracing::info;
@@ -15,7 +16,7 @@ impl<'a> DeadCodeFinder<'a> {
 
     /// Finds all symbols that are considered "dead" by performing a reachability
     /// analysis from the public API surface.
-    pub fn find(&self) -> Vec<SymbolNode> {
+    pub fn find(&self, config: &DeepDeadCodeConfig) -> Vec<SymbolNode> {
         if self.graph.node_map.is_empty() {
             return vec![];
         }
@@ -24,18 +25,25 @@ impl<'a> DeadCodeFinder<'a> {
 
         let mut live_symbols = HashSet::new();
 
-        // Prioritize `main` functions as entry points.
-        let mut entry_points: Vec<_> = self.graph.graph.node_indices()
+        let mut entry_points: Vec<_> = self
+            .graph
+            .graph
+            .node_indices()
             .filter(|&i| self.graph.graph[i].name == "main")
             .collect();
 
-        // If no `main` function is found, fall back to all public symbols.
-        if entry_points.is_empty() {
-            info!("No 'main' function found. Using all public symbols as entry points.");
-            entry_points = self.graph.graph.node_indices()
-                .filter(|&i| self.graph.graph[i].is_public)
-                .collect();
+        if !config.check_public_exports {
+            info!("Default mode: Using 'main' and all other public symbols as entry points.");
+            entry_points.extend(
+                self.graph
+                    .graph
+                    .node_indices()
+                    .filter(|&i| self.graph.graph[i].is_public && self.graph.graph[i].name != "main"),
+            );
+        } else {
+            info!("Aggressive mode enabled: public exports will not be considered entry points unless they are 'main'.");
         }
+
 
         info!("Found {} entry points for graph traversal.", entry_points.len());
 
