@@ -290,15 +290,15 @@ cargo nextest run --test e2e_workflow_execution --no-capture
 
 The `e2e_analysis_features.rs` test suite now includes tests for:
 
-- `analyze_project_complexity` - Project-wide complexity analysis
+- `analyze.quality` - Project-wide complexity analysis
 - `find_complexity_hotspots` - Identify most complex code
-- `find_dead_code` - Detect unused code
+- `analyze.dead_code` - Detect unused code
 
 ### Example: Testing Complexity Analysis
 
 ```rust
 #[tokio::test]
-async fn test_analyze_project_complexity_typescript() {
+async fn test_analyze_quality_typescript() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
@@ -310,7 +310,10 @@ async fn test_analyze_project_complexity_typescript() {
     std::fs::write(&complex, "export function complex(a, b) { /* complex logic */ }").unwrap();
 
     // Call analysis tool
-    let response = client.call_tool("analyze_project_complexity", json!({})).await;
+    let response = client.call_tool("analyze.quality", json!({
+        "kind": "complexity",
+        "scope": {"type": "workspace"}
+    })).await;
 
     // Verify results
     assert!(response.is_ok());
@@ -326,7 +329,7 @@ async fn test_analyze_project_complexity_typescript() {
 - **Features**: Go to Definition, Find References, Hover, Document Symbols, Workspace Symbols, Completion, Rename
 
 ### E2E Integration Tests
-- **Analysis Features**: 9 tests (find_dead_code, analyze_project_complexity, find_complexity_hotspots)
+- **Analysis Features**: 9 tests (analyze.dead_code, analyze.quality, find_complexity_hotspots)
 - **Workflow Execution**: 10 tests (simple workflows, complex workflows, failure handling, dry-run, rollback, batch operations)
 - **File Operations**: Tests for create, read, write, delete, rename
 - **Refactoring**: Cross-language refactoring tests

@@ -265,9 +265,9 @@ Analysis primitives provide the intelligence layer that informs refactoring deci
 **Concept**: Find unused or unreachable code.
 
 **Implemented Tools**:
-- `find_dead_code` - Identify unused exports and functions
+- `analyze.dead_code` - Identify unused exports and functions
 - `find_references` - Verify symbol usage
-- `analyze_imports` - Detect unused imports
+- `analyze.dependencies` - Detect unused imports
 
 **Key Characteristics**:
 - Whole-program analysis
@@ -289,7 +289,7 @@ Analysis primitives provide the intelligence layer that informs refactoring deci
 **Implemented Tools**:
 - `get_diagnostics` - Detect anti-patterns
 - `get_code_actions` - Suggest improvements
-- `find_dead_code` - Identify unused code smell
+- `analyze.dead_code` - Identify unused code smell
 
 **Common Code Smells**:
 - Long functions (extract function candidate)
@@ -309,7 +309,7 @@ Analysis primitives provide the intelligence layer that informs refactoring deci
 **Concept**: Map out relationships between modules, functions, and files.
 
 **Implemented Tools**:
-- `analyze_imports` - Build dependency graphs
+- `analyze.dependencies` - Build dependency graphs
 - `find_references` - Track symbol dependencies
 - `prepare_call_hierarchy` - Analyze function call relationships
 - `get_call_hierarchy_incoming_calls` / `get_call_hierarchy_outgoing_calls` - Detailed call graphs
@@ -337,12 +337,12 @@ The power of this framework comes from composing primitives to achieve complex g
 **Goal**: Extract a large file into multiple smaller modules.
 
 **Primitive Sequence**:
-1. **Analyze Dependencies** (`analyze_imports`) - Understand current structure
+1. **Analyze Dependencies** (`analyze.dependencies`) - Understand current structure
 2. **Detect Complexity** (`get_document_symbols`) - Identify extraction candidates
 3. **Extract Functions** (`extract.plan` + `workspace.apply_edit`) - Pull out logical units
 4. **Move to New Files** (`move.plan` + `workspace.apply_edit`) - Create new module structure
 5. **Update Imports** (automatic via unified API) - Maintain references
-6. **Verify No Dead Code** (`find_dead_code`) - Ensure clean migration
+6. **Verify No Dead Code** (`analyze.dead_code`) - Ensure clean migration
 7. **Format All Files** (`format_document`) - Apply consistent style
 
 ---
@@ -506,9 +506,9 @@ All primitives **preserve correctness**. This guarantees:
 |-----------|-----------|---------|
 | **Linting** | `get_diagnostics`, `get_code_actions` | NavigationHandler, EditingHandler |
 | **Complexity** | `get_document_symbols`, `prepare_call_hierarchy` | NavigationHandler |
-| **Dead Code** | `find_dead_code`, `find_references`, `analyze_imports` | WorkspaceHandler, NavigationHandler |
+| **Dead Code** | `analyze.dead_code`, `find_references`, `analyze.dependencies` | WorkspaceHandler, NavigationHandler |
 | **Code Smells** | `get_diagnostics`, `get_code_actions` | NavigationHandler, EditingHandler |
-| **Dependencies** | `analyze_imports`, `find_references`, call hierarchy tools | WorkspaceHandler, NavigationHandler |
+| **Dependencies** | `analyze.dependencies`, `find_references`, call hierarchy tools | WorkspaceHandler, NavigationHandler |
 
 ---
 

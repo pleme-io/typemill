@@ -302,7 +302,7 @@ Handlers are organized by functionality:
 | **DeleteHandler** | `crates/cb-handlers/src/handlers/delete_handler.rs` | Delete refactoring (plan step) | `delete.plan` |
 | **WorkspaceApplyHandler** | `crates/cb-handlers/src/handlers/workspace_apply_handler.rs` | Apply refactoring plans | `workspace.apply_edit` |
 | **SystemHandler** | `crates/cb-handlers/src/handlers/tools/system.rs` | System operations | `health_check`, `web_fetch`, `system_status` |
-| **WorkspaceHandler** | `crates/cb-handlers/src/handlers/tools/workspace.rs` | Workspace operations | `rename_directory`, `analyze_imports`, `find_dead_code` |
+| **WorkspaceHandler** | `crates/cb-handlers/src/handlers/tools/workspace.rs` | Workspace operations | `rename_directory`, `analyze.dependencies`, `analyze.dead_code` |
 
 #### Step 2: Add the Tool Name
 

@@ -182,7 +182,7 @@ register_handlers_with_logging!(registry, {
     EditingHandler => "EditingHandler with 9 tools: format_document, get_code_actions, ...",
     RefactoringHandler => "RefactoringHandler with 8 tools: rename.plan, extract.plan, inline.plan, move.plan, reorder.plan, transform.plan, delete.plan, workspace.apply_edit",
     FileOpsHandler => "FileOpsHandler with 6 tools: read_file, write_file, ...",
-    WorkspaceHandler => "WorkspaceHandler with 7 tools: list_files, find_dead_code, ...",
+    WorkspaceHandler => "WorkspaceHandler with 7 tools: list_files, analyze.dead_code, ...",
 });
 ```
 
@@ -289,7 +289,7 @@ impl Capabilities {
             // Workspace-scoped tools
             | "search_workspace_symbols"
             | "list_files"
-            | "find_dead_code" => Some(ToolScope::Workspace),
+            | "analyze.dead_code" => Some(ToolScope::Workspace),
 
             _ => None,
         }
@@ -418,7 +418,7 @@ The architecture is built around service traits defined in `cb-api`:
 ```rust
 // Core service traits
 pub trait AstService: Send + Sync {
-    async fn analyze_imports(&self, file_path: &Path) -> ApiResult<ImportGraph>;
+    async fn analyze_dependencies(&self, file_path: &Path) -> ApiResult<ImportGraph>;
     async fn generate_edit_plan(&self, request: RefactorRequest) -> ApiResult<EditPlan>;
 }
 
