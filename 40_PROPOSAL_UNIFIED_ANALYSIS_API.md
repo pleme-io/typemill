@@ -1088,9 +1088,25 @@ This section provides a comprehensive checklist of all files that need to be cre
 
 ### Legacy Tool Retention Rationale
 
-**Status**: 4 legacy tools retained as internal-only, with active dependencies
+**Status**: 2 legacy tools retained as internal-only, 2 removed as dead weight
 
-After investigation, the following legacy tools **cannot be removed yet** because they serve distinct architectural purposes not yet covered by the Unified Analysis API:
+After investigation, 2 legacy tools have been **removed** (dead weight with no unique functionality), and 2 remain **retained as internal-only** because they serve distinct architectural purposes not yet covered by the Unified Analysis API:
+
+#### Removed Tools (Dead Weight - No Unique Functionality)
+
+1. **`find_unused_imports`** - REMOVED ✅
+   - **Rationale**: Fully covered by `analyze.dead_code("unused_imports")` with identical regex-based detection
+   - **No active usage**: Not called by tests or runtime code (only registration)
+   - **Duplicated logic**: Regex helpers duplicated from `analyze.dead_code`
+   - **Impact**: Reduced internal tool count from 25 → 23, eliminated maintenance burden
+
+2. **`analyze_code`** - REMOVED ✅
+   - **Rationale**: Fully covered by `analyze.quality("complexity"|"smells")` with identical analysis
+   - **No active usage**: Not called by tests or runtime code (only registration)
+   - **No unique behavior**: All functionality replicated in unified API
+   - **Impact**: Reduced code duplication, cleaner architecture
+
+#### Retained Tools (Unique Functionality)
 
 #### 1. `analyze_project` - Workspace Aggregator (KEEP)
 - **Location**: `crates/cb-handlers/src/handlers/tools/analysis/project.rs:16,51`
@@ -1113,34 +1129,22 @@ After investigation, the following legacy tools **cannot be removed yet** becaus
 - **Migration path**: Move import-graph construction into `analyze.dependencies` by delegating to plugin registry
 - **Effort**: 1-2 weeks (plugin delegation + parity testing)
 
-#### 4. `find_unused_imports` - Duplicated Heuristics (CONSOLIDATE)
-- **Location**: `crates/cb-handlers/src/handlers/tools/analysis/unused_imports.rs:148`
-- **Issue**: Regex helpers duplicated with `analyze.dead_code` (`unused_imports.rs:207` vs `dead_code.rs:1340`)
-- **Risk**: Maintenance burden (two copies of same regex logic)
-- **Migration path**: Extract shared regex helpers to common module, then make legacy tool a thin shim
-- **Effort**: 2-3 days (quick win, low risk)
+#### Migration Strategy (For Remaining 2 Tools)
 
-#### Migration Strategy
-
-1. **Phase 1 (Quick Win)**: Deduplicate regex helpers
-   - Extract to `crates/cb-handlers/src/handlers/tools/analysis/regex_helpers.rs`
-   - Both legacy and new handlers call same functions
-   - Estimated: 2-3 days
-
-2. **Phase 2 (Workspace Support)**: Extend unified engine
+1. **Phase 1 (Workspace Support)**: Extend unified engine
    - Add directory/workspace scope streaming
    - Port `analyze.quality(kind="maintainability")` to match legacy aggregates
    - Redirect e2e tests to new API
    - Retire `analyze_project`
    - Estimated: 1-2 weeks
 
-3. **Phase 3 (LSP Integration)**: Cross-file dead code
+2. **Phase 2 (LSP Integration)**: Cross-file dead code
    - Fold LSP engine into `analyze.dead_code` workspace mode
    - Keep heuristic detector for file-only fallbacks
    - Make `find_dead_code` thin shim
    - Estimated: 2-3 weeks
 
-4. **Phase 4 (Plugin Delegation)**: Import graphs
+3. **Phase 3 (Plugin Delegation)**: Import graphs
    - Move graph construction into `analyze.dependencies`
    - Delegate to plugin registry for supported languages
    - Update workflow tests
@@ -1150,17 +1154,20 @@ After investigation, the following legacy tools **cannot be removed yet** becaus
 #### Tracking Metrics
 
 Added runtime tracking (future work):
-- Instrument all 4 legacy tools with call counters
+- Instrument remaining 2 legacy tools with call counters
 - Emit metrics showing internal vs external usage
 - Monitor before/after migration to detect unexpected callsites
 
 #### Files Affected
 
-**Keep as internal (4 tools)**:
+**Removed (2 tools)**:
+- `crates/cb-handlers/src/handlers/tools/analysis/unused_imports.rs` - DELETED ✅
+- `crates/cb-handlers/src/handlers/tools/analysis/code.rs` - DELETED ✅
+
+**Keep as internal (2 tools)**:
 - `crates/cb-handlers/src/handlers/tools/analysis/project.rs`
 - `crates/cb-handlers/src/handlers/analysis_handler.rs` (find_dead_code)
 - `crates/cb-plugins/src/system_tools_plugin.rs` (analyze_imports delegation)
-- `crates/cb-handlers/src/handlers/tools/analysis/unused_imports.rs`
 
 **Tests with active dependencies**:
 - `apps/codebuddy/tests/e2e_analysis_features.rs` (uses analyze_project, find_dead_code)

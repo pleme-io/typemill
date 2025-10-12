@@ -187,7 +187,7 @@ impl PluginDispatcher {
                     FileToolsHandler => "FileToolsHandler with 3 utility tools (read_file, write_file, list_files)",
                     AdvancedToolsHandler => "AdvancedToolsHandler with 2 INTERNAL tools (execute_edits, execute_batch)",
                     NavigationHandler => "NavigationHandler with 8 tools (find_definition, find_references, find_implementations, find_type_definition, search_symbols, get_symbol_info, get_diagnostics, get_call_hierarchy)",
-                    AnalysisHandler => "AnalysisHandler with 4 INTERNAL tools (find_unused_imports, analyze_code, analyze_project, analyze_imports)",
+                    AnalysisHandler => "AnalysisHandler with 2 INTERNAL tools (analyze_project, analyze_imports)",
                     QualityHandler => "QualityHandler with 1 tool (analyze.quality)",
                     DeadCodeHandler => "DeadCodeHandler with 1 tool (analyze.dead_code)",
                     DependenciesHandler => "DependenciesHandler with 1 tool (analyze.dependencies)",

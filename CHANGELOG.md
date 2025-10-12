@@ -44,12 +44,12 @@ The project underwent a complete architectural transformation from TypeScript/No
   - `extract_variable` → `extract.plan` + `workspace.apply_edit` (legacy tool removed)
   - All refactoring operations now follow consistent `plan -> apply` pattern
 
-- **Analysis Tools Migration** - Migrated from legacy analysis tools to unified API (internal-only)
-  - `find_unused_imports` → `analyze.dead_code("unused_imports")` (legacy tool now internal)
-  - `analyze_code` → `analyze.quality("complexity"|"smells")` (legacy tool now internal)
-  - `analyze_project` → `analyze.quality("maintainability")` (legacy tool now internal)
-  - `analyze_imports` → `analyze.dependencies("imports")` (legacy tool now internal)
-  - `get_document_symbols` → `analyze.structure("symbols")` (legacy tool now internal)
+- **Analysis Tools Migration** - Migrated from legacy analysis tools to unified API
+  - `find_unused_imports` → `analyze.dead_code("unused_imports")` (removed - dead weight, no unique behavior)
+  - `analyze_code` → `analyze.quality("complexity"|"smells")` (removed - dead weight, no unique behavior)
+  - `analyze_project` → `analyze.quality("maintainability")` (kept as internal - workspace aggregator)
+  - `analyze_imports` → `analyze.dependencies("imports")` (kept as internal - plugin-native graphs)
+  - `get_document_symbols` → `analyze.structure("symbols")` (kept as internal)
 
 #### Fixed
 
@@ -70,6 +70,12 @@ The project underwent a complete architectural transformation from TypeScript/No
   - Removed `extract_function` (replaced by `extract.plan` + `workspace.apply_edit`)
   - Removed `inline_variable` (replaced by `inline.plan` + `workspace.apply_edit`)
   - Removed `extract_variable` (replaced by `extract.plan` + `workspace.apply_edit`)
+
+- **Dead-Weight Analysis Tools** - Removed 2 legacy internal tools with no unique functionality
+  - Removed `find_unused_imports` (fully covered by `analyze.dead_code("unused_imports")`)
+  - Removed `analyze_code` (fully covered by `analyze.quality("complexity"|"smells")`)
+  - Internal tool count reduced from 25 → 23
+  - Kept `analyze_project` (unique workspace aggregator) and `analyze_imports` (plugin-native graphs)
 
 ---
 

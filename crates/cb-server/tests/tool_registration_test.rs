@@ -74,13 +74,13 @@ async fn test_all_24_public_tools_are_registered() {
 }
 
 #[tokio::test]
-async fn test_all_25_internal_tools_are_registered_and_hidden() {
+async fn test_all_23_internal_tools_are_registered_and_hidden() {
     let dispatcher = create_test_dispatcher().await;
     dispatcher.initialize().await.unwrap();
 
     let registry = dispatcher.tool_registry.lock().await;
 
-    const EXPECTED_INTERNAL_TOOLS: [&str; 25] = [
+    const EXPECTED_INTERNAL_TOOLS: [&str; 23] = [
         // Lifecycle (3)
         "notify_file_opened",
         "notify_file_saved",
@@ -106,9 +106,7 @@ async fn test_all_25_internal_tools_are_registered_and_hidden() {
         "read_file",
         "write_file",
         "list_files",
-        // Legacy Analysis (4) - Made internal, replaced by Unified Analysis API
-        "find_unused_imports",
-        "analyze_code",
+        // Legacy Analysis (2) - Retained internal tools with unique functionality
         "analyze_project",
         "analyze_imports",
         // Structure Analysis (1) - Made internal, replaced by analyze.structure

@@ -4,7 +4,6 @@ use cb_core::model::mcp::ToolCall;
 use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 
 pub mod batch;
-pub mod code;
 pub mod config;
 pub mod dead_code;
 pub mod dependencies;
@@ -14,7 +13,6 @@ pub mod project;
 pub mod quality;
 pub mod structure;
 pub mod tests_handler;
-pub mod unused_imports;
 
 pub use batch::{BatchAnalysisRequest, BatchAnalysisResult, BatchError};
 pub use config::{AnalysisConfig, CategoryConfig, ConfigError};
@@ -97,8 +95,6 @@ impl AnalysisHandler {
 impl ToolHandler for AnalysisHandler {
     fn tool_names(&self) -> &[&str] {
         &[
-            "find_unused_imports",
-            "analyze_code",
             "analyze_project",
             "analyze_imports",
         ]
@@ -106,10 +102,8 @@ impl ToolHandler for AnalysisHandler {
 
     fn is_internal(&self) -> bool {
         // Legacy analysis tools are internal - replaced by Unified Analysis API
-        // - find_unused_imports → analyze.dead_code("unused_imports")
-        // - analyze_code → analyze.quality("complexity"|"smells")
-        // - analyze_project → analyze.quality("maintainability")
-        // - analyze_imports → analyze.dependencies("imports")
+        // - analyze_project → analyze.quality("maintainability") (workspace aggregator)
+        // - analyze_imports → analyze.dependencies("imports") (plugin-native graphs)
         true
     }
 
@@ -119,10 +113,6 @@ impl ToolHandler for AnalysisHandler {
         tool_call: &ToolCall,
     ) -> ServerResult<serde_json::Value> {
         match tool_call.name.as_str() {
-            "find_unused_imports" => {
-                unused_imports::handle_find_unused_imports(context, tool_call).await
-            }
-            "analyze_code" => code::handle_analyze_code(context, tool_call).await,
             "analyze_project" => project::handle_analyze_project(context, tool_call).await,
             "analyze_imports" => {
                 // Delegate to the plugin system (SystemToolsPlugin handles this)
