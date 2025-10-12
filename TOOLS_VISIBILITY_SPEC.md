@@ -4,7 +4,7 @@
 
 ---
 
-## Public Tools (24 total)
+## Public Tools (23 total)
 
 ### Navigation (8) - Point Queries for IDE Workflows
 - `find_definition`
@@ -31,18 +31,19 @@
 ### System (1) - Health Monitoring
 - `health_check`
 
-### Analysis (7) - Unified Analysis API ✅ **IMPLEMENTED**
+### Analysis (6) - Unified Analysis API ✅ **IMPLEMENTED**
 - `analyze.quality` - Code quality analysis (complexity, smells, maintainability, readability)
 - `analyze.dead_code` - Unused code detection (imports, symbols, parameters, variables, types, unreachable)
 - `analyze.dependencies` - Dependency analysis (imports, graph, circular, coupling, cohesion, depth)
 - `analyze.structure` - Code structure analysis (symbols, hierarchy, interfaces, inheritance, modules)
 - `analyze.documentation` - Documentation quality (coverage, quality, style, examples, todos)
 - `analyze.tests` - Test analysis (coverage, quality, assertions, organization)
-- `analyze.batch` - Multi-file batch analysis with optimized AST caching
+
+**Note**: `analyze.batch` planned but not yet implemented
 
 ---
 
-## Internal Tools (23 total)
+## Internal Tools (19 total)
 
 ### Lifecycle (3) - Event Notifications
 - `notify_file_opened`
@@ -59,9 +60,8 @@
 - `get_completions`
 - `get_signature_help`
 
-### Workspace Tools (4) - Legacy Operations
+### Workspace Tools (3) - Legacy Operations
 - `move_directory`
-- `find_dead_code`
 - `update_dependencies`
 - `update_dependency`
 
@@ -76,15 +76,19 @@
 - `write_file`
 - `list_files`
 
-### Legacy Analysis (2) - **INTERNAL** - Replaced by Unified Analysis API
-- `analyze_project` → `analyze.quality("maintainability")` (workspace aggregator, retained for migration)
-- `analyze_imports` → `analyze.dependencies("imports")` (plugin-native graphs, retained for migration)
-
-**Note**: `find_unused_imports` and `analyze_code` removed as dead weight (no unique functionality, fully covered by unified API)
-
-### Legacy Advanced (2) - **MOVE TO INTERNAL** - Low-Level Plumbing
+### Legacy Advanced (2) - Low-Level Plumbing
 - `execute_edits` → replaced by `workspace.apply_edit`
 - `execute_batch` → replaced by `analyze.batch` *(future)*
+
+### Legacy Analysis - **FULLY REMOVED** ✅
+The following legacy analysis tools were retired in Proposal 45:
+- `analyze_project` → replaced by `analyze.quality("maintainability")`
+- `analyze_imports` → replaced by `analyze.dependencies("imports")`
+- `find_dead_code` → replaced by `analyze.dead_code`
+
+Additional dead-weight tools removed:
+- `find_unused_imports` - no unique functionality, covered by `analyze.dead_code`
+- `analyze_code` - no unique functionality, covered by unified analysis API
 
 ---
 
@@ -106,8 +110,13 @@
 ### Migration Path
 1. **Previous state**: 17 public, 25 internal (before Unified Analysis API)
 2. **After Unified API**: 23 public, 25 internal (6 analysis tools moved to public)
-3. **Current state**: 24 public, 23 internal (analyze.batch added, 2 dead-weight tools removed)
-4. **Note**: Analysis tools now public (analyze.quality, analyze.dead_code, analyze.dependencies, analyze.structure, analyze.documentation, analyze.tests, analyze.batch)
+3. **Proposal 45 cleanup**: 23 public, 19 internal (3 legacy analysis tools removed, analyze.batch deferred)
+4. **Final state**: Analysis tools now public (analyze.quality, analyze.dead_code, analyze.dependencies, analyze.structure, analyze.documentation, analyze.tests)
+
+**Proposal 45 Retirement Summary:**
+- Removed 3 legacy analysis handlers (`analyze_project`, `analyze_imports`, `find_dead_code`)
+- Total cleanup: 5 handlers removed (includes `find_unused_imports`, `analyze_code`)
+- `analyze.batch` deferred to future implementation
 
 ---
 
@@ -116,4 +125,4 @@
 - Unified Analysis API: `40_PROPOSAL_UNIFIED_ANALYSIS_API.md`
 - Current state: `STRATEGIC_ARCHITECTURE_COMPLETE.md`
 
-**Date**: 2025-10-11
+**Date**: 2025-10-12 (Updated after Proposal 45 completion)

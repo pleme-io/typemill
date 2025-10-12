@@ -1,14 +1,14 @@
 use cb_server::handlers::plugin_dispatcher::create_test_dispatcher;
 
 #[tokio::test]
-async fn test_all_24_public_tools_are_registered() {
+async fn test_all_23_public_tools_are_registered() {
     let dispatcher = create_test_dispatcher().await;
     dispatcher.initialize().await.unwrap();
 
     let registry = dispatcher.tool_registry.lock().await;
     let registered_tools = registry.list_tools();
 
-    const EXPECTED_TOOLS: [&str; 24] = [
+    const EXPECTED_TOOLS: [&str; 23] = [
         // Navigation (8) - get_document_symbols moved to internal
         "find_definition",
         "find_references",
@@ -30,14 +30,13 @@ async fn test_all_24_public_tools_are_registered() {
         "workspace.apply_edit",
         // System (1)
         "health_check",
-        // Analysis (7) - Unified Analysis API
+        // Analysis (6) - Unified Analysis API
         "analyze.quality",
         "analyze.dead_code",
         "analyze.dependencies",
         "analyze.documentation",
         "analyze.structure",
         "analyze.tests",
-        "analyze.batch",
     ];
 
     fn find_missing<'a>(expected: &'a [&str], actual: &[String]) -> Vec<&'a str> {
@@ -74,13 +73,13 @@ async fn test_all_24_public_tools_are_registered() {
 }
 
 #[tokio::test]
-async fn test_all_23_internal_tools_are_registered_and_hidden() {
+async fn test_all_20_internal_tools_are_registered_and_hidden() {
     let dispatcher = create_test_dispatcher().await;
     dispatcher.initialize().await.unwrap();
 
     let registry = dispatcher.tool_registry.lock().await;
 
-    const EXPECTED_INTERNAL_TOOLS: [&str; 23] = [
+    const EXPECTED_INTERNAL_TOOLS: [&str; 20] = [
         // Lifecycle (3)
         "notify_file_opened",
         "notify_file_saved",
@@ -92,9 +91,8 @@ async fn test_all_23_internal_tools_are_registered_and_hidden() {
         // Internal Intelligence (2)
         "get_completions",
         "get_signature_help",
-        // Workspace Tools (4) - Made internal, replaced by Unified API
+        // Workspace Tools (3) - Made internal, replaced by Unified API
         "move_directory",
-        "find_dead_code",
         "update_dependencies",
         "update_dependency",
         // File Operations (4) - Made internal, replaced by Unified API
@@ -106,9 +104,6 @@ async fn test_all_23_internal_tools_are_registered_and_hidden() {
         "read_file",
         "write_file",
         "list_files",
-        // Legacy Analysis (2) - Retained internal tools with unique functionality
-        "analyze_project",
-        "analyze_imports",
         // Structure Analysis (1) - Made internal, replaced by analyze.structure
         "get_document_symbols",
         // Advanced (2) - Made internal, low-level plumbing

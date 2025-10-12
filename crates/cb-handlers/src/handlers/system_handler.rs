@@ -3,7 +3,7 @@
 //! Handles: health_check, notify_file_opened, notify_file_saved,
 //!          notify_file_closed
 //!
-//! Note: find_dead_code moved to analysis_handler.rs
+//! Note: Legacy find_dead_code removed in favor of analyze.dead_code (unified API)
 //! Note: fix_imports replaced by optimize_imports in editing.rs
 
 use super::lsp_adapter::DirectLspAdapter;
@@ -21,14 +21,12 @@ use tracing::{debug, error, info, warn};
 
 pub struct SystemHandler {
     dependency_handler: super::dependency_handler::DependencyHandler,
-    analysis_handler: super::analysis_handler::AnalysisHandler,
 }
 
 impl SystemHandler {
     pub fn new() -> Self {
         Self {
             dependency_handler: super::dependency_handler::DependencyHandler::new(),
-            analysis_handler: super::analysis_handler::AnalysisHandler::new(),
         }
     }
 }
@@ -47,7 +45,6 @@ impl ToolHandler for SystemHandler {
             "notify_file_opened",
             "notify_file_saved",
             "notify_file_closed",
-            "find_dead_code",
             "analyze_imports",
             "update_dependencies",
         ]
@@ -72,13 +69,6 @@ impl ToolHandler for SystemHandler {
             }
             "notify_file_closed" => {
                 self.handle_notify_file_closed(tool_call.clone(), context)
-                    .await
-            }
-
-            // Delegate to AnalysisHandler
-            "find_dead_code" => {
-                self.analysis_handler
-                    .handle_tool_call(context, tool_call)
                     .await
             }
 

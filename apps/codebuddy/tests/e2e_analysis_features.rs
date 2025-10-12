@@ -48,10 +48,21 @@ export function main() {
     // Wait for LSP to initialize
     tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
 
-    // Call find_dead_code
-    let response = client.call_tool("find_dead_code", json!({})).await;
+    // Call analyze.dead_code with unified API
+    let response = client
+        .call_tool(
+            "analyze.dead_code",
+            json!({
+                "kind": "unused_symbols",
+                "scope": {
+                    "type": "workspace",
+                    "path": workspace.path().to_str().unwrap()
+                }
+            }),
+        )
+        .await;
 
-    // find_dead_code requires LSP workspace/symbol or document/symbol support
+    // analyze.dead_code requires LSP workspace/symbol or document/symbol support
     if let Ok(response_value) = response {
         // Response must have either result or error
         assert!(
@@ -60,31 +71,31 @@ export function main() {
         );
 
         if let Some(result) = response_value.get("result") {
-            // If successful, verify the structure
+            // If successful, verify the unified API structure
             assert!(
-                result.get("workspacePath").is_some(),
-                "Result should have workspacePath field"
+                result.get("findings").is_some(),
+                "Result should have findings array"
             );
             assert!(
-                result.get("deadSymbols").is_some(),
-                "Result should have deadSymbols field"
+                result.get("summary").is_some(),
+                "Result should have summary field"
             );
             assert!(
-                result.get("analysisStats").is_some(),
-                "Result should have analysisStats field"
+                result.get("metadata").is_some(),
+                "Result should have metadata field"
             );
 
-            let _dead_symbols = result["deadSymbols"].as_array().unwrap();
-            // May or may not find dead symbols depending on LSP capabilities
+            let _findings = result["findings"].as_array().unwrap();
+            // May or may not find dead code depending on LSP capabilities
 
-            let stats = &result["analysisStats"];
+            let summary = &result["summary"];
             assert!(
-                stats.get("filesAnalyzed").is_some(),
-                "Stats should have filesAnalyzed"
+                summary.get("files_analyzed").is_some(),
+                "Summary should have files_analyzed"
             );
             assert!(
-                stats.get("analysisDurationMs").is_some(),
-                "Stats should have analysisDurationMs"
+                summary.get("analysis_time_ms").is_some(),
+                "Summary should have analysis_time_ms"
             );
         }
     }
@@ -152,8 +163,19 @@ mod tests {
     // Wait for LSP to initialize
     tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
 
-    // Call find_dead_code
-    let response = client.call_tool("find_dead_code", json!({})).await;
+    // Call analyze.dead_code with unified API
+    let response = client
+        .call_tool(
+            "analyze.dead_code",
+            json!({
+                "kind": "unused_symbols",
+                "scope": {
+                    "type": "workspace",
+                    "path": workspace.path().to_str().unwrap()
+                }
+            }),
+        )
+        .await;
 
     // Rust analyzer may not support workspace/symbol well, so we should fallback to document/symbol
     if let Ok(response_value) = response {
@@ -164,35 +186,35 @@ mod tests {
         );
 
         if let Some(result) = response_value.get("result") {
-            // If successful, verify the structure
+            // If successful, verify the unified API structure
             assert!(
-                result.get("workspacePath").is_some(),
-                "Result should have workspacePath field"
+                result.get("findings").is_some(),
+                "Result should have findings array"
             );
             assert!(
-                result.get("deadSymbols").is_some(),
-                "Result should have deadSymbols field"
+                result.get("summary").is_some(),
+                "Result should have summary field"
             );
             assert!(
-                result.get("analysisStats").is_some(),
-                "Result should have analysisStats field"
+                result.get("metadata").is_some(),
+                "Result should have metadata field"
             );
 
-            let _dead_symbols = result["deadSymbols"].as_array().unwrap();
+            let _findings = result["findings"].as_array().unwrap();
             // Rust analyzer should find symbols via documentSymbol fallback
 
-            let stats = &result["analysisStats"];
+            let summary = &result["summary"];
             assert!(
-                stats.get("filesAnalyzed").is_some(),
-                "Stats should have filesAnalyzed"
+                summary.get("files_analyzed").is_some(),
+                "Summary should have files_analyzed"
             );
             assert!(
-                stats.get("analysisDurationMs").is_some(),
-                "Stats should have analysisDurationMs"
+                summary.get("analysis_time_ms").is_some(),
+                "Summary should have analysis_time_ms"
             );
 
-            // Verify we got some analysis done (filesAnalyzed > 0 means fallback worked)
-            let files_analyzed = stats["filesAnalyzed"].as_u64().unwrap_or(0);
+            // Verify we got some analysis done (files_analyzed > 0 means fallback worked)
+            let files_analyzed = summary["files_analyzed"].as_u64().unwrap_or(0);
             // Successfully used fallback path if we analyzed any files
             // This confirms the documentSymbol fallback is working
             let _ = files_analyzed; // May be 0 if LSP not available
@@ -206,8 +228,19 @@ async fn test_find_dead_code_empty_workspace() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
-    // Call find_dead_code on empty workspace
-    let response = client.call_tool("find_dead_code", json!({})).await;
+    // Call analyze.dead_code on empty workspace with unified API
+    let response = client
+        .call_tool(
+            "analyze.dead_code",
+            json!({
+                "kind": "unused_symbols",
+                "scope": {
+                    "type": "workspace",
+                    "path": workspace.path().to_str().unwrap()
+                }
+            }),
+        )
+        .await;
 
     if let Ok(response_value) = response {
         // Should succeed but find no dead code
@@ -218,24 +251,24 @@ async fn test_find_dead_code_empty_workspace() {
 
         if let Some(result) = response_value.get("result") {
             assert!(
-                result.get("workspacePath").is_some(),
-                "Result should have workspacePath field"
+                result.get("findings").is_some(),
+                "Result should have findings array"
             );
             assert!(
-                result.get("deadSymbols").is_some(),
-                "Result should have deadSymbols field"
+                result.get("summary").is_some(),
+                "Result should have summary field"
             );
             assert!(
-                result.get("analysisStats").is_some(),
-                "Result should have analysisStats field"
+                result.get("metadata").is_some(),
+                "Result should have metadata field"
             );
 
-            let dead_symbols = result["deadSymbols"].as_array().unwrap();
-            // Empty workspace should have no dead symbols
+            let findings = result["findings"].as_array().unwrap();
+            // Empty workspace should have no findings
             assert_eq!(
-                dead_symbols.len(),
+                findings.len(),
                 0,
-                "Empty workspace should have no dead symbols"
+                "Empty workspace should have no findings"
             );
         }
     }
@@ -282,12 +315,17 @@ if __name__ == "__main__":
     // Wait for LSP to initialize
     tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
 
-    // Call find_dead_code with file_types filter for TypeScript only
+    // Call analyze.dead_code with include filter for TypeScript only
     let response = client
         .call_tool(
-            "find_dead_code",
+            "analyze.dead_code",
             json!({
-                "file_types": [".ts", ".tsx"]
+                "kind": "unused_symbols",
+                "scope": {
+                    "type": "workspace",
+                    "path": workspace.path().to_str().unwrap(),
+                    "include": ["**/*.ts", "**/*.tsx"]
+                }
             }),
         )
         .await;
@@ -300,24 +338,25 @@ if __name__ == "__main__":
 
         if let Some(result) = response_value.get("result") {
             assert!(
-                result.get("workspacePath").is_some(),
-                "Result should have workspacePath field"
+                result.get("findings").is_some(),
+                "Result should have findings array"
             );
             assert!(
-                result.get("deadSymbols").is_some(),
-                "Result should have deadSymbols field"
+                result.get("summary").is_some(),
+                "Result should have summary field"
             );
             assert!(
-                result.get("analysisStats").is_some(),
-                "Result should have analysisStats field"
+                result.get("metadata").is_some(),
+                "Result should have metadata field"
             );
 
-            let dead_symbols = result["deadSymbols"].as_array().unwrap();
+            let findings = result["findings"].as_array().unwrap();
             // Should only analyze .ts files, not .py files
 
-            // Verify any dead symbols found are from .ts files
-            for symbol in dead_symbols {
-                let file_path = symbol["file"].as_str().unwrap();
+            // Verify any findings are from .ts files
+            for finding in findings {
+                let location = &finding["location"];
+                let file_path = location["file_path"].as_str().unwrap();
                 assert!(
                     file_path.ends_with(".ts") || file_path.ends_with(".tsx"),
                     "Should only analyze TypeScript files, found: {}",
@@ -378,9 +417,20 @@ function unusedHelper() {
         )
         .await;
 
-    // If get_document_symbols works, find_dead_code should work too (via fallback if needed)
+    // If get_document_symbols works, analyze.dead_code should work too (via fallback if needed)
     if symbols_response.is_ok() {
-        let dead_code_response = client.call_tool("find_dead_code", json!({})).await;
+        let dead_code_response = client
+            .call_tool(
+                "analyze.dead_code",
+                json!({
+                    "kind": "unused_symbols",
+                    "scope": {
+                        "type": "workspace",
+                        "path": workspace.path().to_str().unwrap()
+                    }
+                }),
+            )
+            .await;
 
         if let Ok(response_value) = dead_code_response {
             assert!(
@@ -390,16 +440,16 @@ function unusedHelper() {
 
             if let Some(result) = response_value.get("result") {
                 assert!(
-                    result.get("workspacePath").is_some(),
-                    "Result should have workspacePath field"
+                    result.get("findings").is_some(),
+                    "Result should have findings array"
                 );
                 assert!(
-                    result.get("deadSymbols").is_some(),
-                    "Result should have deadSymbols field"
+                    result.get("summary").is_some(),
+                    "Result should have summary field"
                 );
                 assert!(
-                    result.get("analysisStats").is_some(),
-                    "Result should have analysisStats field"
+                    result.get("metadata").is_some(),
+                    "Result should have metadata field"
                 );
             }
         }
@@ -432,13 +482,16 @@ async fn test_analyze_project_complexity_cross_language() {
             // Wait for analysis to initialize
             tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
 
-            // Call analyze_project_complexity with extended timeout (30 seconds)
+            // Call analyze.quality with maintainability kind and extended timeout (30 seconds)
             let response = client
                 .call_tool_with_timeout(
-                    "analyze_project",
+                    "analyze.quality",
                     json!({
-                        "directory_path": workspace.path().to_str().unwrap(),
-                        "report_format": "full"
+                        "kind": "maintainability",
+                        "scope": {
+                            "type": "workspace",
+                            "path": workspace.path().to_str().unwrap()
+                        }
                     }),
                     std::time::Duration::from_secs(30),
                 )
@@ -453,7 +506,7 @@ async fn test_analyze_project_complexity_cross_language() {
             }
             assert!(
                 response.is_ok(),
-                "[{}] {} - analyze_project_complexity should succeed. Error: {:?}",
+                "[{}] {} - analyze.quality should succeed. Error: {:?}",
                 lang_name,
                 scenario.scenario_name,
                 response.as_ref().err()
@@ -471,44 +524,40 @@ async fn test_analyze_project_complexity_cross_language() {
 
             let result = &response_value["result"];
 
-            // Verify required fields exist
+            // Verify unified API structure
             assert!(
-                result.get("files").is_some(),
-                "[{}] {} - Result should have files array",
+                result.get("findings").is_some(),
+                "[{}] {} - Result should have findings array",
                 lang_name,
                 scenario.scenario_name
             );
             assert!(
-                result.get("total_files").is_some(),
-                "[{}] {} - Result should have total_files",
+                result.get("summary").is_some(),
+                "[{}] {} - Result should have summary field",
                 lang_name,
                 scenario.scenario_name
             );
             assert!(
-                result.get("total_functions").is_some(),
-                "[{}] {} - Result should have total_functions",
+                result.get("metadata").is_some(),
+                "[{}] {} - Result should have metadata field",
                 lang_name,
                 scenario.scenario_name
             );
 
-            // Validate files structure
-            let files = result["files"].as_array().unwrap();
-            if !files.is_empty() {
-                for file in files {
-                    assert!(
-                        file.get("file_path").is_some(),
-                        "[{}] {} - File should have file_path",
-                        lang_name,
-                        scenario.scenario_name
-                    );
-                    assert!(
-                        file.get("function_count").is_some(),
-                        "[{}] {} - File should have function_count",
-                        lang_name,
-                        scenario.scenario_name
-                    );
-                }
-            }
+            // Validate summary structure
+            let summary = &result["summary"];
+            assert!(
+                summary.get("files_analyzed").is_some(),
+                "[{}] {} - Summary should have files_analyzed",
+                lang_name,
+                scenario.scenario_name
+            );
+            assert!(
+                summary.get("analysis_time_ms").is_some(),
+                "[{}] {} - Summary should have analysis_time_ms",
+                lang_name,
+                scenario.scenario_name
+            );
 
             eprintln!(
                 "✅ [{}] {} - Test passed",
@@ -565,13 +614,16 @@ async fn test_find_complexity_hotspots_cross_language() {
         // Wait for analysis
         tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
 
-        // Call find_complexity_hotspots with extended timeout (30 seconds)
+        // Call analyze.quality with complexity kind and limit, extended timeout (30 seconds)
         let response = client
             .call_tool_with_timeout(
-                "analyze_project",
+                "analyze.quality",
                 json!({
-                    "directory_path": workspace.path().to_str().unwrap(),
-                    "report_format": "hotspots",
+                    "kind": "complexity",
+                    "scope": {
+                        "type": "workspace",
+                        "path": workspace.path().to_str().unwrap()
+                    },
                     "limit": 5
                 }),
                 std::time::Duration::from_secs(30),
@@ -579,11 +631,11 @@ async fn test_find_complexity_hotspots_cross_language() {
             .await;
 
         if let Err(ref e) = response {
-            eprintln!("[{}] find_complexity_hotspots error: {:?}", lang_name, e);
+            eprintln!("[{}] analyze.quality (complexity) error: {:?}", lang_name, e);
         }
         assert!(
             response.is_ok(),
-            "[{}] find_complexity_hotspots should succeed. Error: {:?}",
+            "[{}] analyze.quality (complexity) should succeed. Error: {:?}",
             lang_name,
             response.as_ref().err()
         );
@@ -597,15 +649,20 @@ async fn test_find_complexity_hotspots_cross_language() {
 
         let result = &response_value["result"];
 
-        // Verify structure
+        // Verify unified API structure
         assert!(
-            result.get("top_functions").is_some(),
-            "[{}] Result should have top_functions array",
+            result.get("findings").is_some(),
+            "[{}] Result should have findings array",
             lang_name
         );
         assert!(
             result.get("summary").is_some(),
-            "[{}] Result should have summary",
+            "[{}] Result should have summary field",
+            lang_name
+        );
+        assert!(
+            result.get("metadata").is_some(),
+            "[{}] Result should have metadata field",
             lang_name
         );
 

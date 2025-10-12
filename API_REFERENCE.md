@@ -91,7 +91,8 @@ Requests to endpoints like `/workspaces` or `/workspaces/{id}/execute` without a
 
 **Internal tools (not in public API):**
 - `analyze_complexity` - Cyclomatic complexity metrics (replaced by `analyze.quality`)
-- `analyze_project_complexity` - Project-wide complexity analysis (replaced by `analyze.quality`)
+
+**Note:** Legacy internal tools `analyze_project_complexity`, `analyze_imports`, and `find_dead_code` have been removed. Use the Unified Analysis API instead (`analyze.quality`, `analyze.dead_code`, `analyze.dependencies`).
 
 ### File Operations
 
@@ -108,14 +109,12 @@ Requests to endpoints like `/workspaces` or `/workspaces/{id}/execute` without a
 
 | Tool | TypeScript/JS | Python | Go | Rust | Java | Swift | C# | Notes |
 |------|---------------|--------|-----|------|------|-------|-----|-------|
-| `find_dead_code` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | LSP-based |
 | `update_dependencies` | ✅ npm/yarn | ✅ pip | ✅ go mod | ✅ cargo | ✅ mvn | ✅ swift | ✅ nuget | Executes package manager |
 | `update_dependency` | ✅ npm/yarn | ✅ pip | ✅ go mod | ✅ cargo | ✅ mvn | ✅ swift | ✅ nuget | Executes package manager |
 | `extract_module_to_package` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Multi-language support |
 
 **Internal tools (not in public API):**
 - `rename_directory` - Auto-updates imports, Rust crate consolidation
-- `analyze_imports` - AST-based import analysis (replaced by future `analyze.dependencies`)
 
 ### Advanced & System
 
@@ -1375,92 +1374,6 @@ Each suggestion includes specific, actionable advice:
 
 ---
 
-### `analyze_project_complexity`
-
-**Internal Tool** - Not visible in MCP tools/list. **Being replaced by `analyze.quality("maintainability")` (coming soon)**. Previously named `analyze_project`.
-
-Scan an entire directory or project for complexity metrics across all supported files. Provides project-wide statistics, file-level summaries, and class/module-level aggregations.
-
-**Parameters:**
-```json
-{
-  "directory_path": "src/",                    // Required: Directory to analyze
-  "pattern": "**/*.{rs,py,ts,js}",            // Optional: Glob pattern for file filtering
-  "include_tests": false                       // Optional: Include test files (default: false)
-}
-```
-
-**Returns:**
-```json
-{
-  "directory": "src/",
-  "total_files": 45,
-  "total_functions": 234,
-  "total_classes": 23,
-  "average_complexity": 4.2,
-  "average_cognitive_complexity": 3.8,
-  "max_complexity": 28,
-  "max_cognitive_complexity": 35,
-  "total_sloc": 12450,
-  "files": [
-    {
-      "file_path": "src/handlers/analysis.rs",
-      "function_count": 12,
-      "class_count": 1,
-      "average_complexity": 5.3,
-      "average_cognitive_complexity": 4.8,
-      "max_complexity": 15,
-      "total_issues": 2
-    }
-  ],
-  "classes": [
-    {
-      "name": "AnalysisHandler",
-      "file_path": "src/handlers/analysis.rs",
-      "line": 25,
-      "function_count": 12,
-      "total_complexity": 64,
-      "total_cognitive_complexity": 58,
-      "average_complexity": 5.3,
-      "average_cognitive_complexity": 4.8,
-      "max_complexity": 15,
-      "max_cognitive_complexity": 18,
-      "total_sloc": 450,
-      "rating": "moderate",
-      "issues": []
-    }
-  ],
-  "hotspots_summary": "234 functions analyzed across 45 files. 12 issues detected that need attention.",
-  "errors": []  // Optional: Files that failed to parse
-}
-```
-
-**Class Aggregation:**
-- **Python/Java/TypeScript**: Groups methods by class (detects `ClassName.methodName` pattern)
-- **Rust/Go**: Groups functions by module/file (treats file as "class")
-- Calculates aggregate metrics: total complexity, average complexity, function count, SLOC
-
-**File Filtering:**
-- Uses `FileService.list_files_with_pattern()` (respects .gitignore)
-- Filters by supported language extensions automatically
-- Optional test file exclusion (checks for "test" or "spec" in path)
-- Sequential processing to avoid AST cache thrashing
-
-**Error Handling:**
-- Continues on per-file errors (parse failures, read errors)
-- Collects errors in `errors` array without failing entire batch
-- Logs warnings for failed files
-
-**Use Cases:**
-- CI/CD pipeline quality gates
-- Technical debt assessment
-- Codebase health monitoring
-- Identifying refactoring candidates across projects
-
-**Language Support:** All languages with AST support (Rust, Go, Java, TypeScript, JavaScript, Python)
-
----
-
 ### `find_complexity_hotspots`
 
 Find the most complex functions and classes in a project (top N worst offenders). Useful for prioritizing refactoring efforts.
@@ -1954,136 +1867,6 @@ codebuddy tool rename_directory '{"old_path":"crates","new_path":"lib"}'
 
 ---
 
-### `analyze_imports`
-
-**Internal Tool** - Not visible in MCP tools/list. Replaced by Unified Analysis API (future `analyze.dependencies("imports")`).
-
-Analyze import statements in a file.
-
-**Implementation:** AST-based parsing (all languages)
-
-**Parameters:**
-```json
-{
-  "file_path": "src/app.ts"    // Required: File path
-}
-```
-
-**Returns:**
-```json
-{
-  "imports": [
-    {
-      "source": "react",
-      "imported": ["useState", "useEffect"],
-      "type": "named",
-      "line": 1
-    },
-    {
-      "source": "./components/Button",
-      "imported": ["Button"],
-      "type": "named",
-      "line": 2,
-      "is_relative": true
-    }
-  ],
-  "total_imports": 2,
-  "external_imports": 1,
-  "internal_imports": 1
-}
-```
-
-**Language Support:**
-- TypeScript/JavaScript: SWC parser (Rust native)
-- Python: Native AST parser
-- Go: `go/parser` (subprocess)
-- Rust: `syn` crate
-
----
-
-### `find_dead_code`
-
-Find potentially unused code in the workspace.
-
-**Implementation:** LSP-based via `workspace/symbol` + `textDocument/references` with fallback to `textDocument/documentSymbol` for rust-analyzer
-
-**Parameters:**
-```json
-{
-  "workspace_path": "/project",                           // Optional: Workspace root path (default: ".")
-  "symbol_kinds": ["function", "variable", "constant"],   // Optional: Symbol types to analyze (default: comprehensive set)
-  "max_concurrency": 50,                                  // Optional: Max concurrent LSP requests (default: 20, max: 100)
-  "min_references": 1,                                    // Optional: Min refs to consider dead (default: 1, i.e., ≤1 = dead)
-  "file_types": [".ts", ".tsx"],                          // Optional: File extensions to analyze (default: all)
-  "include_exported": true,                               // Optional: Include exported symbols (default: true)
-  "max_results": 100,                                     // Optional: Stop after finding N dead symbols (default: unlimited)
-  "timeout_seconds": 300                                  // Optional: Max analysis time in seconds (default: unlimited)
-}
-```
-
-**Returns:**
-```json
-{
-  "workspacePath": "/project",
-  "deadSymbols": [
-    {
-      "name": "unusedFunction",
-      "kind": "function",
-      "file": "src/utils.ts",
-      "line": 42,
-      "column": 0,
-      "referenceCount": 0
-    }
-  ],
-  "analysisStats": {
-    "filesAnalyzed": 42,
-    "symbolsAnalyzed": 250,
-    "deadSymbolsFound": 8,
-    "analysisDurationMs": 12450,
-    "symbolKindsAnalyzed": ["function", "variable", "constant", "class"],
-    "truncated": false,
-    "symbolsByKind": {
-      "function": { "dead": 5 },
-      "variable": { "dead": 3 },
-      "constant": { "dead": 0 }
-    }
-  },
-  "configUsed": {
-    "symbolKinds": ["function", "variable", "constant", "class"],
-    "maxConcurrency": 20,
-    "minReferences": 1,
-    "includeExported": true,
-    "fileTypes": null
-  }
-}
-```
-
-**Symbol Kinds:** (all LSP SymbolKind values supported)
-- `function`, `class`, `method`, `interface`, `enum`, `struct`
-- `variable`, `constant`, `field`, `property`
-- `constructor`, `enum_member`
-- `module`, `namespace`, `package`
-- `event`, `operator`, `type_parameter`
-- And more (see LSP specification)
-
-**Performance Tips:**
-- Use `file_types` to analyze only specific file extensions
-- Use `symbol_kinds` to focus on high-value symbols (e.g., only functions and classes)
-- Increase `max_concurrency` for faster LSP servers (e.g., gopls), decrease for slower ones
-- Use `max_results` for quick scans to find "low-hanging fruit"
-- Use `timeout_seconds` to prevent long-running analysis on large codebases
-
-**Notes:**
-- Finds symbols with ≤ `min_references` references (default: ≤1 means only declaration, no usage)
-- Supports all LSP symbol types: function, class, method, variable, constant, interface, enum, struct, field, property, constructor, enum_member, and more
-- Can be configured to analyze specific symbol types for faster, targeted analysis
-- Works across all LSP-enabled languages with hybrid fallback for rust-analyzer
-- **Default symbol types analyzed**: class, method, constructor, enum, interface, function, variable, constant, enum_member, struct
-- Does not detect all dead code (e.g., unreachable code paths within functions)
-- **Performance:** Configurable concurrency (1-100) and file type filtering for optimal speed
-
----
-
 ### `update_dependencies`
 
 Update project dependencies using package manager.
@@ -2492,7 +2275,7 @@ Get basic system operational status.
 
 **Backend-only tools - Not exposed via MCP `tools/list`**
 
-These 25 internal tools are used by the Codebuddy workflow system and LSP protocol interop. They are **not visible** to AI agents via MCP tool listings, but remain callable by the backend for orchestration and plugin lifecycle management.
+These 22 internal tools are used by the Codebuddy workflow system and LSP protocol interop. They are **not visible** to AI agents via MCP tool listings, but remain callable by the backend for orchestration and plugin lifecycle management.
 
 **Why hidden:**
 - AI agents use the unified refactoring API (e.g., `rename.plan` + `workspace.apply_edit` instead of `rename_symbol_with_imports`)
@@ -2505,12 +2288,12 @@ These 25 internal tools are used by the Codebuddy workflow system and LSP protoc
 - **Legacy editing (1)**: rename_symbol_with_imports
 - **Legacy workspace (1)**: apply_workspace_edit
 - **Intelligence (2)**: get_completions, get_signature_help
-- **Workspace tools (4)**: move_directory, find_dead_code, update_dependencies, update_dependency
+- **Workspace tools (2)**: update_dependencies, update_dependency
 - **File operations (4)**: create_file, delete_file, rename_file, rename_directory
 - **File utilities (3)**: read_file, write_file, list_files
-- **Legacy analysis (2)**: analyze_project (analyze_project_complexity), analyze_imports
 - **Structure analysis (1)**: get_document_symbols
 - **Advanced plumbing (2)**: execute_edits (apply_edits), execute_batch (batch_execute)
+- **Migration note**: Legacy internal tools (analyze_project_complexity, analyze_imports, find_dead_code) removed in favor of Unified Analysis API
 
 ### `notify_file_opened`
 

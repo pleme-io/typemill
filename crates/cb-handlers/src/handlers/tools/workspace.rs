@@ -1,6 +1,6 @@
 //! Workspace operations tool handlers
 //!
-//! Handles: rename_directory, analyze_imports, find_dead_code, update_dependencies, extract_module_to_package
+//! Handles: rename_directory, update_dependencies, update_dependency
 
 use super::{ToolHandler, ToolHandlerContext};
 use crate::handlers::file_operation_handler::FileOperationHandler;
@@ -77,18 +77,12 @@ impl WorkspaceToolsHandler {
 #[async_trait]
 impl ToolHandler for WorkspaceToolsHandler {
     fn tool_names(&self) -> &[&str] {
-        &[
-            "move_directory",
-            "find_dead_code",
-            "update_dependencies",
-            "update_dependency",
-        ]
+        &["move_directory", "update_dependencies", "update_dependency"]
     }
 
     fn is_internal(&self) -> bool {
         // These tools are internal - used by backend/workflows but not exposed to AI agents.
         // - move_directory: Replaced by move.plan with kind="consolidate"
-        // - find_dead_code: Replaced by delete.plan with kind="dead_code"
         // - update_dependencies: Manual package.json/Cargo.toml editing preferred
         // - update_dependency: Manual manifest editing preferred
         true
@@ -110,7 +104,7 @@ impl ToolHandler for WorkspaceToolsHandler {
                 // FileOperationHandler now uses the new trait, so delegate directly
                 self.file_op_handler.handle_tool_call(context, &call).await
             }
-            "find_dead_code" | "update_dependencies" => {
+            "update_dependencies" => {
                 // SystemHandler now uses the new trait, so pass context directly
                 self.system_handler.handle_tool_call(context, &call).await
             }

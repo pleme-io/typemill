@@ -2,7 +2,7 @@
 
 This guide is for experienced developers who want to get productive with Codebuddy in under 15 minutes. It assumes you are familiar with AI assistants, LSP, and your command line.
 
-**Current Public API**: 24 tools (see table below) | **Internal Tools**: 25 backend-only tools
+**Current Public API**: 24 tools (see table below) | **Internal Tools**: 20 backend-only tools
 
 **Language Support**: Rust (.rs) + TypeScript/JavaScript (.ts, .tsx, .js, .jsx). Additional languages (Python, Go, Java, Swift, C#) available in git tag `pre-language-reduction`.
 
@@ -114,7 +114,7 @@ These are the public-facing tools for AI agents and MCP clients. See `API_REFERE
 
 ---
 
-## 5. Internal Tools (Backend Only - 23 tools)
+## 5. Internal Tools (Backend Only - 20 tools)
 
 These tools are **not visible** in MCP `tools/list` but are used internally by workflows and the backend. AI agents should use the public API instead.
 
@@ -122,15 +122,14 @@ These tools are **not visible** in MCP `tools/list` but are used internally by w
 - **Lifecycle (3)**: notify_file_opened, notify_file_saved, notify_file_closed
 - **File Operations (4)**: create_file, delete_file, rename_file, rename_directory
 - **File Utilities (3)**: read_file, write_file, list_files
-- **Workspace Tools (4)**: move_directory, find_dead_code, update_dependencies, update_dependency
-- **Legacy Analysis (2)**: analyze_project (retained for migration), analyze_imports (retained for migration)
+- **Workspace Tools (3)**: move_directory, update_dependencies, update_dependency
 - **Structure Analysis (1)**: get_document_symbols → replaced by `analyze.structure`
 - **Advanced Plumbing (2)**: execute_edits → replaced by `workspace.apply_edit`, execute_batch
 - **Legacy Editing (1)**: rename_symbol_with_imports
 - **Legacy Workspace (1)**: apply_workspace_edit
 - **Intelligence (2)**: get_completions, get_signature_help
 
-**Note**: `find_unused_imports` and `analyze_code` removed (dead weight, no unique functionality)
+**Note**: Legacy analysis tools (`analyze_project`, `analyze_imports`, `find_dead_code`, `find_unused_imports`, `analyze_code`) have been removed as part of Proposal 45 completion. All analysis functionality is now available through the unified `analyze.*` API.
 
 ---
 

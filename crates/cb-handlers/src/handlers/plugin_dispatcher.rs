@@ -2,6 +2,19 @@
 //!
 //! This is the new plugin-based dispatcher that replaces the monolithic
 //! dispatcher with a flexible plugin system.
+//!
+//! ## Handler Registry
+//!
+//! The dispatcher registers 20 internal tools across multiple handlers:
+//! - FileOperationHandler: 4 internal tools (create_file, delete_file, rename_file, rename_directory)
+//! - FileToolsHandler: 3 internal tools (read_file, write_file, list_files)
+//! - AdvancedToolsHandler: 2 internal tools (execute_edits, execute_batch)
+//! - InternalNavigationHandler: 1 internal tool (get_document_symbols)
+//! - LifecycleHandler: 3 internal tools (notify_file_opened, notify_file_saved, notify_file_closed)
+//! - InternalEditingToolsHandler: 1 internal tool (rename_symbol_with_imports)
+//! - InternalWorkspaceHandler: 1 internal tool (apply_workspace_edit)
+//! - InternalIntelligenceHandler: 2 internal tools (get_completions, get_signature_help)
+//! - WorkspaceToolsHandler: 3 internal tools (move_directory, update_dependencies, update_dependency)
 
 use crate::register_handlers_with_logging;
 use async_trait::async_trait;
@@ -170,7 +183,7 @@ impl PluginDispatcher {
 
             {
                 use super::tools::{
-                    AdvancedToolsHandler, AnalysisHandler, FileToolsHandler,
+                    AdvancedToolsHandler, FileToolsHandler,
                     InternalEditingToolsHandler, InternalIntelligenceHandler, InternalNavigationHandler,
                     InternalWorkspaceHandler, LifecycleHandler, NavigationHandler,
                     SystemToolsHandler, WorkspaceToolsHandler,
@@ -187,7 +200,6 @@ impl PluginDispatcher {
                     FileToolsHandler => "FileToolsHandler with 3 utility tools (read_file, write_file, list_files)",
                     AdvancedToolsHandler => "AdvancedToolsHandler with 2 INTERNAL tools (execute_edits, execute_batch)",
                     NavigationHandler => "NavigationHandler with 8 tools (find_definition, find_references, find_implementations, find_type_definition, search_symbols, get_symbol_info, get_diagnostics, get_call_hierarchy)",
-                    AnalysisHandler => "AnalysisHandler with 2 INTERNAL tools (analyze_project, analyze_imports)",
                     QualityHandler => "QualityHandler with 1 tool (analyze.quality)",
                     DeadCodeHandler => "DeadCodeHandler with 1 tool (analyze.dead_code)",
                     DependenciesHandler => "DependenciesHandler with 1 tool (analyze.dependencies)",
@@ -199,7 +211,7 @@ impl PluginDispatcher {
                     InternalEditingToolsHandler => "InternalEditingToolsHandler with 1 INTERNAL tool (rename_symbol_with_imports)",
                     InternalWorkspaceHandler => "InternalWorkspaceHandler with 1 INTERNAL tool (apply_workspace_edit)",
                     InternalIntelligenceHandler => "InternalIntelligenceHandler with 2 INTERNAL tools (get_completions, get_signature_help)",
-                    WorkspaceToolsHandler => "WorkspaceToolsHandler with 4 INTERNAL tools (move_directory, find_dead_code, update_dependencies, update_dependency)",
+                    WorkspaceToolsHandler => "WorkspaceToolsHandler with 3 INTERNAL tools (move_directory, update_dependencies, update_dependency)",
 
                     // New unified refactoring handlers
                     RenameHandler => "Unified rename handler",

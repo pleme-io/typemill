@@ -14,7 +14,6 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use std::path::Path;
 use std::sync::Arc;
-use tokio::fs;
 use tracing::{debug, warn};
 
 /// System tools plugin for non-LSP workspace operations
@@ -64,7 +63,7 @@ impl SystemToolsPlugin {
     /// Creates a new instance of the `SystemToolsPlugin` with injected registry.
     ///
     /// This plugin provides system-level tools that work across all file types, including:
-    /// - File system operations (list_files, analyze_imports)
+    /// - File system operations (list_files)
     /// - Dependency management (bulk_update_dependencies)
     /// - Code quality tools (optimize_imports)
     /// - Refactoring operations (extract_function, inline_variable, extract_variable)
@@ -86,9 +85,6 @@ impl SystemToolsPlugin {
         capabilities
             .custom
             .insert("system.list_files".to_string(), json!(true));
-        capabilities
-            .custom
-            .insert("system.analyze_imports".to_string(), json!(true));
         capabilities
             .custom
             .insert("system.bulk_update_dependencies".to_string(), json!(true));
@@ -187,87 +183,6 @@ impl SystemToolsPlugin {
             "files": files,
             "total": files.len(),
             "path": path,
-        }))
-    }
-
-    /// Handle analyze_imports tool
-    async fn handle_analyze_imports(&self, params: Value) -> PluginResult<Value> {
-        #[derive(Debug, Deserialize)]
-        #[serde(rename_all = "snake_case")]
-        struct AnalyzeImportsArgs {
-            file_path: String,
-        }
-
-        let args: AnalyzeImportsArgs =
-            serde_json::from_value(params).map_err(|e| PluginError::SerializationError {
-                message: format!("Invalid analyze_imports args: {}", e),
-            })?;
-
-        debug!(file_path = %args.file_path, "Analyzing imports");
-
-        // Read the file content
-        let content =
-            fs::read_to_string(&args.file_path)
-                .await
-                .map_err(|e| PluginError::IoError {
-                    message: format!("Failed to read file: {}", e),
-                })?;
-
-        // Determine file extension
-        let path = Path::new(&args.file_path);
-        let extension = path
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .ok_or_else(|| PluginError::PluginRequestFailed {
-                plugin: "system-tools".to_string(),
-                message: "File has no extension".to_string(),
-            })?;
-
-        // Find appropriate plugin from injected registry
-        let plugin = self
-            .plugin_registry
-            .find_by_extension(extension)
-            .ok_or_else(|| PluginError::PluginRequestFailed {
-                plugin: "system-tools".to_string(),
-                message: format!("No plugin found for .{} files", extension),
-            })?;
-
-        // Build import graph using the plugin
-        let import_graph = build_import_graph_with_plugin(&content, path, plugin)?;
-
-        // Calculate statistics
-        let total_imports = import_graph.imports.len();
-        let unique_modules: std::collections::HashSet<&String> = import_graph
-            .imports
-            .iter()
-            .map(|imp| &imp.module_path)
-            .collect();
-        let type_only_imports = import_graph
-            .imports
-            .iter()
-            .filter(|imp| imp.type_only)
-            .count();
-        let namespace_imports = import_graph
-            .imports
-            .iter()
-            .filter(|imp| imp.namespace_import.is_some())
-            .count();
-        let default_imports = import_graph
-            .imports
-            .iter()
-            .filter(|imp| imp.default_import.is_some())
-            .count();
-
-        Ok(json!({
-            "sourceFile": args.file_path,
-            "importGraph": import_graph,
-            "analysisStats": {
-                "totalImports": total_imports,
-                "uniqueModules": unique_modules.len(),
-                "typeOnlyImports": type_only_imports,
-                "namespaceImports": namespace_imports,
-                "defaultImports": default_imports,
-            }
         }))
     }
 
@@ -474,94 +389,6 @@ impl SystemToolsPlugin {
     }
 }
 
-/// Build import graph using a language plugin
-fn build_import_graph_with_plugin(
-    source: &str,
-    path: &Path,
-    plugin: &dyn cb_plugin_api::LanguagePlugin,
-) -> PluginResult<cb_protocol::ImportGraph> {
-    use cb_protocol::{ImportGraph, ImportGraphMetadata, ImportInfo};
-    use std::collections::HashSet;
-
-    // For now, TypeScript plugin doesn't have a direct "analyze_imports" method
-    // that returns ImportGraph. We need to use the parser module from the plugin.
-    //
-    // This is a temporary bridge until we add analyze_imports to the trait.
-    // For TypeScript files, we'll use cb_lang_typescript::parser::analyze_imports
-    let language = plugin.metadata().name.to_lowercase();
-
-    let imports: Vec<ImportInfo> =
-        match language.as_str() {
-            "typescript" => {
-                // Use TypeScript plugin's parser
-                let graph = cb_lang_typescript::parser::analyze_imports(source, Some(path))
-                    .map_err(|e| PluginError::PluginRequestFailed {
-                        plugin: plugin.metadata().name.to_string(),
-                        message: format!("Failed to parse imports: {}", e),
-                    })?;
-                graph.imports
-            }
-            "rust" => {
-                // Use Rust plugin's parser (returns Vec<ImportInfo> directly)
-                cb_lang_rust::parser::parse_imports(source).map_err(|e| {
-                    PluginError::PluginRequestFailed {
-                        plugin: plugin.metadata().name.to_string(),
-                        message: format!("Failed to parse imports: {}", e),
-                    }
-                })?
-            }
-            _ => {
-                return Err(PluginError::PluginRequestFailed {
-                    plugin: plugin.metadata().name.to_string(),
-                    message: format!("Unsupported language: {}", language),
-                });
-            }
-        };
-
-    // Detect external dependencies
-    let external_dependencies = imports
-        .iter()
-        .filter_map(|imp| {
-            if is_external_dependency(&imp.module_path) {
-                Some(imp.module_path.clone())
-            } else {
-                None
-            }
-        })
-        .collect::<HashSet<_>>()
-        .into_iter()
-        .collect();
-
-    Ok(ImportGraph {
-        source_file: path.to_string_lossy().to_string(),
-        imports,
-        importers: Vec::new(),
-        metadata: ImportGraphMetadata {
-            language: language.clone(),
-            parsed_at: chrono::Utc::now(),
-            parser_version: "1.0.0-plugin".to_string(),
-            circular_dependencies: Vec::new(),
-            external_dependencies,
-        },
-    })
-}
-
-/// Check if a module path represents an external dependency
-fn is_external_dependency(module_path: &str) -> bool {
-    if module_path.starts_with("./") || module_path.starts_with("../") {
-        return false;
-    }
-    if module_path.starts_with("/") || module_path.starts_with("src/") {
-        return false;
-    }
-    if module_path.starts_with("@") {
-        return true;
-    }
-    !module_path.contains("/")
-        || module_path.contains("node_modules")
-        || !module_path.starts_with(".")
-}
-
 #[async_trait]
 impl LanguagePlugin for SystemToolsPlugin {
     fn metadata(&self) -> PluginMetadata {
@@ -627,20 +454,6 @@ impl LanguagePlugin for SystemToolsPlugin {
                             "description": "Whether to include hidden files"
                         }
                     }
-                }
-            }),
-            json!({
-                "name": "analyze_imports",
-                "description": "Analyze import statements in a file.",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "file_path": {
-                            "type": "string",
-                            "description": "Path to the file to analyze"
-                        }
-                    },
-                    "required": ["file_path"]
                 }
             }),
             json!({
@@ -1022,7 +835,6 @@ impl LanguagePlugin for SystemToolsPlugin {
 
         let result = match request.method.as_str() {
             "list_files" => self.handle_list_files(request.params.clone()).await?,
-            "analyze_imports" => self.handle_analyze_imports(request.params.clone()).await?,
             "bulk_update_dependencies" => {
                 self.handle_bulk_update_dependencies(request.params.clone())
                     .await?

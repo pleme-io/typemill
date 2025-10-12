@@ -96,23 +96,6 @@ pub struct McpToolResult {
     pub is_error: Option<bool>,
 }
 
-/// Parameters for the unified `get_call_hierarchy` tool.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
-pub enum CallHierarchyType {
-    Prepare,
-    Incoming,
-    Outgoing,
-}
-
-/// Parameters for the unified `analyze_project` tool.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
-pub enum ProjectReportFormat {
-    Full,
-    Hotspots,
-}
-
 /// MCP content item
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type")]
