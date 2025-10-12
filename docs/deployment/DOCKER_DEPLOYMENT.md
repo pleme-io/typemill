@@ -258,6 +258,6 @@ services:
 
 ## See Also
 
-- [Architecture Documentation](../architecture/ARCHITECTURE.md) - System design
+- [Architecture Documentation](../architecture/overview.md) - System design
 - [Configuration Guide](../../README.md#configuration) - Setup options
 - [Security Policy](../../SECURITY.md) - Security practices

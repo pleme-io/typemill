@@ -11,7 +11,7 @@ This file provides guidance to AI assistants when working with code in this repo
 2. **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - A one-page cheat sheet for common commands and tools.
 
 ---
-- **[docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)** - System architecture
+- **[docs/architecture/ARCHITECTURE.md](overview.md)** - System architecture
   - Component overview and data flow
   - LSP integration patterns
   - Plugin system design
@@ -228,7 +228,7 @@ cargo nextest run --workspace --features heavy-tests
 
 ## Architecture & Configuration
 
-For detailed system architecture, see **[docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)**.
+For detailed system architecture, see **[docs/architecture/ARCHITECTURE.md](overview.md)**.
 
 For Docker deployment details, see **[docs/deployment/DOCKER_DEPLOYMENT.md](docs/deployment/DOCKER_DEPLOYMENT.md)**. For CLI usage, see the CLI Commands section above.
 
@@ -525,7 +525,7 @@ All debug scripts, test analysis, and experimental code goes in `.debug/` (gitig
 - **[docs/deployment/DOCKER_DEPLOYMENT.md](docs/deployment/DOCKER_DEPLOYMENT.md)** - Docker deployment (development and production)
 
 ### For Understanding the System
-- **[docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)** - Complete system architecture
+- **[docs/architecture/ARCHITECTURE.md](overview.md)** - Complete system architecture
 - **[docs/architecture/INTERNAL_TOOLS.md](docs/architecture/INTERNAL_TOOLS.md)** - Internal vs public tools policy
 - **[docs/features/WORKFLOWS.md](docs/features/WORKFLOWS.md)** - Workflow automation engine
 

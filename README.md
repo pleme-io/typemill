@@ -111,7 +111,7 @@ The optional `restartInterval` helps with long-running server stability.
 - **[🚀 QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - A one-page guide for power users.
 - **[API_REFERENCE.md](API_REFERENCE.md)** - The complete MCP tools API reference.
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** - The guide for developers building from source.
-- **[docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)** - System architecture deep-dive.
+- **[docs/architecture/ARCHITECTURE.md](overview.md)** - System architecture deep-dive.
 
 ## 💻 Development
 

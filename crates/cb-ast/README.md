@@ -106,4 +106,4 @@ cargo test -p cb-ast
 
 ## Documentation
 
-For complete architecture details, see [docs/architecture/ARCHITECTURE.md](../../docs/architecture/ARCHITECTURE.md).
+For complete architecture details, see [docs/architecture/overview.md](../../docs/architecture/overview.md).
