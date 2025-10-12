@@ -577,3 +577,61 @@ async fn test_analyze_dependencies_unsupported_kind() {
         }
     }
 }
+
+#[tokio::test]
+async fn test_analyze_dependencies_circular_typescript_workspace() {
+    let workspace = TestWorkspace::new();
+    workspace.setup_typescript_project("circular-dep-test");
+
+    let fixture_dir = std::path::Path::new("fixtures/circular_dependency");
+    for entry in std::fs::read_dir(fixture_dir).unwrap() {
+        let entry = entry.unwrap();
+        let content = std::fs::read_to_string(entry.path()).unwrap();
+        workspace.create_file(&format!("src/{}", entry.file_name().to_str().unwrap()), &content);
+    }
+
+    let mut client = TestClient::new(workspace.path());
+
+    let response = client
+        .call_tool(
+            "analyze.dependencies",
+            json!({
+                "kind": "circular",
+                "scope": {
+                    "type": "workspace"
+                }
+            }),
+        )
+        .await
+        .expect("analyze.dependencies call should succeed");
+
+    let result: AnalysisResult = serde_json::from_value(
+        response
+            .get("result")
+            .expect("Response should have result field")
+            .clone(),
+    )
+    .expect("Should parse as AnalysisResult");
+
+    assert_eq!(result.metadata.kind, "circular");
+    assert_eq!(result.summary.total_findings, 1);
+    assert_eq!(result.findings.len(), 1);
+
+    let finding = &result.findings[0];
+    assert_eq!(finding.kind, "circular_dependency");
+    assert_eq!(finding.severity, Severity::High);
+
+    let metrics = finding.metrics.as_ref().expect("Should have metrics");
+    let cycle_path = metrics
+        .get("cycle_path")
+        .and_then(|v| v.as_array())
+        .expect("Should have cycle_path array");
+
+    assert_eq!(cycle_path.len(), 2);
+    // The order is not guaranteed, so check for both files.
+    let path1 = workspace.absolute_path("src/a.ts").to_string_lossy().to_string();
+    let path2 = workspace.absolute_path("src/b.ts").to_string_lossy().to_string();
+    let cycle_path_strings: Vec<String> = cycle_path.iter().map(|v| v.as_str().unwrap().to_string()).collect();
+    assert!(cycle_path_strings.contains(&path1));
+    assert!(cycle_path_strings.contains(&path2));
+}

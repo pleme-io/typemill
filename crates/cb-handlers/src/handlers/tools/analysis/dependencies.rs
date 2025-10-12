@@ -23,6 +23,12 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use tracing::debug;
 
+#[cfg(feature = "analysis-circular-deps")]
+use cb_analysis_circular_deps::{
+    builder::DependencyGraphBuilder, find_circular_dependencies,
+};
+use cb_protocol::analysis_result::AnalysisResult;
+
 /// Detect and analyze import/export statements using plugin-based AST parsing
 ///
 /// This function uses language plugins to accurately parse import statements
@@ -1027,6 +1033,83 @@ impl ToolHandler for DependenciesHandler {
         debug!(kind = %kind, "Handling analyze.dependencies request");
 
         // Dispatch to appropriate analysis function
+        if kind == "circular" {
+            #[cfg(feature = "analysis-circular-deps")]
+            {
+                let project_root = &context.app_state.project_root;
+                let builder = DependencyGraphBuilder::new(&context.app_state.language_plugins.inner);
+                let graph = builder
+                    .build(project_root)
+                    .map_err(|e| ServerError::Internal(e))?;
+                let result = find_circular_dependencies(&graph)
+                    .map_err(|e| ServerError::Internal(e.to_string()))?;
+
+                let findings = result.cycles.into_iter().map(|cycle| {
+                    let mut metrics = HashMap::new();
+                    metrics.insert("cycle_length".to_string(), json!(cycle.modules.len()));
+                    metrics.insert("cycle_path".to_string(), json!(cycle.modules));
+
+                    Finding {
+                        id: format!("circular-dependency-{}", cycle.id),
+                        kind: "circular_dependency".to_string(),
+                        severity: Severity::High,
+                        location: FindingLocation {
+                            file_path: cycle.modules.get(0).cloned().unwrap_or_default(),
+                            range: None,
+                            symbol: None,
+                            symbol_kind: Some("module".to_string()),
+                        },
+                        metrics: Some(metrics),
+                        message: format!("Circular dependency detected with {} modules", cycle.modules.len()),
+                        suggestions: vec![],
+                    }
+                }).collect();
+
+                let analysis_result = AnalysisResult {
+                    findings,
+                    summary: cb_protocol::analysis_result::AnalysisSummary {
+                        total_findings: result.summary.total_cycles,
+                        returned_findings: result.summary.total_cycles,
+                        has_more: false,
+                        by_severity: cb_protocol::analysis_result::SeverityBreakdown {
+                            high: result.summary.total_cycles,
+                            medium: 0,
+                            low: 0,
+                        },
+                        files_analyzed: 0,
+                        symbols_analyzed: Some(0),
+                        analysis_time_ms: 0,
+                    },
+                    metadata: cb_protocol::analysis_result::AnalysisMetadata {
+                        category: "dependencies".to_string(),
+                        kind: "circular".to_string(),
+                        scope: cb_protocol::analysis_result::AnalysisScope {
+                            scope_type: "workspace".to_string(),
+                            path: project_root.to_string_lossy().to_string(),
+                            include: vec![],
+                            exclude: vec![],
+                        },
+                        language: None,
+                        timestamp: chrono::Utc::now().to_rfc3339(),
+                        thresholds: None,
+                    },
+                };
+
+                return Ok(serde_json::to_value(analysis_result)?);
+            }
+            #[cfg(not(feature = "analysis-circular-deps"))]
+            {
+                return super::engine::run_analysis(
+                    context,
+                    tool_call,
+                    "dependencies",
+                    kind,
+                    detect_circular,
+                )
+                .await;
+            }
+        }
+
         match kind {
             "imports" => {
                 super::engine::run_analysis(
@@ -1041,16 +1124,6 @@ impl ToolHandler for DependenciesHandler {
             "graph" => {
                 super::engine::run_analysis(context, tool_call, "dependencies", kind, detect_graph)
                     .await
-            }
-            "circular" => {
-                super::engine::run_analysis(
-                    context,
-                    tool_call,
-                    "dependencies",
-                    kind,
-                    detect_circular,
-                )
-                .await
             }
             "coupling" => {
                 super::engine::run_analysis(

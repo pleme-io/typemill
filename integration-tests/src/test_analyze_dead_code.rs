@@ -134,7 +134,7 @@ export function publicFunction() {
     );
 
     let finding = &result.findings[0];
-    assert_eq!(finding.kind, "unused_symbol");
+    assert_eq!(finding.kind, "unused_function");
     assert_eq!(finding.severity, Severity::Medium);
 }
 

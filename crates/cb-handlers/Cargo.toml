@@ -7,6 +7,7 @@ default = ["lang-rust", "lang-typescript"]
 lang-rust = ["cb-lang-rust"]
 lang-typescript = ["cb-lang-typescript"]
 analysis-dead-code = ["dep:cb-analysis-dead-code", "dep:cb-analysis-common"]
+analysis-circular-deps = ["dep:cb-analysis-circular-deps", "dep:cb-analysis-graph"]
 
 [dependencies]
 cb-protocol = { path = "../cb-protocol" }
@@ -25,6 +26,8 @@ cb-lang-typescript = { workspace = true, optional = true }
 # Analysis crates (optional)
 cb-analysis-common = { path = "../../analysis/cb-analysis-common", optional = true }
 cb-analysis-dead-code = { path = "../../analysis/cb-analysis-dead-code", optional = true }
+cb-analysis-circular-deps = { path = "../../analysis/cb-analysis-circular-deps", optional = true }
+cb-analysis-graph = { path = "../../analysis/cb-analysis-graph", optional = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
