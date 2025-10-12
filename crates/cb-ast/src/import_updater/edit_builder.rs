@@ -4,7 +4,6 @@ use crate::import_updater::{
     path_resolver::ImportPathResolver,
     reference_finder::{create_text_edits_from_references, find_inline_crate_references},
 };
-use cb_plugin_api::LanguagePlugin;
 use cb_protocol::{EditPlan, EditPlanMetadata};
 use std::path::{Path, PathBuf};
 use tracing::{debug, info, warn};
@@ -76,7 +75,6 @@ pub(crate) async fn build_import_update_plan(
                 // Read file content
                 if let Ok(content) = tokio::fs::read_to_string(file_path).await {
                     // Find module references using the enhanced scanner
-                    // We need to downcast to concrete plugin types to access find_module_references
                     // Note: Only Rust and TypeScript supported after language reduction
                     use cb_lang_rust::RustPlugin;
                     use cb_lang_typescript::TypeScriptPlugin;
@@ -264,54 +262,15 @@ pub(crate) async fn build_import_update_plan(
                 }
             }
         } else {
-            // Fallback to the old rewrite logic
-            // Downcast to concrete plugin types to access rewrite_imports_for_rename
-            // Note: Rust, TypeScript, and Markdown supported after language reduction
-            use cb_lang_rust::RustPlugin;
-            use cb_lang_typescript::TypeScriptPlugin;
-            use cb_lang_markdown::MarkdownPlugin;
-
-            let rewrite_result =
-                if let Some(rust_plugin) = plugin.as_any().downcast_ref::<RustPlugin>() {
-                    rust_plugin
-                        .rewrite_imports_for_rename(
-                            &content,
-                            old_path,
-                            new_path,
-                            &file_path,
-                            project_root,
-                            rename_info,
-                        )
-                        .ok()
-                } else if let Some(ts_plugin) = plugin.as_any().downcast_ref::<TypeScriptPlugin>() {
-                    ts_plugin
-                        .rewrite_imports_for_rename(
-                            &content,
-                            old_path,
-                            new_path,
-                            &file_path,
-                            project_root,
-                            rename_info,
-                        )
-                        .ok()
-                } else if let Some(md_plugin) = plugin.as_any().downcast_ref::<MarkdownPlugin>() {
-                    // For markdown, use ImportSupport's rewrite_imports_for_rename
-                    // Pass both full paths (for absolute link matching) and filenames (for relative link matching)
-                    if let Some(import_support) = md_plugin.import_support() {
-                        // The markdown plugin will match against old_path and replace with appropriate
-                        // relative or absolute path based on what was in the original link
-                        let old_name = old_path.to_string_lossy();
-                        let new_name = new_path.file_name()
-                            .and_then(|n| n.to_str())
-                            .unwrap_or_else(|| new_path.to_str().unwrap_or(""));
-                        let result = import_support.rewrite_imports_for_rename(&content, &old_name, new_name);
-                        Some(result)
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                };
+            // Use the generic trait method - no downcasting needed!
+            let rewrite_result = plugin.rewrite_file_references(
+                &content,
+                old_path,
+                new_path,
+                &file_path,
+                project_root,
+                rename_info,
+            );
 
             match rewrite_result {
                 Some((updated_content, count)) => {

@@ -90,6 +90,26 @@ impl LanguagePlugin for TypeScriptPlugin {
     fn workspace_support(&self) -> Option<&dyn WorkspaceSupport> {
         Some(&self.workspace_support)
     }
+
+    fn rewrite_file_references(
+        &self,
+        content: &str,
+        old_path: &Path,
+        new_path: &Path,
+        current_file: &Path,
+        project_root: &Path,
+        rename_info: Option<&serde_json::Value>,
+    ) -> Option<(String, usize)> {
+        self.rewrite_imports_for_rename(
+            content,
+            old_path,
+            new_path,
+            current_file,
+            project_root,
+            rename_info,
+        )
+        .ok()
+    }
 }
 
 impl TypeScriptPlugin {

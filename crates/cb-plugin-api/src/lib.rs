@@ -387,6 +387,34 @@ pub trait LanguagePlugin: Send + Sync {
     /// This allows service layers to access implementation-specific methods
     /// that are not part of the core trait contract.
     fn as_any(&self) -> &dyn std::any::Any;
+
+    /// Rewrite file references when a file is renamed.
+    ///
+    /// This method provides a generic interface for rewriting import paths or
+    /// other file references within a source file's content.
+    ///
+    /// # Default Implementation
+    /// The default implementation uses the `ImportSupport` trait if available,
+    /// making it work automatically for simple plugins like Markdown.
+    fn rewrite_file_references(
+        &self,
+        content: &str,
+        old_path: &Path,
+        new_path: &Path,
+        _current_file: &Path,
+        _project_root: &Path,
+        _rename_info: Option<&serde_json::Value>,
+    ) -> Option<(String, usize)> {
+        self.import_support().map(|support| {
+            let old_name = old_path.to_string_lossy();
+            // Per Codex's feedback, fall back to the full path if file_name is None.
+            let new_name = new_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or_else(|| new_path.to_str().unwrap_or(""));
+            support.rewrite_imports_for_rename(content, &old_name, new_name)
+        })
+    }
 }
 
 // ============================================================================
