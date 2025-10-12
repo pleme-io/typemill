@@ -1,0 +1,33 @@
+[package]
+name = "cb-lang-markdown"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[dependencies]
+# Our core plugin API
+cb-plugin-api = { path = "../cb-plugin-api" }
+cb-plugin-registry = { path = "../cb-plugin-registry" }
+cb-protocol = { path = "../cb-protocol" }
+cb-core = { path = "../cb-core" }
+cb-lang-common = { path = "../cb-lang-common" }
+
+# For markdown link parsing
+regex = "1.10"
+tracing = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Path utilities
+pathdiff = "0.2"
+
+# For async operations
+async-trait = { workspace = true }
+tokio = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }

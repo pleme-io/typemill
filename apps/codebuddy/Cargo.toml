@@ -18,6 +18,11 @@ cb-protocol = { path = "../../crates/cb-protocol" }
 cb-plugins = { path = "../../crates/cb-plugins" }
 cb-transport = { path = "../../crates/cb-transport" }
 
+# Language plugins - must be direct dependencies for inventory discovery
+cb-lang-rust = { workspace = true }
+cb-lang-typescript = { workspace = true }
+cb-lang-markdown = { workspace = true }
+
 tokio = { version = "1", features = ["full"] }
 axum = { version = "0.8", features = ["ws"] }
 axum-extra = { version = "0.10.2", features = ["typed-header"] }
