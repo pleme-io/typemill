@@ -1,7 +1,56 @@
 # Advanced Dead Code Analysis
 
-**Status:** Proposed
+**Status:** Phase 1 Implemented ✅
 **Goal:** Detect unused types, interfaces, constants, and other symbols beyond function-level dead code detection
+
+---
+
+## Implementation Status
+
+### ✅ Phase 1 Complete (Merged: commit 7c9cfd18)
+
+**What was implemented:**
+- **Graph-based analysis infrastructure**: New `cb-analysis-deep-dead-code` crate using dependency graphs
+- **LSP integration**: Workspace-wide symbol discovery via `workspace/symbol` and `find_references`
+- **CLI command**: `codebuddy analyze dead-code` with `--include-public` flag
+- **MCP tool**: `analyze.dead_code` with `kind: "deep"` parameter
+- **Public/private filtering**: Conservative mode (default) excludes public symbols; aggressive mode includes them
+- **Cross-file analysis**: Leverages LSP for tracking symbol usage across the workspace
+- **Integration tests**: Basic test coverage for default and aggressive modes
+
+**Architecture:**
+- `analysis/cb-analysis-deep-dead-code/` - Core analysis engine
+- `analysis/cb-analysis-common/src/graph.rs` - Shared dependency graph infrastructure
+- `crates/cb-handlers/src/handlers/tools/analysis/dead_code.rs` - MCP handler integration with both regex-based (file scope) and LSP-based (workspace scope) implementations
+- `apps/codebuddy/src/cli.rs` - CLI command implementation
+
+**Current Capabilities:**
+- Detects unused functions, classes, and other symbols via LSP
+- Works across files within a workspace
+- Respects public/private visibility (with configuration)
+- Returns structured findings compatible with unified analysis API
+- File-level analysis uses regex heuristics for: unused imports, unused symbols, unreachable code, unused parameters, unused types, unused variables
+
+### 🚧 Phase 2 Planned (Future Work)
+
+**Remaining from original proposal:**
+- **AST-based type extraction**: Direct parsing of types, interfaces, constants, enums using language-specific AST parsers (`syn` for Rust, TypeScript compiler API) for more comprehensive detection
+- **Generic/template handling**: Track both generic parameters and concrete instantiations
+- **Enhanced symbol categorization**: Explicit detection of Type, Interface, Trait, Constant, Enum (currently relies on LSP's SymbolKind mapping)
+- **Unused type parameters**: Detect generic parameters that are declared but never used
+- **Exported symbol strategy**: More sophisticated heuristics beyond simple public/private (e.g., check if exported in package.json, Cargo.toml `pub use`, documented as public API)
+- **Performance optimizations**: Symbol caching, incremental analysis, parallel file parsing (see "Performance" section)
+- **Advanced filtering**: Min size thresholds, exclude patterns by path, symbol type filtering
+
+**Gap Analysis:**
+
+The current implementation provides a **solid foundation** for dead code detection using LSP as the source of truth for workspace-wide analysis. However, the original proposal envisioned more granular detection using direct AST parsing:
+
+- **LSP approach (current)**: Relies on language server's symbol reporting - comprehensive for functions, classes, but may miss some categories like unused constants or type parameters. Excellent for cross-file analysis.
+- **Regex heuristics (current)**: File-level analysis uses pattern matching for quick detection - good for common cases, may have false positives/negatives.
+- **AST approach (future)**: Direct parsing gives complete control over symbol extraction and categorization - will enable detection of all symbol types mentioned in original proposal.
+
+**See "Future Enhancements" section below for details.**
 
 ---
 
