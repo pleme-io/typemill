@@ -64,7 +64,7 @@ Requests to endpoints like `/workspaces` or `/workspaces/{id}/execute` without a
 | `find_references` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Supports `include_declaration` param |
 | `find_implementations` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | For interfaces/abstract classes |
 | `find_type_definition` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Find underlying type definitions |
-| `search_workspace_symbols` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Queries ALL active LSP servers |
+| `search_symbols` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Queries ALL active LSP servers (formerly search_workspace_symbols) |
 | `prepare_call_hierarchy` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Returns call hierarchy item |
 | `get_call_hierarchy_incoming_calls` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Requires item from prepare step |
 | `get_call_hierarchy_outgoing_calls` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Requires item from prepare step |
@@ -120,13 +120,12 @@ Requests to endpoints like `/workspaces` or `/workspaces/{id}/execute` without a
 
 | Tool | TypeScript/JS | Python | Go | Rust | Java | Swift | C# | Notes |
 |------|---------------|--------|-----|------|------|-------|-----|-------|
-| `health_check` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Server status |
+| `health_check` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Server status (includes system_status) |
 | `web_fetch` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | URL content fetching |
-| `system_status` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Lightweight server status |
 
 **Internal tools (not in public API):**
 - `apply_edits` - Atomic multi-file edits (replaced by `workspace.apply_edit`)
-- `batch_execute` - Batch operations (replaced by future `analyze.batch`)
+- `batch_execute` - Batch file operations (for backend workflows)
 
 **Note:** Language support depends on configured LSP servers in `.codebuddy/config.json`. LSP-first tools attempt LSP code actions, falling back to AST parsing if unsupported.
 
@@ -2043,7 +2042,7 @@ Apply atomic multi-file edits with rollback on failure.
 
 ### `batch_execute`
 
-**Internal Tool** - Not visible in MCP tools/list. Will be replaced by Unified Analysis API (future `analyze.batch`). Also known as `execute_batch`.
+**Internal Tool** - Not visible in MCP tools/list. Used by backend workflows for batch file operations. Also known as `execute_batch`.
 
 Execute multiple file operations in a single batch with atomic guarantees.
 
@@ -2244,30 +2243,6 @@ Fetch content from a URL.
 **Notes:**
 - Returns plain text content
 - HTTPS only for security
-
----
-
-### `system_status`
-
-Get basic system operational status.
-
-**Parameters:**
-```json
-{}  // No parameters required
-```
-
-**Returns:**
-```json
-{
-  "status": "ok",
-  "uptime_seconds": 3600,
-  "message": "System is operational"
-}
-```
-
-**Notes:**
-- Lightweight status check without detailed metrics
-- Use `health_check` for comprehensive diagnostics
 
 ---
 

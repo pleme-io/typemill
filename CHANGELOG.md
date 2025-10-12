@@ -22,7 +22,7 @@ The project underwent a complete architectural transformation from TypeScript/No
   - Plan commands generate detailed previews without filesystem modifications
   - Apply command executes plans with atomic multi-file updates and automatic rollback
 
-- **Unified Analysis API** - Complete implementation of 7 analysis tools (24 public tools total)
+- **Unified Analysis API** - Complete implementation of 6 analysis tools (23 public tools total)
   - `analyze.quality` - Code quality analysis (complexity, smells, maintainability, readability)
   - `analyze.dead_code` - Unused code detection (imports, symbols, parameters, variables, types, unreachable)
   - `analyze.dependencies` - Dependency analysis (imports, graph, circular, coupling, cohesion, depth)
@@ -55,7 +55,7 @@ The project underwent a complete architectural transformation from TypeScript/No
 
 - **Documentation Consistency** - Corrected documentation discrepancies across all reference docs
   - Updated UNIFIED_ANALYSIS_API_SUMMARY.md to reflect correct language support (Rust + TypeScript/JavaScript only)
-  - Fixed TOOLS_VISIBILITY_SPEC.md tool count (24 public tools, 25 internal tools)
+  - Fixed TOOLS_VISIBILITY_SPEC.md tool count (23 public tools, 20 internal tools)
   - Updated API_REFERENCE.md to include all 7 analyze.* commands with complete examples
   - Fixed QUICK_REFERENCE.md to include all 7 analysis tools (including analyze.batch)
   - Updated CLAUDE.md and AGENTS.md with Unified Analysis API section

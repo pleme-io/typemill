@@ -40,14 +40,14 @@ Pure Rust MCP server bridging Language Server Protocol (LSP) functionality to AI
 
 Codebuddy provides comprehensive MCP tools for code intelligence and refactoring. See **[API_REFERENCE.md](API_REFERENCE.md)** for complete API reference with detailed parameters, return types, and examples.
 
-**Current Architecture**: 24 public tools visible to AI agents via MCP `tools/list`, plus 25 internal tools for backend workflows.
+**Current Architecture**: 23 public tools visible to AI agents via MCP `tools/list`, plus 20 internal tools for backend workflows.
 
 **Note:** Internal tools exist for backend use only (lifecycle hooks, workflow plumbing, legacy operations). These are hidden from MCP `tools/list` to simplify the API surface for AI agents. See [API_REFERENCE.md Internal Tools](API_REFERENCE.md#internal-tools) section.
 
-### Quick Reference (24 Public Tools)
+### Quick Reference (23 Public Tools)
 
 **Navigation & Intelligence (8 tools)**
-- `find_definition`, `find_references`, `search_workspace_symbols`
+- `find_definition`, `find_references`, `search_symbols`
 - `find_implementations`, `find_type_definition`, `get_symbol_info`
 - `get_diagnostics`, `get_call_hierarchy`
 
@@ -56,17 +56,16 @@ Codebuddy provides comprehensive MCP tools for code intelligence and refactoring
 - `reorder.plan`, `transform.plan`, `delete.plan`
 - `workspace.apply_edit` (executes any plan)
 
-**Analysis (7 tools - Unified Analysis API)**
+**Analysis (6 tools - Unified Analysis API)**
 - `analyze.quality` (complexity, smells, maintainability, readability)
 - `analyze.dead_code` (unused imports, symbols, parameters, variables, types, unreachable code)
 - `analyze.dependencies` (imports, graph, circular dependencies, coupling, cohesion, depth)
 - `analyze.structure` (symbols, hierarchy, interfaces, inheritance, modules)
 - `analyze.documentation` (coverage, quality, style, examples, todos)
 - `analyze.tests` (coverage, quality, assertions, organization)
-- `analyze.batch` (multi-file analysis with AST caching)
 
-**System & Health (2 tools)**
-- `health_check`, `system_status`
+**System & Health (1 tool)**
+- `health_check`
 
 **Note**: File operations, workspace tools, and legacy analysis tools are now internal-only. AI agents should use the public API above. See [API_REFERENCE.md](API_REFERENCE.md) for complete details.
 

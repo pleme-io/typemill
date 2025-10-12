@@ -2,7 +2,7 @@
 
 This guide is for experienced developers who want to get productive with Codebuddy in under 15 minutes. It assumes you are familiar with AI assistants, LSP, and your command line.
 
-**Current Public API**: 24 tools (see table below) | **Internal Tools**: 20 backend-only tools
+**Current Public API**: 23 tools (see table below) | **Internal Tools**: 20 backend-only tools
 
 **Language Support**: Rust (.rs) + TypeScript/JavaScript (.ts, .tsx, .js, .jsx). Additional languages (Python, Go, Java, Swift, C#) available in git tag `pre-language-reduction`.
 
@@ -68,7 +68,7 @@ codebuddy tool find_definition '{"file_path":"src/app.ts","line":10,"character":
 
 ---
 
-## 4. All 24 Public MCP Tools
+## 4. All 23 Public MCP Tools
 
 These are the public-facing tools for AI agents and MCP clients. See `API_REFERENCE.md` for complete details.
 
@@ -79,7 +79,7 @@ These are the public-facing tools for AI agents and MCP clients. See `API_REFERE
 | `find_references` | Find all references to a symbol | `{"file_path":"src/app.ts","line":10,"character":5}` |
 | `find_implementations` | Find implementations of interface/abstract class | `{"file_path":"src/app.ts","line":10,"character":5}` |
 | `find_type_definition` | Find underlying type definition | `{"file_path":"src/app.ts","line":10,"character":5}` |
-| `search_workspace_symbols` | Search for symbols by name across workspace | `{"query":"MyComponent"}` |
+| `search_symbols` | Search for symbols by name across workspace | `{"query":"MyComponent"}` |
 | `get_symbol_info` | Get detailed symbol information | `{"file_path":"src/app.ts","line":10,"character":5}` |
 | `get_diagnostics` | Get all errors and warnings for a file | `{"file_path":"src/app.ts"}` |
 | `get_call_hierarchy` | Get call hierarchy (callers/callees) | `{"file_path":"src/app.ts","line":10,"character":5}` |
@@ -101,7 +101,7 @@ These are the public-facing tools for AI agents and MCP clients. See `API_REFERE
 | `workspace.apply_edit` | Execute a refactoring plan | `{"plan":{...}}` |
 | `health_check` | Get server health status | `{"include_details":true}` |
 
-### Analysis (7 tools - Unified Analysis API)
+### Analysis (6 tools - Unified Analysis API)
 | Tool | Description | Example |
 |------|-------------|---------|
 | `analyze.quality` | Code quality analysis (complexity, smells, maintainability, readability) | `{"kind":"complexity","scope":{"type":"file","path":"src/app.ts"}}` |
@@ -110,7 +110,6 @@ These are the public-facing tools for AI agents and MCP clients. See `API_REFERE
 | `analyze.structure` | Code structure analysis (symbols, hierarchy, interfaces, inheritance, modules) | `{"kind":"symbols","scope":{"type":"file","path":"src/app.ts"}}` |
 | `analyze.documentation` | Documentation quality (coverage, quality, style, examples, todos) | `{"kind":"coverage","scope":{"type":"file","path":"src/app.ts"}}` |
 | `analyze.tests` | Test analysis (coverage, quality, assertions, organization) | `{"kind":"coverage","scope":{"type":"file","path":"tests/app.test.ts"}}` |
-| `analyze.batch` | Batch analysis across multiple files with optimized AST caching | `{"files":["src/app.ts","src/lib.ts"],"category":"quality","kinds":["complexity","smells"]}` |
 
 ---
 
