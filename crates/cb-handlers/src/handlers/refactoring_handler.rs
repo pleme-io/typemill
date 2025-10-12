@@ -20,7 +20,7 @@ impl RefactoringHandler {
 #[async_trait]
 impl ToolHandler for RefactoringHandler {
     fn tool_names(&self) -> &[&str] {
-        &[]  // No tools - this is a stub
+        &[] // No tools - this is a stub
     }
 
     fn is_internal(&self) -> bool {

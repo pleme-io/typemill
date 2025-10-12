@@ -40,12 +40,18 @@ pub async fn run_analysis(
         files_analyzed = source_files.len();
 
         if let Some(filter) = &config.file_types {
-            let extensions: HashSet<String> = filter.iter().map(|s| s.trim_start_matches('.').to_lowercase()).collect();
+            let extensions: HashSet<String> = filter
+                .iter()
+                .map(|s| s.trim_start_matches('.').to_lowercase())
+                .collect();
             all_symbols.retain(|symbol| {
-                symbol.get("location")
+                symbol
+                    .get("location")
                     .and_then(|loc| loc.get("uri"))
                     .and_then(|uri| uri.as_str())
-                    .and_then(|uri_str| Path::new(uri_str.strip_prefix("file://").unwrap_or(uri_str)).extension())
+                    .and_then(|uri_str| {
+                        Path::new(uri_str.strip_prefix("file://").unwrap_or(uri_str)).extension()
+                    })
                     .and_then(|ext| ext.to_str())
                     .map(|ext_str| extensions.contains(&ext_str.to_lowercase()))
                     .unwrap_or(false)
@@ -111,9 +117,7 @@ pub async fn run_analysis(
 }
 
 /// Collect workspace symbols using the provided LSP provider.
-async fn collect_workspace_symbols(
-    lsp: Arc<dyn LspProvider>,
-) -> Result<Vec<Value>, AnalysisError> {
+async fn collect_workspace_symbols(lsp: Arc<dyn LspProvider>) -> Result<Vec<Value>, AnalysisError> {
     let query_attempts = vec!["*", ""];
     for query in query_attempts {
         let lsp_call = lsp.workspace_symbols(query);
@@ -163,7 +167,9 @@ async fn collect_symbols_by_document(
                     flatten_document_symbol(&symbol, &uri, &mut all_symbols);
                 }
             }
-            Ok(Err(e)) => debug!(error = %e, file_path = %file_path.display(), "Failed to get document symbols"),
+            Ok(Err(e)) => {
+                debug!(error = %e, file_path = %file_path.display(), "Failed to get document symbols")
+            }
             Err(_) => warn!(file_path = %file_path.display(), "Timeout getting document symbols"),
         }
     }
@@ -217,11 +223,9 @@ fn flatten_document_symbol(symbol: &Value, uri: &str, output: &mut Vec<Value>) {
         output.push(symbol.clone());
         return;
     }
-    if let (Some(name), Some(kind), Some(range)) = (
-        symbol.get("name"),
-        symbol.get("kind"),
-        symbol.get("range"),
-    ) {
+    if let (Some(name), Some(kind), Some(range)) =
+        (symbol.get("name"), symbol.get("kind"), symbol.get("range"))
+    {
         output.push(json!({
             "name": name,
             "kind": kind,
@@ -320,12 +324,11 @@ async fn check_single_symbol_references(
         return None;
     }
 
-    let references_result =
-        timeout(
-            Duration::from_secs(5),
-            lsp.find_references(uri, line, character),
-        )
-        .await;
+    let references_result = timeout(
+        Duration::from_secs(5),
+        lsp.find_references(uri, line, character),
+    )
+    .await;
 
     match references_result {
         Ok(Ok(references)) => {

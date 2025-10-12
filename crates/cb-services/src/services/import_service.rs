@@ -168,12 +168,11 @@ impl ImportService {
         };
 
         let original_content = content.clone();
-        let updated_content =
-            import_support
-                .update_import_reference(file_path, &content, update)
-                .map_err(|e| {
-                    ServerError::Internal(format!("Failed to update import reference: {}", e))
-                })?;
+        let updated_content = import_support
+            .update_import_reference(file_path, &content, update)
+            .map_err(|e| {
+                ServerError::Internal(format!("Failed to update import reference: {}", e))
+            })?;
 
         if original_content == updated_content {
             return Ok(false); // No changes were made

@@ -1,4 +1,4 @@
-use cb_plugin_api::{LanguagePlugin, PluginCapabilities, LspConfig};
+use cb_plugin_api::{LanguagePlugin, LspConfig, PluginCapabilities};
 
 // Re-export inventory for the macro.
 pub use inventory;

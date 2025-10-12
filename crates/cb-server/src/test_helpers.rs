@@ -107,7 +107,10 @@ fn spawn_test_worker(queue: Arc<OperationQueue>) {
                             ))
                         })
                     }
-                    OperationType::Read | OperationType::Format | OperationType::Refactor | OperationType::UpdateDependency => {
+                    OperationType::Read
+                    | OperationType::Format
+                    | OperationType::Refactor
+                    | OperationType::UpdateDependency => {
                         // These operations don't modify filesystem, just log
                         eprintln!(
                             "DEBUG: Skipping non-modifying operation: {:?}",
@@ -144,7 +147,9 @@ fn spawn_test_worker(queue: Arc<OperationQueue>) {
 }
 
 /// Create a test dispatcher for integration tests with a custom project root
-pub async fn create_test_dispatcher_with_root(project_root: std::path::PathBuf) -> PluginDispatcher {
+pub async fn create_test_dispatcher_with_root(
+    project_root: std::path::PathBuf,
+) -> PluginDispatcher {
     // Build language plugin registry (centralized)
     let plugin_registry = cb_services::services::build_language_plugin_registry();
 

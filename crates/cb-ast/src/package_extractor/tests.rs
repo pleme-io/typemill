@@ -1,11 +1,11 @@
 use super::*;
+use crate::package_extractor::planner::plan_extract_module_to_package;
 use cb_lang_rust::RustPlugin;
 use cb_protocol::EditType;
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 use tempfile::tempdir;
-use crate::package_extractor::planner::plan_extract_module_to_package;
 
 #[tokio::test]
 async fn test_locate_module_files_single_file() {
@@ -367,7 +367,11 @@ version = "0.1.0"
     )
     .unwrap();
     fs::write(src_dir.join("lib.rs"), r#"pub mod my_module;"#).unwrap();
-    fs::write(src_dir.join("my_module.rs"), r#"pub fn module_function() {}"#).unwrap();
+    fs::write(
+        src_dir.join("my_module.rs"),
+        r#"pub fn module_function() {}"#,
+    )
+    .unwrap();
 
     let target_crate = project_root.join("extracted_crate");
     fs::create_dir_all(&target_crate).unwrap();

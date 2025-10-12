@@ -220,6 +220,7 @@ pub fn update_import_reference_ast(
             .map_err(|e| PluginError::internal(format!("Failed to emit updated code: {:?}", e)))?;
     }
 
-    String::from_utf8(buf)
-        .map_err(|e| PluginError::internal(format!("Failed to convert emitted code to string: {}", e)))
+    String::from_utf8(buf).map_err(|e| {
+        PluginError::internal(format!("Failed to convert emitted code to string: {}", e))
+    })
 }

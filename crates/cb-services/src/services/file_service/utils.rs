@@ -128,7 +128,12 @@ impl FileService {
     }
 
     /// Adjust a relative path based on depth change
-    pub(super) fn adjust_relative_path(&self, path: &str, old_depth: usize, new_depth: usize) -> String {
+    pub(super) fn adjust_relative_path(
+        &self,
+        path: &str,
+        old_depth: usize,
+        new_depth: usize,
+    ) -> String {
         let depth_diff = new_depth as i32 - old_depth as i32;
 
         if depth_diff > 0 {

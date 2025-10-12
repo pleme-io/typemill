@@ -242,7 +242,8 @@ pub fn plan_inline_variable(
 
     // Pattern matching for variable declarations and constants
     // Supports: let x = ..., let mut x = ..., const X: Type = ...
-    let var_pattern = regex::Regex::new(r"(?:let\s+(?:mut\s+)?|const\s+)(\w+)(?::\s*[^=]+)?\s*=\s*(.+?)(?:;|$)")?;
+    let var_pattern =
+        regex::Regex::new(r"(?:let\s+(?:mut\s+)?|const\s+)(\w+)(?::\s*[^=]+)?\s*=\s*(.+?)(?:;|$)")?;
 
     if let Some(captures) = var_pattern.captures(line_text) {
         let var_name = captures.get(1).unwrap().as_str();

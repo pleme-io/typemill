@@ -1,8 +1,8 @@
 use super::*;
-use crate::{PluginRequest, PluginError};
+use crate::{PluginError, PluginRequest};
+use async_trait::async_trait;
 use serde_json::json;
 use std::path::PathBuf;
-use async_trait::async_trait;
 
 struct MockLspService {
     name: String,
@@ -80,8 +80,7 @@ async fn test_hover_request() {
 
     let adapter = LspAdapterPlugin::typescript(lsp_service);
 
-    let request =
-        PluginRequest::new("get_hover", PathBuf::from("test.ts")).with_position(5, 10);
+    let request = PluginRequest::new("get_hover", PathBuf::from("test.ts")).with_position(5, 10);
 
     let response = adapter.handle_request(request).await.unwrap();
     assert!(response.success);

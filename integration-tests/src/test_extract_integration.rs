@@ -161,7 +161,9 @@ async fn test_extract_variable_dry_run() {
 
             // 4. Verify file unchanged
             assert!(
-                workspace.read_file("vars.rs").contains("let result = (10 + 5) * 2;"),
+                workspace
+                    .read_file("vars.rs")
+                    .contains("let result = (10 + 5) * 2;"),
                 "File should be unchanged after dry run"
             );
         }
@@ -236,11 +238,7 @@ async fn test_extract_constant_checksum_validation() {
 
             // Should fail due to checksum mismatch
             assert!(
-                apply_result.is_err()
-                    || apply_result
-                        .unwrap()
-                        .get("error")
-                        .is_some(),
+                apply_result.is_err() || apply_result.unwrap().get("error").is_some(),
                 "Apply should fail due to checksum mismatch"
             );
         }
@@ -293,22 +291,13 @@ async fn test_extract_plan_metadata_structure() {
                 .expect("Plan should exist");
 
             // Verify plan structure
-            assert!(
-                plan.get("metadata").is_some(),
-                "Plan should have metadata"
-            );
-            assert!(
-                plan.get("summary").is_some(),
-                "Plan should have summary"
-            );
+            assert!(plan.get("metadata").is_some(), "Plan should have metadata");
+            assert!(plan.get("summary").is_some(), "Plan should have summary");
             assert!(
                 plan.get("file_checksums").is_some(),
                 "Plan should have checksums"
             );
-            assert!(
-                plan.get("edits").is_some(),
-                "Plan should have edits"
-            );
+            assert!(plan.get("edits").is_some(), "Plan should have edits");
 
             let metadata = plan.get("metadata").unwrap();
             assert_eq!(

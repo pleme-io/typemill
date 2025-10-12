@@ -69,9 +69,10 @@ impl DependencyGraph {
     /// Returns the `NodeId` of the new or existing module.
     pub fn add_module(&mut self, node: ModuleNode) -> NodeId {
         // Use the entry API to avoid a double lookup.
-        *self.nodes.entry(node.path.clone()).or_insert_with(|| {
-            self.graph.add_node(node)
-        })
+        *self
+            .nodes
+            .entry(node.path.clone())
+            .or_insert_with(|| self.graph.add_node(node))
     }
 
     /// Adds a dependency between two modules, identified by their paths.
@@ -116,7 +117,8 @@ impl DependencyGraph {
 
     /// Retrieves all modules that directly depend on the given module.
     pub fn direct_dependents(&self, id: NodeId) -> impl Iterator<Item = NodeId> + '_ {
-        self.graph.neighbors_directed(id, petgraph::Direction::Incoming)
+        self.graph
+            .neighbors_directed(id, petgraph::Direction::Incoming)
     }
 
     /// Calculates the set of all modules that a given module transitively depends on.
@@ -164,19 +166,28 @@ mod tests {
         graph.add_dependency(
             &path_a,
             &path_b,
-            Dependency { kind: DependencyKind::Import, symbols: vec![] },
+            Dependency {
+                kind: DependencyKind::Import,
+                symbols: vec![],
+            },
             "rust",
         );
         graph.add_dependency(
             &path_b,
             &path_c,
-            Dependency { kind: DependencyKind::Import, symbols: vec![] },
+            Dependency {
+                kind: DependencyKind::Import,
+                symbols: vec![],
+            },
             "rust",
         );
         graph.add_dependency(
             &path_a,
             &path_d,
-            Dependency { kind: DependencyKind::Import, symbols: vec![] },
+            Dependency {
+                kind: DependencyKind::Import,
+                symbols: vec![],
+            },
             "rust",
         );
 

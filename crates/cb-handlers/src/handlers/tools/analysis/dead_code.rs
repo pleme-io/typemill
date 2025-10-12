@@ -147,14 +147,8 @@ fn detect_unused_imports(
 
                                 let mut metrics = HashMap::new();
                                 metrics.insert("module_path".to_string(), json!(module_path_str));
-                                metrics.insert(
-                                    "unused_symbols".to_string(),
-                                    json!(unused_symbols),
-                                );
-                                metrics.insert(
-                                    "total_symbols".to_string(),
-                                    json!(symbols.len()),
-                                );
+                                metrics.insert("unused_symbols".to_string(), json!(unused_symbols));
+                                metrics.insert("total_symbols".to_string(), json!(symbols.len()));
                                 metrics.insert(
                                     "import_type".to_string(),
                                     json!(if all_unused {
@@ -425,7 +419,14 @@ fn detect_unreachable_code(
 
     // Language-specific terminator patterns
     let terminators = match language.to_lowercase().as_str() {
-        "rust" => vec!["return", "break", "continue", "panic!", "unreachable!", "std::process::exit"],
+        "rust" => vec![
+            "return",
+            "break",
+            "continue",
+            "panic!",
+            "unreachable!",
+            "std::process::exit",
+        ],
         "typescript" | "javascript" => vec!["return", "throw", "break", "continue", "process.exit"],
         "python" => vec!["return", "raise", "break", "continue", "sys.exit", "exit"],
         "go" => vec!["return", "panic", "break", "continue", "os.Exit"],
@@ -471,7 +472,10 @@ fn detect_unreachable_code(
                 }
 
                 // Skip comments
-                if next_line.starts_with("//") || next_line.starts_with('#') || next_line.starts_with("/*") {
+                if next_line.starts_with("//")
+                    || next_line.starts_with('#')
+                    || next_line.starts_with("/*")
+                {
                     continue;
                 }
 
@@ -481,7 +485,10 @@ fn detect_unreachable_code(
                 }
 
                 // If we hit another function/block start, stop
-                if next_line.contains("fn ") || next_line.contains("function ") || next_line.contains("def ") {
+                if next_line.contains("fn ")
+                    || next_line.contains("function ")
+                    || next_line.contains("def ")
+                {
                     break;
                 }
 
@@ -620,16 +627,16 @@ fn detect_unused_parameters(
         // Extract parameter names based on language
         let param_patterns = match language.to_lowercase().as_str() {
             "rust" => vec![
-                r"\(([^)]+)\)",  // fn foo(param1: Type, param2: Type)
+                r"\(([^)]+)\)", // fn foo(param1: Type, param2: Type)
             ],
             "typescript" | "javascript" => vec![
-                r"\(([^)]+)\)",  // function foo(param1, param2) or (param1, param2) =>
+                r"\(([^)]+)\)", // function foo(param1, param2) or (param1, param2) =>
             ],
             "python" => vec![
-                r"def\s+\w+\(([^)]+)\)",  // def foo(param1, param2):
+                r"def\s+\w+\(([^)]+)\)", // def foo(param1, param2):
             ],
             "go" => vec![
-                r"func\s+\w+\(([^)]+)\)",  // func foo(param1 Type, param2 Type)
+                r"func\s+\w+\(([^)]+)\)", // func foo(param1 Type, param2 Type)
             ],
             _ => vec![r"\(([^)]+)\)"],
         };
@@ -673,7 +680,10 @@ fn detect_unused_parameters(
                                 metrics.insert("function_name".to_string(), json!(func.name));
 
                                 findings.push(Finding {
-                                    id: format!("unused-parameter-{}-{}-{}", file_path, func.line, param_name),
+                                    id: format!(
+                                        "unused-parameter-{}-{}-{}",
+                                        file_path, func.line, param_name
+                                    ),
                                     kind: "unused_parameter".to_string(),
                                     severity: Severity::Low,
                                     location: FindingLocation {
@@ -684,7 +694,8 @@ fn detect_unused_parameters(
                                                 character: 0,
                                             },
                                             end: Position {
-                                                line: (func.line + signature.lines().count()) as u32,
+                                                line: (func.line + signature.lines().count())
+                                                    as u32,
                                                 character: 0,
                                             },
                                         }),
@@ -698,9 +709,13 @@ fn detect_unused_parameters(
                                     ),
                                     suggestions: vec![Suggestion {
                                         action: "remove_parameter".to_string(),
-                                        description: format!("Remove unused parameter '{}'", param_name),
+                                        description: format!(
+                                            "Remove unused parameter '{}'",
+                                            param_name
+                                        ),
                                         target: None,
-                                        estimated_impact: "Simplifies function signature".to_string(),
+                                        estimated_impact: "Simplifies function signature"
+                                            .to_string(),
                                         safety: SafetyLevel::RequiresReview,
                                         confidence: 0.75,
                                         reversible: true,
@@ -889,20 +904,20 @@ fn detect_unused_variables(
     // Language-specific variable declaration patterns
     let var_patterns = match language.to_lowercase().as_str() {
         "rust" => vec![
-            r"let\s+mut\s+(\w+)\s*[=:]",  // let mut x =
-            r"let\s+(\w+)\s*[=:]",         // let x =
+            r"let\s+mut\s+(\w+)\s*[=:]", // let mut x =
+            r"let\s+(\w+)\s*[=:]",       // let x =
         ],
         "typescript" | "javascript" => vec![
-            r"const\s+(\w+)\s*=",  // const x =
-            r"let\s+(\w+)\s*=",    // let x =
-            r"var\s+(\w+)\s*=",    // var x =
+            r"const\s+(\w+)\s*=", // const x =
+            r"let\s+(\w+)\s*=",   // let x =
+            r"var\s+(\w+)\s*=",   // var x =
         ],
         "python" => vec![
-            r"^\s*(\w+)\s*=\s*",  // x = (at start of line)
+            r"^\s*(\w+)\s*=\s*", // x = (at start of line)
         ],
         "go" => vec![
-            r"(\w+)\s*:=",        // x :=
-            r"var\s+(\w+)\s+",    // var x Type
+            r"(\w+)\s*:=",     // x :=
+            r"var\s+(\w+)\s+", // var x Type
         ],
         _ => vec![r"let\s+(\w+)\s*="],
     };
@@ -937,7 +952,10 @@ fn detect_unused_variables(
 
                             // Skip if it's a parameter (already covered by unused_parameters)
                             // This is a simple heuristic - full AST would be more accurate
-                            if line.contains("fn ") || line.contains("function ") || line.contains("def ") {
+                            if line.contains("fn ")
+                                || line.contains("function ")
+                                || line.contains("def ")
+                            {
                                 continue;
                             }
 
@@ -957,7 +975,12 @@ fn detect_unused_variables(
                                 metrics.insert("scope".to_string(), json!(func.name));
 
                                 findings.push(Finding {
-                                    id: format!("unused-variable-{}-{}-{}", file_path, i + 1, var_name),
+                                    id: format!(
+                                        "unused-variable-{}-{}-{}",
+                                        file_path,
+                                        i + 1,
+                                        var_name
+                                    ),
                                     kind: "unused_variable".to_string(),
                                     severity: Severity::Low,
                                     location: FindingLocation {
@@ -982,7 +1005,10 @@ fn detect_unused_variables(
                                     ),
                                     suggestions: vec![Suggestion {
                                         action: "remove_variable".to_string(),
-                                        description: format!("Remove unused variable '{}'", var_name),
+                                        description: format!(
+                                            "Remove unused variable '{}'",
+                                            var_name
+                                        ),
                                         target: None,
                                         estimated_impact: "Reduces code clutter".to_string(),
                                         safety: SafetyLevel::Safe,
@@ -1217,15 +1243,9 @@ fn extract_imported_symbols(content: &str, module_path: &str, language: &str) ->
     let patterns = match language.to_lowercase().as_str() {
         "rust" => vec![
             // use std::collections::{HashMap, HashSet};
-            format!(
-                r"use\s+{}::\{{([^}}]+)\}}",
-                regex::escape(module_path)
-            ),
+            format!(r"use\s+{}::\{{([^}}]+)\}}", regex::escape(module_path)),
             // use std::collections::HashMap;
-            format!(
-                r"use\s+{}::(\w+)",
-                regex::escape(module_path)
-            ),
+            format!(r"use\s+{}::(\w+)", regex::escape(module_path)),
         ],
         "typescript" | "javascript" => vec![
             // import { foo, bar } from './module'
@@ -1368,7 +1388,10 @@ fn is_function_exported(func_name: &str, content: &str, language: &str) -> bool 
         }
         "typescript" | "javascript" => {
             // Check for export keyword before function
-            let export_pattern = format!(r"export\s+(?:async\s+)?(?:function\s+)?{}\b", regex::escape(func_name));
+            let export_pattern = format!(
+                r"export\s+(?:async\s+)?(?:function\s+)?{}\b",
+                regex::escape(func_name)
+            );
             if let Ok(pattern) = Regex::new(&export_pattern) {
                 return pattern.is_match(content);
             }

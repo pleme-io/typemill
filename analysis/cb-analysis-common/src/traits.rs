@@ -1,11 +1,11 @@
 // analysis/cb-analysis-common/src/traits.rs
 
+use crate::error::AnalysisError;
+use crate::types::AnalysisMetadata;
 use async_trait::async_trait;
 use serde_json::Value;
 use std::path::Path;
 use std::sync::Arc;
-use crate::error::AnalysisError;
-use crate::types::AnalysisMetadata;
 
 /// Abstraction for LSP communication (dependency inversion)
 #[async_trait]
@@ -14,8 +14,12 @@ pub trait LspProvider: Send + Sync {
     async fn workspace_symbols(&self, query: &str) -> Result<Vec<Value>, AnalysisError>;
 
     /// Query LSP textDocument/references
-    async fn find_references(&self, uri: &str, line: u32, character: u32)
-        -> Result<Vec<Value>, AnalysisError>;
+    async fn find_references(
+        &self,
+        uri: &str,
+        line: u32,
+        character: u32,
+    ) -> Result<Vec<Value>, AnalysisError>;
 
     /// Query LSP textDocument/documentSymbol
     async fn document_symbols(&self, uri: &str) -> Result<Vec<Value>, AnalysisError>;

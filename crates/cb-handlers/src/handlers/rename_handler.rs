@@ -101,15 +101,9 @@ impl ToolHandler for RenameHandler {
 
         // Dispatch based on target kind
         let plan = match params.target.kind.as_str() {
-            "symbol" => {
-                self.plan_symbol_rename(&params, context).await?
-            }
-            "file" => {
-                self.plan_file_rename(&params, context).await?
-            }
-            "directory" => {
-                self.plan_directory_rename(&params, context).await?
-            }
+            "symbol" => self.plan_symbol_rename(&params, context).await?,
+            "file" => self.plan_file_rename(&params, context).await?,
+            "directory" => self.plan_directory_rename(&params, context).await?,
             kind => {
                 return Err(ServerError::InvalidRequest(format!(
                     "Unsupported rename kind: {}. Must be one of: symbol, file, directory",
@@ -145,9 +139,7 @@ impl RenameHandler {
             .selector
             .as_ref()
             .ok_or_else(|| {
-                ServerError::InvalidRequest(
-                    "Symbol rename requires selector.position".into()
-                )
+                ServerError::InvalidRequest("Symbol rename requires selector.position".into())
             })?
             .position;
 
@@ -165,30 +157,23 @@ impl RenameHandler {
 
         // Get LSP adapter
         let lsp_adapter = context.lsp_adapter.lock().await;
-        let adapter = lsp_adapter.as_ref().ok_or_else(|| {
-            ServerError::Internal("LSP adapter not initialized".into())
-        })?;
+        let adapter = lsp_adapter
+            .as_ref()
+            .ok_or_else(|| ServerError::Internal("LSP adapter not initialized".into()))?;
 
         // Get or create LSP client for this extension
-        let client = adapter
-            .get_or_create_client(extension)
-            .await
-            .map_err(|e| {
-                ServerError::Unsupported(format!(
-                    "No LSP server configured for extension {}: {}",
-                    extension, e
-                ))
-            })?;
+        let client = adapter.get_or_create_client(extension).await.map_err(|e| {
+            ServerError::Unsupported(format!(
+                "No LSP server configured for extension {}: {}",
+                extension, e
+            ))
+        })?;
 
         // Convert path to absolute and create file URI
-        let abs_path = std::fs::canonicalize(path)
-            .unwrap_or_else(|_| path.to_path_buf());
+        let abs_path = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
         let file_uri = url::Url::from_file_path(&abs_path)
             .map_err(|_| {
-                ServerError::Internal(format!(
-                    "Invalid file path: {}",
-                    abs_path.display()
-                ))
+                ServerError::Internal(format!("Invalid file path: {}", abs_path.display()))
             })?
             .to_string();
 
@@ -212,10 +197,9 @@ impl RenameHandler {
             })?;
 
         // Parse WorkspaceEdit from LSP response
-        let workspace_edit: WorkspaceEdit = serde_json::from_value(lsp_result)
-            .map_err(|e| {
-                ServerError::Internal(format!("Failed to parse LSP WorkspaceEdit: {}", e))
-            })?;
+        let workspace_edit: WorkspaceEdit = serde_json::from_value(lsp_result).map_err(|e| {
+            ServerError::Internal(format!("Failed to parse LSP WorkspaceEdit: {}", e))
+        })?;
 
         // Calculate file checksums and summary
         let (file_checksums, summary, warnings) = self
@@ -268,8 +252,7 @@ impl RenameHandler {
         // Extract edit plan from dry-run result
         // Note: FileService returns ServerResult<Value> for dry runs
         // For now, we'll create a minimal WorkspaceEdit representing the file move
-        let abs_old = std::fs::canonicalize(old_path)
-            .unwrap_or_else(|_| old_path.to_path_buf());
+        let abs_old = std::fs::canonicalize(old_path).unwrap_or_else(|_| old_path.to_path_buf());
         let _abs_new = new_path.to_path_buf();
 
         // Read file content for checksum
@@ -290,15 +273,16 @@ impl RenameHandler {
         );
 
         // Create WorkspaceEdit representing file rename using LSP ResourceOp
-        use lsp_types::{DocumentChanges, DocumentChangeOperation, ResourceOp, RenameFile, Uri};
+        use lsp_types::{DocumentChangeOperation, DocumentChanges, RenameFile, ResourceOp, Uri};
 
         let old_url = url::Url::from_file_path(&abs_old).map_err(|_| {
             ServerError::Internal(format!("Invalid old path: {}", abs_old.display()))
         })?;
 
-        let old_uri: Uri = old_url.as_str().parse().map_err(|e| {
-            ServerError::Internal(format!("Failed to parse URI: {}", e))
-        })?;
+        let old_uri: Uri = old_url
+            .as_str()
+            .parse()
+            .map_err(|e| ServerError::Internal(format!("Failed to parse URI: {}", e)))?;
 
         let abs_new = std::fs::canonicalize(new_path.parent().unwrap_or(Path::new(".")))
             .unwrap_or_else(|_| new_path.parent().unwrap_or(Path::new(".")).to_path_buf())
@@ -308,9 +292,10 @@ impl RenameHandler {
             ServerError::Internal(format!("Invalid new path: {}", abs_new.display()))
         })?;
 
-        let new_uri: Uri = new_url.as_str().parse().map_err(|e| {
-            ServerError::Internal(format!("Failed to parse URI: {}", e))
-        })?;
+        let new_uri: Uri = new_url
+            .as_str()
+            .parse()
+            .map_err(|e| ServerError::Internal(format!("Failed to parse URI: {}", e)))?;
 
         let rename_op = ResourceOp::Rename(RenameFile {
             old_uri,
@@ -322,7 +307,7 @@ impl RenameHandler {
         let workspace_edit = WorkspaceEdit {
             changes: None,
             document_changes: Some(DocumentChanges::Operations(vec![
-                DocumentChangeOperation::Op(rename_op)
+                DocumentChangeOperation::Op(rename_op),
             ])),
             change_annotations: None,
         };
@@ -393,20 +378,14 @@ impl RenameHandler {
             .unwrap_or(0) as usize;
 
         // For directory rename, we need to calculate checksums for all files being moved
-        let abs_old = std::fs::canonicalize(old_path)
-            .unwrap_or_else(|_| old_path.to_path_buf());
+        let abs_old = std::fs::canonicalize(old_path).unwrap_or_else(|_| old_path.to_path_buf());
         let mut file_checksums = HashMap::new();
 
         // Walk directory to collect files and calculate checksums
         let walker = ignore::WalkBuilder::new(&abs_old).hidden(false).build();
         for entry in walker.flatten() {
             if entry.path().is_file() {
-                if let Ok(content) = context
-                    .app_state
-                    .file_service
-                    .read_file(entry.path())
-                    .await
-                {
+                if let Ok(content) = context.app_state.file_service.read_file(entry.path()).await {
                     file_checksums.insert(
                         entry.path().to_string_lossy().to_string(),
                         calculate_checksum(&content),
@@ -416,15 +395,16 @@ impl RenameHandler {
         }
 
         // Create WorkspaceEdit representing directory rename using LSP ResourceOp
-        use lsp_types::{DocumentChanges, DocumentChangeOperation, ResourceOp, RenameFile, Uri};
+        use lsp_types::{DocumentChangeOperation, DocumentChanges, RenameFile, ResourceOp, Uri};
 
         let old_url = url::Url::from_file_path(&abs_old).map_err(|_| {
             ServerError::Internal(format!("Invalid old path: {}", abs_old.display()))
         })?;
 
-        let old_uri: Uri = old_url.as_str().parse().map_err(|e| {
-            ServerError::Internal(format!("Failed to parse URI: {}", e))
-        })?;
+        let old_uri: Uri = old_url
+            .as_str()
+            .parse()
+            .map_err(|e| ServerError::Internal(format!("Failed to parse URI: {}", e)))?;
 
         let abs_new = std::fs::canonicalize(new_path.parent().unwrap_or(Path::new(".")))
             .unwrap_or_else(|_| new_path.parent().unwrap_or(Path::new(".")).to_path_buf())
@@ -434,9 +414,10 @@ impl RenameHandler {
             ServerError::Internal(format!("Invalid new path: {}", abs_new.display()))
         })?;
 
-        let new_uri: Uri = new_url.as_str().parse().map_err(|e| {
-            ServerError::Internal(format!("Failed to parse URI: {}", e))
-        })?;
+        let new_uri: Uri = new_url
+            .as_str()
+            .parse()
+            .map_err(|e| ServerError::Internal(format!("Failed to parse URI: {}", e)))?;
 
         let rename_op = ResourceOp::Rename(RenameFile {
             old_uri,
@@ -448,7 +429,7 @@ impl RenameHandler {
         let workspace_edit = WorkspaceEdit {
             changes: None,
             document_changes: Some(DocumentChanges::Operations(vec![
-                DocumentChangeOperation::Op(rename_op)
+                DocumentChangeOperation::Op(rename_op),
             ])),
             change_annotations: None,
         };
@@ -470,7 +451,8 @@ impl RenameHandler {
         {
             warnings.push(PlanWarning {
                 code: "CARGO_PACKAGE_RENAME".to_string(),
-                message: "Renaming a Cargo package will update workspace members and dependencies".to_string(),
+                message: "Renaming a Cargo package will update workspace members and dependencies"
+                    .to_string(),
                 candidates: None,
             });
         }
@@ -522,23 +504,31 @@ impl RenameHandler {
                     for op in ops {
                         match op {
                             lsp_types::DocumentChangeOperation::Edit(edit) => {
-                                let path = std::path::PathBuf::from(edit.text_document.uri.path().as_str());
+                                let path = std::path::PathBuf::from(
+                                    edit.text_document.uri.path().as_str(),
+                                );
                                 affected_files.insert(path);
                             }
                             lsp_types::DocumentChangeOperation::Op(resource_op) => {
                                 match resource_op {
                                     lsp_types::ResourceOp::Create(create) => {
-                                        let path = std::path::PathBuf::from(create.uri.path().as_str());
+                                        let path =
+                                            std::path::PathBuf::from(create.uri.path().as_str());
                                         affected_files.insert(path);
                                     }
                                     lsp_types::ResourceOp::Rename(rename) => {
-                                        let path = std::path::PathBuf::from(rename.old_uri.path().as_str());
+                                        let path = std::path::PathBuf::from(
+                                            rename.old_uri.path().as_str(),
+                                        );
                                         affected_files.insert(path);
-                                        let path = std::path::PathBuf::from(rename.new_uri.path().as_str());
+                                        let path = std::path::PathBuf::from(
+                                            rename.new_uri.path().as_str(),
+                                        );
                                         affected_files.insert(path);
                                     }
                                     lsp_types::ResourceOp::Delete(delete) => {
-                                        let path = std::path::PathBuf::from(delete.uri.path().as_str());
+                                        let path =
+                                            std::path::PathBuf::from(delete.uri.path().as_str());
                                         affected_files.insert(path);
                                     }
                                 }

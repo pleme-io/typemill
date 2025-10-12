@@ -34,12 +34,12 @@ pub use refactoring_handler::RefactoringHandler;
 pub use rename_handler::RenameHandler;
 pub use reorder_handler::ReorderHandler;
 pub use system_handler::SystemHandler;
-pub use transform_handler::TransformHandler;
-pub use workspace_apply_handler::WorkspaceApplyHandler;
 pub use tool_registry::ToolRegistry;
 pub use tools::{
-    AdvancedToolsHandler, FileToolsHandler, LifecycleHandler,
-    NavigationHandler, SystemToolsHandler, ToolHandler, ToolHandlerContext, WorkspaceToolsHandler,
+    AdvancedToolsHandler, FileToolsHandler, LifecycleHandler, NavigationHandler,
+    SystemToolsHandler, ToolHandler, ToolHandlerContext, WorkspaceToolsHandler,
 };
+pub use transform_handler::TransformHandler;
 pub use workflow_handler::WorkflowHandler;
+pub use workspace_apply_handler::WorkspaceApplyHandler;
 // Note: register_all_tools is no longer needed - plugins auto-register

@@ -2,7 +2,10 @@
 use serde_json::json;
 
 #[cfg(feature = "heavy-tests")]
-use std::{fs, time::{Duration, Instant}};
+use std::{
+    fs,
+    time::{Duration, Instant},
+};
 
 #[cfg(feature = "heavy-tests")]
 use cb_test_support::harness::{TestClient, TestWorkspace};

@@ -85,9 +85,10 @@ impl CallGraph {
     ///
     /// Returns the `FunctionId` of the new or existing function.
     pub fn add_function(&mut self, node: FunctionNode) -> FunctionId {
-        *self.nodes.entry(node.name.clone()).or_insert_with(|| {
-            self.graph.add_node(node)
-        })
+        *self
+            .nodes
+            .entry(node.name.clone())
+            .or_insert_with(|| self.graph.add_node(node))
     }
 
     /// Adds a call relationship between two functions.
@@ -114,19 +115,31 @@ mod tests {
         let func_a_node = FunctionNode {
             name: "a".to_string(),
             location: SourceLocation { line: 1, column: 0 },
-            signature: FunctionSignature { params: vec![], return_type: None },
+            signature: FunctionSignature {
+                params: vec![],
+                return_type: None,
+            },
             visibility: Visibility::Public,
         };
         let func_b_node = FunctionNode {
             name: "b".to_string(),
             location: SourceLocation { line: 5, column: 0 },
-            signature: FunctionSignature { params: vec![], return_type: None },
+            signature: FunctionSignature {
+                params: vec![],
+                return_type: None,
+            },
             visibility: Visibility::Public,
         };
         let func_c_node = FunctionNode {
             name: "c".to_string(),
-            location: SourceLocation { line: 10, column: 0 },
-            signature: FunctionSignature { params: vec![], return_type: None },
+            location: SourceLocation {
+                line: 10,
+                column: 0,
+            },
+            signature: FunctionSignature {
+                params: vec![],
+                return_type: None,
+            },
             visibility: Visibility::Private,
         };
 
@@ -135,16 +148,24 @@ mod tests {
         let id_c = graph.add_function(func_c_node);
 
         // a() -> b()
-        graph.add_call(id_a, id_b, CallSite {
-            location: SourceLocation { line: 2, column: 4 },
-            call_type: CallType::Direct,
-        });
+        graph.add_call(
+            id_a,
+            id_b,
+            CallSite {
+                location: SourceLocation { line: 2, column: 4 },
+                call_type: CallType::Direct,
+            },
+        );
 
         // b() -> c()
-        graph.add_call(id_b, id_c, CallSite {
-            location: SourceLocation { line: 6, column: 4 },
-            call_type: CallType::Direct,
-        });
+        graph.add_call(
+            id_b,
+            id_c,
+            CallSite {
+                location: SourceLocation { line: 6, column: 4 },
+                call_type: CallType::Direct,
+            },
+        );
 
         (graph, id_a, id_b, id_c)
     }
@@ -167,7 +188,10 @@ mod tests {
         assert_eq!(callees_a, vec![id_b]);
 
         // Test callers of b
-        let callers_b: Vec<_> = graph.graph.neighbors_directed(id_b, petgraph::Direction::Incoming).collect();
+        let callers_b: Vec<_> = graph
+            .graph
+            .neighbors_directed(id_b, petgraph::Direction::Incoming)
+            .collect();
         assert_eq!(callers_b, vec![id_a]);
 
         // Test callees of b

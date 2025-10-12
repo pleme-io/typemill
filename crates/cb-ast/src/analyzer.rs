@@ -793,4 +793,3 @@ fn inline_function_call(function_info: &FunctionInfo, _call: &FunctionCall) -> A
     // In practice, you'd need to handle parameter substitution, variable scoping, etc.
     Ok(format!("{{ {} }}", function_info.body))
 }
-

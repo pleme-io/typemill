@@ -173,10 +173,7 @@ export function trivial() {
     }
 
     // Should have quality finding
-    assert!(
-        !result.findings.is_empty(),
-        "Expected quality findings"
-    );
+    assert!(!result.findings.is_empty(), "Expected quality findings");
 
     let finding = &result.findings[0];
     assert_eq!(finding.kind, "quality");
@@ -272,10 +269,7 @@ export function fn4() {
     }
 
     // Should have style finding
-    assert!(
-        !result.findings.is_empty(),
-        "Expected style findings"
-    );
+    assert!(!result.findings.is_empty(), "Expected style findings");
 
     let finding = &result.findings[0];
     assert_eq!(finding.kind, "style");
@@ -366,10 +360,7 @@ export function anotherComplex(x: string, y: number[]): boolean {
     }
 
     // Should have examples finding
-    assert!(
-        !result.findings.is_empty(),
-        "Expected examples findings"
-    );
+    assert!(!result.findings.is_empty(), "Expected examples findings");
 
     let finding = &result.findings[0];
     assert_eq!(finding.kind, "examples");
@@ -455,10 +446,7 @@ export function noteFunction(): string {
     }
 
     // Should have todos finding
-    assert!(
-        !result.findings.is_empty(),
-        "Expected todos findings"
-    );
+    assert!(!result.findings.is_empty(), "Expected todos findings");
 
     let finding = &result.findings[0];
     assert_eq!(finding.kind, "todos");

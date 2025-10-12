@@ -2,18 +2,18 @@
 
 //! A generic dependency graph for symbol analysis.
 
+use petgraph::graph::{DiGraph, NodeIndex};
+use petgraph::visit::EdgeRef;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use petgraph::graph::{NodeIndex, DiGraph};
-use petgraph::visit::EdgeRef;
 
 /// Represents a node in the symbol dependency graph.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SymbolNode {
-    pub id: String,          // A unique identifier, e.g., "file.rs::MyStruct::my_function"
-    pub name: String,        // The symbol name, e.g., "my_function"
+    pub id: String,   // A unique identifier, e.g., "file.rs::MyStruct::my_function"
+    pub name: String, // The symbol name, e.g., "my_function"
     pub file_path: String,
-    pub is_public: bool,     // Is the symbol exported or part of a public API?
+    pub is_public: bool, // Is the symbol exported or part of a public API?
 }
 
 /// The dependency graph, mapping symbol relationships.
@@ -42,7 +42,9 @@ impl DependencyGraph {
     /// Adds a dependency relationship between two symbols.
     /// `from_id` is the symbol that depends on `to_id`.
     pub fn add_dependency(&mut self, from_id: &str, to_id: &str) {
-        if let (Some(&from_index), Some(&to_index)) = (self.node_map.get(from_id), self.node_map.get(to_id)) {
+        if let (Some(&from_index), Some(&to_index)) =
+            (self.node_map.get(from_id), self.node_map.get(to_id))
+        {
             self.graph.add_edge(from_index, to_index, ());
         }
     }
@@ -50,7 +52,8 @@ impl DependencyGraph {
     /// Finds all symbols that are not referenced by any other symbol in the graph.
     /// This is a simple, naive dead code detection.
     pub fn find_unreferenced_nodes(&self) -> Vec<&SymbolNode> {
-        self.graph.externals(petgraph::Direction::Incoming)
+        self.graph
+            .externals(petgraph::Direction::Incoming)
             .map(|index| &self.graph[index])
             .collect()
     }

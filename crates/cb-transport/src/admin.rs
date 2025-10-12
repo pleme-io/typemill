@@ -9,8 +9,8 @@ use axum::{
 };
 use cb_core::{
     auth::{
-        jwt::{decode, Claims, DecodingKey, Validation},
         generate_token,
+        jwt::{decode, Claims, DecodingKey, Validation},
     },
     config::AppConfig,
     workspaces::{Workspace, WorkspaceManager},
@@ -221,21 +221,35 @@ fn extract_user_id_from_jwt(
     // 1. Extract Authorization header
     let auth_header = headers
         .get(axum::http::header::AUTHORIZATION)
-        .ok_or_else(|| (StatusCode::UNAUTHORIZED, "Missing Authorization header".to_string()))?
+        .ok_or_else(|| {
+            (
+                StatusCode::UNAUTHORIZED,
+                "Missing Authorization header".to_string(),
+            )
+        })?
         .to_str()
-        .map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid Authorization header".to_string()))?;
+        .map_err(|_| {
+            (
+                StatusCode::UNAUTHORIZED,
+                "Invalid Authorization header".to_string(),
+            )
+        })?;
 
     // 2. Extract token (Bearer <token>)
-    let token = auth_header
-        .strip_prefix("Bearer ")
-        .ok_or_else(|| (StatusCode::UNAUTHORIZED, "Invalid Authorization format".to_string()))?;
+    let token = auth_header.strip_prefix("Bearer ").ok_or_else(|| {
+        (
+            StatusCode::UNAUTHORIZED,
+            "Invalid Authorization format".to_string(),
+        )
+    })?;
 
     // 3. Validate and decode JWT
-    let auth_config = config
-        .server
-        .auth
-        .as_ref()
-        .ok_or_else(|| (StatusCode::SERVICE_UNAVAILABLE, "Auth not configured".to_string()))?;
+    let auth_config = config.server.auth.as_ref().ok_or_else(|| {
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            "Auth not configured".to_string(),
+        )
+    })?;
 
     let key = DecodingKey::from_secret(auth_config.jwt_secret.as_ref());
     let mut validation = Validation::default();

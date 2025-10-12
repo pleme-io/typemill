@@ -55,13 +55,16 @@ impl FileService {
 
         // Files affected by text edits (group by file_path)
         // Skip file operations (Move, Create, Delete) - they're handled separately
-        use std::collections::HashMap;
         use cb_protocol::EditType;
+        use std::collections::HashMap;
         let mut edits_by_file: HashMap<String, Vec<&cb_protocol::TextEdit>> = HashMap::new();
 
         for edit in &plan.edits {
             // Skip file operations - they're handled in Step 3
-            if matches!(edit.edit_type, EditType::Move | EditType::Create | EditType::Delete) {
+            if matches!(
+                edit.edit_type,
+                EditType::Move | EditType::Create | EditType::Delete
+            ) {
                 continue;
             }
 
@@ -131,13 +134,15 @@ impl FileService {
                         }
 
                         // Perform the actual file system rename
-                        fs::rename(&abs_old_path, &abs_new_path).await.map_err(|e| {
-                            error!(error = %e, "File rename failed");
-                            ServerError::Internal(format!(
-                                "Failed to rename {} to {}: {}",
-                                old_path_str, new_path_str, e
-                            ))
-                        })?;
+                        fs::rename(&abs_old_path, &abs_new_path)
+                            .await
+                            .map_err(|e| {
+                                error!(error = %e, "File rename failed");
+                                ServerError::Internal(format!(
+                                    "Failed to rename {} to {}: {}",
+                                    old_path_str, new_path_str, e
+                                ))
+                            })?;
 
                         modified_files.push(new_path_str.clone());
                         deleted_files.push(old_path_str.clone());

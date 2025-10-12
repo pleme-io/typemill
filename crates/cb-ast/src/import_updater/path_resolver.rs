@@ -93,7 +93,11 @@ impl ImportPathResolver {
     }
 
     /// Calculate relative import path between two files
-    pub(crate) fn calculate_relative_import(&self, from_file: &Path, to_file: &Path) -> AstResult<String> {
+    pub(crate) fn calculate_relative_import(
+        &self,
+        from_file: &Path,
+        to_file: &Path,
+    ) -> AstResult<String> {
         let from_dir = from_file
             .parent()
             .ok_or_else(|| AstError::parse("Invalid source file path"))?;

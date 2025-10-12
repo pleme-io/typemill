@@ -1,5 +1,5 @@
-use serde_json::json;
 use cb_test_support::harness::{TestClient, TestWorkspace};
+use serde_json::json;
 #[tokio::test]
 async fn test_apply_workspace_edit_single_file() {
     let workspace = TestWorkspace::new();
@@ -445,8 +445,8 @@ function createProcessor<T>(type: string): DataProcessor<T> | null {
 
 #[tokio::test]
 async fn test_cross_language_project() {
-    use std::time::Duration;
     use cb_test_support::harness::LspSetupHelper;
+    use std::time::Duration;
 
     let workspace = TestWorkspace::new();
     if let Err(msg) = LspSetupHelper::check_lsp_servers_available() {

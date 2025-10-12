@@ -567,7 +567,10 @@ pub fn format_plan(plan: &RefactorPlan) -> String {
             let created = p.summary.created_files;
             let file_text = if files == 1 { "file" } else { "files" };
             if created > 0 {
-                format!("Extracts {} into a new declaration in {} {}", kind, files, file_text)
+                format!(
+                    "Extracts {} into a new declaration in {} {}",
+                    kind, files, file_text
+                )
             } else {
                 format!("Extracts {} in {} {}", kind, files, file_text)
             }
@@ -602,7 +605,10 @@ pub fn format_plan(plan: &RefactorPlan) -> String {
             let deleted = p.summary.deleted_files;
             let file_text = if files == 1 { "file" } else { "files" };
             if deleted > 0 {
-                format!("Deletes {} from {} {} ({} files removed)", kind, files, file_text, deleted)
+                format!(
+                    "Deletes {} from {} {} ({} files removed)",
+                    kind, files, file_text, deleted
+                )
             } else {
                 format!("Deletes {} from {} {}", kind, files, file_text)
             }
@@ -757,7 +763,10 @@ mod tests {
         });
 
         let result = format_plan(&plan);
-        assert_eq!(result, "Extracts function into a new declaration in 2 files");
+        assert_eq!(
+            result,
+            "Extracts function into a new declaration in 2 files"
+        );
     }
 
     #[test]

@@ -51,8 +51,7 @@ impl GraphQuery for DependencyGraph {
     type Edge = Dependency;
 
     fn find_all_simple_paths(&self, from: NodeId, to: NodeId) -> Vec<Vec<NodeId>> {
-        all_simple_paths(&self.graph, from, to, 0, None)
-            .collect()
+        all_simple_paths(&self.graph, from, to, 0, None).collect()
     }
 
     fn strongly_connected_components(&self) -> Vec<Vec<NodeId>> {

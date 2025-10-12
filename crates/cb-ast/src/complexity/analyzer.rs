@@ -1,5 +1,5 @@
 use super::metrics::{calculate_code_metrics, calculate_complexity_metrics, count_parameters};
-use super::models::{ComplexityRating, FunctionComplexity, ComplexityReport};
+use super::models::{ComplexityRating, ComplexityReport, FunctionComplexity};
 use std::collections::HashMap;
 
 /// Analyze complexity for all functions in a file

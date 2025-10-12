@@ -84,7 +84,6 @@ impl Default for QualityThresholds {
     }
 }
 
-
 pub struct QualityHandler;
 
 impl QualityHandler {
@@ -116,10 +115,7 @@ impl QualityHandler {
             "cognitive_complexity".to_string(),
             json!(thresholds.cognitive_complexity),
         );
-        threshold_map.insert(
-            "nesting_depth".to_string(),
-            json!(thresholds.nesting_depth),
-        );
+        threshold_map.insert("nesting_depth".to_string(), json!(thresholds.nesting_depth));
         threshold_map.insert(
             "parameter_count".to_string(),
             json!(thresholds.parameter_count),
@@ -156,7 +152,10 @@ impl QualityHandler {
                 "cognitive_complexity".to_string(),
                 json!(func.complexity.cognitive),
             );
-            metrics.insert("nesting_depth".to_string(), json!(func.complexity.max_nesting_depth));
+            metrics.insert(
+                "nesting_depth".to_string(),
+                json!(func.complexity.max_nesting_depth),
+            );
             metrics.insert(
                 "parameter_count".to_string(),
                 json!(func.metrics.parameters),
@@ -226,7 +225,8 @@ impl QualityHandler {
                 if func.complexity.max_nesting_depth > thresholds.nesting_depth {
                     suggestions.push(Suggestion {
                         action: "reduce_nesting".to_string(),
-                        description: "Use early returns or guard clauses to reduce nesting depth".to_string(),
+                        description: "Use early returns or guard clauses to reduce nesting depth"
+                            .to_string(),
                         target: None,
                         estimated_impact: "Improves readability significantly".to_string(),
                         safety: SafetyLevel::RequiresReview,
@@ -240,9 +240,11 @@ impl QualityHandler {
                 if func.metrics.parameters > thresholds.parameter_count {
                     suggestions.push(Suggestion {
                         action: "consolidate_parameters".to_string(),
-                        description: "Group related parameters into a configuration struct/object".to_string(),
+                        description: "Group related parameters into a configuration struct/object"
+                            .to_string(),
                         target: None,
-                        estimated_impact: "Reduces parameter count, improves maintainability".to_string(),
+                        estimated_impact: "Reduces parameter count, improves maintainability"
+                            .to_string(),
                         safety: SafetyLevel::RequiresReview,
                         confidence: 0.70,
                         reversible: false,
@@ -362,7 +364,10 @@ fn detect_smells(
             let mut metrics = HashMap::new();
             metrics.insert("method_count".to_string(), json!(class.function_count));
             metrics.insert("total_sloc".to_string(), json!(class.total_sloc));
-            metrics.insert("avg_complexity".to_string(), json!(class.average_complexity));
+            metrics.insert(
+                "avg_complexity".to_string(),
+                json!(class.average_complexity),
+            );
 
             findings.push(Finding {
                 id: format!("god-class-{}-{}", file_path, class.line),
@@ -424,11 +429,7 @@ fn detect_smells(
 /// line-level filtering which is effective for MVP but could be refined using
 /// language plugin's Symbol data to distinguish literal vs code contexts.
 /// Estimated effort: ~1-2 days. Priority: Low (current approach is effective).
-fn detect_magic_numbers_for_smells(
-    content: &str,
-    file_path: &str,
-    language: &str,
-) -> Vec<Finding> {
+fn detect_magic_numbers_for_smells(content: &str, file_path: &str, language: &str) -> Vec<Finding> {
     let mut findings = Vec::new();
 
     let number_pattern = match language.to_lowercase().as_str() {
@@ -574,7 +575,10 @@ fn analyze_readability(
         // 2. Too many parameters (>5)
         if func.metrics.parameters > 5 {
             let mut metrics = HashMap::new();
-            metrics.insert("parameter_count".to_string(), json!(func.metrics.parameters));
+            metrics.insert(
+                "parameter_count".to_string(),
+                json!(func.metrics.parameters),
+            );
 
             findings.push(Finding {
                 id: format!("too-many-params-{}-{}", file_path, func.line),
@@ -606,8 +610,8 @@ fn analyze_readability(
                 ),
                 suggestions: vec![Suggestion {
                     action: "consolidate_parameters".to_string(),
-                    description:
-                        "Group related parameters into a configuration struct or object".to_string(),
+                    description: "Group related parameters into a configuration struct or object"
+                        .to_string(),
                     target: None,
                     estimated_impact: "Improves function signature readability and maintainability"
                         .to_string(),
@@ -684,7 +688,10 @@ fn analyze_readability(
         // 4. Low comment ratio (<0.1 for functions >20 SLOC)
         if func.metrics.comment_ratio < 0.1 && func.metrics.sloc > 20 {
             let mut metrics = HashMap::new();
-            metrics.insert("comment_ratio".to_string(), json!(func.metrics.comment_ratio));
+            metrics.insert(
+                "comment_ratio".to_string(),
+                json!(func.metrics.comment_ratio),
+            );
             metrics.insert("sloc".to_string(), json!(func.metrics.sloc));
 
             findings.push(Finding {
@@ -715,8 +722,8 @@ fn analyze_readability(
                 ),
                 suggestions: vec![Suggestion {
                     action: "add_documentation".to_string(),
-                    description:
-                        "Add inline comments or documentation to explain complex logic".to_string(),
+                    description: "Add inline comments or documentation to explain complex logic"
+                        .to_string(),
                     target: None,
                     estimated_impact: "Improves code understanding for future maintainers"
                         .to_string(),
@@ -794,8 +801,14 @@ fn analyze_maintainability(
         "max_cognitive".to_string(),
         json!(complexity_report.max_cognitive_complexity),
     );
-    metrics.insert("avg_sloc".to_string(), json!(complexity_report.average_sloc));
-    metrics.insert("total_sloc".to_string(), json!(complexity_report.total_sloc));
+    metrics.insert(
+        "avg_sloc".to_string(),
+        json!(complexity_report.average_sloc),
+    );
+    metrics.insert(
+        "total_sloc".to_string(),
+        json!(complexity_report.total_sloc),
+    );
     metrics.insert(
         "total_functions".to_string(),
         json!(complexity_report.total_functions),
@@ -934,7 +947,10 @@ impl ToolHandler for QualityHandler {
             .ok_or_else(|| ServerError::InvalidRequest("Missing 'kind' parameter".into()))?;
 
         // Validate kind
-        if !matches!(kind, "complexity" | "smells" | "maintainability" | "readability") {
+        if !matches!(
+            kind,
+            "complexity" | "smells" | "maintainability" | "readability"
+        ) {
             return Err(ServerError::InvalidRequest(format!(
                 "Unsupported kind '{}'. Supported: 'complexity', 'smells', 'maintainability', 'readability'",
                 kind
@@ -1051,17 +1067,33 @@ impl ToolHandler for QualityHandler {
                 );
 
                 // Serialize to JSON
-                serde_json::to_value(result)
-                    .map_err(|e| ServerError::Internal(format!("Failed to serialize result: {}", e)))
+                serde_json::to_value(result).map_err(|e| {
+                    ServerError::Internal(format!("Failed to serialize result: {}", e))
+                })
             }
             "smells" => {
-                super::engine::run_analysis(context, tool_call, "quality", kind, detect_smells).await
+                super::engine::run_analysis(context, tool_call, "quality", kind, detect_smells)
+                    .await
             }
             "maintainability" => {
-                super::engine::run_analysis(context, tool_call, "quality", kind, analyze_maintainability).await
+                super::engine::run_analysis(
+                    context,
+                    tool_call,
+                    "quality",
+                    kind,
+                    analyze_maintainability,
+                )
+                .await
             }
             "readability" => {
-                super::engine::run_analysis(context, tool_call, "quality", kind, analyze_readability).await
+                super::engine::run_analysis(
+                    context,
+                    tool_call,
+                    "quality",
+                    kind,
+                    analyze_readability,
+                )
+                .await
             }
             _ => unreachable!("Kind validated earlier"),
         }

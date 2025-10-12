@@ -260,7 +260,10 @@ pub async fn run_analysis_with_config(
 
     // Step 2: Extract file path
     let file_path = extract_file_path(&args, &scope_param)?;
-    let scope_type = scope_param.scope_type.clone().unwrap_or_else(|| "file".to_string());
+    let scope_type = scope_param
+        .scope_type
+        .clone()
+        .unwrap_or_else(|| "file".to_string());
 
     info!(
         file_path = %file_path,
@@ -489,6 +492,9 @@ mod tests {
 
         let result = extract_file_path(&args, &scope);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Missing file path"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Missing file path"));
     }
 }

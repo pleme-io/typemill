@@ -186,7 +186,9 @@ async fn test_transform_add_async_dry_run() {
 
             // 4. Verify file unchanged
             assert!(
-                workspace.read_file("add_async.rs").contains("pub fn fetch_data()"),
+                workspace
+                    .read_file("add_async.rs")
+                    .contains("pub fn fetch_data()"),
                 "File should be unchanged after dry run"
             );
         }
@@ -282,11 +284,7 @@ async fn test_transform_fn_to_closure_checksum_validation() {
 
             // Should fail due to checksum mismatch
             assert!(
-                apply_result.is_err()
-                    || apply_result
-                        .unwrap()
-                        .get("error")
-                        .is_some(),
+                apply_result.is_err() || apply_result.unwrap().get("error").is_some(),
                 "Apply should fail due to checksum mismatch"
             );
         }

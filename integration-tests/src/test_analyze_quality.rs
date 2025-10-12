@@ -100,12 +100,12 @@ export function processOrder(
 
     let finding = &result.findings[0];
     assert_eq!(finding.kind, "complexity_hotspot");
-    assert!(matches!(finding.severity, Severity::High | Severity::Medium));
+    assert!(matches!(
+        finding.severity,
+        Severity::High | Severity::Medium
+    ));
     assert!(finding.location.symbol.is_some());
-    assert_eq!(
-        finding.location.symbol.as_ref().unwrap(),
-        "processOrder"
-    );
+    assert_eq!(finding.location.symbol.as_ref().unwrap(), "processOrder");
 
     // Verify metrics are present
     assert!(finding.metrics.is_some());

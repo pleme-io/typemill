@@ -77,7 +77,6 @@ pub fn detect_project_language(project_path: &Path) -> Option<&'static str> {
     None
 }
 
-
 /// Detect the package manager for a project
 ///
 /// This function examines lock files and manifest files to determine the package manager.
@@ -251,8 +250,7 @@ mod tests {
         File::create(dir.path().join("requirements.txt")).unwrap();
 
         let result = detect_package_manager(dir.path());
-        assert_eq!
-(result, PackageManager::Pip);
+        assert_eq!(result, PackageManager::Pip);
     }
 
     #[test]

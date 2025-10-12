@@ -93,18 +93,10 @@ impl ToolHandler for ReorderHandler {
 
         // Dispatch based on target kind
         let plan = match params.target.kind.as_str() {
-            "parameters" => {
-                self.plan_reorder_parameters(&params, context).await?
-            }
-            "fields" => {
-                self.plan_reorder_fields(&params, context).await?
-            }
-            "imports" => {
-                self.plan_reorder_imports(&params, context).await?
-            }
-            "statements" => {
-                self.plan_reorder_statements(&params, context).await?
-            }
+            "parameters" => self.plan_reorder_parameters(&params, context).await?,
+            "fields" => self.plan_reorder_fields(&params, context).await?,
+            "imports" => self.plan_reorder_imports(&params, context).await?,
+            "statements" => self.plan_reorder_statements(&params, context).await?,
             kind => {
                 return Err(ServerError::InvalidRequest(format!(
                     "Unsupported reorder kind: {}. Must be one of: parameters, fields, imports, statements",
@@ -135,11 +127,9 @@ impl ReorderHandler {
         debug!(file_path = %params.target.file_path, "Planning parameter reorder");
 
         // Try LSP-based code action approach
-        let lsp_result = self.try_lsp_reorder(
-            params,
-            context,
-            "refactor.reorder.parameters",
-        ).await;
+        let lsp_result = self
+            .try_lsp_reorder(params, context, "refactor.reorder.parameters")
+            .await;
 
         match lsp_result {
             Ok(plan) => Ok(plan),
@@ -162,11 +152,9 @@ impl ReorderHandler {
         debug!(file_path = %params.target.file_path, "Planning field reorder");
 
         // Try LSP-based code action approach
-        let lsp_result = self.try_lsp_reorder(
-            params,
-            context,
-            "refactor.reorder.fields",
-        ).await;
+        let lsp_result = self
+            .try_lsp_reorder(params, context, "refactor.reorder.fields")
+            .await;
 
         match lsp_result {
             Ok(plan) => Ok(plan),
@@ -202,30 +190,23 @@ impl ReorderHandler {
 
         // Get LSP adapter
         let lsp_adapter = context.lsp_adapter.lock().await;
-        let adapter = lsp_adapter.as_ref().ok_or_else(|| {
-            ServerError::Internal("LSP adapter not initialized".into())
-        })?;
+        let adapter = lsp_adapter
+            .as_ref()
+            .ok_or_else(|| ServerError::Internal("LSP adapter not initialized".into()))?;
 
         // Get or create LSP client for this extension
-        let client = adapter
-            .get_or_create_client(extension)
-            .await
-            .map_err(|e| {
-                ServerError::Unsupported(format!(
-                    "No LSP server configured for extension {}: {}",
-                    extension, e
-                ))
-            })?;
+        let client = adapter.get_or_create_client(extension).await.map_err(|e| {
+            ServerError::Unsupported(format!(
+                "No LSP server configured for extension {}: {}",
+                extension, e
+            ))
+        })?;
 
         // Convert path to absolute and create file URI
-        let abs_path = std::fs::canonicalize(path)
-            .unwrap_or_else(|_| path.to_path_buf());
+        let abs_path = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
         let file_uri = url::Url::from_file_path(&abs_path)
             .map_err(|_| {
-                ServerError::Internal(format!(
-                    "Invalid file path: {}",
-                    abs_path.display()
-                ))
+                ServerError::Internal(format!("Invalid file path: {}", abs_path.display()))
             })?
             .to_string();
 
@@ -238,7 +219,10 @@ impl ReorderHandler {
         });
 
         // Send textDocument/organizeImports request to LSP
-        debug!(method = "textDocument/organizeImports", "Sending LSP request");
+        debug!(
+            method = "textDocument/organizeImports",
+            "Sending LSP request"
+        );
         let lsp_result = client
             .send_request("textDocument/organizeImports", lsp_params)
             .await
@@ -248,10 +232,9 @@ impl ReorderHandler {
             })?;
 
         // Parse WorkspaceEdit from LSP response
-        let workspace_edit: WorkspaceEdit = serde_json::from_value(lsp_result)
-            .map_err(|e| {
-                ServerError::Internal(format!("Failed to parse LSP WorkspaceEdit: {}", e))
-            })?;
+        let workspace_edit: WorkspaceEdit = serde_json::from_value(lsp_result).map_err(|e| {
+            ServerError::Internal(format!("Failed to parse LSP WorkspaceEdit: {}", e))
+        })?;
 
         // Read file content for checksum
         let content = context
@@ -308,11 +291,9 @@ impl ReorderHandler {
         debug!(file_path = %params.target.file_path, "Planning statement reorder");
 
         // Try LSP-based code action approach
-        let lsp_result = self.try_lsp_reorder(
-            params,
-            context,
-            "refactor.reorder.statements",
-        ).await;
+        let lsp_result = self
+            .try_lsp_reorder(params, context, "refactor.reorder.statements")
+            .await;
 
         match lsp_result {
             Ok(plan) => Ok(plan),
@@ -347,30 +328,23 @@ impl ReorderHandler {
 
         // Get LSP adapter
         let lsp_adapter = context.lsp_adapter.lock().await;
-        let adapter = lsp_adapter.as_ref().ok_or_else(|| {
-            ServerError::Internal("LSP adapter not initialized".into())
-        })?;
+        let adapter = lsp_adapter
+            .as_ref()
+            .ok_or_else(|| ServerError::Internal("LSP adapter not initialized".into()))?;
 
         // Get or create LSP client for this extension
-        let client = adapter
-            .get_or_create_client(extension)
-            .await
-            .map_err(|e| {
-                ServerError::Unsupported(format!(
-                    "No LSP server configured for extension {}: {}",
-                    extension, e
-                ))
-            })?;
+        let client = adapter.get_or_create_client(extension).await.map_err(|e| {
+            ServerError::Unsupported(format!(
+                "No LSP server configured for extension {}: {}",
+                extension, e
+            ))
+        })?;
 
         // Convert path to absolute and create file URI
-        let abs_path = std::fs::canonicalize(path)
-            .unwrap_or_else(|_| path.to_path_buf());
+        let abs_path = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
         let file_uri = url::Url::from_file_path(&abs_path)
             .map_err(|_| {
-                ServerError::Internal(format!(
-                    "Invalid file path: {}",
-                    abs_path.display()
-                ))
+                ServerError::Internal(format!("Invalid file path: {}", abs_path.display()))
             })?
             .to_string();
 
@@ -390,7 +364,11 @@ impl ReorderHandler {
         });
 
         // Send textDocument/codeAction request to LSP
-        debug!(method = "textDocument/codeAction", kind = code_action_kind, "Sending LSP request");
+        debug!(
+            method = "textDocument/codeAction",
+            kind = code_action_kind,
+            "Sending LSP request"
+        );
         let lsp_result = client
             .send_request("textDocument/codeAction", lsp_params)
             .await
@@ -400,16 +378,16 @@ impl ReorderHandler {
             })?;
 
         // Parse code actions from response
-        let code_actions: Vec<Value> = serde_json::from_value(lsp_result)
-            .map_err(|e| {
-                ServerError::Internal(format!("Failed to parse LSP code actions: {}", e))
-            })?;
+        let code_actions: Vec<Value> = serde_json::from_value(lsp_result).map_err(|e| {
+            ServerError::Internal(format!("Failed to parse LSP code actions: {}", e))
+        })?;
 
         // Find the appropriate reorder action
         let reorder_action = code_actions
             .into_iter()
             .find(|action| {
-                action.get("kind")
+                action
+                    .get("kind")
                     .and_then(|k| k.as_str())
                     .map(|k| k.starts_with(code_action_kind))
                     .unwrap_or(false)
@@ -423,14 +401,12 @@ impl ReorderHandler {
 
         // Extract WorkspaceEdit from code action
         let workspace_edit: WorkspaceEdit = serde_json::from_value(
-            reorder_action.get("edit")
+            reorder_action
+                .get("edit")
                 .cloned()
-                .ok_or_else(|| {
-                    ServerError::Internal("Code action missing edit field".into())
-                })?
-        ).map_err(|e| {
-            ServerError::Internal(format!("Failed to parse WorkspaceEdit: {}", e))
-        })?;
+                .ok_or_else(|| ServerError::Internal("Code action missing edit field".into()))?,
+        )
+        .map_err(|e| ServerError::Internal(format!("Failed to parse WorkspaceEdit: {}", e)))?;
 
         // Read file content for checksum
         let content = context

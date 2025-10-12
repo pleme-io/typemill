@@ -92,24 +92,12 @@ impl ToolHandler for TransformHandler {
 
         // Dispatch based on transformation kind
         let plan = match params.transformation.kind.as_str() {
-            "if_to_match" => {
-                self.plan_if_to_match(&params, context).await?
-            }
-            "match_to_if" => {
-                self.plan_match_to_if(&params, context).await?
-            }
-            "add_async" => {
-                self.plan_add_async(&params, context).await?
-            }
-            "remove_async" => {
-                self.plan_remove_async(&params, context).await?
-            }
-            "fn_to_closure" => {
-                self.plan_fn_to_closure(&params, context).await?
-            }
-            "closure_to_fn" => {
-                self.plan_closure_to_fn(&params, context).await?
-            }
+            "if_to_match" => self.plan_if_to_match(&params, context).await?,
+            "match_to_if" => self.plan_match_to_if(&params, context).await?,
+            "add_async" => self.plan_add_async(&params, context).await?,
+            "remove_async" => self.plan_remove_async(&params, context).await?,
+            "fn_to_closure" => self.plan_fn_to_closure(&params, context).await?,
+            "closure_to_fn" => self.plan_closure_to_fn(&params, context).await?,
             kind => {
                 return Err(ServerError::InvalidRequest(format!(
                     "Unsupported transform kind: {}. Must be one of: if_to_match, match_to_if, add_async, remove_async, fn_to_closure, closure_to_fn",
@@ -140,11 +128,8 @@ impl TransformHandler {
         debug!(file_path = %params.transformation.file_path, "Planning if-to-match transform");
 
         // Try LSP-based code action approach
-        self.try_lsp_transform(
-            params,
-            context,
-            "refactor.rewrite.if-to-match",
-        ).await
+        self.try_lsp_transform(params, context, "refactor.rewrite.if-to-match")
+            .await
     }
 
     /// Generate plan for converting match to if-else
@@ -156,11 +141,8 @@ impl TransformHandler {
         debug!(file_path = %params.transformation.file_path, "Planning match-to-if transform");
 
         // Try LSP-based code action approach
-        self.try_lsp_transform(
-            params,
-            context,
-            "refactor.rewrite.match-to-if",
-        ).await
+        self.try_lsp_transform(params, context, "refactor.rewrite.match-to-if")
+            .await
     }
 
     /// Generate plan for adding async/await
@@ -172,11 +154,8 @@ impl TransformHandler {
         debug!(file_path = %params.transformation.file_path, "Planning add-async transform");
 
         // Try LSP-based code action approach
-        self.try_lsp_transform(
-            params,
-            context,
-            "refactor.rewrite.add-async",
-        ).await
+        self.try_lsp_transform(params, context, "refactor.rewrite.add-async")
+            .await
     }
 
     /// Generate plan for removing async/await
@@ -188,11 +167,8 @@ impl TransformHandler {
         debug!(file_path = %params.transformation.file_path, "Planning remove-async transform");
 
         // Try LSP-based code action approach
-        self.try_lsp_transform(
-            params,
-            context,
-            "refactor.rewrite.remove-async",
-        ).await
+        self.try_lsp_transform(params, context, "refactor.rewrite.remove-async")
+            .await
     }
 
     /// Generate plan for converting function to closure
@@ -204,11 +180,8 @@ impl TransformHandler {
         debug!(file_path = %params.transformation.file_path, "Planning fn-to-closure transform");
 
         // Try LSP-based code action approach
-        self.try_lsp_transform(
-            params,
-            context,
-            "refactor.rewrite.function-to-closure",
-        ).await
+        self.try_lsp_transform(params, context, "refactor.rewrite.function-to-closure")
+            .await
     }
 
     /// Generate plan for converting closure to function
@@ -220,11 +193,8 @@ impl TransformHandler {
         debug!(file_path = %params.transformation.file_path, "Planning closure-to-fn transform");
 
         // Try LSP-based code action approach
-        self.try_lsp_transform(
-            params,
-            context,
-            "refactor.rewrite.closure-to-function",
-        ).await
+        self.try_lsp_transform(params, context, "refactor.rewrite.closure-to-function")
+            .await
     }
 
     /// Try to transform using LSP code actions
@@ -248,30 +218,23 @@ impl TransformHandler {
 
         // Get LSP adapter
         let lsp_adapter = context.lsp_adapter.lock().await;
-        let adapter = lsp_adapter.as_ref().ok_or_else(|| {
-            ServerError::Internal("LSP adapter not initialized".into())
-        })?;
+        let adapter = lsp_adapter
+            .as_ref()
+            .ok_or_else(|| ServerError::Internal("LSP adapter not initialized".into()))?;
 
         // Get or create LSP client for this extension
-        let client = adapter
-            .get_or_create_client(extension)
-            .await
-            .map_err(|e| {
-                ServerError::Unsupported(format!(
-                    "No LSP server configured for extension {}: {}",
-                    extension, e
-                ))
-            })?;
+        let client = adapter.get_or_create_client(extension).await.map_err(|e| {
+            ServerError::Unsupported(format!(
+                "No LSP server configured for extension {}: {}",
+                extension, e
+            ))
+        })?;
 
         // Convert path to absolute and create file URI
-        let abs_path = std::fs::canonicalize(path)
-            .unwrap_or_else(|_| path.to_path_buf());
+        let abs_path = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
         let file_uri = url::Url::from_file_path(&abs_path)
             .map_err(|_| {
-                ServerError::Internal(format!(
-                    "Invalid file path: {}",
-                    abs_path.display()
-                ))
+                ServerError::Internal(format!("Invalid file path: {}", abs_path.display()))
             })?
             .to_string();
 
@@ -288,7 +251,11 @@ impl TransformHandler {
         });
 
         // Send textDocument/codeAction request to LSP
-        debug!(method = "textDocument/codeAction", kind = code_action_kind, "Sending LSP request");
+        debug!(
+            method = "textDocument/codeAction",
+            kind = code_action_kind,
+            "Sending LSP request"
+        );
         let lsp_result = client
             .send_request("textDocument/codeAction", lsp_params)
             .await
@@ -298,16 +265,16 @@ impl TransformHandler {
             })?;
 
         // Parse code actions from response
-        let code_actions: Vec<Value> = serde_json::from_value(lsp_result)
-            .map_err(|e| {
-                ServerError::Internal(format!("Failed to parse LSP code actions: {}", e))
-            })?;
+        let code_actions: Vec<Value> = serde_json::from_value(lsp_result).map_err(|e| {
+            ServerError::Internal(format!("Failed to parse LSP code actions: {}", e))
+        })?;
 
         // Find the appropriate transform action
         let transform_action = code_actions
             .into_iter()
             .find(|action| {
-                action.get("kind")
+                action
+                    .get("kind")
                     .and_then(|k| k.as_str())
                     .map(|k| k.starts_with(code_action_kind) || k.starts_with("refactor.rewrite"))
                     .unwrap_or(false)
@@ -321,14 +288,12 @@ impl TransformHandler {
 
         // Extract WorkspaceEdit from code action
         let workspace_edit: WorkspaceEdit = serde_json::from_value(
-            transform_action.get("edit")
+            transform_action
+                .get("edit")
                 .cloned()
-                .ok_or_else(|| {
-                    ServerError::Internal("Code action missing edit field".into())
-                })?
-        ).map_err(|e| {
-            ServerError::Internal(format!("Failed to parse WorkspaceEdit: {}", e))
-        })?;
+                .ok_or_else(|| ServerError::Internal("Code action missing edit field".into()))?,
+        )
+        .map_err(|e| ServerError::Internal(format!("Failed to parse WorkspaceEdit: {}", e)))?;
 
         // Read file content for checksum
         let content = context

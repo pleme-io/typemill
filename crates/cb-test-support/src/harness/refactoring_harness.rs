@@ -37,10 +37,7 @@ pub enum Language {
 
 impl Language {
     pub fn all() -> Vec<Language> {
-        vec![
-            Language::TypeScript,
-            Language::Rust,
-        ]
+        vec![Language::TypeScript, Language::Rust]
     }
 
     pub fn file_extension(&self) -> &'static str {

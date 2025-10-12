@@ -1,9 +1,7 @@
 use super::common::{detect_language, extract_range_text, generate_function_call};
 use super::{CodeRange, ExtractableFunction, LspRefactoringService};
 use crate::error::{AstError, AstResult};
-use cb_protocol::{
-    EditPlan, EditPlanMetadata, EditType, TextEdit, ValidationRule, ValidationType,
-};
+use cb_protocol::{EditPlan, EditPlanMetadata, EditType, TextEdit, ValidationRule, ValidationType};
 use std::collections::HashMap;
 use tracing::debug;
 
@@ -97,9 +95,7 @@ pub async fn plan_extract_function(
         "typescript" | "javascript" => {
             ast_extract_function_ts_js(source, range, new_function_name, file_path)
         }
-        "rust" => {
-            ast_extract_function_rust(source, range, new_function_name, file_path)
-        }
+        "rust" => ast_extract_function_rust(source, range, new_function_name, file_path),
         _ => {
             // Unsupported language - will try LSP fallback below
             Err(AstError::analysis(format!(

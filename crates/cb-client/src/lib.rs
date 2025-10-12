@@ -623,5 +623,4 @@ mod tests {
         assert_eq!(config.get_token(), Some("test-token"));
         assert_eq!(config.get_timeout_ms(), 60000);
     }
-
 }

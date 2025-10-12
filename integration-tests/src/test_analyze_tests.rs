@@ -102,12 +102,8 @@ it('should subtract numbers', () => {
             || metrics.contains_key("test_coverage")
             || metrics.contains_key("coverage")
     );
-    assert!(
-        metrics.contains_key("total_tests") || metrics.contains_key("tests_count")
-    );
-    assert!(
-        metrics.contains_key("total_functions") || metrics.contains_key("functions_count")
-    );
+    assert!(metrics.contains_key("total_tests") || metrics.contains_key("tests_count"));
+    assert!(metrics.contains_key("total_functions") || metrics.contains_key("functions_count"));
 
     // Verify coverage ratio if available
     let coverage_ratio = metrics
@@ -191,10 +187,7 @@ function getData() {
     }
 
     // Should have quality finding
-    assert!(
-        !result.findings.is_empty(),
-        "Expected quality findings"
-    );
+    assert!(!result.findings.is_empty(), "Expected quality findings");
 
     let finding = &result.findings[0];
     assert!(
@@ -290,10 +283,7 @@ function calculate() {
     }
 
     // Should have assertions finding
-    assert!(
-        !result.findings.is_empty(),
-        "Expected assertions findings"
-    );
+    assert!(!result.findings.is_empty(), "Expected assertions findings");
 
     let finding = &result.findings[0];
     assert!(
@@ -322,7 +312,10 @@ function calculate() {
             .and_then(|v| v.as_f64())
             .expect("Should have avg_assertions_per_test");
 
-        assert!(avg_assertions >= 0.0, "Average assertions should be non-negative");
+        assert!(
+            avg_assertions >= 0.0,
+            "Average assertions should be non-negative"
+        );
     }
 }
 
@@ -419,9 +412,7 @@ describe('ArrayOperations', () => {
 
     // Verify organization metrics
     let metrics = finding.metrics.as_ref().expect("Should have metrics");
-    assert!(
-        metrics.contains_key("is_test_file") || metrics.contains_key("test_file")
-    );
+    assert!(metrics.contains_key("is_test_file") || metrics.contains_key("test_file"));
 
     // Check if organization score is present
     if metrics.contains_key("organization_score") {

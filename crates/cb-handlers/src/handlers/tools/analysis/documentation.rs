@@ -127,12 +127,18 @@ fn detect_coverage(
     let mut metrics = HashMap::new();
     metrics.insert("total_symbols".to_string(), json!(total_symbols));
     metrics.insert("documented_symbols".to_string(), json!(documented_count));
-    metrics.insert("coverage_percentage".to_string(), json!(coverage_percentage));
+    metrics.insert(
+        "coverage_percentage".to_string(),
+        json!(coverage_percentage),
+    );
     metrics.insert(
         "undocumented_public_count".to_string(),
         json!(undocumented_public.len()),
     );
-    metrics.insert("undocumented_public".to_string(), json!(undocumented_public));
+    metrics.insert(
+        "undocumented_public".to_string(),
+        json!(undocumented_public),
+    );
 
     let message = format!(
         "Documentation coverage: {:.1}% ({}/{} symbols documented, {} undocumented public symbols)",
@@ -160,13 +166,19 @@ fn detect_coverage(
                 description: format!(
                     "Add documentation to {} undocumented public symbols: {}",
                     undocumented_public.len(),
-                    undocumented_public.iter().take(5).cloned().collect::<Vec<_>>().join(", ")
+                    undocumented_public
+                        .iter()
+                        .take(5)
+                        .cloned()
+                        .collect::<Vec<_>>()
+                        .join(", ")
                 ),
                 target: None,
                 estimated_impact: format!(
                     "Would increase coverage from {:.1}% to {:.1}%",
                     coverage_percentage,
-                    ((documented_count + undocumented_public.len()) as f64 / total_symbols as f64) * 100.0
+                    ((documented_count + undocumented_public.len()) as f64 / total_symbols as f64)
+                        * 100.0
                 ),
                 safety: SafetyLevel::Safe,
                 confidence: 0.95,
@@ -271,7 +283,8 @@ fn detect_quality(
         let mut issues = Vec::new();
 
         // Check 1: Meaningful description
-        let has_meaningful_desc = doc_comment.len() > 10 && !is_trivial_doc(&doc_comment, &symbol.name);
+        let has_meaningful_desc =
+            doc_comment.len() > 10 && !is_trivial_doc(&doc_comment, &symbol.name);
         if !has_meaningful_desc {
             has_quality_issue = true;
             issues.push("trivial_description");
@@ -350,9 +363,15 @@ fn detect_quality(
     // Add summary finding if multiple issues
     if !findings.is_empty() {
         let mut summary_metrics = HashMap::new();
-        summary_metrics.insert("symbols_with_quality_docs".to_string(), json!(symbols_with_quality_docs));
+        summary_metrics.insert(
+            "symbols_with_quality_docs".to_string(),
+            json!(symbols_with_quality_docs),
+        );
         summary_metrics.insert("missing_param_docs".to_string(), json!(missing_param_docs));
-        summary_metrics.insert("missing_return_docs".to_string(), json!(missing_return_docs));
+        summary_metrics.insert(
+            "missing_return_docs".to_string(),
+            json!(missing_return_docs),
+        );
         summary_metrics.insert("missing_examples".to_string(), json!(missing_examples));
         summary_metrics.insert("total_issues".to_string(), json!(findings.len()));
 
@@ -478,9 +497,8 @@ fn detect_style(
         }
     }
 
-    let total_violations = if mixed_styles { 1 } else { 0 }
-        + capitalization_issues
-        + punctuation_issues;
+    let total_violations =
+        if mixed_styles { 1 } else { 0 } + capitalization_issues + punctuation_issues;
 
     if total_violations == 0 {
         // No style issues
@@ -491,7 +509,10 @@ fn detect_style(
     metrics.insert("style_violations".to_string(), json!(total_violations));
     metrics.insert("mixed_styles".to_string(), json!(mixed_styles));
     metrics.insert("comment_styles_found".to_string(), json!(comment_styles));
-    metrics.insert("capitalization_issues".to_string(), json!(capitalization_issues));
+    metrics.insert(
+        "capitalization_issues".to_string(),
+        json!(capitalization_issues),
+    );
     metrics.insert("punctuation_issues".to_string(), json!(punctuation_issues));
     metrics.insert("total_comments".to_string(), json!(doc_comments.len()));
 
@@ -639,13 +660,22 @@ fn detect_examples(
     };
 
     let mut metrics = HashMap::new();
-    metrics.insert("functions_with_examples".to_string(), json!(functions_with_examples));
-    metrics.insert("example_coverage_percentage".to_string(), json!(example_coverage_percentage));
+    metrics.insert(
+        "functions_with_examples".to_string(),
+        json!(functions_with_examples),
+    );
+    metrics.insert(
+        "example_coverage_percentage".to_string(),
+        json!(example_coverage_percentage),
+    );
     metrics.insert(
         "complex_without_examples_count".to_string(),
         json!(complex_without_examples.len()),
     );
-    metrics.insert("complex_without_examples".to_string(), json!(complex_without_examples));
+    metrics.insert(
+        "complex_without_examples".to_string(),
+        json!(complex_without_examples),
+    );
     metrics.insert("total_functions".to_string(), json!(total_functions));
 
     let message = if !complex_without_examples.is_empty() {
@@ -659,9 +689,7 @@ fn detect_examples(
     } else {
         format!(
             "Code examples coverage: {:.1}% ({}/{} functions documented with examples)",
-            example_coverage_percentage,
-            functions_with_examples,
-            total_functions
+            example_coverage_percentage, functions_with_examples, total_functions
         )
     };
 
@@ -683,10 +711,16 @@ fn detect_examples(
                 description: format!(
                     "Add code examples to {} complex functions: {}",
                     complex_without_examples.len(),
-                    complex_without_examples.iter().take(3).cloned().collect::<Vec<_>>().join(", ")
+                    complex_without_examples
+                        .iter()
+                        .take(3)
+                        .cloned()
+                        .collect::<Vec<_>>()
+                        .join(", ")
                 ),
                 target: None,
-                estimated_impact: "Improves understanding of complex functions for API users".to_string(),
+                estimated_impact: "Improves understanding of complex functions for API users"
+                    .to_string(),
                 safety: SafetyLevel::Safe,
                 confidence: 0.85,
                 reversible: true,
@@ -789,7 +823,8 @@ fn detect_todos(
 
     // Calculate total TODOs and determine overall severity
     let total_todos: usize = todos_by_category.values().map(|v| v.len()).sum();
-    let has_fixmes = todos_by_category.contains_key("FIXME") || todos_by_category.contains_key("HACK");
+    let has_fixmes =
+        todos_by_category.contains_key("FIXME") || todos_by_category.contains_key("HACK");
     let many_todos = total_todos > 10;
 
     let overall_severity = if has_fixmes {
@@ -938,7 +973,11 @@ fn is_symbol_public(symbol: &Symbol, lines: &[&str], language: &str) -> bool {
         "python" => !symbol.name.starts_with('_'),
         "go" => {
             // In Go, uppercase first letter means public
-            symbol.name.chars().next().map_or(false, |c| c.is_uppercase())
+            symbol
+                .name
+                .chars()
+                .next()
+                .map_or(false, |c| c.is_uppercase())
         }
         _ => true, // Default to public if unsure
     }
@@ -1019,7 +1058,13 @@ fn extract_doc_comment(symbol: &Symbol, lines: &[&str], language: &str) -> Strin
         }
 
         // Check for block end
-        if in_doc_block && (line.is_empty() || (!line.starts_with("///") && !line.starts_with("//!") && !line.starts_with("*") && !line.starts_with("#"))) {
+        if in_doc_block
+            && (line.is_empty()
+                || (!line.starts_with("///")
+                    && !line.starts_with("//!")
+                    && !line.starts_with("*")
+                    && !line.starts_with("#")))
+        {
             break;
         }
     }
@@ -1151,7 +1196,8 @@ fn build_quality_suggestions(issues: &[&str]) -> Vec<Suggestion> {
     if issues.contains(&"trivial_description") {
         suggestions.push(Suggestion {
             action: "improve_description".to_string(),
-            description: "Add a meaningful description explaining the purpose and behavior".to_string(),
+            description: "Add a meaningful description explaining the purpose and behavior"
+                .to_string(),
             target: None,
             estimated_impact: "Improves understanding for maintainers".to_string(),
             safety: SafetyLevel::Safe,
@@ -1164,7 +1210,8 @@ fn build_quality_suggestions(issues: &[&str]) -> Vec<Suggestion> {
     if issues.contains(&"missing_param_docs") {
         suggestions.push(Suggestion {
             action: "add_parameter_docs".to_string(),
-            description: "Document all function parameters with their types and purposes".to_string(),
+            description: "Document all function parameters with their types and purposes"
+                .to_string(),
             target: None,
             estimated_impact: "Clarifies API usage and expected inputs".to_string(),
             safety: SafetyLevel::Safe,
@@ -1190,7 +1237,8 @@ fn build_quality_suggestions(issues: &[&str]) -> Vec<Suggestion> {
     if issues.contains(&"missing_examples") {
         suggestions.push(Suggestion {
             action: "add_code_example".to_string(),
-            description: "Add code example demonstrating usage for this complex function".to_string(),
+            description: "Add code example demonstrating usage for this complex function"
+                .to_string(),
             target: None,
             estimated_impact: "Significantly improves understanding for API users".to_string(),
             safety: SafetyLevel::Safe,
@@ -1392,20 +1440,38 @@ impl ToolHandler for DocumentationHandler {
         // Dispatch to appropriate analysis function
         match kind {
             "coverage" => {
-                super::engine::run_analysis(context, tool_call, "documentation", kind, detect_coverage)
-                    .await
+                super::engine::run_analysis(
+                    context,
+                    tool_call,
+                    "documentation",
+                    kind,
+                    detect_coverage,
+                )
+                .await
             }
             "quality" => {
-                super::engine::run_analysis(context, tool_call, "documentation", kind, detect_quality)
-                    .await
+                super::engine::run_analysis(
+                    context,
+                    tool_call,
+                    "documentation",
+                    kind,
+                    detect_quality,
+                )
+                .await
             }
             "style" => {
                 super::engine::run_analysis(context, tool_call, "documentation", kind, detect_style)
                     .await
             }
             "examples" => {
-                super::engine::run_analysis(context, tool_call, "documentation", kind, detect_examples)
-                    .await
+                super::engine::run_analysis(
+                    context,
+                    tool_call,
+                    "documentation",
+                    kind,
+                    detect_examples,
+                )
+                .await
             }
             "todos" => {
                 super::engine::run_analysis(context, tool_call, "documentation", kind, detect_todos)

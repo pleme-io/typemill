@@ -294,7 +294,10 @@ fn detect_quality(
     if test_smells_count > 0 {
         suggestions.push(Suggestion {
             action: "refactor_test_smells".to_string(),
-            description: format!("Refactor {} test smells to improve test reliability", test_smells_count),
+            description: format!(
+                "Refactor {} test smells to improve test reliability",
+                test_smells_count
+            ),
             target: None,
             estimated_impact: "Improves test maintainability and reliability".to_string(),
             safety: SafetyLevel::Safe,
@@ -307,7 +310,10 @@ fn detect_quality(
     if naming_violations > 0 {
         suggestions.push(Suggestion {
             action: "improve_test_naming".to_string(),
-            description: format!("Improve naming for {} tests to be more descriptive", naming_violations),
+            description: format!(
+                "Improve naming for {} tests to be more descriptive",
+                naming_violations
+            ),
             target: None,
             estimated_impact: "Improves test readability and documentation".to_string(),
             safety: SafetyLevel::Safe,
@@ -443,8 +449,7 @@ fn detect_assertions(
         min_assertions = 0;
     }
 
-    let has_issues =
-        !tests_without_assertions.is_empty() || !overly_complex_tests.is_empty();
+    let has_issues = !tests_without_assertions.is_empty() || !overly_complex_tests.is_empty();
 
     let severity = if has_issues {
         Severity::Medium
@@ -677,7 +682,9 @@ fn detect_organization(
     if is_test_file && !has_corresponding_file {
         suggestions.push(Suggestion {
             action: "link_or_remove_orphaned_test".to_string(),
-            description: "Either create the corresponding production file or remove this orphaned test".to_string(),
+            description:
+                "Either create the corresponding production file or remove this orphaned test"
+                    .to_string(),
             target: None,
             estimated_impact: "Improves test organization and maintainability".to_string(),
             safety: SafetyLevel::RequiresReview,
@@ -704,7 +711,8 @@ fn detect_organization(
     if is_test_file && test_suites.is_empty() && complexity_report.total_functions > 5 {
         suggestions.push(Suggestion {
             action: "organize_with_test_suites".to_string(),
-            description: "Organize tests using describe/test suites for better structure".to_string(),
+            description: "Organize tests using describe/test suites for better structure"
+                .to_string(),
             target: None,
             estimated_impact: "Improves test readability and organization".to_string(),
             safety: SafetyLevel::Safe,
@@ -852,7 +860,10 @@ fn has_test_for_function(function_name: &str, content: &str, language: &str) -> 
             format!("test_{}", function_name),
             format!("{}_test", function_name),
         ],
-        "go" => vec![format!("Test{}", function_name), format!("TestNew{}", function_name)],
+        "go" => vec![
+            format!("Test{}", function_name),
+            format!("TestNew{}", function_name),
+        ],
         _ => vec![format!("test_{}", function_name)],
     };
 
@@ -1143,13 +1154,14 @@ fn count_assertions(body: &str, language: &str) -> AssertionInfo {
         }
         "python" => {
             total += count_pattern(body, "assert ");
-            *types.entry("equality".to_string()).or_insert(0) +=
-                count_pattern(body, "assertEqual");
-            *types.entry("truthiness".to_string()).or_insert(0) += count_pattern(body, "assertTrue");
+            *types.entry("equality".to_string()).or_insert(0) += count_pattern(body, "assertEqual");
+            *types.entry("truthiness".to_string()).or_insert(0) +=
+                count_pattern(body, "assertTrue");
         }
         "go" => {
             total += count_pattern(body, "assert.");
-            *types.entry("equality".to_string()).or_insert(0) += count_pattern(body, "assert.Equal");
+            *types.entry("equality".to_string()).or_insert(0) +=
+                count_pattern(body, "assert.Equal");
             *types.entry("error".to_string()).or_insert(0) += count_pattern(body, "t.Error");
         }
         _ => {
@@ -1366,10 +1378,7 @@ impl ToolHandler for TestsHandler {
             .ok_or_else(|| ServerError::InvalidRequest("Missing 'kind' parameter".into()))?;
 
         // Validate kind
-        if !matches!(
-            kind,
-            "coverage" | "quality" | "assertions" | "organization"
-        ) {
+        if !matches!(kind, "coverage" | "quality" | "assertions" | "organization") {
             return Err(ServerError::InvalidRequest(format!(
                 "Unsupported kind '{}'. Supported: 'coverage', 'quality', 'assertions', 'organization'",
                 kind
@@ -1385,22 +1394,15 @@ impl ToolHandler for TestsHandler {
                     .await
             }
             "quality" => {
-                super::engine::run_analysis(context, tool_call, "tests", kind, detect_quality)
-                    .await
+                super::engine::run_analysis(context, tool_call, "tests", kind, detect_quality).await
             }
             "assertions" => {
                 super::engine::run_analysis(context, tool_call, "tests", kind, detect_assertions)
                     .await
             }
             "organization" => {
-                super::engine::run_analysis(
-                    context,
-                    tool_call,
-                    "tests",
-                    kind,
-                    detect_organization,
-                )
-                .await
+                super::engine::run_analysis(context, tool_call, "tests", kind, detect_organization)
+                    .await
             }
             _ => unreachable!("Kind validated earlier"),
         }

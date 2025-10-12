@@ -218,19 +218,13 @@ impl Capabilities {
             | "get_call_hierarchy_outgoing_calls" => Some(ToolScope::File),
 
             // File-scoped editing tools
-            "format_document"
-            | "format_range"
-            | "get_code_actions"
-            | "organize_imports" => Some(ToolScope::File),
+            "format_document" | "format_range" | "get_code_actions" | "organize_imports" => {
+                Some(ToolScope::File)
+            }
 
             // Unified Refactoring API - File-scoped plan generators
-            "rename.plan"
-            | "extract.plan"
-            | "inline.plan"
-            | "move.plan"
-            | "reorder.plan"
-            | "transform.plan"
-            | "delete.plan" => Some(ToolScope::File),
+            "rename.plan" | "extract.plan" | "inline.plan" | "move.plan" | "reorder.plan"
+            | "transform.plan" | "delete.plan" => Some(ToolScope::File),
 
             // Workspace-scoped unified API
             "workspace.apply_edit" => Some(ToolScope::Workspace),
@@ -322,10 +316,7 @@ mod tests {
         );
         assert_eq!(caps.get_tool_scope("rename.plan"), Some(ToolScope::File));
         assert_eq!(caps.get_tool_scope("get_hover"), Some(ToolScope::File));
-        assert_eq!(
-            caps.get_tool_scope("extract.plan"),
-            Some(ToolScope::File)
-        );
+        assert_eq!(caps.get_tool_scope("extract.plan"), Some(ToolScope::File));
 
         // Test workspace-scoped tools
         assert_eq!(

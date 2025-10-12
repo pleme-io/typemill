@@ -19,7 +19,7 @@ use cb_lang_common::{
     read_manifest,
 };
 use cb_plugin_api::{
-    LanguagePlugin, LanguageMetadata, PluginCapabilities, LspConfig, ManifestData, ParsedSource,
+    LanguageMetadata, LanguagePlugin, LspConfig, ManifestData, ParsedSource, PluginCapabilities,
     PluginResult,
 };
 use cb_plugin_registry::codebuddy_plugin;

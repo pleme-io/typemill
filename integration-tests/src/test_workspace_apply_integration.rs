@@ -242,11 +242,7 @@ async fn test_workspace_apply_checksum_validation_all_plan_types() {
 
     // Should fail with checksum validation error
     assert!(
-        result.is_err()
-            || result
-                .unwrap()
-                .get("error")
-                .is_some(),
+        result.is_err() || result.unwrap().get("error").is_some(),
         "workspace.apply_edit should reject stale plans"
     );
 
@@ -481,11 +477,7 @@ async fn test_workspace_apply_post_validation_failure() {
     // Should fail due to validation failure
     // Note: The apply happens, but validation fails afterward
     assert!(
-        result.is_err()
-            || result
-                .unwrap()
-                .get("error")
-                .is_some(),
+        result.is_err() || result.unwrap().get("error").is_some(),
         "Apply should fail when post-validation fails"
     );
 }

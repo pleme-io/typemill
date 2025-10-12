@@ -37,7 +37,10 @@ async fn test_delete_file_plan_and_apply() {
         .expect("Plan should exist");
 
     // DEBUG: Print plan to see what's inside
-    eprintln!("DEBUG DELETE PLAN: {}", serde_json::to_string_pretty(&plan).unwrap());
+    eprintln!(
+        "DEBUG DELETE PLAN: {}",
+        serde_json::to_string_pretty(&plan).unwrap()
+    );
 
     assert_eq!(
         plan.get("plan_type").and_then(|v| v.as_str()),
@@ -66,7 +69,10 @@ async fn test_delete_file_plan_and_apply() {
         .expect("Apply result should exist");
 
     // DEBUG: Print apply result
-    eprintln!("DEBUG APPLY RESULT: {}", serde_json::to_string_pretty(&result).unwrap());
+    eprintln!(
+        "DEBUG APPLY RESULT: {}",
+        serde_json::to_string_pretty(&result).unwrap()
+    );
 
     assert_eq!(
         result.get("success").and_then(|v| v.as_bool()),
@@ -187,19 +193,12 @@ async fn test_delete_file_checksum_validation() {
 
     // Should fail due to checksum mismatch
     assert!(
-        apply_result.is_err()
-            || apply_result
-                .unwrap()
-                .get("error")
-                .is_some(),
+        apply_result.is_err() || apply_result.unwrap().get("error").is_some(),
         "Apply should fail due to checksum mismatch"
     );
 
     // Verify file was NOT deleted
-    assert!(
-        workspace.file_exists("file.rs"),
-        "File should still exist"
-    );
+    assert!(workspace.file_exists("file.rs"), "File should still exist");
 }
 
 #[tokio::test]

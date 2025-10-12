@@ -211,7 +211,10 @@ fn detect_hierarchy(
     metrics.insert("total_classes".to_string(), json!(total_classes));
     metrics.insert("root_classes".to_string(), json!(root_classes));
     metrics.insert("leaf_classes".to_string(), json!(leaf_classes));
-    metrics.insert("hierarchy_tree".to_string(), json!(serialize_hierarchy(&hierarchy_tree)));
+    metrics.insert(
+        "hierarchy_tree".to_string(),
+        json!(serialize_hierarchy(&hierarchy_tree)),
+    );
 
     let message = if deep_hierarchy {
         format!(
@@ -355,7 +358,10 @@ fn detect_interfaces(
 
     let mut metrics = HashMap::new();
     metrics.insert("interface_count".to_string(), json!(all_interfaces_count));
-    metrics.insert("methods_per_interface".to_string(), json!(methods_per_interface));
+    metrics.insert(
+        "methods_per_interface".to_string(),
+        json!(methods_per_interface),
+    );
     metrics.insert("fat_interfaces".to_string(), json!(fat_interfaces));
 
     let message = if has_fat_interfaces {
@@ -628,7 +634,10 @@ fn detect_modules(
     metrics.insert("module_count".to_string(), json!(modules.len()));
     metrics.insert("items_per_module".to_string(), json!(items_per_module));
     metrics.insert("god_modules".to_string(), json!(god_modules));
-    metrics.insert("orphaned_items_count".to_string(), json!(orphaned_items.len()));
+    metrics.insert(
+        "orphaned_items_count".to_string(),
+        json!(orphaned_items.len()),
+    );
     metrics.insert("total_items".to_string(), json!(total_items));
     metrics.insert("total_functions".to_string(), json!(total_functions));
 
@@ -1001,7 +1010,8 @@ fn count_interface_methods(content: &str, interface_name: &str, language: &str) 
 
         if in_interface && brace_count > 0 {
             // Count method signatures (lines with '(' and not comments)
-            if line.contains('(') && !line.trim().starts_with("//") && !line.trim().starts_with('*') {
+            if line.contains('(') && !line.trim().starts_with("//") && !line.trim().starts_with('*')
+            {
                 method_count += 1;
             }
         }
@@ -1090,7 +1100,9 @@ fn categorize_symbols_by_module(
 
         // If not assigned to any module, count as top-level
         if !assigned {
-            *items_per_module.entry("(top-level)".to_string()).or_insert(0) += 1;
+            *items_per_module
+                .entry("(top-level)".to_string())
+                .or_insert(0) += 1;
         }
     }
 
@@ -1152,14 +1164,8 @@ impl ToolHandler for StructureHandler {
                     .await
             }
             "hierarchy" => {
-                super::engine::run_analysis(
-                    context,
-                    tool_call,
-                    "structure",
-                    kind,
-                    detect_hierarchy,
-                )
-                .await
+                super::engine::run_analysis(context, tool_call, "structure", kind, detect_hierarchy)
+                    .await
             }
             "interfaces" => {
                 super::engine::run_analysis(

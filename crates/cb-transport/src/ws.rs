@@ -239,37 +239,42 @@ async fn handle_connection(
                 };
 
                 // Handle the message
-                let response =
-                    match handle_message(&mut session, mcp_message, &config, dispatcher.as_ref(), &session_info)
-                        .await
-                    {
-                        Ok(response) => response,
-                        Err(e) => {
-                            // Convert to structured API error
-                            let api_error = e.to_api_response();
+                let response = match handle_message(
+                    &mut session,
+                    mcp_message,
+                    &config,
+                    dispatcher.as_ref(),
+                    &session_info,
+                )
+                .await
+                {
+                    Ok(response) => response,
+                    Err(e) => {
+                        // Convert to structured API error
+                        let api_error = e.to_api_response();
 
-                            tracing::error!(
-                                request_id = %request_id,
-                                error_code = %api_error.code,
-                                error = %e,
-                                "Failed to handle message"
-                            );
+                        tracing::error!(
+                            request_id = %request_id,
+                            error_code = %api_error.code,
+                            error = %e,
+                            "Failed to handle message"
+                        );
 
-                            // Serialize the structured error to JSON for the data field
-                            let error_data = serde_json::to_value(&api_error).ok();
+                        // Serialize the structured error to JSON for the data field
+                        let error_data = serde_json::to_value(&api_error).ok();
 
-                            McpMessage::Response(McpResponse {
-                                jsonrpc: "2.0".to_string(),
-                                id: None,
-                                result: None,
-                                error: Some(McpError {
-                                    code: -1,
-                                    message: api_error.message.clone(),
-                                    data: error_data,
-                                }),
-                            })
-                        }
-                    };
+                        McpMessage::Response(McpResponse {
+                            jsonrpc: "2.0".to_string(),
+                            id: None,
+                            result: None,
+                            error: Some(McpError {
+                                code: -1,
+                                message: api_error.message.clone(),
+                                data: error_data,
+                            }),
+                        })
+                    }
+                };
 
                 // Send response
                 let response_text = match serde_json::to_string(&response) {
@@ -340,7 +345,9 @@ async fn handle_message(
                 }))
             } else {
                 // Dispatch to regular handler
-                dispatcher.dispatch(McpMessage::Request(request), session_info).await
+                dispatcher
+                    .dispatch(McpMessage::Request(request), session_info)
+                    .await
             }
         }
         other => {

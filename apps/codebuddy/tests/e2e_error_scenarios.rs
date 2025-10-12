@@ -1,6 +1,6 @@
+use cb_test_support::harness::{TestClient, TestWorkspace};
 use serde_json::json;
 use std::fs;
-use cb_test_support::harness::{TestClient, TestWorkspace};
 
 #[tokio::test]
 async fn test_malformed_tool_requests() {

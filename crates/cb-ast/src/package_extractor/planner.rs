@@ -69,8 +69,11 @@ pub(crate) async fn plan_extract_module_to_package(
     );
 
     // Step 5: Generate new crate manifest
-    let generated_manifest =
-        manifest::generate_manifest_for_plugin(rust_plugin, &params.target_package_name, &dependencies);
+    let generated_manifest = manifest::generate_manifest_for_plugin(
+        rust_plugin,
+        &params.target_package_name,
+        &dependencies,
+    );
 
     debug!(
         manifest_lines = generated_manifest.lines().count(),
@@ -84,14 +87,18 @@ pub(crate) async fn plan_extract_module_to_package(
 
     if let Some(original_file_path) = located_files.first() {
         let original_content =
-            edits::add_entrypoint_creation_edit(&mut edits, &params, plugin, original_file_path).await?;
+            edits::add_entrypoint_creation_edit(&mut edits, &params, plugin, original_file_path)
+                .await?;
         debug!(edit_count = edits.len(), "Created entrypoint TextEdit");
 
         edits::add_delete_original_file_edit(&mut edits, original_file_path, &original_content);
         debug!(edit_count = edits.len(), "Created delete TextEdit");
 
         edits::add_remove_mod_declaration_edit(&mut edits, &params, source_path, rust_plugin).await;
-        debug!(edit_count = edits.len(), "Created parent mod removal TextEdit");
+        debug!(
+            edit_count = edits.len(),
+            "Created parent mod removal TextEdit"
+        );
     }
 
     // Step 7: Update source crate's Cargo.toml to add new dependency
@@ -107,7 +114,14 @@ pub(crate) async fn plan_extract_module_to_package(
 
     // Step 9: Find and update all use statements in the workspace
     if params.update_imports.unwrap_or(true) {
-        edits::add_import_update_edits(&mut edits, &params, source_path, rust_plugin, &located_files).await?;
+        edits::add_import_update_edits(
+            &mut edits,
+            &params,
+            source_path,
+            rust_plugin,
+            &located_files,
+        )
+        .await?;
     }
 
     // Convert PathBuf to strings for JSON serialization

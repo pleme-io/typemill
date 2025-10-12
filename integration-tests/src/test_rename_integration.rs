@@ -45,10 +45,7 @@ async fn test_rename_file_plan_and_apply() {
         Some("RenamePlan"),
         "Plan should be RenamePlan"
     );
-    assert!(
-        plan.get("metadata").is_some(),
-        "Plan should have metadata"
-    );
+    assert!(plan.get("metadata").is_some(), "Plan should have metadata");
     assert!(
         plan.get("file_checksums").is_some(),
         "Plan should have file_checksums"
@@ -85,10 +82,7 @@ async fn test_rename_file_plan_and_apply() {
         !workspace.file_exists("original.rs"),
         "Original file should be deleted"
     );
-    assert!(
-        workspace.file_exists("renamed.rs"),
-        "New file should exist"
-    );
+    assert!(workspace.file_exists("renamed.rs"), "New file should exist");
     assert_eq!(
         workspace.read_file("renamed.rs"),
         "pub fn hello() {}\n",
@@ -210,11 +204,7 @@ async fn test_rename_checksum_validation_rejects_stale_plan() {
 
     // Should fail due to checksum mismatch
     assert!(
-        apply_result.is_err()
-            || apply_result
-                .unwrap()
-                .get("error")
-                .is_some(),
+        apply_result.is_err() || apply_result.unwrap().get("error").is_some(),
         "Apply should fail due to checksum mismatch"
     );
 

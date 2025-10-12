@@ -167,10 +167,7 @@ export class LeafClass extends MiddleClass {
     }
 
     // Should have hierarchy finding
-    assert!(
-        !result.findings.is_empty(),
-        "Expected hierarchy findings"
-    );
+    assert!(!result.findings.is_empty(), "Expected hierarchy findings");
 
     let finding = &result.findings[0];
     assert_eq!(finding.kind, "hierarchy");
@@ -275,10 +272,7 @@ export interface SimpleInterface {
     }
 
     // Should have interface finding
-    assert!(
-        !result.findings.is_empty(),
-        "Expected interface findings"
-    );
+    assert!(!result.findings.is_empty(), "Expected interface findings");
 
     let finding = &result.findings[0];
     assert_eq!(finding.kind, "interfaces");
@@ -301,10 +295,7 @@ export interface SimpleInterface {
         .and_then(|v| v.as_u64())
         .expect("Should have interface_count");
 
-    assert!(
-        interface_count >= 2,
-        "Should detect at least 2 interfaces"
-    );
+    assert!(interface_count >= 2, "Should detect at least 2 interfaces");
 
     // Verify fat interfaces are detected
     let fat_interfaces = metrics
@@ -394,10 +385,7 @@ export class Level5 extends Level4 {
     }
 
     // Should have inheritance finding
-    assert!(
-        !result.findings.is_empty(),
-        "Expected inheritance findings"
-    );
+    assert!(!result.findings.is_empty(), "Expected inheritance findings");
 
     let finding = &result.findings[0];
     assert_eq!(finding.kind, "inheritance");
@@ -501,10 +489,7 @@ export function helper3() { return "helper3"; }
     }
 
     // Should have module finding
-    assert!(
-        !result.findings.is_empty(),
-        "Expected module findings"
-    );
+    assert!(!result.findings.is_empty(), "Expected module findings");
 
     let finding = &result.findings[0];
     assert_eq!(finding.kind, "modules");

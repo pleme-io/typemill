@@ -33,7 +33,11 @@ pub fn discover_plugins_with_fixtures() -> Vec<(Arc<dyn LanguagePlugin>, Languag
     registry
         .all()
         .iter()
-        .filter_map(|plugin| plugin.test_fixtures().map(|fixtures| (plugin.clone(), fixtures)))
+        .filter_map(|plugin| {
+            plugin
+                .test_fixtures()
+                .map(|fixtures| (plugin.clone(), fixtures))
+        })
         .collect()
 }
 

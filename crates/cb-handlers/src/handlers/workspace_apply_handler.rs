@@ -522,7 +522,10 @@ fn convert_to_edit_plan(
                                         original_text: String::new(),
                                         new_text: String::new(),
                                         priority: 0,
-                                        description: format!("Create file {}", create_file.uri.path()),
+                                        description: format!(
+                                            "Create file {}",
+                                            create_file.uri.path()
+                                        ),
                                     });
                                 }
                                 lsp_types::ResourceOp::Rename(rename_file) => {
@@ -566,7 +569,10 @@ fn convert_to_edit_plan(
                                         original_text: String::new(),
                                         new_text: String::new(),
                                         priority: 0,
-                                        description: format!("Delete file {}", delete_file.uri.path()),
+                                        description: format!(
+                                            "Delete file {}",
+                                            delete_file.uri.path()
+                                        ),
                                     });
                                 }
                             }

@@ -4,8 +4,8 @@
 use crate::process_manager::PluginProcess;
 use async_trait::async_trait;
 use cb_plugin_api::{
-    PluginCapabilities, LanguageMetadata, LanguagePlugin, ManifestData, ParsedSource,
-    PluginError, PluginResult,
+    LanguageMetadata, LanguagePlugin, ManifestData, ParsedSource, PluginCapabilities, PluginError,
+    PluginResult,
 };
 use serde_json::Value;
 use std::path::Path;
@@ -35,8 +35,9 @@ impl RpcAdapterPlugin {
             .await
             .map_err(|e| PluginError::internal(format!("RPC call failed: {}", e)))?;
 
-        serde_json::from_value(response_value)
-            .map_err(|e| PluginError::internal(format!("Failed to deserialize RPC response: {}", e)))
+        serde_json::from_value(response_value).map_err(|e| {
+            PluginError::internal(format!("Failed to deserialize RPC response: {}", e))
+        })
     }
 }
 
@@ -60,7 +61,8 @@ impl LanguagePlugin for RpcAdapterPlugin {
     }
 
     async fn analyze_manifest(&self, path: &Path) -> PluginResult<ManifestData> {
-        self.call_rpc("analyze_manifest", serde_json::to_value(path)?).await
+        self.call_rpc("analyze_manifest", serde_json::to_value(path)?)
+            .await
     }
 
     // Since this is an adapter, it cannot be downcast to a concrete type.

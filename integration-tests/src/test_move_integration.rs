@@ -209,11 +209,7 @@ async fn test_move_file_checksum_validation() {
 
     // Should fail due to checksum mismatch
     assert!(
-        apply_result.is_err()
-            || apply_result
-                .unwrap()
-                .get("error")
-                .is_some(),
+        apply_result.is_err() || apply_result.unwrap().get("error").is_some(),
         "Apply should fail due to checksum mismatch"
     );
 

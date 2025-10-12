@@ -9,8 +9,8 @@ pub mod workspace_support;
 use async_trait::async_trait;
 use cb_lang_common::read_manifest;
 use cb_plugin_api::{
-    ImportSupport, PluginCapabilities, LanguageMetadata, LanguagePlugin, LspConfig,
-    ManifestData, ParsedSource, PluginError, PluginResult, WorkspaceSupport,
+    ImportSupport, LanguageMetadata, LanguagePlugin, LspConfig, ManifestData, ParsedSource,
+    PluginCapabilities, PluginError, PluginResult, WorkspaceSupport,
 };
 use cb_plugin_registry::codebuddy_plugin;
 use std::path::Path;

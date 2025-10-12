@@ -53,7 +53,8 @@ impl PluginProcess {
         let stdout = child.stdout.take().unwrap();
         let stderr = child.stderr.take().unwrap();
 
-        let pending_requests: Arc<DashMap<u64, oneshot::Sender<Result<PluginResponse, String>>>> = Arc::new(DashMap::new());
+        let pending_requests: Arc<DashMap<u64, oneshot::Sender<Result<PluginResponse, String>>>> =
+            Arc::new(DashMap::new());
         let pending_requests_clone = pending_requests.clone();
 
         let plugin_name_for_stdout = name.to_string();
@@ -68,20 +69,18 @@ impl PluginProcess {
                         info!(plugin_name = %plugin_name_for_stdout, "Plugin stdout closed");
                         break;
                     }
-                    Ok(_) => {
-                        match serde_json::from_str::<PluginResponse>(&line) {
-                            Ok(response) => {
-                                if let Some(sender) = pending_requests_clone.remove(&response.id) {
-                                    if let Err(_) = sender.1.send(Ok(response)) {
-                                        warn!(plugin_name = %plugin_name_for_stdout, "Failed to send plugin response to receiver");
-                                    }
+                    Ok(_) => match serde_json::from_str::<PluginResponse>(&line) {
+                        Ok(response) => {
+                            if let Some(sender) = pending_requests_clone.remove(&response.id) {
+                                if let Err(_) = sender.1.send(Ok(response)) {
+                                    warn!(plugin_name = %plugin_name_for_stdout, "Failed to send plugin response to receiver");
                                 }
                             }
-                            Err(e) => {
-                                error!(plugin_name = %plugin_name_for_stdout, error = %e, "Failed to parse response from plugin");
-                            }
                         }
-                    }
+                        Err(e) => {
+                            error!(plugin_name = %plugin_name_for_stdout, error = %e, "Failed to parse response from plugin");
+                        }
+                    },
                     Err(e) => {
                         error!(plugin_name = %plugin_name_for_stdout, error = %e, "Error reading from plugin stdout");
                         break;
@@ -140,7 +139,9 @@ impl PluginProcess {
         }
 
         match tokio::time::timeout(PLUGIN_REQUEST_TIMEOUT, rx).await {
-            Ok(Ok(Ok(response))) => response.result.ok_or_else(|| "Plugin response was missing a result".to_string()),
+            Ok(Ok(Ok(response))) => response
+                .result
+                .ok_or_else(|| "Plugin response was missing a result".to_string()),
             Ok(Ok(Err(e))) => Err(format!("Plugin returned an error: {}", e)),
             Ok(Err(_)) => Err("Response channel for plugin call was dropped".to_string()),
             Err(_) => {

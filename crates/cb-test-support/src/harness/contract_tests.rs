@@ -34,8 +34,14 @@ fn test_all_plugins_conform_to_contract() {
 fn test_metadata_contract(plugin: &dyn LanguagePlugin) {
     let meta = plugin.metadata();
     assert!(!meta.name.is_empty(), "Plugin name cannot be empty.");
-    assert!(!meta.extensions.is_empty(), "Plugin must handle at least one file extension.");
-    assert!(!meta.manifest_filename.is_empty(), "Plugin must specify a manifest filename.");
+    assert!(
+        !meta.extensions.is_empty(),
+        "Plugin must handle at least one file extension."
+    );
+    assert!(
+        !meta.manifest_filename.is_empty(),
+        "Plugin must specify a manifest filename."
+    );
 }
 
 /// Ensures that the plugin's declared capabilities are consistent.
@@ -43,15 +49,27 @@ fn test_capabilities_contract(plugin: &dyn LanguagePlugin) {
     let caps = plugin.capabilities();
 
     if caps.imports {
-        assert!(plugin.import_support().is_some(), "Plugin claims import support but provides no implementation.");
+        assert!(
+            plugin.import_support().is_some(),
+            "Plugin claims import support but provides no implementation."
+        );
     } else {
-        assert!(plugin.import_support().is_none(), "Plugin does not claim import support but provides an implementation.");
+        assert!(
+            plugin.import_support().is_none(),
+            "Plugin does not claim import support but provides an implementation."
+        );
     }
 
     if caps.workspace {
-        assert!(plugin.workspace_support().is_some(), "Plugin claims workspace support but provides no implementation.");
+        assert!(
+            plugin.workspace_support().is_some(),
+            "Plugin claims workspace support but provides no implementation."
+        );
     } else {
-        assert!(plugin.workspace_support().is_none(), "Plugin does not claim workspace support but provides an implementation.");
+        assert!(
+            plugin.workspace_support().is_none(),
+            "Plugin does not claim workspace support but provides an implementation."
+        );
     }
 }
 
@@ -78,6 +96,11 @@ async fn test_parsing_contract(plugin: &dyn LanguagePlugin) {
     let _ = empty_result; // Don't assert - just ensure no panic
 
     // Test: analyze_manifest fails gracefully for non-existent file
-    let manifest_result = plugin.analyze_manifest(std::path::Path::new("/__non_existent_file__")).await;
-    assert!(manifest_result.is_err(), "Analyzing a non-existent manifest should fail.");
+    let manifest_result = plugin
+        .analyze_manifest(std::path::Path::new("/__non_existent_file__"))
+        .await;
+    assert!(
+        manifest_result.is_err(),
+        "Analyzing a non-existent manifest should fail."
+    );
 }

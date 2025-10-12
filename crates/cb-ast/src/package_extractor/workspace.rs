@@ -96,9 +96,7 @@ pub(crate) async fn update_workspace(
 
                         if updated_workspace != workspace_content {
                             edits.push(TextEdit {
-                                file_path: Some(
-                                    workspace_cargo_toml.to_string_lossy().to_string(),
-                                ),
+                                file_path: Some(workspace_cargo_toml.to_string_lossy().to_string()),
                                 edit_type: EditType::Replace,
                                 location: EditLocation {
                                     start_line: 0,

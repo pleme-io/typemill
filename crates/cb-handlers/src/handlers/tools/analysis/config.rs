@@ -678,9 +678,7 @@ mod tests {
             "quality".to_string(),
             CategoryConfig {
                 enabled: None,
-                thresholds: Some(HashMap::from([
-                    ("complexity_threshold".to_string(), 15.0),
-                ])),
+                thresholds: Some(HashMap::from([("complexity_threshold".to_string(), 15.0)])),
                 options: None,
             },
         );
@@ -737,9 +735,7 @@ mod tests {
             "quality".to_string(),
             CategoryConfig {
                 enabled: Some(vec!["complexity".to_string()]),
-                thresholds: Some(HashMap::from([
-                    ("complexity_threshold".to_string(), 99.0),
-                ])),
+                thresholds: Some(HashMap::from([("complexity_threshold".to_string(), 99.0)])),
                 options: None,
             },
         );
@@ -752,10 +748,7 @@ mod tests {
         assert_eq!(threshold, Some(99.0));
 
         let enabled = &config.overrides.get("quality").unwrap().enabled;
-        assert_eq!(
-            enabled.as_ref().unwrap(),
-            &vec!["complexity".to_string()]
-        );
+        assert_eq!(enabled.as_ref().unwrap(), &vec!["complexity".to_string()]);
     }
 
     #[test]

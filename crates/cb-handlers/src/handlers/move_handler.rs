@@ -82,9 +82,10 @@ impl ToolHandler for MoveHandler {
         info!(tool_name = %tool_call.name, "Handling move.plan");
 
         // Parse parameters
-        let args = tool_call.arguments.clone().ok_or_else(|| {
-            ServerError::InvalidRequest("Missing arguments for move.plan".into())
-        })?;
+        let args = tool_call
+            .arguments
+            .clone()
+            .ok_or_else(|| ServerError::InvalidRequest("Missing arguments for move.plan".into()))?;
 
         let params: MovePlanParams = serde_json::from_value(args).map_err(|e| {
             ServerError::InvalidRequest(format!("Invalid move.plan parameters: {}", e))
@@ -99,15 +100,9 @@ impl ToolHandler for MoveHandler {
 
         // Dispatch based on target kind
         let plan = match params.target.kind.as_str() {
-            "symbol" => {
-                self.plan_symbol_move(&params, context).await?
-            }
-            "file" => {
-                self.plan_file_move(&params, context).await?
-            }
-            "module" => {
-                self.plan_module_move(&params, context).await?
-            }
+            "symbol" => self.plan_symbol_move(&params, context).await?,
+            "file" => self.plan_file_move(&params, context).await?,
+            "module" => self.plan_module_move(&params, context).await?,
             kind => {
                 return Err(ServerError::InvalidRequest(format!(
                     "Unsupported move kind: {}. Must be one of: symbol, file, module",
@@ -118,9 +113,8 @@ impl ToolHandler for MoveHandler {
 
         // Wrap in RefactorPlan enum for discriminant, then serialize for MCP protocol
         let refactor_plan = RefactorPlan::MovePlan(plan);
-        let plan_json = serde_json::to_value(&refactor_plan).map_err(|e| {
-            ServerError::Internal(format!("Failed to serialize move plan: {}", e))
-        })?;
+        let plan_json = serde_json::to_value(&refactor_plan)
+            .map_err(|e| ServerError::Internal(format!("Failed to serialize move plan: {}", e)))?;
 
         Ok(json!({
             "content": plan_json
@@ -143,9 +137,7 @@ impl MoveHandler {
             .selector
             .as_ref()
             .ok_or_else(|| {
-                ServerError::InvalidRequest(
-                    "Symbol move requires selector.position".into()
-                )
+                ServerError::InvalidRequest("Symbol move requires selector.position".into())
             })?
             .position;
 
@@ -162,12 +154,9 @@ impl MoveHandler {
             })?;
 
         // Try LSP approach first
-        let lsp_result = self.try_lsp_symbol_move(
-            params,
-            context,
-            extension,
-            position,
-        ).await;
+        let lsp_result = self
+            .try_lsp_symbol_move(params, context, extension, position)
+            .await;
 
         match lsp_result {
             Ok(plan) => Ok(plan),
@@ -189,31 +178,24 @@ impl MoveHandler {
     ) -> ServerResult<MovePlan> {
         // Get LSP adapter
         let lsp_adapter = context.lsp_adapter.lock().await;
-        let adapter = lsp_adapter.as_ref().ok_or_else(|| {
-            ServerError::Internal("LSP adapter not initialized".into())
-        })?;
+        let adapter = lsp_adapter
+            .as_ref()
+            .ok_or_else(|| ServerError::Internal("LSP adapter not initialized".into()))?;
 
         // Get or create LSP client for this extension
-        let client = adapter
-            .get_or_create_client(extension)
-            .await
-            .map_err(|e| {
-                ServerError::Unsupported(format!(
-                    "No LSP server configured for extension {}: {}",
-                    extension, e
-                ))
-            })?;
+        let client = adapter.get_or_create_client(extension).await.map_err(|e| {
+            ServerError::Unsupported(format!(
+                "No LSP server configured for extension {}: {}",
+                extension, e
+            ))
+        })?;
 
         // Convert path to absolute and create file URI
         let path = Path::new(&params.target.path);
-        let abs_path = std::fs::canonicalize(path)
-            .unwrap_or_else(|_| path.to_path_buf());
+        let abs_path = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
         let file_uri = url::Url::from_file_path(&abs_path)
             .map_err(|_| {
-                ServerError::Internal(format!(
-                    "Invalid file path: {}",
-                    abs_path.display()
-                ))
+                ServerError::Internal(format!("Invalid file path: {}", abs_path.display()))
             })?
             .to_string();
 
@@ -243,16 +225,16 @@ impl MoveHandler {
             })?;
 
         // Parse code actions from response
-        let code_actions: Vec<Value> = serde_json::from_value(lsp_result)
-            .map_err(|e| {
-                ServerError::Internal(format!("Failed to parse LSP code actions: {}", e))
-            })?;
+        let code_actions: Vec<Value> = serde_json::from_value(lsp_result).map_err(|e| {
+            ServerError::Internal(format!("Failed to parse LSP code actions: {}", e))
+        })?;
 
         // Find the appropriate move action
         let move_action = code_actions
             .into_iter()
             .find(|action| {
-                action.get("kind")
+                action
+                    .get("kind")
                     .and_then(|k| k.as_str())
                     .map(|k| k.starts_with("refactor.move"))
                     .unwrap_or(false)
@@ -263,14 +245,12 @@ impl MoveHandler {
 
         // Extract WorkspaceEdit from code action
         let workspace_edit: WorkspaceEdit = serde_json::from_value(
-            move_action.get("edit")
+            move_action
+                .get("edit")
                 .cloned()
-                .ok_or_else(|| {
-                    ServerError::Internal("Code action missing edit field".into())
-                })?
-        ).map_err(|e| {
-            ServerError::Internal(format!("Failed to parse WorkspaceEdit: {}", e))
-        })?;
+                .ok_or_else(|| ServerError::Internal("Code action missing edit field".into()))?,
+        )
+        .map_err(|e| ServerError::Internal(format!("Failed to parse WorkspaceEdit: {}", e)))?;
 
         // Calculate file checksums and summary
         let (file_checksums, summary, warnings) = self
@@ -307,7 +287,7 @@ impl MoveHandler {
         // For now, return unsupported error
         // Full AST-based symbol move would require extensive analysis
         Err(ServerError::Unsupported(
-            "AST-based symbol move not yet implemented. LSP server required.".into()
+            "AST-based symbol move not yet implemented. LSP server required.".into(),
         ))
     }
 
@@ -335,8 +315,7 @@ impl MoveHandler {
             .await?;
 
         // Read file content for checksum
-        let abs_old = std::fs::canonicalize(old_path)
-            .unwrap_or_else(|_| old_path.to_path_buf());
+        let abs_old = std::fs::canonicalize(old_path).unwrap_or_else(|_| old_path.to_path_buf());
 
         let content = context
             .app_state
@@ -366,21 +345,22 @@ impl MoveHandler {
         let new_uri = url::Url::from_file_path(&abs_new)
             .map_err(|_| ServerError::InvalidRequest("Invalid destination file path".into()))?;
 
-        let rename_op = ResourceOp::Rename(RenameFile {
-            old_uri: old_uri.as_str().parse().map_err(|e| {
-                ServerError::Internal(format!("Failed to parse old URI: {}", e))
-            })?,
-            new_uri: new_uri.as_str().parse().map_err(|e| {
-                ServerError::Internal(format!("Failed to parse new URI: {}", e))
-            })?,
-            options: None,
-            annotation_id: None,
-        });
+        let rename_op =
+            ResourceOp::Rename(RenameFile {
+                old_uri: old_uri.as_str().parse().map_err(|e| {
+                    ServerError::Internal(format!("Failed to parse old URI: {}", e))
+                })?,
+                new_uri: new_uri.as_str().parse().map_err(|e| {
+                    ServerError::Internal(format!("Failed to parse new URI: {}", e))
+                })?,
+                options: None,
+                annotation_id: None,
+            });
 
         let workspace_edit = WorkspaceEdit {
             changes: None,
             document_changes: Some(DocumentChanges::Operations(vec![
-                DocumentChangeOperation::Op(rename_op)
+                DocumentChangeOperation::Op(rename_op),
             ])),
             change_annotations: None,
         };
@@ -429,7 +409,7 @@ impl MoveHandler {
         // Module move is complex and requires language-specific support
         // Would use extract_module_to_package or similar AST functions
         Err(ServerError::Unsupported(
-            "Module move not yet implemented. Requires language plugin support.".into()
+            "Module move not yet implemented. Requires language plugin support.".into(),
         ))
     }
 
@@ -462,23 +442,31 @@ impl MoveHandler {
                     for op in ops {
                         match op {
                             lsp_types::DocumentChangeOperation::Edit(edit) => {
-                                let path = std::path::PathBuf::from(edit.text_document.uri.path().as_str());
+                                let path = std::path::PathBuf::from(
+                                    edit.text_document.uri.path().as_str(),
+                                );
                                 affected_files.insert(path);
                             }
                             lsp_types::DocumentChangeOperation::Op(resource_op) => {
                                 match resource_op {
                                     lsp_types::ResourceOp::Create(create) => {
-                                        let path = std::path::PathBuf::from(create.uri.path().as_str());
+                                        let path =
+                                            std::path::PathBuf::from(create.uri.path().as_str());
                                         affected_files.insert(path);
                                     }
                                     lsp_types::ResourceOp::Rename(rename) => {
-                                        let path = std::path::PathBuf::from(rename.old_uri.path().as_str());
+                                        let path = std::path::PathBuf::from(
+                                            rename.old_uri.path().as_str(),
+                                        );
                                         affected_files.insert(path);
-                                        let path = std::path::PathBuf::from(rename.new_uri.path().as_str());
+                                        let path = std::path::PathBuf::from(
+                                            rename.new_uri.path().as_str(),
+                                        );
                                         affected_files.insert(path);
                                     }
                                     lsp_types::ResourceOp::Delete(delete) => {
-                                        let path = std::path::PathBuf::from(delete.uri.path().as_str());
+                                        let path =
+                                            std::path::PathBuf::from(delete.uri.path().as_str());
                                         affected_files.insert(path);
                                     }
                                 }

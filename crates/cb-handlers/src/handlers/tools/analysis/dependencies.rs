@@ -197,7 +197,10 @@ fn detect_graph(
     let indirect_dependencies: Vec<String> = vec![];
 
     let mut metrics = HashMap::new();
-    metrics.insert("direct_dependencies".to_string(), json!(direct_dependencies));
+    metrics.insert(
+        "direct_dependencies".to_string(),
+        json!(direct_dependencies),
+    );
     metrics.insert(
         "indirect_dependencies".to_string(),
         json!(indirect_dependencies),
@@ -643,7 +646,10 @@ fn detect_depth(
     let mut metrics = HashMap::new();
     metrics.insert("max_depth".to_string(), json!(max_depth));
     metrics.insert("dependency_chain".to_string(), json!(dependency_chain));
-    metrics.insert("direct_dependencies_count".to_string(), json!(direct_deps.len()));
+    metrics.insert(
+        "direct_dependencies_count".to_string(),
+        json!(direct_deps.len()),
+    );
 
     let message = if excessive_depth {
         format!(
@@ -956,8 +962,14 @@ impl ToolHandler for DependenciesHandler {
         // Dispatch to appropriate analysis function
         match kind {
             "imports" => {
-                super::engine::run_analysis(context, tool_call, "dependencies", kind, detect_imports)
-                    .await
+                super::engine::run_analysis(
+                    context,
+                    tool_call,
+                    "dependencies",
+                    kind,
+                    detect_imports,
+                )
+                .await
             }
             "graph" => {
                 super::engine::run_analysis(context, tool_call, "dependencies", kind, detect_graph)

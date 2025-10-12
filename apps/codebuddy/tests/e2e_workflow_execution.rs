@@ -9,8 +9,8 @@
 //! - Workflow failure and rollback scenarios
 //! - Intent-based workflow planning and execution
 
-use serde_json::json;
 use cb_test_support::harness::{TestClient, TestWorkspace};
+use serde_json::json;
 
 /// Test complex workflow with multiple dependencies
 #[tokio::test]

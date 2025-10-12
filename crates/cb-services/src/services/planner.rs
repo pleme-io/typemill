@@ -375,10 +375,7 @@ mod tests {
         // Check second step (workspace.apply_edit)
         assert_eq!(workflow.steps[1].tool, "workspace.apply_edit");
         assert!(workflow.steps[1].params.get("plan").is_some());
-        assert_eq!(
-            workflow.steps[1].requires_confirmation,
-            Some(true)
-        );
+        assert_eq!(workflow.steps[1].requires_confirmation, Some(true));
     }
 
     #[test]
@@ -522,7 +519,11 @@ mod tests {
             workflow.name,
             "Rename symbol 'OldStruct' to 'NewStruct' with import updates"
         );
-        assert_eq!(workflow.steps.len(), 2, "Should have exactly 2 steps (plan + apply)");
+        assert_eq!(
+            workflow.steps.len(),
+            2,
+            "Should have exactly 2 steps (plan + apply)"
+        );
         assert_eq!(workflow.metadata.complexity, 2);
 
         // Check step 1: rename.plan
@@ -537,7 +538,10 @@ mod tests {
         // Check step 2: workspace.apply_edit
         let step2 = &workflow.steps[1];
         assert_eq!(step2.tool, "workspace.apply_edit");
-        assert!(step2.params.get("plan").is_some(), "Should have plan reference");
+        assert!(
+            step2.params.get("plan").is_some(),
+            "Should have plan reference"
+        );
         assert_eq!(
             step2.requires_confirmation,
             Some(true),

@@ -26,7 +26,7 @@ pub async fn create_services_bundle(
     config: &cb_core::AppConfig,
 ) -> ServicesBundle {
     // Build the language plugin registry (centralized)
-        let plugin_registry = super::registry_builder::build_language_plugin_registry();
+    let plugin_registry = super::registry_builder::build_language_plugin_registry();
 
     let ast_cache = Arc::new(AstCache::with_settings(cache_settings));
     let ast_service = Arc::new(DefaultAstService::new(
@@ -82,15 +82,15 @@ fn spawn_operation_worker(
 
                     // Process the operation
                     let result = match op.operation_type {
-                        OperationType::CreateDir => fs::create_dir_all(&op.file_path).await.map_err(
-                            |e| {
+                        OperationType::CreateDir => {
+                            fs::create_dir_all(&op.file_path).await.map_err(|e| {
                                 cb_protocol::ApiError::Internal(format!(
                                     "Failed to create directory {}: {}",
                                     op.file_path.display(),
                                     e
                                 ))
-                            },
-                        ),
+                            })
+                        }
                         OperationType::CreateFile | OperationType::Write => {
                             let content = op
                                 .params
@@ -144,10 +144,10 @@ fn spawn_operation_worker(
                                 .get("new_path")
                                 .and_then(|v| v.as_str())
                                 .ok_or_else(|| {
-                                    cb_protocol::ApiError::InvalidRequest(
-                                        "Rename operation missing new_path".to_string(),
-                                    )
-                                })?;
+                                cb_protocol::ApiError::InvalidRequest(
+                                    "Rename operation missing new_path".to_string(),
+                                )
+                            })?;
                             fs::rename(&op.file_path, new_path_str).await.map_err(|e| {
                                 cb_protocol::ApiError::Internal(format!(
                                     "Failed to rename file {} to {}: {}",
@@ -159,11 +159,9 @@ fn spawn_operation_worker(
                         }
                         OperationType::UpdateDependency => {
                             use cb_plugins::protocol::PluginRequest;
-                            let request = PluginRequest::new(
-                                "update_dependency",
-                                op.file_path.clone(),
-                            )
-                            .with_params(op.params.clone());
+                            let request =
+                                PluginRequest::new("update_dependency", op.file_path.clone())
+                                    .with_params(op.params.clone());
 
                             plugin_manager
                                 .handle_request(request)

@@ -167,7 +167,9 @@ pub fn test() -> i32 {
 
             // 4. Verify file unchanged
             assert!(
-                workspace.read_file("inline_fn.rs").contains("fn double(x: i32)"),
+                workspace
+                    .read_file("inline_fn.rs")
+                    .contains("fn double(x: i32)"),
                 "File should be unchanged after dry run"
             );
         }
@@ -242,11 +244,7 @@ pub fn get_buffer() -> Vec<u8> {
 
             // Should fail due to checksum mismatch
             assert!(
-                apply_result.is_err()
-                    || apply_result
-                        .unwrap()
-                        .get("error")
-                        .is_some(),
+                apply_result.is_err() || apply_result.unwrap().get("error").is_some(),
                 "Apply should fail due to checksum mismatch"
             );
         }

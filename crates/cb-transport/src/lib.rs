@@ -22,6 +22,9 @@ pub use ws::{start_ws_server, Session};
 #[async_trait]
 pub trait McpDispatcher: Send + Sync {
     /// Dispatch an MCP message and return response, including session context.
-    async fn dispatch(&self, message: McpMessage, session_info: &SessionInfo)
-        -> ApiResult<McpMessage>;
+    async fn dispatch(
+        &self,
+        message: McpMessage,
+        session_info: &SessionInfo,
+    ) -> ApiResult<McpMessage>;
 }

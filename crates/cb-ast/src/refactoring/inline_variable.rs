@@ -127,12 +127,6 @@ fn ast_inline_variable_rust(
     variable_col: u32,
     file_path: &str,
 ) -> AstResult<EditPlan> {
-    cb_lang_rust::refactoring::plan_inline_variable(
-        source,
-        variable_line,
-        variable_col,
-        file_path,
-    )
-    .map_err(|e| AstError::analysis(format!("Rust refactoring error: {}", e)))
+    cb_lang_rust::refactoring::plan_inline_variable(source, variable_line, variable_col, file_path)
+        .map_err(|e| AstError::analysis(format!("Rust refactoring error: {}", e)))
 }
-

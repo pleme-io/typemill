@@ -139,7 +139,9 @@ impl DeleteHandler {
 
         // Validate selector is provided
         let _selector = params.target.selector.as_ref().ok_or_else(|| {
-            ServerError::InvalidRequest("Symbol delete requires selector with line/character".into())
+            ServerError::InvalidRequest(
+                "Symbol delete requires selector with line/character".into(),
+            )
         })?;
 
         // Read file content for checksum
@@ -239,8 +241,8 @@ impl DeleteHandler {
         );
 
         // Canonicalize path to ensure proper path handling
-        let abs_file_path = std::fs::canonicalize(file_path)
-            .unwrap_or_else(|_| file_path.to_path_buf());
+        let abs_file_path =
+            std::fs::canonicalize(file_path).unwrap_or_else(|_| file_path.to_path_buf());
 
         // Create explicit deletion target
         let deletions = vec![DeletionTarget {
@@ -324,20 +326,14 @@ impl DeleteHandler {
         }
 
         // Walk directory to collect files and checksums
-        let abs_dir = std::fs::canonicalize(dir_path)
-            .unwrap_or_else(|_| dir_path.to_path_buf());
+        let abs_dir = std::fs::canonicalize(dir_path).unwrap_or_else(|_| dir_path.to_path_buf());
         let mut file_checksums = HashMap::new();
         let mut file_count = 0;
 
         let walker = ignore::WalkBuilder::new(&abs_dir).hidden(false).build();
         for entry in walker.flatten() {
             if entry.path().is_file() {
-                if let Ok(content) = context
-                    .app_state
-                    .file_service
-                    .read_file(entry.path())
-                    .await
-                {
+                if let Ok(content) = context.app_state.file_service.read_file(entry.path()).await {
                     file_checksums.insert(
                         entry.path().to_string_lossy().to_string(),
                         calculate_checksum(&content),

@@ -4,10 +4,10 @@
 //! Unlike the data-driven tests in mcp_file_operations.rs, these tests focus on
 //! end-to-end workflows and LSP fallback scenarios.
 
-use serde_json::json;
 use cb_test_support::harness::{
     discover_plugins_with_fixtures, plugin_language_name, TestClient, TestWorkspace,
 };
+use serde_json::json;
 
 /// Test find_dead_code with TypeScript - basic case
 #[tokio::test]
@@ -446,7 +446,10 @@ async fn test_analyze_project_complexity_cross_language() {
 
             // Validate response
             if let Err(ref e) = response {
-                eprintln!("[{}] {} - Error response: {:?}", lang_name, scenario.scenario_name, e);
+                eprintln!(
+                    "[{}] {} - Error response: {:?}",
+                    lang_name, scenario.scenario_name, e
+                );
             }
             assert!(
                 response.is_ok(),

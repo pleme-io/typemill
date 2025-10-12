@@ -7,8 +7,8 @@ pub mod auth;
 pub mod config;
 pub mod dry_run;
 pub mod language;
-pub mod refactor_config;
 pub mod logging;
+pub mod refactor_config;
 pub mod utils;
 pub mod workspaces;
 

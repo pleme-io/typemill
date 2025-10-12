@@ -4,8 +4,8 @@ use cb_lang_rust::RustPlugin;
 use cb_plugin_api::LanguagePlugin;
 use cb_protocol::{EditLocation, EditType, TextEdit};
 use std::path::{Path, PathBuf};
-use tracing::debug;
 use std::sync::Arc;
+use tracing::debug;
 
 pub(crate) fn add_manifest_creation_edit(
     edits: &mut Vec<TextEdit>,
@@ -40,16 +40,15 @@ pub(crate) async fn add_entrypoint_creation_edit(
     plugin: &Arc<dyn LanguagePlugin>,
     original_file_path: &Path,
 ) -> Result<String, AstError> {
-    let original_content =
-        tokio::fs::read_to_string(original_file_path)
-            .await
-            .map_err(|e| AstError::Analysis {
-                message: format!(
-                    "Failed to read original module file {}: {}",
-                    original_file_path.display(),
-                    e
-                ),
-            })?;
+    let original_content = tokio::fs::read_to_string(original_file_path)
+        .await
+        .map_err(|e| AstError::Analysis {
+            message: format!(
+                "Failed to read original module file {}: {}",
+                original_file_path.display(),
+                e
+            ),
+        })?;
 
     let new_entrypoint_path = Path::new(&params.target_package_path)
         .join(plugin.metadata().source_dir)
@@ -211,13 +210,12 @@ pub(crate) async fn add_import_update_edits(
 ) -> Result<(), AstError> {
     debug!("Starting use statement updates across workspace");
 
-    let rust_files =
-        rust_plugin
-            .find_source_files(source_path)
-            .await
-            .map_err(|e| AstError::Analysis {
-                message: format!("Failed to find source files: {}", e),
-            })?;
+    let rust_files = rust_plugin
+        .find_source_files(source_path)
+        .await
+        .map_err(|e| AstError::Analysis {
+            message: format!("Failed to find source files: {}", e),
+        })?;
 
     debug!(
         rust_files_count = rust_files.len(),
@@ -246,8 +244,8 @@ pub(crate) async fn add_import_update_edits(
 
                 if is_match {
                     let old_use_statement = format!("use {};", import.module_path);
-                    let new_use_statement =
-                        rust_plugin.rewrite_import(&import.module_path, &params.target_package_name);
+                    let new_use_statement = rust_plugin
+                        .rewrite_import(&import.module_path, &params.target_package_name);
 
                     edits.push(TextEdit {
                         file_path: Some(file_path.to_string_lossy().to_string()),

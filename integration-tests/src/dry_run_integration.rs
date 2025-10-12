@@ -38,7 +38,10 @@ async fn test_rename_file_dry_run_does_not_modify_disk() {
         .unwrap();
 
     // Debug: Print the full response to understand what's happening
-    eprintln!("DEBUG plan_response: {}", serde_json::to_string_pretty(&plan_response).unwrap());
+    eprintln!(
+        "DEBUG plan_response: {}",
+        serde_json::to_string_pretty(&plan_response).unwrap()
+    );
 
     // Check if there's an error instead of a result
     if !plan_response["error"].is_null() {
@@ -46,7 +49,10 @@ async fn test_rename_file_dry_run_does_not_modify_disk() {
     }
 
     let plan = &plan_response["result"]["content"];
-    assert_eq!(plan["plan_type"], "RenamePlan", "Should generate a RenamePlan");
+    assert_eq!(
+        plan["plan_type"], "RenamePlan",
+        "Should generate a RenamePlan"
+    );
 
     // 3. Apply plan with dry_run=true
     let apply_response = client
@@ -117,7 +123,10 @@ async fn test_create_file_dry_run_does_not_create_file() {
         .unwrap();
 
     let plan = &plan_response["result"]["content"];
-    assert_eq!(plan["plan_type"], "ExtractPlan", "Should generate an ExtractPlan");
+    assert_eq!(
+        plan["plan_type"], "ExtractPlan",
+        "Should generate an ExtractPlan"
+    );
 
     // 3. Apply plan with dry_run=true
     let apply_response = client
@@ -172,7 +181,10 @@ async fn test_delete_file_dry_run_does_not_delete_file() {
         .unwrap();
 
     let plan = &plan_response["result"]["content"];
-    assert_eq!(plan["plan_type"], "DeletePlan", "Should generate a DeletePlan");
+    assert_eq!(
+        plan["plan_type"], "DeletePlan",
+        "Should generate a DeletePlan"
+    );
 
     // 3. Apply plan with dry_run=true
     let apply_response = client
@@ -231,7 +243,10 @@ async fn test_rename_directory_dry_run_does_not_modify_disk() {
         .unwrap();
 
     let plan = &plan_response["result"]["content"];
-    assert_eq!(plan["plan_type"], "RenamePlan", "Should generate a RenamePlan");
+    assert_eq!(
+        plan["plan_type"], "RenamePlan",
+        "Should generate a RenamePlan"
+    );
 
     // 3. Apply plan with dry_run=true
     let apply_response = client

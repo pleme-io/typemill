@@ -82,8 +82,14 @@ async fn test_rename_plan_and_apply_workflow() {
     );
 
     // Verify file was renamed
-    assert!(!workspace.file_exists("rename.rs"), "Old file should be gone");
-    assert!(workspace.file_exists("new_name.rs"), "New file should exist");
+    assert!(
+        !workspace.file_exists("rename.rs"),
+        "Old file should be gone"
+    );
+    assert!(
+        workspace.file_exists("new_name.rs"),
+        "New file should exist"
+    );
 }
 
 #[tokio::test]

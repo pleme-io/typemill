@@ -227,7 +227,14 @@ pub async fn run_batch_analysis(
     }
 
     // Validate category (basic check - could be extended)
-    let valid_categories = ["quality", "dead_code", "dependencies", "structure", "documentation", "tests"];
+    let valid_categories = [
+        "quality",
+        "dead_code",
+        "dependencies",
+        "structure",
+        "documentation",
+        "tests",
+    ];
     if !valid_categories.contains(&request.category.as_str()) {
         return Err(BatchError::InvalidCategory(request.category.clone()));
     }
@@ -321,10 +328,7 @@ pub async fn run_batch_analysis(
                         kind = %kind,
                         "Failed to analyze file with kind"
                     );
-                    failed_files.insert(
-                        format!("{}::{}", file_path_str, kind),
-                        e.to_string(),
-                    );
+                    failed_files.insert(format!("{}::{}", file_path_str, kind), e.to_string());
                 }
             }
         }

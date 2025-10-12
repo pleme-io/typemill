@@ -13,7 +13,7 @@
 
 use cb_plugin_api::PluginRegistry;
 use cb_plugin_registry::iter_plugins;
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tracing::{debug, warn};
 
@@ -113,7 +113,10 @@ mod tests {
         let registry = build_language_plugin_registry();
 
         let plugin = registry.find_by_extension("ts");
-        assert!(plugin.is_some(), "TypeScript plugin not found for extension 'ts'");
+        assert!(
+            plugin.is_some(),
+            "TypeScript plugin not found for extension 'ts'"
+        );
         // The name should match the one provided in the `codebuddy_plugin!` macro.
         assert_eq!(plugin.unwrap().metadata().name, "typescript");
     }

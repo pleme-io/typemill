@@ -184,7 +184,10 @@ fn ast_inline_variable_ts_js(
     let mut priority = 100;
 
     for usage_location in &analysis.usage_locations {
-        let replacement_text = if analysis.initializer_expression.contains(|c: char| c.is_whitespace() || "+-*/%".contains(c)) {
+        let replacement_text = if analysis
+            .initializer_expression
+            .contains(|c: char| c.is_whitespace() || "+-*/%".contains(c))
+        {
             format!("({})", analysis.initializer_expression)
         } else {
             analysis.initializer_expression.clone()
@@ -567,13 +570,29 @@ fn generate_function_call(
 
 fn suggest_variable_name(expression: &str) -> String {
     let expr = expression.trim();
-    if expr.contains("getElementById") { return "element".to_string(); }
-    if expr.contains(".length") { return "length".to_string(); }
-    if expr.starts_with('"') || expr.starts_with('\'') || expr.starts_with('`') { return "text".to_string(); }
-    if expr.parse::<f64>().is_ok() { return "value".to_string(); }
-    if expr == "true" || expr == "false" { return "flag".to_string(); }
-    if expr.contains('+') || expr.contains('-') || expr.contains('*') || expr.contains('/') { return "result".to_string(); }
-    if expr.starts_with('[') { return "items".to_string(); }
-    if expr.starts_with('{') { return "obj".to_string(); }
+    if expr.contains("getElementById") {
+        return "element".to_string();
+    }
+    if expr.contains(".length") {
+        return "length".to_string();
+    }
+    if expr.starts_with('"') || expr.starts_with('\'') || expr.starts_with('`') {
+        return "text".to_string();
+    }
+    if expr.parse::<f64>().is_ok() {
+        return "value".to_string();
+    }
+    if expr == "true" || expr == "false" {
+        return "flag".to_string();
+    }
+    if expr.contains('+') || expr.contains('-') || expr.contains('*') || expr.contains('/') {
+        return "result".to_string();
+    }
+    if expr.starts_with('[') {
+        return "items".to_string();
+    }
+    if expr.starts_with('{') {
+        return "obj".to_string();
+    }
     "extracted".to_string()
 }

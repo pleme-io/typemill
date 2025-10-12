@@ -86,7 +86,8 @@ export function MyComponent() {
         .collect();
 
     assert!(
-        categories.contains(&"external".to_string()) || categories.contains(&"relative".to_string()),
+        categories.contains(&"external".to_string())
+            || categories.contains(&"relative".to_string()),
         "Should detect external or relative imports"
     );
 }
@@ -170,10 +171,7 @@ export function DataProcessor() {
         .and_then(|v| v.as_array())
         .expect("Should have direct_dependencies array");
 
-    assert!(
-        !direct_deps.is_empty(),
-        "Should detect direct dependencies"
-    );
+    assert!(!direct_deps.is_empty(), "Should detect direct dependencies");
 }
 
 #[tokio::test]

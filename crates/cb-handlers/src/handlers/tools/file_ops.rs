@@ -30,11 +30,7 @@ impl FileToolsHandler {
 #[async_trait]
 impl ToolHandler for FileToolsHandler {
     fn tool_names(&self) -> &[&str] {
-        &[
-            "read_file",
-            "write_file",
-            "list_files",
-        ]
+        &["read_file", "write_file", "list_files"]
     }
 
     fn is_internal(&self) -> bool {

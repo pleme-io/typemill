@@ -158,9 +158,10 @@ impl ApiError {
             ApiError::Unsupported(msg) => CoreApiError::new(E1007_NOT_SUPPORTED, msg),
             ApiError::Auth(msg) => CoreApiError::new(E1005_PERMISSION_DENIED, msg),
             ApiError::NotFound(msg) => CoreApiError::new(E1002_FILE_NOT_FOUND, msg),
-            ApiError::AlreadyExists(msg) => {
-                CoreApiError::new(E1001_INVALID_REQUEST, format!("Resource already exists: {}", msg))
-            }
+            ApiError::AlreadyExists(msg) => CoreApiError::new(
+                E1001_INVALID_REQUEST,
+                format!("Resource already exists: {}", msg),
+            ),
             ApiError::Internal(msg) => CoreApiError::new(E1000_INTERNAL_SERVER_ERROR, msg),
             ApiError::Io(e) => {
                 CoreApiError::new(E1000_INTERNAL_SERVER_ERROR, format!("I/O error: {}", e))
@@ -173,9 +174,10 @@ impl ApiError {
             ApiError::Ast(msg) => {
                 CoreApiError::new(E1000_INTERNAL_SERVER_ERROR, format!("AST error: {}", msg))
             }
-            ApiError::Plugin(msg) => {
-                CoreApiError::new(E1000_INTERNAL_SERVER_ERROR, format!("Plugin error: {}", msg))
-            }
+            ApiError::Plugin(msg) => CoreApiError::new(
+                E1000_INTERNAL_SERVER_ERROR,
+                format!("Plugin error: {}", msg),
+            ),
         }
     }
 }
@@ -186,9 +188,13 @@ impl From<cb_types::error::CoreError> for ApiError {
         match error {
             cb_types::error::CoreError::Config { message } => ApiError::Config { message },
             cb_types::error::CoreError::NotFound { resource } => ApiError::NotFound(resource),
-            cb_types::error::CoreError::InvalidData { message } => ApiError::InvalidRequest(message),
+            cb_types::error::CoreError::InvalidData { message } => {
+                ApiError::InvalidRequest(message)
+            }
             cb_types::error::CoreError::Internal { message } => ApiError::Internal(message),
-            cb_types::error::CoreError::NotSupported { operation } => ApiError::Unsupported(operation),
+            cb_types::error::CoreError::NotSupported { operation } => {
+                ApiError::Unsupported(operation)
+            }
             _ => ApiError::Internal(error.to_string()),
         }
     }

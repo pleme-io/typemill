@@ -1,6 +1,6 @@
+use lsp_types::WorkspaceEdit;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use lsp_types::{WorkspaceEdit};
 
 /// Represents a target for deletion (file or directory)
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -25,11 +25,11 @@ pub enum RefactorPlan {
 /// Base structure shared by all plans
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlanMetadata {
-    pub plan_version: String,  // Always "1.0"
+    pub plan_version: String, // Always "1.0"
     pub kind: String,
     pub language: String,
-    pub estimated_impact: String,  // "low" | "medium" | "high"
-    pub created_at: String,  // ISO 8601 timestamp
+    pub estimated_impact: String, // "low" | "medium" | "high"
+    pub created_at: String,       // ISO 8601 timestamp
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

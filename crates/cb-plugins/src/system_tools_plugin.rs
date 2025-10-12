@@ -490,34 +490,33 @@ fn build_import_graph_with_plugin(
     // For TypeScript files, we'll use cb_lang_typescript::parser::analyze_imports
     let language = plugin.metadata().name.to_lowercase();
 
-    let imports: Vec<ImportInfo> = match language.as_str() {
-        "typescript" => {
-            // Use TypeScript plugin's parser
-            let graph =
-                cb_lang_typescript::parser::analyze_imports(source, Some(path)).map_err(|e| {
+    let imports: Vec<ImportInfo> =
+        match language.as_str() {
+            "typescript" => {
+                // Use TypeScript plugin's parser
+                let graph = cb_lang_typescript::parser::analyze_imports(source, Some(path))
+                    .map_err(|e| PluginError::PluginRequestFailed {
+                        plugin: plugin.metadata().name.to_string(),
+                        message: format!("Failed to parse imports: {}", e),
+                    })?;
+                graph.imports
+            }
+            "rust" => {
+                // Use Rust plugin's parser (returns Vec<ImportInfo> directly)
+                cb_lang_rust::parser::parse_imports(source).map_err(|e| {
                     PluginError::PluginRequestFailed {
                         plugin: plugin.metadata().name.to_string(),
                         message: format!("Failed to parse imports: {}", e),
                     }
-                })?;
-            graph.imports
-        }
-        "rust" => {
-            // Use Rust plugin's parser (returns Vec<ImportInfo> directly)
-            cb_lang_rust::parser::parse_imports(source).map_err(|e| {
-                PluginError::PluginRequestFailed {
+                })?
+            }
+            _ => {
+                return Err(PluginError::PluginRequestFailed {
                     plugin: plugin.metadata().name.to_string(),
-                    message: format!("Failed to parse imports: {}", e),
-                }
-            })?
-        }
-        _ => {
-            return Err(PluginError::PluginRequestFailed {
-                plugin: plugin.metadata().name.to_string(),
-                message: format!("Unsupported language: {}", language),
-            });
-        }
-    };
+                    message: format!("Unsupported language: {}", language),
+                });
+            }
+        };
 
     // Detect external dependencies
     let external_dependencies = imports

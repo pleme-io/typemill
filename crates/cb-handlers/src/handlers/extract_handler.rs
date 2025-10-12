@@ -293,7 +293,9 @@ impl ExtractHandler {
         };
 
         // Generate file checksums
-        let file_checksums = self.generate_file_checksums(context, &affected_files).await?;
+        let file_checksums = self
+            .generate_file_checksums(context, &affected_files)
+            .await?;
 
         Ok(ExtractPlan {
             edits: workspace_edit,
@@ -309,21 +311,14 @@ impl ExtractHandler {
         let mut changes: HashMap<lsp_types::Uri, Vec<lsp_types::TextEdit>> = HashMap::new();
 
         for edit in &edit_plan.edits {
-            let file_path = edit
-                .file_path
-                .as_ref()
-                .unwrap_or(&edit_plan.source_file);
+            let file_path = edit.file_path.as_ref().unwrap_or(&edit_plan.source_file);
 
             // Convert file path to file:// URI
             let uri = url::Url::from_file_path(file_path)
-                .map_err(|_| {
-                    ServerError::Internal(format!("Invalid file path: {}", file_path))
-                })?
+                .map_err(|_| ServerError::Internal(format!("Invalid file path: {}", file_path)))?
                 .to_string()
                 .parse::<lsp_types::Uri>()
-                .map_err(|e| {
-                    ServerError::Internal(format!("Failed to parse URI: {}", e))
-                })?;
+                .map_err(|e| ServerError::Internal(format!("Failed to parse URI: {}", e)))?;
 
             let lsp_edit = lsp_types::TextEdit {
                 range: Range {

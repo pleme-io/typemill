@@ -74,17 +74,10 @@ mod tests {
         });
     }
 
-    fn create_test_service(
-        temp_dir: &TempDir,
-    ) -> (
-        FileService,
-        Arc<OperationQueue>,
-    ) {
+    fn create_test_service(temp_dir: &TempDir) -> (FileService, Arc<OperationQueue>) {
         let ast_cache = Arc::new(AstCache::new());
         let lock_manager = Arc::new(LockManager::new());
-        let operation_queue = Arc::new(OperationQueue::new(
-            lock_manager.clone(),
-        ));
+        let operation_queue = Arc::new(OperationQueue::new(lock_manager.clone()));
         let config = cb_core::config::AppConfig::default();
         let plugin_registry = crate::services::build_language_plugin_registry();
         let service = FileService::new(
@@ -592,17 +585,10 @@ mod workspace_tests {
         });
     }
 
-    fn create_test_service(
-        temp_dir: &TempDir,
-    ) -> (
-        FileService,
-        Arc<OperationQueue>,
-    ) {
+    fn create_test_service(temp_dir: &TempDir) -> (FileService, Arc<OperationQueue>) {
         let ast_cache = Arc::new(AstCache::new());
         let lock_manager = Arc::new(LockManager::new());
-        let operation_queue = Arc::new(OperationQueue::new(
-            lock_manager.clone(),
-        ));
+        let operation_queue = Arc::new(OperationQueue::new(lock_manager.clone()));
         let config = cb_core::config::AppConfig::default();
         let plugin_registry = crate::services::build_language_plugin_registry();
         let service = FileService::new(
@@ -677,9 +663,7 @@ members = [
         // This test doesn't need async operations, so create service directly
         let ast_cache = Arc::new(AstCache::new());
         let lock_manager = Arc::new(LockManager::new());
-        let operation_queue = Arc::new(OperationQueue::new(
-            lock_manager.clone(),
-        ));
+        let operation_queue = Arc::new(OperationQueue::new(lock_manager.clone()));
         let config = cb_core::config::AppConfig::default();
         let plugin_registry = crate::services::build_language_plugin_registry();
         let service = FileService::new(

@@ -27,7 +27,10 @@ impl<P: LanguagePlugin + 'static> PluginServer<P> {
         let mut stdout = io::stdout();
         let mut line = String::new();
 
-        info!("External plugin server started for '{}'", self.plugin.metadata().name);
+        info!(
+            "External plugin server started for '{}'",
+            self.plugin.metadata().name
+        );
 
         loop {
             line.clear();
@@ -40,7 +43,8 @@ impl<P: LanguagePlugin + 'static> PluginServer<P> {
                     let request: PluginRequest = match serde_json::from_str(&line) {
                         Ok(req) => req,
                         Err(e) => {
-                            let err_response = PluginResponse::error(0, -32700, &format!("Parse error: {}", e));
+                            let err_response =
+                                PluginResponse::error(0, -32700, &format!("Parse error: {}", e));
                             let response_json = serde_json::to_string(&err_response)? + "\n";
                             stdout.write_all(response_json.as_bytes()).await?;
                             stdout.flush().await?;
@@ -96,7 +100,10 @@ impl<P: LanguagePlugin + 'static> PluginServer<P> {
                 Ok(serde_json::to_value(manifest)?)
             }
             // Add other LanguagePlugin methods here...
-            _ => Err(crate::PluginError::not_supported(format!("Method '{}' is not implemented", method))),
+            _ => Err(crate::PluginError::not_supported(format!(
+                "Method '{}' is not implemented",
+                method
+            ))),
         }
     }
 }

@@ -28,8 +28,9 @@ impl TestClient {
         // Use cb-server instead of codebuddy to avoid PID lock conflicts in parallel tests
         let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
             .expect("CARGO_MANIFEST_DIR not set. Please run tests with `cargo test`.");
-        let workspace_root = find_workspace_root(&manifest_dir)
-            .expect("Failed to find workspace root. Ensure tests are run within a Cargo workspace.");
+        let workspace_root = find_workspace_root(&manifest_dir).expect(
+            "Failed to find workspace root. Ensure tests are run within a Cargo workspace.",
+        );
         let server_path = workspace_root.join("target/debug/cb-server");
 
         eprintln!(

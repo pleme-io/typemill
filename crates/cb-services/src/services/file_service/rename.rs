@@ -308,33 +308,29 @@ impl FileService {
                 )
                 .await
             {
-                Ok(edit_plan) => {
-                    match self.apply_edit_plan(&edit_plan).await {
-                        Ok(result) => {
-                            total_edits_applied += edit_plan.edits.len();
-                            let files_modified_count = result.modified_files.len();
-                            for file in result.modified_files {
-                                total_files_updated.insert(file);
-                            }
-                            if let Some(errors) = result.errors {
-                                all_errors.extend(errors);
-                            }
-                            info!(
-                                edits_applied = edit_plan.edits.len(),
-                                files_modified = files_modified_count,
-                                "Successfully updated imports for directory rename"
-                            );
+                Ok(edit_plan) => match self.apply_edit_plan(&edit_plan).await {
+                    Ok(result) => {
+                        total_edits_applied += edit_plan.edits.len();
+                        let files_modified_count = result.modified_files.len();
+                        for file in result.modified_files {
+                            total_files_updated.insert(file);
                         }
-                        Err(e) => {
-                            let error_msg = format!(
-                                "Failed to apply import edits for directory rename: {}",
-                                e
-                            );
-                            warn!(error = %e, "Import update failed for directory");
-                            all_errors.push(error_msg);
+                        if let Some(errors) = result.errors {
+                            all_errors.extend(errors);
                         }
+                        info!(
+                            edits_applied = edit_plan.edits.len(),
+                            files_modified = files_modified_count,
+                            "Successfully updated imports for directory rename"
+                        );
                     }
-                }
+                    Err(e) => {
+                        let error_msg =
+                            format!("Failed to apply import edits for directory rename: {}", e);
+                        warn!(error = %e, "Import update failed for directory");
+                        all_errors.push(error_msg);
+                    }
+                },
                 Err(e) => {
                     warn!(error = %e, old_dir = ?old_abs_dir, "Failed to update imports for directory");
                     all_errors.push(format!("Failed to update imports for directory: {}", e));
@@ -457,7 +453,11 @@ impl FileService {
     }
 
     /// Perform the actual file rename operation
-    pub(super) async fn perform_rename(&self, old_path: &Path, new_path: &Path) -> ServerResult<()> {
+    pub(super) async fn perform_rename(
+        &self,
+        old_path: &Path,
+        new_path: &Path,
+    ) -> ServerResult<()> {
         // Use our git-aware rename helper directly
         self.rename_file_internal(old_path, new_path).await
     }

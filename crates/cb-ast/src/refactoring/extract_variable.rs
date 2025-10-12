@@ -1,9 +1,7 @@
 use super::common::{detect_language, extract_range_text};
 use super::{CodeRange, ExtractVariableAnalysis, LspRefactoringService};
 use crate::error::{AstError, AstResult};
-use cb_protocol::{
-    EditPlan, EditPlanMetadata, EditType, TextEdit, ValidationRule, ValidationType,
-};
+use cb_protocol::{EditPlan, EditPlanMetadata, EditType, TextEdit, ValidationRule, ValidationType};
 use std::collections::HashMap;
 use tracing::debug;
 
@@ -326,4 +324,3 @@ fn ast_extract_variable_rust(
     )
     .map_err(|e| AstError::analysis(format!("Rust refactoring error: {}", e)))
 }
-

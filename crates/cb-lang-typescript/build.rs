@@ -12,8 +12,5 @@ fn check_command(command: &str, message: &str) {
 }
 
 fn is_command_in_path(command: &str) -> bool {
-    Command::new(command)
-        .arg("--version")
-        .output()
-        .is_ok()
+    Command::new(command).arg("--version").output().is_ok()
 }

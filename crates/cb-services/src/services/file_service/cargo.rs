@@ -359,7 +359,6 @@ impl FileService {
                 }
 
                 if let Some(target_deps) = target_doc[section].as_table_mut() {
-
                     for (dep_name, dep_value) in source_deps.iter() {
                         // Check for self-dependency
                         if dep_name == target_crate_name.as_str() {
@@ -592,10 +591,8 @@ impl FileService {
                                             pathdiff::diff_paths(target_crate_path, this_cargo_dir)
                                         {
                                             let path_str = rel_path.to_string_lossy().to_string();
-                                            dep_table.insert(
-                                                "path",
-                                                toml_edit::Value::from(path_str),
-                                            );
+                                            dep_table
+                                                .insert("path", toml_edit::Value::from(path_str));
                                         }
                                     }
                                 } else if let Some(dep_table) = new_dep.as_table_mut() {
@@ -665,7 +662,10 @@ impl FileService {
 
     /// Find the path to a crate by its name in the workspace
     #[allow(dead_code)]
-    pub(super) async fn find_crate_path_by_name(&self, crate_name: &str) -> ServerResult<Option<PathBuf>> {
+    pub(super) async fn find_crate_path_by_name(
+        &self,
+        crate_name: &str,
+    ) -> ServerResult<Option<PathBuf>> {
         let walker = ignore::WalkBuilder::new(&self.project_root)
             .max_depth(Some(3))
             .hidden(false)
@@ -1027,13 +1027,14 @@ impl FileService {
                     // Also update relative path dependencies in the moved package's Cargo.toml
                     let package_cargo_toml = new_package_path.join("Cargo.toml");
                     if package_cargo_toml.exists() {
-                        let package_updated = self.update_package_relative_paths(
-                            &package_cargo_toml,
-                            old_package_path,
-                            new_package_path,
-                            path,
-                        )
-                        .await?;
+                        let package_updated = self
+                            .update_package_relative_paths(
+                                &package_cargo_toml,
+                                old_package_path,
+                                new_package_path,
+                                path,
+                            )
+                            .await?;
 
                         if package_updated {
                             updated_files.push(package_cargo_toml);
@@ -1082,7 +1083,12 @@ impl FileService {
 
                 // Try to update this Cargo.toml if it depends on the moved crate
                 match self
-                    .update_cargo_toml_dependency(path, old_crate_name, new_crate_name, new_crate_path)
+                    .update_cargo_toml_dependency(
+                        path,
+                        old_crate_name,
+                        new_crate_name,
+                        new_crate_path,
+                    )
                     .await
                 {
                     Ok(true) => {
@@ -1151,10 +1157,12 @@ impl FileService {
                 if let Some(mut dep) = table.remove(old_crate_name) {
                     if let Some(dep_table) = dep.as_inline_table_mut() {
                         if dep_table.contains_key("path") {
-                            let new_rel_path =
-                                pathdiff::diff_paths(new_crate_path, cargo_toml_dir).ok_or_else(
-                                    || ServerError::Internal("Failed to calculate relative path".to_string()),
-                                )?;
+                            let new_rel_path = pathdiff::diff_paths(new_crate_path, cargo_toml_dir)
+                                .ok_or_else(|| {
+                                    ServerError::Internal(
+                                        "Failed to calculate relative path".to_string(),
+                                    )
+                                })?;
                             dep_table.insert(
                                 "path",
                                 toml_edit::Value::from(new_rel_path.to_string_lossy().to_string()),
@@ -1162,10 +1170,12 @@ impl FileService {
                         }
                     } else if let Some(dep_table) = dep.as_table_mut() {
                         if dep_table.contains_key("path") {
-                            let new_rel_path =
-                                pathdiff::diff_paths(new_crate_path, cargo_toml_dir).ok_or_else(
-                                    || ServerError::Internal("Failed to calculate relative path".to_string()),
-                                )?;
+                            let new_rel_path = pathdiff::diff_paths(new_crate_path, cargo_toml_dir)
+                                .ok_or_else(|| {
+                                    ServerError::Internal(
+                                        "Failed to calculate relative path".to_string(),
+                                    )
+                                })?;
                             dep_table.insert(
                                 "path",
                                 toml_edit::value(new_rel_path.to_string_lossy().to_string()),
@@ -1332,7 +1342,10 @@ impl FileService {
             for (_target_spec, target_value) in target.iter_mut() {
                 if let Some(target_table) = target_value.as_table_mut() {
                     for dep_section in ["dependencies", "dev-dependencies", "build-dependencies"] {
-                        if let Some(deps) = target_table.get_mut(dep_section).and_then(|d| d.as_table_mut()) {
+                        if let Some(deps) = target_table
+                            .get_mut(dep_section)
+                            .and_then(|d| d.as_table_mut())
+                        {
                             update_deps_in_table(deps, &mut updated_count);
                         }
                     }
