@@ -1964,7 +1964,7 @@ Extract code from a module into a new package (Rust-specific).
 
 High-level operations combining multiple tools.
 
-> **See also:** [docs/features/WORKFLOWS.md](workflows.md) - Complete guide to the Intent-Based Workflow Engine, including workflow execution, parameter templating, and built-in workflow recipes.
+> **See also:** [docs/features/workflows.md](workflows.md) - Complete guide to the Intent-Based Workflow Engine, including workflow execution, parameter templating, and built-in workflow recipes.
 
 ### `apply_edits`
 
@@ -2681,5 +2681,5 @@ async function callMcpTool(toolName: string, args: any) {
 
 - [Language Support Matrix](#language-support-matrix) - See above for language support table
 - [docs/architecture/overview.md](./docs/architecture/overview.md) - Implementation architecture
-- [docs/deployment/DOCKER_DEPLOYMENT.md](./docs/deployment/DOCKER_DEPLOYMENT.md) - Docker deployment guide
+- [docs/deployment/docker_deployment.md](./docs/deployment/docker_deployment.md) - Docker deployment guide
 - [.codebuddy/workflows.json](./.codebuddy/workflows.json) - Workflow definitions
