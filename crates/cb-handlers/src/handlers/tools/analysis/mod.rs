@@ -9,6 +9,7 @@ pub mod dead_code;
 pub mod dependencies;
 pub mod documentation;
 pub mod engine;
+pub mod helpers;
 pub mod project;
 pub mod quality;
 pub mod structure;
