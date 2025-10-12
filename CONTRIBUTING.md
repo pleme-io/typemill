@@ -1,7 +1,7 @@
 # Contributing to Codebuddy
 
 > **📌 New to the project?** This guide is for developers building from source.
-> End users: see [README.md](README.md) for installation instructions.
+> End users: see [README.md](readme.md) for installation instructions.
 
 First off, thank you for considering contributing! It's people like you that make Codebuddy such a great tool.
 
@@ -623,7 +623,7 @@ All refactoring `.plan` handlers must return a consistent plan structure:
 - **Warnings**: Include any potential issues detected during planning
 
 #### Structured Logging
-Always use structured key-value logging (see [docs/development/LOGGING_GUIDELINES.md](docs/development/LOGGING_GUIDELINES.md)):
+Always use structured key-value logging (see [docs/development/LOGGING_GUIDELINES.md](logging_guidelines.md)):
 
 ```rust
 // ✅ Good - structured logging

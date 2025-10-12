@@ -1964,7 +1964,7 @@ Extract code from a module into a new package (Rust-specific).
 
 High-level operations combining multiple tools.
 
-> **See also:** [docs/features/WORKFLOWS.md](docs/features/WORKFLOWS.md) - Complete guide to the Intent-Based Workflow Engine, including workflow execution, parameter templating, and built-in workflow recipes.
+> **See also:** [docs/features/WORKFLOWS.md](workflows.md) - Complete guide to the Intent-Based Workflow Engine, including workflow execution, parameter templating, and built-in workflow recipes.
 
 ### `apply_edits`
 

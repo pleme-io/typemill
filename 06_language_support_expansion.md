@@ -147,7 +147,7 @@ CodeBuddy supports multiple languages via LSP integration and language plugins. 
 
 ### Language Plugin Interface
 
-All language plugins implement the `LanguagePlugin` trait with capability-based design. See **[docs/development/languages/README.md](docs/development/languages/README.md)** for complete plugin development guide.
+All language plugins implement the `LanguagePlugin` trait with capability-based design. See **[docs/development/languages/README.md](readme.md)** for complete plugin development guide.
 
 **Core Trait:** 6 required methods + 3 default implementations
 - `metadata()` - Language metadata (name, extensions, manifest filename)

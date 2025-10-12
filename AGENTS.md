@@ -21,12 +21,12 @@ This file provides guidance to AI assistants when working with code in this repo
    - Handler architecture and registration
    - Best practices and code standards
 
-4. **[docs/development/LOGGING_GUIDELINES.md](docs/development/LOGGING_GUIDELINES.md)** - Structured logging
+4. **[docs/development/LOGGING_GUIDELINES.md](logging_guidelines.md)** - Structured logging
    - Required logging format (structured key-value)
    - Log levels and conventions
    - Anti-patterns to avoid
 
-5. **[docs/deployment/DOCKER_DEPLOYMENT.md](docs/deployment/DOCKER_DEPLOYMENT.md)** - Docker deployment guide
+5. **[docs/deployment/DOCKER_DEPLOYMENT.md](docker_deployment.md)** - Docker deployment guide
    - Development and production deployment
    - Security best practices and troubleshooting
 
@@ -230,7 +230,7 @@ cargo nextest run --workspace --features heavy-tests
 
 For detailed system architecture, see **[docs/architecture/ARCHITECTURE.md](overview.md)**.
 
-For Docker deployment details, see **[docs/deployment/DOCKER_DEPLOYMENT.md](docs/deployment/DOCKER_DEPLOYMENT.md)**. For CLI usage, see the CLI Commands section above.
+For Docker deployment details, see **[docs/deployment/DOCKER_DEPLOYMENT.md](docker_deployment.md)**. For CLI usage, see the CLI Commands section above.
 
 ### Quick Configuration Example
 
@@ -518,16 +518,16 @@ All debug scripts, test analysis, and experimental code goes in `.debug/` (gitig
 
 ### For Contributors
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** - Setup, PR process, adding tools, best practices
-- **[docs/development/LOGGING_GUIDELINES.md](docs/development/LOGGING_GUIDELINES.md)** - Structured logging standards
+- **[docs/development/LOGGING_GUIDELINES.md](logging_guidelines.md)** - Structured logging standards
 - **[integration-tests/TESTING_GUIDE.md](integration-tests/TESTING_GUIDE.md)** - Testing architecture
 
 ### For Operators
-- **[docs/deployment/DOCKER_DEPLOYMENT.md](docs/deployment/DOCKER_DEPLOYMENT.md)** - Docker deployment (development and production)
+- **[docs/deployment/DOCKER_DEPLOYMENT.md](docker_deployment.md)** - Docker deployment (development and production)
 
 ### For Understanding the System
 - **[docs/architecture/ARCHITECTURE.md](overview.md)** - Complete system architecture
-- **[docs/architecture/INTERNAL_TOOLS.md](docs/architecture/INTERNAL_TOOLS.md)** - Internal vs public tools policy
-- **[docs/features/WORKFLOWS.md](docs/features/WORKFLOWS.md)** - Workflow automation engine
+- **[docs/architecture/INTERNAL_TOOLS.md](internal_tools.md)** - Internal vs public tools policy
+- **[docs/features/WORKFLOWS.md](workflows.md)** - Workflow automation engine
 
 ### For Tool Reference
 - **[API_REFERENCE.md](API_REFERENCE.md)** - Complete MCP tools API with examples

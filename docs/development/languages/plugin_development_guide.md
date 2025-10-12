@@ -72,8 +72,8 @@ cd crates/languages
 
 Before implementing a plugin, read:
 
-1. **[CB_LANG_COMMON.md](CB_LANG_COMMON.md)** - Shared utility functions reference
-2. **[README.md](README.md)** - Overview of existing plugins
+1. **[CB_LANG_COMMON.md](cb_lang_common.md)** - Shared utility functions reference
+2. **[README.md](readme.md)** - Overview of existing plugins
 3. One reference implementation:
    - **Go plugin** - Best for compiled languages with subprocess AST
    - **Python plugin** - Best for dynamic languages
@@ -786,7 +786,7 @@ cargo nextest run --workspace --lib
 
 ## Using cb-lang-common Utilities
 
-The `cb-lang-common` crate provides **16 utility modules** to reduce boilerplate. See **[CB_LANG_COMMON.md](CB_LANG_COMMON.md)** for complete reference.
+The `cb-lang-common` crate provides **16 utility modules** to reduce boilerplate. See **[CB_LANG_COMMON.md](cb_lang_common.md)** for complete reference.
 
 ### Essential Utilities (Always Use These)
 
@@ -1364,7 +1364,7 @@ Use this checklist to ensure your plugin is complete:
 - [ ] **Logging**
   - [ ] Uses structured logging (key-value format)
   - [ ] No string interpolation in logs
-  - [ ] Follows [LOGGING_GUIDELINES.md](/workspace/docs/development/LOGGING_GUIDELINES.md)
+  - [ ] Follows [LOGGING_GUIDELINES.md](logging_guidelines.md)
 
 - [ ] **Documentation**
   - [ ] Plugin-specific `README.md` with examples
@@ -1507,7 +1507,7 @@ Use this checklist to ensure your plugin is complete:
 ### Getting Help
 
 1. **Check existing plugins** for similar patterns
-2. **Read cb-lang-common docs**: [CB_LANG_COMMON.md](CB_LANG_COMMON.md)
+2. **Read cb-lang-common docs**: [CB_LANG_COMMON.md](cb_lang_common.md)
 3. **Review logging guidelines**: `/workspace/docs/development/LOGGING_GUIDELINES.md`
 4. **Ask in discussions** with specific error messages and code snippets
 

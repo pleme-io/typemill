@@ -13,13 +13,13 @@ Language-specific plugins for Codebuddy, implementing the `LanguagePlugin` trait
 
 **For new plugin developers**, read these in order:
 
-1. **[PLUGIN_DEVELOPMENT_GUIDE.md](PLUGIN_DEVELOPMENT_GUIDE.md)** - Complete step-by-step implementation guide
+1. **[PLUGIN_DEVELOPMENT_GUIDE.md](plugin_development_guide.md)** - Complete step-by-step implementation guide
    - Quick start with automated scaffolding
    - Step-by-step implementation
    - Testing and troubleshooting
    - Common patterns and best practices
 
-2. **[CB_LANG_COMMON.md](CB_LANG_COMMON.md)** - Quick reference for shared utilities
+2. **[CB_LANG_COMMON.md](cb_lang_common.md)** - Quick reference for shared utilities
    - Subprocess utilities (`SubprocessAstTool`, `run_ast_tool`)
    - Import graph builder (`ImportGraphBuilder`)
    - File I/O helpers (`read_manifest`, `read_source_file`)
@@ -114,7 +114,7 @@ Use the automated scaffolding script (when available):
 # Creates plugin structure in crates/cb-lang-<name>/
 ```
 
-Then follow the **[PLUGIN_DEVELOPMENT_GUIDE.md](PLUGIN_DEVELOPMENT_GUIDE.md)** for step-by-step implementation.
+Then follow the **[PLUGIN_DEVELOPMENT_GUIDE.md](plugin_development_guide.md)** for step-by-step implementation.
 
 ### Using cb-lang-common Utilities
 
@@ -132,7 +132,7 @@ let tool = SubprocessAstTool::new("node")
 let imports = run_ast_tool(tool, source)?;  // 10 lines total
 ```
 
-See **[CB_LANG_COMMON.md](CB_LANG_COMMON.md)** for complete utility reference.
+See **[CB_LANG_COMMON.md](cb_lang_common.md)** for complete utility reference.
 
 ---
 
@@ -188,7 +188,7 @@ println!("Package: {}", manifest.name);
 ```
 
 ### 2. Implementation
-Follow **[PLUGIN_DEVELOPMENT_GUIDE.md](PLUGIN_DEVELOPMENT_GUIDE.md)**:
+Follow **[PLUGIN_DEVELOPMENT_GUIDE.md](plugin_development_guide.md)**:
 - Implement `parse()` for symbol extraction
 - Implement `analyze_manifest()` for dependency parsing
 - Add import support (optional)
@@ -298,8 +298,8 @@ See reference implementations for complete test coverage examples.
 When adding a new language plugin:
 
 1. Run `./new-lang.sh <language>` to scaffold
-2. Implement following **[PLUGIN_DEVELOPMENT_GUIDE.md](PLUGIN_DEVELOPMENT_GUIDE.md)**
-3. Use utilities from **[CB_LANG_COMMON.md](CB_LANG_COMMON.md)**
+2. Implement following **[PLUGIN_DEVELOPMENT_GUIDE.md](plugin_development_guide.md)**
+3. Use utilities from **[CB_LANG_COMMON.md](cb_lang_common.md)**
 4. Write comprehensive tests (target: 30+ tests)
 5. Call the `codebuddy_plugin!` macro in your plugin's `lib.rs` to enable self-registration.
 6. Run `./check-features.sh` to verify integration
@@ -317,6 +317,6 @@ When adding a new language plugin:
 
 ---
 
-For detailed implementation guidance, see **[PLUGIN_DEVELOPMENT_GUIDE.md](PLUGIN_DEVELOPMENT_GUIDE.md)**.
+For detailed implementation guidance, see **[PLUGIN_DEVELOPMENT_GUIDE.md](plugin_development_guide.md)**.
 
-For utility reference, see **[CB_LANG_COMMON.md](CB_LANG_COMMON.md)**.
+For utility reference, see **[CB_LANG_COMMON.md](cb_lang_common.md)**.
