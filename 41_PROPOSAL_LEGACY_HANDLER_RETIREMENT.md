@@ -1,6 +1,6 @@
 # Proposal 41: Legacy Handler Retirement
 
-**Status**: Draft
+**Status**: Ready for Implementation
 **Created**: 2025-10-12
 **Updated**: 2025-10-12
 
@@ -52,7 +52,8 @@ Migrate unique functionality to unified API, then retire legacy handlers.
 
 **Plan**:
 - Move plugin-backed import graph logic under `analyze.dependencies("imports")`
-- Preserve plugin integration for language-specific parsing
+- **Keep plugin-backed parsing as default** (not optional) to maintain TypeScript/Rust parity
+- Preserve language-specific AST parsing for accurate graph construction
 - Update workflow tests to use unified API
 - Retire `analyze_imports`
 
@@ -70,15 +71,22 @@ Migrate unique functionality to unified API, then retire legacy handlers.
 }
 ```
 
+**Note**: Plugin integration is the primary implementation, not a fallback.
+
 ### Migration 3: find_dead_code → analyze.dead_code (LSP integration)
 
 **Current**: `find_dead_code` uses LSP for cross-file unused code detection.
 
 **Plan**:
 - Extend `analyze.dead_code` to support workspace scope
-- Integrate LSP-powered cross-file analysis engine
+- Integrate LSP-powered cross-file analysis engine for workspace scope
+- **Preserve file-level heuristic mode** (regex-based) for sandboxes without LSP
 - Make `find_dead_code` a thin shim (temporary compatibility)
 - Eventually remove shim once workflows migrate
+
+**Detection Modes**:
+- **File scope**: Use existing regex heuristics (works in all environments)
+- **Workspace scope**: Require LSP for accurate cross-file analysis
 
 **API**:
 ```json
@@ -88,13 +96,12 @@ Migrate unique functionality to unified API, then retire legacy handlers.
     "kind": "unused_symbols",
     "scope": {
       "type": "workspace"
-    },
-    "options": {
-      "use_lsp": true
     }
   }
 }
 ```
+
+**Note**: Workspace scope automatically uses LSP. File scope continues using heuristics for sandbox compatibility.
 
 ## Implementation Order
 
@@ -124,11 +131,23 @@ Migrate unique functionality to unified API, then retire legacy handlers.
 - Rewriting detection logic (migrate as-is)
 - Breaking changes to unified API surface
 
+## Implementation Details
+
+### analyze.dead_code Scope Behavior
+- **File scope**: Regex heuristics (sandbox-safe, no LSP required)
+- **Workspace scope**: LSP-powered (accurate cross-file analysis, requires LSP)
+- **Auto-detection**: Scope type determines detection mode (no explicit flag needed)
+
+### analyze.dependencies Plugin Integration
+- **Default**: Plugin-backed AST parsing (TypeScript/Rust parity)
+- **Not optional**: Plugin integration is the primary implementation
+- **Fallback**: None (plugin parsing required for accuracy)
+
 ## Open Questions
 
 1. Should `find_dead_code` shim remain permanently for backward compatibility?
 2. Do we need workspace scope for all analysis categories or just these 3?
-3. Should LSP integration be opt-in (`use_lsp: true`) or automatic for workspace scope?
+3. ~~Should LSP integration be opt-in or automatic?~~ **RESOLVED**: Automatic based on scope type
 
 ## References
 
