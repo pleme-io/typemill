@@ -91,6 +91,218 @@ impl QualityHandler {
         Self
     }
 
+    /// Analyze maintainability across entire workspace
+    async fn analyze_workspace_maintainability(
+        &self,
+        context: &ToolHandlerContext,
+        args: &Value,
+        scope_param: &super::engine::ScopeParam,
+    ) -> ServerResult<Value> {
+        use super::helpers::{filter_analyzable_files, AggregateStats};
+        use std::path::PathBuf;
+
+        let start_time = Instant::now();
+
+        // Extract directory path from scope.path or default to current dir
+        let directory_path = scope_param
+            .path
+            .as_ref()
+            .ok_or_else(|| {
+                ServerError::InvalidRequest(
+                    "Missing path for workspace scope. Specify scope.path with directory".into(),
+                )
+            })?;
+
+        let dir_path = std::path::Path::new(directory_path);
+
+        info!(
+            directory_path = %directory_path,
+            "Starting workspace maintainability analysis"
+        );
+
+        // List all files in directory
+        let files = context
+            .app_state
+            .file_service
+            .list_files(dir_path, true)
+            .await?;
+
+        let supported_extensions: Vec<String> =
+            context.app_state.language_plugins.supported_extensions();
+
+        // Filter to analyzable files
+        let analyzable_files =
+            filter_analyzable_files(&files, dir_path, &supported_extensions);
+
+        info!(
+            analyzable_count = analyzable_files.len(),
+            "Filtered to analyzable files"
+        );
+
+        // Aggregate stats across all files
+        let mut total_functions = 0;
+        let mut total_sloc = 0;
+        let mut complexity_stats = AggregateStats::new();
+        let mut cognitive_stats = AggregateStats::new();
+        let mut needs_attention = 0;
+        let mut all_errors = Vec::new();
+
+        for file_path in &analyzable_files {
+            let extension = file_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+            let plugin = match context.app_state.language_plugins.get_plugin(extension) {
+                Some(p) => p,
+                None => continue,
+            };
+
+            let content = match context.app_state.file_service.read_file(file_path).await {
+                Ok(c) => c,
+                Err(e) => {
+                    all_errors.push(json!({
+                        "file": file_path.display().to_string(),
+                        "error": format!("Read error: {}", e)
+                    }));
+                    continue;
+                }
+            };
+
+            let parsed = match plugin.parse(&content).await {
+                Ok(p) => p,
+                Err(e) => {
+                    all_errors.push(json!({
+                        "file": file_path.display().to_string(),
+                        "error": format!("Parse error: {}", e)
+                    }));
+                    continue;
+                }
+            };
+
+            let language = plugin.metadata().name;
+            let report = cb_ast::complexity::analyze_file_complexity(
+                &file_path.to_string_lossy(),
+                &content,
+                &parsed.symbols,
+                &language,
+            );
+
+            // Aggregate
+            total_functions += report.total_functions;
+            total_sloc += report.total_sloc;
+
+            for func in &report.functions {
+                complexity_stats.add(func.complexity.cyclomatic as f64);
+                cognitive_stats.add(func.complexity.cognitive as f64);
+
+                if matches!(
+                    func.rating,
+                    cb_ast::complexity::ComplexityRating::Complex
+                        | cb_ast::complexity::ComplexityRating::VeryComplex
+                ) {
+                    needs_attention += 1;
+                }
+            }
+        }
+
+        // Calculate metrics
+        let avg_cyclomatic = complexity_stats.average;
+        let avg_cognitive = cognitive_stats.average;
+        let max_cyclomatic = complexity_stats.max.unwrap_or(0.0) as u32;
+        let max_cognitive = cognitive_stats.max.unwrap_or(0.0) as u32;
+        let attention_ratio = if total_functions > 0 {
+            needs_attention as f64 / total_functions as f64
+        } else {
+            0.0
+        };
+
+        // Determine severity
+        let severity = if attention_ratio > 0.3 {
+            Severity::High
+        } else if attention_ratio > 0.1 {
+            Severity::Medium
+        } else {
+            Severity::Low
+        };
+
+        // Build result
+        let scope = AnalysisScope {
+            scope_type: "workspace".to_string(),
+            path: directory_path.clone(),
+            include: scope_param.include.clone(),
+            exclude: scope_param.exclude.clone(),
+        };
+
+        let mut result = AnalysisResult::new("quality", "maintainability", scope);
+
+        // Add workspace-level finding
+        let mut metrics = HashMap::new();
+        metrics.insert("total_files".to_string(), json!(analyzable_files.len()));
+        metrics.insert("total_functions".to_string(), json!(total_functions));
+        metrics.insert("total_sloc".to_string(), json!(total_sloc));
+        metrics.insert("avg_cyclomatic".to_string(), json!(avg_cyclomatic));
+        metrics.insert("avg_cognitive".to_string(), json!(avg_cognitive));
+        metrics.insert("max_cyclomatic".to_string(), json!(max_cyclomatic));
+        metrics.insert("max_cognitive".to_string(), json!(max_cognitive));
+        metrics.insert("needs_attention".to_string(), json!(needs_attention));
+        metrics.insert("attention_ratio".to_string(), json!(attention_ratio));
+
+        let message = if total_functions == 0 {
+            "No functions found in workspace".to_string()
+        } else if needs_attention == 0 {
+            format!(
+                "Excellent workspace maintainability: {} functions across {} files, all acceptable",
+                total_functions,
+                analyzable_files.len()
+            )
+        } else {
+            format!(
+                "Workspace maintainability needs attention: {} of {} functions ({:.1}%) require refactoring across {} files",
+                needs_attention,
+                total_functions,
+                attention_ratio * 100.0,
+                analyzable_files.len()
+            )
+        };
+
+        let finding = Finding {
+            id: format!("workspace-maintainability-{}", directory_path),
+            kind: "workspace_maintainability_summary".to_string(),
+            severity,
+            location: FindingLocation {
+                file_path: directory_path.clone(),
+                range: None,
+                symbol: None,
+                symbol_kind: None,
+            },
+            metrics: Some(metrics),
+            message,
+            suggestions: vec![],
+        };
+
+        result.add_finding(finding);
+
+        // Update summary
+        result.summary.files_analyzed = analyzable_files.len();
+        result.summary.symbols_analyzed = Some(total_functions);
+        result.finalize(start_time.elapsed().as_millis() as u64);
+
+        info!(
+            directory_path = %directory_path,
+            files_analyzed = analyzable_files.len(),
+            total_functions = total_functions,
+            needs_attention = needs_attention,
+            analysis_time_ms = result.summary.analysis_time_ms,
+            "Workspace maintainability analysis complete"
+        );
+
+        let mut value = serde_json::to_value(result)
+            .map_err(|e| ServerError::Internal(format!("Failed to serialize result: {}", e)))?;
+
+        if !all_errors.is_empty() {
+            value["errors"] = json!(all_errors);
+        }
+
+        Ok(value)
+    }
+
     /// Transform ComplexityReport into AnalysisResult
     fn transform_complexity_report(
         &self,
@@ -1076,14 +1288,28 @@ impl ToolHandler for QualityHandler {
                     .await
             }
             "maintainability" => {
-                super::engine::run_analysis(
-                    context,
-                    tool_call,
-                    "quality",
-                    kind,
-                    analyze_maintainability,
-                )
-                .await
+                // Check if workspace scope is requested
+                let scope_param = super::engine::parse_scope_param(&args)?;
+                let scope_type = scope_param
+                    .scope_type
+                    .as_deref()
+                    .unwrap_or("file");
+
+                if scope_type == "workspace" {
+                    // Use workspace aggregation
+                    self.analyze_workspace_maintainability(context, &args, &scope_param)
+                        .await
+                } else {
+                    // Use standard file analysis
+                    super::engine::run_analysis(
+                        context,
+                        tool_call,
+                        "quality",
+                        kind,
+                        analyze_maintainability,
+                    )
+                    .await
+                }
             }
             "readability" => {
                 super::engine::run_analysis(
