@@ -3,9 +3,10 @@
 //! Provides git-aware file operations to preserve history when working in git repositories.
 
 use anyhow::{anyhow, Result};
-use std::path::Path;
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::process::Command;
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 /// Service for git-aware file operations
 #[derive(Clone)]
@@ -77,12 +78,124 @@ impl GitService {
     ///
     /// This preserves git history for the file. The parent directory of the
     /// destination will be created if it doesn't exist.
+    ///
+    /// **Case-insensitive filesystem support**: Automatically handles case-only renames
+    /// (e.g., `FILE.md` → `file.md`) on case-insensitive filesystems by using a
+    /// two-step rename process through a temporary file.
     pub fn git_mv(old: &Path, new: &Path) -> Result<()> {
         // Ensure parent directory exists
         if let Some(parent) = new.parent() {
             std::fs::create_dir_all(parent)?;
         }
 
+        // Detect case-only rename on case-insensitive filesystem
+        let is_case_only_rename = Self::is_case_only_rename(old, new)?;
+
+        if is_case_only_rename {
+            info!(
+                old = %old.display(),
+                new = %new.display(),
+                "Detected case-only rename on case-insensitive filesystem, using two-step approach"
+            );
+
+            // Two-step rename: old → temp → new
+            let temp_path = Self::generate_temp_path(new)?;
+
+            // Step 1: old → temp
+            debug!(
+                old = %old.display(),
+                temp = %temp_path.display(),
+                "Step 1: Renaming to temporary file"
+            );
+            Self::git_mv_direct(old, &temp_path)?;
+
+            // Step 2: temp → new
+            debug!(
+                temp = %temp_path.display(),
+                new = %new.display(),
+                "Step 2: Renaming from temporary to final name"
+            );
+            Self::git_mv_direct(&temp_path, new)?;
+
+            info!(
+                old = %old.display(),
+                new = %new.display(),
+                "Case-only rename completed successfully"
+            );
+
+            return Ok(());
+        }
+
+        // Normal rename
+        Self::git_mv_direct(old, new)
+    }
+
+    /// Check if this is a case-only rename on a case-insensitive filesystem
+    fn is_case_only_rename(old: &Path, new: &Path) -> Result<bool> {
+        // If paths are identical, not a rename
+        if old == new {
+            return Ok(false);
+        }
+
+        // Check if they differ only in case
+        let same_case_insensitive = old
+            .to_string_lossy()
+            .to_lowercase()
+            == new.to_string_lossy().to_lowercase();
+
+        if !same_case_insensitive {
+            // Paths differ in more than just case
+            return Ok(false);
+        }
+
+        // Paths differ only in case. Check if they resolve to the same file
+        // (which would indicate a case-insensitive filesystem)
+        match (fs::metadata(old), fs::metadata(new)) {
+            (Ok(old_meta), Ok(new_meta)) => {
+                // Both exist - check if they're the same file
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::MetadataExt;
+                    Ok(old_meta.ino() == new_meta.ino())
+                }
+                #[cfg(not(unix))]
+                {
+                    // On Windows, compare canonicalized paths
+                    let old_canonical = old.canonicalize().ok();
+                    let new_canonical = new.canonicalize().ok();
+                    Ok(old_canonical.is_some() && old_canonical == new_canonical)
+                }
+            }
+            (Ok(_), Err(_)) => {
+                // Old exists, new doesn't. This is a case-only rename if paths
+                // differ only in case (already checked above)
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    /// Generate a temporary path for two-step renames
+    fn generate_temp_path(target: &Path) -> Result<PathBuf> {
+        let parent = target
+            .parent()
+            .ok_or_else(|| anyhow!("Target has no parent directory"))?;
+        let filename = target
+            .file_name()
+            .ok_or_else(|| anyhow!("Target has no filename"))?;
+
+        // Use timestamp to avoid collisions
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis())
+            .unwrap_or(0);
+
+        let temp_name = format!(".tmp_rename_{}_{}", filename.to_string_lossy(), timestamp);
+        Ok(parent.join(temp_name))
+    }
+
+    /// Execute git mv directly without case-insensitive handling
+    fn git_mv_direct(old: &Path, new: &Path) -> Result<()> {
         debug!(
             old = %old.display(),
             new = %new.display(),
