@@ -1,7 +1,8 @@
 // analysis/cb-analysis-deep-dead-code/src/lib.rs
 
-mod graph_builder;
+mod ast_parser;
 mod dead_code_finder;
+mod graph_builder;
 
 use async_trait::async_trait;
 use cb_analysis_common::{

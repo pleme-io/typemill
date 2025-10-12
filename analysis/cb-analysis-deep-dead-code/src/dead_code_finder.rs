@@ -3,6 +3,7 @@
 use crate::DeepDeadCodeConfig;
 use cb_analysis_common::graph::{DependencyGraph, SymbolNode};
 use std::collections::HashSet;
+use std::path::Path;
 use tracing::info;
 
 pub struct DeadCodeFinder<'a> {
@@ -29,7 +30,12 @@ impl<'a> DeadCodeFinder<'a> {
             .graph
             .graph
             .node_indices()
-            .filter(|&i| self.graph.graph[i].name == "main")
+            .filter(|&i| {
+                let node = &self.graph.graph[i];
+                // A simple heuristic to identify the main function: it must be named "main"
+                // and be in a file named "main.rs". This is more robust than just checking the name.
+                node.name == "main" && Path::new(&node.file_path).ends_with("main.rs")
+            })
             .collect();
 
         if !config.check_public_exports {
@@ -43,7 +49,6 @@ impl<'a> DeadCodeFinder<'a> {
         } else {
             info!("Aggressive mode enabled: public exports will not be considered entry points unless they are 'main'.");
         }
-
 
         info!("Found {} entry points for graph traversal.", entry_points.len());
 

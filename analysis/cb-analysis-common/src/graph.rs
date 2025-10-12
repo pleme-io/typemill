@@ -2,7 +2,7 @@
 
 //! A generic dependency graph for symbol analysis.
 
-use lsp_types::SymbolKind as LspSymbolKind;
+use lsp_types::{Range, SymbolKind as LspSymbolKind};
 use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::visit::EdgeRef;
 use serde::{Deserialize, Serialize};
@@ -33,6 +33,12 @@ pub enum SymbolKind {
     Interface,
     Trait,
     Constant,
+    // AST-based categories
+    Struct,
+    Enum,
+    Function,
+    Module,
+    TypeAlias,
     // LSP kinds for more specific details
     Lsp(LspSymbolKind),
     // Fallback for unknown kinds
@@ -65,13 +71,33 @@ impl From<LspSymbolKind> for SymbolKind {
 }
 
 /// Represents a node in the symbol dependency graph.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SymbolNode {
     pub id: String,   // A unique identifier, e.g., "file.rs::MyStruct::my_function"
     pub name: String, // The symbol name, e.g., "my_function"
     pub kind: SymbolKind, // The detailed kind of the symbol
     pub file_path: String,
     pub is_public: bool, // Is the symbol exported or part of a public API?
+    #[serde(skip, default = "default_range")]
+    pub range: Range, // The location in the file, crucial for find_references
+}
+
+fn default_range() -> Range {
+    Range::default()
+}
+
+impl PartialEq for SymbolNode {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for SymbolNode {}
+
+impl Hash for SymbolNode {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
 }
 
 /// The dependency graph, mapping symbol relationships.
