@@ -236,53 +236,104 @@ pub(crate) async fn build_import_update_plan(
 
         // Special handling for directory renames vs file renames
         if is_directory_rename {
-            // For directory renames, we need to replace path segments in import statements
-            // Use the plugin's rewrite method, passing the DIRECTORY paths
-            let rewrite_result = plugin.rewrite_file_references(
-                &content,
-                old_path,
-                new_path,
-                &file_path,
-                project_root,
-                rename_info,
+            // For directory renames, process each file inside the directory individually
+            // This allows the plugin to match exact import paths like './core/api' → './legacy/api'
+
+            // Get all files inside the renamed directory
+            let files_in_directory: Vec<PathBuf> = project_files
+                .iter()
+                .filter(|f| f.starts_with(old_path) && f.is_file())
+                .cloned()
+                .collect();
+
+            debug!(
+                affected_file = ?file_path,
+                files_in_directory_count = files_in_directory.len(),
+                "Processing directory rename - will check each file inside for imports"
             );
 
-            match rewrite_result {
-                Some((updated_content, count)) => {
-                    if count > 0 && updated_content != content {
-                        // Create a single TextEdit for the entire file content replacement
-                        use cb_protocol::{EditLocation, EditType, TextEdit};
-                        let line_count = content.lines().count();
-                        let last_line_len = content.lines().last().map(|l| l.len()).unwrap_or(0);
+            // For each file that was inside the renamed directory,
+            // rewrite imports in the affected file
+            // We need to accumulate changes across all files in the directory
+            let mut current_content = content.clone();
+            let mut total_changes = 0;
 
-                        all_edits.push(TextEdit {
-                            file_path: Some(file_path.to_string_lossy().to_string()),
-                            edit_type: EditType::UpdateImport,
-                            location: EditLocation {
-                                start_line: 0,
-                                start_column: 0,
-                                end_line: line_count.saturating_sub(1) as u32,
-                                end_column: last_line_len as u32,
-                            },
-                            original_text: content.clone(),
-                            new_text: updated_content,
-                            priority: 1,
-                            description: format!(
-                                "Update imports in {} for directory rename",
-                                file_path.display()
-                            ),
-                        });
-                        edited_file_count += 1;
-                        info!(
-                            file = ?file_path,
-                            imports_updated = count,
-                            "Created TextEdit for directory rename import updates"
-                        );
+            for old_file_in_dir in &files_in_directory {
+                // Calculate the file's new path
+                let relative_path = old_file_in_dir
+                    .strip_prefix(old_path)
+                    .unwrap_or(old_file_in_dir);
+                let new_file_path = new_path.join(relative_path);
+
+                debug!(
+                    old_file = ?old_file_in_dir,
+                    new_file = ?new_file_path,
+                    "Checking if affected file imports this renamed file"
+                );
+
+                // Call the plugin with INDIVIDUAL FILE paths, not directory paths
+                // This way the plugin can match exact imports like './core/api'
+                let rewrite_result = plugin.rewrite_file_references(
+                    &current_content,
+                    old_file_in_dir,  // Actual file path: /workspace/src/core/api.ts
+                    &new_file_path,   // Actual file path: /workspace/src/legacy/api.ts
+                    &file_path,
+                    project_root,
+                    rename_info,
+                );
+
+                match rewrite_result {
+                    Some((updated_content, count)) => {
+                        if count > 0 && updated_content != current_content {
+                            // Found imports to update! Accumulate the changes
+                            total_changes += count;
+                            current_content = updated_content;
+
+                            debug!(
+                                affected_file = ?file_path,
+                                renamed_file = ?old_file_in_dir,
+                                imports_updated = count,
+                                "Updated imports for this file in the directory"
+                            );
+                        }
+                    }
+                    None => {
+                        // Plugin doesn't support this operation, skip
                     }
                 }
-                None => {
-                    warn!(file = ?file_path, "Plugin does not support directory rename import updates");
-                }
+            }
+
+            // If we accumulated any changes, create a TextEdit
+            if total_changes > 0 && current_content != content {
+                use cb_protocol::{EditLocation, EditType, TextEdit};
+                let line_count = current_content.lines().count();
+                let last_line_len = current_content.lines().last().map(|l| l.len()).unwrap_or(0);
+
+                all_edits.push(TextEdit {
+                    file_path: Some(file_path.to_string_lossy().to_string()),
+                    edit_type: EditType::UpdateImport,
+                    location: EditLocation {
+                        start_line: 0,
+                        start_column: 0,
+                        end_line: line_count.saturating_sub(1) as u32,
+                        end_column: last_line_len as u32,
+                    },
+                    original_text: content,
+                    new_text: current_content,
+                    priority: 1,
+                    description: format!(
+                        "Update imports in {} for directory rename ({} files)",
+                        file_path.display(),
+                        files_in_directory.len()
+                    ),
+                });
+                edited_file_count += 1;
+                info!(
+                    affected_file = ?file_path,
+                    files_in_directory = files_in_directory.len(),
+                    total_imports_updated = total_changes,
+                    "Created TextEdit for directory rename import updates"
+                );
             }
         } else if let Some(scope) = scan_scope {
             // For file renames with scan_scope, use find_module_references for precise edits
