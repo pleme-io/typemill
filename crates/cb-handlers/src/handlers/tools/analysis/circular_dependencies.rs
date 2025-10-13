@@ -1,6 +1,7 @@
 
 use super::super::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
+#[cfg(feature = "analysis-circular-deps")]
 use cb_analysis_circular_deps::{builder::DependencyGraphBuilder, find_circular_dependencies, Cycle};
 use cb_core::model::mcp::ToolCall;
 use cb_protocol::analysis_result::{
@@ -8,6 +9,7 @@ use cb_protocol::analysis_result::{
 };
 use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde_json::{json, Value};
+#[cfg(feature = "analysis-circular-deps")]
 use std::collections::HashMap;
 use tracing::debug;
 
@@ -133,7 +135,7 @@ impl ToolHandler for CircularDependenciesHandler {
         #[cfg(not(feature = "analysis-circular-deps"))]
         {
             let _ = (context, args);
-            Err(ServerError::NotImplemented(
+            Err(ServerError::Unsupported(
                 "The 'analyze.circular_dependencies' tool requires the 'analysis-circular-deps' feature.".to_string()
             ))
         }
