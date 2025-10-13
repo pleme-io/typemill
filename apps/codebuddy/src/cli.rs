@@ -3,6 +3,7 @@
 use cb_client::format_plan;
 use cb_core::config::AppConfig;
 use cb_core::utils::system::command_exists;
+use cb_protocol::analysis_result::AnalysisResult;
 use cb_protocol::refactor_plan::RefactorPlan;
 use cb_transport::SessionInfo;
 use clap::{Parser, Subcommand};
@@ -90,6 +91,8 @@ pub struct Analyze {
 pub enum AnalyzeCommands {
     /// Find dead code
     DeadCode(DeadCode),
+    /// Find circular dependencies
+    Cycles(Cycles),
 }
 
 #[derive(Parser)]
@@ -103,6 +106,22 @@ pub struct DeadCode {
     /// The path to analyze
     #[arg(long, default_value = ".")]
     pub path: String,
+}
+
+#[derive(Parser)]
+pub struct Cycles {
+    /// The path to analyze
+    #[arg(long, default_value = ".")]
+    pub path: String,
+    /// Return error if cycles found (for CI/CD)
+    #[arg(long)]
+    pub fail_on_cycles: bool,
+    /// Only report cycles with N or more modules
+    #[arg(long, name = "min-size")]
+    pub min_size: Option<usize>,
+    /// Output format (pretty, json)
+    #[arg(long, default_value = "pretty", value_parser = ["pretty", "json"])]
+    pub format: String,
 }
 
 /// Main CLI entry point
@@ -216,6 +235,114 @@ async fn handle_analyze_command(command: Analyze) {
     match command.command {
         AnalyzeCommands::DeadCode(dead_code_command) => {
             handle_dead_code_command(dead_code_command).await;
+        }
+        AnalyzeCommands::Cycles(cycles_command) => {
+            handle_cycles_command(cycles_command).await;
+        }
+    }
+}
+
+fn output_pretty_cycles(analysis_result: &AnalysisResult) {
+    if analysis_result.summary.total_findings == 0 {
+        println!("✅ No circular dependencies found.");
+        return;
+    }
+
+    println!(
+        "Found {} circular dependencies:",
+        analysis_result.summary.total_findings
+    );
+    println!();
+
+    for (i, finding) in analysis_result.findings.iter().enumerate() {
+        if let Some(metrics) = &finding.metrics {
+            if let Some(cycle_path_val) = metrics.get("cycle_path") {
+                if let Some(cycle_path) = cycle_path_val.as_array() {
+                    println!("Cycle {} ({} modules):", i + 1, cycle_path.len());
+                    for module in cycle_path {
+                        println!("  → {}", module.as_str().unwrap_or(""));
+                    }
+                    if let Some(first_module) = cycle_path.get(0) {
+                        println!("  → {}", first_module.as_str().unwrap_or(""));
+                    }
+                    println!();
+                }
+            }
+        }
+    }
+}
+
+async fn handle_cycles_command(command: Cycles) {
+    let mut args = serde_json::json!({
+        "scope": {
+            "scope_type": "workspace",
+            "path": command.path,
+        },
+    });
+
+    if let Some(min_size) = command.min_size {
+        if let Some(obj) = args.as_object_mut() {
+            obj.insert("min_size".to_string(), serde_json::json!(min_size));
+        }
+    }
+
+    let dispatcher = match crate::dispatcher_factory::create_initialized_dispatcher().await {
+        Ok(d) => d,
+        Err(e) => {
+            let error = cb_protocol::ApiError::internal(format!("Failed to initialize: {}", e));
+            output_error(&error, &command.format);
+            process::exit(1);
+        }
+    };
+
+    use cb_core::model::mcp::{McpMessage, McpRequest};
+    let params = serde_json::json!({
+        "name": "analyze.circular_dependencies",
+        "arguments": args,
+    });
+    let request = McpRequest {
+        jsonrpc: "2.0".to_string(),
+        id: Some(serde_json::json!(1)),
+        method: "tools/call".to_string(),
+        params: Some(params),
+    };
+    let message = McpMessage::Request(request);
+    let session_info = SessionInfo::default();
+
+    match dispatcher.dispatch(message, &session_info).await {
+        Ok(McpMessage::Response(response)) => {
+            if let Some(result) = response.result {
+                if let Ok(analysis_result) =
+                    serde_json::from_value::<AnalysisResult>(result.clone())
+                {
+                    if command.format == "pretty" {
+                        output_pretty_cycles(&analysis_result);
+                    } else {
+                        let output = serde_json::to_string_pretty(&analysis_result).unwrap();
+                        println!("{}", output);
+                    }
+
+                    if command.fail_on_cycles && analysis_result.summary.total_findings > 0 {
+                        eprintln!("\n❌ Error: Circular dependencies detected.");
+                        process::exit(1);
+                    }
+                } else {
+                    output_result(&result, &command.format);
+                }
+            } else if let Some(error) = response.error {
+                let api_error = cb_protocol::ApiError::from(error);
+                output_error(&api_error, &command.format);
+                process::exit(1);
+            }
+        }
+        Ok(_) => {
+            eprintln!("Unexpected response type");
+            process::exit(1);
+        }
+        Err(server_error) => {
+            let api_error = cb_protocol::ApiError::internal(server_error.to_string());
+            output_error(&api_error, &command.format);
+            process::exit(1);
         }
     }
 }

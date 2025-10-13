@@ -1116,7 +1116,7 @@ impl ToolHandler for DependenciesHandler {
                 let graph = builder
                     .build(project_root)
                     .map_err(|e| ServerError::Internal(e))?;
-                let result = find_circular_dependencies(&graph)
+                let result = find_circular_dependencies(&graph, None)
                     .map_err(|e| ServerError::Internal(e.to_string()))?;
 
                 let findings = result.cycles.into_iter().map(|cycle| {

@@ -1,5 +1,6 @@
 pub mod batch;
 pub mod config;
+pub mod circular_dependencies;
 pub mod dead_code;
 pub mod dependencies;
 pub mod documentation;
@@ -11,6 +12,7 @@ pub mod tests_handler;
 
 pub use batch::{BatchAnalysisRequest, BatchAnalysisResult, BatchError};
 pub use config::{AnalysisConfig, CategoryConfig, ConfigError};
+pub use circular_dependencies::CircularDependenciesHandler;
 pub use dead_code::DeadCodeHandler;
 pub use dependencies::DependenciesHandler;
 pub use documentation::DocumentationHandler;

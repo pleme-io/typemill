@@ -62,6 +62,7 @@ pub enum Error {
 /// A `Result` containing the `CircularDependenciesResult` on success, or an `Error` on failure.
 pub fn find_circular_dependencies(
     graph: &DependencyGraph,
+    min_size: Option<usize>,
 ) -> Result<CircularDependenciesResult, Error> {
     use std::time::Instant;
 
@@ -71,9 +72,11 @@ pub fn find_circular_dependencies(
     // Use Tarjan's algorithm to find strongly connected components (SCCs).
     let sccs = tarjan_scc(&graph.graph);
 
+    let min_cycle_size = min_size.unwrap_or(2);
+
     let cycles_nodes: Vec<Vec<NodeId>> = sccs
         .into_iter()
-        .filter(|scc| scc.len() > 1) // A cycle must have more than one node.
+        .filter(|scc| scc.len() >= min_cycle_size)
         .collect();
 
     let mut cycles = Vec::new();
@@ -222,7 +225,7 @@ mod tests {
             },
         );
 
-        let result = find_circular_dependencies(&graph).unwrap();
+        let result = find_circular_dependencies(&graph, None).unwrap();
 
         assert_eq!(result.summary.total_cycles, 1);
         assert_eq!(result.cycles.len(), 1);
@@ -248,7 +251,7 @@ mod tests {
             },
         );
 
-        let result = find_circular_dependencies(&graph).unwrap();
+        let result = find_circular_dependencies(&graph, None).unwrap();
 
         assert_eq!(result.summary.total_cycles, 0);
         assert_eq!(result.cycles.len(), 0);
@@ -265,7 +268,7 @@ mod tests {
         graph.graph.add_edge(id_b, id_c, Dependency { kind: DependencyKind::Import, symbols: vec![] });
         graph.graph.add_edge(id_c, id_a, Dependency { kind: DependencyKind::Import, symbols: vec![] });
 
-        let result = find_circular_dependencies(&graph).unwrap();
+        let result = find_circular_dependencies(&graph, None).unwrap();
         assert_eq!(result.summary.total_cycles, 1);
         assert_eq!(result.cycles[0].modules.len(), 3);
         assert_eq!(result.cycles[0].import_chain.len(), 3);
@@ -290,7 +293,7 @@ mod tests {
         graph.graph.add_edge(id_d, id_e, Dependency { kind: DependencyKind::Import, symbols: vec![] });
         graph.graph.add_edge(id_e, id_c, Dependency { kind: DependencyKind::Import, symbols: vec![] });
 
-        let result = find_circular_dependencies(&graph).unwrap();
+        let result = find_circular_dependencies(&graph, None).unwrap();
         assert_eq!(result.summary.total_cycles, 2);
         assert_eq!(result.summary.total_modules_in_cycles, 5); // 2 + 3
         assert_eq!(result.summary.largest_cycle_size, 3);
@@ -314,7 +317,7 @@ mod tests {
         graph.graph.add_edge(id_c, id_d, Dependency { kind: DependencyKind::Import, symbols: vec![] });
         graph.graph.add_edge(id_d, id_b, Dependency { kind: DependencyKind::Import, symbols: vec![] });
 
-        let result = find_circular_dependencies(&graph).unwrap();
+        let result = find_circular_dependencies(&graph, None).unwrap();
         // Should find at least 1 cycle (could be more depending on SCC algorithm)
         assert!(result.summary.total_cycles >= 1);
     }
@@ -339,7 +342,7 @@ mod tests {
             );
         }
 
-        let result = find_circular_dependencies(&graph).unwrap();
+        let result = find_circular_dependencies(&graph, None).unwrap();
         assert_eq!(result.summary.total_cycles, 1);
         assert_eq!(result.cycles[0].modules.len(), 10);
         assert_eq!(result.summary.largest_cycle_size, 10);
@@ -368,7 +371,7 @@ mod tests {
             },
         );
 
-        let result = find_circular_dependencies(&graph).unwrap();
+        let result = find_circular_dependencies(&graph, None).unwrap();
         assert_eq!(result.summary.total_cycles, 1);
 
         // Check that import chain includes symbols
@@ -395,7 +398,7 @@ mod tests {
         graph.graph.add_edge(id_a, id_b, Dependency { kind: DependencyKind::Import, symbols: vec![] });
         graph.graph.add_edge(id_b, id_a, Dependency { kind: DependencyKind::Import, symbols: vec![] });
 
-        let result = find_circular_dependencies(&graph).unwrap();
+        let result = find_circular_dependencies(&graph, None).unwrap();
 
         // Verify timing metrics are populated
         assert!(result.summary.analysis_time_ms > 0 || result.summary.analysis_time_ms == 0); // Very fast could be 0ms
