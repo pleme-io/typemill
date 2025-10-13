@@ -1,19 +1,19 @@
 # Proposal: Unified Analysis API
 
-**Status**: ✅ **CORE IMPLEMENTATION 95% COMPLETE** (as of 2025-10-12)
+**Status**: ✅ **CORE IMPLEMENTATION 100% COMPLETE** (as of 2025-10-13)
 **Author**: Project Team
 **Date**: 2025-10-10 (Proposal) | 2025-10-12 (Core Implementation)
 **Formal Spec**: [docs/design/unified_api_contracts.md](docs/design/unified_api_contracts.md)
 
 ## 🎉 Implementation Status Summary
 
-**COMPLETED - Core Analysis Engine (95%):**
+**COMPLETED - Core Analysis Engine (100%):**
 - ✅ All 6 analyze.* MCP tools implemented and registered
 - ✅ 26 detection kinds fully wired with AST caching
 - ✅ Configuration system (.codebuddy/analysis.toml with presets)
 - ✅ 6 integration test files passing
 - ✅ API documentation complete
-- ⚠️ analyze.batch infrastructure - **PARTIAL** (batch.rs exists, NOT exposed as MCP tool)
+- ✅ analyze.batch MCP tool - **COMPLETED** (commit aac9bab7 - BatchAnalysisHandler registered as public tool #24)
 - ✅ Documentation sync - **COMPLETED** (commits aa38c0b0, 5b7d0a3e)
 
 **NOT YET IMPLEMENTED - Actionable Suggestions (Phase 2C):**
@@ -999,7 +999,7 @@ analyze.quality("complexity", { preset: "strict", thresholds: { cyclomatic_compl
 - [✅] Project-level configuration (`.codebuddy/analysis.toml`) with preset support (strict, default, relaxed)
 - [✅] Configuration loading with graceful fallback to defaults
 - [✅] Batch analysis infrastructure complete (all 26 detection kinds wired)
-- [❌] `analyze.batch` MCP tool - **NOT YET EXPOSED** (infrastructure exists in batch.rs, needs ToolHandler)
+- [✅] `analyze.batch` MCP tool - **COMPLETED** (commit aac9bab7 - BatchAnalysisHandler exposing public tool #24)
 - [❌] **Actionable Suggestions with Safety Metadata** - NOT IMPLEMENTED
   - Safety classification (safe/requires_review/experimental)
   - Confidence scoring (0.0 to 1.0)
@@ -1106,10 +1106,10 @@ This section provides a comprehensive checklist of all files that need to be cre
 
 ### Remaining Work
 
-- ❌ analyze.batch MCP tool - **NOT YET IMPLEMENTED** (infrastructure exists, needs ToolHandler exposure)
+- ✅ analyze.batch MCP tool - **COMPLETED** (commit aac9bab7)
 - ✅ Update all documentation - **COMPLETED** (commits aa38c0b0, 5b7d0a3e)
 - ⚠️ Legacy analysis command migration - **FROZEN** (see Legacy Tool Retention section below)
-- ⚠️ CI validation of suggestion metadata - Future work
+- ⚠️ CI validation of suggestion metadata - Future work (requires Phase 2C Safety Metadata implementation)
 
 ### Legacy Tool Retention Rationale
 
@@ -1266,21 +1266,21 @@ The implementation uses a **monolithic approach** instead of separate analysis c
 - [ ] `CONTRIBUTING.md` - Document new analysis handler patterns
 - [ ] `CHANGELOG.md` - Document unified analysis API release
 
-#### analyze.batch MCP Tool (1 file) - ❌ NOT YET IMPLEMENTED
-- [ ] Add `analyze.batch` MCP tool to SystemToolsPlugin
+#### analyze.batch MCP Tool (1 file) - ✅ COMPLETED (commit aac9bab7)
+- [✅] Add `analyze.batch` MCP tool to SystemToolsPlugin
   - Infrastructure exists in batch.rs (`run_batch_analysis` function)
-  - Need to create ToolHandler that exposes batch analysis as public MCP tool
-  - Accept array of analysis queries, return aggregated results
-  - Optimize with shared AST parsing (sequential execution for cache hits)
-  - Would make it public tool #24
+  - BatchAnalysisHandler exposes batch analysis as public MCP tool
+  - Accepts array of analysis queries, returns aggregated results
+  - Optimizes with shared AST parsing (sequential execution for cache hits)
+  - Public tool #24
 
-**Implementation steps:**
-1. Create `AnalysisBatchHandler` struct implementing `ToolHandler` trait
-2. Define input schema accepting array of `{ command, kind, scope, options }` queries
-3. Wire up to `run_batch_analysis` from batch.rs
-4. Register in SystemToolsPlugin with `is_internal() = false`
-5. Add integration test for multi-category batch queries
-6. Document in API_REFERENCE.md with batch optimization details
+**Completed implementation:**
+1. ✅ Created `AnalysisBatchHandler` struct implementing `ToolHandler` trait
+2. ✅ Defined input schema accepting array of `{ command, kind, scope, options }` queries
+3. ✅ Wired up to `run_batch_analysis` from batch.rs
+4. ✅ Registered in SystemToolsPlugin with `is_internal() = false`
+5. ✅ Added integration test for multi-category batch queries
+6. ✅ Documented in API_REFERENCE.md with batch optimization details
 
 ---
 
@@ -1384,17 +1384,17 @@ For each of 6 analysis categories, verify:
 - [✅] Tool registered in SystemToolsPlugin (all 6 registered)
 
 #### Overall Completion
-- [✅] All 6 `analyze.*` commands working end-to-end (23 public tools total)
+- [✅] All 6 `analyze.*` commands working end-to-end (24 public tools total now with analyze.batch)
 - [✅] Batch analysis infrastructure complete (all helpers wired)
-- [❌] `analyze.batch` MCP tool exposed - **NOT YET IMPLEMENTED** (infrastructure exists in batch.rs, needs ToolHandler)
+- [✅] `analyze.batch` MCP tool exposed - **COMPLETED** (commit aac9bab7 - BatchAnalysisHandler registered as public tool #24)
 - [✅] `.codebuddy/analysis.toml` configuration loading works
 - [✅] Preset system functional (strict, default, relaxed)
 - [ ] All 37 legacy analysis commands removed (future work)
 - [✅] All 6 integration test files passing
 - [✅] Navigation commands preserved (search_workspace_symbols, find_definition, etc.)
-- [✅] API_REFERENCE.md fully updated for all 6 commands
+- [✅] API_REFERENCE.md fully updated for all 7 commands (6 analyze.* + 1 analyze.batch)
 - [ ] All documentation synchronized (QUICK_REFERENCE, CLAUDE.md pending)
-- [ ] CI validates suggestion metadata (future work)
+- [ ] CI validates suggestion metadata (future work - requires Phase 2C)
 - [✅] Build passes with zero warnings in new code
 
 ---
