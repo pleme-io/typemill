@@ -130,6 +130,13 @@ impl ToolHandler for CircularDependenciesHandler {
 
                 return Ok(serde_json::to_value(analysis_result)?);
             }
+        #[cfg(not(feature = "analysis-circular-deps"))]
+        {
+            let _ = (context, args);
+            Err(ServerError::NotImplemented(
+                "The 'analyze.circular_dependencies' tool requires the 'analysis-circular-deps' feature.".to_string()
+            ))
+        }
     }
 }
 #[cfg(feature = "analysis-circular-deps")]

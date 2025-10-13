@@ -9,6 +9,7 @@ pub mod engine;
 pub mod helpers;
 pub mod quality;
 pub mod structure;
+pub mod suggestions;
 pub mod tests_handler;
 
 pub use batch::{BatchAnalysisRequest, BatchAnalysisResult, BatchError};
