@@ -1,209 +1,116 @@
 //! Batch analysis infrastructure for workspace-wide analysis
-//!
-//! This module provides optimized batch analysis capabilities that enable
-//! analyzing multiple files efficiently with AST caching and parallel processing.
-//!
-//! # Key Features
-//! - **AST Caching**: Parse each file once, reuse for multiple analysis kinds
-//! - **Concurrent Processing**: Parallel file analysis (future enhancement)
-//! - **Error Resilience**: Continue batch analysis even if individual files fail
-//! - **Progress Tracking**: Cache hit/miss metrics for optimization insights
-//! - **Aggregation**: Combine results and compute workspace-wide statistics
-//!
-//! # Usage
-//!
-//! ```no_run
-//! use cb_handlers::handlers::tools::analysis::batch::{BatchAnalysisRequest, run_batch_analysis};
-//! use std::path::PathBuf;
-//!
-//! let request = BatchAnalysisRequest {
-//!     files: vec![
-//!         PathBuf::from("src/file1.ts"),
-//!         PathBuf::from("src/file2.ts"),
-//!     ],
-//!     category: "quality".to_string(),
-//!     kinds: vec!["complexity".to_string(), "smells".to_string()],
-//!     config: None,
-//! };
-//!
-//! let result = run_batch_analysis(request, context).await?;
-//! println!("Analyzed {} files with {} total findings",
-//!     result.summary.files_analyzed,
-//!     result.summary.total_findings
-//! );
-//! ```
-//!
-//! # Implementation Status (MVP)
-//!
-//! **Current Implementation:**
-//! - Data structures for batch requests and results
-//! - Sequential file processing (parallel deferred to future)
-//! - Basic AST caching per-batch
-//! - Aggregated statistics and metadata
-//!
-//! **Future Enhancements (TODOs):**
-//! - Parallel processing with work stealing
-//! - Progressive result streaming for large batches
-//! - Incremental analysis (only changed files)
-//! - Cross-file dependency analysis
-//! - Persistent AST cache across batches
-
 use super::super::ToolHandlerContext;
-use super::AnalysisConfig;
+use super::{
+    AnalysisConfig,
+    dead_code as dead_code_handler,
+    dependencies as dependencies_handler,
+    documentation as documentation_handler,
+    quality as quality_handler,
+    structure as structure_handler,
+    tests_handler,
+};
 use cb_plugin_api::Symbol;
-use cb_protocol::analysis_result::AnalysisResult;
+use cb_protocol::analysis_result::{AnalysisResult, AnalysisScope, Finding, FindingLocation, Severity, Range, Position};
+use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
-use std::collections::HashMap;
+use serde_json::{json, Value};
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 use thiserror::Error;
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, warn};
 
-/// Batch analysis request
-///
-/// Specifies a set of files to analyze with a given category and detection kinds.
-/// Optionally accepts configuration to customize analysis behavior (thresholds, etc.).
+// --- New Data Structures for Multi-Query Batching ---
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct AnalysisQuery {
+    pub command: String,
+    pub kind: String,
+    pub scope: QueryScope,
+    #[serde(default)]
+    pub options: Option<Value>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct QueryScope {
+    #[serde(rename = "type")]
+    pub scope_type: String,
+    pub path: Option<String>,
+    #[serde(default)]
+    pub include: Vec<String>,
+    #[serde(default)]
+    pub exclude: Vec<String>,
+}
+
 #[derive(Debug, Clone)]
 pub struct BatchAnalysisRequest {
-    /// Files to analyze (absolute paths)
-    pub files: Vec<PathBuf>,
-
-    /// Analysis category (e.g., "quality", "dead_code", "dependencies")
-    pub category: String,
-
-    /// Detection kinds to run (e.g., ["complexity", "smells"])
-    pub kinds: Vec<String>,
-
-    /// Optional configuration for customizing analysis behavior
+    pub queries: Vec<AnalysisQuery>,
     pub config: Option<AnalysisConfig>,
 }
 
-/// Batch analysis result
-///
-/// Contains aggregated results from analyzing multiple files, including
-/// per-file findings, summary statistics, and execution metadata.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
+pub struct SingleQueryResult {
+    pub command: String,
+    pub kind: String,
+    pub result: AnalysisResult,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct BatchAnalysisResult {
-    /// Results by file path (key: file path, value: list of AnalysisResults)
-    ///
-    /// Each file may have multiple AnalysisResult entries (one per kind).
-    /// For example, analyzing "quality" with kinds ["complexity", "smells"]
-    /// produces 2 AnalysisResult entries per file.
-    pub results: HashMap<String, Vec<AnalysisResult>>,
-
-    /// Aggregated statistics across all files
+    pub results: Vec<SingleQueryResult>,
     pub summary: BatchSummary,
-
-    /// Execution metadata for the batch operation
     pub metadata: BatchMetadata,
 }
 
-/// Aggregated statistics for a batch analysis
+// --- Shared Data Structures (mostly unchanged) ---
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BatchSummary {
-    /// Total number of files in the batch request
-    pub total_files: usize,
-
-    /// Number of files successfully analyzed
+    pub total_queries: usize,
+    pub total_files_scanned: usize,
     pub files_analyzed: usize,
-
-    /// Number of files that failed analysis
     pub files_failed: usize,
-
-    /// Total findings across all files
     pub total_findings: usize,
-
-    /// Breakdown of findings by severity (high, medium, low)
     pub findings_by_severity: HashMap<String, usize>,
-
-    /// Total execution time in milliseconds
     pub execution_time_ms: u64,
 }
 
-/// Execution metadata for a batch analysis
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BatchMetadata {
-    /// Timestamp when batch analysis started (ISO 8601 format)
     pub started_at: String,
-
-    /// Timestamp when batch analysis completed (ISO 8601 format)
     pub completed_at: String,
-
-    /// Categories analyzed (typically one, but extensible for multi-category batches)
     pub categories_analyzed: Vec<String>,
-
-    /// Number of AST cache hits (files parsed and reused)
     pub ast_cache_hits: usize,
-
-    /// Number of AST cache misses (files parsed from scratch)
     pub ast_cache_misses: usize,
-
-    /// Files that failed analysis (with error messages)
     pub failed_files: HashMap<String, String>,
 }
 
-/// Cached AST data for a file
-///
-/// Stores parsed AST and metadata to avoid re-parsing the same file
-/// multiple times within a batch analysis operation.
 #[derive(Debug, Clone)]
 struct CachedAst {
-    /// Parsed symbols from the language plugin
     symbols: Vec<Symbol>,
-
-    /// File content (stored for analysis functions that need raw text)
     content: String,
-
-    /// Language name (e.g., "rust", "typescript")
     language: String,
-
-    /// Complexity report (pre-computed for performance)
     complexity_report: cb_ast::complexity::ComplexityReport,
 }
 
-/// Run batch analysis across multiple files
-///
-/// This is the main entry point for batch analysis operations. It orchestrates
-/// the entire workflow:
-/// 1. Validate request
-/// 2. Pre-parse all ASTs (optimization: parse once, analyze multiple times)
-/// 3. For each file and kind, run analysis
-/// 4. Aggregate results
-/// 5. Build summary statistics
-///
-/// # Arguments
-/// - `request`: The batch analysis request with files, category, kinds, and config
-/// - `context`: The tool handler context with app state and services
-///
-/// # Returns
-/// - `Ok(BatchAnalysisResult)`: Aggregated results from all files
-/// - `Err(BatchError)`: Fatal error that prevents batch processing
-///
-/// # Error Handling
-/// Individual file failures do NOT fail the entire batch. Failed files are tracked
-/// in `metadata.failed_files` and `summary.files_failed`. Only fatal errors
-/// (e.g., no files provided, invalid category) cause the batch to fail.
-///
-/// # Performance Notes (MVP)
-/// - Current implementation: Sequential file processing
-/// - AST caching: Parse once per file, reuse for all kinds
-/// - Future: Parallel processing with tokio::spawn
-///
-/// # Example
-/// ```no_run
-/// use cb_handlers::handlers::tools::analysis::batch::{BatchAnalysisRequest, run_batch_analysis};
-/// use std::path::PathBuf;
-///
-/// let request = BatchAnalysisRequest {
-///     files: vec![PathBuf::from("src/main.rs")],
-///     category: "quality".to_string(),
-///     kinds: vec!["complexity".to_string()],
-///     config: None,
-/// };
-///
-/// let result = run_batch_analysis(request, context).await?;
-/// ```
+#[derive(Debug, Error)]
+pub enum BatchError {
+    #[error("No queries provided in batch request")]
+    NoQueries,
+    #[error("Invalid command in query: {0}")]
+    InvalidCommand(String),
+    #[error("Invalid scope: {0}")]
+    InvalidScope(String),
+    #[error("IO Error: {0}")]
+    IoError(String),
+    #[error("Parse failed: {0}")]
+    ParseFailed(String),
+    #[error("Analysis failed: {0}")]
+    AnalysisFailed(String),
+}
+
+// --- Core Batch Logic ---
+
 pub async fn run_batch_analysis(
     request: BatchAnalysisRequest,
     context: &ToolHandlerContext,
@@ -211,155 +118,118 @@ pub async fn run_batch_analysis(
     let batch_start = Instant::now();
     let started_at = chrono::Utc::now().to_rfc3339();
 
+    if request.queries.is_empty() {
+        return Err(BatchError::NoQueries);
+    }
+
     info!(
-        files_count = request.files.len(),
-        category = %request.category,
-        kinds = ?request.kinds,
-        "Starting batch analysis"
+        queries_count = request.queries.len(),
+        "Starting multi-query batch analysis"
     );
 
-    // 1. Validate request
-    if request.files.is_empty() {
-        return Err(BatchError::NoFiles);
+    // 1. Collect all unique files from all query scopes
+    let mut all_files_to_parse = HashSet::new();
+    for query in &request.queries {
+        let files_for_query = resolve_scope_to_files(&query.scope).await?;
+        all_files_to_parse.extend(files_for_query);
     }
+    let all_files_vec: Vec<PathBuf> = all_files_to_parse.into_iter().collect();
 
-    if request.kinds.is_empty() {
-        return Err(BatchError::NoKinds);
-    }
-
-    // Validate category (basic check - could be extended)
-    let valid_categories = [
-        "quality",
-        "dead_code",
-        "dependencies",
-        "structure",
-        "documentation",
-        "tests",
-    ];
-    if !valid_categories.contains(&request.category.as_str()) {
-        return Err(BatchError::InvalidCategory(request.category.clone()));
-    }
-
-    // 2. Pre-parse all ASTs (optimization)
-    debug!(
-        files_count = request.files.len(),
-        "Pre-parsing ASTs for batch analysis"
-    );
-    let ast_cache = batch_parse_asts(&request.files, context).await;
-
+    // 2. Pre-parse all ASTs for optimization
+    let ast_cache = batch_parse_asts(&all_files_vec, context).await;
     let ast_cache_hits = ast_cache.len();
-    let ast_cache_misses = request.files.len() - ast_cache_hits;
+    let ast_cache_misses = all_files_vec.len() - ast_cache_hits;
 
-    debug!(
-        cache_hits = ast_cache_hits,
-        cache_misses = ast_cache_misses,
-        "AST parsing complete"
-    );
+    // 3. Process each query
+    let mut query_results = Vec::new();
+    let mut failed_files_map = HashMap::new();
+    let mut all_categories = HashSet::new();
 
-    // 3. Process each file with all requested kinds
-    let mut results: HashMap<String, Vec<AnalysisResult>> = HashMap::new();
-    let mut total_findings = 0;
-    let mut findings_by_severity: HashMap<String, usize> = HashMap::new();
-    let mut files_analyzed = 0;
-    let mut files_failed = 0;
-    let mut failed_files: HashMap<String, String> = HashMap::new();
+    for query in &request.queries {
+        let category = query.command.split('.').last().unwrap_or("").to_string();
+        if category.is_empty() {
+            warn!(command = %query.command, "Skipping query with invalid command format");
+            continue;
+        }
+        all_categories.insert(category.clone());
 
-    for file_path in &request.files {
-        let file_path_str = file_path.display().to_string();
+        let files_for_query = resolve_scope_to_files(&query.scope).await?;
+        let mut all_findings_for_query: Vec<Finding> = Vec::new();
+        let mut symbols_analyzed_for_query = 0;
+        let mut files_analyzed_in_query = 0;
 
-        // Check if AST is cached
-        let cached_ast = match ast_cache.get(file_path) {
-            Some(ast) => ast,
-            None => {
-                // File failed to parse - skip it
-                files_failed += 1;
-                failed_files.insert(
-                    file_path_str.clone(),
-                    "Failed to parse file or get language plugin".to_string(),
-                );
-                warn!(
-                    file_path = %file_path_str,
-                    "Skipping file due to parse failure"
-                );
-                continue;
+        for file_path in &files_for_query {
+            if let Some(cached_ast) = ast_cache.get(file_path) {
+                match analyze_file_with_cached_ast(
+                    file_path,
+                    cached_ast,
+                    &category,
+                    &query.kind,
+                    request.config.as_ref(),
+                )
+                .await
+                {
+                    Ok(result_for_file) => {
+                        all_findings_for_query.extend(result_for_file.findings);
+                        symbols_analyzed_for_query +=
+                            result_for_file.summary.symbols_analyzed.unwrap_or(0);
+                    }
+                    Err(e) => {
+                        let file_path_str = file_path.display().to_string();
+                        warn!(file_path=%file_path_str, error=%e, "Analysis failed for file in query");
+                        failed_files_map.insert(file_path_str, e.to_string());
+                    }
+                }
+                files_analyzed_in_query += 1;
+            } else {
+                 let file_path_str = file_path.display().to_string();
+                 if !failed_files_map.contains_key(&file_path_str) {
+                    failed_files_map.insert(file_path_str, "File failed to parse".to_string());
+                 }
             }
+        }
+
+        let scope_path = query.scope.path.clone().unwrap_or_default();
+        let scope = AnalysisScope {
+            scope_type: query.scope.scope_type.clone(),
+            path: scope_path,
+            include: query.scope.include.clone(),
+            exclude: query.scope.exclude.clone(),
         };
 
-        debug!(
-            file_path = %file_path_str,
-            kinds_count = request.kinds.len(),
-            "Analyzing file with cached AST"
-        );
+        let mut query_analysis_result = AnalysisResult::new(&category, &query.kind, scope);
+        query_analysis_result.findings = all_findings_for_query;
+        query_analysis_result.summary.files_analyzed = files_analyzed_in_query;
+        query_analysis_result.summary.symbols_analyzed = Some(symbols_analyzed_for_query);
+        query_analysis_result.finalize(0); // Timings are for the whole batch
 
-        let mut file_results = Vec::new();
-
-        // Run each kind of analysis on this file
-        for kind in &request.kinds {
-            match analyze_file_with_cached_ast(
-                file_path,
-                cached_ast,
-                &request.category,
-                kind,
-                request.config.as_ref(),
-            )
-            .await
-            {
-                Ok(result) => {
-                    // Aggregate statistics
-                    total_findings += result.summary.total_findings;
-                    findings_by_severity
-                        .entry("high".to_string())
-                        .and_modify(|count| *count += result.summary.by_severity.high)
-                        .or_insert(result.summary.by_severity.high);
-                    findings_by_severity
-                        .entry("medium".to_string())
-                        .and_modify(|count| *count += result.summary.by_severity.medium)
-                        .or_insert(result.summary.by_severity.medium);
-                    findings_by_severity
-                        .entry("low".to_string())
-                        .and_modify(|count| *count += result.summary.by_severity.low)
-                        .or_insert(result.summary.by_severity.low);
-
-                    file_results.push(result);
-                }
-                Err(e) => {
-                    error!(
-                        error = %e,
-                        file_path = %file_path_str,
-                        kind = %kind,
-                        "Failed to analyze file with kind"
-                    );
-                    failed_files.insert(format!("{}::{}", file_path_str, kind), e.to_string());
-                }
-            }
-        }
-
-        if !file_results.is_empty() {
-            files_analyzed += 1;
-            results.insert(file_path_str, file_results);
-        } else {
-            files_failed += 1;
-        }
+        query_results.push(SingleQueryResult {
+            command: query.command.clone(),
+            kind: query.kind.clone(),
+            result: query_analysis_result,
+        });
     }
 
+    // 4. Build final summary and metadata
     let execution_time_ms = batch_start.elapsed().as_millis() as u64;
     let completed_at = chrono::Utc::now().to_rfc3339();
 
-    info!(
-        files_analyzed = files_analyzed,
-        files_failed = files_failed,
-        total_findings = total_findings,
-        execution_time_ms = execution_time_ms,
-        "Batch analysis complete"
-    );
+    let mut total_findings = 0;
+    let mut findings_by_severity = HashMap::new();
+    for res in &query_results {
+        total_findings += res.result.summary.total_findings;
+        findings_by_severity.entry("high".to_string()).or_insert(0);
+        findings_by_severity.entry("medium".to_string()).or_insert(0);
+        findings_by_severity.entry("low".to_string()).or_insert(0);
+    }
 
-    // 4. Build BatchAnalysisResult
     Ok(BatchAnalysisResult {
-        results,
+        results: query_results,
         summary: BatchSummary {
-            total_files: request.files.len(),
-            files_analyzed,
-            files_failed,
+            total_queries: request.queries.len(),
+            total_files_scanned: all_files_vec.len(),
+            files_analyzed: ast_cache_hits,
+            files_failed: all_files_vec.len() - ast_cache_hits,
             total_findings,
             findings_by_severity,
             execution_time_ms,
@@ -367,68 +237,69 @@ pub async fn run_batch_analysis(
         metadata: BatchMetadata {
             started_at,
             completed_at,
-            categories_analyzed: vec![request.category],
+            categories_analyzed: all_categories.into_iter().collect(),
             ast_cache_hits,
             ast_cache_misses,
-            failed_files,
+            failed_files: failed_files_map,
         },
     })
 }
 
-/// Parse ASTs for all files in batch (optimization: parse once, analyze many times)
-///
-/// This function pre-parses all files in the batch and stores them in a cache.
-/// Parsing is the most expensive operation, so doing it once and reusing for
-/// multiple analysis kinds provides significant performance benefits.
-///
-/// # Arguments
-/// - `files`: List of file paths to parse
-/// - `context`: Tool handler context with file service and language plugins
-///
-/// # Returns
-/// A HashMap mapping file paths to their cached AST data. Files that fail
-/// to parse are not included in the cache.
-///
-/// # Error Handling
-/// Individual file parse failures do NOT fail the entire batch. Failed files
-/// are simply omitted from the cache and will be skipped during analysis.
-///
-/// # Performance Notes (MVP)
-/// - Current: Sequential parsing
-/// - Future: Parallel parsing with tokio::spawn for large batches
-///
-/// # TODO: Future Enhancements
-/// - Parallel parsing with tokio::spawn
-/// - Persistent cache across batch operations
-/// - Cache invalidation based on file modification time
+use globset::{Glob, GlobSetBuilder};
+
+async fn resolve_scope_to_files(scope: &QueryScope) -> Result<Vec<PathBuf>, BatchError> {
+    let root_path = scope.path.as_ref().ok_or_else(|| {
+        BatchError::InvalidScope(format!(
+            "'{}' scope requires a 'path'",
+            scope.scope_type
+        ))
+    })?;
+
+    match scope.scope_type.as_str() {
+        "file" => Ok(vec![PathBuf::from(root_path)]),
+        "directory" | "workspace" => {
+            let mut files = Vec::new();
+            let walker = WalkBuilder::new(root_path).build();
+
+            let mut include_builder = GlobSetBuilder::new();
+            for pattern in &scope.include {
+                include_builder.add(Glob::new(pattern).map_err(|e| BatchError::InvalidScope(e.to_string()))?);
+            }
+            let include_set = include_builder.build().map_err(|e| BatchError::InvalidScope(e.to_string()))?;
+
+            let mut exclude_builder = GlobSetBuilder::new();
+            for pattern in &scope.exclude {
+                exclude_builder.add(Glob::new(pattern).map_err(|e| BatchError::InvalidScope(e.to_string()))?);
+            }
+            let exclude_set = exclude_builder.build().map_err(|e| BatchError::InvalidScope(e.to_string()))?;
+
+            for result in walker {
+                if let Ok(entry) = result {
+                    if entry.file_type().map_or(false, |ft| ft.is_file()) {
+                        let path = entry.path();
+                        if !exclude_set.is_match(path) && (include_set.is_empty() || include_set.is_match(path)) {
+                            files.push(path.to_path_buf());
+                        }
+                    }
+                }
+            }
+            Ok(files)
+        }
+        _ => Err(BatchError::InvalidScope(format!(
+            "Unsupported scope type: '{}'",
+            scope.scope_type
+        ))),
+    }
+}
+
 async fn batch_parse_asts(
     files: &[PathBuf],
     context: &ToolHandlerContext,
 ) -> HashMap<PathBuf, CachedAst> {
     let mut cache = HashMap::new();
-
-    // TODO: Future enhancement - parallel parsing
-    // Use tokio::spawn to parse files concurrently:
-    // let mut handles = Vec::new();
-    // for file in files {
-    //     let handle = tokio::spawn(parse_single_file(file.clone(), context.clone()));
-    //     handles.push(handle);
-    // }
-    // for handle in handles {
-    //     if let Ok(Some((path, ast))) = handle.await {
-    //         cache.insert(path, ast);
-    //     }
-    // }
-
     for file_path in files {
         match parse_single_file(file_path, context).await {
             Ok(cached_ast) => {
-                debug!(
-                    file_path = %file_path.display(),
-                    symbols_count = cached_ast.symbols.len(),
-                    language = %cached_ast.language,
-                    "File parsed and cached"
-                );
                 cache.insert(file_path.clone(), cached_ast);
             }
             Err(e) => {
@@ -440,32 +311,18 @@ async fn batch_parse_asts(
             }
         }
     }
-
     cache
 }
 
-/// Parse a single file and create cached AST data
-///
-/// Helper function for batch_parse_asts that handles parsing a single file.
-///
-/// # Arguments
-/// - `file_path`: Path to the file to parse
-/// - `context`: Tool handler context with file service and language plugins
-///
-/// # Returns
-/// - `Ok(CachedAst)`: Successfully parsed and cached AST data
-/// - `Err(BatchError)`: Parse failure
 async fn parse_single_file(
     file_path: &Path,
     context: &ToolHandlerContext,
 ) -> Result<CachedAst, BatchError> {
-    // Get file extension
     let extension = file_path
         .extension()
         .and_then(|ext| ext.to_str())
         .ok_or_else(|| BatchError::ParseFailed(format!("No extension: {}", file_path.display())))?;
 
-    // Read file
     let content = context
         .app_state
         .file_service
@@ -473,7 +330,6 @@ async fn parse_single_file(
         .await
         .map_err(|e| BatchError::ParseFailed(format!("Read failed: {}", e)))?;
 
-    // Get language plugin
     let plugin = context
         .app_state
         .language_plugins
@@ -482,7 +338,6 @@ async fn parse_single_file(
             BatchError::ParseFailed(format!("No plugin for extension: {}", extension))
         })?;
 
-    // Parse file
     let parsed = plugin
         .parse(&content)
         .await
@@ -490,7 +345,6 @@ async fn parse_single_file(
 
     let language = plugin.metadata().name.to_string();
 
-    // Pre-compute complexity report
     let complexity_report = cb_ast::complexity::analyze_file_complexity(
         &file_path.display().to_string(),
         &content,
@@ -506,83 +360,16 @@ async fn parse_single_file(
     })
 }
 
-/// Analyze a file using cached AST data
-///
-/// This function runs a specific analysis kind on a file using pre-parsed AST data.
-/// It constructs the appropriate analysis function call based on category and kind.
-///
-/// # Arguments
-/// - `file_path`: Path to the file being analyzed
-/// - `cached_ast`: Pre-parsed AST data from the cache
-/// - `category`: Analysis category (e.g., "quality")
-/// - `kind`: Detection kind (e.g., "complexity", "smells")
-/// - `config`: Optional analysis configuration
-///
-/// # Returns
-/// - `Ok(AnalysisResult)`: Analysis result for this file and kind
-/// - `Err(BatchError)`: Analysis failure
-///
-/// # Implementation Notes
-/// This function delegates to the appropriate detection function based on
-/// category and kind. For MVP, we support the "quality" category with its
-/// detection kinds. Future enhancements can add support for other categories.
-///
-/// # TODO: Future Enhancements
-/// - Support for all categories (dead_code, dependencies, structure, etc.)
-/// - Generic dispatch mechanism instead of manual match statements
-/// - Category-specific configuration passing
 async fn analyze_file_with_cached_ast(
     file_path: &Path,
     cached_ast: &CachedAst,
     category: &str,
     kind: &str,
-    config: Option<&AnalysisConfig>,
+    _config: Option<&AnalysisConfig>,
 ) -> Result<AnalysisResult, BatchError> {
-    // Check if kind is enabled in configuration
-    if let Some(cfg) = config {
-        if !cfg.is_kind_enabled(category, kind) {
-            return Err(BatchError::AnalysisFailed(format!(
-                "Kind '{}' is disabled in configuration for category '{}'",
-                kind, category
-            )));
-        }
-    }
-
-    // Dispatch to appropriate analysis function based on category and kind
-    match category {
-        "quality" => analyze_quality_with_cached_ast(file_path, cached_ast, kind).await,
-        "dead_code" => analyze_dead_code_with_cached_ast(file_path, cached_ast, kind).await,
-        "dependencies" => analyze_dependencies_with_cached_ast(file_path, cached_ast, kind).await,
-        "structure" => analyze_structure_with_cached_ast(file_path, cached_ast, kind).await,
-        "documentation" => analyze_documentation_with_cached_ast(file_path, cached_ast, kind).await,
-        "tests" => analyze_tests_with_cached_ast(file_path, cached_ast, kind).await,
-        _ => Err(BatchError::AnalysisFailed(format!(
-            "Unsupported category '{}' in batch analysis",
-            category
-        ))),
-    }
-}
-
-/// Analyze quality category with cached AST
-///
-/// Delegates to the appropriate quality detection function based on kind.
-///
-/// # Supported Kinds
-/// - "complexity": Cyclomatic and cognitive complexity analysis
-/// - "smells": Code smell detection (long methods, god classes, magic numbers)
-/// - "maintainability": Overall maintainability metrics
-/// - "readability": Readability issues (deep nesting, parameter count, comments)
-async fn analyze_quality_with_cached_ast(
-    file_path: &Path,
-    cached_ast: &CachedAst,
-    kind: &str,
-) -> Result<AnalysisResult, BatchError> {
-    use cb_protocol::analysis_result::{AnalysisScope, Finding};
-
     let file_path_str = file_path.display().to_string();
     let start_time = Instant::now();
 
-    // Build scope for this file
     let scope = AnalysisScope {
         scope_type: "file".to_string(),
         path: file_path_str.clone(),
@@ -590,534 +377,285 @@ async fn analyze_quality_with_cached_ast(
         exclude: vec![],
     };
 
-    // Call the appropriate detection function based on kind
-    // These functions are from quality.rs module
-    let findings: Vec<Finding> = match kind {
-        "complexity" => {
-            // Use the actual complexity analysis from quality handler
-            // The complexity_report is already pre-computed in CachedAst
-            use cb_protocol::analysis_result::{FindingLocation, Position, Range, Severity};
+    let findings: Vec<Finding> = match category {
+        "quality" => match kind {
+            "complexity" => {
+                let mut findings = vec![];
+                for func in &cached_ast.complexity_report.functions {
+                    if func.complexity.cognitive >= 10 || func.complexity.cyclomatic >= 15 {
+                        let severity = match func.rating {
+                            cb_ast::complexity::ComplexityRating::VeryComplex => Severity::High,
+                            cb_ast::complexity::ComplexityRating::Complex => Severity::Medium,
+                            _ => Severity::Low,
+                        };
 
-            // Transform the complexity report manually
-            let mut findings = Vec::new();
-            for func in &cached_ast.complexity_report.functions {
-                // Only include functions above default thresholds
-                if func.complexity.cognitive >= 10 || func.complexity.cyclomatic >= 15 {
-                    let severity = match func.rating {
-                        cb_ast::complexity::ComplexityRating::VeryComplex => Severity::High,
-                        cb_ast::complexity::ComplexityRating::Complex => Severity::Medium,
-                        _ => Severity::Low,
-                    };
+                        let mut metrics = HashMap::new();
+                        metrics.insert(
+                            "cyclomatic_complexity".to_string(),
+                            json!(func.complexity.cyclomatic),
+                        );
+                        metrics.insert(
+                            "cognitive_complexity".to_string(),
+                            json!(func.complexity.cognitive),
+                        );
 
-                    let mut metrics = HashMap::new();
-                    metrics.insert("cyclomatic_complexity".to_string(), json!(func.complexity.cyclomatic));
-                    metrics.insert("cognitive_complexity".to_string(), json!(func.complexity.cognitive));
-
-                    findings.push(Finding {
-                        id: format!("complexity-{}-{}", file_path_str, func.line),
-                        kind: "complexity_hotspot".to_string(),
-                        severity,
-                        location: FindingLocation {
-                            file_path: file_path_str.clone(),
-                            range: Some(Range {
-                                start: Position { line: func.line as u32, character: 0 },
-                                end: Position { line: (func.line + func.metrics.sloc as usize) as u32, character: 0 },
-                            }),
-                            symbol: Some(func.name.clone()),
-                            symbol_kind: Some("function".to_string()),
-                        },
-                        metrics: Some(metrics),
-                        message: format!(
-                            "Function '{}' has high complexity (cyclomatic: {}, cognitive: {})",
-                            func.name, func.complexity.cyclomatic, func.complexity.cognitive
-                        ),
-                        suggestions: vec![],
-                    });
+                        findings.push(Finding {
+                            id: format!("complexity-{}-{}", file_path_str, func.line),
+                            kind: "complexity_hotspot".to_string(),
+                            severity,
+                            location: FindingLocation {
+                                file_path: file_path_str.clone(),
+                                range: Some(Range {
+                                    start: Position { line: func.line as u32, character: 0 },
+                                    end: Position { line: (func.line + func.metrics.sloc as usize) as u32, character: 0 },
+                                }),
+                                symbol: Some(func.name.clone()),
+                                symbol_kind: Some("function".to_string()),
+                            },
+                            metrics: Some(metrics),
+                            message: format!("Function '{}' has high complexity", func.name),
+                            suggestions: vec![],
+                        });
+                    }
                 }
+                findings
             }
-            findings
-        }
-        "smells" => {
-            // Call detect_smells from quality module
-            super::quality::detect_smells(
+            "smells" => quality_handler::detect_smells(
                 &cached_ast.complexity_report,
                 &cached_ast.content,
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-            )
-        }
-        "maintainability" => {
-            super::quality::analyze_maintainability(
+            ),
+            "maintainability" => quality_handler::analyze_maintainability(
                 &cached_ast.complexity_report,
                 &cached_ast.content,
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-            )
-        }
-        "readability" => {
-            super::quality::analyze_readability(
+            ),
+            "readability" => quality_handler::analyze_readability(
                 &cached_ast.complexity_report,
                 &cached_ast.content,
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-            )
-        }
+            ),
+            _ => return Err(BatchError::AnalysisFailed(format!("Unsupported quality kind: {}", kind))),
+        },
+        "dead_code" => match kind {
+            "unused_imports" => dead_code_handler::detect_unused_imports(
+                &cached_ast.complexity_report,
+                &cached_ast.content,
+                &cached_ast.symbols,
+                &cached_ast.language,
+                &file_path_str,
+            ),
+            "unused_symbols" => dead_code_handler::detect_unused_symbols(
+                &cached_ast.complexity_report,
+                &cached_ast.content,
+                &cached_ast.symbols,
+                &cached_ast.language,
+                &file_path_str,
+            ),
+            "unreachable_code" => dead_code_handler::detect_unreachable_code(
+                &cached_ast.complexity_report,
+                &cached_ast.content,
+                &cached_ast.symbols,
+                &cached_ast.language,
+                &file_path_str,
+            ),
+            "unused_parameters" => dead_code_handler::detect_unused_parameters(
+                &cached_ast.complexity_report,
+                &cached_ast.content,
+                &cached_ast.symbols,
+                &cached_ast.language,
+                &file_path_str,
+            ),
+            "unused_types" => dead_code_handler::detect_unused_types(
+                &cached_ast.complexity_report,
+                &cached_ast.content,
+                &cached_ast.symbols,
+                &cached_ast.language,
+                &file_path_str,
+            ),
+            "unused_variables" => dead_code_handler::detect_unused_variables(
+                &cached_ast.complexity_report,
+                &cached_ast.content,
+                &cached_ast.symbols,
+                &cached_ast.language,
+                &file_path_str,
+            ),
+            _ => return Err(BatchError::AnalysisFailed(format!("Unsupported dead_code kind: {}", kind))),
+        },
+        "dependencies" => match kind {
+            "imports" => dependencies_handler::detect_imports(
+                &cached_ast.complexity_report,
+                &cached_ast.content,
+                &cached_ast.symbols,
+                &cached_ast.language,
+                &file_path_str,
+            ),
+            "graph" => dependencies_handler::detect_graph(
+                &cached_ast.complexity_report,
+                &cached_ast.content,
+                &cached_ast.symbols,
+                &cached_ast.language,
+                &file_path_str,
+            ),
+            "circular" => dependencies_handler::detect_circular(
+                &cached_ast.complexity_report,
+                &cached_ast.content,
+                &cached_ast.symbols,
+                &cached_ast.language,
+                &file_path_str,
+            ),
+            "coupling" => dependencies_handler::detect_coupling(
+                &cached_ast.complexity_report,
+                &cached_ast.content,
+                &cached_ast.symbols,
+                &cached_ast.language,
+                &file_path_str,
+            ),
+            "cohesion" => dependencies_handler::detect_cohesion(
+                &cached_ast.complexity_report,
+                &cached_ast.content,
+                &cached_ast.symbols,
+                &cached_ast.language,
+                &file_path_str,
+            ),
+            "depth" => dependencies_handler::detect_depth(
+                &cached_ast.complexity_report,
+                &cached_ast.content,
+                &cached_ast.symbols,
+                &cached_ast.language,
+                &file_path_str,
+            ),
+            _ => return Err(BatchError::AnalysisFailed(format!("Unsupported dependencies kind: {}", kind))),
+        },
+        "structure" => match kind {
+            "symbols" => structure_handler::detect_symbols(
+                &cached_ast.complexity_report,
+                &cached_ast.content,
+                &cached_ast.symbols,
+                &cached_ast.language,
+                &file_path_str,
+            ),
+            "hierarchy" => structure_handler::detect_hierarchy(
+                &cached_ast.complexity_report,
+                &cached_ast.content,
+                &cached_ast.symbols,
+                &cached_ast.language,
+                &file_path_str,
+            ),
+            "interfaces" => structure_handler::detect_interfaces(
+                &cached_ast.complexity_report,
+                &cached_ast.content,
+                &cached_ast.symbols,
+                &cached_ast.language,
+                &file_path_str,
+            ),
+            "inheritance" => structure_handler::detect_inheritance(
+                &cached_ast.complexity_report,
+                &cached_ast.content,
+                &cached_ast.symbols,
+                &cached_ast.language,
+                &file_path_str,
+            ),
+            "modules" => structure_handler::detect_modules(
+                &cached_ast.complexity_report,
+                &cached_ast.content,
+                &cached_ast.symbols,
+                &cached_ast.language,
+                &file_path_str,
+            ),
+            _ => return Err(BatchError::AnalysisFailed(format!("Unsupported structure kind: {}", kind))),
+        },
+        "documentation" => match kind {
+            "coverage" => documentation_handler::detect_coverage(
+                &cached_ast.complexity_report,
+                &cached_ast.content,
+                &cached_ast.symbols,
+                &cached_ast.language,
+                &file_path_str,
+            ),
+            "quality" => documentation_handler::detect_quality(
+                &cached_ast.complexity_report,
+                &cached_ast.content,
+                &cached_ast.symbols,
+                &cached_ast.language,
+                &file_path_str,
+            ),
+            "style" => documentation_handler::detect_style(
+                &cached_ast.complexity_report,
+                &cached_ast.content,
+                &cached_ast.symbols,
+                &cached_ast.language,
+                &file_path_str,
+            ),
+            "examples" => documentation_handler::detect_examples(
+                &cached_ast.complexity_report,
+                &cached_ast.content,
+                &cached_ast.symbols,
+                &cached_ast.language,
+                &file_path_str,
+            ),
+            "todos" => documentation_handler::detect_todos(
+                &cached_ast.complexity_report,
+                &cached_ast.content,
+                &cached_ast.symbols,
+                &cached_ast.language,
+                &file_path_str,
+            ),
+            _ => return Err(BatchError::AnalysisFailed(format!("Unsupported documentation kind: {}", kind))),
+        },
+        "tests" => match kind {
+            "coverage" => tests_handler::detect_coverage(
+                &cached_ast.complexity_report,
+                &cached_ast.content,
+                &cached_ast.symbols,
+                &cached_ast.language,
+                &file_path_str,
+            ),
+            "quality" => tests_handler::detect_quality(
+                &cached_ast.complexity_report,
+                &cached_ast.content,
+                &cached_ast.symbols,
+                &cached_ast.language,
+                &file_path_str,
+            ),
+            "assertions" => tests_handler::detect_assertions(
+                &cached_ast.complexity_report,
+                &cached_ast.content,
+                &cached_ast.symbols,
+                &cached_ast.language,
+                &file_path_str,
+            ),
+            "organization" => tests_handler::detect_organization(
+                &cached_ast.complexity_report,
+                &cached_ast.content,
+                &cached_ast.symbols,
+                &cached_ast.language,
+                &file_path_str,
+            ),
+            _ => return Err(BatchError::AnalysisFailed(format!("Unsupported tests kind: {}", kind))),
+        },
         _ => {
             return Err(BatchError::AnalysisFailed(format!(
-                "Unsupported quality kind: {}",
-                kind
+                "Unsupported category '{}' in batch analysis",
+                category
             )))
         }
     };
 
-    // Build AnalysisResult
-    let mut result = AnalysisResult::new("quality", kind, scope);
+    let mut result = AnalysisResult::new(category, kind, scope);
     result.metadata.language = Some(cached_ast.language.clone());
-
     for finding in findings {
         result.add_finding(finding);
     }
-
     result.summary.files_analyzed = 1;
     result.summary.symbols_analyzed = Some(cached_ast.complexity_report.total_functions);
     result.finalize(start_time.elapsed().as_millis() as u64);
 
     Ok(result)
-}
-
-/// Analyze dead_code category with cached AST
-async fn analyze_dead_code_with_cached_ast(
-    file_path: &Path,
-    cached_ast: &CachedAst,
-    kind: &str,
-) -> Result<AnalysisResult, BatchError> {
-    use cb_protocol::analysis_result::{AnalysisScope, Finding};
-
-    let file_path_str = file_path.display().to_string();
-    let start_time = Instant::now();
-
-    let scope = AnalysisScope {
-        scope_type: "file".to_string(),
-        path: file_path_str.clone(),
-        include: vec![],
-        exclude: vec![],
-    };
-
-    // Call appropriate detection function from dead_code module
-    let findings: Vec<Finding> = match kind {
-        "unused_imports" => super::dead_code::detect_unused_imports(
-            &cached_ast.complexity_report,
-            &cached_ast.content,
-            &cached_ast.symbols,
-            &cached_ast.language,
-            &file_path_str,
-        ),
-        "unused_symbols" => super::dead_code::detect_unused_symbols(
-            &cached_ast.complexity_report,
-            &cached_ast.content,
-            &cached_ast.symbols,
-            &cached_ast.language,
-            &file_path_str,
-        ),
-        "unreachable_code" => super::dead_code::detect_unreachable_code(
-            &cached_ast.complexity_report,
-            &cached_ast.content,
-            &cached_ast.symbols,
-            &cached_ast.language,
-            &file_path_str,
-        ),
-        "unused_parameters" => super::dead_code::detect_unused_parameters(
-            &cached_ast.complexity_report,
-            &cached_ast.content,
-            &cached_ast.symbols,
-            &cached_ast.language,
-            &file_path_str,
-        ),
-        "unused_types" => super::dead_code::detect_unused_types(
-            &cached_ast.complexity_report,
-            &cached_ast.content,
-            &cached_ast.symbols,
-            &cached_ast.language,
-            &file_path_str,
-        ),
-        "unused_variables" => super::dead_code::detect_unused_variables(
-            &cached_ast.complexity_report,
-            &cached_ast.content,
-            &cached_ast.symbols,
-            &cached_ast.language,
-            &file_path_str,
-        ),
-        _ => return Err(BatchError::AnalysisFailed(format!("Unsupported dead_code kind: {}", kind))),
-    };
-
-    let mut result = AnalysisResult::new("dead_code", kind, scope);
-    result.metadata.language = Some(cached_ast.language.clone());
-
-    for finding in findings {
-        result.add_finding(finding);
-    }
-
-    result.summary.files_analyzed = 1;
-    result.summary.symbols_analyzed = Some(cached_ast.symbols.len());
-    result.finalize(start_time.elapsed().as_millis() as u64);
-
-    Ok(result)
-}
-
-/// Analyze dependencies category with cached AST
-async fn analyze_dependencies_with_cached_ast(
-    file_path: &Path,
-    cached_ast: &CachedAst,
-    kind: &str,
-) -> Result<AnalysisResult, BatchError> {
-    use cb_protocol::analysis_result::{AnalysisScope, Finding};
-
-    let file_path_str = file_path.display().to_string();
-    let start_time = Instant::now();
-
-    let scope = AnalysisScope {
-        scope_type: "file".to_string(),
-        path: file_path_str.clone(),
-        include: vec![],
-        exclude: vec![],
-    };
-
-    let findings: Vec<Finding> = match kind {
-        "imports" => super::dependencies::detect_imports(
-            &cached_ast.complexity_report,
-            &cached_ast.content,
-            &cached_ast.symbols,
-            &cached_ast.language,
-            &file_path_str,
-        ),
-        "graph" => super::dependencies::detect_graph(
-            &cached_ast.complexity_report,
-            &cached_ast.content,
-            &cached_ast.symbols,
-            &cached_ast.language,
-            &file_path_str,
-        ),
-        "circular" => super::dependencies::detect_circular(
-            &cached_ast.complexity_report,
-            &cached_ast.content,
-            &cached_ast.symbols,
-            &cached_ast.language,
-            &file_path_str,
-        ),
-        "coupling" => super::dependencies::detect_coupling(
-            &cached_ast.complexity_report,
-            &cached_ast.content,
-            &cached_ast.symbols,
-            &cached_ast.language,
-            &file_path_str,
-        ),
-        "cohesion" => super::dependencies::detect_cohesion(
-            &cached_ast.complexity_report,
-            &cached_ast.content,
-            &cached_ast.symbols,
-            &cached_ast.language,
-            &file_path_str,
-        ),
-        "depth" => super::dependencies::detect_depth(
-            &cached_ast.complexity_report,
-            &cached_ast.content,
-            &cached_ast.symbols,
-            &cached_ast.language,
-            &file_path_str,
-        ),
-        _ => return Err(BatchError::AnalysisFailed(format!("Unsupported dependencies kind: {}", kind))),
-    };
-
-    let mut result = AnalysisResult::new("dependencies", kind, scope);
-    result.metadata.language = Some(cached_ast.language.clone());
-
-    for finding in findings {
-        result.add_finding(finding);
-    }
-
-    result.summary.files_analyzed = 1;
-    result.finalize(start_time.elapsed().as_millis() as u64);
-
-    Ok(result)
-}
-
-/// Analyze structure category with cached AST
-async fn analyze_structure_with_cached_ast(
-    file_path: &Path,
-    cached_ast: &CachedAst,
-    kind: &str,
-) -> Result<AnalysisResult, BatchError> {
-    use cb_protocol::analysis_result::{AnalysisScope, Finding};
-
-    let file_path_str = file_path.display().to_string();
-    let start_time = Instant::now();
-
-    let scope = AnalysisScope {
-        scope_type: "file".to_string(),
-        path: file_path_str.clone(),
-        include: vec![],
-        exclude: vec![],
-    };
-
-    let findings: Vec<Finding> = match kind {
-        "symbols" => super::structure::detect_symbols(
-            &cached_ast.complexity_report,
-            &cached_ast.content,
-            &cached_ast.symbols,
-            &cached_ast.language,
-            &file_path_str,
-        ),
-        "hierarchy" => super::structure::detect_hierarchy(
-            &cached_ast.complexity_report,
-            &cached_ast.content,
-            &cached_ast.symbols,
-            &cached_ast.language,
-            &file_path_str,
-        ),
-        "interfaces" => super::structure::detect_interfaces(
-            &cached_ast.complexity_report,
-            &cached_ast.content,
-            &cached_ast.symbols,
-            &cached_ast.language,
-            &file_path_str,
-        ),
-        "inheritance" => super::structure::detect_inheritance(
-            &cached_ast.complexity_report,
-            &cached_ast.content,
-            &cached_ast.symbols,
-            &cached_ast.language,
-            &file_path_str,
-        ),
-        "modules" => super::structure::detect_modules(
-            &cached_ast.complexity_report,
-            &cached_ast.content,
-            &cached_ast.symbols,
-            &cached_ast.language,
-            &file_path_str,
-        ),
-        _ => return Err(BatchError::AnalysisFailed(format!("Unsupported structure kind: {}", kind))),
-    };
-
-    let mut result = AnalysisResult::new("structure", kind, scope);
-    result.metadata.language = Some(cached_ast.language.clone());
-
-    for finding in findings {
-        result.add_finding(finding);
-    }
-
-    result.summary.files_analyzed = 1;
-    result.summary.symbols_analyzed = Some(cached_ast.symbols.len());
-    result.finalize(start_time.elapsed().as_millis() as u64);
-
-    Ok(result)
-}
-
-/// Analyze documentation category with cached AST
-async fn analyze_documentation_with_cached_ast(
-    file_path: &Path,
-    cached_ast: &CachedAst,
-    kind: &str,
-) -> Result<AnalysisResult, BatchError> {
-    use cb_protocol::analysis_result::{AnalysisScope, Finding};
-
-    let file_path_str = file_path.display().to_string();
-    let start_time = Instant::now();
-
-    let scope = AnalysisScope {
-        scope_type: "file".to_string(),
-        path: file_path_str.clone(),
-        include: vec![],
-        exclude: vec![],
-    };
-
-    let findings: Vec<Finding> = match kind {
-        "coverage" => super::documentation::detect_coverage(
-            &cached_ast.complexity_report,
-            &cached_ast.content,
-            &cached_ast.symbols,
-            &cached_ast.language,
-            &file_path_str,
-        ),
-        "quality" => super::documentation::detect_quality(
-            &cached_ast.complexity_report,
-            &cached_ast.content,
-            &cached_ast.symbols,
-            &cached_ast.language,
-            &file_path_str,
-        ),
-        "style" => super::documentation::detect_style(
-            &cached_ast.complexity_report,
-            &cached_ast.content,
-            &cached_ast.symbols,
-            &cached_ast.language,
-            &file_path_str,
-        ),
-        "examples" => super::documentation::detect_examples(
-            &cached_ast.complexity_report,
-            &cached_ast.content,
-            &cached_ast.symbols,
-            &cached_ast.language,
-            &file_path_str,
-        ),
-        "todos" => super::documentation::detect_todos(
-            &cached_ast.complexity_report,
-            &cached_ast.content,
-            &cached_ast.symbols,
-            &cached_ast.language,
-            &file_path_str,
-        ),
-        _ => return Err(BatchError::AnalysisFailed(format!("Unsupported documentation kind: {}", kind))),
-    };
-
-    let mut result = AnalysisResult::new("documentation", kind, scope);
-    result.metadata.language = Some(cached_ast.language.clone());
-
-    for finding in findings {
-        result.add_finding(finding);
-    }
-
-    result.summary.files_analyzed = 1;
-    result.summary.symbols_analyzed = Some(cached_ast.symbols.len());
-    result.finalize(start_time.elapsed().as_millis() as u64);
-
-    Ok(result)
-}
-
-/// Analyze tests category with cached AST
-async fn analyze_tests_with_cached_ast(
-    file_path: &Path,
-    cached_ast: &CachedAst,
-    kind: &str,
-) -> Result<AnalysisResult, BatchError> {
-    use cb_protocol::analysis_result::{AnalysisScope, Finding};
-
-    let file_path_str = file_path.display().to_string();
-    let start_time = Instant::now();
-
-    let scope = AnalysisScope {
-        scope_type: "file".to_string(),
-        path: file_path_str.clone(),
-        include: vec![],
-        exclude: vec![],
-    };
-
-    let findings: Vec<Finding> = match kind {
-        "coverage" => super::tests_handler::detect_coverage(
-            &cached_ast.complexity_report,
-            &cached_ast.content,
-            &cached_ast.symbols,
-            &cached_ast.language,
-            &file_path_str,
-        ),
-        "quality" => super::tests_handler::detect_quality(
-            &cached_ast.complexity_report,
-            &cached_ast.content,
-            &cached_ast.symbols,
-            &cached_ast.language,
-            &file_path_str,
-        ),
-        "assertions" => super::tests_handler::detect_assertions(
-            &cached_ast.complexity_report,
-            &cached_ast.content,
-            &cached_ast.symbols,
-            &cached_ast.language,
-            &file_path_str,
-        ),
-        "organization" => super::tests_handler::detect_organization(
-            &cached_ast.complexity_report,
-            &cached_ast.content,
-            &cached_ast.symbols,
-            &cached_ast.language,
-            &file_path_str,
-        ),
-        _ => return Err(BatchError::AnalysisFailed(format!("Unsupported tests kind: {}", kind))),
-    };
-
-    let mut result = AnalysisResult::new("tests", kind, scope);
-    result.metadata.language = Some(cached_ast.language.clone());
-
-    for finding in findings {
-        result.add_finding(finding);
-    }
-
-    result.summary.files_analyzed = 1;
-    result.finalize(start_time.elapsed().as_millis() as u64);
-
-    Ok(result)
-}
-
-/// Batch analysis errors
-#[derive(Debug, Error)]
-pub enum BatchError {
-    /// No files provided in batch request
-    #[error("No files provided in batch request")]
-    NoFiles,
-
-    /// No kinds provided in batch request
-    #[error("No analysis kinds provided in batch request")]
-    NoKinds,
-
-    /// Invalid category name
-    #[error("Invalid category: {0}")]
-    InvalidCategory(String),
-
-    /// File parse failed
-    #[error("Parse failed: {0}")]
-    ParseFailed(String),
-
-    /// Analysis execution failed
-    #[error("Analysis failed: {0}")]
-    AnalysisFailed(String),
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_batch_request_creation() {
-        let request = BatchAnalysisRequest {
-            files: vec![PathBuf::from("test.rs")],
-            category: "quality".to_string(),
-            kinds: vec!["complexity".to_string()],
-            config: None,
-        };
-
-        assert_eq!(request.files.len(), 1);
-        assert_eq!(request.category, "quality");
-        assert_eq!(request.kinds.len(), 1);
-    }
-
-    #[test]
-    fn test_batch_summary_initialization() {
-        let summary = BatchSummary {
-            total_files: 10,
-            files_analyzed: 8,
-            files_failed: 2,
-            total_findings: 25,
-            findings_by_severity: HashMap::from([
-                ("high".to_string(), 5),
-                ("medium".to_string(), 10),
-                ("low".to_string(), 10),
-            ]),
-            execution_time_ms: 1500,
-        };
-
-        assert_eq!(summary.total_files, 10);
-        assert_eq!(summary.files_analyzed, 8);
-        assert_eq!(summary.files_failed, 2);
-        assert_eq!(summary.total_findings, 25);
-    }
-
-    #[test]
-    fn test_batch_error_display() {
-        let err = BatchError::NoFiles;
-        assert_eq!(err.to_string(), "No files provided in batch request");
-
-        let err = BatchError::InvalidCategory("unknown".to_string());
-        assert_eq!(err.to_string(), "Invalid category: unknown");
-    }
 }

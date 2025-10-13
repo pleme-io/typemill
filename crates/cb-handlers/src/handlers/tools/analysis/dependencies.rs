@@ -74,6 +74,40 @@ pub fn detect_imports(
     language: &str,
     file_path: &str,
 ) -> Vec<Finding> {
+    if language == "rust" {
+        let mut findings = Vec::new();
+        let import_regex = Regex::new(r"use\s+.*;").unwrap();
+
+        for (i, line) in content.lines().enumerate() {
+            if import_regex.is_match(line) {
+                findings.push(Finding {
+                    id: format!("import-{}-{}", file_path, i),
+                    kind: "import".to_string(),
+                    severity: Severity::Low,
+                    location: FindingLocation {
+                        file_path: file_path.to_string(),
+                        range: Some(Range {
+                            start: Position {
+                                line: i as u32 + 1,
+                                character: 0,
+                            },
+                            end: Position {
+                                line: i as u32 + 1,
+                                character: line.len() as u32,
+                            },
+                        }),
+                        symbol: None,
+                        symbol_kind: None,
+                    },
+                    metrics: None,
+                    message: "Import statement found".to_string(),
+                    suggestions: vec![],
+                });
+            }
+        }
+        return findings;
+    }
+
     // Parse imports using language plugin
     let import_infos = match parse_imports_with_plugin(content, language, file_path) {
         Ok(imports) => imports,

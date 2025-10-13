@@ -785,35 +785,45 @@ impl LanguagePlugin for SystemToolsPlugin {
             }),
             json!({
                 "name": "analyze.batch",
-                "description": "Execute batch analysis across multiple files with optimized AST caching. Parse files once, analyze multiple times for maximum performance. Returns aggregated results with detailed statistics and metadata.",
+                "description": "Executes multiple analysis queries in a single batch for optimized performance. Leverages shared AST parsing to analyze code efficiently across different categories and kinds. Returns an aggregated result for all queries.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "files": {
+                        "queries": {
                             "type": "array",
-                            "items": { "type": "string" },
-                            "description": "Array of file paths to analyze (absolute paths recommended)"
-                        },
-                        "category": {
-                            "type": "string",
-                            "enum": ["quality", "dead_code", "dependencies", "structure", "documentation", "tests"],
-                            "description": "Analysis category to execute"
-                        },
-                        "kinds": {
-                            "type": "array",
-                            "items": { "type": "string" },
-                            "description": "Array of detection kinds to run (e.g., ['complexity', 'smells'] for quality category)"
-                        },
-                        "config": {
-                            "type": "object",
-                            "description": "Optional analysis configuration (thresholds, filters, etc.)",
-                            "properties": {
-                                "presets": { "type": "object" },
-                                "categories": { "type": "object" }
+                            "description": "An array of analysis queries to execute in a batch.",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "command": {
+                                        "type": "string",
+                                        "description": "The analysis command to run, e.g., 'analyze.quality'."
+                                    },
+                                    "kind": {
+                                        "type": "string",
+                                        "description": "The specific kind of analysis to perform, e.g., 'complexity'."
+                                    },
+                                    "scope": {
+                                        "type": "object",
+                                        "description": "The scope of the analysis (file, directory, workspace).",
+                                        "properties": {
+                                            "type": { "type": "string", "enum": ["file", "directory", "workspace", "symbol"] },
+                                            "path": { "type": "string" },
+                                            "include": { "type": "array", "items": { "type": "string" } },
+                                            "exclude": { "type": "array", "items": { "type": "string" } }
+                                        },
+                                        "required": ["type"]
+                                    },
+                                    "options": {
+                                        "type": "object",
+                                        "description": "Optional parameters for the analysis."
+                                    }
+                                },
+                                "required": ["command", "kind", "scope"]
                             }
                         }
                     },
-                    "required": ["files", "category", "kinds"]
+                    "required": ["queries"]
                 }
             }),
             // Note: rename_file and rename_directory are handled by FileOperationHandler

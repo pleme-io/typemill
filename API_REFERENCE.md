@@ -1110,6 +1110,38 @@ codebuddy tool analyze.quality '{
 
 ---
 
+### `analyze.batch`
+
+Executes multiple analysis queries in a single batch for optimized performance. Leverages shared AST parsing to analyze code efficiently across different categories and kinds.
+
+**Arguments**:
+- `queries`: An array of analysis query objects. Each object must contain:
+    - `command`: The analysis command to run (e.g., `"analyze.quality"`).
+    - `kind`: The specific kind of analysis (e.g., `"complexity"`).
+    - `scope`: An object defining the analysis scope, with a `type` (e.g., `"file"`, `"directory"`) and a `path`.
+
+**Example**:
+```json
+{
+  "queries": [
+    {
+      "command": "analyze.quality",
+      "kind": "complexity",
+      "scope": { "type": "file", "path": "src/app.js" }
+    },
+    {
+      "command": "analyze.dead_code",
+      "kind": "unused_imports",
+      "scope": { "type": "directory", "path": "src/" }
+    }
+  ]
+}
+```
+
+**Returns**: A `BatchAnalysisResult` with an array of results for each query, along with a summary and metadata for the entire batch operation.
+
+---
+
 ## Code Analysis
 
 AST-based code analysis tools for detecting code smells and optimization opportunities.
