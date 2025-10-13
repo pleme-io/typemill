@@ -300,7 +300,6 @@ async fn test_rename_file_updates_sibling_directory_importer() {
 }
 
 #[tokio::test]
-#[ignore = "Known issue: Proposal 06 - Directory rename import updates not yet implemented"]
 async fn test_directory_rename_updates_all_imports() {
     // Setup: A multi-file structure inside a directory to be renamed
     let workspace = TestWorkspace::new();
