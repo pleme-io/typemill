@@ -54,10 +54,26 @@ impl FileService {
             )));
         }
 
+        // Extract rename_info if this is a Cargo package (needed for Rust use statement updates)
+        let is_cargo_pkg = self.is_cargo_package(&old_abs).await?;
+        let rename_info = if is_cargo_pkg {
+            self.extract_cargo_rename_info(&old_abs, &new_abs).await.ok()
+        } else {
+            None
+        };
+
+        // If this is a cargo package, force workspace-wide import scan
+        let effective_scan_scope = if is_cargo_pkg {
+            info!("Cargo package rename detected in planning phase, forcing workspace-wide import scan");
+            Some(cb_plugin_api::ScanScope::AllUseStatements)
+        } else {
+            scan_scope
+        };
+
         // For directory renames, we need to update imports that reference files inside the directory
         // The `true` flag indicates a dry run.
         self.import_service
-            .update_imports_for_rename(&old_abs, &new_abs, None, true, scan_scope)
+            .update_imports_for_rename(&old_abs, &new_abs, rename_info.as_ref(), true, effective_scan_scope)
             .await
     }
 

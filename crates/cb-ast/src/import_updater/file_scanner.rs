@@ -20,12 +20,20 @@ impl ImportPathResolver {
             }
 
             // Check cache first (release lock immediately)
-            let cache_result = {
+            // Can be disabled via CODEBUDDY_DISABLE_IMPORT_CACHE=1 for testing
+            let cache_enabled = std::env::var("CODEBUDDY_DISABLE_IMPORT_CACHE")
+                .map(|v| v != "1" && v != "true")
+                .unwrap_or(true);
+
+            let cache_result = if cache_enabled {
                 if let Ok(cache) = self.import_cache.lock() {
                     cache.get(file).cloned()
                 } else {
                     None
                 }
+            } else {
+                debug!("Import cache disabled via CODEBUDDY_DISABLE_IMPORT_CACHE");
+                None
             };
 
             let (should_scan, is_cached_hit) = if let Some(cached_info) = cache_result {
