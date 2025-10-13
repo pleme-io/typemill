@@ -74,7 +74,7 @@ mod tests {
         });
     }
 
-    fn create_test_service(temp_dir: &TempDir) -> (FileService, Arc<OperationQueue>) {
+    pub(super) fn create_test_service(temp_dir: &TempDir) -> (FileService, Arc<OperationQueue>) {
         let ast_cache = Arc::new(AstCache::new());
         let lock_manager = Arc::new(LockManager::new());
         let operation_queue = Arc::new(OperationQueue::new(lock_manager.clone()));
@@ -702,5 +702,231 @@ members = [
         );
         // Path with no up-levels
         assert_eq!(service.adjust_relative_path("sibling", 2, 1), "sibling");
+    }
+}
+
+#[cfg(test)]
+mod move_tests {
+    use std::path::Path;
+
+    use tempfile::TempDir;
+
+    use cb_protocol::ApiError;
+
+    use super::tests::create_test_service;
+
+    #[tokio::test]
+    async fn test_move_file_dry_run() {
+        let temp_dir = TempDir::new().unwrap();
+        let (service, queue) = create_test_service(&temp_dir);
+
+        let source_path = Path::new("source.txt");
+        let dest_path = Path::new("dest.txt");
+        let content = "move content";
+
+        service
+            .create_file(source_path, Some(content), false, false)
+            .await
+            .unwrap();
+        queue.wait_until_idle().await;
+
+        // Perform a dry-run move
+        let result = service
+            .rename_file_with_imports(source_path, dest_path, true, None)
+            .await
+            .unwrap();
+
+        // A successful dry run should not error, but it does not have a "success" field.
+        // The unwrap() call above is sufficient to check for errors.
+        assert!(result.dry_run);
+        // In dry run, no operations should be queued.
+        assert_eq!(queue.queue_size().await, 0);
+
+        // Verify that the source file still exists and the destination does not.
+        assert!(temp_dir.path().join(source_path).exists());
+        assert!(!temp_dir.path().join(dest_path).exists());
+    }
+
+    #[tokio::test]
+    async fn test_move_file_collision_detection() {
+        let temp_dir = TempDir::new().unwrap();
+        let (service, queue) = create_test_service(&temp_dir);
+
+        let source_path = Path::new("source.txt");
+        let dest_path = Path::new("dest.txt");
+
+        service
+            .create_file(source_path, Some("source"), false, false)
+            .await
+            .unwrap();
+        service
+            .create_file(dest_path, Some("destination"), false, false)
+            .await
+            .unwrap();
+        queue.wait_until_idle().await;
+
+        // Attempt to move, expecting a collision error.
+        let result = service
+            .rename_file_with_imports(source_path, dest_path, false, None)
+            .await;
+
+        assert!(result.is_err());
+        if let Err(ApiError::AlreadyExists(path_str)) = result {
+            // The error message contains the full absolute path.
+            // We'll just check that it contains the destination path we expect.
+            assert!(path_str.contains(dest_path.to_str().unwrap()));
+        } else {
+            panic!("Expected AlreadyExists error, got {:?}", result);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_move_file_creates_parent_directories() {
+        let temp_dir = TempDir::new().unwrap();
+        let (service, queue) = create_test_service(&temp_dir);
+
+        let source_path = Path::new("source.txt");
+        let dest_path = Path::new("new/nested/dir/dest.txt");
+        let content = "move content";
+
+        service
+            .create_file(source_path, Some(content), false, false)
+            .await
+            .unwrap();
+        queue.wait_until_idle().await;
+
+        // Perform move, which should create parent directories.
+        service
+            .rename_file_with_imports(source_path, dest_path, false, None)
+            .await
+            .unwrap();
+
+        queue.wait_until_idle().await;
+
+        assert!(!temp_dir.path().join(source_path).exists());
+        assert!(temp_dir.path().join(dest_path).exists());
+        assert!(temp_dir.path().join("new/nested/dir").is_dir());
+    }
+
+    #[tokio::test]
+    async fn test_move_directory_dry_run() {
+        let temp_dir = TempDir::new().unwrap();
+        let (service, queue) = create_test_service(&temp_dir);
+
+        let source_dir = Path::new("source_dir");
+        let dest_dir = Path::new("dest_dir");
+        let file_in_dir = source_dir.join("file.txt");
+
+        // Create the directory by creating a file inside it.
+        service
+            .create_file(&file_in_dir, Some("content"), false, false)
+            .await
+            .unwrap();
+        queue.wait_until_idle().await;
+
+        // Perform a dry-run move
+        service
+            .rename_directory_with_imports(source_dir, dest_dir, true, false, None)
+            .await
+            .unwrap();
+
+        assert_eq!(queue.queue_size().await, 0);
+
+        // Verify that the source directory still exists and the destination does not.
+        assert!(temp_dir.path().join(source_dir).exists());
+        assert!(temp_dir.path().join(file_in_dir).exists());
+        assert!(!temp_dir.path().join(dest_dir).exists());
+    }
+
+    #[tokio::test]
+    async fn test_move_directory_execution() {
+        let temp_dir = TempDir::new().unwrap();
+        let (service, queue) = create_test_service(&temp_dir);
+
+        let source_dir = Path::new("source_dir");
+        let dest_dir = Path::new("dest_dir");
+        let file_in_source = source_dir.join("file.txt");
+        let file_in_dest = dest_dir.join("file.txt");
+
+        service
+            .create_file(&file_in_source, Some("content"), false, false)
+            .await
+            .unwrap();
+        queue.wait_until_idle().await;
+
+        // Perform a real move
+        service
+            .rename_directory_with_imports(source_dir, dest_dir, false, false, None)
+            .await
+            .unwrap();
+        queue.wait_until_idle().await;
+
+        // Verify that the source is gone and the destination exists.
+        assert!(!temp_dir.path().join(source_dir).exists());
+        assert!(!temp_dir.path().join(file_in_source).exists());
+        assert!(temp_dir.path().join(dest_dir).exists());
+        assert!(temp_dir.path().join(file_in_dest).exists());
+    }
+
+    #[tokio::test]
+    async fn test_move_directory_collision_detection() {
+        let temp_dir = TempDir::new().unwrap();
+        let (service, queue) = create_test_service(&temp_dir);
+
+        let source_dir = Path::new("source_dir");
+        let dest_dir = Path::new("dest_dir");
+
+        // Create directories by creating files within them
+        service
+            .create_file(&source_dir.join("dummy.txt"), Some(""), false, false)
+            .await
+            .unwrap();
+        service
+            .create_file(&dest_dir.join("dummy.txt"), Some(""), false, false)
+            .await
+            .unwrap();
+        queue.wait_until_idle().await;
+
+        // Attempt to move, expecting a collision error.
+        let result = service
+            .rename_directory_with_imports(source_dir, dest_dir, false, false, None)
+            .await;
+
+        assert!(result.is_err());
+        if let Err(ApiError::AlreadyExists(path_str)) = result {
+            // The error message contains the full absolute path.
+            // We'll just check that it contains the destination path we expect.
+            assert!(path_str.contains(dest_dir.to_str().unwrap()));
+        } else {
+            panic!("Expected AlreadyExists error, got {:?}", result);
+        }
+    }
+
+    // A simple case-only rename test. The exact behavior can be filesystem-dependent.
+    #[tokio::test]
+    async fn test_case_only_rename() {
+        let temp_dir = TempDir::new().unwrap();
+        let (service, queue) = create_test_service(&temp_dir);
+
+        let source_path = Path::new("file.txt");
+        let dest_path = Path::new("File.txt");
+
+        service
+            .create_file(source_path, Some("content"), false, false)
+            .await
+            .unwrap();
+        queue.wait_until_idle().await;
+
+        service
+            .rename_file_with_imports(source_path, dest_path, false, None)
+            .await
+            .unwrap();
+        queue.wait_until_idle().await;
+
+        // On case-insensitive filesystems, old path might still appear to exist.
+        // The most reliable check is that the new path exists and its content is correct.
+        assert!(temp_dir.path().join(dest_path).exists());
+        let content = service.read_file(dest_path).await.unwrap();
+        assert_eq!(content, "content");
     }
 }
