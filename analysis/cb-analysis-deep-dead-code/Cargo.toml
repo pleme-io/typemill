@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 # Workspace dependencies
 cb-analysis-common = { workspace = true }
+cb-lang-common = { workspace = true }
 
 # External dependencies
 async-trait = { workspace = true }

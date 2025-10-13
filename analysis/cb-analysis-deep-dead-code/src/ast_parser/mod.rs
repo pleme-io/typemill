@@ -3,6 +3,8 @@
 //! This module is responsible for parsing source code into an Abstract Syntax Tree (AST)
 //! and extracting symbol information from it.
 
+pub mod typescript;
+
 use cb_analysis_common::graph::{SymbolKind, SymbolNode};
 use lsp_types::{Position, Range};
 use std::fs;
@@ -11,10 +13,10 @@ use syn::spanned::Spanned;
 use syn::{File, Item, Visibility};
 use tracing::{debug, warn};
 
-/// Extracts symbols from a given source file using an AST parser.
-pub struct SymbolExtractor;
+/// Extracts symbols from a given Rust source file using an AST parser.
+pub struct RustSymbolExtractor;
 
-impl SymbolExtractor {
+impl RustSymbolExtractor {
     /// Creates a new `SymbolExtractor`.
     pub fn new() -> Self {
         Self

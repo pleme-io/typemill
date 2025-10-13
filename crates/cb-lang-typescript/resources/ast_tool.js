@@ -510,14 +510,121 @@ function extractSymbolsRegex(source) {
     return symbols;
 }
 
+/**
+ * AST-based deep symbol extraction using Babel for dead code analysis
+ */
+function extractSymbolsDeep(source) {
+    if (!parser || !traverse) {
+        // Babel is required for deep analysis
+        console.error("Babel parser not available, cannot perform deep symbol extraction.");
+        return [];
+    }
+
+    try {
+        const ast = parser.parse(source, {
+            sourceType: 'module',
+            plugins: [
+                'typescript',
+                'jsx',
+                'decorators-legacy',
+                'classProperties'
+            ]
+        });
+
+        const symbols = [];
+
+        function isExported(path) {
+            let parent = path.parentPath;
+            if (parent.isExportNamedDeclaration() || parent.isExportDefaultDeclaration()) {
+                return true;
+            }
+            // Also check for `export { symbol }`
+            if (parent.isExportSpecifier() && parent.parentPath.isExportNamedDeclaration()) {
+                return true;
+            }
+
+            return false;
+        }
+
+        const visitor = {
+            'FunctionDeclaration|ClassDeclaration|TSInterfaceDeclaration|TSEnumDeclaration|TSTypeAliasDeclaration'(path) {
+                const node = path.node;
+                if (!node.id) return; // Skip anonymous declarations
+                const loc = node.loc;
+
+                let kind;
+                switch (node.type) {
+                    case 'FunctionDeclaration': kind = 'Function'; break;
+                    case 'ClassDeclaration': kind = 'Struct'; break; // Mapped to align with Rust's SymbolKind
+                    case 'TSInterfaceDeclaration': kind = 'Trait'; break; // Mapped to align with Rust's SymbolKind
+                    case 'TSEnumDeclaration': kind = 'Enum'; break;
+                    case 'TSTypeAliasDeclaration': kind = 'TypeAlias'; break;
+                }
+
+                symbols.push({
+                    name: node.id.name,
+                    kind: kind,
+                    is_public: isExported(path),
+                    location: {
+                        start_line: loc.start.line,
+                        start_column: loc.start.column,
+                        end_line: loc.end.line,
+                        end_column: loc.end.column
+                    }
+                });
+            },
+
+            VariableDeclarator(path) {
+                const node = path.node;
+                if (node.id.type === 'Identifier') {
+                    const declaration = path.findParent((p) => p.isVariableDeclaration());
+                    if (!declaration) return;
+
+                    const loc = node.loc;
+
+                    let kind;
+                    if (declaration.node.kind === 'const') {
+                        kind = 'Constant';
+                    } else {
+                        // For now, only 'const' is treated as a symbol for dead code analysis.
+                        // 'let' and 'var' are considered too dynamic.
+                        return;
+                    }
+
+                    symbols.push({
+                        name: node.id.name,
+                        kind: kind,
+                        is_public: isExported(declaration),
+                        location: {
+                            start_line: loc.start.line,
+                            start_column: loc.start.column,
+                            end_line: loc.end.line,
+                            end_column: loc.end.column
+                        }
+                    });
+                }
+            }
+        };
+
+        traverse(ast, visitor);
+
+        return symbols;
+    } catch (error) {
+        // On parsing failure, return empty list. The Rust side will log this.
+        return [];
+    }
+}
+
+
 // CLI interface
 const command = process.argv[2];
 
 if (!command) {
     console.error('Usage: node ast_tool.js <command>');
     console.error('Commands:');
-    console.error('  analyze-imports  Parse source from stdin and output import information as JSON');
-    console.error('  extract-symbols  Parse source from stdin and output symbol information as JSON');
+    console.error('  analyze-imports       Parse source from stdin and output import information as JSON');
+    console.error('  extract-symbols       Parse source from stdin and output symbol information as JSON');
+    console.error('  extract-symbols-deep  Parse source from stdin and output detailed symbols for dead code analysis');
     process.exit(1);
 }
 
@@ -529,6 +636,9 @@ if (command === 'analyze-imports') {
     console.log(JSON.stringify(imports, null, 2));
 } else if (command === 'extract-symbols') {
     const symbols = extractSymbols(source);
+    console.log(JSON.stringify(symbols, null, 2));
+} else if (command === 'extract-symbols-deep') {
+    const symbols = extractSymbolsDeep(source);
     console.log(JSON.stringify(symbols, null, 2));
 } else {
     console.error('Unknown command:', command);

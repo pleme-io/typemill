@@ -1,6 +1,6 @@
 // analysis/cb-analysis-deep-dead-code/src/graph_builder.rs
 
-use crate::ast_parser::SymbolExtractor;
+use crate::ast_parser::{typescript::TypeScriptSymbolExtractor, RustSymbolExtractor};
 use cb_analysis_common::{
     graph::{DependencyGraph, SymbolNode, UsageContext},
     AnalysisError, LspProvider,
@@ -16,7 +16,8 @@ use walkdir::WalkDir;
 pub struct GraphBuilder {
     lsp: Arc<dyn LspProvider>,
     workspace_path: PathBuf,
-    symbol_extractor: SymbolExtractor,
+    rust_symbol_extractor: RustSymbolExtractor,
+    typescript_symbol_extractor: TypeScriptSymbolExtractor,
 }
 
 impl GraphBuilder {
@@ -24,7 +25,8 @@ impl GraphBuilder {
         Self {
             lsp,
             workspace_path,
-            symbol_extractor: SymbolExtractor::new(),
+            rust_symbol_extractor: RustSymbolExtractor::new(),
+            typescript_symbol_extractor: TypeScriptSymbolExtractor::new(),
         }
     }
 
@@ -32,20 +34,36 @@ impl GraphBuilder {
         let mut graph = DependencyGraph::new();
         info!("Building dependency graph using AST parser for symbol extraction...");
 
-        // Step 1: Extract symbols from all Rust files using the AST parser.
+        // Step 1: Extract symbols from all source files using AST parsers.
         let mut all_symbols = Vec::new();
         let mut file_symbol_map: HashMap<String, Vec<&SymbolNode>> = HashMap::new();
+
+        let source_file_extensions: Vec<&str> = vec!["rs", "ts", "tsx", "js", "jsx"];
 
         for entry in WalkDir::new(&self.workspace_path)
             .into_iter()
             .filter_map(|e| e.ok())
-            .filter(|e| e.path().extension().map_or(false, |ext| ext == "rs"))
+            .filter(|e| {
+                e.path()
+                    .extension()
+                    .and_then(|s| s.to_str())
+                    .map_or(false, |ext| source_file_extensions.contains(&ext))
+            })
         {
             let path = entry.path();
-            match self
-                .symbol_extractor
-                .extract_symbols(path, &self.workspace_path)
-            {
+            let extension = path.extension().and_then(|s| s.to_str()).unwrap_or("");
+
+            let extracted_symbols = match extension {
+                "rs" => self
+                    .rust_symbol_extractor
+                    .extract_symbols(path, &self.workspace_path),
+                "ts" | "tsx" | "js" | "jsx" => self
+                    .typescript_symbol_extractor
+                    .extract_symbols(path, &self.workspace_path),
+                _ => continue,
+            };
+
+            match extracted_symbols {
                 Ok(symbols) => {
                     all_symbols.extend(symbols);
                 }
