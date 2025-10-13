@@ -750,7 +750,7 @@ impl FileService {
         update: &DependencyUpdate,
     ) -> ServerResult<bool> {
         // Delegate the dependency update to the import service, which handles AST transformations.
-        self.import_service
+        self.reference_updater
             .update_import_reference(file_path, update)
             .await
             .map_err(|e| {

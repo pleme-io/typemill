@@ -9,6 +9,7 @@ pub mod lock_manager;
 pub mod operation_queue;
 pub mod planner;
 pub mod registry_builder;
+pub mod reference_updater;
 pub mod workflow_executor;
 
 #[cfg(test)]

@@ -96,13 +96,14 @@ Together, these pillars form a complete code intelligence ecosystem: **analysis 
 **Concept**: Relocate code between files or directories while maintaining functionality.
 
 **Implemented Tools**:
-- `rename_file` - Move files to new locations
-- `rename_directory` - Move entire directories
-- `extract_module_to_package` - Move module to new package structure
+- `move.plan` - Plan moving of symbols, files, or directories (unified API)
+- `workspace.apply_edit` - Execute move plans with atomic application
+- `rename_file` - Legacy direct file move with automatic import updates
+- `rename_directory` - Legacy direct directory move with automatic import updates
 
 **Key Characteristics**:
 - Import/export rewiring
-- Reference updating
+- Reference updating via `ReferenceUpdater` service
 - Namespace preservation
 - Dependency tracking
 

@@ -397,6 +397,88 @@ pub struct RenameFileTestCase {
     pub expected_import_updates: &'static [(&'static str, &'static str)], // (file_path, expected_content_substring)
 }
 
+// =============================================================================
+// MOVE FILE TEST CASES
+// =============================================================================
+
+/// Test fixture for move_file operations
+#[derive(Debug, Clone)]
+pub struct MoveFileTestCase {
+    pub test_name: &'static str,
+    pub initial_files: &'static [(&'static str, &'static str)],
+    pub old_file_path: &'static str,
+    pub new_file_path: &'static str,
+    pub expect_success: bool,
+    pub expected_import_updates: &'static [(&'static str, &'static str)], // (file_path, expected_content_substring)
+}
+
+pub const MOVE_FILE_TESTS: &[MoveFileTestCase] = &[
+    MoveFileTestCase {
+        test_name: "basic_move_with_import_updates",
+        initial_files: &[
+            (
+                "src/utils.ts",
+                r#"export const myUtil = () => {
+    return "utility function";
+};
+
+export function helperFunc(data: string): string {
+    return data.toUpperCase();
+}
+"#,
+            ),
+            (
+                "src/main.ts",
+                r#"import { myUtil, helperFunc } from './utils';
+
+export function main() {
+    const result = myUtil();
+    const processed = helperFunc(result);
+    console.log(processed);
+}
+"#,
+            ),
+        ],
+        old_file_path: "src/utils.ts",
+        new_file_path: "src/new_dir/utils.ts",
+        expect_success: true,
+        expected_import_updates: &[("src/main.ts", "from './new_dir/utils'")],
+    },
+    MoveFileTestCase {
+        test_name: "move_to_parent_directory",
+        initial_files: &[
+            ("src/components/Button.ts", "export class Button {}"),
+            ("src/components/index.ts", "import { Button } from './Button';"),
+        ],
+        old_file_path: "src/components/Button.ts",
+        new_file_path: "src/Button.ts",
+        expect_success: true,
+        expected_import_updates: &[("src/components/index.ts", "from '../Button'")],
+    },
+    MoveFileTestCase {
+        test_name: "move_between_sibling_directories",
+        initial_files: &[
+            ("src/components/Button.ts", "export class Button {}"),
+            ("src/utils/helpers.ts", "import { Button } from '../components/Button';"),
+        ],
+        old_file_path: "src/components/Button.ts",
+        new_file_path: "src/ui/Button.ts",
+        expect_success: true,
+        expected_import_updates: &[("src/utils/helpers.ts", "from '../ui/Button'")],
+    },
+    MoveFileTestCase {
+        test_name: "move_to_deeper_nesting_level",
+        initial_files: &[
+            ("src/Button.ts", "export class Button {}"),
+            ("src/index.ts", "import { Button } from './Button';"),
+        ],
+        old_file_path: "src/Button.ts",
+        new_file_path: "src/components/core/Button.ts",
+        expect_success: true,
+        expected_import_updates: &[("src/index.ts", "from './components/core/Button'")],
+    },
+];
+
 pub const RENAME_FILE_TESTS: &[RenameFileTestCase] = &[
     RenameFileTestCase {
         test_name: "basic_rename_with_import_updates",

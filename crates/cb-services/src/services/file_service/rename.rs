@@ -29,8 +29,8 @@ impl FileService {
         }
 
         // The `true` flag indicates a dry run.
-        self.import_service
-            .update_imports_for_rename(&old_abs, &new_abs, None, true, scan_scope)
+        self.reference_updater
+            .update_references(&old_abs, &new_abs, &self.plugin_registry.all(), None, true, scan_scope)
             .await
     }
 
@@ -72,8 +72,8 @@ impl FileService {
 
         // For directory renames, we need to update imports that reference files inside the directory
         // The `true` flag indicates a dry run.
-        self.import_service
-            .update_imports_for_rename(&old_abs, &new_abs, rename_info.as_ref(), true, effective_scan_scope)
+        self.reference_updater
+            .update_references(&old_abs, &new_abs, &self.plugin_registry.all(), rename_info.as_ref(), true, effective_scan_scope)
             .await
     }
 
@@ -173,11 +173,11 @@ impl FileService {
                 }
             }
 
-            let affected_files = self.import_service.find_affected_files(&old_abs).await?;
+            // let affected_files = self.reference_updater.find_affected_files(&old_abs).await?;
 
             let edit_plan = self
-                .import_service
-                .update_imports_for_rename(&old_abs, &new_abs, None, true, scan_scope.clone())
+                .reference_updater
+                .update_references(&old_abs, &new_abs, &self.plugin_registry.all(), None, true, scan_scope.clone())
                 .await?;
 
             Ok(DryRunnable::new(
@@ -186,7 +186,6 @@ impl FileService {
                     "operation": "move_file",
                     "old_path": old_abs.to_string_lossy(),
                     "new_path": new_abs.to_string_lossy(),
-                    "affected_files": affected_files.len(),
                     "import_updates": {
                         "edits_planned": edit_plan.edits.len(),
                         "files_to_modify": edit_plan.edits.iter()
@@ -240,8 +239,8 @@ impl FileService {
             info!("File renamed successfully");
 
             let mut edit_plan = self
-                .import_service
-                .update_imports_for_rename(&old_abs, &new_abs, None, false, scan_scope)
+                .reference_updater
+                .update_references(&old_abs, &new_abs, &self.plugin_registry.all(), None, false, scan_scope)
                 .await
                 .map_err(|e| {
                     warn!(error = %e, "File renamed but import updates failed");
@@ -413,10 +412,11 @@ impl FileService {
             // Call update_imports_for_rename ONCE for the entire directory rename
             // This prevents creating duplicate edits for the same affected files
             match self
-                .import_service
-                .update_imports_for_rename(
+                .reference_updater
+                .update_references(
                     &old_abs_dir, // Use directory paths instead of individual files
                     &new_abs_dir,
+                    &self.plugin_registry.all(),
                     rename_info.as_ref(),
                     false,
                     effective_scan_scope,

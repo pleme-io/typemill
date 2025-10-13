@@ -1,4 +1,5 @@
 use super::FileService;
+use crate::services::reference_updater::find_project_files;
 use crate::services::operation_queue::{FileOperation, OperationTransaction, OperationType};
 use cb_core::dry_run::DryRunnable;
 use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
@@ -126,7 +127,9 @@ impl FileService {
             }
 
             let affected_files_count = if !force {
-                let affected = self.import_service.find_affected_files(&abs_path).await?;
+                let plugins = &self.plugin_registry.all();
+                let project_files = find_project_files(&self.project_root, plugins).await?;
+                let affected = self.reference_updater.find_affected_files(&abs_path, &project_files, plugins).await?;
                 if !affected.is_empty() {
                     return Err(ServerError::InvalidRequest(format!(
                         "File is imported by {} other files",
@@ -169,7 +172,9 @@ impl FileService {
             }
 
             if !force {
-                let affected = self.import_service.find_affected_files(&abs_path).await?;
+                let plugins = &self.plugin_registry.all();
+                let project_files = find_project_files(&self.project_root, plugins).await?;
+                let affected = self.reference_updater.find_affected_files(&abs_path, &project_files, plugins).await?;
                 if !affected.is_empty() {
                     warn!(
                         affected_files_count = affected.len(),

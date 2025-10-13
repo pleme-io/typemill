@@ -15,7 +15,7 @@ pub use self::edit_plan::EditPlanResult;
 pub use self::utils::DocumentationUpdateReport;
 
 use crate::services::git_service::GitService;
-use crate::services::import_service::ImportService;
+use crate::services::reference_updater::ReferenceUpdater;
 use crate::services::lock_manager::LockManager;
 use crate::services::operation_queue::OperationQueue;
 use cb_ast::AstCache;
@@ -26,8 +26,10 @@ use tracing::debug;
 
 /// Service for file operations with import update capabilities
 pub struct FileService {
-    /// Import service for handling import updates
-    pub(super) import_service: ImportService,
+    /// Reference updater for handling import updates
+    pub reference_updater: ReferenceUpdater,
+    /// Language plugin registry
+    pub plugin_registry: Arc<cb_plugin_api::PluginRegistry>,
     /// Project root directory
     pub(super) project_root: PathBuf,
     /// AST cache for invalidation after edits
@@ -72,7 +74,8 @@ impl FileService {
         );
 
         Self {
-            import_service: ImportService::new(&project_root, plugin_registry),
+            reference_updater: ReferenceUpdater::new(&project_root),
+            plugin_registry,
             project_root,
             ast_cache,
             lock_manager,

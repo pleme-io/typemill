@@ -231,7 +231,7 @@ impl FileService {
 
         // Step 5: Update all imports across the workspace
         let mut total_imports_updated = 0;
-        let mut files_with_import_updates = Vec::new();
+        let mut files_with_import_updates: Vec<String> = Vec::new();
 
         // Use a "virtual" old file path for the import service
         // This represents the old crate's "entry point" for import resolution
@@ -239,10 +239,13 @@ impl FileService {
         let virtual_new_path = new_abs.join("lib.rs");
 
         match self
-            .import_service
-            .update_imports_for_rename(
+            .reference_updater
+            .update_references(
                 &virtual_old_path,
                 &virtual_new_path,
+                Some(&rename_info),
+                false,
+                &self.plugin_registry.all(),
                 Some(&rename_info),
                 false,
                 Some(cb_plugin_api::ScanScope::AllUseStatements),

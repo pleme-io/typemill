@@ -34,6 +34,9 @@ pub mod test_inline_integration;
 pub mod test_move_integration;
 
 #[cfg(test)]
+pub mod test_move_with_imports;
+
+#[cfg(test)]
 pub mod test_reorder_integration;
 
 #[cfg(test)]
