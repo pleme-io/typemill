@@ -1,7 +1,6 @@
 // analysis/cb-analysis-deep-dead-code/src/ast_parser/tests.rs
 
 use super::*;
-use std::path::PathBuf;
 use tempfile::tempdir;
 
 #[test]
@@ -33,7 +32,7 @@ fn test_extract_symbols_from_rust_file() {
 
     fs::write(&file_path, source_code).unwrap();
 
-    let extractor = SymbolExtractor::new();
+    let extractor = RustSymbolExtractor::new();
     let symbols = extractor.extract_symbols(&file_path, workspace_root).unwrap();
 
     assert_eq!(symbols.len(), 5);
@@ -78,7 +77,7 @@ fn test_handle_parse_error_gracefully() {
     let source_code = "pub struct MyStruct {"; // Invalid Rust code
     fs::write(&file_path, source_code).unwrap();
 
-    let extractor = SymbolExtractor::new();
+    let extractor = RustSymbolExtractor::new();
     let symbols = extractor.extract_symbols(&file_path, workspace_root).unwrap();
 
     // Should return an empty Vec, not an error
