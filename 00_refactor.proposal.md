@@ -109,23 +109,155 @@ This proposal prioritizes the project’s highest-value capability: frictionless
 
 ---
 
-## Milestones
+## Implementation Checklist
 
-| Milestone | Scope | Target |
-|-----------|-------|--------|
-| M1 | Test harness + coverage for file/folder moves | Week 1 |
-| M2 | Symbol move implementation + LSP orchestration | Week 2 |
-| M3 | ReferenceUpdater service + handler refactor | Week 3 |
-| M4 | Documentation + polish, readiness review | Week 4 |
+### Phase 1: Build Comprehensive Move Test Suite
+
+#### Test Infrastructure
+- [ ] Create `integration-tests/src/test_move_with_imports.rs`
+- [ ] Set up test fixtures under `integration-tests/fixtures/`
+- [ ] Add snapshot testing infrastructure
+- [ ] Create multi-crate Rust workspace fixture
+- [ ] Create TS monorepo fixture with aliases
+
+#### Path Move Scenarios
+- [ ] Test absolute path moves
+- [ ] Test relative path moves with `../` upward traversal
+- [ ] Test moves to deeper nesting levels
+- [ ] Test moves between sibling directories
+- [ ] Test moves across crate/workspace boundaries
+- [ ] Test case-only rename behavior
+
+#### Folder Move Scenarios
+- [ ] Test folder moves with nested contents
+- [ ] Test manifest updates after folder moves
+- [ ] Test documentation/link rewrites
+- [ ] Test moves requiring parent directory creation
+- [ ] Test collision detection
+
+#### Import Rewrite Verification
+- [ ] Test JS/TS default imports
+- [ ] Test JS/TS named imports
+- [ ] Test JS/TS dynamic imports
+- [ ] Test `require()` statements
+- [ ] Test extensionless paths
+- [ ] Test Rust module use statements
+- [ ] Test Rust `mod` declarations
+
+#### FileService Tests
+- [ ] Add tests to `crates/cb-services/src/services/file_service/tests.rs`
+- [ ] Test dry-run vs execution modes
+- [ ] Test collision detection logic
+- [ ] Test parent directory creation
+- [ ] Test case-only renames
+
+#### Language Plugin Tests
+- [ ] Add property tests for TS path normalization
+- [ ] Add property tests for Rust path normalization
+- [ ] Test slash handling across platforms
+- [ ] Test quote preservation in rewrites
+
+---
+
+### Phase 2: Implement Robust Move Functionality
+
+#### File/Folder Move Support
+- [ ] Extend `move.plan` for file moves
+- [ ] Extend `move.plan` for folder moves
+- [ ] Implement automatic parent directory creation
+- [ ] Add collision reporting
+- [ ] Implement cross-root path normalization
+
+#### Symbol Move Support
+- [ ] Design LSP code action orchestration
+- [ ] Implement copy → insert → delete sequence
+- [ ] Add fallback for manual move (extract → insert → remove → update imports)
+- [ ] Add telemetry when LSP automation unavailable
+- [ ] Surface actionable errors for unsupported operations
+
+#### Import/Manifest Updates
+- [ ] Integrate with rename machinery
+- [ ] Implement workspace manifest rewrites
+- [ ] Update dependent crate paths
+- [ ] Adjust documentation references
+
+#### Diagnostics & Warnings
+- [ ] Introduce `PlanWarning` structure
+- [ ] Add warnings for partial LSP support
+- [ ] Add warnings for manual follow-up required
+- [ ] Implement deterministic checksum generation
+- [ ] Add dry-run preview support
+
+---
+
+### Phase 3: Unify Refactor Reference Logic
+
+#### ReferenceUpdater Service
+- [ ] Create `ReferenceUpdater` service in `crates/cb-services`
+- [ ] Implement `update_references(old_path, new_path, options)` entry point
+- [ ] Add affected file location logic
+- [ ] Add relative path computation
+- [ ] Add import/module update coordination
+- [ ] Add manifest/doc change coordination
+
+#### Strategy Traits & Plugins
+- [ ] Define plugin interface for language-specific behaviors
+- [ ] Create TS AST import rewrite strategy
+- [ ] Create Rust module adjustment strategy
+- [ ] Implement plugin registration system
+
+#### Handler Refactoring
+- [ ] Refactor rename handler to use `ReferenceUpdater`
+- [ ] Refactor move handler to use `ReferenceUpdater`
+- [ ] Remove duplicate path-adjustment logic
+- [ ] Ensure no regression in existing rename behavior
+- [ ] Add integration tests for both handlers using shared service
+
+#### Unit Testing
+- [ ] Create lightweight in-process test harness for `ReferenceUpdater`
+- [ ] Add unit tests for path rewriting logic
+- [ ] Add unit tests for import adjustment logic
+- [ ] Add unit tests without filesystem or LSP overhead
+
+---
+
+### Phase 4: Documentation & Polish
+
+#### Architecture Documentation
+- [ ] Update `docs/architecture/primitives.md` with shared flow
+- [ ] Document `ReferenceUpdater` service design
+- [ ] Document plugin interface pattern
+- [ ] Update tooling guides
+
+#### Testing Documentation
+- [ ] Document multi-layered testing strategy
+- [ ] Document fast loop (unit tests) workflow
+- [ ] Document integration loop with `cargo watch`
+- [ ] Document feature flag usage for isolation
+- [ ] Document LSP fixture recording approach
+
+#### Developer Guides
+- [ ] Create move/rename workflow guide
+- [ ] Document testing strategy and best practices
+- [ ] Add troubleshooting guide
+- [ ] Update CONTRIBUTING.md
+
+#### Quality & Readiness
+- [ ] Run full test suite in CI
+- [ ] Verify all edge cases covered (see Appendix)
+- [ ] Performance validation
+- [ ] Code review and approval
 
 ---
 
 ## Acceptance Criteria
 
-- All newly added move scenarios pass in CI for JS/TS and Rust workspaces.
-- `move.plan` successfully handles symbol moves when LSP support exists, and reports actionable errors otherwise.
-- Rename and move flows both rely on the shared `ReferenceUpdater` without regressing existing rename behavior.
-- Documentation clearly describes the move/rename workflow, testing strategy, and shared architecture.
+- [ ] All newly added move scenarios pass in CI for JS/TS and Rust workspaces
+- [ ] `move.plan` successfully handles symbol moves when LSP support exists
+- [ ] `move.plan` reports actionable errors when LSP support absent
+- [ ] Rename and move flows both rely on shared `ReferenceUpdater`
+- [ ] No regression in existing rename behavior
+- [ ] Documentation clearly describes move/rename workflow, testing strategy, and shared architecture
 
 ---
 
