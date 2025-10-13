@@ -243,8 +243,6 @@ impl FileService {
             .update_references(
                 &virtual_old_path,
                 &virtual_new_path,
-                Some(&rename_info),
-                false,
                 &self.plugin_registry.all(),
                 Some(&rename_info),
                 false,
