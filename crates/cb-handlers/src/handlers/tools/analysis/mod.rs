@@ -1,4 +1,5 @@
 pub mod batch;
+pub mod batch_handler;
 pub mod config;
 pub mod dead_code;
 pub mod dependencies;
@@ -17,3 +18,4 @@ pub use documentation::DocumentationHandler;
 pub use quality::QualityHandler;
 pub use structure::StructureHandler;
 pub use tests_handler::TestsHandler;
+pub use batch_handler::BatchAnalysisHandler;
