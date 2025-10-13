@@ -89,6 +89,7 @@ impl LspAdapterPlugin {
     }
 
     /// Normalize LSP workspace edit responses
+    #[allow(dead_code)] // Reserved for future workspace edit support
     fn normalize_workspace_edit(&self, lsp_result: Value) -> PluginResult<Value> {
         // WorkspaceEdit is already in the correct format
         Ok(json!({ "workspace_edit": lsp_result }))

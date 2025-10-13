@@ -36,6 +36,7 @@ impl Default for RenameHandler {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)] // Reserved for future options support
 struct RenamePlanParams {
     target: RenameTarget,
     new_name: String,
@@ -57,6 +58,7 @@ struct SymbolSelector {
 }
 
 #[derive(Debug, Deserialize, Default)]
+#[allow(dead_code)] // Reserved for future configuration
 struct RenameOptions {
     #[serde(default)]
     strict: Option<bool>,

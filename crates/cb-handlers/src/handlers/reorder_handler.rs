@@ -37,6 +37,7 @@ impl Default for ReorderHandler {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)] // Reserved for future implementation
 struct ReorderPlanParams {
     target: ReorderTarget,
     new_order: Vec<String>,
@@ -52,6 +53,7 @@ struct ReorderTarget {
 }
 
 #[derive(Debug, Deserialize, Default)]
+#[allow(dead_code)] // Reserved for future configuration
 struct ReorderOptions {
     #[serde(default)]
     preserve_formatting: Option<bool>,

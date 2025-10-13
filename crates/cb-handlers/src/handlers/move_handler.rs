@@ -36,6 +36,7 @@ impl Default for MoveHandler {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)] // Reserved for future options support
 struct MovePlanParams {
     target: MoveTarget,
     destination: String,
@@ -57,6 +58,7 @@ struct SymbolSelector {
 }
 
 #[derive(Debug, Deserialize, Default)]
+#[allow(dead_code)] // Reserved for future configuration
 struct MoveOptions {
     #[serde(default)]
     update_imports: Option<bool>,

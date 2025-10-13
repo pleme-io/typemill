@@ -7,15 +7,14 @@
 use cb_protocol::plugin_protocol::{PluginRequest, PluginResponse};
 use dashmap::DashMap;
 use serde_json::Value;
-use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::process::{Child, ChildStdin, ChildStdout, Command};
+use tokio::process::{Child, ChildStdin, Command};
 use tokio::sync::{oneshot, Mutex};
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, warn};
 
 /// Timeout for plugin requests.
 const PLUGIN_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
@@ -24,6 +23,7 @@ const PLUGIN_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 #[derive(Clone)]
 pub struct PluginProcess {
     name: String,
+    #[allow(dead_code)] // Kept for future process lifecycle management
     child: Arc<Mutex<Child>>,
     stdin: Arc<Mutex<ChildStdin>>,
     request_id_counter: Arc<AtomicU64>,

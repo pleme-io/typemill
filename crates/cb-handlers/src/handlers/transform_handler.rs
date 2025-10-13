@@ -37,6 +37,7 @@ impl Default for TransformHandler {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)] // Reserved for future options support
 struct TransformPlanParams {
     transformation: Transformation,
     #[serde(default)]
@@ -51,6 +52,7 @@ struct Transformation {
 }
 
 #[derive(Debug, Deserialize, Default)]
+#[allow(dead_code)] // Reserved for future configuration
 struct TransformOptions {
     #[serde(default)]
     preserve_formatting: Option<bool>,

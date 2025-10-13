@@ -51,6 +51,7 @@ struct DeleteTarget {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)] // Reserved for future symbol deletion implementation
 struct DeleteSelector {
     line: u32,
     character: u32,
@@ -63,6 +64,7 @@ struct DeleteOptions {
     #[serde(default)]
     cleanup_imports: Option<bool>,
     #[serde(default)]
+    #[allow(dead_code)] // Reserved for future test cleanup implementation
     remove_tests: Option<bool>,
     #[serde(default)]
     force: Option<bool>,
