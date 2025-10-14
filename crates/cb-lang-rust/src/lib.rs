@@ -444,6 +444,16 @@ impl RustPlugin {
                 let new_name = info["new_crate_name"].as_str().unwrap_or("");
                 Ok(import_support.rewrite_imports_for_rename(content, old_name, new_name))
             } else {
+                // This is a file move, not a crate rename. Infer crate from path.
+                // This is a simplified approach for the common case.
+                let old_crate_name = _old_path.components().next().and_then(|c| c.as_os_str().to_str());
+                let new_crate_name = _new_path.components().next().and_then(|c| c.as_os_str().to_str());
+
+                if let (Some(old_name), Some(new_name)) = (old_crate_name, new_crate_name) {
+                    if old_name != new_name {
+                        return Ok(import_support.rewrite_imports_for_rename(content, old_name, new_name));
+                    }
+                }
                 Ok((content.to_string(), 0))
             }
         } else {

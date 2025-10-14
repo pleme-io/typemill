@@ -104,6 +104,7 @@ impl ToolHandler for MoveHandler {
         let plan = match params.target.kind.as_str() {
             "symbol" => self.plan_symbol_move(&params, context).await?,
             "file" => self.plan_file_move(&params, context).await?,
+            "directory" => self.plan_directory_move(&params, context).await?,
             "module" => self.plan_module_move(&params, context).await?,
             kind => {
                 return Err(ServerError::InvalidRequest(format!(
@@ -291,6 +292,146 @@ impl MoveHandler {
         Err(ServerError::Unsupported(
             "AST-based symbol move not yet implemented. LSP server required.".into(),
         ))
+    }
+
+    /// Generate plan for directory move using FileService
+    async fn plan_directory_move(
+        &self,
+        params: &MovePlanParams,
+        context: &ToolHandlerContext,
+    ) -> ServerResult<MovePlan> {
+        debug!(
+            old_path = %params.target.path,
+            new_path = %params.destination,
+            "Planning directory move"
+        );
+
+        let old_path = Path::new(&params.target.path);
+        let new_path = Path::new(&params.destination);
+
+        let edit_plan = context
+            .app_state
+            .file_service
+            .reference_updater
+            .update_references(old_path, new_path, &context.app_state.language_plugins.inner.all(), None, true, None)
+            .await?;
+
+        let abs_old = std::fs::canonicalize(old_path).unwrap_or_else(|_| old_path.to_path_buf());
+        let abs_new = std::fs::canonicalize(new_path.parent().unwrap_or(Path::new(".")))
+            .unwrap_or_else(|_| new_path.parent().unwrap_or(Path::new(".")).to_path_buf())
+            .join(new_path.file_name().unwrap_or(new_path.as_os_str()));
+
+        let mut file_checksums = HashMap::new();
+        let mut affected_files = HashSet::new();
+        affected_files.insert(abs_old.clone());
+
+        for edit in &edit_plan.edits {
+            if let Some(ref file_path) = edit.file_path {
+                let path = Path::new(file_path);
+                affected_files.insert(path.to_path_buf());
+            }
+        }
+
+        for file_path in affected_files {
+             if file_path.exists() {
+                if let Ok(content) = context.app_state.file_service.read_file(&file_path).await {
+                    file_checksums.insert(
+                        file_path.to_string_lossy().to_string(),
+                        calculate_checksum(&content),
+                    );
+                }
+            }
+        }
+
+        use lsp_types::{
+            DocumentChangeOperation, DocumentChanges, OptionalVersionedTextDocumentIdentifier,
+            RenameFile, ResourceOp, TextDocumentEdit, TextEdit, Uri,
+        };
+
+        let old_uri = url::Url::from_file_path(&abs_old).map_err(|_| ServerError::InvalidRequest("Invalid source file path".into()))?;
+        let new_uri = url::Url::from_file_path(&abs_new).map_err(|_| ServerError::InvalidRequest("Invalid destination file path".into()))?;
+
+        let mut document_changes = vec![
+            DocumentChangeOperation::Op(ResourceOp::Rename(RenameFile {
+                old_uri: old_uri.as_str().parse().map_err(|e| ServerError::Internal(format!("Failed to parse old URI: {}", e)))?,
+                new_uri: new_uri.as_str().parse().map_err(|e| ServerError::Internal(format!("Failed to parse new URI: {}", e)))?,
+                options: None,
+                annotation_id: None,
+            })),
+        ];
+
+        let mut files_with_edits = HashMap::new();
+        for edit in &edit_plan.edits {
+            if let Some(ref file_path) = edit.file_path {
+                let path = Path::new(file_path);
+                let file_uri = url::Url::from_file_path(path).map_err(|_| ServerError::Internal(format!("Invalid file path for edit: {}", file_path)))?;
+
+                let lsp_edit = TextEdit {
+                    range: lsp_types::Range {
+                        start: lsp_types::Position {
+                            line: edit.location.start_line as u32,
+                            character: edit.location.start_column as u32,
+                        },
+                        end: lsp_types::Position {
+                            line: edit.location.end_line as u32,
+                            character: edit.location.end_column as u32,
+                        },
+                    },
+                    new_text: edit.new_text.clone(),
+                };
+
+                files_with_edits
+                    .entry(file_uri.as_str().parse().map_err(|e| ServerError::Internal(format!("Failed to parse URI: {}", e)))?)
+                    .or_insert_with(Vec::new)
+                    .push(lsp_edit);
+            }
+        }
+
+        for (uri, edits) in files_with_edits {
+            document_changes.push(DocumentChangeOperation::Edit(TextDocumentEdit {
+                text_document: OptionalVersionedTextDocumentIdentifier {
+                    uri,
+                    version: Some(0),
+                },
+                edits: edits.into_iter().map(lsp_types::OneOf::Left).collect(),
+            }));
+        }
+
+        let workspace_edit = WorkspaceEdit {
+            changes: None,
+            document_changes: Some(DocumentChanges::Operations(document_changes)),
+            change_annotations: None,
+        };
+
+        let summary = PlanSummary {
+            affected_files: 1 + file_checksums.len().saturating_sub(1),
+            created_files: 1,
+            deleted_files: 1,
+        };
+
+        let warnings = Vec::new();
+
+        let extension = old_path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .unwrap_or("unknown");
+        let language = self.extension_to_language(extension);
+
+        let metadata = PlanMetadata {
+            plan_version: "1.0".to_string(),
+            kind: "move".to_string(),
+            language,
+            estimated_impact: "low".to_string(),
+            created_at: chrono::Utc::now().to_rfc3339(),
+        };
+
+        Ok(MovePlan {
+            edits: workspace_edit,
+            summary,
+            warnings,
+            metadata,
+            file_checksums,
+        })
     }
 
     /// Generate plan for file move using FileService

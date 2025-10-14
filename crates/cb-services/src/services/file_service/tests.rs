@@ -902,6 +902,57 @@ mod move_tests {
         }
     }
 
+    #[tokio::test]
+    async fn test_move_directory_with_nested_contents() {
+        let temp_dir = TempDir::new().unwrap();
+        let (service, queue) = create_test_service(&temp_dir);
+
+        let source_dir = Path::new("source_dir");
+        let dest_dir = Path::new("dest_dir");
+        let file1_in_source = source_dir.join("file1.txt");
+        let nested_dir_in_source = source_dir.join("nested");
+        let file2_in_source = nested_dir_in_source.join("file2.txt");
+
+        let file1_in_dest = dest_dir.join("file1.txt");
+        let nested_dir_in_dest = dest_dir.join("nested");
+        let file2_in_dest = nested_dir_in_dest.join("file2.txt");
+
+        // Create nested structure
+        service
+            .create_file(&file1_in_source, Some("content1"), false, false)
+            .await
+            .unwrap();
+        service
+            .create_file(&file2_in_source, Some("content2"), false, false)
+            .await
+            .unwrap();
+        queue.wait_until_idle().await;
+
+        // Perform a real move
+        service
+            .rename_directory_with_imports(source_dir, dest_dir, false, false, None)
+            .await
+            .unwrap();
+        queue.wait_until_idle().await;
+
+        // Verify that the source is gone and the destination exists with all content.
+        assert!(!temp_dir.path().join(source_dir).exists());
+        assert!(!temp_dir.path().join(file1_in_source).exists());
+        assert!(!temp_dir.path().join(nested_dir_in_source).exists());
+        assert!(!temp_dir.path().join(file2_in_source).exists());
+
+        assert!(temp_dir.path().join(dest_dir).exists());
+        assert!(temp_dir.path().join(&file1_in_dest).exists());
+        assert!(temp_dir.path().join(nested_dir_in_dest).is_dir());
+        assert!(temp_dir.path().join(&file2_in_dest).exists());
+
+        // Also check content
+        let content1 = service.read_file(&file1_in_dest).await.unwrap();
+        assert_eq!(content1, "content1");
+        let content2 = service.read_file(&file2_in_dest).await.unwrap();
+        assert_eq!(content2, "content2");
+    }
+
     // A simple case-only rename test. The exact behavior can be filesystem-dependent.
     #[tokio::test]
     async fn test_case_only_rename() {

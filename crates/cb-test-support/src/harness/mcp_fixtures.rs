@@ -593,3 +593,74 @@ console.log(API_URL);
         expected_import_updates: &[("app.ts", "from './settings/config'")],
     },
 ];
+
+// =============================================================================
+// RUST MOVE FILE TEST CASES
+// =============================================================================
+
+pub const RUST_MOVE_FILE_TESTS: &[MoveFileTestCase] = &[
+    MoveFileTestCase {
+        test_name: "rust_move_cross_crate",
+        initial_files: &[
+            (
+                "common/src/lib.rs",
+                "pub mod utils;",
+            ),
+            (
+                "common/src/utils.rs",
+                "pub fn do_stuff() {}",
+            ),
+            (
+                "my_crate/src/main.rs",
+                "use common::utils::do_stuff; fn main() { do_stuff(); }",
+            ),
+            (
+                "Cargo.toml",
+                "[workspace]\nmembers = [\"common\", \"my_crate\", \"new_utils\"]",
+            ),
+            (
+                "common/Cargo.toml",
+                "[package]\nname = \"common\"\nversion = \"0.1.0\"\nedition = \"2021\"",
+            ),
+            (
+                "my_crate/Cargo.toml",
+                "[package]\nname = \"my_crate\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\ncommon = { path = \"../common\" }",
+            ),
+            (
+                "new_utils/Cargo.toml",
+                "[package]\nname = \"new_utils\"\nversion = \"0.1.0\"\nedition = \"2021\"",
+            ),
+             (
+                "new_utils/src/lib.rs",
+                "",
+            ),
+        ],
+        old_file_path: "common/src/utils.rs",
+        new_file_path: "new_utils/src/lib.rs",
+        expect_success: true,
+        expected_import_updates: &[("my_crate/src/main.rs", "use new_utils::do_stuff;")],
+    },
+];
+
+// =============================================================================
+// MOVE DIRECTORY TEST CASES
+// =============================================================================
+
+pub const MOVE_DIRECTORY_TESTS: &[MoveFileTestCase] = &[
+    MoveFileTestCase {
+        test_name: "move_folder_with_nested_contents_and_imports",
+        initial_files: &[
+            ("src/components/core/Button.ts", "export class Button {}"),
+            ("src/components/core/index.ts", "export * from './Button';"),
+            ("src/components/utils.ts", "import { Button } from './core/Button';"),
+            ("src/index.ts", "import { Button } from './components/core/Button';"),
+        ],
+        old_file_path: "src/components", // This is a directory
+        new_file_path: "src/ui",
+        expect_success: true,
+        expected_import_updates: &[
+            ("src/index.ts", "from './ui/core/Button'"),
+            ("src/ui/utils.ts", "from './core/Button'"),
+        ],
+    },
+];

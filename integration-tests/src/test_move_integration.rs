@@ -6,6 +6,71 @@
 
 use crate::harness::{TestClient, TestWorkspace};
 use serde_json::json;
+use cb_test_support::harness::mcp_fixtures::MOVE_DIRECTORY_TESTS;
+
+#[tokio::test]
+async fn test_move_folder_with_imports() {
+    for case in MOVE_DIRECTORY_TESTS {
+        println!("\n🧪 Running test case: {}", case.test_name);
+
+        let workspace = TestWorkspace::new();
+        let mut client = TestClient::new(workspace.path());
+
+        for (file_path, content) in case.initial_files {
+            workspace.create_file(file_path, content);
+        }
+
+        let old_path = workspace.absolute_path(case.old_file_path);
+        let new_path = workspace.absolute_path(case.new_file_path);
+
+        let plan_result = client
+            .call_tool(
+                "move.plan",
+                json!({
+                    "target": {
+                        "kind": "directory",
+                        "path": old_path.to_string_lossy()
+                    },
+                    "destination": new_path.to_string_lossy()
+                }),
+            )
+            .await
+            .expect("move.plan should succeed");
+
+        let plan = plan_result
+            .get("result")
+            .and_then(|r| r.get("content"))
+            .expect("Plan should have result.content");
+
+        client
+            .call_tool(
+                "workspace.apply_edit",
+                json!({
+                    "plan": plan,
+                    "options": {
+                        "dry_run": false,
+                        "validate_checksums": true
+                    }
+                }),
+            )
+            .await
+            .expect("workspace.apply_edit should succeed");
+
+        assert!(!workspace.file_exists(case.old_file_path));
+        assert!(workspace.file_exists(case.new_file_path));
+
+        for (importer_path, expected_substring) in case.expected_import_updates {
+            let content = workspace.read_file(importer_path);
+            assert!(
+                content.contains(expected_substring),
+                "Import in '{}' was not updated correctly. Expected to find: '{}', Actual: '{}'",
+                importer_path,
+                expected_substring,
+                content
+            );
+        }
+    }
+}
 
 #[tokio::test]
 async fn test_move_file_plan_and_apply() {
@@ -30,7 +95,7 @@ async fn test_move_file_plan_and_apply() {
                     "kind": "file",
                     "path": source_path.to_string_lossy()
                 },
-                "destination": dest_path.to_string_lossy()
+                    "destination": dest_path.to_string_lossy()
             }),
         )
         .await

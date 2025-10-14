@@ -421,3 +421,91 @@ pub fn extract_import_path(line: &str) -> Option<String> {
     }
     None
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+    use tokio::fs;
+
+    #[test]
+    fn test_extract_import_path() {
+        assert_eq!(
+            extract_import_path("import { foo } from './bar';"),
+            Some("./bar".to_string())
+        );
+        assert_eq!(
+            extract_import_path("import { foo } from \"./bar\";"),
+            Some("./bar".to_string())
+        );
+        assert_eq!(
+            extract_import_path("const bar = require('./bar');"),
+            Some("./bar".to_string())
+        );
+        assert_eq!(
+            extract_import_path("const bar = require(\"./bar\");"),
+            Some("./bar".to_string())
+        );
+        assert_eq!(extract_import_path("let x = 1;"), None);
+        assert_eq!(
+            extract_import_path("this is from a file"),
+            None
+        );
+    }
+
+    // Helper to create a test harness
+    async fn setup_test_harness() -> (TempDir, ReferenceUpdater, Vec<PathBuf>) {
+        let temp_dir = TempDir::new().unwrap();
+        let root = temp_dir.path();
+        let updater = ReferenceUpdater::new(root);
+
+        // Create some mock files
+        fs::create_dir_all(root.join("src/components")).await.unwrap();
+        fs::write(root.join("src/main.ts"), "").await.unwrap();
+        fs::write(root.join("src/components/button.ts"), "").await.unwrap();
+        fs::write(root.join("src/utils.ts"), "").await.unwrap();
+        fs::write(root.join("README.md"), "").await.unwrap();
+
+        let project_files = vec![
+            root.join("src/main.ts").canonicalize().unwrap(),
+            root.join("src/components/button.ts").canonicalize().unwrap(),
+            root.join("src/utils.ts").canonicalize().unwrap(),
+            root.join("README.md").canonicalize().unwrap(),
+        ];
+
+        (temp_dir, updater, project_files)
+    }
+
+    #[tokio::test]
+    async fn test_resolve_import_to_file_relative() {
+        let (_temp_dir, updater, project_files) = setup_test_harness().await;
+        let importing_file = project_files[0].clone(); // src/main.ts
+
+        // ./components/button
+        let resolved = updater.resolve_import_to_file("./components/button", &importing_file, &project_files);
+        assert_eq!(resolved, Some(project_files[1].clone()));
+
+        // ../utils.ts from components/button.ts
+        let importing_file = project_files[1].clone();
+        let resolved = updater.resolve_import_to_file("../utils.ts", &importing_file, &project_files);
+        assert_eq!(resolved, Some(project_files[2].clone()));
+    }
+
+    #[tokio::test]
+    async fn test_resolve_import_to_file_bare_specifier() {
+        let (_temp_dir, updater, project_files) = setup_test_harness().await;
+        let importing_file = project_files[0].clone(); // src/main.ts
+
+        let resolved = updater.resolve_import_to_file("README.md", &importing_file, &project_files);
+        assert_eq!(resolved, Some(project_files[3].clone()));
+    }
+
+    #[tokio::test]
+    async fn test_resolve_import_to_file_not_found() {
+        let (_temp_dir, updater, project_files) = setup_test_harness().await;
+        let importing_file = project_files[0].clone(); // src/main.ts
+
+        let resolved = updater.resolve_import_to_file("./non-existent", &importing_file, &project_files);
+        assert_eq!(resolved, None);
+    }
+}
