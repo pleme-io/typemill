@@ -8,6 +8,28 @@ use tokio::fs;
 use tracing::{debug, info, warn};
 
 impl FileService {
+    /// Check if two paths point to the same file (handles case-only renames on case-insensitive filesystems)
+    async fn is_same_file(&self, path1: &Path, path2: &Path) -> ServerResult<bool> {
+        if !path1.exists() || !path2.exists() {
+            return Ok(false);
+        }
+
+        match (fs::metadata(path1).await, fs::metadata(path2).await) {
+            (Ok(meta1), Ok(meta2)) => {
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::MetadataExt;
+                    Ok(meta1.ino() == meta2.ino())
+                }
+                #[cfg(not(unix))]
+                {
+                    Ok(path1.canonicalize().ok() == path2.canonicalize().ok())
+                }
+            }
+            _ => Ok(false),
+        }
+    }
+
     /// Generates an EditPlan for a file rename operation, including import updates.
     /// This is a dry-run only operation.
     pub async fn plan_rename_file_with_imports(
@@ -145,35 +167,12 @@ impl FileService {
 
             // Allow case-only renames on case-insensitive filesystems
             // Only error if new path exists AND points to a different file
-            if new_abs.exists() {
-                // Compare metadata (inode on Unix) to check if same file
-                let same_file = match (fs::metadata(&old_abs).await, fs::metadata(&new_abs).await) {
-                    (Ok(old_meta), Ok(new_meta)) => {
-                        // On Unix, compare inodes; on other platforms, compare file paths
-                        #[cfg(unix)]
-                        {
-                            use std::os::unix::fs::MetadataExt;
-                            old_meta.ino() == new_meta.ino()
-                        }
-                        #[cfg(not(unix))]
-                        {
-                            // On non-Unix, compare canonicalized paths
-                            old_abs.canonicalize().ok() == new_abs.canonicalize().ok()
-                        }
-                    }
-                    _ => false,
-                };
-
-                // If they don't point to the same file, it's a conflict
-                if !same_file {
-                    return Err(ServerError::AlreadyExists(format!(
-                        "Destination file already exists: {:?}",
-                        new_abs
-                    )));
-                }
+            if new_abs.exists() && !self.is_same_file(&old_abs, &new_abs).await? {
+                return Err(ServerError::AlreadyExists(format!(
+                    "Destination file already exists: {:?}",
+                    new_abs
+                )));
             }
-
-            // let affected_files = self.reference_updater.find_affected_files(&old_abs).await?;
 
             let edit_plan = self
                 .reference_updater
@@ -206,32 +205,11 @@ impl FileService {
 
             // Allow case-only renames on case-insensitive filesystems
             // Only error if new path exists AND points to a different file
-            if new_abs.exists() {
-                // Compare metadata (inode on Unix) to check if same file
-                let same_file = match (fs::metadata(&old_abs).await, fs::metadata(&new_abs).await) {
-                    (Ok(old_meta), Ok(new_meta)) => {
-                        // On Unix, compare inodes; on other platforms, compare file paths
-                        #[cfg(unix)]
-                        {
-                            use std::os::unix::fs::MetadataExt;
-                            old_meta.ino() == new_meta.ino()
-                        }
-                        #[cfg(not(unix))]
-                        {
-                            // On non-Unix, compare canonicalized paths
-                            old_abs.canonicalize().ok() == new_abs.canonicalize().ok()
-                        }
-                    }
-                    _ => false,
-                };
-
-                // If they don't point to the same file, it's a conflict
-                if !same_file {
-                    return Err(ServerError::AlreadyExists(format!(
-                        "Destination file already exists: {:?}",
-                        new_abs
-                    )));
-                }
+            if new_abs.exists() && !self.is_same_file(&old_abs, &new_abs).await? {
+                return Err(ServerError::AlreadyExists(format!(
+                    "Destination file already exists: {:?}",
+                    new_abs
+                )));
             }
 
             self.perform_rename(&old_abs, &new_abs).await?;

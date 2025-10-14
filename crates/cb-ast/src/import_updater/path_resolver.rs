@@ -31,6 +31,11 @@ impl ImportPathResolver {
         }
     }
 
+    /// Get the project root directory
+    pub fn project_root(&self) -> &Path {
+        &self.project_root
+    }
+
     /// Create a new resolver with a shared cache (for performance)
     pub fn with_cache(
         project_root: impl AsRef<Path>,

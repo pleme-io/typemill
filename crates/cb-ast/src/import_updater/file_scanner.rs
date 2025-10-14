@@ -170,35 +170,67 @@ impl ImportPathResolver {
     }
 
     /// Resolve an import specifier (like './utils' or '../api') to an absolute file path
-    pub(crate) fn resolve_import_to_file(
+    ///
+    /// Handles:
+    /// - Relative paths (./foo, ../foo)
+    /// - Absolute paths (/foo)
+    /// - Bare specifiers for markdown links (API_REFERENCE.md, docs/file.md)
+    /// - Extension inference (.ts, .tsx, .js, .jsx, .rs)
+    pub fn resolve_import_to_file(
         &self,
         specifier: &str,
         importing_file: &Path,
         project_files: &[PathBuf],
     ) -> Option<PathBuf> {
-        // Skip node_modules and other external imports
-        if !specifier.starts_with("./") && !specifier.starts_with("../") && !specifier.starts_with('/') {
-            return None;
+        // Try explicit relative/absolute paths first (./foo, ../foo, /foo)
+        if specifier.starts_with("./") || specifier.starts_with("../") || specifier.starts_with('/') {
+            let importing_dir = importing_file.parent()?;
+            let candidate = importing_dir.join(specifier);
+            let extensions = ["", ".ts", ".tsx", ".js", ".jsx", ".rs"];
+            for ext in extensions {
+                let candidate_with_ext = if ext.is_empty() {
+                    candidate.clone()
+                } else {
+                    candidate.with_extension(&ext[1..])
+                };
+                if let Ok(abs_candidate) = candidate_with_ext.canonicalize() {
+                    if project_files.contains(&abs_candidate) {
+                        return Some(abs_candidate);
+                    }
+                }
+            }
         }
 
-        let importing_dir = importing_file.parent()?;
+        // For bare specifiers (e.g., "API_REFERENCE.md"), try project-relative paths
+        // This supports markdown links like [text](API_REFERENCE.md) or [text](docs/file.md)
+        let project_relative_candidate = self.project_root().join(specifier);
 
-        // Build the path relative to the importing file
-        let candidate = importing_dir.join(specifier);
+        // First try canonical path if file exists (works for dry-run before file is moved)
+        if let Ok(abs_candidate) = project_relative_candidate.canonicalize() {
+            if project_files.contains(&abs_candidate) {
+                return Some(abs_candidate);
+            }
+        }
 
-        // Try common extensions if no extension provided
-        let extensions = ["", ".ts", ".tsx", ".js", ".jsx", ".rs"];
-        for ext in extensions {
-            let candidate_with_ext = if ext.is_empty() {
-                candidate.clone()
-            } else {
-                candidate.with_extension(&ext[1..])
-            };
+        // If canonicalization fails (file has been moved/deleted), try matching by basename
+        // against project_files. This handles the execution path where the file has been moved.
+        // We need to check if any file in project_files matches the specifier basename OR
+        // the expected path structure.
+        if let Some(candidate_filename) = Path::new(specifier).file_name() {
+            // Try exact path match first (e.g., "docs/API_REFERENCE.md")
+            for project_file in project_files {
+                // Check if project file ends with the specifier path
+                if let Ok(relative) = project_file.strip_prefix(self.project_root()) {
+                    if relative.to_string_lossy() == specifier {
+                        return Some(project_file.clone());
+                    }
+                }
+            }
 
-            // Check if this file exists in project_files
-            if let Ok(abs_candidate) = candidate_with_ext.canonicalize() {
-                if project_files.contains(&abs_candidate) {
-                    return Some(abs_candidate);
+            // Fall back to basename matching (e.g., "API_REFERENCE.md" matches any file with that name)
+            for project_file in project_files {
+                if project_file.file_name() == Some(candidate_filename) {
+                    return Some(project_file.clone());
                 }
             }
         }
