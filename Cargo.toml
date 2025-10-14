@@ -24,7 +24,8 @@ members = [
     "analysis/cb-analysis-common",
     "analysis/cb-analysis-dead-code",
     "analysis/cb-analysis-deep-dead-code",
-    "analysis/cb-analysis-graph", "analysis/cb-analysis-circular-deps",
+    "analysis/cb-analysis-graph",
+    "analysis/cb-analysis-circular-deps",
 ]
 resolver = "2"
 

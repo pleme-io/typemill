@@ -81,3 +81,34 @@ CC = "/usr/bin/gcc"
 
 [registries.crates-io]
 protocol = "sparse"
+
+# =============================================================================
+# Cargo Command Aliases for Focused Development
+# =============================================================================
+# These aliases let you work on specific subsystems without building the entire workspace
+# Usage: cargo check-analysis, cargo test-handlers-core, etc.
+
+[alias]
+# Analysis subsystem - check only analysis crates
+check-analysis = "check -p cb-analysis-common -p cb-analysis-dead-code -p cb-analysis-deep-dead-code -p cb-analysis-graph -p cb-analysis-circular-deps"
+test-analysis = "nextest run -p cb-analysis-common -p cb-analysis-dead-code -p cb-analysis-deep-dead-code -p cb-analysis-graph -p cb-analysis-circular-deps"
+
+# Handlers - minimal feature set for faster iteration
+check-handlers-core = "check -p cb-handlers --no-default-features --features lang-rust"
+test-handlers-core = "nextest run -p cb-handlers --no-default-features --features lang-rust"
+
+# Handlers - TypeScript only
+check-handlers-ts = "check -p cb-handlers --no-default-features --features lang-typescript"
+test-handlers-ts = "nextest run -p cb-handlers --no-default-features --features lang-typescript"
+
+# Handlers - with specific analysis features
+check-handlers-dead-code = "check -p cb-handlers --no-default-features --features lang-rust,analysis-dead-code"
+test-handlers-dead-code = "nextest run -p cb-handlers --no-default-features --features lang-rust,analysis-dead-code"
+
+# Core libraries without integration tests
+check-core = "check --workspace --exclude integration-tests --exclude crates/cb-bench"
+test-core = "nextest run --workspace --exclude integration-tests --exclude crates/cb-bench"
+
+# Language plugins only
+check-lang = "check -p cb-lang-common -p cb-lang-rust -p cb-lang-typescript -p cb-lang-markdown"
+test-lang = "nextest run -p cb-lang-common -p cb-lang-rust -p cb-lang-typescript -p cb-lang-markdown"

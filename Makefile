@@ -1,7 +1,7 @@
 # CodeBuddy Makefile
 # Simple build automation for common development tasks
 
-.PHONY: build release test test-fast test-full test-lsp install uninstall clean clean-cache first-time-setup install-lsp-servers dev-extras validate-setup help clippy fmt audit check check-duplicates dev watch ci build-parsers check-parser-deps
+.PHONY: build release test test-fast test-full test-lsp install uninstall clean clean-cache first-time-setup install-lsp-servers dev-extras validate-setup help clippy fmt audit check check-duplicates dev watch ci build-parsers check-parser-deps check-analysis test-analysis check-handlers test-handlers check-core test-core check-lang test-lang dev-handlers dev-analysis dev-core dev-lang
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -44,6 +44,44 @@ test-full:
 test-lsp:
 	@command -v cargo-nextest >/dev/null 2>&1 || { echo "⚠️  cargo-nextest not found. Run 'make setup' first."; exit 1; }
 	cargo nextest run --workspace --features lsp-tests --status-level skip
+
+# =============================================================================
+# Fast-Path Development Targets - Focused Subsystem Workflows
+# =============================================================================
+# These targets use the cargo aliases defined in .cargo/config.toml
+# to provide fast iteration on specific parts of the codebase
+
+# Analysis subsystem
+check-analysis:
+	cargo check-analysis
+
+test-analysis:
+	@command -v cargo-nextest >/dev/null 2>&1 || { echo "⚠️  cargo-nextest not found. Run 'make setup' first."; exit 1; }
+	cargo test-analysis
+
+# Handlers - minimal feature set (Rust only)
+check-handlers:
+	cargo check-handlers-core
+
+test-handlers:
+	@command -v cargo-nextest >/dev/null 2>&1 || { echo "⚠️  cargo-nextest not found. Run 'make setup' first."; exit 1; }
+	cargo test-handlers-core
+
+# Core libraries (excluding integration tests and benchmarks)
+check-core:
+	cargo check-core
+
+test-core:
+	@command -v cargo-nextest >/dev/null 2>&1 || { echo "⚠️  cargo-nextest not found. Run 'make setup' first."; exit 1; }
+	cargo test-core
+
+# Language plugins only
+check-lang:
+	cargo check-lang
+
+test-lang:
+	@command -v cargo-nextest >/dev/null 2>&1 || { echo "⚠️  cargo-nextest not found. Run 'make setup' first."; exit 1; }
+	cargo test-lang
 
 # Install to ~/.local/bin (ensure it's in your PATH)
 install: release
@@ -187,6 +225,36 @@ dev:
 
 # Alias for dev
 watch: dev
+
+# =============================================================================
+# Watch Targets for Incremental Development
+# =============================================================================
+# These targets keep cargo-watch running in debug mode for fast iteration
+# Usage: make dev-handlers, make dev-analysis, etc.
+
+# Watch handlers with minimal features (fastest iteration)
+dev-handlers:
+	@command -v cargo-watch >/dev/null 2>&1 || { echo "⚠️  cargo-watch not found. Run 'make setup' first."; exit 1; }
+	@echo "🚀 Watching handlers (Rust only, debug mode)..."
+	cargo watch -x check-handlers-core
+
+# Watch analysis crates only
+dev-analysis:
+	@command -v cargo-watch >/dev/null 2>&1 || { echo "⚠️  cargo-watch not found. Run 'make setup' first."; exit 1; }
+	@echo "🚀 Watching analysis crates (debug mode)..."
+	cargo watch -x check-analysis
+
+# Watch core libraries (excludes integration tests)
+dev-core:
+	@command -v cargo-watch >/dev/null 2>&1 || { echo "⚠️  cargo-watch not found. Run 'make setup' first."; exit 1; }
+	@echo "🚀 Watching core libraries (debug mode)..."
+	cargo watch -x check-core
+
+# Watch language plugins only
+dev-lang:
+	@command -v cargo-watch >/dev/null 2>&1 || { echo "⚠️  cargo-watch not found. Run 'make setup' first."; exit 1; }
+	@echo "🚀 Watching language plugins (debug mode)..."
+	cargo watch -x check-lang
 
 # CI target - standardized checks for CI/CD
 ci: test-full check
@@ -362,6 +430,22 @@ help:
 	@echo "  make test              - Run fast tests (~10s, auto-installs cargo-nextest)"
 	@echo "  make test-lsp          - Run tests requiring LSP servers (~60s)"
 	@echo "  make test-full         - Run the entire test suite, including skipped tests (~80s)"
+	@echo ""
+	@echo "⚡ Fast-Path Development (focused subsystems):"
+	@echo "  make check-handlers    - Check handlers crate only (minimal features)"
+	@echo "  make test-handlers     - Test handlers crate only (minimal features)"
+	@echo "  make check-analysis    - Check all analysis crates"
+	@echo "  make test-analysis     - Test all analysis crates"
+	@echo "  make check-core        - Check core libraries (excludes integration tests)"
+	@echo "  make test-core         - Test core libraries (excludes integration tests)"
+	@echo "  make check-lang        - Check language plugins only"
+	@echo "  make test-lang         - Test language plugins only"
+	@echo ""
+	@echo "🔄 Watch Mode (auto-rebuild on changes, debug mode):"
+	@echo "  make dev-handlers      - Watch handlers with minimal features (fastest)"
+	@echo "  make dev-analysis      - Watch analysis crates only"
+	@echo "  make dev-core          - Watch core libraries"
+	@echo "  make dev-lang          - Watch language plugins"
 	@echo ""
 	@echo "🧹 Cleanup:"
 	@echo "  make clean             - Remove build artifacts"
