@@ -73,6 +73,9 @@ pub mod test_analyze_tests;
 #[cfg(test)]
 pub mod test_analyze_batch;
 
+#[cfg(test)]
+pub mod test_suggestions_dead_code;
+
 pub use harness::{TestClient, TestWorkspace};
 pub use helpers::*;
 pub use mocks::{MockAstService, MockLspService};

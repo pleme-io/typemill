@@ -8,8 +8,13 @@
 //! detection logic.
 
 use super::super::{ToolHandler, ToolHandlerContext};
+use crate::handlers::tools::analysis::suggestions::{
+    self, ActionableSuggestion, AnalysisContext, EvidenceStrength, Location, RefactoringCandidate,
+    Scope, SuggestionGenerator, RefactorType,
+};
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
+use cb_plugin_api::ParsedSource;
 use cb_protocol::analysis_result::{
     Finding, FindingLocation, Position, Range, SafetyLevel, Severity, Suggestion,
 };
@@ -1427,6 +1432,60 @@ fn is_function_exported(func_name: &str, content: &str, language: &str) -> bool 
     true
 }
 
+fn to_protocol_safety_level(level: suggestions::SafetyLevel) -> SafetyLevel {
+    match level {
+        suggestions::SafetyLevel::Safe => SafetyLevel::Safe,
+        suggestions::SafetyLevel::RequiresReview => SafetyLevel::RequiresReview,
+        suggestions::SafetyLevel::Experimental => SafetyLevel::Experimental,
+    }
+}
+
+fn generate_dead_code_refactoring_candidates(
+    finding: &Finding,
+    _parsed_source: &ParsedSource,
+) -> Vec<RefactoringCandidate> {
+    let mut candidates = Vec::new();
+
+    let (refactor_type, json_kind) = match finding.kind.as_str() {
+        "unused_import" => (RefactorType::RemoveUnusedImport, "import"),
+        "unused_function" => (RefactorType::RemoveDeadCode, "function"),
+        "unreachable_code" => (RefactorType::RemoveDeadCode, "block"),
+        "unused_parameter" => (RefactorType::RemoveDeadCode, "parameter"),
+        "unused_type" => (RefactorType::RemoveDeadCode, "type"),
+        "unused_variable" => (RefactorType::RemoveDeadCode, "variable"),
+        _ => return candidates,
+    };
+
+    if let Some(range) = &finding.location.range {
+        candidates.push(RefactoringCandidate {
+            refactor_type,
+            message: finding.message.clone(),
+            scope: Scope::File,
+            has_side_effects: false,
+            reference_count: Some(0),
+            is_unreachable: false,
+            is_recursive: false,
+            involves_generics: false,
+            involves_macros: false,
+            evidence_strength: EvidenceStrength::Medium,
+            location: Location {
+                file: finding.location.file_path.clone(),
+                line: range.start.line as usize,
+                character: range.start.character as usize,
+            },
+            refactor_call_args: json!({
+                "kind": json_kind,
+                "target": {
+                    "file_path": finding.location.file_path,
+                    "range": range
+                }
+            }),
+        });
+    }
+
+    candidates
+}
+
 pub struct DeadCodeHandler;
 
 impl DeadCodeHandler {
@@ -1913,66 +1972,117 @@ impl ToolHandler for DeadCodeHandler {
             self.handle_workspace_dead_code(context, &args, &scope_param, kind)
                 .await
         } else {
-            // Use standard file analysis with regex heuristics
-            // Dispatch to appropriate analysis function
+            // For file-scope, we can choose to use the suggestion generator
             match kind {
-                "unused_imports" => {
-                    super::engine::run_analysis(
-                        context,
-                        tool_call,
-                        "dead_code",
-                        kind,
-                        detect_unused_imports,
-                    )
-                    .await
+                "unused_imports" | "unused_symbols" => {
+                    use cb_protocol::analysis_result::AnalysisResult;
+                    use std::path::Path;
+                    use std::time::Instant;
+                    use tracing::info;
+
+                    let start_time = Instant::now();
+
+                    // Replicate logic from engine::run_analysis to get access to parsed_source
+                    let file_path = super::engine::extract_file_path(&args, &scope_param)?;
+                    info!(file_path = %file_path, kind = %kind, "Running dead code analysis with suggestions");
+
+                    let file_path_obj = Path::new(&file_path);
+                    let extension = file_path_obj.extension().and_then(|ext| ext.to_str()).ok_or_else(|| ServerError::InvalidRequest(format!("File has no extension: {}", file_path)))?;
+                    let content = context.app_state.file_service.read_file(file_path_obj).await.map_err(|e| ServerError::Internal(format!("Failed to read file: {}", e)))?;
+                    let plugin = context.app_state.language_plugins.get_plugin(extension).ok_or_else(|| ServerError::Unsupported(format!("No language plugin found for extension: {}", extension)))?;
+                    let parsed_source = plugin.parse(&content).await.map_err(|e| ServerError::Internal(format!("Failed to parse file: {}", e)))?;
+                    let language = plugin.metadata().name;
+                    let complexity_report = cb_ast::complexity::analyze_file_complexity(&file_path, &content, &parsed_source.symbols, &language);
+
+                    // Choose detection function
+                    let analysis_fn = if kind == "unused_imports" {
+                        detect_unused_imports
+                    } else {
+                        detect_unused_symbols
+                    };
+
+                    let mut findings = analysis_fn(&complexity_report, &content, &parsed_source.symbols, &language, &file_path);
+
+                    // NEW: Initialize suggestion generator
+                    let suggestion_generator = SuggestionGenerator::new();
+
+                    // NEW: Enhance findings with actionable suggestions
+                    for finding in &mut findings {
+                        let candidates = generate_dead_code_refactoring_candidates(finding, &parsed_source);
+
+                        let context = AnalysisContext {
+                            file_path: file_path.clone(),
+                            has_full_type_info: false, // File-scope analysis doesn't have LSP
+                            has_partial_type_info: false, // ParsedSource doesn't have this
+                            ast_parse_errors: 0,      // ParsedSource doesn't have this
+                        };
+
+                        let mut suggestions = Vec::new();
+                        for candidate in candidates {
+                            match suggestion_generator.generate_from_candidate(candidate, &context) {
+                                Ok(actionable) => {
+                                    // Convert ActionableSuggestion to protocol::Suggestion
+                                    let suggestion = Suggestion {
+                                        action: actionable.refactor_call.as_ref().map(|rc| rc.tool.clone()).unwrap_or_else(|| "manual_fix".to_string()),
+                                        description: actionable.message,
+                                        target: None,
+                                        estimated_impact: format!("{:?}", actionable.estimated_impact),
+                                        safety: to_protocol_safety_level(actionable.safety),
+                                        confidence: actionable.confidence,
+                                        reversible: actionable.reversible,
+                                        refactor_call: actionable.refactor_call.map(|rc| cb_protocol::analysis_result::RefactorCall {
+                                            command: rc.tool,
+                                            arguments: rc.arguments,
+                                        }),
+                                    };
+                                    suggestions.push(suggestion);
+                                }
+                                Err(e) => {
+                                    tracing::warn!(
+                                        error = %e,
+                                        finding_kind = %finding.kind,
+                                        "Failed to generate suggestion"
+                                    );
+                                }
+                            }
+                        }
+
+                        if !suggestions.is_empty() {
+                            finding.suggestions = suggestions;
+                        }
+                    }
+
+                    let scope = cb_protocol::analysis_result::AnalysisScope {
+                        scope_type: scope_param.scope_type.unwrap_or_else(|| "file".to_string()),
+                        path: file_path.clone(),
+                        include: scope_param.include,
+                        exclude: scope_param.exclude,
+                    };
+                    let mut result = AnalysisResult::new("dead_code", kind, scope);
+                    result.metadata.language = Some(language.to_string());
+                    for finding in findings {
+                        result.add_finding(finding);
+                    }
+                    result.summary.files_analyzed = 1;
+                    result.summary.symbols_analyzed = Some(complexity_report.total_functions);
+                    result.finalize(start_time.elapsed().as_millis() as u64);
+
+                    serde_json::to_value(result).map_err(|e| ServerError::Internal(format!("Failed to serialize result: {}", e)))
                 }
-                "unused_symbols" => {
+                "unreachable_code" | "unused_parameters" | "unused_types" | "unused_variables" => {
+                    let analysis_fn = match kind {
+                        "unreachable_code" => detect_unreachable_code,
+                        "unused_parameters" => detect_unused_parameters,
+                        "unused_types" => detect_unused_types,
+                        "unused_variables" => detect_unused_variables,
+                        _ => unreachable!(),
+                    };
                     super::engine::run_analysis(
                         context,
                         tool_call,
                         "dead_code",
                         kind,
-                        detect_unused_symbols,
-                    )
-                    .await
-                }
-                "unreachable_code" => {
-                    super::engine::run_analysis(
-                        context,
-                        tool_call,
-                        "dead_code",
-                        kind,
-                        detect_unreachable_code,
-                    )
-                    .await
-                }
-                "unused_parameters" => {
-                    super::engine::run_analysis(
-                        context,
-                        tool_call,
-                        "dead_code",
-                        kind,
-                        detect_unused_parameters,
-                    )
-                    .await
-                }
-                "unused_types" => {
-                    super::engine::run_analysis(
-                        context,
-                        tool_call,
-                        "dead_code",
-                        kind,
-                        detect_unused_types,
-                    )
-                    .await
-                }
-                "unused_variables" => {
-                    super::engine::run_analysis(
-                        context,
-                        tool_call,
-                        "dead_code",
-                        kind,
-                        detect_unused_variables,
+                        analysis_fn,
                     )
                     .await
                 }
