@@ -448,7 +448,10 @@ export function main() {
         test_name: "move_to_parent_directory",
         initial_files: &[
             ("src/components/Button.ts", "export class Button {}"),
-            ("src/components/index.ts", "import { Button } from './Button';"),
+            (
+                "src/components/index.ts",
+                "import { Button } from './Button';",
+            ),
         ],
         old_file_path: "src/components/Button.ts",
         new_file_path: "src/Button.ts",
@@ -459,7 +462,10 @@ export function main() {
         test_name: "move_between_sibling_directories",
         initial_files: &[
             ("src/components/Button.ts", "export class Button {}"),
-            ("src/utils/helpers.ts", "import { Button } from '../components/Button';"),
+            (
+                "src/utils/helpers.ts",
+                "import { Button } from '../components/Button';",
+            ),
         ],
         old_file_path: "src/components/Button.ts",
         new_file_path: "src/ui/Button.ts",
@@ -646,21 +652,668 @@ pub const RUST_MOVE_FILE_TESTS: &[MoveFileTestCase] = &[
 // MOVE DIRECTORY TEST CASES
 // =============================================================================
 
-pub const MOVE_DIRECTORY_TESTS: &[MoveFileTestCase] = &[
-    MoveFileTestCase {
-        test_name: "move_folder_with_nested_contents_and_imports",
+pub const MOVE_DIRECTORY_TESTS: &[MoveFileTestCase] = &[MoveFileTestCase {
+    test_name: "move_folder_with_nested_contents_and_imports",
+    initial_files: &[
+        ("src/components/core/Button.ts", "export class Button {}"),
+        ("src/components/core/index.ts", "export * from './Button';"),
+        (
+            "src/components/utils.ts",
+            "import { Button } from './core/Button';",
+        ),
+        (
+            "src/index.ts",
+            "import { Button } from './components/core/Button';",
+        ),
+    ],
+    old_file_path: "src/components", // This is a directory
+    new_file_path: "src/ui",
+    expect_success: true,
+    expected_import_updates: &[
+        ("src/index.ts", "from './ui/core/Button'"),
+        ("src/ui/utils.ts", "from './core/Button'"),
+    ],
+}];
+
+// =============================================================================
+// RUST RENAME FILE TEST CASES
+// =============================================================================
+
+pub const RUST_RENAME_FILE_TESTS: &[RenameFileTestCase] = &[
+    RenameFileTestCase {
+        test_name: "rust_rename_with_mod_declaration_in_parent_mod_rs",
         initial_files: &[
-            ("src/components/core/Button.ts", "export class Button {}"),
-            ("src/components/core/index.ts", "export * from './Button';"),
-            ("src/components/utils.ts", "import { Button } from './core/Button';"),
-            ("src/index.ts", "import { Button } from './components/core/Button';"),
+            (
+                "src/mod.rs",
+                r#"pub mod utils;
+pub mod config;
+
+pub use utils::*;
+"#,
+            ),
+            (
+                "src/utils.rs",
+                r#"pub fn calculate(x: i32) -> i32 {
+    x * 2
+}
+
+pub struct Helper {
+    pub value: i32,
+}
+"#,
+            ),
+            (
+                "src/main.rs",
+                r#"use crate::utils::{calculate, Helper};
+
+fn main() {
+    let result = calculate(5);
+    let helper = Helper { value: 10 };
+    println!("{} {}", result, helper.value);
+}
+"#,
+            ),
         ],
-        old_file_path: "src/components", // This is a directory
-        new_file_path: "src/ui",
+        old_file_path: "src/utils.rs",
+        new_file_path: "src/helpers.rs",
         expect_success: true,
         expected_import_updates: &[
-            ("src/index.ts", "from './ui/core/Button'"),
-            ("src/ui/utils.ts", "from './core/Button'"),
+            ("src/mod.rs", "pub mod helpers;"),
+            ("src/main.rs", "use crate::helpers::{calculate, Helper}"),
         ],
+    },
+    RenameFileTestCase {
+        test_name: "rust_rename_with_mod_declaration_in_lib_rs",
+        initial_files: &[
+            (
+                "src/lib.rs",
+                r#"pub mod database;
+pub mod models;
+
+pub use database::*;
+"#,
+            ),
+            (
+                "src/database.rs",
+                r#"pub struct Connection {
+    pub url: String,
+}
+
+impl Connection {
+    pub fn new(url: String) -> Self {
+        Self { url }
+    }
+}
+"#,
+            ),
+            (
+                "src/models.rs",
+                r#"use crate::database::Connection;
+
+pub struct User {
+    pub conn: Connection,
+}
+"#,
+            ),
+        ],
+        old_file_path: "src/database.rs",
+        new_file_path: "src/db.rs",
+        expect_success: true,
+        expected_import_updates: &[
+            ("src/lib.rs", "pub mod db;"),
+            ("src/models.rs", "use crate::db::Connection"),
+        ],
+    },
+    RenameFileTestCase {
+        test_name: "rust_rename_with_sibling_mod_rs_declaration",
+        initial_files: &[
+            (
+                "src/services/mod.rs",
+                r#"pub mod auth;
+pub mod storage;
+
+pub use auth::*;
+"#,
+            ),
+            (
+                "src/services/auth.rs",
+                r#"pub fn authenticate(user: &str) -> bool {
+    !user.is_empty()
+}
+
+pub struct AuthToken {
+    pub token: String,
+}
+"#,
+            ),
+            (
+                "src/main.rs",
+                r#"use myapp::services::auth::{authenticate, AuthToken};
+
+fn main() {
+    let valid = authenticate("user1");
+    let token = AuthToken { token: "abc".to_string() };
+    println!("{} {}", valid, token.token);
+}
+"#,
+            ),
+        ],
+        old_file_path: "src/services/auth.rs",
+        new_file_path: "src/services/authentication.rs",
+        expect_success: true,
+        expected_import_updates: &[
+            ("src/services/mod.rs", "pub mod authentication;"),
+            (
+                "src/main.rs",
+                "use myapp::services::authentication::{authenticate, AuthToken}",
+            ),
+        ],
+    },
+    RenameFileTestCase {
+        test_name: "rust_rename_nested_mod_tree_multiple_levels",
+        initial_files: &[
+            ("src/lib.rs", "pub mod core;"),
+            ("src/core/mod.rs", "pub mod engine;"),
+            (
+                "src/core/engine/mod.rs",
+                r#"pub mod processor;
+
+pub use processor::*;
+"#,
+            ),
+            (
+                "src/core/engine/processor.rs",
+                r#"pub fn process_data(input: &str) -> String {
+    input.to_uppercase()
+}
+
+pub struct Processor {
+    pub buffer: Vec<u8>,
+}
+"#,
+            ),
+            (
+                "src/main.rs",
+                r#"use mylib::core::engine::processor::{process_data, Processor};
+
+fn main() {
+    let result = process_data("test");
+    let proc = Processor { buffer: vec![1, 2, 3] };
+    println!("{} {:?}", result, proc.buffer);
+}
+"#,
+            ),
+        ],
+        old_file_path: "src/core/engine/processor.rs",
+        new_file_path: "src/core/engine/handler.rs",
+        expect_success: true,
+        expected_import_updates: &[
+            ("src/core/engine/mod.rs", "pub mod handler;"),
+            (
+                "src/main.rs",
+                "use mylib::core::engine::handler::{process_data, Processor}",
+            ),
+        ],
+    },
+    RenameFileTestCase {
+        test_name: "rust_rename_affecting_multiple_use_statements",
+        initial_files: &[
+            ("src/lib.rs", "pub mod types;"),
+            (
+                "src/types.rs",
+                r#"pub struct Config {
+    pub host: String,
+    pub port: u16,
+}
+
+pub enum Status {
+    Active,
+    Inactive,
+}
+
+pub type Result<T> = std::result::Result<T, String>;
+"#,
+            ),
+            (
+                "src/server.rs",
+                r#"use crate::types::Config;
+use crate::types::Status;
+
+pub struct Server {
+    config: Config,
+    status: Status,
+}
+"#,
+            ),
+            (
+                "src/client.rs",
+                r#"use crate::types::{Config, Result};
+
+pub struct Client {
+    config: Config,
+}
+
+impl Client {
+    pub fn connect(&self) -> Result<()> {
+        Ok(())
+    }
+}
+"#,
+            ),
+            (
+                "src/main.rs",
+                r#"use myapp::types::{Config, Status};
+
+fn main() {
+    let cfg = Config { host: "localhost".to_string(), port: 8080 };
+    let status = Status::Active;
+    println!("{} {}", cfg.host, cfg.port);
+}
+"#,
+            ),
+        ],
+        old_file_path: "src/types.rs",
+        new_file_path: "src/definitions.rs",
+        expect_success: true,
+        expected_import_updates: &[
+            ("src/lib.rs", "pub mod definitions;"),
+            ("src/server.rs", "use crate::definitions::Config"),
+            ("src/server.rs", "use crate::definitions::Status"),
+            ("src/client.rs", "use crate::definitions::{Config, Result}"),
+            ("src/main.rs", "use myapp::definitions::{Config, Status}"),
+        ],
+    },
+    RenameFileTestCase {
+        test_name: "rust_rename_affecting_both_mod_and_use_in_same_file",
+        initial_files: &[
+            (
+                "src/lib.rs",
+                r#"pub mod network;
+pub mod utils;
+
+use network::Connection;
+use utils::format_url;
+
+pub fn connect(url: &str) -> Connection {
+    let formatted = format_url(url);
+    Connection::new(formatted)
+}
+"#,
+            ),
+            (
+                "src/network.rs",
+                r#"pub struct Connection {
+    pub url: String,
+}
+
+impl Connection {
+    pub fn new(url: String) -> Self {
+        Self { url }
+    }
+}
+"#,
+            ),
+            (
+                "src/utils.rs",
+                r#"pub fn format_url(url: &str) -> String {
+    format!("https://{}", url)
+}
+"#,
+            ),
+        ],
+        old_file_path: "src/network.rs",
+        new_file_path: "src/net.rs",
+        expect_success: true,
+        expected_import_updates: &[
+            ("src/lib.rs", "pub mod net;"),
+            ("src/lib.rs", "use net::Connection;"),
+        ],
+    },
+];
+
+// =============================================================================
+// RUST RENAME DIRECTORY TEST CASES
+// =============================================================================
+
+pub const RUST_RENAME_DIRECTORY_TESTS: &[RenameDirectoryTestCase] = &[
+    RenameDirectoryTestCase {
+        test_name: "rust_rename_workspace_member_update_cargo_toml",
+        initial_files: &[
+            (
+                "Cargo.toml",
+                r#"[workspace]
+members = ["old_crate", "consumer"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+"#,
+            ),
+            (
+                "old_crate/Cargo.toml",
+                r#"[package]
+name = "old_crate"
+version = "0.1.0"
+edition = "2021"
+"#,
+            ),
+            (
+                "old_crate/src/lib.rs",
+                r#"pub fn greet(name: &str) -> String {
+    format!("Hello, {}!", name)
+}
+"#,
+            ),
+            (
+                "consumer/Cargo.toml",
+                r#"[package]
+name = "consumer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+old_crate = { path = "../old_crate" }
+"#,
+            ),
+            (
+                "consumer/src/main.rs",
+                r#"use old_crate::greet;
+
+fn main() {
+    println!("{}", greet("world"));
+}
+"#,
+            ),
+        ],
+        dir_to_rename: "old_crate",
+        new_dir_name: "new_crate",
+        update_imports: true,
+        expect_success: true,
+    },
+    RenameDirectoryTestCase {
+        test_name: "rust_rename_crate_update_path_dependencies",
+        initial_files: &[
+            (
+                "Cargo.toml",
+                r#"[workspace]
+members = ["my_utils", "app", "tests"]
+"#,
+            ),
+            (
+                "my_utils/Cargo.toml",
+                r#"[package]
+name = "my_utils"
+version = "0.1.0"
+edition = "2021"
+"#,
+            ),
+            (
+                "my_utils/src/lib.rs",
+                r#"pub fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+"#,
+            ),
+            (
+                "app/Cargo.toml",
+                r#"[package]
+name = "app"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+my_utils = { path = "../my_utils" }
+"#,
+            ),
+            (
+                "app/src/main.rs",
+                r#"use my_utils::add;
+
+fn main() {
+    println!("{}", add(2, 3));
+}
+"#,
+            ),
+            (
+                "tests/Cargo.toml",
+                r#"[package]
+name = "tests"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+my_utils = { path = "../my_utils" }
+"#,
+            ),
+            (
+                "tests/tests/integration.rs",
+                r#"use my_utils::add;
+
+#[test]
+fn test_add() {
+    assert_eq!(add(1, 1), 2);
+}
+"#,
+            ),
+        ],
+        dir_to_rename: "my_utils",
+        new_dir_name: "common_utils",
+        update_imports: true,
+        expect_success: true,
+    },
+    RenameDirectoryTestCase {
+        test_name: "rust_rename_crate_update_cross_crate_use_statements",
+        initial_files: &[
+            (
+                "Cargo.toml",
+                r#"[workspace]
+members = ["core_lib", "app"]
+"#,
+            ),
+            (
+                "core_lib/Cargo.toml",
+                r#"[package]
+name = "core_lib"
+version = "0.1.0"
+edition = "2021"
+"#,
+            ),
+            (
+                "core_lib/src/lib.rs",
+                r#"pub mod parser;
+pub mod validator;
+"#,
+            ),
+            (
+                "core_lib/src/parser.rs",
+                r#"pub fn parse(input: &str) -> Vec<String> {
+    input.split_whitespace().map(|s| s.to_string()).collect()
+}
+"#,
+            ),
+            (
+                "core_lib/src/validator.rs",
+                r#"pub fn validate(data: &[String]) -> bool {
+    !data.is_empty()
+}
+"#,
+            ),
+            (
+                "app/Cargo.toml",
+                r#"[package]
+name = "app"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+core_lib = { path = "../core_lib" }
+"#,
+            ),
+            (
+                "app/src/main.rs",
+                r#"use core_lib::parser::parse;
+use core_lib::validator::validate;
+
+fn main() {
+    let data = parse("hello world");
+    let valid = validate(&data);
+    println!("Valid: {}", valid);
+}
+"#,
+            ),
+        ],
+        dir_to_rename: "core_lib",
+        new_dir_name: "foundation",
+        update_imports: true,
+        expect_success: true,
+    },
+    RenameDirectoryTestCase {
+        test_name: "rust_rename_nested_module_directory_internal_use",
+        initial_files: &[
+            ("src/lib.rs", "pub mod services;"),
+            ("src/services/mod.rs", "pub mod payment;"),
+            (
+                "src/services/payment/mod.rs",
+                r#"pub mod processor;
+pub mod gateway;
+
+pub use processor::PaymentProcessor;
+pub use gateway::Gateway;
+"#,
+            ),
+            (
+                "src/services/payment/processor.rs",
+                r#"use crate::services::payment::gateway::Gateway;
+
+pub struct PaymentProcessor {
+    gateway: Gateway,
+}
+
+impl PaymentProcessor {
+    pub fn new(gateway: Gateway) -> Self {
+        Self { gateway }
+    }
+}
+"#,
+            ),
+            (
+                "src/services/payment/gateway.rs",
+                r#"pub struct Gateway {
+    pub url: String,
+}
+"#,
+            ),
+            (
+                "src/main.rs",
+                r#"use myapp::services::payment::{PaymentProcessor, Gateway};
+
+fn main() {
+    let gateway = Gateway { url: "https://api.stripe.com".to_string() };
+    let processor = PaymentProcessor::new(gateway);
+}
+"#,
+            ),
+        ],
+        dir_to_rename: "src/services/payment",
+        new_dir_name: "src/services/billing",
+        update_imports: true,
+        expect_success: true,
+    },
+    RenameDirectoryTestCase {
+        test_name: "rust_rename_complex_cargo_toml_mod_use_combined",
+        initial_files: &[
+            (
+                "Cargo.toml",
+                r#"[workspace]
+members = ["db_layer", "api_server", "models"]
+"#,
+            ),
+            (
+                "db_layer/Cargo.toml",
+                r#"[package]
+name = "db_layer"
+version = "0.1.0"
+edition = "2021"
+"#,
+            ),
+            (
+                "db_layer/src/lib.rs",
+                r#"pub mod connection;
+pub mod query;
+
+pub use connection::DbConnection;
+"#,
+            ),
+            (
+                "db_layer/src/connection.rs",
+                r#"pub struct DbConnection {
+    pub url: String,
+}
+"#,
+            ),
+            (
+                "db_layer/src/query.rs",
+                r#"use crate::connection::DbConnection;
+
+pub fn execute(conn: &DbConnection, sql: &str) -> Vec<String> {
+    vec![format!("Result from {}: {}", conn.url, sql)]
+}
+"#,
+            ),
+            (
+                "models/Cargo.toml",
+                r#"[package]
+name = "models"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+db_layer = { path = "../db_layer" }
+"#,
+            ),
+            (
+                "models/src/lib.rs",
+                r#"use db_layer::DbConnection;
+
+pub struct User {
+    pub id: i64,
+    pub name: String,
+}
+
+pub fn fetch_user(conn: &DbConnection, id: i64) -> Option<User> {
+    Some(User { id, name: "test".to_string() })
+}
+"#,
+            ),
+            (
+                "api_server/Cargo.toml",
+                r#"[package]
+name = "api_server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+db_layer = { path = "../db_layer" }
+models = { path = "../models" }
+"#,
+            ),
+            (
+                "api_server/src/main.rs",
+                r#"use db_layer::{DbConnection, query};
+use models::fetch_user;
+
+fn main() {
+    let conn = DbConnection { url: "postgres://localhost".to_string() };
+    let user = fetch_user(&conn, 1);
+    let results = query::execute(&conn, "SELECT * FROM users");
+    println!("{:?}", results);
+}
+"#,
+            ),
+        ],
+        dir_to_rename: "db_layer",
+        new_dir_name: "database",
+        update_imports: true,
+        expect_success: true,
     },
 ];

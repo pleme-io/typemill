@@ -37,6 +37,15 @@ pub mod test_move_integration;
 pub mod test_move_with_imports;
 
 #[cfg(test)]
+pub mod test_rust_mod_declarations;
+
+#[cfg(test)]
+pub mod test_rust_directory_rename;
+
+#[cfg(test)]
+pub mod test_direct_tool_calls;
+
+#[cfg(test)]
 pub mod test_reorder_integration;
 
 #[cfg(test)]
