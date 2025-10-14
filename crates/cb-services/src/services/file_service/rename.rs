@@ -260,10 +260,9 @@ impl FileService {
                 )));
             }
 
-            self.perform_rename(&old_abs, &new_abs).await?;
-
-            info!("File renamed successfully");
-
+            // IMPORTANT: Find affected files BEFORE renaming!
+            // The old file must still exist on disk for the import resolver to work correctly.
+            info!("Finding affected files before rename");
             let mut edit_plan = self
                 .reference_updater
                 .update_references(
@@ -276,9 +275,19 @@ impl FileService {
                 )
                 .await
                 .map_err(|e| {
-                    warn!(error = %e, "File renamed but import updates failed");
-                    ServerError::Internal(format!("Import updates failed: {}", e))
+                    warn!(error = %e, "Failed to find affected files");
+                    ServerError::Internal(format!("Failed to find affected files: {}", e))
                 })?;
+
+            info!(
+                edits_count = edit_plan.edits.len(),
+                "Found affected files, now performing rename"
+            );
+
+            // Now perform the actual rename
+            self.perform_rename(&old_abs, &new_abs).await?;
+
+            info!("File renamed successfully");
 
             // Update the source_file in the edit plan to the new path
             // since the file has been renamed
