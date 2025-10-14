@@ -7,8 +7,8 @@ This file provides guidance to AI assistants when working with code in this repo
 
 **Before working with this codebase, please read:**
 
-1. **[API_REFERENCE.md](API_REFERENCE.md)** - **READ THIS FIRST** - Complete MCP tools API reference.
-2. **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - A one-page cheat sheet for common commands and tools.
+1. **[API_REFERENCE.md](docs/API_REFERENCE.md)** - **READ THIS FIRST** - Complete MCP tools API reference.
+2. **[QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)** - A one-page cheat sheet for common commands and tools.
 
 ---
 - **[docs/architecture/ARCHITECTURE.md](overview.md)** - System architecture
@@ -38,11 +38,11 @@ Pure Rust MCP server bridging Language Server Protocol (LSP) functionality to AI
 
 ## MCP Tools
 
-Codebuddy provides comprehensive MCP tools for code intelligence and refactoring. See **[API_REFERENCE.md](API_REFERENCE.md)** for complete API reference with detailed parameters, return types, and examples.
+Codebuddy provides comprehensive MCP tools for code intelligence and refactoring. See **[API_REFERENCE.md](docs/API_REFERENCE.md)** for complete API reference with detailed parameters, return types, and examples.
 
 **Current Architecture**: 23 public tools visible to AI agents via MCP `tools/list`, plus 20 internal tools for backend workflows.
 
-**Note:** Internal tools exist for backend use only (lifecycle hooks, workflow plumbing, legacy operations). These are hidden from MCP `tools/list` to simplify the API surface for AI agents. See [API_REFERENCE.md Internal Tools](API_REFERENCE.md#internal-tools) section.
+**Note:** Internal tools exist for backend use only (lifecycle hooks, workflow plumbing, legacy operations). These are hidden from MCP `tools/list` to simplify the API surface for AI agents. See [API_REFERENCE.md Internal Tools](docs/API_REFERENCE.md#internal-tools) section.
 
 ### Quick Reference (23 Public Tools)
 
@@ -67,7 +67,7 @@ Codebuddy provides comprehensive MCP tools for code intelligence and refactoring
 **System & Health (1 tool)**
 - `health_check`
 
-**Note**: File operations, workspace tools, and legacy analysis tools are now internal-only. AI agents should use the public API above. See [API_REFERENCE.md](API_REFERENCE.md) for complete details.
+**Note**: File operations, workspace tools, and legacy analysis tools are now internal-only. AI agents should use the public API above. See [API_REFERENCE.md](docs/API_REFERENCE.md) for complete details.
 
 ### MCP Usage Pattern
 
@@ -158,7 +158,7 @@ pub mod module;  // Exposes the consolidated code
 - Merging experimental features back into main crate
 - Consolidating related functionality into a single package
 
-For detailed parameters, return types, and examples, see **[API_REFERENCE.md](API_REFERENCE.md)**.
+For detailed parameters, return types, and examples, see **[API_REFERENCE.md](docs/API_REFERENCE.md)**.
 
 ### Actionable Suggestions Configuration
 
@@ -557,5 +557,5 @@ All debug scripts, test analysis, and experimental code goes in `.debug/` (gitig
 - **[docs/features/WORKFLOWS.md](workflows.md)** - Workflow automation engine
 
 ### For Tool Reference
-- **[API_REFERENCE.md](API_REFERENCE.md)** - Complete MCP tools API with examples
-- **[API_REFERENCE.md#language-support-matrix](API_REFERENCE.md#language-support-matrix)** - Language support by tool
+- **[API_REFERENCE.md](docs/API_REFERENCE.md)** - Complete MCP tools API with examples
+- **[API_REFERENCE.md#language-support-matrix](docs/API_REFERENCE.md#language-support-matrix)** - Language support by tool

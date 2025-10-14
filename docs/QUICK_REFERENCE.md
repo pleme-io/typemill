@@ -166,6 +166,6 @@ include_safety_levels = ["safe", "requires_review"]
 
 ## 7. Key Links
 
-- **[API_REFERENCE.md](API_REFERENCE.md)**: The complete, detailed reference for all tools.
+- **[API_REFERENCE.md](docs/API_REFERENCE.md)**: The complete, detailed reference for all tools.
 - **[CONTRIBUTING.md](CONTRIBUTING.md)**: For developers who want to build from source or contribute.
 - **[docs/architecture/ARCHITECTURE.md](overview.md)**: A deep dive into the system architecture.

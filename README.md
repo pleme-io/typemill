@@ -28,7 +28,7 @@ Already know your way around LSP and AI assistants? Get productive in minutes.
     # { "mcpServers": { "codebuddy": { "command": "codebuddy", "args": ["start"] } } }
     ```
 
-**Done.** For a quick reference of commands and tools, see the **[🚀 Quick Reference Guide](QUICK_REFERENCE.md)**.
+**Done.** For a quick reference of commands and tools, see the **[🚀 Quick Reference Guide](docs/QUICK_REFERENCE.md)**.
 
 ---
 
@@ -108,8 +108,8 @@ The optional `restartInterval` helps with long-running server stability.
 
 ## 📖 Documentation
 
-- **[🚀 QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - A one-page guide for power users.
-- **[API_REFERENCE.md](API_REFERENCE.md)** - The complete MCP tools API reference.
+- **[🚀 QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)** - A one-page guide for power users.
+- **[API_REFERENCE.md](docs/API_REFERENCE.md)** - The complete MCP tools API reference.
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** - The guide for developers building from source.
 - **[docs/architecture/ARCHITECTURE.md](overview.md)** - System architecture deep-dive.
 
