@@ -210,7 +210,7 @@ make test-integration-nav
 
 **Estimated effort to enable:** 2-3 weeks
 
-**For details on blockers and a complete solution design**, see [docs/proposals/SINGLE_LANGUAGE_BUILDS.md](../docs/proposals/SINGLE_LANGUAGE_BUILDS.md).
+**For details on blockers and a complete solution design**, see [proposals/07_single_language_builds.proposal.md](../proposals/07_single_language_builds.proposal.md).
 
 **Key insight:** The solution involves replacing downcasting with capability traits (similar to LSP's capabilities model), which would also improve scalability as we add more languages.
 
