@@ -340,6 +340,44 @@ impl RustPlugin {
         Ok(quote::quote!(#new_ast).to_string())
     }
 
+    /// Update module declaration name in source (e.g., `pub mod old;` -> `pub mod new;`)
+    ///
+    /// Uses string-based replacement to preserve formatting and only update the module name.
+    pub fn update_module_declaration(
+        &self,
+        source: &str,
+        old_module_name: &str,
+        new_module_name: &str,
+    ) -> PluginResult<(String, usize)> {
+        let mut updated_content = source.to_string();
+        let mut changes = 0;
+
+        // Pattern matching for mod declarations
+        // Matches: "pub mod utils;" or "mod utils;" or "pub(crate) mod utils;" etc.
+        let patterns = [
+            format!("pub mod {};", old_module_name),
+            format!("mod {};", old_module_name),
+            format!("pub(crate) mod {};", old_module_name),
+            format!("pub(super) mod {};", old_module_name),
+        ];
+
+        let replacements = [
+            format!("pub mod {};", new_module_name),
+            format!("mod {};", new_module_name),
+            format!("pub(crate) mod {};", new_module_name),
+            format!("pub(super) mod {};", new_module_name),
+        ];
+
+        for (pattern, replacement) in patterns.iter().zip(replacements.iter()) {
+            if updated_content.contains(pattern) {
+                updated_content = updated_content.replace(pattern, replacement);
+                changes += 1;
+            }
+        }
+
+        Ok((updated_content, changes))
+    }
+
     /// Add path dependency to manifest
     pub async fn add_manifest_path_dependency(
         &self,
@@ -470,15 +508,92 @@ impl RustPlugin {
         tracing::info!(
             old_path = %_old_path.display(),
             new_path = %_new_path.display(),
+            importing_file = %_importing_file.display(),
             "RustPlugin::rewrite_imports_for_rename ENTRY"
         );
 
+        let mut updated_content = content.to_string();
+        let mut total_changes = 0;
+
+        // Step 1: Check if this is a parent file that might contain mod declarations
+        // Parent files are lib.rs or mod.rs in the same directory as the renamed file
+        let is_parent_file = {
+            let old_parent = _old_path.parent();
+            let importing_filename = _importing_file.file_name().and_then(|n| n.to_str());
+
+            old_parent.is_some()
+                && _importing_file.parent() == old_parent
+                && (importing_filename == Some("lib.rs") || importing_filename == Some("mod.rs"))
+        };
+
+        // Extract module names for simple file renames
+        let old_module_name = _old_path.file_stem().and_then(|s| s.to_str()).map(String::from);
+        let new_module_name = _new_path.file_stem().and_then(|s| s.to_str()).map(String::from);
+
+        if is_parent_file {
+            if let (Some(ref old_mod), Some(ref new_mod)) = (&old_module_name, &new_module_name) {
+                tracing::info!(
+                    old_module = %old_mod,
+                    new_module = %new_mod,
+                    "Updating mod declaration in parent file"
+                );
+
+                // Update mod declarations (pub mod old; -> pub mod new;)
+                match self.update_module_declaration(&updated_content, old_mod, new_mod) {
+                    Ok((new_content, changes)) => {
+                        if changes > 0 {
+                            updated_content = new_content;
+                            total_changes += changes;
+                            tracing::info!(
+                                changes = changes,
+                                "Updated mod declarations"
+                            );
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            error = %e,
+                            "Failed to update mod declarations, continuing with use statement updates"
+                        );
+                    }
+                }
+            }
+        }
+
+        // For simple file renames in same directory, also update use statements
+        // Example: "use utils::helper;" -> "use helpers::helper;" when renaming utils.rs -> helpers.rs
+        if let (Some(ref old_mod), Some(ref new_mod)) = (&old_module_name, &new_module_name) {
+            if _old_path.parent() == _new_path.parent() {
+                // Simple rename in same directory - update use statements
+                let old_use_pattern = format!("use {}::", old_mod);
+                let new_use_pattern = format!("use {}::", new_mod);
+
+                if updated_content.contains(&old_use_pattern) {
+                    let before = updated_content.clone();
+                    updated_content = updated_content.replace(&old_use_pattern, &new_use_pattern);
+                    if updated_content != before {
+                        let changes = before.matches(&old_use_pattern).count();
+                        total_changes += changes;
+                        tracing::info!(
+                            old_module = %old_mod,
+                            new_module = %new_mod,
+                            changes = changes,
+                            "Updated simple use statements for file rename"
+                        );
+                    }
+                }
+            }
+        }
+
+        // Step 2: Update use statements (existing logic)
         // Delegate to import capability with simpler signature
         if let Some(import_support) = self.import_support() {
             if let Some(info) = rename_info {
                 let old_name = info["old_crate_name"].as_str().unwrap_or("");
                 let new_name = info["new_crate_name"].as_str().unwrap_or("");
-                Ok(import_support.rewrite_imports_for_rename(content, old_name, new_name))
+                let (new_content, changes) = import_support.rewrite_imports_for_rename(&updated_content, old_name, new_name);
+                total_changes += changes;
+                updated_content = new_content;
             } else {
                 // This is a file move, not a crate rename. Infer crate from path.
                 // Strip project_root to get relative path, then extract crate name (first component)
@@ -578,19 +693,21 @@ impl RustPlugin {
 
                     // Rewrite if module paths differ (handles both cross-crate and same-crate moves)
                     if old_module_path != new_module_path {
-                        let result = import_support.rewrite_imports_for_rename(
-                            content,
+                        let (new_content, changes) = import_support.rewrite_imports_for_rename(
+                            &updated_content,
                             &old_module_path,
                             &new_module_path,
                         );
+                        total_changes += changes;
+                        updated_content = new_content;
                         tracing::info!(
-                            result_len = result.0.len(),
-                            changes_count = result.1,
+                            result_len = updated_content.len(),
+                            changes_count = changes,
+                            total_changes = total_changes,
                             "Rewrite completed"
                         );
-                        return Ok(result);
                     } else {
-                        tracing::info!("Module paths are identical - no rewrite needed");
+                        tracing::info!("Module paths are identical - no use statement rewrite needed");
                     }
                 } else {
                     tracing::error!(
@@ -599,13 +716,14 @@ impl RustPlugin {
                         "Failed to extract crate names - no rewrite possible"
                     );
                 }
-
-                tracing::info!("Returning no changes: (content, 0)");
-                Ok((content.to_string(), 0))
             }
-        } else {
-            Ok((content.to_string(), 0))
         }
+
+        tracing::info!(
+            total_changes = total_changes,
+            "Returning result from rewrite_imports_for_rename"
+        );
+        Ok((updated_content, total_changes))
     }
 }
 
@@ -841,5 +959,52 @@ pub fn process(x: i32) -> i32 {
 
         // Verify function body unchanged
         assert!(new_content.contains("calculate(x)"));
+    }
+
+    #[test]
+    fn test_update_module_declaration() {
+        let plugin = RustPlugin::default();
+
+        let source = "pub mod utils;\n\npub fn lib_fn() {\n    utils::helper();\n}\n";
+
+        let result = plugin.update_module_declaration(source, "utils", "helpers").unwrap();
+
+        assert_eq!(result.1, 1, "Should have 1 change");
+        assert!(result.0.contains("pub mod helpers;"), "Should contain 'pub mod helpers;'\nActual: {}", result.0);
+        assert!(!result.0.contains("pub mod utils;"), "Should not contain 'pub mod utils;'\nActual: {}", result.0);
+    }
+
+    #[test]
+    fn test_rewrite_imports_for_rename_updates_mod_declaration() {
+        let plugin = RustPlugin::default();
+        let project_root = Path::new("/tmp/test_project");
+
+        // Source: lib.rs with mod declaration
+        let lib_source = "pub mod utils;\n\npub fn lib_fn() {\n    utils::helper();\n}\n";
+
+        // Simulate renaming src/utils.rs → src/helpers.rs
+        // lib.rs is at src/lib.rs (parent of utils.rs)
+        let old_path = Path::new("/tmp/test_project/src/utils.rs");
+        let new_path = Path::new("/tmp/test_project/src/helpers.rs");
+        let lib_rs = Path::new("/tmp/test_project/src/lib.rs");
+
+        let result = plugin
+            .rewrite_imports_for_rename(lib_source, old_path, new_path, lib_rs, project_root, None)
+            .unwrap();
+
+        let (new_content, count) = result;
+
+        // Should have updated the mod declaration
+        assert!(count > 0, "Should have at least 1 change");
+        assert!(
+            new_content.contains("pub mod helpers;"),
+            "Should contain 'pub mod helpers;'\nActual: {}",
+            new_content
+        );
+        assert!(
+            !new_content.contains("pub mod utils;"),
+            "Should not contain 'pub mod utils;'\nActual: {}",
+            new_content
+        );
     }
 }
