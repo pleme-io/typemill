@@ -67,13 +67,15 @@ export function main() {
         .expect("rename_file should succeed");
 
     // Verify result structure
-    let content = result
+    let result_data = result
         .get("result")
-        .and_then(|r| r.get("content"))
-        .expect("Result should have content");
+        .expect("Result should have result field");
+
+    // DEBUG: Print the full result to see what import_updates contains
+    println!("DEBUG: Full result: {}", serde_json::to_string_pretty(&result).unwrap());
 
     assert_eq!(
-        content.get("success").and_then(|v| v.as_bool()),
+        result_data.get("success").and_then(|v| v.as_bool()),
         Some(true),
         "Direct rename_file should succeed"
     );
@@ -150,13 +152,12 @@ pub fn main_function() {
         .await
         .expect("rename_file should succeed");
 
-    let content = result
+    let result_data = result
         .get("result")
-        .and_then(|r| r.get("content"))
-        .expect("Result should have content");
+        .expect("Result should have result field");
 
     assert_eq!(
-        content.get("success").and_then(|v| v.as_bool()),
+        result_data.get("success").and_then(|v| v.as_bool()),
         Some(true),
         "Direct rename_file should succeed"
     );
@@ -214,20 +215,19 @@ async fn test_direct_rename_file_dry_run() {
         .await
         .expect("rename_file dry run should succeed");
 
-    let content = result
+    let result_data = result
         .get("result")
-        .and_then(|r| r.get("content"))
-        .expect("Result should have content");
+        .expect("Result should have result field");
 
     // Verify: dry_run returned success
     assert_eq!(
-        content.get("success").and_then(|v| v.as_bool()),
+        result_data.get("success").and_then(|v| v.as_bool()),
         Some(true),
         "Dry run should succeed"
     );
 
     // Verify: import_updates field is populated
-    let import_updates = content.get("import_updates").expect("Should have import_updates");
+    let import_updates = result_data.get("import_updates").expect("Should have import_updates");
     let files_to_modify = import_updates
         .get("files_to_modify")
         .and_then(|v| v.as_array())
@@ -315,13 +315,12 @@ export function main() {
         .await
         .expect("rename_directory should succeed");
 
-    let content = result
+    let result_data = result
         .get("result")
-        .and_then(|r| r.get("content"))
-        .expect("Result should have content");
+        .expect("Result should have result field");
 
     assert_eq!(
-        content.get("success").and_then(|v| v.as_bool()),
+        result_data.get("success").and_then(|v| v.as_bool()),
         Some(true),
         "Direct rename_directory should succeed"
     );
@@ -394,20 +393,19 @@ async fn test_direct_rename_directory_dry_run() {
         .await
         .expect("rename_directory dry run should succeed");
 
-    let content = result
+    let result_data = result
         .get("result")
-        .and_then(|r| r.get("content"))
-        .expect("Result should have content");
+        .expect("Result should have result field");
 
     // Verify: dry_run returned success
     assert_eq!(
-        content.get("success").and_then(|v| v.as_bool()),
+        result_data.get("success").and_then(|v| v.as_bool()),
         Some(true),
         "Dry run should succeed"
     );
 
     // Verify: files_to_move count is accurate
-    let files_to_move = content
+    let files_to_move = result_data
         .get("files_to_move")
         .and_then(|v| v.as_u64())
         .expect("Should have files_to_move count");
@@ -417,7 +415,7 @@ async fn test_direct_rename_directory_dry_run() {
     );
 
     // Verify: import_updates shows affected files
-    let import_updates = content.get("import_updates").expect("Should have import_updates");
+    let import_updates = result_data.get("import_updates").expect("Should have import_updates");
     let files_to_modify = import_updates
         .get("files_to_modify")
         .and_then(|v| v.as_array())
@@ -439,7 +437,7 @@ async fn test_direct_rename_directory_dry_run() {
     );
 
     // Verify: affected_files array is populated
-    let affected_files = content
+    let affected_files = result_data
         .get("affected_files")
         .and_then(|v| v.as_array())
         .expect("Should have affected_files array");
@@ -541,13 +539,12 @@ fn main() {
         .await
         .expect("rename_directory should succeed");
 
-    let content = result
+    let result_data = result
         .get("result")
-        .and_then(|r| r.get("content"))
-        .expect("Result should have content");
+        .expect("Result should have result field");
 
     assert_eq!(
-        content.get("success").and_then(|v| v.as_bool()),
+        result_data.get("success").and_then(|v| v.as_bool()),
         Some(true),
         "Direct rename_directory should succeed"
     );

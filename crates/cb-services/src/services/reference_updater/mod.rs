@@ -5,7 +5,7 @@
 //！ language-specific logic to plugins.
 
 mod cache;
-mod detectors;
+pub mod detectors;
 
 pub use cache::FileImportInfo;
 

@@ -19,6 +19,13 @@ pub fn find_generic_affected_files(
 ) -> Vec<PathBuf> {
     let mut affected = Vec::new();
 
+    tracing::info!(
+        old_path = %old_path.display(),
+        new_path = %new_path.display(),
+        project_files_count = project_files.len(),
+        "find_generic_affected_files called"
+    );
+
     for file in project_files {
         if file == old_path || file == new_path {
             continue;
@@ -26,14 +33,30 @@ pub fn find_generic_affected_files(
         if let Ok(content) = std::fs::read_to_string(file) {
             let all_imports = get_all_imported_files(&content, file, plugins, project_files, project_root);
 
+            tracing::debug!(
+                file = %file.display(),
+                imports_count = all_imports.len(),
+                imports = ?all_imports.iter().map(|p| p.display().to_string()).collect::<Vec<_>>(),
+                "Parsed imports from file"
+            );
+
             // Check if imports reference either the old path (pre-move) or new path (post-move)
             if all_imports.contains(&old_path.to_path_buf())
                 || all_imports.contains(&new_path.to_path_buf())
             {
+                tracing::info!(
+                    file = %file.display(),
+                    "File imports from old/new path - marking as affected"
+                );
                 affected.push(file.clone());
             }
         }
     }
+
+    tracing::info!(
+        affected_count = affected.len(),
+        "find_generic_affected_files completed"
+    );
 
     affected
 }
@@ -127,6 +150,8 @@ pub fn extract_import_path(line: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use tempfile::TempDir;
 
     #[test]
     fn test_extract_import_path() {
@@ -148,5 +173,72 @@ mod tests {
         );
         assert_eq!(extract_import_path("let x = 1;"), None);
         assert_eq!(extract_import_path("this is from a file"), None);
+    }
+
+    #[test]
+    fn test_generic_detector_with_typescript() {
+        // Create temp workspace
+        let workspace = TempDir::new().unwrap();
+        let root = workspace.path();
+
+        // Create TypeScript files
+        fs::create_dir_all(root.join("src")).unwrap();
+        fs::write(
+            root.join("src/utils.ts"),
+            r#"export const myUtil = () => {
+    return "utility function";
+};
+
+export function helperFunc(data: string): string {
+    return data.toUpperCase();
+}
+"#,
+        ).unwrap();
+
+        fs::write(
+            root.join("src/main.ts"),
+            r#"import { myUtil, helperFunc } from './utils';
+
+export function main() {
+    const result = myUtil();
+    const processed = helperFunc(result);
+    console.log(processed);
+}
+"#,
+        ).unwrap();
+
+        let old_path = root.join("src/utils.ts");
+        let new_path = root.join("src/renamed_utils.ts");
+        let project_files = vec![
+            root.join("src/utils.ts"),
+            root.join("src/main.ts"),
+        ];
+
+        // Create TypeScript plugin
+        let ts_plugin = cb_lang_typescript::TypeScriptPlugin::new();
+        let plugins: Vec<std::sync::Arc<dyn cb_plugin_api::LanguagePlugin>> =
+            vec![std::sync::Arc::from(ts_plugin)];
+
+        // Test generic detector
+        let affected = find_generic_affected_files(
+            &old_path,
+            &new_path,
+            root,
+            &project_files,
+            &plugins,
+        );
+
+        println!("DEBUG: Old path: {}", old_path.display());
+        println!("DEBUG: New path: {}", new_path.display());
+        println!("DEBUG: Project root: {}", root.display());
+        println!("DEBUG: Project files: {:?}", project_files);
+        println!("DEBUG: Affected files: {:?}", affected);
+        println!("DEBUG: Affected count: {}", affected.len());
+
+        assert!(
+            affected.contains(&root.join("src/main.ts")),
+            "main.ts should be detected as affected. Affected files: {:?}",
+            affected
+        );
     }
 }
