@@ -556,19 +556,22 @@ impl RustPlugin {
                         new_name = %new_name,
                         "Both crate names extracted successfully"
                     );
-                    if old_name != new_name {
-                        // Compute full module paths including file structure
-                        let old_module_path =
-                            compute_module_path_from_file(_old_path, old_name, &canonical_project);
-                        let new_module_path =
-                            compute_module_path_from_file(_new_path, new_name, &canonical_project);
 
-                        tracing::info!(
-                            old_module_path = %old_module_path,
-                            new_module_path = %new_module_path,
-                            "Computed full module paths for replacement"
-                        );
+                    // Always compute full module paths including file structure
+                    // This allows us to detect moves within the same crate
+                    let old_module_path =
+                        compute_module_path_from_file(_old_path, old_name, &canonical_project);
+                    let new_module_path =
+                        compute_module_path_from_file(_new_path, new_name, &canonical_project);
 
+                    tracing::info!(
+                        old_module_path = %old_module_path,
+                        new_module_path = %new_module_path,
+                        "Computed full module paths for comparison"
+                    );
+
+                    // Rewrite if module paths differ (handles both cross-crate and same-crate moves)
+                    if old_module_path != new_module_path {
                         let result = import_support.rewrite_imports_for_rename(
                             content,
                             &old_module_path,
@@ -581,7 +584,7 @@ impl RustPlugin {
                         );
                         return Ok(result);
                     } else {
-                        tracing::info!("Crates are the same - no rewrite needed");
+                        tracing::info!("Module paths are identical - no rewrite needed");
                     }
                 } else {
                     tracing::error!(
@@ -893,5 +896,45 @@ impl Wrapper {
         let file_path = Path::new("/workspace/common/src/foo/bar.rs");
         let result = compute_module_path_from_file(file_path, "common", project_root);
         assert_eq!(result, "common::foo::bar");
+    }
+
+    #[tokio::test]
+    async fn test_rewrite_imports_same_crate_file_move() {
+        let plugin = RustPlugin::default();
+        let project_root = Path::new("/workspace");
+
+        // Source file with import from common::utils
+        let source = r#"use common::utils::calculate;
+
+pub fn process(x: i32) -> i32 {
+    calculate(x)
+}"#;
+
+        // Simulate moving common/src/utils.rs → common/src/helpers.rs
+        let old_path = Path::new("/workspace/common/src/utils.rs");
+        let new_path = Path::new("/workspace/common/src/helpers.rs");
+        let current_file = Path::new("/workspace/common/src/processor.rs");
+
+        let result = plugin
+            .rewrite_imports_for_rename(source, old_path, new_path, current_file, project_root, None)
+            .unwrap();
+
+        let (new_content, count) = result;
+
+        // Should have changed 1 import
+        assert_eq!(count, 1, "Expected 1 import to be updated");
+
+        // Verify import was rewritten from common::utils to common::helpers
+        assert!(
+            new_content.contains("use common::helpers::calculate"),
+            "Import should be updated to common::helpers::calculate"
+        );
+        assert!(
+            !new_content.contains("use common::utils"),
+            "Old import with common::utils should be gone"
+        );
+
+        // Verify function body unchanged
+        assert!(new_content.contains("calculate(x)"));
     }
 }
