@@ -2,7 +2,8 @@
 
 **Status:** Proposal
 **Effort:** 2-3 weeks
-**Priority:** Medium (enables faster iteration, reduces complexity)
+**Priority:** High (prerequisite for language expansion)
+**Note:** Implement BEFORE Proposal 03 (Language Expansion) - Capability traits make adding new languages easier
 
 ## Problem Statement
 
