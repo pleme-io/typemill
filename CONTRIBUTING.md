@@ -95,6 +95,55 @@ cargo nextest run --test lsp_features
 cargo nextest run --status-level skip
 ```
 
+### Focused Development Workflows
+
+For faster iteration when working on specific subsystems, use the focused test commands:
+
+```bash
+# Analysis crates only (extremely fast: ~0.02s for 21 tests)
+make test-analysis
+cargo test-analysis
+
+# Handlers only - minimal features (fast: ~0.1s for 37 tests, 13s total)
+make test-handlers
+cargo test-handlers-core
+
+# Core libraries (excludes integration tests: ~49s for 576 tests)
+make test-core
+cargo test-core
+
+# Language plugins only (fast: ~0.3s for 193 tests)
+make test-lang
+cargo test-lang
+```
+
+**Watch mode for incremental development** (auto-rebuild on file changes, debug mode):
+
+```bash
+# Watch handlers (fastest iteration)
+make dev-handlers
+
+# Watch analysis crates
+make dev-analysis
+
+# Watch core libraries
+make dev-core
+
+# Watch language plugins
+make dev-lang
+```
+
+**Check-only commands** (faster than testing, no binary builds):
+
+```bash
+make check-handlers    # Check handlers only
+make check-analysis    # Check analysis only
+make check-core        # Check core libraries
+make check-lang        # Check language plugins
+```
+
+These focused commands exclude analysis features from handlers by default, significantly speeding up compilation times. They're perfect for tight iteration loops when working on specific parts of the codebase.
+
 ## Code Style and Linting
 
 We use the standard Rust formatting and linting tools to maintain a consistent codebase.
