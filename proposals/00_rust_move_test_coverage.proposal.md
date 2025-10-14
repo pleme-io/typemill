@@ -26,6 +26,8 @@ Add comprehensive test fixtures and test cases covering Rust-specific file movem
 - [ ] Add `RUST_RENAME_FILE_TESTS` to `crates/cb-test-support/src/harness/mcp_fixtures.rs`
 - [ ] Test case: Rename file with `mod` declaration in parent `mod.rs`
 - [ ] Test case: Rename file with `mod` declaration in parent `lib.rs`
+- [ ] Test case: Rename file with `mod` declaration in sibling `mod.rs` (e.g., `src/utils/mod.rs` declaring `mod helpers;` when renaming `src/utils/helpers.rs`)
+- [ ] Test case: Nested `mod.rs` tree - rename affecting multiple levels of module hierarchy (verifies `compute_module_path_from_file` + rewrite logic alignment)
 - [ ] Test case: Rename module file affecting multiple `use` statements across crate
 - [ ] Test case: Rename affecting both `mod` and `use` in same file
 
@@ -50,17 +52,20 @@ Add comprehensive test fixtures and test cases covering Rust-specific file movem
 ### Add Dry-Run Verification Tests
 
 - [ ] Add test to `integration-tests/src/dry_run_integration.rs`
-- [ ] Verify `import_updates.files_to_modify` count matches expected
-- [ ] Verify `import_updates.affected_files` contains expected paths
+- [ ] Verify `import_updates.files_to_modify` count matches expected for file renames
+- [ ] Verify `import_updates.affected_files` contains expected paths for file renames
 - [ ] Verify `files` list in directory dry-run matches actual file count
+- [ ] Verify `import_updates.files_to_modify` count for directory renames (exercises preview path)
+- [ ] Verify `import_updates.affected_files` for directory renames (exercises execution path)
 - [ ] Test dry-run doesn't modify filesystem
 
 ### Add Direct Tool Call Tests
 
 - [ ] Add test calling `rename_file` tool directly (not via unified API)
 - [ ] Add test calling `rename_directory` tool directly (not via unified API)
+- [ ] Add dry-run test for `rename_directory` tool directly (verifies `files_to_modify`/`affected_files` populated correctly)
 - [ ] Verify import updates occur with direct tool invocation
-- [ ] Verify dry-run flag works with direct tool invocation
+- [ ] Verify dry-run flag works with direct tool invocation for both preview and execution paths
 
 ## Success Criteria
 
