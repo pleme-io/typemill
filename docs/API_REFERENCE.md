@@ -1809,27 +1809,40 @@ Rename a directory and automatically update all imports. Supports special **cons
   "old_path": "src/components",    // Required: Current directory path
   "new_path": "src/ui",            // Required: New directory path
   "dry_run": false,                // Optional: Preview changes (default: false)
-  "consolidate": false             // Optional: Rust crate consolidation mode (default: false)
+  "consolidate": false,            // Optional: Rust crate consolidation mode (default: false)
+  "details": false                 // Optional: Include detailed file list in dry-run (default: false)
 }
 ```
 
-**Returns (dry_run: true):**
+**Returns (dry_run: true, details: false):**
 ```json
 {
   "status": "preview",
   "operation": "rename_directory",
   "old_path": "src/components",
   "new_path": "src/ui",
-  "changes": {
-    "files_to_move": 15,
-    "imports_to_update": 42,
-    "affected_files": ["src/app.ts", "src/pages/Home.tsx"]
-  },
-  "preview": {
-    "files_updated": 12,
-    "imports_updated": 42,
-    "updated_paths": [...]
-  }
+  "files_to_move": 15,
+  "is_cargo_package": false
+}
+```
+
+**Returns (dry_run: true, details: true):**
+```json
+{
+  "status": "preview",
+  "operation": "rename_directory",
+  "old_path": "src/components",
+  "new_path": "src/ui",
+  "files_to_move": 15,
+  "is_cargo_package": false,
+  "files": [
+    "Button.tsx",
+    "Input.tsx",
+    "Modal.tsx",
+    "styles/button.css",
+    "styles/input.css",
+    "index.ts"
+  ]
 }
 ```
 
