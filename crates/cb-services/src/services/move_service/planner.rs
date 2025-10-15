@@ -113,16 +113,93 @@ pub async fn plan_directory_move(
     if is_cargo_pkg {
         info!("Adding Cargo.toml manifest edits to plan");
 
-        // Plan workspace manifest updates (workspace members + package name)
-        // NOTE: This needs FileService methods, so we'll delegate back to FileService
-        // The actual implementation will be in FileService which will call this planner
-        // For now, we'll add a note in the plan
-        warn!("Cargo manifest updates require FileService - will be added by caller");
+        let edits_before = edit_plan.edits.len();
 
-        // Log what we have so far
+        // 1. Plan workspace manifest updates (workspace members + package name)
+        let workspace_updates = cargo::plan_workspace_manifest_updates(
+            old_abs,
+            new_abs,
+            project_root,
+        )
+        .await;
+
+        match workspace_updates {
+            Ok(updates) if !updates.is_empty() => {
+                info!(
+                    workspace_manifests = updates.len(),
+                    "Planning workspace Cargo.toml updates"
+                );
+
+                // Convert manifest updates to TextEdits
+                let manifest_edits = cargo::convert_manifest_updates_to_edits(
+                    updates,
+                    old_abs,
+                    new_abs,
+                );
+
+                edit_plan.edits.extend(manifest_edits);
+            }
+            Ok(_) => {
+                info!("No workspace manifest updates needed");
+            }
+            Err(e) => {
+                warn!(
+                    error = %e,
+                    "Failed to plan workspace manifest updates, continuing without them"
+                );
+            }
+        }
+
+        // 2. Plan dependent crate path updates
+        if let Some(ref info) = rename_info {
+            if let (Some(old_name), Some(new_name)) = (
+                info.get("old_package_name").and_then(|v| v.as_str()),
+                info.get("new_package_name").and_then(|v| v.as_str()),
+            ) {
+                let dep_updates = cargo::plan_dependent_crate_path_updates(
+                    old_name,
+                    new_name,
+                    new_abs,
+                    project_root,
+                )
+                .await;
+
+                match dep_updates {
+                    Ok(updates) if !updates.is_empty() => {
+                        info!(
+                            dependent_manifests = updates.len(),
+                            "Planning dependent crate path updates"
+                        );
+
+                        // Convert to TextEdits
+                        let dep_edits = cargo::convert_manifest_updates_to_edits(
+                            updates,
+                            old_abs,
+                            new_abs,
+                        );
+
+                        edit_plan.edits.extend(dep_edits);
+                    }
+                    Ok(_) => {
+                        info!("No dependent crate path updates needed");
+                    }
+                    Err(e) => {
+                        warn!(
+                            error = %e,
+                            "Failed to plan dependent crate updates, continuing without them"
+                        );
+                    }
+                }
+            }
+        }
+
+        let edits_after = edit_plan.edits.len();
+        let manifest_edits_added = edits_after - edits_before;
+
         info!(
-            edits_before_manifest = edit_plan.edits.len(),
-            "Edit plan before manifest updates"
+            manifest_edits_added,
+            total_edits = edits_after,
+            "Cargo manifest edits added to plan"
         );
     }
 
