@@ -1,56 +1,59 @@
 version: 1.2.0
 provider: docker
 os: auto
+tart:
+  disk_size: 50
+  install_docker: false
+  rosetta: true
 project:
-  name: codebuddy
-  hostname: dev.codebuddy.local
-  workspace_path: /workspace
   backup_pattern: '*backup*.sql.gz'
+  hostname: dev.codebuddy.local
+  name: codebuddy
+  workspace_path: /workspace
 vm:
-  user: developer
-  memory: 8192
   cpus: 6
-  timezone: America/Los_Angeles
-  port_binding: 127.0.0.1
   gui: false
+  memory: 8192
+  port_binding: 127.0.0.1
+  timezone: America/Los_Angeles
+  user: developer
 versions:
   node: '22'
+  nvm: v0.40.3
   pnpm: 10.12.3
   python: '3.11'
-  nvm: v0.40.3
-port_range: 3040-3049
 services:
-  postgresql:
+  audio:
+    driver: pulse
     enabled: false
-    port: 5432
-    user: postgres
-    password: postgres
-  redis:
+    share_microphone: false
+  docker:
+    buildx: true
     enabled: false
-    port: 6379
+  gpu:
+    enabled: false
+    memory_mb: 256
+    type: auto
+  headless_browser:
+    display: :99
+    enabled: false
+    executable_path: /usr/bin/chromium-browser
   mongodb:
     enabled: false
     port: 27017
   mysql:
     enabled: false
+    password: mysql
     port: 3306
     user: root
-    password: mysql
-  docker:
+  postgresql:
     enabled: false
-    buildx: true
-  headless_browser:
+    password: postgres
+    port: 5432
+    user: postgres
+  redis:
     enabled: false
-    display: :99
-    executable_path: /usr/bin/chromium-browser
-  audio:
-    enabled: false
-    driver: pulse
-    share_microphone: false
-  gpu:
-    enabled: false
-    type: auto
-    memory_mb: 256
+    port: 6379
 apt_packages:
   - htop
   - tree
@@ -67,22 +70,22 @@ npm_packages:
   - eslint
 pip_packages:
   - claudeflow
-aliases:
-  claudeyolo: claude --dangerously-skip-permissions
-  geminiyolo: GEMINI_API_KEY=${GEMINI_API_KEY:-} gemini
-terminal:
-  theme: dracula
-  emoji: 🚀
-  username: codebuddy-dev
-  show_git_branch: true
-  show_timestamp: false
-tart:
-  disk_size: 50
-  rosetta: true
-  install_docker: false
-claude_sync: true
-gemini_sync: true
 package_linking:
   npm: true
   pip: true
   cargo: false
+terminal:
+  emoji: 🚀
+  show_git_branch: true
+  show_timestamp: false
+  theme: dracula
+  username: codebuddy-dev
+aliases:
+  claudeyolo: claude --dangerously-skip-permissions
+  geminiyolo: GEMINI_API_KEY=${GEMINI_API_KEY:-} gemini
+claude_sync: true
+gemini_sync: true
+port_range: 3040-3049
+networking:
+  networks:
+  - jules
