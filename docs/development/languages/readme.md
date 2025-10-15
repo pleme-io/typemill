@@ -13,7 +13,7 @@ Language-specific plugins for Codebuddy, implementing the `LanguagePlugin` trait
 
 **For new plugin developers**, read these in order:
 
-1. **[PLUGIN_DEVELOPMENT_GUIDE.md](plugin_development_guide.md)** - Complete step-by-step implementation guide
+1. **[PLUGIN_DEVELOPMENT.md](../../PLUGIN_DEVELOPMENT.md)** - Complete step-by-step implementation guide
    - Quick start with automated scaffolding
    - Step-by-step implementation
    - Testing and troubleshooting
@@ -114,7 +114,7 @@ Use the automated scaffolding script (when available):
 # Creates plugin structure in crates/cb-lang-<name>/
 ```
 
-Then follow the **[PLUGIN_DEVELOPMENT_GUIDE.md](plugin_development_guide.md)** for step-by-step implementation.
+Then follow the **[PLUGIN_DEVELOPMENT.md](../../PLUGIN_DEVELOPMENT.md)** for step-by-step implementation.
 
 ### Using cb-lang-common Utilities
 
@@ -188,7 +188,7 @@ println!("Package: {}", manifest.name);
 ```
 
 ### 2. Implementation
-Follow **[PLUGIN_DEVELOPMENT_GUIDE.md](plugin_development_guide.md)**:
+Follow **[PLUGIN_DEVELOPMENT.md](../../PLUGIN_DEVELOPMENT.md)**:
 - Implement `parse()` for symbol extraction
 - Implement `analyze_manifest()` for dependency parsing
 - Add import support (optional)
@@ -298,7 +298,7 @@ See reference implementations for complete test coverage examples.
 When adding a new language plugin:
 
 1. Run `./new-lang.sh <language>` to scaffold
-2. Implement following **[PLUGIN_DEVELOPMENT_GUIDE.md](plugin_development_guide.md)**
+2. Implement following **[PLUGIN_DEVELOPMENT.md](../../PLUGIN_DEVELOPMENT.md)**
 3. Use utilities from **[CB_LANG_COMMON.md](cb_lang_common.md)**
 4. Write comprehensive tests (target: 30+ tests)
 5. Call the `codebuddy_plugin!` macro in your plugin's `lib.rs` to enable self-registration.
@@ -317,6 +317,6 @@ When adding a new language plugin:
 
 ---
 
-For detailed implementation guidance, see **[PLUGIN_DEVELOPMENT_GUIDE.md](plugin_development_guide.md)**.
+For detailed implementation guidance, see **[PLUGIN_DEVELOPMENT.md](../../PLUGIN_DEVELOPMENT.md)**.
 
 For utility reference, see **[CB_LANG_COMMON.md](cb_lang_common.md)**.

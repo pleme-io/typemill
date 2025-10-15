@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "codebuddy": {
+      "command": "codebuddy",
+      "args": ["start"]
+    }
+  }
+}

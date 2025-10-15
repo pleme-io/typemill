@@ -4,7 +4,7 @@
 **Location**: `/workspace/crates/cb-lang-common`
 **Last Updated**: 2025-10-07
 
-Quick reference for the `cb-lang-common` utility crate that provides shared functionality for all language plugins. For detailed implementation examples, see [PLUGIN_DEVELOPMENT_GUIDE.md](plugin_development_guide.md).
+Quick reference for the `cb-lang-common` utility crate that provides shared functionality for all language plugins. For detailed implementation examples, see [PLUGIN_DEVELOPMENT.md](../../PLUGIN_DEVELOPMENT.md).
 
 ---
 
@@ -316,5 +316,5 @@ let ts_imports: Vec<TsImportInfo> = run_ast_tool(tool, source)?;
 ---
 
 For detailed implementation examples, see:
-- [PLUGIN_DEVELOPMENT_GUIDE.md](plugin_development_guide.md) - Step-by-step guide
+- [PLUGIN_DEVELOPMENT.md](../../PLUGIN_DEVELOPMENT.md) - Step-by-step guide
 - Plugin implementations: [`cb-lang-go`](../cb-lang-go/), [`cb-lang-python`](../cb-lang-python/), [`cb-lang-typescript`](../cb-lang-typescript/), [`cb-lang-rust`](../cb-lang-rust/)

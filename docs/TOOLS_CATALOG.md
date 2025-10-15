@@ -1,29 +1,14 @@
-# MCP Tools Quick Reference
+# MCP Tools Catalog
 
-**Purpose:** Fast lookup table for all Codebuddy MCP tools
-**Format:** Tool name → Parameters → Returns (no examples or details)
-**For detailed documentation:** See [API_REFERENCE.md](../API_REFERENCE.md)
+Fast lookup table for all Codebuddy MCP tools.
 
-**Version:** 1.0.0-rc4
-**Last Updated:** 2025-10-09
+**Format:** Tool name → Parameters → Returns (no examples)
+**Detailed docs:** [API_REFERENCE.md](API_REFERENCE.md)
 
 ---
 
-## What's the Difference?
-
-| This File | API_REFERENCE.md |
-|-----------|--------|
-| **Quick cheat sheet** (113 lines) | **Complete reference** (2,760 lines) |
-| Tool names + parameters only | Examples, errors, patterns |
-| 30-second scan | Implementation guide |
-
-**Use this when:** You need to remember parameter names or check if a tool exists
-**Use API_REFERENCE.md when:** You need to understand how to use a tool or handle errors
-
----
-
-**Tools:** 24 public MCP tools (17 navigation/refactoring + 7 unified analysis)
-**Internal tools:** 23 backend-only tools (see [API_REFERENCE.md Internal Tools](../API_REFERENCE.md#internal-tools))
+**Public Tools:** 23 MCP tools (visible to AI agents)
+**Internal Tools:** 20 backend-only tools (see [Internal Tools](#internal-tools-backend-only) below)
 
 ---
 
@@ -156,4 +141,26 @@ LSP-based tools depend on configured language servers. Native tools (file ops, A
 
 ---
 
-**For detailed parameters, return types, examples, and error handling, see [API_REFERENCE.md](../API_REFERENCE.md)**
+## Internal Tools (Backend Only)
+
+Not visible in MCP `tools/list`. Used by backend workflows. AI agents should use public API instead.
+
+| Category | Tools | Count |
+|----------|-------|-------|
+| **Lifecycle** | notify_file_opened, notify_file_saved, notify_file_closed | 3 |
+| **File Operations** | create_file, delete_file, rename_file, rename_directory | 4 |
+| **File Utilities** | read_file, write_file, list_files | 3 |
+| **Workspace Tools** | move_directory, update_dependencies, update_dependency | 3 |
+| **Structure Analysis** | get_document_symbols (replaced by `analyze.structure`) | 1 |
+| **Advanced Plumbing** | execute_edits (replaced by `workspace.apply_edit`), execute_batch | 2 |
+| **Legacy Editing** | rename_symbol_with_imports | 1 |
+| **Legacy Workspace** | apply_workspace_edit | 1 |
+| **Intelligence** | get_completions, get_signature_help | 2 |
+
+**Total:** 20 internal tools
+
+**Note:** Legacy analysis tools removed (Proposal 45). All analysis via unified `analyze.*` API.
+
+---
+
+**Detailed docs:** [API_REFERENCE.md](API_REFERENCE.md)

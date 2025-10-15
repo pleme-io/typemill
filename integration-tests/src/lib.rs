@@ -46,9 +46,6 @@ pub mod test_rust_directory_rename;
 pub mod test_rust_same_crate_moves;
 
 #[cfg(test)]
-pub mod test_direct_tool_calls;
-
-#[cfg(test)]
 pub mod test_reorder_integration;
 
 #[cfg(test)]

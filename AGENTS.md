@@ -7,28 +7,19 @@ This file provides guidance to AI assistants when working with code in this repo
 
 **Before working with this codebase, please read:**
 
-1. **[API_REFERENCE.md](docs/API_REFERENCE.md)** - **READ THIS FIRST** - Complete MCP tools API reference.
-2. **[QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)** - A one-page cheat sheet for common commands and tools.
+1. **[API_REFERENCE.md](docs/API_REFERENCE.md)** - **READ THIS FIRST** - Complete MCP tools API reference
+2. **[TOOLS_CATALOG.md](docs/TOOLS_CATALOG.md)** - Fast lookup table for all 23 public tools
+3. **[OPERATIONS.md](docs/OPERATIONS.md)** - Advanced configuration and analysis options
 
 ---
-- **[docs/architecture/ARCHITECTURE.md](overview.md)** - System architecture
-  - Component overview and data flow
-  - LSP integration patterns
-  - Plugin system design
 
-3. **[CONTRIBUTING.md](CONTRIBUTING.md)** - Contributor guide
-   - How to add new MCP tools
-   - Handler architecture and registration
-   - Best practices and code standards
+**Architecture & Development:**
+- **[docs/architecture/overview.md](docs/architecture/overview.md)** - System architecture (components, data flow, LSP integration)
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Contributor guide (add tools, handler architecture, best practices)
+- **[docs/development/logging_guidelines.md](docs/development/logging_guidelines.md)** - Structured logging standards
 
-4. **[docs/development/LOGGING_GUIDELINES.md](logging_guidelines.md)** - Structured logging
-   - Required logging format (structured key-value)
-   - Log levels and conventions
-   - Anti-patterns to avoid
-
-5. **[docs/deployment/DOCKER_DEPLOYMENT.md](docker_deployment.md)** - Docker deployment guide
-   - Development and production deployment
-   - Security best practices and troubleshooting
+**Deployment:**
+- **[docs/deployment/docker_deployment.md](docs/deployment/docker_deployment.md)** - Docker deployment (dev and production)
 
 ## Project Information
 
@@ -323,9 +314,9 @@ cargo nextest run --workspace --features heavy-tests
 
 ## Architecture & Configuration
 
-For detailed system architecture, see **[docs/architecture/ARCHITECTURE.md](overview.md)**.
+For detailed system architecture, see **[docs/architecture/overview.md](docs/architecture/overview.md)**.
 
-For Docker deployment details, see **[docs/deployment/DOCKER_DEPLOYMENT.md](docker_deployment.md)**. For CLI usage, see the CLI Commands section above.
+For Docker deployment details, see **[docs/deployment/docker_deployment.md](docs/deployment/docker_deployment.md)**. For CLI usage, see the CLI Commands section above.
 
 ### Quick Configuration Example
 
@@ -623,18 +614,19 @@ All debug scripts, test analysis, and experimental code goes in `.debug/` (gitig
 
 ### For Contributors
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** - Setup, PR process, adding tools, best practices
-- **[docs/development/LOGGING_GUIDELINES.md](logging_guidelines.md)** - Structured logging standards
+- **[docs/development/logging_guidelines.md](docs/development/logging_guidelines.md)** - Structured logging standards
 - **[integration-tests/TESTING_GUIDE.md](integration-tests/TESTING_GUIDE.md)** - Testing architecture
 
 ### For Operators
-- **[docs/deployment/DOCKER_DEPLOYMENT.md](docker_deployment.md)** - Docker deployment (development and production)
+- **[docs/deployment/docker_deployment.md](docs/deployment/docker_deployment.md)** - Docker deployment (development and production)
 - **[docs/configuration/CACHE_CONFIGURATION.md](docs/configuration/CACHE_CONFIGURATION.md)** - Cache configuration and environment variables
 
 ### For Understanding the System
-- **[docs/architecture/ARCHITECTURE.md](overview.md)** - Complete system architecture
-- **[docs/architecture/INTERNAL_TOOLS.md](internal_tools.md)** - Internal vs public tools policy
-- **[docs/features/WORKFLOWS.md](workflows.md)** - Workflow automation engine
+- **[docs/architecture/overview.md](docs/architecture/overview.md)** - Complete system architecture
+- **[docs/architecture/internal_tools.md](docs/architecture/internal_tools.md)** - Internal vs public tools policy
+- **[docs/WORKFLOWS.md](docs/WORKFLOWS.md)** - Workflow automation engine
 
 ### For Tool Reference
-- **[API_REFERENCE.md](docs/API_REFERENCE.md)** - Complete MCP tools API with examples
-- **[API_REFERENCE.md#language-support-matrix](docs/API_REFERENCE.md#language-support-matrix)** - Language support by tool
+- **[docs/API_REFERENCE.md](docs/API_REFERENCE.md)** - Complete MCP tools API with examples
+- **[docs/TOOLS_CATALOG.md](docs/TOOLS_CATALOG.md)** - Fast lookup table for all tools
+- **[docs/OPERATIONS.md](docs/OPERATIONS.md)** - Advanced configuration and analysis
