@@ -62,67 +62,18 @@ pub async fn find_rust_affected_files(
         "Canonicalized paths"
     );
 
-    // Extract crate names from relative paths
-    let old_crate_name = canonical_old
-        .strip_prefix(&canonical_project)
-        .ok()
-        .and_then(|rel| {
-            tracing::debug!(
-                relative_old = %rel.display(),
-                "Stripped old_path to relative"
-            );
-            rel.components().next()
-        })
-        .and_then(|c| {
-            tracing::debug!(
-                first_component = ?c,
-                "Extracted first component from old_path"
-            );
-            c.as_os_str().to_str()
-        })
-        .map(String::from);
-
-    let new_crate_name = canonical_new
-        .strip_prefix(&canonical_project)
-        .ok()
-        .and_then(|rel| {
-            tracing::debug!(
-                relative_new = %rel.display(),
-                "Stripped new_path to relative"
-            );
-            rel.components().next()
-        })
-        .and_then(|c| {
-            tracing::debug!(
-                first_component = ?c,
-                "Extracted first component from new_path"
-            );
-            c.as_os_str().to_str()
-        })
-        .map(String::from);
+    // ALWAYS use Cargo.toml to find crate names (more reliable than path inspection)
+    // This correctly handles workspace projects where files are in subdirectories
+    let old_crate_name = find_crate_name_from_cargo_toml(old_path);
+    let new_crate_name = find_crate_name_from_cargo_toml(new_path);
 
     tracing::info!(
         old_crate = ?old_crate_name,
         new_crate = ?new_crate_name,
-        "Extracted crate names from paths"
+        old_path = %old_path.display(),
+        new_path = %new_path.display(),
+        "Found crate names from Cargo.toml"
     );
-
-    // Fallback to finding crate name from Cargo.toml if path extraction failed
-    let old_crate_name = old_crate_name.or_else(|| {
-        tracing::info!(
-            old_path = %old_path.display(),
-            "Path extraction failed for old_path, trying Cargo.toml fallback"
-        );
-        find_crate_name_from_cargo_toml(old_path)
-    });
-
-    let new_crate_name = new_crate_name.or_else(|| {
-        tracing::info!(
-            new_path = %new_path.display(),
-            "Path extraction failed for new_path, trying Cargo.toml fallback"
-        );
-        find_crate_name_from_cargo_toml(new_path)
-    });
 
     // ALWAYS check for parent files with mod declarations
     // This is independent of crate name detection and handles simple file renames
@@ -228,9 +179,11 @@ pub async fn find_rust_affected_files(
 
                 if let Ok(content) = tokio::fs::read_to_string(file).await {
                     // Check if this file has imports from the old module path
-                    // Need to check both absolute paths (e.g., "mylib::core::types")
-                    // and crate:: paths (e.g., "crate::core::types")
-                    // and crate-relative paths (e.g., "utils::helpers" from lib.rs when helpers is at "mylib::utils::helpers")
+                    // Need to check:
+                    // 1. Absolute paths (e.g., "mylib::core::types")
+                    // 2. crate:: paths (e.g., "crate::core::types")
+                    // 3. Crate-relative paths (e.g., "utils::helpers" from lib.rs)
+                    // 4. Relative paths (e.g., "super::common", "self::common")
                     let has_module_import = content.lines().any(|line| {
                         let trimmed = line.trim();
                         if !trimmed.starts_with("use ") {
@@ -240,6 +193,25 @@ pub async fn find_rust_affected_files(
                         // Check for absolute module path (e.g., "use mylib::utils::helpers::process")
                         if trimmed.contains(&module_pattern) {
                             return true;
+                        }
+
+                        // Extract the last component of the module path (the module name being renamed)
+                        // e.g., "mylib::handlers::refactor::common" → "common"
+                        let old_module_name = old_module_path.split("::").last().unwrap_or("");
+
+                        // Check for relative imports like "use super::common::" or "use self::common::"
+                        if !old_module_name.is_empty() {
+                            let super_pattern = format!("super::{}::", old_module_name);
+                            let self_pattern = format!("self::{}::", old_module_name);
+                            let super_glob = format!("super::{}::*", old_module_name);
+                            let self_glob = format!("self::{}::*", old_module_name);
+
+                            if trimmed.contains(&super_pattern)
+                                || trimmed.contains(&self_pattern)
+                                || trimmed.contains(&super_glob)
+                                || trimmed.contains(&self_glob) {
+                                return true;
+                            }
                         }
 
                         // Check for crate:: prefixed imports (e.g., "use crate::utils::helpers::process")

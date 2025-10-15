@@ -104,12 +104,65 @@ impl ImportSupport for RustImportSupport {
                 false
             };
 
-            if is_use_statement && (contains_old_module || crate_import_matches || relative_import_matches) {
+            // Check for relative imports using super:: or self::
+            // Extract the last component (module name) from old_name
+            let old_module_name = old_name.split("::").last().unwrap_or("");
+            let super_import_matches = !old_module_name.is_empty() &&
+                (trimmed.contains(&format!("super::{}::", old_module_name)) ||
+                 trimmed.contains(&format!("super::{}::*", old_module_name)));
+            let self_import_matches = !old_module_name.is_empty() &&
+                (trimmed.contains(&format!("self::{}::", old_module_name)) ||
+                 trimmed.contains(&format!("self::{}::*", old_module_name)));
+
+            if is_use_statement && (contains_old_module || crate_import_matches || relative_import_matches || super_import_matches || self_import_matches) {
                 tracing::info!(
                     line = %trimmed,
                     old_name = %old_name,
-                    "Found use statement containing old crate name"
+                    super_import_matches = super_import_matches,
+                    self_import_matches = self_import_matches,
+                    "Found use statement containing old module name"
                 );
+
+                // For super:: and self:: imports, do simple string replacement
+                // because they're relative and don't need full module path rewriting
+                if super_import_matches || self_import_matches {
+                    let new_module_name = new_name.split("::").last().unwrap_or("");
+                    if !old_module_name.is_empty() && !new_module_name.is_empty() {
+                        let mut new_line = trimmed.to_string();
+
+                        // Replace all occurrences of the old module name in super:: and self:: contexts
+                        new_line = new_line.replace(
+                            &format!("super::{}::", old_module_name),
+                            &format!("super::{}::", new_module_name)
+                        );
+                        new_line = new_line.replace(
+                            &format!("super::{}::*", old_module_name),
+                            &format!("super::{}::*", new_module_name)
+                        );
+                        new_line = new_line.replace(
+                            &format!("self::{}::", old_module_name),
+                            &format!("self::{}::", new_module_name)
+                        );
+                        new_line = new_line.replace(
+                            &format!("self::{}::*", old_module_name),
+                            &format!("self::{}::*", new_module_name)
+                        );
+
+                        // Preserve indentation
+                        let indent = line.len() - trimmed.len();
+                        let indent_str = &line[..indent];
+
+                        result.push_str(indent_str);
+                        result.push_str(&new_line);
+
+                        // Add newline if not last line
+                        if idx < lines.len() - 1 {
+                            result.push('\n');
+                        }
+                        changes_count += 1;
+                        continue;
+                    }
+                }
 
                 // Extract just the use statement (up to and including the semicolon)
                 // This handles cases like: "use foo::bar; fn main() {}"
