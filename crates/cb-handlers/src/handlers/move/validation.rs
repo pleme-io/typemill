@@ -7,13 +7,27 @@ use cb_protocol::{
     refactor_plan::{PlanSummary, PlanWarning},
     ApiError as ServerError, ApiResult as ServerResult,
 };
-use lsp_types::WorkspaceEdit;
+use lsp_types::{Uri, WorkspaceEdit};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tracing::debug;
 
 use crate::handlers::tools::ToolHandlerContext;
+
+/// Convert LSP URI to native file path string
+///
+/// This handles platform-specific path formats correctly:
+/// - On Unix: file:///path/to/file -> /path/to/file
+/// - On Windows: file:///C:/path/to/file -> C:\path\to\file
+///
+/// This ensures consistent path representation for checksum validation
+/// across platforms and handles paths with spaces correctly (via URL decoding).
+fn uri_to_path_string(uri: &Uri) -> Result<String, ServerError> {
+    urlencoding::decode(uri.path().as_str())
+        .map_err(|e| ServerError::Internal(format!("Failed to decode URI path: {}", e)))
+        .map(|decoded| decoded.into_owned())
+}
 
 /// Calculate SHA-256 checksum of file content
 pub fn calculate_checksum(content: &str) -> String {
@@ -28,13 +42,13 @@ pub async fn analyze_workspace_edit(
     context: &ToolHandlerContext,
 ) -> ServerResult<(HashMap<String, String>, PlanSummary, Vec<PlanWarning>)> {
     let mut file_checksums = HashMap::new();
-    let mut affected_files: HashSet<PathBuf> = HashSet::new();
+    let mut affected_path_strings: HashSet<String> = HashSet::new();
 
-    // Extract file paths from WorkspaceEdit
+    // Extract file paths from WorkspaceEdit, converting URIs to native paths
     if let Some(ref changes) = edit.changes {
         for (uri, _edits) in changes {
-            let path = PathBuf::from(uri.path().as_str());
-            affected_files.insert(path);
+            let path_string = uri_to_path_string(uri)?;
+            affected_path_strings.insert(path_string);
         }
     }
 
@@ -42,31 +56,31 @@ pub async fn analyze_workspace_edit(
         match document_changes {
             lsp_types::DocumentChanges::Edits(edits) => {
                 for edit in edits {
-                    let path = PathBuf::from(edit.text_document.uri.path().as_str());
-                    affected_files.insert(path);
+                    let path_string = uri_to_path_string(&edit.text_document.uri)?;
+                    affected_path_strings.insert(path_string);
                 }
             }
             lsp_types::DocumentChanges::Operations(ops) => {
                 for op in ops {
                     match op {
                         lsp_types::DocumentChangeOperation::Edit(edit) => {
-                            let path = PathBuf::from(edit.text_document.uri.path().as_str());
-                            affected_files.insert(path);
+                            let path_string = uri_to_path_string(&edit.text_document.uri)?;
+                            affected_path_strings.insert(path_string);
                         }
                         lsp_types::DocumentChangeOperation::Op(resource_op) => match resource_op {
                             lsp_types::ResourceOp::Create(create) => {
-                                let path = PathBuf::from(create.uri.path().as_str());
-                                affected_files.insert(path);
+                                let path_string = uri_to_path_string(&create.uri)?;
+                                affected_path_strings.insert(path_string);
                             }
                             lsp_types::ResourceOp::Rename(rename) => {
-                                let path = PathBuf::from(rename.old_uri.path().as_str());
-                                affected_files.insert(path);
-                                let path = PathBuf::from(rename.new_uri.path().as_str());
-                                affected_files.insert(path);
+                                let path_string = uri_to_path_string(&rename.old_uri)?;
+                                affected_path_strings.insert(path_string);
+                                let path_string = uri_to_path_string(&rename.new_uri)?;
+                                affected_path_strings.insert(path_string);
                             }
                             lsp_types::ResourceOp::Delete(delete) => {
-                                let path = PathBuf::from(delete.uri.path().as_str());
-                                affected_files.insert(path);
+                                let path_string = uri_to_path_string(&delete.uri)?;
+                                affected_path_strings.insert(path_string);
                             }
                         },
                     }
@@ -76,11 +90,13 @@ pub async fn analyze_workspace_edit(
     }
 
     // Calculate checksums for all affected files
-    for file_path in &affected_files {
+    for path_string in &affected_path_strings {
+        let file_path = Path::new(path_string);
         if file_path.exists() {
             if let Ok(content) = context.app_state.file_service.read_file(file_path).await {
+                // Use the same native path string format for checksum map
                 file_checksums.insert(
-                    file_path.to_string_lossy().to_string(),
+                    path_string.clone(),
                     calculate_checksum(&content),
                 );
             }
@@ -88,7 +104,7 @@ pub async fn analyze_workspace_edit(
     }
 
     let summary = PlanSummary {
-        affected_files: affected_files.len(),
+        affected_files: affected_path_strings.len(),
         created_files: 0,
         deleted_files: 0,
     };
@@ -96,7 +112,7 @@ pub async fn analyze_workspace_edit(
     let warnings = Vec::new();
 
     debug!(
-        affected_files_count = affected_files.len(),
+        affected_files_count = affected_path_strings.len(),
         checksums_count = file_checksums.len(),
         "Analyzed workspace edit"
     );

@@ -10,7 +10,7 @@ use cb_core::model::mcp::ToolCall;
 use cb_protocol::{
     ApiError, ApiResult as ServerResult, EditPlan, EditPlanMetadata, RefactorPlan, TextEdit,
 };
-use lsp_types::WorkspaceEdit;
+use lsp_types::{Uri, WorkspaceEdit};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -18,6 +18,20 @@ use std::collections::HashMap;
 use std::path::Path;
 use tokio::process::Command;
 use tracing::{debug, error, info, warn};
+
+/// Convert LSP URI to native file path string
+///
+/// This handles platform-specific path formats correctly:
+/// - On Unix: file:///path/to/file -> /path/to/file
+/// - On Windows: file:///C:/path/to/file -> C:\path\to\file
+///
+/// This ensures consistent path representation for checksum validation
+/// across platforms and handles paths with spaces correctly (via URL decoding).
+fn uri_to_path_string(uri: &Uri) -> Result<String, ApiError> {
+    urlencoding::decode(uri.path().as_str())
+        .map_err(|e| ApiError::Internal(format!("Failed to decode URI path: {}", e)))
+        .map(|decoded| decoded.into_owned())
+}
 
 pub struct WorkspaceApplyHandler;
 
@@ -517,8 +531,8 @@ fn convert_to_edit_plan(
     // Handle changes (map of file URI to text edits)
     if let Some(changes) = workspace_edit.changes {
         for (uri, text_edits) in changes {
-            // Convert URI to file path string
-            let file_path_str = uri.path().to_string();
+            // Convert URI to native file path string
+            let file_path_str = uri_to_path_string(&uri)?;
 
             for lsp_edit in text_edits {
                 edits.push(TextEdit {
@@ -547,8 +561,8 @@ fn convert_to_edit_plan(
         match document_changes {
             DocumentChanges::Edits(edits_vec) => {
                 for text_doc_edit in edits_vec {
-                    // Convert URI to file path string
-                    let file_path_str = text_doc_edit.text_document.uri.path().to_string();
+                    // Convert URI to native file path string
+                    let file_path_str = uri_to_path_string(&text_doc_edit.text_document.uri)?;
 
                     for lsp_edit in text_doc_edit.edits {
                         let text_edit = match lsp_edit {
@@ -577,8 +591,8 @@ fn convert_to_edit_plan(
                 for op in ops {
                     match op {
                         DocumentChangeOperation::Edit(text_doc_edit) => {
-                            // Convert URI to file path string
-                            let file_path_str = text_doc_edit.text_document.uri.path().to_string();
+                            // Convert URI to native file path string
+                            let file_path_str = uri_to_path_string(&text_doc_edit.text_document.uri)?;
 
                             for lsp_edit in text_doc_edit.edits {
                                 let text_edit = match lsp_edit {
@@ -608,10 +622,11 @@ fn convert_to_edit_plan(
                             // Handle file operations (create/rename/delete)
                             match resource_op {
                                 lsp_types::ResourceOp::Create(create_file) => {
-                                    debug!(uri = ?create_file.uri, "File create operation detected");
+                                    let file_path_str = uri_to_path_string(&create_file.uri)?;
+                                    debug!(uri = ?create_file.uri, file_path = %file_path_str, "File create operation detected");
                                     // Create operation - add to metadata for tracking
                                     edits.push(TextEdit {
-                                        file_path: Some(create_file.uri.path().to_string()),
+                                        file_path: Some(file_path_str.clone()),
                                         edit_type: cb_protocol::EditType::Create,
                                         location: cb_protocol::EditLocation {
                                             start_line: 0,
@@ -624,13 +639,13 @@ fn convert_to_edit_plan(
                                         priority: 0,
                                         description: format!(
                                             "Create file {}",
-                                            create_file.uri.path()
+                                            file_path_str
                                         ),
                                     });
                                 }
                                 lsp_types::ResourceOp::Rename(rename_file) => {
-                                    let old_path = rename_file.old_uri.path().to_string();
-                                    let new_path = rename_file.new_uri.path().to_string();
+                                    let old_path = uri_to_path_string(&rename_file.old_uri)?;
+                                    let new_path = uri_to_path_string(&rename_file.new_uri)?;
 
                                     debug!(
                                         old_uri = ?rename_file.old_uri,
@@ -675,10 +690,11 @@ fn convert_to_edit_plan(
                                     });
                                 }
                                 lsp_types::ResourceOp::Delete(delete_file) => {
-                                    debug!(uri = ?delete_file.uri, "File delete operation detected");
+                                    let file_path_str = uri_to_path_string(&delete_file.uri)?;
+                                    debug!(uri = ?delete_file.uri, file_path = %file_path_str, "File delete operation detected");
                                     // Delete operation - add to metadata for tracking
                                     edits.push(TextEdit {
-                                        file_path: Some(delete_file.uri.path().to_string()),
+                                        file_path: Some(file_path_str.clone()),
                                         edit_type: cb_protocol::EditType::Delete,
                                         location: cb_protocol::EditLocation {
                                             start_line: 0,
@@ -691,7 +707,7 @@ fn convert_to_edit_plan(
                                         priority: 0,
                                         description: format!(
                                             "Delete file {}",
-                                            delete_file.uri.path()
+                                            file_path_str
                                         ),
                                     });
                                 }
