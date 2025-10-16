@@ -29,32 +29,6 @@ impl DefaultAstService {
         }
     }
 
-    /// Create a new DefaultAstService with a new cache instance and registry
-    ///
-    /// **DEPRECATED**: This method creates its own registry, which defeats the purpose
-    /// of centralized registry management. Use `new()` with an injected registry instead.
-    #[deprecated(
-        since = "0.1.0",
-        note = "Use new() with injected registry from cb_handlers::build_language_plugin_registry()"
-    )]
-    pub fn new_with_cache() -> Self {
-        let cache = Arc::new(AstCache::new());
-        // For backward compatibility, build a registry
-        // In production code, this should be passed in
-        let plugin_registry = {
-            // This is deprecated and should not be used.
-            // In a real scenario, the registry is built with all discovered plugins.
-            // For backward compatibility in tests, we create an empty one.
-            let registry = PluginRegistry::new();
-            Arc::new(registry)
-        };
-        debug!("DefaultAstService created with new cache instance (deprecated method)");
-        Self {
-            cache,
-            plugin_registry,
-        }
-    }
-
     /// Get cache statistics for monitoring
     pub fn cache_stats(&self) -> CacheStats {
         self.cache.stats()

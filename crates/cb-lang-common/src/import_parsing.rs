@@ -74,27 +74,10 @@ pub fn extract_package_name(path: &str) -> String {
     path.split('/').next().unwrap_or(path).to_string()
 }
 
-/// Normalize import path by removing quotes and whitespace
-///
-/// Handles various quote styles and trims whitespace.
-///
-/// **Note:** This function is planned for deprecation in favor of language-specific
-/// path normalization in each plugin. Use with caution.
-#[deprecated(since = "0.2.0", note = "Use language-specific import parsing instead")]
-pub fn normalize_import_path(path: &str) -> String {
-    path.trim()
-        .trim_matches('"')
-        .trim_matches('\'')
-        .trim_matches('`')
-        .trim()
-        .to_string()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[allow(deprecated)]
     #[test]
     fn test_parse_import_alias() {
         let (name, alias) = parse_import_alias("foo as bar");
@@ -110,7 +93,6 @@ mod tests {
         assert_eq!(alias, Some("bar".to_string()));
     }
 
-    #[allow(deprecated)]
     #[test]
     fn test_extract_package_name() {
         assert_eq!(extract_package_name("@types/node"), "@types/node");
@@ -125,14 +107,5 @@ mod tests {
             extract_package_name("github.com/user/repo/subpkg"),
             "github.com/user/repo"
         );
-    }
-
-    #[allow(deprecated)]
-    #[test]
-    fn test_normalize_import_path() {
-        assert_eq!(normalize_import_path("\"./foo\""), "./foo");
-        assert_eq!(normalize_import_path("'./bar'"), "./bar");
-        assert_eq!(normalize_import_path("`./baz`"), "./baz");
-        assert_eq!(normalize_import_path("  ./qux  "), "./qux");
     }
 }

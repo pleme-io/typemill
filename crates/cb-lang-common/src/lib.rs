@@ -116,8 +116,7 @@ pub use import_graph::ImportGraphBuilder;
 pub use import_helpers::{
     find_last_matching_line, insert_line_at, remove_lines_matching, replace_in_lines,
 };
-#[allow(deprecated)]
-pub use import_parsing::{extract_package_name, normalize_import_path, parse_import_alias};
+pub use import_parsing::{extract_package_name, parse_import_alias};
 pub use location::{
     extract_text_at_location, offset_to_position, position_to_offset, LocationBuilder,
 };
