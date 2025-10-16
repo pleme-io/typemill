@@ -10,7 +10,7 @@ use cb_lang_common::import_helpers::{
 use cb_plugin_api::{
     import_support::{
         ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportParser,
-        ImportRenameSupport, ImportSupport,
+        ImportRenameSupport,
     },
     PluginResult,
 };
@@ -33,7 +33,11 @@ impl Default for TypeScriptImportSupport {
     }
 }
 
-impl ImportSupport for TypeScriptImportSupport {
+// ============================================================================
+// Segregated Trait Implementations
+// ============================================================================
+
+impl ImportParser for TypeScriptImportSupport {
     fn parse_imports(&self, content: &str) -> Vec<String> {
         // Use the existing parser's analyze_imports function
         match crate::parser::analyze_imports(content, None) {
@@ -50,6 +54,33 @@ impl ImportSupport for TypeScriptImportSupport {
         }
     }
 
+    fn contains_import(&self, content: &str, module: &str) -> bool {
+        // Check for various import patterns
+        let patterns = [
+            format!(r#"from\s+['"]{module}['"]"#, module = regex::escape(module)),
+            format!(
+                r#"require\s*\(\s*['"]{module}['"]\s*\)"#,
+                module = regex::escape(module)
+            ),
+            format!(
+                r#"import\s*\(\s*['"]{module}['"]\s*\)"#,
+                module = regex::escape(module)
+            ),
+        ];
+
+        for pattern in &patterns {
+            if let Ok(re) = regex::Regex::new(pattern) {
+                if re.is_match(content) {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+}
+
+impl ImportRenameSupport for TypeScriptImportSupport {
     fn rewrite_imports_for_rename(
         &self,
         content: &str,
@@ -93,7 +124,9 @@ impl ImportSupport for TypeScriptImportSupport {
 
         (new_content, changes)
     }
+}
 
+impl ImportMoveSupport for TypeScriptImportSupport {
     fn rewrite_imports_for_move(
         &self,
         content: &str,
@@ -104,35 +137,12 @@ impl ImportSupport for TypeScriptImportSupport {
         // Note: This won't work correctly without knowing the importing file's location
         rewrite_imports_for_move_with_context(content, old_path, new_path, old_path)
     }
+}
 
-    fn contains_import(&self, content: &str, module: &str) -> bool {
-        // Check for various import patterns
-        let patterns = [
-            format!(r#"from\s+['"]{module}['"]"#, module = regex::escape(module)),
-            format!(
-                r#"require\s*\(\s*['"]{module}['"]\s*\)"#,
-                module = regex::escape(module)
-            ),
-            format!(
-                r#"import\s*\(\s*['"]{module}['"]\s*\)"#,
-                module = regex::escape(module)
-            ),
-        ];
-
-        for pattern in &patterns {
-            if let Ok(re) = regex::Regex::new(pattern) {
-                if re.is_match(content) {
-                    return true;
-                }
-            }
-        }
-
-        false
-    }
-
+impl ImportMutationSupport for TypeScriptImportSupport {
     fn add_import(&self, content: &str, module: &str) -> String {
         // Don't add if already exists
-        if ImportSupport::contains_import(self, content, module) {
+        if self.contains_import(content, module) {
             debug!(module = %module, "Import already exists, skipping");
             return content.to_string();
         }
@@ -179,77 +189,11 @@ impl ImportSupport for TypeScriptImportSupport {
         new_content
     }
 
-    fn update_import_reference(
-        &self,
-        file_path: &Path,
-        content: &str,
-        update: &DependencyUpdate,
-    ) -> PluginResult<String> {
-        update_import_reference_ast(file_path, content, update)
-    }
-
     fn remove_named_import(&self, line: &str, import_name: &str) -> PluginResult<String> {
         remove_named_import_from_line(line, import_name)
     }
 }
 
-// ============================================================================
-// Segregated Trait Implementations
-// ============================================================================
-// These implementations delegate to the deprecated ImportSupport trait methods
-// for DRY (Don't Repeat Yourself) until the deprecated trait is removed.
-
-#[allow(deprecated)]
-impl ImportParser for TypeScriptImportSupport {
-    fn parse_imports(&self, content: &str) -> Vec<String> {
-        ImportSupport::parse_imports(self, content)
-    }
-
-    fn contains_import(&self, content: &str, module: &str) -> bool {
-        ImportSupport::contains_import(self, content, module)
-    }
-}
-
-#[allow(deprecated)]
-impl ImportRenameSupport for TypeScriptImportSupport {
-    fn rewrite_imports_for_rename(
-        &self,
-        content: &str,
-        old_name: &str,
-        new_name: &str,
-    ) -> (String, usize) {
-        ImportSupport::rewrite_imports_for_rename(self, content, old_name, new_name)
-    }
-}
-
-#[allow(deprecated)]
-impl ImportMoveSupport for TypeScriptImportSupport {
-    fn rewrite_imports_for_move(
-        &self,
-        content: &str,
-        old_path: &Path,
-        new_path: &Path,
-    ) -> (String, usize) {
-        ImportSupport::rewrite_imports_for_move(self, content, old_path, new_path)
-    }
-}
-
-#[allow(deprecated)]
-impl ImportMutationSupport for TypeScriptImportSupport {
-    fn add_import(&self, content: &str, module: &str) -> String {
-        ImportSupport::add_import(self, content, module)
-    }
-
-    fn remove_import(&self, content: &str, module: &str) -> String {
-        ImportSupport::remove_import(self, content, module)
-    }
-
-    fn remove_named_import(&self, line: &str, import_name: &str) -> PluginResult<String> {
-        ImportSupport::remove_named_import(self, line, import_name)
-    }
-}
-
-#[allow(deprecated)]
 impl ImportAdvancedSupport for TypeScriptImportSupport {
     fn update_import_reference(
         &self,
@@ -257,7 +201,7 @@ impl ImportAdvancedSupport for TypeScriptImportSupport {
         content: &str,
         update: &DependencyUpdate,
     ) -> PluginResult<String> {
-        ImportSupport::update_import_reference(self, file_path, content, update)
+        update_import_reference_ast(file_path, content, update)
     }
 }
 

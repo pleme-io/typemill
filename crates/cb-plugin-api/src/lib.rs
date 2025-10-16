@@ -31,8 +31,6 @@ pub mod test_fixtures;
 pub mod workspace_support;
 
 // Re-exports
-#[allow(deprecated)]
-pub use import_support::ImportSupport;
 pub use import_support::{
     ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportParser,
     ImportRenameSupport,
@@ -352,22 +350,6 @@ pub trait LanguagePlugin: Send + Sync {
 
     /// Get plugin capabilities
     fn capabilities(&self) -> PluginCapabilities;
-
-    /// Get import support if available (DEPRECATED)
-    ///
-    /// Use the segregated trait methods instead:
-    /// - `import_parser()` for basic parsing
-    /// - `import_rename_support()` for rename operations
-    /// - `import_move_support()` for move operations
-    /// - `import_mutation_support()` for add/remove operations
-    /// - `import_advanced_support()` for AST-based operations
-    #[deprecated(
-        since = "0.6.0",
-        note = "Use segregated trait methods (import_parser, import_rename_support, etc.) instead"
-    )]
-    fn import_support(&self) -> Option<&dyn ImportSupport> {
-        None
-    }
 
     /// Get import parser if available
     fn import_parser(&self) -> Option<&dyn ImportParser> {

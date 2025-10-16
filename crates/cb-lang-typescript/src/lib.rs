@@ -11,7 +11,7 @@ use cb_lang_common::read_manifest;
 use cb_plugin_api::{
     import_support::{
         ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportParser,
-        ImportRenameSupport, ImportSupport,
+        ImportRenameSupport,
     },
     LanguageMetadata, LanguagePlugin, LspConfig, ManifestData, ParsedSource,
     PluginCapabilities, PluginError, PluginResult, WorkspaceSupport,
@@ -85,10 +85,6 @@ impl LanguagePlugin for TypeScriptPlugin {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-
-    fn import_support(&self) -> Option<&dyn ImportSupport> {
-        Some(&self.import_support)
     }
 
     fn import_parser(&self) -> Option<&dyn ImportParser> {

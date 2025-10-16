@@ -133,4 +133,4 @@ pub use versioning::{
 pub use io::{file_path_to_module, find_source_files, read_manifest, read_source};
 
 // Re-export macros
-pub use trait_helpers::{ImportSupportInternal, WorkspaceSupportInternal};
+pub use trait_helpers::WorkspaceSupportInternal;

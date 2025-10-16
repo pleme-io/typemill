@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use cb_plugin_api::{
     import_support::{
         ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportParser,
-        ImportRenameSupport, ImportSupport,
+        ImportRenameSupport,
     },
     LanguageMetadata, LanguagePlugin, ManifestData, ParsedSource, PluginCapabilities,
     PluginError, PluginResult, SourceLocation, Symbol, SymbolKind,
@@ -108,10 +108,6 @@ impl LanguagePlugin for MarkdownPlugin {
 
     fn capabilities(&self) -> PluginCapabilities {
         Self::CAPABILITIES
-    }
-
-    fn import_support(&self) -> Option<&dyn ImportSupport> {
-        Some(&self.import_support)
     }
 
     fn import_parser(&self) -> Option<&dyn ImportParser> {

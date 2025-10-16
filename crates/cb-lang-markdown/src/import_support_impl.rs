@@ -5,7 +5,7 @@
 use cb_plugin_api::{
     import_support::{
         ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportParser,
-        ImportRenameSupport, ImportSupport,
+        ImportRenameSupport,
     },
     PluginResult,
 };
@@ -125,7 +125,11 @@ impl Default for MarkdownImportSupport {
     }
 }
 
-impl ImportSupport for MarkdownImportSupport {
+// ============================================================================
+// Segregated Trait Implementations
+// ============================================================================
+
+impl ImportParser for MarkdownImportSupport {
     fn parse_imports(&self, content: &str) -> Vec<String> {
         let mut imports = Vec::new();
 
@@ -178,6 +182,15 @@ impl ImportSupport for MarkdownImportSupport {
         imports
     }
 
+    fn contains_import(&self, content: &str, module: &str) -> bool {
+        let imports = self.parse_imports(content);
+        imports
+            .iter()
+            .any(|imp| imp == module || imp.ends_with(module))
+    }
+}
+
+impl ImportRenameSupport for MarkdownImportSupport {
     fn rewrite_imports_for_rename(
         &self,
         content: &str,
@@ -281,7 +294,9 @@ impl ImportSupport for MarkdownImportSupport {
         );
         (result, count)
     }
+}
 
+impl ImportMoveSupport for MarkdownImportSupport {
     fn rewrite_imports_for_move(
         &self,
         content: &str,
@@ -367,14 +382,9 @@ impl ImportSupport for MarkdownImportSupport {
         debug!(changes = count, old_path = ?old_path, new_path = ?new_path, "Rewrote markdown links for move (inline + reference-style + autolinks)");
         (result, count)
     }
+}
 
-    fn contains_import(&self, content: &str, module: &str) -> bool {
-        let imports = ImportSupport::parse_imports(self, content);
-        imports
-            .iter()
-            .any(|imp| imp == module || imp.ends_with(module))
-    }
-
+impl ImportMutationSupport for MarkdownImportSupport {
     fn add_import(&self, content: &str, module: &str) -> String {
         // For markdown, "adding an import" means adding a link at the end
         // This is rarely used, but we provide a basic implementation
@@ -445,6 +455,15 @@ impl ImportSupport for MarkdownImportSupport {
         result
     }
 
+    fn remove_named_import(&self, _line: &str, _import_name: &str) -> PluginResult<String> {
+        // Markdown doesn't have the concept of "named imports"
+        Err(cb_plugin_api::PluginError::not_supported(
+            "Markdown does not support named imports",
+        ))
+    }
+}
+
+impl ImportAdvancedSupport for MarkdownImportSupport {
     fn update_import_reference(
         &self,
         file_path: &Path,
@@ -460,84 +479,13 @@ impl ImportSupport for MarkdownImportSupport {
 
         // Use rewrite_imports_for_rename which handles the link syntax
         let (updated_content, changes) =
-            ImportSupport::rewrite_imports_for_rename(self, content, &update.old_reference, &update.new_reference);
+            self.rewrite_imports_for_rename(content, &update.old_reference, &update.new_reference);
 
         if changes > 0 {
             debug!(changes, "Updated markdown file references");
         }
 
         Ok(updated_content)
-    }
-}
-
-// ============================================================================
-// Segregated Trait Implementations
-// ============================================================================
-// These implementations delegate to the deprecated ImportSupport trait methods
-// for DRY (Don't Repeat Yourself) until the deprecated trait is removed.
-
-#[allow(deprecated)]
-impl ImportParser for MarkdownImportSupport {
-    fn parse_imports(&self, content: &str) -> Vec<String> {
-        ImportSupport::parse_imports(self, content)
-    }
-
-    fn contains_import(&self, content: &str, module: &str) -> bool {
-        ImportSupport::contains_import(self, content, module)
-    }
-}
-
-#[allow(deprecated)]
-impl ImportRenameSupport for MarkdownImportSupport {
-    fn rewrite_imports_for_rename(
-        &self,
-        content: &str,
-        old_name: &str,
-        new_name: &str,
-    ) -> (String, usize) {
-        ImportSupport::rewrite_imports_for_rename(self, content, old_name, new_name)
-    }
-}
-
-#[allow(deprecated)]
-impl ImportMoveSupport for MarkdownImportSupport {
-    fn rewrite_imports_for_move(
-        &self,
-        content: &str,
-        old_path: &Path,
-        new_path: &Path,
-    ) -> (String, usize) {
-        ImportSupport::rewrite_imports_for_move(self, content, old_path, new_path)
-    }
-}
-
-#[allow(deprecated)]
-impl ImportMutationSupport for MarkdownImportSupport {
-    fn add_import(&self, content: &str, module: &str) -> String {
-        ImportSupport::add_import(self, content, module)
-    }
-
-    fn remove_import(&self, content: &str, module: &str) -> String {
-        ImportSupport::remove_import(self, content, module)
-    }
-
-    fn remove_named_import(&self, _line: &str, _import_name: &str) -> PluginResult<String> {
-        // Markdown doesn't have the concept of "named imports"
-        Err(cb_plugin_api::PluginError::not_supported(
-            "Markdown does not support named imports",
-        ))
-    }
-}
-
-#[allow(deprecated)]
-impl ImportAdvancedSupport for MarkdownImportSupport {
-    fn update_import_reference(
-        &self,
-        file_path: &Path,
-        content: &str,
-        update: &DependencyUpdate,
-    ) -> PluginResult<String> {
-        ImportSupport::update_import_reference(self, file_path, content, update)
     }
 }
 

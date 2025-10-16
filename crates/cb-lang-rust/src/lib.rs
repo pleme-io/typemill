@@ -124,11 +124,6 @@ impl LanguagePlugin for RustPlugin {
         self
     }
 
-    #[allow(deprecated)]
-    fn import_support(&self) -> Option<&dyn cb_plugin_api::ImportSupport> {
-        Some(&self.import_support)
-    }
-
     fn import_parser(&self) -> Option<&dyn cb_plugin_api::ImportParser> {
         Some(&self.import_support)
     }
