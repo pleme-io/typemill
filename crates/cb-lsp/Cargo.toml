@@ -6,7 +6,7 @@ edition = "2021"
 cb-core = { path = "../cb-core" }
 cb-types = { path = "../cb-types" }
 cb-protocol = { path = "../cb-protocol" }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["process"] }
 serde_json = { workspace = true }
 serde = { workspace = true }
 lsp-types = "0.97"
@@ -16,3 +16,7 @@ thiserror = { workspace = true }
 anyhow = { workspace = true }
 dashmap = { workspace = true }
 uuid = { workspace = true }
+once_cell = "1.19"
+
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.29", features = ["process"] }

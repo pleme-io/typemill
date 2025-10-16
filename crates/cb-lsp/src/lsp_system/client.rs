@@ -178,6 +178,16 @@ impl LspClient {
             "LSP server process spawned successfully"
         );
 
+        // Register the PID with the zombie reaper as a safety net
+        if let Some(pid) = child.id() {
+            use crate::lsp_system::zombie_reaper::ZOMBIE_REAPER;
+            ZOMBIE_REAPER.register(pid as i32);
+            tracing::debug!(
+                pid = pid,
+                "Registered LSP process with zombie reaper"
+            );
+        }
+
         // Take ownership of stdin/stdout/stderr
         let stdin = child
             .stdin
@@ -771,6 +781,86 @@ impl LspClient {
         Ok(())
     }
 
+    /// Gracefully shutdown the LSP server process.
+    ///
+    /// This method performs a clean LSP shutdown sequence:
+    /// 1. Sends the LSP "shutdown" request
+    /// 2. Sends the LSP "exit" notification
+    /// 3. Calls kill() on the child process
+    /// 4. Waits up to 5 seconds for the process to exit
+    ///
+    /// Consumes self to prevent further use after shutdown.
+    pub async fn shutdown(mut self) -> ServerResult<()> {
+        let pid = {
+            let process = self.process.lock().await;
+            process.id()
+        };
+
+        // Step 1: Send LSP shutdown request
+        if let Err(e) = self.send_request("shutdown", json!({})).await {
+            warn!(
+                pid = pid,
+                error = %e,
+                "Failed to send LSP shutdown request, continuing with forceful shutdown"
+            );
+        } else {
+            debug!(pid = pid, "Sent LSP shutdown request");
+        }
+
+        // Step 2: Send LSP exit notification
+        if let Err(e) = self.send_notification("exit", json!({})).await {
+            warn!(
+                pid = pid,
+                error = %e,
+                "Failed to send LSP exit notification, continuing with forceful shutdown"
+            );
+        } else {
+            debug!(pid = pid, "Sent LSP exit notification");
+        }
+
+        // Step 3: Kill the process
+        let mut process = self.process.lock().await;
+        if let Err(e) = process.kill().await {
+            warn!(
+                pid = pid,
+                error = %e,
+                "Failed to kill LSP server process"
+            );
+        }
+
+        // Step 4: Wait for the process to exit (with timeout)
+        match timeout(Duration::from_secs(5), process.wait()).await {
+            Ok(Ok(status)) => {
+                debug!(
+                    pid = pid,
+                    exit_status = ?status,
+                    "LSP server process exited gracefully"
+                );
+                Ok(())
+            }
+            Ok(Err(e)) => {
+                warn!(
+                    pid = pid,
+                    error = %e,
+                    "Failed to wait for LSP server process"
+                );
+                Err(ServerError::runtime(format!(
+                    "Failed to wait for LSP server process: {}",
+                    e
+                )))
+            }
+            Err(_) => {
+                warn!(
+                    pid = pid,
+                    "LSP server process did not exit within 5 seconds"
+                );
+                Err(ServerError::runtime(
+                    "LSP server process did not exit within timeout",
+                ))
+            }
+        }
+    }
+
     /// Parse Content-Length header from LSP message
     fn parse_content_length(line: &str) -> Option<usize> {
         line.strip_prefix("Content-Length: ")
@@ -903,24 +993,26 @@ impl LspClient {
 
 impl Drop for LspClient {
     fn drop(&mut self) {
-        // Kill the process when the client is dropped
-        let process = self.process.clone();
-        tokio::spawn(async move {
-            let mut process = process.lock().await;
-            if let Err(e) = process.kill().await {
-                warn!("Failed to kill LSP server process on drop: {}", e);
+        // Get the PID before dropping for logging
+        let pid = {
+            // Try to get the lock without blocking - if we can't, we'll just skip the PID
+            if let Ok(process) = self.process.try_lock() {
+                process.id()
+            } else {
+                None
             }
-            // IMPORTANT: Wait for the process to actually exit to avoid zombies
-            // Use timeout to prevent hanging indefinitely
-            match timeout(Duration::from_secs(5), process.wait()).await {
-                Ok(_) => {
-                    debug!("LSP server process terminated successfully");
-                }
-                Err(_) => {
-                    warn!("LSP server process did not terminate within 5 seconds, but drop is completing");
-                }
-            }
-        });
+        };
+
+        // Log warning that shutdown() should have been called
+        // The zombie reaper will handle cleanup
+        if let Some(pid) = pid {
+            warn!(
+                pid = pid,
+                "LspClient dropped without calling shutdown() - relying on zombie reaper"
+            );
+        } else {
+            warn!("LspClient dropped without calling shutdown() - relying on zombie reaper (PID unavailable)");
+        }
     }
 }
 
