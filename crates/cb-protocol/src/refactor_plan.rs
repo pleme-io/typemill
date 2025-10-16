@@ -225,3 +225,67 @@ impl RefactorPlanExt for DeletePlan {
         vec![self.metadata.kind.clone(), self.metadata.language.clone()]
     }
 }
+
+// Implement RefactorPlanExt for the discriminated union enum
+// This allows polymorphic access without match statements
+impl RefactorPlanExt for RefactorPlan {
+    fn checksums(&self) -> &HashMap<String, String> {
+        match self {
+            RefactorPlan::RenamePlan(p) => p.checksums(),
+            RefactorPlan::ExtractPlan(p) => p.checksums(),
+            RefactorPlan::InlinePlan(p) => p.checksums(),
+            RefactorPlan::MovePlan(p) => p.checksums(),
+            RefactorPlan::ReorderPlan(p) => p.checksums(),
+            RefactorPlan::TransformPlan(p) => p.checksums(),
+            RefactorPlan::DeletePlan(p) => p.checksums(),
+        }
+    }
+
+    fn workspace_edit(&self) -> &WorkspaceEdit {
+        match self {
+            RefactorPlan::RenamePlan(p) => p.workspace_edit(),
+            RefactorPlan::ExtractPlan(p) => p.workspace_edit(),
+            RefactorPlan::InlinePlan(p) => p.workspace_edit(),
+            RefactorPlan::MovePlan(p) => p.workspace_edit(),
+            RefactorPlan::ReorderPlan(p) => p.workspace_edit(),
+            RefactorPlan::TransformPlan(p) => p.workspace_edit(),
+            RefactorPlan::DeletePlan(p) => p.workspace_edit(),
+        }
+    }
+
+    fn warnings(&self) -> &[PlanWarning] {
+        match self {
+            RefactorPlan::RenamePlan(p) => p.warnings(),
+            RefactorPlan::ExtractPlan(p) => p.warnings(),
+            RefactorPlan::InlinePlan(p) => p.warnings(),
+            RefactorPlan::MovePlan(p) => p.warnings(),
+            RefactorPlan::ReorderPlan(p) => p.warnings(),
+            RefactorPlan::TransformPlan(p) => p.warnings(),
+            RefactorPlan::DeletePlan(p) => p.warnings(),
+        }
+    }
+
+    fn complexity(&self) -> u8 {
+        match self {
+            RefactorPlan::RenamePlan(p) => p.complexity(),
+            RefactorPlan::ExtractPlan(p) => p.complexity(),
+            RefactorPlan::InlinePlan(p) => p.complexity(),
+            RefactorPlan::MovePlan(p) => p.complexity(),
+            RefactorPlan::ReorderPlan(p) => p.complexity(),
+            RefactorPlan::TransformPlan(p) => p.complexity(),
+            RefactorPlan::DeletePlan(p) => p.complexity(),
+        }
+    }
+
+    fn impact_areas(&self) -> Vec<String> {
+        match self {
+            RefactorPlan::RenamePlan(p) => p.impact_areas(),
+            RefactorPlan::ExtractPlan(p) => p.impact_areas(),
+            RefactorPlan::InlinePlan(p) => p.impact_areas(),
+            RefactorPlan::MovePlan(p) => p.impact_areas(),
+            RefactorPlan::ReorderPlan(p) => p.impact_areas(),
+            RefactorPlan::TransformPlan(p) => p.impact_areas(),
+            RefactorPlan::DeletePlan(p) => p.impact_areas(),
+        }
+    }
+}

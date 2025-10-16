@@ -4,8 +4,7 @@ use super::cargo;
 use crate::services::reference_updater::ReferenceUpdater;
 use cb_plugin_api::{PluginRegistry, ScanScope};
 use cb_protocol::{ApiResult as ServerResult, EditPlan};
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::path::Path;
 use tracing::{info, warn};
 
 /// Plan a file move with import updates

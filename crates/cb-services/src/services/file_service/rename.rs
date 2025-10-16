@@ -3,7 +3,7 @@ use crate::services::git_service::GitService;
 use cb_core::dry_run::DryRunnable;
 use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult, EditPlan};
 use serde_json::{json, Value};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tokio::fs;
 use tracing::{debug, info, warn};
 

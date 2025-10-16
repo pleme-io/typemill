@@ -4,7 +4,6 @@ use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult, EditLocati
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 use tokio::fs;
-use tracing::{info, warn};
 
 /// Check if a directory is a Cargo package (contains Cargo.toml with [package] section)
 pub async fn is_cargo_package(dir_path: &Path) -> ServerResult<bool> {

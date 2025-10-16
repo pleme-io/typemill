@@ -217,15 +217,8 @@ impl ToolHandler for WorkspaceApplyHandler {
             let _ = file.flush();
         }
 
-        let workspace_edit = match &params.plan {
-            RefactorPlan::RenamePlan(p) => p.workspace_edit(),
-            RefactorPlan::ExtractPlan(p) => p.workspace_edit(),
-            RefactorPlan::InlinePlan(p) => p.workspace_edit(),
-            RefactorPlan::MovePlan(p) => p.workspace_edit(),
-            RefactorPlan::ReorderPlan(p) => p.workspace_edit(),
-            RefactorPlan::TransformPlan(p) => p.workspace_edit(),
-            RefactorPlan::DeletePlan(p) => p.workspace_edit(),
-        };
+        // Use RefactorPlanExt trait to access workspace_edit polymorphically
+        let workspace_edit = params.plan.workspace_edit();
 
         if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open("/tmp/directory_rename_debug.log") {
             use std::io::Write;
@@ -319,15 +312,7 @@ impl ToolHandler for WorkspaceApplyHandler {
                                     applied_files: result.modified_files.clone(),
                                     created_files: extract_created_files(&edit_plan),
                                     deleted_files: extract_deleted_files(&edit_plan),
-                                    warnings: match &params.plan {
-                                        RefactorPlan::RenamePlan(p) => p.warnings().iter().map(|w| w.message.clone()).collect(),
-                                        RefactorPlan::ExtractPlan(p) => p.warnings().iter().map(|w| w.message.clone()).collect(),
-                                        RefactorPlan::InlinePlan(p) => p.warnings().iter().map(|w| w.message.clone()).collect(),
-                                        RefactorPlan::MovePlan(p) => p.warnings().iter().map(|w| w.message.clone()).collect(),
-                                        RefactorPlan::ReorderPlan(p) => p.warnings().iter().map(|w| w.message.clone()).collect(),
-                                        RefactorPlan::TransformPlan(p) => p.warnings().iter().map(|w| w.message.clone()).collect(),
-                                        RefactorPlan::DeletePlan(p) => p.warnings().iter().map(|w| w.message.clone()).collect(),
-                                    },
+                                    warnings: params.plan.warnings().iter().map(|w| w.message.clone()).collect(),
                                     validation: Some(validation_result),
                                     rollback_available: false, // Validation consumed backup
                                 })
@@ -385,15 +370,7 @@ impl ToolHandler for WorkspaceApplyHandler {
                         applied_files: result.modified_files.clone(),
                         created_files: extract_created_files(&edit_plan),
                         deleted_files: extract_deleted_files(&edit_plan),
-                        warnings: match &params.plan {
-                            RefactorPlan::RenamePlan(p) => p.warnings().iter().map(|w| w.message.clone()).collect(),
-                            RefactorPlan::ExtractPlan(p) => p.warnings().iter().map(|w| w.message.clone()).collect(),
-                            RefactorPlan::InlinePlan(p) => p.warnings().iter().map(|w| w.message.clone()).collect(),
-                            RefactorPlan::MovePlan(p) => p.warnings().iter().map(|w| w.message.clone()).collect(),
-                            RefactorPlan::ReorderPlan(p) => p.warnings().iter().map(|w| w.message.clone()).collect(),
-                            RefactorPlan::TransformPlan(p) => p.warnings().iter().map(|w| w.message.clone()).collect(),
-                            RefactorPlan::DeletePlan(p) => p.warnings().iter().map(|w| w.message.clone()).collect(),
-                        },
+                        warnings: params.plan.warnings().iter().map(|w| w.message.clone()).collect(),
                         validation: None,
                         rollback_available: true, // No validation, backup still available in principle
                     })
@@ -422,15 +399,7 @@ async fn validate_checksums(
     plan: &RefactorPlan,
     file_service: &cb_services::services::FileService,
 ) -> ServerResult<()> {
-    let checksums = match plan {
-        RefactorPlan::RenamePlan(p) => p.checksums(),
-        RefactorPlan::ExtractPlan(p) => p.checksums(),
-        RefactorPlan::InlinePlan(p) => p.checksums(),
-        RefactorPlan::MovePlan(p) => p.checksums(),
-        RefactorPlan::ReorderPlan(p) => p.checksums(),
-        RefactorPlan::TransformPlan(p) => p.checksums(),
-        RefactorPlan::DeletePlan(p) => p.checksums(),
-    };
+    let checksums = plan.checksums();
 
     if checksums.is_empty() {
         debug!("No checksums to validate");
@@ -719,24 +688,8 @@ fn convert_to_edit_plan(
             intent_name: "workspace.apply_edit".to_string(),
             intent_arguments: serde_json::to_value(plan).unwrap(),
             created_at: chrono::Utc::now(),
-            complexity: match plan {
-                RefactorPlan::RenamePlan(p) => p.complexity(),
-                RefactorPlan::ExtractPlan(p) => p.complexity(),
-                RefactorPlan::InlinePlan(p) => p.complexity(),
-                RefactorPlan::MovePlan(p) => p.complexity(),
-                RefactorPlan::ReorderPlan(p) => p.complexity(),
-                RefactorPlan::TransformPlan(p) => p.complexity(),
-                RefactorPlan::DeletePlan(p) => p.complexity(),
-            },
-            impact_areas: match plan {
-                RefactorPlan::RenamePlan(p) => p.impact_areas(),
-                RefactorPlan::ExtractPlan(p) => p.impact_areas(),
-                RefactorPlan::InlinePlan(p) => p.impact_areas(),
-                RefactorPlan::MovePlan(p) => p.impact_areas(),
-                RefactorPlan::ReorderPlan(p) => p.impact_areas(),
-                RefactorPlan::TransformPlan(p) => p.impact_areas(),
-                RefactorPlan::DeletePlan(p) => p.impact_areas(),
-            },
+            complexity: plan.complexity(),
+            impact_areas: plan.impact_areas(),
         },
     })
 }

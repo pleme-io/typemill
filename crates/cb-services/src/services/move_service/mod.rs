@@ -23,8 +23,7 @@ use crate::services::reference_updater::ReferenceUpdater;
 use cb_plugin_api::{PluginRegistry, ScanScope};
 use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult, EditPlan};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use tracing::{debug, info};
+use tracing::info;
 
 /// Unified move/rename planning service
 pub struct MoveService<'a> {
