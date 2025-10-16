@@ -186,66 +186,10 @@ pub async fn find_rust_affected_files(
         }
     }
 
-    // ALWAYS check for parent files with mod declarations
-    // This is independent of crate name detection and handles simple file renames
-    let old_parent = old_path.parent();
-    if let Some(parent_dir) = old_parent {
-        let lib_rs = parent_dir.join("lib.rs");
-        let mod_rs = parent_dir.join("mod.rs");
-
-        // Extract module name from old file (e.g., utils.rs -> utils)
-        if let Some(old_module_name) = old_path.file_stem().and_then(|s| s.to_str()) {
-            // Check lib.rs
-            if lib_rs.exists() {
-                if let Ok(content) = tokio::fs::read_to_string(&lib_rs).await {
-                    // Check for mod declaration (e.g., "pub mod utils;" or "mod utils;")
-                    let has_mod_declaration = content.lines().any(|line| {
-                        let trimmed = line.trim();
-                        (trimmed.starts_with("pub mod ") || trimmed.starts_with("mod "))
-                            && trimmed.contains(&format!("{};", old_module_name))
-                    });
-
-                    if has_mod_declaration {
-                        tracing::debug!(
-                            file = %lib_rs.display(),
-                            module_name = %old_module_name,
-                            "Found parent lib.rs with mod declaration"
-                        );
-                        // Canonicalize to match project_files format
-                        let canonical_lib_rs = lib_rs.canonicalize().unwrap_or(lib_rs);
-                        if !affected.contains(&canonical_lib_rs) {
-                            affected.push(canonical_lib_rs);
-                        }
-                    }
-                }
-            }
-
-            // Check mod.rs
-            if mod_rs.exists() {
-                if let Ok(content) = tokio::fs::read_to_string(&mod_rs).await {
-                    // Check for mod declaration
-                    let has_mod_declaration = content.lines().any(|line| {
-                        let trimmed = line.trim();
-                        (trimmed.starts_with("pub mod ") || trimmed.starts_with("mod "))
-                            && trimmed.contains(&format!("{};", old_module_name))
-                    });
-
-                    if has_mod_declaration {
-                        tracing::debug!(
-                            file = %mod_rs.display(),
-                            module_name = %old_module_name,
-                            "Found parent mod.rs with mod declaration"
-                        );
-                        // Canonicalize to match project_files format
-                        let canonical_mod_rs = mod_rs.canonicalize().unwrap_or(mod_rs);
-                        if !affected.contains(&canonical_mod_rs) {
-                            affected.push(canonical_mod_rs);
-                        }
-                    }
-                }
-            }
-        }
-    }
+    // NOTE: Mod declarations (pub mod foo;) are NOT detected as affected files
+    // They are structural declarations, not imports/references
+    // Mod declaration updates are handled separately by the file rename handler
+    tracing::debug!("Skipping mod declaration detection - handled separately by rename handler");
 
     // If this is a file move (cross-crate or same-crate), compute full module paths
     if let (Some(old_crate), Some(new_crate)) = (old_crate_name, new_crate_name) {

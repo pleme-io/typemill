@@ -76,12 +76,18 @@ impl ReferenceUpdater {
                 .await?
         } else if is_directory_rename {
             // For non-Rust directory renames, use per-file detection
+            // Build a mapping of importer -> set of files in directory it imports
             let mut all_affected = HashSet::new();
+            let mut importer_to_imported_files: HashMap<PathBuf, HashSet<(PathBuf, PathBuf)>> = HashMap::new();
+
             let files_in_directory: Vec<&PathBuf> = project_files
                 .iter()
                 .filter(|f| f.starts_with(old_path) && f.is_file())
                 .collect();
-            for file_in_dir in files_in_directory {
+
+            let files_in_dir_count = files_in_directory.len();
+
+            for file_in_dir in &files_in_directory {
                 let relative_path = file_in_dir.strip_prefix(old_path).unwrap_or(file_in_dir);
                 let new_file_path = new_path.join(relative_path);
                 let importers = self
@@ -92,9 +98,30 @@ impl ReferenceUpdater {
                         plugins,
                     )
                     .await?;
-                all_affected.extend(importers);
+
+                // Track which files in the directory each importer references
+                for importer in importers {
+                    all_affected.insert(importer.clone());
+                    importer_to_imported_files
+                        .entry(importer)
+                        .or_insert_with(HashSet::new)
+                        .insert(((*file_in_dir).clone(), new_file_path.clone()));
+                }
             }
-            all_affected.into_iter().collect()
+
+            // Store the mapping for use in rewriting phase
+            // We'll need to pass this to the rewriting logic
+            let affected_vec: Vec<PathBuf> = all_affected.into_iter().collect();
+
+            // Store mapping in a way we can access during rewriting
+            // For now, we'll process affected files differently for directory renames
+            tracing::info!(
+                affected_files_count = affected_vec.len(),
+                files_in_directory_count = files_in_dir_count,
+                "Directory rename: found affected files"
+            );
+
+            affected_vec
         } else {
             self.find_affected_files_for_rename(old_path, new_path, &project_files, plugins)
                 .await?
@@ -178,7 +205,8 @@ impl ReferenceUpdater {
                 }
             } else if is_directory_rename {
                 // Directory rename logic (for non-Rust crate directories)
-                // Pass directory paths to allow language plugins to detect mod declarations
+                // For each file in the directory, call plugin.rewrite_file_references
+                // This allows plugins to update imports for all files being moved
                 tracing::debug!(
                     file_path = %file_path.display(),
                     old_path = %old_path.display(),
@@ -186,38 +214,82 @@ impl ReferenceUpdater {
                     "Rewriting references for directory rename"
                 );
 
-                let rewrite_result = plugin.rewrite_file_references(
-                    &content,
-                    old_path,  // Pass the directory path
-                    new_path,  // Pass the new directory path
-                    &file_path,
-                    &self.project_root,
-                    rename_info,
-                );
+                // Get all files within the moved directory
+                let files_in_directory: Vec<&PathBuf> = project_files
+                    .iter()
+                    .filter(|f| f.starts_with(old_path) && f.is_file())
+                    .collect();
 
-                if let Some((updated_content, count)) = rewrite_result {
-                    if count > 0 && updated_content != content {
-                        let line_count = content.lines().count();
-                        let last_line_len = content.lines().last().map(|l| l.len()).unwrap_or(0);
+                let mut combined_content = content.clone();
+                let mut total_changes = 0;
 
-                        all_edits.push(TextEdit {
-                            file_path: Some(file_path.to_string_lossy().to_string()),
-                            edit_type: EditType::UpdateImport,
-                            location: EditLocation {
-                                start_line: 0,
-                                start_column: 0,
-                                end_line: line_count.saturating_sub(1) as u32,
-                                end_column: last_line_len as u32,
-                            },
-                            original_text: content.clone(),
-                            new_text: updated_content,
-                            priority: 1,
-                            description: format!(
-                                "Update imports in {} for directory rename",
-                                file_path.display()
-                            ),
-                        });
+                // Process each file in the directory that might be referenced
+                for file_in_dir in &files_in_directory {
+                    let relative_path = file_in_dir.strip_prefix(old_path).unwrap_or(file_in_dir);
+                    let new_file_path = new_path.join(relative_path);
+
+                    tracing::debug!(
+                        importer = %file_path.display(),
+                        old_imported_file = %file_in_dir.display(),
+                        new_imported_file = %new_file_path.display(),
+                        "Checking if importer references file in moved directory"
+                    );
+
+                    // Call plugin to rewrite references for this specific file
+                    let rewrite_result = plugin.rewrite_file_references(
+                        &combined_content,
+                        file_in_dir,  // Old path of specific file in directory
+                        &new_file_path,  // New path of specific file in directory
+                        &file_path,
+                        &self.project_root,
+                        rename_info,
+                    );
+
+                    if let Some((updated_content, count)) = rewrite_result {
+                        if count > 0 && updated_content != combined_content {
+                            tracing::debug!(
+                                changes = count,
+                                importer = %file_path.display(),
+                                moved_file = %file_in_dir.display(),
+                                "Applied {} import updates for file in moved directory",
+                                count
+                            );
+                            combined_content = updated_content;
+                            total_changes += count;
+                        }
                     }
+                }
+
+                // If any changes were made, add a single edit for this file
+                if total_changes > 0 && combined_content != content {
+                    let line_count = content.lines().count();
+                    let last_line_len = content.lines().last().map(|l| l.len()).unwrap_or(0);
+
+                    tracing::info!(
+                        file_path = %file_path.display(),
+                        total_changes,
+                        "Adding edit for directory rename with {} total changes",
+                        total_changes
+                    );
+
+                    all_edits.push(TextEdit {
+                        file_path: Some(file_path.to_string_lossy().to_string()),
+                        edit_type: EditType::UpdateImport,
+                        location: EditLocation {
+                            start_line: 0,
+                            start_column: 0,
+                            end_line: line_count.saturating_sub(1) as u32,
+                            end_column: last_line_len as u32,
+                        },
+                        original_text: content.clone(),
+                        new_text: combined_content,
+                        priority: 1,
+                        description: format!(
+                            "Update {} imports in {} for directory rename",
+                            total_changes,
+                            file_path.display()
+                        ),
+                    });
                 }
             } else {
                 // File rename logic
