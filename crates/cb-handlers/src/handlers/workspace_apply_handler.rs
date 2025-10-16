@@ -534,7 +534,11 @@ fn convert_to_edit_plan(
             // Convert URI to native file path string
             let file_path_str = uri_to_path_string(&uri)?;
 
-            for lsp_edit in text_edits {
+            // Assign priorities based on array position to preserve execution order
+            // LSP arrays are ordered intentionally - first edit should execute first
+            // Higher priority = executes first in transformer
+            let total_edits = text_edits.len();
+            for (idx, lsp_edit) in text_edits.into_iter().enumerate() {
                 edits.push(TextEdit {
                     file_path: Some(file_path_str.clone()),
                     edit_type: cb_protocol::EditType::Replace,
@@ -546,7 +550,8 @@ fn convert_to_edit_plan(
                     },
                     original_text: String::new(), // Not provided by LSP
                     new_text: lsp_edit.new_text,
-                    priority: 0,
+                    // Preserve array order: first edit = highest priority
+                    priority: (total_edits - idx) as u32,
                     description: format!("Refactoring edit in {}", file_path_str),
                 });
             }
