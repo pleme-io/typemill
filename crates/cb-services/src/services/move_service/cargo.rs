@@ -99,6 +99,16 @@ pub fn convert_manifest_updates_to_edits(
                 file_path.clone()
             };
 
+            // Normalize trailing newlines in new_content to match old_content
+            // toml_edit ensures files end with '\n', but we need to match the original
+            let normalized_new_content = if old_content.ends_with('\n') {
+                // Original has trailing newline - ensure new content has exactly one
+                new_content.trim_end().to_string() + "\n"
+            } else {
+                // Original has no trailing newline - remove from new content
+                new_content.trim_end().to_string()
+            };
+
             // Calculate range covering the entire file
             // Always use the end of the last line of content, regardless of trailing newline
             let total_lines = old_content.lines().count() as u32;
@@ -120,7 +130,7 @@ pub fn convert_manifest_updates_to_edits(
                     end_column,
                 },
                 original_text: old_content,
-                new_text: new_content,
+                new_text: normalized_new_content,
                 priority: 10, // Give manifest updates high priority
                 description: format!(
                     "Update Cargo.toml manifest: {}",
