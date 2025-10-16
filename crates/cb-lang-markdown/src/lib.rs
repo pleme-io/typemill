@@ -120,7 +120,7 @@ impl LanguagePlugin for MarkdownPlugin {
         old_path: &std::path::Path,
         new_path: &std::path::Path,
         current_file: &std::path::Path,
-        _project_root: &std::path::Path,
+        project_root: &std::path::Path,
         _rename_info: Option<&serde_json::Value>,
     ) -> Option<(String, usize)> {
         tracing::info!(
@@ -130,37 +130,58 @@ impl LanguagePlugin for MarkdownPlugin {
             current_file.display()
         );
 
-        // For markdown, we need to compute relative paths from the current file
-        // to the target file, not use project-relative paths
+        // For markdown links, we need to compute file-relative paths
+        // because markdown links should be relative to the file they're in
+        // (this makes them work correctly when viewing files locally)
 
-        // Get the directory containing the current markdown file
         let current_dir = current_file.parent()?;
 
-        // Compute relative path from current file's directory to the old path
+        // Compute file-relative paths from current file's directory
         let old_relative = pathdiff::diff_paths(old_path, current_dir)?;
-
-        // Compute relative path from current file's directory to the new path
         let new_relative = pathdiff::diff_paths(new_path, current_dir)?;
 
-        debug!(
-            current_file = ?current_file,
-            old_path = ?old_path,
-            new_path = ?new_path,
-            old_relative = ?old_relative,
-            new_relative = ?new_relative,
-            "Computing relative markdown paths"
-        );
-
-        // Convert to string, using forward slashes for markdown links
+        // Convert to string with forward slashes for markdown
         let old_relative_str = old_relative.to_string_lossy().replace('\\', "/");
         let new_relative_str = new_relative.to_string_lossy().replace('\\', "/");
 
-        // Use the import support to rewrite with relative paths
-        Some(self.import_support.rewrite_imports_for_rename(
+        // ALSO compute project-relative paths for matching
+        let old_project_relative = old_path
+            .strip_prefix(project_root)
+            .unwrap_or(old_path)
+            .to_string_lossy()
+            .replace('\\', "/");
+
+        debug!(
+            old_path = ?old_path,
+            new_path = ?new_path,
+            old_relative = %old_relative_str,
+            new_relative = %new_relative_str,
+            old_project_relative = %old_project_relative,
+            "Rewriting markdown links with file-relative paths"
+        );
+
+        // First pass: rewrite project-relative paths to file-relative paths
+        let (mut result, mut count) = self.import_support.rewrite_imports_for_rename(
             content,
+            &old_project_relative,
+            &new_relative_str,
+        );
+
+        // Second pass: rewrite any existing file-relative paths
+        let (result2, count2) = self.import_support.rewrite_imports_for_rename(
+            &result,
             &old_relative_str,
             &new_relative_str,
-        ))
+        );
+
+        if count2 > 0 {
+            result = result2;
+            count += count2;
+        }
+
+        debug!(total_changes = count, "Completed markdown link rewriting");
+
+        Some((result, count))
     }
 }
 
@@ -242,5 +263,87 @@ Details.
 
         assert!(caps.imports); // Markdown supports file references
         assert!(!caps.workspace); // No workspace operations
+    }
+
+    #[test]
+    fn test_rewrite_file_references_override_same_directory() {
+        use std::path::PathBuf;
+
+        let plugin = MarkdownPlugin::new();
+
+        // Test case: Both files in same directory
+        // - project_root/docs/api.md → docs/api-reference.md
+        // - project_root/docs/examples.md contains link
+
+        let project_root = PathBuf::from("/tmp/test_project");
+        let old_path = project_root.join("docs/api.md");
+        let new_path = project_root.join("docs/api-reference.md");
+        let current_file = project_root.join("docs/examples.md");
+
+        let content = r#"Check [API](docs/api.md) for details.
+"#;
+
+        let result = plugin.rewrite_file_references(
+            content,
+            &old_path,
+            &new_path,
+            &current_file,
+            &project_root,
+            None,
+        );
+
+        assert!(result.is_some(), "rewrite_file_references should return Some");
+
+        let (updated_content, count) = result.unwrap();
+
+        // Should convert project-relative to file-relative
+        // "docs/api.md" → "api-reference.md" (file-relative)
+        assert_eq!(count, 1, "Should update 1 reference");
+        assert!(
+            updated_content.contains("(api-reference.md)"),
+            "Link should be converted to file-relative path. Actual content:\n{}",
+            updated_content
+        );
+    }
+
+    #[test]
+    fn test_rewrite_file_references_override_cross_directory() {
+        use std::path::PathBuf;
+
+        let plugin = MarkdownPlugin::new();
+
+        // Test case: File moving to different directory
+        // - project_root/docs/development/contributing.md → CONTRIBUTING.md
+        // - project_root/docs/index.md contains link
+
+        let project_root = PathBuf::from("/tmp/test_project");
+        let old_path = project_root.join("docs/development/contributing.md");
+        let new_path = project_root.join("CONTRIBUTING.md");
+        let current_file = project_root.join("docs/index.md");
+
+        let content = r#"Check [contributing guide](docs/development/contributing.md).
+"#;
+
+        let result = plugin.rewrite_file_references(
+            content,
+            &old_path,
+            &new_path,
+            &current_file,
+            &project_root,
+            None,
+        );
+
+        assert!(result.is_some(), "rewrite_file_references should return Some");
+
+        let (updated_content, count) = result.unwrap();
+
+        // Should convert project-relative to file-relative
+        // "docs/development/contributing.md" → "../CONTRIBUTING.md"
+        assert_eq!(count, 1, "Should update 1 reference");
+        assert!(
+            updated_content.contains("(../CONTRIBUTING.md)"),
+            "Link should be converted to file-relative path. Actual content:\n{}",
+            updated_content
+        );
     }
 }

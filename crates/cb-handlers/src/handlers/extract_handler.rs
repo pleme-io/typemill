@@ -310,7 +310,12 @@ impl ExtractHandler {
     fn convert_to_workspace_edit(&self, edit_plan: &EditPlan) -> ServerResult<WorkspaceEdit> {
         let mut changes: HashMap<lsp_types::Uri, Vec<lsp_types::TextEdit>> = HashMap::new();
 
-        for edit in &edit_plan.edits {
+        // Sort edits by priority (highest first) to preserve execution order
+        // LSP WorkspaceEdit doesn't have priority, so we must sort before conversion
+        let mut sorted_edits = edit_plan.edits.clone();
+        sorted_edits.sort_by(|a, b| b.priority.cmp(&a.priority));
+
+        for edit in &sorted_edits {
             let file_path = edit.file_path.as_ref().unwrap_or(&edit_plan.source_file);
 
             // Convert file path to file:// URI

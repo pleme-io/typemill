@@ -320,6 +320,13 @@ impl ReferenceUpdater {
                     "Calling plugin rewrite_file_references"
                 );
 
+                // Add this log right before the plugin method is called
+                tracing::debug!(
+                    plugin_name = plugin.metadata().name,
+                    current_file = %file_path.display(),
+                    "Attempting to call rewrite_file_references on selected plugin"
+                );
+
                 let rewrite_result = plugin.rewrite_file_references(
                     &content,
                     old_path,

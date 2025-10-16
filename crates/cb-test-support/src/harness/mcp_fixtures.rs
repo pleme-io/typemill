@@ -660,9 +660,9 @@ Also check [the guide](docs/guide.md#installation).
         new_file_path: "docs/api-reference.md",
         expect_success: true,
         expected_import_updates: &[
-            ("README.md", "(docs/api-reference.md)"),
-            ("CONTRIBUTING.md", "(docs/api-reference.md)"),
-            ("docs/examples.md", "(docs/api-reference.md)"),
+            ("README.md", "(docs/api-reference.md)"),  // From root, use project-relative
+            ("CONTRIBUTING.md", "(docs/api-reference.md)"),  // From root, use project-relative
+            ("docs/examples.md", "(api-reference.md)"),  // Same directory, use file-relative
         ],
     },
     RenameFileTestCase {

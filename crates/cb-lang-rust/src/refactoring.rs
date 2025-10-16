@@ -60,23 +60,8 @@ pub fn plan_extract_function(
 
     let mut edits = Vec::new();
 
-    // Insert new function above the selected code
-    edits.push(TextEdit {
-        file_path: None,
-        edit_type: EditType::Insert,
-        location: EditLocation {
-            start_line,
-            start_column: 0,
-            end_line: start_line,
-            end_column: 0,
-        },
-        original_text: String::new(),
-        new_text: new_function,
-        priority: 100,
-        description: format!("Create extracted function '{}'", function_name),
-    });
-
-    // Replace selected code with function call
+    // Replace selected code with function call FIRST (priority 100)
+    // This must be applied before the insertion to avoid line offset issues
     edits.push(TextEdit {
         file_path: None,
         edit_type: EditType::Replace,
@@ -88,8 +73,25 @@ pub fn plan_extract_function(
         },
         original_text: selected_code.clone(),
         new_text: function_call,
-        priority: 90,
+        priority: 100,
         description: format!("Replace code with call to '{}'", function_name),
+    });
+
+    // Insert new function above the selected code SECOND (priority 90)
+    // After the replacement, this inserts at the now-vacant location
+    edits.push(TextEdit {
+        file_path: None,
+        edit_type: EditType::Insert,
+        location: EditLocation {
+            start_line,
+            start_column: 0,
+            end_line: start_line,
+            end_column: 0,
+        },
+        original_text: String::new(),
+        new_text: new_function,
+        priority: 90,
+        description: format!("Create extracted function '{}'", function_name),
     });
 
     Ok(EditPlan {

@@ -112,6 +112,8 @@ async fn test_extract_plan_and_apply_workflow() {
     let file_path = workspace.absolute_path("extract.rs");
 
     // Step 1: Generate extract.plan
+    // Extract lines 1-3 (the three let statements)
+    // Line 3 is "    let z = x + y;" which is 18 chars, so end at character 18
     let plan_result = client
         .call_tool(
             "extract.plan",
@@ -121,7 +123,7 @@ async fn test_extract_plan_and_apply_workflow() {
                     "file_path": file_path.to_string_lossy(),
                     "range": {
                         "start": {"line": 1, "character": 4},
-                        "end": {"line": 3, "character": 23}
+                        "end": {"line": 3, "character": 18}
                     },
                     "name": "calculate_sum"
                 }
@@ -129,50 +131,44 @@ async fn test_extract_plan_and_apply_workflow() {
         )
         .await;
 
-    match plan_result {
-        Ok(response) => {
-            let plan = response
-                .get("result")
-                .and_then(|r| r.get("content"))
-                .cloned()
-                .expect("Plan should exist");
+    let plan = plan_result
+        .expect("extract.plan should succeed")
+        .get("result")
+        .and_then(|r| r.get("content"))
+        .cloned()
+        .expect("Plan should exist");
 
-            // Verify plan type
-            assert_eq!(
-                plan.get("plan_type").and_then(|v| v.as_str()),
-                Some("ExtractPlan"),
-                "Should be ExtractPlan"
-            );
+    // Verify plan type
+    assert_eq!(
+        plan.get("plan_type").and_then(|v| v.as_str()),
+        Some("ExtractPlan"),
+        "Should be ExtractPlan"
+    );
 
-            // Step 2: Apply via workspace.apply_edit
-            let apply_result = client
-                .call_tool(
-                    "workspace.apply_edit",
-                    json!({
-                        "plan": plan,
-                        "options": {
-                            "dry_run": false
-                        }
-                    }),
-                )
-                .await
-                .expect("workspace.apply_edit should succeed");
+    // Step 2: Apply via workspace.apply_edit
+    let apply_result = client
+        .call_tool(
+            "workspace.apply_edit",
+            json!({
+                "plan": plan,
+                "options": {
+                    "dry_run": false
+                }
+            }),
+        )
+        .await
+        .expect("workspace.apply_edit should succeed");
 
-            let result = apply_result
-                .get("result")
-                .and_then(|r| r.get("content"))
-                .expect("Apply result should exist");
+    let result = apply_result
+        .get("result")
+        .and_then(|r| r.get("content"))
+        .expect("Apply result should have result.content");
 
-            assert_eq!(
-                result.get("success").and_then(|v| v.as_bool()),
-                Some(true),
-                "Extract should succeed"
-            );
-        }
-        Err(_) => {
-            eprintln!("INFO: extract.plan requires AST/LSP support, skipping workflow test");
-        }
-    }
+    assert_eq!(
+        result.get("success").and_then(|v| v.as_bool()),
+        Some(true),
+        "Extract should succeed"
+    );
 }
 
 #[tokio::test]
