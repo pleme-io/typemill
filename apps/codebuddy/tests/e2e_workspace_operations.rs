@@ -656,11 +656,17 @@ async fn test_search_symbols_rust_workspace() {
 
     // Search for the 'main' function
     // Note: The DirectLspAdapter will automatically wait for rust-analyzer's workspace
-    // indexing to complete before querying for workspace symbols
+    // indexing to complete before querying for workspace symbols.
+    // Use extended timeout (60s) for this workspace-level operation, as rust-analyzer's
+    // initial workspace scan can be slow in resource-constrained test environments.
     let response = client
-        .call_tool("search_symbols", json!({ "query": "main" }))
+        .call_tool_with_timeout(
+            "search_symbols",
+            json!({ "query": "main" }),
+            std::time::Duration::from_secs(60), // 60-second timeout for workspace scan
+        )
         .await
-        .expect("search_symbols tool should succeed");
+        .expect("search_symbols should not time out");
 
     // Check for errors in the response
     if let Some(error) = response.get("error") {
