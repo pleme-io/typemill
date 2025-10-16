@@ -1,8 +1,6 @@
 # Proposal: Single-Language Build Support
 
 **Status:** Proposal
-**Effort:** 2-3 weeks
-**Priority:** High (prerequisite for language expansion)
 **Note:** Implement BEFORE Proposal 03 (Language Expansion) - Capability traits make adding new languages easier
 
 ## Problem Statement
@@ -145,7 +143,7 @@ So a feature-only solution still requires code rework.
 
 ## Proposed Solution
 
-### Phase 1: Feature Plumbing (1-2 days)
+### Phase 1: Feature Plumbing
 
 Mark every language dependency as optional and expose matching features at each layer:
 
@@ -172,7 +170,7 @@ Repeat for:
 
 Tie crate features together so enabling `lang-typescript` in the binary flips on the lower-level features automatically.
 
-### Phase 2: Capability Traits (1-2 weeks)
+### Phase 2: Capability Traits
 
 **Problem:** Current downcasting pattern doesn't scale and creates tight coupling.
 
@@ -310,7 +308,7 @@ impl LanguagePlugin for RustPlugin {
 }
 ```
 
-### Phase 3: Code Gating (2-3 days)
+### Phase 3: Code Gating
 
 Guard every language-specific use and match arm with `#[cfg(feature = "...")]`:
 
@@ -337,7 +335,7 @@ pub fn with_default_languages(mut self) -> Self {
 }
 ```
 
-### Phase 4: Tests & Tooling (1-2 days)
+### Phase 4: Tests & Tooling
 
 Mark integration tests with `cfg(feature = "...")`:
 
@@ -382,7 +380,7 @@ test-ts-only:
 	cargo test-ts-only
 ```
 
-### Phase 5: Documentation (½ day)
+### Phase 5: Documentation
 
 Update CONTRIBUTING.md with single-language build instructions:
 
@@ -427,17 +425,15 @@ The capability trait approach prevents duplication as we add more languages. As 
 
 3. **Graceful Degradation**: If a language doesn't support a capability, we can provide helpful error messages or fallback behavior instead of compile errors.
 
-## Implementation Timeline
+## Implementation Dependencies
 
-| Phase | Task | Effort | Dependencies |
-|-------|------|--------|--------------|
-| 1 | Feature plumbing (manifests) | 1-2 days | None |
-| 2 | Capability traits design + implementation | 1-2 weeks | Phase 1 |
-| 3 | Code gating with #[cfg] | 2-3 days | Phase 2 |
-| 4 | Test infrastructure + CI | 1-2 days | Phase 3 |
-| 5 | Documentation | ½ day | Phase 4 |
-
-**Total:** 2-3 weeks
+| Phase | Task | Dependencies |
+|-------|------|--------------|
+| 1 | Feature plumbing (manifests) | None |
+| 2 | Capability traits design + implementation | Phase 1 |
+| 3 | Code gating with #[cfg] | Phase 2 |
+| 4 | Test infrastructure + CI | Phase 3 |
+| 5 | Documentation | Phase 4 |
 
 ## Success Metrics
 
@@ -503,8 +499,6 @@ Single-language builds are **currently blocked** by hard-wired dependencies and 
 2. **Capability traits** (biggest lift, but enables scaling to 8+ languages)
 3. Code gating with `#[cfg]`
 4. Test infrastructure updates
-
-**Total effort:** 2-3 weeks
 
 **Key benefit:** Not just faster builds today, but a **scalable architecture** that eliminates duplication as we add more languages.
 

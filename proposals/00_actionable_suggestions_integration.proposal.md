@@ -6,8 +6,6 @@
 **Parent Proposal**: [01b_unified_analysis_api.md](01b_unified_analysis_api.md)
 **Dependencies**: ✅ 01a, ✅ 01b, ✅ 01c1 (Core Infrastructure - MERGED)
 **Branch**: ✅ `feature/01c2-suggestions-integration` (MERGED - Partial)
-**Estimated Effort**: 1 week (5-7 days, ~40 hours) - Can be done by 2 agents in parallel
-**Actual Delivery**: ~1 day (partial - dead code only, 2 of 6 kinds)
 
 ---
 
@@ -80,47 +78,6 @@ Implement finding-specific refactoring candidate generators:
 ❌ `analyze.batch` integration - That's 01c3
 ❌ CI validation - That's 01c3
 ❌ Documentation updates - That's 01c3
-
----
-
-## Parallel Work Strategy (2 Agents)
-
-### Agent 1: Quality + Dead Code + Dependencies (Code Health)
-- Modify `analyze.quality` handler
-- Modify `analyze.dead_code` handler
-- Modify `analyze.dependencies` handler
-- Write refactoring generators for these 3 categories
-- Write integration tests for these 3 categories
-
-**Files to modify**:
-- `crates/cb-handlers/src/handlers/tools/analysis/quality.rs`
-- `crates/cb-handlers/src/handlers/tools/analysis/dead_code.rs`
-- `crates/cb-handlers/src/handlers/tools/analysis/dependencies.rs`
-
-**New files**:
-- `integration-tests/src/test_suggestions_quality.rs`
-- `integration-tests/src/test_suggestions_dead_code.rs`
-- `integration-tests/src/test_suggestions_dependencies.rs`
-
-### Agent 2: Structure + Documentation + Tests (Code Organization)
-- Modify `analyze.structure` handler
-- Modify `analyze.documentation` handler
-- Modify `analyze.tests` handler
-- Write refactoring generators for these 3 categories
-- Write integration tests for these 3 categories
-
-**Files to modify**:
-- `crates/cb-handlers/src/handlers/tools/analysis/structure.rs`
-- `crates/cb-handlers/src/handlers/tools/analysis/documentation.rs`
-- `crates/cb-handlers/src/handlers/tools/analysis/tests.rs`
-
-**New files**:
-- `integration-tests/src/test_suggestions_structure.rs`
-- `integration-tests/src/test_suggestions_documentation.rs`
-- `integration-tests/src/test_suggestions_tests.rs`
-
-### Shared Work (Both Agents)
-- `integration-tests/src/test_closed_loop_workflow.rs` (coordinate on who writes this)
 
 ---
 

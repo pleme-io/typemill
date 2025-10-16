@@ -28,52 +28,39 @@ WorkspaceApplyHandler  // Orchestration only
 
 ## Checklists
 
-### Create ChecksumValidator Service
 - [ ] Create `crates/cb-services/src/services/checksum_validator.rs`
 - [ ] Move `validate_checksums()` function
 - [ ] Move `calculate_checksum()` function
 - [ ] Add unit tests for validation logic
-- [ ] Export from services module
-
-### Create PlanConverter Service
+- [ ] Export ChecksumValidator from services module
 - [ ] Create `crates/cb-services/src/services/plan_converter.rs`
 - [ ] Move `convert_to_edit_plan()` function (210 lines)
 - [ ] Move all `extract_*()` helper functions
 - [ ] Move all `get_*()` helper functions
 - [ ] Add unit tests for each plan type conversion
-- [ ] Export from services module
-
-### Create DryRunGenerator Service
+- [ ] Export PlanConverter from services module
 - [ ] Create `crates/cb-services/src/services/dry_run_generator.rs`
 - [ ] Move dry-run preview creation logic
 - [ ] Move result formatting code
 - [ ] Add unit tests for preview generation
-- [ ] Export from services module
-
-### Create PostApplyValidator Service
+- [ ] Export DryRunGenerator from services module
 - [ ] Create `crates/cb-services/src/services/post_apply_validator.rs`
 - [ ] Move `run_validation()` function
 - [ ] Move external command execution logic
 - [ ] Move timeout handling code
 - [ ] Add unit tests for validation execution
-- [ ] Export from services module
-
-### Refactor WorkspaceApplyHandler
-- [ ] Replace inline validation with `ChecksumValidator` calls
+- [ ] Export PostApplyValidator from services module
+- [ ] Replace inline validation with `ChecksumValidator` calls in WorkspaceApplyHandler
 - [ ] Replace inline conversion with `PlanConverter` calls
 - [ ] Replace inline dry-run with `DryRunGenerator` calls
 - [ ] Replace inline validation with `PostApplyValidator` calls
 - [ ] Handler becomes pure orchestration (~150 lines)
 - [ ] Update handler to receive services via dependency injection
-
-### Update AppState
 - [ ] Add `checksum_validator: Arc<ChecksumValidator>` to `AppState`
 - [ ] Add `plan_converter: Arc<PlanConverter>` to `AppState`
 - [ ] Add `dry_run_generator: Arc<DryRunGenerator>` to `AppState`
 - [ ] Add `post_apply_validator: Arc<PostApplyValidator>` to `AppState`
 - [ ] Update `AppStateFactory` to create service instances
-
-### Testing
 - [ ] Verify all existing workspace apply tests pass
 - [ ] Add integration test verifying services work together
 - [ ] Add test for concurrent modifications to different services

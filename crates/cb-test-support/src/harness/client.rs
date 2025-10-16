@@ -63,21 +63,27 @@ impl TestClient {
             std::env::var("PATH").unwrap_or_default()
         };
 
-        let mut process = Command::new(&server_path)
+        let mut command = Command::new(&server_path);
+        command
             .arg("start")
             .current_dir(working_dir)
             .env("PATH", expanded_path)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .unwrap_or_else(|e| {
-                panic!(
-                    "Failed to start cb-server binary at {:?}: {}. \n\
-                     Make sure to build the binary first with: cargo build",
-                    server_path, e
-                )
-            });
+            .stderr(Stdio::piped());
+
+        // Propagate RUST_LOG to the server process for debugging
+        if let Ok(rust_log) = std::env::var("RUST_LOG") {
+            command.env("RUST_LOG", rust_log);
+        }
+
+        let mut process = command.spawn().unwrap_or_else(|e| {
+            panic!(
+                "Failed to start cb-server binary at {:?}: {}. \n\
+                 Make sure to build the binary first with: cargo build",
+                server_path, e
+            )
+        });
 
         let stdin = process.stdin.take().unwrap();
         let stdout = process.stdout.take().unwrap();
@@ -120,6 +126,7 @@ impl TestClient {
         thread::spawn(move || {
             let reader = BufReader::new(stderr);
             for line in reader.lines().map_while(Result::ok) {
+                eprintln!("[SERVER STDERR] {}", &line); // Make server logs visible in test output
                 if stderr_sender.send(line).is_err() {
                     break;
                 }

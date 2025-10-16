@@ -671,34 +671,6 @@ See `cargo xtask --help` for all available tasks.
 
 ---
 
-## Migration Plan
-
-### Phase 1: Setup (Week 1)
-1. Create `crates/xtask` structure
-2. Implement basic CLI with clap
-3. Add to workspace
-4. Create `.cargo/config.toml` alias
-
-### Phase 2: Migrate Scripts (Week 2-3)
-1. Implement `install` task (replaces `install.sh`)
-2. Implement `check-duplicates` task (replaces `check-duplicates.sh`)
-3. Implement `new-lang` task (replaces `new-lang.sh`)
-4. Implement `check-features` task (replaces `check-features.sh`)
-5. Keep `dotnet-install.sh` as-is (legacy, rarely used)
-
-### Phase 3: Integration (Week 4)
-1. Update Makefile to use xtask
-2. Update CI/CD to use xtask
-3. Update documentation
-4. Test on all platforms (Linux, macOS, Windows)
-
-### Phase 4: Cleanup (Week 5)
-1. Move replaced scripts to `.debug/archive/`
-2. Update any remaining references
-3. Announce change to contributors
-
----
-
 ## Comparison: Before/After
 
 ### Before (Shell Scripts)
@@ -792,15 +764,3 @@ cargo xtask install --dest ~/.local/bin
 - [rust-analyzer xtask](https://github.com/rust-lang/rust-analyzer/tree/master/xtask)
 - [cargo xtask](https://github.com/rust-lang/cargo/tree/master/xtask)
 
----
-
-## Timeline
-
-**Estimated effort:** 2-3 weeks (part-time)
-
-- Week 1: Setup and basic CLI
-- Week 2-3: Migrate scripts
-- Week 4: Integration and testing
-- Week 5: Cleanup and documentation
-
-**Recommended:** Can be done incrementally, script-by-script.

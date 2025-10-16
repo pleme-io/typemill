@@ -1,9 +1,6 @@
 # Proposal: LSP Progress Notification Support
 
 **Status**: Draft
-**Priority**: Medium
-**Effort**: 8-12 hours
-**Impact**: High (eliminates test flakiness, improves reliability)
 
 ## Executive Summary
 
@@ -535,64 +532,42 @@ async fn test_search_symbols_rust_workspace() {
 }
 ```
 
-## Implementation Plan
+## Checklists
 
-### Phase 1: Core Infrastructure (3-4 hours)
+### Core Infrastructure
+- [ ] Create `crates/cb-lsp/src/progress.rs` - Types and ProgressManager
+- [ ] Export progress module in `crates/cb-lsp/src/lsp_system/mod.rs`
+- [ ] Integrate ProgressManager in `crates/cb-lsp/src/lsp_system/client.rs`
+- [ ] Add `dashmap` dependency to `crates/cb-lsp/Cargo.toml`
+- [ ] Progress types defined
+- [ ] ProgressManager implemented
+- [ ] Unit tests for ProgressManager
+- [ ] LspClient has progress_manager field
 
-**Files to create:**
-- `crates/cb-lsp/src/progress.rs` - Types and ProgressManager
+### Message Handling
+- [ ] Update `handle_message` function in `crates/cb-lsp/src/lsp_system/client.rs`
+- [ ] Parse and handle `$/progress` notifications
+- [ ] Log other notifications (diagnostics, log messages)
+- [ ] Add error handling for malformed notifications
+- [ ] Add tracing/logging for debugging
 
-**Files to modify:**
-- `crates/cb-lsp/src/lsp_system/mod.rs` - Export progress module
-- `crates/cb-lsp/src/lsp_system/client.rs` - Integrate ProgressManager
-- `crates/cb-lsp/Cargo.toml` - Add `dashmap` dependency
+### Public API
+- [ ] Add `wait_for_progress()` method to LspClient
+- [ ] Add `wait_for_indexing()` helper
+- [ ] Add `progress()` getter for advanced use
+- [ ] Write API documentation with examples
 
-**Deliverables:**
-- ✅ Progress types defined
-- ✅ ProgressManager implemented
-- ✅ Unit tests for ProgressManager
-- ✅ LspClient has progress_manager field
+### Test Integration
+- [ ] Update `apps/codebuddy/tests/e2e_workspace_operations.rs` - Replace sleep with wait_for_indexing
+- [ ] Add helper to get LspClient in `crates/cb-test-support/src/harness/client.rs`
+- [ ] Update `test_search_symbols_rust_workspace` to use proper waiting
+- [ ] Document new test pattern
 
-### Phase 2: Message Handling (2-3 hours)
-
-**Files to modify:**
-- `crates/cb-lsp/src/lsp_system/client.rs` - handle_message function
-
-**Deliverables:**
-- ✅ `$/progress` notifications parsed and handled
-- ✅ Other notifications logged (diagnostics, log messages)
-- ✅ Error handling for malformed notifications
-- ✅ Tracing/logging for debugging
-
-### Phase 3: Public API (1-2 hours)
-
-**Files to modify:**
-- `crates/cb-lsp/src/lsp_system/client.rs` - Public API methods
-
-**Deliverables:**
-- ✅ `wait_for_progress()` method
-- ✅ `wait_for_indexing()` helper
-- ✅ `progress()` getter for advanced use
-- ✅ API documentation with examples
-
-### Phase 4: Test Integration (2-3 hours)
-
-**Files to modify:**
-- `apps/codebuddy/tests/e2e_workspace_operations.rs` - Replace sleep with wait_for_indexing
-- `crates/cb-test-support/src/harness/client.rs` - Helper to get LspClient
-
-**Deliverables:**
-- ✅ `test_search_symbols_rust_workspace` uses proper waiting
-- ✅ Test helper to access underlying LspClient
-- ✅ Documentation of new test pattern
-
-### Phase 5: Testing & Validation (1-2 hours)
-
-**Deliverables:**
-- ✅ Unit tests for progress types
-- ✅ Unit tests for ProgressManager
-- ✅ Integration test with mock LSP server
-- ✅ Verify `test_search_symbols_rust_workspace` passes reliably
+### Testing & Validation
+- [ ] Unit tests for progress types
+- [ ] Unit tests for ProgressManager
+- [ ] Integration test with mock LSP server
+- [ ] Verify `test_search_symbols_rust_workspace` passes reliably
 
 ## Benefits
 
@@ -898,31 +873,6 @@ dashmap = "6.0"  # Already in workspace deps
 - `tracing` - logging
 - `thiserror` - error types
 
-## Timeline Estimate
-
-| Phase | Description | Hours | Cumulative |
-|-------|-------------|-------|------------|
-| 1 | Core infrastructure | 3-4 | 3-4 |
-| 2 | Message handling | 2-3 | 5-7 |
-| 3 | Public API | 1-2 | 6-9 |
-| 4 | Test integration | 2-3 | 8-12 |
-| 5 | Testing & validation | 1-2 | 9-14 |
-
-**Total: 9-14 hours** (with testing and validation)
-
-**Conservative Estimate: 12 hours**
-
-## Recommendation
-
-**Implement this proposal** after completing the remaining 4 dead code analysis test fixes.
-
-**Reasoning**:
-1. Unblocks ALL LSP timing issues (not just this test)
-2. Foundational improvement that enables future features
-3. Protocol-compliant and robust
-4. Reasonable scope (12 hours)
-
-**Priority**: Medium (not urgent, but high value)
 
 ## Appendix: LSP Progress Specification
 

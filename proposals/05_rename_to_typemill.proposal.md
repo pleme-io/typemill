@@ -166,9 +166,8 @@ cargo run --bin mill
 - Formula/package names
 - Installation paths
 
-## Implementation Checklist
+## Checklists
 
-### Phase 1: Preparation & Analysis
 - [ ] Backup and branch: `git checkout -b rename-to-typemill && git tag pre-typemill-rename`
 - [ ] Use `search_symbols` to find all symbol references across workspace
   ```json
@@ -183,9 +182,7 @@ cargo run --bin mill
 - [ ] Inventory all `CODEBUDDY_*` and `CODEBUDDY__*` environment variables
 - [ ] Draft migration guide for existing users
 - [ ] Prepare changelog entry
-
-### Phase 2: Crate Directory Renames (Using CodeBuddy)
-For each crate, use `rename.plan` with directory target, preview with dry-run, then apply:
+- [ ] For each crate, use `rename.plan` with directory target, preview with dry-run, then apply
 
 - [ ] **cb-protocol → mill-protocol**
   ```json
@@ -202,13 +199,8 @@ For each crate, use `rename.plan` with directory target, preview with dry-run, t
 - [ ] **cb-plugins → mill-plugins**
 - [ ] **cb-language-plugin → mill-language-plugin**
 
-**Validation after each rename:**
-```json
-{"name": "get_diagnostics", "arguments": {"file_path": "crates/mill-*/Cargo.toml"}}
-```
-
-### Phase 3: Symbol & Module Renames (Using CodeBuddy)
-Use `rename.plan` for Rust symbols with LSP-aware import updates:
+- [ ] Validate after each rename using `get_diagnostics`
+- [ ] Use `rename.plan` for Rust symbols with LSP-aware import updates
 
 - [ ] **Rename root crate module: `codebuddy` → `typemill`**
   ```json
@@ -219,102 +211,46 @@ Use `rename.plan` for Rust symbols with LSP-aware import updates:
   {"name": "rename.plan", "arguments": {"target": {"kind": "symbol", "path": "src/lib.rs", "selector": {"position": {"line": 1, "character": 0}}}, "new_name": "typemill"}}
   ```
 
-- [ ] **Update all crate imports across workspace** (automatically handled by `rename.plan` + `workspace.apply_edit`)
-
-- [ ] **Rename binary target in Cargo.toml** (manual edit with verification):
-  - Use `get_diagnostics` after editing to verify Cargo resolution
-
-### Phase 4: Configuration Path Updates
-- [ ] **Search for all `.codebuddy` path references**
-  ```json
-  {"name": "search_symbols", "arguments": {"query": ".codebuddy"}}
-  ```
-
-- [ ] **Update config loading logic** (manual code edits):
-  - Add dual-path support (check `.typemill/` first, fallback to `.codebuddy/`)
-  - Emit migration warnings via structured logging
-  - Update path constants
-
-- [ ] **Verify with diagnostics**:
-  ```json
-  {"name": "get_diagnostics", "arguments": {"file_path": "crates/mill-core/src/config.rs"}}
-  ```
-
-### Phase 5: Environment Variable Updates
-- [ ] **Search for all environment variable references**
-  ```json
-  {"name": "search_symbols", "arguments": {"query": "CODEBUDDY_"}}
-  {"name": "search_symbols", "arguments": {"query": "CODEBUDDY__"}}
-  ```
-
-- [ ] **Extend config loaders** (manual code edits with CodeBuddy validation):
-  - Implement dual-prefix support
-  - Add structured warnings for legacy prefixes
-  - Update environment variable parsing logic
-
-- [ ] **Add `mill env migrate` CLI command** (new feature implementation)
-
-### Phase 6: CLI Help Text & Messages (Using CodeBuddy)
-- [ ] **Find all CLI string literals**
-  ```json
-  {"name": "search_symbols", "arguments": {"query": "codebuddy"}}
-  ```
-  Filter results to `crates/mill-client/` (formerly `cb-client`)
-
-- [ ] **Update clap command definitions** (manual edits with diagnostics)
-- [ ] **Update error messages and help text**
-- [ ] **Verify with build**: `cargo build --release`
-
-### Phase 7: Documentation Updates
-- [ ] **Find all documentation files**
-  ```json
-  {"name": "analyze.documentation", "arguments": {"kind": "coverage", "scope": {"type": "workspace"}}}
-  ```
-
-- [ ] **Update markdown files** (manual edits, use text search for thoroughness):
-  - `README.md`, `CLAUDE.md`, `AGENTS.md`
-  - `API_REFERENCE.md`, `CONTRIBUTING.md`, `QUICK_REFERENCE.md`
-  - All `docs/**/*.md` files
-
-- [ ] **Update code examples in documentation** (search for code blocks with old names)
-
-### Phase 8: Infrastructure Updates
-- [ ] **Update Dockerfiles** (manual edits):
-  - Image names: `codebuddy:latest` → `typemill:latest`
-  - Binary paths: `/usr/local/bin/codebuddy` → `/usr/local/bin/mill`
-
-- [ ] **Update docker-compose.yml** (manual edits)
-- [ ] **Update GitHub Actions workflows** (`.github/workflows/*.yml`)
-- [ ] **Update release scripts and artifact names**
-
-### Phase 9: Comprehensive Validation (Using CodeBuddy)
-- [ ] **Check for unused imports/dead code**
-  ```json
-  {"name": "analyze.dead_code", "arguments": {"kind": "unused_imports", "scope": {"type": "workspace"}}}
-  ```
-
-- [ ] **Verify dependency graph**
-  ```json
-  {"name": "analyze.dependencies", "arguments": {"kind": "circular", "scope": {"type": "workspace"}}}
-  ```
-
-- [ ] **Quality check**
-  ```json
-  {"name": "analyze.quality", "arguments": {"kind": "maintainability", "scope": {"type": "workspace"}}}
-  ```
-
-- [ ] **Get all diagnostics**
-  ```json
-  {"name": "get_diagnostics", "arguments": {"file_path": "Cargo.toml"}}
-  ```
-
-### Phase 10: Build & Test
-- [ ] **Full build**: `cargo build --release`
-- [ ] **Test new binary**: `./target/release/mill --version`
-- [ ] **Run test suite**: `cargo nextest run --workspace --all-features`
-- [ ] **Test migration path**: Test `.codebuddy/` → `.typemill/` auto-migration
-
-### Phase 11: Release
+- [ ] Update all crate imports across workspace (automatically handled by `rename.plan` + `workspace.apply_edit`)
+- [ ] Rename binary target in Cargo.toml (manual edit with verification)
+- [ ] Use `get_diagnostics` after editing to verify Cargo resolution
+- [ ] Search for all `.codebuddy` path references
+- [ ] Update config loading logic (manual code edits)
+- [ ] Add dual-path support (check `.typemill/` first, fallback to `.codebuddy/`)
+- [ ] Emit migration warnings via structured logging
+- [ ] Update path constants
+- [ ] Verify with diagnostics
+- [ ] Search for all environment variable references
+- [ ] Extend config loaders (manual code edits with CodeBuddy validation)
+- [ ] Implement dual-prefix support
+- [ ] Add structured warnings for legacy prefixes
+- [ ] Update environment variable parsing logic
+- [ ] Add `mill env migrate` CLI command (new feature implementation)
+- [ ] Find all CLI string literals
+- [ ] Filter results to `crates/mill-client/` (formerly `cb-client`)
+- [ ] Update clap command definitions (manual edits with diagnostics)
+- [ ] Update error messages and help text
+- [ ] Verify with build: `cargo build --release`
+- [ ] Find all documentation files
+- [ ] Update markdown files (manual edits, use text search for thoroughness)
+- [ ] Update `README.md`, `CLAUDE.md`, `AGENTS.md`
+- [ ] Update `API_REFERENCE.md`, `CONTRIBUTING.md`, `QUICK_REFERENCE.md`
+- [ ] Update all `docs/**/*.md` files
+- [ ] Update code examples in documentation (search for code blocks with old names)
+- [ ] Update Dockerfiles (manual edits)
+- [ ] Update image names: `codebuddy:latest` → `typemill:latest`
+- [ ] Update binary paths: `/usr/local/bin/codebuddy` → `/usr/local/bin/mill`
+- [ ] Update docker-compose.yml (manual edits)
+- [ ] Update GitHub Actions workflows (`.github/workflows/*.yml`)
+- [ ] Update release scripts and artifact names
+- [ ] Check for unused imports/dead code
+- [ ] Verify dependency graph
+- [ ] Quality check
+- [ ] Get all diagnostics
+- [ ] Full build: `cargo build --release`
+- [ ] Test new binary: `./target/release/mill --version`
+- [ ] Run test suite: `cargo nextest run --workspace --all-features`
+- [ ] Test migration path: Test `.codebuddy/` → `.typemill/` auto-migration
 - [ ] Create detailed CHANGELOG entry
 - [ ] Write MIGRATION.md guide
 - [ ] Update version number (major bump to 2.0.0)
