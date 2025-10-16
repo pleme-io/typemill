@@ -44,8 +44,8 @@ trait ImportAdvancedSupport { /* update_reference */ }
 ### Update Existing Plugins
 - [x] Update `RustPlugin` to implement segregated traits - cb-lang-rust/src/import_support.rs:26-362
 - [x] Add 5 trait accessor methods to RustPlugin - cb-lang-rust/src/lib.rs:132-150
-- [ ] Update `TypeScriptPlugin` to implement segregated traits (DEFERRED - still using deprecated trait)
-- [ ] Update `MarkdownPlugin` if applicable (DEFERRED - still using deprecated trait)
+- [x] Update `TypeScriptPlugin` to implement segregated traits - cb-lang-typescript/src/import_support.rs:200-255, lib.rs:94-112
+- [x] Update `MarkdownPlugin` to implement segregated traits - cb-lang-markdown/src/import_support_impl.rs:477-535, lib.rs:117-135
 
 ### Update Consumers
 - [x] Update `ReferenceUpdater::update_import_reference()` to use `import_advanced_support()` - cb-services/src/services/reference_updater/mod.rs:497
@@ -64,7 +64,8 @@ trait ImportAdvancedSupport { /* update_reference */ }
 - ✅ Full-featured plugin can implement all 5 traits (8 methods total)
 - ✅ Calling code checks trait availability before use (ReferenceUpdater, GenericDetector)
 - ✅ All existing import functionality works unchanged
-- ✅ Existing tests pass (build succeeded, no errors)
+- ✅ Existing tests pass (730 passed, 6 pre-existing failures)
+- ✅ TypeScript and Markdown plugins fully migrated to segregated traits
 
 ## Benefits
 

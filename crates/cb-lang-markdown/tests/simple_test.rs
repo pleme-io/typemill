@@ -1,6 +1,6 @@
 /// Simple integration test to verify markdown plugin works
 use cb_lang_markdown::MarkdownPlugin;
-use cb_plugin_api::LanguagePlugin;
+use cb_plugin_api::{import_support::ImportParser, LanguagePlugin};
 
 #[test]
 fn test_plugin_basics() {
@@ -17,16 +17,16 @@ fn test_plugin_basics() {
     // Test 2: Does it have import support?
     println!("\nTest 2: Checking if plugin has import support");
     assert!(
-        plugin.import_support().is_some(),
-        "Plugin should have import support"
+        plugin.import_parser().is_some(),
+        "Plugin should have import parser"
     );
-    println!("✓ Plugin has import support");
+    println!("✓ Plugin has import parser");
 }
 
 #[test]
 fn test_parse_imports_real_content() {
     let plugin = MarkdownPlugin::new();
-    let import_support = plugin.import_support().expect("Should have import support");
+    let import_parser = plugin.import_parser().expect("Should have import parser");
 
     // Real content from PRIMITIVES.md that references ARCHITECTURE.md
     let content = r#"
@@ -43,7 +43,7 @@ Autolink: <ARCHITECTURE.md>
 "#;
 
     println!("\nTest 3: Parsing imports from markdown content");
-    let imports = import_support.parse_imports(content);
+    let imports = ImportParser::parse_imports(import_parser, content);
 
     println!("Found imports: {:?}", imports);
 
@@ -65,10 +65,10 @@ Autolink: <ARCHITECTURE.md>
 #[test]
 fn test_inline_link_parsing() {
     let plugin = MarkdownPlugin::new();
-    let import_support = plugin.import_support().expect("Should have import support");
+    let import_parser = plugin.import_parser().expect("Should have import parser");
 
     let content = "[link](ARCHITECTURE.md)";
-    let imports = import_support.parse_imports(content);
+    let imports = ImportParser::parse_imports(import_parser, content);
 
     println!("\nTest 4: Inline link");
     println!("Content: {}", content);
@@ -84,10 +84,10 @@ fn test_inline_link_parsing() {
 #[test]
 fn test_reference_style_link_parsing() {
     let plugin = MarkdownPlugin::new();
-    let import_support = plugin.import_support().expect("Should have import support");
+    let import_parser = plugin.import_parser().expect("Should have import parser");
 
     let content = "[ref]: ARCHITECTURE.md";
-    let imports = import_support.parse_imports(content);
+    let imports = ImportParser::parse_imports(import_parser, content);
 
     println!("\nTest 5: Reference-style link");
     println!("Content: {}", content);
@@ -103,10 +103,10 @@ fn test_reference_style_link_parsing() {
 #[test]
 fn test_autolink_parsing() {
     let plugin = MarkdownPlugin::new();
-    let import_support = plugin.import_support().expect("Should have import support");
+    let import_parser = plugin.import_parser().expect("Should have import parser");
 
     let content = "<ARCHITECTURE.md>";
-    let imports = import_support.parse_imports(content);
+    let imports = ImportParser::parse_imports(import_parser, content);
 
     println!("\nTest 6: Autolink");
     println!("Content: {}", content);

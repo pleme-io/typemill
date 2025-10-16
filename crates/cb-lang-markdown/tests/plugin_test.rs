@@ -1,6 +1,6 @@
 /// Simple test to verify markdown plugin basics work
 use cb_lang_markdown::MarkdownPlugin;
-use cb_plugin_api::LanguagePlugin;
+use cb_plugin_api::{import_support::ImportParser, LanguagePlugin};
 
 #[test]
 fn test_plugin_handles_md_extension() {
@@ -15,18 +15,18 @@ fn test_plugin_handles_md_extension() {
 fn test_plugin_has_import_support() {
     let plugin = MarkdownPlugin::new();
     assert!(
-        plugin.import_support().is_some(),
-        "Plugin should have import support"
+        plugin.import_parser().is_some(),
+        "Plugin should have import parser"
     );
 }
 
 #[test]
 fn test_parse_inline_link() {
     let plugin = MarkdownPlugin::new();
-    let import_support = plugin.import_support().expect("Should have import support");
+    let import_parser = plugin.import_parser().expect("Should have import parser");
 
     let content = "[link](ARCHITECTURE.md)";
-    let imports = import_support.parse_imports(content);
+    let imports = ImportParser::parse_imports(import_parser, content);
 
     println!("Content: {}", content);
     println!("Imports: {:?}", imports);

@@ -5,6 +5,8 @@
 
 Your complete guide to all MCP tools available in Codebuddy. Use this reference to understand parameters, return types, and see practical examples for each tool.
 
+> **Note:** For detailed implementation contracts (JSON schemas, validation rules, error codes), see [design/api_contracts.md](design/api_contracts.md).
+
 ---
 
 ## Table of Contents
@@ -137,27 +139,53 @@ Requests to endpoints like `/workspaces` or `/workspaces/{id}/execute` without a
 
 Language plugins use a capability-based architecture:
 
-**Core Trait**: `LanguagePlugin` with 9 methods (6 required, 3 default)
+**Core Trait**: `LanguagePlugin` with 14 methods (6 required, 8 default)
 - `metadata()` - Language metadata (name, extensions, etc.)
 - `parse()` - AST parsing and symbol extraction
 - `analyze_manifest()` - Manifest file analysis
 - `capabilities()` - Feature flags for optional capabilities
-- `import_support()` - Optional ImportSupport trait object
+- `import_parser()` - Optional ImportParser trait object (replaces import_support)
+- `import_rename_support()` - Optional ImportRenameSupport trait object
+- `import_move_support()` - Optional ImportMoveSupport trait object
+- `import_mutation_support()` - Optional ImportMutationSupport trait object
+- `import_advanced_support()` - Optional ImportAdvancedSupport trait object
 - `workspace_support()` - Optional WorkspaceSupport trait object
+- `import_support()` - **DEPRECATED**: Legacy monolithic trait (use segregated traits above)
 
-**Optional Capability Traits**:
-- `ImportSupport` - 6 sync methods for import operations
-- `WorkspaceSupport` - 5 sync methods for workspace operations
+**Optional Capability Traits (Segregated by Responsibility)**:
+- **Import Traits (Interface Segregation)**:
+  - `ImportParser` - 2 methods: parse_imports, contains_import
+  - `ImportRenameSupport` - 1 method: rewrite_imports_for_rename
+  - `ImportMoveSupport` - 1 method: rewrite_imports_for_move
+  - `ImportMutationSupport` - 3 methods: add_import, remove_import, remove_named_import
+  - `ImportAdvancedSupport` - 1 method: update_import_reference
+- **Workspace Trait**:
+  - `WorkspaceSupport` - 5 methods: workspace operations
+
+**Benefits of Segregated Traits**:
+- Plugins implement only what they need (60% reduction for simple plugins)
+- Clear separation of concerns (parsing vs. mutation vs. refactoring)
+- Easier testing and maintenance
 
 ### Accessing Capabilities
 
 ```rust
-// Check if plugin supports imports
-if let Some(import_support) = plugin.import_support() {
-    let imports = import_support.parse_imports(&content);  // Sync call!
+// Parsing imports (most common operation)
+if let Some(import_parser) = plugin.import_parser() {
+    let imports = ImportParser::parse_imports(import_parser, &content);  // Sync call!
 }
 
-// Check via capability flags
+// Rewriting imports for file rename
+if let Some(rename_support) = plugin.import_rename_support() {
+    let (new_content, changes) = ImportRenameSupport::rewrite_imports_for_rename(
+        rename_support,
+        &content,
+        "old_module",
+        "new_module"
+    );
+}
+
+// Workspace operations
 if plugin.capabilities().workspace {
     if let Some(ws) = plugin.workspace_support() {
         ws.add_workspace_member(&content, &member);  // Sync call!

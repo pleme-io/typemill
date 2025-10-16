@@ -1,7 +1,10 @@
 //! Builds a `DependencyGraph` from a project's source files.
 
 use cb_analysis_graph::dependency::{Dependency, DependencyGraph, DependencyKind};
-use cb_plugin_api::{ImportSupport, PluginRegistry};
+use cb_plugin_api::{
+    import_support::ImportParser,
+    PluginRegistry,
+};
 use ignore::WalkBuilder;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -32,18 +35,18 @@ impl<'a> DependencyGraphBuilder<'a> {
 
             let extension = file_path.extension().and_then(|s| s.to_str()).unwrap_or("");
             if let Some(plugin) = self.plugin_registry.find_by_extension(extension) {
-                if let Some(import_support) = plugin.import_support() {
-                    let imports = import_support.parse_imports(&content);
+                if let Some(import_parser) = plugin.import_parser() {
+                    let imports = ImportParser::parse_imports(import_parser, &content);
                     for import_path in imports {
                         if let Some(resolved_path) = self.resolve_path(
                             &file_path,
                             &import_path,
                             project_root,
-                            import_support,
+                            import_parser,
                         ) {
                             // Try to extract symbols from the import
                             let symbols =
-                                self.extract_symbols(&content, &import_path, import_support);
+                                self.extract_symbols(&content, &import_path, import_parser);
 
                             let dependency = Dependency {
                                 kind: DependencyKind::Import,
@@ -106,7 +109,7 @@ impl<'a> DependencyGraphBuilder<'a> {
         current_file: &Path,
         import_path: &str,
         project_root: &Path,
-        _import_support: &dyn ImportSupport,
+        _import_parser: &dyn ImportParser,
     ) -> Option<PathBuf> {
         use path_clean::PathClean;
 
@@ -233,10 +236,10 @@ impl<'a> DependencyGraphBuilder<'a> {
         &self,
         content: &str,
         import_path: &str,
-        import_support: &dyn ImportSupport,
+        import_parser: &dyn ImportParser,
     ) -> Vec<String> {
         // Parse all imports from the content
-        let _all_imports = import_support.parse_imports(content);
+        let _all_imports = ImportParser::parse_imports(import_parser, content);
 
         // Find the import that matches our import_path
         // Note: This is a simplified approach - in production we'd want

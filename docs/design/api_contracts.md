@@ -1,5 +1,7 @@
 # Unified Analysis & Refactoring API Contracts
 
+> **Note:** This document provides formal implementation contracts. For user-friendly documentation with examples, see [API_REFERENCE.md](../API_REFERENCE.md).
+
 ## Scope
 - Defines canonical request/response contracts for the unified analysis and refactoring APIs.
 - Applies to MCP tools exposed by the `codebuddy` server in the unified release.

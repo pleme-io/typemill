@@ -25,6 +25,7 @@
 #[macro_export]
 macro_rules! import_support_impl {
     ($struct_name:ident) => {
+        #[allow(deprecated)]
         impl cb_plugin_api::ImportSupport for $struct_name {
             fn parse_imports(&self, content: &str) -> Vec<String> {
                 tracing::debug!("Parsing imports from content");
@@ -93,11 +94,11 @@ macro_rules! import_support_impl {
             }
 
             fn contains_import(&self, content: &str, module: &str) -> bool {
-                self.parse_imports(content).contains(&module.to_string())
+                cb_plugin_api::ImportSupport::parse_imports(self, content).contains(&module.to_string())
             }
 
             fn add_import(&self, content: &str, module: &str) -> String {
-                if self.contains_import(content, module) {
+                if cb_plugin_api::ImportSupport::contains_import(self, content, module) {
                     return content.to_string();
                 }
 
@@ -333,7 +334,7 @@ mod tests {
         use cb_plugin_api::ImportSupport;
 
         let support = TestImportSupport;
-        let imports = support.parse_imports("test content");
+        let imports = ImportSupport::parse_imports(&support, "test content");
 
         assert_eq!(imports.len(), 2);
         assert_eq!(imports[0], "import1");

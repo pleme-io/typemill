@@ -957,10 +957,10 @@ impl Wrapper {
     }
 }"#;
 
-        // Use the ImportSupport trait method instead
-        let import_support = plugin_trait.import_support().unwrap();
+        // Use the ImportRenameSupport trait method instead
+        let rename_support = plugin_trait.import_rename_support().unwrap();
         let (result, count) =
-            import_support.rewrite_imports_for_rename(source, "old_crate", "new_crate");
+            cb_plugin_api::ImportRenameSupport::rewrite_imports_for_rename(rename_support, source, "old_crate", "new_crate");
 
         // Should have changed exactly 2 use statements
         assert_eq!(count, 2);
