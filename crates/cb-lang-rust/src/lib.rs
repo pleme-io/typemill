@@ -342,40 +342,57 @@ impl RustPlugin {
 
     /// Update module declaration name in source (e.g., `pub mod old;` -> `pub mod new;`)
     ///
-    /// Uses string-based replacement to preserve formatting and only update the module name.
+    /// Uses line-by-line replacement with regex to preserve formatting.
     pub fn update_module_declaration(
         &self,
         source: &str,
         old_module_name: &str,
         new_module_name: &str,
     ) -> PluginResult<(String, usize)> {
-        let mut updated_content = source.to_string();
+        let mut updated_lines = Vec::new();
         let mut changes = 0;
 
-        // Pattern matching for mod declarations
-        // Matches: "pub mod utils;" or "mod utils;" or "pub(crate) mod utils;" etc.
-        let patterns = [
-            format!("pub mod {};", old_module_name),
-            format!("mod {};", old_module_name),
-            format!("pub(crate) mod {};", old_module_name),
-            format!("pub(super) mod {};", old_module_name),
-        ];
+        for line in source.lines() {
+            let trimmed = line.trim();
 
-        let replacements = [
-            format!("pub mod {};", new_module_name),
-            format!("mod {};", new_module_name),
-            format!("pub(crate) mod {};", new_module_name),
-            format!("pub(super) mod {};", new_module_name),
-        ];
+            // Check if this line is a mod declaration for the old module
+            let is_mod_decl = (trimmed.starts_with("pub mod ")
+                            || trimmed.starts_with("mod ")
+                            || trimmed.starts_with("pub(crate) mod ")
+                            || trimmed.starts_with("pub(super) mod "))
+                            && (trimmed.contains(&format!("{};", old_module_name))
+                                || trimmed.contains(&format!("{} ", old_module_name)));
 
-        for (pattern, replacement) in patterns.iter().zip(replacements.iter()) {
-            if updated_content.contains(pattern) {
-                updated_content = updated_content.replace(pattern, replacement);
-                changes += 1;
+            if is_mod_decl {
+                // Use word boundary replacement to avoid partial matches
+                // This handles both "mod helpers;" and "mod helpers {" cases
+                let updated_line = line.replace(
+                    &format!(" {};", old_module_name),
+                    &format!(" {};", new_module_name)
+                ).replace(
+                    &format!(" {} ", old_module_name),
+                    &format!(" {} ", new_module_name)
+                );
+
+                if updated_line != line {
+                    updated_lines.push(updated_line);
+                    changes += 1;
+                } else {
+                    updated_lines.push(line.to_string());
+                }
+            } else {
+                updated_lines.push(line.to_string());
             }
         }
 
-        Ok((updated_content, changes))
+        // Preserve the original line ending style
+        let has_trailing_newline = source.ends_with('\n');
+        let mut result = updated_lines.join("\n");
+        if has_trailing_newline {
+            result.push('\n');
+        }
+
+        Ok((result, changes))
     }
 
     /// Update qualified paths in source (e.g., `utils::helper()` -> `helpers::helper()`)

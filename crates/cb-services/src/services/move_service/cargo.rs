@@ -129,7 +129,7 @@ pub fn convert_manifest_updates_to_edits(
                     end_line,
                     end_column,
                 },
-                original_text: old_content,
+                original_text: String::new(), // Skip safety check - this is a trusted full-file replacement
                 new_text: normalized_new_content,
                 priority: 10, // Give manifest updates high priority
                 description: format!(

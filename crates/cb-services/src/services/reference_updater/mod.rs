@@ -45,13 +45,7 @@ impl ReferenceUpdater {
         _dry_run: bool,
         _scan_scope: Option<cb_plugin_api::ScanScope>,
     ) -> ServerResult<EditPlan> {
-        tracing::info!(
-            old_path = %old_path.display(),
-            new_path = %new_path.display(),
-            project_root = %self.project_root.display(),
-            plugins_count = plugins.len(),
-            "update_references called"
-        );
+        let is_directory_rename = old_path.is_dir();
 
         // From edit_builder.rs
         let project_files = find_project_files(&self.project_root, plugins).await?;
@@ -59,7 +53,6 @@ impl ReferenceUpdater {
             project_files_count = project_files.len(),
             "Found project files"
         );
-        let is_directory_rename = old_path.is_dir();
 
         // Check if this is a Rust crate rename (directory with Cargo.toml)
         let is_rust_crate_rename = is_directory_rename && old_path.join("Cargo.toml").exists();
