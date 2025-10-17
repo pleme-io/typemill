@@ -243,10 +243,12 @@ mod tests {
             fail_on_stderr: false,
         };
 
-        let result = validator.run_validation(&config).await;
+        let result = validator.run_validation(&config).await.unwrap();
 
-        // Should return error about command execution failure
-        assert!(result.is_err());
+        // Command not found returns exit code 127 via shell
+        assert!(!result.passed);
+        assert_eq!(result.exit_code, 127); // Shell's "command not found" exit code
+        assert!(result.stderr.contains("not found") || result.stderr.contains("command"));
     }
 
     #[tokio::test]
