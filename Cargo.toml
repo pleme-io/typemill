@@ -17,6 +17,8 @@ members = [
     "crates/cb-lang-rust",
     "crates/cb-lang-typescript",
     "crates/cb-lang-markdown",
+    "crates/cb-lang-toml",
+    "crates/cb-lang-yaml",
     "apps/codebuddy",
     "integration-tests",
     "crates/cb-bench",

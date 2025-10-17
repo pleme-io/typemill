@@ -36,12 +36,13 @@ impl FileService {
         &self,
         old_path: &Path,
         new_path: &Path,
-        scan_scope: Option<cb_plugin_api::ScanScope>,
+        rename_scope: Option<&cb_core::rename_scope::RenameScope>,
     ) -> ServerResult<EditPlan> {
         info!(old_path = ?old_path, new_path = ?new_path, "Planning file rename with imports");
 
         // Delegate to MoveService which contains all the planning logic
-        self.move_service().plan_file_move(old_path, new_path, scan_scope).await
+        // Pass rename_scope for file filtering
+        self.move_service().plan_file_move_with_scope(old_path, new_path, rename_scope).await
     }
 
     /// Generates an EditPlan for a directory rename operation, including import updates.
@@ -50,12 +51,12 @@ impl FileService {
         &self,
         old_dir_path: &Path,
         new_dir_path: &Path,
-        scan_scope: Option<cb_plugin_api::ScanScope>,
+        rename_scope: Option<&cb_core::rename_scope::RenameScope>,
     ) -> ServerResult<EditPlan> {
         info!(old_dir_path = ?old_dir_path, new_dir_path = ?new_dir_path, "Planning directory rename with imports");
 
         // Delegate to MoveService which contains all the Cargo package handling logic
-        self.move_service().plan_directory_move(old_dir_path, new_dir_path, scan_scope).await
+        self.move_service().plan_directory_move_with_scope(old_dir_path, new_dir_path, rename_scope).await
     }
 
     /// Perform a git-aware file rename

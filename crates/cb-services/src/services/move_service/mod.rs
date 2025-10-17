@@ -139,6 +139,64 @@ impl<'a> MoveService<'a> {
         .await
     }
 
+    /// Plan a file move/rename with RenameScope filtering
+    ///
+    /// Wrapper that accepts RenameScope for file filtering
+    pub async fn plan_file_move_with_scope(
+        &self,
+        old_path: &Path,
+        new_path: &Path,
+        rename_scope: Option<&cb_core::rename_scope::RenameScope>,
+    ) -> ServerResult<EditPlan> {
+        // Use AllUseStatements as the default ScanScope
+        // RenameScope will filter which files get processed
+        let scan_scope = Some(ScanScope::AllUseStatements);
+
+        let mut edit_plan = self.plan_file_move(old_path, new_path, scan_scope).await?;
+
+        // Apply RenameScope filtering to edits
+        if let Some(scope) = rename_scope {
+            edit_plan.edits.retain(|edit| {
+                if let Some(ref file_path) = edit.file_path {
+                    scope.should_include_file(Path::new(file_path))
+                } else {
+                    true // Keep edits without file paths
+                }
+            });
+        }
+
+        Ok(edit_plan)
+    }
+
+    /// Plan a directory move/rename with RenameScope filtering
+    ///
+    /// Wrapper that accepts RenameScope for file filtering
+    pub async fn plan_directory_move_with_scope(
+        &self,
+        old_path: &Path,
+        new_path: &Path,
+        rename_scope: Option<&cb_core::rename_scope::RenameScope>,
+    ) -> ServerResult<EditPlan> {
+        // Use AllUseStatements as the default ScanScope
+        // RenameScope will filter which files get processed
+        let scan_scope = Some(ScanScope::AllUseStatements);
+
+        let mut edit_plan = self.plan_directory_move(old_path, new_path, scan_scope).await?;
+
+        // Apply RenameScope filtering to edits
+        if let Some(scope) = rename_scope {
+            edit_plan.edits.retain(|edit| {
+                if let Some(ref file_path) = edit.file_path {
+                    scope.should_include_file(Path::new(file_path))
+                } else {
+                    true // Keep edits without file paths
+                }
+            });
+        }
+
+        Ok(edit_plan)
+    }
+
     /// Convert relative path to absolute path
     fn to_absolute_path(&self, path: &Path) -> PathBuf {
         if path.is_absolute() {

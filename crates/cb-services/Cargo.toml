@@ -29,6 +29,8 @@ cb-plugins = { path = "../cb-plugins" }
 cb-lang-rust = { workspace = true }
 cb-lang-typescript = { workspace = true }
 cb-lang-markdown = { workspace = true }
+cb-lang-toml = { path = "../cb-lang-toml" }
+cb-lang-yaml = { path = "../cb-lang-yaml" }
 chrono = "0.4"
 
 [features]

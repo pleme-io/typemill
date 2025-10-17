@@ -9,6 +9,7 @@ pub mod dry_run;
 pub mod language;
 pub mod logging;
 pub mod refactor_config;
+pub mod rename_scope;
 pub mod utils;
 pub mod workspaces;
 

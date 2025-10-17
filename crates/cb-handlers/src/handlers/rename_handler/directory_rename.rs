@@ -28,11 +28,14 @@ impl RenameHandler {
         let old_path = Path::new(&params.target.path);
         let new_path = Path::new(&params.new_name);
 
+        // Get scope configuration from options
+        let rename_scope = params.options.to_rename_scope();
+
         // Get the EditPlan with import updates
         let edit_plan = context
             .app_state
             .file_service
-            .plan_rename_directory_with_imports(old_path, new_path, None)
+            .plan_rename_directory_with_imports(old_path, new_path, rename_scope.as_ref())
             .await?;
 
         debug!(

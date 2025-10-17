@@ -69,6 +69,26 @@ pub(crate) struct RenameOptions {
     validate_scope: Option<bool>,
     #[serde(default)]
     update_imports: Option<bool>,
+
+    /// Scope configuration for what to update
+    #[serde(default)]
+    pub scope: Option<String>, // "code-only" | "all" | "custom"
+
+    /// Custom scope configuration (when scope="custom")
+    #[serde(default)]
+    pub custom_scope: Option<cb_core::rename_scope::RenameScope>,
+}
+
+impl RenameOptions {
+    /// Build RenameScope from options
+    pub fn to_rename_scope(&self) -> Option<cb_core::rename_scope::RenameScope> {
+        match self.scope.as_deref() {
+            Some("code-only") => Some(cb_core::rename_scope::RenameScope::code_only()),
+            Some("all") | None => Some(cb_core::rename_scope::RenameScope::all()),
+            Some("custom") => self.custom_scope.clone(),
+            _ => None,
+        }
+    }
 }
 
 #[async_trait]

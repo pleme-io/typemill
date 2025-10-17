@@ -9,6 +9,24 @@ pub struct DeletionTarget {
     pub kind: String, // "file" or "directory"
 }
 
+/// Category of change for reporting and filtering
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ChangeCategory {
+    /// Import/use statement update
+    Import,
+    /// String literal reference update
+    StringLiteral,
+    /// Documentation file update (.md)
+    Documentation,
+    /// Configuration file update (.toml, .yaml, .yml)
+    Configuration,
+    /// Code comment update
+    Comment,
+    /// Other/unknown category
+    Other,
+}
+
 /// Discriminated union type for all refactoring plans
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "plan_type")]

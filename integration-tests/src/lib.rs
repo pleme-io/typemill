@@ -25,6 +25,9 @@ pub mod test_rename_integration;
 pub mod test_rename_with_imports;
 
 #[cfg(test)]
+pub mod test_comprehensive_rename_coverage;
+
+#[cfg(test)]
 pub mod test_extract_integration;
 
 #[cfg(test)]

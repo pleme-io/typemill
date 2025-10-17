@@ -16,6 +16,9 @@ pub mod workspace_support;
 // Import-related utilities
 pub mod imports;
 
+// String literal path rewriting
+mod string_literal_support;
+
 use async_trait::async_trait;
 use cb_lang_common::{
     manifest_templates::{ManifestTemplate, TomlManifestTemplate},
@@ -173,23 +176,40 @@ impl LanguagePlugin for RustPlugin {
             rename_info,
         );
 
-        match &result {
-            Ok((content, count)) => {
+        let final_result = match result {
+            Ok((mut modified_content, mut total_changes)) => {
                 tracing::info!(
-                    content_len = content.len(),
-                    changes_count = count,
-                    "RustPlugin::rewrite_file_references OK"
+                    content_len = modified_content.len(),
+                    changes_count = total_changes,
+                    "RustPlugin::rewrite_file_references import rewrite OK"
                 );
+
+                // Also update string literals containing paths
+                if let Ok((modified_with_strings, string_changes)) =
+                    string_literal_support::rewrite_string_literals(&modified_content, old_path, new_path)
+                {
+                    if string_changes > 0 {
+                        tracing::debug!(
+                            changes = string_changes,
+                            "Updated string literals in Rust file"
+                        );
+                        modified_content = modified_with_strings;
+                        total_changes += string_changes;
+                    }
+                }
+
+                Ok((modified_content, total_changes))
             }
             Err(e) => {
                 tracing::error!(
                     error = ?e,
                     "RustPlugin::rewrite_file_references ERR"
                 );
+                Err(e)
             }
-        }
+        };
 
-        result.ok()
+        final_result.ok()
     }
 }
 
