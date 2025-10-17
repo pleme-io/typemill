@@ -3,35 +3,24 @@
 //! This is the ONLY command that writes files from refactoring plans.
 //! It supports ALL 7 plan types with checksum validation, atomic apply,
 //! rollback support, and post-apply validation.
+//!
+//! This handler has been refactored to use focused service classes:
+//! - ChecksumValidator: Validates file checksums
+//! - PlanConverter: Converts LSP WorkspaceEdit to EditPlan
+//! - DryRunGenerator: Creates preview results
+//! - PostApplyValidator: Runs post-apply validation commands
 
 use crate::handlers::tools::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
-use cb_protocol::{
-    ApiError, ApiResult as ServerResult, EditPlan, EditPlanMetadata, RefactorPlan, RefactorPlanExt, TextEdit,
+use cb_protocol::{ApiError, ApiResult as ServerResult, RefactorPlan, RefactorPlanExt};
+use cb_services::{
+    services::file_service::EditPlanResult, ChecksumValidator, DryRunGenerator, PlanConverter,
+    PostApplyValidator, ValidationConfig, ValidationResult,
 };
-use lsp_types::{Uri, WorkspaceEdit};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sha2::{Digest, Sha256};
-use std::collections::HashMap;
-use std::path::Path;
-use tokio::process::Command;
 use tracing::{debug, error, info, warn};
-
-/// Convert LSP URI to native file path string
-///
-/// This handles platform-specific path formats correctly:
-/// - On Unix: file:///path/to/file -> /path/to/file
-/// - On Windows: file:///C:/path/to/file -> C:\path\to\file
-///
-/// This ensures consistent path representation for checksum validation
-/// across platforms and handles paths with spaces correctly (via URL decoding).
-fn uri_to_path_string(uri: &Uri) -> Result<String, ApiError> {
-    urlencoding::decode(uri.path().as_str())
-        .map_err(|e| ApiError::Internal(format!("Failed to decode URI path: {}", e)))
-        .map(|decoded| decoded.into_owned())
-}
 
 pub struct WorkspaceApplyHandler;
 
@@ -39,6 +28,33 @@ impl WorkspaceApplyHandler {
     pub fn new() -> Self {
         Self
     }
+
+    /// Get or create shared service instances (lazy singletons)
+    fn get_services(context: &ToolHandlerContext) -> WorkspaceApplyServices {
+        // Services are created once per handler instance
+        WorkspaceApplyServices {
+            checksum_validator: std::sync::Arc::new(ChecksumValidator::new(
+                context.app_state.file_service.clone(),
+            )),
+            plan_converter: std::sync::Arc::new(PlanConverter::new()),
+            dry_run_generator: std::sync::Arc::new(DryRunGenerator::new()),
+            post_apply_validator: std::sync::Arc::new(PostApplyValidator::new()),
+        }
+    }
+}
+
+impl Default for WorkspaceApplyHandler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Bundle of services used by WorkspaceApplyHandler
+struct WorkspaceApplyServices {
+    checksum_validator: std::sync::Arc<ChecksumValidator>,
+    plan_converter: std::sync::Arc<PlanConverter>,
+    dry_run_generator: std::sync::Arc<DryRunGenerator>,
+    post_apply_validator: std::sync::Arc<PostApplyValidator>,
 }
 
 /// Parameters for workspace.apply_edit command
@@ -74,26 +90,6 @@ impl Default for ApplyOptions {
     }
 }
 
-/// Post-apply validation configuration
-#[derive(Debug, Deserialize)]
-struct ValidationConfig {
-    /// Command to run for validation (e.g., "cargo check --workspace")
-    command: String,
-    /// Timeout in seconds (default: 60)
-    #[serde(default = "default_timeout")]
-    timeout_seconds: u64,
-    /// Working directory for command execution (default: project root)
-    #[serde(default)]
-    working_dir: Option<String>,
-    /// Fail validation if stderr is non-empty (default: false, since many tools write warnings to stderr)
-    #[serde(default)]
-    fail_on_stderr: bool,
-}
-
-fn default_timeout() -> u64 {
-    60
-}
-
 /// Result of applying a refactoring plan
 #[derive(Debug, Serialize)]
 struct ApplyResult {
@@ -113,23 +109,6 @@ struct ApplyResult {
     rollback_available: bool,
 }
 
-/// Result of post-apply validation
-#[derive(Debug, Serialize)]
-struct ValidationResult {
-    /// Whether validation passed
-    passed: bool,
-    /// Command that was executed
-    command: String,
-    /// Exit code from command
-    exit_code: i32,
-    /// Standard output from command
-    stdout: String,
-    /// Standard error from command
-    stderr: String,
-    /// Duration in milliseconds
-    duration_ms: u64,
-}
-
 #[async_trait]
 impl ToolHandler for WorkspaceApplyHandler {
     fn tool_names(&self) -> &[&str] {
@@ -145,38 +124,16 @@ impl ToolHandler for WorkspaceApplyHandler {
         context: &ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
-        // Write debug info to file - ENTRY POINT
-        if let Ok(mut file) = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("/tmp/directory_rename_debug.log")
-        {
-            use std::io::Write;
-            let _ = writeln!(file, "\n=== WORKSPACE APPLY HANDLER: ENTRY POINT ===");
-            let _ = writeln!(file, "Tool: {}", tool_call.name);
-            let _ = writeln!(file, "=============================================\n");
-            let _ = file.flush(); // Ensure data is written to disk
-        }
+        // Create service instances once at start
+        let services = Self::get_services(context);
 
         let args = tool_call
             .arguments
             .as_ref()
             .ok_or_else(|| ApiError::InvalidRequest("Missing arguments".to_string()))?;
 
-        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open("/tmp/directory_rename_debug.log") {
-            use std::io::Write;
-            let _ = writeln!(file, "After parsing args");
-            let _ = file.flush();
-        }
-
         let params: ApplyEditParams = serde_json::from_value(args.clone())
             .map_err(|e| ApiError::InvalidRequest(format!("Invalid parameters: {}", e)))?;
-
-        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open("/tmp/directory_rename_debug.log") {
-            use std::io::Write;
-            let _ = writeln!(file, "After parsing params");
-            let _ = file.flush();
-        }
 
         info!(
             plan_type = ?params.plan,
@@ -185,66 +142,21 @@ impl ToolHandler for WorkspaceApplyHandler {
             "Applying refactoring plan"
         );
 
-        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open("/tmp/directory_rename_debug.log") {
-            use std::io::Write;
-            let _ = writeln!(file, "After info log, validate_checksums={}", params.options.validate_checksums);
-            let _ = file.flush();
-        }
-
         // Step 1: Validate checksums if enabled
         if params.options.validate_checksums {
             debug!("Validating file checksums");
-
-            if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open("/tmp/directory_rename_debug.log") {
-                use std::io::Write;
-                let _ = writeln!(file, "Before validate_checksums");
-                let _ = file.flush();
-            }
-
-            validate_checksums(&params.plan, &context.app_state.file_service).await?;
-
-            if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open("/tmp/directory_rename_debug.log") {
-                use std::io::Write;
-                let _ = writeln!(file, "After validate_checksums");
-                let _ = file.flush();
-            }
+            services.checksum_validator
+                .validate_checksums(&params.plan)
+                .await?;
         }
 
         // Step 2: Extract WorkspaceEdit from the discriminated union
-        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open("/tmp/directory_rename_debug.log") {
-            use std::io::Write;
-            let _ = writeln!(file, "Before extract_workspace_edit");
-            let _ = file.flush();
-        }
-
-        // Use RefactorPlanExt trait to access workspace_edit polymorphically
         let workspace_edit = params.plan.workspace_edit();
 
-        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open("/tmp/directory_rename_debug.log") {
-            use std::io::Write;
-            let _ = writeln!(file, "After extract_workspace_edit");
-            let _ = file.flush();
-        }
-
         // Step 3: Convert LSP WorkspaceEdit to internal EditPlan format
-        let mut edit_plan = convert_to_edit_plan(workspace_edit.clone(), &params.plan)?;
-
-        // Write debug info to file - AFTER CONVERSION
-        if let Ok(mut file) = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("/tmp/directory_rename_debug.log")
-        {
-            use std::io::Write;
-            let _ = writeln!(file, "\n=== WORKSPACE APPLY: AFTER CONVERSION ===");
-            let _ = writeln!(file, "Total edits in converted EditPlan: {}", edit_plan.edits.len());
-            for (i, edit) in edit_plan.edits.iter().enumerate() {
-                let _ = writeln!(file, "  [{}] edit_type={:?}, file_path={:?}",
-                    i, edit.edit_type, edit.file_path);
-            }
-            let _ = writeln!(file, "==========================================\n");
-            let _ = file.flush(); // Ensure data is written to disk
-        }
+        let mut edit_plan = services
+            .plan_converter
+            .convert_to_edit_plan(workspace_edit.clone(), &params.plan)?;
 
         // Handle DeletePlan explicitly by reading from the deletions field
         if let RefactorPlan::DeletePlan(delete_plan) = &params.plan {
@@ -278,7 +190,17 @@ impl ToolHandler for WorkspaceApplyHandler {
 
         // Step 4: Dry run preview
         if params.options.dry_run {
-            let result_json = serde_json::to_value(create_dry_run_result(&edit_plan)).unwrap();
+            let warnings: Vec<String> = params
+                .plan
+                .warnings()
+                .iter()
+                .map(|w| w.message.clone())
+                .collect();
+
+            let result = services
+                .dry_run_generator
+                .create_dry_run_result(&edit_plan, warnings);
+            let result_json = serde_json::to_value(result).unwrap();
             return Ok(serde_json::json!({
                 "content": result_json
             }));
@@ -295,90 +217,17 @@ impl ToolHandler for WorkspaceApplyHandler {
             Ok(result) => {
                 // Step 6: Run post-apply validation if specified
                 if let Some(validation_config) = params.options.validation {
-                    info!(command = %validation_config.command, "Running post-apply validation");
-
-                    match run_validation(&validation_config, context).await {
-                        Ok(validation_result) => {
-                            if validation_result.passed {
-                                // Validation passed - return success
-                                info!(
-                                    exit_code = validation_result.exit_code,
-                                    duration_ms = validation_result.duration_ms,
-                                    "Post-apply validation passed"
-                                );
-
-                                let result_json = serde_json::to_value(ApplyResult {
-                                    success: true,
-                                    applied_files: result.modified_files.clone(),
-                                    created_files: extract_created_files(&edit_plan),
-                                    deleted_files: extract_deleted_files(&edit_plan),
-                                    warnings: params.plan.warnings().iter().map(|w| w.message.clone()).collect(),
-                                    validation: Some(validation_result),
-                                    rollback_available: false, // Validation consumed backup
-                                })
-                                .unwrap();
-
-                                Ok(serde_json::json!({
-                                    "content": result_json
-                                }))
-                            } else {
-                                // Validation failed - rollback changes
-                                warn!(
-                                    exit_code = validation_result.exit_code,
-                                    "Post-apply validation failed, initiating rollback"
-                                );
-
-                                // NOTE: FileService.apply_edit_plan() creates snapshots internally,
-                                // but we can't access them here for rollback. In a production
-                                // implementation, we'd need to:
-                                // 1. Create explicit backup before apply
-                                // 2. Restore backup on validation failure
-                                //
-                                // For now, we return an error indicating validation failure.
-                                // The user will need to manually revert changes (e.g., git restore).
-
-                                Err(ApiError::Internal(format!(
-                                    "Post-apply validation failed (exit code {}). \
-                                     Changes were applied but validation command failed.\n\
-                                     Command: {}\n\
-                                     Stdout: {}\n\
-                                     Stderr: {}\n\
-                                     \n\
-                                     Please manually revert changes if needed.",
-                                    validation_result.exit_code,
-                                    validation_result.command,
-                                    validation_result.stdout,
-                                    validation_result.stderr
-                                )))
-                            }
-                        }
-                        Err(e) => {
-                            // Validation execution failed (timeout, command not found, etc.)
-                            error!(error = %e, "Validation execution failed");
-
-                            Err(ApiError::Internal(format!(
-                                "Post-apply validation execution failed: {}. \
-                                 Changes were applied but could not validate.",
-                                e
-                            )))
-                        }
-                    }
+                    Self::handle_validation(
+                        &services.post_apply_validator,
+                        validation_config,
+                        result,
+                        &edit_plan,
+                        &params.plan,
+                    )
+                    .await
                 } else {
                     // No validation - return success immediately
-                    let result_json = serde_json::to_value(ApplyResult {
-                        success: true,
-                        applied_files: result.modified_files.clone(),
-                        created_files: extract_created_files(&edit_plan),
-                        deleted_files: extract_deleted_files(&edit_plan),
-                        warnings: params.plan.warnings().iter().map(|w| w.message.clone()).collect(),
-                        validation: None,
-                        rollback_available: true, // No validation, backup still available in principle
-                    })
-                    .unwrap();
-
-                    Ok(serde_json::json!({
-                        "content": result_json
-                    }))
+                    Ok(Self::create_success_result(result, &edit_plan, &params.plan, None))
                 }
             }
             Err(e) => {
@@ -390,410 +239,98 @@ impl ToolHandler for WorkspaceApplyHandler {
     }
 }
 
-// ============================================================================
-// Helper Functions
-// ============================================================================
+impl WorkspaceApplyHandler {
+    /// Handle post-apply validation workflow
+    async fn handle_validation(
+        post_apply_validator: &PostApplyValidator,
+        validation_config: ValidationConfig,
+        result: EditPlanResult,
+        edit_plan: &cb_protocol::EditPlan,
+        plan: &RefactorPlan,
+    ) -> ServerResult<Value> {
+        info!(command = %validation_config.command, "Running post-apply validation");
 
-/// Validate file checksums against plan checksums
-async fn validate_checksums(
-    plan: &RefactorPlan,
-    file_service: &cb_services::services::FileService,
-) -> ServerResult<()> {
-    let checksums = plan.checksums();
+        match post_apply_validator.run_validation(&validation_config).await {
+            Ok(validation_result) => {
+                if validation_result.passed {
+                    // Validation passed - return success
+                    info!(
+                        exit_code = validation_result.exit_code,
+                        duration_ms = validation_result.duration_ms,
+                        "Post-apply validation passed"
+                    );
 
-    if checksums.is_empty() {
-        debug!("No checksums to validate");
-        return Ok(());
-    }
+                    Ok(Self::create_success_result(
+                        result,
+                        edit_plan,
+                        plan,
+                        Some(validation_result),
+                    ))
+                } else {
+                    // Validation failed - return error with details
+                    warn!(
+                        exit_code = validation_result.exit_code,
+                        "Post-apply validation failed"
+                    );
 
-    debug!(checksum_count = checksums.len(), "Validating checksums");
-
-    // Write debug info
-    if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open("/tmp/directory_rename_debug.log") {
-        use std::io::Write;
-        let _ = writeln!(file, "validate_checksums: {} files to validate", checksums.len());
-        for (path, _) in checksums {
-            let _ = writeln!(file, "  - {}", path);
-        }
-        let _ = file.flush();
-    }
-
-    for (file_path, expected_checksum) in checksums {
-        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open("/tmp/directory_rename_debug.log") {
-            use std::io::Write;
-            let _ = writeln!(file, "Validating: {}", file_path);
-            let _ = file.flush();
-        }
-
-        let content = file_service
-            .read_file(Path::new(&file_path))
-            .await
-            .map_err(|e| {
-                if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open("/tmp/directory_rename_debug.log") {
-                    use std::io::Write;
-                    let _ = writeln!(file, "ERROR reading {}: {}", file_path, e);
-                    let _ = file.flush();
+                    Err(Self::create_validation_failed_error(validation_result))
                 }
-                ApiError::InvalidRequest(format!(
-                    "Cannot validate checksum for {}: {}",
-                    file_path, e
-                ))
-            })?;
+            }
+            Err(e) => {
+                // Validation execution failed (timeout, command not found, etc.)
+                error!(error = %e, "Validation execution failed");
 
-        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open("/tmp/directory_rename_debug.log") {
-            use std::io::Write;
-            let _ = writeln!(file, "Successfully read: {}", file_path);
-            let _ = file.flush();
-        }
-
-        let actual_checksum = calculate_checksum(&content);
-
-        if &actual_checksum != expected_checksum {
-            warn!(
-                file_path = %file_path,
-                expected = %expected_checksum,
-                actual = %actual_checksum,
-                "Checksum mismatch - file has changed since plan was created"
-            );
-
-            return Err(ApiError::InvalidRequest(format!(
-                "File '{}' has changed since plan was created. \
-                 Expected checksum: {}, Actual: {}. \
-                 Please regenerate the plan with current file contents.",
-                file_path, expected_checksum, actual_checksum
-            )));
-        }
-    }
-
-    info!(validated_files = checksums.len(), "All checksums valid");
-    Ok(())
-}
-
-/// Calculate SHA-256 checksum of file content
-fn calculate_checksum(content: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(content.as_bytes());
-    format!("{:x}", hasher.finalize())
-}
-
-/// Convert LSP WorkspaceEdit to internal EditPlan format
-fn convert_to_edit_plan(
-    workspace_edit: WorkspaceEdit,
-    plan: &RefactorPlan,
-) -> ServerResult<EditPlan> {
-    let mut edits = Vec::new();
-
-    // Handle changes (map of file URI to text edits)
-    if let Some(changes) = workspace_edit.changes {
-        for (uri, text_edits) in changes {
-            // Convert URI to native file path string
-            let file_path_str = uri_to_path_string(&uri)?;
-
-            // Assign priorities based on array position to preserve execution order
-            // LSP arrays are ordered intentionally - first edit should execute first
-            // Higher priority = executes first in transformer
-            let total_edits = text_edits.len();
-            for (idx, lsp_edit) in text_edits.into_iter().enumerate() {
-                edits.push(TextEdit {
-                    file_path: Some(file_path_str.clone()),
-                    edit_type: cb_protocol::EditType::Replace,
-                    location: cb_protocol::EditLocation {
-                        start_line: lsp_edit.range.start.line,
-                        start_column: lsp_edit.range.start.character,
-                        end_line: lsp_edit.range.end.line,
-                        end_column: lsp_edit.range.end.character,
-                    },
-                    original_text: String::new(), // Not provided by LSP
-                    new_text: lsp_edit.new_text,
-                    // Preserve array order: first edit = highest priority
-                    priority: (total_edits - idx) as u32,
-                    description: format!("Refactoring edit in {}", file_path_str),
-                });
+                Err(ApiError::Internal(format!(
+                    "Post-apply validation execution failed: {}. \
+                     Changes were applied but could not validate.",
+                    e
+                )))
             }
         }
     }
 
-    // Handle document_changes (more structured, supports renames/creates/deletes)
-    if let Some(document_changes) = workspace_edit.document_changes {
-        use lsp_types::DocumentChangeOperation;
-        use lsp_types::DocumentChanges;
+    /// Create a success result JSON response
+    fn create_success_result(
+        result: EditPlanResult,
+        edit_plan: &cb_protocol::EditPlan,
+        plan: &RefactorPlan,
+        validation: Option<ValidationResult>,
+    ) -> Value {
+        let rollback_available = validation.is_none(); // Save before moving validation
+        let result_json = serde_json::to_value(ApplyResult {
+            success: true,
+            applied_files: result.modified_files.clone(),
+            created_files: PlanConverter::extract_created_files(edit_plan),
+            deleted_files: PlanConverter::extract_deleted_files(edit_plan),
+            warnings: plan
+                .warnings()
+                .iter()
+                .map(|w| w.message.clone())
+                .collect(),
+            validation,
+            rollback_available, // Validation consumes backup
+        })
+        .unwrap();
 
-        match document_changes {
-            DocumentChanges::Edits(edits_vec) => {
-                for text_doc_edit in edits_vec {
-                    // Convert URI to native file path string
-                    let file_path_str = uri_to_path_string(&text_doc_edit.text_document.uri)?;
-
-                    for lsp_edit in text_doc_edit.edits {
-                        let text_edit = match lsp_edit {
-                            lsp_types::OneOf::Left(edit) => edit,
-                            lsp_types::OneOf::Right(annotated_edit) => annotated_edit.text_edit,
-                        };
-
-                        edits.push(TextEdit {
-                            file_path: Some(file_path_str.clone()),
-                            edit_type: cb_protocol::EditType::Replace,
-                            location: cb_protocol::EditLocation {
-                                start_line: text_edit.range.start.line,
-                                start_column: text_edit.range.start.character,
-                                end_line: text_edit.range.end.line,
-                                end_column: text_edit.range.end.character,
-                            },
-                            original_text: String::new(),
-                            new_text: text_edit.new_text,
-                            priority: 0,
-                            description: format!("Refactoring edit in {}", file_path_str),
-                        });
-                    }
-                }
-            }
-            DocumentChanges::Operations(ops) => {
-                for op in ops {
-                    match op {
-                        DocumentChangeOperation::Edit(text_doc_edit) => {
-                            // Convert URI to native file path string
-                            let file_path_str = uri_to_path_string(&text_doc_edit.text_document.uri)?;
-
-                            for lsp_edit in text_doc_edit.edits {
-                                let text_edit = match lsp_edit {
-                                    lsp_types::OneOf::Left(edit) => edit,
-                                    lsp_types::OneOf::Right(annotated_edit) => {
-                                        annotated_edit.text_edit
-                                    }
-                                };
-
-                                edits.push(TextEdit {
-                                    file_path: Some(file_path_str.clone()),
-                                    edit_type: cb_protocol::EditType::Replace,
-                                    location: cb_protocol::EditLocation {
-                                        start_line: text_edit.range.start.line,
-                                        start_column: text_edit.range.start.character,
-                                        end_line: text_edit.range.end.line,
-                                        end_column: text_edit.range.end.character,
-                                    },
-                                    original_text: String::new(),
-                                    new_text: text_edit.new_text,
-                                    priority: 0,
-                                    description: format!("Refactoring edit in {}", file_path_str),
-                                });
-                            }
-                        }
-                        DocumentChangeOperation::Op(resource_op) => {
-                            // Handle file operations (create/rename/delete)
-                            match resource_op {
-                                lsp_types::ResourceOp::Create(create_file) => {
-                                    let file_path_str = uri_to_path_string(&create_file.uri)?;
-                                    debug!(uri = ?create_file.uri, file_path = %file_path_str, "File create operation detected");
-                                    // Create operation - add to metadata for tracking
-                                    edits.push(TextEdit {
-                                        file_path: Some(file_path_str.clone()),
-                                        edit_type: cb_protocol::EditType::Create,
-                                        location: cb_protocol::EditLocation {
-                                            start_line: 0,
-                                            start_column: 0,
-                                            end_line: 0,
-                                            end_column: 0,
-                                        },
-                                        original_text: String::new(),
-                                        new_text: String::new(),
-                                        priority: 0,
-                                        description: format!(
-                                            "Create file {}",
-                                            file_path_str
-                                        ),
-                                    });
-                                }
-                                lsp_types::ResourceOp::Rename(rename_file) => {
-                                    let old_path = uri_to_path_string(&rename_file.old_uri)?;
-                                    let new_path = uri_to_path_string(&rename_file.new_uri)?;
-
-                                    debug!(
-                                        old_uri = ?rename_file.old_uri,
-                                        new_uri = ?rename_file.new_uri,
-                                        old_path = %old_path,
-                                        new_path = %new_path,
-                                        "File rename operation detected - converting to EditType::Move"
-                                    );
-
-                                    // Write debug info to file
-                                    if let Ok(mut file) = std::fs::OpenOptions::new()
-                                        .create(true)
-                                        .append(true)
-                                        .open("/tmp/directory_rename_debug.log")
-                                    {
-                                        use std::io::Write;
-                                        let _ = writeln!(file, "\n=== WORKSPACE APPLY: RENAME OPERATION ===");
-                                        let _ = writeln!(file, "Converting RenameFile to EditType::Move:");
-                                        let _ = writeln!(file, "  old_path: {}", old_path);
-                                        let _ = writeln!(file, "  new_path: {}", new_path);
-                                        let _ = writeln!(file, "=========================================\n");
-                                    }
-
-                                    // Rename operation - add to metadata for tracking
-                                    edits.push(TextEdit {
-                                        file_path: Some(old_path.clone()),
-                                        edit_type: cb_protocol::EditType::Move,
-                                        location: cb_protocol::EditLocation {
-                                            start_line: 0,
-                                            start_column: 0,
-                                            end_line: 0,
-                                            end_column: 0,
-                                        },
-                                        original_text: String::new(),
-                                        new_text: new_path.clone(),
-                                        priority: 0,
-                                        description: format!(
-                                            "Rename {} to {}",
-                                            old_path,
-                                            new_path
-                                        ),
-                                    });
-                                }
-                                lsp_types::ResourceOp::Delete(delete_file) => {
-                                    let file_path_str = uri_to_path_string(&delete_file.uri)?;
-                                    debug!(uri = ?delete_file.uri, file_path = %file_path_str, "File delete operation detected");
-                                    // Delete operation - add to metadata for tracking
-                                    edits.push(TextEdit {
-                                        file_path: Some(file_path_str.clone()),
-                                        edit_type: cb_protocol::EditType::Delete,
-                                        location: cb_protocol::EditLocation {
-                                            start_line: 0,
-                                            start_column: 0,
-                                            end_line: 0,
-                                            end_column: 0,
-                                        },
-                                        original_text: String::new(),
-                                        new_text: String::new(),
-                                        priority: 0,
-                                        description: format!(
-                                            "Delete file {}",
-                                            file_path_str
-                                        ),
-                                    });
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        serde_json::json!({
+            "content": result_json
+        })
     }
 
-    Ok(EditPlan {
-        source_file: String::new(), // Multi-file workspace edit
-        edits,
-        dependency_updates: Vec::new(), // Handled separately by plan-specific logic
-        validations: Vec::new(),
-        metadata: EditPlanMetadata {
-            intent_name: "workspace.apply_edit".to_string(),
-            intent_arguments: serde_json::to_value(plan).unwrap(),
-            created_at: chrono::Utc::now(),
-            complexity: plan.complexity(),
-            impact_areas: plan.impact_areas(),
-        },
-    })
-}
-
-/// Extract created files from edit plan
-fn extract_created_files(plan: &EditPlan) -> Vec<String> {
-    plan.edits
-        .iter()
-        .filter(|edit| matches!(edit.edit_type, cb_protocol::EditType::Create))
-        .filter_map(|edit| edit.file_path.clone())
-        .collect()
-}
-
-/// Extract deleted files from edit plan
-fn extract_deleted_files(plan: &EditPlan) -> Vec<String> {
-    plan.edits
-        .iter()
-        .filter(|edit| matches!(edit.edit_type, cb_protocol::EditType::Delete))
-        .filter_map(|edit| edit.file_path.clone())
-        .collect()
-}
-
-/// Create dry-run result preview
-fn create_dry_run_result(plan: &EditPlan) -> ApplyResult {
-    let modified_files: Vec<String> = plan
-        .edits
-        .iter()
-        .filter_map(|edit| edit.file_path.clone())
-        .collect::<std::collections::HashSet<_>>()
-        .into_iter()
-        .collect();
-
-    ApplyResult {
-        success: true,
-        applied_files: modified_files,
-        created_files: extract_created_files(plan),
-        deleted_files: extract_deleted_files(plan),
-        warnings: Vec::new(),
-        validation: None,
-        rollback_available: false, // Dry run doesn't apply changes
-    }
-}
-
-/// Run post-apply validation command
-async fn run_validation(
-    config: &ValidationConfig,
-    _context: &ToolHandlerContext,
-) -> ServerResult<ValidationResult> {
-    use std::time::Instant;
-
-    let start = Instant::now();
-
-    let working_dir = config
-        .working_dir
-        .as_ref()
-        .map(|s| s.as_str())
-        .unwrap_or(".");
-
-    debug!(
-        command = %config.command,
-        working_dir = %working_dir,
-        timeout_seconds = config.timeout_seconds,
-        "Running validation command"
-    );
-
-    // Run command with timeout
-    let output = tokio::time::timeout(
-        tokio::time::Duration::from_secs(config.timeout_seconds),
-        Command::new("sh")
-            .arg("-c")
-            .arg(&config.command)
-            .current_dir(working_dir)
-            .output(),
-    )
-    .await
-    .map_err(|_| {
+    /// Create a validation failed error
+    fn create_validation_failed_error(validation_result: ValidationResult) -> ApiError {
         ApiError::Internal(format!(
-            "Validation command timed out after {} seconds",
-            config.timeout_seconds
+            "Post-apply validation failed (exit code {}). \
+             Changes were applied but validation command failed.\n\
+             Command: {}\n\
+             Stdout: {}\n\
+             Stderr: {}\n\
+             \n\
+             Please manually revert changes if needed.",
+            validation_result.exit_code,
+            validation_result.command,
+            validation_result.stdout,
+            validation_result.stderr
         ))
-    })?
-    .map_err(|e| ApiError::Internal(format!("Failed to execute validation command: {}", e)))?;
-
-    let duration_ms = start.elapsed().as_millis() as u64;
-    let exit_code = output.status.code().unwrap_or(-1);
-    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-
-    let passed = output.status.success() && (!config.fail_on_stderr || stderr.is_empty());
-
-    debug!(
-        exit_code,
-        duration_ms,
-        passed,
-        stderr_len = stderr.len(),
-        "Validation command completed"
-    );
-
-    Ok(ValidationResult {
-        passed,
-        command: config.command.clone(),
-        exit_code,
-        stdout,
-        stderr,
-        duration_ms,
-    })
+    }
 }
