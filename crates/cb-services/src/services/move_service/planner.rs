@@ -202,6 +202,44 @@ pub async fn plan_directory_move(
         );
     }
 
+    // Add documentation and config file edits (markdown, TOML, YAML)
+    info!("Scanning for documentation and config file updates");
+    let doc_config_edits_before = edit_plan.edits.len();
+
+    match plan_documentation_and_config_edits(
+        old_abs,
+        new_abs,
+        plugin_registry,
+        project_root,
+    )
+    .await
+    {
+        Ok(edits) if !edits.is_empty() => {
+            info!(
+                doc_config_edits = edits.len(),
+                "Adding documentation and config file edits to plan"
+            );
+            edit_plan.edits.extend(edits);
+        }
+        Ok(_) => {
+            info!("No documentation or config file updates needed");
+        }
+        Err(e) => {
+            warn!(
+                error = %e,
+                "Failed to plan documentation/config updates, continuing without them"
+            );
+        }
+    }
+
+    let doc_config_edits_added = edit_plan.edits.len() - doc_config_edits_before;
+    if doc_config_edits_added > 0 {
+        info!(
+            doc_config_edits_added,
+            "Documentation and config file edits added to plan"
+        );
+    }
+
     info!(
         edits_count = edit_plan.edits.len(),
         old_path = %old_abs.display(),
@@ -211,4 +249,119 @@ pub async fn plan_directory_move(
     );
 
     Ok(edit_plan)
+}
+
+/// Plan documentation and config file edits for a directory move
+///
+/// Scans for markdown files, config files (TOML, YAML), and code files (Rust)
+/// that may reference the old path in string literals, and generates edits to update those references.
+async fn plan_documentation_and_config_edits(
+    old_path: &Path,
+    new_path: &Path,
+    plugin_registry: &PluginRegistry,
+    project_root: &Path,
+) -> ServerResult<Vec<cb_protocol::TextEdit>> {
+    use cb_protocol::{EditLocation, EditType, TextEdit};
+    use std::path::PathBuf;
+
+    let mut edits = Vec::new();
+
+    // Find all markdown, TOML, YAML, and Rust files in the project
+    // Rust files are included to catch hardcoded path string literals
+    let file_extensions = ["md", "markdown", "toml", "yaml", "yml", "rs"];
+    let mut files_to_scan: Vec<PathBuf> = Vec::new();
+
+    for ext in &file_extensions {
+        if let Some(plugin) = plugin_registry.find_by_extension(ext) {
+            // Walk the project to find files with this extension
+            let walker = ignore::WalkBuilder::new(project_root)
+                .hidden(false)
+                .git_ignore(true)
+                .build();
+
+            for entry in walker.flatten() {
+                let path = entry.path();
+                if path.is_file() {
+                    if let Some(file_ext) = path.extension().and_then(|e| e.to_str()) {
+                        if file_ext == *ext {
+                            files_to_scan.push(path.to_path_buf());
+                        }
+                    }
+                }
+            }
+
+            info!(
+                extension = ext,
+                files_found = files_to_scan.len(),
+                "Found files for extension"
+            );
+
+            // Process each file with its plugin
+            for file_path in &files_to_scan {
+                match tokio::fs::read_to_string(file_path).await {
+                    Ok(content) => {
+                        // Call the plugin's rewrite_file_references to get updated content
+                        // Returns Option<(String, usize)> where String is new content and usize is change count
+                        if let Some((updated_content, change_count)) = plugin.rewrite_file_references(
+                            &content,
+                            old_path,
+                            new_path,
+                            file_path,
+                            project_root,
+                            None, // No rename_info for simple moves
+                        ) {
+                            if change_count > 0 && updated_content != content {
+                                // File needs updating - create a full-file replacement edit
+                                let line_count = content.lines().count().max(1);
+                                let last_line_len = content
+                                    .lines()
+                                    .last()
+                                    .map(|l| l.len())
+                                    .unwrap_or(0);
+
+                                let edit = TextEdit {
+                                    file_path: Some(file_path.to_string_lossy().to_string()),
+                                    edit_type: EditType::Replace,
+                                    location: EditLocation {
+                                        start_line: 0,
+                                        start_column: 0,
+                                        end_line: (line_count - 1) as u32,
+                                        end_column: last_line_len as u32,
+                                    },
+                                    original_text: content.clone(),
+                                    new_text: updated_content,
+                                    priority: 0,
+                                    description: format!(
+                                        "Update {} path references in {}",
+                                        change_count,
+                                        file_path.display()
+                                    ),
+                                };
+
+                                info!(
+                                    file = %file_path.display(),
+                                    extension = ext,
+                                    changes = change_count,
+                                    "Generated edit for file"
+                                );
+
+                                edits.push(edit);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        warn!(
+                            file = %file_path.display(),
+                            error = %e,
+                            "Failed to read file, skipping"
+                        );
+                    }
+                }
+            }
+
+            files_to_scan.clear(); // Clear for next extension
+        }
+    }
+
+    Ok(edits)
 }

@@ -585,8 +585,9 @@ impl FileService {
                 use tokio::io::AsyncReadExt;
                 let mut file = fs::OpenOptions::new().read(true).open(file_path).await?;
 
-                // Force page cache invalidation on Unix systems
-                #[cfg(unix)]
+                // Force page cache invalidation on Linux systems
+                // Note: posix_fadvise exists on macOS but behaves differently, so Linux-only
+                #[cfg(target_os = "linux")]
                 {
                     use std::os::unix::io::AsRawFd;
                     unsafe {

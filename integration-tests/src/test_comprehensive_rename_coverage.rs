@@ -121,9 +121,8 @@ async fn test_basic_file_rename_works() {
 }
 
 /// Test 3: Alice's string literal detection (ACCEPTANCE TEST)
-/// **Expected to FAIL until Alice's work is fully integrated**
+/// String literal detection is now integrated
 #[tokio::test]
-#[ignore] // Ignore until string literal detection is integrated
 async fn test_alice_string_literal_updates() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
@@ -186,9 +185,8 @@ fn main() {
 }
 
 /// Test 4: Bob's markdown link detection (ACCEPTANCE TEST)
-/// **Expected to FAIL until Bob's work is fully integrated**
+/// Markdown link detection is now integrated
 #[tokio::test]
-#[ignore] // Ignore until markdown link detection is integrated
 async fn test_bob_markdown_link_updates() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
@@ -249,9 +247,8 @@ See the [Guide](docs/guide.md) for details.
 }
 
 /// Test 5: Carol's config file detection (ACCEPTANCE TEST)
-/// **Expected to FAIL until Carol's work is fully integrated**
+/// Config file detection is now integrated
 #[tokio::test]
-#[ignore] // Ignore until config file detection is integrated
 async fn test_carol_config_file_updates() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
@@ -381,9 +378,8 @@ async fn test_david_scope_filtering() {
 
 /// Test 7: Comprehensive coverage measurement (FINAL ACCEPTANCE)
 /// This is the 93%+ target from the proposal
-/// **Expected to PASS once Alice + Bob + Carol + David's work is complete**
+/// All components are now integrated
 #[tokio::test]
-#[ignore] // Ignore until all components are integrated
 async fn test_comprehensive_93_percent_coverage() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
@@ -435,10 +431,10 @@ async fn test_comprehensive_93_percent_coverage() {
     if workspace.read_file("src/lib.rs").contains("tests/") {
         updated_files += 1;
     }
-    if workspace.read_file("integration-tests/src/lib.rs").contains("tests/fixtures") {
+    if workspace.read_file("tests/src/lib.rs").contains("tests/fixtures") {
         updated_files += 1;
     }
-    if workspace.read_file("integration-tests/src/helpers.rs").contains("tests/fixtures") {
+    if workspace.read_file("tests/src/helpers.rs").contains("tests/fixtures") {
         updated_files += 1;
     }
 

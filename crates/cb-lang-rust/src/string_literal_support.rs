@@ -61,6 +61,12 @@ pub fn rewrite_string_literals(
     let old_path_str = old_path.to_string_lossy();
     let new_path_str = new_path.to_string_lossy();
 
+    // Extract just the filename/dirname for relative matching
+    let old_name = old_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("");
+
     let mut modified_source = source.to_string();
     let mut change_count = 0;
 
@@ -83,11 +89,36 @@ pub fn rewrite_string_literals(
 
         let string_content = cap.get(1).unwrap().as_str();
 
-        if is_path_like(string_content) && string_content.contains(old_path_str.as_ref()) {
-            let new_content = string_content.replace(old_path_str.as_ref(), new_path_str.as_ref());
-            let new_match = format!("\"{}\"", new_content);
-            modified_source = modified_source.replace(full_match, &new_match);
-            change_count += 1;
+        if is_path_like(string_content) {
+            // Try to match against multiple forms:
+            // 1. Absolute path: /workspace/config
+            // 2. Relative path starting with name: config/settings.toml
+            // But NOT nested paths like: src/config/file.rs (unless it's part of absolute path)
+            let matches = string_content.contains(old_path_str.as_ref())
+                || (!old_name.is_empty() && (
+                    string_content == old_name  // Exact match
+                    || string_content.starts_with(&format!("{}/", old_name))  // Starts with dir/
+                ));
+
+            if matches {
+                // Replace both absolute and relative forms
+                let new_content = if string_content.contains(old_path_str.as_ref()) {
+                    string_content.replace(old_path_str.as_ref(), new_path_str.as_ref())
+                } else if !old_name.is_empty() {
+                    // Extract new name for relative replacement
+                    let new_name = new_path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or(new_path_str.as_ref());
+                    string_content.replace(old_name, new_name)
+                } else {
+                    string_content.to_string()
+                };
+
+                let new_match = format!("\"{}\"", new_content);
+                modified_source = modified_source.replace(full_match, &new_match);
+                change_count += 1;
+            }
         }
     }
 
@@ -110,11 +141,32 @@ pub fn rewrite_string_literals(
             let full_match = cap.get(0).unwrap().as_str();
             let string_content = cap.get(1).unwrap().as_str();
 
-            if is_path_like(string_content) && string_content.contains(old_path_str.as_ref()) {
-                let new_content = string_content.replace(old_path_str.as_ref(), new_path_str.as_ref());
-                let new_match = format!("r{}\"{}\"{}",hash_marks, new_content, hash_marks);
-                modified_source = modified_source.replace(full_match, &new_match);
-                change_count += 1;
+            if is_path_like(string_content) {
+                // Same matching logic as regular strings
+                let matches = string_content.contains(old_path_str.as_ref())
+                    || (!old_name.is_empty() && (
+                        string_content == old_name  // Exact match
+                        || string_content.starts_with(&format!("{}/", old_name))  // Starts with dir/
+                    ));
+
+                if matches {
+                    // Replace both absolute and relative forms
+                    let new_content = if string_content.contains(old_path_str.as_ref()) {
+                        string_content.replace(old_path_str.as_ref(), new_path_str.as_ref())
+                    } else if !old_name.is_empty() {
+                        let new_name = new_path
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or(new_path_str.as_ref());
+                        string_content.replace(old_name, new_name)
+                    } else {
+                        string_content.to_string()
+                    };
+
+                    let new_match = format!("r{}\"{}\"{}",hash_marks, new_content, hash_marks);
+                    modified_source = modified_source.replace(full_match, &new_match);
+                    change_count += 1;
+                }
             }
         }
     }
@@ -342,5 +394,44 @@ fn main() {
 
         assert_eq!(count, 1);
         assert!(result.contains(r###"r##"new-dir/file##with##hashes.rs"##"###));
+    }
+
+    #[test]
+    fn test_relative_path_with_absolute_old_path() {
+        // This tests the bug Codex identified: relative strings like "config/settings.toml"
+        // should match when old_path is absolute like "/workspace/config"
+        let source = r#"
+fn main() {
+    let path = "config/settings.toml";
+    std::fs::read("config/data.json").unwrap();
+}
+"#;
+        let old_path = Path::new("/workspace/config");
+        let new_path = Path::new("/workspace/configuration");
+
+        let (result, count) = rewrite_string_literals(source, old_path, new_path).unwrap();
+
+        assert_eq!(count, 2, "Should update both relative paths");
+        assert!(result.contains("\"configuration/settings.toml\""));
+        assert!(result.contains("\"configuration/data.json\""));
+    }
+
+    #[test]
+    fn test_relative_path_starting_with_directory_name() {
+        let source = r#"
+fn main() {
+    let path = "integration-tests/fixtures/test.rs";
+    let other = "src/integration-tests/file.rs";
+}
+"#;
+        // Absolute path for directory
+        let old_path = Path::new("/workspace/integration-tests");
+        let new_path = Path::new("/workspace/tests");
+
+        let (result, count) = rewrite_string_literals(source, old_path, new_path).unwrap();
+
+        assert_eq!(count, 1, "Should only update path starting with directory name");
+        assert!(result.contains("\"tests/fixtures/test.rs\""));
+        assert!(result.contains("\"src/integration-tests/file.rs\""), "Should not update nested occurrence");
     }
 }
