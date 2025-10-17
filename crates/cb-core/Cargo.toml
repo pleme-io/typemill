@@ -6,6 +6,7 @@ license = "MIT"
 
 [dependencies]
 cb-types = { path = "../cb-types" }
+cb-plugin-api = { path = "../cb-plugin-api" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
@@ -18,8 +19,6 @@ jsonwebtoken = { workspace = true }
 dashmap = { workspace = true }
 anyhow = "1.0"
 sha2 = "0.10"
-
-cb-plugin-registry = { path = "../cb-plugin-registry" }
 glob = "0.3"
 
 [features]

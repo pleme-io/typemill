@@ -1,7 +1,7 @@
 //! Plugin system for language-specific code intelligence
 //!
-//! This crate provides the plugin architecture for codebuddy,
-//! enabling language-specific implementations without core code modifications.
+//! This crate consolidates runtime plugin management from cb-plugins.
+//! Static plugin registration (inventory) has been moved to cb-plugin-api (Layer 0).
 
 pub mod adapters;
 pub mod capabilities;
@@ -26,3 +26,6 @@ pub use registry::PluginRegistry;
 
 /// Plugin system version for compatibility checking
 pub const PLUGIN_SYSTEM_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+// Re-export static plugin registration from cb-plugin-api for backward compatibility
+pub use cb_plugin_api::{PluginDescriptor, codebuddy_plugin, iter_plugins};

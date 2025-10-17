@@ -193,7 +193,7 @@ pub fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
     match extract_symbols_ast(source) {
         Ok(symbols) => Ok(symbols),
         Err(e) => {
-            tracing::debug!(
+            tracing::error!(
                 error = % e, "TypeScript symbol extraction failed, returning empty list"
             );
             Ok(Vec::new())

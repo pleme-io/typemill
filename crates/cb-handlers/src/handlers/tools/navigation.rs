@@ -10,7 +10,7 @@
 use super::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
-use cb_plugins::PluginRequest;
+use codebuddy_plugin_system::PluginRequest;
 use cb_protocol::ApiResult as ServerResult;
 use serde_json::{json, Value};
 use std::path::PathBuf;

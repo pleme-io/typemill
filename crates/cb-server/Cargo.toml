@@ -8,7 +8,6 @@ license = "MIT"
 cb-protocol = { path = "../cb-protocol" }
 cb-core = { path = "../cb-core" }
 cb-ast = { path = "../cb-ast" }
-cb-plugins = { path = "../cb-plugins" }
 cb-transport = { path = "../cb-transport" }
 cb-lsp = { path = "../cb-lsp" }
 cb-services = { path = "../cb-services" }
@@ -35,6 +34,7 @@ toml = "0.9"
 toml_edit = "0.23"
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 tempfile = "3.0"
+codebuddy-plugin-system = { path = "../codebuddy-plugin-system" }
 
 [features]
 default = []

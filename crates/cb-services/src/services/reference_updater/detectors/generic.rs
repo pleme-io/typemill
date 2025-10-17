@@ -64,10 +64,6 @@ pub fn find_generic_affected_files(
             // (which updates imports, mod declarations, use statements, AND qualified paths).
             // Including .rs here would create duplicate overlapping edits.
             if let Some(ext) = file.extension().and_then(|e| e.to_str()) {
-                if ext == "rs" {
-                    continue; // Skip Rust files - fully handled by METHOD 1
-                }
-
                 for plugin in plugins {
                     if plugin.handles_extension(ext) {
                         // Try rewriting to see if this file would be affected

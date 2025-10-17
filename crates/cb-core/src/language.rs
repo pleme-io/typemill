@@ -3,7 +3,7 @@
 //! This module provides shared functionality for detecting project languages
 //! and package managers based on manifest files and project structure.
 
-use cb_plugin_registry::iter_plugins;
+use cb_plugin_api::iter_plugins;
 use std::path::Path;
 use tracing::debug;
 

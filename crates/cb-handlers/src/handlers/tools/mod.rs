@@ -10,7 +10,7 @@ use serde_json::Value;
 
 use super::lsp_adapter::DirectLspAdapter;
 use super::plugin_dispatcher::AppState;
-use cb_plugins::PluginManager;
+use codebuddy_plugin_system::PluginManager;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 

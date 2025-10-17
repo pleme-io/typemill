@@ -9,7 +9,6 @@ homepage.workspace = true
 [dependencies]
 # Core plugin API
 cb-plugin-api = { path = "../cb-plugin-api" }
-cb-plugin-registry = { path = "../cb-plugin-registry" }
 cb-protocol = { path = "../cb-protocol" }
 cb-core = { path = "../cb-core" }
 cb-lang-common = { path = "../cb-lang-common" }

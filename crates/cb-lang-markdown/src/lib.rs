@@ -12,7 +12,7 @@ use cb_plugin_api::{
     LanguageMetadata, LanguagePlugin, ManifestData, ParsedSource, PluginCapabilities,
     PluginError, PluginResult, SourceLocation, Symbol, SymbolKind,
 };
-use cb_plugin_registry::codebuddy_plugin;
+use cb_plugin_api::codebuddy_plugin;
 use regex::Regex;
 use std::path::Path;
 use tracing::debug;

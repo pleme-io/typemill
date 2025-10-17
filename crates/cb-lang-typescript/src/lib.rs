@@ -16,7 +16,7 @@ use cb_plugin_api::{
     LanguageMetadata, LanguagePlugin, LspConfig, ManifestData, ParsedSource,
     PluginCapabilities, PluginError, PluginResult, WorkspaceSupport,
 };
-use cb_plugin_registry::codebuddy_plugin;
+use cb_plugin_api::codebuddy_plugin;
 use std::path::Path;
 
 // Self-register the plugin with the Codebuddy system.

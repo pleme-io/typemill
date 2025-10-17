@@ -5,17 +5,17 @@
 use super::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
-use cb_plugins::PluginRequest;
+use codebuddy_plugin_system::PluginRequest;
 use cb_protocol::{ApiError, ApiResult as ServerResult};
 use serde_json::{json, Value};
 use std::path::PathBuf;
 
-fn to_api_error(plugin_error: cb_plugins::PluginError) -> ApiError {
+fn to_api_error(plugin_error: codebuddy_plugin_system::PluginError) -> ApiError {
     match plugin_error {
-        cb_plugins::PluginError::MethodNotSupported { method, plugin } => ApiError::Unsupported(
+        codebuddy_plugin_system::PluginError::MethodNotSupported { method, plugin } => ApiError::Unsupported(
             format!("Method '{}' not supported by plugin '{}'", method, plugin),
         ),
-        cb_plugins::PluginError::SerializationError { message } => ApiError::Parse { message },
+        codebuddy_plugin_system::PluginError::SerializationError { message } => ApiError::Parse { message },
         e => ApiError::Internal(e.to_string()),
     }
 }

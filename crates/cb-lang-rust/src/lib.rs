@@ -28,7 +28,7 @@ use cb_plugin_api::{
     LanguageMetadata, LanguagePlugin, LspConfig, ManifestData, ParsedSource, PluginCapabilities,
     PluginResult,
 };
-use cb_plugin_registry::codebuddy_plugin;
+use cb_plugin_api::codebuddy_plugin;
 use std::path::Path;
 
 // Import helpers from the imports module

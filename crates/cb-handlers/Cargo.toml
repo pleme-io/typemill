@@ -28,7 +28,6 @@ cb-services = { path = "../cb-services" }
 cb-plugin-api = { path = "../cb-plugin-api" }
 cb-lsp = { path = "../cb-lsp" }
 cb-ast = { path = "../cb-ast" }
-cb-plugins = { path = "../cb-plugins" }
 
 # Language plugins (feature-gated, temporarily reduced to TS + Rust)
 cb-lang-rust = { workspace = true, optional = true }
@@ -65,3 +64,4 @@ ignore = "0.4"
 url = "2.5"
 globset = "0.4.10"
 urlencoding = "2.1.3"
+codebuddy-plugin-system = { path = "../codebuddy-plugin-system" }

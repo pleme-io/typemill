@@ -4,7 +4,7 @@
 //! and its hard-coded mappings, enabling dynamic LSP server configuration.
 
 use async_trait::async_trait;
-use cb_plugins::LspService;
+use codebuddy_plugin_system::LspService;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::Arc;

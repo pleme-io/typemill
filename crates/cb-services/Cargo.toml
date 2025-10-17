@@ -9,7 +9,6 @@ cb-ast = { path = "../cb-ast" }
 cb-lsp = { path = "../cb-lsp" }
 cb-protocol = { path = "../cb-protocol" }
 cb-plugin-api = { path = "../cb-plugin-api" }
-cb-plugin-registry = { path = "../cb-plugin-registry" }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
@@ -25,7 +24,6 @@ ignore = "0.4"
 globset = "0.4"
 toml_edit = "0.23"
 pathdiff = "0.2"
-cb-plugins = { path = "../cb-plugins" }
 cb-lang-rust = { workspace = true }
 cb-lang-typescript = { workspace = true }
 cb-lang-markdown = { workspace = true }
@@ -34,10 +32,11 @@ cb-lang-yaml = { path = "../cb-lang-yaml" }
 chrono = "0.4"
 sha2 = "0.10"
 urlencoding = "2.1"
+codebuddy-plugin-system = { path = "../codebuddy-plugin-system" }
 
 [features]
 default = []
-mcp-proxy = ["cb-core/mcp-proxy", "cb-plugins/mcp-proxy"]
+mcp-proxy = ["cb-core/mcp-proxy", "codebuddy-plugin-system/mcp-proxy"]
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

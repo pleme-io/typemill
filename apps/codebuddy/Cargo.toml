@@ -15,7 +15,6 @@ cb-client = { path = "../../crates/cb-client" }
 cb-core = { path = "../../crates/cb-core" }
 cb-ast = { path = "../../crates/cb-ast" }
 cb-protocol = { path = "../../crates/cb-protocol" }
-cb-plugins = { path = "../../crates/cb-plugins" }
 cb-transport = { path = "../../crates/cb-transport" }
 
 # Language plugins - must be direct dependencies for inventory discovery
@@ -36,6 +35,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 clap = { version = "4.0", features = ["derive"] }
 fs2 = "0.4"
+codebuddy-plugin-system = { path = "../../crates/codebuddy-plugin-system" }
 
 [dev-dependencies]
 cb-test-support = { path = "../../crates/cb-test-support" }

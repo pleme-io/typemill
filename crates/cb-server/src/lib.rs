@@ -67,7 +67,7 @@ pub async fn bootstrap(options: ServerOptions) -> ServerResult<ServerHandle> {
         options.config.cache.max_size_bytes,
     );
 
-    let plugin_manager = Arc::new(cb_plugins::PluginManager::new());
+    let plugin_manager = Arc::new(codebuddy_plugin_system::PluginManager::new());
 
     // Register MCP proxy plugin if feature enabled
     #[cfg(feature = "mcp-proxy")]
@@ -150,7 +150,7 @@ pub async fn create_dispatcher_with_workspace(
         config.cache.max_size_bytes,
     );
 
-    let plugin_manager = Arc::new(cb_plugins::PluginManager::new());
+    let plugin_manager = Arc::new(codebuddy_plugin_system::PluginManager::new());
 
     // Register MCP proxy plugin if feature enabled
     #[cfg(feature = "mcp-proxy")]

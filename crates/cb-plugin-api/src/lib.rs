@@ -26,6 +26,7 @@ use std::path::Path;
 
 pub mod import_support;
 pub mod metadata;
+pub mod plugin_registry;
 pub mod server;
 pub mod test_fixtures;
 pub mod workspace_support;
@@ -36,6 +37,8 @@ pub use import_support::{
     ImportRenameSupport,
 };
 pub use metadata::LanguageMetadata;
+pub use plugin_registry::{PluginDescriptor, iter_plugins};
+// Note: codebuddy_plugin! macro is automatically exported at crate root due to #[macro_export]
 pub use server::PluginServer;
 pub use test_fixtures::{
     ComplexityFixture, LanguageTestFixtures, RefactoringFixture, RefactoringOperation,

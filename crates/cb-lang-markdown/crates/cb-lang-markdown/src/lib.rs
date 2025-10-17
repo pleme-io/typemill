@@ -8,7 +8,7 @@ use cb_plugin_api::{
     ImportSupport, LanguageMetadata, LanguagePlugin, ManifestData, ParsedSource,
     PluginCapabilities, PluginError, PluginResult, Symbol, SymbolKind, SourceLocation,
 };
-use cb_plugin_registry::codebuddy_plugin;
+use cb_plugin_api::codebuddy_plugin;
 use regex::Regex;
 use std::path::Path;
 use tracing::debug;

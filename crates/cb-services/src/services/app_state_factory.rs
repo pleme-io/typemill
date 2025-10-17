@@ -22,7 +22,7 @@ pub struct ServicesBundle {
 pub async fn create_services_bundle(
     project_root: &PathBuf,
     cache_settings: cb_ast::CacheSettings,
-    plugin_manager: Arc<cb_plugins::PluginManager>,
+    plugin_manager: Arc<codebuddy_plugin_system::PluginManager>,
     config: &cb_core::AppConfig,
 ) -> ServicesBundle {
     // Build the language plugin registry (centralized)
@@ -63,7 +63,7 @@ pub async fn create_services_bundle(
 /// Spawn background worker to process file operations from the queue
 fn spawn_operation_worker(
     queue: Arc<super::operation_queue::OperationQueue>,
-    plugin_manager: Arc<cb_plugins::PluginManager>,
+    plugin_manager: Arc<codebuddy_plugin_system::PluginManager>,
 ) {
     use super::operation_queue::OperationType;
     use tokio::fs;
@@ -158,7 +158,7 @@ fn spawn_operation_worker(
                             })
                         }
                         OperationType::UpdateDependency => {
-                            use cb_plugins::protocol::PluginRequest;
+                            use codebuddy_plugin_system::protocol::PluginRequest;
                             let request =
                                 PluginRequest::new("update_dependency", op.file_path.clone())
                                     .with_params(op.params.clone());
@@ -201,12 +201,12 @@ fn spawn_operation_worker(
 /// Register MCP proxy plugin if feature is enabled
 #[cfg(feature = "mcp-proxy")]
 pub async fn register_mcp_proxy_if_enabled(
-    plugin_manager: &Arc<cb_plugins::PluginManager>,
+    plugin_manager: &Arc<codebuddy_plugin_system::PluginManager>,
     external_mcp_config: Option<&cb_core::config::ExternalMcpConfig>,
 ) -> Result<(), cb_protocol::ApiError> {
     if let Some(config) = external_mcp_config {
-        use cb_plugins::mcp::McpProxyPlugin;
-        use cb_plugins::LanguagePlugin;
+        use codebuddy_plugin_system::mcp::McpProxyPlugin;
+        use codebuddy_plugin_system::LanguagePlugin;
 
         tracing::info!(
             servers_count = config.servers.len(),

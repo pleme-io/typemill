@@ -20,7 +20,7 @@ use crate::register_handlers_with_logging;
 use async_trait::async_trait;
 use cb_core::model::mcp::{McpMessage, McpRequest, McpResponse, ToolCall};
 use cb_core::workspaces::WorkspaceManager;
-use cb_plugins::{LspAdapterPlugin, PluginManager};
+use codebuddy_plugin_system::{LspAdapterPlugin, PluginManager};
 use cb_protocol::AstService;
 use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use cb_services::services::planner::Planner;
@@ -167,7 +167,7 @@ impl PluginDispatcher {
             }
 
             // Register System Tools plugin for workspace-level operations
-            let system_plugin = Arc::new(cb_plugins::system_tools_plugin::SystemToolsPlugin::new(
+            let system_plugin = Arc::new(codebuddy_plugin_system::system_tools_plugin::SystemToolsPlugin::new(
                 plugin_registry.clone(),
             ));
             self.plugin_manager

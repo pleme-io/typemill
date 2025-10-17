@@ -206,7 +206,7 @@ impl ToolHandler for AdvancedToolsHandler {
                                 version,
                                 ..
                             } => {
-                                use cb_plugins::protocol::PluginRequest;
+                                use codebuddy_plugin_system::protocol::PluginRequest;
                                 let plugin_manager = &context.plugin_manager;
                                 let params = json!({
                                     "manifest_path": manifest_path.clone(),

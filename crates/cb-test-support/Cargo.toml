@@ -25,9 +25,9 @@ cb-services = { path = "../cb-services" }
 
 # Benchmark dependencies (merged from cb-bench)
 cb-server = { path = "../cb-server" }
-cb-plugins = { path = "../cb-plugins" }
 cb-ast = { path = "../cb-ast" }
 simd-json = "0.16"
+codebuddy-plugin-system = { path = "../codebuddy-plugin-system" }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }

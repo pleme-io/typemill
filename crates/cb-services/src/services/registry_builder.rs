@@ -12,7 +12,7 @@
 //! `PluginRegistry`.
 
 use cb_plugin_api::PluginRegistry;
-use cb_plugin_registry::iter_plugins;
+use cb_plugin_api::iter_plugins;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tracing::{debug, warn};

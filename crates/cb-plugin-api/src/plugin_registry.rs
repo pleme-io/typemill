@@ -1,4 +1,4 @@
-use cb_plugin_api::{LanguagePlugin, LspConfig, PluginCapabilities};
+use crate::{LanguagePlugin, LspConfig, PluginCapabilities};
 
 // Re-export inventory for the macro.
 pub use inventory;
@@ -38,8 +38,8 @@ macro_rules! codebuddy_plugin {
         factory: $factory:expr,
         lsp: $lsp:expr
     ) => {
-        $crate::inventory::submit! {
-            $crate::PluginDescriptor {
+        $crate::plugin_registry::inventory::submit! {
+            $crate::plugin_registry::PluginDescriptor {
                 name: $name,
                 extensions: &$extensions,
                 manifest_filename: $manifest,
