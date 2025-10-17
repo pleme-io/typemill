@@ -70,7 +70,7 @@ pub enum Commands {
         #[arg(long, default_value = "pretty", value_parser = ["pretty", "compact"])]
         format: String,
     },
-    /// List all available MCP tools
+    /// List all public MCP tools (excludes internal tools)
     Tools {
         /// Output format (table, json, or names-only)
         #[arg(long, default_value = "table", value_parser = ["table", "json", "names"])]
@@ -779,9 +779,9 @@ async fn handle_tools_command(format: &str) {
         }
     };
 
-    // Get tool list with handlers directly from the registry
+    // Get public tool list with handlers (excludes internal tools)
     let registry = dispatcher.tool_registry.lock().await;
-    let tools_with_handlers = registry.list_tools_with_handlers();
+    let tools_with_handlers = registry.list_public_tools_with_handlers();
     drop(registry); // Release lock
 
     match format {
@@ -815,7 +815,7 @@ async fn handle_tools_command(format: &str) {
             println!("└{0:─<32}┴{0:─<20}┘", "");
             println!();
             println!(
-                "Total: {} tools across {} handlers",
+                "Public tools: {} across {} handlers",
                 tools_with_handlers.len(),
                 tools_with_handlers
                     .iter()
@@ -823,6 +823,7 @@ async fn handle_tools_command(format: &str) {
                     .collect::<std::collections::HashSet<_>>()
                     .len()
             );
+            println!("(Internal tools hidden - 20 backend-only tools not shown)");
         }
     }
 }

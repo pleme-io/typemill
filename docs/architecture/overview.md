@@ -199,7 +199,7 @@ register_handlers_with_logging!(registry, {
 pub async fn initialize(&self) -> ServerResult<()> {
     let mut registry = self.tool_registry.lock().await;
 
-    // All 44 tools registered in ~10 lines of declarative code
+    // All tools registered (24 public + 20 internal) in ~10 lines of declarative code
     register_handlers_with_logging!(registry, {
         SystemHandler => "SystemHandler with 3 tools...",
         // ... 7 handlers total
@@ -389,8 +389,8 @@ async fn test_all_42_tools_are_registered() {
     let registry = dispatcher.tool_registry.lock().await;
     let registered_tools = registry.list_tools();
 
-    // Verify all 44 tools are present
-    assert_eq!(registered_tools.len(), 44);
+    // Verify all public tools are present
+    assert_eq!(registered_tools.len(), 24);
     assert!(registered_tools.contains(&"find_definition".to_string()));
     // ... validate all tools
 }

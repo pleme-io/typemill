@@ -4,8 +4,10 @@
 //! to ensure they conform to the core `LanguagePlugin` trait contract. This
 //! helps maintain quality and consistency as new language plugins are added.
 
+#[allow(unused_imports)]
 use crate::harness::plugin_discovery;
-use cb_plugin_api::{LanguagePlugin, PluginCapabilities};
+use cb_plugin_api::LanguagePlugin;
+#[allow(unused_imports)]
 use tokio::runtime::Runtime;
 
 /// A test harness that runs a set of contract tests for each discovered plugin.
@@ -31,6 +33,7 @@ fn test_all_plugins_conform_to_contract() {
 }
 
 /// Ensures that the plugin's metadata is well-formed.
+#[allow(dead_code)]
 fn test_metadata_contract(plugin: &dyn LanguagePlugin) {
     let meta = plugin.metadata();
     assert!(!meta.name.is_empty(), "Plugin name cannot be empty.");
@@ -45,6 +48,7 @@ fn test_metadata_contract(plugin: &dyn LanguagePlugin) {
 }
 
 /// Ensures that the plugin's declared capabilities are consistent.
+#[allow(dead_code)]
 fn test_capabilities_contract(plugin: &dyn LanguagePlugin) {
     let caps = plugin.capabilities();
 
@@ -88,6 +92,7 @@ fn test_capabilities_contract(plugin: &dyn LanguagePlugin) {
 }
 
 /// Ensures that the plugin's parsing logic can handle basic cases without panicking.
+#[allow(dead_code)]
 async fn test_parsing_contract(plugin: &dyn LanguagePlugin) {
     let meta = plugin.metadata();
 

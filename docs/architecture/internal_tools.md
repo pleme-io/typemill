@@ -137,12 +137,48 @@ pub trait ToolHandler: Send + Sync {
 
 - `list_tools()` - Returns **only public tools** (for MCP)
 - `list_internal_tools()` - Returns internal tools (for diagnostics)
+- `list_public_tools_with_handlers()` - Returns public tools with handler info (for CLI)
+- `list_tools_with_handlers()` - Returns **all tools** with handler info (for debugging)
 - `handle_tool()` - Executes **all tools** (public and internal)
 
 This ensures:
 - AI agents only see relevant, user-friendly tools
 - Backend code can still call internal tools when needed
 - Clear separation between public API and internal plumbing
+
+## CLI Tool Listing
+
+The `codebuddy tools` command lists **only public tools** (those visible to AI agents via MCP).
+
+Internal tools are hidden from this listing but remain:
+- Callable via `codebuddy tool <internal-tool-name> <args>` (for testing/debugging)
+- Registered in the system for backend workflows
+- Documented in this file
+
+**Example output:**
+```bash
+$ codebuddy tools
+┌────────────────────────────────┬────────────────────┐
+│ TOOL NAME                      │ HANDLER            │
+├────────────────────────────────┼────────────────────┤
+│ find_definition                │ NavigationHandler  │
+│ rename.plan                    │ RenameHandler      │
+│ workspace.apply_edit           │ WorkspaceApplyHandler │
+└────────────────────────────────┴────────────────────┘
+
+Public tools: 24 across 18 handlers
+(Internal tools hidden - 20 backend-only tools not shown)
+```
+
+**To see internal tools programmatically**, use the Rust API:
+```rust
+let registry = dispatcher.tool_registry.lock().await;
+let internal_tools = registry.list_internal_tools();
+// Returns: ["notify_file_opened", "notify_file_saved", ...]
+
+let all_tools = registry.list_tools_with_handlers();
+// Returns all 44 tools (public + internal) with handler names
+```
 
 ## Testing
 

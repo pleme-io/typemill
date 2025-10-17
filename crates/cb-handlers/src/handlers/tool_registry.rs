@@ -189,6 +189,44 @@ impl ToolRegistry {
         result.sort_by(|a, b| a.0.cmp(&b.0));
         result
     }
+
+    /// Get all public (non-internal) tools with their handler information
+    ///
+    /// Like `list_tools_with_handlers()` but filters out internal tools.
+    /// Used by CLI commands to show only public tools to users.
+    ///
+    /// # Returns
+    ///
+    /// Returns a vector of `(tool_name, handler_type)` tuples for public tools only,
+    /// sorted alphabetically by tool name.
+    ///
+    /// # Example Output
+    ///
+    /// ```text
+    /// [
+    ///     ("find_definition", "NavigationHandler"),
+    ///     ("health_check", "SystemHandler"),
+    ///     ("rename.plan", "RenameHandler"),
+    /// ]
+    /// ```
+    pub fn list_public_tools_with_handlers(&self) -> Vec<(String, String)> {
+        let mut result: Vec<(String, String)> = self
+            .handlers
+            .keys()
+            .filter(|name| !self.internal_tools.contains(*name)) // Filter out internal
+            .map(|tool_name| {
+                let handler_name = self
+                    .handler_names
+                    .get(tool_name)
+                    .cloned()
+                    .unwrap_or_else(|| "UnknownHandler".to_string());
+                (tool_name.clone(), handler_name)
+            })
+            .collect();
+
+        result.sort_by(|a, b| a.0.cmp(&b.0));
+        result
+    }
 }
 
 impl Default for ToolRegistry {
@@ -255,5 +293,70 @@ mod tests {
 
         let tools = registry.list_tools();
         assert_eq!(tools, vec!["a_tool", "b_tool", "c_tool"]);
+    }
+
+    #[test]
+    fn test_list_public_tools_with_handlers() {
+        let mut registry = ToolRegistry::new();
+
+        // Register public handler
+        struct PublicHandler;
+        #[async_trait]
+        impl ToolHandler for PublicHandler {
+            fn tool_names(&self) -> &[&str] {
+                &["public_tool"]
+            }
+            fn is_internal(&self) -> bool {
+                false
+            }
+            async fn handle_tool_call(
+                &self,
+                _context: &ToolHandlerContext,
+                _tool_call: &ToolCall,
+            ) -> ServerResult<Value> {
+                Ok(json!({}))
+            }
+        }
+
+        // Register internal handler
+        struct InternalHandler;
+        #[async_trait]
+        impl ToolHandler for InternalHandler {
+            fn tool_names(&self) -> &[&str] {
+                &["internal_tool"]
+            }
+            fn is_internal(&self) -> bool {
+                true
+            }
+            async fn handle_tool_call(
+                &self,
+                _context: &ToolHandlerContext,
+                _tool_call: &ToolCall,
+            ) -> ServerResult<Value> {
+                Ok(json!({}))
+            }
+        }
+
+        registry.register_with_name(Arc::new(PublicHandler), "PublicHandler");
+        registry.register_with_name(Arc::new(InternalHandler), "InternalHandler");
+
+        let public_tools = registry.list_public_tools_with_handlers();
+
+        // Should only include public tool
+        assert_eq!(public_tools.len(), 1);
+        assert_eq!(public_tools[0].0, "public_tool");
+        assert_eq!(public_tools[0].1, "PublicHandler");
+
+        // Internal tool should not appear
+        assert!(!public_tools
+            .iter()
+            .any(|(name, _)| name == "internal_tool"));
+
+        // Verify internal tool is still registered in the system
+        assert!(registry.has_tool("internal_tool"));
+
+        // Verify list_tools_with_handlers still shows both
+        let all_tools = registry.list_tools_with_handlers();
+        assert_eq!(all_tools.len(), 2);
     }
 }

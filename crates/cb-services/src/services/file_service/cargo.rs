@@ -4,7 +4,9 @@ use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 use tokio::fs;
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, warn};
+#[cfg(test)]
+use tracing::debug;
 
 impl FileService {
     /// Consolidate a Rust package into a target directory
@@ -957,6 +959,7 @@ impl FileService {
     /// Find the parent Cargo workspace and update the members array to reflect a renamed package.
     ///
     /// Returns the list of Cargo.toml files that were updated (workspace root + moved package)
+    #[cfg(test)]
     pub(super) async fn update_workspace_manifests(
         &self,
         old_package_path: &Path,
@@ -1062,6 +1065,7 @@ impl FileService {
     /// When a crate moves, other crates with path dependencies need their paths updated.
     /// For example, if cb-lang-common moves from crates/languages/ to crates/, then
     /// cb-lang-go's Cargo.toml needs: path = "../cb-lang-common" → "../../cb-lang-common"
+    #[cfg(test)]
     pub(super) async fn update_dependent_crate_paths(
         &self,
         old_crate_name: &str,
@@ -1125,6 +1129,7 @@ impl FileService {
     /// - [patch.crates-io], [patch.'...']
     ///
     /// Returns Ok(true) if the file was updated, Ok(false) if no update was needed
+    #[cfg(test)]
     async fn update_cargo_toml_dependency(
         &self,
         cargo_toml_path: &Path,
@@ -1243,6 +1248,7 @@ impl FileService {
     }
 
     /// Update relative `path` dependencies in a package's Cargo.toml after it moves
+    #[cfg(test)]
     async fn update_package_relative_paths(
         &self,
         package_cargo_toml: &Path,
@@ -1380,6 +1386,7 @@ impl FileService {
     ///
     /// Returns a list of (file_path, old_content, new_content) tuples for each Cargo.toml
     /// that would be updated.
+    #[allow(dead_code)]
     pub(super) async fn plan_workspace_manifest_updates(
         &self,
         old_package_path: &Path,
@@ -1467,6 +1474,7 @@ impl FileService {
     ///
     /// Returns (new_path, old_content, new_content) because the file will be at the new location
     /// after the directory rename happens.
+    #[allow(dead_code)]
     async fn plan_package_manifest_update(
         &self,
         package_cargo_toml: &Path,
@@ -1555,6 +1563,7 @@ impl FileService {
     }
 
     /// Preview dependent crate path updates without writing to disk
+    #[allow(dead_code)]
     pub(super) async fn plan_dependent_crate_path_updates(
         &self,
         old_crate_name: &str,
@@ -1606,6 +1615,7 @@ impl FileService {
     }
 
     /// Preview a single Cargo.toml dependency update
+    #[allow(dead_code)]
     async fn plan_single_cargo_toml_dependency_update(
         &self,
         cargo_toml_path: &Path,
