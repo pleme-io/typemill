@@ -39,7 +39,7 @@ fs2 = "0.4"
 
 [dev-dependencies]
 cb-test-support = { path = "../../crates/cb-test-support" }
-integration-tests = { path = "../../integration-tests" }
+tests = { path = "../../tests" }
 cb-server = { path = "../../crates/cb-server", features = ["test-helpers"] }
 cb-handlers = { path = "../../crates/cb-handlers" }
 cb-lsp = { path = "../../crates/cb-lsp" }

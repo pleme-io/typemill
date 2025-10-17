@@ -1,5 +1,5 @@
 [package]
-name = "integration-tests"
+name = "tests"
 version = "1.0.1-beta"
 edition = "2021"
 description = "Integration tests and test utilities for Codeflow Buddy"

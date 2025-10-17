@@ -281,10 +281,10 @@ Use the `options.scope` parameter to control what gets updated:
 
 **Coverage Example:**
 
-Renaming `integration-tests/` → `tests/`:
-- ✅ 3 Rust files (imports + string literals like `"integration-tests/fixtures/data.json"`)
+Renaming `tests/` → `tests/`:
+- ✅ 3 Rust files (imports + string literals like `"tests/fixtures/data.json"`)
 - ✅ 3 Cargo.toml files (workspace members, package name, dependencies)
-- ✅ 3 Markdown files (links `[readme](integration-tests/README.md)`)
+- ✅ 3 Markdown files (links `[readme](tests/README.md)`)
 - ✅ 2 Config files (.cargo/config.toml, CI YAML workflows)
 - **Total: 9 files updated (100% of affected references)**
 
@@ -687,7 +687,7 @@ All debug scripts, test analysis, and experimental code goes in `.debug/` (gitig
 ### For Contributors
 - **[contributing.md](contributing.md)** - Setup, PR process, adding tools, best practices
 - **[docs/development/logging_guidelines.md](docs/development/logging_guidelines.md)** - Structured logging standards
-- **[integration-tests/TESTING_GUIDE.md](integration-tests/TESTING_GUIDE.md)** - Testing architecture
+- **[tests/TESTING_GUIDE.md](tests/TESTING_GUIDE.md)** - Testing architecture
 
 ### For Operators
 - **[docs/operations/docker_deployment.md](docs/operations/docker_deployment.md)** - Docker deployment (development and production)

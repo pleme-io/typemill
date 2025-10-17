@@ -267,9 +267,11 @@ async fn plan_documentation_and_config_edits(
     let mut edits = Vec::new();
     let mut files_to_scan: Vec<PathBuf> = Vec::new();
 
-    // Find all markdown, TOML, YAML, and Rust files in the project
-    // Rust files are included to catch hardcoded path string literals
-    let file_extensions = ["md", "markdown", "toml", "yaml", "yml", "rs"];
+    // Find all markdown, TOML, and YAML files in the project
+    // Note: Rust files (.rs) are NOT included here because they're already handled
+    // by the reference_updater's import analysis. Including them would create
+    // duplicate edits for the same files, causing conflicts during apply.
+    let file_extensions = ["md", "markdown", "toml", "yaml", "yml"];
 
     // Pre-compute the files inside the directory being moved so we can
     // update references to specific files (e.g., docs/guide.md)

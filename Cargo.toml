@@ -20,7 +20,7 @@ members = [
     "crates/cb-lang-toml",
     "crates/cb-lang-yaml",
     "apps/codebuddy",
-    "integration-tests",
+    "tests",
     "crates/cb-bench",
     "crates/cb-test-support",
     "analysis/cb-analysis-common",

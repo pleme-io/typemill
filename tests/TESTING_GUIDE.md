@@ -391,7 +391,7 @@ If you see test failures about "server already running", it means the test is in
 ## Test Organization
 
 ```
-integration-tests/
+tests/
 ├── src/
 │   └── harness/           # Test infrastructure
 │       ├── test_fixtures.rs    # Language-specific test data

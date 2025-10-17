@@ -13,7 +13,7 @@ Reorganize the workspace to follow Rust ecosystem conventions and best practices
 
 **Current Issues:**
 - 20+ files in root directory (hard to navigate)
-- Non-standard directory names (`integration-tests/` vs Rust convention `tests/`)
+- Non-standard directory names (`tests/` vs Rust convention `tests/`)
 - Documentation scattered across root and `docs/`
 - Configuration files in multiple locations (`.config/`, `config/`, root)
 - Unclear where to add new files
@@ -28,12 +28,12 @@ Reorganize the workspace to follow Rust ecosystem conventions and best practices
 
 ### Phase 1: Structural Changes (High Priority)
 
-#### 1.1: Rename `integration-tests/` → `tests/`
+#### 1.1: Rename `tests/` → `tests/`
 
 **Rust Convention:** Integration tests belong in `tests/` at workspace level.
 
 ```bash
-mv integration-tests tests
+mv tests tests
 ```
 
 **Update references:**
@@ -42,14 +42,14 @@ mv integration-tests tests
 [workspace]
 members = [
     # ... other members
--   "integration-tests",
+-   "tests",
 +   "tests",
 ]
 ```
 
 **Files to update:**
 - `Cargo.toml` - workspace members
-- All `Cargo.toml` files that reference `integration-tests` in dev-dependencies
+- All `Cargo.toml` files that reference `tests` in dev-dependencies
 - CI/CD workflows (`.github/workflows/*.yml`)
 - Documentation references
 
@@ -298,7 +298,7 @@ EOF
 ├── config/ (empty)
 ├── crates/
 ├── docs/
-├── integration-tests/ ❌
+├── tests/ ❌
 ├── proposals/
 └── scripts/
 ```
@@ -324,7 +324,7 @@ EOF
 ├── examples/ (NEW) ✅
 ├── proposals/ (organized) ✅
 ├── scripts/ (contains install.sh) ✅
-└── tests/ (renamed from integration-tests) ✅
+└── tests/ (renamed from tests) ✅
 ```
 
 **Root files reduced: 24 → 12 (50% reduction)**
@@ -340,7 +340,7 @@ EOF
 - [ ] Verify CI passes
 
 ### Phase 1: Structure (can be done in parallel)
-- [ ] Rename `integration-tests/` → `tests/`
+- [ ] Rename `tests/` → `tests/`
 - [ ] Update `Cargo.toml` workspace members
 - [ ] Update all crate references in `Cargo.toml` files
 - [ ] Move root docs to `docs/` subdirectories
@@ -411,7 +411,7 @@ EOF
 **Pros:** No migration work
 **Cons:** Continues to violate Rust conventions, harder for new contributors
 
-### Alternative 2: Minimal changes only (just rename integration-tests)
+### Alternative 2: Minimal changes only (just rename tests)
 **Pros:** Less work, lower risk
 **Cons:** Doesn't address documentation clutter
 

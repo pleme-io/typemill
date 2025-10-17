@@ -9,13 +9,13 @@
 CodeBuddy's `rename.plan` tool currently updates only ~9% of references when renaming directories/files:
 - ✅ Updates Rust imports (`use` statements)
 - ✅ Updates `Cargo.toml` workspace members and dependencies
-- ❌ Misses string literals in code (`"integration-tests/path"`)
+- ❌ Misses string literals in code (`"tests/path"`)
 - ❌ Misses documentation files (.md files with 98+ references)
 - ❌ Misses config files (`.cargo/config.toml`, CI configs)
 - ❌ Misses examples directory
 - ❌ Misses `.gitignore` patterns
 
-Example: Renaming `integration-tests/` → `tests/` affects 113 references across 15 files, but only updates 5 files.
+Example: Renaming `tests/` → `tests/` affects 113 references across 15 files, but only updates 5 files.
 
 This forces manual find/replace for critical infrastructure files and extensive documentation, reducing confidence in the refactoring tool.
 
@@ -28,9 +28,9 @@ Extend rename/move detection to cover all functional references while avoiding f
 Detect and update path strings in Rust code:
 ```rust
 // Should be updated:
-let path = "integration-tests/fixtures";
-std::fs::read("integration-tests/test.rs");
-Command::new("cargo").arg("--manifest-path=integration-tests/Cargo.toml");
+let path = "tests/fixtures";
+std::fs::read("tests/test.rs");
+Command::new("cargo").arg("--manifest-path=tests/Cargo.toml");
 ```
 
 **Detection logic:**
@@ -43,14 +43,14 @@ Command::new("cargo").arg("--manifest-path=integration-tests/Cargo.toml");
 Update markdown files with smart path detection:
 ```markdown
 ✅ Update these (clear path references):
-- Code blocks: `integration-tests/src/main.rs`
-- Directory trees: `├── integration-tests/`
-- File paths: `/workspace/integration-tests/`
-- Links: `[guide](integration-tests/TESTING_GUIDE.md)`
+- Code blocks: `tests/src/main.rs`
+- Directory trees: `├── tests/`
+- File paths: `/workspace/tests/`
+- Links: `[guide](tests/TESTING_GUIDE.md)`
 
 ❌ Skip these (prose):
-- "We use integration-tests as a pattern"
-- "Other projects call them integration-tests"
+- "We use tests as a pattern"
+- "Other projects call them tests"
 ```
 
 **Detection logic:**
@@ -75,8 +75,8 @@ Treat `examples/` as first-class code - same rules as `src/`.
 
 Add opt-in support for updating comments:
 ```rust
-// TODO: Move integration-tests to new location <- Update
-// integration-tests pattern is standard <- Skip (prose)
+// TODO: Move tests to new location <- Update
+// tests pattern is standard <- Skip (prose)
 ```
 
 ## Checklists
@@ -106,7 +106,7 @@ Add opt-in support for updating comments:
 - [ ] Test config file updates (TOML, YAML)
 - [ ] Test `.gitignore` pattern updates
 - [ ] Test examples directory updates
-- [ ] Verify comprehensive coverage (integration-tests → tests scenario)
+- [ ] Verify comprehensive coverage (tests → tests scenario)
 - [ ] Document new configuration options in API reference
 - [ ] Add examples for different scope presets
 - [ ] Document path detection heuristics
@@ -114,7 +114,7 @@ Add opt-in support for updating comments:
 
 ## Success Criteria
 
-**Measured by test case: Rename `integration-tests/` → `tests/`**
+**Measured by test case: Rename `tests/` → `tests/`**
 
 Before: 5/15 files updated (33%)
 After: 14+/15 files updated (93%+)

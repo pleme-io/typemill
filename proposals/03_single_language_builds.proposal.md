@@ -166,7 +166,7 @@ Repeat for:
 - `cb-plugins/Cargo.toml`
 - `apps/codebuddy/Cargo.toml`
 - `cb-handlers/Cargo.toml`
-- `integration-tests/Cargo.toml`
+- `tests/Cargo.toml`
 
 Tie crate features together so enabling `lang-typescript` in the binary flips on the lower-level features automatically.
 
@@ -340,10 +340,10 @@ pub fn with_default_languages(mut self) -> Self {
 Mark integration tests with `cfg(feature = "...")`:
 
 ```rust
-// integration-tests/src/test_rust_features.rs
+// tests/src/test_rust_features.rs
 #![cfg(feature = "lang-rust")]
 
-// integration-tests/src/test_typescript_features.rs
+// tests/src/test_typescript_features.rs
 #![cfg(feature = "lang-typescript")]
 ```
 

@@ -753,7 +753,7 @@ codebuddy tool rename.plan '{
 codebuddy tool rename.plan '{
   "target": {
     "kind": "directory",
-    "path": "integration-tests"
+    "path": "tests"
   },
   "new_name": "tests",
   "options": {
@@ -817,9 +817,9 @@ To avoid false positives in prose text, CodeBuddy only updates strings that:
 - ✅ Appear in structured contexts (links, code blocks)
 
 **Examples:**
-- ✅ `"integration-tests/fixtures"` - Updated (contains `/`)
+- ✅ `"tests/fixtures"` - Updated (contains `/`)
 - ✅ `"config.toml"` - Updated (file extension)
-- ❌ `"We use integration-tests"` - Skipped (no `/`, no extension)
+- ❌ `"We use tests"` - Skipped (no `/`, no extension)
 
 **Returns:** A `RenamePlan` object.
 
@@ -834,7 +834,7 @@ Returns a `RefactorPlan` with:
 
 **Coverage Metrics:**
 
-For the rename `integration-tests/` → `tests/`:
+For the rename `tests/` → `tests/`:
 - **Before:** 33% coverage (5/15 files)
 - **After:** 93%+ coverage (14/15 files)
 

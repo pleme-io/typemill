@@ -24,7 +24,7 @@ The project underwent a complete architectural transformation from TypeScript/No
   - **Relative + absolute path matching** - handles both `"config/file.toml"` and `"/workspace/config/file.toml"`
   - **Plugin-based architecture** using language-specific plugins (Rust, Markdown, TOML, YAML)
   - **Atomic execution** with automatic rollback on any failure
-  - Verified 100% coverage: 9/9 files updated in comprehensive test scenario (integration-tests → tests rename)
+  - Verified 100% coverage: 9/9 files updated in comprehensive test scenario (tests → tests rename)
 
 - **Unified Refactoring API** - Complete implementation of `plan -> apply` refactoring pattern
   - New `*.plan` commands for safe, dry-run refactoring previews: `rename.plan`, `extract.plan`, `inline.plan`, `move.plan`, `reorder.plan`, `transform.plan`, `delete.plan`
