@@ -242,15 +242,28 @@ LSP-based navigation and code intelligence tools. Language support depends on co
 Example: You see `user.getName()` → takes you to `function getName() { ... }`
 
 **Parameters:**
-- `file_path`: File you're looking at
-- `line`: Line number (starts at 1)
-- `character`: Column position (starts at 0)
+```json
+{
+  "file_path": "src/app.ts",    // Required: File path
+  "line": 15,                   // Required: Line number (1-indexed)
+  "character": 8,               // Required: Column position (0-indexed)
+  "symbol_kind": "function"     // Optional: Symbol type hint
+}
+```
 
-**Returns:** Location(s) of the definition
-
-**Example:**
-```bash
-codebuddy tool find_definition '{"file_path":"src/app.ts","line":15,"character":8}'
+**Returns:**
+```json
+{
+  "definitions": [
+    {
+      "uri": "file:///path/to/file.ts",
+      "range": {
+        "start": {"line": 5, "character": 0},
+        "end": {"line": 10, "character": 1}
+      }
+    }
+  ]
+}
 ```
 
 ---
@@ -262,12 +275,32 @@ codebuddy tool find_definition '{"file_path":"src/app.ts","line":15,"character":
 Example: You wrote `sendEmail()` → shows all 47 places that call it.
 
 **Parameters:**
-- `file_path`: File path
-- `line`: Line number (starts at 1)
-- `character`: Column position (starts at 0)
-- `include_declaration` (optional): Include the definition location (default: true)
+```json
+{
+  "file_path": "src/utils.ts",          // Required: File path
+  "line": 5,                            // Required: Line number (1-indexed)
+  "character": 10,                      // Required: Column position (0-indexed)
+  "symbol_name": "sendEmail",           // Optional: Symbol name
+  "include_declaration": true,          // Optional: Include definition (default: true)
+  "symbol_kind": "function"             // Optional: Symbol type hint
+}
+```
 
-**Returns:** List of all references + total count
+**Returns:**
+```json
+{
+  "references": [
+    {
+      "uri": "file:///path/to/caller.ts",
+      "range": {
+        "start": {"line": 20, "character": 5},
+        "end": {"line": 20, "character": 15}
+      }
+    }
+  ],
+  "total": 47
+}
+```
 
 ---
 
@@ -278,10 +311,30 @@ Example: You wrote `sendEmail()` → shows all 47 places that call it.
 Example: Search "config" → finds `loadConfig()`, `ConfigManager`, `DEFAULT_CONFIG`, etc.
 
 **Parameters:**
-- `query`: What to search for (supports partial matches)
-- `workspace_path` (optional): Where to search (defaults to current directory)
+```json
+{
+  "query": "config",              // Required: Search query (partial matching)
+  "workspace_path": "/project"    // Optional: Workspace path (defaults to current)
+}
+```
 
-**Returns:** Matching symbols with their locations
+**Returns:**
+```json
+{
+  "symbols": [
+    {
+      "name": "loadConfig",
+      "kind": "Function",
+      "location": {
+        "uri": "file:///src/config.ts",
+        "range": {"start": {"line": 5, "character": 0}, "end": {"line": 20, "character": 1}}
+      },
+      "containerName": "config"
+    }
+  ],
+  "total": 5
+}
+```
 
 **Notes:**
 - Searches ALL configured language servers at once
@@ -331,11 +384,27 @@ Get hierarchical symbol structure for a file.
 Example: Hover over `Math.random()` → shows "Returns a random number between 0 and 1"
 
 **Parameters:**
-- `file_path`: File path
-- `line`: Line number (starts at 1)
-- `character`: Column position (starts at 0)
+```json
+{
+  "file_path": "src/utils.ts",    // Required: File path
+  "line": 10,                     // Required: Line number (1-indexed)
+  "character": 5                  // Required: Column position (0-indexed)
+}
+```
 
-**Returns:** Markdown documentation with type signatures and descriptions
+**Returns:**
+```json
+{
+  "contents": {
+    "kind": "markdown",
+    "value": "```typescript\nfunction formatDate(date: Date): string\n```\nFormats a date as YYYY-MM-DD"
+  },
+  "range": {
+    "start": {"line": 10, "character": 5},
+    "end": {"line": 10, "character": 15}
+  }
+}
+```
 
 ---
 
@@ -346,12 +415,34 @@ Example: Hover over `Math.random()` → shows "Returns a random number between 0
 Example: Type `user.` → suggests `name`, `email`, `id`, `toString()`, etc.
 
 **Parameters:**
-- `file_path`: File path
-- `line`: Line number (starts at 1)
-- `character`: Column position (starts at 0)
-- `trigger_character` (optional): What triggered completion (`.`, `:`, `>`)
+```json
+{
+  "file_path": "src/app.ts",       // Required: File path
+  "line": 15,                      // Required: Line number (1-indexed)
+  "character": 10,                 // Required: Column position (0-indexed)
+  "trigger_character": "."         // Optional: Trigger character (., :, >)
+}
+```
 
-**Returns:** List of suggestions with types and documentation
+**Returns:**
+```json
+{
+  "items": [
+    {
+      "label": "name",
+      "kind": "Property",
+      "detail": "string",
+      "documentation": "User's full name"
+    },
+    {
+      "label": "toString",
+      "kind": "Method",
+      "detail": "(): string"
+    }
+  ],
+  "isIncomplete": false
+}
+```
 
 ---
 
@@ -362,12 +453,32 @@ Example: Type `user.` → suggests `name`, `email`, `id`, `toString()`, etc.
 Example: Type `formatDate(` → shows `formatDate(date: Date, format?: string): string`
 
 **Parameters:**
-- `file_path`: File path
-- `line`: Line number (starts at 1)
-- `character`: Column position (starts at 0)
-- `trigger_character` (optional): What triggered help (`(`, `,`)
+```json
+{
+  "file_path": "src/app.ts",       // Required: File path
+  "line": 20,                      // Required: Line number (1-indexed)
+  "character": 15,                 // Required: Column position (0-indexed)
+  "trigger_character": "("         // Optional: Trigger character ((, ,)
+}
+```
 
-**Returns:** Function signatures with parameter details
+**Returns:**
+```json
+{
+  "signatures": [
+    {
+      "label": "formatDate(date: Date, format?: string): string",
+      "documentation": "Formats a date with optional format string",
+      "parameters": [
+        {"label": "date", "documentation": "Date to format"},
+        {"label": "format", "documentation": "Format string (optional)"}
+      ]
+    }
+  ],
+  "activeSignature": 0,
+  "activeParameter": 0
+}
+```
 
 ---
 
@@ -378,9 +489,27 @@ Example: Type `formatDate(` → shows `formatDate(date: Date, format?: string): 
 Example: Shows "Variable 'username' is never used", "Missing semicolon on line 42", etc.
 
 **Parameters:**
-- `file_path`: File to check
+```json
+{
+  "file_path": "src/app.ts"    // Required: File to check
+}
+```
 
-**Returns:** List of problems with severity, message, and location + total count
+**Returns:**
+```json
+{
+  "diagnostics": [
+    {
+      "range": {"start": {"line": 10, "character": 5}, "end": {"line": 10, "character": 10}},
+      "severity": "Error",
+      "message": "Cannot find name 'foo'",
+      "code": 2304,
+      "source": "typescript"
+    }
+  ],
+  "total": 3
+}
+```
 
 ---
 
@@ -389,11 +518,26 @@ Example: Shows "Variable 'username' is never used", "Missing semicolon on line 4
 **What it does:** Prepare to explore what calls a function and what it calls (step 1 of 3).
 
 **Parameters:**
-- `file_path`: File path
-- `line`: Line number (starts at 1)
-- `character`: Column position (starts at 0)
+```json
+{
+  "file_path": "src/utils.ts",    // Required: File path
+  "line": 10,                     // Required: Line number (1-indexed)
+  "character": 5                  // Required: Column position (0-indexed)
+}
+```
 
-**Returns:** Call hierarchy item (use with incoming/outgoing tools below)
+**Returns:**
+```json
+{
+  "item": {
+    "name": "processData",
+    "kind": "Function",
+    "uri": "file:///src/utils.ts",
+    "range": {"start": {"line": 10, "character": 0}, "end": {"line": 20, "character": 1}},
+    "selectionRange": {"start": {"line": 10, "character": 9}, "end": {"line": 10, "character": 20}}
+  }
+}
+```
 
 ---
 
@@ -404,9 +548,34 @@ Example: Shows "Variable 'username' is never used", "Missing semicolon on line 4
 Example: `saveUser()` is called by `registerUser()`, `updateProfile()`
 
 **Parameters:**
-- `item`: Call hierarchy item from `prepare_call_hierarchy`
+```json
+{
+  "item": {
+    // Call hierarchy item from prepare_call_hierarchy
+    "name": "processData",
+    "kind": "Function",
+    "uri": "file:///src/utils.ts"
+  }
+}
+```
 
-**Returns:** List of functions that call this function
+**Returns:**
+```json
+{
+  "calls": [
+    {
+      "from": {
+        "name": "handleSubmit",
+        "kind": "Function",
+        "uri": "file:///src/app.ts"
+      },
+      "fromRanges": [
+        {"start": {"line": 50, "character": 10}, "end": {"line": 50, "character": 21}}
+      ]
+    }
+  ]
+}
+```
 
 ---
 
@@ -417,9 +586,31 @@ Example: `saveUser()` is called by `registerUser()`, `updateProfile()`
 Example: `saveUser()` calls `validateUser()`, `writeDatabase()`, `sendEmail()`
 
 **Parameters:**
-- `item`: Call hierarchy item from `prepare_call_hierarchy`
+```json
+{
+  "item": {
+    // Call hierarchy item from prepare_call_hierarchy
+  }
+}
+```
 
-**Returns:** List of functions called by this function
+**Returns:**
+```json
+{
+  "calls": [
+    {
+      "to": {
+        "name": "validateData",
+        "kind": "Function",
+        "uri": "file:///src/validation.ts"
+      },
+      "fromRanges": [
+        {"start": {"line": 15, "character": 5}, "end": {"line": 15, "character": 17}}
+      ]
+    }
+  ]
+}
+```
 
 ---
 
@@ -430,11 +621,29 @@ Example: `saveUser()` calls `validateUser()`, `writeDatabase()`, `sendEmail()`
 Example: Interface `Drawable` → finds classes `Circle`, `Square`, `Triangle` that implement it.
 
 **Parameters:**
-- `file_path`: File path
-- `line`: Line number (starts at 1)
-- `character`: Column position (starts at 0)
+```json
+{
+  "file_path": "src/interfaces.ts",    // Required: File path
+  "line": 5,                           // Required: Line number (1-indexed)
+  "character": 10                      // Required: Column position (0-indexed)
+}
+```
 
-**Returns:** List of implementation locations
+**Returns:**
+```json
+{
+  "implementations": [
+    {
+      "uri": "file:///src/shapes/circle.ts",
+      "range": {"start": {"line": 10, "character": 0}, "end": {"line": 30, "character": 1}}
+    },
+    {
+      "uri": "file:///src/shapes/square.ts",
+      "range": {"start": {"line": 5, "character": 0}, "end": {"line": 25, "character": 1}}
+    }
+  ]
+}
+```
 
 ---
 
@@ -445,11 +654,25 @@ Example: Interface `Drawable` → finds classes `Circle`, `Square`, `Triangle` t
 Example: Variable `user: User` → takes you to `interface User { name: string; email: string; }`
 
 **Parameters:**
-- `file_path`: File path
-- `line`: Line number (starts at 1)
-- `character`: Column position (starts at 0)
+```json
+{
+  "file_path": "src/app.ts",    // Required: File path
+  "line": 15,                   // Required: Line number (1-indexed)
+  "character": 8                // Required: Column position (0-indexed)
+}
+```
 
-**Returns:** Location(s) of the type definition
+**Returns:**
+```json
+{
+  "definitions": [
+    {
+      "uri": "file:///src/types.ts",
+      "range": {"start": {"line": 5, "character": 0}, "end": {"line": 10, "character": 1}}
+    }
+  ]
+}
+```
 
 ---
 
