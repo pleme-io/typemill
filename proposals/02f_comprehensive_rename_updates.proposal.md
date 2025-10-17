@@ -84,32 +84,32 @@ Add opt-in support for updating comments:
 - [ ] Add string literal detection to Rust AST parser
 - [ ] Update string literals in code files during rename operations
 - [ ] Include `examples/` directory in code scanning
-- [ ] Add markdown parser for structured path detection
-- [ ] Implement path vs prose heuristics (contains `/`, extensions)
-- [ ] Add config file parsers (TOML, YAML, Makefile)
+- [x] Add markdown parser for structured path detection
+- [x] Implement path vs prose heuristics (contains `/`, extensions)
+- [x] Add config file parsers (TOML, YAML, Makefile)
 - [ ] Update `.gitignore` pattern matching
-- [ ] Categorize changes by type (imports, strings, docs, configs)
-- [ ] Show summary with counts per category
-- [ ] Add human-readable change descriptions
+- [x] Categorize changes by type (imports, strings, docs, configs)
+- [x] Show summary with counts per category
+- [x] Add human-readable change descriptions
 - [ ] Highlight potential false positives for review
-- [ ] Add `update_code` option (imports + string literals)
-- [ ] Add `update_examples` option
-- [ ] Add `update_docs` option (markdown files)
-- [ ] Add `update_configs` option (TOML, YAML, Makefile)
-- [ ] Add `update_comments` option (opt-in)
+- [x] Add `update_code` option (imports + string literals)
+- [x] Add `update_examples` option
+- [x] Add `update_docs` option (markdown files)
+- [x] Add `update_configs` option (TOML, YAML, Makefile)
+- [x] Add `update_comments` option (opt-in)
 - [ ] Add `update_gitignore` option
-- [ ] Add `exclude` patterns for custom filtering
-- [ ] Add `scope` presets (code-only, all, custom)
+- [x] Add `exclude` patterns for custom filtering
+- [x] Add `scope` presets (code-only, all, custom)
 - [ ] Test string literal updates in Rust code
-- [ ] Test markdown path detection accuracy
-- [ ] Test false positive avoidance (prose vs paths)
-- [ ] Test config file updates (TOML, YAML)
+- [x] Test markdown path detection accuracy
+- [x] Test false positive avoidance (prose vs paths)
+- [x] Test config file updates (TOML, YAML)
 - [ ] Test `.gitignore` pattern updates
 - [ ] Test examples directory updates
-- [ ] Verify comprehensive coverage (tests → tests scenario)
+- [x] Verify comprehensive coverage (integration-tests → tests scenario)
 - [ ] Document new configuration options in API reference
 - [ ] Add examples for different scope presets
-- [ ] Document path detection heuristics
+- [x] Document path detection heuristics
 - [ ] Add troubleshooting guide for false positives/negatives
 
 ## Success Criteria
