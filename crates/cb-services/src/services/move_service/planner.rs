@@ -88,13 +88,9 @@ pub async fn plan_directory_move(
         None
     };
 
-    // If this is a cargo package, force workspace-wide import scan
-    let effective_scan_scope = if is_cargo_pkg {
-        info!("Cargo package detected, forcing workspace-wide import scan");
-        Some(ScanScope::AllUseStatements)
-    } else {
-        scan_scope
-    };
+    // Pass through the scan scope - don't override it
+    // The caller (via RenameScope) determines whether to scan for string literals
+    let effective_scan_scope = scan_scope;
 
     // Call reference updater to find all affected imports
     let mut edit_plan = reference_updater
@@ -267,11 +263,10 @@ async fn plan_documentation_and_config_edits(
     let mut edits = Vec::new();
     let mut files_to_scan: Vec<PathBuf> = Vec::new();
 
-    // Find all markdown, TOML, and YAML files in the project
-    // Note: Rust files (.rs) are NOT included here because they're already handled
-    // by the reference_updater's import analysis. Including them would create
-    // duplicate edits for the same files, causing conflicts during apply.
-    let file_extensions = ["md", "markdown", "toml", "yaml", "yml"];
+    // Find all markdown, TOML, YAML, and code files in the project
+    // Note: Rust files (.rs) ARE included here for string literal updates.
+    // The reference_updater handles imports, but string literals are handled here.
+    let file_extensions = ["md", "markdown", "toml", "yaml", "yml", "rs"];
 
     // Pre-compute the files inside the directory being moved so we can
     // update references to specific files (e.g., docs/guide.md)

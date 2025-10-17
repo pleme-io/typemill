@@ -81,9 +81,9 @@ Add opt-in support for updating comments:
 
 ## Checklists
 
-- [ ] Add string literal detection to Rust AST parser
-- [ ] Update string literals in code files during rename operations
-- [ ] Include `examples/` directory in code scanning
+- [x] Add string literal detection to Rust AST parser
+- [x] Update string literals in code files during rename operations
+- [x] Include `examples/` directory in code scanning
 - [x] Add markdown parser for structured path detection
 - [x] Implement path vs prose heuristics (contains `/`, extensions)
 - [x] Add config file parsers (TOML, YAML, Makefile)
@@ -100,12 +100,12 @@ Add opt-in support for updating comments:
 - [ ] Add `update_gitignore` option
 - [x] Add `exclude` patterns for custom filtering
 - [x] Add `scope` presets (code-only, all, custom)
-- [ ] Test string literal updates in Rust code
+- [x] Test string literal updates in Rust code
 - [x] Test markdown path detection accuracy
 - [x] Test false positive avoidance (prose vs paths)
 - [x] Test config file updates (TOML, YAML)
 - [ ] Test `.gitignore` pattern updates
-- [ ] Test examples directory updates
+- [x] Test examples directory updates
 - [x] Verify comprehensive coverage (integration-tests → tests scenario)
 - [ ] Document new configuration options in API reference
 - [ ] Add examples for different scope presets

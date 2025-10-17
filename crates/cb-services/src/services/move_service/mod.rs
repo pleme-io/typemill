@@ -148,9 +148,18 @@ impl<'a> MoveService<'a> {
         new_path: &Path,
         rename_scope: Option<&cb_core::rename_scope::RenameScope>,
     ) -> ServerResult<EditPlan> {
-        // Use AllUseStatements as the default ScanScope
-        // RenameScope will filter which files get processed
-        let scan_scope = Some(ScanScope::AllUseStatements);
+        // Choose ScanScope based on RenameScope settings
+        // Use ScanScope::All if string literals should be updated
+        let scan_scope = if let Some(scope) = rename_scope {
+            if scope.update_string_literals || scope.update_comments {
+                Some(ScanScope::All)
+            } else {
+                Some(ScanScope::AllUseStatements)
+            }
+        } else {
+            // Default: comprehensive scanning
+            Some(ScanScope::All)
+        };
 
         let mut edit_plan = self.plan_file_move(old_path, new_path, scan_scope).await?;
 
@@ -177,9 +186,18 @@ impl<'a> MoveService<'a> {
         new_path: &Path,
         rename_scope: Option<&cb_core::rename_scope::RenameScope>,
     ) -> ServerResult<EditPlan> {
-        // Use AllUseStatements as the default ScanScope
-        // RenameScope will filter which files get processed
-        let scan_scope = Some(ScanScope::AllUseStatements);
+        // Choose ScanScope based on RenameScope settings
+        // Use ScanScope::All if string literals should be updated
+        let scan_scope = if let Some(scope) = rename_scope {
+            if scope.update_string_literals || scope.update_comments {
+                Some(ScanScope::All)
+            } else {
+                Some(ScanScope::AllUseStatements)
+            }
+        } else {
+            // Default: comprehensive scanning
+            Some(ScanScope::All)
+        };
 
         let mut edit_plan = self.plan_directory_move(old_path, new_path, scan_scope).await?;
 
