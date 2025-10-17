@@ -27,7 +27,7 @@ pub async fn plan_file_move(
         .update_references(
             old_abs,
             new_abs,
-            &plugin_registry.all(),
+            plugin_registry.all(),
             None, // No rename_info for simple file moves
             true, // dry_run = true
             scan_scope,
@@ -97,7 +97,7 @@ pub async fn plan_directory_move(
         .update_references(
             old_abs,
             new_abs,
-            &plugin_registry.all(),
+            plugin_registry.all(),
             rename_info.as_ref(),
             true, // dry_run = true
             effective_scan_scope,

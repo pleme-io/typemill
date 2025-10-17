@@ -1,3 +1,5 @@
+#![allow(dead_code, unused_variables)]
+
 //! Test analysis handler
 //!
 //! This module provides detection for test-related patterns including:
@@ -12,9 +14,9 @@
 use super::super::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
-use cb_plugin_api::{Symbol, SymbolKind};
+use cb_plugin_api::Symbol;
 use cb_protocol::analysis_result::{
-    Finding, FindingLocation, Position, Range, SafetyLevel, Severity, Suggestion,
+    Finding, FindingLocation, SafetyLevel, Severity, Suggestion,
 };
 use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use regex::Regex;
@@ -664,18 +666,16 @@ pub fn detect_organization(
                 organization_score * 100.0
             )
         }
+    } else if !has_corresponding_file {
+        format!(
+            "Test file organization: Production file with no corresponding test file (score: {:.1}%)",
+            organization_score * 100.0
+        )
     } else {
-        if !has_corresponding_file {
-            format!(
-                "Test file organization: Production file with no corresponding test file (score: {:.1}%)",
-                organization_score * 100.0
-            )
-        } else {
-            format!(
-                "Test file organization: Production file with tests (score: {:.1}%)",
-                organization_score * 100.0
-            )
-        }
+        format!(
+            "Test file organization: Production file with tests (score: {:.1}%)",
+            organization_score * 100.0
+        )
     };
 
     let mut suggestions = Vec::new();

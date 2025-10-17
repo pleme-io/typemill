@@ -36,6 +36,7 @@ pub struct RenameScope {
     /// - Inline code: `integration-tests/src/`
     /// - Code blocks containing paths
     /// - Plain text paths in tables/directory trees
+    ///
     /// WARNING: May update code examples. Review changes carefully.
     #[serde(default)]
     pub update_markdown_prose: bool,

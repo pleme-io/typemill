@@ -888,7 +888,7 @@ impl LspClient {
     /// 4. Waits up to 5 seconds for the process to exit
     ///
     /// Consumes self to prevent further use after shutdown.
-    pub async fn shutdown(mut self) -> ServerResult<()> {
+    pub async fn shutdown(self) -> ServerResult<()> {
         let pid = {
             let process = self.process.lock().await;
             process.id()

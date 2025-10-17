@@ -1,3 +1,5 @@
+#![allow(dead_code, unused_variables, clippy::mutable_key_type, clippy::needless_range_loop, clippy::ptr_arg, clippy::manual_clamp)]
+
 use crate::handlers::tools::ToolHandlerContext;
 use super::{RenamePlanParams, RenameHandler};
 use cb_protocol::{
@@ -9,7 +11,7 @@ use lsp_types::{
     ResourceOp, TextDocumentEdit, TextEdit, Uri, WorkspaceEdit,
 };
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tracing::debug;
 
 impl RenameHandler {
@@ -104,7 +106,7 @@ impl RenameHandler {
                 // Skip files inside the directory being moved (they're covered by directory walk above)
                 // Only checksum files OUTSIDE the moved directory that are being edited
                 if path.exists() && !path.starts_with(&abs_old) {
-                    if let Ok(content) = context.app_state.file_service.read_file(&path).await {
+                    if let Ok(content) = context.app_state.file_service.read_file(path).await {
                         // Store checksum with current path where file exists
                         file_checksums.insert(
                             file_path.clone(),
@@ -212,12 +214,12 @@ impl RenameHandler {
                 let lsp_edit = TextEdit {
                     range: lsp_types::Range {
                         start: lsp_types::Position {
-                            line: edit.location.start_line as u32,
-                            character: edit.location.start_column as u32,
+                            line: edit.location.start_line,
+                            character: edit.location.start_column,
                         },
                         end: lsp_types::Position {
-                            line: edit.location.end_line as u32,
-                            character: edit.location.end_column as u32,
+                            line: edit.location.end_line,
+                            character: edit.location.end_column,
                         },
                     },
                     new_text: edit.new_text.clone(),

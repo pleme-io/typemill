@@ -149,7 +149,7 @@ pub async fn run_batch_analysis(
     let mut all_categories = HashSet::new();
 
     for query in &request.queries {
-        let category = query.command.split('.').last().unwrap_or("").to_string();
+        let category = query.command.split('.').next_back().unwrap_or("").to_string();
         if category.is_empty() {
             warn!(command = %query.command, "Skipping query with invalid command format");
             continue;
@@ -187,9 +187,7 @@ pub async fn run_batch_analysis(
                 files_analyzed_in_query += 1;
             } else {
                 let file_path_str = file_path.display().to_string();
-                if !failed_files_map.contains_key(&file_path_str) {
-                    failed_files_map.insert(file_path_str, "File failed to parse".to_string());
-                }
+                failed_files_map.entry(file_path_str).or_insert_with(|| "File failed to parse".to_string());
             }
         }
 
@@ -282,15 +280,13 @@ async fn resolve_scope_to_files(scope: &QueryScope) -> Result<Vec<PathBuf>, Batc
                 .build()
                 .map_err(|e| BatchError::InvalidScope(e.to_string()))?;
 
-            for result in walker {
-                if let Ok(entry) = result {
-                    if entry.file_type().map_or(false, |ft| ft.is_file()) {
-                        let path = entry.path();
-                        if !exclude_set.is_match(path)
-                            && (include_set.is_empty() || include_set.is_match(path))
-                        {
-                            files.push(path.to_path_buf());
-                        }
+            for entry in walker.flatten() {
+                if entry.file_type().is_some_and(|ft| ft.is_file()) {
+                    let path = entry.path();
+                    if !exclude_set.is_match(path)
+                        && (include_set.is_empty() || include_set.is_match(path))
+                    {
+                        files.push(path.to_path_buf());
                     }
                 }
             }

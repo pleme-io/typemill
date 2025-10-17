@@ -136,7 +136,7 @@ impl FileService {
 
             // Use MoveService for planning (includes all import update logic)
             let edit_plan = self.move_service()
-                .plan_file_move(&old_abs, &new_abs, scan_scope.clone())
+                .plan_file_move(&old_abs, &new_abs, scan_scope)
                 .await?;
 
             Ok(DryRunnable::new(

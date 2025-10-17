@@ -7,7 +7,6 @@
 //
 // Used by: analyze.quality (workspace scope), analyze.dependencies, analyze.dead_code
 
-use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use std::path::{Path, PathBuf};
 
 /// Filter files by supported language extensions

@@ -139,13 +139,7 @@ pub(crate) async fn build_import_update_plan(
                             rust_plugin
                                 .find_module_references(&content, module_name, scope)
                                 .ok()
-                        } else if let Some(ts_plugin) =
-                            plugin.as_any().downcast_ref::<TypeScriptPlugin>()
-                        {
-                            Some(ts_plugin.find_module_references(&content, module_name, scope))
-                        } else {
-                            None
-                        };
+                        } else { plugin.as_any().downcast_ref::<TypeScriptPlugin>().map(|ts_plugin| ts_plugin.find_module_references(&content, module_name, scope)) };
 
                     if let Some(refs) = refs_opt {
                         if !refs.is_empty() {
@@ -257,11 +251,7 @@ pub(crate) async fn build_import_update_plan(
                 rust_plugin
                     .find_module_references(&content, old_module_name, scope)
                     .ok()
-            } else if let Some(ts_plugin) = plugin.as_any().downcast_ref::<TypeScriptPlugin>() {
-                Some(ts_plugin.find_module_references(&content, old_module_name, scope))
-            } else {
-                None
-            };
+            } else { plugin.as_any().downcast_ref::<TypeScriptPlugin>().map(|ts_plugin| ts_plugin.find_module_references(&content, old_module_name, scope)) };
 
             if let Some(refs) = refs_opt {
                 if !refs.is_empty() {

@@ -25,7 +25,6 @@ pub fn detect_language(file_path: &str) -> &str {
 }
 
 /// Helper functions
-
 pub fn extract_range_text(source: &str, range: &CodeRange) -> AstResult<String> {
     let lines: Vec<&str> = source.lines().collect();
 

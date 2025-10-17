@@ -1,3 +1,5 @@
+#![allow(dead_code, unused_variables, clippy::mutable_key_type, clippy::needless_range_loop, clippy::ptr_arg, clippy::manual_clamp)]
+
 use crate::handlers::tools::ToolHandlerContext;
 use super::{RenamePlanParams, RenameHandler};
 use cb_protocol::{
@@ -140,12 +142,12 @@ impl RenameHandler {
                 let lsp_edit = TextEdit {
                     range: lsp_types::Range {
                         start: lsp_types::Position {
-                            line: edit.location.start_line as u32,
-                            character: edit.location.start_column as u32,
+                            line: edit.location.start_line,
+                            character: edit.location.start_column,
                         },
                         end: lsp_types::Position {
-                            line: edit.location.end_line as u32,
-                            character: edit.location.end_column as u32,
+                            line: edit.location.end_line,
+                            character: edit.location.end_column,
                         },
                     },
                     new_text: edit.new_text.clone(),

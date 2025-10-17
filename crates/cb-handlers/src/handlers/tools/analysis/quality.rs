@@ -1,3 +1,5 @@
+#![allow(dead_code, unused_variables)]
+
 use super::super::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
@@ -99,7 +101,7 @@ impl QualityHandler {
         scope_param: &super::engine::ScopeParam,
     ) -> ServerResult<Value> {
         use super::helpers::{filter_analyzable_files, AggregateStats};
-        use std::path::PathBuf;
+        
 
         let start_time = Instant::now();
 
@@ -177,7 +179,7 @@ impl QualityHandler {
                 &file_path.to_string_lossy(),
                 &content,
                 &parsed.symbols,
-                &language,
+                language,
             );
 
             // Aggregate
@@ -1244,7 +1246,7 @@ impl ToolHandler for QualityHandler {
                     &file_path,
                     &content,
                     &parsed.symbols,
-                    &language,
+                    language,
                 );
 
                 // Build scope for result

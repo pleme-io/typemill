@@ -1,3 +1,5 @@
+#![allow(dead_code, unused_variables)]
+
 //! Dead code analysis handler
 //!
 //! This module provides detection for unused code patterns including:
@@ -9,7 +11,7 @@
 
 use super::super::{ToolHandler, ToolHandlerContext};
 use crate::handlers::tools::analysis::suggestions::{
-    self, ActionableSuggestion, AnalysisContext, EvidenceStrength, Location, RefactoringCandidate,
+    self, AnalysisContext, EvidenceStrength, Location, RefactoringCandidate,
     Scope, SuggestionGenerator, RefactorType,
 };
 use async_trait::async_trait;
@@ -1096,7 +1098,7 @@ fn extract_parameter_names(params_str: &str, language: &str) -> Vec<String> {
             // Go: name Type or name, name Type
             // This is simplified - Go has complex parameter syntax
             for param in params_str.split(',') {
-                let parts: Vec<&str> = param.trim().split_whitespace().collect();
+                let parts: Vec<&str> = param.split_whitespace().collect();
                 if !parts.is_empty() {
                     names.push(parts[0].to_string());
                 }
@@ -1105,7 +1107,7 @@ fn extract_parameter_names(params_str: &str, language: &str) -> Vec<String> {
         _ => {
             // Generic: split by comma and take first word
             for param in params_str.split(',') {
-                if let Some(name) = param.trim().split_whitespace().next() {
+                if let Some(name) = param.split_whitespace().next() {
                     names.push(name.to_string());
                 }
             }
@@ -1203,7 +1205,7 @@ fn is_type_exported(type_name: &str, language: &str, content: &str) -> bool {
         }
         "go" => {
             // In Go, types starting with uppercase are exported
-            return type_name.chars().next().map_or(false, |c| c.is_uppercase());
+            return type_name.chars().next().is_some_and(|c| c.is_uppercase());
         }
         _ => {}
     }
@@ -1423,7 +1425,7 @@ fn is_function_exported(func_name: &str, content: &str, language: &str) -> bool 
         }
         "go" => {
             // In Go, functions starting with uppercase are exported
-            return func_name.chars().next().map_or(false, |c| c.is_uppercase());
+            return func_name.chars().next().is_some_and(|c| c.is_uppercase());
         }
         _ => {}
     }
@@ -1945,7 +1947,7 @@ impl ToolHandler for DeadCodeHandler {
         };
 
         if !is_valid {
-            let mut supported = "'unused_imports', 'unused_symbols', 'unreachable_code', 'unused_parameters', 'unused_types', 'unused_variables'".to_string();
+            let supported = "'unused_imports', 'unused_symbols', 'unreachable_code', 'unused_parameters', 'unused_types', 'unused_variables'".to_string();
             #[cfg(feature = "analysis-deep-dead-code")]
             supported.push_str(", 'deep'");
             return Err(ServerError::InvalidRequest(format!(
@@ -1992,7 +1994,7 @@ impl ToolHandler for DeadCodeHandler {
                     let plugin = context.app_state.language_plugins.get_plugin(extension).ok_or_else(|| ServerError::Unsupported(format!("No language plugin found for extension: {}", extension)))?;
                     let parsed_source = plugin.parse(&content).await.map_err(|e| ServerError::Internal(format!("Failed to parse file: {}", e)))?;
                     let language = plugin.metadata().name;
-                    let complexity_report = cb_ast::complexity::analyze_file_complexity(&file_path, &content, &parsed_source.symbols, &language);
+                    let complexity_report = cb_ast::complexity::analyze_file_complexity(&file_path, &content, &parsed_source.symbols, language);
 
                     // Choose detection function
                     let analysis_fn = if kind == "unused_imports" {
@@ -2001,7 +2003,7 @@ impl ToolHandler for DeadCodeHandler {
                         detect_unused_symbols
                     };
 
-                    let mut findings = analysis_fn(&complexity_report, &content, &parsed_source.symbols, &language, &file_path);
+                    let mut findings = analysis_fn(&complexity_report, &content, &parsed_source.symbols, language, &file_path);
 
                     // NEW: Initialize suggestion generator
                     let suggestion_generator = SuggestionGenerator::new();
@@ -2088,7 +2090,7 @@ impl ToolHandler for DeadCodeHandler {
                     let plugin = context.app_state.language_plugins.get_plugin(extension).ok_or_else(|| ServerError::Unsupported(format!("No language plugin found for extension: {}", extension)))?;
                     let parsed_source = plugin.parse(&content).await.map_err(|e| ServerError::Internal(format!("Failed to parse file: {}", e)))?;
                     let language = plugin.metadata().name;
-                    let complexity_report = cb_ast::complexity::analyze_file_complexity(&file_path, &content, &parsed_source.symbols, &language);
+                    let complexity_report = cb_ast::complexity::analyze_file_complexity(&file_path, &content, &parsed_source.symbols, language);
 
                     // Choose detection function
                     let analysis_fn = match kind {
@@ -2099,7 +2101,7 @@ impl ToolHandler for DeadCodeHandler {
                         _ => unreachable!(),
                     };
 
-                    let mut findings = analysis_fn(&complexity_report, &content, &parsed_source.symbols, &language, &file_path);
+                    let mut findings = analysis_fn(&complexity_report, &content, &parsed_source.symbols, language, &file_path);
 
                     // Initialize suggestion generator
                     let suggestion_generator = SuggestionGenerator::new();

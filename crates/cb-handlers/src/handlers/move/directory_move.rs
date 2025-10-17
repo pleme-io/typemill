@@ -3,7 +3,7 @@
 //! Handles directory move operations with recursive file updates.
 //! Uses MoveService for unified planning logic with Cargo package support.
 
-use cb_protocol::{refactor_plan::MovePlan, ApiError as ServerError, ApiResult as ServerResult};
+use cb_protocol::{refactor_plan::MovePlan, ApiResult as ServerResult};
 use std::path::Path;
 use tracing::{debug, error, info};
 

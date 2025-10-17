@@ -40,6 +40,7 @@ pub static ZOMBIE_REAPER: Lazy<ZombieReaper> = Lazy::new(|| {
 /// Zombie reaper that monitors and cleans up child processes
 pub struct ZombieReaper {
     sender: Sender<ReaperMessage>,
+    #[cfg_attr(not(test), allow(dead_code))]
     pids: Arc<Mutex<HashSet<i32>>>,
 }
 

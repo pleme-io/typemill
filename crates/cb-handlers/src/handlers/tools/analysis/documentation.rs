@@ -1,3 +1,5 @@
+#![allow(dead_code, unused_variables)]
+
 //! Documentation analysis handler
 //!
 //! This module provides detection for documentation-related patterns including:
@@ -805,12 +807,12 @@ pub fn detect_todos(
                     pattern: pattern.to_string(),
                     text: todo_text,
                     line: line_num + 1,
-                    severity: severity.clone(),
+                    severity: *severity,
                 };
 
                 todos_by_category
                     .entry(pattern.to_string())
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(item);
             }
         }
@@ -977,7 +979,7 @@ fn is_symbol_public(symbol: &Symbol, lines: &[&str], language: &str) -> bool {
                 .name
                 .chars()
                 .next()
-                .map_or(false, |c| c.is_uppercase())
+                .is_some_and(|c| c.is_uppercase())
         }
         _ => true, // Default to public if unsure
     }

@@ -161,7 +161,7 @@ impl RenameHandler {
 
         // Extract file paths from WorkspaceEdit
         if let Some(ref changes) = edit.changes {
-            for (uri, _edits) in changes {
+            for uri in changes.keys() {
                 let path = std::path::PathBuf::from(
                     urlencoding::decode(uri.path().as_str())
                         .map_err(|_| ServerError::Internal("Invalid URI path".to_string()))?

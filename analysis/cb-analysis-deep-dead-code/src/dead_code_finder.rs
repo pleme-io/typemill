@@ -71,7 +71,7 @@ impl<'a> DeadCodeFinder<'a> {
         );
 
         let mut dead_symbols = Vec::new();
-        for (_id, &node_index) in &self.graph.node_map {
+        for &node_index in self.graph.node_map.values() {
             if !live_symbols.contains(&node_index) {
                 dead_symbols.push(self.graph.graph[node_index].clone());
             }

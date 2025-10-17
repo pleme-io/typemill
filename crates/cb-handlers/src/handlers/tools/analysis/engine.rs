@@ -321,7 +321,7 @@ pub async fn run_analysis_with_config(
         &file_path,
         &content,
         &parsed.symbols,
-        &language,
+        language,
     );
 
     debug!(
@@ -344,7 +344,7 @@ pub async fn run_analysis_with_config(
         &complexity_report,
         &content,
         &parsed.symbols,
-        &language,
+        language,
         &file_path,
     );
 

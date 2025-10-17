@@ -23,6 +23,7 @@ pub struct ReferenceUpdater {
     project_root: PathBuf,
     /// Cache of file import information for performance
     /// Maps file path -> (imports, last_modified_time)
+    #[allow(dead_code)]
     pub(crate) import_cache: Arc<Mutex<HashMap<PathBuf, FileImportInfo>>>,
 }
 
@@ -97,7 +98,7 @@ impl ReferenceUpdater {
                     all_affected.insert(importer.clone());
                     importer_to_imported_files
                         .entry(importer)
-                        .or_insert_with(HashSet::new)
+                        .or_default()
                         .insert(((*file_in_dir).clone(), new_file_path.clone()));
                 }
             }

@@ -1,3 +1,5 @@
+#![allow(dead_code, unused_variables)]
+
 //! Dependency analysis handler
 //!
 //! This module provides detection for dependency-related patterns including:
@@ -1014,7 +1016,7 @@ fn build_dependency_map(content: &str, language: &str) -> HashMap<String, usize>
 /// A string representing the module name
 fn extract_module_name(file_path: &str) -> String {
     // Extract file name without extension
-    if let Some(file_name) = file_path.split('/').last() {
+    if let Some(file_name) = file_path.split('/').next_back() {
         if let Some(name_without_ext) = file_name.split('.').next() {
             return name_without_ext.to_string();
         }

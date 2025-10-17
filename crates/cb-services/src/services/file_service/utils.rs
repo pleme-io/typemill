@@ -128,6 +128,7 @@ impl FileService {
     }
 
     /// Adjust a relative path based on depth change
+    #[allow(dead_code)]
     pub(super) fn adjust_relative_path(
         &self,
         path: &str,

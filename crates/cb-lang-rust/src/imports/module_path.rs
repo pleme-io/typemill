@@ -33,21 +33,21 @@ pub fn compute_module_path_from_file(
     }
 
     // Remove "src" if present
-    if components.first().map(|s| *s) == Some("src") {
+    if components.first().copied() == Some("src") {
         components.remove(0);
     }
 
     // Special handling for mod.rs files
     // mod.rs represents the parent directory's module, not a module named "mod"
     // Example: common/src/utils/mod.rs → common::utils (not common::utils::mod)
-    if components.last().map(|s| *s) == Some("mod.rs") {
+    if components.last().copied() == Some("mod.rs") {
         components.pop(); // Remove "mod.rs"
         // The parent directory name is now the last component (the module name)
     }
 
     // If the file is lib.rs or main.rs, it's the crate root
-    if components.last().map(|s| *s) == Some("lib.rs")
-        || components.last().map(|s| *s) == Some("main.rs")
+    if components.last().copied() == Some("lib.rs")
+        || components.last().copied() == Some("main.rs")
     {
         return crate_name.to_string();
     }

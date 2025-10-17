@@ -17,6 +17,7 @@ use tracing::{debug, info};
 
 /// Configuration for deep dead code analysis.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct DeepDeadCodeConfig {
     /// When true, public symbols are considered as potential dead code.
     /// Default: false
@@ -26,14 +27,6 @@ pub struct DeepDeadCodeConfig {
     pub exclude_patterns: Option<Vec<String>>,
 }
 
-impl Default for DeepDeadCodeConfig {
-    fn default() -> Self {
-        Self {
-            check_public_exports: false,
-            exclude_patterns: None,
-        }
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeepDeadCodeReport {

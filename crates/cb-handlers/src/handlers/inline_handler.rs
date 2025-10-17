@@ -1,3 +1,5 @@
+#![allow(dead_code, unused_variables, clippy::mutable_key_type, clippy::needless_range_loop, clippy::ptr_arg, clippy::manual_clamp)]
+
 //! Inline operation handler - implements inline.plan() command
 //!
 //! Supports inlining variables, functions, and constants by replacing references

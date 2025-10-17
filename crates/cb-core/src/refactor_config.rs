@@ -2,7 +2,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::Path;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct RefactorConfig {
@@ -39,7 +39,7 @@ impl Default for RefactorDefaults {
 }
 
 impl RefactorConfig {
-    pub fn load(project_root: &PathBuf) -> Result<Self> {
+    pub fn load(project_root: &Path) -> Result<Self> {
         let config_path = project_root.join(".codebuddy/refactor.toml");
         if !config_path.exists() {
             return Ok(Self::default());

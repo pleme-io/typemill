@@ -243,7 +243,7 @@ impl FileService {
             .update_references(
                 &virtual_old_path,
                 &virtual_new_path,
-                &self.plugin_registry.all(),
+                self.plugin_registry.all(),
                 Some(&rename_info),
                 false,
                 Some(cb_plugin_api::ScanScope::AllUseStatements),
@@ -903,6 +903,7 @@ impl FileService {
     }
 
     /// Extract Cargo package rename information for import rewriting
+    #[allow(dead_code)]
     pub(super) async fn extract_cargo_rename_info(
         &self,
         old_package_path: &Path,

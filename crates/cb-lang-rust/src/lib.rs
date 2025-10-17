@@ -69,6 +69,7 @@ impl RustPlugin {
     };
 
     /// Creates a new, boxed instance of the plugin.
+    #[allow(clippy::new_ret_no_self)]
     pub fn new() -> Box<dyn LanguagePlugin> {
         Box::new(Self::default())
     }

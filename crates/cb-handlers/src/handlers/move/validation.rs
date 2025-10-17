@@ -10,7 +10,7 @@ use cb_protocol::{
 use lsp_types::{Uri, WorkspaceEdit};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tracing::debug;
 
 use crate::handlers::tools::ToolHandlerContext;
@@ -46,7 +46,7 @@ pub async fn analyze_workspace_edit(
 
     // Extract file paths from WorkspaceEdit, converting URIs to native paths
     if let Some(ref changes) = edit.changes {
-        for (uri, _edits) in changes {
+        for uri in changes.keys() {
             let path_string = uri_to_path_string(uri)?;
             affected_path_strings.insert(path_string);
         }

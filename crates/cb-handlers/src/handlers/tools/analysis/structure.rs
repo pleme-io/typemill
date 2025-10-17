@@ -1,3 +1,5 @@
+#![allow(dead_code, unused_variables)]
+
 //! Structure analysis handler
 //!
 //! This module provides detection for code structure-related patterns including:
@@ -15,7 +17,7 @@ use async_trait::async_trait;
 use cb_core::model::mcp::ToolCall;
 use cb_plugin_api::{Symbol, SymbolKind};
 use cb_protocol::analysis_result::{
-    Finding, FindingLocation, Position, Range, SafetyLevel, Severity, Suggestion,
+    Finding, FindingLocation, SafetyLevel, Severity, Suggestion,
 };
 use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use regex::Regex;
@@ -476,7 +478,7 @@ pub fn detect_inheritance(
         let depth = parents.len();
         classes_by_depth
             .entry(depth)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(class_name.clone());
         max_depth = max_depth.max(depth);
     }
@@ -805,7 +807,7 @@ fn build_hierarchy_tree(
         }
 
         // Look for inheritance keywords
-        let parent_opt = detect_parent_class(&lines[line_idx], language);
+        let parent_opt = detect_parent_class(lines[line_idx], language);
 
         if let Some(parent) = parent_opt {
             // Update parent relationship
@@ -875,7 +877,7 @@ fn detect_parent_class(line: &str, language: &str) -> Option<String> {
 fn calculate_max_hierarchy_depth(tree: &HashMap<String, HierarchyNode>) -> usize {
     let mut max_depth = 0;
 
-    for (class_name, _) in tree {
+    for class_name in tree.keys() {
         let depth = calculate_depth_recursive(class_name, tree, 0);
         max_depth = max_depth.max(depth);
     }

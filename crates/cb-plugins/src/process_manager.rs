@@ -72,7 +72,7 @@ impl PluginProcess {
                     Ok(_) => match serde_json::from_str::<PluginResponse>(&line) {
                         Ok(response) => {
                             if let Some(sender) = pending_requests_clone.remove(&response.id) {
-                                if let Err(_) = sender.1.send(Ok(response)) {
+                                if sender.1.send(Ok(response)).is_err() {
                                     warn!(plugin_name = %plugin_name_for_stdout, "Failed to send plugin response to receiver");
                                 }
                             }
@@ -93,7 +93,7 @@ impl PluginProcess {
         tokio::spawn(async move {
             let mut reader = BufReader::new(stderr);
             let mut line = String::new();
-            while let Ok(_) = reader.read_line(&mut line).await {
+            while (reader.read_line(&mut line).await).is_ok() {
                 if !line.is_empty() {
                     warn!(plugin_name = %plugin_name_for_stderr, stderr = %line.trim(), "Plugin stderr");
                     line.clear();

@@ -7,7 +7,7 @@ use cb_protocol::{
     refactor_plan::{MovePlan, PlanMetadata},
     ApiError as ServerError, ApiResult as ServerResult,
 };
-use lsp_types::{Position, WorkspaceEdit};
+use lsp_types::Position;
 use serde_json::{json, Value};
 use std::path::Path;
 use tracing::{debug, error, info, warn};

@@ -47,7 +47,7 @@ impl GraphBuilder {
                 e.path()
                     .extension()
                     .and_then(|s| s.to_str())
-                    .map_or(false, |ext| source_file_extensions.contains(&ext))
+                    .is_some_and(|ext| source_file_extensions.contains(&ext))
             })
         {
             let path = entry.path();

@@ -259,7 +259,7 @@ impl<'a> DependencyGraphBuilder<'a> {
                         let symbols_str = &line[start + 1..end];
                         return symbols_str
                             .split(',')
-                            .map(|s| s.trim().split_whitespace().next().unwrap_or("").to_string())
+                            .map(|s| s.split_whitespace().next().unwrap_or("").to_string())
                             .filter(|s| !s.is_empty())
                             .collect();
                     }

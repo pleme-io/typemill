@@ -45,9 +45,7 @@ impl PostApplyValidator {
         let start = Instant::now();
 
         let working_dir = config
-            .working_dir
-            .as_ref()
-            .map(|s| s.as_str())
+            .working_dir.as_deref()
             .unwrap_or(".");
 
         debug!(
