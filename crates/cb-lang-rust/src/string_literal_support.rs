@@ -10,13 +10,13 @@ use std::path::Path;
 /// Check if a string literal looks like a path that should be updated
 ///
 /// Conservative heuristic: only match strings that clearly look like file paths:
-/// - Must contain a slash (/) indicating a path separator, OR
+/// - Must contain a slash (/) or backslash (\) indicating a path separator, OR
 /// - Must contain a period AND end with a known file extension
 ///
 /// This avoids false positives on prose text that happens to mention directory names.
 fn is_path_like(s: &str) -> bool {
-    // Must contain a slash OR have a file extension
-    s.contains('/')
+    // Must contain a slash/backslash OR have a file extension
+    s.contains('/') || s.contains('\\')
         || (s.contains('.') && {
             s.ends_with(".rs")
                 || s.ends_with(".toml")
@@ -32,7 +32,8 @@ fn is_path_like(s: &str) -> bool {
 
 /// Rewrite string literals in Rust source code that match path patterns
 ///
-/// Uses regex to find string literals (to handle them in macros where AST parsing fails).
+/// Uses regex to find both regular and raw string literals (to handle them in macros where AST parsing fails).
+/// Supports raw strings: r"...", r#"..."#, r##"..."##, etc.
 ///
 /// # Arguments
 /// * `source` - The Rust source code to process
@@ -57,31 +58,68 @@ pub fn rewrite_string_literals(
     old_path: &Path,
     new_path: &Path,
 ) -> Result<(String, usize), Box<dyn std::error::Error>> {
-    // Regex to match string literals (handles simple strings, not raw strings for now)
-    // Matches: "..." but not r"..." or r#"..."#
-    let string_literal_regex = Regex::new(r#""([^"\\]*(\\.[^"\\]*)*)""#)?;
-
     let old_path_str = old_path.to_string_lossy();
     let new_path_str = new_path.to_string_lossy();
 
+    let mut modified_source = source.to_string();
     let mut change_count = 0;
 
-    // Replace all string literals that contain the old path
-    let result = string_literal_regex.replace_all(source, |caps: &regex::Captures| {
-        let full_match = &caps[0]; // The full "..." string with quotes
-        let content = &caps[1]; // The content inside quotes
+    // Pattern 1: Regular strings "..." (but not raw strings r"...")
+    // Use negative lookbehind alternative: check preceding character is not 'r' or '#'
+    let string_regex = Regex::new(r#""([^"\\]*(\\.[^"\\]*)*)""#)?;
+    for cap in string_regex.captures_iter(source) {
+        let full_match = cap.get(0).unwrap().as_str();
+        let match_start = source.find(full_match).unwrap();
 
-        // Check if this looks like a path and contains the old path
-        if is_path_like(content) && content.contains(old_path_str.as_ref()) {
-            let new_content = content.replace(old_path_str.as_ref(), new_path_str.as_ref());
-            change_count += 1;
-            format!("\"{}\"", new_content)
-        } else {
-            full_match.to_string()
+        // Skip if this is part of a raw string (preceded by 'r' or '#')
+        if match_start > 0 {
+            let prev_char = source.chars().nth(match_start - 1);
+            if let Some(ch) = prev_char {
+                if ch == 'r' || ch == '#' {
+                    continue; // This is a raw string, skip it
+                }
+            }
         }
-    });
 
-    Ok((result.to_string(), change_count))
+        let string_content = cap.get(1).unwrap().as_str();
+
+        if is_path_like(string_content) && string_content.contains(old_path_str.as_ref()) {
+            let new_content = string_content.replace(old_path_str.as_ref(), new_path_str.as_ref());
+            let new_match = format!("\"{}\"", new_content);
+            modified_source = modified_source.replace(full_match, &new_match);
+            change_count += 1;
+        }
+    }
+
+    // Pattern 2: Raw strings r"...", r#"..."#, r##"..."##, etc.
+    // We need separate regexes since the regex crate doesn't support backreferences
+    // Cover common cases: r"...", r#"..."#, r##"..."##, r###"..."###, r####"..."####, r#####"..."#####
+    // Note: For hashed raw strings (r#"..."#), the content can contain quotes
+    let raw_patterns = vec![
+        (Regex::new(r#"r"([^"]*)""#)?, 0),                        // r"..." (no quotes inside)
+        (Regex::new(r##"r#"(.*?)"#"##)?, 1),                      // r#"..."# (can contain quotes)
+        (Regex::new(r###"r##"(.*?)"##"###)?, 2),                  // r##"..."##
+        (Regex::new(r####"r###"(.*?)"###"####)?, 3),              // r###"..."###
+        (Regex::new(r#####"r####"(.*?)"####"#####)?, 4),          // r####"..."####
+        (Regex::new(r######"r#####"(.*?)"#####"######)?, 5),      // r#####"..."#####
+    ];
+
+    for (raw_regex, hash_count) in raw_patterns {
+        let hash_marks = "#".repeat(hash_count);
+        for cap in raw_regex.captures_iter(source) {
+            let full_match = cap.get(0).unwrap().as_str();
+            let string_content = cap.get(1).unwrap().as_str();
+
+            if is_path_like(string_content) && string_content.contains(old_path_str.as_ref()) {
+                let new_content = string_content.replace(old_path_str.as_ref(), new_path_str.as_ref());
+                let new_match = format!("r{}\"{}\"{}",hash_marks, new_content, hash_marks);
+                modified_source = modified_source.replace(full_match, &new_match);
+                change_count += 1;
+            }
+        }
+    }
+
+    Ok((modified_source, change_count))
 }
 
 #[cfg(test)]
@@ -209,6 +247,7 @@ fn test_paths() {
         assert!(is_path_like("src/lib.rs"));
         assert!(is_path_like("../relative/path.txt"));
         assert!(is_path_like("./current/dir.yml"));
+        assert!(is_path_like(r"C:\Users\path\file.rs")); // Windows backslashes
 
         // Should NOT be considered paths
         assert!(!is_path_like("integration-tests"));
@@ -216,5 +255,92 @@ fn test_paths() {
         assert!(!is_path_like("version 1.0.0"));
         assert!(!is_path_like("test_function_name"));
         assert!(!is_path_like("error: file not found"));
+    }
+
+    #[test]
+    fn test_raw_string_simple() {
+        let source = r#"
+fn main() {
+    let path = r"old-dir\file.rs";
+}
+"#;
+        let (result, count) = rewrite_string_literals(
+            source,
+            Path::new("old-dir"),
+            Path::new("new-dir")
+        ).unwrap();
+
+        assert_eq!(count, 1);
+        assert!(result.contains(r#"r"new-dir\file.rs""#));
+    }
+
+    #[test]
+    fn test_raw_string_with_hashes() {
+        let source = r##"
+fn main() {
+    let path = r#"old-dir/file"with"quotes.rs"#;
+}
+"##;
+        let (result, count) = rewrite_string_literals(
+            source,
+            Path::new("old-dir"),
+            Path::new("new-dir")
+        ).unwrap();
+
+        assert_eq!(count, 1);
+        assert!(result.contains(r##"r#"new-dir/file"with"quotes.rs"#"##));
+    }
+
+    #[test]
+    fn test_windows_paths_in_raw_strings() {
+        let source = r#"
+fn main() {
+    let path = r"C:\Users\integration-tests\file.rs";
+}
+"#;
+        let (result, count) = rewrite_string_literals(
+            source,
+            Path::new("integration-tests"),
+            Path::new("tests")
+        ).unwrap();
+
+        assert_eq!(count, 1);
+        assert!(result.contains(r"C:\Users\tests\file.rs"));
+    }
+
+    #[test]
+    fn test_mixed_regular_and_raw_strings() {
+        let source = r#"
+fn main() {
+    let regular = "old-dir/file1.rs";
+    let raw = r"old-dir\file2.rs";
+}
+"#;
+        let (result, count) = rewrite_string_literals(
+            source,
+            Path::new("old-dir"),
+            Path::new("new-dir")
+        ).unwrap();
+
+        assert_eq!(count, 2);
+        assert!(result.contains("\"new-dir/file1.rs\""));
+        assert!(result.contains(r#"r"new-dir\file2.rs""#));
+    }
+
+    #[test]
+    fn test_raw_string_with_multiple_hashes() {
+        let source = r###"
+fn main() {
+    let path = r##"old-dir/file##with##hashes.rs"##;
+}
+"###;
+        let (result, count) = rewrite_string_literals(
+            source,
+            Path::new("old-dir"),
+            Path::new("new-dir")
+        ).unwrap();
+
+        assert_eq!(count, 1);
+        assert!(result.contains(r###"r##"new-dir/file##with##hashes.rs"##"###));
     }
 }

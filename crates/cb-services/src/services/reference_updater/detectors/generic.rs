@@ -5,11 +5,14 @@
 
 use std::path::{Path, PathBuf};
 
-/// Find affected files using generic import path resolution
+/// Find affected files using generic import path resolution AND rewrite detection
 ///
 /// This is the fallback detector for languages without specialized logic.
-/// It resolves import specifiers to file paths and checks if any import
-/// references the old or new path.
+/// It uses TWO detection methods to ensure comprehensive coverage:
+/// 1. Import path resolution (for module imports)
+/// 2. Plugin rewrite detection (for string literals, config paths, etc.)
+///
+/// This ensures consistent behavior regardless of which code path is taken.
 pub fn find_generic_affected_files(
     old_path: &Path,
     new_path: &Path,
@@ -17,7 +20,9 @@ pub fn find_generic_affected_files(
     project_files: &[PathBuf],
     plugins: &[std::sync::Arc<dyn cb_plugin_api::LanguagePlugin>],
 ) -> Vec<PathBuf> {
-    let mut affected = Vec::new();
+    use std::collections::HashSet;
+
+    let mut affected = HashSet::new();
 
     tracing::info!(
         old_path = %old_path.display(),
@@ -31,6 +36,7 @@ pub fn find_generic_affected_files(
             continue;
         }
         if let Ok(content) = std::fs::read_to_string(file) {
+            // METHOD 1: Import-based detection (existing logic)
             let all_imports = get_all_imported_files(&content, file, plugins, project_files, project_root);
 
             tracing::debug!(
@@ -46,19 +52,55 @@ pub fn find_generic_affected_files(
             {
                 tracing::info!(
                     file = %file.display(),
-                    "File imports from old/new path - marking as affected"
+                    "File imports from old/new path - marking as affected (import detection)"
                 );
-                affected.push(file.clone());
+                affected.insert(file.clone());
+                continue; // Already marked, skip rewrite detection
+            }
+
+            // METHOD 2: Rewrite-based detection (NEW - calls all plugin detectors)
+            // This catches string literals, TOML paths, YAML paths, etc.
+            if let Some(ext) = file.extension().and_then(|e| e.to_str()) {
+                for plugin in plugins {
+                    if plugin.handles_extension(ext) {
+                        // Try rewriting to see if this file would be affected
+                        let rewrite_result = plugin.rewrite_file_references(
+                            &content,
+                            old_path,
+                            new_path,
+                            file,
+                            project_root,
+                            None,
+                        );
+
+                        if let Some((updated_content, change_count)) = rewrite_result {
+                            if change_count > 0 && updated_content != content {
+                                tracing::info!(
+                                    file = %file.display(),
+                                    plugin = plugin.metadata().name,
+                                    changes = change_count,
+                                    "File affected by path reference - marking as affected (rewrite detection)"
+                                );
+                                affected.insert(file.clone());
+                                break; // One plugin detected changes, no need to check others
+                            }
+                        }
+
+                        break; // Only check the plugin that handles this extension
+                    }
+                }
             }
         }
     }
 
+    let affected_vec: Vec<PathBuf> = affected.into_iter().collect();
+
     tracing::info!(
-        affected_count = affected.len(),
+        affected_count = affected_vec.len(),
         "find_generic_affected_files completed"
     );
 
-    affected
+    affected_vec
 }
 
 /// Get all files imported by the given file content
@@ -150,6 +192,7 @@ pub fn extract_import_path(line: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use cb_plugin_api::LanguagePlugin;
     use std::fs;
     use tempfile::TempDir;
 
@@ -238,6 +281,197 @@ export function main() {
         assert!(
             affected.contains(&root.join("src/main.ts")),
             "main.ts should be detected as affected. Affected files: {:?}",
+            affected
+        );
+    }
+
+    /// Test that generic detector finds YAML files with path references
+    /// This verifies the rewrite-based detection works in the fallback path
+    #[test]
+    fn test_generic_detector_finds_yaml_files() {
+        let workspace = TempDir::new().unwrap();
+        let root = workspace.path();
+
+        // Create a directory structure
+        fs::create_dir_all(root.join("src")).unwrap();
+        fs::write(root.join("src/old_file.rs"), "// Rust file").unwrap();
+
+        // Create a YAML file with a RELATIVE path reference (matching production usage)
+        let yaml_content = "jobs:\n  test:\n    path: src/old_file.rs\n";
+        fs::write(root.join("config.yml"), yaml_content).unwrap();
+
+        // Test with FILE rename (not directory rename)
+        // The YAML content has "src/old_file.rs", so we rename that file
+        let old_path = Path::new("src/old_file.rs"); // Relative path
+        let new_path = Path::new("src/new_file.rs"); // Relative path
+
+        let project_files = vec![
+            root.join("src/old_file.rs"),
+            root.join("config.yml"),
+        ];
+
+        // Create YAML plugin
+        let yaml_plugin = cb_lang_yaml::YamlLanguagePlugin::new();
+
+        let plugins: Vec<std::sync::Arc<dyn cb_plugin_api::LanguagePlugin>> =
+            vec![std::sync::Arc::from(yaml_plugin)];
+
+        let affected = find_generic_affected_files(
+            old_path,
+            new_path,
+            root,
+            &project_files,
+            &plugins,
+        );
+
+        assert!(
+            affected.iter().any(|p| p.ends_with("config.yml")),
+            "YAML file should be detected by generic finder for file rename. Found: {:?}",
+            affected
+        );
+    }
+
+    /// Test that generic detector finds TOML files with path references
+    /// This verifies the rewrite-based detection works in the fallback path
+    #[test]
+    fn test_generic_detector_finds_toml_files() {
+        let workspace = TempDir::new().unwrap();
+        let root = workspace.path();
+
+        // Create a directory structure
+        fs::create_dir_all(root.join("scripts")).unwrap();
+        fs::write(root.join("scripts/old_build.sh"), "#!/bin/bash\necho 'build'").unwrap();
+
+        // Create a TOML file with a RELATIVE path reference
+        fs::write(
+            root.join("config.toml"),
+            "[scripts]\nbuild = \"scripts/old_build.sh\"\n",
+        )
+        .unwrap();
+
+        // Test with FILE rename
+        let old_path = Path::new("scripts/old_build.sh");
+        let new_path = Path::new("scripts/new_build.sh");
+        let project_files = vec![
+            root.join("scripts/old_build.sh"),
+            root.join("config.toml"),
+        ];
+
+        // Create TOML plugin
+        let toml_plugin = cb_lang_toml::TomlLanguagePlugin::new();
+        let plugins: Vec<std::sync::Arc<dyn cb_plugin_api::LanguagePlugin>> =
+            vec![std::sync::Arc::from(toml_plugin)];
+
+        let affected = find_generic_affected_files(
+            old_path,
+            new_path,
+            root,
+            &project_files,
+            &plugins,
+        );
+
+        assert!(
+            affected.iter().any(|p| p.ends_with("config.toml")),
+            "TOML file should be detected by generic finder for file rename. Found: {:?}",
+            affected
+        );
+    }
+
+    /// Test that generic detector finds Markdown files with path references
+    /// This verifies the rewrite-based detection works in the fallback path
+    #[test]
+    fn test_generic_detector_finds_markdown_files() {
+        let workspace = TempDir::new().unwrap();
+        let root = workspace.path();
+
+        // Create a directory structure
+        fs::create_dir_all(root.join("docs")).unwrap();
+        fs::write(root.join("docs/guide.md"), "# Guide").unwrap();
+
+        // Create a Markdown file with a link reference
+        fs::write(
+            root.join("README.md"),
+            "# Project\n\nSee [Guide](docs/guide.md) for details.\n",
+        )
+        .unwrap();
+
+        let old_path = root.join("docs/guide.md");
+        let new_path = root.join("docs/tutorial.md");
+        let project_files = vec![
+            root.join("docs/guide.md"),
+            root.join("README.md"),
+        ];
+
+        // Create Markdown plugin
+        let md_plugin = cb_lang_markdown::MarkdownPlugin::new();
+        let plugins: Vec<std::sync::Arc<dyn cb_plugin_api::LanguagePlugin>> =
+            vec![std::sync::Arc::from(md_plugin)];
+
+        let affected = find_generic_affected_files(
+            &old_path,
+            &new_path,
+            root,
+            &project_files,
+            &plugins,
+        );
+
+        assert!(
+            affected.iter().any(|p| p.ends_with("README.md")),
+            "Markdown file should be detected by generic finder. Found: {:?}",
+            affected
+        );
+    }
+
+    // NOTE: TypeScript string literal detection test omitted
+    // TypeScript plugin does not yet implement string literal rewriting
+    // This will be added in a future enhancement
+
+    /// Test that generic detector finds string literals in Rust files
+    /// This verifies the rewrite-based detection works for Rust string literals
+    #[test]
+    fn test_generic_detector_finds_rust_string_literals() {
+        let workspace = TempDir::new().unwrap();
+        let root = workspace.path();
+
+        // Create a directory structure
+        fs::create_dir_all(root.join("src")).unwrap();
+        fs::write(root.join("src/old_config.rs"), "pub const CONFIG: &str = \"config\";").unwrap();
+
+        // Create a Rust file with a string literal path reference
+        fs::write(
+            root.join("src/main.rs"),
+            r#"fn main() {
+    let path = "src/old_config.rs";
+    println!("Config at: {}", path);
+}
+"#,
+        )
+        .unwrap();
+
+        // Test with FILE rename using relative paths
+        let old_path = Path::new("src/old_config.rs");
+        let new_path = Path::new("src/new_config.rs");
+        let project_files = vec![
+            root.join("src/old_config.rs"),
+            root.join("src/main.rs"),
+        ];
+
+        // Create Rust plugin
+        let rust_plugin = cb_lang_rust::RustPlugin::new();
+        let plugins: Vec<std::sync::Arc<dyn cb_plugin_api::LanguagePlugin>> =
+            vec![std::sync::Arc::from(rust_plugin)];
+
+        let affected = find_generic_affected_files(
+            old_path,
+            new_path,
+            root,
+            &project_files,
+            &plugins,
+        );
+
+        assert!(
+            affected.iter().any(|p| p.ends_with("main.rs")),
+            "Rust file with string literal should be detected by generic finder. Found: {:?}",
             affected
         );
     }

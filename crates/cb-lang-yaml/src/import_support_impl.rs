@@ -1,7 +1,15 @@
 //! Import/rename support implementation for YAML files
+//!
+//! CRITICAL: This implementation uses line-by-line string replacement to preserve:
+//! - Comments (both # at line start and inline)
+//! - Indentation (exact whitespace)
+//! - Blank lines
+//! - Key ordering
+//! - Trailing newlines
+//!
+//! We do NOT use serde_yaml parsing as it destroys all formatting.
 
 use cb_plugin_api::{ImportRenameSupport, PluginResult};
-use serde_yaml::Value;
 use std::path::Path;
 
 pub struct YamlImportSupport;
@@ -11,60 +19,78 @@ impl YamlImportSupport {
         Self
     }
 
-    /// Rewrite paths in YAML file
+    /// Rewrite paths in YAML file while preserving ALL formatting
+    ///
+    /// This function processes YAML line-by-line using string replacement instead of
+    /// parsing/serializing to preserve comments, indentation, and blank lines.
     pub fn rewrite_yaml_paths(
         &self,
         content: &str,
         old_path: &Path,
         new_path: &Path,
     ) -> PluginResult<(String, usize)> {
-        let mut value: Value = serde_yaml::from_str(content).map_err(|e| {
-            cb_plugin_api::PluginError::parse(format!("Failed to parse YAML: {}", e))
-        })?;
-        let mut changes = 0;
-
         let old_path_str = old_path.to_string_lossy();
         let new_path_str = new_path.to_string_lossy();
 
-        Self::update_yaml_value(&mut value, &old_path_str, &new_path_str, &mut changes);
+        let mut changes = 0;
+        let mut result_lines = Vec::new();
 
-        let new_content = serde_yaml::to_string(&value).map_err(|e| {
-            cb_plugin_api::PluginError::internal(format!("Failed to serialize YAML: {}", e))
-        })?;
+        // Process line by line to preserve formatting
+        for line in content.lines() {
+            let mut line_modified = line.to_string();
 
-        Ok((new_content, changes))
-    }
+            // Skip comment-only lines (preserve them unchanged)
+            let trimmed = line.trim();
+            if trimmed.starts_with('#') || trimmed.is_empty() {
+                result_lines.push(line_modified);
+                continue;
+            }
 
-    fn update_yaml_value(
-        value: &mut Value,
-        old_path: &str,
-        new_path: &str,
-        changes: &mut usize,
-    ) {
-        match value {
-            Value::String(s) => {
-                if s.contains(old_path) && Self::is_path_like(s) {
-                    *s = s.replace(old_path, new_path);
-                    *changes += 1;
+            // Only update values (after ':'), not keys
+            if let Some(colon_pos) = line.find(':') {
+                let key_part = &line[..colon_pos];
+                let value_part = &line[colon_pos + 1..];
+
+                // Check if value contains the old path
+                if value_part.contains(old_path_str.as_ref()) && Self::is_path_like(value_part.trim()) {
+                    let new_value = value_part.replace(old_path_str.as_ref(), new_path_str.as_ref());
+                    line_modified = format!("{}:{}", key_part, new_value);
+                    changes += 1;
                 }
+            } else if line.contains(old_path_str.as_ref()) && Self::is_path_like(line.trim()) {
+                // Handle lines without colon (e.g., list items like "- some/path")
+                line_modified = line.replace(old_path_str.as_ref(), new_path_str.as_ref());
+                changes += 1;
             }
-            Value::Sequence(seq) => {
-                for item in seq.iter_mut() {
-                    Self::update_yaml_value(item, old_path, new_path, changes);
-                }
-            }
-            Value::Mapping(map) => {
-                for (_k, v) in map.iter_mut() {
-                    Self::update_yaml_value(v, old_path, new_path, changes);
-                }
-            }
-            _ => {}
+
+            result_lines.push(line_modified);
         }
+
+        let mut modified = result_lines.join("\n");
+
+        // Preserve trailing newline if original had one
+        if content.ends_with('\n') && !modified.ends_with('\n') {
+            modified.push('\n');
+        }
+
+        if changes > 0 {
+            tracing::info!(
+                changes = changes,
+                old_path = %old_path.display(),
+                new_path = %new_path.display(),
+                "Updated paths in YAML file (formatting preserved)"
+            );
+        }
+
+        Ok((modified, changes))
     }
 
     fn is_path_like(s: &str) -> bool {
-        s.contains('/') || s.contains('\\') || s.ends_with(".rs") || s.ends_with(".toml") ||
-        s.ends_with(".yml") || s.ends_with(".yaml") || s.ends_with(".md")
+        s.contains('/') || s.contains('\\') ||
+        s.ends_with(".rs") || s.ends_with(".toml") ||
+        s.ends_with(".yml") || s.ends_with(".yaml") ||
+        s.ends_with(".md") || s.ends_with(".json") ||
+        s.ends_with(".js") || s.ends_with(".ts")
     }
 }
 

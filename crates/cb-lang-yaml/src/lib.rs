@@ -213,6 +213,156 @@ jobs:
         assert!(new_content.contains("tests/Cargo.toml"));
     }
 
+    #[test]
+    fn test_yaml_formatting_preservation() {
+        // CRITICAL TEST: Verify that all formatting is preserved
+        let content = r#"# Important config file
+jobs:
+  test:  # Run all tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: cargo test --manifest-path integration-tests/Cargo.toml
+"#;
+
+        let plugin = YamlLanguagePlugin::new();
+        let result = plugin.rewrite_file_references(
+            content,
+            Path::new("integration-tests"),
+            Path::new("tests"),
+            Path::new("."),
+            Path::new("."),
+            None,
+        );
+
+        assert!(result.is_some());
+        let (new_content, count) = result.unwrap();
+
+        // Verify the path was updated
+        assert_eq!(count, 1);
+        assert!(new_content.contains("tests/Cargo.toml"));
+
+        // CRITICAL: Verify formatting preserved
+        assert!(
+            new_content.contains("# Important config file"),
+            "Top comment lost! Got:\n{}",
+            new_content
+        );
+        assert!(
+            new_content.contains("  test:  # Run all tests"),
+            "Inline comment lost! Got:\n{}",
+            new_content
+        );
+
+        // Check blank line preservation (empty line after ubuntu-latest)
+        let lines: Vec<&str> = new_content.lines().collect();
+        let content_lines: Vec<&str> = content.lines().collect();
+        assert_eq!(
+            lines.len(),
+            content_lines.len(),
+            "Line count changed! Expected {} lines, got {}. Original:\n{}\nResult:\n{}",
+            content_lines.len(),
+            lines.len(),
+            content,
+            new_content
+        );
+
+        // Verify blank line exists at expected position
+        let has_blank_line = lines.iter().any(|line| line.trim().is_empty());
+        assert!(has_blank_line, "Blank line lost! Got:\n{}", new_content);
+
+        // Verify trailing newline
+        assert!(
+            new_content.ends_with('\n'),
+            "Trailing newline lost!"
+        );
+    }
+
+    #[test]
+    fn test_preserves_indentation_exactly() {
+        let content = "    deep:\n      nested:  value with integration-tests/path\n";
+
+        let plugin = YamlLanguagePlugin::new();
+        let result = plugin.rewrite_file_references(
+            content,
+            Path::new("integration-tests"),
+            Path::new("tests"),
+            Path::new("."),
+            Path::new("."),
+            None,
+        );
+
+        assert!(result.is_some());
+        let (new_content, count) = result.unwrap();
+        assert_eq!(count, 1);
+
+        // Exact indentation must be preserved
+        assert!(new_content.starts_with("    deep:"));
+        assert!(new_content.contains("      nested:"));
+    }
+
+    #[test]
+    fn test_preserves_multiple_comments() {
+        let content = r#"# Header comment
+# Another header
+jobs:
+  # Job section
+  test:
+    runs-on: ubuntu-latest  # inline comment
+    steps:
+      - run: cargo test --manifest-path integration-tests/Cargo.toml  # test step
+# Footer comment
+"#;
+
+        let plugin = YamlLanguagePlugin::new();
+        let result = plugin.rewrite_file_references(
+            content,
+            Path::new("integration-tests"),
+            Path::new("tests"),
+            Path::new("."),
+            Path::new("."),
+            None,
+        );
+
+        assert!(result.is_some());
+        let (new_content, count) = result.unwrap();
+        assert_eq!(count, 1);
+
+        // All comments must be preserved
+        assert!(new_content.contains("# Header comment"));
+        assert!(new_content.contains("# Another header"));
+        assert!(new_content.contains("  # Job section"));
+        assert!(new_content.contains("# inline comment"));
+        assert!(new_content.contains("# test step"));
+        assert!(new_content.contains("# Footer comment"));
+    }
+
+    #[test]
+    fn test_handles_list_items() {
+        let content = r#"paths:
+  - integration-tests/src
+  - integration-tests/tests
+  - other/path
+"#;
+
+        let plugin = YamlLanguagePlugin::new();
+        let result = plugin.rewrite_file_references(
+            content,
+            Path::new("integration-tests"),
+            Path::new("tests"),
+            Path::new("."),
+            Path::new("."),
+            None,
+        );
+
+        assert!(result.is_some());
+        let (new_content, count) = result.unwrap();
+        assert_eq!(count, 2);
+        assert!(new_content.contains("- tests/src"));
+        assert!(new_content.contains("- tests/tests"));
+        assert!(new_content.contains("- other/path"));
+    }
+
     #[tokio::test]
     async fn test_capabilities() {
         let plugin = YamlLanguagePlugin::new();
