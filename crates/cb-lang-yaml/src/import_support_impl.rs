@@ -51,16 +51,23 @@ impl YamlImportSupport {
                 let key_part = &line[..colon_pos];
                 let value_part = &line[colon_pos + 1..];
 
-                // Check if value contains the old path
-                if value_part.contains(old_path_str.as_ref()) && Self::is_path_like(value_part.trim()) {
-                    let new_value = value_part.replace(old_path_str.as_ref(), new_path_str.as_ref());
+                // Skip if already updated (idempotency check for nested renames)
+                let is_nested_rename = new_path_str.as_ref().starts_with(&format!("{}/", old_path_str));
+                if is_nested_rename && value_part.contains(new_path_str.as_ref()) {
+                    // Already updated, skip
+                } else if value_part.contains(old_path_str.as_ref()) && Self::is_path_like(value_part.trim()) {
+                    let new_value = value_part.replacen(old_path_str.as_ref(), new_path_str.as_ref(), 1);
                     line_modified = format!("{}:{}", key_part, new_value);
                     changes += 1;
                 }
             } else if line.contains(old_path_str.as_ref()) && Self::is_path_like(line.trim()) {
                 // Handle lines without colon (e.g., list items like "- some/path")
-                line_modified = line.replace(old_path_str.as_ref(), new_path_str.as_ref());
-                changes += 1;
+                // Skip if already updated (idempotency check for nested renames)
+                let is_nested_rename = new_path_str.as_ref().starts_with(&format!("{}/", old_path_str));
+                if !(is_nested_rename && line.contains(new_path_str.as_ref())) {
+                    line_modified = line.replacen(old_path_str.as_ref(), new_path_str.as_ref(), 1);
+                    changes += 1;
+                }
             }
 
             result_lines.push(line_modified);

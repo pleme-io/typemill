@@ -44,10 +44,19 @@ impl TomlImportSupport {
         match item {
             Item::Value(Value::String(s)) => {
                 let formatted = s.value();
-                if formatted.contains(old_path) && Self::is_path_like(formatted) {
-                    let new_value = formatted.replace(old_path, new_path);
-                    *s = toml_edit::Formatted::new(new_value);
-                    *changes += 1;
+                if Self::is_path_like(formatted) {
+                    // Skip if already updated (idempotency check for nested renames)
+                    let is_nested_rename = new_path.starts_with(&format!("{}/", old_path));
+                    if is_nested_rename && formatted.contains(new_path) {
+                        return;
+                    }
+
+                    // Match at start of path, not anywhere
+                    if formatted == old_path || formatted.starts_with(&format!("{}/", old_path)) {
+                        let new_value = formatted.replacen(old_path, new_path, 1);
+                        *s = toml_edit::Formatted::new(new_value);
+                        *changes += 1;
+                    }
                 }
             }
             Item::Table(table) => {
@@ -66,10 +75,19 @@ impl TomlImportSupport {
                 for value in arr.iter_mut() {
                     if let Value::String(s) = value {
                         let formatted = s.value();
-                        if formatted.contains(old_path) && Self::is_path_like(formatted) {
-                            let new_value = formatted.replace(old_path, new_path);
-                            *s = toml_edit::Formatted::new(new_value);
-                            *changes += 1;
+                        if Self::is_path_like(formatted) {
+                            // Skip if already updated (idempotency check for nested renames)
+                            let is_nested_rename = new_path.starts_with(&format!("{}/", old_path));
+                            if is_nested_rename && formatted.contains(new_path) {
+                                continue;
+                            }
+
+                            // Match at start of path, not anywhere
+                            if formatted == old_path || formatted.starts_with(&format!("{}/", old_path)) {
+                                let new_value = formatted.replacen(old_path, new_path, 1);
+                                *s = toml_edit::Formatted::new(new_value);
+                                *changes += 1;
+                            }
                         }
                     }
                 }

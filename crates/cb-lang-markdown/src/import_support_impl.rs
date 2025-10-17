@@ -48,10 +48,11 @@ impl MarkdownImportSupport {
         // Must contain a slash or backslash to look like a path
         let inline_code_regex = Regex::new(r"`([^`]+[/\\][^`]*)`").unwrap();
 
-        // Matches word-boundary separated paths in prose (not inside links, code, or quotes)
-        // This is intentionally conservative to avoid false positives
+        // Matches paths in prose (not inside links or code)
         // Matches patterns like: integration-tests/src/ or docs/api.md
-        let prose_path_regex = Regex::new(r"\b([a-zA-Z0-9_-]+/[a-zA-Z0-9_/.-]+)\b").unwrap();
+        // No word boundaries to handle Unicode chars like ├── integration-tests/
+        // Pattern itself is specific enough: requires alphanumeric/dash/underscore, then slash
+        let prose_path_regex = Regex::new(r"([a-zA-Z0-9_-]+/[a-zA-Z0-9_/.-]*)").unwrap();
 
         Self {
             inline_link_regex,
@@ -79,7 +80,25 @@ impl MarkdownImportSupport {
             return false;
         }
 
-        // Looks like a path if it has a slash
+        // Skip command-line patterns (e.g., "cargo test --manifest-path integration-tests/Cargo.toml")
+        // If text has spaces AND contains command flags (--), it's likely a command, not a path
+        if text.contains(' ') && text.contains("--") {
+            return false;
+        }
+
+        // Skip common command prefixes followed by spaces
+        let command_prefixes = [
+            "cargo ", "npm ", "yarn ", "pnpm ", "git ", "docker ", "kubectl ",
+            "python ", "node ", "rustc ", "gcc ", "make ", "cmake ", "go ",
+            "mvn ", "gradle ", "java ", "javac ", "dotnet ", "ruby ", "perl "
+        ];
+        for prefix in &command_prefixes {
+            if text.starts_with(prefix) {
+                return false;
+            }
+        }
+
+        // Looks like a path if it has a slash and none of the above patterns
         true
     }
 
@@ -333,10 +352,16 @@ impl ImportRenameSupport for MarkdownImportSupport {
                 let code_content = caps.get(1).unwrap().as_str();
 
                 if Self::looks_like_path(code_content) {
-                    // Simple substring replacement for paths in inline code
-                    if code_content.contains(old_name) {
+                    // Skip if already updated (idempotency check for nested renames)
+                    let is_nested_rename = new_name.starts_with(&format!("{}/", old_name));
+                    if is_nested_rename && code_content.contains(new_name) {
+                        return full_match.to_string();
+                    }
+
+                    // Match at start of path (not anywhere)
+                    if code_content == old_name || code_content.starts_with(&format!("{}/", old_name)) {
                         count += 1;
-                        let updated_content = code_content.replace(old_name, new_name);
+                        let updated_content = code_content.replacen(old_name, new_name, 1);
                         return format!("`{}`", updated_content);
                     }
                 }
@@ -353,10 +378,16 @@ impl ImportRenameSupport for MarkdownImportSupport {
                 let full_match = caps.get(0).unwrap().as_str();
                 let path_content = caps.get(1).unwrap().as_str();
 
-                // Only replace if it matches or contains the old path
+                // Skip if already updated (idempotency check for nested renames)
+                let is_nested_rename = new_name.starts_with(&format!("{}/", old_name));
+                if is_nested_rename && path_content.contains(new_name) {
+                    return full_match.to_string();
+                }
+
+                // Only replace if it matches or starts with the old path
                 if path_content == old_name || path_content.starts_with(&format!("{}/", old_name)) {
                     count += 1;
-                    return path_content.replace(old_name, new_name);
+                    return path_content.replacen(old_name, new_name, 1);
                 }
 
                 full_match.to_string()
