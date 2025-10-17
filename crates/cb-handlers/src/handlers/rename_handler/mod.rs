@@ -77,6 +77,12 @@ pub(crate) struct RenameOptions {
     /// Custom scope configuration (when scope="custom")
     #[serde(default)]
     pub custom_scope: Option<codebuddy_core::rename_scope::RenameScope>,
+
+    /// Consolidate source package into target (for directory renames only)
+    /// When true, merges Cargo.toml dependencies and updates all imports.
+    /// When None, auto-detects based on path patterns (moving crate into another crate's src/).
+    #[serde(default)]
+    pub consolidate: Option<bool>,
 }
 
 impl RenameOptions {

@@ -12,9 +12,37 @@ use lsp_types::{
 };
 use std::collections::HashMap;
 use std::path::Path;
-use tracing::debug;
+use tracing::{debug, info};
 
 impl RenameHandler {
+    /// Auto-detect if this is a consolidation move
+    ///
+    /// Detects when moving a Rust crate into another crate's src/ directory.
+    /// Pattern: crates/source-crate → crates/target-crate/src/module
+    fn is_consolidation_move(old_path: &Path, new_path: &Path) -> bool {
+        // Check if source is a Cargo package
+        let has_source_cargo = old_path.join("Cargo.toml").exists();
+
+        // Check if target path is inside another crate's src/ directory
+        let mut target_in_src = false;
+        let mut parent_has_cargo = false;
+
+        for ancestor in new_path.ancestors() {
+            if ancestor.file_name().and_then(|n| n.to_str()) == Some("src") {
+                target_in_src = true;
+                // Check if this src's parent has Cargo.toml
+                if let Some(crate_root) = ancestor.parent() {
+                    if crate_root.join("Cargo.toml").exists() {
+                        parent_has_cargo = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        has_source_cargo && target_in_src && parent_has_cargo
+    }
+
     /// Generate plan for directory rename using FileService
     pub(crate) async fn plan_directory_rename(
         &self,
@@ -29,6 +57,18 @@ impl RenameHandler {
 
         let old_path = Path::new(&params.target.path);
         let new_path = Path::new(&params.new_name);
+
+        // Determine if this is a consolidation (explicit flag or auto-detect)
+        let is_consolidation = params.options.consolidate
+            .unwrap_or_else(|| Self::is_consolidation_move(old_path, new_path));
+
+        if is_consolidation {
+            info!(
+                old_path = %old_path.display(),
+                new_path = %new_path.display(),
+                "Detected consolidation move - will merge Cargo.toml and update imports"
+            );
+        }
 
         // Get scope configuration from options
         let rename_scope = params.options.to_rename_scope();
@@ -49,7 +89,7 @@ impl RenameHandler {
         let dry_run_result = context
             .app_state
             .file_service
-            .rename_directory_with_imports(old_path, new_path, true, false, None, false)
+            .rename_directory_with_imports(old_path, new_path, true, is_consolidation, None, false)
             .await?;
 
         // Extract metadata from dry-run result

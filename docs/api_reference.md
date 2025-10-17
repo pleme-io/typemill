@@ -237,32 +237,16 @@ LSP-based navigation and code intelligence tools. Language support depends on co
 
 ### `find_definition`
 
-Find the definition of a symbol at a specific position.
+**What it does:** Jump to where a function/class/variable was originally defined.
+
+Example: You see `user.getName()` → takes you to `function getName() { ... }`
 
 **Parameters:**
-```json
-{
-  "file_path": "src/index.ts",     // Required: Absolute or relative file path
-  "line": 10,                      // Required: Line number (1-indexed)
-  "character": 5,                  // Required: Character position (0-indexed)
-  "symbol_kind": "function"        // Optional: Symbol type hint (function, class, variable, etc.)
-}
-```
+- `file_path`: File you're looking at
+- `line`: Line number (starts at 1)
+- `character`: Column position (starts at 0)
 
-**Returns:**
-```json
-{
-  "definitions": [
-    {
-      "uri": "file:///path/to/file.ts",
-      "range": {
-        "start": {"line": 5, "character": 0},
-        "end": {"line": 10, "character": 1}
-      }
-    }
-  ]
-}
-```
+**Returns:** Location(s) of the definition
 
 **Example:**
 ```bash
@@ -273,73 +257,35 @@ codebuddy tool find_definition '{"file_path":"src/app.ts","line":15,"character":
 
 ### `find_references`
 
-Find all references to a symbol.
+**What it does:** Find every place in your codebase where something is used.
+
+Example: You wrote `sendEmail()` → shows all 47 places that call it.
 
 **Parameters:**
-```json
-{
-  "file_path": "src/utils.ts",          // Required: File path
-  "line": 5,                            // Required: Line number (1-indexed)
-  "character": 10,                      // Required: Character position (0-indexed)
-  "symbol_name": "formatDate",          // Optional: Symbol name (LSP can infer from position)
-  "include_declaration": true,          // Optional: Include definition (default: true)
-  "symbol_kind": "function"             // Optional: Symbol type hint
-}
-```
+- `file_path`: File path
+- `line`: Line number (starts at 1)
+- `character`: Column position (starts at 0)
+- `include_declaration` (optional): Include the definition location (default: true)
 
-**Returns:**
-```json
-{
-  "references": [
-    {
-      "uri": "file:///path/to/caller.ts",
-      "range": {
-        "start": {"line": 20, "character": 5},
-        "end": {"line": 20, "character": 15}
-      }
-    }
-  ],
-  "total": 12
-}
-```
+**Returns:** List of all references + total count
 
 ---
 
 ### `search_workspace_symbols`
 
-Search for symbols across the entire workspace.
+**What it does:** Search for any function, class, or variable by name across your entire project.
+
+Example: Search "config" → finds `loadConfig()`, `ConfigManager`, `DEFAULT_CONFIG`, etc.
 
 **Parameters:**
-```json
-{
-  "query": "Button",              // Required: Search query (supports partial matching)
-  "workspace_path": "/project"    // Optional: Workspace path (defaults to current directory)
-}
-```
+- `query`: What to search for (supports partial matches)
+- `workspace_path` (optional): Where to search (defaults to current directory)
 
-**Returns:**
-```json
-{
-  "symbols": [
-    {
-      "name": "Button",
-      "kind": "Class",
-      "location": {
-        "uri": "file:///src/components/Button.tsx",
-        "range": {"start": {"line": 5, "character": 0}, "end": {"line": 20, "character": 1}}
-      },
-      "containerName": "components"
-    }
-  ],
-  "total": 5
-}
-```
+**Returns:** Matching symbols with their locations
 
 **Notes:**
-- Queries ALL active LSP servers concurrently
-- Results are merged and deduplicated
-- Maximum 10,000 symbols returned
-- **Performance:** Fast for specific queries, slower for broad searches (e.g., single letter)
+- Searches ALL configured language servers at once
+- Fast for specific queries, slower for broad searches (single letters)
 
 ---
 
@@ -380,276 +326,130 @@ Get hierarchical symbol structure for a file.
 
 ### `get_hover`
 
-Get hover information (documentation, types, signatures) at a position.
+**What it does:** Show documentation, type info, and signatures when you hover over code.
+
+Example: Hover over `Math.random()` → shows "Returns a random number between 0 and 1"
 
 **Parameters:**
-```json
-{
-  "file_path": "src/utils.ts",    // Required: File path
-  "line": 10,                     // Required: Line number (1-indexed)
-  "character": 5                  // Required: Character position (0-indexed)
-}
-```
+- `file_path`: File path
+- `line`: Line number (starts at 1)
+- `character`: Column position (starts at 0)
 
-**Returns:**
-```json
-{
-  "contents": {
-    "kind": "markdown",
-    "value": "```typescript\nfunction formatDate(date: Date): string\n```\nFormats a date as YYYY-MM-DD"
-  },
-  "range": {
-    "start": {"line": 10, "character": 5},
-    "end": {"line": 10, "character": 15}
-  }
-}
-```
+**Returns:** Markdown documentation with type signatures and descriptions
 
 ---
 
 ### `get_completions`
 
-Get intelligent code completions at a specific position.
+**What it does:** Get autocomplete suggestions as you type.
+
+Example: Type `user.` → suggests `name`, `email`, `id`, `toString()`, etc.
 
 **Parameters:**
-```json
-{
-  "file_path": "src/app.ts",       // Required: File path
-  "line": 15,                      // Required: Line number (1-indexed)
-  "character": 10,                 // Required: Character position (0-indexed)
-  "trigger_character": "."         // Optional: Trigger character (., :, >)
-}
-```
+- `file_path`: File path
+- `line`: Line number (starts at 1)
+- `character`: Column position (starts at 0)
+- `trigger_character` (optional): What triggered completion (`.`, `:`, `>`)
 
-**Returns:**
-```json
-{
-  "items": [
-    {
-      "label": "toString",
-      "kind": "Method",
-      "detail": "(): string",
-      "documentation": "Returns string representation"
-    }
-  ],
-  "isIncomplete": false
-}
-```
+**Returns:** List of suggestions with types and documentation
 
 ---
 
 ### `get_signature_help`
 
-Get function signature help at a position.
+**What it does:** Show function parameter hints while typing a function call.
+
+Example: Type `formatDate(` → shows `formatDate(date: Date, format?: string): string`
 
 **Parameters:**
-```json
-{
-  "file_path": "src/app.ts",       // Required: File path
-  "line": 20,                      // Required: Line number (1-indexed)
-  "character": 15,                 // Required: Character position (0-indexed)
-  "trigger_character": "("         // Optional: Trigger character ((, ,)
-}
-```
+- `file_path`: File path
+- `line`: Line number (starts at 1)
+- `character`: Column position (starts at 0)
+- `trigger_character` (optional): What triggered help (`(`, `,`)
 
-**Returns:**
-```json
-{
-  "signatures": [
-    {
-      "label": "formatDate(date: Date, format?: string): string",
-      "documentation": "Formats a date with optional format string",
-      "parameters": [
-        {"label": "date", "documentation": "Date to format"},
-        {"label": "format", "documentation": "Format string (optional)"}
-      ]
-    }
-  ],
-  "activeSignature": 0,
-  "activeParameter": 0
-}
-```
+**Returns:** Function signatures with parameter details
 
 ---
 
 ### `get_diagnostics`
 
-Get diagnostics (errors, warnings, hints) for a file.
+**What it does:** Get all errors, warnings, and issues in a file.
+
+Example: Shows "Variable 'username' is never used", "Missing semicolon on line 42", etc.
 
 **Parameters:**
-```json
-{
-  "file_path": "src/app.ts"    // Required: File path
-}
-```
+- `file_path`: File to check
 
-**Returns:**
-```json
-{
-  "diagnostics": [
-    {
-      "range": {"start": {"line": 10, "character": 5}, "end": {"line": 10, "character": 10}},
-      "severity": "Error",
-      "message": "Cannot find name 'foo'",
-      "code": 2304,
-      "source": "typescript"
-    }
-  ],
-  "total": 3
-}
-```
+**Returns:** List of problems with severity, message, and location + total count
 
 ---
 
 ### `prepare_call_hierarchy`
 
-Prepare call hierarchy for a symbol.
+**What it does:** Prepare to explore what calls a function and what it calls (step 1 of 3).
 
 **Parameters:**
-```json
-{
-  "file_path": "src/utils.ts",    // Required: File path
-  "line": 10,                     // Required: Line number (1-indexed)
-  "character": 5                  // Required: Character position (0-indexed)
-}
-```
+- `file_path`: File path
+- `line`: Line number (starts at 1)
+- `character`: Column position (starts at 0)
 
-**Returns:**
-```json
-{
-  "item": {
-    "name": "processData",
-    "kind": "Function",
-    "uri": "file:///src/utils.ts",
-    "range": {"start": {"line": 10, "character": 0}, "end": {"line": 20, "character": 1}},
-    "selectionRange": {"start": {"line": 10, "character": 9}, "end": {"line": 10, "character": 20}}
-  }
-}
-```
+**Returns:** Call hierarchy item (use with incoming/outgoing tools below)
 
 ---
 
 ### `get_call_hierarchy_incoming_calls`
 
-Get incoming calls for a call hierarchy item.
+**What it does:** Show what functions call this one.
+
+Example: `saveUser()` is called by `registerUser()`, `updateProfile()`
 
 **Parameters:**
-```json
-{
-  "item": {
-    // Call hierarchy item from prepare_call_hierarchy
-    "name": "processData",
-    "kind": "Function",
-    "uri": "file:///src/utils.ts",
-    // ... (full item object)
-  }
-}
-```
+- `item`: Call hierarchy item from `prepare_call_hierarchy`
 
-**Returns:**
-```json
-{
-  "calls": [
-    {
-      "from": {
-        "name": "handleSubmit",
-        "kind": "Function",
-        "uri": "file:///src/app.ts"
-      },
-      "fromRanges": [
-        {"start": {"line": 50, "character": 10}, "end": {"line": 50, "character": 21}}
-      ]
-    }
-  ]
-}
-```
+**Returns:** List of functions that call this function
 
 ---
 
 ### `get_call_hierarchy_outgoing_calls`
 
-Get outgoing calls from a call hierarchy item.
+**What it does:** Show what functions this one calls.
+
+Example: `saveUser()` calls `validateUser()`, `writeDatabase()`, `sendEmail()`
 
 **Parameters:**
-```json
-{
-  "item": {
-    // Call hierarchy item from prepare_call_hierarchy
-  }
-}
-```
+- `item`: Call hierarchy item from `prepare_call_hierarchy`
 
-**Returns:**
-```json
-{
-  "calls": [
-    {
-      "to": {
-        "name": "validateData",
-        "kind": "Function",
-        "uri": "file:///src/validation.ts"
-      },
-      "fromRanges": [
-        {"start": {"line": 15, "character": 5}, "end": {"line": 15, "character": 17}}
-      ]
-    }
-  ]
-}
-```
+**Returns:** List of functions called by this function
 
 ---
 
 ### `find_implementations`
 
-Find implementations of an interface or abstract class.
+**What it does:** Find all concrete implementations of an interface or abstract class.
+
+Example: Interface `Drawable` → finds classes `Circle`, `Square`, `Triangle` that implement it.
 
 **Parameters:**
-```json
-{
-  "file_path": "src/interfaces.ts",    // Required: File path
-  "line": 5,                           // Required: Line number (1-indexed)
-  "character": 10                      // Required: Character position (0-indexed)
-}
-```
+- `file_path`: File path
+- `line`: Line number (starts at 1)
+- `character`: Column position (starts at 0)
 
-**Returns:**
-```json
-{
-  "implementations": [
-    {
-      "uri": "file:///src/concrete.ts",
-      "range": {"start": {"line": 10, "character": 0}, "end": {"line": 30, "character": 1}}
-    }
-  ]
-}
-```
+**Returns:** List of implementation locations
 
 ---
 
 ### `find_type_definition`
 
-Find underlying type definition.
+**What it does:** Jump to where a type/interface/class was originally defined.
+
+Example: Variable `user: User` → takes you to `interface User { name: string; email: string; }`
 
 **Parameters:**
-```json
-{
-  "file_path": "src/app.ts",    // Required: File path
-  "line": 15,                   // Required: Line number (1-indexed)
-  "character": 8                // Required: Character position (0-indexed)
-}
-```
+- `file_path`: File path
+- `line`: Line number (starts at 1)
+- `character`: Column position (starts at 0)
 
-**Returns:**
-```json
-{
-  "definitions": [
-    {
-      "uri": "file:///src/types.ts",
-      "range": {"start": {"line": 5, "character": 0}, "end": {"line": 10, "character": 1}}
-    }
-  ]
-}
-```
+**Returns:** Location(s) of the type definition
 
 ---
 

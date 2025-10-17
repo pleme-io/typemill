@@ -113,22 +113,37 @@ File and workspace operations also support `dry_run: true`:
 
 ### Rust Crate Consolidation
 
-**Note**: `rename_directory` is now an internal tool. Consolidation functionality is available to backend workflows but not directly exposed to AI agents.
-
-The `rename_directory` internal tool supports a special **consolidation mode** for merging Rust crates:
+The `rename.plan` command supports a special **consolidation mode** for merging Rust crates via the `options.consolidate` parameter:
 
 ```json
 {
   "method": "tools/call",
   "params": {
-    "name": "rename_directory",
+    "name": "rename.plan",
     "arguments": {
-      "old_path": "crates/source-crate",
-      "new_path": "crates/target-crate/src/module",
-      "consolidate": true,
-      "dry_run": true
+      "target": {
+        "kind": "directory",
+        "path": "crates/source-crate"
+      },
+      "new_name": "crates/target-crate/src/module",
+      "options": {
+        "consolidate": true
+      }
     }
   }
+}
+```
+
+**Auto-Detection:** When `consolidate` is not specified, the command automatically detects consolidation moves by checking if:
+- Source path is a Cargo package (has `Cargo.toml`)
+- Target path is inside another crate's `src/` directory
+- Parent of target `src/` has `Cargo.toml`
+
+Example auto-detected consolidation (no `consolidate: true` needed):
+```json
+{
+  "target": {"kind": "directory", "path": "crates/cb-types"},
+  "new_name": "crates/codebuddy-core/src/types"
 }
 ```
 
@@ -148,6 +163,8 @@ pub mod module;  // Exposes the consolidated code
 - Simplifying workspace structure by reducing number of crates
 - Merging experimental features back into main crate
 - Consolidating related functionality into a single package
+
+**Override auto-detection:** Set `"consolidate": false` to force a simple directory rename even when the pattern matches consolidation.
 
 For detailed parameters, return types, and examples, see **[api_reference.md](docs/api_reference.md)**.
 
