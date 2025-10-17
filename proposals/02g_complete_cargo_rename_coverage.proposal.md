@@ -81,34 +81,34 @@ let config = "integration-tests/fixtures/test.toml";
 ## Checklists
 
 ### Root Workspace Updates
-- [ ] Add `find_workspace_root()` helper to locate `/workspace/Cargo.toml`
-- [ ] Scan workspace members list for old directory name
-- [ ] Generate TextEdit to update workspace members array
-- [ ] Add test: rename workspace member, verify root manifest updated
+- [x] Add `find_workspace_root()` helper to locate `/workspace/Cargo.toml`
+- [x] Scan workspace members list for old directory name
+- [x] Generate TextEdit to update workspace members array
+- [x] Add test: rename workspace member, verify root manifest updated
 
 ### Package Name Updates
-- [ ] After directory rename, read moved `Cargo.toml`
-- [ ] Parse `[package] name` field
-- [ ] Generate TextEdit if name matches old directory name
-- [ ] Add test: rename package directory, verify package name updated
+- [x] After directory rename, read moved `Cargo.toml`
+- [x] Parse `[package] name` field
+- [x] Generate TextEdit if name matches old directory name
+- [x] Add test: rename package directory, verify package name updated
 
 ### Dev-Dependency Scanning
-- [ ] Extend `scan_cargo_files()` to check `[dev-dependencies]` sections
-- [ ] Match both package name and path in dependency declarations
-- [ ] Generate TextEdits for both name and path fields
-- [ ] Add test: rename package, verify dev-dependency references updated across workspace
+- [x] Extend `scan_cargo_files()` to check `[dev-dependencies]` sections
+- [x] Match both package name and path in dependency declarations
+- [x] Generate TextEdits for both name and path fields
+- [x] Add test: rename package, verify dev-dependency references updated across workspace
 
 ### String Literal Integration
-- [ ] Verify `rewrite_string_literals()` called in `reference_updater::update_references()`
-- [ ] If not wired: integrate string literal rewriting for Rust files
-- [ ] Add test: rename directory, verify hardcoded path strings updated in .rs files
+- [x] Verify `rewrite_string_literals()` called in `reference_updater::update_references()`
+- [x] If not wired: integrate string literal rewriting for Rust files
+- [x] Add test: rename directory, verify hardcoded path strings updated in .rs files
 
 ### Integration Tests
-- [ ] Test full workflow: rename `integration-tests → tests`
-- [ ] Assert workspace Cargo.toml updated
-- [ ] Assert package name updated
-- [ ] Assert dev-dependencies updated
-- [ ] Assert build succeeds without manual fixes
+- [x] Test full workflow: rename `integration-tests → tests`
+- [x] Assert workspace Cargo.toml updated
+- [x] Assert package name updated
+- [x] Assert dev-dependencies updated
+- [x] Assert build succeeds without manual fixes
 
 ## Success Criteria
 

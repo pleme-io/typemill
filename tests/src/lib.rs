@@ -28,6 +28,9 @@ pub mod test_rename_with_imports;
 pub mod test_comprehensive_rename_coverage;
 
 #[cfg(test)]
+pub mod test_cargo_package_rename;
+
+#[cfg(test)]
 pub mod test_extract_integration;
 
 #[cfg(test)]
