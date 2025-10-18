@@ -4,28 +4,30 @@ Fast reference for implementing new language plugins.
 
 ## Quick Start
 
-| Step | Command | Time |
-|------|---------|------|
-| 1. Generate structure | `cd crates/languages && ./new-lang.sh kotlin --manifest "build.gradle.kts" --extensions kt,kts` | 5 min |
-| 2. Build workspace | `cd ../.. && cargo build --features lang-kotlin` | 1 min |
-| 3. Implement logic | Edit `parser.rs`, `manifest.rs` | 1-2 days |
-| 4. Run tests | `cargo nextest run -p cb-lang-kotlin` | 1 min |
-| 5. Validate | `cd crates/languages && ./check-features.sh` | 30 sec |
+Creating a new language plugin involves creating a standard Cargo crate and registering it with the `codebuddy-plugin-bundle`.
+
+| Step | Action | Notes |
+|------|--------|-------|
+| 1. Create Crate | `cargo new --lib crates/cb-lang-mynewlang` | Creates the standard plugin structure |
+| 2. Implement Logic | Edit `src/lib.rs` to implement `LanguagePlugin` trait | See reference implementations below |
+| 3. Register Plugin | Add to `codebuddy-plugin-bundle/Cargo.toml` and `lib.rs` | Makes plugin discoverable via auto-discovery |
+| 4. Build Workspace | `cargo build -p cb-lang-mynewlang` | Verify compilation |
+| 5. Run Tests | `cargo nextest run -p cb-lang-mynewlang` | Add tests and verify functionality |
 
 ## Plugin Structure
 
+All language plugins are independent crates in the `crates/` directory:
+
 ```
-crates/languages/cb-lang-{language}/
-├── Cargo.toml              # Dependencies and metadata
-├── README.md               # Plugin documentation
-├── resources/              # Optional: embedded AST tools
-│   └── ast_tool.*         # Language-native parser subprocess
-└── src/
-    ├── lib.rs              # Main plugin struct + LanguagePlugin trait
-    ├── parser.rs           # Symbol extraction & import parsing
-    ├── manifest.rs         # Manifest file parsing
-    ├── import_support_impl.rs # Optional: Segregated import traits (new pattern)
-    └── workspace_support.rs   # Optional: WorkspaceSupport trait
+crates/
+└── cb-lang-{language}/
+    ├── Cargo.toml              # Dependencies and metadata
+    └── src/
+        ├── lib.rs              # Main plugin with LanguagePlugin trait
+        ├── parser.rs           # Optional: Symbol extraction logic
+        ├── manifest.rs         # Optional: Manifest parsing logic
+        ├── import_support.rs   # Optional: Import capability traits
+        └── workspace_support.rs # Optional: Workspace capability trait
 ```
 
 ## Core Trait: LanguagePlugin
@@ -87,17 +89,48 @@ Plugins now implement 5 focused traits instead of one monolithic `ImportSupport`
 | `remove_workspace_member()` | Remove member from workspace |
 | `merge_dependencies()` | Merge dependencies between manifests |
 
-## Manual Integration Steps
+## Plugin Registration (Auto-Discovery)
 
-After running `./new-lang.sh`, manually edit these files:
+Codebuddy uses compile-time auto-discovery via the `codebuddy_plugin!` macro and `inventory` crate:
 
-| File | Action | Example |
-|------|--------|---------|
-| Root `Cargo.toml` | Add workspace dependency | `cb-lang-java = { path = "crates/languages/cb-lang-java" }` |
-| `crates/cb-handlers/Cargo.toml` | Add optional dep + feature | `cb-lang-java = { workspace = true, optional = true }` + `lang-java = ["dep:cb-lang-java"]` |
-| `crates/cb-services/src/services/registry_builder.rs` | Register plugin | `#[cfg(feature = "lang-java")] { registry.register(Arc::new(cb_lang_java::JavaPlugin::new())); }` |
+### Step 1: Self-Register Your Plugin
 
-**Verify:** `cd crates/languages && ./check-features.sh`
+In your plugin's `src/lib.rs`:
+
+```rust
+use cb_plugin_api::codebuddy_plugin;
+
+codebuddy_plugin! {
+    name: "python",
+    extensions: ["py", "pyi"],
+    manifest: "pyproject.toml",
+    capabilities: PythonPlugin::CAPABILITIES,
+    factory: PythonPlugin::new,
+    lsp: Some(LspConfig::new("pylsp", &[]))
+}
+```
+
+### Step 2: Add to Plugin Bundle
+
+Edit `crates/codebuddy-plugin-bundle/Cargo.toml`:
+
+```toml
+[dependencies]
+cb-lang-python = { path = "../cb-lang-python" }
+```
+
+Edit `crates/codebuddy-plugin-bundle/src/lib.rs`:
+
+```rust
+use cb_lang_python::PythonPlugin;
+
+fn _force_plugin_linkage() {
+    let _: Option<PythonPlugin> = None;
+    // ... existing plugins
+}
+```
+
+**That's it!** The plugin is now automatically discovered and loaded.
 
 ## Parser Patterns
 
@@ -151,14 +184,13 @@ Essential utilities to reduce boilerplate (~460 lines saved):
 
 | Use Case | Best Reference | Location |
 |----------|---------------|----------|
-| Subprocess AST (compiled) | Go plugin | `crates/languages/cb-lang-go/` |
-| Subprocess AST (dynamic) | Python plugin | `crates/languages/cb-lang-python/` |
-| Subprocess AST (JS ecosystem) | TypeScript plugin | `crates/languages/cb-lang-typescript/` |
-| Native Rust parsing | Rust plugin | `crates/languages/cb-lang-rust/` |
-| **Segregated Import Traits (NEW)** | **TypeScript, Markdown, Rust** | **`src/import_support_impl.rs`** |
-| Simple ImportParser only | Markdown plugin | `cb-lang-markdown/src/import_support_impl.rs` |
+| Native Rust parsing | Rust plugin | `crates/cb-lang-rust/` |
+| Simple document plugin | Markdown plugin | `crates/cb-lang-markdown/` |
+| Config file plugin | TOML/YAML plugins | `crates/cb-lang-toml/`, `crates/cb-lang-yaml/` |
+| **Auto-Discovery Pattern** | **All current plugins** | **`src/lib.rs` - `codebuddy_plugin!` macro** |
+| Simple ImportParser only | Markdown plugin | `cb-lang-markdown/src/import_support.rs` |
 | Full import trait suite | Rust plugin | `cb-lang-rust/src/import_support.rs` |
-| WorkspaceSupport | Rust, Go, TypeScript | `src/workspace_support.rs` |
+| WorkspaceSupport | Rust plugin | `cb-lang-rust/src/workspace_support.rs` |
 
 ## Plugin Comparison
 
@@ -204,11 +236,10 @@ Essential utilities to reduce boilerplate (~460 lines saved):
 - [ ] Plugin-specific README.md with examples
 
 ### Integration
-- [ ] Added to root `Cargo.toml` workspace dependencies
-- [ ] Added to `cb-handlers/Cargo.toml` optional dependencies
-- [ ] Feature flag created in `cb-handlers/Cargo.toml`
-- [ ] Registered in `registry_builder.rs`
-- [ ] `./check-features.sh` passes
+- [ ] `codebuddy_plugin!` macro implemented in `src/lib.rs`
+- [ ] Added to `codebuddy-plugin-bundle/Cargo.toml` dependencies
+- [ ] Added to `codebuddy-plugin-bundle/src/lib.rs` `_force_plugin_linkage()`
+- [ ] Workspace builds: `cargo build --workspace`
 
 ## Running Tests
 
@@ -224,22 +255,21 @@ Essential utilities to reduce boilerplate (~460 lines saved):
 
 | Problem | Cause | Solution |
 |---------|-------|----------|
-| Plugin not found during build | Not registered | Check `codebuddy_plugin!` macro, workspace link, registry registration |
-| Subprocess AST tool fails | Runtime not installed | Install runtime (python3, node, go), add fallback regex parser |
+| Plugin not found during build | Not registered | Check `codebuddy_plugin!` macro in src/lib.rs, verify bundle link, check `_force_plugin_linkage()` |
+| Plugin not auto-discovered | Linker optimization | Ensure plugin is in `_force_plugin_linkage()` in bundle's lib.rs |
 | ImportGraph has no imports | Not being called | Verify `parse_imports()` called, check regex patterns, use debug logging |
-| Tests pass locally, fail in CI | Runtime unavailable in CI | Ensure fallback parser works, use feature flags for integration tests |
-| LanguageMetadata constant not found | Build script issue | Run `cargo clean && cargo build`, check `languages.toml` entry |
+| LanguageMetadata constant not found | Build error | Run `cargo clean && cargo build -p cb-lang-yourlang` |
 | Import rewriting changes non-imports | Regex too broad | Use AST-based rewriting or specific regex: `^import\s+{}`  |
 | Workspace operations corrupt manifest | String manipulation | Use parser library (`toml_edit`, `serde_json`), validate output |
+| Tests fail with "plugin not found" | Missing from bundle | Add to `codebuddy-plugin-bundle/Cargo.toml` and rebuild |
 
 ## Code Examples
 
-See `examples/plugins/` for complete examples:
-- Subprocess AST pattern (Go, Python, TypeScript)
-- Native Rust parsing (Rust)
-- Import support implementation
-- Workspace support implementation
-- Test suite patterns
+See existing plugins for complete reference implementations:
+- **Rust**: `crates/cb-lang-rust/` - Full-featured with all capabilities
+- **Markdown**: `crates/cb-lang-markdown/` - Simple plugin with basic import support
+- **TOML/YAML**: `crates/cb-lang-toml/`, `crates/cb-lang-yaml/` - Config file plugins
+- **TypeScript**: `crates/cb-lang-typescript/` - JavaScript ecosystem plugin
 
 ## Key Principles
 
@@ -262,7 +292,7 @@ See `examples/plugins/` for complete examples:
 
 ## Key References
 
-- [cb_lang_common.md](cb_lang_common.md) - Shared utility functions
-- [readme.md](readme.md) - Overview of existing plugins
-- [examples/plugins/](../../examples/plugins/) - Complete code examples
-- [docs/archive/plugin_development_guide-verbose.md](../archive/plugin_development_guide-verbose.md) - Full guide with explanations
+- [cb-plugin-api/src/lib.rs](../crates/cb-plugin-api/src/lib.rs) - Core trait definitions
+- [codebuddy-plugin-bundle/src/lib.rs](../crates/codebuddy-plugin-bundle/src/lib.rs) - Bundle implementation
+- [cb-lang-rust/](../crates/cb-lang-rust/) - Full reference implementation
+- [CLAUDE.md](../CLAUDE.md) - Project documentation including plugin overview
