@@ -1,7 +1,7 @@
 //! MCP preset management commands
 
 use anyhow::{bail, Result};
-use codebuddy_core::config::{ AppConfig , ExternalMcpConfig , ExternalMcpServerConfig };
+use codebuddy_config::config::{ AppConfig , ExternalMcpConfig , ExternalMcpServerConfig };
 use std::path::Path;
 
 #[cfg(feature = "mcp-proxy")]

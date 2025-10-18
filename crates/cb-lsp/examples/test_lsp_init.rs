@@ -1,4 +1,4 @@
-use codebuddy_core::config::LspServerConfig;
+use codebuddy_config::config::LspServerConfig;
 use cb_lsp::lsp_system::client::LspClient;
 use std::time::Duration;
 

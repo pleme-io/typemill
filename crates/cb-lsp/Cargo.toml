@@ -17,6 +17,7 @@ dashmap = { workspace = true }
 uuid = { workspace = true }
 once_cell = "1.19"
 codebuddy-core = { path = "../codebuddy-core" }
+codebuddy-config = { path = "../codebuddy-config" }
 
 [target.'cfg(unix)'.dependencies]
 nix = { version = "0.29", features = ["process"] }

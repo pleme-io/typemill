@@ -1,6 +1,6 @@
 //! Remote command execution utilities
 
-use codebuddy_core::workspaces::WorkspaceManager;
+use codebuddy_workspaces::WorkspaceManager;
 use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use reqwest;
 use serde_json::json;

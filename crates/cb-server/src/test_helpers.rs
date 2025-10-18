@@ -5,7 +5,7 @@ use crate::services::operation_queue::OperationType;
 use crate::services::{DefaultAstService, FileService, LockManager, OperationQueue};
 use crate::workspaces::WorkspaceManager;
 use cb_ast::AstCache;
-use codebuddy_core::AppConfig;
+use codebuddy_config::AppConfig;
 use codebuddy_plugin_system::PluginManager;
 use std::sync::Arc;
 

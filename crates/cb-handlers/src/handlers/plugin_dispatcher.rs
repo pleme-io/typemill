@@ -19,7 +19,7 @@
 use crate::register_handlers_with_logging;
 use async_trait::async_trait;
 use codebuddy_core::model::mcp::{ McpMessage , McpRequest , McpResponse , ToolCall };
-use codebuddy_core::workspaces::WorkspaceManager;
+use codebuddy_workspaces::WorkspaceManager;
 use codebuddy_plugin_system::{LspAdapterPlugin, PluginManager};
 use cb_protocol::AstService;
 use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
@@ -102,7 +102,7 @@ impl PluginDispatcher {
             let plugin_registry = cb_services::services::build_language_plugin_registry();
 
             // Get LSP configuration from app config
-            let app_config = codebuddy_core::config::AppConfig::load()
+            let app_config = codebuddy_config::config::AppConfig::load()
                 .map_err(|e| {
                     error!(error = %e, "Failed to load app config");
                     ServerError::Internal(format!("Failed to load app config: {}", e))
@@ -497,7 +497,7 @@ pub async fn create_test_dispatcher() -> PluginDispatcher {
 
     let cache_settings = cb_ast::CacheSettings::default();
     let plugin_manager = Arc::new(PluginManager::new());
-    let config = codebuddy_core::AppConfig::default();
+    let config = codebuddy_config::AppConfig::default();
 
     // Build plugin registry for tests
     let plugin_registry = cb_services::services::registry_builder::build_language_plugin_registry();
@@ -548,7 +548,7 @@ mod tests {
         let operation_queue = Arc::new(cb_services::services::OperationQueue::new(
             lock_manager.clone(),
         ));
-        let config = codebuddy_core::AppConfig::default();
+        let config = codebuddy_config::AppConfig::default();
         let file_service = Arc::new(cb_services::services::FileService::new(
             project_root.clone(),
             ast_cache.clone(),

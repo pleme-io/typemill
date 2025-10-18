@@ -19,7 +19,7 @@ pub async fn create_initialized_dispatcher_with_workspace(
 ) -> Result<Arc<PluginDispatcher>, std::io::Error> {
     // Load configuration
     let config =
-        codebuddy_core::config::AppConfig::load().map_err(|e| std::io::Error::other(e.to_string()))?;
+        codebuddy_config::config::AppConfig::load().map_err(|e| std::io::Error::other(e.to_string()))?;
 
     // Build plugin registry from the plugin bundle
     let plugins = codebuddy_plugin_bundle::all_plugins();

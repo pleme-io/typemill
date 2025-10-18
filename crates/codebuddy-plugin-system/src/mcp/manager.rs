@@ -3,7 +3,7 @@
 use super::client::ExternalMcpClient;
 use super::error::{McpProxyError, McpProxyResult};
 use crate::{PluginError, PluginRequest, PluginResponse, PluginResult};
-use codebuddy_core::config::ExternalMcpServerConfig;
+use codebuddy_config::config::ExternalMcpServerConfig;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;

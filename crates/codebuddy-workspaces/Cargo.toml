@@ -1,0 +1,14 @@
+[package]
+name = "codebuddy-workspaces"
+edition = "2021"
+description = "Workspace management for Codeflow Buddy (multi-tenant container orchestration)"
+license = "MIT"
+
+[dependencies]
+cb-types = { path = "../cb-types" }
+dashmap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+anyhow = "1.0"

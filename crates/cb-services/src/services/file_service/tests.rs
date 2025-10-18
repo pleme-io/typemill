@@ -78,7 +78,7 @@ mod tests {
         let ast_cache = Arc::new(AstCache::new());
         let lock_manager = Arc::new(LockManager::new());
         let operation_queue = Arc::new(OperationQueue::new(lock_manager.clone()));
-        let config = codebuddy_core::config::AppConfig::default();
+        let config = codebuddy_config::config::AppConfig::default();
         let plugin_registry = crate::services::build_language_plugin_registry();
         let service = FileService::new(
             temp_dir.path(),
@@ -589,7 +589,7 @@ mod workspace_tests {
         let ast_cache = Arc::new(AstCache::new());
         let lock_manager = Arc::new(LockManager::new());
         let operation_queue = Arc::new(OperationQueue::new(lock_manager.clone()));
-        let config = codebuddy_core::config::AppConfig::default();
+        let config = codebuddy_config::config::AppConfig::default();
         let plugin_registry = crate::services::build_language_plugin_registry();
         let service = FileService::new(
             temp_dir.path(),
@@ -664,7 +664,7 @@ members = [
         let ast_cache = Arc::new(AstCache::new());
         let lock_manager = Arc::new(LockManager::new());
         let operation_queue = Arc::new(OperationQueue::new(lock_manager.clone()));
-        let config = codebuddy_core::config::AppConfig::default();
+        let config = codebuddy_config::config::AppConfig::default();
         let plugin_registry = crate::services::build_language_plugin_registry();
         let service = FileService::new(
             temp_dir.path(),

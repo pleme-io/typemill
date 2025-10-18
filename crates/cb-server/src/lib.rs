@@ -14,14 +14,14 @@
 #[cfg(any(test, feature = "test-helpers"))]
 pub mod test_helpers;
 
-// Re-export workspaces from cb-core for backward compatibility
-pub use codebuddy_core::workspaces;
+// Re-export workspaces from codebuddy-workspaces for backward compatibility
+pub use codebuddy_workspaces as workspaces;
 
 // Re-export from new crates for backward compatibility
 pub use cb_handlers::handlers;
 pub use cb_services::services;
 
-use codebuddy_core::AppConfig;
+use codebuddy_config::AppConfig;
 use cb_handlers::handlers::plugin_dispatcher::{AppState, PluginDispatcher};
 pub use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult, AstService, LspService};
 use std::path::PathBuf;
@@ -85,7 +85,7 @@ pub async fn bootstrap(options: ServerOptions) -> ServerResult<ServerHandle> {
     )
     .await;
 
-    let workspace_manager = Arc::new(codebuddy_core::workspaces::WorkspaceManager::new());
+    let workspace_manager = Arc::new(codebuddy_workspaces::WorkspaceManager::new());
 
     // Create application state
     let app_state = Arc::new(AppState {
@@ -138,7 +138,7 @@ impl ServerOptions {
 /// the standalone binary (main.rs) and the unified binary (apps/codebuddy).
 pub async fn create_dispatcher_with_workspace(
     config: Arc<AppConfig>,
-    workspace_manager: Arc<codebuddy_core::workspaces::WorkspaceManager>,
+    workspace_manager: Arc<codebuddy_workspaces::WorkspaceManager>,
     plugin_registry: Arc<cb_plugin_api::PluginRegistry>,
 ) -> ServerResult<Arc<PluginDispatcher>> {
     // Get project root

@@ -1,27 +1,22 @@
 [package]
-name = "codebuddy-core"
+name = "codebuddy-config"
 edition = "2021"
-description = "Core types, configuration, and error handling for Codeflow Buddy"
+description = "Configuration management for Codeflow Buddy"
 license = "MIT"
 
 [dependencies]
 cb-types = { path = "../cb-types" }
 cb-plugin-api = { path = "../cb-plugin-api" }
-codebuddy-config = { path = "../codebuddy-config" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
-anyhow = "1.0"
-sha2 = "0.10"
+chrono = { version = "0.4", features = ["serde"] }
+toml = "0.9"
+figment = { version = "0.10", features = ["toml", "env"] }
 glob = "0.3"
+anyhow = "1.0"
 
 [features]
 default = []
 mcp-proxy = []
-
-[dev-dependencies]
-tempfile = "3.8"
-serial_test = "3.2"
-tokio = { workspace = true }

@@ -160,7 +160,7 @@ impl SystemHandler {
         let extension = file_path.extension().and_then(|e| e.to_str()).unwrap_or("");
 
         // Load LSP config to create a temporary DirectLspAdapter for notification
-        let app_config = codebuddy_core::config::AppConfig::load()
+        let app_config = codebuddy_config::config::AppConfig::load()
             .map_err(|e| ServerError::Internal(format!("Failed to load app config: {}", e)))?;
         let lsp_config = app_config.lsp;
 

@@ -1,6 +1,6 @@
 //! Centralized logging initialization with environment variable support
 
-use crate::config::{AppConfig, LogFormat};
+use codebuddy_config::{AppConfig, LogFormat};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 /// Initialize tracing subscriber with environment variable support

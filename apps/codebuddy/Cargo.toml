@@ -35,6 +35,7 @@ clap = { version = "4.0", features = ["derive"] }
 fs2 = "0.4"
 codebuddy-plugin-system = { path = "../../crates/codebuddy-plugin-system" }
 codebuddy-core = { path = "../../crates/codebuddy-core" }
+codebuddy-config = { path = "../../crates/codebuddy-config" }
 
 [dev-dependencies]
 cb-test-support = { path = "../../crates/cb-test-support" }
@@ -69,7 +70,7 @@ e2e = { path = "../../tests/e2e" }
 
 [features]
 default = []
-mcp-proxy = ["cb-server/mcp-proxy", "cb-client/mcp-proxy", "codebuddy-core/mcp-proxy"]
+mcp-proxy = ["cb-server/mcp-proxy", "cb-client/mcp-proxy", "codebuddy-core/mcp-proxy", "codebuddy-config/mcp-proxy"]
 
 # Platform-specific dependencies for process management
 [target.'cfg(unix)'.dependencies]

@@ -25,7 +25,11 @@ members = [
     "analysis/cb-analysis-deep-dead-code",
     "analysis/cb-analysis-graph",
     "analysis/cb-analysis-circular-deps",
-    "tests/e2e", "crates/codebuddy-core",
+    "tests/e2e",
+    "crates/codebuddy-core",
+    "crates/codebuddy-config",
+    "crates/codebuddy-workspaces",
+    "crates/codebuddy-auth",
 ]
 resolver = "2"
 
@@ -76,6 +80,7 @@ futures = "0.3"
 
 # Core API crates
 codebuddy-core = { path = "crates/codebuddy-core" }
+codebuddy-config = { path = "crates/codebuddy-config" }
 cb-plugin-api = { path = "crates/cb-plugin-api" }
 
 # Graph analysis

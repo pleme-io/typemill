@@ -1,11 +1,9 @@
 //! WebSocket transport implementation
 
 use crate::{McpDispatcher, SessionInfo};
-use codebuddy_core::{
-    auth::jwt::{decode, Claims, DecodingKey, Validation},
-    config::AppConfig,
-    model::mcp::{McpError, McpMessage, McpRequest, McpResponse},
-};
+use codebuddy_auth::jwt::{decode, Claims, DecodingKey, Validation};
+use codebuddy_config::AppConfig;
+use codebuddy_core::model::mcp::{McpError, McpMessage, McpRequest, McpResponse};
 use cb_protocol::{ApiError, ApiResult};
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
@@ -410,7 +408,7 @@ async fn handle_initialize(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codebuddy_core::config::{ AuthConfig , CacheConfig , LoggingConfig , LspConfig , ServerConfig };
+    use codebuddy_config::config::{ AuthConfig , CacheConfig , LoggingConfig , LspConfig , ServerConfig };
 
     fn create_test_config(with_auth: bool) -> AppConfig {
         AppConfig {

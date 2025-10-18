@@ -20,7 +20,7 @@ use crate::services::move_service::MoveService;
 use crate::services::operation_queue::OperationQueue;
 use crate::services::reference_updater::ReferenceUpdater;
 use cb_ast::AstCache;
-use codebuddy_core::config::AppConfig;
+use codebuddy_config::config::AppConfig;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tracing::debug;
@@ -45,7 +45,7 @@ pub struct FileService {
     /// Whether to use git for file operations
     pub(super) use_git: bool,
     /// Validation configuration
-    pub(super) validation_config: codebuddy_core::config::ValidationConfig,
+    pub(super) validation_config: codebuddy_config::config::ValidationConfig,
 }
 
 impl FileService {

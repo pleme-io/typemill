@@ -6,7 +6,7 @@ use crate::{
     PluginResult,
 };
 use async_trait::async_trait;
-use codebuddy_core::config::ExternalMcpServerConfig;
+use codebuddy_config::config::ExternalMcpServerConfig;
 use serde_json::Value;
 
 pub struct McpProxyPlugin {

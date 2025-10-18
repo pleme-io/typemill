@@ -36,11 +36,13 @@ reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-feature
 tempfile = "3.0"
 codebuddy-plugin-system = { path = "../codebuddy-plugin-system" }
 codebuddy-core = { path = "../codebuddy-core" }
+codebuddy-config = { path = "../codebuddy-config" }
 codebuddy-plugin-bundle = { path = "../codebuddy-plugin-bundle" }
+codebuddy-workspaces = { path = "../codebuddy-workspaces" }
 
 [features]
 default = []
-mcp-proxy = ["codebuddy-core/mcp-proxy", "cb-services/mcp-proxy"]
+mcp-proxy = ["codebuddy-core/mcp-proxy", "codebuddy-config/mcp-proxy", "cb-services/mcp-proxy"]
 test-helpers = []
 
 [dev-dependencies]

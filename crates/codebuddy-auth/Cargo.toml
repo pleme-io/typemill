@@ -1,0 +1,18 @@
+[package]
+name = "codebuddy-auth"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Authentication and JWT utilities for Codebuddy"
+
+[dependencies]
+cb-types = { path = "../cb-types" }
+jsonwebtoken = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]

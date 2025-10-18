@@ -10,6 +10,10 @@ description = "Transport layer for WebSocket and stdio communication"
 [dependencies]
 cb-protocol = { path = "../cb-protocol" }
 cb-ast = { path = "../cb-ast" }
+codebuddy-auth = { path = "../codebuddy-auth" }
+codebuddy-core = { path = "../codebuddy-core" }
+codebuddy-config = { path = "../codebuddy-config" }
+codebuddy-workspaces = { path = "../codebuddy-workspaces" }
 tokio = { workspace = true }
 async-trait = { workspace = true }
 serde = { workspace = true }
@@ -23,8 +27,7 @@ uuid = { workspace = true }
 axum = "0.8"
 tower = "0.5.2"
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
-codebuddy-core = { path = "../codebuddy-core" }
 
 [features]
 default = []
-mcp-proxy = ["codebuddy-core/mcp-proxy"]
+mcp-proxy = ["codebuddy-core/mcp-proxy", "codebuddy-config/mcp-proxy"]

@@ -1,7 +1,7 @@
 //! CLI command handling for the codebuddy server
 
 use cb_client::format_plan;
-use codebuddy_core::config::AppConfig;
+use codebuddy_config::config::AppConfig;
 use codebuddy_core::utils::system::command_exists;
 use cb_protocol::analysis_result::AnalysisResult;
 use cb_protocol::refactor_plan::RefactorPlan;

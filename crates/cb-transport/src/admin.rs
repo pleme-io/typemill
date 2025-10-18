@@ -7,14 +7,12 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use codebuddy_core::{
-    auth::{
-        generate_token,
-        jwt::{decode, Claims, DecodingKey, Validation},
-    },
-    config::AppConfig,
-    workspaces::{Workspace, WorkspaceManager},
+use codebuddy_auth::{
+    generate_token,
+    jwt::{decode, Claims, DecodingKey, Validation},
 };
+use codebuddy_config::config::AppConfig;
+use codebuddy_workspaces::{Workspace, WorkspaceManager};
 use cb_protocol::ApiResult;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};

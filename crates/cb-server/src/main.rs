@@ -1,6 +1,6 @@
 //! cb-server main binary
 
-use codebuddy_core::AppConfig;
+use codebuddy_config::AppConfig;
 use clap::{Parser, Subcommand};
 use std::sync::Arc;
 
@@ -34,7 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Starting Codeflow Buddy Server");
 
     // Create workspace manager for tracking connected containers
-    let workspace_manager = Arc::new(codebuddy_core::workspaces::WorkspaceManager::new());
+    let workspace_manager = Arc::new(codebuddy_workspaces::WorkspaceManager::new());
 
     // Build plugin registry using the application-layer bundle
     let all_plugins = codebuddy_plugin_bundle::all_plugins();
