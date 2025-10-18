@@ -11,6 +11,27 @@
 use cb_plugin_api::{iter_plugins, LanguagePlugin};
 use std::sync::Arc;
 
+// Force linker to include language plugins by actively using them.
+// This prevents linker dead code elimination from stripping the inventory submissions.
+// We reference each plugin's public type to ensure the crate is linked.
+use cb_lang_markdown::MarkdownPlugin;
+use cb_lang_rust::RustPlugin;
+use cb_lang_toml::TomlLanguagePlugin;
+use cb_lang_typescript::TypeScriptPlugin;
+use cb_lang_yaml::YamlLanguagePlugin;
+
+// This function is never called but ensures the linker includes all plugin crates
+#[allow(dead_code)]
+fn _force_plugin_linkage() {
+    // These type references ensure the plugin crates are linked
+    // The actual plugin instances will be discovered via inventory
+    let _: Option<MarkdownPlugin> = None;
+    let _: Option<RustPlugin> = None;
+    let _: Option<TomlLanguagePlugin> = None;
+    let _: Option<TypeScriptPlugin> = None;
+    let _: Option<YamlLanguagePlugin> = None;
+}
+
 /// Returns all language plugins available in this bundle.
 ///
 /// This function uses the plugin registry's auto-discovery mechanism
@@ -33,12 +54,28 @@ use std::sync::Arc;
 /// }
 /// ```
 pub fn all_plugins() -> Vec<Arc<dyn LanguagePlugin>> {
-    iter_plugins()
+    let plugins: Vec<_> = iter_plugins()
         .map(|descriptor| {
+            tracing::debug!(
+                plugin_name = descriptor.name,
+                extensions = ?descriptor.extensions,
+                "Discovered language plugin via inventory"
+            );
             let plugin = (descriptor.factory)();
             Arc::from(plugin) as Arc<dyn LanguagePlugin>
         })
-        .collect()
+        .collect();
+
+    tracing::info!(
+        plugin_count = plugins.len(),
+        "Language plugin bundle discovery complete"
+    );
+
+    if plugins.is_empty() {
+        tracing::warn!("No language plugins discovered - inventory system may be broken");
+    }
+
+    plugins
 }
 
 #[cfg(test)]

@@ -35,6 +35,14 @@ impl LanguagePluginRegistry {
         Self { inner: registry }
     }
 
+    /// Create a registry from an existing PluginRegistry
+    ///
+    /// Use this when you already have a PluginRegistry (e.g., from the plugin bundle)
+    /// and want to wrap it in a LanguagePluginRegistry for handler-layer use.
+    pub fn from_registry(registry: Arc<PluginRegistry>) -> Self {
+        Self { inner: registry }
+    }
+
     /// Get a plugin for a given file extension
     pub fn get_plugin(&self, extension: &str) -> Option<&dyn LanguagePlugin> {
         debug!(extension = extension, "Looking up language plugin");

@@ -9,7 +9,7 @@ async fn test_analyze_documentation_coverage_basic() {
 
     // Create a TypeScript file with 5 functions (3 documented, 2 undocumented)
     let code = r#"
-/// This is documented
+/** This is documented */
 export function documented1() {
     return 1;
 }
@@ -19,7 +19,7 @@ export function documented2() {
     return 2;
 }
 
-/// Documented function
+/** Documented function */
 export function documented3() {
     return 3;
 }
@@ -87,7 +87,8 @@ export function undocumented2() {
     // Severity should be Medium for 60% coverage
     assert!(
         finding.severity == Severity::Medium || finding.severity == Severity::Low,
-        "Severity should be Medium or Low for partial coverage"
+        "Severity should be Medium or Low for partial coverage, but got {:?}",
+        finding.severity
     );
 
     // Verify metrics
@@ -178,11 +179,12 @@ export function trivial() {
         return; // Valid early exit for unparseable files
     }
 
-    // Should have quality finding
+    // Should have quality findings (includes quality_summary and individual quality findings)
     assert!(!result.findings.is_empty(), "Expected quality findings");
 
     let finding = &result.findings[0];
-    assert_eq!(finding.kind, "quality");
+    // First finding should be the summary
+    assert_eq!(finding.kind, "quality_summary");
 
     // Severity should be Medium for poor quality docs
     assert!(

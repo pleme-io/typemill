@@ -36,8 +36,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create workspace manager for tracking connected containers
     let workspace_manager = Arc::new(codebuddy_core::workspaces::WorkspaceManager::new());
 
-    // Build plugin registry
-    let plugin_registry = cb_services::services::registry_builder::build_language_plugin_registry();
+    // Build plugin registry using the application-layer bundle
+    let all_plugins = codebuddy_plugin_bundle::all_plugins();
+    tracing::info!(
+        discovered_plugins_count = all_plugins.len(),
+        "Discovered language plugins from bundle"
+    );
+    let mut plugin_registry = cb_plugin_api::PluginRegistry::new();
+    for plugin in all_plugins {
+        plugin_registry.register(plugin);
+    }
+    let plugin_registry = Arc::new(plugin_registry);
 
     // Create dispatcher using shared library function (reduces duplication)
     let dispatcher = cb_server::create_dispatcher_with_workspace(config.clone(), workspace_manager, plugin_registry)

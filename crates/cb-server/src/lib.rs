@@ -81,7 +81,7 @@ pub async fn bootstrap(options: ServerOptions) -> ServerResult<ServerHandle> {
         cache_settings,
         plugin_manager.clone(),
         &options.config,
-        plugin_registry,
+        plugin_registry.clone(),
     )
     .await;
 
@@ -98,7 +98,7 @@ pub async fn bootstrap(options: ServerOptions) -> ServerResult<ServerHandle> {
         operation_queue: services.operation_queue,
         start_time: std::time::Instant::now(),
         workspace_manager,
-        language_plugins: cb_handlers::LanguagePluginRegistry::new(),
+        language_plugins: cb_handlers::LanguagePluginRegistry::from_registry(plugin_registry),
     });
 
     // Create dispatcher
@@ -166,7 +166,7 @@ pub async fn create_dispatcher_with_workspace(
         cache_settings,
         plugin_manager.clone(),
         &config,
-        plugin_registry,
+        plugin_registry.clone(),
     )
     .await;
 
@@ -290,7 +290,7 @@ pub async fn create_dispatcher_with_workspace(
         operation_queue: services.operation_queue,
         start_time: std::time::Instant::now(),
         workspace_manager,
-        language_plugins: cb_handlers::LanguagePluginRegistry::new(),
+        language_plugins: cb_handlers::LanguagePluginRegistry::from_registry(plugin_registry),
     });
 
     // Create and return dispatcher
