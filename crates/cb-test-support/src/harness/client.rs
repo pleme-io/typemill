@@ -570,6 +570,31 @@ impl StressTestResults {
 
 impl Drop for TestClient {
     fn drop(&mut self) {
+        // Try graceful shutdown first by sending SIGTERM (instead of SIGKILL)
+        // This gives the server's Drop handlers time to cleanup LSP clients
+
+        // Send SIGTERM for graceful shutdown
+        unsafe {
+            libc::kill(self.process.id() as i32, libc::SIGTERM);
+        }
+
+        // Wait up to 2 seconds for graceful shutdown
+        let start = Instant::now();
+        while start.elapsed() < Duration::from_secs(2) {
+            match self.process.try_wait() {
+                Ok(Some(_)) => {
+                    // Process exited gracefully
+                    return;
+                }
+                Ok(None) => {
+                    // Still running, wait a bit
+                    thread::sleep(Duration::from_millis(50));
+                }
+                Err(_) => break,
+            }
+        }
+
+        // If still running after 2s, force kill
         let _ = self.process.kill();
         let _ = self.process.wait();
     }

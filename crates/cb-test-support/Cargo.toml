@@ -15,6 +15,7 @@ mockall = { workspace = true }
 once_cell = "1.19"
 shellexpand = "3.1"
 chrono = { version = "0.4", features = ["serde"] }
+libc = "0.2"
 cb-protocol = { path = "../cb-protocol" }
 cb-plugin-api = { path = "../cb-plugin-api" }
 cb-handlers = { path = "../cb-handlers" }
