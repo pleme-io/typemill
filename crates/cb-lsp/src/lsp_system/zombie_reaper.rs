@@ -136,6 +136,42 @@ fn reaper_loop(
             }
         }
 
+        // AGGRESSIVE REAPING: Try to reap any child process (PID -1 means any child)
+        // This catches zombies that weren't explicitly registered
+        loop {
+            match waitpid(Pid::from_raw(-1), Some(WaitPidFlag::WNOHANG)) {
+                Ok(WaitStatus::Exited(pid, status)) => {
+                    tracing::debug!(
+                        pid = pid.as_raw(),
+                        exit_status = status,
+                        "Unregistered zombie process reaped by aggressive reaper"
+                    );
+                }
+                Ok(WaitStatus::Signaled(pid, signal, _)) => {
+                    tracing::debug!(
+                        pid = pid.as_raw(),
+                        signal = ?signal,
+                        "Unregistered zombie process reaped by aggressive reaper (signal)"
+                    );
+                }
+                Ok(WaitStatus::StillAlive) => {
+                    // No more zombies to reap
+                    break;
+                }
+                Err(nix::errno::Errno::ECHILD) => {
+                    // No child processes at all
+                    break;
+                }
+                Ok(_) => {
+                    // Other status, continue checking
+                }
+                Err(_) => {
+                    // Error, stop checking
+                    break;
+                }
+            }
+        }
+
         // Remove reaped PIDs from the set
         if !pids_to_remove.is_empty() {
             let mut pids_guard = pids.lock().unwrap();

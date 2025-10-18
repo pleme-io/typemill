@@ -879,6 +879,68 @@ impl LspClient {
         Ok(())
     }
 
+    /// Force shutdown the LSP server process without requiring exclusive ownership
+    ///
+    /// This method can be called through an Arc reference and will:
+    /// 1. Kill the process
+    /// 2. Wait for it to exit (preventing zombies)
+    ///
+    /// Unlike `shutdown(self)` which requires ownership, this method works with `&self`.
+    pub async fn force_shutdown(&self) -> ServerResult<()> {
+        let pid = {
+            let process = self.process.lock().await;
+            process.id()
+        };
+
+        tracing::debug!(
+            pid = pid,
+            "Force shutdown initiated (kill + wait without ownership)"
+        );
+
+        // Step 1: Kill the process
+        let mut process = self.process.lock().await;
+        if let Err(e) = process.kill().await {
+            tracing::warn!(
+                pid = pid,
+                error = %e,
+                "Failed to kill LSP server process during force shutdown"
+            );
+            // Continue to wait anyway
+        }
+
+        // Step 2: Wait for the process to exit (prevents zombies)
+        match timeout(Duration::from_secs(5), process.wait()).await {
+            Ok(Ok(status)) => {
+                tracing::debug!(
+                    pid = pid,
+                    exit_status = ?status,
+                    "LSP server process force shutdown completed"
+                );
+                Ok(())
+            }
+            Ok(Err(e)) => {
+                tracing::warn!(
+                    pid = pid,
+                    error = %e,
+                    "Failed to wait for LSP server process during force shutdown"
+                );
+                Err(ServerError::runtime(format!(
+                    "Failed to wait for LSP server process: {}",
+                    e
+                )))
+            }
+            Err(_) => {
+                tracing::warn!(
+                    pid = pid,
+                    "Timeout waiting for LSP server process to exit during force shutdown"
+                );
+                Err(ServerError::runtime(
+                    "Timeout waiting for LSP server process to exit"
+                ))
+            }
+        }
+    }
+
     /// Gracefully shutdown the LSP server process.
     ///
     /// This method performs a clean LSP shutdown sequence:

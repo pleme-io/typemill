@@ -45,11 +45,32 @@ impl DirectLspAdapter {
                 debug!(extension, "Reusing existing, live LSP client");
                 return Ok(client.clone());
             } else {
+                // PHASE 2: Dead client found - extract it for cleanup
                 warn!(
                     extension,
                     "Found dead LSP client in cache, removing it before creating a new one."
                 );
-                clients.remove(extension);
+                let dead_client = clients.remove(extension);
+
+                // Cleanup dead client immediately to prevent zombie processes
+                if let Some(dead_client) = dead_client {
+                    let ext = extension.to_string();
+                    tokio::spawn(async move {
+                        // Force shutdown (kill + wait) to prevent zombies
+                        if let Err(e) = dead_client.force_shutdown().await {
+                            warn!(
+                                extension = %ext,
+                                error = %e,
+                                "Failed to force shutdown dead LSP client"
+                            );
+                        } else {
+                            debug!(
+                                extension = %ext,
+                                "Force shutdown of dead LSP client completed"
+                            );
+                        }
+                    });
+                }
                 // Proceed to create a new client below
             }
         }
@@ -218,40 +239,22 @@ impl DirectLspAdapter {
 
         // Drain all clients and shutdown
         for (extension, client) in clients_map.drain() {
-            // Try to get exclusive ownership of the Arc
-            match Arc::try_unwrap(client) {
-                Ok(client) => {
-                    // We have exclusive ownership - shutdown synchronously
-                    match client.shutdown().await {
-                        Ok(_) => {
-                            debug!(
-                                extension = %extension,
-                                "LSP client shutdown successfully"
-                            );
-                        }
-                        Err(e) => {
-                            warn!(
-                                extension = %extension,
-                                error = %e,
-                                "Failed to shutdown LSP client"
-                            );
-                            errors.push(format!("Failed to shutdown {} client: {}", extension, e));
-                        }
-                    }
-                }
-                Err(client) => {
-                    // Other references exist - log warning
-                    warn!(
-                        extension = %extension,
-                        arc_strong_count = Arc::strong_count(&client),
-                        "Cannot shutdown LSP client - other references exist"
-                    );
-                    errors.push(format!(
-                        "Cannot shutdown {} client - {} references exist",
-                        extension,
-                        Arc::strong_count(&client)
-                    ));
-                }
+            let strong_count = Arc::strong_count(&client);
+
+            // Force shutdown (kill + wait) to prevent zombies
+            if let Err(e) = client.force_shutdown().await {
+                warn!(
+                    extension = %extension,
+                    error = %e,
+                    "Failed to force shutdown LSP client during adapter shutdown"
+                );
+                errors.push(format!("Failed to force shutdown {} client: {}", extension, e));
+            } else {
+                debug!(
+                    extension = %extension,
+                    arc_strong_count = strong_count,
+                    "Force shutdown LSP client completed during adapter shutdown"
+                );
             }
         }
 
@@ -328,61 +331,51 @@ impl LspService for DirectLspAdapter {
 impl Drop for DirectLspAdapter {
     fn drop(&mut self) {
         // Attempt to shutdown all LSP clients when the adapter is dropped
-        // This is a best-effort cleanup - we spawn a task to avoid blocking Drop
-        // The zombie reaper will handle any that we miss
+        // Use a blocking thread pool to avoid relying on tokio runtime
+        // which may be shutting down during Drop
 
         let clients = self.lsp_clients.clone();
         let adapter_name = self.name.clone();
 
-        tokio::spawn(async move {
-            let mut clients_map = clients.lock().await;
-            let client_count = clients_map.len();
+        // Spawn on a dedicated thread pool, not tokio runtime
+        std::thread::spawn(move || {
+            // Create a new tokio runtime for cleanup
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(async move {
+                let mut clients_map = clients.lock().await;
+                let client_count = clients_map.len();
 
-            if client_count == 0 {
-                return;
-            }
+                if client_count == 0 {
+                    return;
+                }
 
-            tracing::debug!(
-                adapter_name = %adapter_name,
-                client_count = client_count,
-                "DirectLspAdapter dropping - attempting to shutdown LSP clients"
-            );
+                tracing::debug!(
+                    adapter_name = %adapter_name,
+                    client_count = client_count,
+                    "DirectLspAdapter dropping - attempting to shutdown LSP clients"
+                );
 
-            // Drain all clients and attempt shutdown
-            for (extension, client) in clients_map.drain() {
-                // Try to get exclusive ownership of the Arc
-                match Arc::try_unwrap(client) {
-                    Ok(client) => {
-                        // We have exclusive ownership - spawn shutdown
-                        let ext = extension.clone();
-                        tokio::spawn(async move {
-                            match client.shutdown().await {
-                                Ok(_) => {
-                                    tracing::debug!(
-                                        extension = %ext,
-                                        "LSP client shutdown successfully from DirectLspAdapter drop"
-                                    );
-                                }
-                                Err(e) => {
-                                    tracing::warn!(
-                                        extension = %ext,
-                                        error = %e,
-                                        "Failed to shutdown LSP client from DirectLspAdapter drop"
-                                    );
-                                }
-                            }
-                        });
-                    }
-                    Err(client) => {
-                        // Other references exist - log and rely on zombie reaper
+                // Drain all clients and attempt shutdown
+                for (extension, client) in clients_map.drain() {
+                    let strong_count = Arc::strong_count(&client);
+
+                    // Force shutdown (kill + wait) to prevent zombies
+                    if let Err(e) = client.force_shutdown().await {
+                        tracing::warn!(
+                            extension = %extension,
+                            error = %e,
+                            arc_strong_count = strong_count,
+                            "Failed to force shutdown LSP client from DirectLspAdapter drop"
+                        );
+                    } else {
                         tracing::debug!(
                             extension = %extension,
-                            arc_strong_count = Arc::strong_count(&client),
-                            "Cannot shutdown LSP client - other references exist, relying on zombie reaper"
+                            arc_strong_count = strong_count,
+                            "Force shutdown LSP client completed from DirectLspAdapter drop"
                         );
                     }
                 }
-            }
+            });
         });
     }
 }
