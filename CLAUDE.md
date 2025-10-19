@@ -372,6 +372,14 @@ cargo check
 ./target/release/codebuddy serve    # Start WebSocket server
 ./target/release/codebuddy link     # Link to AI assistants
 ./target/release/codebuddy unlink   # Remove AI from config
+
+# Build automation (xtask pattern - cross-platform Rust tasks)
+cargo xtask install           # Install codebuddy to ~/.local/bin
+cargo xtask check-all         # Run all checks (fmt, clippy, test, deny)
+cargo xtask check-duplicates  # Check for duplicate code
+cargo xtask check-features    # Validate cargo features
+cargo xtask new-lang python   # Scaffold new language plugin
+cargo xtask --help            # Show all available tasks
 ```
 
 ## Testing Workflow

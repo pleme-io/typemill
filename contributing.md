@@ -236,6 +236,83 @@ We use the standard Rust formatting and linting tools to maintain a consistent c
   make check-duplicates     # Detect duplicate code & complexity
   ```
 
+## Build Automation (xtask)
+
+This project uses the **xtask pattern** for build automation. Instead of shell scripts, we write automation tasks in Rust for cross-platform compatibility and type safety.
+
+### Available Tasks
+
+```bash
+# Install codebuddy
+cargo xtask install
+
+# Run all checks (fmt, clippy, test, deny)
+cargo xtask check-all
+
+# Check for duplicate code
+cargo xtask check-duplicates
+
+# Check cargo features
+cargo xtask check-features
+
+# Create new language plugin
+cargo xtask new-lang <language>
+
+# See all available commands
+cargo xtask --help
+```
+
+### Why xtask?
+
+- ✅ **Cross-platform**: Works on Windows, Linux, and macOS natively
+- ✅ **Type-safe**: Full Rust IDE support with compile-time checking
+- ✅ **Integrated**: Uses Rust ecosystem (cargo API, file operations)
+- ✅ **Better error handling**: Result<T, E> instead of exit codes
+- ✅ **Maintainable**: Easier to test and debug than shell scripts
+
+### Adding New Tasks
+
+1. Add a new module in `crates/xtask/src/<task>.rs`
+2. Define the command structure:
+   ```rust
+   use anyhow::Result;
+   use clap::Args;
+
+   #[derive(Args)]
+   pub struct YourTaskArgs {
+       #[arg(long)]
+       some_option: Option<String>,
+   }
+
+   pub fn run(args: YourTaskArgs) -> Result<()> {
+       // Your implementation
+       Ok(())
+   }
+   ```
+3. Add the command to `crates/xtask/src/main.rs`:
+   ```rust
+   #[derive(Subcommand)]
+   enum Command {
+       // ... existing commands
+       YourTask(your_task::YourTaskArgs),
+   }
+
+   // In main()
+   match cli.command {
+       // ... existing matches
+       Command::YourTask(args) => your_task::run(args),
+   }
+   ```
+4. Test your command: `cargo xtask your-task`
+
+### Integration with Makefile
+
+The Makefile uses a hybrid approach:
+- **Simple commands** stay in Makefile (build, test, fmt)
+- **Complex tasks** delegate to xtask (install, check-duplicates)
+
+This provides convenience (`make install`) with cross-platform reliability (xtask handles the actual work).
+
 ## Dependency Management
 
 Before adding new dependencies to the project, please follow these guidelines:

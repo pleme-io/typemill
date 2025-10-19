@@ -1,0 +1,36 @@
+[package]
+name = "xtask"
+version = "0.1.0"
+edition = "2021"
+publish = false  # Never publish xtask crate
+license.workspace = true
+
+[[bin]]
+name = "xtask"
+path = "src/main.rs"
+
+[dependencies]
+# Command-line parsing
+clap = { version = "4", features = ["derive"] }
+
+# File operations
+walkdir = "2"
+ignore = "0.4"  # Respects .gitignore
+
+# Process spawning (using tokio's Command instead of duct for consistency)
+tokio = { workspace = true, features = ["process", "io-util"] }
+
+# Error handling
+anyhow = "1"
+thiserror = { workspace = true }
+
+# Serialization for config reading
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = "0.8"
+
+# Colored output
+colored = "2"
+
+# Path utilities
+pathdiff = "0.2"

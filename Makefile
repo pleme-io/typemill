@@ -104,39 +104,9 @@ test-integration-nav:
 	@command -v cargo-nextest >/dev/null 2>&1 || { echo "⚠️  cargo-nextest not found. Run 'make setup' first."; exit 1; }
 	cargo test-integration-nav
 
-# Install to ~/.local/bin (ensure it's in your PATH)
-install: release
-	@mkdir -p ~/.local/bin
-	@cp target/release/codebuddy ~/.local/bin/
-	@echo "✓ Installed to ~/.local/bin/codebuddy"
-	@echo ""
-	@# Auto-detect and update shell config if needed
-	@if ! echo "$$PATH" | grep -q "$$HOME/.local/bin"; then \
-		if [ -f "$$HOME/.zshrc" ] && [ "$$SHELL" = "/bin/zsh" ] || [ "$$SHELL" = "/usr/bin/zsh" ]; then \
-			if ! grep -q 'export PATH="$$HOME/.local/bin:' "$$HOME/.zshrc"; then \
-				echo 'export PATH="$$HOME/.local/bin:$$PATH"' >> "$$HOME/.zshrc"; \
-				echo "✓ Added ~/.local/bin to PATH in ~/.zshrc"; \
-				echo "  Run: source ~/.zshrc"; \
-			fi; \
-		elif [ -f "$$HOME/.bashrc" ]; then \
-			if ! grep -q 'export PATH="$$HOME/.local/bin:' "$$HOME/.bashrc"; then \
-				echo 'export PATH="$$HOME/.local/bin:$$PATH"' >> "$$HOME/.bashrc"; \
-				echo "✓ Added ~/.local/bin to PATH in ~/.bashrc"; \
-				echo "  Run: source ~/.bashrc"; \
-			fi; \
-		elif [ -f "$$HOME/.bash_profile" ]; then \
-			if ! grep -q 'export PATH="$$HOME/.local/bin:' "$$HOME/.bash_profile"; then \
-				echo 'export PATH="$$HOME/.local/bin:$$PATH"' >> "$$HOME/.bash_profile"; \
-				echo "✓ Added ~/.local/bin to PATH in ~/.bash_profile"; \
-				echo "  Run: source ~/.bash_profile"; \
-			fi; \
-		else \
-			echo "⚠️  Could not detect shell config. Manually add to PATH:"; \
-			echo "  export PATH=\"\$$HOME/.local/bin:\$$PATH\""; \
-		fi; \
-	else \
-		echo "✓ ~/.local/bin already in PATH"; \
-	fi
+# Install to ~/.local/bin (delegated to xtask for cross-platform support)
+install:
+	cargo xtask install
 
 # Uninstall from ~/.local/bin
 uninstall:
@@ -248,7 +218,7 @@ deny-update:
 check: fmt clippy test audit deny
 
 check-duplicates:
-	@./scripts/check-duplicates.sh
+	cargo xtask check-duplicates
 
 # Development watch mode - auto-rebuild on file changes
 dev:
@@ -507,3 +477,9 @@ help:
 	@echo "🔧 Language Parsers:"
 	@echo "  make build-parsers     - Build all external language parsers"
 	@echo "  make check-parser-deps - Check parser build dependencies"
+	@echo ""
+	@echo "🤖 Build Automation (xtask):"
+	@echo "  cargo xtask install    - Install codebuddy to $$HOME/.local/bin"
+	@echo "  cargo xtask check-all  - Run all checks (fmt, clippy, test, deny)"
+	@echo "  cargo xtask new-lang <lang> - Scaffold new language plugin"
+	@echo "  cargo xtask --help     - Show all xtask commands"

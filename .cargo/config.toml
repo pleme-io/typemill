@@ -88,6 +88,9 @@ protocol = "sparse"
 # Usage: cargo check-analysis, cargo test-handlers-core, etc.
 
 [alias]
+# Build automation
+xtask = "run --package xtask --"
+
 # Analysis subsystem - check only analysis crates
 check-analysis = "check -p cb-analysis-common -p cb-analysis-dead-code -p cb-analysis-deep-dead-code -p cb-analysis-graph -p cb-analysis-circular-deps"
 test-analysis = "nextest run -p cb-analysis-common -p cb-analysis-dead-code -p cb-analysis-deep-dead-code -p cb-analysis-graph -p cb-analysis-circular-deps"

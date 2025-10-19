@@ -30,6 +30,7 @@ members = [
     "crates/codebuddy-config",
     "crates/codebuddy-workspaces",
     "crates/codebuddy-auth",
+    "crates/xtask",
 ]
 resolver = "2"
 

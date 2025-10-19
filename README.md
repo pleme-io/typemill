@@ -48,14 +48,34 @@ Currently supports **TypeScript and Rust** with full AST analysis and refactorin
 
 Want to contribute? We'd love to have you!
 
+### Quick Start
+
 ```bash
 # Build, lint, and test
 make check
 
 # Run tests
 make test
+
+# Build automation tasks (xtask pattern)
+cargo xtask install           # Install codebuddy
+cargo xtask check-all         # Run all checks
+cargo xtask new-lang python   # Scaffold new language plugin
 ```
+
 See **[contributing.md](contributing.md)** for the full development guide, including how to add new tools.
+
+### Build Automation
+
+This project uses the **xtask pattern** for cross-platform build automation. Instead of shell scripts, we write tasks in Rust for better type safety and Windows compatibility.
+
+Available commands:
+- `cargo xtask install` - Install codebuddy to ~/.local/bin
+- `cargo xtask check-all` - Run fmt + clippy + test + deny
+- `cargo xtask check-duplicates` - Detect duplicate code
+- `cargo xtask check-features` - Validate cargo features
+- `cargo xtask new-lang <language>` - Create language plugin scaffold
+- `cargo xtask --help` - Show all available tasks
 
 ## 🔒 Security
 
