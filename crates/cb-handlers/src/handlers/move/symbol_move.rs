@@ -3,7 +3,7 @@
 //! Handles symbol move operations using LSP code actions.
 //! Falls back to AST-based approach when LSP is unavailable.
 
-use cb_protocol::{
+use codebuddy_foundation::protocol::{
     refactor_plan::{MovePlan, PlanMetadata},
     ApiError as ServerError, ApiResult as ServerResult,
 };

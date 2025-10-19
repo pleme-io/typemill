@@ -1,7 +1,7 @@
 //! An implementation of LspService that communicates with a real LSP server process.
 
 use async_trait::async_trait;
-use cb_protocol::{ApiError, LspService, Message};
+use codebuddy_foundation::protocol::{ ApiError , LspService , Message };
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::Path;

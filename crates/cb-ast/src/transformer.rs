@@ -1,7 +1,7 @@
 //! AST transformation functionality
 
 use crate::error::{AstError, AstResult};
-use cb_protocol::{EditPlan, TextEdit};
+use codebuddy_foundation::protocol::{ EditPlan , TextEdit };
 use serde::{Deserialize, Serialize};
 
 /// Transformation result
@@ -486,7 +486,7 @@ fn apply_multi_line_edit(source: &mut String, edit: &TextEdit) -> AstResult<Edit
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cb_protocol::{EditLocation, EditType};
+    use codebuddy_foundation::protocol::{ EditLocation , EditType };
 
     #[test]
     fn test_apply_single_line_edit() {

@@ -87,7 +87,7 @@ impl LanguagePlugin for TypeScriptPlugin {
         &self,
         source: &str,
         file_path: Option<&Path>,
-    ) -> PluginResult<cb_protocol::ImportGraph> {
+    ) -> PluginResult<codebuddy_foundation::protocol::ImportGraph> {
         parser::analyze_imports(source, file_path)
     }
 

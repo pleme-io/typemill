@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use super::types::{SafetyLevel, ImpactLevel};
 use anyhow::Result;
-use cb_protocol::analysis_result::Suggestion;
+use codebuddy_foundation::protocol::analysis_result::Suggestion;
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -125,13 +125,13 @@ impl SuggestionConfig {
     }
 }
 
-// Convert from cb_protocol::analysis_result::SafetyLevel to our local SafetyLevel
-impl From<cb_protocol::analysis_result::SafetyLevel> for SafetyLevel {
-    fn from(protocol_level: cb_protocol::analysis_result::SafetyLevel) -> Self {
+// Convert from codebuddy_foundation::protocol::analysis_result::SafetyLevel to our local SafetyLevel
+impl From<codebuddy_foundation::protocol::analysis_result::SafetyLevel> for SafetyLevel {
+    fn from(protocol_level: codebuddy_foundation::protocol::analysis_result::SafetyLevel) -> Self {
         match protocol_level {
-            cb_protocol::analysis_result::SafetyLevel::Safe => SafetyLevel::Safe,
-            cb_protocol::analysis_result::SafetyLevel::RequiresReview => SafetyLevel::RequiresReview,
-            cb_protocol::analysis_result::SafetyLevel::Experimental => SafetyLevel::Experimental,
+            codebuddy_foundation::protocol::analysis_result::SafetyLevel::Safe => SafetyLevel::Safe,
+            codebuddy_foundation::protocol::analysis_result::SafetyLevel::RequiresReview => SafetyLevel::RequiresReview,
+            codebuddy_foundation::protocol::analysis_result::SafetyLevel::Experimental => SafetyLevel::Experimental,
         }
     }
 }

@@ -4,7 +4,6 @@ edition = "2021"
 license.workspace = true
 
 [dependencies]
-cb-protocol = { path = "../cb-protocol" }
 codebuddy-foundation = { path = "../codebuddy-foundation" }
 async-trait = { workspace = true }
 serde = { workspace = true }

@@ -9,7 +9,7 @@ pub mod detectors;
 
 pub use cache::FileImportInfo;
 
-use cb_protocol::{
+use codebuddy_foundation::protocol::{
     ApiError as ServerError, ApiResult as ServerResult, DependencyUpdate, EditLocation, EditPlan,
     EditPlanMetadata, EditType, TextEdit,
 };

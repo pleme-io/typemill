@@ -9,7 +9,7 @@
 use crate::handlers::tools::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use codebuddy_core::model::mcp::ToolCall;
-use cb_protocol::{
+use codebuddy_foundation::protocol::{
     refactor_plan::{DeletePlan, DeletionTarget, PlanMetadata, PlanSummary, PlanWarning},
     ApiError as ServerError, ApiResult as ServerResult, RefactorPlan,
 };

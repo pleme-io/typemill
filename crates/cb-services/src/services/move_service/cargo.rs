@@ -1,6 +1,6 @@
 //! Cargo package detection and manifest handling for directory moves
 
-use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult, EditLocation, EditType, TextEdit};
+use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult , EditLocation , EditType , TextEdit };
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 use tokio::fs;

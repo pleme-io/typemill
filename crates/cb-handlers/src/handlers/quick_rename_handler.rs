@@ -16,7 +16,7 @@ use super::workspace_apply_handler::WorkspaceApplyHandler;
 use super::tools::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use codebuddy_core::model::mcp::ToolCall;
-use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
+use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
 use serde_json::{json, Value};
 use tracing::{debug, info};
 

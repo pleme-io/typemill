@@ -3,7 +3,7 @@
 //! Executes external validation commands (e.g., "cargo check") after applying
 //! a refactoring plan to verify the changes didn't break the codebase.
 
-use cb_protocol::{ApiError, ApiResult as ServerResult};
+use codebuddy_foundation::protocol::{ ApiError , ApiResult as ServerResult };
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
 use tokio::process::Command;

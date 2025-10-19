@@ -13,7 +13,7 @@
 use crate::handlers::tools::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use codebuddy_core::model::mcp::ToolCall;
-use cb_protocol::{ApiError, ApiResult as ServerResult, RefactorPlan, RefactorPlanExt};
+use codebuddy_foundation::protocol::{ ApiError , ApiResult as ServerResult , RefactorPlan , RefactorPlanExt };
 use cb_services::{
     services::file_service::EditPlanResult, ChecksumValidator, DryRunGenerator, PlanConverter,
     PostApplyValidator, ValidationConfig, ValidationResult,
@@ -171,10 +171,10 @@ impl ToolHandler for WorkspaceApplyHandler {
                     kind = %target.kind,
                     "Adding delete operation"
                 );
-                edit_plan.edits.push(cb_protocol::TextEdit {
+                edit_plan.edits.push(codebuddy_foundation::protocol::TextEdit {
                     file_path: Some(target.path.clone()),
-                    edit_type: cb_protocol::EditType::Delete,
-                    location: cb_protocol::EditLocation {
+                    edit_type: codebuddy_foundation::protocol::EditType::Delete,
+                    location: codebuddy_foundation::protocol::EditLocation {
                         start_line: 0,
                         start_column: 0,
                         end_line: 0,
@@ -245,7 +245,7 @@ impl WorkspaceApplyHandler {
         post_apply_validator: &PostApplyValidator,
         validation_config: ValidationConfig,
         result: EditPlanResult,
-        edit_plan: &cb_protocol::EditPlan,
+        edit_plan: &codebuddy_foundation::protocol::EditPlan,
         plan: &RefactorPlan,
     ) -> ServerResult<Value> {
         info!(command = %validation_config.command, "Running post-apply validation");
@@ -292,7 +292,7 @@ impl WorkspaceApplyHandler {
     /// Create a success result JSON response
     fn create_success_result(
         result: EditPlanResult,
-        edit_plan: &cb_protocol::EditPlan,
+        edit_plan: &codebuddy_foundation::protocol::EditPlan,
         plan: &RefactorPlan,
         validation: Option<ValidationResult>,
     ) -> Value {

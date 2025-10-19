@@ -1,7 +1,7 @@
 use super::common::{detect_language, extract_range_text};
 use super::{CodeRange, ExtractVariableAnalysis, LspRefactoringService};
 use crate::error::{AstError, AstResult};
-use cb_protocol::{EditPlan, EditPlanMetadata, EditType, TextEdit, ValidationRule, ValidationType};
+use codebuddy_foundation::protocol::{ EditPlan , EditPlanMetadata , EditType , TextEdit , ValidationRule , ValidationType };
 use std::collections::HashMap;
 use tracing::debug;
 
@@ -151,7 +151,7 @@ async fn lsp_extract_variable(
         .get("edit")
         .ok_or_else(|| AstError::analysis("Code action missing edit field".to_string()))?;
 
-    cb_protocol::EditPlan::from_lsp_workspace_edit(workspace_edit, file_path, "extract_variable")
+    codebuddy_foundation::protocol::EditPlan::from_lsp_workspace_edit(workspace_edit, file_path, "extract_variable")
         .map_err(|e| AstError::analysis(format!("Failed to convert LSP edit: {}", e)))
 }
 

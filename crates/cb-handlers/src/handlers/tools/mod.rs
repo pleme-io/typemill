@@ -5,7 +5,7 @@
 
 use async_trait::async_trait;
 use codebuddy_core::model::mcp::ToolCall;
-use cb_protocol::ApiResult as ServerResult;
+use codebuddy_foundation::protocol::ApiResult as ServerResult;
 use serde_json::Value;
 
 use super::lsp_adapter::DirectLspAdapter;
@@ -51,7 +51,7 @@ pub use dispatch::dispatch_to_language_plugin;
 /// Dispatch helpers for language plugin operations
 mod dispatch {
     use super::ToolHandlerContext;
-    use cb_protocol::{ApiError, ApiResult};
+    use codebuddy_foundation::protocol::{ ApiError , ApiResult };
     use std::path::Path;
 
     /// Dispatch a file operation to the appropriate language plugin based on file extension

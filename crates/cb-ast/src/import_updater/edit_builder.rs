@@ -4,7 +4,7 @@ use crate::import_updater::{
     path_resolver::ImportPathResolver,
     reference_finder::{create_text_edits_from_references, find_inline_crate_references},
 };
-use cb_protocol::{EditPlan, EditPlanMetadata};
+use codebuddy_foundation::protocol::{ EditPlan , EditPlanMetadata };
 use std::path::{Path, PathBuf};
 use tracing::{debug, info, warn};
 
@@ -16,7 +16,7 @@ pub(crate) async fn build_import_update_plan(
     rename_info: Option<&serde_json::Value>,
     dry_run: bool,
     scan_scope: Option<cb_plugin_api::ScanScope>,
-) -> AstResult<cb_protocol::EditPlan> {
+) -> AstResult<codebuddy_foundation::protocol::EditPlan> {
     let resolver = ImportPathResolver::new(project_root);
 
     debug!(
@@ -369,7 +369,7 @@ pub(crate) async fn build_import_update_plan(
 
             // If we accumulated any changes, create a TextEdit
             if total_changes > 0 && current_content != content {
-                use cb_protocol::{EditLocation, EditType, TextEdit};
+                use codebuddy_foundation::protocol::{ EditLocation , EditType , TextEdit };
                 let line_count = current_content.lines().count();
                 let last_line_len = current_content.lines().last().map(|l| l.len()).unwrap_or(0);
 
@@ -414,7 +414,7 @@ pub(crate) async fn build_import_update_plan(
                 Some((updated_content, count)) => {
                     if count > 0 && updated_content != content {
                         // Create a single TextEdit for the entire file content replacement
-                        use cb_protocol::{EditLocation, EditType, TextEdit};
+                        use codebuddy_foundation::protocol::{ EditLocation , EditType , TextEdit };
                         let line_count = content.lines().count();
                         let last_line_len = content.lines().last().map(|l| l.len()).unwrap_or(0);
 

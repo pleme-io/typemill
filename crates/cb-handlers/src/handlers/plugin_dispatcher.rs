@@ -21,8 +21,8 @@ use async_trait::async_trait;
 use codebuddy_core::model::mcp::{ McpMessage , McpRequest , McpResponse , ToolCall };
 use codebuddy_workspaces::WorkspaceManager;
 use codebuddy_plugin_system::{LspAdapterPlugin, PluginManager};
-use cb_protocol::AstService;
-use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
+use codebuddy_foundation::protocol::AstService;
+use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
 use cb_services::services::planner::Planner;
 use cb_services::services::workflow_executor::WorkflowExecutor;
 use cb_transport::McpDispatcher;
@@ -488,10 +488,10 @@ impl McpDispatcher for PluginDispatcher {
         &self,
         message: McpMessage,
         session_info: &cb_transport::SessionInfo,
-    ) -> cb_protocol::ApiResult<McpMessage> {
+    ) -> codebuddy_foundation::protocol::ApiResult<McpMessage> {
         self.dispatch(message, session_info)
             .await
-            .map_err(|e| cb_protocol::ApiError::internal(e.to_string()))
+            .map_err(|e| codebuddy_foundation::protocol::ApiError::internal(e.to_string()))
     }
 }
 

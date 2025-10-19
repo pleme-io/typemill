@@ -3,7 +3,7 @@
 //! Generates human-readable previews of what would happen if a plan were applied,
 //! without actually modifying any files.
 
-use cb_protocol::{EditPlan, EditType};
+use codebuddy_foundation::protocol::{ EditPlan , EditType };
 use serde::Serialize;
 use std::collections::HashSet;
 
@@ -119,7 +119,7 @@ pub struct ValidationResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cb_protocol::{EditLocation, EditPlanMetadata, TextEdit};
+    use codebuddy_foundation::protocol::{ EditLocation , EditPlanMetadata , TextEdit };
 
     fn create_test_plan(edits: Vec<TextEdit>) -> EditPlan {
         EditPlan {

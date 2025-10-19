@@ -2,7 +2,7 @@
 
 use crate::error::{AstError, AstResult};
 use codebuddy_core::model::IntentSpec;
-use cb_protocol::{
+use codebuddy_foundation::protocol::{
     EditLocation, EditPlan, EditPlanMetadata, EditType, TextEdit, ValidationRule, ValidationType,
 };
 // serde traits no longer needed here

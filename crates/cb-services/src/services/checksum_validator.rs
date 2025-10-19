@@ -3,7 +3,7 @@
 //! Validates that files haven't changed since a plan was created by comparing
 //! SHA-256 checksums. This prevents applying stale plans to modified files.
 
-use cb_protocol::{ApiError, ApiResult as ServerResult, RefactorPlan, RefactorPlanExt};
+use codebuddy_foundation::protocol::{ ApiError , ApiResult as ServerResult , RefactorPlan , RefactorPlanExt };
 use sha2::{Digest, Sha256};
 use std::path::Path;
 use tracing::{debug, info, warn};

@@ -13,7 +13,7 @@ use codebuddy_auth::{
 };
 use codebuddy_config::config::AppConfig;
 use codebuddy_workspaces::{Workspace, WorkspaceManager};
-use cb_protocol::ApiResult;
+use codebuddy_foundation::protocol::ApiResult;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::sync::Arc;

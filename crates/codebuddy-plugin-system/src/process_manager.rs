@@ -4,7 +4,7 @@
 //! the lifecycle of external language plugins that run as separate processes.
 //! It uses a JSON-RPC protocol over stdio, similar to the LSP.
 
-use cb_protocol::plugin_protocol::{PluginRequest, PluginResponse};
+use codebuddy_foundation::protocol::plugin_protocol::{ PluginRequest , PluginResponse };
 use dashmap::DashMap;
 use serde_json::Value;
 use std::process::Stdio;

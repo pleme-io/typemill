@@ -99,7 +99,7 @@ fn generate_lib_rs(lang: &str) -> String {
     code.push_str(&format!("//! {} language plugin for Codebuddy\n\n", lang_upper));
     code.push_str("use async_trait::async_trait;\n");
     code.push_str("use cb_plugin_api::{LanguagePlugin, LanguagePluginMetadata, ParsedSource};\n");
-    code.push_str("use cb_protocol::ApiError;\n");
+    code.push_str("use codebuddy_foundation::protocol::ApiError;\n");
     code.push_str("use std::path::Path;\n\n");
 
     code.push_str(&format!("pub struct {}Plugin;\n\n", title_case));

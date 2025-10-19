@@ -5,7 +5,7 @@ use cb_analysis_circular_deps::{
     builder::DependencyGraphBuilder, find_circular_dependencies, Cycle,
 };
 use codebuddy_core::model::mcp::ToolCall;
-use cb_protocol::{
+use codebuddy_foundation::protocol::{
     analysis_result::{AnalysisResult, Finding, FindingLocation, Severity},
     ApiError as ServerError, ApiResult as ServerResult, SafetyLevel, Suggestion,
 };
@@ -109,11 +109,11 @@ impl ToolHandler for CircularDependenciesHandler {
 
             let analysis_result = AnalysisResult {
                 findings,
-                summary: cb_protocol::analysis_result::AnalysisSummary {
+                summary: codebuddy_foundation::protocol::analysis_result::AnalysisSummary {
                     total_findings: result.summary.total_cycles,
                     returned_findings: result.summary.total_cycles,
                     has_more: false,
-                    by_severity: cb_protocol::analysis_result::SeverityBreakdown {
+                    by_severity: codebuddy_foundation::protocol::analysis_result::SeverityBreakdown {
                         high: result.summary.total_cycles,
                         medium: 0,
                         low: 0,
@@ -122,10 +122,10 @@ impl ToolHandler for CircularDependenciesHandler {
                     symbols_analyzed: Some(result.summary.total_modules_in_cycles),
                     analysis_time_ms: result.summary.analysis_time_ms,
                 },
-                metadata: cb_protocol::analysis_result::AnalysisMetadata {
+                metadata: codebuddy_foundation::protocol::analysis_result::AnalysisMetadata {
                     category: "dependencies".to_string(),
                     kind: "circular".to_string(),
-                    scope: cb_protocol::analysis_result::AnalysisScope {
+                    scope: codebuddy_foundation::protocol::analysis_result::AnalysisScope {
                         scope_type: "workspace".to_string(),
                         path: project_root.to_string_lossy().to_string(),
                         include: vec![],

@@ -5,7 +5,7 @@
 //! their AST tools in Python, Node.js, Go, Java, etc.
 
 use cb_plugin_api::{PluginResult, SourceLocation, Symbol, SymbolKind};
-use cb_protocol::ImportInfo;
+use codebuddy_foundation::protocol::ImportInfo;
 use serde::{Deserialize, Serialize};
 
 /// Standard symbol representation from AST tools

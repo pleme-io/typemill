@@ -6,7 +6,7 @@ use super::{ToolHandler, ToolHandlerContext};
 use crate::handlers::system_handler::SystemHandler;
 use async_trait::async_trait;
 use codebuddy_core::model::mcp::ToolCall;
-use cb_protocol::{ApiError, ApiResult as ServerResult};
+use codebuddy_foundation::protocol::{ ApiError , ApiResult as ServerResult };
 use serde_json::{json, Value};
 
 pub struct SystemToolsHandler {

@@ -147,7 +147,7 @@ if let RefactorPlan::DeletePlan(delete_plan) = &params.plan {
 
 **1. Service Trait Abstractions**
 ```rust
-// File: crates/cb-protocol/src/lib.rs:441-465
+// File: crates/codebuddy-foundation/src/protocol/src/lib.rs:441-465
 #[async_trait]
 pub trait AstService: Send + Sync {
     async fn build_import_graph(&self, file: &Path) -> ApiResult<ImportGraph>;
@@ -456,7 +456,7 @@ if let Ok(home) = std::env::var("HOME") {
 
 **1. Protocol Layer (`cb-protocol`)**
 ```rust
-// File: crates/cb-protocol/src/lib.rs:441-465
+// File: crates/codebuddy-foundation/src/protocol/src/lib.rs:441-465
 - Well-defined service traits
 - No implementation details
 - Serves as contract between layers
@@ -482,7 +482,7 @@ pub trait ToolHandler: Send + Sync {
 
 **3. Error Type Hierarchy**
 ```rust
-// File: crates/cb-protocol/src/error.rs
+// File: crates/codebuddy-foundation/src/protocol/src/error.rs
 pub type ApiResult<T> = Result<T, ApiError>;
 
 pub enum ApiError {

@@ -6,7 +6,7 @@ description = "Codeflow Buddy client implementation"
 license = "MIT"
 
 [dependencies]
-cb-protocol = { path = "../cb-protocol" }
+codebuddy-foundation = { path = "../codebuddy-foundation" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

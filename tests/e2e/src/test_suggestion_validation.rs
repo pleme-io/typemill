@@ -3,7 +3,7 @@ use crate::harness::{
     TestWorkspace,
     TEST_DATA_DIR,
 };
-use cb_protocol::analysis_result::{AnalysisResult, Finding};
+use codebuddy_foundation::protocol::analysis_result::{ AnalysisResult , Finding };
 use cb_handlers::handlers::tools::analysis::suggestions::validation::validate_suggestion;
 use serde_json::json;
 

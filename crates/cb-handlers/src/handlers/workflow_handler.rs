@@ -5,7 +5,7 @@
 use super::tools::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use codebuddy_core::model::mcp::ToolCall;
-use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
+use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
 use serde_json::{json, Value};
 use tracing::{debug, error, info, warn};
 
@@ -158,7 +158,7 @@ impl WorkflowHandler {
             .ok_or_else(|| ServerError::InvalidRequest("Missing 'edit_plan' parameter".into()))?;
 
         // Parse the EditPlan from the JSON value
-        let edit_plan: cb_protocol::EditPlan = serde_json::from_value(edit_plan_value.clone())
+        let edit_plan: codebuddy_foundation::protocol::EditPlan = serde_json::from_value(edit_plan_value.clone())
             .map_err(|e| ServerError::InvalidRequest(format!("Invalid edit_plan format: {}", e)))?;
 
         debug!(

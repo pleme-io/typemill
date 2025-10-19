@@ -1,5 +1,5 @@
 use crate::harness::{TestClient, TestWorkspace};
-use cb_protocol::analysis_result::{AnalysisResult, SafetyLevel};
+use codebuddy_foundation::protocol::analysis_result::{ AnalysisResult , SafetyLevel };
 use serde_json::json;
 
 #[tokio::test]

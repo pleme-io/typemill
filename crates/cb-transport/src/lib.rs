@@ -6,7 +6,7 @@
 
 use async_trait::async_trait;
 use codebuddy_core::model::mcp::McpMessage;
-use cb_protocol::ApiResult;
+use codebuddy_foundation::protocol::ApiResult;
 
 pub mod admin;
 pub mod session;

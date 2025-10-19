@@ -69,7 +69,7 @@ Successfully implemented all 5 tools for complete crate extraction workflow:
 
 **Modified Files:**
 - `crates/cb-plugin-api/src/lib.rs` - Added PluginCapabilities builder pattern
-- `crates/cb-protocol/src/refactor_plan.rs` - Added is_consolidation field
+- `../../crates/codebuddy-foundation/src/protocol/src/refactor_plan.rs` - Added is_consolidation field
 - `crates/cb-handlers/src/handlers/rename_handler/directory_rename.rs` - Consolidation detection
 - `crates/cb-handlers/src/handlers/plugin_dispatcher.rs` - Handler registration
 - `crates/cb-handlers/src/handlers/tools/mod.rs` - Module exports

@@ -5,7 +5,6 @@ license.workspace = true
 
 [dependencies]
 codebuddy-foundation = { path = "../codebuddy-foundation" }
-cb-protocol = { path = "../cb-protocol" }
 tokio = { workspace = true, features = ["process"] }
 serde_json = { workspace = true }
 serde = { workspace = true }

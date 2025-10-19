@@ -5,7 +5,7 @@ use crate::handlers::tools::analysis::batch::{
 };
 use async_trait::async_trait;
 use codebuddy_core::model::mcp::ToolCall;
-use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
+use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
 use serde::Deserialize;
 use serde_json::{json, Value};
 

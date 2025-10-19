@@ -3,7 +3,7 @@
 //! Each runner function is parameterized to accept a fixture struct,
 //! making them reusable across multiple languages.
 
-use cb_protocol::LspService;
+use codebuddy_foundation::protocol::LspService;
 use cb_test_support::harness::test_fixtures::*;
 use cb_test_support::harness::LspTestBuilder;
 use serde_json::json;
@@ -21,7 +21,7 @@ pub async fn run_go_to_definition_test(case: &GoToDefinitionTestCase, use_real_l
         // LSP indexing delay: Give the LSP server time to initialize and parse files.
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
-        let message = cb_protocol::Message {
+        let message = codebuddy_foundation::protocol::Message {
             id: Some(format!("real-def-{}", case.language_id)),
             method: "textDocument/definition".to_string(),
             params: json!({
@@ -70,7 +70,7 @@ pub async fn run_go_to_definition_test(case: &GoToDefinitionTestCase, use_real_l
             }]),
         );
 
-        let message = cb_protocol::Message {
+        let message = codebuddy_foundation::protocol::Message {
             id: Some("1".to_string()),
             method: "textDocument/definition".to_string(),
             params: json!({
@@ -113,7 +113,7 @@ pub async fn run_find_references_test(case: &FindReferencesTestCase, use_real_ls
         // LSP indexing delay: Give the LSP server time to initialize and parse files.
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
-        let message = cb_protocol::Message {
+        let message = codebuddy_foundation::protocol::Message {
             id: Some(format!("real-refs-{}", case.language_id)),
             method: "textDocument/references".to_string(),
             params: json!({
@@ -152,7 +152,7 @@ pub async fn run_find_references_test(case: &FindReferencesTestCase, use_real_ls
 
         mock.set_response("textDocument/references", json!(mock_refs));
 
-        let message = cb_protocol::Message {
+        let message = codebuddy_foundation::protocol::Message {
             id: Some("1".to_string()),
             method: "textDocument/references".to_string(),
             params: json!({
@@ -192,7 +192,7 @@ pub async fn run_hover_test(case: &HoverTestCase, use_real_lsp: bool) {
         // LSP indexing delay: Give the LSP server time to initialize and parse files.
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
-        let message = cb_protocol::Message {
+        let message = codebuddy_foundation::protocol::Message {
             id: Some(format!("real-hover-{}", case.language_id)),
             method: "textDocument/hover".to_string(),
             params: json!({
@@ -229,7 +229,7 @@ pub async fn run_hover_test(case: &HoverTestCase, use_real_lsp: bool) {
             mock.set_response("textDocument/hover", json!(null));
         }
 
-        let message = cb_protocol::Message {
+        let message = codebuddy_foundation::protocol::Message {
             id: Some("1".to_string()),
             method: "textDocument/hover".to_string(),
             params: json!({
@@ -267,7 +267,7 @@ pub async fn run_document_symbols_test(case: &DocumentSymbolsTestCase, use_real_
         // LSP indexing delay: Give the LSP server time to initialize and parse files.
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
-        let message = cb_protocol::Message {
+        let message = codebuddy_foundation::protocol::Message {
             id: Some(format!("real-symbols-{}", case.language_id)),
             method: "textDocument/documentSymbol".to_string(),
             params: json!({
@@ -297,7 +297,7 @@ pub async fn run_document_symbols_test(case: &DocumentSymbolsTestCase, use_real_
 
         mock.set_response("textDocument/documentSymbol", json!(mock_symbols));
 
-        let message = cb_protocol::Message {
+        let message = codebuddy_foundation::protocol::Message {
             id: Some("1".to_string()),
             method: "textDocument/documentSymbol".to_string(),
             params: json!({
@@ -331,7 +331,7 @@ pub async fn run_workspace_symbols_test(case: &WorkspaceSymbolsTestCase, use_rea
         let (service, _workspace) = builder.build().await.unwrap();
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
-        let message = cb_protocol::Message {
+        let message = codebuddy_foundation::protocol::Message {
             id: Some(format!("real-ws-symbols-{}", case.language_id)),
             method: "workspace/symbol".to_string(),
             params: json!({"query": case.query}),
@@ -361,7 +361,7 @@ pub async fn run_workspace_symbols_test(case: &WorkspaceSymbolsTestCase, use_rea
             mock.set_response("workspace/symbol", json!([]));
         }
 
-        let message = cb_protocol::Message {
+        let message = codebuddy_foundation::protocol::Message {
             id: Some("1".to_string()),
             method: "workspace/symbol".to_string(),
             params: json!({"query": case.query}),
@@ -390,7 +390,7 @@ pub async fn run_completion_test(case: &CompletionTestCase, use_real_lsp: bool) 
         // LSP indexing delay: Give the LSP server time to initialize and parse files.
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
-        let message = cb_protocol::Message {
+        let message = codebuddy_foundation::protocol::Message {
             id: Some(format!("real-completion-{}", case.language_id)),
             method: "textDocument/completion".to_string(),
             params: json!({
@@ -426,7 +426,7 @@ pub async fn run_completion_test(case: &CompletionTestCase, use_real_lsp: bool) 
             mock.set_response("textDocument/completion", json!({"items": []}));
         }
 
-        let message = cb_protocol::Message {
+        let message = codebuddy_foundation::protocol::Message {
             id: Some("1".to_string()),
             method: "textDocument/completion".to_string(),
             params: json!({
@@ -465,7 +465,7 @@ pub async fn run_rename_test(case: &RenameTestCase, use_real_lsp: bool) {
         // LSP indexing delay: Give the LSP server time to initialize and parse files.
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
-        let message = cb_protocol::Message {
+        let message = codebuddy_foundation::protocol::Message {
             id: Some(format!("real-rename-{}", case.language_id)),
             method: "textDocument/rename".to_string(),
             params: json!({
@@ -506,7 +506,7 @@ pub async fn run_rename_test(case: &RenameTestCase, use_real_lsp: bool) {
             mock.set_response("textDocument/rename", json!({"changes": {}}));
         }
 
-        let message = cb_protocol::Message {
+        let message = codebuddy_foundation::protocol::Message {
             id: Some("1".to_string()),
             method: "textDocument/rename".to_string(),
             params: json!({
@@ -585,7 +585,7 @@ pub async fn run_lsp_compliance_test(case: &LspComplianceTestCase) {
     let params = (case.params)();
 
     // 5. Send the request to the LSP server.
-    let message = cb_protocol::Message {
+    let message = codebuddy_foundation::protocol::Message {
         id: Some(format!(
             "compliance-{}-{}",
             case.language_id, case.feature_name

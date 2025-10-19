@@ -1,6 +1,6 @@
 //! AST parsing functionality
 use crate::error::AstResult;
-use cb_protocol::{
+use codebuddy_foundation::protocol::{
     ImportGraph, ImportGraphMetadata, ImportInfo, ImportType, NamedImport, SourceLocation,
 };
 use petgraph::graph::NodeIndex;

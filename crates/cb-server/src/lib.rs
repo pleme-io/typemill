@@ -23,7 +23,7 @@ pub use cb_services::services;
 
 use codebuddy_config::AppConfig;
 use cb_handlers::handlers::plugin_dispatcher::{AppState, PluginDispatcher};
-pub use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult, AstService, LspService};
+pub use codebuddy_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult, AstService, LspService};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::oneshot;

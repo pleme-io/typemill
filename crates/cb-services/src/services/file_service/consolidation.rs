@@ -7,7 +7,7 @@
 //! 3. Add module declaration to target crate's lib.rs
 
 use super::FileService;
-use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult, ConsolidationMetadata};
+use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult , ConsolidationMetadata };
 use std::path::Path;
 use tokio::fs;
 use tracing::{info, warn};

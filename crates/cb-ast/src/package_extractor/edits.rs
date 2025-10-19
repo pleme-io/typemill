@@ -2,7 +2,7 @@ use crate::error::AstError;
 use crate::package_extractor::ExtractModuleToPackageParams;
 use cb_lang_rust::RustPlugin;
 use cb_plugin_api::LanguagePlugin;
-use cb_protocol::{EditLocation, EditType, TextEdit};
+use codebuddy_foundation::protocol::{ EditLocation , EditType , TextEdit };
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tracing::debug;
@@ -228,7 +228,7 @@ pub(crate) async fn add_import_update_edits(
         }
 
         if let Ok(_content) = tokio::fs::read_to_string(&file_path).await {
-            let imports: Vec<cb_protocol::ImportInfo> = vec![];
+            let imports: Vec<codebuddy_foundation::protocol::ImportInfo> = vec![];
 
             for import in imports {
                 let module_path_normalized = params.module_path.replace('.', "::");

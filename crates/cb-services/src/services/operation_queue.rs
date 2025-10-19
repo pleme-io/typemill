@@ -1,7 +1,7 @@
 //! Operation queue for serializing file operations
 
 use super::lock_manager::{LockManager, LockType};
-use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
+use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
 use serde_json::Value;
 use std::collections::VecDeque;
 use std::path::PathBuf;

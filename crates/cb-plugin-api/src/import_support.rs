@@ -4,7 +4,7 @@
 //! Languages implement only the traits they need for their specific capabilities.
 
 use crate::{PluginError, PluginResult};
-use cb_protocol::DependencyUpdate;
+use codebuddy_foundation::protocol::DependencyUpdate;
 use std::path::Path;
 
 // ============================================================================
@@ -153,4 +153,3 @@ pub trait ImportAdvancedSupport: Send + Sync {
         Ok(content.to_string())
     }
 }
-

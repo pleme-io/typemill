@@ -3,7 +3,7 @@
 
 use syn::{File, Item, ItemFn, ItemStruct, Attribute};
 use cb_plugin_api::{Symbol, SymbolKind, PluginResult, PluginError};
-use cb_protocol::SourceLocation;
+use codebuddy_foundation::protocol::SourceLocation;
 
 pub fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
     // Parse with syn (Rust) or tree-sitter (other languages)

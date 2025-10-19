@@ -11,7 +11,7 @@ use super::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use codebuddy_core::model::mcp::ToolCall;
 use codebuddy_plugin_system::PluginRequest;
-use cb_protocol::ApiResult as ServerResult;
+use codebuddy_foundation::protocol::ApiResult as ServerResult;
 use serde_json::{json, Value};
 use std::path::PathBuf;
 
@@ -120,7 +120,7 @@ impl NavigationHandler {
     fn convert_tool_call_to_plugin_request(
         &self,
         tool_call: &ToolCall,
-    ) -> Result<PluginRequest, cb_protocol::ApiError> {
+    ) -> Result<PluginRequest, codebuddy_foundation::protocol::ApiError> {
         let args = tool_call.arguments.clone().unwrap_or(json!({}));
 
         // Handle workspace-level operations that don't require a file path
@@ -135,7 +135,7 @@ impl NavigationHandler {
                     args.get("file_path")
                         .and_then(|v| v.as_str())
                         .ok_or_else(|| {
-                            cb_protocol::ApiError::InvalidRequest(
+                            codebuddy_foundation::protocol::ApiError::InvalidRequest(
                                 "Missing file_path parameter".into(),
                             )
                         })?;
@@ -149,25 +149,25 @@ impl NavigationHandler {
         // Validate that if position parameters are present, they must be valid numbers
         if let Some(line_value) = args.get("line") {
             let line = line_value.as_u64().ok_or_else(|| {
-                cb_protocol::ApiError::InvalidRequest(format!(
+                codebuddy_foundation::protocol::ApiError::InvalidRequest(format!(
                     "Invalid type for 'line' parameter: expected number, got {:?}",
                     line_value
                 ))
             })?;
             let character_value = args.get("character").ok_or_else(|| {
-                cb_protocol::ApiError::InvalidRequest(
+                codebuddy_foundation::protocol::ApiError::InvalidRequest(
                     "Missing 'character' parameter (required when 'line' is present)".into(),
                 )
             })?;
             let character = character_value.as_u64().ok_or_else(|| {
-                cb_protocol::ApiError::InvalidRequest(format!(
+                codebuddy_foundation::protocol::ApiError::InvalidRequest(format!(
                     "Invalid type for 'character' parameter: expected number, got {:?}",
                     character_value
                 ))
             })?;
             request = request.with_position(line.saturating_sub(1) as u32, character as u32);
         } else if args.get("character").is_some() {
-            return Err(cb_protocol::ApiError::InvalidRequest(
+            return Err(codebuddy_foundation::protocol::ApiError::InvalidRequest(
                 "Missing 'line' parameter (required when 'character' is present)".into(),
             ));
         }
@@ -255,7 +255,7 @@ impl ToolHandler for NavigationHandler {
                 "processing_time_ms": response.metadata.processing_time_ms,
                 "cached": response.metadata.cached
             })),
-            Err(err) => Err(cb_protocol::ApiError::Internal(format!(
+            Err(err) => Err(codebuddy_foundation::protocol::ApiError::Internal(format!(
                 "Plugin request failed: {}",
                 err
             ))),
@@ -275,13 +275,13 @@ impl InternalNavigationHandler {
     fn convert_tool_call_to_plugin_request(
         &self,
         tool_call: &ToolCall,
-    ) -> Result<PluginRequest, cb_protocol::ApiError> {
+    ) -> Result<PluginRequest, codebuddy_foundation::protocol::ApiError> {
         let args = tool_call.arguments.clone().unwrap_or(json!({}));
         let file_path_str = args
             .get("file_path")
             .and_then(|v| v.as_str())
             .ok_or_else(|| {
-                cb_protocol::ApiError::InvalidRequest("Missing file_path parameter".into())
+                codebuddy_foundation::protocol::ApiError::InvalidRequest("Missing file_path parameter".into())
             })?;
 
         let file_path = PathBuf::from(file_path_str);
@@ -315,7 +315,7 @@ impl ToolHandler for InternalNavigationHandler {
                 "processing_time_ms": response.metadata.processing_time_ms,
                 "cached": response.metadata.cached
             })),
-            Err(err) => Err(cb_protocol::ApiError::Internal(format!(
+            Err(err) => Err(codebuddy_foundation::protocol::ApiError::Internal(format!(
                 "Plugin request failed: {}",
                 err
             ))),

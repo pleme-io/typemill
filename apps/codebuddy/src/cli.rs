@@ -3,8 +3,8 @@
 use cb_client::format_plan;
 use codebuddy_config::config::AppConfig;
 use codebuddy_core::utils::system::command_exists;
-use cb_protocol::analysis_result::AnalysisResult;
-use cb_protocol::refactor_plan::RefactorPlan;
+use codebuddy_foundation::protocol::analysis_result::AnalysisResult;
+use codebuddy_foundation::protocol::refactor_plan::RefactorPlan;
 use cb_transport::SessionInfo;
 use clap::{Parser, Subcommand};
 use fs2::FileExt;
@@ -297,7 +297,7 @@ async fn handle_cycles_command(command: Cycles) {
     let dispatcher = match crate::dispatcher_factory::create_initialized_dispatcher().await {
         Ok(d) => d,
         Err(e) => {
-            let error = cb_protocol::ApiError::internal(format!("Failed to initialize: {}", e));
+            let error = codebuddy_foundation::protocol::ApiError::internal(format!("Failed to initialize: {}", e));
             output_error(&error, &command.format);
             process::exit(1);
         }
@@ -338,7 +338,7 @@ async fn handle_cycles_command(command: Cycles) {
                     output_result(&result, &command.format);
                 }
             } else if let Some(error) = response.error {
-                let api_error = cb_protocol::ApiError::from(error);
+                let api_error = codebuddy_foundation::protocol::ApiError::from(error);
                 output_error(&api_error, &command.format);
                 process::exit(1);
             }
@@ -348,7 +348,7 @@ async fn handle_cycles_command(command: Cycles) {
             process::exit(1);
         }
         Err(server_error) => {
-            let api_error = cb_protocol::ApiError::internal(server_error.to_string());
+            let api_error = codebuddy_foundation::protocol::ApiError::internal(server_error.to_string());
             output_error(&api_error, &command.format);
             process::exit(1);
         }
@@ -838,7 +838,7 @@ async fn handle_tool_command(tool_name: &str, args_json: &str, format: &str) {
                 "Invalid JSON arguments: {}",
                 e
             ));
-            let api_error = cb_protocol::ApiError::from(error);
+            let api_error = codebuddy_foundation::protocol::ApiError::from(error);
             output_error(&api_error, format);
             process::exit(1);
         }
@@ -848,7 +848,7 @@ async fn handle_tool_command(tool_name: &str, args_json: &str, format: &str) {
     let dispatcher = match crate::dispatcher_factory::create_initialized_dispatcher().await {
         Ok(d) => d,
         Err(e) => {
-            let error = cb_protocol::ApiError::internal(format!("Failed to initialize: {}", e));
+            let error = codebuddy_foundation::protocol::ApiError::internal(format!("Failed to initialize: {}", e));
             output_error(&error, format);
             process::exit(1);
         }
@@ -892,7 +892,7 @@ async fn handle_tool_command(tool_name: &str, args_json: &str, format: &str) {
             if let Some(result) = response.result {
                 output_result(&result, format);
             } else if let Some(error) = response.error {
-                let api_error = cb_protocol::ApiError::from(error);
+                let api_error = codebuddy_foundation::protocol::ApiError::from(error);
                 output_error(&api_error, format);
                 process::exit(1);
             }
@@ -903,7 +903,7 @@ async fn handle_tool_command(tool_name: &str, args_json: &str, format: &str) {
         }
         Err(server_error) => {
             // Convert ServerError to ApiError and output to stderr
-            let api_error = cb_protocol::ApiError::internal(server_error.to_string());
+            let api_error = codebuddy_foundation::protocol::ApiError::internal(server_error.to_string());
             output_error(&api_error, format);
             process::exit(1);
         }
@@ -936,7 +936,7 @@ fn output_result(result: &serde_json::Value, format: &str) {
 }
 
 /// Output error to stderr based on format
-fn output_error(error: &cb_protocol::ApiError, format: &str) {
+fn output_error(error: &codebuddy_foundation::protocol::ApiError, format: &str) {
     let error_json = serde_json::to_value(error).unwrap_or(serde_json::json!({
         "error": error.to_string()
     }));

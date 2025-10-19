@@ -1,5 +1,5 @@
 use cb_plugin_api::{PluginError, PluginResult};
-use cb_protocol::DependencyUpdate;
+use codebuddy_foundation::protocol::DependencyUpdate;
 use std::path::Path;
 use swc_common::{sync::Lrc, FileName, FilePathMapping, SourceMap};
 use swc_ecma_ast::{ImportSpecifier, Module, ModuleDecl, ModuleItem};

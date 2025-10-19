@@ -2,7 +2,7 @@
 
 use codebuddy_core::model::workflow::Workflow;
 use codebuddy_plugin_system::{PluginManager, PluginRequest};
-use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
+use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
 use dashmap::DashMap;
 use serde_json::{json, Value};
 use std::collections::HashMap;

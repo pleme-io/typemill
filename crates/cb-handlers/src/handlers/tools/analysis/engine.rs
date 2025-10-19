@@ -11,8 +11,8 @@
 
 use super::super::ToolHandlerContext;
 use codebuddy_core::model::mcp::ToolCall;
-use cb_protocol::analysis_result::{AnalysisResult, AnalysisScope, Finding};
-use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
+use codebuddy_foundation::protocol::analysis_result::{ AnalysisResult , AnalysisScope , Finding };
+use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
 use serde::Deserialize;
 use serde_json::Value;
 use std::path::Path;

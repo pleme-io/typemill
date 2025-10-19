@@ -1,6 +1,6 @@
 use super::{edits, manifest, workspace, AstResult, ExtractModuleToPackageParams};
 use codebuddy_core::language::detect_project_language;
-use cb_protocol::{EditPlan, EditPlanMetadata, ValidationRule, ValidationType};
+use codebuddy_foundation::protocol::{ EditPlan , EditPlanMetadata , ValidationRule , ValidationType };
 use serde_json::json;
 use std::collections::HashMap;
 use std::path::Path;

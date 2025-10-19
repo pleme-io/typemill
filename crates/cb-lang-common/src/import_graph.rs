@@ -3,7 +3,7 @@
 //! Provides a builder pattern for constructing ImportGraph instances,
 //! reducing boilerplate across language plugins.
 
-use cb_protocol::{ImportGraph, ImportGraphMetadata, ImportInfo};
+use codebuddy_foundation::protocol::{ ImportGraph , ImportGraphMetadata , ImportInfo };
 use std::collections::HashSet;
 use std::path::Path;
 

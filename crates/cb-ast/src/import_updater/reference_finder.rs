@@ -8,8 +8,8 @@ pub(crate) fn create_text_edits_from_references(
     file_path: &Path,
     old_module_name: &str,
     new_module_name: &str,
-) -> Vec<cb_protocol::TextEdit> {
-    use cb_protocol::{EditLocation, EditType, TextEdit};
+) -> Vec<codebuddy_foundation::protocol::TextEdit> {
+    use codebuddy_foundation::protocol::{ EditLocation , EditType , TextEdit };
 
     references
         .iter()

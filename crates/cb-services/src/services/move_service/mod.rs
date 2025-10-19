@@ -21,7 +21,7 @@ mod planner;
 
 use crate::services::reference_updater::ReferenceUpdater;
 use cb_plugin_api::{PluginRegistry, ScanScope};
-use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult, EditPlan};
+use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult , EditPlan };
 use std::path::{Path, PathBuf};
 use tracing::info;
 

@@ -3,7 +3,7 @@
 //! This module provides shared data structures and helper functions for
 //! implementing refactoring operations across different language plugins.
 
-use cb_protocol::EditLocation;
+use codebuddy_foundation::protocol::EditLocation;
 use serde::{Deserialize, Serialize};
 
 /// Code range for refactoring operations

@@ -1,6 +1,6 @@
 //! API error types for the codebuddy system
 
-use codebuddy_foundation::error::{error_codes, ApiError as CoreApiError};
+use crate::error::{error_codes, ApiError as CoreApiError};
 use serde::Serialize;
 use thiserror::Error;
 
@@ -182,17 +182,17 @@ impl ApiError {
     }
 }
 
-/// Convert from codebuddy_foundation::error::CoreError to ApiError
-impl From<codebuddy_foundation::error::CoreError> for ApiError {
-    fn from(error: codebuddy_foundation::error::CoreError) -> Self {
+/// Convert from crate::error::CoreError to ApiError
+impl From<crate::error::CoreError> for ApiError {
+    fn from(error: crate::error::CoreError) -> Self {
         match error {
-            codebuddy_foundation::error::CoreError::Config { message } => ApiError::Config { message },
-            codebuddy_foundation::error::CoreError::NotFound { resource } => ApiError::NotFound(resource),
-            codebuddy_foundation::error::CoreError::InvalidData { message } => {
+            crate::error::CoreError::Config { message } => ApiError::Config { message },
+            crate::error::CoreError::NotFound { resource } => ApiError::NotFound(resource),
+            crate::error::CoreError::InvalidData { message } => {
                 ApiError::InvalidRequest(message)
             }
-            codebuddy_foundation::error::CoreError::Internal { message } => ApiError::Internal(message),
-            codebuddy_foundation::error::CoreError::NotSupported { operation } => {
+            crate::error::CoreError::Internal { message } => ApiError::Internal(message),
+            crate::error::CoreError::NotSupported { operation } => {
                 ApiError::Unsupported(operation)
             }
             _ => ApiError::Internal(error.to_string()),
@@ -200,9 +200,9 @@ impl From<codebuddy_foundation::error::CoreError> for ApiError {
     }
 }
 
-/// Convert from codebuddy_foundation::model::mcp::McpError to ApiError
-impl From<codebuddy_foundation::model::mcp::McpError> for ApiError {
-    fn from(error: codebuddy_foundation::model::mcp::McpError) -> Self {
+/// Convert from crate::model::mcp::McpError to ApiError
+impl From<crate::model::mcp::McpError> for ApiError {
+    fn from(error: crate::model::mcp::McpError) -> Self {
         ApiError::InvalidRequest(error.message)
     }
 }

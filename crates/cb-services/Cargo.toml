@@ -7,7 +7,6 @@ license.workspace = true
 codebuddy-foundation = { path = "../codebuddy-foundation" }
 cb-ast = { path = "../cb-ast" }
 cb-lsp = { path = "../cb-lsp" }
-cb-protocol = { path = "../cb-protocol" }
 cb-plugin-api = { path = "../cb-plugin-api" }
 anyhow = { workspace = true }
 thiserror = { workspace = true }

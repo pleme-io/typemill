@@ -8,7 +8,7 @@ homepage.workspace = true
 description = "Transport layer for WebSocket and stdio communication"
 
 [dependencies]
-cb-protocol = { path = "../cb-protocol" }
+codebuddy-foundation = { path = "../codebuddy-foundation" }
 cb-ast = { path = "../cb-ast" }
 codebuddy-auth = { path = "../codebuddy-auth" }
 codebuddy-core = { path = "../codebuddy-core" }

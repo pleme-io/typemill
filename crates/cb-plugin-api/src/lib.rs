@@ -414,16 +414,16 @@ pub trait LanguagePlugin: Send + Sync {
         &self,
         _source: &str,
         _file_path: Option<&Path>,
-    ) -> PluginResult<cb_protocol::ImportGraph> {
+    ) -> PluginResult<codebuddy_foundation::protocol::ImportGraph> {
         use chrono::Utc;
         // Default: return empty graph
-        Ok(cb_protocol::ImportGraph {
+        Ok(codebuddy_foundation::protocol::ImportGraph {
             source_file: _file_path
                 .map(|p| p.display().to_string())
                 .unwrap_or_default(),
             imports: vec![],
             importers: vec![],
-            metadata: cb_protocol::ImportGraphMetadata {
+            metadata: codebuddy_foundation::protocol::ImportGraphMetadata {
                 language: self.metadata().name.to_string(),
                 parsed_at: Utc::now(),
                 parser_version: "0.0.0".to_string(),

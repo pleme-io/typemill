@@ -3,7 +3,7 @@
 //! Provides checksum calculation, conflict detection, and warning generation
 //! for file, directory, and symbol moves.
 
-use cb_protocol::{
+use codebuddy_foundation::protocol::{
     refactor_plan::{PlanSummary, PlanWarning},
     ApiError as ServerError, ApiResult as ServerResult,
 };

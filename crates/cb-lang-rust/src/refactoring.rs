@@ -3,7 +3,7 @@
 //! This module provides AST-based refactoring capabilities for Rust code.
 
 use cb_lang_common::LineExtractor;
-use cb_protocol::{
+use codebuddy_foundation::protocol::{
     EditLocation, EditPlan, EditPlanMetadata, EditType, TextEdit, ValidationRule, ValidationType,
 };
 use std::collections::HashMap;

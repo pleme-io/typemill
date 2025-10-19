@@ -1,7 +1,7 @@
 use super::FileService;
 use crate::services::git_service::GitService;
 use codebuddy_core::dry_run::DryRunnable;
-use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult, EditPlan};
+use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult , EditPlan };
 use serde_json::{json, Value};
 use std::path::Path;
 use tokio::fs;

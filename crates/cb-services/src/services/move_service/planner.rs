@@ -3,7 +3,7 @@
 use super::cargo;
 use crate::services::reference_updater::ReferenceUpdater;
 use cb_plugin_api::{PluginRegistry, ScanScope};
-use cb_protocol::{ApiResult as ServerResult, EditPlan};
+use codebuddy_foundation::protocol::{ ApiResult as ServerResult , EditPlan };
 use std::path::Path;
 use tracing::{info, warn};
 
@@ -295,8 +295,8 @@ async fn plan_documentation_and_config_edits(
     new_path: &Path,
     plugin_registry: &PluginRegistry,
     project_root: &Path,
-) -> ServerResult<Vec<cb_protocol::TextEdit>> {
-    use cb_protocol::{EditLocation, EditType, TextEdit};
+) -> ServerResult<Vec<codebuddy_foundation::protocol::TextEdit>> {
+    use codebuddy_foundation::protocol::{ EditLocation , EditType , TextEdit };
     use std::path::PathBuf;
 
     let mut edits = Vec::new();

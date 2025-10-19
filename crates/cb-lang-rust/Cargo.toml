@@ -9,7 +9,7 @@ homepage.workspace = true
 [dependencies]
 # Our core plugin API
 cb-plugin-api = { path = "../cb-plugin-api" }
-cb-protocol = { path = "../cb-protocol" }
+codebuddy-foundation = { path = "../codebuddy-foundation" }
 cb-lang-common = { path = "../cb-lang-common" }
 
 # For parsing Rust code

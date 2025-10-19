@@ -27,7 +27,7 @@ fn spawn_test_worker(queue: Arc<OperationQueue>) {
                 let result = match op.operation_type {
                     OperationType::CreateDir => {
                         fs::create_dir_all(&op.file_path).await.map_err(|e| {
-                            cb_protocol::ApiError::Internal(format!(
+                            codebuddy_foundation::protocol::ApiError::Internal(format!(
                                 "Failed to create directory {}: {}",
                                 op.file_path.display(),
                                 e
@@ -43,7 +43,7 @@ fn spawn_test_worker(queue: Arc<OperationQueue>) {
 
                         // Write and explicitly sync to disk to avoid caching issues
                         let mut file = fs::File::create(&op.file_path).await.map_err(|e| {
-                            cb_protocol::ApiError::Internal(format!(
+                            codebuddy_foundation::protocol::ApiError::Internal(format!(
                                 "Failed to create file {}: {}",
                                 op.file_path.display(),
                                 e
@@ -52,7 +52,7 @@ fn spawn_test_worker(queue: Arc<OperationQueue>) {
 
                         use tokio::io::AsyncWriteExt;
                         file.write_all(content.as_bytes()).await.map_err(|e| {
-                            cb_protocol::ApiError::Internal(format!(
+                            codebuddy_foundation::protocol::ApiError::Internal(format!(
                                 "Failed to write content to {}: {}",
                                 op.file_path.display(),
                                 e
@@ -61,7 +61,7 @@ fn spawn_test_worker(queue: Arc<OperationQueue>) {
 
                         // CRITICAL: Sync file to disk BEFORE updating stats
                         file.sync_all().await.map_err(|e| {
-                            cb_protocol::ApiError::Internal(format!(
+                            codebuddy_foundation::protocol::ApiError::Internal(format!(
                                 "Failed to sync file {}: {}",
                                 op.file_path.display(),
                                 e
@@ -78,7 +78,7 @@ fn spawn_test_worker(queue: Arc<OperationQueue>) {
                     OperationType::Delete => {
                         if op.file_path.exists() {
                             fs::remove_file(&op.file_path).await.map_err(|e| {
-                                cb_protocol::ApiError::Internal(format!(
+                                codebuddy_foundation::protocol::ApiError::Internal(format!(
                                     "Failed to delete file {}: {}",
                                     op.file_path.display(),
                                     e
@@ -94,12 +94,12 @@ fn spawn_test_worker(queue: Arc<OperationQueue>) {
                             .get("new_path")
                             .and_then(|v| v.as_str())
                             .ok_or_else(|| {
-                                cb_protocol::ApiError::InvalidRequest(
+                                codebuddy_foundation::protocol::ApiError::InvalidRequest(
                                     "Rename operation missing new_path".to_string(),
                                 )
                             })?;
                         fs::rename(&op.file_path, new_path_str).await.map_err(|e| {
-                            cb_protocol::ApiError::Internal(format!(
+                            codebuddy_foundation::protocol::ApiError::Internal(format!(
                                 "Failed to rename file {} to {}: {}",
                                 op.file_path.display(),
                                 new_path_str,

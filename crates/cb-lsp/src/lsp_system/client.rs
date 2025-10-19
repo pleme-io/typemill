@@ -2,7 +2,7 @@
 
 use crate::progress::{ProgressError, ProgressManager, ProgressParams, ProgressToken};
 use codebuddy_config::LspServerConfig;
-use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
+use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::process::Stdio;

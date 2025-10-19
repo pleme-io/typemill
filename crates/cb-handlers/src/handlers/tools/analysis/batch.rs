@@ -7,7 +7,7 @@ use super::{
     suggestions::{SuggestionConfig, SuggestionGenerator},
 };
 use cb_plugin_api::Symbol;
-use cb_protocol::analysis_result::{
+use codebuddy_foundation::protocol::analysis_result::{
     AnalysisResult, AnalysisScope, Finding, FindingLocation, Position, Range, Severity,
 };
 use ignore::WalkBuilder;

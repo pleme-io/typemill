@@ -22,7 +22,6 @@ refactor-delete = []
 refactor-all = ["refactor-rename", "refactor-extract", "refactor-inline", "refactor-move", "refactor-reorder", "refactor-transform", "refactor-delete"]
 
 [dependencies]
-cb-protocol = { path = "../cb-protocol" }
 codebuddy-foundation = { path = "../codebuddy-foundation" }
 cb-services = { path = "../cb-services" }
 cb-plugin-api = { path = "../cb-plugin-api" }

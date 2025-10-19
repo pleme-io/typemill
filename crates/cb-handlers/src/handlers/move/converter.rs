@@ -6,7 +6,7 @@
 //! - EditPlan: Internal planning format used by MoveService
 //! - MovePlan: LSP-based format expected by MCP protocol
 
-use cb_protocol::{
+use codebuddy_foundation::protocol::{
     refactor_plan::{MovePlan, PlanMetadata, PlanSummary},
     ApiError as ServerError, ApiResult as ServerResult, EditPlan, TextEdit as ProtocolTextEdit,
 };

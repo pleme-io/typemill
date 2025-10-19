@@ -9,7 +9,7 @@
 
 use cb_ast::AstCache;
 use codebuddy_plugin_system::PluginManager;
-use cb_protocol::AstService;
+use codebuddy_foundation::protocol::AstService;
 use cb_server::handlers::AppState;
 use cb_server::services::{DefaultAstService, FileService, LockManager, OperationQueue};
 use cb_server::workspaces::WorkspaceManager;

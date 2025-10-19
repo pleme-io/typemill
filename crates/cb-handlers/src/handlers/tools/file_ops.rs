@@ -12,7 +12,7 @@ use super::{ToolHandler, ToolHandlerContext};
 use crate::handlers::file_operation_handler::FileOperationHandler;
 use async_trait::async_trait;
 use codebuddy_core::model::mcp::ToolCall;
-use cb_protocol::ApiResult as ServerResult;
+use codebuddy_foundation::protocol::ApiResult as ServerResult;
 use serde_json::Value;
 
 pub struct FileToolsHandler {

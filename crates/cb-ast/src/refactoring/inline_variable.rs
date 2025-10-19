@@ -1,7 +1,7 @@
 use super::common::detect_language;
 use super::{CodeRange, LspRefactoringService};
 use crate::error::{AstError, AstResult};
-use cb_protocol::EditPlan;
+use codebuddy_foundation::protocol::EditPlan;
 use tracing::debug;
 
 /// Analyze variable declaration for inlining (simplified fallback - prefer LSP)
@@ -61,7 +61,7 @@ async fn lsp_inline_variable(
         .get("edit")
         .ok_or_else(|| AstError::analysis("Code action missing edit field".to_string()))?;
 
-    cb_protocol::EditPlan::from_lsp_workspace_edit(workspace_edit, file_path, "inline_variable")
+    codebuddy_foundation::protocol::EditPlan::from_lsp_workspace_edit(workspace_edit, file_path, "inline_variable")
         .map_err(|e| AstError::analysis(format!("Failed to convert LSP edit: {}", e)))
 }
 

@@ -6,7 +6,7 @@ use super::{ToolHandler, ToolHandlerContext};
 use crate::handlers::workflow_handler::WorkflowHandler;
 use async_trait::async_trait;
 use codebuddy_core::model::mcp::ToolCall;
-use cb_protocol::ApiResult as ServerResult;
+use codebuddy_foundation::protocol::ApiResult as ServerResult;
 use serde_json::Value;
 
 pub struct AdvancedToolsHandler {
@@ -104,7 +104,7 @@ impl ToolHandler for AdvancedToolsHandler {
                 // 1. Deserialize the incoming parameters
                 let batch_params: ExecuteBatchParams =
                     serde_json::from_value(params).map_err(|e| {
-                        cb_protocol::ApiError::runtime(format!(
+                        codebuddy_foundation::protocol::ApiError::runtime(format!(
                             "Failed to parse execute_batch params: {}",
                             e
                         ))
@@ -144,7 +144,7 @@ impl ToolHandler for AdvancedToolsHandler {
                                     .await
                                     .map(|dry_result| dry_result.result)
                                     .map_err(|e| {
-                                        cb_protocol::ApiError::runtime(format!(
+                                        codebuddy_foundation::protocol::ApiError::runtime(format!(
                                             "Dry run failed for create_file {}: {}",
                                             path, e
                                         ))
@@ -161,7 +161,7 @@ impl ToolHandler for AdvancedToolsHandler {
                                     .await
                                     .map(|dry_result| dry_result.result)
                                     .map_err(|e| {
-                                        cb_protocol::ApiError::runtime(format!(
+                                        codebuddy_foundation::protocol::ApiError::runtime(format!(
                                             "Dry run failed for write_file {}: {}",
                                             path, e
                                         ))
@@ -174,7 +174,7 @@ impl ToolHandler for AdvancedToolsHandler {
                                     .await
                                     .map(|dry_result| dry_result.result)
                                     .map_err(|e| {
-                                        cb_protocol::ApiError::runtime(format!(
+                                        codebuddy_foundation::protocol::ApiError::runtime(format!(
                                             "Dry run failed for delete_file {}: {}",
                                             path, e
                                         ))
@@ -194,7 +194,7 @@ impl ToolHandler for AdvancedToolsHandler {
                                     .await
                                     .map(|dry_result| dry_result.result)
                                     .map_err(|e| {
-                                        cb_protocol::ApiError::runtime(format!(
+                                        codebuddy_foundation::protocol::ApiError::runtime(format!(
                                             "Dry run failed for rename_file {} -> {}: {}",
                                             old_path, new_path, e
                                         ))
@@ -222,7 +222,7 @@ impl ToolHandler for AdvancedToolsHandler {
                                     .handle_request(request)
                                     .await
                                     .map(|response| response.data.unwrap_or_default())
-                                    .map_err(|e| cb_protocol::ApiError::Plugin(e.to_string()))?
+                                    .map_err(|e| codebuddy_foundation::protocol::ApiError::Plugin(e.to_string()))?
                             }
                         };
                         results.push(result);
@@ -299,7 +299,7 @@ impl ToolHandler for AdvancedToolsHandler {
                     );
 
                     operation_queue.enqueue(file_op).await.map_err(|e| {
-                        cb_protocol::ApiError::runtime(format!(
+                        codebuddy_foundation::protocol::ApiError::runtime(format!(
                             "Failed to enqueue batch operation: {}",
                             e
                         ))
@@ -327,7 +327,7 @@ impl ToolHandler for AdvancedToolsHandler {
                 };
                 Ok(response)
             }
-            _ => Err(cb_protocol::ApiError::InvalidRequest(format!(
+            _ => Err(codebuddy_foundation::protocol::ApiError::InvalidRequest(format!(
                 "Unknown advanced tool: {}",
                 tool_name
             ))),

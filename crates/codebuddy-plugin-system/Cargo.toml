@@ -15,7 +15,7 @@ tracing = "0.1"
 thiserror = { workspace = true }
 dashmap = { workspace = true }
 cb-ast = { path = "../cb-ast", optional = true }
-cb-protocol = { path = "../cb-protocol", optional = true }
+codebuddy-foundation = { path = "../codebuddy-foundation", optional = true }
 chrono = "0.4"
 ignore = "0.4"
 reqwest = { version = "0.12", features = ["blocking", "rustls-tls"], default-features = false }
@@ -29,7 +29,7 @@ tokio-test = "0.4"
 
 [features]
 default = ["runtime"]
-runtime = ["codebuddy-core", "codebuddy-config", "cb-ast", "cb-protocol"]
+runtime = ["codebuddy-core", "codebuddy-config", "cb-ast", "codebuddy-foundation"]
 mcp-proxy = ["runtime", "codebuddy-config/mcp-proxy"]
 lang-rust = ["runtime"]
 lang-typescript = ["runtime"]

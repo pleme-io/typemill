@@ -1,7 +1,7 @@
 use super::*;
 use crate::package_extractor::planner::plan_extract_module_to_package;
 use cb_lang_rust::RustPlugin;
-use cb_protocol::EditType;
+use codebuddy_foundation::protocol::EditType;
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;

@@ -2,7 +2,7 @@
 
 use crate::handlers::tools::ToolHandlerContext;
 use super::{RenamePlanParams, RenameHandler};
-use cb_protocol::{
+use codebuddy_foundation::protocol::{
     refactor_plan::{PlanMetadata, PlanSummary, RenamePlan},
     ApiError as ServerError, ApiResult as ServerResult,
 };

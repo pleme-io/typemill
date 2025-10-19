@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use cb_protocol::analysis_result::{RefactorCall, SafetyLevel, Suggestion};
+use codebuddy_foundation::protocol::analysis_result::{ RefactorCall , SafetyLevel , Suggestion };
 use serde_json::Value;
 
 /// Validates that a suggestion has all required metadata
@@ -99,7 +99,7 @@ fn validate_inline_args(args: &Value) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cb_protocol::analysis_result::{Suggestion, RefactorCall, SafetyLevel};
+    use codebuddy_foundation::protocol::analysis_result::{ Suggestion , RefactorCall , SafetyLevel };
     use serde_json::json;
 
     // Helper to create a default suggestion for testing

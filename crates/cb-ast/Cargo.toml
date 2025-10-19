@@ -5,7 +5,7 @@ description = "AST parsing and transformation for Codeflow Buddy"
 license = "MIT"
 
 [dependencies]
-cb-protocol = { path = "../cb-protocol" }
+codebuddy-foundation = { path = "../codebuddy-foundation" }
 cb-plugin-api = { path = "../cb-plugin-api" }
 cb-lang-typescript = { workspace = true }
 cb-lang-rust = { workspace = true }

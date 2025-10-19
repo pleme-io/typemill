@@ -2078,7 +2078,7 @@ When enabled, performs Rust crate consolidation by merging one crate into anothe
 ```bash
 # Preview consolidation
 codebuddy tool rename_directory '{
-  "old_path": "crates/cb-protocol",
+  "old_path": "../crates/codebuddy-foundation/src/protocol",
   "new_path": "crates/cb-types/src/protocol",
   "consolidate": true,
   "dry_run": true
@@ -2086,7 +2086,7 @@ codebuddy tool rename_directory '{
 
 # Execute consolidation
 codebuddy tool rename_directory '{
-  "old_path": "crates/cb-protocol",
+  "old_path": "../crates/codebuddy-foundation/src/protocol",
   "new_path": "crates/cb-types/src/protocol",
   "consolidate": true
 }'
@@ -2097,7 +2097,7 @@ codebuddy tool rename_directory '{
 {
   "success": true,
   "operation": "consolidate_rust_package",
-  "old_path": "crates/cb-protocol",
+  "old_path": "../crates/codebuddy-foundation/src/protocol",
   "new_path": "crates/cb-types/src/protocol",
   "files_moved": 15,
   "import_updates": {

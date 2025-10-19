@@ -8,7 +8,7 @@ use crate::handlers::refactoring_handler::RefactoringHandler;
 use crate::handlers::system_handler::SystemHandler;
 use async_trait::async_trait;
 use codebuddy_core::model::mcp::ToolCall;
-use cb_protocol::ApiResult as ServerResult;
+use codebuddy_foundation::protocol::ApiResult as ServerResult;
 use serde_json::Value;
 
 /// Controls how aggressively imports are updated during rename operations
@@ -109,7 +109,7 @@ impl ToolHandler for WorkspaceToolsHandler {
                 self.system_handler.handle_tool_call(context, &call).await
             }
             "update_dependency" => self.handle_update_dependency(context, &call).await,
-            _ => Err(cb_protocol::ApiError::InvalidRequest(format!(
+            _ => Err(codebuddy_foundation::protocol::ApiError::InvalidRequest(format!(
                 "Unknown workspace tool: {}",
                 tool_call.name
             ))),
@@ -138,7 +138,7 @@ impl WorkspaceToolsHandler {
 
         // Get the manifest filename (e.g., "Cargo.toml")
         let filename = path.file_name().and_then(|s| s.to_str()).ok_or_else(|| {
-            cb_protocol::ApiError::InvalidRequest(format!(
+            codebuddy_foundation::protocol::ApiError::InvalidRequest(format!(
                 "Invalid manifest path: {}",
                 manifest_path
             ))
@@ -150,7 +150,7 @@ impl WorkspaceToolsHandler {
             .language_plugins
             .get_plugin_for_manifest(filename)
             .ok_or_else(|| {
-                cb_protocol::ApiError::Unsupported(format!(
+                codebuddy_foundation::protocol::ApiError::Unsupported(format!(
                     "No language plugin found for manifest file: {}",
                     filename
                 ))
@@ -173,7 +173,7 @@ impl WorkspaceToolsHandler {
                     .update_dependency(path, old_dep_name, new_dep_name, new_path)
                     .await
                     .map_err(|e| {
-                        cb_protocol::ApiError::Internal(format!(
+                        codebuddy_foundation::protocol::ApiError::Internal(format!(
                             "Failed to update dependency: {}",
                             e
                         ))
@@ -185,7 +185,7 @@ impl WorkspaceToolsHandler {
                     .write_file(path, &updated_content, false)
                     .await
                     .map_err(|e| {
-                        cb_protocol::ApiError::Internal(format!(
+                        codebuddy_foundation::protocol::ApiError::Internal(format!(
                             "Failed to write manifest file at {}: {}",
                             manifest_path, e
                         ))
@@ -204,7 +204,7 @@ impl WorkspaceToolsHandler {
                     .update_dependency(path, old_dep_name, new_dep_name, new_path)
                     .await
                     .map_err(|e| {
-                        cb_protocol::ApiError::Internal(format!(
+                        codebuddy_foundation::protocol::ApiError::Internal(format!(
                             "Failed to update dependency: {}",
                             e
                         ))
@@ -216,7 +216,7 @@ impl WorkspaceToolsHandler {
                     .write_file(path, &updated_content, false)
                     .await
                     .map_err(|e| {
-                        cb_protocol::ApiError::Internal(format!(
+                        codebuddy_foundation::protocol::ApiError::Internal(format!(
                             "Failed to write manifest file at {}: {}",
                             manifest_path, e
                         ))
@@ -228,7 +228,7 @@ impl WorkspaceToolsHandler {
 
         // No plugin supports update_dependency
         // Note: Only Rust and TypeScript supported after language reduction
-        Err(cb_protocol::ApiError::Internal(
+        Err(codebuddy_foundation::protocol::ApiError::Internal(
             "No language plugin found with update_dependency support for this manifest type"
                 .to_string(),
         ))
@@ -250,14 +250,14 @@ impl WorkspaceToolsHandler {
             .as_ref()
             .and_then(|v| v.as_object())
             .ok_or_else(|| {
-                cb_protocol::ApiError::InvalidRequest("Arguments must be an object".to_string())
+                codebuddy_foundation::protocol::ApiError::InvalidRequest("Arguments must be an object".to_string())
             })?;
 
         let manifest_path = args
             .get("manifest_path")
             .and_then(|v| v.as_str())
             .ok_or_else(|| {
-                cb_protocol::ApiError::InvalidRequest(
+                codebuddy_foundation::protocol::ApiError::InvalidRequest(
                     "Missing required parameter: manifest_path".to_string(),
                 )
             })?;
@@ -266,7 +266,7 @@ impl WorkspaceToolsHandler {
             .get("old_dep_name")
             .and_then(|v| v.as_str())
             .ok_or_else(|| {
-                cb_protocol::ApiError::InvalidRequest(
+                codebuddy_foundation::protocol::ApiError::InvalidRequest(
                     "Missing required parameter: old_dep_name".to_string(),
                 )
             })?;
@@ -275,7 +275,7 @@ impl WorkspaceToolsHandler {
             .get("new_dep_name")
             .and_then(|v| v.as_str())
             .ok_or_else(|| {
-                cb_protocol::ApiError::InvalidRequest(
+                codebuddy_foundation::protocol::ApiError::InvalidRequest(
                     "Missing required parameter: new_dep_name".to_string(),
                 )
             })?;

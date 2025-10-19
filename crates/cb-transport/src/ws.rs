@@ -4,7 +4,7 @@ use crate::{McpDispatcher, SessionInfo};
 use codebuddy_auth::jwt::{decode, Claims, DecodingKey, Validation};
 use codebuddy_config::AppConfig;
 use codebuddy_core::model::mcp::{McpError, McpMessage, McpRequest, McpResponse};
-use cb_protocol::{ApiError, ApiResult};
+use codebuddy_foundation::protocol::{ ApiError , ApiResult };
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::json;

@@ -1,6 +1,6 @@
 //! TypeScript/JavaScript specific refactoring logic.
 use cb_plugin_api::{PluginError, PluginResult};
-use cb_protocol::{
+use codebuddy_foundation::protocol::{
     EditLocation, EditPlan, EditPlanMetadata, EditType, TextEdit, ValidationRule, ValidationType,
 };
 use serde::{Deserialize, Serialize};

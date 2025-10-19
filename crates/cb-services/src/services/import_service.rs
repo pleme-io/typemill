@@ -2,8 +2,8 @@
 
 use cb_ast::{find_project_files, update_imports_for_rename, ImportPathResolver};
 use cb_plugin_api::PluginRegistry;
-use cb_protocol::DependencyUpdate;
-use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
+use codebuddy_foundation::protocol::DependencyUpdate;
+use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::fs;
@@ -41,7 +41,7 @@ impl ImportService {
         rename_info: Option<&serde_json::Value>,
         dry_run: bool,
         scan_scope: Option<cb_plugin_api::ScanScope>,
-    ) -> ServerResult<cb_protocol::EditPlan> {
+    ) -> ServerResult<codebuddy_foundation::protocol::EditPlan> {
         info!(
             old_path = ?old_path,
             new_path = ?new_path,

@@ -17,10 +17,10 @@ use crate::handlers::tools::analysis::suggestions::{
 use async_trait::async_trait;
 use codebuddy_core::model::mcp::ToolCall;
 use cb_plugin_api::ParsedSource;
-use cb_protocol::analysis_result::{
+use codebuddy_foundation::protocol::analysis_result::{
     Finding, FindingLocation, Position, Range, SafetyLevel, Severity, Suggestion,
 };
-use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
+use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
 use regex::Regex;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -336,7 +336,7 @@ pub fn detect_unused_symbols(
                         safety: SafetyLevel::RequiresReview,
                         confidence: 0.75,
                         reversible: true,
-                        refactor_call: Some(cb_protocol::analysis_result::RefactorCall {
+                        refactor_call: Some(codebuddy_foundation::protocol::analysis_result::RefactorCall {
                             command: "delete.plan".to_string(),
                             arguments: json!({
                                 "kind": "function",
@@ -1514,7 +1514,7 @@ impl DeadCodeHandler {
         use crate::handlers::lsp_adapter::DirectLspAdapter;
         use cb_analysis_common::{AnalysisEngine, LspProvider};
         use cb_analysis_dead_code::{DeadCodeAnalyzer, DeadCodeConfig};
-        use cb_protocol::analysis_result::{AnalysisResult, AnalysisScope};
+        use codebuddy_foundation::protocol::analysis_result::{ AnalysisResult , AnalysisScope };
         use std::path::Path;
         use std::sync::Arc;
         use std::time::Instant;
@@ -1761,7 +1761,7 @@ impl DeadCodeHandler {
         use crate::handlers::lsp_adapter::DirectLspAdapter;
         use cb_analysis_common::{AnalysisEngine, LspProvider};
         use cb_analysis_deep_dead_code::{DeepDeadCodeAnalyzer, DeepDeadCodeConfig};
-        use cb_protocol::analysis_result::{AnalysisResult, AnalysisScope};
+        use codebuddy_foundation::protocol::analysis_result::{ AnalysisResult , AnalysisScope };
         use std::path::Path;
         use std::sync::Arc;
         use std::time::Instant;
@@ -1977,7 +1977,7 @@ impl ToolHandler for DeadCodeHandler {
             // For file-scope, we can choose to use the suggestion generator
             match kind {
                 "unused_imports" | "unused_symbols" => {
-                    use cb_protocol::analysis_result::AnalysisResult;
+                    use codebuddy_foundation::protocol::analysis_result::AnalysisResult;
                     use std::path::Path;
                     use std::time::Instant;
                     use tracing::info;
@@ -2032,7 +2032,7 @@ impl ToolHandler for DeadCodeHandler {
                                         safety: to_protocol_safety_level(actionable.safety),
                                         confidence: actionable.confidence,
                                         reversible: actionable.reversible,
-                                        refactor_call: actionable.refactor_call.map(|rc| cb_protocol::analysis_result::RefactorCall {
+                                        refactor_call: actionable.refactor_call.map(|rc| codebuddy_foundation::protocol::analysis_result::RefactorCall {
                                             command: rc.tool,
                                             arguments: rc.arguments,
                                         }),
@@ -2054,7 +2054,7 @@ impl ToolHandler for DeadCodeHandler {
                         }
                     }
 
-                    let scope = cb_protocol::analysis_result::AnalysisScope {
+                    let scope = codebuddy_foundation::protocol::analysis_result::AnalysisScope {
                         scope_type: scope_param.scope_type.unwrap_or_else(|| "file".to_string()),
                         path: file_path.clone(),
                         include: scope_param.include,
@@ -2073,7 +2073,7 @@ impl ToolHandler for DeadCodeHandler {
                 }
                 "unreachable_code" | "unused_parameters" | "unused_types" | "unused_variables" => {
                     // Use the same suggestion generation path as unused_imports/unused_symbols
-                    use cb_protocol::analysis_result::AnalysisResult;
+                    use codebuddy_foundation::protocol::analysis_result::AnalysisResult;
                     use std::path::Path;
                     use std::time::Instant;
                     use tracing::info;
@@ -2130,7 +2130,7 @@ impl ToolHandler for DeadCodeHandler {
                                         safety: to_protocol_safety_level(actionable.safety),
                                         confidence: actionable.confidence,
                                         reversible: actionable.reversible,
-                                        refactor_call: actionable.refactor_call.map(|rc| cb_protocol::analysis_result::RefactorCall {
+                                        refactor_call: actionable.refactor_call.map(|rc| codebuddy_foundation::protocol::analysis_result::RefactorCall {
                                             command: rc.tool,
                                             arguments: rc.arguments,
                                         }),
@@ -2152,7 +2152,7 @@ impl ToolHandler for DeadCodeHandler {
                         }
                     }
 
-                    let scope = cb_protocol::analysis_result::AnalysisScope {
+                    let scope = codebuddy_foundation::protocol::analysis_result::AnalysisScope {
                         scope_type: scope_param.scope_type.unwrap_or_else(|| "file".to_string()),
                         path: file_path.clone(),
                         include: scope_param.include,

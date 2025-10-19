@@ -4,7 +4,7 @@ mod tests {
     use crate::services::lock_manager::LockManager;
     use crate::services::operation_queue::{OperationQueue, OperationType};
     use cb_ast::AstCache;
-    use cb_protocol::{ApiError, DependencyUpdate, EditPlan, EditPlanMetadata, TextEdit};
+    use codebuddy_foundation::protocol::{ ApiError , DependencyUpdate , EditPlan , EditPlanMetadata , TextEdit };
     use std::path::Path;
     use std::sync::Arc;
     use tempfile::TempDir;
@@ -166,7 +166,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_atomic_edit_plan_success() {
-        use cb_protocol::{DependencyUpdateType, EditLocation, EditType};
+        use codebuddy_foundation::protocol::{ DependencyUpdateType , EditLocation , EditType };
 
         let temp_dir = TempDir::new().unwrap();
         let (service, _queue) = create_test_service(&temp_dir);
@@ -246,7 +246,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_atomic_rollback_on_main_file_failure() {
-        use cb_protocol::{DependencyUpdateType, EditLocation, EditType};
+        use codebuddy_foundation::protocol::{ DependencyUpdateType , EditLocation , EditType };
 
         let temp_dir = TempDir::new().unwrap();
         let (service, queue) = create_test_service(&temp_dir);
@@ -322,7 +322,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_atomic_rollback_on_dependency_failure() {
-        use cb_protocol::{DependencyUpdateType, EditLocation, EditType};
+        use codebuddy_foundation::protocol::{ DependencyUpdateType , EditLocation , EditType };
 
         let temp_dir = TempDir::new().unwrap();
         let (service, queue) = create_test_service(&temp_dir);
@@ -401,7 +401,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_atomic_rollback_multiple_files() {
-        use cb_protocol::{DependencyUpdateType, EditLocation, EditType};
+        use codebuddy_foundation::protocol::{ DependencyUpdateType , EditLocation , EditType };
 
         let temp_dir = TempDir::new().unwrap();
         let (service, queue) = create_test_service(&temp_dir);
@@ -526,7 +526,7 @@ mod workspace_tests {
 
     // Helper to start a background worker for tests
     fn spawn_test_worker(queue: Arc<OperationQueue>) {
-        use cb_protocol::ApiError;
+        use codebuddy_foundation::protocol::ApiError;
 
         tokio::spawn(async move {
             queue
@@ -715,7 +715,7 @@ mod move_tests {
 
     use tempfile::TempDir;
 
-    use cb_protocol::ApiError;
+    use codebuddy_foundation::protocol::ApiError;
 
     use super::tests::create_test_service;
 

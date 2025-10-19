@@ -6,7 +6,7 @@ license = "MIT"
 
 [dependencies]
 cb-plugin-api = { path = "../cb-plugin-api" }
-cb-protocol = { path = "../cb-protocol" }
+codebuddy-foundation = { path = "../codebuddy-foundation" }
 cb-ast = { path = "../cb-ast" }
 cb-transport = { path = "../cb-transport" }
 cb-lsp = { path = "../cb-lsp" }

@@ -1,7 +1,7 @@
 use crate::package_extractor::ExtractModuleToPackageParams;
 use cb_lang_rust::RustPlugin;
 use cb_plugin_api::LanguagePlugin;
-use cb_protocol::{EditLocation, EditType, TextEdit};
+use codebuddy_foundation::protocol::{ EditLocation , EditType , TextEdit };
 use std::path::Path;
 use std::sync::Arc;
 use tracing::debug;

@@ -4,7 +4,7 @@
 //! extracting symbols, and analyzing imports.
 use cb_lang_common::ImportGraphBuilder;
 use cb_plugin_api::{PluginError, PluginResult, SourceLocation, Symbol, SymbolKind};
-use cb_protocol::{ImportGraph, ImportInfo, ImportType, NamedImport};
+use codebuddy_foundation::protocol::{ ImportGraph , ImportInfo , ImportType , NamedImport };
 use syn::{visit::Visit, File, Item, ItemUse, UseTree};
 /// A visitor that walks the AST and collects function names
 struct FunctionVisitor {
@@ -206,7 +206,7 @@ pub fn parse_imports(source: &str) -> PluginResult<Vec<ImportInfo>> {
                         default_import: None,
                         namespace_import: None,
                         type_only: false,
-                        location: cb_protocol::SourceLocation {
+                        location: codebuddy_foundation::protocol::SourceLocation {
                             start_line: line,
                             start_column: 0,
                             end_line: line,
@@ -227,7 +227,7 @@ pub fn parse_imports(source: &str) -> PluginResult<Vec<ImportInfo>> {
                         default_import: None,
                         namespace_import: None,
                         type_only: false,
-                        location: cb_protocol::SourceLocation {
+                        location: codebuddy_foundation::protocol::SourceLocation {
                             start_line: line,
                             start_column: 0,
                             end_line: line,
@@ -243,7 +243,7 @@ pub fn parse_imports(source: &str) -> PluginResult<Vec<ImportInfo>> {
                         default_import: None,
                         namespace_import: Some(prefix),
                         type_only: false,
-                        location: cb_protocol::SourceLocation {
+                        location: codebuddy_foundation::protocol::SourceLocation {
                             start_line: line,
                             start_column: 0,
                             end_line: line,

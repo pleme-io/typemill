@@ -1,8 +1,8 @@
 //! Mock LSP service for predictable testing without heavy mocking
 
 use async_trait::async_trait;
-// No longer need cb_core imports since we use cb_protocol::Message
-use cb_protocol::{ApiError, LspService, Message};
+// No longer need cb_core imports since we use codebuddy_foundation::protocol::Message
+use codebuddy_foundation::protocol::{ ApiError , LspService , Message };
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};

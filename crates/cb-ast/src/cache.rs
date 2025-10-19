@@ -1,6 +1,6 @@
 //! AST caching system for performance optimization
 
-use cb_protocol::{CacheStats, ImportGraph};
+use codebuddy_foundation::protocol::{ CacheStats , ImportGraph };
 use dashmap::DashMap;
 use std::path::PathBuf;
 use std::time::SystemTime;
@@ -412,7 +412,7 @@ mod tests {
             source_file: path.to_string_lossy().to_string(),
             imports: vec![],
             importers: vec![],
-            metadata: cb_protocol::ImportGraphMetadata {
+            metadata: codebuddy_foundation::protocol::ImportGraphMetadata {
                 language: "javascript".to_string(),
                 parsed_at: chrono::Utc::now(),
                 parser_version: "0.3.0-test".to_string(),
@@ -454,7 +454,7 @@ mod tests {
             source_file: path.to_string_lossy().to_string(),
             imports: vec![],
             importers: vec![],
-            metadata: cb_protocol::ImportGraphMetadata {
+            metadata: codebuddy_foundation::protocol::ImportGraphMetadata {
                 language: "javascript".to_string(),
                 parsed_at: chrono::Utc::now(),
                 parser_version: "0.3.0-test".to_string(),
@@ -488,7 +488,7 @@ mod tests {
             source_file: path.to_string_lossy().to_string(),
             imports: vec![],
             importers: vec![],
-            metadata: cb_protocol::ImportGraphMetadata {
+            metadata: codebuddy_foundation::protocol::ImportGraphMetadata {
                 language: "javascript".to_string(),
                 parsed_at: chrono::Utc::now(),
                 parser_version: "0.3.0-test".to_string(),

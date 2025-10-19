@@ -15,10 +15,10 @@ use super::super::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use codebuddy_core::model::mcp::ToolCall;
 use cb_plugin_api::Symbol;
-use cb_protocol::analysis_result::{
+use codebuddy_foundation::protocol::analysis_result::{
     Finding, FindingLocation, SafetyLevel, Severity, Suggestion,
 };
-use cb_protocol::{ApiError as ServerError, ApiResult as ServerResult};
+use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
 use regex::Regex;
 use serde_json::{json, Value};
 use std::collections::HashMap;
