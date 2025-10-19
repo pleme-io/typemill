@@ -109,6 +109,7 @@ impl RenameHandler {
             warnings,
             metadata,
             file_checksums,
+            is_consolidation: false, // Symbol renames are never consolidations
         })
     }
 }

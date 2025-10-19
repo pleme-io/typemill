@@ -71,6 +71,10 @@ pub struct RenamePlan {
     pub warnings: Vec<PlanWarning>,
     pub metadata: PlanMetadata,
     pub file_checksums: HashMap<String, String>,
+    /// Set to true when renaming a Rust crate into another crate's src/ directory.
+    /// Indicates that the plan will merge Cargo.toml dependencies and update imports.
+    #[serde(default)]
+    pub is_consolidation: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

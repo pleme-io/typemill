@@ -368,6 +368,38 @@ impl RenameHandler {
             });
         }
 
+        // Add consolidation-specific warning
+        if is_consolidation {
+            let target_crate_root = new_path
+                .ancestors()
+                .find(|p| {
+                    p.file_name()
+                        .and_then(|n| n.to_str())
+                        .map(|n| n == "src")
+                        .unwrap_or(false)
+                        && p.parent()
+                            .map(|parent| parent.join("Cargo.toml").exists())
+                            .unwrap_or(false)
+                })
+                .and_then(|src_dir| src_dir.parent())
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|| "target crate".to_string());
+
+            let module_name = new_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("module");
+
+            warnings.push(PlanWarning {
+                code: "CONSOLIDATION_MANUAL_STEP".to_string(),
+                message: format!(
+                    "After consolidation, manually add 'pub mod {};' to {}/src/lib.rs to expose the consolidated code",
+                    module_name, target_crate_root
+                ),
+                candidates: None,
+            });
+        }
+
         // Build metadata
         let metadata = PlanMetadata {
             plan_version: "1.0".to_string(),
@@ -397,6 +429,7 @@ impl RenameHandler {
             warnings,
             metadata,
             file_checksums,
+            is_consolidation,
         })
     }
 }

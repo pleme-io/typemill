@@ -34,6 +34,9 @@ pub mod test_cargo_package_rename;
 pub mod test_consolidation_bug_fix;
 
 #[cfg(test)]
+pub mod test_consolidation_metadata;
+
+#[cfg(test)]
 pub mod test_extract_integration;
 
 #[cfg(test)]
@@ -108,6 +111,10 @@ pub mod test_analyze_module_dependencies;
 // Workspace dependency extraction tests (Proposal 50)
 #[cfg(test)]
 pub mod test_workspace_extract_deps;
+
+// Workspace member management tests (Proposal 50)
+#[cfg(test)]
+pub mod test_workspace_update_members;
 
 pub use harness::{TestClient, TestWorkspace};
 pub use helpers::*;

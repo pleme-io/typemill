@@ -218,6 +218,7 @@ impl RenameHandler {
             warnings,
             metadata,
             file_checksums,
+            is_consolidation: false, // File renames are never consolidations
         })
     }
 }

@@ -732,6 +732,7 @@ mod tests {
             warnings: vec![],
             metadata: create_test_metadata("function"),
             file_checksums: HashMap::new(),
+            is_consolidation: false,
         });
 
         let result = format_plan(&plan);
@@ -746,6 +747,7 @@ mod tests {
             warnings: vec![],
             metadata: create_test_metadata("variable"),
             file_checksums: HashMap::new(),
+            is_consolidation: false,
         });
 
         let result = format_plan(&plan);
