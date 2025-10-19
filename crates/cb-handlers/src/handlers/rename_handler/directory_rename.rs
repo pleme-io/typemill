@@ -53,12 +53,22 @@ impl RenameHandler {
             "Planning directory rename"
         );
 
-        let old_path = Path::new(&params.target.path);
-        let new_path = Path::new(&params.new_name);
+        // Resolve paths against workspace root, not CWD
+        let workspace_root = &context.app_state.project_root;
+        let old_path = if Path::new(&params.target.path).is_absolute() {
+            Path::new(&params.target.path).to_path_buf()
+        } else {
+            workspace_root.join(&params.target.path)
+        };
+        let new_path = if Path::new(&params.new_name).is_absolute() {
+            Path::new(&params.new_name).to_path_buf()
+        } else {
+            workspace_root.join(&params.new_name)
+        };
 
         // Determine if this is a consolidation (explicit flag or auto-detect)
         let is_consolidation = params.options.consolidate
-            .unwrap_or_else(|| Self::is_consolidation_move(old_path, new_path));
+            .unwrap_or_else(|| Self::is_consolidation_move(&old_path, &new_path));
 
         if is_consolidation {
             info!(
@@ -75,7 +85,7 @@ impl RenameHandler {
         let edit_plan = context
             .app_state
             .file_service
-            .plan_rename_directory_with_imports(old_path, new_path, rename_scope.as_ref())
+            .plan_rename_directory_with_imports(&old_path, &new_path, rename_scope.as_ref())
             .await?;
 
         debug!(
@@ -87,7 +97,7 @@ impl RenameHandler {
         let dry_run_result = context
             .app_state
             .file_service
-            .rename_directory_with_imports(old_path, new_path, true, is_consolidation, None, false)
+            .rename_directory_with_imports(&old_path, &new_path, true, is_consolidation, None, false)
             .await?;
 
         // Extract metadata from dry-run result
@@ -99,22 +109,18 @@ impl RenameHandler {
             .unwrap_or(0) as usize;
 
         // For directory rename, we need to calculate checksums for all files being moved
-        let abs_old = std::fs::canonicalize(old_path).unwrap_or_else(|_| old_path.to_path_buf());
+        // Paths are already resolved against workspace root, so canonicalize directly
+        let abs_old = std::fs::canonicalize(&old_path).unwrap_or_else(|_| old_path.clone());
 
         // Calculate abs_new early so we can use it for checksum fallback logic
-        let abs_new = if new_path.is_absolute() {
-            std::fs::canonicalize(new_path.parent().unwrap_or(Path::new(".")))
-                .unwrap_or_else(|_| new_path.parent().unwrap_or(Path::new(".")).to_path_buf())
-                .join(new_path.file_name().unwrap_or(new_path.as_os_str()))
+        // new_path is already resolved against workspace root or is absolute
+        let abs_new = if new_path.exists() {
+            std::fs::canonicalize(&new_path).unwrap_or_else(|_| new_path.clone())
         } else {
-            // For relative paths, resolve against current working directory
-            let cwd = std::env::current_dir().unwrap_or_else(|_| Path::new(".").to_path_buf());
-            let parent = new_path.parent().unwrap_or(Path::new("."));
-            let parent_abs = if parent == Path::new(".") {
-                cwd.clone()
-            } else {
-                cwd.join(parent)
-            };
+            // For non-existent paths, canonicalize parent and join filename
+            let parent = new_path.parent().unwrap_or(workspace_root);
+            let parent_abs = std::fs::canonicalize(parent)
+                .unwrap_or_else(|_| parent.to_path_buf());
             parent_abs.join(new_path.file_name().unwrap_or(new_path.as_os_str()))
         };
 
