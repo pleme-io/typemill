@@ -1,8 +1,14 @@
 # Proposal 06: Workspace Consolidation & Architectural Hardening
 
-**Status**: ✅ **Phase 06b COMPLETED** (2025-10-19)
-**Archived**: Phase 06b (Foundational Consolidation) fully completed and verified.
-**Remaining**: Phase 06a (Preparation), 07a (Workspace Standardization), 08a (Verification)
+**Status**: ✅ **Phases 06a & 06b COMPLETED** (2025-10-19)
+
+**Completed Phases:**
+- ✅ **Phase 06a**: Preparation & Enforcement (docs/architecture/layers.md + cargo-deny enforcement)
+- ✅ **Phase 06b**: Foundational Consolidation (6 crates → 3 consolidated crates)
+
+**Remaining Phases:**
+- ⏳ **Phase 07a**: Workspace Standardization (rename 19 crates: cb-* → codebuddy-*)
+- ⏳ **Phase 08a**: Verification & Documentation
 
 ---
 
@@ -25,17 +31,43 @@ This proposal adopts the "Pragmatic Layered Workspace" strategy to refactor the 
 
 ## Checklists
 
-### 06a: Preparation & Enforcement
-- [ ] Create `docs/architecture/layers.md` to formally document the layered dependency model.
-- [ ] Add `cargo-deny` to the workspace and create a `deny.toml` configuration with graph rules to enforce the documented layers.
+### 06a: Preparation & Enforcement ✅ COMPLETE
+- [x] Create `docs/architecture/layers.md` to formally document the layered dependency model.
+- [x] Add `cargo-deny` to the workspace and create a `deny.toml` configuration with graph rules to enforce the documented layers.
 
-### 06b: Foundational Consolidation
-- [ ] Create the target directory and manifest for the new `crates/codebuddy-foundation` crate.
-- [ ] For `cb-core`, `cb-types`, and `cb-protocol`, generate a `rename.plan` with the `consolidate: true` option, targeting `crates/codebuddy-foundation` as the destination.
-- [ ] Execute the generated plans using `workspace.apply_edit`.
-- [ ] Manually add the public modules (`pub mod core;` etc.) to `crates/codebuddy-foundation/src/lib.rs` as required by the consolidation workflow.
-- [ ] Create `crates/codebuddy-plugin-system` and use the same `rename.plan(consolidate) -> workspace.apply_edit` workflow to merge `cb-plugins` and `cb-plugin-registry`.
-- [ ] Use the `rename.plan(consolidate)` workflow to merge `cb-bench` into `cb-test-support`.
+**Completion Notes:**
+- `docs/architecture/layers.md` created with 7-layer hierarchy (Foundation → Application)
+- `deny.toml` enforcement rules enabled for:
+  - Plugins cannot depend on Services or higher
+  - Cross-plugin isolation (no plugin-to-plugin dependencies)
+  - Services cannot depend on Handlers
+  - Handlers cannot depend on Application
+  - Production cannot depend on cb-test-support
+  - Analysis crates properly isolated
+- Verification: `cargo deny check bans` passing ✅
+- Commit: `708f446c feat: Enable cargo-deny architectural layer enforcement (Phase 06a)`
+
+### 06b: Foundational Consolidation ✅ COMPLETE
+- [x] Create the target directory and manifest for the new `crates/codebuddy-foundation` crate.
+- [x] For `cb-core`, `cb-types`, and `cb-protocol`, generate a `rename.plan` with the `consolidate: true` option, targeting `crates/codebuddy-foundation` as the destination.
+- [x] Execute the generated plans using `workspace.apply_edit`.
+- [x] Manually add the public modules (`pub mod core;` etc.) to `crates/codebuddy-foundation/src/lib.rs` as required by the consolidation workflow.
+- [x] Create `crates/codebuddy-plugin-system` and use the same `rename.plan(consolidate) -> workspace.apply_edit` workflow to merge `cb-plugins` and `cb-plugin-registry`.
+- [x] Use the `rename.plan(consolidate)` workflow to merge `cb-bench` into `cb-test-support`.
+
+**Completion Notes:**
+- ✅ codebuddy-foundation (cb-core + cb-types + cb-protocol) - merged and verified
+- ✅ codebuddy-plugin-system (cb-plugins + cb-plugin-registry) - merged and verified
+- ✅ cb-test-support (cb-bench merged) - completed
+- All builds passing, old crates deleted, workspace members updated
+- Circular dependency detection integrated into consolidation workflow
+- Comprehensive import path updates for 100% coverage
+- Related commits:
+  - `c01c1c96 feat: Create codebuddy-foundation crate`
+  - `e9d5c049 feat: Consolidate cb-types into codebuddy-foundation`
+  - `841a5d7d feat: Complete cb-protocol consolidation into codebuddy-foundation`
+  - `fb25c4ef feat: Consolidate codebuddy-core into codebuddy-foundation`
+  - Multiple bug fix and enhancement commits
 
 ### 07a: Workspace Standardization
 - [ ] For each remaining `cb-*` crate, generate a `rename.plan` to rename it to `codebuddy-*` (e.g., `cb-lsp` -> `codebuddy-lsp`).
