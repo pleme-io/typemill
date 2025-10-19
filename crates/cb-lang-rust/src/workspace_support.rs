@@ -3,6 +3,7 @@
 //! This module implements the `WorkspaceSupport` trait for Rust, providing
 //! synchronous methods for manipulating Cargo.toml workspace manifests.
 
+use async_trait::async_trait;
 use cb_plugin_api::workspace_support::WorkspaceSupport;
 use toml_edit::DocumentMut;
 use tracing::debug;
@@ -11,6 +12,7 @@ use tracing::debug;
 #[derive(Default)]
 pub struct RustWorkspaceSupport;
 
+#[async_trait]
 impl WorkspaceSupport for RustWorkspaceSupport {
     fn add_workspace_member(&self, content: &str, member: &str) -> String {
         debug!(member = %member, "Adding workspace member");
@@ -68,6 +70,143 @@ impl WorkspaceSupport for RustWorkspaceSupport {
                 content.to_string()
             }
         }
+    }
+
+    async fn is_package(&self, dir_path: &std::path::Path) -> bool {
+        // Check if Cargo.toml exists
+        dir_path.join("Cargo.toml").exists()
+    }
+
+    async fn plan_directory_move(
+        &self,
+        old_path: &std::path::Path,
+        new_path: &std::path::Path,
+        project_root: &std::path::Path,
+    ) -> Option<cb_plugin_api::MoveManifestPlan> {
+        use cb_plugin_api::MoveManifestPlan;
+        use tracing::{info, warn};
+
+        // Check if this is a Cargo package
+        if !self.is_package(old_path).await {
+            return None;
+        }
+
+        info!(
+            old_path = %old_path.display(),
+            new_path = %new_path.display(),
+            "Planning Cargo manifest updates for directory move"
+        );
+
+        // Use the existing cargo_util functions to plan manifest updates
+        use crate::workspace::cargo_util;
+
+        // Detect if this is a consolidation move
+        let is_consolidation = new_path
+            .components()
+            .collect::<Vec<_>>()
+            .windows(2)
+            .any(|w| w[0].as_os_str() == "src");
+
+        // Extract rename info
+        let rename_info = if is_consolidation {
+            info!("Detected consolidation move, extracting consolidation rename info");
+            cargo_util::extract_consolidation_rename_info(old_path, new_path)
+                .await
+                .ok()
+        } else {
+            info!("Detected regular package rename, extracting rename info");
+            cargo_util::extract_cargo_rename_info(old_path, new_path)
+                .await
+                .ok()
+        };
+
+        // For consolidation moves, don't plan manifest edits (handled during execution)
+        if is_consolidation {
+            info!("Consolidation move - skipping manifest planning (handled during execution)");
+            return Some(MoveManifestPlan {
+                manifest_edits: Vec::new(),
+                rename_info,
+                is_consolidation: true,
+            });
+        }
+
+        // Plan workspace manifest updates (workspace members + package name)
+        let mut all_edits = Vec::new();
+
+        match cargo_util::plan_workspace_manifest_updates(old_path, new_path, project_root).await {
+            Ok(updates) if !updates.is_empty() => {
+                info!(
+                    workspace_manifests = updates.len(),
+                    "Planning workspace Cargo.toml updates"
+                );
+
+                // Convert manifest updates to TextEdits
+                let manifest_edits =
+                    cargo_util::convert_manifest_updates_to_edits(updates, old_path, new_path);
+
+                all_edits.extend(manifest_edits);
+            }
+            Ok(_) => {
+                info!("No workspace manifest updates needed");
+            }
+            Err(e) => {
+                warn!(
+                    error = %e,
+                    "Failed to plan workspace manifest updates, continuing without them"
+                );
+            }
+        }
+
+        // Plan dependent crate path updates
+        if let Some(ref info) = rename_info {
+            if let (Some(old_name), Some(new_name)) = (
+                info.get("old_package_name").and_then(|v| v.as_str()),
+                info.get("new_package_name").and_then(|v| v.as_str()),
+            ) {
+                match cargo_util::plan_dependent_crate_path_updates(
+                    old_name,
+                    new_name,
+                    new_path,
+                    project_root,
+                )
+                .await
+                {
+                    Ok(updates) if !updates.is_empty() => {
+                        info!(
+                            dependent_manifests = updates.len(),
+                            "Planning dependent crate path updates"
+                        );
+
+                        // Convert to TextEdits
+                        let dep_edits = cargo_util::convert_manifest_updates_to_edits(
+                            updates, old_path, new_path,
+                        );
+
+                        all_edits.extend(dep_edits);
+                    }
+                    Ok(_) => {
+                        info!("No dependent crate path updates needed");
+                    }
+                    Err(e) => {
+                        warn!(
+                            error = %e,
+                            "Failed to plan dependent crate updates, continuing without them"
+                        );
+                    }
+                }
+            }
+        }
+
+        info!(
+            manifest_edits = all_edits.len(),
+            "Cargo manifest planning complete"
+        );
+
+        Some(MoveManifestPlan {
+            manifest_edits: all_edits,
+            rename_info,
+            is_consolidation: false,
+        })
     }
 }
 

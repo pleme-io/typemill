@@ -1,6 +1,5 @@
 //! Planning logic for file and directory moves
 
-use cb_lang_rust::workspace::cargo_util;
 use crate::services::reference_updater::ReferenceUpdater;
 use cb_plugin_api::{PluginRegistry, ScanScope};
 use codebuddy_foundation::protocol::{ ApiResult as ServerResult , EditPlan };
@@ -60,7 +59,10 @@ pub async fn plan_file_move(
     Ok(edit_plan)
 }
 
-/// Plan a directory move with import updates and Cargo package support
+/// Plan a directory move with import updates and workspace package support
+///
+/// This function is language-agnostic and uses the plugin system to handle
+/// language-specific manifest updates (e.g., Cargo.toml for Rust, package.json for TypeScript).
 pub async fn plan_directory_move(
     old_abs: &Path,
     new_abs: &Path,
@@ -75,56 +77,42 @@ pub async fn plan_directory_move(
         "Planning directory move with import updates"
     );
 
-    // Check if this is a Cargo package
-    let is_cargo_pkg = cargo_util::is_cargo_package(old_abs).await?;
+    // Try to find a language plugin that can handle this directory's workspace operations
+    // Check all plugins to see if any recognize this as a package
+    let mut rename_info = None;
+    let mut is_package = false;
 
-    // Detect if this is a consolidation move (into another crate's src/ directory)
-    // Pattern: crates/target-crate/src/module should be treated as consolidation
-    let is_consolidation = new_abs
-        .components()
-        .collect::<Vec<_>>()
-        .windows(2)
-        .any(|w| w[0].as_os_str() == "src");
+    for plugin in plugin_registry.all() {
+        // Check if plugin has workspace support
+        if let Some(workspace_support) = plugin.workspace_support() {
+            // Check if this is a package for this language
+            if workspace_support.is_package(old_abs).await {
+                is_package = true;
+                info!(
+                    language = %plugin.metadata().name,
+                    "Detected package, planning manifest updates"
+                );
 
-    info!(
-        is_consolidation,
-        old_path = %old_abs.display(),
-        new_path = %new_abs.display(),
-        "Consolidation detection result"
-    );
-
-    // Extract rename info if this is a Cargo package
-    let rename_info = if is_cargo_pkg {
-        if is_consolidation {
-            info!("Detected Cargo package consolidation move, extracting consolidation rename info");
-            match cargo_util::extract_consolidation_rename_info(old_abs, new_abs).await {
-                Ok(info) => {
+                // Get manifest planning from the plugin
+                if let Some(plan) = workspace_support
+                    .plan_directory_move(old_abs, new_abs, project_root)
+                    .await
+                {
                     info!(
-                        submodule_name = info.get("submodule_name").and_then(|v| v.as_str()),
-                        target_crate_name = info.get("target_crate_name").and_then(|v| v.as_str()),
-                        "Successfully extracted consolidation rename info"
+                        manifest_edits = plan.manifest_edits.len(),
+                        is_consolidation = plan.is_consolidation,
+                        "Language plugin provided manifest plan"
                     );
-                    Some(info)
-                }
-                Err(e) => {
-                    warn!(
-                        error = %e,
-                        old_path = %old_abs.display(),
-                        new_path = %new_abs.display(),
-                        "Failed to extract consolidation rename info - will not filter Cargo.toml"
-                    );
-                    None
+
+                    rename_info = plan.rename_info;
+
+                    // We'll add manifest edits later, after reference updates
+                    // Store the plan temporarily (we'll reconstruct it below)
+                    break;
                 }
             }
-        } else {
-            info!("Detected Cargo package rename, extracting rename info");
-            cargo_util::extract_cargo_rename_info(old_abs, new_abs)
-                .await
-                .ok()
         }
-    } else {
-        None
-    };
+    }
 
     // Pass through the scan scope - don't override it
     // The caller (via RenameScope) determines whether to scan for string literals
@@ -142,87 +130,27 @@ pub async fn plan_directory_move(
         )
         .await?;
 
-    // If this is a Cargo package, add manifest edits
-    // EXCEPT for consolidation moves - those handle Cargo.toml updates during execution
-    if is_cargo_pkg && !is_consolidation {
-        info!("Adding Cargo.toml manifest edits to plan");
+    // Add language-specific manifest edits if this is a package
+    if is_package {
+        info!("Adding language-specific manifest edits to plan");
 
         let edits_before = edit_plan.edits.len();
 
-        // 1. Plan workspace manifest updates (workspace members + package name)
-        let workspace_updates = cargo_util::plan_workspace_manifest_updates(
-            old_abs,
-            new_abs,
-            project_root,
-        )
-        .await;
+        // Ask each plugin with workspace support to contribute manifest edits
+        for plugin in plugin_registry.all() {
+            if let Some(workspace_support) = plugin.workspace_support() {
+                if let Some(plan) = workspace_support
+                    .plan_directory_move(old_abs, new_abs, project_root)
+                    .await
+                {
+                    info!(
+                        language = %plugin.metadata().name,
+                        manifest_edits = plan.manifest_edits.len(),
+                        "Adding manifest edits from plugin"
+                    );
 
-        match workspace_updates {
-            Ok(updates) if !updates.is_empty() => {
-                info!(
-                    workspace_manifests = updates.len(),
-                    "Planning workspace Cargo.toml updates"
-                );
-
-                // Convert manifest updates to TextEdits
-                let manifest_edits = cargo_util::convert_manifest_updates_to_edits(
-                    updates,
-                    old_abs,
-                    new_abs,
-                );
-
-                edit_plan.edits.extend(manifest_edits);
-            }
-            Ok(_) => {
-                info!("No workspace manifest updates needed");
-            }
-            Err(e) => {
-                warn!(
-                    error = %e,
-                    "Failed to plan workspace manifest updates, continuing without them"
-                );
-            }
-        }
-
-        // 2. Plan dependent crate path updates
-        if let Some(ref info) = rename_info {
-            if let (Some(old_name), Some(new_name)) = (
-                info.get("old_package_name").and_then(|v| v.as_str()),
-                info.get("new_package_name").and_then(|v| v.as_str()),
-            ) {
-                let dep_updates = cargo_util::plan_dependent_crate_path_updates(
-                    old_name,
-                    new_name,
-                    new_abs,
-                    project_root,
-                )
-                .await;
-
-                match dep_updates {
-                    Ok(updates) if !updates.is_empty() => {
-                        info!(
-                            dependent_manifests = updates.len(),
-                            "Planning dependent crate path updates"
-                        );
-
-                        // Convert to TextEdits
-                        let dep_edits = cargo_util::convert_manifest_updates_to_edits(
-                            updates,
-                            old_abs,
-                            new_abs,
-                        );
-
-                        edit_plan.edits.extend(dep_edits);
-                    }
-                    Ok(_) => {
-                        info!("No dependent crate path updates needed");
-                    }
-                    Err(e) => {
-                        warn!(
-                            error = %e,
-                            "Failed to plan dependent crate updates, continuing without them"
-                        );
-                    }
+                    edit_plan.edits.extend(plan.manifest_edits);
+                    break; // Only use the first plugin that handles this package
                 }
             }
         }
@@ -233,7 +161,7 @@ pub async fn plan_directory_move(
         info!(
             manifest_edits_added,
             total_edits = edits_after,
-            "Cargo manifest edits added to plan"
+            "Language-specific manifest edits added to plan"
         );
     }
 
@@ -279,7 +207,7 @@ pub async fn plan_directory_move(
         edits_count = edit_plan.edits.len(),
         old_path = %old_abs.display(),
         new_path = %new_abs.display(),
-        is_cargo_package = is_cargo_pkg,
+        is_package,
         "Directory move plan generated"
     );
 

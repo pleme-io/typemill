@@ -25,9 +25,10 @@ pathdiff = "0.2"
 chrono = "0.4"
 cargo_metadata = "0.18"  # For dependency graph analysis
 petgraph = { workspace = true }  # For dependency graph traversal
-# NOTE: cb-lang-rust retained ONLY for Rust-specific module path utilities
-# (compute_module_path_from_file, find_crate_name_from_cargo_toml)
-# Used by reference_updater/detectors/rust.rs for cross-crate move detection
+# NOTE: cb-lang-rust retained for two legitimate uses:
+# 1. reference_updater/detectors/rust.rs - Module path utilities (compute_module_path_from_file, find_crate_name_from_cargo_toml)
+# 2. file_service/cargo.rs - Consolidation feature (legacy, uses cargo_util)
+# All NEW move/rename operations use language-agnostic plugin system (see move_service/planner.rs)
 cb-lang-rust = { workspace = true }
 sha2 = "0.10"
 urlencoding = "2.1"

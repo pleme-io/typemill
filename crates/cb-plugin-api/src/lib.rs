@@ -48,7 +48,7 @@ pub use server::PluginServer;
 pub use test_fixtures::{
     ComplexityFixture, LanguageTestFixtures, RefactoringFixture, RefactoringOperation,
 };
-pub use workspace_support::WorkspaceSupport;
+pub use workspace_support::{MoveManifestPlan, WorkspaceSupport};
 
 // ============================================================================
 // Error Types

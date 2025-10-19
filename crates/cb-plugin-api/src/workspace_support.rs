@@ -3,11 +3,29 @@
 //! Provides workspace manifest manipulation capabilities for languages
 //! with multi-package project structures (Rust workspaces, TypeScript monorepos, etc.).
 
+use async_trait::async_trait;
+use std::path::Path;
+
+/// Move/rename planning result from language plugin
+///
+/// Contains manifest edits and metadata needed for workspace-aware moves
+#[derive(Debug, Clone)]
+pub struct MoveManifestPlan {
+    /// Manifest file updates (e.g., workspace members, package names, dependency paths)
+    pub manifest_edits: Vec<codebuddy_foundation::protocol::TextEdit>,
+
+    /// Rename metadata (package names, module names, etc.) for import updates
+    pub rename_info: Option<serde_json::Value>,
+
+    /// Whether this is a consolidation move (merging packages)
+    pub is_consolidation: bool,
+}
+
 /// Optional trait for languages that support workspace operations
 ///
-/// All methods are **synchronous** (no async overhead).
-/// Plugins store an implementation in their struct and return `&dyn WorkspaceSupport`
-/// from the main `LanguagePlugin::workspace_support()` method.
+/// Basic operations (add/remove members) are **synchronous** (no async overhead).
+/// Advanced operations (move/rename planning) are **async** to allow I/O.
+#[async_trait]
 pub trait WorkspaceSupport: Send + Sync {
     /// Add a new member to a workspace manifest
     ///
@@ -67,4 +85,50 @@ pub trait WorkspaceSupport: Send + Sync {
     /// # Returns
     /// Updated manifest content with new package name
     fn update_package_name(&self, content: &str, new_name: &str) -> String;
+
+    // ========================================================================
+    // Move/Rename Planning (Async operations for I/O)
+    // ========================================================================
+
+    /// Check if a directory is a workspace package
+    ///
+    /// # Arguments
+    /// * `dir_path` - Directory path to check
+    ///
+    /// # Returns
+    /// true if directory contains a package manifest (e.g., Cargo.toml, package.json)
+    async fn is_package(&self, dir_path: &Path) -> bool {
+        // Default: not a package
+        let _ = dir_path;
+        false
+    }
+
+    /// Plan manifest edits for a directory move/rename
+    ///
+    /// This method generates all manifest file updates needed when moving or renaming
+    /// a package directory, including:
+    /// - Workspace member list updates
+    /// - Package name changes
+    /// - Dependency path updates in dependent packages
+    /// - Consolidation-specific logic (merging packages)
+    ///
+    /// # Arguments
+    /// * `old_path` - Current package directory path
+    /// * `new_path` - New package directory path
+    /// * `project_root` - Workspace/project root directory
+    ///
+    /// # Returns
+    /// MoveManifestPlan with edits and metadata, or None if not a package
+    ///
+    /// # Default Implementation
+    /// Returns None (no manifest edits). Languages with workspace support should override.
+    async fn plan_directory_move(
+        &self,
+        _old_path: &Path,
+        _new_path: &Path,
+        _project_root: &Path,
+    ) -> Option<MoveManifestPlan> {
+        // Default: no manifest planning
+        None
+    }
 }
