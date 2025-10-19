@@ -48,10 +48,9 @@ impl TypeScriptPlugin {
     };
 
     /// The capabilities of this plugin.
-    pub const CAPABILITIES: PluginCapabilities = PluginCapabilities {
-        imports: true,
-        workspace: true,
-    };
+    pub const CAPABILITIES: PluginCapabilities = PluginCapabilities::none()
+        .with_imports()
+        .with_workspace();
 
     /// Creates a new, boxed instance of the plugin.
     #[allow(clippy::new_ret_no_self)]

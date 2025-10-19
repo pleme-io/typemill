@@ -11,6 +11,7 @@ mod workspace;
 
 // Capability trait implementations
 pub mod import_support;
+pub mod project_factory;
 pub mod workspace_support;
 
 // Import-related utilities
@@ -49,6 +50,7 @@ codebuddy_plugin! {
 pub struct RustPlugin {
     import_support: import_support::RustImportSupport,
     workspace_support: workspace_support::RustWorkspaceSupport,
+    project_factory: project_factory::RustProjectFactory,
 }
 
 impl RustPlugin {
@@ -63,10 +65,10 @@ impl RustPlugin {
     };
 
     /// The capabilities of this plugin.
-    pub const CAPABILITIES: PluginCapabilities = PluginCapabilities {
-        imports: true,
-        workspace: true,
-    };
+    pub const CAPABILITIES: PluginCapabilities = PluginCapabilities::none()
+        .with_imports()
+        .with_workspace()
+        .with_project_factory();
 
     /// Creates a new, boxed instance of the plugin.
     #[allow(clippy::new_ret_no_self)]
@@ -158,6 +160,10 @@ impl LanguagePlugin for RustPlugin {
 
     fn workspace_support(&self) -> Option<&dyn cb_plugin_api::WorkspaceSupport> {
         Some(&self.workspace_support)
+    }
+
+    fn project_factory(&self) -> Option<&dyn cb_plugin_api::ProjectFactory> {
+        Some(&self.project_factory)
     }
 
     fn rewrite_file_references(

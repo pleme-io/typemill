@@ -43,10 +43,8 @@ pub struct YamlLanguagePlugin {
 
 impl YamlLanguagePlugin {
     /// The capabilities of this plugin.
-    pub const CAPABILITIES: PluginCapabilities = PluginCapabilities {
-        imports: true, // We support file references
-        workspace: false,
-    };
+    pub const CAPABILITIES: PluginCapabilities = PluginCapabilities::none()
+        .with_imports(); // We support file references
 
     pub fn new() -> Self {
         Self {

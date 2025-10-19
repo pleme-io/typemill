@@ -64,6 +64,7 @@ ignore = "0.4"
 url = "2.5"
 globset = "0.4.10"
 urlencoding = "2.1.3"
+pathdiff = "0.2"
 codebuddy-plugin-system = { path = "../codebuddy-plugin-system" }
 codebuddy-core = { path = "../codebuddy-core" }
 codebuddy-config = { path = "../codebuddy-config" }

@@ -50,10 +50,9 @@ impl LanguagePlugin for RpcAdapterPlugin {
     fn capabilities(&self) -> PluginCapabilities {
         // For now, assume external plugins support everything.
         // A more advanced implementation would fetch capabilities from the plugin.
-        PluginCapabilities {
-            imports: true,
-            workspace: true,
-        }
+        PluginCapabilities::none()
+            .with_imports()
+            .with_workspace()
     }
 
     async fn parse(&self, source: &str) -> PluginResult<ParsedSource> {

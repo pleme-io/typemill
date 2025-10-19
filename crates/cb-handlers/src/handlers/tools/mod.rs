@@ -26,6 +26,7 @@ pub mod lifecycle;
 pub mod navigation;
 pub mod system;
 pub mod workspace;
+pub mod workspace_create;
 
 // Re-export handlers
 pub use advanced::AdvancedToolsHandler;
@@ -38,6 +39,7 @@ pub use lifecycle::LifecycleHandler;
 pub use navigation::{InternalNavigationHandler, NavigationHandler};
 pub use system::SystemToolsHandler;
 pub use workspace::WorkspaceToolsHandler;
+pub use workspace_create::WorkspaceCreateHandler;
 
 // Re-export dispatch helpers
 pub use dispatch::dispatch_to_language_plugin;

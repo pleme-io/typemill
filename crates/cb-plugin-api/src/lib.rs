@@ -27,6 +27,7 @@ use std::path::Path;
 pub mod import_support;
 pub mod metadata;
 pub mod plugin_registry;
+pub mod project_factory;
 pub mod server;
 pub mod test_fixtures;
 pub mod workspace_support;
@@ -38,6 +39,9 @@ pub use import_support::{
 };
 pub use metadata::LanguageMetadata;
 pub use plugin_registry::{PluginDescriptor, iter_plugins};
+pub use project_factory::{
+    CreatePackageConfig, CreatePackageResult, PackageInfo, PackageType, ProjectFactory, Template,
+};
 // Note: codebuddy_plugin! macro is automatically exported at crate root due to #[macro_export]
 pub use server::PluginServer;
 pub use test_fixtures::{
@@ -220,15 +224,47 @@ pub struct PluginCapabilities {
     pub imports: bool,
     /// Supports workspace manifest operations
     pub workspace: bool,
+    /// Supports project/package creation
+    pub project_factory: bool,
 }
 
 impl PluginCapabilities {
+    /// Creates a new `PluginCapabilities` with all fields set to false (no capabilities).
+    ///
+    /// This is the safest default - use builder methods to enable specific capabilities.
+    pub const fn none() -> Self {
+        Self {
+            imports: false,
+            workspace: false,
+            project_factory: false,
+        }
+    }
+
     /// Creates a new `PluginCapabilities` with all features enabled.
     pub const fn all() -> Self {
         Self {
             imports: true,
             workspace: true,
+            project_factory: true,
         }
+    }
+
+    /// Enable import support
+    pub const fn with_imports(mut self) -> Self {
+        self.imports = true;
+        self
+    }
+
+    /// Enable workspace support
+    pub const fn with_workspace(mut self) -> Self {
+        self.workspace = true;
+        self
+    }
+
+    /// Enable project factory support
+    pub const fn with_project_factory(mut self) -> Self {
+        self.project_factory = true;
+        self
     }
 }
 
@@ -424,6 +460,11 @@ pub trait LanguagePlugin: Send + Sync {
 
     /// Get workspace support if available
     fn workspace_support(&self) -> Option<&dyn WorkspaceSupport> {
+        None
+    }
+
+    /// Get project factory if available
+    fn project_factory(&self) -> Option<&dyn ProjectFactory> {
         None
     }
 

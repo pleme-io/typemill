@@ -186,7 +186,7 @@ impl PluginDispatcher {
                     AdvancedToolsHandler, FileToolsHandler,
                     InternalEditingToolsHandler, InternalIntelligenceHandler, InternalNavigationHandler,
                     InternalWorkspaceHandler, LifecycleHandler, NavigationHandler,
-                    SystemToolsHandler, WorkspaceToolsHandler,
+                    SystemToolsHandler, WorkspaceToolsHandler, WorkspaceCreateHandler,
                 };
                 use super::tools::analysis::{BatchAnalysisHandler, DeadCodeHandler, DependenciesHandler, DocumentationHandler, QualityHandler, StructureHandler, TestsHandler};
                 use super::{
@@ -213,6 +213,7 @@ impl PluginDispatcher {
                     InternalWorkspaceHandler => "InternalWorkspaceHandler with 1 INTERNAL tool (apply_workspace_edit)",
                     InternalIntelligenceHandler => "InternalIntelligenceHandler with 2 INTERNAL tools (get_completions, get_signature_help)",
                     WorkspaceToolsHandler => "WorkspaceToolsHandler with 2 INTERNAL tools (move_directory, update_dependencies)",
+                    WorkspaceCreateHandler => "WorkspaceCreateHandler with 1 tool (workspace.create_package)",
                     WorkspaceApplyHandler => "Unified workspace apply handler"
                 });
 

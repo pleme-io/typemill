@@ -97,6 +97,10 @@ pub mod test_analyze_batch;
 #[cfg(test)]
 pub mod test_suggestions_dead_code;
 
+// Workspace package creation tests (Proposal 50)
+#[cfg(test)]
+pub mod test_workspace_create;
+
 pub use harness::{TestClient, TestWorkspace};
 pub use helpers::*;
 pub use mocks::{MockAstService, MockLspService};

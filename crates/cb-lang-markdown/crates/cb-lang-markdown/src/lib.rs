@@ -45,10 +45,8 @@ pub struct MarkdownPlugin {
 
 impl MarkdownPlugin {
     /// The capabilities of this plugin.
-    pub const CAPABILITIES: PluginCapabilities = PluginCapabilities {
-        imports: true,  // We support "imports" (file references)
-        workspace: false,
-    };
+    pub const CAPABILITIES: PluginCapabilities = PluginCapabilities::none()
+        .with_imports(); // We support "imports" (file references)
 
     pub fn new() -> Self {
         Self {
