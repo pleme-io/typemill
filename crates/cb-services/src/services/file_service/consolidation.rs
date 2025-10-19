@@ -119,8 +119,235 @@ impl FileService {
         )
         .await?;
 
+        // Task 7: Clean up workspace Cargo.toml (Bug #3 fix)
+        self.cleanup_workspace_cargo_toml(
+            &metadata.source_crate_name,
+            &metadata.target_crate_name,
+        )
+        .await?;
+
+        // Task 8: Remove duplicate dependencies across workspace (Bug #5 fix)
+        self.remove_duplicate_dependencies_in_workspace().await?;
+
         info!("Consolidation post-processing complete");
         Ok(())
+    }
+
+    /// Clean up workspace Cargo.toml after consolidation
+    ///
+    /// Removes source crate from workspace members and dependencies,
+    /// ensures target crate is in workspace dependencies.
+    async fn cleanup_workspace_cargo_toml(
+        &self,
+        source_crate_name: &str,
+        target_crate_name: &str,
+    ) -> ServerResult<()> {
+        let workspace_toml_path = self.project_root.join("Cargo.toml");
+
+        if !workspace_toml_path.exists() {
+            warn!("Workspace Cargo.toml not found, skipping cleanup");
+            return Ok(());
+        }
+
+        let content = fs::read_to_string(&workspace_toml_path)
+            .await
+            .map_err(|e| {
+                ServerError::Internal(format!("Failed to read workspace Cargo.toml: {}", e))
+            })?;
+
+        let mut doc = content.parse::<toml_edit::DocumentMut>().map_err(|e| {
+            ServerError::Internal(format!("Failed to parse workspace Cargo.toml: {}", e))
+        })?;
+
+        let mut modified = false;
+
+        // 1. Remove source crate from workspace members
+        if let Some(workspace) = doc.get_mut("workspace").and_then(|w| w.as_table_like_mut()) {
+            if let Some(members) = workspace.get_mut("members").and_then(|m| m.as_array_mut()) {
+                let source_path = format!("crates/{}", source_crate_name);
+                let before_len = members.len();
+                members.retain(|item| item.as_str() != Some(&source_path));
+
+                if members.len() < before_len {
+                    modified = true;
+                    info!(
+                        source_crate = %source_crate_name,
+                        "Removed from workspace members"
+                    );
+                }
+            }
+        }
+
+        // 2. Remove source crate from workspace dependencies
+        if let Some(workspace) = doc.get_mut("workspace").and_then(|w| w.as_table_like_mut()) {
+            if let Some(deps) = workspace
+                .get_mut("dependencies")
+                .and_then(|d| d.as_table_like_mut())
+            {
+                if deps.remove(source_crate_name).is_some() {
+                    modified = true;
+                    info!(
+                        source_crate = %source_crate_name,
+                        "Removed from workspace dependencies"
+                    );
+                }
+            }
+        }
+
+        // 3. Ensure target crate is in workspace dependencies
+        if let Some(workspace) = doc.get_mut("workspace").and_then(|w| w.as_table_like_mut()) {
+            if let Some(deps) = workspace
+                .get_mut("dependencies")
+                .and_then(|d| d.as_table_like_mut())
+            {
+                if !deps.contains_key(target_crate_name) {
+                    // Create inline table for the dependency
+                    let mut target_dep = toml_edit::InlineTable::new();
+                    target_dep.insert(
+                        "path",
+                        toml_edit::Value::from(format!("crates/{}", target_crate_name)),
+                    );
+
+                    deps.insert(
+                        target_crate_name,
+                        toml_edit::Item::Value(toml_edit::Value::InlineTable(target_dep)),
+                    );
+
+                    modified = true;
+                    info!(
+                        target_crate = %target_crate_name,
+                        "Added to workspace dependencies"
+                    );
+                }
+            }
+        }
+
+        // Write back if modified
+        if modified {
+            fs::write(&workspace_toml_path, doc.to_string())
+                .await
+                .map_err(|e| {
+                    ServerError::Internal(format!("Failed to write workspace Cargo.toml: {}", e))
+                })?;
+
+            info!("Workspace Cargo.toml cleanup complete");
+        } else {
+            info!("No workspace Cargo.toml cleanup needed");
+        }
+
+        Ok(())
+    }
+
+    /// Remove duplicate dependencies from all workspace Cargo.toml files
+    async fn remove_duplicate_dependencies_in_workspace(&self) -> ServerResult<()> {
+        info!("Scanning workspace for duplicate dependencies");
+
+        let mut fixed_count = 0;
+        let mut checked_count = 0;
+
+        // Use ignore crate to walk workspace
+        let walker = ignore::WalkBuilder::new(&self.project_root)
+            .hidden(false)
+            .build();
+
+        for entry in walker {
+            let entry = entry.map_err(|e| {
+                ServerError::Internal(format!("Failed to walk workspace: {}", e))
+            })?;
+
+            // Only process Cargo.toml files
+            if !entry.file_type().map(|ft| ft.is_file()).unwrap_or(false)
+                || entry.file_name() != "Cargo.toml"
+            {
+                continue;
+            }
+
+            let path = entry.path();
+            checked_count += 1;
+
+            let content_result = fs::read_to_string(path).await;
+            if content_result.is_err() {
+                continue;
+            }
+
+            let content = content_result.unwrap();
+            let fixed_content_result = self.remove_duplicate_dependencies(&content);
+
+            if fixed_content_result.is_err() {
+                continue;
+            }
+
+            let fixed_content = fixed_content_result.unwrap();
+
+            if content != fixed_content {
+                fs::write(path, &fixed_content).await.map_err(|e| {
+                    ServerError::Internal(format!("Failed to write Cargo.toml: {}", e))
+                })?;
+
+                fixed_count += 1;
+                info!(
+                    file = %path.display(),
+                    "Removed duplicate dependencies"
+                );
+            }
+        }
+
+        info!(
+            checked = checked_count,
+            fixed = fixed_count,
+            "Duplicate dependency cleanup complete"
+        );
+
+        Ok(())
+    }
+
+    /// Remove duplicate dependencies from a single Cargo.toml content
+    fn remove_duplicate_dependencies(&self, content: &str) -> ServerResult<String> {
+        let mut doc = content.parse::<toml_edit::DocumentMut>().map_err(|e| {
+            ServerError::Internal(format!("Failed to parse Cargo.toml: {}", e))
+        })?;
+
+        // Process [dependencies]
+        if let Some(deps) = doc.get_mut("dependencies").and_then(|d| d.as_table_like_mut()) {
+            Self::remove_duplicates_from_table(deps);
+        }
+
+        // Process [dev-dependencies]
+        if let Some(deps) = doc
+            .get_mut("dev-dependencies")
+            .and_then(|d| d.as_table_like_mut())
+        {
+            Self::remove_duplicates_from_table(deps);
+        }
+
+        // Process [build-dependencies]
+        if let Some(deps) = doc
+            .get_mut("build-dependencies")
+            .and_then(|d| d.as_table_like_mut())
+        {
+            Self::remove_duplicates_from_table(deps);
+        }
+
+        Ok(doc.to_string())
+    }
+
+    /// Remove duplicates from a TOML table, keeping the first occurrence
+    fn remove_duplicates_from_table(table: &mut dyn toml_edit::TableLike) {
+        use std::collections::HashSet;
+
+        let mut seen = HashSet::new();
+        let mut to_remove = Vec::new();
+
+        for (key, _) in table.iter() {
+            if !seen.insert(key.to_string()) {
+                to_remove.push(key.to_string());
+            }
+        }
+
+        // Remove duplicates (keeps first occurrence)
+        for key in to_remove {
+            table.remove(&key);
+        }
     }
 
     /// Fix Bug #1: Flatten nested protocol/src/ → protocol/
