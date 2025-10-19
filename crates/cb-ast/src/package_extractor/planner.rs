@@ -154,6 +154,7 @@ pub(crate) async fn plan_extract_module_to_package(
             created_at: chrono::Utc::now(),
             complexity: 1,
             impact_areas: vec!["package_extraction".to_string()],
+                consolidation: None,
         },
     };
 

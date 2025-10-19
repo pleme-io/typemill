@@ -224,6 +224,7 @@ mod tests {
                 created_at: chrono::Utc::now(),
                 complexity: 1,
                 impact_areas: vec!["test".to_string()],
+                consolidation: None,
             },
         };
 
@@ -297,6 +298,7 @@ mod tests {
                 created_at: chrono::Utc::now(),
                 complexity: 1,
                 impact_areas: vec!["test".to_string()],
+                consolidation: None,
             },
         };
 
@@ -374,6 +376,7 @@ mod tests {
                 created_at: chrono::Utc::now(),
                 complexity: 1,
                 impact_areas: vec!["test".to_string()],
+                consolidation: None,
             },
         };
 
@@ -476,6 +479,7 @@ mod tests {
                 created_at: chrono::Utc::now(),
                 complexity: 3,
                 impact_areas: vec!["test".to_string()],
+                consolidation: None,
             },
         };
 

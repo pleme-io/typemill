@@ -109,6 +109,7 @@ impl InternalWorkspaceHandler {
                 created_at: chrono::Utc::now(),
                 complexity: 1,
                 impact_areas: vec!["workspace".to_string()],
+                consolidation: None,
             },
         };
 

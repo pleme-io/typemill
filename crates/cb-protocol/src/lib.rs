@@ -249,6 +249,7 @@ impl EditPlan {
                 created_at: chrono::Utc::now(),
                 complexity: 3,
                 impact_areas: vec!["refactoring".to_string()],
+                consolidation: None,
             },
         })
     }
@@ -387,6 +388,29 @@ pub struct EditPlanMetadata {
     pub complexity: u8,
     /// Expected impact areas
     pub impact_areas: Vec<String>,
+    /// Consolidation metadata (for Rust crate consolidation operations)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub consolidation: Option<ConsolidationMetadata>,
+}
+
+/// Metadata for Rust crate consolidation operations
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ConsolidationMetadata {
+    /// Whether this is a consolidation operation
+    pub is_consolidation: bool,
+    /// The crate being consolidated (source)
+    pub source_crate_name: String,
+    /// The target crate receiving the consolidated code
+    pub target_crate_name: String,
+    /// The module name in the target crate
+    pub target_module_name: String,
+    /// Absolute path to source crate root
+    pub source_crate_path: String,
+    /// Absolute path to target crate root
+    pub target_crate_path: String,
+    /// Absolute path to target module directory
+    pub target_module_path: String,
 }
 
 /// Cache statistics for monitoring

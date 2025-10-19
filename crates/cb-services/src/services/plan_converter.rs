@@ -4,11 +4,12 @@
 //! Handles all edit types: Replace, Create, Move, Delete.
 
 use cb_protocol::{
-    ApiError, ApiResult as ServerResult, EditPlan, EditPlanMetadata, EditType, RefactorPlan,
-    RefactorPlanExt, TextEdit,
+    ApiError, ApiResult as ServerResult, ConsolidationMetadata, EditPlan, EditPlanMetadata,
+    EditType, RefactorPlan, RefactorPlanExt, TextEdit,
 };
 use lsp_types::{Uri, WorkspaceEdit};
-use tracing::debug;
+use std::path::Path;
+use tracing::{debug, info};
 
 /// Service for converting LSP WorkspaceEdit to internal EditPlan format
 ///
@@ -43,7 +44,7 @@ impl PlanConverter {
         let mut edits = Vec::new();
 
         // Handle changes (map of file URI to text edits)
-        if let Some(changes) = workspace_edit.changes {
+        if let Some(ref changes) = workspace_edit.changes {
             for (uri, text_edits) in changes {
                 // Convert URI to native file path string
                 let file_path_str = Self::uri_to_path_string(&uri)?;
@@ -52,7 +53,7 @@ impl PlanConverter {
                 // LSP arrays are ordered intentionally - first edit should execute first
                 // Higher priority = executes first in transformer
                 let total_edits = text_edits.len();
-                for (idx, lsp_edit) in text_edits.into_iter().enumerate() {
+                for (idx, lsp_edit) in text_edits.iter().enumerate() {
                     edits.push(TextEdit {
                         file_path: Some(file_path_str.clone()),
                         edit_type: EditType::Replace,
@@ -63,7 +64,7 @@ impl PlanConverter {
                             end_column: lsp_edit.range.end.character,
                         },
                         original_text: String::new(), // Not provided by LSP
-                        new_text: lsp_edit.new_text,
+                        new_text: lsp_edit.new_text.clone(),
                         // Preserve array order: first edit = highest priority
                         priority: (total_edits - idx) as u32,
                         description: format!("Refactoring edit in {}", file_path_str),
@@ -73,28 +74,31 @@ impl PlanConverter {
         }
 
         // Handle document_changes (more structured, supports renames/creates/deletes)
-        if let Some(document_changes) = workspace_edit.document_changes {
+        if let Some(ref document_changes) = workspace_edit.document_changes {
             use lsp_types::DocumentChangeOperation;
             use lsp_types::DocumentChanges;
 
             match document_changes {
                 DocumentChanges::Edits(edits_vec) => {
-                    Self::extract_edits_from_documents(&mut edits, edits_vec)?;
+                    Self::extract_edits_from_documents(&mut edits, edits_vec.clone())?;
                 }
                 DocumentChanges::Operations(ops) => {
                     for op in ops {
                         match op {
                             DocumentChangeOperation::Edit(text_doc_edit) => {
-                                Self::extract_edits_from_text_document(&mut edits, text_doc_edit)?;
+                                Self::extract_edits_from_text_document(&mut edits, text_doc_edit.clone())?;
                             }
                             DocumentChangeOperation::Op(resource_op) => {
-                                Self::extract_edits_from_resource_op(&mut edits, resource_op)?;
+                                Self::extract_edits_from_resource_op(&mut edits, resource_op.clone())?;
                             }
                         }
                     }
                 }
             }
         }
+
+        // Extract consolidation metadata if this is a consolidation operation
+        let consolidation = self.extract_consolidation_metadata(plan, &workspace_edit)?;
 
         Ok(EditPlan {
             source_file: String::new(), // Multi-file workspace edit
@@ -107,8 +111,116 @@ impl PlanConverter {
                 created_at: chrono::Utc::now(),
                 complexity: plan.complexity(),
                 impact_areas: plan.impact_areas(),
+                consolidation,
             },
         })
+    }
+
+    /// Extract consolidation metadata from a RenamePlan
+    ///
+    /// Parses the WorkspaceEdit to extract source/target paths and determine
+    /// crate names, module names, and crate roots for consolidation operations.
+    fn extract_consolidation_metadata(
+        &self,
+        plan: &RefactorPlan,
+        workspace_edit: &WorkspaceEdit,
+    ) -> ServerResult<Option<ConsolidationMetadata>> {
+        // Only process RenamePlan with is_consolidation flag
+        let _rename_plan = match plan {
+            RefactorPlan::RenamePlan(rp) if rp.is_consolidation => rp,
+            _ => return Ok(None),
+        };
+
+        info!("Extracting consolidation metadata from RenamePlan");
+
+        // Find the RenameFile operation in document_changes
+        let rename_op = workspace_edit
+            .document_changes
+            .as_ref()
+            .and_then(|dc| match dc {
+                lsp_types::DocumentChanges::Operations(ops) => ops.iter().find_map(|op| match op {
+                    lsp_types::DocumentChangeOperation::Op(lsp_types::ResourceOp::Rename(r)) => {
+                        Some(r)
+                    }
+                    _ => None,
+                }),
+                _ => None,
+            })
+            .ok_or_else(|| {
+                ApiError::Internal("Consolidation plan missing RenameFile operation".to_string())
+            })?;
+
+        // Convert URIs to paths
+        let old_path = Self::uri_to_path_string(&rename_op.old_uri)?;
+        let new_path = Self::uri_to_path_string(&rename_op.new_uri)?;
+
+        let old_path_buf = Path::new(&old_path).to_path_buf();
+        let new_path_buf = Path::new(&new_path).to_path_buf();
+
+        // Extract source crate name and path
+        let source_crate_name = old_path_buf
+            .file_name()
+            .and_then(|n| n.to_str())
+            .ok_or_else(|| {
+                ApiError::Internal(format!("Cannot extract crate name from: {}", old_path))
+            })?
+            .to_string();
+
+        let source_crate_path = old_path.clone();
+
+        // Extract target crate root and module name
+        // Pattern: /path/to/crates/target-crate/src/module
+        let target_module_name = new_path_buf
+            .file_name()
+            .and_then(|n| n.to_str())
+            .ok_or_else(|| {
+                ApiError::Internal(format!("Cannot extract module name from: {}", new_path))
+            })?
+            .to_string();
+
+        let target_module_path = new_path.clone();
+
+        // Find the src/ ancestor and its parent (the target crate root)
+        let target_crate_path = new_path_buf
+            .ancestors()
+            .find(|p| p.file_name().and_then(|n| n.to_str()) == Some("src"))
+            .and_then(|src_dir| src_dir.parent())
+            .ok_or_else(|| {
+                ApiError::Internal(format!(
+                    "Cannot find target crate root (src/ parent) for: {}",
+                    new_path
+                ))
+            })?
+            .to_string_lossy()
+            .to_string();
+
+        let target_crate_name = Path::new(&target_crate_path)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .ok_or_else(|| {
+                ApiError::Internal(format!(
+                    "Cannot extract target crate name from: {}",
+                    target_crate_path
+                ))
+            })?
+            .to_string();
+
+        info!(
+            source_crate = %source_crate_name,
+            target_crate = %target_crate_name,
+            target_module = %target_module_name,
+            "Extracted consolidation metadata"
+        );
+
+        Ok(Some(ConsolidationMetadata {
+            is_consolidation: true,
+            source_crate_name,
+            target_crate_name,
+            target_module_name,
+            source_crate_path,
+            target_crate_path,
+            target_module_path,
+        }))
     }
 
     /// Extract edits from a TextDocumentEdit list

@@ -360,6 +360,19 @@ impl FileService {
             }
         }
 
+        // Step 3.5: Execute consolidation post-processing if this is a consolidation operation
+        // This must run AFTER all Move operations complete but BEFORE text edits
+        if let Some(ref consolidation) = plan.metadata.consolidation {
+            info!(
+                source_crate = %consolidation.source_crate_name,
+                target_crate = %consolidation.target_crate_name,
+                "Detected consolidation operation, executing post-processing"
+            );
+
+            self.execute_consolidation_post_processing(consolidation)
+                .await?;
+        }
+
         // Step 4: Apply text edits grouped by file with locking
         // Use snapshot content to avoid race conditions with file system
         // DEBUG: Log Step 4 entry
@@ -767,6 +780,7 @@ impl FileService {
                 created_at: chrono::Utc::now(),
                 complexity: 0,
                 impact_areas: Vec::new(),
+                consolidation: None,
             },
         };
 

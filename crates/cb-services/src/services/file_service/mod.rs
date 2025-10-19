@@ -3,6 +3,7 @@
 // Module declarations
 mod basic_ops;
 mod cargo;
+mod consolidation;
 mod edit_plan;
 mod rename;
 mod utils;

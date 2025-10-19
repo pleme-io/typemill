@@ -424,6 +424,7 @@ impl ReferenceUpdater {
                 created_at: chrono::Utc::now(),
                 complexity: 5,
                 impact_areas: vec!["imports".to_string(), "file_references".to_string()],
+                consolidation: None,
             },
         })
     }

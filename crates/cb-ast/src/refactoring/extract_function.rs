@@ -200,6 +200,7 @@ fn ast_extract_function_ts_js(
             created_at: chrono::Utc::now(),
             complexity: analysis.complexity_score.min(10) as u8,
             impact_areas: vec!["function_extraction".to_string()],
+                consolidation: None,
         },
     })
 }

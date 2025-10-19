@@ -102,6 +102,7 @@ pub fn create_test_edit_plan() -> EditPlan {
             created_at: chrono::Utc::now(),
             complexity: 3,
             impact_areas: vec!["functions".to_string()],
+                consolidation: None,
         },
     }
 }

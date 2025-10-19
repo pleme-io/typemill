@@ -298,6 +298,7 @@ fn ast_extract_variable_ts_js(
             created_at: chrono::Utc::now(),
             complexity: 2,
             impact_areas: vec!["variable_extraction".to_string()],
+                consolidation: None,
         },
     })
 }

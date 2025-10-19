@@ -475,6 +475,7 @@ pub(crate) async fn build_import_update_plan(
             created_at: chrono::Utc::now(),
             complexity: if scan_scope.is_some() { 7 } else { 5 },
             impact_areas: vec!["imports".to_string(), "file_references".to_string()],
+                consolidation: None,
         },
     })
 }
