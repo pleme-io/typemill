@@ -3,13 +3,8 @@ use crate::handlers::tools::ToolHandlerContext;
 use super::{RenamePlanParams, RenameHandler};
 use codebuddy_foundation::protocol::{
     refactor_plan::{PlanMetadata, PlanSummary, PlanWarning, RenamePlan},
-    ApiError as ServerError, ApiResult as ServerResult,
+    ApiResult as ServerResult,
 };
-use lsp_types::{
-    DocumentChangeOperation, DocumentChanges, OptionalVersionedTextDocumentIdentifier, RenameFile,
-    ResourceOp, TextDocumentEdit, TextEdit, Uri, WorkspaceEdit,
-};
-use std::collections::HashMap;
 use std::path::Path;
 use tracing::{debug, info};
 
@@ -128,133 +123,12 @@ impl RenameHandler {
         let file_checksums =
             calculate_checksums_for_directory_rename(&abs_old, &edit_plan.edits, context).await?;
 
-        // Create WorkspaceEdit with both rename operation AND import updates
-        let old_url = url::Url::from_file_path(&abs_old)
-            .map_err(|_| ServerError::Internal(format!("Invalid old path: {}", abs_old.display())))?;
-
-        let old_uri: Uri = old_url
-            .as_str()
-            .parse()
-            .map_err(|e| ServerError::Internal(format!("Failed to parse URI: {}", e)))?;
-
-        // abs_new was calculated earlier for checksum fallback logic
-
-        let new_url = url::Url::from_file_path(&abs_new)
-            .map_err(|_| ServerError::Internal(format!("Invalid new path: {}", abs_new.display())))?;
-
-        let new_uri: Uri = new_url
-            .as_str()
-            .parse()
-            .map_err(|e| ServerError::Internal(format!("Failed to parse URI: {}", e)))?;
-
-        // Create document changes list with both rename operation AND text edits
-        let mut document_changes = vec![
-            // First, the rename operation
-            DocumentChangeOperation::Op(ResourceOp::Rename(RenameFile {
-                old_uri,
-                new_uri,
-                options: None,
-                annotation_id: None,
-            })),
-        ];
-
-        // Then, add text edits for updating imports in external files
-        let mut files_with_edits = HashMap::new();
-
-        // DEBUG: Log all edits from EditPlan before conversion
-        let all_edit_paths: std::collections::HashSet<_> = edit_plan.edits
-            .iter()
-            .filter_map(|e| e.file_path.as_deref())
-            .collect();
-
-        debug!(
-            total_edits = edit_plan.edits.len(),
-            edit_paths = ?all_edit_paths,
-            abs_old = %abs_old.display(),
-            abs_new = %abs_new.display(),
-            "Preparing to convert EditPlan to WorkspaceEdit"
-        );
-
-        let mut edits_added_count = 0;
-        for edit in &edit_plan.edits {
-            if let Some(ref file_path) = edit.file_path {
-                let path = Path::new(file_path);
-
-                debug!(
-                    file_path = %file_path,
-                    edit_type = ?edit.edit_type,
-                    description = %edit.description,
-                    "Processing edit for WorkspaceEdit conversion"
-                );
-
-                let file_url = url::Url::from_file_path(path).map_err(|_| {
-                    ServerError::Internal(format!("Invalid file path for edit: {}", file_path))
-                })?;
-                let file_uri: Uri = file_url
-                    .as_str()
-                    .parse()
-                    .map_err(|e| ServerError::Internal(format!("Failed to parse URI: {}", e)))?;
-
-                let lsp_edit = TextEdit {
-                    range: lsp_types::Range {
-                        start: lsp_types::Position {
-                            line: edit.location.start_line,
-                            character: edit.location.start_column,
-                        },
-                        end: lsp_types::Position {
-                            line: edit.location.end_line,
-                            character: edit.location.end_column,
-                        },
-                    },
-                    new_text: edit.new_text.clone(),
-                };
-
-                files_with_edits
-                    .entry(file_uri)
-                    .or_insert_with(Vec::new)
-                    .push(lsp_edit);
-
-                edits_added_count += 1;
-                debug!(
-                    file_path = %file_path,
-                    "Successfully added edit to WorkspaceEdit"
-                );
-            } else {
-                debug!(
-                    edit_type = ?edit.edit_type,
-                    description = %edit.description,
-                    "Skipping edit with no file_path"
-                );
-            }
-        }
-
-        debug!(
-            edits_added_to_workspace_edit = edits_added_count,
-            unique_files_with_edits = files_with_edits.len(),
-            "Finished converting EditPlan to WorkspaceEdit"
-        );
-
-        // Add all text document edits
-        for (uri, edits) in files_with_edits {
-            document_changes.push(DocumentChangeOperation::Edit(TextDocumentEdit {
-                text_document: OptionalVersionedTextDocumentIdentifier {
-                    uri,
-                    version: Some(0),
-                },
-                edits: edits.into_iter().map(lsp_types::OneOf::Left).collect(),
-            }));
-        }
-
-        debug!(
-            document_changes_count = document_changes.len(),
-            "Created WorkspaceEdit with document changes"
-        );
-
-        let workspace_edit = WorkspaceEdit {
-            changes: None,
-            document_changes: Some(DocumentChanges::Operations(document_changes)),
-            change_annotations: None,
-        };
+        // Use shared converter to create WorkspaceEdit from EditPlan
+        let workspace_edit = super::plan_converter::editplan_to_workspace_edit(
+            &edit_plan,
+            &abs_old,
+            &abs_new,
+        )?;
 
         // Build summary
         let summary = PlanSummary {

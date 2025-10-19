@@ -7,6 +7,7 @@
 
 mod directory_rename;
 mod file_rename;
+mod plan_converter;
 mod symbol_rename;
 mod utils;
 

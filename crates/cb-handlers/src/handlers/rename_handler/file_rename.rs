@@ -4,10 +4,6 @@ use codebuddy_foundation::protocol::{
     refactor_plan::{PlanMetadata, PlanSummary, RenamePlan},
     ApiError as ServerError, ApiResult as ServerResult,
 };
-use lsp_types::{
-    DocumentChangeOperation, DocumentChanges, OptionalVersionedTextDocumentIdentifier, RenameFile,
-    ResourceOp, TextDocumentEdit, TextEdit, Uri, WorkspaceEdit,
-};
 use std::collections::HashMap;
 use std::path::Path;
 use tracing::debug;
@@ -97,90 +93,12 @@ impl RenameHandler {
             }
         }
 
-        let old_url = url::Url::from_file_path(&abs_old)
-            .map_err(|_| ServerError::Internal(format!("Invalid old path: {}", abs_old.display())))?;
-
-        let old_uri: Uri = old_url
-            .as_str()
-            .parse()
-            .map_err(|e| ServerError::Internal(format!("Failed to parse URI: {}", e)))?;
-
-        let new_url = url::Url::from_file_path(&abs_new)
-            .map_err(|_| ServerError::Internal(format!("Invalid new path: {}", abs_new.display())))?;
-
-        let new_uri: Uri = new_url
-            .as_str()
-            .parse()
-            .map_err(|e| ServerError::Internal(format!("Failed to parse URI: {}", e)))?;
-
-        // Create document changes list with both rename operation AND text edits
-        let mut document_changes = vec![
-            // First, the rename operation
-            DocumentChangeOperation::Op(ResourceOp::Rename(RenameFile {
-                old_uri,
-                new_uri,
-                options: None,
-                annotation_id: None,
-            })),
-        ];
-
-        // Then, add text edits for updating references in other files
-        let mut files_with_edits = HashMap::new();
-        for edit in &edit_plan.edits {
-            if let Some(ref file_path) = edit.file_path {
-                let path = Path::new(file_path);
-                let file_url = url::Url::from_file_path(path).map_err(|_| {
-                    ServerError::Internal(format!("Invalid file path for edit: {}", file_path))
-                })?;
-                let file_uri: Uri = file_url
-                    .as_str()
-                    .parse()
-                    .map_err(|e| ServerError::Internal(format!("Failed to parse URI: {}", e)))?;
-
-                let lsp_edit = TextEdit {
-                    range: lsp_types::Range {
-                        start: lsp_types::Position {
-                            line: edit.location.start_line,
-                            character: edit.location.start_column,
-                        },
-                        end: lsp_types::Position {
-                            line: edit.location.end_line,
-                            character: edit.location.end_column,
-                        },
-                    },
-                    new_text: edit.new_text.clone(),
-                };
-
-                files_with_edits
-                    .entry(file_uri)
-                    .or_insert_with(Vec::new)
-                    .push(lsp_edit);
-            }
-        }
-
-        // Add all text document edits
-        for (uri, edits) in files_with_edits {
-            document_changes.push(DocumentChangeOperation::Edit(TextDocumentEdit {
-                text_document: OptionalVersionedTextDocumentIdentifier {
-                    uri,
-                    version: Some(0),
-                },
-                edits: edits.into_iter().map(lsp_types::OneOf::Left).collect(),
-            }));
-        }
-
-        let workspace_edit = WorkspaceEdit {
-            changes: None,
-            document_changes: Some(DocumentChanges::Operations(document_changes.clone())),
-            change_annotations: None,
-        };
-
-        // DEBUG: Log the final WorkspaceEdit structure
-        tracing::info!(
-            document_changes_count = document_changes.len(),
-            has_text_edits = document_changes.iter().any(|dc| matches!(dc, DocumentChangeOperation::Edit(_))),
-            "plan_file_rename: Built WorkspaceEdit with document changes"
-        );
+        // Use shared converter to create WorkspaceEdit from EditPlan
+        let workspace_edit = super::plan_converter::editplan_to_workspace_edit(
+            &edit_plan,
+            &abs_old,
+            &abs_new,
+        )?;
 
         // Build summary from actual edit plan
         let affected_files = 1 + file_checksums.len().saturating_sub(1); // Target file + files being updated
