@@ -362,7 +362,7 @@ impl FileService {
     }
 
     /// Merge Cargo.toml dependencies from source to target
-    async fn merge_cargo_dependencies(
+    pub(super) async fn merge_cargo_dependencies(
         &self,
         source_toml_path: &Path,
         target_toml_path: &Path,
