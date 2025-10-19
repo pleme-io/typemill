@@ -16,10 +16,10 @@
 //!
 //! This eliminates duplication and ensures consistent behavior.
 
-mod cargo;
 mod planner;
 
 use crate::services::reference_updater::ReferenceUpdater;
+use cb_lang_rust::workspace::cargo_util;
 use cb_plugin_api::{PluginRegistry, ScanScope};
 use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult , EditPlan };
 use std::path::{Path, PathBuf};

@@ -4,6 +4,8 @@
 //! including adding members, managing workspace configuration, and generating
 //! new workspace manifests.
 
+pub mod cargo_util;
+
 use cb_plugin_api::{PluginError, PluginResult};
 use std::path::Path;
 use toml_edit::DocumentMut;

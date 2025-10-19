@@ -29,6 +29,7 @@ chrono = { version = "0.4", features = ["serde"] }
 
 # Path utilities for workspace operations
 pathdiff = "0.2"
+ignore = "0.4"
 
 # For async operations
 async-trait = { workspace = true }

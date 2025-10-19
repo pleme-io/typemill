@@ -7,7 +7,7 @@
 mod manifest;
 pub mod parser;
 pub mod refactoring;
-mod workspace;
+pub mod workspace;
 
 // Capability trait implementations
 pub mod import_support;

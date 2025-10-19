@@ -1,6 +1,6 @@
 //! Planning logic for file and directory moves
 
-use super::cargo;
+use cb_lang_rust::workspace::cargo_util;
 use crate::services::reference_updater::ReferenceUpdater;
 use cb_plugin_api::{PluginRegistry, ScanScope};
 use codebuddy_foundation::protocol::{ ApiResult as ServerResult , EditPlan };
@@ -76,7 +76,7 @@ pub async fn plan_directory_move(
     );
 
     // Check if this is a Cargo package
-    let is_cargo_pkg = cargo::is_cargo_package(old_abs).await?;
+    let is_cargo_pkg = cargo_util::is_cargo_package(old_abs).await?;
 
     // Detect if this is a consolidation move (into another crate's src/ directory)
     // Pattern: crates/target-crate/src/module should be treated as consolidation
@@ -97,7 +97,7 @@ pub async fn plan_directory_move(
     let rename_info = if is_cargo_pkg {
         if is_consolidation {
             info!("Detected Cargo package consolidation move, extracting consolidation rename info");
-            match cargo::extract_consolidation_rename_info(old_abs, new_abs).await {
+            match cargo_util::extract_consolidation_rename_info(old_abs, new_abs).await {
                 Ok(info) => {
                     info!(
                         submodule_name = info.get("submodule_name").and_then(|v| v.as_str()),
@@ -118,7 +118,7 @@ pub async fn plan_directory_move(
             }
         } else {
             info!("Detected Cargo package rename, extracting rename info");
-            cargo::extract_cargo_rename_info(old_abs, new_abs)
+            cargo_util::extract_cargo_rename_info(old_abs, new_abs)
                 .await
                 .ok()
         }
@@ -150,7 +150,7 @@ pub async fn plan_directory_move(
         let edits_before = edit_plan.edits.len();
 
         // 1. Plan workspace manifest updates (workspace members + package name)
-        let workspace_updates = cargo::plan_workspace_manifest_updates(
+        let workspace_updates = cargo_util::plan_workspace_manifest_updates(
             old_abs,
             new_abs,
             project_root,
@@ -165,7 +165,7 @@ pub async fn plan_directory_move(
                 );
 
                 // Convert manifest updates to TextEdits
-                let manifest_edits = cargo::convert_manifest_updates_to_edits(
+                let manifest_edits = cargo_util::convert_manifest_updates_to_edits(
                     updates,
                     old_abs,
                     new_abs,
@@ -190,7 +190,7 @@ pub async fn plan_directory_move(
                 info.get("old_package_name").and_then(|v| v.as_str()),
                 info.get("new_package_name").and_then(|v| v.as_str()),
             ) {
-                let dep_updates = cargo::plan_dependent_crate_path_updates(
+                let dep_updates = cargo_util::plan_dependent_crate_path_updates(
                     old_name,
                     new_name,
                     new_abs,
@@ -206,7 +206,7 @@ pub async fn plan_directory_move(
                         );
 
                         // Convert to TextEdits
-                        let dep_edits = cargo::convert_manifest_updates_to_edits(
+                        let dep_edits = cargo_util::convert_manifest_updates_to_edits(
                             updates,
                             old_abs,
                             new_abs,
