@@ -455,9 +455,28 @@ mod tests {
 
     #[test]
     fn test_extract_rust_imports() {
-        let service = FileService {
-            project_root: std::path::PathBuf::from("/test"),
-        };
+        // Test the extract_rust_imports method by creating a minimal service
+        // using the builder pattern with test doubles for dependencies
+        use crate::services::{LockManager, OperationQueue};
+        use codebuddy_ast::AstCache;
+        use codebuddy_config::config::AppConfig;
+        use std::sync::Arc;
+
+        let project_root = std::path::PathBuf::from("/test");
+        let ast_cache = Arc::new(AstCache::new());
+        let lock_manager = Arc::new(LockManager::new());
+        let operation_queue = Arc::new(OperationQueue::new(lock_manager.clone()));
+        let config = AppConfig::default();
+        let plugin_registry = Arc::new(cb_plugin_api::PluginRegistry::new());
+
+        let service = FileService::new(
+            project_root,
+            ast_cache,
+            lock_manager,
+            operation_queue,
+            &config,
+            plugin_registry,
+        );
 
         let content = r#"
             use std::path::Path;

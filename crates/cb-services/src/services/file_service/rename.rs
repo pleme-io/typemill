@@ -1,7 +1,7 @@
 use super::FileService;
 use crate::services::git_service::GitService;
 use codebuddy_foundation::core::dry_run::DryRunnable;
-use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult , EditPlan };
+use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
 use serde_json::{json, Value};
 use std::path::Path;
 use tokio::fs;
@@ -28,35 +28,6 @@ impl FileService {
             }
             _ => Ok(false),
         }
-    }
-
-    /// Generates an EditPlan for a file rename operation, including import updates.
-    /// This is a dry-run only operation.
-    pub async fn plan_rename_file_with_imports(
-        &self,
-        old_path: &Path,
-        new_path: &Path,
-        rename_scope: Option<&codebuddy_foundation::core::rename_scope::RenameScope>,
-    ) -> ServerResult<EditPlan> {
-        info!(old_path = ?old_path, new_path = ?new_path, "Planning file rename with imports");
-
-        // Delegate to MoveService which contains all the planning logic
-        // Pass rename_scope for file filtering
-        self.move_service().plan_file_move_with_scope(old_path, new_path, rename_scope).await
-    }
-
-    /// Generates an EditPlan for a directory rename operation, including import updates.
-    /// This is a dry-run only operation.
-    pub async fn plan_rename_directory_with_imports(
-        &self,
-        old_dir_path: &Path,
-        new_dir_path: &Path,
-        rename_scope: Option<&codebuddy_foundation::core::rename_scope::RenameScope>,
-    ) -> ServerResult<EditPlan> {
-        info!(old_dir_path = ?old_dir_path, new_dir_path = ?new_dir_path, "Planning directory rename with imports");
-
-        // Delegate to MoveService which contains all the Cargo package handling logic
-        self.move_service().plan_directory_move_with_scope(old_dir_path, new_dir_path, rename_scope).await
     }
 
     /// Perform a git-aware file rename

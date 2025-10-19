@@ -82,11 +82,11 @@ impl RenameHandler {
         // Get scope configuration from options
         let rename_scope = params.options.to_rename_scope();
 
-        // Get the EditPlan with import updates
+        // Get the EditPlan with import updates (call MoveService directly)
         let edit_plan = context
             .app_state
-            .file_service
-            .plan_rename_directory_with_imports(&old_path, &new_path, rename_scope.as_ref())
+            .move_service()
+            .plan_directory_move_with_scope(&old_path, &new_path, rename_scope.as_ref())
             .await?;
 
         debug!(
@@ -94,20 +94,17 @@ impl RenameHandler {
             "Got EditPlan with text edits for import updates"
         );
 
-        // Also get basic metadata from the old dry-run method
-        let dry_run_result = context
-            .app_state
-            .file_service
-            .rename_directory_with_imports(&old_path, &new_path, true, is_consolidation, None, false)
-            .await?;
+        // Calculate files_to_move by walking the directory
+        let mut files_to_move = 0;
+        let walker = ignore::WalkBuilder::new(&old_path).hidden(false).build();
+        for entry in walker.flatten() {
+            if entry.path().is_file() {
+                files_to_move += 1;
+            }
+        }
 
-        // Extract metadata from dry-run result
-        // Note: dry_run_result is DryRunnable<Value>
-        let files_to_move = dry_run_result
-            .result
-            .get("files_to_move")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0) as usize;
+        // Check if this is a Cargo package
+        let is_cargo_package = old_path.join("Cargo.toml").exists();
 
         // For directory rename, we need to calculate checksums for all files being moved
         // Paths are already resolved against workspace root, so canonicalize directly
@@ -268,12 +265,7 @@ impl RenameHandler {
 
         // Add warning if this is a Cargo package
         let mut warnings = Vec::new();
-        if dry_run_result
-            .result
-            .get("is_cargo_package")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false)
-        {
+        if is_cargo_package {
             warnings.push(PlanWarning {
                 code: "CARGO_PACKAGE_RENAME".to_string(),
                 message: "Renaming a Cargo package will update workspace members and dependencies"

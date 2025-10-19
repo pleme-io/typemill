@@ -59,6 +59,20 @@ pub struct AppState {
     pub language_plugins: crate::LanguagePluginRegistry,
 }
 
+impl AppState {
+    /// Create a MoveService for unified move/rename planning
+    ///
+    /// This provides direct access to MoveService without going through FileService.
+    /// Handlers should use this factory method instead of calling FileService wrappers.
+    pub fn move_service(&self) -> cb_services::services::MoveService<'_> {
+        cb_services::services::MoveService::new(
+            &self.file_service.reference_updater,
+            &self.language_plugins.inner,
+            &self.project_root,
+        )
+    }
+}
+
 /// Plugin-based MCP dispatcher
 pub struct PluginDispatcher {
     /// Plugin manager for handling requests

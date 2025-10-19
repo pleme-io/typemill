@@ -5,7 +5,7 @@
 
 use crate::handlers::tools::ToolHandlerContext;
 use codebuddy_foundation::protocol::{
-    ApiError as ServerError, ApiResult as ServerResult, TextEdit as ProtocolTextEdit,
+    ApiResult as ServerResult, TextEdit as ProtocolTextEdit,
 };
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
