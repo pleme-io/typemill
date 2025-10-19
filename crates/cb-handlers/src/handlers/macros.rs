@@ -17,9 +17,9 @@
 ///
 /// This macro expands to:
 /// ```text
-/// registry.register(Arc::new(SystemHandler::new()));
-/// registry.register(Arc::new(LifecycleHandler::new()));
-/// registry.register(Arc::new(WorkspaceHandler::new()));
+/// registry.register_with_name(Arc::new(SystemHandler::new()), "SystemHandler");
+/// registry.register_with_name(Arc::new(LifecycleHandler::new()), "LifecycleHandler");
+/// registry.register_with_name(Arc::new(WorkspaceHandler::new()), "WorkspaceHandler");
 /// ```
 #[macro_export]
 macro_rules! register_handlers {
@@ -28,7 +28,8 @@ macro_rules! register_handlers {
             use std::sync::Arc;
             $(
                 let handler = Arc::new($handler::new());
-                $registry.register(handler);
+                let handler_name = stringify!($handler);
+                $registry.register_with_name(handler, handler_name);
             )*
         }
     };
