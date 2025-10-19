@@ -160,3 +160,4 @@ impl TestHarnessError {
 }
 pub mod dogfood_cb_protocol_consolidation;
 pub mod dogfood_codebuddy_core_consolidation;
+pub mod test_dogfood_rename_cb_ast;
