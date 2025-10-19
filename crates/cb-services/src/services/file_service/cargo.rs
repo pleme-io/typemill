@@ -853,80 +853,7 @@ impl FileService {
         old_package_path: &Path,
         new_package_path: &Path,
     ) -> ServerResult<serde_json::Value> {
-        use serde_json::json;
-
-        // Read the old Cargo.toml to get the old crate name
-        let old_cargo_toml = old_package_path.join("Cargo.toml");
-        let old_content = fs::read_to_string(&old_cargo_toml)
-            .await
-            .map_err(|e| ServerError::Internal(format!("Failed to read old Cargo.toml: {}", e)))?;
-
-        let old_doc = old_content
-            .parse::<toml_edit::DocumentMut>()
-            .map_err(|e| ServerError::Internal(format!("Failed to parse old Cargo.toml: {}", e)))?;
-
-        let old_crate_name = old_doc["package"]["name"]
-            .as_str()
-            .ok_or_else(|| {
-                ServerError::Internal("Missing [package].name in old Cargo.toml".to_string())
-            })?
-            .replace('-', "_"); // Normalize to underscores for imports
-
-        // Find the target crate by looking for Cargo.toml in parent directories
-        let mut target_crate_name = String::new();
-        let mut current = new_package_path;
-
-        while let Some(parent) = current.parent() {
-            let cargo_toml = parent.join("Cargo.toml");
-            if cargo_toml.exists() {
-                if let Ok(content) = fs::read_to_string(&cargo_toml).await {
-                    if content.contains("[package]") {
-                        // Found the target crate
-                        if let Ok(doc) = content.parse::<toml_edit::DocumentMut>() {
-                            if let Some(name) = doc["package"]["name"].as_str() {
-                                target_crate_name = name.replace('-', "_");
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            current = parent;
-        }
-
-        if target_crate_name.is_empty() {
-            return Err(ServerError::Internal(
-                "Could not find target crate Cargo.toml".to_string(),
-            ));
-        }
-
-        // Extract submodule name from the new path
-        // e.g., "crates/cb-types/src/protocol" -> "protocol"
-        let submodule_name = new_package_path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .ok_or_else(|| ServerError::Internal("Invalid new directory path".to_string()))?
-            .to_string();
-
-        // Build the new import prefix
-        // e.g., "codebuddy_foundation::protocol"
-        let new_import_prefix = format!("{}::{}", target_crate_name, submodule_name);
-
-        info!(
-            old_crate_name = %old_crate_name,
-            new_import_prefix = %new_import_prefix,
-            submodule_name = %submodule_name,
-            target_crate_name = %target_crate_name,
-            "Extracted consolidation rename information"
-        );
-
-        Ok(json!({
-            "old_crate_name": old_crate_name,
-            "new_crate_name": new_import_prefix.clone(), // For compatibility with update_imports_for_rename
-            "new_import_prefix": new_import_prefix,
-            "submodule_name": submodule_name,
-            "target_crate_name": target_crate_name,
-        }))
+        cargo_util::extract_consolidation_rename_info(old_package_path, new_package_path).await
     }
 
     /// Extract Cargo package rename information for import rewriting
@@ -936,49 +863,7 @@ impl FileService {
         old_package_path: &Path,
         new_package_path: &Path,
     ) -> ServerResult<serde_json::Value> {
-        use serde_json::json;
-
-        // Read the old Cargo.toml to get the old crate name
-        let old_cargo_toml = old_package_path.join("Cargo.toml");
-        let old_content = fs::read_to_string(&old_cargo_toml)
-            .await
-            .map_err(|e| ServerError::Internal(format!("Failed to read old Cargo.toml: {}", e)))?;
-
-        let old_doc = old_content
-            .parse::<toml_edit::DocumentMut>()
-            .map_err(|e| ServerError::Internal(format!("Failed to parse old Cargo.toml: {}", e)))?;
-
-        let old_crate_name = old_doc["package"]["name"]
-            .as_str()
-            .ok_or_else(|| {
-                ServerError::Internal("Missing [package].name in Cargo.toml".to_string())
-            })?
-            .to_string();
-
-        // Derive the new crate name from the new directory path
-        // Convert directory name to valid crate name (replace hyphens with underscores for imports)
-        let new_dir_name = new_package_path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .ok_or_else(|| ServerError::Internal("Invalid new directory path".to_string()))?;
-
-        // For Rust crate names: keep hyphens in package name but use underscores for imports
-        let new_crate_name = new_dir_name.replace('_', "-"); // Normalize to hyphens for package name
-        let new_crate_import = new_dir_name.replace('-', "_"); // Use underscores for use statements
-
-        info!(
-            old_crate_name = %old_crate_name,
-            new_crate_name = %new_crate_name,
-            new_crate_import = %new_crate_import,
-            "Extracted Cargo rename information"
-        );
-
-        Ok(json!({
-            "old_crate_name": old_crate_name.replace('-', "_"), // For Rust import updates (use statements)
-            "old_package_name": old_crate_name, // For Cargo.toml dependency lookups (keep hyphens)
-            "new_crate_name": new_crate_import, // Use underscores for imports
-            "new_package_name": new_crate_name, // Keep hyphens for Cargo.toml
-        }))
+        cargo_util::extract_cargo_rename_info(old_package_path, new_package_path).await
     }
 
     /// Find the parent Cargo workspace and update the members array to reflect a renamed package.
@@ -1434,82 +1319,7 @@ impl FileService {
         old_package_path: &Path,
         new_package_path: &Path,
     ) -> ServerResult<Vec<(PathBuf, String, String)>> {
-        let mut planned_updates = Vec::new();
-        let mut current_path = old_package_path.parent();
-
-        while let Some(path) = current_path {
-            let workspace_toml_path = path.join("Cargo.toml");
-            if workspace_toml_path.exists() {
-                let content = fs::read_to_string(&workspace_toml_path)
-                    .await
-                    .map_err(|e| {
-                        ServerError::Internal(format!("Failed to read workspace Cargo.toml: {}", e))
-                    })?;
-
-                if content.contains("[workspace]") {
-                    let mut doc = content.parse::<toml_edit::DocumentMut>().map_err(|e| {
-                        ServerError::Internal(format!(
-                            "Failed to parse workspace Cargo.toml: {}",
-                            e
-                        ))
-                    })?;
-
-                    let old_rel_path = old_package_path.strip_prefix(path).map_err(|_| {
-                        ServerError::Internal("Failed to calculate old relative path".to_string())
-                    })?;
-                    let new_rel_path = new_package_path.strip_prefix(path).map_err(|_| {
-                        ServerError::Internal("Failed to calculate new relative path".to_string())
-                    })?;
-
-                    let old_path_str = old_rel_path.to_string_lossy().to_string();
-                    let new_path_str = new_rel_path.to_string_lossy().to_string();
-
-                    let members = doc["workspace"]["members"].as_array_mut().ok_or_else(|| {
-                        ServerError::Internal(
-                            "`[workspace.members]` is not a valid array".to_string(),
-                        )
-                    })?;
-
-                    let index_opt = members
-                        .iter()
-                        .position(|m| m.as_str() == Some(&old_path_str));
-
-                    if let Some(index) = index_opt {
-                        members.remove(index);
-                        members.push(new_path_str.as_str());
-
-                        let new_content = doc.to_string();
-                        planned_updates.push((workspace_toml_path.clone(), content.clone(), new_content));
-
-                        // Also plan updates for the package's own Cargo.toml
-                        // IMPORTANT: Read from OLD path since directory hasn't been renamed yet during planning
-                        let package_cargo_toml = old_package_path.join("Cargo.toml");
-                        if package_cargo_toml.exists() {
-                            if let Ok((pkg_path, pkg_old, pkg_new)) = self
-                                .plan_package_manifest_update(
-                                    &package_cargo_toml,
-                                    old_package_path,
-                                    new_package_path,
-                                    path,
-                                )
-                                .await
-                            {
-                                planned_updates.push((pkg_path, pkg_old, pkg_new));
-                            }
-                        }
-                    }
-
-                    return Ok(planned_updates);
-                }
-            }
-
-            if path == self.project_root {
-                break;
-            }
-            current_path = path.parent();
-        }
-
-        Ok(planned_updates)
+        cargo_util::plan_workspace_manifest_updates(old_package_path, new_package_path, &self.project_root).await
     }
 
     /// Preview package manifest update (name and relative paths)
@@ -1612,48 +1422,7 @@ impl FileService {
         new_crate_name: &str,
         new_crate_path: &Path,
     ) -> ServerResult<Vec<(PathBuf, String, String)>> {
-        let mut planned_updates = Vec::new();
-
-        let walker = ignore::WalkBuilder::new(&self.project_root)
-            .hidden(false)
-            .build();
-
-        for entry in walker.flatten() {
-            let path = entry.path();
-            if path.file_name() == Some(std::ffi::OsStr::new("Cargo.toml")) {
-                if path.parent() == Some(new_crate_path) {
-                    continue;
-                }
-
-                let content = match fs::read_to_string(path).await {
-                    Ok(c) => c,
-                    Err(_) => continue,
-                };
-
-                if !content.contains(old_crate_name) {
-                    continue;
-                }
-
-                match self
-                    .plan_single_cargo_toml_dependency_update(
-                        path,
-                        old_crate_name,
-                        new_crate_name,
-                        new_crate_path,
-                        &content,
-                    )
-                    .await
-                {
-                    Ok(Some((file_path, old_content, new_content))) => {
-                        planned_updates.push((file_path, old_content, new_content));
-                    }
-                    Ok(None) => {}
-                    Err(_) => continue,
-                }
-            }
-        }
-
-        Ok(planned_updates)
+        cargo_util::plan_dependent_crate_path_updates(old_crate_name, new_crate_name, new_crate_path, &self.project_root).await
     }
 
     /// Add a module declaration to a lib.rs file
