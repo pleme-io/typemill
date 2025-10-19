@@ -1,6 +1,7 @@
 //! MCP tool handlers module
 
 pub mod analysis_handler;
+pub mod common;
 pub mod delete_handler;
 pub mod dependency_handler;
 pub mod extract_handler;

@@ -12,11 +12,12 @@ use lsp_types::{
     DocumentChangeOperation, DocumentChanges, OptionalVersionedTextDocumentIdentifier, RenameFile,
     ResourceOp, TextDocumentEdit, TextEdit as LspTextEdit,
 };
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::Path;
 use tracing::{debug, info};
 
-use super::validation::{calculate_checksum, estimate_impact, extension_to_language};
+use super::validation::{estimate_impact, extension_to_language};
+use crate::handlers::common::calculate_checksums_for_edits;
 use crate::handlers::tools::ToolHandlerContext;
 
 /// Convert EditPlan to MovePlan for MCP protocol
@@ -100,37 +101,8 @@ async fn calculate_file_checksums(
     source_path: &Path,
     context: &ToolHandlerContext,
 ) -> ServerResult<HashMap<String, String>> {
-    let mut file_checksums = HashMap::new();
-    let mut affected_files = HashSet::new();
-
-    // Add source file
-    affected_files.insert(source_path.to_path_buf());
-
-    // Add all files mentioned in edits
-    for edit in edits {
-        if let Some(ref file_path) = edit.file_path {
-            affected_files.insert(Path::new(file_path).to_path_buf());
-        }
-    }
-
-    // Read and checksum each file
-    for file_path in affected_files {
-        if file_path.exists() {
-            if let Ok(content) = context.app_state.file_service.read_file(&file_path).await {
-                file_checksums.insert(
-                    file_path.to_string_lossy().to_string(),
-                    calculate_checksum(&content),
-                );
-            }
-        }
-    }
-
-    debug!(
-        files_count = file_checksums.len(),
-        "Calculated checksums for affected files"
-    );
-
-    Ok(file_checksums)
+    // Use shared utility for checksum calculation
+    calculate_checksums_for_edits(edits, &[source_path.to_path_buf()], context).await
 }
 
 /// Build LSP WorkspaceEdit from EditPlan edits

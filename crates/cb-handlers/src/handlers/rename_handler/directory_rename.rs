@@ -1,3 +1,4 @@
+use crate::handlers::common::calculate_checksums_for_directory_rename;
 use crate::handlers::tools::ToolHandlerContext;
 use super::{RenamePlanParams, RenameHandler};
 use codebuddy_foundation::protocol::{
@@ -124,42 +125,11 @@ impl RenameHandler {
             parent_abs.join(new_path.file_name().unwrap_or(new_path.as_os_str()))
         };
 
-        let mut file_checksums = HashMap::new();
-
-        // Walk directory to collect files and calculate checksums
-        // IMPORTANT: Store checksums with paths at the OLD/CURRENT location.
+        // Calculate checksums for all affected files using shared utility
+        // IMPORTANT: Checksums are stored with paths at the OLD/CURRENT location.
         // Validation happens BEFORE the rename, so files exist at their old location.
-        let walker = ignore::WalkBuilder::new(&abs_old).hidden(false).build();
-        for entry in walker.flatten() {
-            if entry.path().is_file() {
-                if let Ok(content) = context.app_state.file_service.read_file(entry.path()).await {
-                    // Store checksum with current (old) path where file exists now
-                    file_checksums.insert(
-                        entry.path().to_string_lossy().to_string(),
-                        super::utils::calculate_checksum(&content),
-                    );
-                }
-            }
-        }
-
-        // Add checksums for files being updated (import updates outside the moved directory)
-        for edit in &edit_plan.edits {
-            if let Some(ref file_path) = edit.file_path {
-                let path = Path::new(file_path);
-
-                // Skip files inside the directory being moved (they're covered by directory walk above)
-                // Only checksum files OUTSIDE the moved directory that are being edited
-                if path.exists() && !path.starts_with(&abs_old) {
-                    if let Ok(content) = context.app_state.file_service.read_file(path).await {
-                        // Store checksum with current path where file exists
-                        file_checksums.insert(
-                            file_path.clone(),
-                            super::utils::calculate_checksum(&content),
-                        );
-                    }
-                }
-            }
-        }
+        let file_checksums =
+            calculate_checksums_for_directory_rename(&abs_old, &edit_plan.edits, context).await?;
 
         // Create WorkspaceEdit with both rename operation AND import updates
         let old_url = url::Url::from_file_path(&abs_old)
