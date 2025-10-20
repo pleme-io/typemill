@@ -68,7 +68,12 @@ once_cell = "1.19"
 e2e = { path = "../../tests/e2e" }
 
 [features]
-default = []
+default = ["lang-rust", "lang-typescript", "lang-markdown", "lang-toml", "lang-yaml"]
+lang-rust = ["codebuddy-plugin-bundle/lang-rust", "codebuddy-ast/lang-rust"]
+lang-typescript = ["codebuddy-plugin-bundle/lang-typescript", "codebuddy-ast/lang-typescript"]
+lang-markdown = ["codebuddy-plugin-bundle/lang-markdown", "codebuddy-ast/lang-markdown"]
+lang-toml = ["codebuddy-plugin-bundle/lang-toml"]
+lang-yaml = ["codebuddy-plugin-bundle/lang-yaml"]
 mcp-proxy = ["cb-server/mcp-proxy", "cb-client/mcp-proxy", "codebuddy-foundation/mcp-proxy", "codebuddy-config/mcp-proxy"]
 
 # Platform-specific dependencies for process management

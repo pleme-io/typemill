@@ -24,6 +24,7 @@ use std::path::Path;
 // Module Declarations
 // ============================================================================
 
+pub mod capabilities;
 pub mod import_support;
 pub mod language;
 pub mod metadata;
@@ -35,6 +36,10 @@ pub mod test_fixtures;
 pub mod workspace_support;
 
 // Re-exports
+pub use capabilities::{
+    ExtractParams, ImportAnalyzer, InlineParams, ModuleReferenceScanner, RefactoringProvider,
+    TextEdit, WorkspaceEdit,
+};
 pub use import_support::{
     ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportParser,
     ImportRenameSupport,
@@ -498,6 +503,25 @@ pub trait LanguagePlugin: Send + Sync {
 
     fn handles_manifest(&self, filename: &str) -> bool {
         self.metadata().manifest_filename == filename
+    }
+
+    // ============================================================================
+    // Capability Discovery Methods
+    // ============================================================================
+
+    /// Get module reference scanner capability if available
+    fn module_reference_scanner(&self) -> Option<&dyn crate::capabilities::ModuleReferenceScanner> {
+        None
+    }
+
+    /// Get refactoring provider capability if available
+    fn refactoring_provider(&self) -> Option<&dyn crate::capabilities::RefactoringProvider> {
+        None
+    }
+
+    /// Get import analyzer capability if available
+    fn import_analyzer(&self) -> Option<&dyn crate::capabilities::ImportAnalyzer> {
+        None
     }
 
     /// Enable downcasting to concrete plugin types

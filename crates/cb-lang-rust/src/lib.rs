@@ -179,6 +179,19 @@ impl LanguagePlugin for RustPlugin {
         Some(&self.project_factory)
     }
 
+    // Capability trait discovery methods
+    fn module_reference_scanner(&self) -> Option<&dyn cb_plugin_api::ModuleReferenceScanner> {
+        Some(self)
+    }
+
+    fn refactoring_provider(&self) -> Option<&dyn cb_plugin_api::RefactoringProvider> {
+        Some(self)
+    }
+
+    fn import_analyzer(&self) -> Option<&dyn cb_plugin_api::ImportAnalyzer> {
+        Some(self)
+    }
+
     fn rewrite_file_references(
         &self,
         content: &str,
@@ -238,6 +251,78 @@ impl LanguagePlugin for RustPlugin {
         };
 
         final_result.ok()
+    }
+}
+
+// ============================================================================
+// Capability Trait Implementations
+// ============================================================================
+
+impl cb_plugin_api::ModuleReferenceScanner for RustPlugin {
+    fn scan_references(
+        &self,
+        content: &str,
+        module_name: &str,
+        scope: cb_plugin_api::ScanScope,
+    ) -> cb_plugin_api::PluginResult<Vec<cb_plugin_api::ModuleReference>> {
+        self.find_module_references(content, module_name, scope)
+    }
+}
+
+impl cb_plugin_api::RefactoringProvider for RustPlugin {
+    fn supports_inline_variable(&self) -> bool {
+        // Rust plugin supports inline variable refactoring
+        true
+    }
+
+    fn inline_variable(
+        &self,
+        _params: cb_plugin_api::InlineParams,
+    ) -> cb_plugin_api::PluginResult<cb_plugin_api::WorkspaceEdit> {
+        // TODO: Implement inline variable refactoring
+        // For now, return not supported
+        Err(cb_plugin_api::PluginError::not_supported(
+            "inline_variable not yet implemented for Rust",
+        ))
+    }
+
+    fn supports_extract_function(&self) -> bool {
+        // Rust plugin supports extract function refactoring
+        true
+    }
+
+    fn extract_function(
+        &self,
+        _params: cb_plugin_api::ExtractParams,
+    ) -> cb_plugin_api::PluginResult<cb_plugin_api::WorkspaceEdit> {
+        // TODO: Implement extract function refactoring
+        // For now, return not supported
+        Err(cb_plugin_api::PluginError::not_supported(
+            "extract_function not yet implemented for Rust",
+        ))
+    }
+}
+
+impl cb_plugin_api::ImportAnalyzer for RustPlugin {
+    fn build_import_graph(
+        &self,
+        file_path: &Path,
+    ) -> cb_plugin_api::PluginResult<codebuddy_foundation::protocol::ImportGraph> {
+        // Read the file content
+        let content = std::fs::read_to_string(file_path)
+            .map_err(|e| cb_plugin_api::PluginError::internal(format!("Failed to read file: {}", e)))?;
+
+        // Use the existing analyze_detailed_imports method
+        self.analyze_detailed_imports(&content, Some(file_path))
+    }
+
+    fn find_unused_imports(
+        &self,
+        _file_path: &Path,
+    ) -> cb_plugin_api::PluginResult<Vec<String>> {
+        // TODO: Implement unused import detection
+        // For now, return empty vector
+        Ok(Vec::new())
     }
 }
 

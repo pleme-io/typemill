@@ -129,26 +129,18 @@ pub(crate) async fn build_import_update_plan(
             if let Some(plugin) = plugin {
                 // Read file content
                 if let Ok(content) = tokio::fs::read_to_string(file_path).await {
-                    // Find module references using the enhanced scanner
-                    // Note: Only Rust and TypeScript supported after language reduction
-                    use cb_lang_rust::RustPlugin;
-                    use cb_lang_typescript::TypeScriptPlugin;
-
-                    let refs_opt =
-                        if let Some(rust_plugin) = plugin.as_any().downcast_ref::<RustPlugin>() {
-                            rust_plugin
-                                .find_module_references(&content, module_name, scope)
-                                .ok()
-                        } else { plugin.as_any().downcast_ref::<TypeScriptPlugin>().map(|ts_plugin| ts_plugin.find_module_references(&content, module_name, scope)) };
-
-                    if let Some(refs) = refs_opt {
-                        if !refs.is_empty() {
-                            debug!(
-                                file = ?file_path,
-                                references = refs.len(),
-                                "Found module references via enhanced scanning"
-                            );
-                            all_affected.insert(file_path.clone());
+                    // Find module references using the capability trait
+                    // This works for any language plugin that implements ModuleReferenceScanner
+                    if let Some(scanner) = plugin.module_reference_scanner() {
+                        if let Ok(refs) = scanner.scan_references(&content, module_name, scope) {
+                            if !refs.is_empty() {
+                                debug!(
+                                    file = ?file_path,
+                                    references = refs.len(),
+                                    "Found module references via capability trait"
+                                );
+                                all_affected.insert(file_path.clone());
+                            }
                         }
                     }
                 }

@@ -7,9 +7,9 @@ license = "MIT"
 [dependencies]
 codebuddy-foundation = { path = "../codebuddy-foundation" }
 cb-plugin-api = { path = "../cb-plugin-api" }
-cb-lang-typescript = { workspace = true }
-cb-lang-rust = { workspace = true }
-cb-lang-markdown = { workspace = true }
+cb-lang-typescript = { workspace = true, optional = true }
+cb-lang-rust = { workspace = true, optional = true }
+cb-lang-markdown = { workspace = true, optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
@@ -30,6 +30,12 @@ tracing = { workspace = true } # For logging in import_updater
 dashmap = { workspace = true } # For thread-safe concurrent caching
 toml_edit = "0.23" # For parsing and modifying Cargo.toml files
 codebuddy-config = { path = "../codebuddy-config" }
+
+[features]
+default = ["lang-rust", "lang-typescript", "lang-markdown"]
+lang-rust = ["dep:cb-lang-rust"]
+lang-typescript = ["dep:cb-lang-typescript"]
+lang-markdown = ["dep:cb-lang-markdown"]
 
 [dev-dependencies]
 tempfile = "3.0"
