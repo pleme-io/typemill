@@ -1,7 +1,3 @@
-// TODO: Replace remaining /tmp/directory_rename_debug.log file dumps with structured tracing
-// There are approximately 10 debug log blocks throughout apply_edits_with_coordination()
-// that write to /tmp for debugging. These should be converted to debug!() tracing calls.
-
 use super::FileService;
 use codebuddy_foundation::protocol::{
     ApiError as ServerError, ApiResult as ServerResult, DependencyUpdate, EditPlan,
@@ -170,24 +166,25 @@ impl FileService {
             affected_files.insert(snapshot_path);
         }
 
-        // DEBUG: Log affected_files and edits_by_file before snapshot creation
-        if let Ok(mut file) = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("/tmp/directory_rename_debug.log")
-        {
-            use std::io::Write;
-            let _ = writeln!(file, "\n=== STEP 1 RESULTS ===");
-            let _ = writeln!(file, "affected_files count: {}", affected_files.len());
-            for path in &affected_files {
-                let exists = path.exists();
-                let _ = writeln!(file, "  - {} (exists={})", path.display(), exists);
-            }
-            let _ = writeln!(file, "edits_by_file count: {}", edits_by_file.len());
-            for (path, edits) in &edits_by_file {
-                let _ = writeln!(file, "  - {} ({} edits)", path, edits.len());
-            }
-            let _ = writeln!(file, "======================\n");
+        // Log affected files and edits before snapshot creation
+        debug!(
+            affected_files_count = affected_files.len(),
+            edits_by_file_count = edits_by_file.len(),
+            "Step 1: Grouped edits by file"
+        );
+        for path in &affected_files {
+            debug!(
+                path = %path.display(),
+                exists = path.exists(),
+                "Affected file"
+            );
+        }
+        for (path, edits) in &edits_by_file {
+            debug!(
+                path = %path,
+                edits_count = edits.len(),
+                "File with edits"
+            );
         }
 
         // Step 2: Create snapshots of all affected files before any modifications
@@ -198,19 +195,14 @@ impl FileService {
             "Created file snapshots for atomic operation"
         );
 
-        // DEBUG: Log snapshot contents after creation
-        if let Ok(mut file) = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("/tmp/directory_rename_debug.log")
-        {
-            use std::io::Write;
-            let _ = writeln!(file, "\n=== STEP 2 RESULTS (SNAPSHOTS) ===");
-            let _ = writeln!(file, "snapshots count: {}", snapshots.len());
-            for (path, content) in &snapshots {
-                let _ = writeln!(file, "  - {} (content_len={})", path.display(), content.len());
-            }
-            let _ = writeln!(file, "===================================\n");
+        // Log snapshot creation results
+        debug!(snapshots_count = snapshots.len(), "Step 2: Created file snapshots");
+        for (path, content) in &snapshots {
+            debug!(
+                path = %path.display(),
+                content_len = content.len(),
+                "Snapshot created"
+            );
         }
 
         let mut modified_files = Vec::new();
@@ -233,19 +225,12 @@ impl FileService {
                             "Executing file rename operation"
                         );
 
-                        // Write debug info to file
-                        if let Ok(mut file) = std::fs::OpenOptions::new()
-                            .create(true)
-                            .append(true)
-                            .open("/tmp/directory_rename_debug.log")
-                        {
-                            use std::io::Write;
-                            let _ = writeln!(file, "\n=== FILE SERVICE: EXECUTING MOVE ===");
-                            let _ = writeln!(file, "EditType::Move found in EditPlan:");
-                            let _ = writeln!(file, "  old_path: {}", old_path_str);
-                            let _ = writeln!(file, "  new_path: {}", new_path_str);
-                            let _ = writeln!(file, "  description: {}", edit.description);
-                        }
+                        debug!(
+                            old_path = %old_path_str,
+                            new_path = %new_path_str,
+                            description = %edit.description,
+                            "Executing move operation"
+                        );
 
                         // Perform low-level file rename without import updates
                         // (import updates should be handled separately via dependency_updates in the plan)
@@ -265,26 +250,23 @@ impl FileService {
                         // Perform the actual file system rename
                         let rename_result = fs::rename(&abs_old_path, &abs_new_path).await;
 
-                        // Write debug info to file
-                        if let Ok(mut file) = std::fs::OpenOptions::new()
-                            .create(true)
-                            .append(true)
-                            .open("/tmp/directory_rename_debug.log")
-                        {
-                            use std::io::Write;
-                            match &rename_result {
-                                Ok(_) => {
-                                    let _ = writeln!(file, "  fs::rename succeeded!");
-                                    let _ = writeln!(file, "  abs_old_path: {}", abs_old_path.display());
-                                    let _ = writeln!(file, "  abs_new_path: {}", abs_new_path.display());
-                                }
-                                Err(e) => {
-                                    let _ = writeln!(file, "  fs::rename FAILED: {}", e);
-                                    let _ = writeln!(file, "  abs_old_path: {}", abs_old_path.display());
-                                    let _ = writeln!(file, "  abs_new_path: {}", abs_new_path.display());
-                                }
+                        // Log rename result
+                        match &rename_result {
+                            Ok(_) => {
+                                debug!(
+                                    abs_old_path = %abs_old_path.display(),
+                                    abs_new_path = %abs_new_path.display(),
+                                    "fs::rename succeeded"
+                                );
                             }
-                            let _ = writeln!(file, "=====================================\n");
+                            Err(e) => {
+                                error!(
+                                    error = %e,
+                                    abs_old_path = %abs_old_path.display(),
+                                    abs_new_path = %abs_new_path.display(),
+                                    "fs::rename failed"
+                                );
+                            }
                         }
 
                         rename_result.map_err(|e| {
@@ -401,29 +383,18 @@ impl FileService {
 
         // Step 4: Apply text edits grouped by file with locking
         // Use snapshot content to avoid race conditions with file system
-        // DEBUG: Log Step 4 entry
-        if let Ok(mut file) = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("/tmp/directory_rename_debug.log")
-        {
-            use std::io::Write;
-            let _ = writeln!(file, "\n=== STEP 4: APPLYING TEXT EDITS ===");
-            let _ = writeln!(file, "edits_by_file count: {}", edits_by_file.len());
-            let _ = writeln!(file, "path_renames count: {}", path_renames.len());
-            let _ = writeln!(file, "====================================\n");
-        }
+        debug!(
+            edits_by_file_count = edits_by_file.len(),
+            path_renames_count = path_renames.len(),
+            "Step 4: Applying text edits"
+        );
 
         for (file_path, edits) in edits_by_file {
-            // DEBUG: Log each file being processed
-            if let Ok(mut file) = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open("/tmp/directory_rename_debug.log")
-            {
-                use std::io::Write;
-                let _ = writeln!(file, "Processing file in Step 4: {} ({} edits)", file_path, edits.len());
-            }
+            debug!(
+                file_path = %file_path,
+                edits_count = edits.len(),
+                "Processing file edits"
+            );
 
             let abs_file_path = self.to_absolute_path(Path::new(&file_path));
             let file_lock = self.lock_manager.get_lock(&abs_file_path).await;
@@ -464,15 +435,10 @@ impl FileService {
                     ServerError::Internal(format!("File {} not found in snapshots", abs_file_path.display()))
                 })?;
 
-            // DEBUG: Log snapshot content length
-            if let Ok(mut file) = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open("/tmp/directory_rename_debug.log")
-            {
-                use std::io::Write;
-                let _ = writeln!(file, "  Found snapshot: content_len={}", original_content.len());
-            }
+            debug!(
+                content_len = original_content.len(),
+                "Found snapshot for file"
+            );
 
             if original_content.is_empty() {
                 error!(
@@ -484,15 +450,10 @@ impl FileService {
             // Apply edits to the snapshot content (no I/O, fully synchronous)
             match self.apply_edits_to_content(original_content, &owned_edits) {
                 Ok(modified_content) => {
-                    // DEBUG: Log successful edit application
-                    if let Ok(mut file) = std::fs::OpenOptions::new()
-                        .create(true)
-                        .append(true)
-                        .open("/tmp/directory_rename_debug.log")
-                    {
-                        use std::io::Write;
-                        let _ = writeln!(file, "  Applied edits successfully, writing to: {}", abs_file_path.display());
-                    }
+                    debug!(
+                        abs_file_path = %abs_file_path.display(),
+                        "Applied edits successfully, writing to disk"
+                    );
 
                     // Write the final modified content to disk
                     if let Err(e) = fs::write(&abs_file_path, modified_content).await {
@@ -508,15 +469,10 @@ impl FileService {
                         )));
                     }
 
-                    // DEBUG: Log successful write
-                    if let Ok(mut file) = std::fs::OpenOptions::new()
-                        .create(true)
-                        .append(true)
-                        .open("/tmp/directory_rename_debug.log")
-                    {
-                        use std::io::Write;
-                        let _ = writeln!(file, "  Write succeeded for: {}", abs_file_path.display());
-                    }
+                    debug!(
+                        abs_file_path = %abs_file_path.display(),
+                        "Write succeeded"
+                    );
 
                     if !modified_files.contains(&file_path) {
                         modified_files.push(file_path.clone());
@@ -528,16 +484,6 @@ impl FileService {
                     );
                 }
                 Err(e) => {
-                    // DEBUG: Log error in applying edits
-                    if let Ok(mut file) = std::fs::OpenOptions::new()
-                        .create(true)
-                        .append(true)
-                        .open("/tmp/directory_rename_debug.log")
-                    {
-                        use std::io::Write;
-                        let _ = writeln!(file, "  ERROR applying edits: {}", e);
-                    }
-
                     error!(
                         file_path = %file_path,
                         error = %e,

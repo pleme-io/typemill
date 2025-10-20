@@ -21,22 +21,21 @@ impl RenameHandler {
             "Planning file rename"
         );
 
+        // Resolve paths relative to project root (not CWD) BEFORE passing to MoveService
         let old_path = Path::new(&params.target.path);
         let new_path = Path::new(&params.new_name);
+        let abs_old = context.app_state.file_service.to_absolute_path(old_path);
+        let abs_new = context.app_state.file_service.to_absolute_path(new_path);
 
         // Get scope configuration from options
         let rename_scope = params.options.to_rename_scope();
 
-        // Call MoveService directly to get the EditPlan
+        // Call MoveService directly to get the EditPlan (using absolute paths)
         let edit_plan = context
             .app_state
             .move_service()
-            .plan_file_move_with_scope(old_path, new_path, rename_scope.as_ref())
+            .plan_file_move_with_scope(&abs_old, &abs_new, rename_scope.as_ref())
             .await?;
-
-        // Use FileService to resolve paths relative to project root (not CWD)
-        let abs_old = context.app_state.file_service.to_absolute_path(old_path);
-        let abs_new = context.app_state.file_service.to_absolute_path(new_path);
 
         debug!(
             edits_count = edit_plan.edits.len(),
