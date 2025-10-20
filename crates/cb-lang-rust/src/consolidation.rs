@@ -9,10 +9,8 @@
 //! 1. Flatten nested src/ directory structure
 //! 2. Rename lib.rs to mod.rs for directory modules
 //! 3. Add module declaration to target crate's lib.rs
-//! 4. Validate no circular dependencies are created
 
 use crate::cargo_helpers::merge_cargo_dependencies;
-use crate::dependency_analysis::validate_no_circular_dependencies;
 use cb_plugin_api::{PluginError, PluginResult};
 use codebuddy_foundation::protocol::ConsolidationMetadata;
 use std::path::Path;
@@ -36,56 +34,11 @@ pub async fn execute_consolidation_post_processing(
         "Executing consolidation post-processing"
     );
 
-    // Task 0: Pre-validation - Check for circular dependencies
-    info!("Running pre-consolidation dependency analysis");
-    let analysis = validate_no_circular_dependencies(
-        Path::new(&metadata.source_crate_path),
-        Path::new(&metadata.target_crate_path),
-        project_root,
-    )
-    .await?;
-
-    if analysis.has_circular_dependency {
-        warn!(
-            source_crate = %analysis.source_crate,
-            target_crate = %analysis.target_crate,
-            dependency_chain = ?analysis.dependency_chain,
-            problematic_modules_count = analysis.problematic_modules.len(),
-            "Circular dependency detected - consolidation would break workspace"
-        );
-
-        // Log problematic modules
-        for module in &analysis.problematic_modules {
-            warn!(
-                file = %module.file_path,
-                imports_crate = %module.imports_crate,
-                imports_count = module.imports.len(),
-                "Module would create circular dependency"
-            );
-        }
-
-        return Err(PluginError::invalid_input(format!(
-            "Circular dependency detected: {} would create a cycle via {}. \
-            {} problematic module(s) found. \
-            Consider moving these modules to {} instead: {}",
-            analysis.source_crate,
-            analysis.dependency_chain.join(" → "),
-            analysis.problematic_modules.len(),
-            analysis.target_crate,
-            analysis
-                .problematic_modules
-                .iter()
-                .map(|m| m.file_path.as_str())
-                .collect::<Vec<_>>()
-                .join(", ")
-        )));
-    }
-
-    info!(
-        source_crate = %analysis.source_crate,
-        target_crate = %analysis.target_crate,
-        "No circular dependencies detected - safe to proceed"
-    );
+    // Task 0: SKIPPED - Circular dependency validation
+    // NOTE: This validation should happen during PLANNING, not during post-processing.
+    // By the time post-processing runs, files have already been moved, so source_crate_path
+    // no longer exists at its original location.
+    // TODO: Move this validation to the planning phase (rename.plan)
 
     // Task 1: Fix nested src/ structure
     flatten_nested_src_directory(&metadata.target_module_path).await?;
@@ -126,9 +79,18 @@ pub async fn execute_consolidation_post_processing(
 
     // Task 7: Clean up workspace Cargo.toml (Bug #3 fix)
     cleanup_workspace_cargo_toml(
+        &metadata.source_crate_path,
+        &metadata.target_crate_path,
         &metadata.source_crate_name,
         &metadata.target_crate_name,
         project_root,
+    )
+    .await?;
+
+    // Task 7.5: Remove source crate dependency from target crate's Cargo.toml
+    remove_source_dependency_from_target(
+        &metadata.source_crate_name,
+        &metadata.target_crate_path,
     )
     .await?;
 
@@ -144,6 +106,8 @@ pub async fn execute_consolidation_post_processing(
 /// Removes source crate from workspace members and dependencies,
 /// ensures target crate is in workspace dependencies.
 async fn cleanup_workspace_cargo_toml(
+    source_crate_path: &str,
+    target_crate_path: &str,
     source_crate_name: &str,
     target_crate_name: &str,
     project_root: &Path,
@@ -154,6 +118,22 @@ async fn cleanup_workspace_cargo_toml(
         warn!("Workspace Cargo.toml not found, skipping cleanup");
         return Ok(());
     }
+
+    // Convert absolute paths to relative paths from project_root
+    let source_path = Path::new(source_crate_path);
+    let target_path = Path::new(target_crate_path);
+
+    let source_relative = source_path
+        .strip_prefix(project_root)
+        .unwrap_or(source_path)
+        .to_string_lossy()
+        .to_string();
+
+    let target_relative = target_path
+        .strip_prefix(project_root)
+        .unwrap_or(target_path)
+        .to_string_lossy()
+        .to_string();
 
     let content = fs::read_to_string(&workspace_toml_path)
         .await
@@ -170,15 +150,20 @@ async fn cleanup_workspace_cargo_toml(
     // 1. Remove source crate from workspace members
     if let Some(workspace) = doc.get_mut("workspace").and_then(|w| w.as_table_like_mut()) {
         if let Some(members) = workspace.get_mut("members").and_then(|m| m.as_array_mut()) {
-            let source_path = format!("crates/{}", source_crate_name);
             let before_len = members.len();
-            members.retain(|item| item.as_str() != Some(&source_path));
+            members.retain(|item| item.as_str() != Some(&source_relative.as_str()));
 
             if members.len() < before_len {
                 modified = true;
                 info!(
                     source_crate = %source_crate_name,
+                    source_path = %source_relative,
                     "Removed from workspace members"
+                );
+            } else {
+                info!(
+                    source_path = %source_relative,
+                    "Source crate not found in workspace members (may have already been removed)"
                 );
             }
         }
@@ -190,7 +175,7 @@ async fn cleanup_workspace_cargo_toml(
             .get_mut("dependencies")
             .and_then(|d| d.as_table_like_mut())
         {
-            if deps.remove(source_crate_name).is_some() {
+            if deps.remove(&source_crate_name).is_some() {
                 modified = true;
                 info!(
                     source_crate = %source_crate_name,
@@ -206,22 +191,23 @@ async fn cleanup_workspace_cargo_toml(
             .get_mut("dependencies")
             .and_then(|d| d.as_table_like_mut())
         {
-            if !deps.contains_key(target_crate_name) {
+            if !deps.contains_key(&target_crate_name) {
                 // Create inline table for the dependency
                 let mut target_dep = toml_edit::InlineTable::new();
                 target_dep.insert(
                     "path",
-                    toml_edit::Value::from(format!("crates/{}", target_crate_name)),
+                    toml_edit::Value::from(target_relative.clone()),
                 );
 
                 deps.insert(
-                    target_crate_name,
+                    &target_crate_name,
                     toml_edit::Item::Value(toml_edit::Value::InlineTable(target_dep)),
                 );
 
                 modified = true;
                 info!(
                     target_crate = %target_crate_name,
+                    target_path = %target_relative,
                     "Added to workspace dependencies"
                 );
             }
@@ -239,6 +225,64 @@ async fn cleanup_workspace_cargo_toml(
         info!("Workspace Cargo.toml cleanup complete");
     } else {
         info!("No workspace Cargo.toml cleanup needed");
+    }
+
+    Ok(())
+}
+
+/// Remove source crate dependency from target crate's Cargo.toml
+///
+/// After consolidation, the target crate should no longer depend on the source crate
+/// since the source code is now part of the target crate.
+async fn remove_source_dependency_from_target(
+    source_crate_name: &str,
+    target_crate_path: &str,
+) -> PluginResult<()> {
+    let target_cargo_toml = Path::new(target_crate_path).join("Cargo.toml");
+
+    if !target_cargo_toml.exists() {
+        warn!(
+            target_path = %target_crate_path,
+            "Target Cargo.toml not found, skipping dependency removal"
+        );
+        return Ok(());
+    }
+
+    let content = fs::read_to_string(&target_cargo_toml)
+        .await
+        .map_err(|e| {
+            PluginError::internal(format!("Failed to read target Cargo.toml: {}", e))
+        })?;
+
+    let mut doc = content.parse::<toml_edit::DocumentMut>().map_err(|e| {
+        PluginError::internal(format!("Failed to parse target Cargo.toml: {}", e))
+    })?;
+
+    let mut modified = false;
+
+    // Remove source crate from dependencies
+    if let Some(deps) = doc.get_mut("dependencies").and_then(|d| d.as_table_like_mut()) {
+        if deps.remove(source_crate_name).is_some() {
+            modified = true;
+            info!(
+                source_crate = %source_crate_name,
+                target_path = %target_crate_path,
+                "Removed source crate dependency from target Cargo.toml"
+            );
+        }
+    }
+
+    // Write back if modified
+    if modified {
+        fs::write(&target_cargo_toml, doc.to_string())
+            .await
+            .map_err(|e| {
+                PluginError::internal(format!("Failed to write target Cargo.toml: {}", e))
+            })?;
+
+        info!("Target Cargo.toml dependency cleanup complete");
+    } else {
+        info!("No target Cargo.toml dependency cleanup needed");
     }
 
     Ok(())

@@ -181,13 +181,7 @@ fn main() {
 }
 
 /// Test consolidation execution - verifies workspace members and dependencies are correct
-///
-/// NOTE: This test is currently disabled because the consolidation workflow
-/// requires additional integration work. The plan+apply workflow doesn't yet
-/// support the full consolidation semantic updates during execution.
-/// The planning test above validates the critical bug fix.
 #[tokio::test]
-#[ignore = "Consolidation execution requires additional workflow integration"]
 async fn test_consolidation_execution_correctness() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
@@ -289,6 +283,12 @@ fn main() {
 
     // VERIFICATION 1: Root workspace members should NOT contain nested path
     let root_cargo = workspace.read_file("Cargo.toml");
+
+    // Debug: print the actual Cargo.toml content
+    println!("\n=== ROOT CARGO.TOML AFTER CONSOLIDATION ===");
+    println!("{}", root_cargo);
+    println!("===========================================\n");
+
     assert!(
         !root_cargo.contains("crates/app/src/lib_mod"),
         "Root Cargo.toml should NOT contain nested module path in workspace members. \
@@ -300,15 +300,22 @@ fn main() {
     );
     assert!(
         !root_cargo.contains("crates/lib") || root_cargo.contains("# crates/lib"),
-        "Root Cargo.toml should have removed or commented out the old lib crate"
+        "Root Cargo.toml should have removed or commented out the old lib crate. \
+         Actual content: {}", root_cargo
     );
 
     // VERIFICATION 2: App's Cargo.toml should NOT have incorrect path dependency
     let app_cargo = workspace.read_file("crates/app/Cargo.toml");
+
+    // Debug: print the app's Cargo.toml
+    println!("\n=== APP CARGO.TOML AFTER CONSOLIDATION ===");
+    println!("{}", app_cargo);
+    println!("==========================================\n");
+
     assert!(
         !app_cargo.contains("path = \"../lib\"") && !app_cargo.contains("path = \"src/lib_mod\""),
         "App's Cargo.toml should NOT contain path dependencies to the consolidated crate. \
-         This was bug symptom #2. The dependency should resolve via workspace."
+         This was bug symptom #2. The dependency should resolve via workspace. Actual content: {}", app_cargo
     );
 
     // VERIFICATION 3: Code should have updated imports
@@ -319,9 +326,10 @@ fn main() {
     );
 
     // VERIFICATION 4: Consolidated files should exist in new location
+    // Note: lib.rs gets renamed to mod.rs for directory modules
     assert!(
-        workspace.file_exists("crates/app/src/lib_mod/lib.rs"),
-        "Consolidated lib.rs should exist in new location"
+        workspace.file_exists("crates/app/src/lib_mod/mod.rs"),
+        "Consolidated mod.rs should exist in new location (renamed from lib.rs)"
     );
 
     // VERIFICATION 5: Old directory should be gone
