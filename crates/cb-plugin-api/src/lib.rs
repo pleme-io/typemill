@@ -29,6 +29,7 @@ pub mod language;
 pub mod metadata;
 pub mod plugin_registry;
 pub mod project_factory;
+pub mod reference_detector;
 pub mod server;
 pub mod test_fixtures;
 pub mod workspace_support;
@@ -43,6 +44,7 @@ pub use plugin_registry::{PluginDescriptor, iter_plugins};
 pub use project_factory::{
     CreatePackageConfig, CreatePackageResult, PackageInfo, PackageType, ProjectFactory, Template,
 };
+pub use reference_detector::ReferenceDetector;
 // Note: codebuddy_plugin! macro is automatically exported at crate root due to #[macro_export]
 pub use server::PluginServer;
 pub use test_fixtures::{
@@ -461,6 +463,11 @@ pub trait LanguagePlugin: Send + Sync {
 
     /// Get workspace support if available
     fn workspace_support(&self) -> Option<&dyn WorkspaceSupport> {
+        None
+    }
+
+    /// Get reference detector if available
+    fn reference_detector(&self) -> Option<&dyn ReferenceDetector> {
         None
     }
 

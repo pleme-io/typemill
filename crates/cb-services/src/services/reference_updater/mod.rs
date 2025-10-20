@@ -472,17 +472,18 @@ impl ReferenceUpdater {
         let is_rust_crate = old_path.is_dir() && old_path.join("Cargo.toml").exists();
 
         if is_rust_file || is_rust_crate {
-            let rust_affected = detectors::find_rust_affected_files(
-                old_path,
-                new_path,
-                &self.project_root,
-                project_files,
-            )
-            .await;
+            // Call Rust plugin's reference detector via plugin registry
+            if let Some(rust_plugin) = plugins.iter().find(|p| p.handles_extension("rs")) {
+                if let Some(detector) = rust_plugin.reference_detector() {
+                    let rust_affected = detector
+                        .find_affected_files(old_path, new_path, &self.project_root, project_files)
+                        .await;
 
-            if !rust_affected.is_empty() {
-                // Return early - we've found all affected Rust files
-                return Ok(rust_affected);
+                    if !rust_affected.is_empty() {
+                        // Return early - we've found all affected Rust files
+                        return Ok(rust_affected);
+                    }
+                }
             }
         }
 

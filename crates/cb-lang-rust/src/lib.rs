@@ -25,6 +25,9 @@ pub mod consolidation;
 pub mod dependency_analysis;
 pub mod cargo_helpers;
 
+// Reference detection for rename/move operations
+pub mod reference_detector;
+
 use async_trait::async_trait;
 use cb_lang_common::{
     manifest_templates::{ManifestTemplate, TomlManifestTemplate},
@@ -55,6 +58,7 @@ codebuddy_plugin! {
 pub struct RustPlugin {
     import_support: import_support::RustImportSupport,
     workspace_support: workspace_support::RustWorkspaceSupport,
+    reference_detector: reference_detector::RustReferenceDetector,
     project_factory: project_factory::RustProjectFactory,
 }
 
@@ -165,6 +169,10 @@ impl LanguagePlugin for RustPlugin {
 
     fn workspace_support(&self) -> Option<&dyn cb_plugin_api::WorkspaceSupport> {
         Some(&self.workspace_support)
+    }
+
+    fn reference_detector(&self) -> Option<&dyn cb_plugin_api::ReferenceDetector> {
+        Some(&self.reference_detector)
     }
 
     fn project_factory(&self) -> Option<&dyn cb_plugin_api::ProjectFactory> {

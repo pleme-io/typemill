@@ -41,3 +41,6 @@ thiserror = { workspace = true }
 # For consolidation support (dependency analysis)
 cargo_metadata = "0.18"
 petgraph = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

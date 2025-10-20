@@ -23,10 +23,6 @@ globset = "0.4"
 toml_edit = "0.23"
 pathdiff = "0.2"
 chrono = "0.4"
-# NOTE: cb-lang-rust retained for reference_updater module path utilities only:
-# - reference_updater/detectors/rust.rs uses: compute_module_path_from_file, find_crate_name_from_cargo_toml
-# All move/rename/consolidation operations now use language-agnostic plugin system (see move_service/planner.rs)
-cb-lang-rust = { workspace = true }
 sha2 = "0.10"
 urlencoding = "2.1"
 codebuddy-plugin-system = { path = "../codebuddy-plugin-system" }
@@ -45,6 +41,7 @@ futures-util = "0.3"
 chrono = "0.4"
 tokio = { workspace = true }
 # Language plugins needed for test discovery via inventory
+cb-lang-rust = { workspace = true }
 cb-lang-typescript = { workspace = true }
 cb-lang-markdown = { workspace = true }
 cb-lang-toml = { path = "../cb-lang-toml" }
