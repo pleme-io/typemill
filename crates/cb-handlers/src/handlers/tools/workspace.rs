@@ -161,15 +161,20 @@ impl WorkspaceToolsHandler {
         // refactor the plugin API to accept content instead of paths, which would allow
         // us to use FileService for reading and benefit from caching/locking.
 
-        // Downcast to concrete plugin types to access update_dependency
-        // Each plugin is feature-gated to avoid compilation errors when features are disabled
-
-        // Try Rust plugin
-        #[cfg(feature = "lang-rust")]
-        {
-            use cb_lang_rust::RustPlugin;
-            if let Some(rust_plugin) = plugin.as_any().downcast_ref::<RustPlugin>() {
-                let updated_content = rust_plugin
+        // Try to update dependency using the plugin
+        // We dispatch based on plugin name at runtime rather than using cfg guards
+        let updated_content = match plugin.metadata().name {
+            #[cfg(feature = "lang-rust")]
+            "rust" => {
+                use cb_lang_rust::RustPlugin;
+                plugin
+                    .as_any()
+                    .downcast_ref::<RustPlugin>()
+                    .ok_or_else(|| {
+                        codebuddy_foundation::protocol::ApiError::Internal(
+                            "Failed to downcast to RustPlugin".to_string(),
+                        )
+                    })?
                     .update_dependency(path, old_dep_name, new_dep_name, new_path)
                     .await
                     .map_err(|e| {
@@ -177,30 +182,19 @@ impl WorkspaceToolsHandler {
                             "Failed to update dependency: {}",
                             e
                         ))
-                    })?;
-
-                context
-                    .app_state
-                    .file_service
-                    .write_file(path, &updated_content, false)
-                    .await
-                    .map_err(|e| {
-                        codebuddy_foundation::protocol::ApiError::Internal(format!(
-                            "Failed to write manifest file at {}: {}",
-                            manifest_path, e
-                        ))
-                    })?;
-
-                return Ok(updated_content);
+                    })?
             }
-        }
-
-        // Try TypeScript plugin
-        #[cfg(feature = "lang-typescript")]
-        {
-            use cb_lang_typescript::TypeScriptPlugin;
-            if let Some(ts_plugin) = plugin.as_any().downcast_ref::<TypeScriptPlugin>() {
-                let updated_content = ts_plugin
+            #[cfg(feature = "lang-typescript")]
+            "typescript" => {
+                use cb_lang_typescript::TypeScriptPlugin;
+                plugin
+                    .as_any()
+                    .downcast_ref::<TypeScriptPlugin>()
+                    .ok_or_else(|| {
+                        codebuddy_foundation::protocol::ApiError::Internal(
+                            "Failed to downcast to TypeScriptPlugin".to_string(),
+                        )
+                    })?
                     .update_dependency(path, old_dep_name, new_dep_name, new_path)
                     .await
                     .map_err(|e| {
@@ -208,30 +202,31 @@ impl WorkspaceToolsHandler {
                             "Failed to update dependency: {}",
                             e
                         ))
-                    })?;
-
-                context
-                    .app_state
-                    .file_service
-                    .write_file(path, &updated_content, false)
-                    .await
-                    .map_err(|e| {
-                        codebuddy_foundation::protocol::ApiError::Internal(format!(
-                            "Failed to write manifest file at {}: {}",
-                            manifest_path, e
-                        ))
-                    })?;
-
-                return Ok(updated_content);
+                    })?
             }
-        }
+            name => {
+                return Err(codebuddy_foundation::protocol::ApiError::Unsupported(
+                    format!(
+                        "Plugin '{}' does not support dependency updates (only Rust and TypeScript)",
+                        name
+                    ),
+                ))
+            }
+        };
 
-        // No plugin supports update_dependency
-        // Note: Only Rust and TypeScript supported after language reduction
-        Err(codebuddy_foundation::protocol::ApiError::Internal(
-            "No language plugin found with update_dependency support for this manifest type"
-                .to_string(),
-        ))
+        context
+            .app_state
+            .file_service
+            .write_file(path, &updated_content, false)
+            .await
+            .map_err(|e| {
+                codebuddy_foundation::protocol::ApiError::Internal(format!(
+                    "Failed to write manifest file at {}: {}",
+                    manifest_path, e
+                ))
+            })?;
+
+        Ok(updated_content)
     }
 
     /// Handle update_dependency tool call
