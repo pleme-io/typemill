@@ -132,6 +132,10 @@ impl LanguagePlugin for TypeScriptPlugin {
         Some(self)
     }
 
+    fn manifest_updater(&self) -> Option<&dyn cb_plugin_api::ManifestUpdater> {
+        Some(self)
+    }
+
     fn rewrite_file_references(
         &self,
         content: &str,
@@ -224,6 +228,29 @@ impl cb_plugin_api::ImportAnalyzer for TypeScriptPlugin {
         Ok(Vec::new())
     }
 }
+
+// ============================================================================
+// Manifest Updater Capability
+// ============================================================================
+
+#[async_trait::async_trait]
+impl cb_plugin_api::ManifestUpdater for TypeScriptPlugin {
+    async fn update_dependency(
+        &self,
+        manifest_path: &Path,
+        old_name: &str,
+        new_name: &str,
+        new_version: Option<&str>,
+    ) -> cb_plugin_api::PluginResult<String> {
+        // Delegate to the inherent method implementation
+        TypeScriptPlugin::update_dependency(self, manifest_path, old_name, new_name, new_version)
+            .await
+    }
+}
+
+// ============================================================================
+// Plugin-specific helper methods
+// ============================================================================
 
 impl TypeScriptPlugin {
     pub async fn update_dependency(

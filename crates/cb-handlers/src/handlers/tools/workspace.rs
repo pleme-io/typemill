@@ -161,58 +161,25 @@ impl WorkspaceToolsHandler {
         // refactor the plugin API to accept content instead of paths, which would allow
         // us to use FileService for reading and benefit from caching/locking.
 
-        // Try to update dependency using the plugin
-        // We dispatch based on plugin name at runtime rather than using cfg guards
-        let updated_content = match plugin.metadata().name {
-            #[cfg(feature = "lang-rust")]
-            "rust" => {
-                use cb_lang_rust::RustPlugin;
-                plugin
-                    .as_any()
-                    .downcast_ref::<RustPlugin>()
-                    .ok_or_else(|| {
-                        codebuddy_foundation::protocol::ApiError::Internal(
-                            "Failed to downcast to RustPlugin".to_string(),
-                        )
-                    })?
-                    .update_dependency(path, old_dep_name, new_dep_name, new_path)
-                    .await
-                    .map_err(|e| {
-                        codebuddy_foundation::protocol::ApiError::Internal(format!(
-                            "Failed to update dependency: {}",
-                            e
-                        ))
-                    })?
-            }
-            #[cfg(feature = "lang-typescript")]
-            "typescript" => {
-                use cb_lang_typescript::TypeScriptPlugin;
-                plugin
-                    .as_any()
-                    .downcast_ref::<TypeScriptPlugin>()
-                    .ok_or_else(|| {
-                        codebuddy_foundation::protocol::ApiError::Internal(
-                            "Failed to downcast to TypeScriptPlugin".to_string(),
-                        )
-                    })?
-                    .update_dependency(path, old_dep_name, new_dep_name, new_path)
-                    .await
-                    .map_err(|e| {
-                        codebuddy_foundation::protocol::ApiError::Internal(format!(
-                            "Failed to update dependency: {}",
-                            e
-                        ))
-                    })?
-            }
-            name => {
-                return Err(codebuddy_foundation::protocol::ApiError::Unsupported(
-                    format!(
-                        "Plugin '{}' does not support dependency updates (only Rust and TypeScript)",
-                        name
-                    ),
+        // Use manifest updater capability - no downcasting or cfg guards needed!
+        let manifest_updater = plugin
+            .manifest_updater()
+            .ok_or_else(|| {
+                codebuddy_foundation::protocol::ApiError::Unsupported(format!(
+                    "Plugin '{}' does not support manifest updates",
+                    plugin.metadata().name
                 ))
-            }
-        };
+            })?;
+
+        let updated_content = manifest_updater
+            .update_dependency(path, old_dep_name, new_dep_name, new_path)
+            .await
+            .map_err(|e| {
+                codebuddy_foundation::protocol::ApiError::Internal(format!(
+                    "Failed to update dependency: {}",
+                    e
+                ))
+            })?;
 
         context
             .app_state

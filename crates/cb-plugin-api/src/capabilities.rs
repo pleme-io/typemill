@@ -12,6 +12,7 @@
 //! - **Scalable**: Adding new languages doesn't require updating shared code
 
 use crate::{ModuleReference, PluginResult, ScanScope};
+use async_trait::async_trait;
 use codebuddy_foundation::protocol::ImportGraph;
 use std::path::Path;
 
@@ -191,4 +192,61 @@ pub trait ImportAnalyzer: Send + Sync {
         // Default implementation: not supported
         Err(crate::PluginError::not_supported("find_unused_imports"))
     }
+}
+
+// ============================================================================
+// Manifest Updater Capability
+// ============================================================================
+
+/// Capability for updating manifest files (Cargo.toml, package.json, etc.)
+///
+/// This trait allows language plugins to provide manifest update operations
+/// for dependency management and package configuration.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use cb_plugin_api::capabilities::ManifestUpdater;
+///
+/// if let Some(updater) = plugin.manifest_updater() {
+///     let updated_content = updater.update_dependency(
+///         manifest_path,
+///         "old-dep",
+///         "new-dep",
+///         Some("1.0.0")
+///     ).await?;
+///     // Write updated content to file...
+/// }
+/// ```
+#[async_trait]
+pub trait ManifestUpdater: Send + Sync {
+    /// Update a dependency in the manifest file
+    ///
+    /// This method modifies a dependency entry in the manifest, either renaming it
+    /// or changing its version/path configuration.
+    ///
+    /// # Arguments
+    ///
+    /// * `manifest_path` - Path to the manifest file (Cargo.toml, package.json, etc.)
+    /// * `old_name` - Current name of the dependency
+    /// * `new_name` - New name for the dependency (may be same as old_name for version-only updates)
+    /// * `new_version` - Optional new version or path for the dependency
+    ///
+    /// # Returns
+    ///
+    /// Updated manifest content as a string, ready to be written to the file.
+    ///
+    /// # Errors
+    ///
+    /// Returns error if:
+    /// - Manifest file cannot be read or parsed
+    /// - Dependency not found in manifest
+    /// - Invalid manifest format after update
+    async fn update_dependency(
+        &self,
+        manifest_path: &Path,
+        old_name: &str,
+        new_name: &str,
+        new_version: Option<&str>,
+    ) -> PluginResult<String>;
 }
