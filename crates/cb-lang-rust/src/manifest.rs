@@ -203,15 +203,14 @@ pub fn rename_dependency(
                     if let Some(dep_ref) = element.as_str() {
                         // Check for exact match (e.g., "cb-ast")
                         if dep_ref == old_name {
-                            *element = toml_edit::Value::from(new_name).into();
+                            *element = toml_edit::Value::from(new_name);
                         }
                         // Check for slash-prefixed feature (e.g., "cb-ast/some-feature")
                         else if let Some(feature_suffix) =
                             dep_ref.strip_prefix(&format!("{}/", old_name))
                         {
                             *element =
-                                toml_edit::Value::from(format!("{}/{}", new_name, feature_suffix))
-                                    .into();
+                                toml_edit::Value::from(format!("{}/{}", new_name, feature_suffix));
                         }
                     }
                 }

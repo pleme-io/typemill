@@ -232,10 +232,10 @@ async fn build_workspace_dependency_graph(project_root: &Path) -> PluginResult<D
         // Add dependencies
         for dependency in &package.dependencies {
             // Only track workspace dependencies
-            if let Some(_) = metadata
+            if metadata
                 .workspace_packages()
                 .iter()
-                .find(|p| p.name == dependency.name)
+                .any(|p| p.name == dependency.name)
             {
                 graph.add_dependency(&package_name, &dependency.name);
                 debug!(

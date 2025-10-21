@@ -419,7 +419,7 @@ mod tests {
 
     #[test]
     fn test_setup_command_default() {
-        let cmd = SetupCommand::default();
+        let cmd = SetupCommand;
         assert_eq!(cmd.name(), "setup");
     }
 }

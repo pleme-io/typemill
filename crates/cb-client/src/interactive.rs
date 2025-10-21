@@ -383,14 +383,14 @@ mod tests {
     #[test]
     fn test_interactive_creation() {
         let _interactive = Interactive::new();
-        assert!(true); // Just ensure it can be created
+        // Test passes if creation doesn't panic
     }
 
     #[test]
     fn test_formatter_integration() {
         let formatter = Formatter::with_settings(false, false);
         let _interactive = Interactive::with_formatter(formatter);
-        assert!(true); // Just ensure it can be created with custom formatter
+        // Test passes if creation doesn't panic
     }
 
     // Note: Most interactive functions can't be easily unit tested

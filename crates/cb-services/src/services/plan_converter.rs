@@ -47,7 +47,7 @@ impl PlanConverter {
         if let Some(ref changes) = workspace_edit.changes {
             for (uri, text_edits) in changes {
                 // Convert URI to native file path string
-                let file_path_str = Self::uri_to_path_string(&uri)?;
+                let file_path_str = Self::uri_to_path_string(uri)?;
 
                 // Assign priorities based on array position to preserve execution order
                 // LSP arrays are ordered intentionally - first edit should execute first

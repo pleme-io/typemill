@@ -148,7 +148,7 @@ async fn cleanup_workspace_cargo_toml(
     if let Some(workspace) = doc.get_mut("workspace").and_then(|w| w.as_table_like_mut()) {
         if let Some(members) = workspace.get_mut("members").and_then(|m| m.as_array_mut()) {
             let before_len = members.len();
-            members.retain(|item| item.as_str() != Some(&source_relative.as_str()));
+            members.retain(|item| item.as_str() != Some(source_relative.as_str()));
 
             if members.len() < before_len {
                 modified = true;
@@ -172,7 +172,7 @@ async fn cleanup_workspace_cargo_toml(
             .get_mut("dependencies")
             .and_then(|d| d.as_table_like_mut())
         {
-            if deps.remove(&source_crate_name).is_some() {
+            if deps.remove(source_crate_name).is_some() {
                 modified = true;
                 info!(
                     source_crate = %source_crate_name,
@@ -188,13 +188,13 @@ async fn cleanup_workspace_cargo_toml(
             .get_mut("dependencies")
             .and_then(|d| d.as_table_like_mut())
         {
-            if !deps.contains_key(&target_crate_name) {
+            if !deps.contains_key(target_crate_name) {
                 // Create inline table for the dependency
                 let mut target_dep = toml_edit::InlineTable::new();
                 target_dep.insert("path", toml_edit::Value::from(target_relative.clone()));
 
                 deps.insert(
-                    &target_crate_name,
+                    target_crate_name,
                     toml_edit::Item::Value(toml_edit::Value::InlineTable(target_dep)),
                 );
 
