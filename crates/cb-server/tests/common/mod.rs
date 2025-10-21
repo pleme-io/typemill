@@ -23,7 +23,7 @@ pub async fn create_test_app_state() -> (Arc<AppState>, TempDir) {
         cache_settings,
         plugin_manager.clone(),
         &config,
-        plugin_registry,
+        plugin_registry.clone(),
     )
     .await;
     let workspace_manager = Arc::new(WorkspaceManager::new());
