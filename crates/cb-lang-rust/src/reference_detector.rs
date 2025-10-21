@@ -241,126 +241,125 @@ impl ReferenceDetector for RustReferenceDetector {
             }
         }
 
-        // If this is a file move (cross-crate or same-crate), compute full module paths
-        if let (Some(old_crate), Some(new_crate)) = (old_crate_name, new_crate_name) {
-            // Check for parent files with mod declarations (ONLY for same-crate file renames)
-            // For cross-crate moves, mod declarations should be removed, not updated
-            // For directory renames, this is handled by calling the plugin with directory paths
-            if !old_path.is_dir() && old_crate == new_crate {
-                let old_parent = old_path.parent();
-                let new_parent = new_path.parent();
+        // Check for mod declarations for file renames
+        // For same-directory renames, files MUST be in the same crate (you can't have
+        // files in the same directory belonging to different crates), so we don't need
+        // to check crate names at all.
+        if !old_path.is_dir() {
+            let old_parent = old_path.parent();
+            let new_parent = new_path.parent();
 
-                // Only check if parents are the same (simple rename within same directory)
-                if old_parent == new_parent {
-                    if let Some(parent_dir) = old_parent {
-                        let lib_rs = parent_dir.join("lib.rs");
-                        let mod_rs = parent_dir.join("mod.rs");
+            // For same-directory renames, ALWAYS check for mod declarations
+            // This works even without Cargo.toml (plain Rust projects)
+            if old_parent == new_parent {
+                if let Some(parent_dir) = old_parent {
+                    let lib_rs = parent_dir.join("lib.rs");
+                    let mod_rs = parent_dir.join("mod.rs");
 
-                        // Extract module names from old and new files
-                        if let (Some(old_module_name), Some(new_module_name)) = (
-                            old_path.file_stem().and_then(|s| s.to_str()),
-                            new_path.file_stem().and_then(|s| s.to_str()),
+                    // Extract module names from old and new files
+                    if let (Some(old_module_name), Some(new_module_name)) = (
+                        old_path.file_stem().and_then(|s| s.to_str()),
+                        new_path.file_stem().and_then(|s| s.to_str()),
                         ) {
-                            // Check lib.rs
-                            if lib_rs.exists() {
-                                if let Ok(content) = tokio::fs::read_to_string(&lib_rs).await {
-                                    // Check for mod declaration for old module name
-                                    let has_old_mod_declaration = content.lines().any(|line| {
-                                        let trimmed = line.trim();
-                                        (trimmed.starts_with("pub mod ")
-                                            || trimmed.starts_with("mod "))
-                                            && trimmed.contains(&format!("{};", old_module_name))
-                                    });
+                        // Check lib.rs
+                        if lib_rs.exists() {
+                            if let Ok(content) = tokio::fs::read_to_string(&lib_rs).await {
+                                // Check for mod declaration for old module name
+                                let has_old_mod_declaration = content.lines().any(|line| {
+                                    let trimmed = line.trim();
+                                    (trimmed.starts_with("pub mod ")
+                                        || trimmed.starts_with("mod "))
+                                        && trimmed.contains(&format!("{};", old_module_name))
+                                });
 
-                                    // Check if new module name is already declared
-                                    let has_new_mod_declaration = content.lines().any(|line| {
-                                        let trimmed = line.trim();
-                                        (trimmed.starts_with("pub mod ")
-                                            || trimmed.starts_with("mod "))
-                                            && trimmed.contains(&format!("{};", new_module_name))
-                                    });
+                                // Check if new module name is already declared
+                                let has_new_mod_declaration = content.lines().any(|line| {
+                                    let trimmed = line.trim();
+                                    (trimmed.starts_with("pub mod ")
+                                        || trimmed.starts_with("mod "))
+                                        && trimmed.contains(&format!("{};", new_module_name))
+                                });
 
-                                    // Only add as affected if old module is declared AND new module is NOT already declared
-                                    if has_old_mod_declaration && !has_new_mod_declaration {
-                                        tracing::debug!(
-                                            file = %lib_rs.display(),
-                                            old_module = %old_module_name,
-                                            new_module = %new_module_name,
-                                            "Found parent lib.rs with mod declaration that needs updating"
-                                        );
-                                        let canonical_lib_rs =
-                                            lib_rs.canonicalize().unwrap_or(lib_rs);
-                                        if !affected.contains(&canonical_lib_rs) {
-                                            affected.push(canonical_lib_rs);
-                                        }
-                                    } else if has_new_mod_declaration {
-                                        tracing::debug!(
-                                            file = %lib_rs.display(),
-                                            old_module = %old_module_name,
-                                            new_module = %new_module_name,
-                                            "Skipping lib.rs - new module name already declared"
-                                        );
+                                // Only add as affected if old module is declared AND new module is NOT already declared
+                                if has_old_mod_declaration && !has_new_mod_declaration {
+                                    tracing::debug!(
+                                        file = %lib_rs.display(),
+                                        old_module = %old_module_name,
+                                        new_module = %new_module_name,
+                                        "Found parent lib.rs with mod declaration that needs updating"
+                                    );
+                                    let canonical_lib_rs =
+                                        lib_rs.canonicalize().unwrap_or(lib_rs);
+                                    if !affected.contains(&canonical_lib_rs) {
+                                        affected.push(canonical_lib_rs);
                                     }
+                                } else if has_new_mod_declaration {
+                                    tracing::debug!(
+                                        file = %lib_rs.display(),
+                                        old_module = %old_module_name,
+                                        new_module = %new_module_name,
+                                        "Skipping lib.rs - new module name already declared"
+                                    );
                                 }
                             }
+                        }
 
-                            // Check mod.rs
-                            if mod_rs.exists() {
-                                if let Ok(content) = tokio::fs::read_to_string(&mod_rs).await {
-                                    let has_old_mod_declaration = content.lines().any(|line| {
-                                        let trimmed = line.trim();
-                                        (trimmed.starts_with("pub mod ")
-                                            || trimmed.starts_with("mod "))
-                                            && trimmed.contains(&format!("{};", old_module_name))
-                                    });
+                        // Check mod.rs
+                        if mod_rs.exists() {
+                            if let Ok(content) = tokio::fs::read_to_string(&mod_rs).await {
+                                let has_old_mod_declaration = content.lines().any(|line| {
+                                    let trimmed = line.trim();
+                                    (trimmed.starts_with("pub mod ")
+                                        || trimmed.starts_with("mod "))
+                                        && trimmed.contains(&format!("{};", old_module_name))
+                                });
 
-                                    let has_new_mod_declaration = content.lines().any(|line| {
-                                        let trimmed = line.trim();
-                                        (trimmed.starts_with("pub mod ")
-                                            || trimmed.starts_with("mod "))
-                                            && trimmed.contains(&format!("{};", new_module_name))
-                                    });
+                                let has_new_mod_declaration = content.lines().any(|line| {
+                                    let trimmed = line.trim();
+                                    (trimmed.starts_with("pub mod ")
+                                        || trimmed.starts_with("mod "))
+                                        && trimmed.contains(&format!("{};", new_module_name))
+                                });
 
-                                    if has_old_mod_declaration && !has_new_mod_declaration {
-                                        tracing::debug!(
-                                            file = %mod_rs.display(),
-                                            old_module = %old_module_name,
-                                            new_module = %new_module_name,
-                                            "Found parent mod.rs with mod declaration that needs updating"
-                                        );
-                                        let canonical_mod_rs =
-                                            mod_rs.canonicalize().unwrap_or(mod_rs);
-                                        if !affected.contains(&canonical_mod_rs) {
-                                            affected.push(canonical_mod_rs);
-                                        }
-                                    } else if has_new_mod_declaration {
-                                        tracing::debug!(
-                                            file = %mod_rs.display(),
-                                            old_module = %old_module_name,
-                                            new_module = %new_module_name,
-                                            "Skipping mod.rs - new module name already declared"
-                                        );
+                                if has_old_mod_declaration && !has_new_mod_declaration {
+                                    tracing::debug!(
+                                        file = %mod_rs.display(),
+                                        old_module = %old_module_name,
+                                        new_module = %new_module_name,
+                                        "Found parent mod.rs with mod declaration that needs updating"
+                                    );
+                                    let canonical_mod_rs =
+                                        mod_rs.canonicalize().unwrap_or(mod_rs);
+                                    if !affected.contains(&canonical_mod_rs) {
+                                        affected.push(canonical_mod_rs);
                                     }
+                                } else if has_new_mod_declaration {
+                                    tracing::debug!(
+                                        file = %mod_rs.display(),
+                                        old_module = %old_module_name,
+                                        new_module = %new_module_name,
+                                        "Skipping mod.rs - new module name already declared"
+                                    );
                                 }
                             }
                         }
                     }
-                } else {
-                    tracing::debug!(
-                        old_parent = ?old_parent.map(|p| p.display().to_string()),
-                        new_parent = ?new_parent.map(|p| p.display().to_string()),
-                        "Skipping mod declaration detection - parent directories differ (file moved to different directory)"
-                    );
                 }
-            } else if !old_path.is_dir() {
-                tracing::debug!(
-                    old_crate = %old_crate,
-                    new_crate = %new_crate,
-                    "Skipping mod declaration detection for cross-crate move - mod should be removed, not updated"
-                );
             } else {
-                tracing::debug!("Skipping mod declaration detection for directory rename - handled by reference_updater");
+                // old_parent != new_parent - file moved to different directory
+                // Don't update mod declarations for cross-directory moves
+                tracing::debug!(
+                    old_parent = ?old_parent.map(|p| p.display().to_string()),
+                    new_parent = ?new_parent.map(|p| p.display().to_string()),
+                    "Skipping mod declaration detection - parent directories differ (file moved to different directory)"
+                );
             }
+        } else {
+            tracing::debug!("Skipping mod declaration detection for directory rename - handled by reference_updater");
+        }
+
+        // If this is a file move with crate info, compute full module paths
+        if let (Some(old_crate), Some(new_crate)) = (old_crate_name, new_crate_name) {
             tracing::info!(
                 old_crate = %old_crate,
                 new_crate = %new_crate,
