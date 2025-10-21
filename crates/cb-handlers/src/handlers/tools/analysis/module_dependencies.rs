@@ -245,6 +245,7 @@ async fn analyze_module_dependencies(
     for file_path in &files {
         if let Ok(content) = std::fs::read_to_string(file_path) {
             // Use Rust parser to extract imports
+            #[cfg(feature = "lang-rust")]
             if let Ok(import_graph) = cb_lang_rust::parser::analyze_imports(&content, Some(file_path)) {
                 for import_info in &import_graph.imports {
                     // Extract root crate name from module path

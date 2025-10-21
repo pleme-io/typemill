@@ -64,6 +64,7 @@ impl SystemToolsPlugin {
         capabilities
             .custom
             .insert("system.extract_variable".to_string(), json!(true));
+        #[cfg(feature = "lang-rust")]
         capabilities
             .custom
             .insert("system.extract_module_to_package".to_string(), json!(true));
@@ -320,6 +321,7 @@ impl SystemToolsPlugin {
     }
 
     /// Handle extract_module_to_package tool
+    #[cfg(feature = "lang-rust")]
     async fn handle_extract_module_to_package(&self, params: Value) -> PluginResult<Value> {
         // Deserialize parameters
         let parsed: codebuddy_ast::package_extractor::ExtractModuleToPackageParams =
@@ -366,7 +368,7 @@ impl LanguagePlugin for SystemToolsPlugin {
     }
 
     fn tool_definitions(&self) -> Vec<Value> {
-        vec![
+        let mut tools = vec![
             json!({
                 "name": "achieve_intent",
                 "description": "Takes a high-level user intent and returns a multi-step workflow plan. Optionally executes the workflow with dry-run support. Can also resume a paused workflow.",
@@ -538,47 +540,6 @@ impl LanguagePlugin for SystemToolsPlugin {
                         }
                     },
                     "required": ["file_path", "start_line", "start_character", "end_line", "end_character", "variable_name"]
-                }
-            }),
-            json!({
-                "name": "extract_module_to_package",
-                "description": "Extract a module from an existing package into a new standalone package. Currently supports Rust and TypeScript. Automatically updates imports and package manifests. Note: Language support temporarily reduced during unified API refactoring.",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "source_package": {
-                            "type": "string",
-                            "description": "Path to the source package (e.g., 'rust/crates/cb-server', 'packages/api')"
-                        },
-                        "module_path": {
-                            "type": "string",
-                            "description": "Dotted path to the module within the source package (e.g., 'services.planner', 'utils.helpers')"
-                        },
-                        "target_package_path": {
-                            "type": "string",
-                            "description": "Path where the new package should be created (e.g., 'domains/planner', 'packages/planner')"
-                        },
-                        "target_package_name": {
-                            "type": "string",
-                            "description": "Name of the new package (e.g., 'cb-planner', '@org/planner', 'cb_planner')"
-                        },
-                        "update_imports": {
-                            "type": "boolean",
-                            "default": true,
-                            "description": "Automatically update all import statements across the workspace"
-                        },
-                        "create_manifest": {
-                            "type": "boolean",
-                            "default": true,
-                            "description": "Auto-generate package manifest (Cargo.toml, package.json, etc.)"
-                        },
-                        "dry_run": {
-                            "type": "boolean",
-                            "default": false,
-                            "description": "Preview changes without applying them"
-                        }
-                    },
-                    "required": ["source_package", "module_path", "target_package_path", "target_package_name"]
                 }
             }),
             json!({
@@ -793,7 +754,53 @@ impl LanguagePlugin for SystemToolsPlugin {
             }),
             // Note: rename_file and rename_directory are handled by FileOperationHandler
             // and WorkspaceHandler respectively, not by this plugin
-        ]
+        ];
+
+        // Conditionally add Rust-specific tools
+        #[cfg(feature = "lang-rust")]
+        tools.push(json!({
+            "name": "extract_module_to_package",
+            "description": "Extract a module from an existing package into a new standalone package. Currently supports Rust and TypeScript. Automatically updates imports and package manifests. Note: Language support temporarily reduced during unified API refactoring.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "source_package": {
+                        "type": "string",
+                        "description": "Path to the source package (e.g., 'rust/crates/cb-server', 'packages/api')"
+                    },
+                    "module_path": {
+                        "type": "string",
+                        "description": "Dotted path to the module within the source package (e.g., 'services.planner', 'utils.helpers')"
+                    },
+                    "target_package_path": {
+                        "type": "string",
+                        "description": "Path where the new package should be created (e.g., 'domains/planner', 'packages/planner')"
+                    },
+                    "target_package_name": {
+                        "type": "string",
+                        "description": "Name of the new package (e.g., 'cb-planner', '@org/planner', 'cb_planner')"
+                    },
+                    "update_imports": {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Automatically update all import statements across the workspace"
+                    },
+                    "create_manifest": {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Auto-generate package manifest (Cargo.toml, package.json, etc.)"
+                    },
+                    "dry_run": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Preview changes without applying them"
+                    }
+                },
+                "required": ["source_package", "module_path", "target_package_path", "target_package_name"]
+            }
+        }));
+
+        tools
     }
 
     fn capabilities(&self) -> Capabilities {
@@ -815,6 +822,7 @@ impl LanguagePlugin for SystemToolsPlugin {
                     .await?
             }
             "web_fetch" => self.handle_web_fetch(request.params.clone()).await?,
+            #[cfg(feature = "lang-rust")]
             "extract_module_to_package" => {
                 self.handle_extract_module_to_package(request.params.clone())
                     .await?

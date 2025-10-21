@@ -92,9 +92,11 @@ pub async fn plan_extract_function(
     // Try AST first (faster, more reliable, under our control)
     // Note: Only TypeScript and Rust supported after language reduction
     let ast_result = match detect_language(file_path) {
+        #[cfg(feature = "lang-typescript")]
         "typescript" | "javascript" => {
             ast_extract_function_ts_js(source, range, new_function_name, file_path)
         }
+        #[cfg(feature = "lang-rust")]
         "rust" => ast_extract_function_rust(source, range, new_function_name, file_path),
         _ => {
             // Unsupported language - will try LSP fallback below
@@ -206,6 +208,7 @@ fn ast_extract_function_ts_js(
 }
 
 /// Generate edit plan for extract function refactoring (Rust) using AST
+#[cfg(feature = "lang-rust")]
 fn ast_extract_function_rust(
     source: &str,
     range: &CodeRange,

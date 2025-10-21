@@ -201,12 +201,14 @@ pub async fn plan_extract_variable(
 
     // Fallback to AST-based implementation (only TypeScript and Rust supported after language reduction)
     match detect_language(file_path) {
+        #[cfg(feature = "lang-typescript")]
         "typescript" | "javascript" => ast_extract_variable_ts_js(
             source,
             &analyze_extract_variable(source, start_line, start_col, end_line, end_col, file_path)?,
             variable_name,
             file_path,
         ),
+        #[cfg(feature = "lang-rust")]
         "rust" => ast_extract_variable_rust(
             source,
             start_line,
@@ -304,6 +306,7 @@ fn ast_extract_variable_ts_js(
 }
 
 /// Generate edit plan for extract variable refactoring (Rust) using AST
+#[cfg(feature = "lang-rust")]
 #[allow(clippy::too_many_arguments)]
 fn ast_extract_variable_rust(
     source: &str,
