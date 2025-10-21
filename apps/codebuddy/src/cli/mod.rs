@@ -122,10 +122,6 @@ pub enum Commands {
         #[arg(long, conflicts_with = "args")]
         update_config_files: Option<bool>,
 
-        /// Update example code
-        #[arg(long, conflicts_with = "args")]
-        update_examples: Option<bool>,
-
         /// Update code comments (opt-in for full project renames)
         #[arg(long, conflicts_with = "args")]
         update_comments: Option<bool>,
@@ -286,7 +282,6 @@ pub async fn run() {
             update_path_references,
             update_markdown_links,
             update_config_files,
-            update_examples,
             update_comments,
             update_markdown_text,
             update_config_names,
@@ -306,7 +301,6 @@ pub async fn run() {
                 update_path_references,
                 update_markdown_links,
                 update_config_files,
-                update_examples,
                 update_comments,
                 update_markdown_text,
                 update_config_names,
@@ -483,7 +477,6 @@ async fn handle_dead_code_command(command: DeadCode) {
     handle_tool_command(
         "analyze.dead_code",
         Some(&args_json),
-        None,
         None,
         None,
         None,
@@ -978,7 +971,6 @@ async fn handle_tool_command(
     update_path_references: Option<bool>,
     update_markdown_links: Option<bool>,
     update_config_files: Option<bool>,
-    update_examples: Option<bool>,
     update_comments: Option<bool>,
     update_markdown_text: Option<bool>,
     update_config_names: Option<bool>,
@@ -1044,9 +1036,6 @@ async fn handle_tool_command(
         }
         if let Some(v) = update_config_files {
             flags.insert("update_configs".to_string(), v.to_string());
-        }
-        if let Some(v) = update_examples {
-            flags.insert("update_examples".to_string(), v.to_string());
         }
         if let Some(v) = update_comments {
             flags.insert("update_comments".to_string(), v.to_string());

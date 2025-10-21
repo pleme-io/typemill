@@ -22,10 +22,6 @@ pub struct RenameScope {
     #[serde(default = "default_true")]
     pub update_configs: bool,
 
-    /// Update examples directory
-    #[serde(default = "default_true")]
-    pub update_examples: bool,
-
     /// Update code comments (experimental, opt-in)
     #[serde(default)]
     pub update_comments: bool,
@@ -83,7 +79,6 @@ impl RenameScope {
             update_string_literals: true,
             update_docs: false,
             update_configs: false,
-            update_examples: true,
             update_comments: false,
             update_markdown_prose: false,
             update_exact_matches: false,
@@ -99,7 +94,6 @@ impl RenameScope {
             update_string_literals: true,
             update_docs: true,
             update_configs: true,
-            update_examples: true,
             update_comments: false,
             update_markdown_prose: false, // Still opt-in for safety
             update_exact_matches: false,  // Still opt-in for safety
@@ -116,7 +110,6 @@ impl RenameScope {
             self.update_string_literals = true;
             self.update_docs = true;
             self.update_configs = true;
-            self.update_examples = true;
             self.update_comments = true;
             self.update_markdown_prose = true;
             self.update_exact_matches = true;
@@ -173,7 +166,6 @@ mod tests {
         assert!(scope.update_string_literals);
         assert!(scope.update_docs);
         assert!(scope.update_configs);
-        assert!(scope.update_examples);
         assert!(!scope.update_comments); // Still opt-in
         assert!(!scope.update_all);
     }
@@ -189,7 +181,6 @@ mod tests {
         assert!(scope.update_string_literals);
         assert!(scope.update_docs);
         assert!(scope.update_configs);
-        assert!(scope.update_examples);
         assert!(scope.update_comments);
         assert!(scope.update_markdown_prose);
         assert!(scope.update_exact_matches);
@@ -226,7 +217,6 @@ mod tests {
             update_docs: true,
             update_configs: true,
             update_string_literals: true,
-            update_examples: true,
             update_comments: false,
             update_markdown_prose: false,
             update_exact_matches: false,
