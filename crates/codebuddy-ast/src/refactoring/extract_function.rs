@@ -82,12 +82,14 @@ async fn lsp_extract_function(
 /// * `new_function_name` - Name for the extracted function
 /// * `file_path` - Path to the source file
 /// * `lsp_service` - Optional LSP service for refactoring
+/// * `_language_plugins` - Optional language plugin registry (reserved for future use)
 pub async fn plan_extract_function(
     source: &str,
     range: &CodeRange,
     new_function_name: &str,
     file_path: &str,
     lsp_service: Option<&dyn LspRefactoringService>,
+    _language_plugins: Option<&cb_plugin_api::PluginRegistry>,
 ) -> AstResult<EditPlan> {
     // Try AST first (faster, more reliable, under our control)
     // Note: Only TypeScript and Rust supported after language reduction

@@ -67,6 +67,7 @@ pub fn detect_symbols(
     symbols: &[Symbol],
     language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -161,6 +162,7 @@ pub fn detect_hierarchy(
     symbols: &[Symbol],
     language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -306,6 +308,7 @@ pub fn detect_interfaces(
     symbols: &[Symbol],
     language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -454,6 +457,7 @@ pub fn detect_inheritance(
     symbols: &[Symbol],
     language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -592,6 +596,7 @@ pub fn detect_modules(
     symbols: &[Symbol],
     language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 

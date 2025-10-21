@@ -69,6 +69,7 @@ pub fn detect_coverage(
     symbols: &[Symbol],
     language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -220,6 +221,7 @@ pub fn detect_quality(
     symbols: &[Symbol],
     language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -401,6 +403,7 @@ pub fn detect_assertions(
     symbols: &[Symbol],
     language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -598,6 +601,7 @@ pub fn detect_organization(
     symbols: &[Symbol],
     language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 

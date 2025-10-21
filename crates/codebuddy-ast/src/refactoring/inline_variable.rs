@@ -76,6 +76,7 @@ pub async fn plan_inline_variable(
     variable_col: u32,
     file_path: &str,
     lsp_service: Option<&dyn LspRefactoringService>,
+    _language_plugins: Option<&cb_plugin_api::PluginRegistry>,
 ) -> AstResult<EditPlan> {
     // Try LSP first if available
     if let Some(lsp) = lsp_service {

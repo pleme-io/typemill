@@ -30,6 +30,7 @@ use tracing::{debug, info};
 /// - `symbols`: The parsed symbols from the language plugin
 /// - `language`: The language name (e.g., "rust", "typescript")
 /// - `file_path`: The path to the file being analyzed
+/// - `registry`: The language plugin registry for dynamic plugin lookup
 ///
 /// # Returns
 /// A vector of findings detected by the analysis function
@@ -39,6 +40,7 @@ pub type AnalysisFn = fn(
     &[cb_plugin_api::Symbol],
     &str,
     &str,
+    &crate::LanguagePluginRegistry,
 ) -> Vec<Finding>;
 
 /// Scope parameter structure for analysis requests
@@ -149,6 +151,7 @@ pub fn extract_file_path(args: &Value, scope_param: &ScopeParam) -> ServerResult
 ///     symbols: &[cb_plugin_api::Symbol],
 ///     language: &str,
 ///     file_path: &str,
+///     registry: &crate::LanguagePluginRegistry,
 /// ) -> Vec<Finding> {
 ///     // Custom analysis logic here
 ///     vec![]
@@ -207,6 +210,7 @@ pub async fn run_analysis(
 ///     symbols: &[cb_plugin_api::Symbol],
 ///     language: &str,
 ///     file_path: &str,
+///     registry: &crate::LanguagePluginRegistry,
 /// ) -> Vec<Finding> {
 ///     vec![]
 /// }
@@ -346,6 +350,7 @@ pub async fn run_analysis_with_config(
         &parsed.symbols,
         language,
         &file_path,
+        &context.app_state.language_plugins,
     );
 
     debug!(

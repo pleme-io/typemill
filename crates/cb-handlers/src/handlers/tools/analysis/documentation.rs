@@ -68,6 +68,7 @@ pub fn detect_coverage(
     symbols: &[Symbol],
     language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -241,6 +242,7 @@ pub fn detect_quality(
     symbols: &[Symbol],
     language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -450,6 +452,7 @@ pub fn detect_style(
     symbols: &[Symbol],
     language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -603,6 +606,7 @@ pub fn detect_examples(
     symbols: &[Symbol],
     language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -779,6 +783,7 @@ pub fn detect_todos(
     _symbols: &[Symbol],
     language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 

@@ -64,10 +64,17 @@ impl SystemToolsPlugin {
         capabilities
             .custom
             .insert("system.extract_variable".to_string(), json!(true));
-        #[cfg(feature = "lang-rust")]
-        capabilities
-            .custom
-            .insert("system.extract_module_to_package".to_string(), json!(true));
+
+        // Add extract_module_to_package only if Rust plugin is available
+        let has_rust_plugin = plugin_registry
+            .all()
+            .iter()
+            .any(|p| p.metadata().name == "rust");
+        if has_rust_plugin {
+            capabilities
+                .custom
+                .insert("system.extract_module_to_package".to_string(), json!(true));
+        }
 
         SystemToolsPlugin {
             metadata: PluginMetadata {
@@ -321,38 +328,66 @@ impl SystemToolsPlugin {
     }
 
     /// Handle extract_module_to_package tool
-    #[cfg(feature = "lang-rust")]
+    #[allow(unused_variables)] // params only used with lang-rust feature
     async fn handle_extract_module_to_package(&self, params: Value) -> PluginResult<Value> {
+        // Check if Rust plugin is available at runtime
+        let has_rust = self
+            .plugin_registry
+            .all()
+            .iter()
+            .any(|p| p.metadata().name == "rust");
+
+        if !has_rust {
+            return Err(PluginError::MethodNotSupported {
+                method: "extract_module_to_package".to_string(),
+                plugin: "system-tools (requires Rust plugin)".to_string(),
+            });
+        }
+
         // Deserialize parameters
+        #[cfg(feature = "lang-rust")]
         let parsed: codebuddy_ast::package_extractor::ExtractModuleToPackageParams =
-            serde_json::from_value(params).map_err(|e| PluginError::SerializationError {
+            serde_json::from_value(params.clone()).map_err(|e| PluginError::SerializationError {
                 message: format!("Invalid extract_module_to_package args: {}", e),
             })?;
 
-        debug!(
-            source_package = %parsed.source_package,
-            module_path = %parsed.module_path,
-            target_package_path = %parsed.target_package_path,
-            target_package_name = %parsed.target_package_name,
-            "Extracting module to package"
-        );
+        #[cfg(feature = "lang-rust")]
+        {
+            debug!(
+                source_package = %parsed.source_package,
+                module_path = %parsed.module_path,
+                target_package_path = %parsed.target_package_path,
+                target_package_name = %parsed.target_package_name,
+                "Extracting module to package"
+            );
 
-        // Call the planning function from cb-ast with injected registry
-        let edit_plan = codebuddy_ast::package_extractor::plan_extract_module_to_package_with_registry(
-            parsed,
-            &self.plugin_registry,
-        )
-        .await
-        .map_err(|e| PluginError::PluginRequestFailed {
-            plugin: "system-tools".to_string(),
-            message: format!("Failed to plan extract_module_to_package: {}", e),
-        })?;
+            // Call the planning function from cb-ast with injected registry
+            let edit_plan = codebuddy_ast::package_extractor::plan_extract_module_to_package_with_registry(
+                parsed,
+                &self.plugin_registry,
+            )
+            .await
+            .map_err(|e| PluginError::PluginRequestFailed {
+                plugin: "system-tools".to_string(),
+                message: format!("Failed to plan extract_module_to_package: {}", e),
+            })?;
 
-        // Return the edit plan
-        Ok(json!({
-            "edit_plan": edit_plan,
-            "status": "success"
-        }))
+            // Return the edit plan
+            Ok(json!({
+                "edit_plan": edit_plan,
+                "status": "success"
+            }))
+        }
+
+        #[cfg(not(feature = "lang-rust"))]
+        {
+            // This should never happen because we check for Rust plugin above
+            // But kept for safety during compilation without lang-rust feature
+            Err(PluginError::MethodNotSupported {
+                method: "extract_module_to_package".to_string(),
+                plugin: "system-tools (not compiled with lang-rust feature)".to_string(),
+            })
+        }
     }
 }
 
@@ -756,49 +791,56 @@ impl LanguagePlugin for SystemToolsPlugin {
             // and WorkspaceHandler respectively, not by this plugin
         ];
 
-        // Conditionally add Rust-specific tools
-        #[cfg(feature = "lang-rust")]
-        tools.push(json!({
-            "name": "extract_module_to_package",
-            "description": "Extract a module from an existing package into a new standalone package. Currently supports Rust and TypeScript. Automatically updates imports and package manifests. Note: Language support temporarily reduced during unified API refactoring.",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "source_package": {
-                        "type": "string",
-                        "description": "Path to the source package (e.g., 'rust/crates/cb-server', 'packages/api')"
+        // Conditionally add Rust-specific tools based on runtime plugin availability
+        let has_rust_plugin = self
+            .plugin_registry
+            .all()
+            .iter()
+            .any(|p| p.metadata().name == "rust");
+
+        if has_rust_plugin {
+            tools.push(json!({
+                "name": "extract_module_to_package",
+                "description": "Extract a module from an existing package into a new standalone package. Currently supports Rust and TypeScript. Automatically updates imports and package manifests. Note: Language support temporarily reduced during unified API refactoring.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "source_package": {
+                            "type": "string",
+                            "description": "Path to the source package (e.g., 'rust/crates/cb-server', 'packages/api')"
+                        },
+                        "module_path": {
+                            "type": "string",
+                            "description": "Dotted path to the module within the source package (e.g., 'services.planner', 'utils.helpers')"
+                        },
+                        "target_package_path": {
+                            "type": "string",
+                            "description": "Path where the new package should be created (e.g., 'domains/planner', 'packages/planner')"
+                        },
+                        "target_package_name": {
+                            "type": "string",
+                            "description": "Name of the new package (e.g., 'cb-planner', '@org/planner', 'cb_planner')"
+                        },
+                        "update_imports": {
+                            "type": "boolean",
+                            "default": true,
+                            "description": "Automatically update all import statements across the workspace"
+                        },
+                        "create_manifest": {
+                            "type": "boolean",
+                            "default": true,
+                            "description": "Auto-generate package manifest (Cargo.toml, package.json, etc.)"
+                        },
+                        "dry_run": {
+                            "type": "boolean",
+                            "default": false,
+                            "description": "Preview changes without applying them"
+                        }
                     },
-                    "module_path": {
-                        "type": "string",
-                        "description": "Dotted path to the module within the source package (e.g., 'services.planner', 'utils.helpers')"
-                    },
-                    "target_package_path": {
-                        "type": "string",
-                        "description": "Path where the new package should be created (e.g., 'domains/planner', 'packages/planner')"
-                    },
-                    "target_package_name": {
-                        "type": "string",
-                        "description": "Name of the new package (e.g., 'cb-planner', '@org/planner', 'cb_planner')"
-                    },
-                    "update_imports": {
-                        "type": "boolean",
-                        "default": true,
-                        "description": "Automatically update all import statements across the workspace"
-                    },
-                    "create_manifest": {
-                        "type": "boolean",
-                        "default": true,
-                        "description": "Auto-generate package manifest (Cargo.toml, package.json, etc.)"
-                    },
-                    "dry_run": {
-                        "type": "boolean",
-                        "default": false,
-                        "description": "Preview changes without applying them"
-                    }
-                },
-                "required": ["source_package", "module_path", "target_package_path", "target_package_name"]
-            }
-        }));
+                    "required": ["source_package", "module_path", "target_package_path", "target_package_name"]
+                }
+            }));
+        }
 
         tools
     }
@@ -822,7 +864,6 @@ impl LanguagePlugin for SystemToolsPlugin {
                     .await?
             }
             "web_fetch" => self.handle_web_fetch(request.params.clone()).await?,
-            #[cfg(feature = "lang-rust")]
             "extract_module_to_package" => {
                 self.handle_extract_module_to_package(request.params.clone())
                     .await?

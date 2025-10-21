@@ -120,6 +120,7 @@ impl ExtractHandler {
             &source.name,
             &source.file_path,
             None, // No LSP service - use AST-only approach
+            Some(&context.app_state.language_plugins.inner), // Pass plugin registry
         )
         .await
         .map_err(|e| ServerError::Internal(format!("Extract function failed: {}", e)))?;
@@ -167,6 +168,7 @@ impl ExtractHandler {
             &source.name,
             &source.file_path,
             None, // No LSP service - use AST-only approach
+            Some(&context.app_state.language_plugins.inner), // Pass plugin registry
         )
         .await
         .map_err(|e| ServerError::Internal(format!("Extract variable failed: {}", e)))?;
@@ -211,6 +213,7 @@ impl ExtractHandler {
             &source.name,
             &source.file_path,
             None, // No LSP service - use AST-only approach
+            Some(&context.app_state.language_plugins.inner), // Pass plugin registry
         )
         .await
         .map_err(|e| ServerError::Internal(format!("Extract constant failed: {}", e)))?;

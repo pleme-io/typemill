@@ -244,13 +244,16 @@ async fn analyze_module_dependencies(
 
     for file_path in &files {
         if let Ok(content) = std::fs::read_to_string(file_path) {
-            // Use Rust parser to extract imports
-            #[cfg(feature = "lang-rust")]
-            if let Ok(import_graph) = cb_lang_rust::parser::analyze_imports(&content, Some(file_path)) {
-                for import_info in &import_graph.imports {
-                    // Extract root crate name from module path
-                    if let Some(root_crate) = extract_root_crate(&import_info.module_path) {
-                        all_imports.insert(root_crate);
+            // Use plugin registry to extract imports
+            if let Some(extension) = file_path.extension().and_then(|e| e.to_str()) {
+                if let Some(plugin) = context.app_state.language_plugins.get_plugin(extension) {
+                    if let Ok(import_graph) = plugin.analyze_detailed_imports(&content, Some(file_path)) {
+                        for import_info in &import_graph.imports {
+                            // Extract root crate name from module path
+                            if let Some(root_crate) = extract_root_crate(&import_info.module_path) {
+                                all_imports.insert(root_crate);
+                            }
+                        }
                     }
                 }
             }

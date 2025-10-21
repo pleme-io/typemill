@@ -61,6 +61,7 @@ pub fn detect_unused_imports(
     _symbols: &[cb_plugin_api::Symbol],
     language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -284,6 +285,7 @@ pub fn detect_unused_symbols(
     _symbols: &[cb_plugin_api::Symbol],
     language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -421,6 +423,7 @@ pub fn detect_unreachable_code(
     _symbols: &[cb_plugin_api::Symbol],
     language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -602,6 +605,7 @@ pub fn detect_unused_parameters(
     _symbols: &[cb_plugin_api::Symbol],
     language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
     let lines: Vec<&str> = content.lines().collect();
@@ -780,6 +784,7 @@ pub fn detect_unused_types(
     symbols: &[cb_plugin_api::Symbol],
     language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -904,6 +909,7 @@ pub fn detect_unused_variables(
     _symbols: &[cb_plugin_api::Symbol],
     language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
     let lines: Vec<&str> = content.lines().collect();
@@ -2004,7 +2010,7 @@ impl ToolHandler for DeadCodeHandler {
                         detect_unused_symbols
                     };
 
-                    let mut findings = analysis_fn(&complexity_report, &content, &parsed_source.symbols, language, &file_path);
+                    let mut findings = analysis_fn(&complexity_report, &content, &parsed_source.symbols, language, &file_path, &context.app_state.language_plugins);
 
                     // NEW: Initialize suggestion generator
                     let suggestion_generator = SuggestionGenerator::new();
@@ -2102,7 +2108,7 @@ impl ToolHandler for DeadCodeHandler {
                         _ => unreachable!(),
                     };
 
-                    let mut findings = analysis_fn(&complexity_report, &content, &parsed_source.symbols, language, &file_path);
+                    let mut findings = analysis_fn(&complexity_report, &content, &parsed_source.symbols, language, &file_path, &context.app_state.language_plugins);
 
                     // Initialize suggestion generator
                     let suggestion_generator = SuggestionGenerator::new();

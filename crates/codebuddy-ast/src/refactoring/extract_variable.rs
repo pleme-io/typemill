@@ -170,6 +170,7 @@ pub async fn plan_extract_variable(
     variable_name: Option<String>,
     file_path: &str,
     lsp_service: Option<&dyn LspRefactoringService>,
+    _language_plugins: Option<&cb_plugin_api::PluginRegistry>,
 ) -> AstResult<EditPlan> {
     let range = CodeRange {
         start_line,

@@ -493,6 +493,7 @@ pub fn detect_smells(
     _symbols: &[cb_plugin_api::Symbol],
     language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -728,6 +729,7 @@ pub fn analyze_readability(
     _symbols: &[cb_plugin_api::Symbol],
     _language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -956,6 +958,7 @@ pub fn analyze_maintainability(
     _symbols: &[cb_plugin_api::Symbol],
     _language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 

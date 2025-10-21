@@ -75,6 +75,7 @@ pub fn detect_imports(
     _symbols: &[cb_plugin_api::Symbol],
     language: &str,
     file_path: &str,
+    registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     if language == "rust" {
         let mut findings = Vec::new();
@@ -111,7 +112,7 @@ pub fn detect_imports(
     }
 
     // Parse imports using language plugin
-    let import_infos = match parse_imports_with_plugin(content, language, file_path) {
+    let import_infos = match parse_imports_with_plugin(content, language, file_path, registry) {
         Ok(imports) => imports,
         Err(_) => {
             // If plugin parsing fails or language unsupported, return empty findings
@@ -220,6 +221,7 @@ pub fn detect_graph(
     _symbols: &[cb_plugin_api::Symbol],
     language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -315,6 +317,7 @@ pub fn detect_circular(
     _symbols: &[cb_plugin_api::Symbol],
     language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -419,6 +422,7 @@ pub fn detect_coupling(
     _symbols: &[cb_plugin_api::Symbol],
     language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -537,6 +541,7 @@ pub fn detect_cohesion(
     _symbols: &[cb_plugin_api::Symbol],
     _language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -658,6 +663,7 @@ pub fn detect_depth(
     _symbols: &[cb_plugin_api::Symbol],
     language: &str,
     file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -1033,6 +1039,7 @@ fn extract_module_name(file_path: &str) -> String {
 /// - `content`: The raw file content to parse
 /// - `language`: The language name (e.g., "rust", "typescript")
 /// - `file_path`: The path to the file being analyzed (for TypeScript path context)
+/// - `registry`: The language plugin registry for dynamic plugin lookup
 ///
 /// # Returns
 /// A Result containing Vec<ImportInfo> from the plugin parser, or an error
@@ -1040,27 +1047,25 @@ fn parse_imports_with_plugin(
     content: &str,
     language: &str,
     file_path: &str,
+    registry: &crate::LanguagePluginRegistry,
 ) -> Result<Vec<codebuddy_foundation::protocol::ImportInfo>, String> {
-    match language.to_lowercase().as_str() {
-        #[cfg(feature = "lang-typescript")]
-        "typescript" | "javascript" => {
-            // Use TypeScript plugin's parser
-            use std::path::Path;
-            let path = Path::new(file_path);
-            let graph = cb_lang_typescript::parser::analyze_imports(content, Some(path))
-                .map_err(|e| format!("TypeScript parser failed: {}", e))?;
-            Ok(graph.imports)
-        }
-        #[cfg(feature = "lang-rust")]
-        "rust" => {
-            // Use Rust plugin's parser
-            cb_lang_rust::parser::parse_imports(content)
-                .map_err(|e| format!("Rust parser failed: {}", e))
-        }
-        _ => {
-            // Unsupported language - return error to signal no plugin available
-            Err(format!("No plugin support for language: {}", language))
-        }
+    use std::path::Path;
+
+    // Map language names to file extensions
+    let extension = match language.to_lowercase().as_str() {
+        "typescript" | "javascript" => "ts",
+        "rust" => "rs",
+        _ => return Err(format!("Unsupported language: {}", language)),
+    };
+
+    // Get plugin from registry
+    if let Some(plugin) = registry.get_plugin(extension) {
+        let path = Path::new(file_path);
+        let graph = plugin.analyze_detailed_imports(content, Some(path))
+            .map_err(|e| format!("Plugin failed: {}", e))?;
+        Ok(graph.imports)
+    } else {
+        Err(format!("No plugin available for {}", language))
     }
 }
 

@@ -109,6 +109,7 @@ impl InlineHandler {
             target.position.character,
             &target.file_path,
             None, // No LSP service - use AST-only approach
+            Some(&context.app_state.language_plugins.inner), // Pass plugin registry
         )
         .await
         .map_err(|e| ServerError::Internal(format!("Inline variable failed: {}", e)))?;
@@ -148,6 +149,7 @@ impl InlineHandler {
             target.position.character,
             &target.file_path,
             None, // No LSP service - use AST-only approach
+            Some(&context.app_state.language_plugins.inner), // Pass plugin registry
         )
         .await
         .map_err(|e| ServerError::Internal(format!("Inline function failed: {}", e)))?;
@@ -185,6 +187,7 @@ impl InlineHandler {
             target.position.character,
             &target.file_path,
             None, // No LSP service - use AST-only approach
+            Some(&context.app_state.language_plugins.inner), // Pass plugin registry
         )
         .await
         .map_err(|e| ServerError::Internal(format!("Inline constant failed: {}", e)))?;
