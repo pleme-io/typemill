@@ -430,6 +430,358 @@ To add support for a new programming language, see the **[Language Plugins Guide
 - Implementation patterns (dual-mode vs pure Rust)
 - Reference implementations (Rust, Go, TypeScript)
 
+### Implementing Capability Traits
+
+The codebase uses a **capability-based dispatch pattern** where language plugins expose optional capabilities via traits. This enables language-agnostic shared code that works with any plugin without compile-time feature flags.
+
+#### Why Capabilities?
+
+**Before (downcasting + cfg guards):**
+```rust
+// ❌ Tightly coupled to specific plugin types
+#[cfg(feature = "lang-rust")]
+if let Some(rust_plugin) = plugin.as_any().downcast_ref::<RustPlugin>() {
+    rust_plugin.update_manifest()?;
+}
+#[cfg(feature = "lang-typescript")]
+if let Some(ts_plugin) = plugin.as_any().downcast_ref::<TypeScriptPlugin>() {
+    ts_plugin.update_manifest()?;
+}
+```
+
+**After (capability traits):**
+```rust
+// ✅ Language-agnostic, works with any plugin
+if let Some(updater) = plugin.manifest_updater() {
+    updater.update_dependency(...).await?;
+}
+```
+
+**Benefits:**
+- **Zero cfg guards** in shared code
+- **Plug-and-play** language support
+- **Type-safe** trait contracts
+- **File-extension routing** selects correct plugin automatically
+
+#### Available Capability Traits
+
+Located in `crates/cb-plugin-api/src/capabilities.rs`:
+
+**1. ManifestUpdater** - Update package manifests (Cargo.toml, package.json)
+```rust
+#[async_trait]
+pub trait ManifestUpdater: Send + Sync {
+    async fn update_dependency(
+        &self,
+        manifest_path: &Path,
+        old_name: &str,
+        new_name: &str,
+        new_version: Option<&str>,
+    ) -> PluginResult<String>;
+}
+```
+
+**2. ModuleLocator** - Locate module files within packages
+```rust
+#[async_trait]
+pub trait ModuleLocator: Send + Sync {
+    async fn locate_module_files(
+        &self,
+        package_path: &Path,
+        module_path: &str,
+    ) -> PluginResult<Vec<PathBuf>>;
+}
+```
+
+**3. RefactoringProvider** - AST refactoring operations
+```rust
+#[async_trait]
+pub trait RefactoringProvider: Send + Sync {
+    fn supports_inline_variable(&self) -> bool;
+    fn supports_extract_function(&self) -> bool;
+    fn supports_extract_variable(&self) -> bool;
+
+    async fn plan_inline_variable(
+        &self,
+        file_path: &str,
+        start_line: usize,
+        start_col: usize,
+    ) -> PluginResult<EditPlan>;
+
+    async fn plan_extract_function(
+        &self,
+        file_path: &str,
+        start_line: usize,
+        end_line: usize,
+        function_name: &str,
+    ) -> PluginResult<EditPlan>;
+
+    async fn plan_extract_variable(
+        &self,
+        file_path: &str,
+        start_line: usize,
+        start_col: usize,
+        var_name: &str,
+    ) -> PluginResult<EditPlan>;
+}
+```
+
+#### Step-by-Step Implementation
+
+**Step 1: Implement the capability trait on your plugin**
+
+```rust
+// Example: Implementing ManifestUpdater for a Python plugin
+use async_trait::async_trait;
+use cb_plugin_api::capabilities::ManifestUpdater;
+use cb_plugin_api::{PluginResult, PluginError};
+
+pub struct PythonPlugin {
+    // Plugin fields
+}
+
+#[async_trait]
+impl ManifestUpdater for PythonPlugin {
+    async fn update_dependency(
+        &self,
+        manifest_path: &Path,
+        old_name: &str,
+        new_name: &str,
+        new_version: Option<&str>,
+    ) -> PluginResult<String> {
+        // Read pyproject.toml or requirements.txt
+        let content = tokio::fs::read_to_string(manifest_path).await?;
+
+        // Parse and update dependencies
+        let updated = if manifest_path.ends_with("pyproject.toml") {
+            self.update_pyproject_toml(&content, old_name, new_name, new_version)?
+        } else {
+            self.update_requirements_txt(&content, old_name, new_name, new_version)?
+        };
+
+        // Write back
+        tokio::fs::write(manifest_path, &updated).await?;
+
+        Ok(updated)
+    }
+}
+```
+
+**Step 2: Expose the capability via LanguagePlugin trait**
+
+```rust
+impl LanguagePlugin for PythonPlugin {
+    fn name(&self) -> &str {
+        "python"
+    }
+
+    fn file_extensions(&self) -> Vec<String> {
+        vec!["py".to_string(), "pyi".to_string()]
+    }
+
+    // Expose the capability
+    fn manifest_updater(&self) -> Option<&dyn ManifestUpdater> {
+        Some(self)  // Returns &PythonPlugin as &dyn ManifestUpdater
+    }
+
+    // Other capabilities this plugin doesn't support
+    fn module_locator(&self) -> Option<&dyn ModuleLocator> {
+        None  // Python plugin doesn't implement this yet
+    }
+
+    fn refactoring_provider(&self) -> Option<&dyn RefactoringProvider> {
+        Some(self)  // If you also implement RefactoringProvider
+    }
+}
+```
+
+**Step 3: Shared code automatically discovers and uses the capability**
+
+```rust
+// In shared workspace.rs - no knowledge of PythonPlugin!
+pub async fn update_dependency(
+    plugins: &PluginRegistry,
+    manifest_path: &Path,
+    old_name: &str,
+    new_name: &str,
+) -> Result<()> {
+    // Get file extension from manifest path
+    let extension = manifest_path.extension()
+        .and_then(|ext| ext.to_str())
+        .ok_or_else(|| anyhow!("Invalid manifest path"))?;
+
+    // Find plugin by extension (returns PythonPlugin for .toml if pyproject.toml)
+    let plugin = plugins.find_by_extension(extension)
+        .ok_or_else(|| anyhow!("No plugin for .{} files", extension))?;
+
+    // Query for capability
+    let updater = plugin.manifest_updater()
+        .ok_or_else(|| anyhow!("Plugin does not support manifest updates"))?;
+
+    // Use the capability - works for ANY plugin that implements it!
+    updater.update_dependency(manifest_path, old_name, new_name, None).await?;
+
+    Ok(())
+}
+```
+
+#### Implementing Multiple Capabilities
+
+A plugin can implement multiple capabilities:
+
+```rust
+pub struct RustPlugin {
+    // fields...
+}
+
+// Implement all three capabilities
+#[async_trait]
+impl ManifestUpdater for RustPlugin {
+    async fn update_dependency(&self, ...) -> PluginResult<String> {
+        // Cargo.toml update logic
+    }
+}
+
+#[async_trait]
+impl ModuleLocator for RustPlugin {
+    async fn locate_module_files(&self, ...) -> PluginResult<Vec<PathBuf>> {
+        // Rust module resolution logic
+    }
+}
+
+#[async_trait]
+impl RefactoringProvider for RustPlugin {
+    fn supports_inline_variable(&self) -> bool { true }
+    fn supports_extract_function(&self) -> bool { true }
+    fn supports_extract_variable(&self) -> bool { true }
+
+    async fn plan_inline_variable(&self, ...) -> PluginResult<EditPlan> {
+        // Rust AST-based refactoring
+    }
+    // ... other refactoring methods
+}
+
+// Expose all capabilities
+impl LanguagePlugin for RustPlugin {
+    fn manifest_updater(&self) -> Option<&dyn ManifestUpdater> { Some(self) }
+    fn module_locator(&self) -> Option<&dyn ModuleLocator> { Some(self) }
+    fn refactoring_provider(&self) -> Option<&dyn RefactoringProvider> { Some(self) }
+}
+```
+
+#### File-Extension-Based Routing
+
+The plugin registry automatically routes to the correct plugin based on file extension:
+
+```rust
+// In refactoring code (extract_function.rs)
+pub async fn extract_function(
+    plugins: &PluginRegistry,
+    file_path: &str,
+    params: ExtractParams,
+) -> AstResult<EditPlan> {
+    // Automatically routes to correct plugin based on .rs, .ts, .py extension
+    let provider = plugins.refactoring_provider_for_file(file_path)
+        .ok_or_else(|| AstError::UnsupportedLanguage(file_path.to_string()))?;
+
+    // Execute refactoring using the correct language plugin
+    provider.plan_extract_function(
+        file_path,
+        params.start_line,
+        params.end_line,
+        &params.function_name,
+    ).await
+}
+```
+
+**Under the hood:**
+1. Extract file extension from path ("rs", "ts", "py")
+2. Find plugin registered for that extension
+3. Query that specific plugin for the capability
+4. Return `Some(&dyn Trait)` or `None`
+
+#### Testing Capabilities
+
+Write tests to verify capability routing and behavior:
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_python_plugin_capabilities() {
+        let plugin = PythonPlugin::new();
+
+        // Verify capability exposure
+        assert!(plugin.manifest_updater().is_some());
+        assert!(plugin.refactoring_provider().is_some());
+        assert!(plugin.module_locator().is_none());
+
+        // Test manifest update capability
+        let updater = plugin.manifest_updater().unwrap();
+        let result = updater.update_dependency(
+            Path::new("pyproject.toml"),
+            "old-package",
+            "new-package",
+            Some("1.2.3"),
+        ).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_plugin_registry_routing() {
+        let mut registry = PluginRegistry::new();
+        registry.register(Box::new(PythonPlugin::new()));
+
+        // Test file-extension routing
+        let provider = registry.refactoring_provider_for_file("script.py");
+        assert!(provider.is_some());
+
+        let provider = registry.refactoring_provider_for_file("unknown.xyz");
+        assert!(provider.is_none());
+    }
+}
+```
+
+#### Best Practices
+
+1. **Return None for unsupported capabilities** - Don't panic or return errors
+   ```rust
+   fn module_locator(&self) -> Option<&dyn ModuleLocator> {
+       None  // This plugin doesn't support module location
+   }
+   ```
+
+2. **Implement capabilities incrementally** - Start with one capability, add more over time
+   ```rust
+   // v1: Just manifest updates
+   fn manifest_updater(&self) -> Option<&dyn ManifestUpdater> { Some(self) }
+   fn refactoring_provider(&self) -> Option<&dyn RefactoringProvider> { None }
+
+   // v2: Add refactoring later
+   fn refactoring_provider(&self) -> Option<&dyn RefactoringProvider> { Some(self) }
+   ```
+
+3. **Use capability checks for feature detection**
+   ```rust
+   // Check if refactoring is available before offering it to users
+   if let Some(provider) = plugin.refactoring_provider() {
+       if provider.supports_extract_function() {
+           // Show "Extract Function" option in UI
+       }
+   }
+   ```
+
+4. **Keep capability traits focused** - Each trait should represent a single cohesive capability
+
+5. **Document capability support** - Update your plugin's README with supported capabilities
+
+For complete examples, see:
+- **[crates/cb-lang-rust/src/lib.rs](../crates/cb-lang-rust/src/lib.rs)** - Full capability implementation
+- **[crates/cb-lang-typescript/src/lib.rs](../crates/cb-lang-typescript/src/lib.rs)** - Partial capability support
+- **[crates/cb-plugin-api/src/capabilities.rs](../crates/cb-plugin-api/src/capabilities.rs)** - Capability trait definitions
+
 ## Adding New MCP Tools
 
 This section explains how to add new tools and handlers to the system.

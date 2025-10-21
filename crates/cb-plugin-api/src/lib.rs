@@ -640,17 +640,6 @@ impl PluginRegistry {
         plugin.refactoring_provider()
     }
 
-    /// Get the refactoring provider capability from the first plugin that supports it
-    ///
-    /// **DEPRECATED**: Use `refactoring_provider_for_file()` instead to ensure correct
-    /// language plugin is selected. This method returns the first plugin with the capability,
-    /// which breaks multi-language support.
-    #[deprecated(note = "Use refactoring_provider_for_file() to ensure correct plugin selection")]
-    pub fn refactoring_provider(&self) -> Option<&dyn RefactoringProvider> {
-        self.plugins
-            .iter()
-            .find_map(|p| p.refactoring_provider())
-    }
 }
 
 impl Default for PluginRegistry {
@@ -833,5 +822,178 @@ mod tests {
         // Test that non-existent extension returns None
         let unknown_provider = registry.refactoring_provider_for_file("file.unknown");
         assert!(unknown_provider.is_none(), "Should return None for unknown extension");
+    }
+
+    #[test]
+    fn test_capability_discovery_pattern() {
+        use crate::{ManifestUpdater, ModuleLocator};
+
+        // Plugin with multiple capabilities
+        struct FullFeaturedPlugin;
+
+        #[async_trait]
+        impl LanguagePlugin for FullFeaturedPlugin {
+            fn metadata(&self) -> &LanguageMetadata {
+                static METADATA: LanguageMetadata = LanguageMetadata {
+                    name: "full-featured",
+                    extensions: &["full"],
+                    manifest_filename: "manifest.toml",
+                    source_dir: "src",
+                    entry_point: "lib.full",
+                    module_separator: "::",
+                };
+                &METADATA
+            }
+
+            fn capabilities(&self) -> PluginCapabilities {
+                PluginCapabilities::none()
+            }
+
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
+
+            async fn parse(&self, _: &str) -> PluginResult<ParsedSource> {
+                unimplemented!()
+            }
+
+            async fn analyze_manifest(&self, _: &Path) -> PluginResult<ManifestData> {
+                unimplemented!()
+            }
+
+            fn manifest_updater(&self) -> Option<&dyn ManifestUpdater> {
+                Some(self)
+            }
+
+            fn module_locator(&self) -> Option<&dyn ModuleLocator> {
+                Some(self)
+            }
+
+            fn refactoring_provider(&self) -> Option<&dyn RefactoringProvider> {
+                Some(self)
+            }
+        }
+
+        #[async_trait]
+        impl ManifestUpdater for FullFeaturedPlugin {
+            async fn update_dependency(
+                &self,
+                _: &Path,
+                _: &str,
+                _: &str,
+                _: Option<&str>,
+            ) -> PluginResult<String> {
+                Ok("updated".to_string())
+            }
+
+            fn generate_manifest(&self, _: &str, _: &[String]) -> String {
+                "manifest".to_string()
+            }
+        }
+
+        #[async_trait]
+        impl ModuleLocator for FullFeaturedPlugin {
+            async fn locate_module_files(
+                &self,
+                _: &Path,
+                _: &str,
+            ) -> PluginResult<Vec<std::path::PathBuf>> {
+                Ok(vec![])
+            }
+        }
+
+        #[async_trait]
+        impl RefactoringProvider for FullFeaturedPlugin {}
+
+        let mut registry = PluginRegistry::new();
+        registry.register(Arc::new(FullFeaturedPlugin));
+
+        // Verify all capabilities are discoverable
+        let plugin = registry.find_by_extension("full").unwrap();
+
+        assert!(plugin.manifest_updater().is_some(), "Should have ManifestUpdater");
+        assert!(plugin.module_locator().is_some(), "Should have ModuleLocator");
+        assert!(plugin.refactoring_provider().is_some(), "Should have RefactoringProvider");
+
+        // Verify file-based lookup works
+        let refactoring = registry.refactoring_provider_for_file("test.full");
+        assert!(refactoring.is_some(), "Should find via file extension");
+    }
+
+    #[test]
+    fn test_partial_capability_support() {
+        use crate::ManifestUpdater;
+
+        // Plugin with only some capabilities
+        struct MinimalPlugin;
+
+        #[async_trait]
+        impl LanguagePlugin for MinimalPlugin {
+            fn metadata(&self) -> &LanguageMetadata {
+                static METADATA: LanguageMetadata = LanguageMetadata {
+                    name: "minimal",
+                    extensions: &["min"],
+                    manifest_filename: "manifest.toml",
+                    source_dir: "src",
+                    entry_point: "lib.min",
+                    module_separator: ".",
+                };
+                &METADATA
+            }
+
+            fn capabilities(&self) -> PluginCapabilities {
+                PluginCapabilities::none()
+            }
+
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
+
+            async fn parse(&self, _: &str) -> PluginResult<ParsedSource> {
+                unimplemented!()
+            }
+
+            async fn analyze_manifest(&self, _: &Path) -> PluginResult<ManifestData> {
+                unimplemented!()
+            }
+
+            // Only has ManifestUpdater, not other capabilities
+            fn manifest_updater(&self) -> Option<&dyn ManifestUpdater> {
+                Some(self)
+            }
+        }
+
+        #[async_trait]
+        impl ManifestUpdater for MinimalPlugin {
+            async fn update_dependency(
+                &self,
+                _: &Path,
+                _: &str,
+                _: &str,
+                _: Option<&str>,
+            ) -> PluginResult<String> {
+                Ok("updated".to_string())
+            }
+
+            fn generate_manifest(&self, _: &str, _: &[String]) -> String {
+                "minimal manifest".to_string()
+            }
+        }
+
+        let mut registry = PluginRegistry::new();
+        registry.register(Arc::new(MinimalPlugin));
+
+        let plugin = registry.find_by_extension("min").unwrap();
+
+        // Has ManifestUpdater
+        assert!(plugin.manifest_updater().is_some(), "Should have ManifestUpdater");
+
+        // Doesn't have other capabilities
+        assert!(plugin.module_locator().is_none(), "Should NOT have ModuleLocator");
+        assert!(plugin.refactoring_provider().is_none(), "Should NOT have RefactoringProvider");
+
+        // File-based lookup returns None for missing capability
+        let refactoring = registry.refactoring_provider_for_file("test.min");
+        assert!(refactoring.is_none(), "Should return None when capability not present");
     }
 }

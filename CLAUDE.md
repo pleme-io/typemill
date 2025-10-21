@@ -680,6 +680,207 @@ See **[docs/operations/cache_configuration.md](docs/operations/cache_configurati
 
 **Note:** Additional language plugin implementations (Python, Go, Java, Swift, C#) available in git tag `pre-language-reduction`.
 
+### Capability Trait Pattern
+
+The codebase uses a **capability-based dispatch pattern** to enable language-agnostic code that works with any language plugin without compile-time feature flags or runtime downcasting.
+
+#### What is the Capability Trait Pattern?
+
+Instead of checking what language a plugin supports and downcasting to specific types, shared code queries plugins for **capabilities** they expose via traits:
+
+```rust
+// ❌ OLD: Downcasting + cfg guards
+#[cfg(feature = "lang-rust")]
+if let Some(rust_plugin) = plugin.as_any().downcast_ref::<RustPlugin>() {
+    rust_plugin.update_dependency(...)?;
+}
+
+// ✅ NEW: Capability-based
+if let Some(updater) = plugin.manifest_updater() {
+    updater.update_dependency(...).await?;
+}
+```
+
+**Benefits:**
+- **Zero cfg guards** - No compile-time feature flags in shared code
+- **True plug-and-play** - Add new languages without touching shared crates
+- **Type safety** - Compile-time guarantees via trait contracts
+- **Multi-language support** - Correct plugin selected automatically by file extension
+
+#### Core Capability Traits
+
+**1. ManifestUpdater** - Update package manifest files (Cargo.toml, package.json)
+
+```rust
+#[async_trait]
+pub trait ManifestUpdater: Send + Sync {
+    async fn update_dependency(
+        &self,
+        manifest_path: &Path,
+        old_name: &str,
+        new_name: &str,
+        new_version: Option<&str>,
+    ) -> PluginResult<String>;
+}
+```
+
+**2. ModuleLocator** - Find module files within packages
+
+```rust
+#[async_trait]
+pub trait ModuleLocator: Send + Sync {
+    async fn locate_module_files(
+        &self,
+        package_path: &Path,
+        module_path: &str,
+    ) -> PluginResult<Vec<PathBuf>>;
+}
+```
+
+**3. RefactoringProvider** - AST-based refactoring operations
+
+```rust
+#[async_trait]
+pub trait RefactoringProvider: Send + Sync {
+    fn supports_inline_variable(&self) -> bool;
+    fn supports_extract_function(&self) -> bool;
+    fn supports_extract_variable(&self) -> bool;
+
+    async fn plan_inline_variable(...) -> PluginResult<EditPlan>;
+    async fn plan_extract_function(...) -> PluginResult<EditPlan>;
+    async fn plan_extract_variable(...) -> PluginResult<EditPlan>;
+}
+```
+
+#### File-Extension-Based Routing
+
+The plugin registry automatically routes requests to the correct language plugin based on file extension:
+
+```rust
+// Get the right plugin for a specific file
+let provider = plugin_registry.refactoring_provider_for_file("src/main.rs")?;
+// Returns Rust plugin's RefactoringProvider
+
+let provider = plugin_registry.refactoring_provider_for_file("src/app.tsx")?;
+// Returns TypeScript plugin's RefactoringProvider
+```
+
+**Under the hood:**
+1. Extract file extension from path
+2. Find plugin registered for that extension
+3. Query that specific plugin for the capability
+4. Return trait object or None
+
+#### Implementing Capabilities in Plugins
+
+When implementing a language plugin, expose capabilities via the `LanguagePlugin` trait:
+
+```rust
+impl LanguagePlugin for RustPlugin {
+    fn manifest_updater(&self) -> Option<&dyn ManifestUpdater> {
+        Some(self)  // If this plugin implements the trait
+    }
+
+    fn module_locator(&self) -> Option<&dyn ModuleLocator> {
+        Some(self)
+    }
+
+    fn refactoring_provider(&self) -> Option<&dyn RefactoringProvider> {
+        Some(self)
+    }
+}
+
+// Then implement the actual capability traits
+#[async_trait]
+impl ManifestUpdater for RustPlugin {
+    async fn update_dependency(...) -> PluginResult<String> {
+        // Rust-specific Cargo.toml update logic
+    }
+}
+```
+
+**Partial capability support:**
+```rust
+impl LanguagePlugin for MinimalPlugin {
+    fn manifest_updater(&self) -> Option<&dyn ManifestUpdater> {
+        None  // This plugin doesn't support manifest updates
+    }
+
+    fn refactoring_provider(&self) -> Option<&dyn RefactoringProvider> {
+        Some(self)  // But it does support refactoring
+    }
+}
+```
+
+#### Usage Examples
+
+**Example 1: Manifest Updates (workspace.rs)**
+```rust
+// Find plugin for the manifest file type
+let plugin = plugins
+    .find_by_extension("toml")
+    .ok_or_else(|| anyhow!("No plugin for .toml files"))?;
+
+// Query for ManifestUpdater capability
+let updater = plugin
+    .manifest_updater()
+    .ok_or_else(|| anyhow!("Plugin does not support manifest updates"))?;
+
+// Use the capability
+updater.update_dependency(manifest_path, old_name, new_name, version).await?;
+```
+
+**Example 2: Refactoring with File Routing (extract_function.rs)**
+```rust
+// Automatically routes to correct plugin based on file extension
+let provider = plugins
+    .refactoring_provider_for_file(file_path)
+    .ok_or_else(|| AstError::UnsupportedLanguage(file_path.to_string()))?;
+
+// Execute refactoring using the correct language plugin
+let plan = provider.plan_extract_function(params).await?;
+```
+
+**Example 3: Graceful Degradation**
+```rust
+// Check if capability is available before using
+if let Some(locator) = plugin.module_locator() {
+    let files = locator.locate_module_files(package_path, module_path).await?;
+    // Use the files...
+} else {
+    // Fallback behavior or error
+    warn!("Module locator not available, using basic file search");
+    // Basic implementation without plugin support
+}
+```
+
+#### Testing Capability Routing
+
+Comprehensive tests verify correct routing and graceful degradation:
+
+```rust
+#[test]
+fn test_capability_routing() {
+    let registry = PluginRegistry::new();
+    registry.register_plugin(RustPlugin::new(), vec!["rs"]);
+    registry.register_plugin(TypeScriptPlugin::new(), vec!["ts", "tsx"]);
+
+    // Verify Rust files route to Rust plugin
+    let provider = registry.refactoring_provider_for_file("src/main.rs");
+    assert!(provider.is_some());
+
+    // Verify TypeScript files route to TypeScript plugin
+    let provider = registry.refactoring_provider_for_file("src/app.tsx");
+    assert!(provider.is_some());
+
+    // Verify unknown extensions return None
+    let provider = registry.refactoring_provider_for_file("file.unknown");
+    assert!(provider.is_none());
+}
+```
+
+**See [crates/cb-plugin-api/src/lib.rs](crates/cb-plugin-api/src/lib.rs)** for the complete plugin registry implementation and capability routing logic.
+
 ### Adding New MCP Tools
 
 **See [contributing.md](contributing.md)** for complete step-by-step guide on adding new tools with handler architecture, registration, and best practices.
