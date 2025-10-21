@@ -15,7 +15,15 @@ use std::sync::Arc;
 static REGISTRY: OnceCell<Arc<PluginRegistry>> = OnceCell::new();
 
 fn get_or_init_registry() -> &'static Arc<PluginRegistry> {
-    REGISTRY.get_or_init(build_language_plugin_registry)
+    REGISTRY.get_or_init(|| {
+        // Force link of plugin-bundle by calling it
+        // This ensures all plugins are available via inventory
+        #[cfg(test)]
+        {
+            let _plugins = codebuddy_plugin_bundle::all_plugins();
+        }
+        build_language_plugin_registry()
+    })
 }
 
 /// Discover all installed language plugins that provide test fixtures.

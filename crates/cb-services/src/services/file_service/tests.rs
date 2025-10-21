@@ -1,4 +1,5 @@
 #[cfg(test)]
+#[allow(clippy::module_inception)]
 mod tests {
     use crate::services::file_service::FileService;
     use crate::services::lock_manager::LockManager;
@@ -520,97 +521,10 @@ mod tests {
 mod workspace_tests {
     use crate::services::file_service::FileService;
     use crate::services::lock_manager::LockManager;
-    use crate::services::operation_queue::{OperationQueue, OperationType};
+    use crate::services::operation_queue::OperationQueue;
     use codebuddy_ast::AstCache;
     use std::sync::Arc;
     use tempfile::TempDir;
-    use tokio::fs;
-
-    // Helper to start a background worker for tests
-    fn spawn_test_worker(queue: Arc<OperationQueue>) {
-        use codebuddy_foundation::protocol::ApiError;
-
-        tokio::spawn(async move {
-            queue
-                .process_with(|op, stats| async move {
-                    let result: Result<(), ApiError> = match op.operation_type {
-                        OperationType::CreateDir => {
-                            fs::create_dir_all(&op.file_path).await.map_err(|e| {
-                                ApiError::Internal(format!("Failed to create directory: {}", e))
-                            })
-                        }
-                        OperationType::CreateFile | OperationType::Write => {
-                            let content = op
-                                .params
-                                .get("content")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("");
-                            fs::write(&op.file_path, content).await.map_err(|e| {
-                                ApiError::Internal(format!("Failed to write file: {}", e))
-                            })
-                        }
-                        OperationType::Delete => {
-                            if op.file_path.exists() {
-                                fs::remove_file(&op.file_path).await.map_err(|e| {
-                                    ApiError::Internal(format!("Failed to delete file: {}", e))
-                                })
-                            } else {
-                                Ok(())
-                            }
-                        }
-                        OperationType::Rename => {
-                            let new_path_str = op
-                                .params
-                                .get("new_path")
-                                .and_then(|v| v.as_str())
-                                .ok_or_else(|| {
-                                ApiError::Internal("Missing new_path".to_string())
-                            })?;
-                            fs::rename(&op.file_path, new_path_str).await.map_err(|e| {
-                                ApiError::Internal(format!("Failed to rename file: {}", e))
-                            })
-                        }
-                        _ => Ok(()),
-                    };
-
-                    // Update stats after operation completes
-                    let mut stats_guard = stats.lock().await;
-                    match &result {
-                        Ok(_) => {
-                            stats_guard.completed_operations += 1;
-                        }
-                        Err(_) => {
-                            stats_guard.failed_operations += 1;
-                        }
-                    }
-                    drop(stats_guard);
-
-                    result.map(|_| serde_json::Value::Null)
-                })
-                .await;
-        });
-    }
-
-    fn create_test_service(temp_dir: &TempDir) -> (FileService, Arc<OperationQueue>) {
-        let ast_cache = Arc::new(AstCache::new());
-        let lock_manager = Arc::new(LockManager::new());
-        let operation_queue = Arc::new(OperationQueue::new(lock_manager.clone()));
-        let config = codebuddy_config::config::AppConfig::default();
-        let plugin_registry = crate::services::build_language_plugin_registry();
-        let service = FileService::new(
-            temp_dir.path(),
-            ast_cache,
-            lock_manager,
-            operation_queue.clone(),
-            &config,
-            plugin_registry,
-        );
-
-        // Spawn background worker to process queued operations
-        spawn_test_worker(operation_queue.clone());
-
-        (service, operation_queue)
-    }
 
     // Removed test: test_update_workspace_manifests_simple_rename
     // This tested the old update_workspace_manifests method which has been removed.

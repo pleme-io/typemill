@@ -32,6 +32,10 @@ codebuddy-ast = { path = "../codebuddy-ast", default-features = false }
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
 
+# Plugin bundle - provides all language plugins via auto-discovery
+# Linked via extern crate declaration in test modules
+codebuddy-plugin-bundle = { path = "../codebuddy-plugin-bundle", features = ["lang-rust", "lang-typescript", "lang-markdown", "lang-toml", "lang-yaml"] }
+
 # Benchmarks (merged from cb-bench)
 [[bench]]
 name = "dispatch_benchmark"

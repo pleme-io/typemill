@@ -7,6 +7,9 @@
 //! Unlike E2E tests which use TestClient and MCP protocol, these tests directly
 //! instantiate service components and test their integration.
 
+// Force linker to include plugin-bundle for inventory collection
+extern crate codebuddy_plugin_bundle;
+
 use cb_server::handlers::AppState;
 use cb_server::services::{DefaultAstService, FileService, LockManager, OperationQueue};
 use cb_server::workspaces::WorkspaceManager;
