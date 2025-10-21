@@ -162,8 +162,34 @@ impl ReferenceUpdater {
 
         // For directory renames, exclude files inside the renamed directory UNLESS it's a Rust crate rename
         // For Rust crate renames, we need to process files inside the crate to update self-referencing imports
-        if is_directory_rename && !is_rust_crate_rename {
-            affected_files.retain(|file| !file.starts_with(old_path));
+        if is_directory_rename {
+            if is_rust_crate_rename {
+                // For Rust crate renames, INCLUDE files inside the crate for self-reference updates
+                // Add all Rust files inside the renamed crate to affected_files
+                tracing::info!(
+                    "Rust crate rename detected - including files inside crate for self-reference updates"
+                );
+
+                let files_in_crate: Vec<PathBuf> = project_files
+                    .iter()
+                    .filter(|f| f.starts_with(old_path) && f.extension().and_then(|e| e.to_str()) == Some("rs"))
+                    .cloned()
+                    .collect();
+
+                tracing::info!(
+                    files_in_crate_count = files_in_crate.len(),
+                    "Found Rust files inside renamed crate"
+                );
+
+                for file in files_in_crate {
+                    if !affected_files.contains(&file) {
+                        affected_files.push(file);
+                    }
+                }
+            } else {
+                // For non-Rust directory renames, exclude files inside the directory
+                affected_files.retain(|file| !file.starts_with(old_path));
+            }
         }
 
         let mut all_edits = Vec::new();
@@ -219,8 +245,18 @@ impl ReferenceUpdater {
                         let line_count = content.lines().count();
                         let last_line_len = content.lines().last().map(|l| l.len()).unwrap_or(0);
 
+                        // For files inside the renamed directory, use the NEW path
+                        let edit_file_path = if file_path.starts_with(old_path) {
+                            // File is inside the renamed directory - compute new path
+                            let relative_path = file_path.strip_prefix(old_path).unwrap_or(&file_path);
+                            new_path.join(relative_path)
+                        } else {
+                            // File is outside the renamed directory - use original path
+                            file_path.clone()
+                        };
+
                         all_edits.push(TextEdit {
-                            file_path: Some(file_path.to_string_lossy().to_string()),
+                            file_path: Some(edit_file_path.to_string_lossy().to_string()),
                             edit_type: EditType::UpdateImport,
                             location: EditLocation {
                                 start_line: 0,
@@ -233,7 +269,7 @@ impl ReferenceUpdater {
                             priority: 1,
                             description: format!(
                                 "Update imports in {} for crate rename",
-                                file_path.display()
+                                edit_file_path.display()
                             ),
                         });
                     }
