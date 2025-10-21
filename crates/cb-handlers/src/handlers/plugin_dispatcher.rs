@@ -112,8 +112,9 @@ impl PluginDispatcher {
             debug!("Inside initialize - loading app config");
             info!("Initializing plugin system with DirectLspAdapter (bypassing hard-coded mappings)");
 
-            // Build centralized language plugin registry for SystemToolsPlugin
-            let plugin_registry = cb_services::services::build_language_plugin_registry();
+            // Use the injected language plugin registry from AppState
+            // This ensures we use the same registry that was built at the application layer
+            let plugin_registry = self.app_state.language_plugins.inner.clone();
 
             // Get LSP configuration from app config
             let app_config = codebuddy_config::config::AppConfig::load()
