@@ -86,6 +86,7 @@ impl<'a> MoveService<'a> {
             self.reference_updater,
             self.plugin_registry,
             scan_scope,
+            None, // No RenameScope - use default behavior
         )
         .await
     }
@@ -136,6 +137,7 @@ impl<'a> MoveService<'a> {
             self.plugin_registry,
             self.project_root,
             scan_scope,
+            None, // No RenameScope - use default behavior
         )
         .await
     }
@@ -149,6 +151,23 @@ impl<'a> MoveService<'a> {
         new_path: &Path,
         rename_scope: Option<&codebuddy_foundation::core::rename_scope::RenameScope>,
     ) -> ServerResult<EditPlan> {
+        info!(
+            old_path = %old_path.display(),
+            new_path = %new_path.display(),
+            "Planning file move with scope"
+        );
+
+        let old_abs = self.to_absolute_path(old_path);
+        let new_abs = self.to_absolute_path(new_path);
+
+        // Validate source file exists
+        if !old_abs.exists() {
+            return Err(ServerError::NotFound(format!(
+                "Source file does not exist: {}",
+                old_abs.display()
+            )));
+        }
+
         // Choose ScanScope based on RenameScope settings
         // Use ScanScope::All if string literals should be updated
         let scan_scope = if let Some(scope) = rename_scope {
@@ -162,9 +181,20 @@ impl<'a> MoveService<'a> {
             Some(ScanScope::All)
         };
 
-        let mut edit_plan = self.plan_file_move(old_path, new_path, scan_scope).await?;
+        // Call planner directly to pass RenameScope
+        let mut edit_plan = planner::plan_file_move(
+            &old_abs,
+            &new_abs,
+            self.reference_updater,
+            self.plugin_registry,
+            scan_scope,
+            rename_scope,
+        )
+        .await?;
 
-        // Apply RenameScope filtering to edits
+        // Apply RenameScope filtering to edits as additional safety measure
+        // Note: With the updated find_project_files(), files should already be filtered correctly,
+        // but we keep this for belt-and-suspenders safety
         if let Some(scope) = rename_scope {
             edit_plan.edits.retain(|edit| {
                 if let Some(ref file_path) = edit.file_path {
@@ -187,6 +217,30 @@ impl<'a> MoveService<'a> {
         new_path: &Path,
         rename_scope: Option<&codebuddy_foundation::core::rename_scope::RenameScope>,
     ) -> ServerResult<EditPlan> {
+        info!(
+            old_path = %old_path.display(),
+            new_path = %new_path.display(),
+            "Planning directory move with scope"
+        );
+
+        let old_abs = self.to_absolute_path(old_path);
+        let new_abs = self.to_absolute_path(new_path);
+
+        // Validate source directory exists
+        if !old_abs.exists() {
+            return Err(ServerError::NotFound(format!(
+                "Source directory does not exist: {}",
+                old_abs.display()
+            )));
+        }
+
+        if !old_abs.is_dir() {
+            return Err(ServerError::InvalidRequest(format!(
+                "Path is not a directory: {}",
+                old_abs.display()
+            )));
+        }
+
         // Choose ScanScope based on RenameScope settings
         // Use ScanScope::All if string literals should be updated
         let scan_scope = if let Some(scope) = rename_scope {
@@ -200,11 +254,21 @@ impl<'a> MoveService<'a> {
             Some(ScanScope::All)
         };
 
-        let mut edit_plan = self
-            .plan_directory_move(old_path, new_path, scan_scope)
-            .await?;
+        // Call planner directly to pass RenameScope
+        let mut edit_plan = planner::plan_directory_move(
+            &old_abs,
+            &new_abs,
+            self.reference_updater,
+            self.plugin_registry,
+            self.project_root,
+            scan_scope,
+            rename_scope,
+        )
+        .await?;
 
-        // Apply RenameScope filtering to edits
+        // Apply RenameScope filtering to edits as additional safety measure
+        // Note: With the updated find_project_files(), files should already be filtered correctly,
+        // but we keep this for belt-and-suspenders safety
         if let Some(scope) = rename_scope {
             edit_plan.edits.retain(|edit| {
                 if let Some(ref file_path) = edit.file_path {

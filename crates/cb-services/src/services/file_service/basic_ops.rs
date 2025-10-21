@@ -128,7 +128,7 @@ impl FileService {
 
             let affected_files_count = if !force {
                 let plugins = &self.plugin_registry.all();
-                let project_files = find_project_files(&self.project_root, plugins).await?;
+                let project_files = find_project_files(&self.project_root, plugins, None).await?;
                 let affected = self
                     .reference_updater
                     .find_affected_files(&abs_path, &project_files, plugins)
@@ -176,7 +176,7 @@ impl FileService {
 
             if !force {
                 let plugins = &self.plugin_registry.all();
-                let project_files = find_project_files(&self.project_root, plugins).await?;
+                let project_files = find_project_files(&self.project_root, plugins, None).await?;
                 let affected = self
                     .reference_updater
                     .find_affected_files(&abs_path, &project_files, plugins)

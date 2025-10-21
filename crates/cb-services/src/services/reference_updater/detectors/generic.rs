@@ -268,7 +268,7 @@ export function main() {
 
         // Test generic detector
         let affected =
-            find_generic_affected_files(&old_path, &new_path, root, &project_files, &plugins);
+            find_generic_affected_files(&old_path, &new_path, root, &project_files, plugins);
 
         println!("DEBUG: Old path: {}", old_path.display());
         println!("DEBUG: New path: {}", new_path.display());
@@ -311,7 +311,7 @@ export function main() {
         let plugins = plugin_registry.all();
 
         let affected =
-            find_generic_affected_files(old_path, new_path, root, &project_files, &plugins);
+            find_generic_affected_files(old_path, new_path, root, &project_files, plugins);
 
         assert!(
             affected.iter().any(|p| p.ends_with("config.yml")),
@@ -352,7 +352,7 @@ export function main() {
         let plugins = plugin_registry.all();
 
         let affected =
-            find_generic_affected_files(old_path, new_path, root, &project_files, &plugins);
+            find_generic_affected_files(old_path, new_path, root, &project_files, plugins);
 
         assert!(
             affected.iter().any(|p| p.ends_with("config.toml")),
@@ -389,7 +389,7 @@ export function main() {
         let plugins = plugin_registry.all();
 
         let affected =
-            find_generic_affected_files(&old_path, &new_path, root, &project_files, &plugins);
+            find_generic_affected_files(&old_path, &new_path, root, &project_files, plugins);
 
         assert!(
             affected.iter().any(|p| p.ends_with("README.md")),
@@ -438,7 +438,7 @@ export function main() {
         let plugins = plugin_registry.all();
 
         let affected =
-            find_generic_affected_files(old_path, new_path, root, &project_files, &plugins);
+            find_generic_affected_files(old_path, new_path, root, &project_files, plugins);
 
         assert!(
             affected.iter().any(|p| p.ends_with("main.rs")),

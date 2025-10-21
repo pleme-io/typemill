@@ -13,6 +13,7 @@ pub async fn plan_file_move(
     reference_updater: &ReferenceUpdater,
     plugin_registry: &PluginRegistry,
     scan_scope: Option<ScanScope>,
+    rename_scope: Option<&codebuddy_foundation::core::rename_scope::RenameScope>,
 ) -> ServerResult<EditPlan> {
     info!(
         old_path = %old_abs.display(),
@@ -30,6 +31,7 @@ pub async fn plan_file_move(
             None, // No rename_info for simple file moves
             true, // dry_run = true
             scan_scope,
+            rename_scope,
         )
         .await?;
 
@@ -70,6 +72,7 @@ pub async fn plan_directory_move(
     plugin_registry: &PluginRegistry,
     project_root: &Path,
     scan_scope: Option<ScanScope>,
+    rename_scope: Option<&codebuddy_foundation::core::rename_scope::RenameScope>,
 ) -> ServerResult<EditPlan> {
     info!(
         old_path = %old_abs.display(),
@@ -127,6 +130,7 @@ pub async fn plan_directory_move(
             rename_info.as_ref(),
             true, // dry_run = true
             effective_scan_scope,
+            rename_scope,
         )
         .await?;
 

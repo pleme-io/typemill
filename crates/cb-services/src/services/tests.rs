@@ -69,7 +69,7 @@ async fn test_write_operations_serialized() {
 
     // Create multiple write operations with different priorities
     let mut handles = Vec::new();
-    let priorities = vec![5, 1, 3, 2, 4]; // Different priorities (1 = highest)
+    let priorities = [5, 1, 3, 2, 4]; // Different priorities (1 = highest)
 
     for (i, priority) in priorities.iter().enumerate() {
         let queue = operation_queue.clone();

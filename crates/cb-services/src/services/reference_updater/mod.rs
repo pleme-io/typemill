@@ -37,6 +37,7 @@ impl ReferenceUpdater {
     }
 
     /// Updates all references to `old_path` to point to `new_path`.
+    #[allow(clippy::too_many_arguments)]
     pub async fn update_references(
         &self,
         old_path: &Path,
@@ -45,11 +46,13 @@ impl ReferenceUpdater {
         rename_info: Option<&serde_json::Value>,
         _dry_run: bool,
         _scan_scope: Option<cb_plugin_api::ScanScope>,
+        rename_scope: Option<&codebuddy_foundation::core::rename_scope::RenameScope>,
     ) -> ServerResult<EditPlan> {
         let is_directory_rename = old_path.is_dir();
 
         // From edit_builder.rs
-        let mut project_files = find_project_files(&self.project_root, plugins).await?;
+        let mut project_files =
+            find_project_files(&self.project_root, plugins, rename_scope).await?;
 
         // For consolidation moves (detected via rename_info), exclude Cargo.toml files
         // These are handled semantically by consolidate_rust_package, not via generic path updates
@@ -570,10 +573,63 @@ impl ReferenceUpdater {
     }
 }
 
-/// Find all project files that match the language adapters
+/// Find all project files that should be scanned for reference updates
+///
+/// # File Filtering Strategy
+///
+/// This function supports two modes of file filtering:
+///
+/// ## 1. RenameScope-based filtering (when `rename_scope` is Some)
+///
+/// Uses the provided `RenameScope` to determine which files to include based on:
+/// - `update_code`: Include code files (.rs, .ts, .tsx, .js, .jsx)
+/// - `update_docs`: Include documentation files (.md, .markdown)
+/// - `update_configs`: Include configuration files (.toml, .yaml, .yml)
+/// - `exclude_patterns`: Glob patterns to exclude specific files/directories
+///
+/// This mode enables **comprehensive rename coverage** - when updating references after a
+/// rename/move operation, all relevant file types (code, docs, configs) can be scanned and
+/// updated, ensuring 100% coverage of affected references.
+///
+/// **Example:** Renaming `old-dir/` → `new-dir/` with `update_docs=true` and `update_configs=true`
+/// will scan and update:
+/// - Code files: `src/main.rs` (imports, qualified paths)
+/// - Documentation: `README.md` (markdown links, path mentions)
+/// - Configs: `Cargo.toml`, `.github/workflows/ci.yml` (path references)
+///
+/// ## 2. Plugin-based filtering (when `rename_scope` is None - backward compatibility)
+///
+/// Uses language plugins to determine which files to include. A file is included if any
+/// registered plugin handles its extension. This mode maintains backward compatibility with
+/// code that doesn't use RenameScope.
+///
+/// # Bug Fix (2025-10-20)
+///
+/// **Previous behavior:** Only scanned files that language plugins handle, which excluded
+/// .md, .toml, .yaml files even when RenameScope specified they should be updated.
+///
+/// **Root cause:** The function only checked `plugin.handles_extension()`, ignoring the
+/// `RenameScope` settings.
+///
+/// **Fix:** When RenameScope is provided, use `scope.should_include_file()` to determine
+/// inclusion, which respects all scope settings including file type flags and exclude patterns.
+///
+/// **Impact:** Enables comprehensive rename coverage (100% of affected references) when using
+/// RenameScope with appropriate flags.
+///
+/// # Arguments
+///
+/// * `project_root` - Root directory to scan
+/// * `plugins` - Registered language plugins
+/// * `rename_scope` - Optional scope controlling which file types to include
+///
+/// # Returns
+///
+/// Vector of absolute paths to files that should be scanned
 pub async fn find_project_files(
     project_root: &Path,
     plugins: &[std::sync::Arc<dyn cb_plugin_api::LanguagePlugin>],
+    rename_scope: Option<&codebuddy_foundation::core::rename_scope::RenameScope>,
 ) -> ServerResult<Vec<PathBuf>> {
     let mut files = Vec::new();
 
@@ -581,6 +637,7 @@ pub async fn find_project_files(
         dir: &'a Path,
         files: &'a mut Vec<PathBuf>,
         plugins: &'a [std::sync::Arc<dyn cb_plugin_api::LanguagePlugin>],
+        rename_scope: Option<&'a codebuddy_foundation::core::rename_scope::RenameScope>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ServerResult<()>> + Send + 'a>> {
         Box::pin(async move {
             if dir.is_dir() {
@@ -615,13 +672,22 @@ pub async fn find_project_files(
                 {
                     let path = entry.path();
                     if path.is_dir() {
-                        collect_files(&path, files, plugins).await?;
-                    } else if let Some(ext) = path.extension() {
-                        let ext_str = ext.to_str().unwrap_or("");
-                        if plugins
-                            .iter()
-                            .any(|plugin| plugin.handles_extension(ext_str))
-                        {
+                        collect_files(&path, files, plugins, rename_scope).await?;
+                    } else {
+                        // If RenameScope is provided, use it to determine file inclusion
+                        // Otherwise, fall back to plugin-based filtering for backward compatibility
+                        let should_include = if let Some(scope) = rename_scope {
+                            scope.should_include_file(&path)
+                        } else if let Some(ext) = path.extension() {
+                            let ext_str = ext.to_str().unwrap_or("");
+                            plugins
+                                .iter()
+                                .any(|plugin| plugin.handles_extension(ext_str))
+                        } else {
+                            false
+                        };
+
+                        if should_include {
                             files.push(path);
                         }
                     }
@@ -631,7 +697,7 @@ pub async fn find_project_files(
         })
     }
 
-    collect_files(project_root, &mut files, plugins).await?;
+    collect_files(project_root, &mut files, plugins, rename_scope).await?;
     Ok(files)
 }
 
@@ -702,7 +768,7 @@ mod tests {
 
         // Test: find_affected_files_for_rename should detect my_crate/src/main.rs
         let affected = updater
-            .find_affected_files_for_rename(&old_path, &new_path, &project_files, &plugins)
+            .find_affected_files_for_rename(&old_path, &new_path, &project_files, plugins)
             .await
             .unwrap();
 
@@ -786,7 +852,7 @@ mod tests {
 
         // Test: find_affected_files_for_rename should detect common/src/processor.rs
         let affected = updater
-            .find_affected_files_for_rename(&old_path, &new_path, &project_files, &plugins)
+            .find_affected_files_for_rename(&old_path, &new_path, &project_files, plugins)
             .await
             .unwrap();
 
@@ -805,5 +871,268 @@ mod tests {
             affected.len(),
             affected
         );
+    }
+
+    /// Test that find_project_files respects RenameScope for documentation files
+    #[tokio::test]
+    async fn test_find_project_files_with_rename_scope_docs() {
+        let temp_dir = TempDir::new().unwrap();
+        let root = temp_dir.path();
+
+        // Create test files
+        fs::create_dir_all(root.join("src")).await.unwrap();
+        fs::write(root.join("src/main.rs"), "fn main() {}")
+            .await
+            .unwrap();
+        fs::write(root.join("README.md"), "# Project")
+            .await
+            .unwrap();
+        fs::write(root.join("CHANGELOG.md"), "# Changes")
+            .await
+            .unwrap();
+
+        let plugin_registry = crate::services::registry_builder::build_language_plugin_registry();
+        let plugins = plugin_registry.all();
+
+        // Test WITHOUT RenameScope - uses plugin-based filtering (includes all plugin-supported files)
+        let files_without_scope = find_project_files(root, plugins, None).await.unwrap();
+        // With language plugins for Rust and Markdown, all 3 files are included
+        assert_eq!(
+            files_without_scope.len(),
+            3,
+            "Without RenameScope, uses plugin-based filtering. Found: {:?}",
+            files_without_scope
+        );
+
+        // Test WITH RenameScope - update_docs=false should exclude .md files
+        let scope_no_docs = codebuddy_foundation::core::rename_scope::RenameScope {
+            update_code: true,
+            update_docs: false, // Exclude docs
+            update_configs: false,
+            update_string_literals: false,
+            update_examples: false,
+            update_comments: false,
+            update_markdown_prose: false,
+            exclude_patterns: vec![],
+        };
+
+        let files_no_docs = find_project_files(root, plugins, Some(&scope_no_docs))
+            .await
+            .unwrap();
+        assert_eq!(
+            files_no_docs.len(),
+            1,
+            "With RenameScope(update_docs=false), should exclude .md files. Found: {:?}",
+            files_no_docs
+        );
+        assert!(files_no_docs
+            .iter()
+            .any(|p| p.file_name().unwrap() == "main.rs"));
+        assert!(!files_no_docs
+            .iter()
+            .any(|p| p.file_name().unwrap() == "README.md"));
+        assert!(!files_no_docs
+            .iter()
+            .any(|p| p.file_name().unwrap() == "CHANGELOG.md"));
+    }
+
+    /// Test that find_project_files respects RenameScope for config files
+    #[tokio::test]
+    async fn test_find_project_files_with_rename_scope_configs() {
+        let temp_dir = TempDir::new().unwrap();
+        let root = temp_dir.path();
+
+        // Create test files
+        fs::create_dir_all(root.join("src")).await.unwrap();
+        fs::write(root.join("src/main.rs"), "fn main() {}")
+            .await
+            .unwrap();
+        fs::write(root.join("Cargo.toml"), "[package]")
+            .await
+            .unwrap();
+        fs::write(root.join("config.yaml"), "key: value")
+            .await
+            .unwrap();
+        fs::write(root.join("settings.yml"), "setting: true")
+            .await
+            .unwrap();
+
+        let plugin_registry = crate::services::registry_builder::build_language_plugin_registry();
+        let plugins = plugin_registry.all();
+
+        // Test WITHOUT RenameScope - uses plugin-based filtering (includes all plugin-supported files)
+        let files_without_scope = find_project_files(root, plugins, None).await.unwrap();
+        // With language plugins for Rust, TOML, and YAML, all 4 files are included
+        assert_eq!(
+            files_without_scope.len(),
+            4,
+            "Without RenameScope, uses plugin-based filtering. Found: {:?}",
+            files_without_scope
+        );
+
+        // Test WITH RenameScope - update_configs=false should exclude config files
+        let scope_no_configs = codebuddy_foundation::core::rename_scope::RenameScope {
+            update_code: true,
+            update_docs: false,
+            update_configs: false, // Exclude configs
+            update_string_literals: false,
+            update_examples: false,
+            update_comments: false,
+            update_markdown_prose: false,
+            exclude_patterns: vec![],
+        };
+
+        let files_no_configs = find_project_files(root, plugins, Some(&scope_no_configs))
+            .await
+            .unwrap();
+        assert_eq!(
+            files_no_configs.len(),
+            1,
+            "With RenameScope(update_configs=false), should exclude .toml, .yaml, .yml files. Found: {:?}",
+            files_no_configs
+        );
+        assert!(files_no_configs
+            .iter()
+            .any(|p| p.file_name().unwrap() == "main.rs"));
+        assert!(!files_no_configs
+            .iter()
+            .any(|p| p.file_name().unwrap() == "Cargo.toml"));
+        assert!(!files_no_configs
+            .iter()
+            .any(|p| p.file_name().unwrap() == "config.yaml"));
+        assert!(!files_no_configs
+            .iter()
+            .any(|p| p.file_name().unwrap() == "settings.yml"));
+    }
+
+    /// Test that find_project_files respects RenameScope exclude patterns
+    #[tokio::test]
+    async fn test_find_project_files_with_rename_scope_excludes() {
+        let temp_dir = TempDir::new().unwrap();
+        let root = temp_dir.path();
+
+        // Create test files
+        fs::create_dir_all(root.join("src")).await.unwrap();
+        fs::create_dir_all(root.join("tests")).await.unwrap();
+        fs::write(root.join("src/main.rs"), "fn main() {}")
+            .await
+            .unwrap();
+        fs::write(root.join("tests/test.rs"), "#[test] fn test() {}")
+            .await
+            .unwrap();
+        fs::write(root.join("README.md"), "# Project")
+            .await
+            .unwrap();
+        fs::write(root.join("CONTRIBUTING.md"), "# Contributing")
+            .await
+            .unwrap();
+
+        let plugin_registry = crate::services::registry_builder::build_language_plugin_registry();
+        let plugins = plugin_registry.all();
+
+        // Test WITH RenameScope and exclude patterns
+        let scope = codebuddy_foundation::core::rename_scope::RenameScope {
+            update_code: true,
+            update_docs: true,
+            update_configs: false,
+            update_string_literals: false,
+            update_examples: false,
+            update_comments: false,
+            update_markdown_prose: false,
+            exclude_patterns: vec![
+                String::from("**/tests/**"),
+                String::from("**/CONTRIBUTING.md"), // Must match full path
+            ],
+        };
+
+        let files_with_scope = find_project_files(root, plugins, Some(&scope))
+            .await
+            .unwrap();
+
+        // Should include src/main.rs and README.md
+        // Should exclude tests/test.rs and CONTRIBUTING.md
+        assert!(
+            files_with_scope
+                .iter()
+                .any(|p| p.file_name().unwrap() == "main.rs"),
+            "Should include src/main.rs"
+        );
+        assert!(
+            files_with_scope
+                .iter()
+                .any(|p| p.file_name().unwrap() == "README.md"),
+            "Should include README.md"
+        );
+        assert!(
+            !files_with_scope
+                .iter()
+                .any(|p| p.file_name().unwrap() == "test.rs"),
+            "Should exclude tests/test.rs based on exclude pattern"
+        );
+        assert!(
+            !files_with_scope
+                .iter()
+                .any(|p| p.file_name().unwrap() == "CONTRIBUTING.md"),
+            "Should exclude CONTRIBUTING.md based on exclude pattern"
+        );
+    }
+
+    /// Test that find_project_files with comprehensive RenameScope
+    #[tokio::test]
+    async fn test_find_project_files_comprehensive_scope() {
+        let temp_dir = TempDir::new().unwrap();
+        let root = temp_dir.path();
+
+        // Create diverse set of files
+        fs::create_dir_all(root.join("src")).await.unwrap();
+        fs::write(root.join("src/main.rs"), "fn main() {}")
+            .await
+            .unwrap();
+        fs::write(root.join("README.md"), "# Project")
+            .await
+            .unwrap();
+        fs::write(root.join("Cargo.toml"), "[package]")
+            .await
+            .unwrap();
+        fs::write(root.join("config.yaml"), "key: value")
+            .await
+            .unwrap();
+
+        let plugin_registry = crate::services::registry_builder::build_language_plugin_registry();
+        let plugins = plugin_registry.all();
+
+        // Test WITH comprehensive RenameScope - all flags true
+        let scope = codebuddy_foundation::core::rename_scope::RenameScope {
+            update_code: true,
+            update_docs: true,
+            update_configs: true,
+            update_string_literals: true,
+            update_examples: true,
+            update_comments: true,
+            update_markdown_prose: true,
+            exclude_patterns: vec![],
+        };
+
+        let files_with_scope = find_project_files(root, plugins, Some(&scope))
+            .await
+            .unwrap();
+        assert_eq!(
+            files_with_scope.len(),
+            4,
+            "With comprehensive RenameScope, should find all files. Found: {:?}",
+            files_with_scope
+        );
+        assert!(files_with_scope
+            .iter()
+            .any(|p| p.file_name().unwrap() == "main.rs"));
+        assert!(files_with_scope
+            .iter()
+            .any(|p| p.file_name().unwrap() == "README.md"));
+        assert!(files_with_scope
+            .iter()
+            .any(|p| p.file_name().unwrap() == "Cargo.toml"));
+        assert!(files_with_scope
+            .iter()
+            .any(|p| p.file_name().unwrap() == "config.yaml"));
     }
 }
