@@ -1,5 +1,8 @@
 //! CLI command handling for the codebuddy server
 
+mod conventions;
+mod flag_parser;
+
 use cb_client::format_plan;
 use cb_transport::SessionInfo;
 use clap::{Parser, Subcommand};
@@ -62,13 +65,46 @@ pub enum Commands {
     Doctor,
     /// Call an MCP tool directly (without WebSocket server)
     Tool {
-        /// Tool name (e.g., "rename_directory", "find_definition")
+        /// Tool name (e.g., "rename.plan", "find_definition")
         tool_name: String,
-        /// Tool arguments as JSON string
-        args: String,
+
+        /// Tool arguments as JSON string (required if not using flags)
+        #[arg(required_unless_present_any = ["target", "source"])]
+        args: Option<String>,
+
         /// Output format (pretty or compact)
         #[arg(long, default_value = "pretty", value_parser = ["pretty", "compact"])]
         format: String,
+
+        // === Common flags across refactoring tools ===
+
+        /// Target (format: kind:path or kind:path:line:char)
+        #[arg(long, conflicts_with = "args")]
+        target: Option<String>,
+
+        /// Source (format: path:line:char)
+        #[arg(long, conflicts_with = "args")]
+        source: Option<String>,
+
+        /// Destination (format: path or path:line:char)
+        #[arg(long, conflicts_with = "args")]
+        destination: Option<String>,
+
+        /// New name
+        #[arg(long, conflicts_with = "args")]
+        new_name: Option<String>,
+
+        /// Name for extracted element
+        #[arg(long, conflicts_with = "args")]
+        name: Option<String>,
+
+        /// Kind (e.g., "function", "variable", "imports", "to_async")
+        #[arg(long, conflicts_with = "args")]
+        kind: Option<String>,
+
+        /// Scope (e.g., "all", "code-only", "custom")
+        #[arg(long, conflicts_with = "args")]
+        scope: Option<String>,
     },
     /// List all public MCP tools (excludes internal tools)
     Tools {
@@ -202,8 +238,27 @@ pub async fn run() {
             tool_name,
             args,
             format,
+            target,
+            source,
+            destination,
+            new_name,
+            name,
+            kind,
+            scope,
         } => {
-            handle_tool_command(&tool_name, &args, &format).await;
+            handle_tool_command(
+                &tool_name,
+                args.as_deref(),
+                target.as_deref(),
+                source.as_deref(),
+                destination.as_deref(),
+                new_name.as_deref(),
+                name.as_deref(),
+                kind.as_deref(),
+                scope.as_deref(),
+                &format,
+            )
+            .await;
         }
         Commands::Tools { format } => {
             handle_tools_command(&format).await;
@@ -370,7 +425,19 @@ async fn handle_dead_code_command(command: DeadCode) {
         "symbol_types": command.symbol_types,
     });
     let args_json = serde_json::to_string(&args).unwrap();
-    handle_tool_command("analyze.dead_code", &args_json, "pretty").await;
+    handle_tool_command(
+        "analyze.dead_code",
+        Some(&args_json),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        "pretty",
+    )
+    .await;
 }
 
 /// Handle the setup command
@@ -833,18 +900,69 @@ async fn handle_tools_command(format: &str) {
 }
 
 /// Handle the tool command - call MCP tool directly
-async fn handle_tool_command(tool_name: &str, args_json: &str, format: &str) {
-    // Parse JSON arguments
-    let arguments: serde_json::Value = match serde_json::from_str(args_json) {
-        Ok(val) => val,
-        Err(e) => {
-            let error = codebuddy_foundation::core::model::mcp::McpError::invalid_request(format!(
-                "Invalid JSON arguments: {}",
-                e
-            ));
-            let api_error = codebuddy_foundation::protocol::ApiError::from(error);
-            output_error(&api_error, format);
-            process::exit(1);
+async fn handle_tool_command(
+    tool_name: &str,
+    args_json: Option<&str>,
+    target: Option<&str>,
+    source: Option<&str>,
+    destination: Option<&str>,
+    new_name: Option<&str>,
+    name: Option<&str>,
+    kind: Option<&str>,
+    scope: Option<&str>,
+    format: &str,
+) {
+    use std::collections::HashMap;
+
+    // Build arguments from either JSON or flags
+    let arguments: serde_json::Value = if let Some(json) = args_json {
+        // Use JSON directly
+        match serde_json::from_str(json) {
+            Ok(val) => val,
+            Err(e) => {
+                let error = codebuddy_foundation::core::model::mcp::McpError::invalid_request(
+                    format!("Invalid JSON arguments: {}", e),
+                );
+                let api_error = codebuddy_foundation::protocol::ApiError::from(error);
+                output_error(&api_error, format);
+                process::exit(1);
+            }
+        }
+    } else {
+        // Build from flags using flag_parser
+        let mut flags = HashMap::new();
+        if let Some(v) = target {
+            flags.insert("target".to_string(), v.to_string());
+        }
+        if let Some(v) = source {
+            flags.insert("source".to_string(), v.to_string());
+        }
+        if let Some(v) = destination {
+            flags.insert("destination".to_string(), v.to_string());
+        }
+        if let Some(v) = new_name {
+            flags.insert("new_name".to_string(), v.to_string());
+        }
+        if let Some(v) = name {
+            flags.insert("name".to_string(), v.to_string());
+        }
+        if let Some(v) = kind {
+            flags.insert("kind".to_string(), v.to_string());
+        }
+        if let Some(v) = scope {
+            flags.insert("scope".to_string(), v.to_string());
+        }
+
+        match flag_parser::parse_flags_to_json(tool_name, flags) {
+            Ok(json) => json,
+            Err(e) => {
+                let error = codebuddy_foundation::protocol::ApiError::InvalidRequest(format!(
+                    "Invalid flag arguments: {}",
+                    e
+                ));
+                output_error(&error, format);
+                process::exit(1);
+            }
         }
     };
 
