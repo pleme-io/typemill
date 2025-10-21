@@ -44,24 +44,32 @@ pub(crate) async fn plan_extract_module_to_package(
         "Selected plugin for extraction"
     );
 
-    // Step 3: Locate module files using the plugin
-    // Downcast to RustPlugin to access locate_module_files
-    use cb_lang_rust::RustPlugin;
-
-    let rust_plugin = plugin
-        .as_any()
-        .downcast_ref::<RustPlugin>()
+    // Step 3: Locate module files using ModuleLocator capability
+    let module_locator = plugin
+        .module_locator()
         .ok_or_else(|| crate::error::AstError::Analysis {
-            message: "locate_module_files is only supported for Rust language".to_string(),
+            message: format!(
+                "Plugin '{}' does not support module location",
+                plugin.metadata().name
+            ),
         })?;
 
-    let located_files = rust_plugin
+    let located_files = module_locator
         .locate_module_files(source_path, &params.module_path)
         .await?;
 
     debug!(files_count = located_files.len(), "Located module files");
 
     // Step 4: Parse imports from all located files and aggregate dependencies
+    // TODO: These manifest functions still use RustPlugin directly - should become capabilities
+    use cb_lang_rust::RustPlugin;
+    let rust_plugin = plugin
+        .as_any()
+        .downcast_ref::<RustPlugin>()
+        .ok_or_else(|| crate::error::AstError::Analysis {
+            message: "Manifest generation currently only supported for Rust".to_string(),
+        })?;
+
     let dependencies = manifest::extract_dependencies(rust_plugin, &located_files).await;
     debug!(
         dependencies_count = dependencies.len(),

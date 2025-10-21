@@ -195,6 +195,58 @@ pub trait ImportAnalyzer: Send + Sync {
 }
 
 // ============================================================================
+// Module Locator Capability
+// ============================================================================
+
+/// Capability for locating module files within a package
+///
+/// This trait allows language plugins to provide module file discovery
+/// for operations like extracting modules to new packages.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use cb_plugin_api::capabilities::ModuleLocator;
+///
+/// if let Some(locator) = plugin.module_locator() {
+///     let files = locator.locate_module_files(
+///         package_path,
+///         "my::module::path"
+///     ).await?;
+///     // Process located files...
+/// }
+/// ```
+#[async_trait]
+pub trait ModuleLocator: Send + Sync {
+    /// Locate all files that comprise a module
+    ///
+    /// Given a package path and a module path, this method returns all source files
+    /// that belong to that module. This is used for operations like extracting a module
+    /// to a new package.
+    ///
+    /// # Arguments
+    ///
+    /// * `package_path` - Path to the package root directory
+    /// * `module_path` - Module path in the language's syntax (e.g., "crate::utils::helpers" for Rust)
+    ///
+    /// # Returns
+    ///
+    /// Vector of absolute paths to all files that comprise the module.
+    ///
+    /// # Errors
+    ///
+    /// Returns error if:
+    /// - Module path is invalid for the language
+    /// - Module cannot be found in the package
+    /// - File system errors occur during search
+    async fn locate_module_files(
+        &self,
+        package_path: &Path,
+        module_path: &str,
+    ) -> crate::PluginResult<Vec<std::path::PathBuf>>;
+}
+
+// ============================================================================
 // Manifest Updater Capability
 // ============================================================================
 

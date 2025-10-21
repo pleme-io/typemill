@@ -196,6 +196,10 @@ impl LanguagePlugin for RustPlugin {
         Some(self)
     }
 
+    fn module_locator(&self) -> Option<&dyn cb_plugin_api::ModuleLocator> {
+        Some(self)
+    }
+
     fn rewrite_file_references(
         &self,
         content: &str,
@@ -346,6 +350,22 @@ impl cb_plugin_api::ManifestUpdater for RustPlugin {
         // Delegate to the inherent method implementation
         RustPlugin::update_dependency(self, manifest_path, old_name, new_name, new_version)
             .await
+    }
+}
+
+// ============================================================================
+// Module Locator Capability
+// ============================================================================
+
+#[async_trait::async_trait]
+impl cb_plugin_api::ModuleLocator for RustPlugin {
+    async fn locate_module_files(
+        &self,
+        package_path: &Path,
+        module_path: &str,
+    ) -> cb_plugin_api::PluginResult<Vec<std::path::PathBuf>> {
+        // Delegate to the inherent method implementation
+        RustPlugin::locate_module_files(self, package_path, module_path).await
     }
 }
 
