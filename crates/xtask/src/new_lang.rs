@@ -23,7 +23,11 @@ pub fn run(args: NewLangArgs) -> Result<()> {
         anyhow::bail!("Crate {} already exists", crate_name);
     }
 
-    println!("{} {}\n", "Creating language plugin:".bold(), crate_name.cyan());
+    println!(
+        "{} {}\n",
+        "Creating language plugin:".bold(),
+        crate_name.cyan()
+    );
 
     // Create directory structure
     fs::create_dir_all(&crate_dir)?;
@@ -47,7 +51,10 @@ pub fn run(args: NewLangArgs) -> Result<()> {
 
     // Add to workspace
     if !args.skip_workspace {
-        println!("\n{}", "⚠️  Please manually add to Cargo.toml workspace members:".yellow());
+        println!(
+            "\n{}",
+            "⚠️  Please manually add to Cargo.toml workspace members:".yellow()
+        );
         println!("  {}", format!("\"crates/{}\"", crate_name).cyan());
     }
 
@@ -55,7 +62,10 @@ pub fn run(args: NewLangArgs) -> Result<()> {
     println!("\n{}", "Next steps:".bold());
     println!("  1. Implement LanguagePlugin trait in src/lib.rs");
     println!("  2. Add parser dependencies to Cargo.toml");
-    println!("  3. Run: {}", format!("cargo test -p {}", crate_name).cyan());
+    println!(
+        "  3. Run: {}",
+        format!("cargo test -p {}", crate_name).cyan()
+    );
 
     Ok(())
 }
@@ -96,7 +106,10 @@ fn generate_lib_rs(lang: &str) -> String {
     let lang_upper = lang.to_uppercase();
 
     let mut code = String::new();
-    code.push_str(&format!("//! {} language plugin for Codebuddy\n\n", lang_upper));
+    code.push_str(&format!(
+        "//! {} language plugin for Codebuddy\n\n",
+        lang_upper
+    ));
     code.push_str("use async_trait::async_trait;\n");
     code.push_str("use cb_plugin_api::{LanguagePlugin, LanguagePluginMetadata, ParsedSource};\n");
     code.push_str("use codebuddy_foundation::protocol::ApiError;\n");
@@ -117,12 +130,18 @@ fn generate_lib_rs(lang: &str) -> String {
     code.push_str("}\n\n");
 
     code.push_str("#[async_trait]\n");
-    code.push_str(&format!("impl LanguagePlugin for {}Plugin {{\n", title_case));
+    code.push_str(&format!(
+        "impl LanguagePlugin for {}Plugin {{\n",
+        title_case
+    ));
     code.push_str("    fn metadata(&self) -> LanguagePluginMetadata {\n");
     code.push_str("        LanguagePluginMetadata {\n");
     code.push_str(&format!("            name: \"{}\",\n", lang));
     code.push_str("            file_extensions: vec![\n");
-    code.push_str(&format!("                // TODO: Add file extensions for {}\n", lang));
+    code.push_str(&format!(
+        "                // TODO: Add file extensions for {}\n",
+        lang
+    ));
     code.push_str("            ],\n");
     code.push_str("            comment_styles: vec![\n");
     code.push_str("                // TODO: Add comment styles\n");
@@ -156,7 +175,10 @@ fn generate_lib_rs(lang: &str) -> String {
 
     code.push_str("    #[tokio::test]\n");
     code.push_str("    async fn test_parse_empty() {\n");
-    code.push_str(&format!("        let plugin = {}Plugin::new();\n", title_case));
+    code.push_str(&format!(
+        "        let plugin = {}Plugin::new();\n",
+        title_case
+    ));
     code.push_str("        let result = plugin.parse(\"\", Path::new(\"test\")).await;\n");
     code.push_str("        assert!(result.is_ok());\n");
     code.push_str("    }\n");

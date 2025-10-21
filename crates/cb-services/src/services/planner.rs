@@ -1,6 +1,6 @@
 //! The Planner service for converting Intents into executable Workflows.
 
-use codebuddy_foundation::core::model::workflow::{ Intent , Step , Workflow , WorkflowMetadata };
+use codebuddy_foundation::core::model::workflow::{Intent, Step, Workflow, WorkflowMetadata};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;

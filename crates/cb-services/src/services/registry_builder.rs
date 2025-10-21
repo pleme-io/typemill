@@ -11,8 +11,8 @@
 //! `codebuddy_plugin!` macro, and this builder collects them into the
 //! `PluginRegistry`.
 
-use cb_plugin_api::PluginRegistry;
 use cb_plugin_api::iter_plugins;
+use cb_plugin_api::PluginRegistry;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tracing::{debug, warn};
@@ -82,10 +82,7 @@ pub fn build_language_plugin_registry() -> Arc<PluginRegistry> {
         plugin_count += 1;
     }
 
-    debug!(
-        plugin_count,
-        "Plugin discovery complete"
-    );
+    debug!(plugin_count, "Plugin discovery complete");
 
     if plugin_count == 0 {
         warn!("No plugins discovered - plugin system may be broken");
@@ -120,13 +117,13 @@ mod tests {
     // Since cb-services no longer directly depends on most plugins, we need to
     // ensure they're linked into test binaries for discovery to work.
     #[cfg(test)]
-    extern crate cb_lang_rust;
-    #[cfg(test)]
-    extern crate cb_lang_typescript;
-    #[cfg(test)]
     extern crate cb_lang_markdown;
     #[cfg(test)]
+    extern crate cb_lang_rust;
+    #[cfg(test)]
     extern crate cb_lang_toml;
+    #[cfg(test)]
+    extern crate cb_lang_typescript;
     #[cfg(test)]
     extern crate cb_lang_yaml;
 

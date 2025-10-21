@@ -114,11 +114,12 @@ impl ToolHandler for CircularDependenciesHandler {
                     total_findings: result.summary.total_cycles,
                     returned_findings: result.summary.total_cycles,
                     has_more: false,
-                    by_severity: codebuddy_foundation::protocol::analysis_result::SeverityBreakdown {
-                        high: result.summary.total_cycles,
-                        medium: 0,
-                        low: 0,
-                    },
+                    by_severity:
+                        codebuddy_foundation::protocol::analysis_result::SeverityBreakdown {
+                            high: result.summary.total_cycles,
+                            medium: 0,
+                            low: 0,
+                        },
                     files_analyzed: result.summary.files_analyzed,
                     symbols_analyzed: Some(result.summary.total_modules_in_cycles),
                     analysis_time_ms: result.summary.analysis_time_ms,

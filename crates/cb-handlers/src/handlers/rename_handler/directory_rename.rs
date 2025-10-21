@@ -1,6 +1,6 @@
+use super::{RenameHandler, RenamePlanParams};
 use crate::handlers::common::calculate_checksums_for_directory_rename;
 use crate::handlers::tools::ToolHandlerContext;
-use super::{RenamePlanParams, RenameHandler};
 use codebuddy_foundation::protocol::{
     refactor_plan::{PlanMetadata, PlanSummary, PlanWarning, RenamePlan},
     ApiResult as ServerResult,
@@ -63,7 +63,9 @@ impl RenameHandler {
         };
 
         // Determine if this is a consolidation (explicit flag or auto-detect)
-        let is_consolidation = params.options.consolidate
+        let is_consolidation = params
+            .options
+            .consolidate
             .unwrap_or_else(|| Self::is_consolidation_move(&old_path, &new_path));
 
         if is_consolidation {
@@ -112,8 +114,7 @@ impl RenameHandler {
         } else {
             // For non-existent paths, canonicalize parent and join filename
             let parent = new_path.parent().unwrap_or(workspace_root);
-            let parent_abs = std::fs::canonicalize(parent)
-                .unwrap_or_else(|_| parent.to_path_buf());
+            let parent_abs = std::fs::canonicalize(parent).unwrap_or_else(|_| parent.to_path_buf());
             parent_abs.join(new_path.file_name().unwrap_or(new_path.as_os_str()))
         };
 
@@ -124,11 +125,8 @@ impl RenameHandler {
             calculate_checksums_for_directory_rename(&abs_old, &edit_plan.edits, context).await?;
 
         // Use shared converter to create WorkspaceEdit from EditPlan
-        let workspace_edit = super::plan_converter::editplan_to_workspace_edit(
-            &edit_plan,
-            &abs_old,
-            &abs_new,
-        )?;
+        let workspace_edit =
+            super::plan_converter::editplan_to_workspace_edit(&edit_plan, &abs_old, &abs_new)?;
 
         // Build summary
         let summary = PlanSummary {

@@ -1,8 +1,8 @@
 //! Test helper functions and utilities
 
-use codebuddy_foundation::core::model::*;
 use codebuddy_config::AppConfig;
-use codebuddy_foundation::protocol::{ EditPlan , ImportGraph };
+use codebuddy_foundation::core::model::*;
+use codebuddy_foundation::protocol::{EditPlan, ImportGraph};
 use serde_json::json;
 use std::path::Path;
 
@@ -45,7 +45,9 @@ pub fn create_test_mcp_response() -> McpMessage {
 
 /// Create a test import graph
 pub fn create_test_import_graph(source_file: &str) -> ImportGraph {
-    use codebuddy_foundation::protocol::{ ImportGraphMetadata , ImportInfo , ImportType , SourceLocation };
+    use codebuddy_foundation::protocol::{
+        ImportGraphMetadata, ImportInfo, ImportType, SourceLocation,
+    };
 
     ImportGraph {
         source_file: source_file.to_string(),
@@ -76,7 +78,7 @@ pub fn create_test_import_graph(source_file: &str) -> ImportGraph {
 
 /// Create a test edit plan
 pub fn create_test_edit_plan() -> EditPlan {
-    use codebuddy_foundation::protocol::{ EditLocation , EditPlanMetadata , EditType , TextEdit };
+    use codebuddy_foundation::protocol::{EditLocation, EditPlanMetadata, EditType, TextEdit};
 
     EditPlan {
         source_file: "test.ts".to_string(),
@@ -102,7 +104,7 @@ pub fn create_test_edit_plan() -> EditPlan {
             created_at: chrono::Utc::now(),
             complexity: 3,
             impact_areas: vec!["functions".to_string()],
-                consolidation: None,
+            consolidation: None,
         },
     }
 }

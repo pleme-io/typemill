@@ -164,7 +164,7 @@ fn ast_extract_function_ts_js(
             created_at: chrono::Utc::now(),
             complexity: analysis.complexity_score.min(10) as u8,
             impact_areas: vec!["function_extraction".to_string()],
-                consolidation: None,
+            consolidation: None,
         },
     })
 }
@@ -233,7 +233,7 @@ fn ast_inline_variable_ts_js(
             created_at: chrono::Utc::now(),
             complexity: (analysis.usage_locations.len().min(10)) as u8,
             impact_areas: vec!["variable_inlining".to_string()],
-                consolidation: None,
+            consolidation: None,
         },
     })
 }
@@ -306,7 +306,7 @@ fn ast_extract_variable_ts_js(
             created_at: chrono::Utc::now(),
             complexity: 2,
             impact_areas: vec!["variable_extraction".to_string()],
-                consolidation: None,
+            consolidation: None,
         },
     })
 }

@@ -97,10 +97,10 @@ mod tests {
     extern crate cb_lang_markdown;
     #[cfg(all(test, feature = "lang-rust"))]
     extern crate cb_lang_rust;
-    #[cfg(all(test, feature = "lang-typescript"))]
-    extern crate cb_lang_typescript;
     #[cfg(all(test, feature = "lang-toml"))]
     extern crate cb_lang_toml;
+    #[cfg(all(test, feature = "lang-typescript"))]
+    extern crate cb_lang_typescript;
     #[cfg(all(test, feature = "lang-yaml"))]
     extern crate cb_lang_yaml;
 
@@ -123,11 +123,7 @@ mod tests {
 
         for plugin in plugins {
             let name = plugin.metadata().name;
-            assert!(
-                names.insert(name),
-                "Duplicate plugin name found: {}",
-                name
-            );
+            assert!(names.insert(name), "Duplicate plugin name found: {}", name);
         }
     }
 }

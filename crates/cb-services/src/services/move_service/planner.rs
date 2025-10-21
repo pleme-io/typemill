@@ -2,7 +2,7 @@
 
 use crate::services::reference_updater::ReferenceUpdater;
 use cb_plugin_api::{PluginRegistry, ScanScope};
-use codebuddy_foundation::protocol::{ ApiResult as ServerResult , EditPlan };
+use codebuddy_foundation::protocol::{ApiResult as ServerResult, EditPlan};
 use std::path::Path;
 use tracing::{info, warn};
 
@@ -169,13 +169,7 @@ pub async fn plan_directory_move(
     info!("Scanning for documentation and config file updates");
     let doc_config_edits_before = edit_plan.edits.len();
 
-    match plan_documentation_and_config_edits(
-        old_abs,
-        new_abs,
-        plugin_registry,
-        project_root,
-    )
-    .await
+    match plan_documentation_and_config_edits(old_abs, new_abs, plugin_registry, project_root).await
     {
         Ok(edits) if !edits.is_empty() => {
             info!(
@@ -224,7 +218,7 @@ async fn plan_documentation_and_config_edits(
     plugin_registry: &PluginRegistry,
     project_root: &Path,
 ) -> ServerResult<Vec<codebuddy_foundation::protocol::TextEdit>> {
-    use codebuddy_foundation::protocol::{ EditLocation , EditType , TextEdit };
+    use codebuddy_foundation::protocol::{EditLocation, EditType, TextEdit};
     use std::path::PathBuf;
 
     let mut edits = Vec::new();
@@ -297,14 +291,16 @@ async fn plan_documentation_and_config_edits(
 
                         // Call the plugin's rewrite_file_references to get updated content
                         // Returns Option<(String, usize)> where String is new content and usize is change count
-                        if let Some((updated_content, change_count)) = plugin.rewrite_file_references(
-                            &combined_content,
-                            old_path,
-                            new_path,
-                            file_path,
-                            project_root,
-                            None, // No rename_info for simple moves
-                        ) {
+                        if let Some((updated_content, change_count)) = plugin
+                            .rewrite_file_references(
+                                &combined_content,
+                                old_path,
+                                new_path,
+                                file_path,
+                                project_root,
+                                None, // No rename_info for simple moves
+                            )
+                        {
                             if change_count > 0 && updated_content != combined_content {
                                 total_changes += change_count;
                                 combined_content = updated_content;
@@ -313,14 +309,16 @@ async fn plan_documentation_and_config_edits(
 
                         // Also update references to specific files inside the moved directory
                         for (old_file, new_file) in &moved_files {
-                            if let Some((updated_content, change_count)) = plugin.rewrite_file_references(
-                                &combined_content,
-                                old_file,
-                                new_file,
-                                file_path,
-                                project_root,
-                                None,
-                            ) {
+                            if let Some((updated_content, change_count)) = plugin
+                                .rewrite_file_references(
+                                    &combined_content,
+                                    old_file,
+                                    new_file,
+                                    file_path,
+                                    project_root,
+                                    None,
+                                )
+                            {
                                 if change_count > 0 && updated_content != combined_content {
                                     total_changes += change_count;
                                     combined_content = updated_content;
@@ -331,11 +329,8 @@ async fn plan_documentation_and_config_edits(
                         if total_changes > 0 && combined_content != content {
                             // File needs updating - create a full-file replacement edit
                             let line_count = content.lines().count().max(1);
-                            let last_line_len = content
-                                .lines()
-                                .last()
-                                .map(|l| l.len())
-                                .unwrap_or(0);
+                            let last_line_len =
+                                content.lines().last().map(|l| l.len()).unwrap_or(0);
 
                             // CRITICAL: Check if this file will be moved as part of directory rename
                             // If so, use NEW path in edit (edit_plan.rs will map back to OLD path for snapshots)

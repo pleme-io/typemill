@@ -1,5 +1,5 @@
 use crate::harness::{TestClient, TestWorkspace};
-use codebuddy_foundation::protocol::analysis_result::{ AnalysisResult , SafetyLevel };
+use codebuddy_foundation::protocol::analysis_result::{AnalysisResult, SafetyLevel};
 use serde_json::json;
 
 #[tokio::test]
@@ -17,7 +17,10 @@ function main() {
 "#;
 
     workspace.create_file("test_file.ts", test_code);
-    workspace.create_file("anotherFile.ts", "export function unusedFunction() {}; export function usedFunction() {};");
+    workspace.create_file(
+        "anotherFile.ts",
+        "export function unusedFunction() {}; export function usedFunction() {};",
+    );
     let test_file = workspace.absolute_path("test_file.ts");
 
     let response = client
@@ -42,20 +45,34 @@ function main() {
     )
     .expect("Should parse as AnalysisResult");
 
-    assert!(!result.findings.is_empty(), "Should have findings for unused import");
+    assert!(
+        !result.findings.is_empty(),
+        "Should have findings for unused import"
+    );
 
     let finding = &result.findings[0];
     assert!(!finding.suggestions.is_empty(), "Should have suggestions");
 
     let suggestion = &finding.suggestions[0];
-    assert!(matches!(suggestion.safety, SafetyLevel::Safe | SafetyLevel::RequiresReview));
+    assert!(matches!(
+        suggestion.safety,
+        SafetyLevel::Safe | SafetyLevel::RequiresReview
+    ));
     assert!(suggestion.confidence >= 0.0 && suggestion.confidence <= 1.0);
-    assert!(suggestion.refactor_call.is_some(), "Should have refactor_call");
+    assert!(
+        suggestion.refactor_call.is_some(),
+        "Should have refactor_call"
+    );
 
     let refactor_call = suggestion.refactor_call.as_ref().unwrap();
     assert_eq!(refactor_call.command, "delete.plan");
     assert_eq!(refactor_call.arguments["kind"], "import");
-    assert_eq!(refactor_call.arguments["target"]["file_path"].as_str().unwrap(), test_file.to_string_lossy());
+    assert_eq!(
+        refactor_call.arguments["target"]["file_path"]
+            .as_str()
+            .unwrap(),
+        test_file.to_string_lossy()
+    );
 }
 
 #[tokio::test]
@@ -100,19 +117,30 @@ usedFunction();
     )
     .expect("Should parse as AnalysisResult");
 
-    assert!(!result.findings.is_empty(), "Should have findings for unused function");
+    assert!(
+        !result.findings.is_empty(),
+        "Should have findings for unused function"
+    );
 
     let finding = &result.findings[0];
     assert_eq!(finding.location.symbol.as_ref().unwrap(), "unusedFunction");
     assert!(!finding.suggestions.is_empty(), "Should have suggestions");
 
     let suggestion = &finding.suggestions[0];
-    assert!(suggestion.refactor_call.is_some(), "Should have refactor_call");
+    assert!(
+        suggestion.refactor_call.is_some(),
+        "Should have refactor_call"
+    );
 
     let refactor_call = suggestion.refactor_call.as_ref().unwrap();
     assert_eq!(refactor_call.command, "delete.plan");
     assert_eq!(refactor_call.arguments["kind"], "function");
-    assert_eq!(refactor_call.arguments["target"]["file_path"].as_str().unwrap(), test_file.to_string_lossy());
+    assert_eq!(
+        refactor_call.arguments["target"]["file_path"]
+            .as_str()
+            .unwrap(),
+        test_file.to_string_lossy()
+    );
 }
 
 #[tokio::test]
@@ -152,13 +180,19 @@ function unreachable() {
     )
     .expect("Should parse as AnalysisResult");
 
-    assert!(!result.findings.is_empty(), "Should have findings for unreachable code");
+    assert!(
+        !result.findings.is_empty(),
+        "Should have findings for unreachable code"
+    );
 
     let finding = &result.findings[0];
     assert!(!finding.suggestions.is_empty(), "Should have suggestions");
 
     let suggestion = &finding.suggestions[0];
-    assert!(suggestion.refactor_call.is_some(), "Should have refactor_call");
+    assert!(
+        suggestion.refactor_call.is_some(),
+        "Should have refactor_call"
+    );
 
     let refactor_call = suggestion.refactor_call.as_ref().unwrap();
     assert_eq!(refactor_call.command, "delete.plan");
@@ -202,13 +236,19 @@ unusedParameter(1, 2);
     )
     .expect("Should parse as AnalysisResult");
 
-    assert!(!result.findings.is_empty(), "Should have findings for unused_parameters");
+    assert!(
+        !result.findings.is_empty(),
+        "Should have findings for unused_parameters"
+    );
 
     let finding = &result.findings[0];
     assert!(!finding.suggestions.is_empty(), "Should have suggestions");
 
     let suggestion = &finding.suggestions[0];
-    assert!(suggestion.refactor_call.is_some(), "Should have refactor_call");
+    assert!(
+        suggestion.refactor_call.is_some(),
+        "Should have refactor_call"
+    );
 
     let refactor_call = suggestion.refactor_call.as_ref().unwrap();
     assert_eq!(refactor_call.command, "delete.plan");
@@ -251,13 +291,19 @@ interface UnusedType {
     )
     .expect("Should parse as AnalysisResult");
 
-    assert!(!result.findings.is_empty(), "Should have findings for unused_types");
+    assert!(
+        !result.findings.is_empty(),
+        "Should have findings for unused_types"
+    );
 
     let finding = &result.findings[0];
     assert!(!finding.suggestions.is_empty(), "Should have suggestions");
 
     let suggestion = &finding.suggestions[0];
-    assert!(suggestion.refactor_call.is_some(), "Should have refactor_call");
+    assert!(
+        suggestion.refactor_call.is_some(),
+        "Should have refactor_call"
+    );
 
     let refactor_call = suggestion.refactor_call.as_ref().unwrap();
     assert_eq!(refactor_call.command, "delete.plan");
@@ -302,13 +348,19 @@ unusedVariable();
     )
     .expect("Should parse as AnalysisResult");
 
-    assert!(!result.findings.is_empty(), "Should have findings for unused_variables");
+    assert!(
+        !result.findings.is_empty(),
+        "Should have findings for unused_variables"
+    );
 
     let finding = &result.findings[0];
     assert!(!finding.suggestions.is_empty(), "Should have suggestions");
 
     let suggestion = &finding.suggestions[0];
-    assert!(suggestion.refactor_call.is_some(), "Should have refactor_call");
+    assert!(
+        suggestion.refactor_call.is_some(),
+        "Should have refactor_call"
+    );
 
     let refactor_call = suggestion.refactor_call.as_ref().unwrap();
     assert_eq!(refactor_call.command, "delete.plan");

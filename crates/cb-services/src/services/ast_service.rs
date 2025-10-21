@@ -4,9 +4,9 @@ use async_trait::async_trait;
 use std::path::Path;
 use std::sync::Arc;
 
-use codebuddy_ast::AstCache;
 use cb_plugin_api::PluginRegistry;
-use codebuddy_foundation::protocol::{ ApiResult , CacheStats , ImportGraph };
+use codebuddy_ast::AstCache;
+use codebuddy_foundation::protocol::{ApiResult, CacheStats, ImportGraph};
 use tracing::{debug, trace};
 
 use codebuddy_foundation::protocol::AstService;
@@ -107,12 +107,13 @@ fn build_import_graph_with_plugin(
     path: &Path,
     registry: Arc<PluginRegistry>,
 ) -> Result<codebuddy_foundation::protocol::ImportGraph, codebuddy_foundation::protocol::ApiError> {
-
     // Determine file extension
     let extension = path
         .extension()
         .and_then(|ext| ext.to_str())
-        .ok_or_else(|| codebuddy_foundation::protocol::ApiError::internal("File has no extension"))?;
+        .ok_or_else(|| {
+            codebuddy_foundation::protocol::ApiError::internal("File has no extension")
+        })?;
 
     // For languages without plugins, fall back to cb-ast
     // Note: Only Rust and TypeScript supported after language reduction
@@ -121,17 +122,26 @@ fn build_import_graph_with_plugin(
         "ts" | "tsx" | "js" | "jsx" | "mjs" | "cjs" | "rs"
     ) {
         // Fallback to cb-ast parser for other languages (if any remain)
-        return codebuddy_ast::parser::build_import_graph(source, path)
-            .map_err(|e| codebuddy_foundation::protocol::ApiError::internal(format!("AST parsing failed: {}", e)));
+        return codebuddy_ast::parser::build_import_graph(source, path).map_err(|e| {
+            codebuddy_foundation::protocol::ApiError::internal(format!("AST parsing failed: {}", e))
+        });
     }
 
     // Find appropriate plugin from injected registry
     let plugin = registry.find_by_extension(extension).ok_or_else(|| {
-        codebuddy_foundation::protocol::ApiError::internal(format!("No plugin found for .{} files", extension))
+        codebuddy_foundation::protocol::ApiError::internal(format!(
+            "No plugin found for .{} files",
+            extension
+        ))
     })?;
 
     // Use the trait method for detailed import analysis
     plugin
         .analyze_detailed_imports(source, Some(path))
-        .map_err(|e| codebuddy_foundation::protocol::ApiError::internal(format!("Failed to parse imports: {}", e)))
+        .map_err(|e| {
+            codebuddy_foundation::protocol::ApiError::internal(format!(
+                "Failed to parse imports: {}",
+                e
+            ))
+        })
 }

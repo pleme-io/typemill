@@ -54,9 +54,7 @@ edition = "2021"
         .await
         .expect("workspace.create_package should succeed");
 
-    let content = result
-        .get("result")
-        .expect("Result should exist");
+    let content = result.get("result").expect("Result should exist");
 
     // Verify the operation succeeded
     assert_eq!(
@@ -141,9 +139,7 @@ edition = "2021"
         .await
         .expect("workspace.create_package should succeed");
 
-    let content = result
-        .get("result")
-        .expect("Result should exist");
+    let content = result.get("result").expect("Result should exist");
 
     // Verify the operation succeeded
     assert_eq!(
@@ -206,9 +202,7 @@ edition = "2021"
         .await
         .expect("workspace.create_package should succeed");
 
-    let content = result
-        .get("result")
-        .expect("Result should exist");
+    let content = result.get("result").expect("Result should exist");
 
     // Verify workspace was NOT updated
     assert_eq!(
@@ -258,10 +252,7 @@ async fn test_create_package_dry_run() {
 
     // Should have an error in the JSON-RPC response
     let has_error = result.get("error").is_some();
-    assert!(
-        has_error,
-        "Dry run mode should return an error response"
-    );
+    assert!(has_error, "Dry run mode should return an error response");
 
     // Verify nothing was created
     assert!(
@@ -310,9 +301,7 @@ edition = "2021"
         .await
         .expect("workspace.create_package should succeed");
 
-    let content = result
-        .get("result")
-        .expect("Result should exist");
+    let content = result.get("result").expect("Result should exist");
 
     // Verify the operation succeeded
     assert_eq!(
@@ -375,9 +364,7 @@ edition = "2021"
         .await
         .expect("workspace.create_package should succeed");
 
-    let content = result
-        .get("result")
-        .expect("Result should exist");
+    let content = result.get("result").expect("Result should exist");
 
     // Verify created_files list
     let created_files = content

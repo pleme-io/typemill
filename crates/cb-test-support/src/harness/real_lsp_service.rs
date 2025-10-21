@@ -1,7 +1,7 @@
 //! An implementation of LspService that communicates with a real LSP server process.
 
 use async_trait::async_trait;
-use codebuddy_foundation::protocol::{ ApiError , LspService , Message };
+use codebuddy_foundation::protocol::{ApiError, LspService, Message};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::Path;
@@ -349,12 +349,18 @@ impl Drop for RealLspService {
 
             // First try to kill the process
             if let Err(e) = child.start_kill() {
-                eprintln!("Failed to kill RealLspService process (PID {:?}): {}", pid, e);
+                eprintln!(
+                    "Failed to kill RealLspService process (PID {:?}): {}",
+                    pid, e
+                );
             }
 
             // Note: We can't spawn an async task here because std::sync::Mutex is not Send
             // across await points. The zombie reaper will clean up this process.
-            eprintln!("RealLspService process killed (PID {:?}) - zombie reaper will clean up", pid);
+            eprintln!(
+                "RealLspService process killed (PID {:?}) - zombie reaper will clean up",
+                pid
+            );
         }
     }
 }

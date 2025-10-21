@@ -3,8 +3,8 @@
 use crate::{McpDispatcher, SessionInfo};
 use codebuddy_auth::jwt::{decode, Claims, DecodingKey, Validation};
 use codebuddy_config::AppConfig;
-use codebuddy_foundation::core::model::mcp::{ McpError , McpMessage , McpRequest , McpResponse };
-use codebuddy_foundation::protocol::{ ApiError , ApiResult };
+use codebuddy_foundation::core::model::mcp::{McpError, McpMessage, McpRequest, McpResponse};
+use codebuddy_foundation::protocol::{ApiError, ApiResult};
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -200,7 +200,8 @@ async fn handle_connection(
                 let request_id = uuid::Uuid::new_v4();
 
                 // Create request span for automatic context propagation
-                let span = codebuddy_config::logging::request_span(&request_id.to_string(), "websocket");
+                let span =
+                    codebuddy_config::logging::request_span(&request_id.to_string(), "websocket");
                 let _enter = span.enter();
 
                 tracing::debug!(message_size = text.len(), "Received message");
@@ -408,7 +409,9 @@ async fn handle_initialize(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codebuddy_config::config::{ AuthConfig , CacheConfig , LoggingConfig , LspConfig , ServerConfig };
+    use codebuddy_config::config::{
+        AuthConfig, CacheConfig, LoggingConfig, LspConfig, ServerConfig,
+    };
 
     fn create_test_config(with_auth: bool) -> AppConfig {
         AppConfig {

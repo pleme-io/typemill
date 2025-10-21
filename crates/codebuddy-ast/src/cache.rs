@@ -1,6 +1,6 @@
 //! AST caching system for performance optimization
 
-use codebuddy_foundation::protocol::{ CacheStats , ImportGraph };
+use codebuddy_foundation::protocol::{CacheStats, ImportGraph};
 use dashmap::DashMap;
 use std::path::PathBuf;
 use std::time::SystemTime;

@@ -710,7 +710,8 @@ async fn test_search_symbols_rust_workspace() {
     let main_fn_symbol = symbols
         .iter()
         .find(|s| {
-            s["name"].as_str() == Some("main") && s["kind"].as_u64() == Some(12) // 12 is Function kind
+            s["name"].as_str() == Some("main") && s["kind"].as_u64() == Some(12)
+            // 12 is Function kind
         })
         .expect("Should find a symbol named 'main' of kind 'Function'");
 
@@ -759,7 +760,10 @@ async fn test_zombie_reaper_integration() {
     // Use waitpid to check if process still exists
     let cleanup_check = std::process::Command::new("sh")
         .arg("-c")
-        .arg(&format!("ps -p {} -o state= 2>/dev/null || echo 'gone'", pid))
+        .arg(&format!(
+            "ps -p {} -o state= 2>/dev/null || echo 'gone'",
+            pid
+        ))
         .output()
         .expect("Failed to check process state");
 

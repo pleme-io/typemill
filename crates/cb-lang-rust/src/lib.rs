@@ -21,9 +21,9 @@ pub mod imports;
 mod string_literal_support;
 
 // Consolidation support (Rust-specific post-processing)
+pub mod cargo_helpers;
 pub mod consolidation;
 pub mod dependency_analysis;
-pub mod cargo_helpers;
 
 // Reference detection for rename/move operations
 pub mod reference_detector;
@@ -33,11 +33,11 @@ use cb_lang_common::{
     manifest_templates::{ManifestTemplate, TomlManifestTemplate},
     read_manifest,
 };
+use cb_plugin_api::codebuddy_plugin;
 use cb_plugin_api::{
     LanguageMetadata, LanguagePlugin, LspConfig, ManifestData, ParsedSource, PluginCapabilities,
     PluginResult,
 };
-use cb_plugin_api::codebuddy_plugin;
 use std::path::Path;
 
 // Import helpers from the imports module
@@ -239,7 +239,11 @@ impl LanguagePlugin for RustPlugin {
 
                 // Also update string literals containing paths
                 if let Ok((modified_with_strings, string_changes)) =
-                    string_literal_support::rewrite_string_literals(&modified_content, old_path, new_path)
+                    string_literal_support::rewrite_string_literals(
+                        &modified_content,
+                        old_path,
+                        new_path,
+                    )
                 {
                     if string_changes > 0 {
                         tracing::debug!(
@@ -294,8 +298,9 @@ impl cb_plugin_api::RefactoringProvider for RustPlugin {
         variable_col: u32,
         file_path: &str,
     ) -> cb_plugin_api::PluginResult<codebuddy_foundation::protocol::EditPlan> {
-        refactoring::plan_inline_variable(source, variable_line, variable_col, file_path)
-            .map_err(|e| cb_plugin_api::PluginError::internal(format!("Rust refactoring error: {}", e)))
+        refactoring::plan_inline_variable(source, variable_line, variable_col, file_path).map_err(
+            |e| cb_plugin_api::PluginError::internal(format!("Rust refactoring error: {}", e)),
+        )
     }
 
     fn supports_extract_function(&self) -> bool {
@@ -311,7 +316,9 @@ impl cb_plugin_api::RefactoringProvider for RustPlugin {
         file_path: &str,
     ) -> cb_plugin_api::PluginResult<codebuddy_foundation::protocol::EditPlan> {
         refactoring::plan_extract_function(source, start_line, end_line, function_name, file_path)
-            .map_err(|e| cb_plugin_api::PluginError::internal(format!("Rust refactoring error: {}", e)))
+            .map_err(|e| {
+                cb_plugin_api::PluginError::internal(format!("Rust refactoring error: {}", e))
+            })
     }
 
     fn supports_extract_variable(&self) -> bool {
@@ -347,17 +354,15 @@ impl cb_plugin_api::ImportAnalyzer for RustPlugin {
         file_path: &Path,
     ) -> cb_plugin_api::PluginResult<codebuddy_foundation::protocol::ImportGraph> {
         // Read the file content
-        let content = std::fs::read_to_string(file_path)
-            .map_err(|e| cb_plugin_api::PluginError::internal(format!("Failed to read file: {}", e)))?;
+        let content = std::fs::read_to_string(file_path).map_err(|e| {
+            cb_plugin_api::PluginError::internal(format!("Failed to read file: {}", e))
+        })?;
 
         // Use the existing analyze_detailed_imports method
         self.analyze_detailed_imports(&content, Some(file_path))
     }
 
-    fn find_unused_imports(
-        &self,
-        _file_path: &Path,
-    ) -> cb_plugin_api::PluginResult<Vec<String>> {
+    fn find_unused_imports(&self, _file_path: &Path) -> cb_plugin_api::PluginResult<Vec<String>> {
         // TODO: Implement unused import detection
         // For now, return empty vector
         Ok(Vec::new())
@@ -378,8 +383,7 @@ impl cb_plugin_api::ManifestUpdater for RustPlugin {
         new_version: Option<&str>,
     ) -> cb_plugin_api::PluginResult<String> {
         // Delegate to the inherent method implementation
-        RustPlugin::update_dependency(self, manifest_path, old_name, new_name, new_version)
-            .await
+        RustPlugin::update_dependency(self, manifest_path, old_name, new_name, new_version).await
     }
 
     fn generate_manifest(&self, package_name: &str, dependencies: &[String]) -> String {
@@ -395,8 +399,14 @@ impl cb_plugin_api::ManifestUpdater for RustPlugin {
         base_path: &Path,
     ) -> cb_plugin_api::PluginResult<String> {
         // Delegate to the inherent method implementation
-        RustPlugin::add_manifest_path_dependency(self, manifest_content, dep_name, dep_path, base_path)
-            .await
+        RustPlugin::add_manifest_path_dependency(
+            self,
+            manifest_content,
+            dep_name,
+            dep_path,
+            base_path,
+        )
+        .await
     }
 }
 
@@ -612,22 +622,24 @@ impl RustPlugin {
 
             // Check if this line is a mod declaration for the old module
             let is_mod_decl = (trimmed.starts_with("pub mod ")
-                            || trimmed.starts_with("mod ")
-                            || trimmed.starts_with("pub(crate) mod ")
-                            || trimmed.starts_with("pub(super) mod "))
-                            && (trimmed.contains(&format!("{};", old_module_name))
-                                || trimmed.contains(&format!("{} ", old_module_name)));
+                || trimmed.starts_with("mod ")
+                || trimmed.starts_with("pub(crate) mod ")
+                || trimmed.starts_with("pub(super) mod "))
+                && (trimmed.contains(&format!("{};", old_module_name))
+                    || trimmed.contains(&format!("{} ", old_module_name)));
 
             if is_mod_decl {
                 // Use word boundary replacement to avoid partial matches
                 // This handles both "mod helpers;" and "mod helpers {" cases
-                let updated_line = line.replace(
-                    &format!(" {};", old_module_name),
-                    &format!(" {};", new_module_name)
-                ).replace(
-                    &format!(" {} ", old_module_name),
-                    &format!(" {} ", new_module_name)
-                );
+                let updated_line = line
+                    .replace(
+                        &format!(" {};", old_module_name),
+                        &format!(" {};", new_module_name),
+                    )
+                    .replace(
+                        &format!(" {} ", old_module_name),
+                        &format!(" {} ", new_module_name),
+                    );
 
                 if updated_line != line {
                     updated_lines.push(updated_line);
@@ -852,12 +864,24 @@ impl RustPlugin {
         // For directory renames: use directory name (e.g., "src/utils" -> "utils")
         // For file renames: use file stem (e.g., "src/utils.rs" -> "utils")
         let (old_module_name, new_module_name) = if is_directory_rename {
-            let old_mod = _old_path.file_name().and_then(|s| s.to_str()).map(String::from);
-            let new_mod = _new_path.file_name().and_then(|s| s.to_str()).map(String::from);
+            let old_mod = _old_path
+                .file_name()
+                .and_then(|s| s.to_str())
+                .map(String::from);
+            let new_mod = _new_path
+                .file_name()
+                .and_then(|s| s.to_str())
+                .map(String::from);
             (old_mod, new_mod)
         } else {
-            let old_mod = _old_path.file_stem().and_then(|s| s.to_str()).map(String::from);
-            let new_mod = _new_path.file_stem().and_then(|s| s.to_str()).map(String::from);
+            let old_mod = _old_path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .map(String::from);
+            let new_mod = _new_path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .map(String::from);
             (old_mod, new_mod)
         };
 
@@ -875,10 +899,7 @@ impl RustPlugin {
                         if changes > 0 {
                             updated_content = new_content;
                             total_changes += changes;
-                            tracing::info!(
-                                changes = changes,
-                                "Updated mod declarations"
-                            );
+                            tracing::info!(changes = changes, "Updated mod declarations");
                         }
                     }
                     Err(e) => {
@@ -945,7 +966,8 @@ impl RustPlugin {
             if let Some(info) = rename_info {
                 let old_name = info["old_crate_name"].as_str().unwrap_or("");
                 let new_name = info["new_crate_name"].as_str().unwrap_or("");
-                let (new_content, changes) = rename_support.rewrite_imports_for_rename(&updated_content, old_name, new_name);
+                let (new_content, changes) =
+                    rename_support.rewrite_imports_for_rename(&updated_content, old_name, new_name);
                 total_changes += changes;
                 updated_content = new_content;
             } else {
@@ -1061,7 +1083,9 @@ impl RustPlugin {
                             "Rewrite completed"
                         );
                     } else {
-                        tracing::info!("Module paths are identical - no use statement rewrite needed");
+                        tracing::info!(
+                            "Module paths are identical - no use statement rewrite needed"
+                        );
                     }
                 } else {
                     tracing::error!(
@@ -1193,8 +1217,12 @@ impl Wrapper {
 
         // Use the ImportRenameSupport trait method instead
         let rename_support = plugin_trait.import_rename_support().unwrap();
-        let (result, count) =
-            cb_plugin_api::ImportRenameSupport::rewrite_imports_for_rename(rename_support, source, "old_crate", "new_crate");
+        let (result, count) = cb_plugin_api::ImportRenameSupport::rewrite_imports_for_rename(
+            rename_support,
+            source,
+            "old_crate",
+            "new_crate",
+        );
 
         // Should have changed exactly 2 use statements
         assert_eq!(count, 2);
@@ -1293,7 +1321,14 @@ pub fn process(x: i32) -> i32 {
         let current_file = Path::new("/workspace/common/src/processor.rs");
 
         let result = plugin
-            .rewrite_imports_for_rename(source, old_path, new_path, current_file, project_root, None)
+            .rewrite_imports_for_rename(
+                source,
+                old_path,
+                new_path,
+                current_file,
+                project_root,
+                None,
+            )
             .unwrap();
 
         let (new_content, count) = result;
@@ -1321,11 +1356,21 @@ pub fn process(x: i32) -> i32 {
 
         let source = "pub mod utils;\n\npub fn lib_fn() {\n    utils::helper();\n}\n";
 
-        let result = plugin.update_module_declaration(source, "utils", "helpers").unwrap();
+        let result = plugin
+            .update_module_declaration(source, "utils", "helpers")
+            .unwrap();
 
         assert_eq!(result.1, 1, "Should have 1 change");
-        assert!(result.0.contains("pub mod helpers;"), "Should contain 'pub mod helpers;'\nActual: {}", result.0);
-        assert!(!result.0.contains("pub mod utils;"), "Should not contain 'pub mod utils;'\nActual: {}", result.0);
+        assert!(
+            result.0.contains("pub mod helpers;"),
+            "Should contain 'pub mod helpers;'\nActual: {}",
+            result.0
+        );
+        assert!(
+            !result.0.contains("pub mod utils;"),
+            "Should not contain 'pub mod utils;'\nActual: {}",
+            result.0
+        );
     }
 
     #[test]
@@ -1334,12 +1379,26 @@ pub fn process(x: i32) -> i32 {
 
         let source = "pub fn lib_fn() {\n    utils::helper();\n    utils::another();\n}\n";
 
-        let result = plugin.update_qualified_paths(source, "utils", "helpers").unwrap();
+        let result = plugin
+            .update_qualified_paths(source, "utils", "helpers")
+            .unwrap();
 
         assert_eq!(result.1, 2, "Should have 2 changes");
-        assert!(result.0.contains("helpers::helper()"), "Should contain 'helpers::helper()'\nActual: {}", result.0);
-        assert!(result.0.contains("helpers::another()"), "Should contain 'helpers::another()'\nActual: {}", result.0);
-        assert!(!result.0.contains("utils::"), "Should not contain 'utils::'\nActual: {}", result.0);
+        assert!(
+            result.0.contains("helpers::helper()"),
+            "Should contain 'helpers::helper()'\nActual: {}",
+            result.0
+        );
+        assert!(
+            result.0.contains("helpers::another()"),
+            "Should contain 'helpers::another()'\nActual: {}",
+            result.0
+        );
+        assert!(
+            !result.0.contains("utils::"),
+            "Should not contain 'utils::'\nActual: {}",
+            result.0
+        );
     }
 
     #[test]

@@ -52,7 +52,10 @@ impl ProjectFactory for RustProjectFactory {
             .file_name()
             .and_then(|n| n.to_str())
             .ok_or_else(|| {
-                PluginError::invalid_input(format!("Invalid package path: {}", package_path.display()))
+                PluginError::invalid_input(format!(
+                    "Invalid package path: {}",
+                    package_path.display()
+                ))
             })?
             .to_string();
 
@@ -229,9 +232,8 @@ fn create_full_template(package_path: &Path, package_name: &str) -> PluginResult
 
     // tests/integration_test.rs
     let tests_dir = package_path.join("tests");
-    fs::create_dir_all(&tests_dir).map_err(|e| {
-        PluginError::internal(format!("Failed to create tests directory: {}", e))
-    })?;
+    fs::create_dir_all(&tests_dir)
+        .map_err(|e| PluginError::internal(format!("Failed to create tests directory: {}", e)))?;
 
     let test_path = tests_dir.join("integration_test.rs");
     let test_content = format!(
@@ -331,9 +333,8 @@ fn find_workspace_manifest(workspace_root: &Path) -> PluginResult<PathBuf> {
         let manifest = current.join("Cargo.toml");
 
         if manifest.exists() {
-            let content = fs::read_to_string(&manifest).map_err(|e| {
-                PluginError::internal(format!("Failed to read Cargo.toml: {}", e))
-            })?;
+            let content = fs::read_to_string(&manifest)
+                .map_err(|e| PluginError::internal(format!("Failed to read Cargo.toml: {}", e)))?;
 
             if content.contains("[workspace]") {
                 return Ok(manifest);

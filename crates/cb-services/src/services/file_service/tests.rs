@@ -4,7 +4,9 @@ mod tests {
     use crate::services::lock_manager::LockManager;
     use crate::services::operation_queue::{OperationQueue, OperationType};
     use codebuddy_ast::AstCache;
-    use codebuddy_foundation::protocol::{ ApiError , DependencyUpdate , EditPlan , EditPlanMetadata , TextEdit };
+    use codebuddy_foundation::protocol::{
+        ApiError, DependencyUpdate, EditPlan, EditPlanMetadata, TextEdit,
+    };
     use std::path::Path;
     use std::sync::Arc;
     use tempfile::TempDir;
@@ -166,7 +168,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_atomic_edit_plan_success() {
-        use codebuddy_foundation::protocol::{ DependencyUpdateType , EditLocation , EditType };
+        use codebuddy_foundation::protocol::{DependencyUpdateType, EditLocation, EditType};
 
         let temp_dir = TempDir::new().unwrap();
         let (service, _queue) = create_test_service(&temp_dir);
@@ -246,7 +248,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_atomic_rollback_on_main_file_failure() {
-        use codebuddy_foundation::protocol::{ DependencyUpdateType , EditLocation , EditType };
+        use codebuddy_foundation::protocol::{DependencyUpdateType, EditLocation, EditType};
 
         let temp_dir = TempDir::new().unwrap();
         let (service, queue) = create_test_service(&temp_dir);
@@ -322,7 +324,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_atomic_rollback_on_dependency_failure() {
-        use codebuddy_foundation::protocol::{ DependencyUpdateType , EditLocation , EditType };
+        use codebuddy_foundation::protocol::{DependencyUpdateType, EditLocation, EditType};
 
         let temp_dir = TempDir::new().unwrap();
         let (service, queue) = create_test_service(&temp_dir);
@@ -401,7 +403,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_atomic_rollback_multiple_files() {
-        use codebuddy_foundation::protocol::{ DependencyUpdateType , EditLocation , EditType };
+        use codebuddy_foundation::protocol::{DependencyUpdateType, EditLocation, EditType};
 
         let temp_dir = TempDir::new().unwrap();
         let (service, queue) = create_test_service(&temp_dir);

@@ -1,6 +1,6 @@
 use super::{edits, manifest, workspace, AstResult, ExtractModuleToPackageParams};
 use cb_plugin_api::language::detect_project_language;
-use codebuddy_foundation::protocol::{ EditPlan , EditPlanMetadata , ValidationRule , ValidationType };
+use codebuddy_foundation::protocol::{EditPlan, EditPlanMetadata, ValidationRule, ValidationType};
 use serde_json::json;
 use std::collections::HashMap;
 use std::path::Path;
@@ -45,14 +45,15 @@ pub(crate) async fn plan_extract_module_to_package(
     );
 
     // Step 3: Locate module files using ModuleLocator capability
-    let module_locator = plugin
-        .module_locator()
-        .ok_or_else(|| crate::error::AstError::Analysis {
-            message: format!(
-                "Plugin '{}' does not support module location",
-                plugin.metadata().name
-            ),
-        })?;
+    let module_locator =
+        plugin
+            .module_locator()
+            .ok_or_else(|| crate::error::AstError::Analysis {
+                message: format!(
+                    "Plugin '{}' does not support module location",
+                    plugin.metadata().name
+                ),
+            })?;
 
     let located_files = module_locator
         .locate_module_files(source_path, &params.module_path)
@@ -62,14 +63,15 @@ pub(crate) async fn plan_extract_module_to_package(
 
     // Step 4: Parse imports from all located files and aggregate dependencies
     // Use ManifestUpdater capability for language-agnostic manifest operations
-    let manifest_updater = plugin
-        .manifest_updater()
-        .ok_or_else(|| crate::error::AstError::Analysis {
-            message: format!(
-                "Plugin '{}' does not support manifest generation",
-                plugin.metadata().name
-            ),
-        })?;
+    let manifest_updater =
+        plugin
+            .manifest_updater()
+            .ok_or_else(|| crate::error::AstError::Analysis {
+                message: format!(
+                    "Plugin '{}' does not support manifest generation",
+                    plugin.metadata().name
+                ),
+            })?;
 
     let dependencies = manifest::extract_dependencies(&**plugin, &located_files).await;
     debug!(
@@ -123,14 +125,8 @@ pub(crate) async fn plan_extract_module_to_package(
 
     // Step 9: Find and update all use statements in the workspace
     if params.update_imports.unwrap_or(true) {
-        edits::add_import_update_edits(
-            &mut edits,
-            &params,
-            source_path,
-            &**plugin,
-            &located_files,
-        )
-        .await?;
+        edits::add_import_update_edits(&mut edits, &params, source_path, &**plugin, &located_files)
+            .await?;
     }
 
     // Convert PathBuf to strings for JSON serialization
@@ -163,7 +159,7 @@ pub(crate) async fn plan_extract_module_to_package(
             created_at: chrono::Utc::now(),
             complexity: 1,
             impact_areas: vec!["package_extraction".to_string()],
-                consolidation: None,
+            consolidation: None,
         },
     };
 

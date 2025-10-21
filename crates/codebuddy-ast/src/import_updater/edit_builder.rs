@@ -4,7 +4,7 @@ use crate::import_updater::{
     path_resolver::ImportPathResolver,
     reference_finder::{create_text_edits_from_references, find_inline_crate_references},
 };
-use codebuddy_foundation::protocol::{ EditPlan , EditPlanMetadata };
+use codebuddy_foundation::protocol::{EditPlan, EditPlanMetadata};
 use std::path::{Path, PathBuf};
 use tracing::{debug, info, warn};
 
@@ -236,25 +236,27 @@ pub(crate) async fn build_import_update_plan(
             // Use find_module_references for precise edits (works for both file and directory renames)
             // Use capability trait for language-agnostic module reference scanning
             if let Some(scanner) = plugin.module_reference_scanner() {
-                let refs = scanner.scan_references(&content, old_module_name, scope).ok();
+                let refs = scanner
+                    .scan_references(&content, old_module_name, scope)
+                    .ok();
 
-            if let Some(refs) = refs {
-                if !refs.is_empty() {
-                    let edits = create_text_edits_from_references(
-                        &refs,
-                        &file_path,
-                        old_module_name,
-                        new_module_name,
-                    );
-                    debug!(
-                        file = ?file_path,
-                        edits = edits.len(),
-                        "Created precise TextEdits from module references"
-                    );
-                    all_edits.extend(edits);
-                    edited_file_count += 1;
+                if let Some(refs) = refs {
+                    if !refs.is_empty() {
+                        let edits = create_text_edits_from_references(
+                            &refs,
+                            &file_path,
+                            old_module_name,
+                            new_module_name,
+                        );
+                        debug!(
+                            file = ?file_path,
+                            edits = edits.len(),
+                            "Created precise TextEdits from module references"
+                        );
+                        all_edits.extend(edits);
+                        edited_file_count += 1;
+                    }
                 }
-            }
             }
 
             // ADDITIONAL SCAN: Find inline fully-qualified paths
@@ -325,8 +327,8 @@ pub(crate) async fn build_import_update_plan(
                 // This way the plugin can match exact imports like './core/api'
                 let rewrite_result = plugin.rewrite_file_references(
                     &current_content,
-                    old_file_in_dir,  // Actual file path: /workspace/src/core/api.ts
-                    &new_file_path,   // Actual file path: /workspace/src/legacy/api.ts
+                    old_file_in_dir, // Actual file path: /workspace/src/core/api.ts
+                    &new_file_path,  // Actual file path: /workspace/src/legacy/api.ts
                     &file_path,
                     project_root,
                     rename_info,
@@ -355,7 +357,7 @@ pub(crate) async fn build_import_update_plan(
 
             // If we accumulated any changes, create a TextEdit
             if total_changes > 0 && current_content != content {
-                use codebuddy_foundation::protocol::{ EditLocation , EditType , TextEdit };
+                use codebuddy_foundation::protocol::{EditLocation, EditType, TextEdit};
                 let line_count = current_content.lines().count();
                 let last_line_len = current_content.lines().last().map(|l| l.len()).unwrap_or(0);
 
@@ -400,7 +402,7 @@ pub(crate) async fn build_import_update_plan(
                 Some((updated_content, count)) => {
                     if count > 0 && updated_content != content {
                         // Create a single TextEdit for the entire file content replacement
-                        use codebuddy_foundation::protocol::{ EditLocation , EditType , TextEdit };
+                        use codebuddy_foundation::protocol::{EditLocation, EditType, TextEdit};
                         let line_count = content.lines().count();
                         let last_line_len = content.lines().last().map(|l| l.len()).unwrap_or(0);
 
@@ -461,7 +463,7 @@ pub(crate) async fn build_import_update_plan(
             created_at: chrono::Utc::now(),
             complexity: if scan_scope.is_some() { 7 } else { 5 },
             impact_areas: vec!["imports".to_string(), "file_references".to_string()],
-                consolidation: None,
+            consolidation: None,
         },
     })
 }

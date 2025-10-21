@@ -35,12 +35,7 @@ impl TomlImportSupport {
     }
 
     /// Recursively update paths in TOML values
-    fn update_toml_item(
-        item: &mut Item,
-        old_path: &str,
-        new_path: &str,
-        changes: &mut usize,
-    ) {
+    fn update_toml_item(item: &mut Item, old_path: &str, new_path: &str, changes: &mut usize) {
         match item {
             Item::Value(Value::String(s)) => {
                 let formatted = s.value();
@@ -83,7 +78,9 @@ impl TomlImportSupport {
                             }
 
                             // Match at start of path, not anywhere
-                            if formatted == old_path || formatted.starts_with(&format!("{}/", old_path)) {
+                            if formatted == old_path
+                                || formatted.starts_with(&format!("{}/", old_path))
+                            {
                                 let new_value = formatted.replacen(old_path, new_path, 1);
                                 *s = toml_edit::Formatted::new(new_value);
                                 *changes += 1;
@@ -97,9 +94,13 @@ impl TomlImportSupport {
     }
 
     fn is_path_like(s: &str) -> bool {
-        s.contains('/') || s.contains('\\') || s.ends_with(".rs") ||
-        s.ends_with(".toml") || s.ends_with(".md") || s.ends_with(".yml") ||
-        s.ends_with(".yaml")
+        s.contains('/')
+            || s.contains('\\')
+            || s.ends_with(".rs")
+            || s.ends_with(".toml")
+            || s.ends_with(".md")
+            || s.ends_with(".yml")
+            || s.ends_with(".yaml")
     }
 }
 

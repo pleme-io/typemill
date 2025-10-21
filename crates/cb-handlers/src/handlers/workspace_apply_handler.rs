@@ -12,11 +12,13 @@
 
 use crate::handlers::tools::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
-use codebuddy_foundation::core::model::mcp::ToolCall;
-use codebuddy_foundation::protocol::{ ApiError , ApiResult as ServerResult , RefactorPlan , RefactorPlanExt };
 use cb_services::{
     services::file_service::EditPlanResult, ChecksumValidator, DryRunGenerator, PlanConverter,
     PostApplyValidator, ValidationConfig, ValidationResult,
+};
+use codebuddy_foundation::core::model::mcp::ToolCall;
+use codebuddy_foundation::protocol::{
+    ApiError, ApiResult as ServerResult, RefactorPlan, RefactorPlanExt,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -145,7 +147,8 @@ impl ToolHandler for WorkspaceApplyHandler {
         // Step 1: Validate checksums if enabled
         if params.options.validate_checksums {
             debug!("Validating file checksums");
-            services.checksum_validator
+            services
+                .checksum_validator
                 .validate_checksums(&params.plan)
                 .await?;
         }
@@ -171,20 +174,22 @@ impl ToolHandler for WorkspaceApplyHandler {
                     kind = %target.kind,
                     "Adding delete operation"
                 );
-                edit_plan.edits.push(codebuddy_foundation::protocol::TextEdit {
-                    file_path: Some(target.path.clone()),
-                    edit_type: codebuddy_foundation::protocol::EditType::Delete,
-                    location: codebuddy_foundation::protocol::EditLocation {
-                        start_line: 0,
-                        start_column: 0,
-                        end_line: 0,
-                        end_column: 0,
-                    },
-                    original_text: String::new(),
-                    new_text: String::new(),
-                    priority: 0,
-                    description: format!("Delete {}: {}", target.kind, target.path),
-                });
+                edit_plan
+                    .edits
+                    .push(codebuddy_foundation::protocol::TextEdit {
+                        file_path: Some(target.path.clone()),
+                        edit_type: codebuddy_foundation::protocol::EditType::Delete,
+                        location: codebuddy_foundation::protocol::EditLocation {
+                            start_line: 0,
+                            start_column: 0,
+                            end_line: 0,
+                            end_column: 0,
+                        },
+                        original_text: String::new(),
+                        new_text: String::new(),
+                        priority: 0,
+                        description: format!("Delete {}: {}", target.kind, target.path),
+                    });
             }
         }
 
@@ -227,7 +232,12 @@ impl ToolHandler for WorkspaceApplyHandler {
                     .await
                 } else {
                     // No validation - return success immediately
-                    Ok(Self::create_success_result(result, &edit_plan, &params.plan, None))
+                    Ok(Self::create_success_result(
+                        result,
+                        &edit_plan,
+                        &params.plan,
+                        None,
+                    ))
                 }
             }
             Err(e) => {
@@ -250,7 +260,10 @@ impl WorkspaceApplyHandler {
     ) -> ServerResult<Value> {
         info!(command = %validation_config.command, "Running post-apply validation");
 
-        match post_apply_validator.run_validation(&validation_config).await {
+        match post_apply_validator
+            .run_validation(&validation_config)
+            .await
+        {
             Ok(validation_result) => {
                 if validation_result.passed {
                     // Validation passed - return success
@@ -302,11 +315,7 @@ impl WorkspaceApplyHandler {
             applied_files: result.modified_files.clone(),
             created_files: PlanConverter::extract_created_files(edit_plan),
             deleted_files: PlanConverter::extract_deleted_files(edit_plan),
-            warnings: plan
-                .warnings()
-                .iter()
-                .map(|w| w.message.clone())
-                .collect(),
+            warnings: plan.warnings().iter().map(|w| w.message.clone()).collect(),
             validation,
             rollback_available, // Validation consumes backup
         })

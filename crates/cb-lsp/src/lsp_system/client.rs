@@ -2,7 +2,7 @@
 
 use crate::progress::{ProgressError, ProgressManager, ProgressParams, ProgressToken};
 use codebuddy_config::LspServerConfig;
-use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
+use codebuddy_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::process::Stdio;
@@ -215,10 +215,7 @@ impl LspClient {
         if let Some(pid) = child.id() {
             use crate::lsp_system::zombie_reaper::ZOMBIE_REAPER;
             ZOMBIE_REAPER.register(pid as i32);
-            tracing::debug!(
-                pid = pid,
-                "Registered LSP process with zombie reaper"
-            );
+            tracing::debug!(pid = pid, "Registered LSP process with zombie reaper");
         }
 
         // Take ownership of stdin/stdout/stderr
@@ -782,7 +779,9 @@ impl LspClient {
         token: &ProgressToken,
         timeout: Duration,
     ) -> Result<(), ProgressError> {
-        self.progress_manager.wait_for_completion(token, timeout).await
+        self.progress_manager
+            .wait_for_completion(token, timeout)
+            .await
     }
 
     /// Wait for rust-analyzer workspace indexing to complete
@@ -811,7 +810,10 @@ impl LspClient {
     /// Get the current state of a progress task
     ///
     /// Returns `None` if the task doesn't exist or has been cleaned up.
-    pub fn get_progress_state(&self, token: &ProgressToken) -> Option<crate::progress::ProgressState> {
+    pub fn get_progress_state(
+        &self,
+        token: &ProgressToken,
+    ) -> Option<crate::progress::ProgressState> {
         self.progress_manager.get_state(token)
     }
 
@@ -935,7 +937,7 @@ impl LspClient {
                     "Timeout waiting for LSP server process to exit during force shutdown"
                 );
                 Err(ServerError::runtime(
-                    "Timeout waiting for LSP server process to exit"
+                    "Timeout waiting for LSP server process to exit",
                 ))
             }
         }

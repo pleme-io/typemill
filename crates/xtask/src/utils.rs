@@ -37,6 +37,7 @@ pub fn run_cmd_output(program: &str, args: &[&str]) -> Result<String> {
 }
 
 /// Get the workspace root directory
+#[allow(dead_code)]
 pub fn workspace_root() -> Result<PathBuf> {
     std::env::current_dir().context("Failed to get current directory")
 }

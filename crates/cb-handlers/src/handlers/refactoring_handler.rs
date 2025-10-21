@@ -6,7 +6,7 @@
 use crate::handlers::tools::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use codebuddy_foundation::core::model::mcp::ToolCall;
-use codebuddy_foundation::protocol::{ ApiError , ApiResult as ServerResult };
+use codebuddy_foundation::protocol::{ApiError, ApiResult as ServerResult};
 use serde_json::Value;
 
 pub struct RefactoringHandler;

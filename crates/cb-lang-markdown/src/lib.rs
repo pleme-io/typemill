@@ -4,15 +4,15 @@
 //! This enables `rename.plan` to track markdown link references when files are moved.
 
 use async_trait::async_trait;
+use cb_plugin_api::codebuddy_plugin;
 use cb_plugin_api::{
     import_support::{
         ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportParser,
         ImportRenameSupport,
     },
-    LanguageMetadata, LanguagePlugin, ManifestData, ParsedSource, PluginCapabilities,
-    PluginError, PluginResult, SourceLocation, Symbol, SymbolKind,
+    LanguageMetadata, LanguagePlugin, ManifestData, ParsedSource, PluginCapabilities, PluginError,
+    PluginResult, SourceLocation, Symbol, SymbolKind,
 };
-use cb_plugin_api::codebuddy_plugin;
 use regex::Regex;
 use std::path::Path;
 use tracing::debug;
@@ -49,8 +49,7 @@ pub struct MarkdownPlugin {
 
 impl MarkdownPlugin {
     /// The capabilities of this plugin.
-    pub const CAPABILITIES: PluginCapabilities = PluginCapabilities::none()
-        .with_imports(); // We support "imports" (file references)
+    pub const CAPABILITIES: PluginCapabilities = PluginCapabilities::none().with_imports(); // We support "imports" (file references)
 
     pub fn new() -> Self {
         Self {
@@ -312,7 +311,10 @@ Details.
             None,
         );
 
-        assert!(result.is_some(), "rewrite_file_references should return Some");
+        assert!(
+            result.is_some(),
+            "rewrite_file_references should return Some"
+        );
 
         let (updated_content, count) = result.unwrap();
 
@@ -353,7 +355,10 @@ Details.
             None,
         );
 
-        assert!(result.is_some(), "rewrite_file_references should return Some");
+        assert!(
+            result.is_some(),
+            "rewrite_file_references should return Some"
+        );
 
         let (updated_content, count) = result.unwrap();
 

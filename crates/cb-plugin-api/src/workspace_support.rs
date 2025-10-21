@@ -204,6 +204,7 @@ pub trait WorkspaceSupport: Send + Sync {
     ///     Ok(())
     /// }
     /// ```
+    #[allow(clippy::too_many_arguments)]
     async fn execute_consolidation_post_processing(
         &self,
         _source_crate_name: &str,

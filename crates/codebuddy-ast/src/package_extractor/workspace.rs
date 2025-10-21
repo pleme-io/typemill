@@ -1,6 +1,6 @@
 use crate::package_extractor::ExtractModuleToPackageParams;
 use cb_plugin_api::LanguagePlugin;
-use codebuddy_foundation::protocol::{ EditLocation , EditType , TextEdit };
+use codebuddy_foundation::protocol::{EditLocation, EditType, TextEdit};
 use std::path::Path;
 use tracing::debug;
 

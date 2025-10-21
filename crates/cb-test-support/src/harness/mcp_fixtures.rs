@@ -660,9 +660,9 @@ Also check [the guide](docs/guide.md#installation).
         new_file_path: "docs/api-reference.md",
         expect_success: true,
         expected_import_updates: &[
-            ("README.md", "(docs/api-reference.md)"),  // From root, use project-relative
-            ("CONTRIBUTING.md", "(docs/api-reference.md)"),  // From root, use project-relative
-            ("docs/examples.md", "(api-reference.md)"),  // Same directory, use file-relative
+            ("README.md", "(docs/api-reference.md)"), // From root, use project-relative
+            ("CONTRIBUTING.md", "(docs/api-reference.md)"), // From root, use project-relative
+            ("docs/examples.md", "(api-reference.md)"), // Same directory, use file-relative
         ],
     },
     RenameFileTestCase {
@@ -712,9 +712,7 @@ See [the changelog][changes] for version history.
         old_file_path: "docs/changelog.md",
         new_file_path: "CHANGELOG.md",
         expect_success: true,
-        expected_import_updates: &[
-            ("README.md", "[changes]: CHANGELOG.md"),
-        ],
+        expected_import_updates: &[("README.md", "[changes]: CHANGELOG.md")],
     },
     RenameFileTestCase {
         test_name: "markdown_move_to_different_directory",
@@ -733,9 +731,7 @@ See [the changelog][changes] for version history.
         old_file_path: "docs/setup.md",
         new_file_path: "SETUP.md",
         expect_success: true,
-        expected_import_updates: &[
-            ("README.md", "[Setup](SETUP.md)"),
-        ],
+        expected_import_updates: &[("README.md", "[Setup](SETUP.md)")],
     },
     RenameFileTestCase {
         test_name: "markdown_nested_directory_paths",

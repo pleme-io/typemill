@@ -1,4 +1,11 @@
-#![allow(dead_code, unused_variables, clippy::mutable_key_type, clippy::needless_range_loop, clippy::ptr_arg, clippy::manual_clamp)]
+#![allow(
+    dead_code,
+    unused_variables,
+    clippy::mutable_key_type,
+    clippy::needless_range_loop,
+    clippy::ptr_arg,
+    clippy::manual_clamp
+)]
 
 use super::*;
 use anyhow::Result;
@@ -148,7 +155,11 @@ impl SuggestionGenerator {
             .filter(|s| self.config.include_safety_levels.contains(&s.safety))
             .filter(|s| {
                 self.config.filters.allowed_impact_levels.is_empty()
-                    || self.config.filters.allowed_impact_levels.contains(&s.estimated_impact)
+                    || self
+                        .config
+                        .filters
+                        .allowed_impact_levels
+                        .contains(&s.estimated_impact)
             })
             .take(self.config.max_per_finding)
             .collect()

@@ -1,7 +1,7 @@
 //! cb-server main binary
 
-use codebuddy_config::AppConfig;
 use clap::{Parser, Subcommand};
+use codebuddy_config::AppConfig;
 use std::sync::Arc;
 
 #[derive(Parser)]
@@ -49,9 +49,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let plugin_registry = Arc::new(plugin_registry);
 
     // Create dispatcher using shared library function (reduces duplication)
-    let dispatcher = cb_server::create_dispatcher_with_workspace(config.clone(), workspace_manager, plugin_registry)
-        .await
-        .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
+    let dispatcher = cb_server::create_dispatcher_with_workspace(
+        config.clone(),
+        workspace_manager,
+        plugin_registry,
+    )
+    .await
+    .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
 
     // Execute based on command
     match cli.command {

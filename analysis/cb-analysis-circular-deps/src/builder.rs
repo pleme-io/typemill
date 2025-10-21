@@ -1,10 +1,7 @@
 //! Builds a `DependencyGraph` from a project's source files.
 
 use cb_analysis_graph::dependency::{Dependency, DependencyGraph, DependencyKind};
-use cb_plugin_api::{
-    import_support::ImportParser,
-    PluginRegistry,
-};
+use cb_plugin_api::{import_support::ImportParser, PluginRegistry};
 use ignore::WalkBuilder;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -38,12 +35,9 @@ impl<'a> DependencyGraphBuilder<'a> {
                 if let Some(import_parser) = plugin.import_parser() {
                     let imports = ImportParser::parse_imports(import_parser, &content);
                     for import_path in imports {
-                        if let Some(resolved_path) = self.resolve_path(
-                            &file_path,
-                            &import_path,
-                            project_root,
-                            import_parser,
-                        ) {
+                        if let Some(resolved_path) =
+                            self.resolve_path(&file_path, &import_path, project_root, import_parser)
+                        {
                             // Try to extract symbols from the import
                             let symbols =
                                 self.extract_symbols(&content, &import_path, import_parser);

@@ -57,7 +57,18 @@ fn run_all_checks() -> Result<()> {
 
     // Clippy
     println!("{}", "Running clippy...".cyan());
-    utils::run_cmd("cargo", &["clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"])?;
+    utils::run_cmd(
+        "cargo",
+        &[
+            "clippy",
+            "--workspace",
+            "--all-targets",
+            "--all-features",
+            "--",
+            "-D",
+            "warnings",
+        ],
+    )?;
     println!("{} Clippy passed\n", "✓".green());
 
     // Tests

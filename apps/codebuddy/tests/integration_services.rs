@@ -7,12 +7,12 @@
 //! Unlike E2E tests which use TestClient and MCP protocol, these tests directly
 //! instantiate service components and test their integration.
 
-use codebuddy_ast::AstCache;
-use codebuddy_plugin_system::PluginManager;
-use codebuddy_foundation::protocol::AstService;
 use cb_server::handlers::AppState;
 use cb_server::services::{DefaultAstService, FileService, LockManager, OperationQueue};
 use cb_server::workspaces::WorkspaceManager;
+use codebuddy_ast::AstCache;
+use codebuddy_foundation::protocol::AstService;
+use codebuddy_plugin_system::PluginManager;
 use serde_json::json;
 use std::fs;
 use std::path::PathBuf;
@@ -226,9 +226,9 @@ async fn test_cache_performance_improvement() {
 
 #[tokio::test]
 async fn test_workspace_edit_in_process() {
-    use codebuddy_foundation::core::model::mcp::{ McpMessage , McpRequest };
     use cb_server::test_helpers::create_test_dispatcher_with_root;
     use cb_transport::SessionInfo;
+    use codebuddy_foundation::core::model::mcp::{McpMessage, McpRequest};
     use std::time::Instant;
     use tempfile::TempDir;
 

@@ -119,8 +119,14 @@ async fn test_basic_file_rename_works() {
     );
 
     // Verify file was renamed
-    assert!(!workspace.file_exists("old_file.rs"), "Old file should be gone");
-    assert!(workspace.file_exists("new_file.rs"), "New file should exist");
+    assert!(
+        !workspace.file_exists("old_file.rs"),
+        "Old file should be gone"
+    );
+    assert!(
+        workspace.file_exists("new_file.rs"),
+        "New file should exist"
+    );
 
     println!("✅ Basic file rename working");
 }
@@ -259,11 +265,14 @@ async fn test_carol_config_file_updates() {
     let mut client = TestClient::new(workspace.path());
 
     workspace.create_directory("integration-tests");
-    workspace.create_file("integration-tests/Cargo.toml", r#"
+    workspace.create_file(
+        "integration-tests/Cargo.toml",
+        r#"
 [package]
 name = "integration-tests"
 version = "0.1.0"
-"#);
+"#,
+    );
 
     workspace.create_directory(".github/workflows");
     workspace.create_file(
@@ -439,10 +448,16 @@ async fn test_comprehensive_93_percent_coverage() {
     if workspace.read_file("src/lib.rs").contains("tests/") {
         updated_files += 1;
     }
-    if workspace.read_file("tests/src/lib.rs").contains("tests/fixtures") {
+    if workspace
+        .read_file("tests/src/lib.rs")
+        .contains("tests/fixtures")
+    {
         updated_files += 1;
     }
-    if workspace.read_file("tests/src/helpers.rs").contains("tests/fixtures") {
+    if workspace
+        .read_file("tests/src/helpers.rs")
+        .contains("tests/fixtures")
+    {
         updated_files += 1;
     }
 
@@ -463,15 +478,23 @@ async fn test_comprehensive_93_percent_coverage() {
     if workspace.read_file(".cargo/config.toml").contains("tests/") {
         updated_files += 1;
     }
-    if workspace.read_file(".github/workflows/ci.yml").contains("tests/") {
+    if workspace
+        .read_file(".github/workflows/ci.yml")
+        .contains("tests/")
+    {
         updated_files += 1;
     }
 
     // Check Cargo.toml files (workspace + package manifests)
     total_expected += 3;
     // Root workspace Cargo.toml should have "tests" in members
-    if workspace.read_file("Cargo.toml").contains("members = [\"tests\"]") ||
-       workspace.read_file("Cargo.toml").contains(r#"members = ["tests"]"#) {
+    if workspace
+        .read_file("Cargo.toml")
+        .contains("members = [\"tests\"]")
+        || workspace
+            .read_file("Cargo.toml")
+            .contains(r#"members = ["tests"]"#)
+    {
         updated_files += 1;
     }
     // Package Cargo.toml should exist at new location
@@ -479,7 +502,10 @@ async fn test_comprehensive_93_percent_coverage() {
         updated_files += 1;
     }
     // Package Cargo.toml should have updated name
-    if workspace.read_file("tests/Cargo.toml").contains("name = \"tests\"") {
+    if workspace
+        .read_file("tests/Cargo.toml")
+        .contains("name = \"tests\"")
+    {
         updated_files += 1;
     }
 
@@ -565,10 +591,7 @@ Run: `cargo test --manifest-path integration-tests/Cargo.toml`
 "#,
     );
 
-    workspace.create_file(
-        &format!("{}/README.md", int_tests),
-        "# Integration Tests",
-    );
+    workspace.create_file(&format!("{}/README.md", int_tests), "# Integration Tests");
 
     workspace.create_directory(".cargo");
     workspace.create_file(

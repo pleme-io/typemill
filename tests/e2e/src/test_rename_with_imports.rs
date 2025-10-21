@@ -500,10 +500,7 @@ async fn test_markdown_links_skip_external_urls() {
     let mut client = TestClient::new(workspace.path());
 
     workspace.create_directory("docs");
-    workspace.create_file(
-        "docs/guide.md",
-        "# Guide\nContent here.",
-    );
+    workspace.create_file("docs/guide.md", "# Guide\nContent here.");
     workspace.create_file(
         "README.md",
         r#"# Project

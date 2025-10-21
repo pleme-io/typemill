@@ -109,10 +109,9 @@ impl ToolHandler for WorkspaceToolsHandler {
                 self.system_handler.handle_tool_call(context, &call).await
             }
             "update_dependency" => self.handle_update_dependency(context, &call).await,
-            _ => Err(codebuddy_foundation::protocol::ApiError::InvalidRequest(format!(
-                "Unknown workspace tool: {}",
-                tool_call.name
-            ))),
+            _ => Err(codebuddy_foundation::protocol::ApiError::InvalidRequest(
+                format!("Unknown workspace tool: {}", tool_call.name),
+            )),
         }
     }
 }
@@ -162,14 +161,12 @@ impl WorkspaceToolsHandler {
         // us to use FileService for reading and benefit from caching/locking.
 
         // Use manifest updater capability - no downcasting or cfg guards needed!
-        let manifest_updater = plugin
-            .manifest_updater()
-            .ok_or_else(|| {
-                codebuddy_foundation::protocol::ApiError::Unsupported(format!(
-                    "Plugin '{}' does not support manifest updates",
-                    plugin.metadata().name
-                ))
-            })?;
+        let manifest_updater = plugin.manifest_updater().ok_or_else(|| {
+            codebuddy_foundation::protocol::ApiError::Unsupported(format!(
+                "Plugin '{}' does not support manifest updates",
+                plugin.metadata().name
+            ))
+        })?;
 
         let updated_content = manifest_updater
             .update_dependency(path, old_dep_name, new_dep_name, new_path)
@@ -212,7 +209,9 @@ impl WorkspaceToolsHandler {
             .as_ref()
             .and_then(|v| v.as_object())
             .ok_or_else(|| {
-                codebuddy_foundation::protocol::ApiError::InvalidRequest("Arguments must be an object".to_string())
+                codebuddy_foundation::protocol::ApiError::InvalidRequest(
+                    "Arguments must be an object".to_string(),
+                )
             })?;
 
         let manifest_path = args

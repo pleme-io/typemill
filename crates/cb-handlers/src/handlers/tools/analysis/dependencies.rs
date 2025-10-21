@@ -19,7 +19,7 @@ use codebuddy_foundation::core::model::mcp::ToolCall;
 use codebuddy_foundation::protocol::analysis_result::{
     Finding, FindingLocation, Position, Range, SafetyLevel, Severity, Suggestion,
 };
-use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
+use codebuddy_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use regex::Regex;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -1061,7 +1061,8 @@ fn parse_imports_with_plugin(
     // Get plugin from registry
     if let Some(plugin) = registry.get_plugin(extension) {
         let path = Path::new(file_path);
-        let graph = plugin.analyze_detailed_imports(content, Some(path))
+        let graph = plugin
+            .analyze_detailed_imports(content, Some(path))
             .map_err(|e| format!("Plugin failed: {}", e))?;
         Ok(graph.imports)
     } else {
@@ -1079,7 +1080,9 @@ fn parse_imports_with_plugin(
 ///
 /// # Returns
 /// A vector of symbol names (including default, namespace, and named imports)
-fn extract_symbols_from_import_info(import_info: &codebuddy_foundation::protocol::ImportInfo) -> Vec<String> {
+fn extract_symbols_from_import_info(
+    import_info: &codebuddy_foundation::protocol::ImportInfo,
+) -> Vec<String> {
     let mut symbols = Vec::new();
 
     // Add default import if present
@@ -1217,11 +1220,12 @@ impl ToolHandler for DependenciesHandler {
                         total_findings: result.summary.total_cycles,
                         returned_findings: result.summary.total_cycles,
                         has_more: false,
-                        by_severity: codebuddy_foundation::protocol::analysis_result::SeverityBreakdown {
-                            high: result.summary.total_cycles,
-                            medium: 0,
-                            low: 0,
-                        },
+                        by_severity:
+                            codebuddy_foundation::protocol::analysis_result::SeverityBreakdown {
+                                high: result.summary.total_cycles,
+                                medium: 0,
+                                low: 0,
+                            },
                         files_analyzed: result.summary.files_analyzed,
                         symbols_analyzed: Some(result.summary.total_modules_in_cycles),
                         analysis_time_ms: result.summary.analysis_time_ms,

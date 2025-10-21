@@ -3,7 +3,7 @@
 //! Executes external validation commands (e.g., "cargo check") after applying
 //! a refactoring plan to verify the changes didn't break the codebase.
 
-use codebuddy_foundation::protocol::{ ApiError , ApiResult as ServerResult };
+use codebuddy_foundation::protocol::{ApiError, ApiResult as ServerResult};
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
 use tokio::process::Command;
@@ -44,9 +44,7 @@ impl PostApplyValidator {
     ) -> ServerResult<ValidationResult> {
         let start = Instant::now();
 
-        let working_dir = config
-            .working_dir.as_deref()
-            .unwrap_or(".");
+        let working_dir = config.working_dir.as_deref().unwrap_or(".");
 
         debug!(
             command = %config.command,
@@ -71,9 +69,7 @@ impl PostApplyValidator {
                 config.timeout_seconds
             ))
         })?
-        .map_err(|e| {
-            ApiError::Internal(format!("Failed to execute validation command: {}", e))
-        })?;
+        .map_err(|e| ApiError::Internal(format!("Failed to execute validation command: {}", e)))?;
 
         let duration_ms = start.elapsed().as_millis() as u64;
         let exit_code = output.status.code().unwrap_or(-1);

@@ -7,12 +7,12 @@
 //! - Plugin registry initialization time
 
 use async_trait::async_trait;
+use cb_server::handlers::plugin_dispatcher::create_test_dispatcher;
 use codebuddy_foundation::core::model::mcp::ToolCall;
 use codebuddy_plugin_system::{
     Capabilities, LanguagePlugin, PluginMetadata, PluginRegistry, PluginRequest, PluginResponse,
     PluginResult,
 };
-use cb_server::handlers::plugin_dispatcher::create_test_dispatcher;
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use serde_json::{json, Value};
 use std::collections::HashMap;

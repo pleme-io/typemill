@@ -3,8 +3,9 @@ use super::super::ToolHandlerContext;
 use super::{
     dead_code as dead_code_handler, dependencies as dependencies_handler,
     documentation as documentation_handler, quality as quality_handler,
-    structure as structure_handler, tests_handler, AnalysisConfig,
+    structure as structure_handler,
     suggestions::{SuggestionConfig, SuggestionGenerator},
+    tests_handler, AnalysisConfig,
 };
 use cb_plugin_api::Symbol;
 use codebuddy_foundation::protocol::analysis_result::{
@@ -149,7 +150,12 @@ pub async fn run_batch_analysis(
     let mut all_categories = HashSet::new();
 
     for query in &request.queries {
-        let category = query.command.split('.').next_back().unwrap_or("").to_string();
+        let category = query
+            .command
+            .split('.')
+            .next_back()
+            .unwrap_or("")
+            .to_string();
         if category.is_empty() {
             warn!(command = %query.command, "Skipping query with invalid command format");
             continue;
@@ -188,7 +194,9 @@ pub async fn run_batch_analysis(
                 files_analyzed_in_query += 1;
             } else {
                 let file_path_str = file_path.display().to_string();
-                failed_files_map.entry(file_path_str).or_insert_with(|| "File failed to parse".to_string());
+                failed_files_map
+                    .entry(file_path_str)
+                    .or_insert_with(|| "File failed to parse".to_string());
             }
         }
 
@@ -394,8 +402,12 @@ async fn analyze_file_with_cached_ast(
                 for func in &cached_ast.complexity_report.functions {
                     if func.complexity.cognitive >= 10 || func.complexity.cyclomatic >= 15 {
                         let severity = match func.rating {
-                            codebuddy_ast::complexity::ComplexityRating::VeryComplex => Severity::High,
-                            codebuddy_ast::complexity::ComplexityRating::Complex => Severity::Medium,
+                            codebuddy_ast::complexity::ComplexityRating::VeryComplex => {
+                                Severity::High
+                            }
+                            codebuddy_ast::complexity::ComplexityRating::Complex => {
+                                Severity::Medium
+                            }
                             _ => Severity::Low,
                         };
 

@@ -119,9 +119,7 @@ impl DependencyGraph {
             |_| 1,
             |_| 0,
         ) {
-            path.iter()
-                .map(|&idx| self.graph[idx].clone())
-                .collect()
+            path.iter().map(|&idx| self.graph[idx].clone()).collect()
         } else {
             vec![]
         }
@@ -198,8 +196,8 @@ pub async fn validate_no_circular_dependencies(
     );
 
     // 5. Find problematic modules in source crate
-    let problematic_modules = find_problematic_modules(source_crate_path, &source_crate_name, &dependency_chain)
-        .await?;
+    let problematic_modules =
+        find_problematic_modules(source_crate_path, &source_crate_name, &dependency_chain).await?;
 
     warn!(
         problematic_count = problematic_modules.len(),
@@ -223,9 +221,7 @@ async fn build_workspace_dependency_graph(project_root: &Path) -> PluginResult<D
     let metadata = cargo_metadata::MetadataCommand::new()
         .current_dir(project_root)
         .exec()
-        .map_err(|e| {
-            PluginError::internal(format!("Failed to run cargo metadata: {}", e))
-        })?;
+        .map_err(|e| PluginError::internal(format!("Failed to run cargo metadata: {}", e)))?;
 
     let mut graph = DependencyGraph::new();
 
@@ -286,9 +282,8 @@ async fn find_problematic_modules(
         .build();
 
     for entry in walker {
-        let entry = entry.map_err(|e| {
-            PluginError::internal(format!("Failed to walk directory: {}", e))
-        })?;
+        let entry =
+            entry.map_err(|e| PluginError::internal(format!("Failed to walk directory: {}", e)))?;
 
         if !entry.file_type().map(|ft| ft.is_file()).unwrap_or(false) {
             continue;
@@ -365,7 +360,10 @@ fn extract_rust_imports(content: &str) -> Vec<String> {
         // Match "use foo::bar" or "pub use foo::bar"
         if trimmed.starts_with("use ") || trimmed.starts_with("pub use ") {
             // Extract the import path (everything between "use" and ";")
-            if let Some(import_part) = trimmed.strip_prefix("pub use ").or_else(|| trimmed.strip_prefix("use ")) {
+            if let Some(import_part) = trimmed
+                .strip_prefix("pub use ")
+                .or_else(|| trimmed.strip_prefix("use "))
+            {
                 if let Some(import_end) = import_part.find(';') {
                     let import_path = import_part[..import_end].trim();
                     imports.push(import_path.to_string());
@@ -381,21 +379,19 @@ fn extract_rust_imports(content: &str) -> Vec<String> {
 async fn get_crate_name(crate_path: &Path) -> PluginResult<String> {
     let cargo_toml = crate_path.join("Cargo.toml");
 
-    let content = tokio::fs::read_to_string(&cargo_toml).await.map_err(|e| {
-        PluginError::internal(format!("Failed to read Cargo.toml: {}", e))
-    })?;
+    let content = tokio::fs::read_to_string(&cargo_toml)
+        .await
+        .map_err(|e| PluginError::internal(format!("Failed to read Cargo.toml: {}", e)))?;
 
-    let doc = content.parse::<toml_edit::DocumentMut>().map_err(|e| {
-        PluginError::internal(format!("Failed to parse Cargo.toml: {}", e))
-    })?;
+    let doc = content
+        .parse::<toml_edit::DocumentMut>()
+        .map_err(|e| PluginError::internal(format!("Failed to parse Cargo.toml: {}", e)))?;
 
     let name = doc
         .get("package")
         .and_then(|p| p.get("name"))
         .and_then(|n| n.as_str())
-        .ok_or_else(|| {
-            PluginError::internal("Cargo.toml missing package.name".to_string())
-        })?;
+        .ok_or_else(|| PluginError::internal("Cargo.toml missing package.name".to_string()))?;
 
     Ok(name.to_string())
 }

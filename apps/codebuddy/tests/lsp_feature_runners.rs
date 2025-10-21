@@ -3,9 +3,9 @@
 //! Each runner function is parameterized to accept a fixture struct,
 //! making them reusable across multiple languages.
 
-use codebuddy_foundation::protocol::LspService;
 use cb_test_support::harness::test_fixtures::*;
 use cb_test_support::harness::LspTestBuilder;
+use codebuddy_foundation::protocol::LspService;
 use serde_json::json;
 pub async fn run_go_to_definition_test(case: &GoToDefinitionTestCase, use_real_lsp: bool) {
     let mut builder = LspTestBuilder::new(case.language_id);

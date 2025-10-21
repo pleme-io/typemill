@@ -5,7 +5,7 @@
 use super::tools::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use codebuddy_foundation::core::model::mcp::ToolCall;
-use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
+use codebuddy_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde_json::{json, Value};
 use tracing::{debug, error, info, warn};
 
@@ -77,8 +77,10 @@ impl WorkflowHandler {
             .get("intent")
             .ok_or_else(|| ServerError::InvalidRequest("Missing 'intent' parameter".into()))?;
 
-        let intent: codebuddy_foundation::core::model::workflow::Intent = serde_json::from_value(intent_value.clone())
-            .map_err(|e| ServerError::InvalidRequest(format!("Invalid intent format: {}", e)))?;
+        let intent: codebuddy_foundation::core::model::workflow::Intent =
+            serde_json::from_value(intent_value.clone()).map_err(|e| {
+                ServerError::InvalidRequest(format!("Invalid intent format: {}", e))
+            })?;
 
         // Check if we should execute the workflow
         let execute = args
@@ -158,8 +160,10 @@ impl WorkflowHandler {
             .ok_or_else(|| ServerError::InvalidRequest("Missing 'edit_plan' parameter".into()))?;
 
         // Parse the EditPlan from the JSON value
-        let edit_plan: codebuddy_foundation::protocol::EditPlan = serde_json::from_value(edit_plan_value.clone())
-            .map_err(|e| ServerError::InvalidRequest(format!("Invalid edit_plan format: {}", e)))?;
+        let edit_plan: codebuddy_foundation::protocol::EditPlan =
+            serde_json::from_value(edit_plan_value.clone()).map_err(|e| {
+                ServerError::InvalidRequest(format!("Invalid edit_plan format: {}", e))
+            })?;
 
         debug!(
             source_file = %edit_plan.source_file,

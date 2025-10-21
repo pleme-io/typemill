@@ -53,19 +53,14 @@ pub enum PackageType {
 }
 
 /// Template for package scaffolding
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum Template {
     /// Minimal scaffolding (manifest + entry point)
+    #[default]
     Minimal,
     /// Full scaffolding (includes tests, examples, README, etc.)
     Full,
-}
-
-impl Default for Template {
-    fn default() -> Self {
-        Template::Minimal
-    }
 }
 
 /// Result of package creation

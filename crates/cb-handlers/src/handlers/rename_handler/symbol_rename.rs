@@ -1,5 +1,5 @@
+use super::{RenameHandler, RenamePlanParams};
 use crate::handlers::tools::ToolHandlerContext;
-use super::{RenamePlanParams, RenameHandler};
 use codebuddy_foundation::protocol::{
     refactor_plan::{PlanMetadata, RenamePlan},
     ApiError as ServerError, ApiResult as ServerResult,

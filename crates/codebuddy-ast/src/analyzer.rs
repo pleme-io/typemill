@@ -120,7 +120,7 @@ fn plan_rename_symbol(intent: &IntentSpec, source: &str) -> AstResult<EditPlan> 
             created_at: chrono::Utc::now(),
             complexity: 3, // Moderate complexity
             impact_areas: vec!["identifiers".to_string(), "references".to_string()],
-                consolidation: None,
+            consolidation: None,
         },
     })
 }
@@ -193,7 +193,7 @@ fn plan_add_import(intent: &IntentSpec, source: &str) -> AstResult<EditPlan> {
             created_at: chrono::Utc::now(),
             complexity: 2, // Low complexity
             impact_areas: vec!["imports".to_string()],
-                consolidation: None,
+            consolidation: None,
         },
     })
 }
@@ -272,7 +272,7 @@ fn plan_remove_import(
                         let new_line = cb_plugin_api::ImportMutationSupport::remove_named_import(
                             mutation_support,
                             line,
-                            import_name
+                            import_name,
                         )
                         .unwrap_or_else(|_| line.to_string()); // Fallback on error
 
@@ -368,7 +368,7 @@ fn plan_remove_import(
             created_at: chrono::Utc::now(),
             complexity: 2,
             impact_areas: vec!["imports".to_string()],
-                consolidation: None,
+            consolidation: None,
         },
     })
 }
@@ -447,7 +447,7 @@ fn plan_update_import_path(intent: &IntentSpec, source: &str) -> AstResult<EditP
             created_at: chrono::Utc::now(),
             complexity: 3,
             impact_areas: vec!["imports".to_string(), "dependencies".to_string()],
-                consolidation: None,
+            consolidation: None,
         },
     })
 }
@@ -587,7 +587,7 @@ fn plan_extract_function(intent: &IntentSpec, source: &str) -> AstResult<EditPla
             created_at: chrono::Utc::now(),
             complexity: 8, // High complexity
             impact_areas: vec!["functions".to_string(), "code_structure".to_string()],
-                consolidation: None,
+            consolidation: None,
         },
     })
 }

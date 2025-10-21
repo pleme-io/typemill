@@ -15,8 +15,14 @@ pub fn run(args: CheckFeaturesArgs) -> Result<()> {
     // Build with different feature combinations to verify they work
     let checks = vec![
         ("default features", vec!["check", "--workspace"]),
-        ("all features", vec!["check", "--workspace", "--all-features"]),
-        ("no default features", vec!["check", "--workspace", "--no-default-features"]),
+        (
+            "all features",
+            vec!["check", "--workspace", "--all-features"],
+        ),
+        (
+            "no default features",
+            vec!["check", "--workspace", "--no-default-features"],
+        ),
     ];
 
     for (desc, cmd_args) in checks {

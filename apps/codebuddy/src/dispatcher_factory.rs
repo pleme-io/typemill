@@ -18,8 +18,8 @@ pub async fn create_initialized_dispatcher_with_workspace(
     workspace_manager: Arc<WorkspaceManager>,
 ) -> Result<Arc<PluginDispatcher>, std::io::Error> {
     // Load configuration
-    let config =
-        codebuddy_config::config::AppConfig::load().map_err(|e| std::io::Error::other(e.to_string()))?;
+    let config = codebuddy_config::config::AppConfig::load()
+        .map_err(|e| std::io::Error::other(e.to_string()))?;
 
     // Build plugin registry from the plugin bundle
     let plugins = codebuddy_plugin_bundle::all_plugins();
@@ -30,10 +30,13 @@ pub async fn create_initialized_dispatcher_with_workspace(
     let plugin_registry = Arc::new(plugin_registry);
 
     // Create dispatcher using shared library function (reduces duplication)
-    let dispatcher =
-        cb_server::create_dispatcher_with_workspace(Arc::new(config), workspace_manager, plugin_registry)
-            .await
-            .map_err(|e| std::io::Error::other(e.to_string()))?;
+    let dispatcher = cb_server::create_dispatcher_with_workspace(
+        Arc::new(config),
+        workspace_manager,
+        plugin_registry,
+    )
+    .await
+    .map_err(|e| std::io::Error::other(e.to_string()))?;
 
     // Initialize dispatcher (loads plugins, starts LSP servers)
     dispatcher

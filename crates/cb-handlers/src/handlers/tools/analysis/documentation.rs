@@ -14,12 +14,12 @@
 
 use super::super::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
-use codebuddy_foundation::core::model::mcp::ToolCall;
 use cb_plugin_api::{Symbol, SymbolKind};
+use codebuddy_foundation::core::model::mcp::ToolCall;
 use codebuddy_foundation::protocol::analysis_result::{
     Finding, FindingLocation, Position, Range, SafetyLevel, Severity, Suggestion,
 };
-use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
+use codebuddy_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use regex::Regex;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -980,11 +980,7 @@ fn is_symbol_public(symbol: &Symbol, lines: &[&str], language: &str) -> bool {
         "python" => !symbol.name.starts_with('_'),
         "go" => {
             // In Go, uppercase first letter means public
-            symbol
-                .name
-                .chars()
-                .next()
-                .is_some_and(|c| c.is_uppercase())
+            symbol.name.chars().next().is_some_and(|c| c.is_uppercase())
         }
         _ => true, // Default to public if unsure
     }
@@ -1309,7 +1305,9 @@ fn detect_comment_styles_from_content(content: &str, language: &str) -> Vec<Stri
                     styles.insert("///".to_string());
                 } else if trimmed.starts_with("//!") {
                     styles.insert("//!".to_string());
-                } else if trimmed.starts_with("/**") || trimmed.starts_with("*") && line.contains("/**") {
+                } else if trimmed.starts_with("/**")
+                    || trimmed.starts_with("*") && line.contains("/**")
+                {
                     styles.insert("/**".to_string());
                 }
             }
@@ -1329,7 +1327,9 @@ fn detect_comment_styles_from_content(content: &str, language: &str) -> Vec<Stri
             // Check for /** */ vs /// styles
             for line in content.lines() {
                 let trimmed = line.trim();
-                if trimmed.starts_with("/**") || (trimmed.starts_with("*") && content.contains("/**")) {
+                if trimmed.starts_with("/**")
+                    || (trimmed.starts_with("*") && content.contains("/**"))
+                {
                     styles.insert("/**".to_string());
                 } else if trimmed.starts_with("///") {
                     styles.insert("///".to_string());

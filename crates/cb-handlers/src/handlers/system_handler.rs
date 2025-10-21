@@ -10,7 +10,7 @@ use super::lsp_adapter::DirectLspAdapter;
 use super::tools::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use codebuddy_foundation::core::model::mcp::ToolCall;
-use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
+use codebuddy_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde_json::{json, Value};
 use std::path::PathBuf;
 use tracing::{debug, info, warn};

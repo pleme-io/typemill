@@ -10,8 +10,8 @@
 use super::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use codebuddy_foundation::core::model::mcp::ToolCall;
-use codebuddy_plugin_system::PluginRequest;
 use codebuddy_foundation::protocol::ApiResult as ServerResult;
+use codebuddy_plugin_system::PluginRequest;
 use serde_json::{json, Value};
 use std::path::PathBuf;
 
@@ -281,7 +281,9 @@ impl InternalNavigationHandler {
             .get("file_path")
             .and_then(|v| v.as_str())
             .ok_or_else(|| {
-                codebuddy_foundation::protocol::ApiError::InvalidRequest("Missing file_path parameter".into())
+                codebuddy_foundation::protocol::ApiError::InvalidRequest(
+                    "Missing file_path parameter".into(),
+                )
             })?;
 
         let file_path = PathBuf::from(file_path_str);

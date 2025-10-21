@@ -1,7 +1,7 @@
 //! AST transformation functionality
 
 use crate::error::{AstError, AstResult};
-use codebuddy_foundation::protocol::{ EditPlan , TextEdit };
+use codebuddy_foundation::protocol::{EditPlan, TextEdit};
 use serde::{Deserialize, Serialize};
 
 /// Transformation result
@@ -59,10 +59,7 @@ fn deduplicate_overlapping_edits(edits: &[TextEdit]) -> Vec<TextEdit> {
         return Vec::new();
     }
 
-    tracing::debug!(
-        total_edits = edits.len(),
-        "Starting edit deduplication"
-    );
+    tracing::debug!(total_edits = edits.len(), "Starting edit deduplication");
 
     let mut unique_edits = Vec::new();
 
@@ -82,6 +79,7 @@ fn deduplicate_overlapping_edits(edits: &[TextEdit]) -> Vec<TextEdit> {
         let mut is_redundant = false;
 
         // Check if this edit overlaps with any existing edit
+        #[allow(clippy::needless_range_loop)]
         for i in 0..unique_edits.len() {
             let existing_edit = &unique_edits[i];
 
@@ -124,7 +122,10 @@ fn deduplicate_overlapping_edits(edits: &[TextEdit]) -> Vec<TextEdit> {
 
         if !is_redundant {
             // Check if we already added this edit (exact duplicate)
-            if !unique_edits.iter().any(|e| edits_are_identical(e, new_edit)) {
+            if !unique_edits
+                .iter()
+                .any(|e| edits_are_identical(e, new_edit))
+            {
                 tracing::debug!(
                     edit_desc = %new_edit.description,
                     "Adding unique edit to list"
@@ -486,7 +487,7 @@ fn apply_multi_line_edit(source: &mut String, edit: &TextEdit) -> AstResult<Edit
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codebuddy_foundation::protocol::{ EditLocation , EditType };
+    use codebuddy_foundation::protocol::{EditLocation, EditType};
 
     #[test]
     fn test_apply_single_line_edit() {

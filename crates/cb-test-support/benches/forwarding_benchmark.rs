@@ -1,10 +1,10 @@
 use async_trait::async_trait;
+use cb_server::helpers::lsp::forward_lsp_request;
+use cb_server::services::lsp::{LspRequest, LspResponse, LspService, LspServiceResult};
 use codebuddy_foundation::core::model::lsp::{
     CompletionItem, CompletionList, Diagnostic, DiagnosticSeverity, DocumentSymbol, Hover,
     Location, Position, Range, SymbolKind, TextEdit, WorkspaceEdit,
 };
-use cb_server::helpers::lsp::forward_lsp_request;
-use cb_server::services::lsp::{LspRequest, LspResponse, LspService, LspServiceResult};
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use serde_json::{json, Value};
 use std::collections::HashMap;

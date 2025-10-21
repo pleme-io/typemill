@@ -206,8 +206,12 @@ pub fn rename_dependency(
                             *element = toml_edit::Value::from(new_name).into();
                         }
                         // Check for slash-prefixed feature (e.g., "cb-ast/some-feature")
-                        else if let Some(feature_suffix) = dep_ref.strip_prefix(&format!("{}/", old_name)) {
-                            *element = toml_edit::Value::from(format!("{}/{}", new_name, feature_suffix)).into();
+                        else if let Some(feature_suffix) =
+                            dep_ref.strip_prefix(&format!("{}/", old_name))
+                        {
+                            *element =
+                                toml_edit::Value::from(format!("{}/{}", new_name, feature_suffix))
+                                    .into();
                         }
                     }
                 }
@@ -344,15 +348,26 @@ advanced = ["cb-ast/extra-feature"]
 
         // Check that feature references were updated
         let has_runtime_feature = result.contains(r#"runtime = ["other-dep", "codebuddy-ast"]"#)
-            || (result.contains("runtime") && result.contains("codebuddy-ast") && result.contains("other-dep"));
-        assert!(has_runtime_feature, "runtime feature should reference codebuddy-ast");
+            || (result.contains("runtime")
+                && result.contains("codebuddy-ast")
+                && result.contains("other-dep"));
+        assert!(
+            has_runtime_feature,
+            "runtime feature should reference codebuddy-ast"
+        );
 
         let has_advanced_feature = result.contains(r#"advanced = ["codebuddy-ast/extra-feature"]"#)
             || (result.contains("advanced") && result.contains("codebuddy-ast/extra-feature"));
-        assert!(has_advanced_feature, "advanced feature should reference codebuddy-ast/extra-feature");
+        assert!(
+            has_advanced_feature,
+            "advanced feature should reference codebuddy-ast/extra-feature"
+        );
 
         // Verify old name is completely gone
-        assert!(!result.contains("cb-ast"), "cb-ast should not appear anywhere in result");
+        assert!(
+            !result.contains("cb-ast"),
+            "cb-ast should not appear anywhere in result"
+        );
     }
 
     #[test]

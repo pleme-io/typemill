@@ -130,7 +130,8 @@ impl FileService {
         // Skip file operations (Move, Create, Delete) - they're handled separately
         use codebuddy_foundation::protocol::EditType;
         use std::collections::HashMap;
-        let mut edits_by_file: HashMap<String, Vec<&codebuddy_foundation::protocol::TextEdit>> = HashMap::new();
+        let mut edits_by_file: HashMap<String, Vec<&codebuddy_foundation::protocol::TextEdit>> =
+            HashMap::new();
 
         for edit in &plan.edits {
             // Skip file operations - they're handled in Step 3
@@ -196,7 +197,10 @@ impl FileService {
         );
 
         // Log snapshot creation results
-        debug!(snapshots_count = snapshots.len(), "Step 2: Created file snapshots");
+        debug!(
+            snapshots_count = snapshots.len(),
+            "Step 2: Created file snapshots"
+        );
         for (path, content) in &snapshots {
             debug!(
                 path = %path.display(),
@@ -372,7 +376,12 @@ impl FileService {
                             &self.project_root,
                         )
                         .await
-                        .map_err(|e| ServerError::Internal(format!("Consolidation post-processing failed: {}", e)))?;
+                        .map_err(|e| {
+                            ServerError::Internal(format!(
+                                "Consolidation post-processing failed: {}",
+                                e
+                            ))
+                        })?;
                 } else {
                     warn!("Rust plugin found but does not support workspace consolidation");
                 }
@@ -432,7 +441,10 @@ impl FileService {
                     None
                 })
                 .ok_or_else(|| {
-                    ServerError::Internal(format!("File {} not found in snapshots", abs_file_path.display()))
+                    ServerError::Internal(format!(
+                        "File {} not found in snapshots",
+                        abs_file_path.display()
+                    ))
                 })?;
 
             debug!(
@@ -757,8 +769,8 @@ impl FileService {
         };
 
         // Delegate to cb-ast transformer - the single source of truth for text edits
-        let transform_result = transformer::apply_edit_plan(original_content, &temp_plan)
-            .map_err(|e| {
+        let transform_result =
+            transformer::apply_edit_plan(original_content, &temp_plan).map_err(|e| {
                 error!(
                     error = %e,
                     edits_count = edits.len(),
@@ -790,7 +802,8 @@ impl FileService {
                 "Failed to apply {} of {} edits: {}",
                 transform_result.skipped_edits.len(),
                 transform_result.statistics.total_edits,
-                transform_result.skipped_edits
+                transform_result
+                    .skipped_edits
                     .iter()
                     .map(|s| s.reason.as_str())
                     .collect::<Vec<_>>()

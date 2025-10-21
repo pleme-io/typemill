@@ -1,7 +1,7 @@
 //! Stdio transport implementation for MCP
 
 use crate::McpDispatcher;
-use codebuddy_foundation::core::model::mcp::{ McpError , McpMessage , McpResponse };
+use codebuddy_foundation::core::model::mcp::{McpError, McpMessage, McpResponse};
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use uuid::Uuid;

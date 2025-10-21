@@ -3,8 +3,8 @@
 
 mod common;
 
-use codebuddy_foundation::protocol::ApiError;
 use cb_server::services::{FileOperation, OperationType};
+use codebuddy_foundation::protocol::ApiError;
 use serde_json::json;
 use std::path::PathBuf;
 use std::sync::Arc;

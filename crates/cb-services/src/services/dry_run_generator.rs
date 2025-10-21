@@ -3,7 +3,7 @@
 //! Generates human-readable previews of what would happen if a plan were applied,
 //! without actually modifying any files.
 
-use codebuddy_foundation::protocol::{ EditPlan , EditType };
+use codebuddy_foundation::protocol::{EditPlan, EditType};
 use serde::Serialize;
 use std::collections::HashSet;
 
@@ -32,11 +32,7 @@ impl DryRunGenerator {
     /// # Returns
     ///
     /// A DryRunResult suitable for serialization and display
-    pub fn create_dry_run_result(
-        &self,
-        plan: &EditPlan,
-        warnings: Vec<String>,
-    ) -> DryRunResult {
+    pub fn create_dry_run_result(&self, plan: &EditPlan, warnings: Vec<String>) -> DryRunResult {
         // Extract unique modified files (exclude Create/Delete operations)
         let modified_files: Vec<String> = plan
             .edits
@@ -119,7 +115,7 @@ pub struct ValidationResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codebuddy_foundation::protocol::{ EditLocation , EditPlanMetadata , TextEdit };
+    use codebuddy_foundation::protocol::{EditLocation, EditPlanMetadata, TextEdit};
 
     fn create_test_plan(edits: Vec<TextEdit>) -> EditPlan {
         EditPlan {

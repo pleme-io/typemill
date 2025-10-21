@@ -8,7 +8,7 @@
 use super::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use codebuddy_foundation::core::model::mcp::ToolCall;
-use codebuddy_foundation::protocol::{ ApiError , ApiResult as ServerResult };
+use codebuddy_foundation::protocol::{ApiError, ApiResult as ServerResult};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
@@ -367,10 +367,8 @@ fn add_dependency_to_manifest(
         doc[section] = Item::Table(toml_edit::Table::new());
     }
 
-    let table = doc[section].as_table_mut().ok_or_else(|| {
-        ApiError::Parse {
-            message: format!("[{}] is not a table", section),
-        }
+    let table = doc[section].as_table_mut().ok_or_else(|| ApiError::Parse {
+        message: format!("[{}] is not a table", section),
     })?;
 
     // Clone the dependency item
@@ -379,7 +377,11 @@ fn add_dependency_to_manifest(
     Ok(())
 }
 
-fn extract_dependency_info(dep_name: &str, dep_item: &Item, already_exists: bool) -> DependencyInfo {
+fn extract_dependency_info(
+    dep_name: &str,
+    dep_item: &Item,
+    already_exists: bool,
+) -> DependencyInfo {
     let mut version = String::new();
     let mut features = None;
     let mut optional = None;
@@ -453,11 +455,7 @@ fn extract_dependency_info(dep_name: &str, dep_item: &Item, already_exists: bool
         version,
         features,
         optional,
-        already_exists: if already_exists {
-            Some(true)
-        } else {
-            None
-        },
+        already_exists: if already_exists { Some(true) } else { None },
     }
 }
 
@@ -522,7 +520,10 @@ tokio = { version = "1.0", features = ["full", "rt"] }
         let info = extract_dependency_info("tokio", item, false);
         assert_eq!(info.name, "tokio");
         assert_eq!(info.version, "1.0");
-        assert_eq!(info.features, Some(vec!["full".to_string(), "rt".to_string()]));
+        assert_eq!(
+            info.features,
+            Some(vec!["full".to_string(), "rt".to_string()])
+        );
     }
 
     #[test]

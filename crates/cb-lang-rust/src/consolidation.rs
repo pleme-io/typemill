@@ -88,11 +88,8 @@ pub async fn execute_consolidation_post_processing(
     .await?;
 
     // Task 7.5: Remove source crate dependency from target crate's Cargo.toml
-    remove_source_dependency_from_target(
-        &metadata.source_crate_name,
-        &metadata.target_crate_path,
-    )
-    .await?;
+    remove_source_dependency_from_target(&metadata.source_crate_name, &metadata.target_crate_path)
+        .await?;
 
     // Task 8: Remove duplicate dependencies across workspace (Bug #5 fix)
     remove_duplicate_dependencies_in_workspace(project_root).await?;
@@ -194,10 +191,7 @@ async fn cleanup_workspace_cargo_toml(
             if !deps.contains_key(&target_crate_name) {
                 // Create inline table for the dependency
                 let mut target_dep = toml_edit::InlineTable::new();
-                target_dep.insert(
-                    "path",
-                    toml_edit::Value::from(target_relative.clone()),
-                );
+                target_dep.insert("path", toml_edit::Value::from(target_relative.clone()));
 
                 deps.insert(
                     &target_crate_name,
@@ -250,18 +244,19 @@ async fn remove_source_dependency_from_target(
 
     let content = fs::read_to_string(&target_cargo_toml)
         .await
-        .map_err(|e| {
-            PluginError::internal(format!("Failed to read target Cargo.toml: {}", e))
-        })?;
+        .map_err(|e| PluginError::internal(format!("Failed to read target Cargo.toml: {}", e)))?;
 
-    let mut doc = content.parse::<toml_edit::DocumentMut>().map_err(|e| {
-        PluginError::internal(format!("Failed to parse target Cargo.toml: {}", e))
-    })?;
+    let mut doc = content
+        .parse::<toml_edit::DocumentMut>()
+        .map_err(|e| PluginError::internal(format!("Failed to parse target Cargo.toml: {}", e)))?;
 
     let mut modified = false;
 
     // Remove source crate from dependencies
-    if let Some(deps) = doc.get_mut("dependencies").and_then(|d| d.as_table_like_mut()) {
+    if let Some(deps) = doc
+        .get_mut("dependencies")
+        .and_then(|d| d.as_table_like_mut())
+    {
         if deps.remove(source_crate_name).is_some() {
             modified = true;
             info!(
@@ -296,14 +291,11 @@ async fn remove_duplicate_dependencies_in_workspace(project_root: &Path) -> Plug
     let mut checked_count = 0;
 
     // Use ignore crate to walk workspace
-    let walker = ignore::WalkBuilder::new(project_root)
-        .hidden(false)
-        .build();
+    let walker = ignore::WalkBuilder::new(project_root).hidden(false).build();
 
     for entry in walker {
-        let entry = entry.map_err(|e| {
-            PluginError::internal(format!("Failed to walk workspace: {}", e))
-        })?;
+        let entry =
+            entry.map_err(|e| PluginError::internal(format!("Failed to walk workspace: {}", e)))?;
 
         // Only process Cargo.toml files
         if !entry.file_type().map(|ft| ft.is_file()).unwrap_or(false)
@@ -330,9 +322,9 @@ async fn remove_duplicate_dependencies_in_workspace(project_root: &Path) -> Plug
         let fixed_content = fixed_content_result.unwrap();
 
         if content != fixed_content {
-            fs::write(path, &fixed_content).await.map_err(|e| {
-                PluginError::internal(format!("Failed to write Cargo.toml: {}", e))
-            })?;
+            fs::write(path, &fixed_content)
+                .await
+                .map_err(|e| PluginError::internal(format!("Failed to write Cargo.toml: {}", e)))?;
 
             fixed_count += 1;
             info!(
@@ -353,12 +345,15 @@ async fn remove_duplicate_dependencies_in_workspace(project_root: &Path) -> Plug
 
 /// Remove duplicate dependencies from a single Cargo.toml content
 fn remove_duplicate_dependencies(content: &str) -> PluginResult<String> {
-    let mut doc = content.parse::<toml_edit::DocumentMut>().map_err(|e| {
-        PluginError::internal(format!("Failed to parse Cargo.toml: {}", e))
-    })?;
+    let mut doc = content
+        .parse::<toml_edit::DocumentMut>()
+        .map_err(|e| PluginError::internal(format!("Failed to parse Cargo.toml: {}", e)))?;
 
     // Process [dependencies]
-    if let Some(deps) = doc.get_mut("dependencies").and_then(|d| d.as_table_like_mut()) {
+    if let Some(deps) = doc
+        .get_mut("dependencies")
+        .and_then(|d| d.as_table_like_mut())
+    {
         remove_duplicates_from_table(deps);
     }
 
@@ -419,9 +414,9 @@ async fn flatten_nested_src_directory(module_path: &str) -> PluginResult<()> {
     );
 
     // Move all files from protocol/src/* to protocol/*
-    let mut entries = fs::read_dir(&nested_src).await.map_err(|e| {
-        PluginError::internal(format!("Failed to read nested src/: {}", e))
-    })?;
+    let mut entries = fs::read_dir(&nested_src)
+        .await
+        .map_err(|e| PluginError::internal(format!("Failed to read nested src/: {}", e)))?;
 
     while let Some(entry) = entries
         .next_entry()
@@ -448,16 +443,16 @@ async fn flatten_nested_src_directory(module_path: &str) -> PluginResult<()> {
     }
 
     // Remove empty src/ directory
-    fs::remove_dir(&nested_src).await.map_err(|e| {
-        PluginError::internal(format!("Failed to remove empty src/: {}", e))
-    })?;
+    fs::remove_dir(&nested_src)
+        .await
+        .map_err(|e| PluginError::internal(format!("Failed to remove empty src/: {}", e)))?;
 
     // Remove Cargo.toml if it exists (should be merged already)
     let cargo_toml = module_dir.join("Cargo.toml");
     if cargo_toml.exists() {
-        fs::remove_file(&cargo_toml).await.map_err(|e| {
-            PluginError::internal(format!("Failed to remove Cargo.toml: {}", e))
-        })?;
+        fs::remove_file(&cargo_toml)
+            .await
+            .map_err(|e| PluginError::internal(format!("Failed to remove Cargo.toml: {}", e)))?;
         info!("Removed leftover Cargo.toml from module directory");
     }
 
@@ -485,9 +480,9 @@ async fn rename_lib_rs_to_mod_rs(module_path: &str) -> PluginResult<()> {
         return Ok(());
     }
 
-    fs::rename(&lib_rs, &mod_rs).await.map_err(|e| {
-        PluginError::internal(format!("Failed to rename lib.rs to mod.rs: {}", e))
-    })?;
+    fs::rename(&lib_rs, &mod_rs)
+        .await
+        .map_err(|e| PluginError::internal(format!("Failed to rename lib.rs to mod.rs: {}", e)))?;
 
     info!(
         old_path = %lib_rs.display(),
@@ -519,9 +514,7 @@ async fn add_module_declaration_to_target_lib_rs(
 
     // Check if declaration already exists
     let declaration = format!("pub mod {};", module_name);
-    if content.contains(&declaration)
-        || content.contains(&format!("pub mod {module_name} ;"))
-    {
+    if content.contains(&declaration) || content.contains(&format!("pub mod {module_name} ;")) {
         info!(
             module = %module_name,
             "Module declaration already exists, skipping"
@@ -629,9 +622,11 @@ async fn fix_self_imports_in_directory(
         PluginError::internal(format!("Failed to read directory {}: {}", dir.display(), e))
     })?;
 
-    while let Some(entry) = entries.next_entry().await.map_err(|e| {
-        PluginError::internal(format!("Failed to iterate directory: {}", e))
-    })? {
+    while let Some(entry) = entries
+        .next_entry()
+        .await
+        .map_err(|e| PluginError::internal(format!("Failed to iterate directory: {}", e)))?
+    {
         let path = entry.path();
 
         if path.is_dir() {
@@ -645,8 +640,7 @@ async fn fix_self_imports_in_directory(
             .await?;
         } else if path.extension().and_then(|s| s.to_str()) == Some("rs") {
             // Process .rs files
-            fix_self_imports_in_file(&path, crate_ident, files_fixed, replacements_made)
-                .await?;
+            fix_self_imports_in_file(&path, crate_ident, files_fixed, replacements_made).await?;
         }
     }
 
@@ -821,9 +815,11 @@ async fn update_imports_in_workspace_directory(
 
     let mut entries = entries_result.unwrap();
 
-    while let Some(entry) = entries.next_entry().await.map_err(|e| {
-        PluginError::internal(format!("Failed to iterate directory: {}", e))
-    })? {
+    while let Some(entry) = entries
+        .next_entry()
+        .await
+        .map_err(|e| PluginError::internal(format!("Failed to iterate directory: {}", e)))?
+    {
         let path = entry.path();
 
         if path.is_dir() {

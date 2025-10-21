@@ -16,8 +16,7 @@ use std::sync::Arc;
 use tracing::{debug, info};
 
 /// Configuration for deep dead code analysis.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DeepDeadCodeConfig {
     /// When true, public symbols are considered as potential dead code.
     /// Default: false
@@ -26,7 +25,6 @@ pub struct DeepDeadCodeConfig {
     /// Glob patterns for files/directories to exclude from the analysis.
     pub exclude_patterns: Option<Vec<String>>,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeepDeadCodeReport {

@@ -3,7 +3,7 @@
 //! Handles single-file move operations with automatic import updates.
 //! Uses MoveService for unified planning logic.
 
-use codebuddy_foundation::protocol::{ refactor_plan::MovePlan , ApiResult as ServerResult };
+use codebuddy_foundation::protocol::{refactor_plan::MovePlan, ApiResult as ServerResult};
 use std::path::Path;
 use tracing::{debug, error, info};
 

@@ -102,7 +102,10 @@ fn main() {
 
     // Debug: print the plan metadata
     if let Some(metadata) = plan.get("metadata") {
-        println!("Plan metadata: {}", serde_json::to_string_pretty(metadata).unwrap());
+        println!(
+            "Plan metadata: {}",
+            serde_json::to_string_pretty(metadata).unwrap()
+        );
     }
 
     // Extract the edits array
@@ -162,17 +165,11 @@ fn main() {
         })
         .collect();
 
-    println!(
-        "  Plan contains {} code file edits",
-        code_file_edits.len()
-    );
+    println!("  Plan contains {} code file edits", code_file_edits.len());
 
     // ASSERTION 3: Verify the plan has a rename/move operation
     let has_rename_op = edits.iter().any(|edit| edit.get("kind").is_some());
-    assert!(
-        has_rename_op,
-        "Plan should contain a rename/move operation"
-    );
+    assert!(has_rename_op, "Plan should contain a rename/move operation");
 
     println!(
         "✓ Consolidation plan correctly excludes Cargo.toml files (found: {})",
@@ -301,7 +298,8 @@ fn main() {
     assert!(
         !root_cargo.contains("crates/lib") || root_cargo.contains("# crates/lib"),
         "Root Cargo.toml should have removed or commented out the old lib crate. \
-         Actual content: {}", root_cargo
+         Actual content: {}",
+        root_cargo
     );
 
     // VERIFICATION 2: App's Cargo.toml should NOT have incorrect path dependency
@@ -315,7 +313,8 @@ fn main() {
     assert!(
         !app_cargo.contains("path = \"../lib\"") && !app_cargo.contains("path = \"src/lib_mod\""),
         "App's Cargo.toml should NOT contain path dependencies to the consolidated crate. \
-         This was bug symptom #2. The dependency should resolve via workspace. Actual content: {}", app_cargo
+         This was bug symptom #2. The dependency should resolve via workspace. Actual content: {}",
+        app_cargo
     );
 
     // VERIFICATION 3: Code should have updated imports

@@ -1,7 +1,7 @@
 use crate::error::AstError;
 use crate::package_extractor::ExtractModuleToPackageParams;
 use cb_plugin_api::LanguagePlugin;
-use codebuddy_foundation::protocol::{ EditLocation , EditType , TextEdit };
+use codebuddy_foundation::protocol::{EditLocation, EditType, TextEdit};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tracing::debug;
@@ -260,7 +260,11 @@ pub(crate) async fn add_import_update_edits(
                 if is_match {
                     let old_use_statement = format!("use {};", import.module_path);
                     // TODO: Rewrite using ImportRenameSupport capability instead of hardcoded logic
-                    let new_use_statement = format!("use {}::{};", params.target_package_name, &import.module_path[6..]);
+                    let new_use_statement = format!(
+                        "use {}::{};",
+                        params.target_package_name,
+                        &import.module_path[6..]
+                    );
 
                     edits.push(TextEdit {
                         file_path: Some(file_path.to_string_lossy().to_string()),
@@ -304,9 +308,11 @@ async fn find_files_with_extensions(
     let mut queue = vec![dir.to_path_buf()];
 
     while let Some(current_dir) = queue.pop() {
-        let mut entries = fs::read_dir(&current_dir).await.map_err(|e| AstError::Analysis {
-            message: format!("Failed to read directory {}: {}", current_dir.display(), e),
-        })?;
+        let mut entries = fs::read_dir(&current_dir)
+            .await
+            .map_err(|e| AstError::Analysis {
+                message: format!("Failed to read directory {}: {}", current_dir.display(), e),
+            })?;
 
         while let Some(entry) = entries.next_entry().await.map_err(|e| AstError::Analysis {
             message: format!("Failed to read directory entry: {}", e),
@@ -319,7 +325,7 @@ async fn find_files_with_extensions(
             if metadata.is_dir() {
                 queue.push(path);
             } else if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
-                if extensions.iter().any(|e| *e == ext) {
+                if extensions.contains(&ext) {
                     result.push(path);
                 }
             }

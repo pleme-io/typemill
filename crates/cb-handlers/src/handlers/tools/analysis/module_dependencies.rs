@@ -24,7 +24,7 @@
 use super::super::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use codebuddy_foundation::core::model::mcp::ToolCall;
-use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
+use codebuddy_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
@@ -174,15 +174,17 @@ impl ToolHandler for ModuleDependenciesHandler {
         context: &ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
-        info!(tool = "analyze.module_dependencies", "Starting module dependencies analysis");
+        info!(
+            tool = "analyze.module_dependencies",
+            "Starting module dependencies analysis"
+        );
 
         // Parse parameters
         let args = tool_call.arguments.clone().unwrap_or(json!({}));
-        let params: ModuleDependenciesParams = serde_json::from_value(args)
-            .map_err(|e| {
-                error!(error = %e, "Failed to parse parameters");
-                ServerError::InvalidRequest(format!("Invalid parameters: {}", e))
-            })?;
+        let params: ModuleDependenciesParams = serde_json::from_value(args).map_err(|e| {
+            error!(error = %e, "Failed to parse parameters");
+            ServerError::InvalidRequest(format!("Invalid parameters: {}", e))
+        })?;
 
         debug!(
             target_kind = ?params.target.kind,
@@ -231,9 +233,7 @@ async fn analyze_module_dependencies(
         TargetKind::File => {
             vec![target_path.clone()]
         }
-        TargetKind::Directory => {
-            collect_rust_files(&target_path)?
-        }
+        TargetKind::Directory => collect_rust_files(&target_path)?,
     };
 
     debug!(files_count = files.len(), "Collected files for analysis");
@@ -247,7 +247,9 @@ async fn analyze_module_dependencies(
             // Use plugin registry to extract imports
             if let Some(extension) = file_path.extension().and_then(|e| e.to_str()) {
                 if let Some(plugin) = context.app_state.language_plugins.get_plugin(extension) {
-                    if let Ok(import_graph) = plugin.analyze_detailed_imports(&content, Some(file_path)) {
+                    if let Ok(import_graph) =
+                        plugin.analyze_detailed_imports(&content, Some(file_path))
+                    {
                         for import_info in &import_graph.imports {
                             // Extract root crate name from module path
                             if let Some(root_crate) = extract_root_crate(&import_info.module_path) {
@@ -262,7 +264,10 @@ async fn analyze_module_dependencies(
         }
     }
 
-    debug!(unique_imports = all_imports.len(), "Extracted unique imports");
+    debug!(
+        unique_imports = all_imports.len(),
+        "Extracted unique imports"
+    );
 
     // Classify dependencies
     let (external_deps, workspace_deps, std_deps) =
@@ -335,11 +340,7 @@ fn classify_dependencies(
     imports: &HashSet<String>,
     target_path: &Path,
     params: &ModuleDependenciesParams,
-) -> ServerResult<(
-    HashMap<String, DependencySpec>,
-    Vec<String>,
-    Vec<String>,
-)> {
+) -> ServerResult<(HashMap<String, DependencySpec>, Vec<String>, Vec<String>)> {
     let mut external_deps = HashMap::new();
     let mut workspace_deps = Vec::new();
     let mut std_deps = Vec::new();
@@ -355,8 +356,8 @@ fn classify_dependencies(
     };
 
     // Load local crate manifest (for the crate containing target_path)
-    let local_manifest = find_crate_manifest(target_path)
-        .and_then(|p| load_crate_manifest(&p).ok());
+    let local_manifest =
+        find_crate_manifest(target_path).and_then(|p| load_crate_manifest(&p).ok());
 
     // Get workspace members
     let workspace_members = workspace_manifest
@@ -462,24 +463,22 @@ fn find_crate_manifest(target_path: &Path) -> Option<PathBuf> {
 /// Load workspace manifest as toml_edit::DocumentMut
 fn load_workspace_manifest(workspace_root: &Path) -> ServerResult<toml_edit::DocumentMut> {
     let manifest_path = workspace_root.join("Cargo.toml");
-    let content = std::fs::read_to_string(&manifest_path).map_err(|e| {
-        ServerError::internal(format!("Failed to read workspace manifest: {}", e))
-    })?;
+    let content = std::fs::read_to_string(&manifest_path)
+        .map_err(|e| ServerError::internal(format!("Failed to read workspace manifest: {}", e)))?;
 
-    content.parse::<toml_edit::DocumentMut>().map_err(|e| {
-        ServerError::internal(format!("Failed to parse workspace manifest: {}", e))
-    })
+    content
+        .parse::<toml_edit::DocumentMut>()
+        .map_err(|e| ServerError::internal(format!("Failed to parse workspace manifest: {}", e)))
 }
 
 /// Load crate manifest as toml_edit::DocumentMut
 fn load_crate_manifest(manifest_path: &Path) -> ServerResult<toml_edit::DocumentMut> {
-    let content = std::fs::read_to_string(manifest_path).map_err(|e| {
-        ServerError::internal(format!("Failed to read crate manifest: {}", e))
-    })?;
+    let content = std::fs::read_to_string(manifest_path)
+        .map_err(|e| ServerError::internal(format!("Failed to read crate manifest: {}", e)))?;
 
-    content.parse::<toml_edit::DocumentMut>().map_err(|e| {
-        ServerError::internal(format!("Failed to parse crate manifest: {}", e))
-    })
+    content
+        .parse::<toml_edit::DocumentMut>()
+        .map_err(|e| ServerError::internal(format!("Failed to parse crate manifest: {}", e)))
 }
 
 /// Extract workspace member package names
@@ -573,18 +572,13 @@ fn parse_dependency_value(value: &toml_edit::Item, source: &str) -> Option<Depen
                 .unwrap_or("*")
                 .to_string();
 
-            let features = table
-                .get("features")
-                .and_then(|f| f.as_array())
-                .map(|arr| {
-                    arr.iter()
-                        .filter_map(|v| v.as_str().map(String::from))
-                        .collect()
-                });
+            let features = table.get("features").and_then(|f| f.as_array()).map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            });
 
-            let optional = table
-                .get("optional")
-                .and_then(|o| o.as_bool());
+            let optional = table.get("optional").and_then(|o| o.as_bool());
 
             Some(DependencySpec {
                 version,
@@ -603,9 +597,18 @@ mod tests {
 
     #[test]
     fn test_extract_root_crate() {
-        assert_eq!(extract_root_crate("std::collections::HashMap"), Some("std".to_string()));
-        assert_eq!(extract_root_crate("serde::Serialize"), Some("serde".to_string()));
-        assert_eq!(extract_root_crate("tokio::runtime::Runtime"), Some("tokio".to_string()));
+        assert_eq!(
+            extract_root_crate("std::collections::HashMap"),
+            Some("std".to_string())
+        );
+        assert_eq!(
+            extract_root_crate("serde::Serialize"),
+            Some("serde".to_string())
+        );
+        assert_eq!(
+            extract_root_crate("tokio::runtime::Runtime"),
+            Some("tokio".to_string())
+        );
         assert_eq!(extract_root_crate("crate::utils"), None);
         assert_eq!(extract_root_crate("self::module"), None);
         assert_eq!(extract_root_crate("super::parent"), None);

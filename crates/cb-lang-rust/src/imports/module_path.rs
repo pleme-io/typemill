@@ -42,12 +42,11 @@ pub fn compute_module_path_from_file(
     // Example: common/src/utils/mod.rs → common::utils (not common::utils::mod)
     if components.last().copied() == Some("mod.rs") {
         components.pop(); // Remove "mod.rs"
-        // The parent directory name is now the last component (the module name)
+                          // The parent directory name is now the last component (the module name)
     }
 
     // If the file is lib.rs or main.rs, it's the crate root
-    if components.last().copied() == Some("lib.rs")
-        || components.last().copied() == Some("main.rs")
+    if components.last().copied() == Some("lib.rs") || components.last().copied() == Some("main.rs")
     {
         return crate_name.to_string();
     }

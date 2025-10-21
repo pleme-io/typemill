@@ -448,8 +448,7 @@ impl AppConfig {
                 "Applying environment-specific profile"
             );
             // Merge environment-specific overrides from [environments.{profile}]
-            figment_with_toml =
-                figment_with_toml.select(format!("environments.{}", env_profile));
+            figment_with_toml = figment_with_toml.select(format!("environments.{}", env_profile));
         }
 
         // 4. Apply environment variable overrides

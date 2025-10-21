@@ -4,12 +4,11 @@
 //! This enables `rename.plan` to track path references when files are moved.
 
 use async_trait::async_trait;
-use cb_plugin_api::{
-    import_support::{ImportRenameSupport},
-    LanguageMetadata, LanguagePlugin, ManifestData, ParsedSource, PluginCapabilities,
-    PluginError, PluginResult,
-};
 use cb_plugin_api::codebuddy_plugin;
+use cb_plugin_api::{
+    import_support::ImportRenameSupport, LanguageMetadata, LanguagePlugin, ManifestData,
+    ParsedSource, PluginCapabilities, PluginError, PluginResult,
+};
 use std::path::Path;
 use tracing::debug;
 
@@ -43,8 +42,7 @@ pub struct YamlLanguagePlugin {
 
 impl YamlLanguagePlugin {
     /// The capabilities of this plugin.
-    pub const CAPABILITIES: PluginCapabilities = PluginCapabilities::none()
-        .with_imports(); // We support file references
+    pub const CAPABILITIES: PluginCapabilities = PluginCapabilities::none().with_imports(); // We support file references
 
     pub fn new() -> Self {
         Self {
@@ -116,7 +114,10 @@ impl LanguagePlugin for YamlLanguagePlugin {
         _project_root: &Path,
         _rename_info: Option<&serde_json::Value>,
     ) -> Option<(String, usize)> {
-        match self.import_support.rewrite_yaml_paths(content, old_path, new_path) {
+        match self
+            .import_support
+            .rewrite_yaml_paths(content, old_path, new_path)
+        {
             Ok((new_content, count)) => {
                 if count > 0 {
                     debug!(
@@ -270,10 +271,7 @@ jobs:
         assert!(has_blank_line, "Blank line lost! Got:\n{}", new_content);
 
         // Verify trailing newline
-        assert!(
-            new_content.ends_with('\n'),
-            "Trailing newline lost!"
-        );
+        assert!(new_content.ends_with('\n'), "Trailing newline lost!");
     }
 
     #[test]

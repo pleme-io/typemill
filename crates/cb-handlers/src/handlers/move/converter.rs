@@ -49,8 +49,7 @@ pub async fn editplan_to_moveplan(
         .join(new_path.file_name().unwrap_or(new_path.as_os_str()));
 
     // Calculate checksums for all affected files
-    let file_checksums =
-        calculate_file_checksums(&edit_plan.edits, &abs_old, context).await?;
+    let file_checksums = calculate_file_checksums(&edit_plan.edits, &abs_old, context).await?;
 
     // Build LSP WorkspaceEdit
     let workspace_edit = build_workspace_edit(&abs_old, &abs_new, &edit_plan.edits)?;
@@ -117,18 +116,19 @@ fn build_workspace_edit(
     let new_uri = url::Url::from_file_path(new_path)
         .map_err(|_| ServerError::InvalidRequest("Invalid destination file path".into()))?;
 
-    let mut document_changes = vec![DocumentChangeOperation::Op(ResourceOp::Rename(
-        RenameFile {
-            old_uri: old_uri.as_str().parse().map_err(|e| {
-                ServerError::Internal(format!("Failed to parse old URI: {}", e))
-            })?,
-            new_uri: new_uri.as_str().parse().map_err(|e| {
-                ServerError::Internal(format!("Failed to parse new URI: {}", e))
-            })?,
-            options: None,
-            annotation_id: None,
-        },
-    ))];
+    let mut document_changes =
+        vec![DocumentChangeOperation::Op(ResourceOp::Rename(
+            RenameFile {
+                old_uri: old_uri.as_str().parse().map_err(|e| {
+                    ServerError::Internal(format!("Failed to parse old URI: {}", e))
+                })?,
+                new_uri: new_uri.as_str().parse().map_err(|e| {
+                    ServerError::Internal(format!("Failed to parse new URI: {}", e))
+                })?,
+                options: None,
+                annotation_id: None,
+            },
+        ))];
 
     // Group text edits by file
     let mut files_with_edits = HashMap::new();
@@ -154,9 +154,11 @@ fn build_workspace_edit(
             };
 
             files_with_edits
-                .entry(file_uri.as_str().parse().map_err(|e| {
-                    ServerError::Internal(format!("Failed to parse URI: {}", e))
-                })?)
+                .entry(
+                    file_uri.as_str().parse().map_err(|e| {
+                        ServerError::Internal(format!("Failed to parse URI: {}", e))
+                    })?,
+                )
                 .or_insert_with(Vec::new)
                 .push(lsp_edit);
         }
@@ -169,10 +171,7 @@ fn build_workspace_edit(
                 uri,
                 version: Some(0),
             },
-            edits: text_edits
-                .into_iter()
-                .map(lsp_types::OneOf::Left)
-                .collect(),
+            edits: text_edits.into_iter().map(lsp_types::OneOf::Left).collect(),
         }));
     }
 

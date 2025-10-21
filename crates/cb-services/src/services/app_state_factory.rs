@@ -170,7 +170,9 @@ fn spawn_operation_worker(
                                 .handle_request(request)
                                 .await
                                 .map(|_| ())
-                                .map_err(|e| codebuddy_foundation::protocol::ApiError::Plugin(e.to_string()))
+                                .map_err(|e| {
+                                    codebuddy_foundation::protocol::ApiError::Plugin(e.to_string())
+                                })
                         }
                         OperationType::Read | OperationType::Format | OperationType::Refactor => {
                             tracing::trace!(
@@ -218,14 +220,20 @@ pub async fn register_mcp_proxy_if_enabled(
 
         let mut plugin = McpProxyPlugin::new(config.servers.clone());
         plugin.initialize().await.map_err(|e| {
-            codebuddy_foundation::protocol::ApiError::plugin(format!("Failed to initialize MCP proxy plugin: {}", e))
+            codebuddy_foundation::protocol::ApiError::plugin(format!(
+                "Failed to initialize MCP proxy plugin: {}",
+                e
+            ))
         })?;
 
         plugin_manager
             .register_plugin("mcp-proxy", Arc::new(plugin))
             .await
             .map_err(|e| {
-                codebuddy_foundation::protocol::ApiError::plugin(format!("Failed to register MCP proxy plugin: {}", e))
+                codebuddy_foundation::protocol::ApiError::plugin(format!(
+                    "Failed to register MCP proxy plugin: {}",
+                    e
+                ))
             })?;
     }
     Ok(())

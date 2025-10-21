@@ -4,7 +4,7 @@
 
 use super::tools::{ToolHandler, ToolHandlerContext};
 use codebuddy_foundation::core::model::mcp::ToolCall;
-use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
+use codebuddy_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -348,9 +348,7 @@ mod tests {
         assert_eq!(public_tools[0].1, "PublicHandler");
 
         // Internal tool should not appear
-        assert!(!public_tools
-            .iter()
-            .any(|(name, _)| name == "internal_tool"));
+        assert!(!public_tools.iter().any(|(name, _)| name == "internal_tool"));
 
         // Verify internal tool is still registered in the system
         assert!(registry.has_tool("internal_tool"));

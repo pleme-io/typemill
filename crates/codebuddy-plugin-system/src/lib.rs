@@ -28,4 +28,4 @@ pub use registry::PluginRegistry;
 pub const PLUGIN_SYSTEM_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // Re-export static plugin registration from cb-plugin-api for backward compatibility
-pub use cb_plugin_api::{PluginDescriptor, codebuddy_plugin, iter_plugins};
+pub use cb_plugin_api::{codebuddy_plugin, iter_plugins, PluginDescriptor};

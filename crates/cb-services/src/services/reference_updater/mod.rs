@@ -59,9 +59,8 @@ impl ReferenceUpdater {
 
         if is_consolidation {
             let before_count = project_files.len();
-            project_files.retain(|path| {
-                path.file_name() != Some(std::ffi::OsStr::new("Cargo.toml"))
-            });
+            project_files
+                .retain(|path| path.file_name() != Some(std::ffi::OsStr::new("Cargo.toml")));
             let after_count = project_files.len();
             tracing::info!(
                 filtered_count = before_count - after_count,
@@ -92,7 +91,8 @@ impl ReferenceUpdater {
             // 1. Per-file detection: Find files that import specific files in the directory
             // 2. Directory-level detection: Find files with string literals referencing the directory
             let mut all_affected = HashSet::new();
-            let mut importer_to_imported_files: HashMap<PathBuf, HashSet<(PathBuf, PathBuf)>> = HashMap::new();
+            let mut importer_to_imported_files: HashMap<PathBuf, HashSet<(PathBuf, PathBuf)>> =
+                HashMap::new();
 
             // FIRST: Directory-level detection for string literals (e.g., "config/settings.toml")
             // This is essential for catching path references that aren't imports
@@ -202,11 +202,11 @@ impl ReferenceUpdater {
 
                 let rewrite_result = plugin.rewrite_file_references(
                     &content,
-                    old_path,  // Pass the directory path (crate root)
-                    new_path,  // Pass the new directory path
+                    old_path, // Pass the directory path (crate root)
+                    new_path, // Pass the new directory path
                     &file_path,
                     &self.project_root,
-                    rename_info,  // This contains old_crate_name and new_crate_name
+                    rename_info, // This contains old_crate_name and new_crate_name
                 );
 
                 if let Some((updated_content, count)) = rewrite_result {
@@ -252,8 +252,8 @@ impl ReferenceUpdater {
                 // mod declarations like "mod utils;" -> "mod helpers;"
                 let mod_decl_result = plugin.rewrite_file_references(
                     &combined_content,
-                    old_path,  // Directory path
-                    new_path,  // Directory path
+                    old_path, // Directory path
+                    new_path, // Directory path
                     &file_path,
                     &self.project_root,
                     rename_info,
@@ -294,8 +294,8 @@ impl ReferenceUpdater {
                     // Call plugin to rewrite references for this specific file
                     let rewrite_result = plugin.rewrite_file_references(
                         &combined_content,
-                        file_in_dir,  // Old path of specific file in directory
-                        &new_file_path,  // New path of specific file in directory
+                        file_in_dir,    // Old path of specific file in directory
+                        &new_file_path, // New path of specific file in directory
                         &file_path,
                         &self.project_root,
                         rename_info,
@@ -742,13 +742,19 @@ mod tests {
         .unwrap();
 
         // Create source files
-        fs::write(root.join("common/src/lib.rs"), "pub mod utils;\npub mod helpers;\npub mod processor;")
-            .await
-            .unwrap();
+        fs::write(
+            root.join("common/src/lib.rs"),
+            "pub mod utils;\npub mod helpers;\npub mod processor;",
+        )
+        .await
+        .unwrap();
 
-        fs::write(root.join("common/src/utils.rs"), "pub fn calculate(x: i32) -> i32 { x * 2 }")
-            .await
-            .unwrap();
+        fs::write(
+            root.join("common/src/utils.rs"),
+            "pub fn calculate(x: i32) -> i32 { x * 2 }",
+        )
+        .await
+        .unwrap();
 
         fs::write(root.join("common/src/helpers.rs"), "// Helper functions")
             .await

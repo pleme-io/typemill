@@ -5,17 +5,22 @@
 use super::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use codebuddy_foundation::core::model::mcp::ToolCall;
+use codebuddy_foundation::protocol::{ApiError, ApiResult as ServerResult};
 use codebuddy_plugin_system::PluginRequest;
-use codebuddy_foundation::protocol::{ ApiError , ApiResult as ServerResult };
 use serde_json::{json, Value};
 use std::path::PathBuf;
 
 fn to_api_error(plugin_error: codebuddy_plugin_system::PluginError) -> ApiError {
     match plugin_error {
-        codebuddy_plugin_system::PluginError::MethodNotSupported { method, plugin } => ApiError::Unsupported(
-            format!("Method '{}' not supported by plugin '{}'", method, plugin),
-        ),
-        codebuddy_plugin_system::PluginError::SerializationError { message } => ApiError::Parse { message },
+        codebuddy_plugin_system::PluginError::MethodNotSupported { method, plugin } => {
+            ApiError::Unsupported(format!(
+                "Method '{}' not supported by plugin '{}'",
+                method, plugin
+            ))
+        }
+        codebuddy_plugin_system::PluginError::SerializationError { message } => {
+            ApiError::Parse { message }
+        }
         e => ApiError::Internal(e.to_string()),
     }
 }

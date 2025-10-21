@@ -1,4 +1,4 @@
-use codebuddy_foundation::core::model::mcp::{ McpError , McpRequest , McpResponse };
+use codebuddy_foundation::core::model::mcp::{McpError, McpRequest, McpResponse};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use serde_json::json;
 

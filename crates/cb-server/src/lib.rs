@@ -21,9 +21,11 @@ pub use codebuddy_workspaces as workspaces;
 pub use cb_handlers::handlers;
 pub use cb_services::services;
 
-use codebuddy_config::AppConfig;
 use cb_handlers::handlers::plugin_dispatcher::{AppState, PluginDispatcher};
-pub use codebuddy_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult, AstService, LspService};
+use codebuddy_config::AppConfig;
+pub use codebuddy_foundation::protocol::{
+    ApiError as ServerError, ApiResult as ServerResult, AstService, LspService,
+};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::oneshot;
@@ -45,7 +47,10 @@ impl std::fmt::Debug for ServerOptions {
         f.debug_struct("ServerOptions")
             .field("config", &self.config)
             .field("debug", &self.debug)
-            .field("plugin_registry", &self.plugin_registry.as_ref().map(|_| "<PluginRegistry>"))
+            .field(
+                "plugin_registry",
+                &self.plugin_registry.as_ref().map(|_| "<PluginRegistry>"),
+            )
             .finish()
     }
 }

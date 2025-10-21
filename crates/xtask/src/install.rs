@@ -37,10 +37,12 @@ pub fn run(args: InstallArgs) -> Result<()> {
 
     // Determine binary location
     let profile_dir = if args.dev { "debug" } else { "release" };
-    let binary_name = if cfg!(windows) { "codebuddy.exe" } else { "codebuddy" };
-    let binary_path = PathBuf::from("target")
-        .join(profile_dir)
-        .join(binary_name);
+    let binary_name = if cfg!(windows) {
+        "codebuddy.exe"
+    } else {
+        "codebuddy"
+    };
+    let binary_path = PathBuf::from("target").join(profile_dir).join(binary_name);
 
     if !binary_path.exists() {
         anyhow::bail!("Binary not found at {:?}", binary_path);
@@ -48,12 +50,10 @@ pub fn run(args: InstallArgs) -> Result<()> {
 
     // Install
     let dest = args.dest.unwrap_or_else(default_install_dir);
-    std::fs::create_dir_all(&dest)
-        .context("Failed to create install directory")?;
+    std::fs::create_dir_all(&dest).context("Failed to create install directory")?;
 
     let dest_binary = dest.join(binary_name);
-    std::fs::copy(&binary_path, &dest_binary)
-        .context("Failed to copy binary")?;
+    std::fs::copy(&binary_path, &dest_binary).context("Failed to copy binary")?;
 
     // Make executable on Unix
     #[cfg(unix)]
@@ -64,15 +64,26 @@ pub fn run(args: InstallArgs) -> Result<()> {
         std::fs::set_permissions(&dest_binary, perms)?;
     }
 
-    println!("{} Installed to: {}", "✓".green(), dest_binary.display().to_string().cyan());
+    println!(
+        "{} Installed to: {}",
+        "✓".green(),
+        dest_binary.display().to_string().cyan()
+    );
 
     // Check if in PATH
     if !is_in_path(&dest) {
         println!("\n{}", "⚠️  Install directory not in PATH".yellow());
         println!("Add to your shell profile:");
-        println!("  {}", format!("export PATH=\"{}:$PATH\"", dest.display()).cyan());
+        println!(
+            "  {}",
+            format!("export PATH=\"{}:$PATH\"", dest.display()).cyan()
+        );
     } else {
-        println!("\n{} Installation complete! Run: {}", "✓".green(), "codebuddy --version".cyan());
+        println!(
+            "\n{} Installation complete! Run: {}",
+            "✓".green(),
+            "codebuddy --version".cyan()
+        );
     }
 
     Ok(())

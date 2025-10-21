@@ -76,13 +76,17 @@ edition = "2021"
 
     // Verify extraction succeeded
     assert_eq!(
-        content.get("dependencies_extracted").and_then(|v| v.as_u64()),
+        content
+            .get("dependencies_extracted")
+            .and_then(|v| v.as_u64()),
         Some(2),
         "Should extract 2 dependencies"
     );
 
     assert_eq!(
-        content.get("target_manifest_updated").and_then(|v| v.as_bool()),
+        content
+            .get("target_manifest_updated")
+            .and_then(|v| v.as_bool()),
         Some(true),
         "Target manifest should be updated"
     );
@@ -170,7 +174,9 @@ edition = "2021"
 
     let content = result.get("result").expect("Result should exist");
     assert_eq!(
-        content.get("dependencies_extracted").and_then(|v| v.as_u64()),
+        content
+            .get("dependencies_extracted")
+            .and_then(|v| v.as_u64()),
         Some(1)
     );
 
@@ -245,7 +251,10 @@ serde = "0.9"
     assert!(warnings.is_some(), "Should have warnings");
     let warnings = warnings.unwrap();
     assert!(
-        warnings.iter().any(|w| w.as_str().unwrap().contains("serde") && w.as_str().unwrap().contains("already exists")),
+        warnings
+            .iter()
+            .any(|w| w.as_str().unwrap().contains("serde")
+                && w.as_str().unwrap().contains("already exists")),
         "Should warn about serde already existing"
     );
 
@@ -274,10 +283,7 @@ serde = "0.9"
         target_content.contains("serde = \"0.9\""),
         "Original serde version should be preserved"
     );
-    assert!(
-        target_content.contains("tokio"),
-        "Tokio should be added"
-    );
+    assert!(target_content.contains("tokio"), "Tokio should be added");
 }
 
 #[tokio::test]
@@ -333,7 +339,9 @@ edition = "2021"
 
     let content = result.get("result").expect("Result should exist");
     assert_eq!(
-        content.get("dependencies_extracted").and_then(|v| v.as_u64()),
+        content
+            .get("dependencies_extracted")
+            .and_then(|v| v.as_u64()),
         Some(1)
     );
 
@@ -401,7 +409,9 @@ edition = "2021"
 
     let content = result.get("result").expect("Result should exist");
     assert_eq!(
-        content.get("dependencies_extracted").and_then(|v| v.as_u64()),
+        content
+            .get("dependencies_extracted")
+            .and_then(|v| v.as_u64()),
         Some(1)
     );
 
@@ -471,7 +481,9 @@ edition = "2021"
 
     // Should succeed but with warning
     assert_eq!(
-        content.get("dependencies_extracted").and_then(|v| v.as_u64()),
+        content
+            .get("dependencies_extracted")
+            .and_then(|v| v.as_u64()),
         Some(0),
         "Should extract 0 dependencies"
     );
@@ -480,7 +492,10 @@ edition = "2021"
     assert!(warnings.is_some(), "Should have warnings");
     let warnings = warnings.unwrap();
     assert!(
-        warnings.iter().any(|w| w.as_str().unwrap().contains("nonexistent") && w.as_str().unwrap().contains("not found")),
+        warnings
+            .iter()
+            .any(|w| w.as_str().unwrap().contains("nonexistent")
+                && w.as_str().unwrap().contains("not found")),
         "Should warn about dependency not found"
     );
 }
@@ -547,14 +562,18 @@ edition = "2021"
 
     // Verify target_manifest_updated is false
     assert_eq!(
-        content.get("target_manifest_updated").and_then(|v| v.as_bool()),
+        content
+            .get("target_manifest_updated")
+            .and_then(|v| v.as_bool()),
         Some(false),
         "Target should not be updated in dry_run"
     );
 
     // Verify dependencies analysis still happened
     assert_eq!(
-        content.get("dependencies_extracted").and_then(|v| v.as_u64()),
+        content
+            .get("dependencies_extracted")
+            .and_then(|v| v.as_u64()),
         Some(1),
         "Should still analyze dependencies"
     );
@@ -619,7 +638,9 @@ edition = "2021"
 
     let content = result.get("result").expect("Result should exist");
     assert_eq!(
-        content.get("dependencies_extracted").and_then(|v| v.as_u64()),
+        content
+            .get("dependencies_extracted")
+            .and_then(|v| v.as_u64()),
         Some(1)
     );
 
@@ -697,7 +718,9 @@ edition = "2021"
 
     let content = result.get("result").expect("Result should exist");
     assert_eq!(
-        content.get("dependencies_extracted").and_then(|v| v.as_u64()),
+        content
+            .get("dependencies_extracted")
+            .and_then(|v| v.as_u64()),
         Some(1)
     );
 
@@ -707,8 +730,5 @@ edition = "2021"
         target_content.contains("[build-dependencies]"),
         "Target should have build-dependencies section"
     );
-    assert!(
-        target_content.contains("cc"),
-        "Target should contain cc"
-    );
+    assert!(target_content.contains("cc"), "Target should contain cc");
 }

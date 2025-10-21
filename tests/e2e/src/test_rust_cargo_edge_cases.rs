@@ -117,19 +117,22 @@ utils = { path = "../utils" }
     let app_cargo = workspace.read_file("crates/app/Cargo.toml");
 
     assert!(
-        app_cargo.contains("[dependencies]") && app_cargo.contains("helpers = { path = \"../helpers\" }"),
+        app_cargo.contains("[dependencies]")
+            && app_cargo.contains("helpers = { path = \"../helpers\" }"),
         "Regular dependencies should be updated. Content:\n{}",
         app_cargo
     );
 
     assert!(
-        app_cargo.contains("[dev-dependencies]") && app_cargo.contains("helpers = { path = \"../helpers\" }"),
+        app_cargo.contains("[dev-dependencies]")
+            && app_cargo.contains("helpers = { path = \"../helpers\" }"),
         "dev-dependencies should be updated. Content:\n{}",
         app_cargo
     );
 
     assert!(
-        app_cargo.contains("[build-dependencies]") && app_cargo.contains("helpers = { path = \"../helpers\" }"),
+        app_cargo.contains("[build-dependencies]")
+            && app_cargo.contains("helpers = { path = \"../helpers\" }"),
         "build-dependencies should be updated. Content:\n{}",
         app_cargo
     );
@@ -510,15 +513,15 @@ path = "../common"
 
     // Table format in [dev-dependencies]
     assert!(
-        app_cargo.contains("[dev-dependencies.shared]") && app_cargo.contains("path = \"../shared\""),
+        app_cargo.contains("[dev-dependencies.shared]")
+            && app_cargo.contains("path = \"../shared\""),
         "Table-format dev-dependency should be updated. Content:\n{}",
         app_cargo
     );
 
     // Old name removed
     assert!(
-        !app_cargo.contains("common = { path")
-            && !app_cargo.contains("[dev-dependencies.common]"),
+        !app_cargo.contains("common = { path") && !app_cargo.contains("[dev-dependencies.common]"),
         "Old dependency names should be removed. Content:\n{}",
         app_cargo
     );

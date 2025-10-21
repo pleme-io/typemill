@@ -55,7 +55,15 @@ pub async fn plan_symbol_move(
     );
 
     // Try LSP approach first
-    let lsp_result = try_lsp_symbol_move(target_path, destination, extension, position, context, operation_id).await;
+    let lsp_result = try_lsp_symbol_move(
+        target_path,
+        destination,
+        extension,
+        position,
+        context,
+        operation_id,
+    )
+    .await;
 
     match lsp_result {
         Ok(plan) => {
@@ -94,16 +102,14 @@ async fn try_lsp_symbol_move(
 
     // Get LSP adapter
     let lsp_adapter = context.lsp_adapter.lock().await;
-    let adapter = lsp_adapter
-        .as_ref()
-        .ok_or_else(|| {
-            error!(
-                operation_id = %operation_id,
-                function = "try_lsp_symbol_move",
-                "LSP adapter not initialized"
-            );
-            ServerError::Internal("LSP adapter not initialized".into())
-        })?;
+    let adapter = lsp_adapter.as_ref().ok_or_else(|| {
+        error!(
+            operation_id = %operation_id,
+            function = "try_lsp_symbol_move",
+            "LSP adapter not initialized"
+        );
+        ServerError::Internal("LSP adapter not initialized".into())
+    })?;
 
     debug!(
         operation_id = %operation_id,
@@ -149,7 +155,8 @@ async fn try_lsp_symbol_move(
 
     // Convert destination path to absolute and create destination URI
     let dest_path = Path::new(destination);
-    let abs_dest_path = std::fs::canonicalize(dest_path).unwrap_or_else(|_| dest_path.to_path_buf());
+    let abs_dest_path =
+        std::fs::canonicalize(dest_path).unwrap_or_else(|_| dest_path.to_path_buf());
     let destination_uri = url::Url::from_file_path(&abs_dest_path)
         .map_err(|_| {
             error!(
@@ -158,7 +165,10 @@ async fn try_lsp_symbol_move(
                 function = "try_lsp_symbol_move",
                 "Invalid destination path for URI conversion"
             );
-            ServerError::Internal(format!("Invalid destination path: {}", abs_dest_path.display()))
+            ServerError::Internal(format!(
+                "Invalid destination path: {}",
+                abs_dest_path.display()
+            ))
         })?
         .to_string();
 
@@ -216,16 +226,15 @@ async fn try_lsp_symbol_move(
     );
 
     // Parse code actions from response
-    let code_actions: Vec<Value> = serde_json::from_value(lsp_result)
-        .map_err(|e| {
-            error!(
-                operation_id = %operation_id,
-                error = %e,
-                function = "try_lsp_symbol_move",
-                "Failed to parse LSP code actions from response"
-            );
-            ServerError::Internal(format!("Failed to parse LSP code actions: {}", e))
-        })?;
+    let code_actions: Vec<Value> = serde_json::from_value(lsp_result).map_err(|e| {
+        error!(
+            operation_id = %operation_id,
+            error = %e,
+            function = "try_lsp_symbol_move",
+            "Failed to parse LSP code actions from response"
+        );
+        ServerError::Internal(format!("Failed to parse LSP code actions: {}", e))
+    })?;
 
     info!(
         operation_id = %operation_id,
@@ -354,7 +363,7 @@ async fn try_lsp_symbol_move(
             "CodeAction contained neither an edit nor a command"
         );
         return Err(ServerError::Unsupported(
-            "CodeAction contained neither an edit nor a command.".into()
+            "CodeAction contained neither an edit nor a command.".into(),
         ));
     };
 

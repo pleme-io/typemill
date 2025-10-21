@@ -209,7 +209,9 @@ impl LspSetupHelper {
 
     /// Get the LSP command for a given file extension
     /// Note: Language support temporarily reduced to TypeScript + Rust
-    pub fn get_lsp_command(extension: &str) -> Result<Vec<String>, codebuddy_foundation::protocol::ApiError> {
+    pub fn get_lsp_command(
+        extension: &str,
+    ) -> Result<Vec<String>, codebuddy_foundation::protocol::ApiError> {
         match extension {
             "ts" | "tsx" | "js" | "jsx" => {
                 let ts_lsp_path = Self::resolve_command_path("typescript-language-server")

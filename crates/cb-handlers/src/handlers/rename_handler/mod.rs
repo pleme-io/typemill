@@ -90,8 +90,12 @@ impl RenameOptions {
     /// Build RenameScope from options
     pub fn to_rename_scope(&self) -> Option<codebuddy_foundation::core::rename_scope::RenameScope> {
         match self.scope.as_deref() {
-            Some("code-only") => Some(codebuddy_foundation::core::rename_scope::RenameScope::code_only()),
-            Some("all") | None => Some(codebuddy_foundation::core::rename_scope::RenameScope::all()),
+            Some("code-only") => {
+                Some(codebuddy_foundation::core::rename_scope::RenameScope::code_only())
+            }
+            Some("all") | None => {
+                Some(codebuddy_foundation::core::rename_scope::RenameScope::all())
+            }
             Some("custom") => self.custom_scope.clone(),
             _ => None,
         }
@@ -184,9 +188,7 @@ impl RenameHandler {
                     for edit in edits {
                         let path = std::path::PathBuf::from(
                             urlencoding::decode(edit.text_document.uri.path().as_str())
-                                .map_err(|_| {
-                                    ServerError::Internal("Invalid URI path".to_string())
-                                })?
+                                .map_err(|_| ServerError::Internal("Invalid URI path".to_string()))?
                                 .into_owned(),
                         );
                         affected_files.insert(path);

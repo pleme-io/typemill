@@ -222,7 +222,11 @@ impl ToolHandler for AdvancedToolsHandler {
                                     .handle_request(request)
                                     .await
                                     .map(|response| response.data.unwrap_or_default())
-                                    .map_err(|e| codebuddy_foundation::protocol::ApiError::Plugin(e.to_string()))?
+                                    .map_err(|e| {
+                                        codebuddy_foundation::protocol::ApiError::Plugin(
+                                            e.to_string(),
+                                        )
+                                    })?
                             }
                         };
                         results.push(result);
@@ -327,10 +331,9 @@ impl ToolHandler for AdvancedToolsHandler {
                 };
                 Ok(response)
             }
-            _ => Err(codebuddy_foundation::protocol::ApiError::InvalidRequest(format!(
-                "Unknown advanced tool: {}",
-                tool_name
-            ))),
+            _ => Err(codebuddy_foundation::protocol::ApiError::InvalidRequest(
+                format!("Unknown advanced tool: {}", tool_name),
+            )),
         }
     }
 }

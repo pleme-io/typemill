@@ -7,7 +7,7 @@ use codebuddy_foundation::protocol::analysis_result::{
     AnalysisResult, AnalysisScope, Finding, FindingLocation, Position, Range, RefactorCall,
     SafetyLevel, Severity, Suggestion,
 };
-use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
+use codebuddy_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use regex::Regex;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -101,7 +101,6 @@ impl QualityHandler {
         scope_param: &super::engine::ScopeParam,
     ) -> ServerResult<Value> {
         use super::helpers::{filter_analyzable_files, AggregateStats};
-        
 
         let start_time = Instant::now();
 

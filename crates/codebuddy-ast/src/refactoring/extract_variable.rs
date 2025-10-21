@@ -1,5 +1,5 @@
-use super::{CodeRange, ExtractVariableAnalysis, LspRefactoringService};
 use super::common::extract_range_text;
+use super::{CodeRange, ExtractVariableAnalysis, LspRefactoringService};
 use crate::error::{AstError, AstResult};
 use codebuddy_foundation::protocol::EditPlan;
 use tracing::debug;
@@ -150,8 +150,12 @@ async fn lsp_extract_variable(
         .get("edit")
         .ok_or_else(|| AstError::analysis("Code action missing edit field".to_string()))?;
 
-    codebuddy_foundation::protocol::EditPlan::from_lsp_workspace_edit(workspace_edit, file_path, "extract_variable")
-        .map_err(|e| AstError::analysis(format!("Failed to convert LSP edit: {}", e)))
+    codebuddy_foundation::protocol::EditPlan::from_lsp_workspace_edit(
+        workspace_edit,
+        file_path,
+        "extract_variable",
+    )
+    .map_err(|e| AstError::analysis(format!("Failed to convert LSP edit: {}", e)))
 }
 
 /// Generate edit plan for extract variable refactoring
@@ -236,4 +240,3 @@ pub async fn plan_extract_variable(
         file_path
     )))
 }
-

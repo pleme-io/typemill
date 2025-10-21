@@ -492,10 +492,7 @@ edition = "2021"
     assert!(has_error, "Should return an error response");
 
     if let Some(error) = result.get("error") {
-        let message = error
-            .get("message")
-            .and_then(|m| m.as_str())
-            .unwrap_or("");
+        let message = error.get("message").and_then(|m| m.as_str()).unwrap_or("");
         assert!(
             message.contains("workspace"),
             "Error should mention workspace section: {}",
@@ -529,10 +526,7 @@ async fn test_error_on_nonexistent_manifest() {
     assert!(has_error, "Should return an error response");
 
     if let Some(error) = result.get("error") {
-        let message = error
-            .get("message")
-            .and_then(|m| m.as_str())
-            .unwrap_or("");
+        let message = error.get("message").and_then(|m| m.as_str()).unwrap_or("");
         assert!(
             message.contains("not found") || message.contains("does not exist"),
             "Error should mention file not found: {}",

@@ -20,7 +20,9 @@ mod planner;
 
 use crate::services::reference_updater::ReferenceUpdater;
 use cb_plugin_api::{PluginRegistry, ScanScope};
-use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult , EditPlan };
+use codebuddy_foundation::protocol::{
+    ApiError as ServerError, ApiResult as ServerResult, EditPlan,
+};
 use std::path::{Path, PathBuf};
 use tracing::info;
 
@@ -198,7 +200,9 @@ impl<'a> MoveService<'a> {
             Some(ScanScope::All)
         };
 
-        let mut edit_plan = self.plan_directory_move(old_path, new_path, scan_scope).await?;
+        let mut edit_plan = self
+            .plan_directory_move(old_path, new_path, scan_scope)
+            .await?;
 
         // Apply RenameScope filtering to edits
         if let Some(scope) = rename_scope {
@@ -234,11 +238,7 @@ mod tests {
         let plugin_registry = PluginRegistry::new();
         let reference_updater = ReferenceUpdater::new(&project_root);
 
-        let service = MoveService::new(
-            &reference_updater,
-            &plugin_registry,
-            &project_root,
-        );
+        let service = MoveService::new(&reference_updater, &plugin_registry, &project_root);
 
         // Relative path
         let rel = service.to_absolute_path(Path::new("src/main.rs"));

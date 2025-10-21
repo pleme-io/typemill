@@ -1,5 +1,5 @@
+use super::{RenameHandler, RenamePlanParams};
 use crate::handlers::tools::ToolHandlerContext;
-use super::{RenamePlanParams, RenameHandler};
 use codebuddy_foundation::protocol::{
     refactor_plan::{PlanMetadata, PlanSummary, RenamePlan},
     ApiError as ServerError, ApiResult as ServerResult,
@@ -92,11 +92,8 @@ impl RenameHandler {
         }
 
         // Use shared converter to create WorkspaceEdit from EditPlan
-        let workspace_edit = super::plan_converter::editplan_to_workspace_edit(
-            &edit_plan,
-            &abs_old,
-            &abs_new,
-        )?;
+        let workspace_edit =
+            super::plan_converter::editplan_to_workspace_edit(&edit_plan, &abs_old, &abs_new)?;
 
         // Build summary from actual edit plan
         let affected_files = 1 + file_checksums.len().saturating_sub(1); // Target file + files being updated

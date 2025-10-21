@@ -1,12 +1,12 @@
 //! CLI command handling for the codebuddy server
 
 use cb_client::format_plan;
+use cb_transport::SessionInfo;
+use clap::{Parser, Subcommand};
 use codebuddy_config::config::AppConfig;
 use codebuddy_foundation::core::utils::system::command_exists;
 use codebuddy_foundation::protocol::analysis_result::AnalysisResult;
 use codebuddy_foundation::protocol::refactor_plan::RefactorPlan;
-use cb_transport::SessionInfo;
-use clap::{Parser, Subcommand};
 use fs2::FileExt;
 use std::fs::{File, OpenOptions};
 use std::path::PathBuf;
@@ -297,13 +297,16 @@ async fn handle_cycles_command(command: Cycles) {
     let dispatcher = match crate::dispatcher_factory::create_initialized_dispatcher().await {
         Ok(d) => d,
         Err(e) => {
-            let error = codebuddy_foundation::protocol::ApiError::internal(format!("Failed to initialize: {}", e));
+            let error = codebuddy_foundation::protocol::ApiError::internal(format!(
+                "Failed to initialize: {}",
+                e
+            ));
             output_error(&error, &command.format);
             process::exit(1);
         }
     };
 
-    use codebuddy_foundation::core::model::mcp::{ McpMessage , McpRequest };
+    use codebuddy_foundation::core::model::mcp::{McpMessage, McpRequest};
     let params = serde_json::json!({
         "name": "analyze.circular_dependencies",
         "arguments": args,
@@ -348,7 +351,8 @@ async fn handle_cycles_command(command: Cycles) {
             process::exit(1);
         }
         Err(server_error) => {
-            let api_error = codebuddy_foundation::protocol::ApiError::internal(server_error.to_string());
+            let api_error =
+                codebuddy_foundation::protocol::ApiError::internal(server_error.to_string());
             output_error(&api_error, &command.format);
             process::exit(1);
         }
@@ -848,14 +852,17 @@ async fn handle_tool_command(tool_name: &str, args_json: &str, format: &str) {
     let dispatcher = match crate::dispatcher_factory::create_initialized_dispatcher().await {
         Ok(d) => d,
         Err(e) => {
-            let error = codebuddy_foundation::protocol::ApiError::internal(format!("Failed to initialize: {}", e));
+            let error = codebuddy_foundation::protocol::ApiError::internal(format!(
+                "Failed to initialize: {}",
+                e
+            ));
             output_error(&error, format);
             process::exit(1);
         }
     };
 
     // Construct MCP request message
-    use codebuddy_foundation::core::model::mcp::{ McpMessage , McpRequest };
+    use codebuddy_foundation::core::model::mcp::{McpMessage, McpRequest};
     let params = serde_json::json!({
         "name": tool_name,
         "arguments": arguments,
@@ -903,7 +910,8 @@ async fn handle_tool_command(tool_name: &str, args_json: &str, format: &str) {
         }
         Err(server_error) => {
             // Convert ServerError to ApiError and output to stderr
-            let api_error = codebuddy_foundation::protocol::ApiError::internal(server_error.to_string());
+            let api_error =
+                codebuddy_foundation::protocol::ApiError::internal(server_error.to_string());
             output_error(&api_error, format);
             process::exit(1);
         }

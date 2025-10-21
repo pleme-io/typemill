@@ -202,7 +202,9 @@ flake8>=5.0.0
         self.setup_rust_project(name);
 
         // Create a realistic multi-module structure so rust-analyzer indexes workspace symbols
-        self.create_file("src/main.rs", r#"
+        self.create_file(
+            "src/main.rs",
+            r#"
 mod utils;
 mod config;
 
@@ -215,9 +217,12 @@ fn main() {
 pub fn helper_function() -> i32 {
     42
 }
-"#);
+"#,
+        );
 
-        self.create_file("src/utils.rs", r#"
+        self.create_file(
+            "src/utils.rs",
+            r#"
 use crate::config::Config;
 
 pub fn process_data(config: &Config) -> String {
@@ -241,9 +246,12 @@ impl DataProcessor {
         format!("Processing: {}", self.name)
     }
 }
-"#);
+"#,
+        );
 
-        self.create_file("src/config.rs", r#"
+        self.create_file(
+            "src/config.rs",
+            r#"
 pub struct Config {
     pub timeout: u32,
     pub retry_count: u32,
@@ -270,7 +278,8 @@ impl Default for Config {
         Self::new()
     }
 }
-"#);
+"#,
+        );
 
         self.setup_lsp_config();
     }

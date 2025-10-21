@@ -52,18 +52,25 @@ impl YamlImportSupport {
                 let value_part = &line[colon_pos + 1..];
 
                 // Skip if already updated (idempotency check for nested renames)
-                let is_nested_rename = new_path_str.as_ref().starts_with(&format!("{}/", old_path_str));
+                let is_nested_rename = new_path_str
+                    .as_ref()
+                    .starts_with(&format!("{}/", old_path_str));
                 if is_nested_rename && value_part.contains(new_path_str.as_ref()) {
                     // Already updated, skip
-                } else if value_part.contains(old_path_str.as_ref()) && Self::is_path_like(value_part.trim()) {
-                    let new_value = value_part.replacen(old_path_str.as_ref(), new_path_str.as_ref(), 1);
+                } else if value_part.contains(old_path_str.as_ref())
+                    && Self::is_path_like(value_part.trim())
+                {
+                    let new_value =
+                        value_part.replacen(old_path_str.as_ref(), new_path_str.as_ref(), 1);
                     line_modified = format!("{}:{}", key_part, new_value);
                     changes += 1;
                 }
             } else if line.contains(old_path_str.as_ref()) && Self::is_path_like(line.trim()) {
                 // Handle lines without colon (e.g., list items like "- some/path")
                 // Skip if already updated (idempotency check for nested renames)
-                let is_nested_rename = new_path_str.as_ref().starts_with(&format!("{}/", old_path_str));
+                let is_nested_rename = new_path_str
+                    .as_ref()
+                    .starts_with(&format!("{}/", old_path_str));
                 if !(is_nested_rename && line.contains(new_path_str.as_ref())) {
                     line_modified = line.replacen(old_path_str.as_ref(), new_path_str.as_ref(), 1);
                     changes += 1;
@@ -93,11 +100,16 @@ impl YamlImportSupport {
     }
 
     fn is_path_like(s: &str) -> bool {
-        s.contains('/') || s.contains('\\') ||
-        s.ends_with(".rs") || s.ends_with(".toml") ||
-        s.ends_with(".yml") || s.ends_with(".yaml") ||
-        s.ends_with(".md") || s.ends_with(".json") ||
-        s.ends_with(".js") || s.ends_with(".ts")
+        s.contains('/')
+            || s.contains('\\')
+            || s.ends_with(".rs")
+            || s.ends_with(".toml")
+            || s.ends_with(".yml")
+            || s.ends_with(".yaml")
+            || s.ends_with(".md")
+            || s.ends_with(".json")
+            || s.ends_with(".js")
+            || s.ends_with(".ts")
     }
 }
 

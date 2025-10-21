@@ -116,8 +116,7 @@ edition = "2021"
         root_cargo
     );
     assert!(
-        !root_cargo.contains("crates/my-crate\"")
-            || !root_cargo.contains("crates/my-crate]"),
+        !root_cargo.contains("crates/my-crate\"") || !root_cargo.contains("crates/my-crate]"),
         "Root Cargo.toml should not contain old member path. Content:\n{}",
         root_cargo
     );
@@ -395,10 +394,7 @@ edition = "2021"
     workspace.create_directory("src");
     workspace.create_directory("src/utils");
 
-    workspace.create_file(
-        "src/utils/mod.rs",
-        "pub mod strings;\npub mod numbers;\n",
-    );
+    workspace.create_file("src/utils/mod.rs", "pub mod strings;\npub mod numbers;\n");
 
     workspace.create_file(
         "src/utils/strings.rs",

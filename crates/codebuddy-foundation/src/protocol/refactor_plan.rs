@@ -150,11 +150,18 @@ pub trait RefactorPlanExt {
 }
 
 impl RefactorPlanExt for RenamePlan {
-    fn checksums(&self) -> &HashMap<String, String> { &self.file_checksums }
-    fn workspace_edit(&self) -> &WorkspaceEdit { &self.edits }
-    fn warnings(&self) -> &[PlanWarning] { &self.warnings }
+    fn checksums(&self) -> &HashMap<String, String> {
+        &self.file_checksums
+    }
+    fn workspace_edit(&self) -> &WorkspaceEdit {
+        &self.edits
+    }
+    fn warnings(&self) -> &[PlanWarning] {
+        &self.warnings
+    }
     fn complexity(&self) -> u8 {
-        let total = self.summary.affected_files + self.summary.created_files + self.summary.deleted_files;
+        let total =
+            self.summary.affected_files + self.summary.created_files + self.summary.deleted_files;
         total.min(255) as u8
     }
     fn impact_areas(&self) -> Vec<String> {
@@ -163,11 +170,18 @@ impl RefactorPlanExt for RenamePlan {
 }
 
 impl RefactorPlanExt for ExtractPlan {
-    fn checksums(&self) -> &HashMap<String, String> { &self.file_checksums }
-    fn workspace_edit(&self) -> &WorkspaceEdit { &self.edits }
-    fn warnings(&self) -> &[PlanWarning] { &self.warnings }
+    fn checksums(&self) -> &HashMap<String, String> {
+        &self.file_checksums
+    }
+    fn workspace_edit(&self) -> &WorkspaceEdit {
+        &self.edits
+    }
+    fn warnings(&self) -> &[PlanWarning] {
+        &self.warnings
+    }
     fn complexity(&self) -> u8 {
-        let total = self.summary.affected_files + self.summary.created_files + self.summary.deleted_files;
+        let total =
+            self.summary.affected_files + self.summary.created_files + self.summary.deleted_files;
         total.min(255) as u8
     }
     fn impact_areas(&self) -> Vec<String> {
@@ -176,11 +190,18 @@ impl RefactorPlanExt for ExtractPlan {
 }
 
 impl RefactorPlanExt for InlinePlan {
-    fn checksums(&self) -> &HashMap<String, String> { &self.file_checksums }
-    fn workspace_edit(&self) -> &WorkspaceEdit { &self.edits }
-    fn warnings(&self) -> &[PlanWarning] { &self.warnings }
+    fn checksums(&self) -> &HashMap<String, String> {
+        &self.file_checksums
+    }
+    fn workspace_edit(&self) -> &WorkspaceEdit {
+        &self.edits
+    }
+    fn warnings(&self) -> &[PlanWarning] {
+        &self.warnings
+    }
     fn complexity(&self) -> u8 {
-        let total = self.summary.affected_files + self.summary.created_files + self.summary.deleted_files;
+        let total =
+            self.summary.affected_files + self.summary.created_files + self.summary.deleted_files;
         total.min(255) as u8
     }
     fn impact_areas(&self) -> Vec<String> {
@@ -189,11 +210,18 @@ impl RefactorPlanExt for InlinePlan {
 }
 
 impl RefactorPlanExt for MovePlan {
-    fn checksums(&self) -> &HashMap<String, String> { &self.file_checksums }
-    fn workspace_edit(&self) -> &WorkspaceEdit { &self.edits }
-    fn warnings(&self) -> &[PlanWarning] { &self.warnings }
+    fn checksums(&self) -> &HashMap<String, String> {
+        &self.file_checksums
+    }
+    fn workspace_edit(&self) -> &WorkspaceEdit {
+        &self.edits
+    }
+    fn warnings(&self) -> &[PlanWarning] {
+        &self.warnings
+    }
     fn complexity(&self) -> u8 {
-        let total = self.summary.affected_files + self.summary.created_files + self.summary.deleted_files;
+        let total =
+            self.summary.affected_files + self.summary.created_files + self.summary.deleted_files;
         total.min(255) as u8
     }
     fn impact_areas(&self) -> Vec<String> {
@@ -202,11 +230,18 @@ impl RefactorPlanExt for MovePlan {
 }
 
 impl RefactorPlanExt for ReorderPlan {
-    fn checksums(&self) -> &HashMap<String, String> { &self.file_checksums }
-    fn workspace_edit(&self) -> &WorkspaceEdit { &self.edits }
-    fn warnings(&self) -> &[PlanWarning] { &self.warnings }
+    fn checksums(&self) -> &HashMap<String, String> {
+        &self.file_checksums
+    }
+    fn workspace_edit(&self) -> &WorkspaceEdit {
+        &self.edits
+    }
+    fn warnings(&self) -> &[PlanWarning] {
+        &self.warnings
+    }
     fn complexity(&self) -> u8 {
-        let total = self.summary.affected_files + self.summary.created_files + self.summary.deleted_files;
+        let total =
+            self.summary.affected_files + self.summary.created_files + self.summary.deleted_files;
         total.min(255) as u8
     }
     fn impact_areas(&self) -> Vec<String> {
@@ -215,11 +250,18 @@ impl RefactorPlanExt for ReorderPlan {
 }
 
 impl RefactorPlanExt for TransformPlan {
-    fn checksums(&self) -> &HashMap<String, String> { &self.file_checksums }
-    fn workspace_edit(&self) -> &WorkspaceEdit { &self.edits }
-    fn warnings(&self) -> &[PlanWarning] { &self.warnings }
+    fn checksums(&self) -> &HashMap<String, String> {
+        &self.file_checksums
+    }
+    fn workspace_edit(&self) -> &WorkspaceEdit {
+        &self.edits
+    }
+    fn warnings(&self) -> &[PlanWarning] {
+        &self.warnings
+    }
     fn complexity(&self) -> u8 {
-        let total = self.summary.affected_files + self.summary.created_files + self.summary.deleted_files;
+        let total =
+            self.summary.affected_files + self.summary.created_files + self.summary.deleted_files;
         total.min(255) as u8
     }
     fn impact_areas(&self) -> Vec<String> {
@@ -228,7 +270,9 @@ impl RefactorPlanExt for TransformPlan {
 }
 
 impl RefactorPlanExt for DeletePlan {
-    fn checksums(&self) -> &HashMap<String, String> { &self.file_checksums }
+    fn checksums(&self) -> &HashMap<String, String> {
+        &self.file_checksums
+    }
     fn workspace_edit(&self) -> &WorkspaceEdit {
         // Return empty edit - DeletePlan uses deletions field instead
         static EMPTY: WorkspaceEdit = WorkspaceEdit {
@@ -238,9 +282,12 @@ impl RefactorPlanExt for DeletePlan {
         };
         &EMPTY
     }
-    fn warnings(&self) -> &[PlanWarning] { &self.warnings }
+    fn warnings(&self) -> &[PlanWarning] {
+        &self.warnings
+    }
     fn complexity(&self) -> u8 {
-        let total = self.summary.affected_files + self.summary.created_files + self.summary.deleted_files;
+        let total =
+            self.summary.affected_files + self.summary.created_files + self.summary.deleted_files;
         total.min(255) as u8
     }
     fn impact_areas(&self) -> Vec<String> {

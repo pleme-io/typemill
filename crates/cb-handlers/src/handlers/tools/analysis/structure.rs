@@ -14,12 +14,12 @@
 
 use super::super::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
-use codebuddy_foundation::core::model::mcp::ToolCall;
 use cb_plugin_api::{Symbol, SymbolKind};
+use codebuddy_foundation::core::model::mcp::ToolCall;
 use codebuddy_foundation::protocol::analysis_result::{
     Finding, FindingLocation, SafetyLevel, Severity, Suggestion,
 };
-use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
+use codebuddy_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use regex::Regex;
 use serde_json::{json, Value};
 use std::collections::HashMap;

@@ -130,14 +130,20 @@ impl ImportRenameSupport for RustImportSupport {
             // Check for relative imports using super:: or self::
             // Extract the last component (module name) from old_name
             let old_module_name = old_name.split("::").last().unwrap_or("");
-            let super_import_matches = !old_module_name.is_empty() &&
-                (trimmed.contains(&format!("super::{}::", old_module_name)) ||
-                 trimmed.contains(&format!("super::{}::*", old_module_name)));
-            let self_import_matches = !old_module_name.is_empty() &&
-                (trimmed.contains(&format!("self::{}::", old_module_name)) ||
-                 trimmed.contains(&format!("self::{}::*", old_module_name)));
+            let super_import_matches = !old_module_name.is_empty()
+                && (trimmed.contains(&format!("super::{}::", old_module_name))
+                    || trimmed.contains(&format!("super::{}::*", old_module_name)));
+            let self_import_matches = !old_module_name.is_empty()
+                && (trimmed.contains(&format!("self::{}::", old_module_name))
+                    || trimmed.contains(&format!("self::{}::*", old_module_name)));
 
-            if is_use_statement && (contains_old_module || crate_import_matches || relative_import_matches || super_import_matches || self_import_matches) {
+            if is_use_statement
+                && (contains_old_module
+                    || crate_import_matches
+                    || relative_import_matches
+                    || super_import_matches
+                    || self_import_matches)
+            {
                 tracing::info!(
                     line = %trimmed,
                     old_name = %old_name,
@@ -156,19 +162,19 @@ impl ImportRenameSupport for RustImportSupport {
                         // Replace all occurrences of the old module name in super:: and self:: contexts
                         new_line = new_line.replace(
                             &format!("super::{}::", old_module_name),
-                            &format!("super::{}::", new_module_name)
+                            &format!("super::{}::", new_module_name),
                         );
                         new_line = new_line.replace(
                             &format!("super::{}::*", old_module_name),
-                            &format!("super::{}::*", new_module_name)
+                            &format!("super::{}::*", new_module_name),
                         );
                         new_line = new_line.replace(
                             &format!("self::{}::", old_module_name),
-                            &format!("self::{}::", new_module_name)
+                            &format!("self::{}::", new_module_name),
                         );
                         new_line = new_line.replace(
                             &format!("self::{}::*", old_module_name),
-                            &format!("self::{}::*", new_module_name)
+                            &format!("self::{}::*", new_module_name),
                         );
 
                         // Preserve indentation
@@ -207,8 +213,10 @@ impl ImportRenameSupport for RustImportSupport {
                             // For crate:: imports, strip the crate name from both old and new
                             // e.g., old_name="mylib::core::types", new_name="mylib::core::models"
                             //   → effective_old="crate::core::types", effective_new="crate::core::models"
-                            let old_suffix = old_name.split_once("::").map(|(_, s)| s).unwrap_or("");
-                            let new_suffix = new_name.split_once("::").map(|(_, s)| s).unwrap_or("");
+                            let old_suffix =
+                                old_name.split_once("::").map(|(_, s)| s).unwrap_or("");
+                            let new_suffix =
+                                new_name.split_once("::").map(|(_, s)| s).unwrap_or("");
                             (
                                 format!("crate::{}", old_suffix),
                                 format!("crate::{}", new_suffix),
@@ -217,8 +225,14 @@ impl ImportRenameSupport for RustImportSupport {
                             // For crate-relative imports (from lib.rs), use just the suffix
                             // e.g., old_name="mylib::utils::helpers", new_name="mylib::utils::support"
                             //   → effective_old="utils::helpers", effective_new="utils::support"
-                            let old_suffix = old_name.split_once("::").map(|(_, s)| s).unwrap_or(old_name);
-                            let new_suffix = new_name.split_once("::").map(|(_, s)| s).unwrap_or(new_name);
+                            let old_suffix = old_name
+                                .split_once("::")
+                                .map(|(_, s)| s)
+                                .unwrap_or(old_name);
+                            let new_suffix = new_name
+                                .split_once("::")
+                                .map(|(_, s)| s)
+                                .unwrap_or(new_name);
                             (old_suffix.to_string(), new_suffix.to_string())
                         } else {
                             (old_name.to_string(), new_name.to_string())
@@ -233,8 +247,11 @@ impl ImportRenameSupport for RustImportSupport {
                         );
 
                         // Try to rewrite using AST-based transformation
-                        let rewrite_result =
-                            crate::parser::rewrite_use_tree(&item_use.tree, &effective_old, &effective_new);
+                        let rewrite_result = crate::parser::rewrite_use_tree(
+                            &item_use.tree,
+                            &effective_old,
+                            &effective_new,
+                        );
                         tracing::info!(
                             rewrite_result = ?rewrite_result,
                             "rewrite_use_tree returned"
@@ -321,9 +338,8 @@ impl ImportRenameSupport for RustImportSupport {
 
             // Search for qualified paths using regex
             if re.is_match(&line) {
-                let updated_line = re.replace_all(&line, |_caps: &regex::Captures| {
-                    format!("{}::", new_name)
-                });
+                let updated_line =
+                    re.replace_all(&line, |_caps: &regex::Captures| format!("{}::", new_name));
 
                 if updated_line != line {
                     qualified_path_changes += 1;
@@ -430,7 +446,6 @@ impl ImportAdvancedSupport for RustImportSupport {
     // Uses default implementation
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -461,8 +476,12 @@ use old_crate::module::Thing;
 use other::stuff;
 "#;
 
-        let (result, changes) =
-            ImportRenameSupport::rewrite_imports_for_rename(&support, content, "old_crate", "new_crate");
+        let (result, changes) = ImportRenameSupport::rewrite_imports_for_rename(
+            &support,
+            content,
+            "old_crate",
+            "new_crate",
+        );
         assert_eq!(changes, 1);
         assert!(result.contains("new_crate"));
         assert!(!result.contains("use old_crate"));
@@ -477,7 +496,11 @@ use std::collections::HashMap;
 use serde::Serialize;
 "#;
 
-        assert!(ImportParser::contains_import(&support, content, "std::collections"));
+        assert!(ImportParser::contains_import(
+            &support,
+            content,
+            "std::collections"
+        ));
         assert!(ImportParser::contains_import(&support, content, "serde"));
         assert!(!ImportParser::contains_import(&support, content, "tokio"));
     }
@@ -569,7 +592,11 @@ pub fn lib_fn() {
             "test_project::utils::support",
         );
 
-        assert_eq!(changes, 1, "Should have changed 1 import. Actual:\n{}", result);
+        assert_eq!(
+            changes, 1,
+            "Should have changed 1 import. Actual:\n{}",
+            result
+        );
         assert!(
             result.contains("use utils::support::process;"),
             "Should contain updated crate-relative import. Actual:\n{}",
@@ -595,13 +622,27 @@ pub fn example() {
 }
 "#;
 
-        let (result, changes) = support.rewrite_imports_for_rename(content, "cb_ast", "codebuddy_ast");
+        let (result, changes) =
+            support.rewrite_imports_for_rename(content, "cb_ast", "codebuddy_ast");
 
         assert!(changes > 0, "Should detect changes");
-        assert!(!result.contains("cb_ast::"), "Should replace all cb_ast:: occurrences. Result:\n{}", result);
-        assert!(result.contains("codebuddy_ast::CacheSettings"), "Should update CacheSettings reference");
-        assert!(result.contains("codebuddy_ast::complexity::analyze_file_complexity"), "Should update complexity reference");
-        assert!(result.contains("codebuddy_ast::refactoring::extract_function"), "Should update refactoring reference");
+        assert!(
+            !result.contains("cb_ast::"),
+            "Should replace all cb_ast:: occurrences. Result:\n{}",
+            result
+        );
+        assert!(
+            result.contains("codebuddy_ast::CacheSettings"),
+            "Should update CacheSettings reference"
+        );
+        assert!(
+            result.contains("codebuddy_ast::complexity::analyze_file_complexity"),
+            "Should update complexity reference"
+        );
+        assert!(
+            result.contains("codebuddy_ast::refactoring::extract_function"),
+            "Should update refactoring reference"
+        );
     }
 
     #[test]
@@ -615,13 +656,30 @@ pub fn example() {
 }
 "#;
 
-        let (result, changes) = support.rewrite_imports_for_rename(content, "cb_ast", "codebuddy_ast");
+        let (result, changes) =
+            support.rewrite_imports_for_rename(content, "cb_ast", "codebuddy_ast");
 
         // Both the use statement AND the qualified path should be updated
-        assert!(result.contains("use codebuddy_ast::CacheSettings"), "Should update use statement. Result:\n{}", result);
-        assert!(result.contains("codebuddy_ast::CacheSettings::default()"), "Should update qualified path. Result:\n{}", result);
-        assert!(!result.contains("cb_ast::"), "Should not contain any cb_ast:: references. Result:\n{}", result);
-        assert!(changes >= 2, "Should update both use and qualified path, got {}", changes);
+        assert!(
+            result.contains("use codebuddy_ast::CacheSettings"),
+            "Should update use statement. Result:\n{}",
+            result
+        );
+        assert!(
+            result.contains("codebuddy_ast::CacheSettings::default()"),
+            "Should update qualified path. Result:\n{}",
+            result
+        );
+        assert!(
+            !result.contains("cb_ast::"),
+            "Should not contain any cb_ast:: references. Result:\n{}",
+            result
+        );
+        assert!(
+            changes >= 2,
+            "Should update both use and qualified path, got {}",
+            changes
+        );
     }
 
     #[test]
@@ -635,12 +693,26 @@ pub fn example() {
 }
 "#;
 
-        let (result, _changes) = support.rewrite_imports_for_rename(content, "cb_ast", "codebuddy_ast");
+        let (result, _changes) =
+            support.rewrite_imports_for_rename(content, "cb_ast", "codebuddy_ast");
 
-        assert!(result.contains("codebuddy_ast::CacheSettings"), "Should update qualified path");
-        assert!(result.contains("my_cb_ast_thing"), "Should preserve variable names with cb_ast prefix");
-        assert!(result.contains("cb_ast_prefix"), "Should preserve variable names with cb_ast in them");
-        assert_eq!(result.matches("codebuddy_ast").count(), 1, "Should only replace the qualified path, not variable names");
+        assert!(
+            result.contains("codebuddy_ast::CacheSettings"),
+            "Should update qualified path"
+        );
+        assert!(
+            result.contains("my_cb_ast_thing"),
+            "Should preserve variable names with cb_ast prefix"
+        );
+        assert!(
+            result.contains("cb_ast_prefix"),
+            "Should preserve variable names with cb_ast in them"
+        );
+        assert_eq!(
+            result.matches("codebuddy_ast").count(),
+            1,
+            "Should only replace the qualified path, not variable names"
+        );
     }
 
     #[test]
@@ -653,10 +725,17 @@ pub fn example() {
 }
 "#;
 
-        let (result, changes) = support.rewrite_imports_for_rename(content, "cb_ast", "codebuddy_ast");
+        let (result, changes) =
+            support.rewrite_imports_for_rename(content, "cb_ast", "codebuddy_ast");
 
         assert!(changes > 0, "Should detect changes");
-        assert!(!result.contains("cb_ast"), "Should replace all cb_ast references regardless of spacing");
-        assert!(result.contains("codebuddy_ast::"), "Should normalize to standard spacing");
+        assert!(
+            !result.contains("cb_ast"),
+            "Should replace all cb_ast references regardless of spacing"
+        );
+        assert!(
+            result.contains("codebuddy_ast::"),
+            "Should normalize to standard spacing"
+        );
     }
 }

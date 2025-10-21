@@ -8,15 +8,15 @@ pub mod workspace_support;
 
 use async_trait::async_trait;
 use cb_lang_common::read_manifest;
+use cb_plugin_api::codebuddy_plugin;
 use cb_plugin_api::{
     import_support::{
         ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportParser,
         ImportRenameSupport,
     },
-    LanguageMetadata, LanguagePlugin, LspConfig, ManifestData, ParsedSource,
-    PluginCapabilities, PluginError, PluginResult, WorkspaceSupport,
+    LanguageMetadata, LanguagePlugin, LspConfig, ManifestData, ParsedSource, PluginCapabilities,
+    PluginError, PluginResult, WorkspaceSupport,
 };
-use cb_plugin_api::codebuddy_plugin;
 use std::path::Path;
 
 // Self-register the plugin with the Codebuddy system.
@@ -48,9 +48,8 @@ impl TypeScriptPlugin {
     };
 
     /// The capabilities of this plugin.
-    pub const CAPABILITIES: PluginCapabilities = PluginCapabilities::none()
-        .with_imports()
-        .with_workspace();
+    pub const CAPABILITIES: PluginCapabilities =
+        PluginCapabilities::none().with_imports().with_workspace();
 
     /// Creates a new, boxed instance of the plugin.
     #[allow(clippy::new_ret_no_self)]
@@ -235,17 +234,15 @@ impl cb_plugin_api::ImportAnalyzer for TypeScriptPlugin {
         file_path: &Path,
     ) -> cb_plugin_api::PluginResult<codebuddy_foundation::protocol::ImportGraph> {
         // Read the file content
-        let content = std::fs::read_to_string(file_path)
-            .map_err(|e| cb_plugin_api::PluginError::internal(format!("Failed to read file: {}", e)))?;
+        let content = std::fs::read_to_string(file_path).map_err(|e| {
+            cb_plugin_api::PluginError::internal(format!("Failed to read file: {}", e))
+        })?;
 
         // Use the existing analyze_detailed_imports method
         self.analyze_detailed_imports(&content, Some(file_path))
     }
 
-    fn find_unused_imports(
-        &self,
-        _file_path: &Path,
-    ) -> cb_plugin_api::PluginResult<Vec<String>> {
+    fn find_unused_imports(&self, _file_path: &Path) -> cb_plugin_api::PluginResult<Vec<String>> {
         // TODO: Implement unused import detection
         // For now, return empty vector
         Ok(Vec::new())

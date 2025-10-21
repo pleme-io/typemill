@@ -1,9 +1,8 @@
-use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
-use super::types::{SafetyLevel, ImpactLevel};
+use super::types::{ImpactLevel, SafetyLevel};
 use anyhow::Result;
 use codebuddy_foundation::protocol::analysis_result::Suggestion;
-
+use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SuggestionConfig {
@@ -102,7 +101,8 @@ impl SuggestionConfig {
             .filter(|s| s.confidence >= self.min_confidence)
             .filter(|s| {
                 let suggestion_safety_level: SafetyLevel = s.safety.into();
-                self.include_safety_levels.contains(&suggestion_safety_level)
+                self.include_safety_levels
+                    .contains(&suggestion_safety_level)
             })
             .filter(|s| {
                 if self.filters.allowed_impact_levels.is_empty() {
@@ -130,8 +130,12 @@ impl From<codebuddy_foundation::protocol::analysis_result::SafetyLevel> for Safe
     fn from(protocol_level: codebuddy_foundation::protocol::analysis_result::SafetyLevel) -> Self {
         match protocol_level {
             codebuddy_foundation::protocol::analysis_result::SafetyLevel::Safe => SafetyLevel::Safe,
-            codebuddy_foundation::protocol::analysis_result::SafetyLevel::RequiresReview => SafetyLevel::RequiresReview,
-            codebuddy_foundation::protocol::analysis_result::SafetyLevel::Experimental => SafetyLevel::Experimental,
+            codebuddy_foundation::protocol::analysis_result::SafetyLevel::RequiresReview => {
+                SafetyLevel::RequiresReview
+            }
+            codebuddy_foundation::protocol::analysis_result::SafetyLevel::Experimental => {
+                SafetyLevel::Experimental
+            }
         }
     }
 }

@@ -467,8 +467,12 @@ import oldFunction from './utils';
 import { oldFunction as alias } from './utils';
 "#;
 
-        let (updated, changes) =
-            ImportRenameSupport::rewrite_imports_for_rename(&support, source, "oldFunction", "newFunction");
+        let (updated, changes) = ImportRenameSupport::rewrite_imports_for_rename(
+            &support,
+            source,
+            "oldFunction",
+            "newFunction",
+        );
         assert!(updated.contains("{ newFunction }"));
         assert!(updated.contains("import newFunction from"));
         assert!(updated.contains("newFunction as alias"));

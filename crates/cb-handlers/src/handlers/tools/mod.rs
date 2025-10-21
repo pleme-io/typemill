@@ -51,7 +51,7 @@ pub use dispatch::dispatch_to_language_plugin;
 /// Dispatch helpers for language plugin operations
 mod dispatch {
     use super::ToolHandlerContext;
-    use codebuddy_foundation::protocol::{ ApiError , ApiResult };
+    use codebuddy_foundation::protocol::{ApiError, ApiResult};
     use std::path::Path;
 
     /// Dispatch a file operation to the appropriate language plugin based on file extension

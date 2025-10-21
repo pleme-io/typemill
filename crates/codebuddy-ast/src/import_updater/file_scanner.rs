@@ -92,7 +92,8 @@ impl ImportPathResolver {
                 // Read file and check for imports
                 if let Ok(content) = tokio::fs::read_to_string(file).await {
                     // Parse ALL imports from this file for proper caching
-                    let all_imports = self.get_all_imported_files(&content, file, plugins, project_files);
+                    let all_imports =
+                        self.get_all_imported_files(&content, file, plugins, project_files);
 
                     let is_affected = all_imports.contains(&renamed_file.to_path_buf());
 
@@ -143,11 +144,14 @@ impl ImportPathResolver {
                 if plugin.handles_extension(ext) {
                     if let Some(import_parser) = plugin.import_parser() {
                         // Parse all imports using the plugin
-                        let import_specifiers = cb_plugin_api::ImportParser::parse_imports(import_parser, content);
+                        let import_specifiers =
+                            cb_plugin_api::ImportParser::parse_imports(import_parser, content);
 
                         // Resolve each import specifier to an absolute file path
                         for specifier in import_specifiers {
-                            if let Some(resolved) = self.resolve_import_to_file(&specifier, current_file, project_files) {
+                            if let Some(resolved) =
+                                self.resolve_import_to_file(&specifier, current_file, project_files)
+                            {
                                 imported_files.push(resolved);
                             }
                         }
@@ -160,7 +164,9 @@ impl ImportPathResolver {
         // Fallback: parse imports manually if no plugin found
         for line in content.lines() {
             if let Some(specifier) = extract_import_path(line) {
-                if let Some(resolved) = self.resolve_import_to_file(&specifier, current_file, project_files) {
+                if let Some(resolved) =
+                    self.resolve_import_to_file(&specifier, current_file, project_files)
+                {
                     imported_files.push(resolved);
                 }
             }
@@ -183,7 +189,8 @@ impl ImportPathResolver {
         project_files: &[PathBuf],
     ) -> Option<PathBuf> {
         // Try explicit relative/absolute paths first (./foo, ../foo, /foo)
-        if specifier.starts_with("./") || specifier.starts_with("../") || specifier.starts_with('/') {
+        if specifier.starts_with("./") || specifier.starts_with("../") || specifier.starts_with('/')
+        {
             let importing_dir = importing_file.parent()?;
             let candidate = importing_dir.join(specifier);
             let extensions = ["", ".ts", ".tsx", ".js", ".jsx", ".rs"];
@@ -237,7 +244,6 @@ impl ImportPathResolver {
 
         None
     }
-
 }
 
 /// Extract import path from an import/require statement

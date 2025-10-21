@@ -16,7 +16,8 @@ use std::path::Path;
 /// This avoids false positives on prose text that happens to mention directory names.
 fn is_path_like(s: &str) -> bool {
     // Must contain a slash/backslash OR have a file extension
-    s.contains('/') || s.contains('\\')
+    s.contains('/')
+        || s.contains('\\')
         || (s.contains('.') && {
             s.ends_with(".rs")
                 || s.ends_with(".toml")
@@ -62,10 +63,7 @@ pub fn rewrite_string_literals(
     let new_path_str = new_path.to_string_lossy();
 
     // Extract just the filename/dirname for relative matching
-    let old_name = old_path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("");
+    let old_name = old_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
     let mut modified_source = source.to_string();
     let mut change_count = 0;
@@ -92,7 +90,9 @@ pub fn rewrite_string_literals(
         if is_path_like(string_content) {
             // Skip if already updated (idempotency check for nested renames)
             // Example: old="tests", new="tests/e2e", skip if string already contains "tests/e2e"
-            let is_nested_rename = new_path_str.as_ref().starts_with(&format!("{}/", old_path_str));
+            let is_nested_rename = new_path_str
+                .as_ref()
+                .starts_with(&format!("{}/", old_path_str));
 
             if is_nested_rename && string_content.contains(new_path_str.as_ref()) {
                 continue;
@@ -104,13 +104,14 @@ pub fn rewrite_string_literals(
             // 3. Relative path with ../ prefix: ../../config/settings.toml
             // But NOT nested paths like: src/config/file.rs
             let matches = (string_content == old_path_str.as_ref()
-                            || string_content.starts_with(&format!("{}/", old_path_str))
-                            || string_content.starts_with(&format!("{}\\", old_path_str)))
+                || string_content.starts_with(&format!("{}/", old_path_str))
+                || string_content.starts_with(&format!("{}\\", old_path_str)))
                 || (!old_name.is_empty() && {
                     // Strip leading ../ or ..\ (Windows) to check what the actual path starts with
                     let mut normalized = string_content;
                     while normalized.starts_with("../") || normalized.starts_with("..\\") {
-                        normalized = normalized.strip_prefix("../")
+                        normalized = normalized
+                            .strip_prefix("../")
                             .or_else(|| normalized.strip_prefix("..\\"))
                             .unwrap_or(normalized);
                     }
@@ -122,7 +123,8 @@ pub fn rewrite_string_literals(
             if matches {
                 // Replace only first occurrence to prevent nested replacements
                 let new_content = if string_content == old_path_str.as_ref()
-                                    || string_content.starts_with(&format!("{}/", old_path_str)) {
+                    || string_content.starts_with(&format!("{}/", old_path_str))
+                {
                     string_content.replacen(old_path_str.as_ref(), new_path_str.as_ref(), 1)
                 } else if !old_name.is_empty() {
                     // For nested renames (tests -> tests/e2e), use full new path
@@ -152,12 +154,12 @@ pub fn rewrite_string_literals(
     // Cover common cases: r"...", r#"..."#, r##"..."##, r###"..."###, r####"..."####, r#####"..."#####
     // Note: For hashed raw strings (r#"..."#), the content can contain quotes
     let raw_patterns = vec![
-        (Regex::new(r#"r"([^"]*)""#)?, 0),                        // r"..." (no quotes inside)
-        (Regex::new(r##"r#"(.*?)"#"##)?, 1),                      // r#"..."# (can contain quotes)
-        (Regex::new(r###"r##"(.*?)"##"###)?, 2),                  // r##"..."##
-        (Regex::new(r####"r###"(.*?)"###"####)?, 3),              // r###"..."###
-        (Regex::new(r#####"r####"(.*?)"####"#####)?, 4),          // r####"..."####
-        (Regex::new(r######"r#####"(.*?)"#####"######)?, 5),      // r#####"..."#####
+        (Regex::new(r#"r"([^"]*)""#)?, 0),   // r"..." (no quotes inside)
+        (Regex::new(r##"r#"(.*?)"#"##)?, 1), // r#"..."# (can contain quotes)
+        (Regex::new(r###"r##"(.*?)"##"###)?, 2), // r##"..."##
+        (Regex::new(r####"r###"(.*?)"###"####)?, 3), // r###"..."###
+        (Regex::new(r#####"r####"(.*?)"####"#####)?, 4), // r####"..."####
+        (Regex::new(r######"r#####"(.*?)"#####"######)?, 5), // r#####"..."#####
     ];
 
     for (raw_regex, hash_count) in raw_patterns {
@@ -168,7 +170,9 @@ pub fn rewrite_string_literals(
 
             if is_path_like(string_content) {
                 // Skip if already updated (idempotency check for nested renames)
-                let is_nested_rename = new_path_str.as_ref().starts_with(&format!("{}/", old_path_str));
+                let is_nested_rename = new_path_str
+                    .as_ref()
+                    .starts_with(&format!("{}/", old_path_str));
 
                 if is_nested_rename && string_content.contains(new_path_str.as_ref()) {
                     continue;
@@ -176,13 +180,14 @@ pub fn rewrite_string_literals(
 
                 // Same matching logic as regular strings
                 let matches = (string_content == old_path_str.as_ref()
-                                || string_content.starts_with(&format!("{}/", old_path_str))
-                                || string_content.starts_with(&format!("{}\\", old_path_str)))
+                    || string_content.starts_with(&format!("{}/", old_path_str))
+                    || string_content.starts_with(&format!("{}\\", old_path_str)))
                     || (!old_name.is_empty() && {
                         // Strip leading ../ or ..\ (Windows) to check what the actual path starts with
                         let mut normalized = string_content;
                         while normalized.starts_with("../") || normalized.starts_with("..\\") {
-                            normalized = normalized.strip_prefix("../")
+                            normalized = normalized
+                                .strip_prefix("../")
                                 .or_else(|| normalized.strip_prefix("..\\"))
                                 .unwrap_or(normalized);
                         }
@@ -194,7 +199,8 @@ pub fn rewrite_string_literals(
                 if matches {
                     // Replace only first occurrence to prevent nested replacements
                     let new_content = if string_content == old_path_str.as_ref()
-                                        || string_content.starts_with(&format!("{}/", old_path_str)) {
+                        || string_content.starts_with(&format!("{}/", old_path_str))
+                    {
                         string_content.replacen(old_path_str.as_ref(), new_path_str.as_ref(), 1)
                     } else if !old_name.is_empty() {
                         // For nested renames (tests -> tests/e2e), use full new path
@@ -212,7 +218,7 @@ pub fn rewrite_string_literals(
                         string_content.to_string()
                     };
 
-                    let new_match = format!("r{}\"{}\"{}",hash_marks, new_content, hash_marks);
+                    let new_match = format!("r{}\"{}\"{}", hash_marks, new_content, hash_marks);
                     modified_source = modified_source.replace(full_match, &new_match);
                     change_count += 1;
                 }
@@ -365,11 +371,8 @@ fn main() {
     let path = r"old-dir\file.rs";
 }
 "#;
-        let (result, count) = rewrite_string_literals(
-            source,
-            Path::new("old-dir"),
-            Path::new("new-dir")
-        ).unwrap();
+        let (result, count) =
+            rewrite_string_literals(source, Path::new("old-dir"), Path::new("new-dir")).unwrap();
 
         assert_eq!(count, 1);
         assert!(result.contains(r#"r"new-dir\file.rs""#));
@@ -382,11 +385,8 @@ fn main() {
     let path = r#"old-dir/file"with"quotes.rs"#;
 }
 "##;
-        let (result, count) = rewrite_string_literals(
-            source,
-            Path::new("old-dir"),
-            Path::new("new-dir")
-        ).unwrap();
+        let (result, count) =
+            rewrite_string_literals(source, Path::new("old-dir"), Path::new("new-dir")).unwrap();
 
         assert_eq!(count, 1);
         assert!(result.contains(r##"r#"new-dir/file"with"quotes.rs"#"##));
@@ -400,11 +400,9 @@ fn main() {
     let path = r"integration-tests\file.rs";
 }
 "#;
-        let (result, count) = rewrite_string_literals(
-            source,
-            Path::new("integration-tests"),
-            Path::new("tests")
-        ).unwrap();
+        let (result, count) =
+            rewrite_string_literals(source, Path::new("integration-tests"), Path::new("tests"))
+                .unwrap();
 
         assert_eq!(count, 1);
         assert!(result.contains(r#"r"tests\file.rs""#));
@@ -418,11 +416,8 @@ fn main() {
     let raw = r"old-dir\file2.rs";
 }
 "#;
-        let (result, count) = rewrite_string_literals(
-            source,
-            Path::new("old-dir"),
-            Path::new("new-dir")
-        ).unwrap();
+        let (result, count) =
+            rewrite_string_literals(source, Path::new("old-dir"), Path::new("new-dir")).unwrap();
 
         assert_eq!(count, 2);
         assert!(result.contains("\"new-dir/file1.rs\""));
@@ -436,11 +431,8 @@ fn main() {
     let path = r##"old-dir/file##with##hashes.rs"##;
 }
 "###;
-        let (result, count) = rewrite_string_literals(
-            source,
-            Path::new("old-dir"),
-            Path::new("new-dir")
-        ).unwrap();
+        let (result, count) =
+            rewrite_string_literals(source, Path::new("old-dir"), Path::new("new-dir")).unwrap();
 
         assert_eq!(count, 1);
         assert!(result.contains(r###"r##"new-dir/file##with##hashes.rs"##"###));
@@ -480,9 +472,15 @@ fn main() {
 
         let (result, count) = rewrite_string_literals(source, old_path, new_path).unwrap();
 
-        assert_eq!(count, 1, "Should only update path starting with directory name");
+        assert_eq!(
+            count, 1,
+            "Should only update path starting with directory name"
+        );
         assert!(result.contains("\"tests/fixtures/test.rs\""));
-        assert!(result.contains("\"src/integration-tests/file.rs\""), "Should not update nested occurrence");
+        assert!(
+            result.contains("\"src/integration-tests/file.rs\""),
+            "Should not update nested occurrence"
+        );
     }
 
     #[test]
@@ -490,18 +488,12 @@ fn main() {
         let source = r#"let path = "tests/README.md";"#;
 
         // Apply once
-        let (once, _) = rewrite_string_literals(
-            source,
-            Path::new("tests"),
-            Path::new("tests/e2e")
-        ).unwrap();
+        let (once, _) =
+            rewrite_string_literals(source, Path::new("tests"), Path::new("tests/e2e")).unwrap();
 
         // Apply again to result
-        let (twice, count) = rewrite_string_literals(
-            &once,
-            Path::new("tests"),
-            Path::new("tests/e2e")
-        ).unwrap();
+        let (twice, count) =
+            rewrite_string_literals(&once, Path::new("tests"), Path::new("tests/e2e")).unwrap();
 
         assert_eq!(once, twice, "Should be idempotent");
         assert_eq!(count, 0, "Second pass should find nothing to replace");
@@ -512,13 +504,13 @@ fn main() {
     fn test_no_nested_replacement_in_already_updated_paths() {
         let source = r#"let path = "tests/e2e/fixtures/data.json";"#;
 
-        let (result, count) = rewrite_string_literals(
-            source,
-            Path::new("tests"),
-            Path::new("tests/e2e")
-        ).unwrap();
+        let (result, count) =
+            rewrite_string_literals(source, Path::new("tests"), Path::new("tests/e2e")).unwrap();
 
-        assert_eq!(count, 0, "Should not match paths already containing new path");
+        assert_eq!(
+            count, 0,
+            "Should not match paths already containing new path"
+        );
         assert_eq!(result, source, "Content should be unchanged");
     }
 
@@ -526,11 +518,8 @@ fn main() {
     fn test_relative_path_no_nested_replacement() {
         let source = r#"let path = "../../tests/utils.rs";"#;
 
-        let (result, _) = rewrite_string_literals(
-            source,
-            Path::new("tests"),
-            Path::new("tests/e2e")
-        ).unwrap();
+        let (result, _) =
+            rewrite_string_literals(source, Path::new("tests"), Path::new("tests/e2e")).unwrap();
 
         assert!(result.contains("../../tests/e2e/utils.rs"));
         assert!(!result.contains("../../tests/e2e/e2e/e2e/"));

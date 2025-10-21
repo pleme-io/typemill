@@ -5,8 +5,8 @@
 //! - Move with import updates
 
 use crate::harness::{TestClient, TestWorkspace};
-use serde_json::json;
 use cb_test_support::harness::mcp_fixtures::MOVE_DIRECTORY_TESTS;
+use serde_json::json;
 
 #[tokio::test]
 async fn test_move_folder_with_imports() {

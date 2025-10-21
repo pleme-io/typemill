@@ -76,7 +76,10 @@ impl MarkdownImportSupport {
         }
 
         // Skip common non-path patterns
-        if text.starts_with("http://") || text.starts_with("https://") || text.starts_with("mailto:") {
+        if text.starts_with("http://")
+            || text.starts_with("https://")
+            || text.starts_with("mailto:")
+        {
             return false;
         }
 
@@ -88,9 +91,9 @@ impl MarkdownImportSupport {
 
         // Skip common command prefixes followed by spaces
         let command_prefixes = [
-            "cargo ", "npm ", "yarn ", "pnpm ", "git ", "docker ", "kubectl ",
-            "python ", "node ", "rustc ", "gcc ", "make ", "cmake ", "go ",
-            "mvn ", "gradle ", "java ", "javac ", "dotnet ", "ruby ", "perl "
+            "cargo ", "npm ", "yarn ", "pnpm ", "git ", "docker ", "kubectl ", "python ", "node ",
+            "rustc ", "gcc ", "make ", "cmake ", "go ", "mvn ", "gradle ", "java ", "javac ",
+            "dotnet ", "ruby ", "perl ",
         ];
         for prefix in &command_prefixes {
             if text.starts_with(prefix) {
@@ -359,7 +362,9 @@ impl ImportRenameSupport for MarkdownImportSupport {
                     }
 
                     // Match at start of path (not anywhere)
-                    if code_content == old_name || code_content.starts_with(&format!("{}/", old_name)) {
+                    if code_content == old_name
+                        || code_content.starts_with(&format!("{}/", old_name))
+                    {
                         count += 1;
                         let updated_content = code_content.replacen(old_name, new_name, 1);
                         return format!("`{}`", updated_content);
@@ -644,8 +649,12 @@ Also [here](docs/architecture/ARCHITECTURE.md#overview).
         let support = MarkdownImportSupport::new();
         let content = "![Diagram](docs/img/old.png)";
 
-        let (updated, count) =
-            ImportRenameSupport::rewrite_imports_for_rename(&support, content, "docs/img/old.png", "docs/img/new.png");
+        let (updated, count) = ImportRenameSupport::rewrite_imports_for_rename(
+            &support,
+            content,
+            "docs/img/old.png",
+            "docs/img/new.png",
+        );
 
         assert_eq!(count, 1);
         assert!(updated.contains("![Diagram](docs/img/new.png)"));
@@ -656,8 +665,14 @@ Also [here](docs/architecture/ARCHITECTURE.md#overview).
         let support = MarkdownImportSupport::new();
         let content = "See [Architecture](docs/ARCHITECTURE.md)";
 
-        assert!(ImportParser::contains_import(&support, content, "docs/ARCHITECTURE.md"));
-        assert!(!ImportParser::contains_import(&support, content, "OTHER.md"));
+        assert!(ImportParser::contains_import(
+            &support,
+            content,
+            "docs/ARCHITECTURE.md"
+        ));
+        assert!(!ImportParser::contains_import(
+            &support, content, "OTHER.md"
+        ));
     }
 
     #[test]
@@ -665,7 +680,8 @@ Also [here](docs/architecture/ARCHITECTURE.md#overview).
         let support = MarkdownImportSupport::new();
         let content = "See [Architecture](docs/ARCHITECTURE.md) and [API](docs/API.md)";
 
-        let updated = ImportMutationSupport::remove_import(&support, content, "docs/ARCHITECTURE.md");
+        let updated =
+            ImportMutationSupport::remove_import(&support, content, "docs/ARCHITECTURE.md");
 
         assert!(!updated.contains("ARCHITECTURE.md"));
         assert!(updated.contains("API.md"));
@@ -693,20 +709,35 @@ Directory tree:
         );
 
         assert_eq!(count, 2, "Should update inline code and plain text paths");
-        assert!(updated.contains("`tests/src/`"), "Should update inline code in table");
-        assert!(updated.contains("tests/"), "Should update plain text in directory tree");
-        assert!(!updated.contains("integration-tests"), "Should not contain old path");
+        assert!(
+            updated.contains("`tests/src/`"),
+            "Should update inline code in table"
+        );
+        assert!(
+            updated.contains("tests/"),
+            "Should update plain text in directory tree"
+        );
+        assert!(
+            !updated.contains("integration-tests"),
+            "Should not contain old path"
+        );
     }
 
     #[test]
     fn test_inline_code_path_detection() {
-        assert!(MarkdownImportSupport::looks_like_path("integration-tests/src/"));
+        assert!(MarkdownImportSupport::looks_like_path(
+            "integration-tests/src/"
+        ));
         assert!(MarkdownImportSupport::looks_like_path("docs/api.md"));
         assert!(MarkdownImportSupport::looks_like_path("src\\main.rs")); // Windows path
 
         // Should skip these
         assert!(!MarkdownImportSupport::looks_like_path("no-slashes"));
-        assert!(!MarkdownImportSupport::looks_like_path("cargo test --manifest-path integration-tests/Cargo.toml"));
-        assert!(!MarkdownImportSupport::looks_like_path("https://example.com/path"));
+        assert!(!MarkdownImportSupport::looks_like_path(
+            "cargo test --manifest-path integration-tests/Cargo.toml"
+        ));
+        assert!(!MarkdownImportSupport::looks_like_path(
+            "https://example.com/path"
+        ));
     }
 }

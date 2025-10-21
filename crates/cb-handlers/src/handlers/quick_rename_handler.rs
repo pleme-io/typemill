@@ -12,11 +12,11 @@
 //! - Directory
 
 use super::rename_handler::RenameHandler;
-use super::workspace_apply_handler::WorkspaceApplyHandler;
 use super::tools::{ToolHandler, ToolHandlerContext};
+use super::workspace_apply_handler::WorkspaceApplyHandler;
 use async_trait::async_trait;
 use codebuddy_foundation::core::model::mcp::ToolCall;
-use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
+use codebuddy_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde_json::{json, Value};
 use tracing::{debug, info};
 
@@ -72,9 +72,7 @@ impl ToolHandler for QuickRenameHandler {
             .rename_handler
             .handle_tool_call(context, &plan_call)
             .await
-            .map_err(|e| {
-                ServerError::Internal(format!("Failed to generate rename plan: {}", e))
-            })?;
+            .map_err(|e| ServerError::Internal(format!("Failed to generate rename plan: {}", e)))?;
 
         debug!("Step 1: Rename plan generated successfully");
 
@@ -98,9 +96,7 @@ impl ToolHandler for QuickRenameHandler {
             .apply_handler
             .handle_tool_call(context, &apply_call)
             .await
-            .map_err(|e| {
-                ServerError::Internal(format!("Failed to apply rename plan: {}", e))
-            })?;
+            .map_err(|e| ServerError::Internal(format!("Failed to apply rename plan: {}", e)))?;
 
         info!("Rename completed successfully (plan + execute)");
 

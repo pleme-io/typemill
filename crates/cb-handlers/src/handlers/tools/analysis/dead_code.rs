@@ -11,16 +11,16 @@
 
 use super::super::{ToolHandler, ToolHandlerContext};
 use crate::handlers::tools::analysis::suggestions::{
-    self, AnalysisContext, EvidenceStrength, Location, RefactoringCandidate,
-    Scope, SuggestionGenerator, RefactorType,
+    self, AnalysisContext, EvidenceStrength, Location, RefactorType, RefactoringCandidate, Scope,
+    SuggestionGenerator,
 };
 use async_trait::async_trait;
-use codebuddy_foundation::core::model::mcp::ToolCall;
 use cb_plugin_api::ParsedSource;
+use codebuddy_foundation::core::model::mcp::ToolCall;
 use codebuddy_foundation::protocol::analysis_result::{
     Finding, FindingLocation, Position, Range, SafetyLevel, Severity, Suggestion,
 };
-use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
+use codebuddy_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use regex::Regex;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -1520,7 +1520,7 @@ impl DeadCodeHandler {
         use crate::handlers::lsp_adapter::DirectLspAdapter;
         use cb_analysis_common::{AnalysisEngine, LspProvider};
         use cb_analysis_dead_code::{DeadCodeAnalyzer, DeadCodeConfig};
-        use codebuddy_foundation::protocol::analysis_result::{ AnalysisResult , AnalysisScope };
+        use codebuddy_foundation::protocol::analysis_result::{AnalysisResult, AnalysisScope};
         use std::path::Path;
         use std::sync::Arc;
         use std::time::Instant;
@@ -1767,7 +1767,7 @@ impl DeadCodeHandler {
         use crate::handlers::lsp_adapter::DirectLspAdapter;
         use cb_analysis_common::{AnalysisEngine, LspProvider};
         use cb_analysis_deep_dead_code::{DeepDeadCodeAnalyzer, DeepDeadCodeConfig};
-        use codebuddy_foundation::protocol::analysis_result::{ AnalysisResult , AnalysisScope };
+        use codebuddy_foundation::protocol::analysis_result::{AnalysisResult, AnalysisScope};
         use std::path::Path;
         use std::sync::Arc;
         use std::time::Instant;
@@ -1996,12 +1996,43 @@ impl ToolHandler for DeadCodeHandler {
                     info!(file_path = %file_path, kind = %kind, "Running dead code analysis with suggestions");
 
                     let file_path_obj = Path::new(&file_path);
-                    let extension = file_path_obj.extension().and_then(|ext| ext.to_str()).ok_or_else(|| ServerError::InvalidRequest(format!("File has no extension: {}", file_path)))?;
-                    let content = context.app_state.file_service.read_file(file_path_obj).await.map_err(|e| ServerError::Internal(format!("Failed to read file: {}", e)))?;
-                    let plugin = context.app_state.language_plugins.get_plugin(extension).ok_or_else(|| ServerError::Unsupported(format!("No language plugin found for extension: {}", extension)))?;
-                    let parsed_source = plugin.parse(&content).await.map_err(|e| ServerError::Internal(format!("Failed to parse file: {}", e)))?;
+                    let extension = file_path_obj
+                        .extension()
+                        .and_then(|ext| ext.to_str())
+                        .ok_or_else(|| {
+                            ServerError::InvalidRequest(format!(
+                                "File has no extension: {}",
+                                file_path
+                            ))
+                        })?;
+                    let content = context
+                        .app_state
+                        .file_service
+                        .read_file(file_path_obj)
+                        .await
+                        .map_err(|e| {
+                            ServerError::Internal(format!("Failed to read file: {}", e))
+                        })?;
+                    let plugin = context
+                        .app_state
+                        .language_plugins
+                        .get_plugin(extension)
+                        .ok_or_else(|| {
+                            ServerError::Unsupported(format!(
+                                "No language plugin found for extension: {}",
+                                extension
+                            ))
+                        })?;
+                    let parsed_source = plugin.parse(&content).await.map_err(|e| {
+                        ServerError::Internal(format!("Failed to parse file: {}", e))
+                    })?;
                     let language = plugin.metadata().name;
-                    let complexity_report = codebuddy_ast::complexity::analyze_file_complexity(&file_path, &content, &parsed_source.symbols, language);
+                    let complexity_report = codebuddy_ast::complexity::analyze_file_complexity(
+                        &file_path,
+                        &content,
+                        &parsed_source.symbols,
+                        language,
+                    );
 
                     // Choose detection function
                     let analysis_fn = if kind == "unused_imports" {
@@ -2010,25 +2041,34 @@ impl ToolHandler for DeadCodeHandler {
                         detect_unused_symbols
                     };
 
-                    let mut findings = analysis_fn(&complexity_report, &content, &parsed_source.symbols, language, &file_path, &context.app_state.language_plugins);
+                    let mut findings = analysis_fn(
+                        &complexity_report,
+                        &content,
+                        &parsed_source.symbols,
+                        language,
+                        &file_path,
+                        &context.app_state.language_plugins,
+                    );
 
                     // NEW: Initialize suggestion generator
                     let suggestion_generator = SuggestionGenerator::new();
 
                     // NEW: Enhance findings with actionable suggestions
                     for finding in &mut findings {
-                        let candidates = generate_dead_code_refactoring_candidates(finding, &parsed_source);
+                        let candidates =
+                            generate_dead_code_refactoring_candidates(finding, &parsed_source);
 
                         let context = AnalysisContext {
                             file_path: file_path.clone(),
                             has_full_type_info: false, // File-scope analysis doesn't have LSP
                             has_partial_type_info: false, // ParsedSource doesn't have this
-                            ast_parse_errors: 0,      // ParsedSource doesn't have this
+                            ast_parse_errors: 0,       // ParsedSource doesn't have this
                         };
 
                         let mut suggestions = Vec::new();
                         for candidate in candidates {
-                            match suggestion_generator.generate_from_candidate(candidate, &context) {
+                            match suggestion_generator.generate_from_candidate(candidate, &context)
+                            {
                                 Ok(actionable) => {
                                     // Convert ActionableSuggestion to protocol::Suggestion
                                     let suggestion = Suggestion {
@@ -2076,7 +2116,9 @@ impl ToolHandler for DeadCodeHandler {
                     result.summary.symbols_analyzed = Some(complexity_report.total_functions);
                     result.finalize(start_time.elapsed().as_millis() as u64);
 
-                    serde_json::to_value(result).map_err(|e| ServerError::Internal(format!("Failed to serialize result: {}", e)))
+                    serde_json::to_value(result).map_err(|e| {
+                        ServerError::Internal(format!("Failed to serialize result: {}", e))
+                    })
                 }
                 "unreachable_code" | "unused_parameters" | "unused_types" | "unused_variables" => {
                     // Use the same suggestion generation path as unused_imports/unused_symbols
@@ -2092,12 +2134,43 @@ impl ToolHandler for DeadCodeHandler {
                     info!(file_path = %file_path, kind = %kind, "Running dead code analysis with suggestions");
 
                     let file_path_obj = Path::new(&file_path);
-                    let extension = file_path_obj.extension().and_then(|ext| ext.to_str()).ok_or_else(|| ServerError::InvalidRequest(format!("File has no extension: {}", file_path)))?;
-                    let content = context.app_state.file_service.read_file(file_path_obj).await.map_err(|e| ServerError::Internal(format!("Failed to read file: {}", e)))?;
-                    let plugin = context.app_state.language_plugins.get_plugin(extension).ok_or_else(|| ServerError::Unsupported(format!("No language plugin found for extension: {}", extension)))?;
-                    let parsed_source = plugin.parse(&content).await.map_err(|e| ServerError::Internal(format!("Failed to parse file: {}", e)))?;
+                    let extension = file_path_obj
+                        .extension()
+                        .and_then(|ext| ext.to_str())
+                        .ok_or_else(|| {
+                            ServerError::InvalidRequest(format!(
+                                "File has no extension: {}",
+                                file_path
+                            ))
+                        })?;
+                    let content = context
+                        .app_state
+                        .file_service
+                        .read_file(file_path_obj)
+                        .await
+                        .map_err(|e| {
+                            ServerError::Internal(format!("Failed to read file: {}", e))
+                        })?;
+                    let plugin = context
+                        .app_state
+                        .language_plugins
+                        .get_plugin(extension)
+                        .ok_or_else(|| {
+                            ServerError::Unsupported(format!(
+                                "No language plugin found for extension: {}",
+                                extension
+                            ))
+                        })?;
+                    let parsed_source = plugin.parse(&content).await.map_err(|e| {
+                        ServerError::Internal(format!("Failed to parse file: {}", e))
+                    })?;
                     let language = plugin.metadata().name;
-                    let complexity_report = codebuddy_ast::complexity::analyze_file_complexity(&file_path, &content, &parsed_source.symbols, language);
+                    let complexity_report = codebuddy_ast::complexity::analyze_file_complexity(
+                        &file_path,
+                        &content,
+                        &parsed_source.symbols,
+                        language,
+                    );
 
                     // Choose detection function
                     let analysis_fn = match kind {
@@ -2108,25 +2181,34 @@ impl ToolHandler for DeadCodeHandler {
                         _ => unreachable!(),
                     };
 
-                    let mut findings = analysis_fn(&complexity_report, &content, &parsed_source.symbols, language, &file_path, &context.app_state.language_plugins);
+                    let mut findings = analysis_fn(
+                        &complexity_report,
+                        &content,
+                        &parsed_source.symbols,
+                        language,
+                        &file_path,
+                        &context.app_state.language_plugins,
+                    );
 
                     // Initialize suggestion generator
                     let suggestion_generator = SuggestionGenerator::new();
 
                     // Enhance findings with actionable suggestions
                     for finding in &mut findings {
-                        let candidates = generate_dead_code_refactoring_candidates(finding, &parsed_source);
+                        let candidates =
+                            generate_dead_code_refactoring_candidates(finding, &parsed_source);
 
                         let context = AnalysisContext {
                             file_path: file_path.clone(),
                             has_full_type_info: false, // File-scope analysis doesn't have LSP
                             has_partial_type_info: false, // ParsedSource doesn't have this
-                            ast_parse_errors: 0,      // ParsedSource doesn't have this
+                            ast_parse_errors: 0,       // ParsedSource doesn't have this
                         };
 
                         let mut suggestions = Vec::new();
                         for candidate in candidates {
-                            match suggestion_generator.generate_from_candidate(candidate, &context) {
+                            match suggestion_generator.generate_from_candidate(candidate, &context)
+                            {
                                 Ok(actionable) => {
                                     // Convert ActionableSuggestion to protocol::Suggestion
                                     let suggestion = Suggestion {
@@ -2174,7 +2256,9 @@ impl ToolHandler for DeadCodeHandler {
                     result.summary.symbols_analyzed = Some(complexity_report.total_functions);
                     result.finalize(start_time.elapsed().as_millis() as u64);
 
-                    serde_json::to_value(result).map_err(|e| ServerError::Internal(format!("Failed to serialize result: {}", e)))
+                    serde_json::to_value(result).map_err(|e| {
+                        ServerError::Internal(format!("Failed to serialize result: {}", e))
+                    })
                 }
                 _ => unreachable!("Kind validated earlier"),
             }

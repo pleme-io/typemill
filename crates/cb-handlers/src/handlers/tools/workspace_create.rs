@@ -6,9 +6,9 @@
 
 use super::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
-use codebuddy_foundation::core::model::mcp::ToolCall;
 use cb_plugin_api::{CreatePackageConfig, PackageType, Template};
-use codebuddy_foundation::protocol::{ ApiError , ApiResult as ServerResult };
+use codebuddy_foundation::core::model::mcp::ToolCall;
+use codebuddy_foundation::protocol::{ApiError, ApiResult as ServerResult};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::{debug, error};
@@ -151,11 +151,7 @@ async fn handle_create_package(
         package_type: params.package_type,
         template: params.options.template,
         add_to_workspace: params.options.add_to_workspace,
-        workspace_root: context
-            .app_state
-            .project_root
-            .to_string_lossy()
-            .to_string(),
+        workspace_root: context.app_state.project_root.to_string_lossy().to_string(),
     };
 
     // Delegate to plugin

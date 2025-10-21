@@ -112,7 +112,7 @@ pub fn plan_extract_function(
             created_at: chrono::Utc::now(),
             complexity: 5,
             impact_areas: vec!["function_extraction".to_string()],
-                consolidation: None,
+            consolidation: None,
         },
     })
 }
@@ -213,7 +213,7 @@ pub fn plan_extract_variable(
             created_at: chrono::Utc::now(),
             complexity: 3,
             impact_areas: vec!["variable_extraction".to_string()],
-                consolidation: None,
+            consolidation: None,
         },
     })
 }

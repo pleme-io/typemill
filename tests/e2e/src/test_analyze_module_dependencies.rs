@@ -186,10 +186,7 @@ pub struct ServiceB {
         .as_array()
         .expect("Should have workspace_dependencies");
 
-    let workspace_dep_names: Vec<&str> = workspace_deps
-        .iter()
-        .filter_map(|v| v.as_str())
-        .collect();
+    let workspace_dep_names: Vec<&str> = workspace_deps.iter().filter_map(|v| v.as_str()).collect();
 
     assert!(
         workspace_dep_names.contains(&"crate_a") || workspace_dep_names.contains(&"crate-a"),
@@ -390,10 +387,7 @@ async fn test_error_nonexistent_path() {
 
     // Should have an error in the JSON-RPC response
     let has_error = result.get("error").is_some();
-    assert!(
-        has_error,
-        "Should return error for nonexistent path"
-    );
+    assert!(has_error, "Should return error for nonexistent path");
 }
 
 #[tokio::test]

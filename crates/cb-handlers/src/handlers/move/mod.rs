@@ -118,16 +118,13 @@ impl ToolHandler for MoveHandler {
         );
 
         // Parse parameters
-        let args = tool_call
-            .arguments
-            .clone()
-            .ok_or_else(|| {
-                error!(
-                    operation_id = %operation_id,
-                    "Missing arguments for move.plan"
-                );
-                ServerError::InvalidRequest("Missing arguments for move.plan".into())
-            })?;
+        let args = tool_call.arguments.clone().ok_or_else(|| {
+            error!(
+                operation_id = %operation_id,
+                "Missing arguments for move.plan"
+            );
+            ServerError::InvalidRequest("Missing arguments for move.plan".into())
+        })?;
 
         let params: MovePlanParams = serde_json::from_value(args.clone()).map_err(|e| {
             error!(
@@ -149,18 +146,21 @@ impl ToolHandler for MoveHandler {
         );
 
         // Dispatch based on target kind
-        let plan = self.dispatch_move_plan(&params, context, &operation_id).await.map_err(|e| {
-            error!(
-                operation_id = %operation_id,
-                error = %e,
-                kind = %params.target.kind,
-                source_path = %params.target.path,
-                destination_path = %params.destination,
-                function = "dispatch_move_plan",
-                "Failed to generate move plan"
-            );
-            e
-        })?;
+        let plan = self
+            .dispatch_move_plan(&params, context, &operation_id)
+            .await
+            .map_err(|e| {
+                error!(
+                    operation_id = %operation_id,
+                    error = %e,
+                    kind = %params.target.kind,
+                    source_path = %params.target.path,
+                    destination_path = %params.destination,
+                    function = "dispatch_move_plan",
+                    "Failed to generate move plan"
+                );
+                e
+            })?;
 
         info!(
             operation_id = %operation_id,
@@ -219,7 +219,8 @@ impl MoveHandler {
             }
             "directory" => {
                 debug!(operation_id = %operation_id, "Routing to directory_move handler");
-                self.handle_directory_move(params, context, operation_id).await
+                self.handle_directory_move(params, context, operation_id)
+                    .await
             }
             "module" => {
                 debug!(operation_id = %operation_id, "Routing to module_move handler");

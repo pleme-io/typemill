@@ -294,15 +294,13 @@ impl ProgressManager {
         let result = tokio::time::timeout(timeout, async move {
             loop {
                 match rx.recv().await {
-                    Ok((token, state)) if token == target_token => {
-                        match state {
-                            ProgressState::Completed { .. } => return Ok(()),
-                            ProgressState::Failed { reason } => {
-                                return Err(ProgressError::TaskFailed(reason));
-                            }
-                            ProgressState::InProgress { .. } => continue,
+                    Ok((token, state)) if token == target_token => match state {
+                        ProgressState::Completed { .. } => return Ok(()),
+                        ProgressState::Failed { reason } => {
+                            return Err(ProgressError::TaskFailed(reason));
                         }
-                    }
+                        ProgressState::InProgress { .. } => continue,
+                    },
                     Ok(_) => continue, // Different token
                     Err(broadcast::error::RecvError::Lagged(_)) => {
                         // We missed some messages but can continue

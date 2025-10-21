@@ -1,7 +1,7 @@
 use super::FileService;
 use crate::services::git_service::GitService;
 use codebuddy_foundation::core::dry_run::DryRunnable;
-use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
+use codebuddy_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde_json::{json, Value};
 use std::path::Path;
 use tokio::fs;
@@ -106,7 +106,8 @@ impl FileService {
             }
 
             // Use MoveService for planning (includes all import update logic)
-            let edit_plan = self.move_service()
+            let edit_plan = self
+                .move_service()
                 .plan_file_move(&old_abs, &new_abs, scan_scope)
                 .await?;
 
@@ -146,7 +147,8 @@ impl FileService {
             // IMPORTANT: Find affected files BEFORE renaming!
             // The old file must still exist on disk for the import resolver to work correctly.
             info!("Finding affected files before rename");
-            let mut edit_plan = self.move_service()
+            let mut edit_plan = self
+                .move_service()
                 .plan_file_move(&old_abs, &new_abs, scan_scope)
                 .await
                 .map_err(|e| {
@@ -318,7 +320,8 @@ impl FileService {
 
             // CRITICAL: Plan FIRST before making any filesystem changes
             // Use MoveService for planning - it handles all Cargo package logic internally
-            let edit_plan = self.move_service()
+            let edit_plan = self
+                .move_service()
                 .plan_directory_move(&old_abs_dir, &new_abs_dir, scan_scope)
                 .await?; // Fail fast if planning fails
 

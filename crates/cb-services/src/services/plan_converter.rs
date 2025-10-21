@@ -86,10 +86,16 @@ impl PlanConverter {
                     for op in ops {
                         match op {
                             DocumentChangeOperation::Edit(text_doc_edit) => {
-                                Self::extract_edits_from_text_document(&mut edits, text_doc_edit.clone())?;
+                                Self::extract_edits_from_text_document(
+                                    &mut edits,
+                                    text_doc_edit.clone(),
+                                )?;
                             }
                             DocumentChangeOperation::Op(resource_op) => {
-                                Self::extract_edits_from_resource_op(&mut edits, resource_op.clone())?;
+                                Self::extract_edits_from_resource_op(
+                                    &mut edits,
+                                    resource_op.clone(),
+                                )?;
                             }
                         }
                     }
@@ -509,5 +515,4 @@ mod tests {
         assert_eq!(deleted.len(), 1);
         assert_eq!(deleted[0], "old_file.rs");
     }
-
 }

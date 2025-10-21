@@ -690,10 +690,7 @@ async fn test_dry_run_vs_execution_consistency() {
         .unwrap();
 
     let dry_run_result = &dry_run_response["result"]["content"];
-    assert_eq!(
-        dry_run_result["success"], true,
-        "Dry run should succeed"
-    );
+    assert_eq!(dry_run_result["success"], true, "Dry run should succeed");
 
     // Step 3: Apply for real
     let real_response = client
@@ -739,8 +736,12 @@ async fn test_dry_run_vs_execution_consistency() {
     );
 
     // Verify imports were actually updated
-    let app_updated = workspace.read_file("src/app.ts").contains("from './helpers'");
-    let index_updated = workspace.read_file("src/index.ts").contains("from './helpers'");
+    let app_updated = workspace
+        .read_file("src/app.ts")
+        .contains("from './helpers'");
+    let index_updated = workspace
+        .read_file("src/index.ts")
+        .contains("from './helpers'");
     assert!(app_updated, "app.ts import should be updated");
     assert!(index_updated, "index.ts import should be updated");
 }

@@ -37,10 +37,7 @@ version = "0.1.0"
 edition = "2021"
 "#,
     );
-    workspace.create_file(
-        "integration-tests/src/lib.rs",
-        "pub fn test_helper() {}",
-    );
+    workspace.create_file("integration-tests/src/lib.rs", "pub fn test_helper() {}");
 
     // Create app package that depends on integration-tests
     workspace.create_directory("app/src");
@@ -56,10 +53,7 @@ edition = "2021"
 integration-tests = { path = "../integration-tests" }
 "#,
     );
-    workspace.create_file(
-        "app/src/lib.rs",
-        "pub fn app_fn() {}",
-    );
+    workspace.create_file("app/src/lib.rs", "pub fn app_fn() {}");
 
     // Rename integration-tests → tests
     let plan_result = client

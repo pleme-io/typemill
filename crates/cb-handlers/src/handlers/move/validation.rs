@@ -95,10 +95,7 @@ pub async fn analyze_workspace_edit(
         if file_path.exists() {
             if let Ok(content) = context.app_state.file_service.read_file(file_path).await {
                 // Use the same native path string format for checksum map
-                file_checksums.insert(
-                    path_string.clone(),
-                    calculate_checksum(&content),
-                );
+                file_checksums.insert(path_string.clone(), calculate_checksum(&content));
             }
         }
     }

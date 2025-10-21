@@ -203,6 +203,7 @@ pub trait RefactoringProvider: Send + Sync {
     /// * `end_col` - End column of selection (0-based)
     /// * `variable_name` - Optional name for the variable (None = auto-generate)
     /// * `file_path` - Path to the source file
+    #[allow(clippy::too_many_arguments)]
     async fn plan_extract_variable(
         &self,
         _source: &str,

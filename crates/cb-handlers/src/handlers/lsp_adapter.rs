@@ -24,7 +24,11 @@ pub struct DirectLspAdapter {
 }
 
 impl DirectLspAdapter {
-    pub fn new(config: codebuddy_config::config::LspConfig, extensions: Vec<String>, name: String) -> Self {
+    pub fn new(
+        config: codebuddy_config::config::LspConfig,
+        extensions: Vec<String>,
+        name: String,
+    ) -> Self {
         Self {
             lsp_clients: Arc::new(Mutex::new(HashMap::new())),
             config,
@@ -248,7 +252,10 @@ impl DirectLspAdapter {
                     error = %e,
                     "Failed to force shutdown LSP client during adapter shutdown"
                 );
-                errors.push(format!("Failed to force shutdown {} client: {}", extension, e));
+                errors.push(format!(
+                    "Failed to force shutdown {} client: {}",
+                    extension, e
+                ));
             } else {
                 debug!(
                     extension = %extension,

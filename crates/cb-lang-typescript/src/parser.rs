@@ -1,7 +1,7 @@
 //! TypeScript/JavaScript import parsing and symbol extraction logic.
 use cb_lang_common::{parse_with_fallback, run_ast_tool, ImportGraphBuilder, SubprocessAstTool};
 use cb_plugin_api::{PluginError, PluginResult, Symbol, SymbolKind};
-use codebuddy_foundation::protocol::{ ImportGraph , ImportInfo , ImportType , SourceLocation };
+use codebuddy_foundation::protocol::{ImportGraph, ImportInfo, ImportType, SourceLocation};
 use serde::Deserialize;
 use std::path::Path;
 /// Analyzes TypeScript/JavaScript source code to produce an import graph.

@@ -37,7 +37,8 @@ pub fn find_generic_affected_files(
         }
         if let Ok(content) = std::fs::read_to_string(file) {
             // METHOD 1: Import-based detection (existing logic)
-            let all_imports = get_all_imported_files(&content, file, plugins, project_files, project_root);
+            let all_imports =
+                get_all_imported_files(&content, file, plugins, project_files, project_root);
 
             tracing::debug!(
                 file = %file.display(),
@@ -124,9 +125,12 @@ pub fn get_all_imported_files(
                 if let Some(import_parser) = plugin.import_parser() {
                     let import_specifiers = import_parser.parse_imports(content);
                     for specifier in import_specifiers {
-                        if let Some(resolved) =
-                            resolve_import_to_file(&specifier, current_file, project_files, project_root)
-                        {
+                        if let Some(resolved) = resolve_import_to_file(
+                            &specifier,
+                            current_file,
+                            project_files,
+                            project_root,
+                        ) {
                             imported_files.push(resolved);
                         }
                     }
@@ -238,7 +242,8 @@ export function helperFunc(data: string): string {
     return data.toUpperCase();
 }
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         fs::write(
             root.join("src/main.ts"),
@@ -250,27 +255,20 @@ export function main() {
     console.log(processed);
 }
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         let old_path = root.join("src/utils.ts");
         let new_path = root.join("src/renamed_utils.ts");
-        let project_files = vec![
-            root.join("src/utils.ts"),
-            root.join("src/main.ts"),
-        ];
+        let project_files = vec![root.join("src/utils.ts"), root.join("src/main.ts")];
 
         // Get plugins from registry
         let plugin_registry = crate::services::registry_builder::build_language_plugin_registry();
         let plugins = plugin_registry.all();
 
         // Test generic detector
-        let affected = find_generic_affected_files(
-            &old_path,
-            &new_path,
-            root,
-            &project_files,
-            &plugins,
-        );
+        let affected =
+            find_generic_affected_files(&old_path, &new_path, root, &project_files, &plugins);
 
         println!("DEBUG: Old path: {}", old_path.display());
         println!("DEBUG: New path: {}", new_path.display());
@@ -306,22 +304,14 @@ export function main() {
         let old_path = Path::new("src/old_file.rs"); // Relative path
         let new_path = Path::new("src/new_file.rs"); // Relative path
 
-        let project_files = vec![
-            root.join("src/old_file.rs"),
-            root.join("config.yml"),
-        ];
+        let project_files = vec![root.join("src/old_file.rs"), root.join("config.yml")];
 
         // Get plugins from registry
         let plugin_registry = crate::services::registry_builder::build_language_plugin_registry();
         let plugins = plugin_registry.all();
 
-        let affected = find_generic_affected_files(
-            old_path,
-            new_path,
-            root,
-            &project_files,
-            &plugins,
-        );
+        let affected =
+            find_generic_affected_files(old_path, new_path, root, &project_files, &plugins);
 
         assert!(
             affected.iter().any(|p| p.ends_with("config.yml")),
@@ -339,7 +329,11 @@ export function main() {
 
         // Create a directory structure
         fs::create_dir_all(root.join("scripts")).unwrap();
-        fs::write(root.join("scripts/old_build.sh"), "#!/bin/bash\necho 'build'").unwrap();
+        fs::write(
+            root.join("scripts/old_build.sh"),
+            "#!/bin/bash\necho 'build'",
+        )
+        .unwrap();
 
         // Create a TOML file with a RELATIVE path reference
         fs::write(
@@ -351,22 +345,14 @@ export function main() {
         // Test with FILE rename
         let old_path = Path::new("scripts/old_build.sh");
         let new_path = Path::new("scripts/new_build.sh");
-        let project_files = vec![
-            root.join("scripts/old_build.sh"),
-            root.join("config.toml"),
-        ];
+        let project_files = vec![root.join("scripts/old_build.sh"), root.join("config.toml")];
 
         // Get plugins from registry
         let plugin_registry = crate::services::registry_builder::build_language_plugin_registry();
         let plugins = plugin_registry.all();
 
-        let affected = find_generic_affected_files(
-            old_path,
-            new_path,
-            root,
-            &project_files,
-            &plugins,
-        );
+        let affected =
+            find_generic_affected_files(old_path, new_path, root, &project_files, &plugins);
 
         assert!(
             affected.iter().any(|p| p.ends_with("config.toml")),
@@ -395,23 +381,15 @@ export function main() {
 
         let old_path = root.join("docs/guide.md");
         let new_path = root.join("docs/tutorial.md");
-        let project_files = vec![
-            root.join("docs/guide.md"),
-            root.join("README.md"),
-        ];
+        let project_files = vec![root.join("docs/guide.md"), root.join("README.md")];
 
         // Create Markdown plugin
         // Get plugins from registry
         let plugin_registry = crate::services::registry_builder::build_language_plugin_registry();
         let plugins = plugin_registry.all();
 
-        let affected = find_generic_affected_files(
-            &old_path,
-            &new_path,
-            root,
-            &project_files,
-            &plugins,
-        );
+        let affected =
+            find_generic_affected_files(&old_path, &new_path, root, &project_files, &plugins);
 
         assert!(
             affected.iter().any(|p| p.ends_with("README.md")),
@@ -433,7 +411,11 @@ export function main() {
 
         // Create a directory structure
         fs::create_dir_all(root.join("src")).unwrap();
-        fs::write(root.join("src/old_config.rs"), "pub const CONFIG: &str = \"config\";").unwrap();
+        fs::write(
+            root.join("src/old_config.rs"),
+            "pub const CONFIG: &str = \"config\";",
+        )
+        .unwrap();
 
         // Create a Rust file with a string literal path reference
         fs::write(
@@ -449,22 +431,14 @@ export function main() {
         // Test with FILE rename using relative paths
         let old_path = Path::new("src/old_config.rs");
         let new_path = Path::new("src/new_config.rs");
-        let project_files = vec![
-            root.join("src/old_config.rs"),
-            root.join("src/main.rs"),
-        ];
+        let project_files = vec![root.join("src/old_config.rs"), root.join("src/main.rs")];
 
         // Get plugins from registry
         let plugin_registry = crate::services::registry_builder::build_language_plugin_registry();
         let plugins = plugin_registry.all();
 
-        let affected = find_generic_affected_files(
-            old_path,
-            new_path,
-            root,
-            &project_files,
-            &plugins,
-        );
+        let affected =
+            find_generic_affected_files(old_path, new_path, root, &project_files, &plugins);
 
         assert!(
             affected.iter().any(|p| p.ends_with("main.rs")),

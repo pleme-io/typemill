@@ -2,10 +2,10 @@
 //!
 //! Combines tests from e2e_flow.rs and e2e_transport.rs into a unified server lifecycle suite.
 
-use codebuddy_config::AppConfig;
 use cb_server::{bootstrap, ServerOptions};
 use cb_test_support::create_test_config;
 use cb_test_support::harness::{TestClient, TestWorkspace};
+use codebuddy_config::AppConfig;
 use e2e::TestHarnessError;
 use serde_json::json;
 

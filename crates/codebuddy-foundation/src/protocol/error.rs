@@ -188,13 +188,9 @@ impl From<crate::error::CoreError> for ApiError {
         match error {
             crate::error::CoreError::Config { message } => ApiError::Config { message },
             crate::error::CoreError::NotFound { resource } => ApiError::NotFound(resource),
-            crate::error::CoreError::InvalidData { message } => {
-                ApiError::InvalidRequest(message)
-            }
+            crate::error::CoreError::InvalidData { message } => ApiError::InvalidRequest(message),
             crate::error::CoreError::Internal { message } => ApiError::Internal(message),
-            crate::error::CoreError::NotSupported { operation } => {
-                ApiError::Unsupported(operation)
-            }
+            crate::error::CoreError::NotSupported { operation } => ApiError::Unsupported(operation),
             _ => ApiError::Internal(error.to_string()),
         }
     }

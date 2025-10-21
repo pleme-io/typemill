@@ -8,7 +8,7 @@
 use super::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use codebuddy_foundation::core::model::mcp::ToolCall;
-use codebuddy_foundation::protocol::{ ApiError , ApiResult as ServerResult };
+use codebuddy_foundation::protocol::{ApiError, ApiResult as ServerResult};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
@@ -207,7 +207,10 @@ fn add_members(
     options: &UpdateMembersOptions,
     workspace_root: &Path,
 ) -> ServerResult<ActionResult> {
-    debug!(members_count = members_to_add.len(), "Adding workspace members");
+    debug!(
+        members_count = members_to_add.len(),
+        "Adding workspace members"
+    );
 
     let mut doc = content.parse::<DocumentMut>().map_err(|e| {
         error!(error = %e, "Failed to parse workspace manifest");
@@ -230,11 +233,11 @@ fn add_members(
         }
     }
 
-    let workspace = doc["workspace"].as_table_mut().ok_or_else(|| {
-        ApiError::Parse {
+    let workspace = doc["workspace"]
+        .as_table_mut()
+        .ok_or_else(|| ApiError::Parse {
             message: "[workspace] is not a table".to_string(),
-        }
-    })?;
+        })?;
 
     // Ensure members array exists
     if !workspace.contains_key("members") {
@@ -248,11 +251,11 @@ fn add_members(
         }
     }
 
-    let members_array = workspace["members"].as_array_mut().ok_or_else(|| {
-        ApiError::Parse {
+    let members_array = workspace["members"]
+        .as_array_mut()
+        .ok_or_else(|| ApiError::Parse {
             message: "[workspace.members] is not an array".to_string(),
-        }
-    })?;
+        })?;
 
     let mut changes_made = 0;
 
@@ -298,7 +301,10 @@ fn add_members(
 }
 
 fn remove_members(content: &str, members_to_remove: &[String]) -> ServerResult<ActionResult> {
-    debug!(members_count = members_to_remove.len(), "Removing workspace members");
+    debug!(
+        members_count = members_to_remove.len(),
+        "Removing workspace members"
+    );
 
     let mut doc = content.parse::<DocumentMut>().map_err(|e| {
         error!(error = %e, "Failed to parse workspace manifest");

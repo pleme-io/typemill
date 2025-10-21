@@ -86,7 +86,8 @@ impl ReferenceDetector for RustReferenceDetector {
             let cargo_toml = old_path.join("Cargo.toml");
             if cargo_toml.exists() {
                 if let Ok(content) = tokio::fs::read_to_string(&cargo_toml).await {
-                    content.lines()
+                    content
+                        .lines()
                         .find(|line| {
                             let trimmed = line.trim();
                             trimmed.starts_with("name") && trimmed.contains('=')
@@ -104,8 +105,7 @@ impl ReferenceDetector for RustReferenceDetector {
                 None
             }
         } else {
-            find_crate_name_from_cargo_toml(old_path)
-                .map(|name| name.replace('-', "_"))
+            find_crate_name_from_cargo_toml(old_path).map(|name| name.replace('-', "_"))
         };
 
         // For new_path, it might not exist yet (during rename), so derive from directory name
@@ -113,7 +113,8 @@ impl ReferenceDetector for RustReferenceDetector {
             let cargo_toml = new_path.join("Cargo.toml");
             if cargo_toml.exists() {
                 if let Ok(content) = tokio::fs::read_to_string(&cargo_toml).await {
-                    content.lines()
+                    content
+                        .lines()
                         .find(|line| {
                             let trimmed = line.trim();
                             trimmed.starts_with("name") && trimmed.contains('=')
@@ -125,20 +126,21 @@ impl ReferenceDetector for RustReferenceDetector {
                         })
                 } else {
                     // Fallback to directory name
-                    new_path.file_name()
+                    new_path
+                        .file_name()
                         .and_then(|n| n.to_str())
                         .map(|s| s.replace('-', "_"))
                 }
             } else {
                 // No Cargo.toml, use directory name
-                new_path.file_name()
+                new_path
+                    .file_name()
                     .and_then(|n| n.to_str())
                     .map(|s| s.replace('-', "_"))
             }
         } else if new_path.exists() {
             // It's a file path
-            find_crate_name_from_cargo_toml(new_path)
-                .map(|name| name.replace('-', "_"))
+            find_crate_name_from_cargo_toml(new_path).map(|name| name.replace('-', "_"))
         } else {
             // Path doesn't exist yet - for files, try to find Cargo.toml by traversing parent directories
             // Start from the parent directory since new_path doesn't exist yet
@@ -149,14 +151,16 @@ impl ReferenceDetector for RustReferenceDetector {
                     let cargo_toml = current.join("Cargo.toml");
                     if cargo_toml.exists() {
                         if let Ok(content) = tokio::fs::read_to_string(&cargo_toml).await {
-                            let crate_name = content.lines()
+                            let crate_name = content
+                                .lines()
                                 .find(|line| {
                                     let trimmed = line.trim();
                                     trimmed.starts_with("name") && trimmed.contains('=')
                                 })
                                 .and_then(|line| line.split('=').nth(1))
                                 .map(|name_part| {
-                                    let name = name_part.trim().trim_matches('"').trim_matches('\'');
+                                    let name =
+                                        name_part.trim().trim_matches('"').trim_matches('\'');
                                     name.replace('-', "_")
                                 });
                             if crate_name.is_some() {
@@ -255,7 +259,7 @@ impl ReferenceDetector for RustReferenceDetector {
                         // Extract module names from old and new files
                         if let (Some(old_module_name), Some(new_module_name)) = (
                             old_path.file_stem().and_then(|s| s.to_str()),
-                            new_path.file_stem().and_then(|s| s.to_str())
+                            new_path.file_stem().and_then(|s| s.to_str()),
                         ) {
                             // Check lib.rs
                             if lib_rs.exists() {
@@ -263,14 +267,16 @@ impl ReferenceDetector for RustReferenceDetector {
                                     // Check for mod declaration for old module name
                                     let has_old_mod_declaration = content.lines().any(|line| {
                                         let trimmed = line.trim();
-                                        (trimmed.starts_with("pub mod ") || trimmed.starts_with("mod "))
+                                        (trimmed.starts_with("pub mod ")
+                                            || trimmed.starts_with("mod "))
                                             && trimmed.contains(&format!("{};", old_module_name))
                                     });
 
                                     // Check if new module name is already declared
                                     let has_new_mod_declaration = content.lines().any(|line| {
                                         let trimmed = line.trim();
-                                        (trimmed.starts_with("pub mod ") || trimmed.starts_with("mod "))
+                                        (trimmed.starts_with("pub mod ")
+                                            || trimmed.starts_with("mod "))
                                             && trimmed.contains(&format!("{};", new_module_name))
                                     });
 
@@ -282,7 +288,8 @@ impl ReferenceDetector for RustReferenceDetector {
                                             new_module = %new_module_name,
                                             "Found parent lib.rs with mod declaration that needs updating"
                                         );
-                                        let canonical_lib_rs = lib_rs.canonicalize().unwrap_or(lib_rs);
+                                        let canonical_lib_rs =
+                                            lib_rs.canonicalize().unwrap_or(lib_rs);
                                         if !affected.contains(&canonical_lib_rs) {
                                             affected.push(canonical_lib_rs);
                                         }
@@ -302,13 +309,15 @@ impl ReferenceDetector for RustReferenceDetector {
                                 if let Ok(content) = tokio::fs::read_to_string(&mod_rs).await {
                                     let has_old_mod_declaration = content.lines().any(|line| {
                                         let trimmed = line.trim();
-                                        (trimmed.starts_with("pub mod ") || trimmed.starts_with("mod "))
+                                        (trimmed.starts_with("pub mod ")
+                                            || trimmed.starts_with("mod "))
                                             && trimmed.contains(&format!("{};", old_module_name))
                                     });
 
                                     let has_new_mod_declaration = content.lines().any(|line| {
                                         let trimmed = line.trim();
-                                        (trimmed.starts_with("pub mod ") || trimmed.starts_with("mod "))
+                                        (trimmed.starts_with("pub mod ")
+                                            || trimmed.starts_with("mod "))
                                             && trimmed.contains(&format!("{};", new_module_name))
                                     });
 
@@ -319,7 +328,8 @@ impl ReferenceDetector for RustReferenceDetector {
                                             new_module = %new_module_name,
                                             "Found parent mod.rs with mod declaration that needs updating"
                                         );
-                                        let canonical_mod_rs = mod_rs.canonicalize().unwrap_or(mod_rs);
+                                        let canonical_mod_rs =
+                                            mod_rs.canonicalize().unwrap_or(mod_rs);
                                         if !affected.contains(&canonical_mod_rs) {
                                             affected.push(canonical_mod_rs);
                                         }
@@ -422,7 +432,8 @@ impl ReferenceDetector for RustReferenceDetector {
                                 if trimmed.contains(&super_pattern)
                                     || trimmed.contains(&self_pattern)
                                     || trimmed.contains(&super_glob)
-                                    || trimmed.contains(&self_glob) {
+                                    || trimmed.contains(&self_glob)
+                                {
                                     return true;
                                 }
                             }
@@ -531,7 +542,9 @@ mod tests {
 
         // Test: Run the detector
         let detector = RustReferenceDetector::new();
-        let affected = detector.find_affected_files(&old_path, &new_path, project_root, &project_files).await;
+        let affected = detector
+            .find_affected_files(&old_path, &new_path, project_root, &project_files)
+            .await;
 
         // Verify: app/src/main.rs should be in the affected files
         assert!(
@@ -597,7 +610,9 @@ mod tests {
 
         // Test: Run the detector
         let detector = RustReferenceDetector::new();
-        let affected = detector.find_affected_files(&old_path, &new_path, project_root, &project_files).await;
+        let affected = detector
+            .find_affected_files(&old_path, &new_path, project_root, &project_files)
+            .await;
 
         // Verify: lib.rs should be in the affected files
         let lib_rs = project_root.join("src/lib.rs");

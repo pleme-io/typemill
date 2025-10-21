@@ -1,9 +1,9 @@
 //! Service for managing import updates across the codebase
 
-use codebuddy_ast::{ find_project_files , update_imports_for_rename , ImportPathResolver };
 use cb_plugin_api::PluginRegistry;
+use codebuddy_ast::{find_project_files, update_imports_for_rename, ImportPathResolver};
 use codebuddy_foundation::protocol::DependencyUpdate;
-use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
+use codebuddy_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::fs;
@@ -157,7 +157,10 @@ impl ImportService {
         let import_advanced = match plugin.import_advanced_support() {
             Some(is) => is,
             None => {
-                debug!("Plugin for {} does not support advanced import operations", extension);
+                debug!(
+                    "Plugin for {} does not support advanced import operations",
+                    extension
+                );
                 return Ok(false);
             }
         };
@@ -172,11 +175,9 @@ impl ImportService {
             import_advanced,
             file_path,
             &content,
-            update
+            update,
         )
-        .map_err(|e| {
-            ServerError::Internal(format!("Failed to update import reference: {}", e))
-        })?;
+        .map_err(|e| ServerError::Internal(format!("Failed to update import reference: {}", e)))?;
 
         if original_content == updated_content {
             return Ok(false); // No changes were made

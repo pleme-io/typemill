@@ -18,14 +18,14 @@
 
 use crate::register_handlers_with_logging;
 use async_trait::async_trait;
-use codebuddy_foundation::core::model::mcp::{ McpMessage , McpRequest , McpResponse , ToolCall };
-use codebuddy_workspaces::WorkspaceManager;
-use codebuddy_plugin_system::{LspAdapterPlugin, PluginManager};
-use codebuddy_foundation::protocol::AstService;
-use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
 use cb_services::services::planner::Planner;
 use cb_services::services::workflow_executor::WorkflowExecutor;
 use cb_transport::McpDispatcher;
+use codebuddy_foundation::core::model::mcp::{McpMessage, McpRequest, McpResponse, ToolCall};
+use codebuddy_foundation::protocol::AstService;
+use codebuddy_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
+use codebuddy_plugin_system::{LspAdapterPlugin, PluginManager};
+use codebuddy_workspaces::WorkspaceManager;
 use serde_json::{json, Value};
 use std::sync::Arc;
 use std::time::Instant;
@@ -558,7 +558,8 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
 
         // Build plugin registry for tests
-        let plugin_registry = cb_services::services::registry_builder::build_language_plugin_registry();
+        let plugin_registry =
+            cb_services::services::registry_builder::build_language_plugin_registry();
         let language_plugins = crate::LanguagePluginRegistry::from_registry(plugin_registry);
         let ast_cache = Arc::new(codebuddy_ast::AstCache::new());
         let ast_service = Arc::new(cb_services::services::DefaultAstService::new(

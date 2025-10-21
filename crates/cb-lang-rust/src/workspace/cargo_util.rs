@@ -1,6 +1,8 @@
 //! Cargo package detection and manifest handling for directory moves
 
-use codebuddy_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult , EditLocation , EditType , TextEdit };
+use codebuddy_foundation::protocol::{
+    ApiError as ServerError, ApiResult as ServerResult, EditLocation, EditType, TextEdit,
+};
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 use tokio::fs;
@@ -21,10 +23,7 @@ pub async fn is_cargo_package(dir_path: &Path) -> ServerResult<bool> {
 }
 
 /// Extract cargo rename information for use in import updates
-pub async fn extract_cargo_rename_info(
-    old_dir: &Path,
-    new_dir: &Path,
-) -> ServerResult<Value> {
+pub async fn extract_cargo_rename_info(old_dir: &Path, new_dir: &Path) -> ServerResult<Value> {
     let cargo_toml = old_dir.join("Cargo.toml");
     let content = fs::read_to_string(&cargo_toml)
         .await
@@ -273,10 +272,7 @@ pub async fn plan_workspace_manifest_updates(
 
             if content.contains("[workspace]") {
                 let mut doc = content.parse::<toml_edit::DocumentMut>().map_err(|e| {
-                    ServerError::Internal(format!(
-                        "Failed to parse workspace Cargo.toml: {}",
-                        e
-                    ))
+                    ServerError::Internal(format!("Failed to parse workspace Cargo.toml: {}", e))
                 })?;
 
                 let old_rel_path = old_package_path.strip_prefix(path).map_err(|_| {
@@ -290,9 +286,7 @@ pub async fn plan_workspace_manifest_updates(
                 let new_path_str = new_rel_path.to_string_lossy().to_string();
 
                 let members = doc["workspace"]["members"].as_array_mut().ok_or_else(|| {
-                    ServerError::Internal(
-                        "`[workspace.members]` is not a valid array".to_string(),
-                    )
+                    ServerError::Internal("`[workspace.members]` is not a valid array".to_string())
                 })?;
 
                 let index_opt = members
@@ -304,20 +298,23 @@ pub async fn plan_workspace_manifest_updates(
                     members.push(new_path_str.as_str());
 
                     let new_content = doc.to_string();
-                    planned_updates.push((workspace_toml_path.clone(), content.clone(), new_content));
+                    planned_updates.push((
+                        workspace_toml_path.clone(),
+                        content.clone(),
+                        new_content,
+                    ));
 
                     // Also plan updates for the package's own Cargo.toml
                     // IMPORTANT: Read from OLD path since directory hasn't been renamed yet during planning
                     let package_cargo_toml = old_package_path.join("Cargo.toml");
                     if package_cargo_toml.exists() {
-                        if let Ok((pkg_path, pkg_old, pkg_new)) =
-                            plan_package_manifest_update(
-                                &package_cargo_toml,
-                                old_package_path,
-                                new_package_path,
-                                path,
-                            )
-                            .await
+                        if let Ok((pkg_path, pkg_old, pkg_new)) = plan_package_manifest_update(
+                            &package_cargo_toml,
+                            old_package_path,
+                            new_package_path,
+                            path,
+                        )
+                        .await
                         {
                             planned_updates.push((pkg_path, pkg_old, pkg_new));
                         }
@@ -350,13 +347,13 @@ async fn plan_package_manifest_update(
     new_package_path: &Path,
     workspace_root: &Path,
 ) -> ServerResult<(PathBuf, String, String)> {
-    let content = fs::read_to_string(package_cargo_toml).await.map_err(|e| {
-        ServerError::Internal(format!("Failed to read package Cargo.toml: {}", e))
-    })?;
+    let content = fs::read_to_string(package_cargo_toml)
+        .await
+        .map_err(|e| ServerError::Internal(format!("Failed to read package Cargo.toml: {}", e)))?;
 
-    let mut doc = content.parse::<toml_edit::DocumentMut>().map_err(|e| {
-        ServerError::Internal(format!("Failed to parse package Cargo.toml: {}", e))
-    })?;
+    let mut doc = content
+        .parse::<toml_edit::DocumentMut>()
+        .map_err(|e| ServerError::Internal(format!("Failed to parse package Cargo.toml: {}", e)))?;
 
     let mut updated = false;
 
@@ -442,9 +439,7 @@ pub async fn plan_dependent_crate_path_updates(
 ) -> ServerResult<Vec<(PathBuf, String, String)>> {
     let mut planned_updates = Vec::new();
 
-    let walker = ignore::WalkBuilder::new(project_root)
-        .hidden(false)
-        .build();
+    let walker = ignore::WalkBuilder::new(project_root).hidden(false).build();
 
     for entry in walker.flatten() {
         let path = entry.path();
@@ -505,41 +500,38 @@ async fn plan_single_cargo_toml_dependency_update(
         ))
     })?;
 
-    let update_dep_in_table =
-        |table: &mut dyn toml_edit::TableLike, updated: &mut bool| -> ServerResult<()> {
-            if let Some(mut dep) = table.remove(old_crate_name) {
-                if let Some(dep_table) = dep.as_inline_table_mut() {
-                    if dep_table.contains_key("path") {
-                        let new_rel_path = pathdiff::diff_paths(new_crate_path, cargo_toml_dir)
-                            .ok_or_else(|| {
-                                ServerError::Internal(
-                                    "Failed to calculate relative path".to_string(),
-                                )
-                            })?;
-                        dep_table.insert(
-                            "path",
-                            toml_edit::Value::from(new_rel_path.to_string_lossy().to_string()),
-                        );
-                    }
-                } else if let Some(dep_table) = dep.as_table_mut() {
-                    if dep_table.contains_key("path") {
-                        let new_rel_path = pathdiff::diff_paths(new_crate_path, cargo_toml_dir)
-                            .ok_or_else(|| {
-                                ServerError::Internal(
-                                    "Failed to calculate relative path".to_string(),
-                                )
-                            })?;
-                        dep_table.insert(
-                            "path",
-                            toml_edit::value(new_rel_path.to_string_lossy().to_string()),
-                        );
-                    }
+    let update_dep_in_table = |table: &mut dyn toml_edit::TableLike,
+                               updated: &mut bool|
+     -> ServerResult<()> {
+        if let Some(mut dep) = table.remove(old_crate_name) {
+            if let Some(dep_table) = dep.as_inline_table_mut() {
+                if dep_table.contains_key("path") {
+                    let new_rel_path = pathdiff::diff_paths(new_crate_path, cargo_toml_dir)
+                        .ok_or_else(|| {
+                            ServerError::Internal("Failed to calculate relative path".to_string())
+                        })?;
+                    dep_table.insert(
+                        "path",
+                        toml_edit::Value::from(new_rel_path.to_string_lossy().to_string()),
+                    );
                 }
-                table.insert(new_crate_name, dep);
-                *updated = true;
+            } else if let Some(dep_table) = dep.as_table_mut() {
+                if dep_table.contains_key("path") {
+                    let new_rel_path = pathdiff::diff_paths(new_crate_path, cargo_toml_dir)
+                        .ok_or_else(|| {
+                            ServerError::Internal("Failed to calculate relative path".to_string())
+                        })?;
+                    dep_table.insert(
+                        "path",
+                        toml_edit::value(new_rel_path.to_string_lossy().to_string()),
+                    );
+                }
             }
-            Ok(())
-        };
+            table.insert(new_crate_name, dep);
+            *updated = true;
+        }
+        Ok(())
+    };
 
     for section in ["dependencies", "dev-dependencies", "build-dependencies"] {
         if let Some(deps) = doc.get_mut(section).and_then(|d| d.as_table_like_mut()) {
@@ -557,7 +549,11 @@ async fn plan_single_cargo_toml_dependency_update(
     }
 
     if updated {
-        Ok(Some((cargo_toml_path.to_path_buf(), content.to_string(), doc.to_string())))
+        Ok(Some((
+            cargo_toml_path.to_path_buf(),
+            content.to_string(),
+            doc.to_string(),
+        )))
     } else {
         Ok(None)
     }
@@ -623,9 +619,6 @@ version = "0.1.0"
         let edits = convert_manifest_updates_to_edits(updates, &old_dir, &new_dir);
 
         assert_eq!(edits.len(), 1);
-        assert_eq!(
-            edits[0].file_path,
-            Some("/project/Cargo.toml".to_string())
-        );
+        assert_eq!(edits[0].file_path, Some("/project/Cargo.toml".to_string()));
     }
 }

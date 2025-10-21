@@ -45,7 +45,7 @@ pub use import_support::{
     ImportRenameSupport,
 };
 pub use metadata::LanguageMetadata;
-pub use plugin_registry::{PluginDescriptor, iter_plugins};
+pub use plugin_registry::{iter_plugins, PluginDescriptor};
 pub use project_factory::{
     CreatePackageConfig, CreatePackageResult, PackageInfo, PackageType, ProjectFactory, Template,
 };
@@ -627,7 +627,10 @@ impl PluginRegistry {
     /// # Returns
     ///
     /// The refactoring provider for the file's language, or None if not supported
-    pub fn refactoring_provider_for_file(&self, file_path: &str) -> Option<&dyn RefactoringProvider> {
+    pub fn refactoring_provider_for_file(
+        &self,
+        file_path: &str,
+    ) -> Option<&dyn RefactoringProvider> {
         // Extract file extension
         let extension = std::path::Path::new(file_path)
             .extension()
@@ -639,7 +642,6 @@ impl PluginRegistry {
         // Get capability from that specific plugin
         plugin.refactoring_provider()
     }
-
 }
 
 impl Default for PluginRegistry {
@@ -811,17 +813,29 @@ mod tests {
 
         // Test file-extension routing
         let rust_provider = registry.refactoring_provider_for_file("src/main.rs");
-        assert!(rust_provider.is_some(), "Should find Rust provider for .rs file");
+        assert!(
+            rust_provider.is_some(),
+            "Should find Rust provider for .rs file"
+        );
 
         let ts_provider = registry.refactoring_provider_for_file("src/app.ts");
-        assert!(ts_provider.is_some(), "Should find TypeScript provider for .ts file");
+        assert!(
+            ts_provider.is_some(),
+            "Should find TypeScript provider for .ts file"
+        );
 
         let tsx_provider = registry.refactoring_provider_for_file("src/Component.tsx");
-        assert!(tsx_provider.is_some(), "Should find TypeScript provider for .tsx file");
+        assert!(
+            tsx_provider.is_some(),
+            "Should find TypeScript provider for .tsx file"
+        );
 
         // Test that non-existent extension returns None
         let unknown_provider = registry.refactoring_provider_for_file("file.unknown");
-        assert!(unknown_provider.is_none(), "Should return None for unknown extension");
+        assert!(
+            unknown_provider.is_none(),
+            "Should return None for unknown extension"
+        );
     }
 
     #[test]
@@ -911,9 +925,18 @@ mod tests {
         // Verify all capabilities are discoverable
         let plugin = registry.find_by_extension("full").unwrap();
 
-        assert!(plugin.manifest_updater().is_some(), "Should have ManifestUpdater");
-        assert!(plugin.module_locator().is_some(), "Should have ModuleLocator");
-        assert!(plugin.refactoring_provider().is_some(), "Should have RefactoringProvider");
+        assert!(
+            plugin.manifest_updater().is_some(),
+            "Should have ManifestUpdater"
+        );
+        assert!(
+            plugin.module_locator().is_some(),
+            "Should have ModuleLocator"
+        );
+        assert!(
+            plugin.refactoring_provider().is_some(),
+            "Should have RefactoringProvider"
+        );
 
         // Verify file-based lookup works
         let refactoring = registry.refactoring_provider_for_file("test.full");
@@ -986,14 +1009,26 @@ mod tests {
         let plugin = registry.find_by_extension("min").unwrap();
 
         // Has ManifestUpdater
-        assert!(plugin.manifest_updater().is_some(), "Should have ManifestUpdater");
+        assert!(
+            plugin.manifest_updater().is_some(),
+            "Should have ManifestUpdater"
+        );
 
         // Doesn't have other capabilities
-        assert!(plugin.module_locator().is_none(), "Should NOT have ModuleLocator");
-        assert!(plugin.refactoring_provider().is_none(), "Should NOT have RefactoringProvider");
+        assert!(
+            plugin.module_locator().is_none(),
+            "Should NOT have ModuleLocator"
+        );
+        assert!(
+            plugin.refactoring_provider().is_none(),
+            "Should NOT have RefactoringProvider"
+        );
 
         // File-based lookup returns None for missing capability
         let refactoring = registry.refactoring_provider_for_file("test.min");
-        assert!(refactoring.is_none(), "Should return None when capability not present");
+        assert!(
+            refactoring.is_none(),
+            "Should return None when capability not present"
+        );
     }
 }

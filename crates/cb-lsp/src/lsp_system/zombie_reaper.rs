@@ -71,10 +71,7 @@ impl ZombieReaper {
 
 /// Main reaper loop that runs in the background thread
 #[cfg(unix)]
-fn reaper_loop(
-    rx: std::sync::mpsc::Receiver<ReaperMessage>,
-    pids: Arc<Mutex<HashSet<i32>>>,
-) {
+fn reaper_loop(rx: std::sync::mpsc::Receiver<ReaperMessage>, pids: Arc<Mutex<HashSet<i32>>>) {
     use nix::sys::wait::{waitpid, WaitPidFlag, WaitStatus};
     use nix::unistd::Pid;
 
@@ -118,10 +115,7 @@ fn reaper_loop(
                     }
                     Err(nix::errno::Errno::ECHILD) => {
                         // Process no longer exists or was already reaped
-                        tracing::debug!(
-                            pid = pid,
-                            "Process already reaped or does not exist"
-                        );
+                        tracing::debug!(pid = pid, "Process already reaped or does not exist");
                         pids_to_remove.push(pid);
                     }
                     Err(e) => {
@@ -187,10 +181,7 @@ fn reaper_loop(
 
 /// Stub reaper loop for non-Unix platforms
 #[cfg(not(unix))]
-fn reaper_loop(
-    rx: std::sync::mpsc::Receiver<ReaperMessage>,
-    _pids: Arc<Mutex<HashSet<i32>>>,
-) {
+fn reaper_loop(rx: std::sync::mpsc::Receiver<ReaperMessage>, _pids: Arc<Mutex<HashSet<i32>>>) {
     // On non-Unix platforms, just drain the channel and do nothing
     loop {
         while let Ok(_msg) = rx.try_recv() {

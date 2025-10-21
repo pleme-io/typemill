@@ -63,8 +63,12 @@ async fn lsp_extract_function(
         .ok_or_else(|| AstError::analysis("Code action missing edit field".to_string()))?;
 
     // Convert to EditPlan
-    codebuddy_foundation::protocol::EditPlan::from_lsp_workspace_edit(workspace_edit, file_path, "extract_function")
-        .map_err(|e| AstError::analysis(format!("Failed to convert LSP edit: {}", e)))
+    codebuddy_foundation::protocol::EditPlan::from_lsp_workspace_edit(
+        workspace_edit,
+        file_path,
+        "extract_function",
+    )
+    .map_err(|e| AstError::analysis(format!("Failed to convert LSP edit: {}", e)))
 }
 
 /// Generate edit plan for extract function refactoring
@@ -98,7 +102,13 @@ pub async fn plan_extract_function(
                     "Using language plugin for extract function"
                 );
                 match provider
-                    .plan_extract_function(source, range.start_line, range.end_line, new_function_name, file_path)
+                    .plan_extract_function(
+                        source,
+                        range.start_line,
+                        range.end_line,
+                        new_function_name,
+                        file_path,
+                    )
                     .await
                 {
                     Ok(plan) => return Ok(plan),
@@ -139,7 +149,6 @@ pub async fn plan_extract_function(
         file_path
     )))
 }
-
 
 /// Visitor for analyzing code selection for function extraction
 struct ExtractFunctionAnalyzer {

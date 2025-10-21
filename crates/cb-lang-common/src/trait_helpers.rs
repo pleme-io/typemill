@@ -131,4 +131,3 @@ pub trait WorkspaceSupportInternal {
     /// Merge dependencies from source manifest into base manifest
     fn merge_dependencies_internal(&self, base: &str, source: &str) -> Result<String, String>;
 }
-

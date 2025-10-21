@@ -346,8 +346,10 @@ impl SystemToolsPlugin {
 
         // Deserialize parameters - no cfg guard needed, we check capabilities at runtime
         let parsed: codebuddy_ast::package_extractor::ExtractModuleToPackageParams =
-            serde_json::from_value(params.clone()).map_err(|e| PluginError::SerializationError {
-                message: format!("Invalid extract_module_to_package args: {}", e),
+            serde_json::from_value(params.clone()).map_err(|e| {
+                PluginError::SerializationError {
+                    message: format!("Invalid extract_module_to_package args: {}", e),
+                }
             })?;
 
         debug!(
@@ -360,15 +362,16 @@ impl SystemToolsPlugin {
 
         // Call the planning function from cb-ast with injected registry
         // cb-ast is now language-agnostic and uses capability-based dispatch
-        let edit_plan = codebuddy_ast::package_extractor::plan_extract_module_to_package_with_registry(
-            parsed,
-            &self.plugin_registry,
-        )
-        .await
-        .map_err(|e| PluginError::PluginRequestFailed {
-            plugin: "system-tools".to_string(),
-            message: format!("Failed to plan extract_module_to_package: {}", e),
-        })?;
+        let edit_plan =
+            codebuddy_ast::package_extractor::plan_extract_module_to_package_with_registry(
+                parsed,
+                &self.plugin_registry,
+            )
+            .await
+            .map_err(|e| PluginError::PluginRequestFailed {
+                plugin: "system-tools".to_string(),
+                message: format!("Failed to plan extract_module_to_package: {}", e),
+            })?;
 
         // Return the edit plan
         Ok(json!({

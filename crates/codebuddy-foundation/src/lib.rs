@@ -13,10 +13,10 @@
 // ============================================================================
 // TYPES MODULE (consolidated from cb-types)
 // ============================================================================
+pub mod core;
 pub mod error;
 pub mod model;
 pub mod protocol;
-pub mod core;
 
 // Re-export commonly used types for convenience
 pub use error::*;

@@ -4,9 +4,7 @@
 //! rename and move handlers to ensure file integrity during refactoring.
 
 use crate::handlers::tools::ToolHandlerContext;
-use codebuddy_foundation::protocol::{
-    ApiResult as ServerResult, TextEdit as ProtocolTextEdit,
-};
+use codebuddy_foundation::protocol::{ApiResult as ServerResult, TextEdit as ProtocolTextEdit};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use tracing::debug;
@@ -100,10 +98,7 @@ pub async fn calculate_checksums_for_directory_rename(
             // Only checksum files OUTSIDE the moved directory that are being edited
             if path.exists() && !path.starts_with(directory_path) {
                 if let Ok(content) = context.app_state.file_service.read_file(path).await {
-                    file_checksums.insert(
-                        file_path.clone(),
-                        calculate_checksum(&content),
-                    );
+                    file_checksums.insert(file_path.clone(), calculate_checksum(&content));
                 }
             }
         }

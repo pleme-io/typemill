@@ -198,28 +198,18 @@ async fn test_get_all_imported_files() {
     fs::write(&types_file, "export type Foo = string;\n").unwrap();
 
     // app.ts imports both helpers and types
-    let content = "import { help } from './utils/helpers';\nimport type { Foo } from './utils/types';\n";
+    let content =
+        "import { help } from './utils/helpers';\nimport type { Foo } from './utils/types';\n";
     fs::write(&app_file, content).unwrap();
 
-    let project_files = vec![
-        helpers_file.clone(),
-        types_file.clone(),
-        app_file.clone(),
-    ];
+    let project_files = vec![helpers_file.clone(), types_file.clone(), app_file.clone()];
 
     // Get all imported files from app.ts
     let imports = resolver.get_all_imported_files(content, &app_file, &vec![], &project_files);
 
-    assert_eq!(
-        imports.len(),
-        2,
-        "Should find both imports from app.ts"
-    );
+    assert_eq!(imports.len(), 2, "Should find both imports from app.ts");
 
-    let canonical_imports: Vec<_> = imports
-        .iter()
-        .map(|p| p.canonicalize().unwrap())
-        .collect();
+    let canonical_imports: Vec<_> = imports.iter().map(|p| p.canonicalize().unwrap()).collect();
 
     assert!(
         canonical_imports.contains(&helpers_file.canonicalize().unwrap()),

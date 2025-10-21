@@ -25,22 +25,22 @@ pub async fn merge_cargo_dependencies(
     );
 
     // Read both TOML files
-    let source_content = fs::read_to_string(source_toml_path).await.map_err(|e| {
-        PluginError::internal(format!("Failed to read source Cargo.toml: {}", e))
-    })?;
+    let source_content = fs::read_to_string(source_toml_path)
+        .await
+        .map_err(|e| PluginError::internal(format!("Failed to read source Cargo.toml: {}", e)))?;
 
-    let target_content = fs::read_to_string(target_toml_path).await.map_err(|e| {
-        PluginError::internal(format!("Failed to read target Cargo.toml: {}", e))
-    })?;
+    let target_content = fs::read_to_string(target_toml_path)
+        .await
+        .map_err(|e| PluginError::internal(format!("Failed to read target Cargo.toml: {}", e)))?;
 
     // Parse both documents
-    let source_doc = source_content.parse::<DocumentMut>().map_err(|e| {
-        PluginError::internal(format!("Failed to parse source Cargo.toml: {}", e))
-    })?;
+    let source_doc = source_content
+        .parse::<DocumentMut>()
+        .map_err(|e| PluginError::internal(format!("Failed to parse source Cargo.toml: {}", e)))?;
 
-    let mut target_doc = target_content.parse::<DocumentMut>().map_err(|e| {
-        PluginError::internal(format!("Failed to parse target Cargo.toml: {}", e))
-    })?;
+    let mut target_doc = target_content
+        .parse::<DocumentMut>()
+        .map_err(|e| PluginError::internal(format!("Failed to parse target Cargo.toml: {}", e)))?;
 
     let mut merged_count = 0;
     let mut conflict_count = 0;
@@ -93,9 +93,7 @@ pub async fn merge_cargo_dependencies(
     // Write merged content back to target
     fs::write(target_toml_path, target_doc.to_string())
         .await
-        .map_err(|e| {
-            PluginError::internal(format!("Failed to write merged Cargo.toml: {}", e))
-        })?;
+        .map_err(|e| PluginError::internal(format!("Failed to write merged Cargo.toml: {}", e)))?;
 
     info!(
         merged = merged_count,
