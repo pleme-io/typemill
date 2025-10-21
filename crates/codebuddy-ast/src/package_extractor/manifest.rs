@@ -1,12 +1,21 @@
-use cb_lang_rust::RustPlugin;
+use cb_plugin_api::LanguagePlugin;
 use std::path::PathBuf;
 use tracing::debug;
 
 pub(crate) async fn extract_dependencies(
-    rust_plugin: &RustPlugin,
+    plugin: &dyn LanguagePlugin,
     located_files: &[PathBuf],
 ) -> Vec<String> {
     let mut all_dependencies = std::collections::HashSet::new();
+
+    // Get ImportParser capability
+    let import_parser = match plugin.import_parser() {
+        Some(parser) => parser,
+        None => {
+            debug!("Plugin does not support import parsing");
+            return Vec::new();
+        }
+    };
 
     for file_path in located_files {
         debug!(
@@ -14,18 +23,19 @@ pub(crate) async fn extract_dependencies(
             "Parsing dependencies from file"
         );
 
-        match rust_plugin.parse_imports(file_path).await {
-            Ok(deps) => {
+        // Read file and parse imports using ImportParser capability
+        match std::fs::read_to_string(file_path) {
+            Ok(content) => {
+                let deps = import_parser.parse_imports(&content);
                 for dep in deps {
                     all_dependencies.insert(dep);
                 }
             }
             Err(e) => {
-                // Log error but continue with other files
                 debug!(
                     error = %e,
                     file_path = %file_path.display(),
-                    "Failed to parse imports from file"
+                    "Failed to read file"
                 );
             }
         }
@@ -38,9 +48,9 @@ pub(crate) async fn extract_dependencies(
 }
 
 pub(crate) fn generate_manifest_for_plugin(
-    rust_plugin: &RustPlugin,
+    manifest_updater: &dyn cb_plugin_api::ManifestUpdater,
     package_name: &str,
     dependencies: &[String],
 ) -> String {
-    rust_plugin.generate_manifest(package_name, dependencies)
+    manifest_updater.generate_manifest(package_name, dependencies)
 }

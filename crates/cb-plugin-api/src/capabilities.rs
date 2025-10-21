@@ -387,4 +387,142 @@ pub trait ManifestUpdater: Send + Sync {
         new_name: &str,
         new_version: Option<&str>,
     ) -> PluginResult<String>;
+
+    /// Generate a new manifest file from scratch
+    ///
+    /// This method creates a new manifest file (Cargo.toml, package.json, etc.)
+    /// with the specified package name and dependencies.
+    ///
+    /// # Arguments
+    ///
+    /// * `package_name` - Name of the package/crate
+    /// * `dependencies` - List of dependency names to include
+    ///
+    /// # Returns
+    ///
+    /// Generated manifest content as a string, ready to be written to a file.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let manifest = updater.generate_manifest("my-crate", &["serde", "tokio"]).await?;
+    /// // Returns Cargo.toml content for Rust, package.json for TypeScript, etc.
+    /// ```
+    fn generate_manifest(&self, package_name: &str, dependencies: &[String]) -> String;
+
+    /// Add a path dependency to a manifest file
+    ///
+    /// This method adds a new path-based dependency to the manifest file.
+    /// For languages without path dependencies, this returns NotSupported.
+    ///
+    /// # Arguments
+    ///
+    /// * `manifest_content` - Current manifest file content
+    /// * `dep_name` - Name of the dependency to add
+    /// * `dep_path` - Path to the dependency (relative or absolute)
+    /// * `base_path` - Base path for resolving relative paths
+    ///
+    /// # Returns
+    ///
+    /// Updated manifest content with path dependency added.
+    ///
+    /// # Default Implementation
+    ///
+    /// Returns NotSupported error. Languages with path dependencies should override.
+    ///
+    /// # Example (Rust)
+    ///
+    /// ```ignore
+    /// // Adds: my-crate = { path = "../my-crate" }
+    /// let updated = updater.add_path_dependency(
+    ///     manifest_content,
+    ///     "my-crate",
+    ///     "../my-crate",
+    ///     source_path
+    /// ).await?;
+    /// ```
+    async fn add_path_dependency(
+        &self,
+        _manifest_content: &str,
+        _dep_name: &str,
+        _dep_path: &str,
+        _base_path: &Path,
+    ) -> PluginResult<String> {
+        Err(crate::PluginError::not_supported("add_path_dependency"))
+    }
+}
+
+// ============================================================================
+// Module Declaration Support Capability
+// ============================================================================
+
+/// Capability for managing module declarations (Rust-specific)
+///
+/// This trait allows language plugins to provide module declaration operations
+/// for languages that have explicit module declaration syntax (like Rust's `pub mod foo;`).
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use cb_plugin_api::capabilities::ModuleDeclarationSupport;
+///
+/// if let Some(mod_support) = plugin.module_declaration_support() {
+///     let updated = mod_support.remove_module_declaration(
+///         source_code,
+///         "my_module"
+///     ).await?;
+///     // Write updated code...
+/// }
+/// ```
+#[async_trait]
+pub trait ModuleDeclarationSupport: Send + Sync {
+    /// Remove a module declaration from source code
+    ///
+    /// This method removes module declarations like `pub mod foo;` from Rust code.
+    ///
+    /// # Arguments
+    ///
+    /// * `source` - Source code content
+    /// * `module_name` - Name of the module to remove
+    ///
+    /// # Returns
+    ///
+    /// Updated source code with module declaration removed.
+    ///
+    /// # Errors
+    ///
+    /// Returns error if:
+    /// - Source code cannot be parsed
+    /// - Module declaration removal fails
+    async fn remove_module_declaration(
+        &self,
+        source: &str,
+        module_name: &str,
+    ) -> PluginResult<String>;
+
+    /// Add a module declaration to source code
+    ///
+    /// This method adds module declarations like `pub mod foo;` to Rust code.
+    ///
+    /// # Arguments
+    ///
+    /// * `source` - Source code content
+    /// * `module_name` - Name of the module to add
+    /// * `public` - Whether the module should be public
+    ///
+    /// # Returns
+    ///
+    /// Updated source code with module declaration added.
+    ///
+    /// # Default Implementation
+    ///
+    /// Returns NotSupported error. Languages should override if they support adding modules.
+    async fn add_module_declaration(
+        &self,
+        _source: &str,
+        _module_name: &str,
+        _public: bool,
+    ) -> PluginResult<String> {
+        Err(crate::PluginError::not_supported("add_module_declaration"))
+    }
 }

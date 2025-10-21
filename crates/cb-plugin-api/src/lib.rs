@@ -37,8 +37,8 @@ pub mod workspace_support;
 
 // Re-exports
 pub use capabilities::{
-    ExtractParams, ImportAnalyzer, InlineParams, ManifestUpdater, ModuleLocator,
-    ModuleReferenceScanner, RefactoringProvider, TextEdit, WorkspaceEdit,
+    ExtractParams, ImportAnalyzer, InlineParams, ManifestUpdater, ModuleDeclarationSupport,
+    ModuleLocator, ModuleReferenceScanner, RefactoringProvider, TextEdit, WorkspaceEdit,
 };
 pub use import_support::{
     ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportParser,
@@ -478,6 +478,11 @@ pub trait LanguagePlugin: Send + Sync {
 
     /// Get manifest updater if available
     fn manifest_updater(&self) -> Option<&dyn ManifestUpdater> {
+        None
+    }
+
+    /// Get module declaration support if available
+    fn module_declaration_support(&self) -> Option<&dyn ModuleDeclarationSupport> {
         None
     }
 

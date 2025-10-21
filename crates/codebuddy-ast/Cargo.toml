@@ -7,9 +7,6 @@ license = "MIT"
 [dependencies]
 codebuddy-foundation = { path = "../codebuddy-foundation" }
 cb-plugin-api = { path = "../cb-plugin-api" }
-cb-lang-typescript = { path = "../cb-lang-typescript", optional = true, default-features = false }
-cb-lang-rust = { path = "../cb-lang-rust", optional = true, default-features = false }
-cb-lang-markdown = { path = "../cb-lang-markdown", optional = true, default-features = false }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
@@ -32,10 +29,13 @@ toml_edit = "0.23" # For parsing and modifying Cargo.toml files
 codebuddy-config = { path = "../codebuddy-config" }
 
 [features]
+# Language features are preserved for backward compatibility but do not enable dependencies
+# codebuddy-ast now uses capability traits from cb-plugin-api instead of direct plugin dependencies
 default = []
-lang-rust = ["dep:cb-lang-rust"]
-lang-typescript = ["dep:cb-lang-typescript"]
-lang-markdown = ["dep:cb-lang-markdown"]
+lang-rust = []
+lang-typescript = []
+lang-markdown = []
 
 [dev-dependencies]
 tempfile = "3.0"
+cb-lang-rust = { path = "../cb-lang-rust", default-features = false }

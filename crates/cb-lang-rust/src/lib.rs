@@ -196,6 +196,10 @@ impl LanguagePlugin for RustPlugin {
         Some(self)
     }
 
+    fn module_declaration_support(&self) -> Option<&dyn cb_plugin_api::ModuleDeclarationSupport> {
+        Some(self)
+    }
+
     fn module_locator(&self) -> Option<&dyn cb_plugin_api::ModuleLocator> {
         Some(self)
     }
@@ -377,6 +381,23 @@ impl cb_plugin_api::ManifestUpdater for RustPlugin {
         RustPlugin::update_dependency(self, manifest_path, old_name, new_name, new_version)
             .await
     }
+
+    fn generate_manifest(&self, package_name: &str, dependencies: &[String]) -> String {
+        // Delegate to the inherent method implementation
+        RustPlugin::generate_manifest(self, package_name, dependencies)
+    }
+
+    async fn add_path_dependency(
+        &self,
+        manifest_content: &str,
+        dep_name: &str,
+        dep_path: &str,
+        base_path: &Path,
+    ) -> cb_plugin_api::PluginResult<String> {
+        // Delegate to the inherent method implementation
+        RustPlugin::add_manifest_path_dependency(self, manifest_content, dep_name, dep_path, base_path)
+            .await
+    }
 }
 
 // ============================================================================
@@ -392,6 +413,22 @@ impl cb_plugin_api::ModuleLocator for RustPlugin {
     ) -> cb_plugin_api::PluginResult<Vec<std::path::PathBuf>> {
         // Delegate to the inherent method implementation
         RustPlugin::locate_module_files(self, package_path, module_path).await
+    }
+}
+
+// ============================================================================
+// Module Declaration Support Capability
+// ============================================================================
+
+#[async_trait::async_trait]
+impl cb_plugin_api::ModuleDeclarationSupport for RustPlugin {
+    async fn remove_module_declaration(
+        &self,
+        source: &str,
+        module_name: &str,
+    ) -> cb_plugin_api::PluginResult<String> {
+        // Delegate to the inherent method implementation
+        RustPlugin::remove_module_declaration(self, source, module_name).await
     }
 }
 

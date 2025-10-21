@@ -1,6 +1,5 @@
 use crate::error::AstError;
 use crate::package_extractor::ExtractModuleToPackageParams;
-use cb_lang_rust::RustPlugin;
 use cb_plugin_api::LanguagePlugin;
 use codebuddy_foundation::protocol::{ EditLocation , EditType , TextEdit };
 use std::path::{Path, PathBuf};
@@ -99,7 +98,7 @@ pub(crate) async fn add_remove_mod_declaration_edit(
     edits: &mut Vec<TextEdit>,
     params: &ExtractModuleToPackageParams,
     source_path: &Path,
-    rust_plugin: &RustPlugin,
+    plugin: &dyn LanguagePlugin,
 ) {
     let module_segments: Vec<&str> = params
         .module_path
@@ -112,10 +111,10 @@ pub(crate) async fn add_remove_mod_declaration_edit(
 
         let parent_file_path = if module_segments.len() == 1 {
             source_path
-                .join(rust_plugin.metadata().source_dir)
-                .join(rust_plugin.metadata().entry_point)
+                .join(plugin.metadata().source_dir)
+                .join(plugin.metadata().entry_point)
         } else {
-            let mut parent_path = source_path.join(rust_plugin.metadata().source_dir);
+            let mut parent_path = source_path.join(plugin.metadata().source_dir);
             for segment in &module_segments[..module_segments.len() - 1] {
                 parent_path = parent_path.join(segment);
             }
@@ -130,29 +129,34 @@ pub(crate) async fn add_remove_mod_declaration_edit(
 
         if parent_file_path.exists() {
             if let Ok(parent_content) = tokio::fs::read_to_string(&parent_file_path).await {
-                if let Ok(updated_content) = rust_plugin
-                    .remove_module_declaration(&parent_content, final_module_name)
-                    .await
-                {
-                    if updated_content != parent_content {
-                        edits.push(TextEdit {
-                            file_path: Some(parent_file_path.to_string_lossy().to_string()),
-                            edit_type: EditType::Replace,
-                            location: EditLocation {
-                                start_line: 0,
-                                start_column: 0,
-                                end_line: parent_content.lines().count() as u32,
-                                end_column: 0,
-                            },
-                            original_text: parent_content,
-                            new_text: updated_content,
-                            priority: 70,
-                            description: format!(
-                                "Remove mod {} declaration from parent",
-                                final_module_name
-                            ),
-                        });
+                // Use ModuleDeclarationSupport capability if available
+                if let Some(mod_support) = plugin.module_declaration_support() {
+                    if let Ok(updated_content) = mod_support
+                        .remove_module_declaration(&parent_content, final_module_name)
+                        .await
+                    {
+                        if updated_content != parent_content {
+                            edits.push(TextEdit {
+                                file_path: Some(parent_file_path.to_string_lossy().to_string()),
+                                edit_type: EditType::Replace,
+                                location: EditLocation {
+                                    start_line: 0,
+                                    start_column: 0,
+                                    end_line: parent_content.lines().count() as u32,
+                                    end_column: 0,
+                                },
+                                original_text: parent_content,
+                                new_text: updated_content,
+                                priority: 70,
+                                description: format!(
+                                    "Remove mod {} declaration from parent",
+                                    final_module_name
+                                ),
+                            });
+                        }
                     }
+                } else {
+                    debug!("Language plugin does not support module declaration removal");
                 }
             }
         }
@@ -163,39 +167,44 @@ pub(crate) async fn add_dependency_to_source_edit(
     edits: &mut Vec<TextEdit>,
     params: &ExtractModuleToPackageParams,
     source_path: &Path,
-    rust_plugin: &RustPlugin,
+    plugin: &dyn LanguagePlugin,
 ) {
-    let source_cargo_toml = source_path.join("Cargo.toml");
-    if source_cargo_toml.exists() {
-        if let Ok(cargo_content) = tokio::fs::read_to_string(&source_cargo_toml).await {
-            if let Ok(updated_cargo) = rust_plugin
-                .add_manifest_path_dependency(
-                    &cargo_content,
-                    &params.target_package_name,
-                    &params.target_package_path,
-                    source_path,
-                )
-                .await
-            {
-                if updated_cargo != cargo_content {
-                    edits.push(TextEdit {
-                        file_path: Some(source_cargo_toml.to_string_lossy().to_string()),
-                        edit_type: EditType::Replace,
-                        location: EditLocation {
-                            start_line: 0,
-                            start_column: 0,
-                            end_line: cargo_content.lines().count() as u32,
-                            end_column: 0,
-                        },
-                        original_text: cargo_content,
-                        new_text: updated_cargo,
-                        priority: 60,
-                        description: format!(
-                            "Add {} dependency to source Cargo.toml",
-                            params.target_package_name
-                        ),
-                    });
+    let manifest_path = source_path.join(plugin.metadata().manifest_filename);
+    if manifest_path.exists() {
+        if let Ok(manifest_content) = tokio::fs::read_to_string(&manifest_path).await {
+            // Use ManifestUpdater capability to add path dependency
+            if let Some(manifest_updater) = plugin.manifest_updater() {
+                if let Ok(updated_manifest) = manifest_updater
+                    .add_path_dependency(
+                        &manifest_content,
+                        &params.target_package_name,
+                        &params.target_package_path,
+                        source_path,
+                    )
+                    .await
+                {
+                    if updated_manifest != manifest_content {
+                        edits.push(TextEdit {
+                            file_path: Some(manifest_path.to_string_lossy().to_string()),
+                            edit_type: EditType::Replace,
+                            location: EditLocation {
+                                start_line: 0,
+                                start_column: 0,
+                                end_line: manifest_content.lines().count() as u32,
+                                end_column: 0,
+                            },
+                            original_text: manifest_content,
+                            new_text: updated_manifest,
+                            priority: 60,
+                            description: format!(
+                                "Add {} dependency to source manifest",
+                                params.target_package_name
+                            ),
+                        });
+                    }
                 }
+            } else {
+                debug!("Plugin does not support manifest updates, skipping dependency addition");
             }
         }
     }
@@ -205,29 +214,35 @@ pub(crate) async fn add_import_update_edits(
     edits: &mut Vec<TextEdit>,
     params: &ExtractModuleToPackageParams,
     source_path: &Path,
-    rust_plugin: &RustPlugin,
+    plugin: &dyn LanguagePlugin,
     located_files: &[PathBuf],
 ) -> Result<(), AstError> {
     debug!("Starting use statement updates across workspace");
 
-    let rust_files = rust_plugin
-        .find_source_files(source_path)
+    // Find all source files using plugin's file extensions
+    // TODO: This needs to be refactored to use a capability trait instead of
+    // hardcoding file discovery logic. Consider adding a FileDiscovery capability.
+    let extensions = &plugin.metadata().extensions;
+    let source_files = find_files_with_extensions(source_path, extensions)
         .await
         .map_err(|e| AstError::Analysis {
             message: format!("Failed to find source files: {}", e),
         })?;
 
     debug!(
-        rust_files_count = rust_files.len(),
-        "Found Rust files to scan for imports"
+        source_files_count = source_files.len(),
+        "Found source files to scan for imports"
     );
 
-    for file_path in rust_files {
+    for file_path in source_files {
         if located_files.iter().any(|f| f == &file_path) {
             continue;
         }
 
         if let Ok(_content) = tokio::fs::read_to_string(&file_path).await {
+            // TODO: This import scanning logic is currently incomplete (empty imports vec)
+            // and needs to be refactored to use ImportParser capability trait.
+            // For now, this is a placeholder that will be completed in a future PR.
             let imports: Vec<codebuddy_foundation::protocol::ImportInfo> = vec![];
 
             for import in imports {
@@ -244,8 +259,8 @@ pub(crate) async fn add_import_update_edits(
 
                 if is_match {
                     let old_use_statement = format!("use {};", import.module_path);
-                    let new_use_statement = rust_plugin
-                        .rewrite_import(&import.module_path, &params.target_package_name);
+                    // TODO: Rewrite using ImportRenameSupport capability instead of hardcoded logic
+                    let new_use_statement = format!("use {}::{};", params.target_package_name, &import.module_path[6..]);
 
                     edits.push(TextEdit {
                         file_path: Some(file_path.to_string_lossy().to_string()),
@@ -260,7 +275,7 @@ pub(crate) async fn add_import_update_edits(
                         new_text: new_use_statement.clone(),
                         priority: 40,
                         description: format!(
-                            "Update import to use new crate {}",
+                            "Update import to use new package {}",
                             params.target_package_name
                         ),
                     });
@@ -276,4 +291,40 @@ pub(crate) async fn add_import_update_edits(
         }
     }
     Ok(())
+}
+
+/// Find all files with given extensions in a directory tree
+async fn find_files_with_extensions(
+    dir: &Path,
+    extensions: &[&str],
+) -> Result<Vec<PathBuf>, AstError> {
+    use tokio::fs;
+
+    let mut result = Vec::new();
+    let mut queue = vec![dir.to_path_buf()];
+
+    while let Some(current_dir) = queue.pop() {
+        let mut entries = fs::read_dir(&current_dir).await.map_err(|e| AstError::Analysis {
+            message: format!("Failed to read directory {}: {}", current_dir.display(), e),
+        })?;
+
+        while let Some(entry) = entries.next_entry().await.map_err(|e| AstError::Analysis {
+            message: format!("Failed to read directory entry: {}", e),
+        })? {
+            let path = entry.path();
+            let metadata = entry.metadata().await.map_err(|e| AstError::Analysis {
+                message: format!("Failed to read metadata for {}: {}", path.display(), e),
+            })?;
+
+            if metadata.is_dir() {
+                queue.push(path);
+            } else if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+                if extensions.iter().any(|e| *e == ext) {
+                    result.push(path);
+                }
+            }
+        }
+    }
+
+    Ok(result)
 }

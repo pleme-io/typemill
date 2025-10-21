@@ -61,16 +61,17 @@ pub(crate) async fn plan_extract_module_to_package(
     debug!(files_count = located_files.len(), "Located module files");
 
     // Step 4: Parse imports from all located files and aggregate dependencies
-    // TODO: These manifest functions still use RustPlugin directly - should become capabilities
-    use cb_lang_rust::RustPlugin;
-    let rust_plugin = plugin
-        .as_any()
-        .downcast_ref::<RustPlugin>()
+    // Use ManifestUpdater capability for language-agnostic manifest operations
+    let manifest_updater = plugin
+        .manifest_updater()
         .ok_or_else(|| crate::error::AstError::Analysis {
-            message: "Manifest generation currently only supported for Rust".to_string(),
+            message: format!(
+                "Plugin '{}' does not support manifest generation",
+                plugin.metadata().name
+            ),
         })?;
 
-    let dependencies = manifest::extract_dependencies(rust_plugin, &located_files).await;
+    let dependencies = manifest::extract_dependencies(&**plugin, &located_files).await;
     debug!(
         dependencies_count = dependencies.len(),
         "Aggregated dependencies from all module files"
@@ -78,7 +79,7 @@ pub(crate) async fn plan_extract_module_to_package(
 
     // Step 5: Generate new crate manifest
     let generated_manifest = manifest::generate_manifest_for_plugin(
-        rust_plugin,
+        manifest_updater,
         &params.target_package_name,
         &dependencies,
     );
@@ -102,7 +103,7 @@ pub(crate) async fn plan_extract_module_to_package(
         edits::add_delete_original_file_edit(&mut edits, original_file_path, &original_content);
         debug!(edit_count = edits.len(), "Created delete TextEdit");
 
-        edits::add_remove_mod_declaration_edit(&mut edits, &params, source_path, rust_plugin).await;
+        edits::add_remove_mod_declaration_edit(&mut edits, &params, source_path, &**plugin).await;
         debug!(
             edit_count = edits.len(),
             "Created parent mod removal TextEdit"
@@ -110,12 +111,12 @@ pub(crate) async fn plan_extract_module_to_package(
     }
 
     // Step 7: Update source crate's Cargo.toml to add new dependency
-    edits::add_dependency_to_source_edit(&mut edits, &params, source_path, rust_plugin).await;
+    edits::add_dependency_to_source_edit(&mut edits, &params, source_path, &**plugin).await;
     debug!("Created source Cargo.toml update TextEdit");
 
     // Step 8: Update workspace Cargo.toml to add new member (if is_workspace_member is true)
     if params.is_workspace_member.unwrap_or(false) {
-        workspace::update_workspace(&mut edits, &params, source_path, plugin, rust_plugin).await;
+        workspace::update_workspace(&mut edits, &params, source_path, &**plugin).await;
     } else {
         debug!("is_workspace_member=false: skipping workspace configuration");
     }
@@ -126,7 +127,7 @@ pub(crate) async fn plan_extract_module_to_package(
             &mut edits,
             &params,
             source_path,
-            rust_plugin,
+            &**plugin,
             &located_files,
         )
         .await?;

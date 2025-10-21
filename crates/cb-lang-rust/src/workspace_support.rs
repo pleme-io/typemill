@@ -210,6 +210,16 @@ impl WorkspaceSupport for RustWorkspaceSupport {
         })
     }
 
+    async fn generate_workspace_manifest(
+        &self,
+        member_paths: &[&str],
+        workspace_root: &Path,
+    ) -> Result<String, String> {
+        // Delegate to workspace module implementation
+        crate::workspace::generate_workspace_manifest(member_paths, workspace_root)
+            .map_err(|e| e.to_string())
+    }
+
     async fn execute_consolidation_post_processing(
         &self,
         source_crate_name: &str,

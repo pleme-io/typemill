@@ -132,6 +132,28 @@ pub trait WorkspaceSupport: Send + Sync {
         None
     }
 
+    /// Generate a workspace manifest file
+    ///
+    /// This method generates a workspace manifest file (e.g., Cargo.toml with [workspace])
+    /// with the specified member paths.
+    ///
+    /// # Arguments
+    /// * `member_paths` - List of workspace member paths
+    /// * `workspace_root` - Workspace root directory
+    ///
+    /// # Returns
+    /// Generated workspace manifest content
+    ///
+    /// # Default Implementation
+    /// Returns NotSupported error. Languages with workspace support should override.
+    async fn generate_workspace_manifest(
+        &self,
+        _member_paths: &[&str],
+        _workspace_root: &Path,
+    ) -> Result<String, String> {
+        Err("generate_workspace_manifest not supported by this language".to_string())
+    }
+
     // ========================================================================
     // Consolidation Post-Processing (Language-specific file structure fixes)
     // ========================================================================

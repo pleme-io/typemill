@@ -269,6 +269,11 @@ impl cb_plugin_api::ManifestUpdater for TypeScriptPlugin {
         TypeScriptPlugin::update_dependency(self, manifest_path, old_name, new_name, new_version)
             .await
     }
+
+    fn generate_manifest(&self, package_name: &str, dependencies: &[String]) -> String {
+        // Delegate to the inherent method implementation
+        TypeScriptPlugin::generate_manifest(self, package_name, dependencies)
+    }
 }
 
 // ============================================================================

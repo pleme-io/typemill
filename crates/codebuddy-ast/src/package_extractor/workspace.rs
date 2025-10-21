@@ -1,17 +1,14 @@
 use crate::package_extractor::ExtractModuleToPackageParams;
-use cb_lang_rust::RustPlugin;
 use cb_plugin_api::LanguagePlugin;
 use codebuddy_foundation::protocol::{ EditLocation , EditType , TextEdit };
 use std::path::Path;
-use std::sync::Arc;
 use tracing::debug;
 
 pub(crate) async fn update_workspace(
     edits: &mut Vec<TextEdit>,
     params: &ExtractModuleToPackageParams,
     source_path: &Path,
-    plugin: &Arc<dyn LanguagePlugin>,
-    rust_plugin: &RustPlugin,
+    plugin: &dyn LanguagePlugin,
 ) {
     debug!("is_workspace_member=true: searching for workspace root");
 
@@ -50,33 +47,38 @@ pub(crate) async fn update_workspace(
             workspace_root = parent.to_path_buf();
             let workspace_cargo_toml = workspace_root.join("Cargo.toml");
 
-            // Create a new workspace Cargo.toml if it doesn't exist
+            // Create a new workspace manifest if it doesn't exist
             if !workspace_cargo_toml.exists() {
                 let source_crate_str = source_path.to_string_lossy().to_string();
                 let member_paths = vec![source_crate_str.as_str(), &params.target_package_path];
 
-                if let Ok(workspace_content) = rust_plugin
-                    .generate_workspace_manifest(&member_paths, &workspace_root)
-                    .await
-                {
-                    edits.push(TextEdit {
-                        file_path: Some(workspace_cargo_toml.to_string_lossy().to_string()),
-                        edit_type: EditType::Insert,
-                        location: EditLocation {
-                            start_line: 0,
-                            start_column: 0,
-                            end_line: 0,
-                            end_column: 0,
-                        },
-                        original_text: String::new(),
-                        new_text: workspace_content,
-                        priority: 50,
-                        description: "Create workspace Cargo.toml with members".to_string(),
-                    });
-                    debug!("Created workspace Cargo.toml creation TextEdit");
-                    found_workspace = true;
+                // Use workspace capability to generate manifest
+                if let Some(workspace_support) = plugin.workspace_support() {
+                    if let Ok(workspace_content) = workspace_support
+                        .generate_workspace_manifest(&member_paths, &workspace_root)
+                        .await
+                    {
+                        edits.push(TextEdit {
+                            file_path: Some(workspace_cargo_toml.to_string_lossy().to_string()),
+                            edit_type: EditType::Insert,
+                            location: EditLocation {
+                                start_line: 0,
+                                start_column: 0,
+                                end_line: 0,
+                                end_column: 0,
+                            },
+                            original_text: String::new(),
+                            new_text: workspace_content,
+                            priority: 50,
+                            description: "Create workspace manifest with members".to_string(),
+                        });
+                        debug!("Created workspace manifest creation TextEdit");
+                        found_workspace = true;
+                    } else {
+                        debug!("Failed to generate workspace manifest");
+                    }
                 } else {
-                    debug!("Failed to generate workspace manifest");
+                    debug!("Plugin does not support workspace operations");
                 }
             }
         }
