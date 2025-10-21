@@ -11,82 +11,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 The project underwent a complete architectural transformation from TypeScript/Node.js to pure Rust in 2025, bringing native performance, memory safety, and compile-time type guarantees.
 
-### [Unreleased]
+### [0.6.0] - 2025-10-21
+
+🚀 **Version 0.6.0** - Plugin architecture modernization and comprehensive refactoring/analysis APIs
 
 #### Added
 
-- **Comprehensive Rename Coverage (Proposal 02f)** - 100% coverage of affected references across multiple file types
-  - **String literal path updates** in Rust files (e.g., `"config/settings.toml"` → `"configuration/settings.toml"`)
-  - **Markdown link updates** in documentation files (e.g., `[Guide](docs/guide.md)` → `[Guide](documentation/guide.md)`)
-  - **TOML/YAML config file updates** for build configurations and CI/CD workflows
-  - **Smart path detection** heuristics that only update path-like strings (requires `/` or file extension)
-  - **Planning phase scanning** - all edits surface in `rename.plan` dry-run output for review before execution
-  - **Relative + absolute path matching** - handles both `"config/file.toml"` and `"/workspace/config/file.toml"`
-  - **Plugin-based architecture** using language-specific plugins (Rust, Markdown, TOML, YAML)
-  - **Atomic execution** with automatic rollback on any failure
-  - Verified 100% coverage: 9/9 files updated in comprehensive test scenario (tests → tests rename)
+- **Capability Trait Pattern** - Modern plugin architecture with zero compile-time feature flags
+  - `ManifestUpdater`, `ModuleLocator`, `RefactoringProvider` capability traits
+  - File-extension-based automatic routing to language plugins
+  - Eliminated all `cfg` guards and downcasting from shared code
+  - True plug-and-play plugin system with compile-time type safety
 
-- **Unified Refactoring API** - Complete implementation of `plan -> apply` refactoring pattern
-  - New `*.plan` commands for safe, dry-run refactoring previews: `rename.plan`, `extract.plan`, `inline.plan`, `move.plan`, `reorder.plan`, `transform.plan`, `delete.plan`
-  - New `workspace.apply_edit` command to execute refactoring plans atomically
-  - All refactoring operations now use unified two-step workflow for enhanced safety
-  - Plan commands generate detailed previews without filesystem modifications
-  - Apply command executes plans with atomic multi-file updates and automatic rollback
+- **Dependency Injection for Plugins** - Complete architectural decoupling
+  - Plugin registry now injected throughout service layer
+  - Eliminated global plugin state and compile-time coupling
+  - Language plugins fully decoupled from core system
 
-- **Unified Analysis API** - Complete implementation of 6 analysis tools (23 public tools total)
-  - `analyze.quality` - Code quality analysis (complexity, smells, maintainability, readability)
-  - `analyze.dead_code` - Unused code detection (imports, symbols, parameters, variables, types, unreachable)
-  - `analyze.dependencies` - Dependency analysis (imports, graph, circular, coupling, cohesion, depth)
-  - `analyze.structure` - Code structure analysis (symbols, hierarchy, interfaces, inheritance, modules)
-  - `analyze.documentation` - Documentation quality (coverage, quality, style, examples, todos)
-  - `analyze.tests` - Test analysis (coverage, quality, assertions, organization)
-  - `analyze.batch` - Multi-file batch analysis with optimized AST caching for maximum performance
-  - 26 detection kinds across 6 categories with actionable suggestions
-  - Shared analysis engine eliminating ~100 LOC boilerplate per detection kind
-  - Configuration system with 3 presets (strict, default, relaxed) via .codebuddy/analysis.toml
-  - Batch analysis infrastructure parsing files once and analyzing multiple times
+- **Comprehensive Rename Coverage** - 100% coverage of affected references across multiple file types
+  - String literal path updates in Rust files
+  - Markdown link updates in documentation
+  - TOML/YAML config file updates for build configs and CI/CD
+  - Smart path detection (requires `/` or file extension)
+  - All edits surface in `rename.plan` dry-run for review
+
+- **Unified Refactoring API** - Complete `plan -> apply` refactoring pattern
+  - `rename.plan`, `extract.plan`, `inline.plan`, `move.plan`, `reorder.plan`, `transform.plan`, `delete.plan`
+  - `workspace.apply_edit` executes plans atomically with rollback
+  - Safe dry-run previews without filesystem modifications
+
+- **Unified Analysis API** - 6 analysis tools with 26 detection kinds
+  - `analyze.quality` - complexity, smells, maintainability, readability
+  - `analyze.dead_code` - unused imports/symbols/parameters/variables/types
+  - `analyze.dependencies` - imports, circular deps, coupling, cohesion
+  - `analyze.structure` - symbols, hierarchy, interfaces, inheritance
+  - `analyze.documentation` - coverage, quality, style, examples
+  - `analyze.tests` - coverage, quality, assertions, organization
+  - `analyze.batch` - optimized multi-file analysis with AST caching
+  - Configuration via `.codebuddy/analysis.toml` with 3 presets
+
+- **Additional Language Plugins** - Markdown, TOML, YAML plugins for comprehensive rename support
+- **Build Automation** - xtask pattern with cross-platform Rust tasks (`cargo xtask install`, `check-all`, etc.)
+- **Dependency Auditing** - cargo-deny integration for security and license checks
 
 #### Changed
 
-- **Refactoring Tools Migration** - Migrated from legacy single-step tools to unified API
-  - `rename_symbol` → `rename.plan` + `workspace.apply_edit` (legacy tool removed)
-  - `extract_function` → `extract.plan` + `workspace.apply_edit` (legacy tool removed)
-  - `inline_variable` → `inline.plan` + `workspace.apply_edit` (legacy tool removed)
-  - `extract_variable` → `extract.plan` + `workspace.apply_edit` (legacy tool removed)
-  - All refactoring operations now follow consistent `plan -> apply` pattern
-
-- **Analysis Tools Migration** - Migrated from legacy analysis tools to unified API
-  - `find_unused_imports` → `analyze.dead_code("unused_imports")` (removed - dead weight, no unique behavior)
-  - `analyze_code` → `analyze.quality("complexity"|"smells")` (removed - dead weight, no unique behavior)
-  - `analyze_project` → `analyze.quality("maintainability")` (kept as internal - workspace aggregator)
-  - `analyze_imports` → `analyze.dependencies("imports")` (kept as internal - plugin-native graphs)
-  - `get_document_symbols` → `analyze.structure("symbols")` (kept as internal)
+- **Plugin Architecture** - Runtime plugin discovery replaces compile-time coupling
+- **Single-language Builds** - Optional feature flags for focused development (`lang-rust`, `lang-typescript`)
+- **Crate Consolidation** - Merged multiple crates into `codebuddy-foundation` and `codebuddy-plugin-system`
 
 #### Fixed
 
-- **Documentation Consistency** - Corrected documentation discrepancies across all reference docs
-  - Updated UNIFIED_ANALYSIS_API_SUMMARY.md to reflect correct language support (Rust + TypeScript/JavaScript only)
-  - Fixed TOOLS_VISIBILITY_SPEC.md tool count (23 public tools, 20 internal tools)
-  - Updated API_REFERENCE.md to include all 7 analyze.* commands with complete examples
-  - Fixed QUICK_REFERENCE.md to include all 7 analysis tools (including analyze.batch)
-  - Updated CLAUDE.md and AGENTS.md with Unified Analysis API section
-  - Updated CONTRIBUTING.md with analysis handler architecture patterns
-  - Corrected language support claims across all documentation (multi-language support in `pre-language-reduction` git tag)
+- **LSP Zombie Processes** - Comprehensive prevention with proper cleanup and shutdown
+- **Clippy Warnings** - Resolved all 16 warnings across workspace
+- **Import Updates** - Fixed cross-workspace and cross-crate import detection
+- **Rename Scope** - `find_project_files` now respects RenameScope for complete coverage
+- **Plugin Discovery** - Fixed discovery in isolated test packages
 
 #### Removed
 
-- **Legacy Refactoring Tools** - Single-step refactoring tools removed in favor of unified API
-  - Removed `rename_symbol` (replaced by `rename.plan` + `workspace.apply_edit`)
-  - Removed `rename_symbol_strict` (functionality merged into `rename.plan`)
-  - Removed `extract_function` (replaced by `extract.plan` + `workspace.apply_edit`)
-  - Removed `inline_variable` (replaced by `inline.plan` + `workspace.apply_edit`)
-  - Removed `extract_variable` (replaced by `extract.plan` + `workspace.apply_edit`)
-
-- **Dead-Weight Analysis Tools** - Removed 2 legacy internal tools with no unique functionality
-  - Removed `find_unused_imports` (fully covered by `analyze.dead_code("unused_imports")`)
-  - Removed `analyze_code` (fully covered by `analyze.quality("complexity"|"smells")`)
-  - Internal tool count reduced from 25 → 23
-  - Kept `analyze_project` (unique workspace aggregator) and `analyze_imports` (plugin-native graphs)
+- **Legacy Refactoring Tools** - Replaced by unified `*.plan` + `workspace.apply_edit` API
+- **Dead-Weight Analysis Tools** - Removed tools fully covered by unified analysis API
+- **Internal Tool Count** - Reduced from 25 → 20 tools
 
 ---
 
