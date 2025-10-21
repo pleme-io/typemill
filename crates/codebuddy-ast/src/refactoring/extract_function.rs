@@ -1,8 +1,6 @@
-use super::common::{detect_language, extract_range_text, generate_function_call};
 use super::{CodeRange, ExtractableFunction, LspRefactoringService};
 use crate::error::{AstError, AstResult};
-use codebuddy_foundation::protocol::{ EditPlan , EditPlanMetadata , EditType , TextEdit , ValidationRule , ValidationType };
-use std::collections::HashMap;
+use codebuddy_foundation::protocol::EditPlan;
 use tracing::debug;
 
 /// Analyze code selection for function extraction (simplified fallback)
@@ -89,32 +87,34 @@ pub async fn plan_extract_function(
     new_function_name: &str,
     file_path: &str,
     lsp_service: Option<&dyn LspRefactoringService>,
-    _language_plugins: Option<&cb_plugin_api::PluginRegistry>,
+    language_plugins: Option<&cb_plugin_api::PluginRegistry>,
 ) -> AstResult<EditPlan> {
-    // Try AST first (faster, more reliable, under our control)
-    // Note: Only TypeScript and Rust supported after language reduction
-    let ast_result = match detect_language(file_path) {
-        #[cfg(feature = "lang-typescript")]
-        "typescript" | "javascript" => {
-            ast_extract_function_ts_js(source, range, new_function_name, file_path)
+    // Try language plugin capability first (faster, more reliable, under our control)
+    if let Some(plugins) = language_plugins {
+        if let Some(provider) = plugins.refactoring_provider() {
+            if provider.supports_extract_function() {
+                debug!(
+                    file_path = %file_path,
+                    "Using language plugin for extract function"
+                );
+                match provider
+                    .plan_extract_function(source, range.start_line, range.end_line, new_function_name, file_path)
+                    .await
+                {
+                    Ok(plan) => return Ok(plan),
+                    Err(e) => {
+                        debug!(
+                            error = ?e,
+                            file_path = %file_path,
+                            "Language plugin extract function failed, trying LSP fallback"
+                        );
+                    }
+                }
+            }
         }
-        #[cfg(feature = "lang-rust")]
-        "rust" => ast_extract_function_rust(source, range, new_function_name, file_path),
-        _ => {
-            // Unsupported language - will try LSP fallback below
-            Err(AstError::analysis(format!(
-                "AST implementation not available for: {} (only TypeScript and Rust supported)",
-                file_path
-            )))
-        }
-    };
-
-    // Return AST result if successful
-    if let Ok(plan) = ast_result {
-        return Ok(plan);
     }
 
-    // Fallback to LSP if AST failed or not available
+    // Fallback to LSP if plugin not available or failed
     if let Some(lsp) = lsp_service {
         debug!(
             file_path = %file_path,
@@ -133,102 +133,13 @@ pub async fn plan_extract_function(
         }
     }
 
-    // Both AST and LSP failed
+    // Both plugin and LSP failed
     Err(AstError::analysis(format!(
-        "Extract function not supported for: {}. Neither AST nor LSP implementation succeeded.",
+        "Extract function not supported for: {}. Neither language plugin nor LSP implementation succeeded.",
         file_path
     )))
 }
 
-/// Generate edit plan for extract function refactoring (TypeScript/JavaScript) using AST
-#[allow(dead_code)]
-fn ast_extract_function_ts_js(
-    source: &str,
-    range: &CodeRange,
-    new_function_name: &str,
-    file_path: &str,
-) -> AstResult<EditPlan> {
-    let analysis = analyze_extract_function(source, range, file_path)?;
-
-    let mut edits = Vec::new();
-
-    // 1. Create the new function at the insertion point
-    let function_code =
-        super::common::generate_extracted_function(source, &analysis, new_function_name)?;
-
-    edits.push(TextEdit {
-        file_path: None,
-        edit_type: EditType::Insert,
-        location: analysis.insertion_point.clone().into(),
-        original_text: String::new(),
-        new_text: format!("\n{}\n", function_code),
-        priority: 100,
-        description: format!("Create extracted function '{}'", new_function_name),
-    });
-
-    // 2. Replace the selected code with a function call
-    let call_code = generate_function_call(&analysis, new_function_name)?;
-
-    edits.push(TextEdit {
-        file_path: None,
-        edit_type: EditType::Replace,
-        location: analysis.selected_range.clone().into(),
-        original_text: extract_range_text(source, &analysis.selected_range)?,
-        new_text: call_code,
-        priority: 90,
-        description: format!("Replace selected code with call to '{}'", new_function_name),
-    });
-
-    Ok(EditPlan {
-        source_file: file_path.to_string(),
-        edits,
-        dependency_updates: Vec::new(),
-        validations: vec![
-            ValidationRule {
-                rule_type: ValidationType::SyntaxCheck,
-                description: "Verify syntax is valid after extraction".to_string(),
-                parameters: HashMap::new(),
-            },
-            ValidationRule {
-                rule_type: ValidationType::TypeCheck,
-                description: "Verify types are consistent".to_string(),
-                parameters: HashMap::new(),
-            },
-        ],
-        metadata: EditPlanMetadata {
-            intent_name: "extract_function".to_string(),
-            intent_arguments: serde_json::json!({
-                "range": range,
-                "function_name": new_function_name
-            }),
-            created_at: chrono::Utc::now(),
-            complexity: analysis.complexity_score.min(10) as u8,
-            impact_areas: vec!["function_extraction".to_string()],
-                consolidation: None,
-        },
-    })
-}
-
-/// Generate edit plan for extract function refactoring (Rust) using AST
-#[cfg(feature = "lang-rust")]
-fn ast_extract_function_rust(
-    source: &str,
-    range: &CodeRange,
-    new_function_name: &str,
-    file_path: &str,
-) -> AstResult<EditPlan> {
-    let start_line = range.start_line;
-    let end_line = range.end_line;
-
-    cb_lang_rust::refactoring::plan_extract_function(
-        source,
-        start_line,
-        end_line,
-        new_function_name,
-        file_path,
-    )
-    .map_err(|e| AstError::analysis(format!("Rust refactoring error: {}", e)))
-}
 
 /// Visitor for analyzing code selection for function extraction
 struct ExtractFunctionAnalyzer {

@@ -1,8 +1,7 @@
-use super::common::{detect_language, extract_range_text};
 use super::{CodeRange, ExtractVariableAnalysis, LspRefactoringService};
+use super::common::extract_range_text;
 use crate::error::{AstError, AstResult};
-use codebuddy_foundation::protocol::{ EditPlan , EditPlanMetadata , EditType , TextEdit , ValidationRule , ValidationType };
-use std::collections::HashMap;
+use codebuddy_foundation::protocol::EditPlan;
 use tracing::debug;
 
 /// Analyze a selected expression for extraction into a variable (simplified fallback)
@@ -170,7 +169,7 @@ pub async fn plan_extract_variable(
     variable_name: Option<String>,
     file_path: &str,
     lsp_service: Option<&dyn LspRefactoringService>,
-    _language_plugins: Option<&cb_plugin_api::PluginRegistry>,
+    language_plugins: Option<&cb_plugin_api::PluginRegistry>,
 ) -> AstResult<EditPlan> {
     let range = CodeRange {
         start_line,
@@ -179,7 +178,40 @@ pub async fn plan_extract_variable(
         end_col,
     };
 
-    // Try LSP first if available
+    // Try language plugin capability first (faster, more reliable, under our control)
+    if let Some(plugins) = language_plugins {
+        if let Some(provider) = plugins.refactoring_provider() {
+            if provider.supports_extract_variable() {
+                debug!(
+                    file_path = %file_path,
+                    "Using language plugin for extract variable"
+                );
+                match provider
+                    .plan_extract_variable(
+                        source,
+                        start_line,
+                        start_col,
+                        end_line,
+                        end_col,
+                        variable_name.clone(),
+                        file_path,
+                    )
+                    .await
+                {
+                    Ok(plan) => return Ok(plan),
+                    Err(e) => {
+                        debug!(
+                            error = ?e,
+                            file_path = %file_path,
+                            "Language plugin extract variable failed, trying LSP fallback"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    // Fallback to LSP if plugin not available or failed
     if let Some(lsp) = lsp_service {
         let var_name = variable_name.as_deref().unwrap_or("extracted");
         debug!(file_path = %file_path, "Attempting LSP extract variable");
@@ -192,140 +224,16 @@ pub async fn plan_extract_variable(
                 debug!(
                     error = %e,
                     file_path = %file_path,
-                    "LSP extract variable failed, falling back to AST"
+                    "LSP extract variable also failed"
                 );
             }
         }
-    } else {
-        debug!(file_path = %file_path, "No LSP service provided, using AST fallback");
     }
 
-    // Fallback to AST-based implementation (only TypeScript and Rust supported after language reduction)
-    match detect_language(file_path) {
-        #[cfg(feature = "lang-typescript")]
-        "typescript" | "javascript" => ast_extract_variable_ts_js(
-            source,
-            &analyze_extract_variable(source, start_line, start_col, end_line, end_col, file_path)?,
-            variable_name,
-            file_path,
-        ),
-        #[cfg(feature = "lang-rust")]
-        "rust" => ast_extract_variable_rust(
-            source,
-            start_line,
-            start_col,
-            end_line,
-            end_col,
-            variable_name,
-            file_path,
-        ),
-        _ => Err(AstError::analysis(format!(
-            "Language not supported (only TypeScript and Rust). LSP server may provide this via code actions for: {}",
-            file_path
-        ))),
-    }
+    // Both plugin and LSP failed
+    Err(AstError::analysis(format!(
+        "Extract variable not supported for: {}. Neither language plugin nor LSP implementation succeeded.",
+        file_path
+    )))
 }
 
-/// Generate edit plan for extract variable refactoring (TypeScript/JavaScript)
-#[allow(dead_code)]
-fn ast_extract_variable_ts_js(
-    source: &str,
-    analysis: &ExtractVariableAnalysis,
-    variable_name: Option<String>,
-    file_path: &str,
-) -> AstResult<EditPlan> {
-    if !analysis.can_extract {
-        return Err(AstError::analysis(format!(
-            "Cannot extract expression: {}",
-            analysis.blocking_reasons.join(", ")
-        )));
-    }
-
-    let var_name = variable_name.unwrap_or_else(|| analysis.suggested_name.clone());
-
-    // Get the indentation of the current line
-    let lines: Vec<&str> = source.lines().collect();
-    let current_line = lines
-        .get((analysis.insertion_point.start_line) as usize)
-        .unwrap_or(&"");
-    let indent = current_line
-        .chars()
-        .take_while(|c| c.is_whitespace())
-        .collect::<String>();
-
-    let mut edits = Vec::new();
-
-    // Insert the variable declaration
-    let declaration = format!("const {} = {};\n{}", var_name, analysis.expression, indent);
-    edits.push(TextEdit {
-        file_path: None,
-        edit_type: EditType::Insert,
-        location: analysis.insertion_point.clone().into(),
-        original_text: String::new(),
-        new_text: declaration,
-        priority: 100,
-        description: format!(
-            "Extract '{}' into variable '{}'",
-            analysis.expression, var_name
-        ),
-    });
-
-    // Replace the original expression with the variable name
-    edits.push(TextEdit {
-        file_path: None,
-        edit_type: EditType::Replace,
-        location: analysis.expression_range.clone().into(),
-        original_text: analysis.expression.clone(),
-        new_text: var_name.clone(),
-        priority: 90,
-        description: format!("Replace expression with '{}'", var_name),
-    });
-
-    Ok(EditPlan {
-        source_file: file_path.to_string(),
-        edits,
-        dependency_updates: Vec::new(),
-        validations: vec![ValidationRule {
-            rule_type: ValidationType::SyntaxCheck,
-            description: "Verify syntax is valid after extraction".to_string(),
-            parameters: HashMap::new(),
-        }],
-        metadata: EditPlanMetadata {
-            intent_name: "extract_variable".to_string(),
-            intent_arguments: serde_json::json!({
-                "expression": analysis.expression,
-                "variableName": var_name,
-                "insertionPoint": analysis.insertion_point,
-                "expressionRange": analysis.expression_range
-            }),
-            created_at: chrono::Utc::now(),
-            complexity: 2,
-            impact_areas: vec!["variable_extraction".to_string()],
-                consolidation: None,
-        },
-    })
-}
-
-/// Generate edit plan for extract variable refactoring (Rust) using AST
-#[cfg(feature = "lang-rust")]
-#[allow(clippy::too_many_arguments)]
-fn ast_extract_variable_rust(
-    source: &str,
-    start_line: u32,
-    start_col: u32,
-    end_line: u32,
-    end_col: u32,
-    variable_name: Option<String>,
-    file_path: &str,
-) -> AstResult<EditPlan> {
-    cb_lang_rust::refactoring::plan_extract_variable(
-        source,
-        start_line,
-        start_col,
-        end_line,
-        end_col,
-        variable_name,
-        file_path,
-    )
-    .map_err(|e| AstError::analysis(format!("Rust refactoring error: {}", e)))
-}

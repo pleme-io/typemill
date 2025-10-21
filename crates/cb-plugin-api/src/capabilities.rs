@@ -112,7 +112,7 @@ pub struct TextEdit {
 /// Capability for providing refactoring operations
 ///
 /// This trait allows language plugins to provide language-specific refactoring
-/// operations like inline variable and extract function.
+/// operations like inline variable, extract function, and extract variable.
 ///
 /// # Example
 ///
@@ -121,20 +121,41 @@ pub struct TextEdit {
 ///
 /// if let Some(provider) = plugin.refactoring_provider() {
 ///     if provider.supports_inline_variable() {
-///         let edit = provider.inline_variable(params)?;
-///         // Apply workspace edit...
+///         let plan = provider.plan_inline_variable(
+///             source,
+///             variable_line,
+///             variable_col,
+///             file_path
+///         ).await?;
+///         // Apply edit plan...
 ///     }
 /// }
 /// ```
+#[async_trait]
 pub trait RefactoringProvider: Send + Sync {
     /// Check if inline variable refactoring is supported
     fn supports_inline_variable(&self) -> bool {
         false
     }
 
-    /// Perform inline variable refactoring
-    fn inline_variable(&self, _params: InlineParams) -> PluginResult<WorkspaceEdit> {
-        Err(crate::PluginError::not_supported("inline_variable"))
+    /// Plan inline variable refactoring
+    ///
+    /// Analyzes the code and generates an edit plan for inlining a variable.
+    ///
+    /// # Arguments
+    ///
+    /// * `source` - Source code content
+    /// * `variable_line` - Line number where variable is declared (0-based)
+    /// * `variable_col` - Column number where variable is declared (0-based)
+    /// * `file_path` - Path to the source file
+    async fn plan_inline_variable(
+        &self,
+        _source: &str,
+        _variable_line: u32,
+        _variable_col: u32,
+        _file_path: &str,
+    ) -> PluginResult<codebuddy_foundation::protocol::EditPlan> {
+        Err(crate::PluginError::not_supported("plan_inline_variable"))
     }
 
     /// Check if extract function refactoring is supported
@@ -142,7 +163,72 @@ pub trait RefactoringProvider: Send + Sync {
         false
     }
 
-    /// Perform extract function refactoring
+    /// Plan extract function refactoring
+    ///
+    /// Analyzes the code and generates an edit plan for extracting a function.
+    ///
+    /// # Arguments
+    ///
+    /// * `source` - Source code content
+    /// * `start_line` - Start line of selection (0-based)
+    /// * `end_line` - End line of selection (0-based)
+    /// * `function_name` - Name for the extracted function
+    /// * `file_path` - Path to the source file
+    async fn plan_extract_function(
+        &self,
+        _source: &str,
+        _start_line: u32,
+        _end_line: u32,
+        _function_name: &str,
+        _file_path: &str,
+    ) -> PluginResult<codebuddy_foundation::protocol::EditPlan> {
+        Err(crate::PluginError::not_supported("plan_extract_function"))
+    }
+
+    /// Check if extract variable refactoring is supported
+    fn supports_extract_variable(&self) -> bool {
+        false
+    }
+
+    /// Plan extract variable refactoring
+    ///
+    /// Analyzes the code and generates an edit plan for extracting a variable.
+    ///
+    /// # Arguments
+    ///
+    /// * `source` - Source code content
+    /// * `start_line` - Start line of selection (0-based)
+    /// * `start_col` - Start column of selection (0-based)
+    /// * `end_line` - End line of selection (0-based)
+    /// * `end_col` - End column of selection (0-based)
+    /// * `variable_name` - Optional name for the variable (None = auto-generate)
+    /// * `file_path` - Path to the source file
+    async fn plan_extract_variable(
+        &self,
+        _source: &str,
+        _start_line: u32,
+        _start_col: u32,
+        _end_line: u32,
+        _end_col: u32,
+        _variable_name: Option<String>,
+        _file_path: &str,
+    ) -> PluginResult<codebuddy_foundation::protocol::EditPlan> {
+        Err(crate::PluginError::not_supported("plan_extract_variable"))
+    }
+
+    // ============================================================================
+    // Legacy sync methods - DEPRECATED
+    // These exist for backwards compatibility but should not be used in new code
+    // ============================================================================
+
+    /// Perform inline variable refactoring (DEPRECATED - use plan_inline_variable)
+    #[deprecated(note = "Use async plan_inline_variable instead")]
+    fn inline_variable(&self, _params: InlineParams) -> PluginResult<WorkspaceEdit> {
+        Err(crate::PluginError::not_supported("inline_variable"))
+    }
+
+    /// Perform extract function refactoring (DEPRECATED - use plan_extract_function)
+    #[deprecated(note = "Use async plan_extract_function instead")]
     fn extract_function(&self, _params: ExtractParams) -> PluginResult<WorkspaceEdit> {
         Err(crate::PluginError::not_supported("extract_function"))
     }

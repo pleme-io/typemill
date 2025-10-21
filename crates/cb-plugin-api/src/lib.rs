@@ -609,6 +609,16 @@ impl PluginRegistry {
     pub fn all(&self) -> &[std::sync::Arc<dyn LanguagePlugin>] {
         &self.plugins
     }
+
+    /// Get the refactoring provider capability from the first plugin that supports it
+    ///
+    /// This is useful for AST refactoring modules that need language-specific refactoring
+    /// capabilities without knowing which specific plugin to use.
+    pub fn refactoring_provider(&self) -> Option<&dyn RefactoringProvider> {
+        self.plugins
+            .iter()
+            .find_map(|p| p.refactoring_provider())
+    }
 }
 
 impl Default for PluginRegistry {

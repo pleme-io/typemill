@@ -277,37 +277,63 @@ impl cb_plugin_api::ModuleReferenceScanner for RustPlugin {
     }
 }
 
+#[async_trait]
 impl cb_plugin_api::RefactoringProvider for RustPlugin {
     fn supports_inline_variable(&self) -> bool {
-        // Not yet implemented - return false until we implement the AST-based refactoring
-        false
+        true
     }
 
-    fn inline_variable(
+    async fn plan_inline_variable(
         &self,
-        _params: cb_plugin_api::InlineParams,
-    ) -> cb_plugin_api::PluginResult<cb_plugin_api::WorkspaceEdit> {
-        // TODO: Implement inline variable refactoring
-        // For now, return not supported
-        Err(cb_plugin_api::PluginError::not_supported(
-            "inline_variable not yet implemented for Rust",
-        ))
+        source: &str,
+        variable_line: u32,
+        variable_col: u32,
+        file_path: &str,
+    ) -> cb_plugin_api::PluginResult<codebuddy_foundation::protocol::EditPlan> {
+        refactoring::plan_inline_variable(source, variable_line, variable_col, file_path)
+            .map_err(|e| cb_plugin_api::PluginError::internal(format!("Rust refactoring error: {}", e)))
     }
 
     fn supports_extract_function(&self) -> bool {
-        // Not yet implemented - return false until we implement the AST-based refactoring
-        false
+        true
     }
 
-    fn extract_function(
+    async fn plan_extract_function(
         &self,
-        _params: cb_plugin_api::ExtractParams,
-    ) -> cb_plugin_api::PluginResult<cb_plugin_api::WorkspaceEdit> {
-        // TODO: Implement extract function refactoring
-        // For now, return not supported
-        Err(cb_plugin_api::PluginError::not_supported(
-            "extract_function not yet implemented for Rust",
-        ))
+        source: &str,
+        start_line: u32,
+        end_line: u32,
+        function_name: &str,
+        file_path: &str,
+    ) -> cb_plugin_api::PluginResult<codebuddy_foundation::protocol::EditPlan> {
+        refactoring::plan_extract_function(source, start_line, end_line, function_name, file_path)
+            .map_err(|e| cb_plugin_api::PluginError::internal(format!("Rust refactoring error: {}", e)))
+    }
+
+    fn supports_extract_variable(&self) -> bool {
+        true
+    }
+
+    async fn plan_extract_variable(
+        &self,
+        source: &str,
+        start_line: u32,
+        start_col: u32,
+        end_line: u32,
+        end_col: u32,
+        variable_name: Option<String>,
+        file_path: &str,
+    ) -> cb_plugin_api::PluginResult<codebuddy_foundation::protocol::EditPlan> {
+        refactoring::plan_extract_variable(
+            source,
+            start_line,
+            start_col,
+            end_line,
+            end_col,
+            variable_name,
+            file_path,
+        )
+        .map_err(|e| cb_plugin_api::PluginError::internal(format!("Rust refactoring error: {}", e)))
     }
 }
 

@@ -1,4 +1,3 @@
-use super::common::detect_language;
 use super::{CodeRange, LspRefactoringService};
 use crate::error::{AstError, AstResult};
 use codebuddy_foundation::protocol::EditPlan;
@@ -76,9 +75,34 @@ pub async fn plan_inline_variable(
     variable_col: u32,
     file_path: &str,
     lsp_service: Option<&dyn LspRefactoringService>,
-    _language_plugins: Option<&cb_plugin_api::PluginRegistry>,
+    language_plugins: Option<&cb_plugin_api::PluginRegistry>,
 ) -> AstResult<EditPlan> {
-    // Try LSP first if available
+    // Try language plugin capability first (faster, more reliable, under our control)
+    if let Some(plugins) = language_plugins {
+        if let Some(provider) = plugins.refactoring_provider() {
+            if provider.supports_inline_variable() {
+                debug!(
+                    file_path = %file_path,
+                    "Using language plugin for inline variable"
+                );
+                match provider
+                    .plan_inline_variable(source, variable_line, variable_col, file_path)
+                    .await
+                {
+                    Ok(plan) => return Ok(plan),
+                    Err(e) => {
+                        debug!(
+                            error = ?e,
+                            file_path = %file_path,
+                            "Language plugin inline variable failed, trying LSP fallback"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    // Fallback to LSP if plugin not available or failed
     if let Some(lsp) = lsp_service {
         match lsp_inline_variable(lsp, file_path, variable_line, variable_col).await {
             Ok(plan) => return Ok(plan),
@@ -86,52 +110,16 @@ pub async fn plan_inline_variable(
                 debug!(
                     error = %e,
                     file_path = %file_path,
-                    "LSP inline variable failed, falling back to AST"
+                    "LSP inline variable also failed"
                 );
             }
         }
     }
 
-    // Fallback to AST-based implementation (only TypeScript and Rust supported after language reduction)
-    match detect_language(file_path) {
-        #[cfg(feature = "lang-typescript")]
-        "typescript" | "javascript" => {
-            ast_inline_variable_typescript(source, variable_line, variable_col, file_path)
-        }
-        #[cfg(feature = "lang-rust")]
-        "rust" => ast_inline_variable_rust(source, variable_line, variable_col, file_path),
-        _ => Err(AstError::analysis(format!(
-            "Inline variable refactoring requires LSP service for file: {} (only available languages enabled)",
-            file_path
-        ))),
-    }
+    // Both plugin and LSP failed
+    Err(AstError::analysis(format!(
+        "Inline variable not supported for: {}. Neither language plugin nor LSP implementation succeeded.",
+        file_path
+    )))
 }
 
-/// Generate edit plan for inline variable refactoring (TypeScript/JavaScript) using AST
-#[cfg(feature = "lang-typescript")]
-fn ast_inline_variable_typescript(
-    source: &str,
-    variable_line: u32,
-    variable_col: u32,
-    file_path: &str,
-) -> AstResult<EditPlan> {
-    cb_lang_typescript::refactoring::plan_inline_variable(
-        source,
-        variable_line,
-        variable_col,
-        file_path,
-    )
-    .map_err(|e| AstError::analysis(format!("TypeScript refactoring error: {}", e)))
-}
-
-/// Generate edit plan for inline variable refactoring (Rust) using AST
-#[cfg(feature = "lang-rust")]
-fn ast_inline_variable_rust(
-    source: &str,
-    variable_line: u32,
-    variable_col: u32,
-    file_path: &str,
-) -> AstResult<EditPlan> {
-    cb_lang_rust::refactoring::plan_inline_variable(source, variable_line, variable_col, file_path)
-        .map_err(|e| AstError::analysis(format!("Rust refactoring error: {}", e)))
-}
