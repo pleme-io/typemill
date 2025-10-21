@@ -4,7 +4,7 @@ use crate::services::reference_updater::ReferenceUpdater;
 use cb_plugin_api::{PluginRegistry, ScanScope};
 use codebuddy_foundation::protocol::{ApiResult as ServerResult, EditPlan};
 use std::path::Path;
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 
 /// Plan a file move with import updates
 pub async fn plan_file_move(
@@ -173,7 +173,7 @@ pub async fn plan_directory_move(
     info!("Scanning for documentation and config file updates");
     let doc_config_edits_before = edit_plan.edits.len();
 
-    match plan_documentation_and_config_edits(old_abs, new_abs, plugin_registry, project_root).await
+    match plan_documentation_and_config_edits(old_abs, new_abs, plugin_registry, project_root, rename_scope).await
     {
         Ok(edits) if !edits.is_empty() => {
             info!(
@@ -221,6 +221,7 @@ async fn plan_documentation_and_config_edits(
     new_path: &Path,
     plugin_registry: &PluginRegistry,
     project_root: &Path,
+    rename_scope: Option<&codebuddy_foundation::core::rename_scope::RenameScope>,
 ) -> ServerResult<Vec<codebuddy_foundation::protocol::TextEdit>> {
     use codebuddy_foundation::protocol::{EditLocation, EditType, TextEdit};
     use std::path::PathBuf;
@@ -252,13 +253,13 @@ async fn plan_documentation_and_config_edits(
     }
 
     for ext in &file_extensions {
-        debug!(
+        info!(
             extension = ext,
             "Looking for plugin for extension"
         );
 
         if let Some(plugin) = plugin_registry.find_by_extension(ext) {
-            debug!(
+            info!(
                 extension = ext,
                 plugin_name = plugin.metadata().name,
                 "Found plugin for extension"
@@ -289,12 +290,27 @@ async fn plan_documentation_and_config_edits(
 
             // Process each file with its plugin
             for file_path in &files_to_scan {
-                // Skip files that commonly contain example code (Issue #1 fix)
-                // These files often show "before/after" code examples that shouldn't be updated
-                if should_skip_file_for_examples(file_path) {
+                // Check if file should be included based on rename scope
+                // Default scope has update_examples=true, so only skip if explicitly disabled
+                let update_examples = rename_scope
+                    .map(|s| s.update_examples)
+                    .unwrap_or(true); // Default to true (RenameScope::default().update_examples)
+
+                let matches_skip_filter = should_skip_file_for_examples(file_path);
+                let should_skip_examples = !update_examples && matches_skip_filter;
+
+                info!(
+                    file = %file_path.display(),
+                    update_examples,
+                    matches_skip_filter,
+                    should_skip_examples,
+                    "Processing file for edits"
+                );
+
+                if should_skip_examples {
                     info!(
                         file = %file_path.display(),
-                        "Skipping file that commonly contains example code"
+                        "Skipping file that commonly contains example code (update_examples=false)"
                     );
                     continue;
                 }
@@ -404,7 +420,7 @@ async fn plan_documentation_and_config_edits(
 
             files_to_scan.clear(); // Clear for next extension
         } else {
-            debug!(
+            info!(
                 extension = ext,
                 "No plugin found for extension"
             );

@@ -10,7 +10,7 @@ codebuddy-foundation = { path = "../codebuddy-foundation" }
 cb-transport = { path = "../cb-transport", default-features = false }
 cb-lsp = { path = "../cb-lsp" }
 cb-services = { path = "../cb-services", default-features = false }
-cb-handlers = { path = "../cb-handlers", default-features = false, features = ["analysis-deep-dead-code"] }
+cb-handlers = { path = "../cb-handlers", default-features = false, features = ["analysis-deep-dead-code", "refactor-all"] }
 tokio = { workspace = true }
 async-trait = { workspace = true }
 futures-util = "0.3"

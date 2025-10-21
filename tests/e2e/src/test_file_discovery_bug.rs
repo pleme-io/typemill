@@ -10,13 +10,15 @@ use serde_json::json;
 
 /// Test that files in non-standard locations are discovered during rename
 ///
-/// This reproduces the actual bug where:
-/// - apps/codebuddy/tests/e2e_analysis_features.rs has imports but isn't found
-/// - examples/tests/data_driven_fixture_example.rs has imports but isn't found
-/// - docs/*.md have references but aren't found
-/// - proposals/*.md have references but aren't found
+/// This is a regression test for the bug where:
+/// - apps/codebuddy/tests/e2e_analysis_features.rs had imports but wasn't found
+/// - examples/tests/data_driven_fixture_example.rs had imports but wasn't found
+/// - docs/*.md have references but weren't found
+/// - proposals/*.md have references but weren't found
+///
+/// The bug was caused by should_skip_file_for_examples() filtering out these files
+/// before they could be added to the plan, bypassing RenameScope settings.
 #[tokio::test]
-#[should_panic(expected = "apps/client-app/tests/feature_test.rs")]
 async fn test_file_discovery_in_non_standard_locations() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
@@ -81,15 +83,15 @@ fn main() {
 "#,
     );
 
-    // Create docs with markdown references
+    // Create docs with markdown references (using FILE PATHS, not just identifiers)
     workspace.create_directory("docs");
     workspace.create_file(
         "docs/guide.md",
         r#"# Guide
 
-See the `my-crate` documentation.
+See the documentation at [README](crates/my-crate/README.md).
 
-Example: `use my_crate::helper;`
+Example source code: `crates/my-crate/src/lib.rs`
 "#,
     );
 
@@ -99,7 +101,9 @@ Example: `use my_crate::helper;`
         "proposals/01_feature.md",
         r#"# Feature Proposal
 
-This uses `my_crate` for functionality.
+This feature is located in `crates/my-crate/src/` directory.
+
+Configuration: `crates/my-crate/Cargo.toml`
 "#,
     );
 

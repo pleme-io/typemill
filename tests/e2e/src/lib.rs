@@ -31,6 +31,9 @@ pub mod test_comprehensive_rename_coverage;
 pub mod test_cross_workspace_import_updates;
 
 #[cfg(test)]
+pub mod test_file_discovery_bug;
+
+#[cfg(test)]
 pub mod test_cargo_package_rename;
 
 #[cfg(test)]
