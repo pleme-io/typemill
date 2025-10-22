@@ -567,6 +567,12 @@ async fn plan_single_cargo_toml_dependency_update(
                                 updated = true;
                             }
                         }
+                        // Handle bare crate name (implicit dependency feature)
+                        // e.g. runtime = ["codebuddy-foundation", "mill-config"]
+                        else if feature_ref == old_crate_name {
+                            *item = toml_edit::Value::from(new_crate_name.to_string());
+                            updated = true;
+                        }
                     }
                 }
             }
@@ -645,5 +651,74 @@ version = "0.1.0"
 
         assert_eq!(edits.len(), 1);
         assert_eq!(edits[0].file_path, Some("/project/Cargo.toml".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_bare_crate_name_in_features() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let cargo_toml = temp_dir.path().join("Cargo.toml");
+
+        let content = r#"
+[package]
+name = "test-package"
+version = "0.1.0"
+
+[dependencies]
+codebuddy-foundation = { path = "../codebuddy-foundation", optional = true }
+mill-config = { path = "../mill-config", optional = true }
+
+[features]
+default = ["runtime"]
+runtime = ["codebuddy-foundation", "mill-config"]
+experimental = ["dep:codebuddy-foundation"]
+advanced = ["codebuddy-foundation/serde"]
+"#;
+
+        std::fs::write(&cargo_toml, content).unwrap();
+
+        let new_crate_path = temp_dir.path().join("../mill-foundation");
+        let result = plan_single_cargo_toml_dependency_update(
+            &cargo_toml,
+            "codebuddy-foundation",
+            "mill-foundation",
+            &new_crate_path,
+            content,
+        )
+        .await
+        .unwrap();
+
+        assert!(result.is_some(), "Should return an update");
+
+        let (_path, _original_content, updated_content) = result.unwrap();
+
+        // Verify bare crate name was updated
+        assert!(
+            updated_content.contains(r#"runtime = ["mill-foundation", "mill-config"]"#),
+            "Bare crate name in feature array should be updated.\nActual content:\n{}",
+            updated_content
+        );
+
+        // Verify dep: syntax was updated
+        assert!(
+            updated_content.contains(r#"experimental = ["dep:mill-foundation"]"#),
+            "dep: syntax should be updated.\nActual content:\n{}",
+            updated_content
+        );
+
+        // Verify crate/feature syntax was updated
+        assert!(
+            updated_content.contains(r#"advanced = ["mill-foundation/serde"]"#),
+            "crate/feature syntax should be updated.\nActual content:\n{}",
+            updated_content
+        );
+
+        // Verify dependency was also updated
+        assert!(
+            updated_content.contains("mill-foundation = { path ="),
+            "Dependency declaration should be updated.\nActual content:\n{}",
+            updated_content
+        );
     }
 }
