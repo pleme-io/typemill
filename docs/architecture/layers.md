@@ -31,7 +31,7 @@ Layers are organized from foundational (bottom) to application (top). Each layer
 **Purpose:** Testing infrastructure, build tooling, and analysis tools
 
 **Crates:**
-- `cb-test-support` / `codebuddy-test-support`
+- `mill-test-support` / `codebuddy-test-support`
 - `xtask`
 - `analysis/*` (codebuddy-analysis-*)
 
@@ -190,7 +190,7 @@ Layers are organized from foundational (bottom) to application (top). Each layer
 1. **Upward:** Lower layers depending on higher layers
 2. **Cross-plugin:** Language plugins depending on each other
 3. **Handler bypass:** Application layer bypassing handlers to call services directly
-4. **Production depends on test:** Any production crate depending on `cb-test-support`
+4. **Production depends on test:** Any production crate depending on `mill-test-support`
 
 ## Enforcement
 
@@ -216,7 +216,7 @@ cargo depgraph --workspace-only | dot -Tpng > deps.png
 - Cross-plugin isolation - plugins cannot depend on each other (except via cb-lang-common)
 - Services (Layer 5) cannot depend on Handlers (Layer 6) or higher
 - Handlers (Layer 6) cannot depend on Application (Layer 7)
-- Production crates cannot depend on cb-test-support
+- Production crates cannot depend on mill-test-support
 - Analysis crates remain isolated (only cb-handlers can optionally use them via features)
 
 **⚠️ Not Enforced by cargo-deny:**

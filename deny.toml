@@ -220,7 +220,7 @@ skip-tree = [
 # - Layer 4: Language Plugins (cb-lang-*)
 # - Layer 3: Plugin API (cb-plugin-api)
 # - Layer 2: Foundation (codebuddy-foundation)
-# - Layer 1: Support (cb-test-support, xtask, analysis/*)
+# - Layer 1: Support (mill-test-support, xtask, analysis/*)
 #
 # Rules enforce: Higher layers cannot depend on lower layers (upward dependencies forbidden)
 #
@@ -237,23 +237,23 @@ skip-tree = [
 
 [[bans.deny]]
 name = "cb-services"
-wrappers = ["cb-handlers", "cb-server", "mill-client", "codebuddy", "cb-test-support", "e2e"]
+wrappers = ["cb-handlers", "cb-server", "mill-client", "codebuddy", "mill-test-support", "e2e"]
 
 [[bans.deny]]
 name = "cb-ast"
-wrappers = ["cb-transport", "cb-services", "codebuddy-plugin-system", "cb-handlers", "cb-server", "codebuddy", "cb-test-support", "e2e"]
+wrappers = ["cb-transport", "cb-services", "codebuddy-plugin-system", "cb-handlers", "cb-server", "codebuddy", "mill-test-support", "e2e"]
 
 [[bans.deny]]
 name = "cb-lsp"
-wrappers = ["cb-services", "cb-handlers", "cb-server", "codebuddy", "cb-test-support", "e2e"]
+wrappers = ["cb-services", "cb-handlers", "cb-server", "codebuddy", "mill-test-support", "e2e"]
 
 [[bans.deny]]
 name = "codebuddy-plugin-system"
-wrappers = ["cb-services", "cb-handlers", "cb-server", "mill-client", "codebuddy", "cb-test-support", "e2e"]
+wrappers = ["cb-services", "cb-handlers", "cb-server", "mill-client", "codebuddy", "mill-test-support", "e2e"]
 
 [[bans.deny]]
 name = "codebuddy-plugin-bundle"
-wrappers = ["cb-services", "cb-server", "codebuddy", "cb-test-support"]
+wrappers = ["cb-services", "cb-server", "codebuddy", "mill-test-support"]
 
 # =============================================================================
 # CRITICAL ENFORCEMENT: Cross-Plugin Isolation (Layer 4)
@@ -262,23 +262,23 @@ wrappers = ["cb-services", "cb-server", "codebuddy", "cb-test-support"]
 
 [[bans.deny]]
 name = "cb-lang-rust"
-wrappers = ["cb-ast", "cb-handlers", "cb-services", "codebuddy-plugin-system", "codebuddy-plugin-bundle", "cb-server", "codebuddy", "cb-test-support", "e2e"]
+wrappers = ["cb-ast", "cb-handlers", "cb-services", "codebuddy-plugin-system", "codebuddy-plugin-bundle", "cb-server", "codebuddy", "mill-test-support", "e2e"]
 
 [[bans.deny]]
 name = "cb-lang-typescript"
-wrappers = ["cb-ast", "cb-handlers", "cb-services", "codebuddy-plugin-system", "codebuddy-plugin-bundle", "cb-server", "codebuddy", "cb-test-support", "e2e"]
+wrappers = ["cb-ast", "cb-handlers", "cb-services", "codebuddy-plugin-system", "codebuddy-plugin-bundle", "cb-server", "codebuddy", "mill-test-support", "e2e"]
 
 [[bans.deny]]
 name = "cb-lang-markdown"
-wrappers = ["cb-ast", "cb-services", "codebuddy-plugin-system", "codebuddy-plugin-bundle", "cb-test-support"]
+wrappers = ["cb-ast", "cb-services", "codebuddy-plugin-system", "codebuddy-plugin-bundle", "mill-test-support"]
 
 [[bans.deny]]
 name = "cb-lang-toml"
-wrappers = ["cb-services", "codebuddy-plugin-system", "codebuddy-plugin-bundle", "cb-test-support"]
+wrappers = ["cb-services", "codebuddy-plugin-system", "codebuddy-plugin-bundle", "mill-test-support"]
 
 [[bans.deny]]
 name = "cb-lang-yaml"
-wrappers = ["cb-services", "codebuddy-plugin-system", "codebuddy-plugin-bundle", "cb-test-support"]
+wrappers = ["cb-services", "codebuddy-plugin-system", "codebuddy-plugin-bundle", "mill-test-support"]
 
 # =============================================================================
 # IMPORTANT ENFORCEMENT: Services (Layer 5) cannot depend on Handlers (Layer 6+)
@@ -286,7 +286,7 @@ wrappers = ["cb-services", "codebuddy-plugin-system", "codebuddy-plugin-bundle",
 
 [[bans.deny]]
 name = "cb-handlers"
-wrappers = ["cb-server", "codebuddy", "cb-test-support", "e2e"]
+wrappers = ["cb-server", "codebuddy", "mill-test-support", "e2e"]
 
 # =============================================================================
 # IMPORTANT ENFORCEMENT: Handlers (Layer 6) cannot depend on Application (Layer 7)
@@ -294,18 +294,18 @@ wrappers = ["cb-server", "codebuddy", "cb-test-support", "e2e"]
 
 [[bans.deny]]
 name = "cb-server"
-wrappers = ["codebuddy", "cb-test-support", "e2e"]
+wrappers = ["codebuddy", "mill-test-support", "e2e"]
 
 [[bans.deny]]
 name = "codebuddy"
-wrappers = ["cb-test-support", "e2e"]
+wrappers = ["mill-test-support", "e2e"]
 
 # =============================================================================
 # TEST ISOLATION: Production cannot depend on test-support
 # =============================================================================
 
 [[bans.deny]]
-name = "cb-test-support"
+name = "mill-test-support"
 wrappers = ["codebuddy", "e2e"]
 
 # =============================================================================
