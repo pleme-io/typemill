@@ -387,7 +387,7 @@ impl RenameHandler {
         }
 
         // Plan each rename individually
-        let mut all_edits = Vec::new();
+        let mut all_document_changes = Vec::new();
         let mut all_file_checksums = HashMap::new();
         let mut total_affected_files = HashSet::new();
 
@@ -422,10 +422,33 @@ impl RenameHandler {
                 }
             };
 
-            // Collect edits from this plan
-            if let Some(ref changes) = plan.edits.changes {
-                for (uri, text_edits) in changes {
-                    all_edits.push((uri.clone(), text_edits.clone()));
+            // Debug: log plan details
+            let plan_doc_changes_count = plan.edits.document_changes.as_ref()
+                .and_then(|dc| match dc {
+                    lsp_types::DocumentChanges::Operations(ops) => Some(ops.len()),
+                    lsp_types::DocumentChanges::Edits(edits) => Some(edits.len()),
+                })
+                .unwrap_or(0);
+            debug!(
+                target_path = %target.path,
+                new_name = %new_name,
+                document_changes_count = plan_doc_changes_count,
+                affected_files = plan.summary.affected_files,
+                "Individual plan generated in batch"
+            );
+
+            // Collect document changes from this plan (file renames + text edits)
+            if let Some(ref doc_changes) = plan.edits.document_changes {
+                match doc_changes {
+                    lsp_types::DocumentChanges::Operations(ops) => {
+                        all_document_changes.extend(ops.clone());
+                    }
+                    lsp_types::DocumentChanges::Edits(edits) => {
+                        // Convert edits to operations
+                        for edit in edits {
+                            all_document_changes.push(lsp_types::DocumentChangeOperation::Edit(edit.clone()));
+                        }
+                    }
                 }
             }
 
@@ -433,27 +456,13 @@ impl RenameHandler {
             all_file_checksums.extend(plan.file_checksums);
 
             // Track affected files (for summary)
-            if let Some(ref changes) = plan.edits.changes {
-                for uri in changes.keys() {
-                    if let Ok(decoded) = urlencoding::decode(uri.path().as_str()) {
-                        total_affected_files.insert(std::path::PathBuf::from(decoded.into_owned()));
-                    }
-                }
-            }
+            total_affected_files.insert(std::path::PathBuf::from(&target.path));
         }
 
-        // Merge all edits into a single WorkspaceEdit
-        let mut merged_changes: HashMap<lsp_types::Uri, Vec<lsp_types::TextEdit>> = HashMap::new();
-        for (uri, text_edits) in all_edits {
-            merged_changes
-                .entry(uri)
-                .or_default()
-                .extend(text_edits);
-        }
-
+        // Build merged WorkspaceEdit with documentChanges
         let merged_workspace_edit = WorkspaceEdit {
-            changes: Some(merged_changes),
-            document_changes: None,
+            changes: None,
+            document_changes: Some(lsp_types::DocumentChanges::Operations(all_document_changes)),
             change_annotations: None,
         };
 

@@ -1,20 +1,19 @@
-# Bug Report: Batch Rename Not Working + Cargo Feature Refs Not Updated
+# Bug Report: Batch Rename Not Working
 
 **Date:** 2025-10-22
 **Session:** Dogfooding mill-* rename migration
 **Affected Commands:** `rename.plan` (batch mode), `rename` (batch mode)
-**Status:** 🐛 Confirmed - Needs Fix
+**Status:** 🐛 Issue #1 Confirmed - Needs Fix | ✅ Issue #2 False Alarm - Already Working
 
 ---
 
 ## Summary
 
-Two issues discovered while dogfooding the rename tool during the mill-* migration:
+One critical issue discovered while dogfooding the rename tool during the mill-* migration:
 
 1. **Batch rename feature returns 0 affected files and doesn't execute**
-2. **Cargo.toml feature definitions not updated during renames**
 
-Both issues prevented efficient bulk renaming of multiple crates.
+**Note:** Issue #2 (Cargo.toml feature definitions) was initially reported but investigation proved it's NOT a bug - feature refs ARE being updated correctly by existing code.
 
 ---
 
@@ -159,134 +158,42 @@ Fell back to individual renames (which work perfectly):
 
 ## Issue #2: Cargo.toml Feature Definitions Not Updated
 
-### What Happened
+### Status: ✅ FALSE ALARM - Already Fixed
 
-After successfully renaming `codebuddy-config → mill-config`, the build failed:
+**Investigation Result:** This is NOT a bug. Feature refs ARE being updated correctly.
 
-```
-error: failed to load manifest for workspace member `/workspace/crates/codebuddy-plugin-system`
-```
+### What Actually Happened
 
-### Root Cause
+During the `codebuddy-config → mill-config` rename, feature definitions **were updated correctly**:
 
-The rename tool updated the dependency declaration but **not the feature definition**:
+**Git Diff (commit eab9c9c8):**
+```diff
+ [dependencies]
+-codebuddy-config = { path = "../codebuddy-config", optional = true }
++mill-config = { path = "../mill-config", optional = true }
 
-**File:** `crates/codebuddy-plugin-system/Cargo.toml`
-
-```toml
-[dependencies]
-mill-config = { path = "../mill-config", optional = true }  # ← UPDATED ✅
-
-[features]
-default = ["runtime"]
-runtime = ["codebuddy-foundation", "codebuddy-config", "codebuddy-ast"]  # ← NOT UPDATED ❌
-#                                    ^^^^^^^^^^^^^^^^
-#                                    Old reference still here!
+ [features]
+-runtime = ["codebuddy-foundation", "codebuddy-config", "codebuddy-ast"]
+-mcp-proxy = ["runtime", "codebuddy-config/mcp-proxy"]
++runtime = ["codebuddy-foundation", "mill-config", "codebuddy-ast"]
++mcp-proxy = ["runtime", "mill-config/mcp-proxy"]
 ```
 
-### Manual Fix Applied
+Both the dependency declaration AND feature refs were updated in the same operation.
 
-```toml
-runtime = ["codebuddy-foundation", "mill-config", "codebuddy-ast"]  # ← Fixed
-```
+### Why This Works
 
-Build passed after this fix.
+Feature flag updates were fixed in previous sessions:
+- **Oct 19** (commit 4c429304): Added feature update logic to `manifest.rs` lines 196-219
+- **Oct 21** (commit b296b6fb): Additional feature flag fixes in `cargo_util.rs`
 
-### Why This Matters
+The `rename_dependency()` function already handles:
+- ✅ Exact matches: `"codebuddy-config"` → `"mill-config"`
+- ✅ Feature references: `"codebuddy-config/feature"` → `"mill-config/feature"`
 
-**Cargo.toml feature definitions** are strings that reference dependency names:
-- `dependencies` section: `mill-config = { path = "..." }` ← Updated
-- `features` section: `runtime = ["mill-config"]` ← **Not Updated**
+### Conclusion
 
-The rename tool should update **both** locations.
-
-### Expected Behavior
-
-When renaming a crate, the tool should update:
-1. ✅ Dependency declarations in `[dependencies]`
-2. ✅ Dependency declarations in `[dev-dependencies]`
-3. ✅ Path dependencies
-4. ❌ **Feature definitions that reference the crate name**
-
-### Pattern to Match
-
-**In `[features]` sections:**
-```toml
-feature-name = ["old-crate-name", "other-dep"]
-#               ^^^^^^^^^^^^^^^^
-#               String literal containing crate name
-```
-
-**After rename:**
-```toml
-feature-name = ["new-crate-name", "other-dep"]
-```
-
-### Where to Fix
-
-**Rust Plugin:** `crates/cb-lang-rust/src/manifest.rs`
-
-The `rename_dependency()` function updates:
-- ✅ `[dependencies]` table entries
-- ✅ `[dev-dependencies]` table entries
-- ✅ `[build-dependencies]` table entries
-- ❌ **`[features]` table string arrays**
-
-**Suggested Fix:**
-
-Add feature reference updates to `manifest.rs`:
-
-```rust
-// After updating [dependencies] section
-// Also update [features] section
-
-if let Some(features_table) = manifest.as_table_mut().get_mut("features") {
-    if let Some(features) = features_table.as_table_mut() {
-        for (_feature_name, feature_value) in features.iter_mut() {
-            if let Some(deps_array) = feature_value.as_array_mut() {
-                for dep in deps_array.iter_mut() {
-                    if let Some(dep_str) = dep.as_str() {
-                        // Handle feature/dependency syntax: "crate-name/feature"
-                        if dep_str == old_name || dep_str.starts_with(&format!("{}/", old_name)) {
-                            let new_dep = dep_str.replace(old_name, new_name);
-                            *dep = toml_edit::value(new_dep);
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-```
-
-### Test Case
-
-**Before rename:**
-```toml
-[dependencies]
-codebuddy-config = { path = "../codebuddy-config", optional = true }
-
-[features]
-runtime = ["codebuddy-foundation", "codebuddy-config", "codebuddy-ast"]
-mcp-proxy = ["runtime", "codebuddy-config/mcp-proxy"]
-```
-
-**After rename (`codebuddy-config → mill-config`):**
-```toml
-[dependencies]
-mill-config = { path = "../mill-config", optional = true }
-
-[features]
-runtime = ["codebuddy-foundation", "mill-config", "codebuddy-ast"]  # ← Should update
-mcp-proxy = ["runtime", "mill-config/mcp-proxy"]  # ← Should update (with slash)
-```
-
-### Coverage
-
-This affects:
-- **Optional dependencies** used in feature definitions
-- **Feature dependencies** (e.g., `"crate/feature"` syntax)
-- **Transitive feature dependencies**
+No fix needed. This issue can be CLOSED.
 
 ---
 
@@ -298,10 +205,9 @@ This affects:
 - **Workaround:** Use individual renames (works fine, just slower)
 
 ### Issue #2: Feature Refs
-- **Severity:** High
-- **Impact:** Build breaks after rename, requires manual fix
-- **Workaround:** Manually search and fix feature definitions
-- **Scope:** Affects any crate with optional deps used in features
+- **Severity:** N/A (False Alarm)
+- **Status:** ✅ Already Working Correctly
+- **No Action Needed:** Feature refs ARE being updated by existing code (commits 4c429304, b296b6fb)
 
 ---
 
@@ -324,17 +230,7 @@ This affects:
 
 ### For Issue #2 (Feature Refs):
 
-1. Create test crate with optional dependency:
-   ```toml
-   [dependencies]
-   foo = { path = "../foo", optional = true }
-
-   [features]
-   default = ["foo"]
-   ```
-2. Rename `foo → bar`
-3. **Expected:** Both `[dependencies]` and `[features]` updated
-4. **Actual:** Only `[dependencies]` updated, build breaks
+**N/A - This is not a reproducible bug.** Feature refs ARE updated correctly. See Investigation section above for proof via git diff.
 
 ---
 
@@ -361,33 +257,11 @@ This affects:
 
 ### Fix #2: Feature Refs Update
 
-1. **Extend `manifest.rs`** `rename_dependency()`:
-   - Add `[features]` section scanning
-   - Update string literals matching old crate name
-   - Handle `"crate/feature"` syntax
+**NO FIX NEEDED** - Feature refs are already working correctly. Code exists at:
+- `crates/cb-lang-rust/src/manifest.rs` lines 196-219
+- `crates/cb-lang-rust/src/workspace/cargo_util.rs` (additional handling)
 
-2. **Add unit test:**
-   ```rust
-   #[test]
-   fn test_rename_updates_feature_definitions() {
-       let content = r#"
-   [dependencies]
-   foo = { path = "../foo", optional = true }
-
-   [features]
-   default = ["foo"]
-   with-feature = ["foo/bar"]
-   "#;
-
-       let result = rename_dependency(content, "foo", "baz", None);
-       assert!(result.contains(r#"default = ["baz"]"#));
-       assert!(result.contains(r#"with-feature = ["baz/bar"]"#));
-   }
-   ```
-
-3. **Test on real crates:**
-   - Test with `codebuddy-plugin-system/Cargo.toml`
-   - Verify all feature refs updated
+Unit test `test_rename_dependency_updates_features` already validates this behavior.
 
 ---
 
