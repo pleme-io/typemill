@@ -1,4 +1,4 @@
-use cb_server::utils::{create_paginated_response, SimdJsonParser};
+use mill_server::utils::{ create_paginated_response , SimdJsonParser };
 use codebuddy_foundation::core::model::mcp::{McpRequest, McpResponse};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use serde_json::{json, Value};

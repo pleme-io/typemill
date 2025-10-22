@@ -10,8 +10,8 @@ use axum::{
     routing::get,
     Router,
 };
-use cb_server::handlers::plugin_dispatcher::PluginDispatcher;
-use cb_server::workspaces::WorkspaceManager;
+use mill_server::handlers::plugin_dispatcher::PluginDispatcher;
+use mill_server::workspaces::WorkspaceManager;
 use cb_transport::SessionInfo;
 use std::sync::Arc;
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader};

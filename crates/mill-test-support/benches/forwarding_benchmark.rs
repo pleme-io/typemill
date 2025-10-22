@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use cb_server::helpers::lsp::forward_lsp_request;
-use cb_server::services::lsp::{LspRequest, LspResponse, LspService, LspServiceResult};
+use mill_server::helpers::lsp::forward_lsp_request;
+use mill_server::services::lsp::{ LspRequest , LspResponse , LspService , LspServiceResult };
 use codebuddy_foundation::core::model::lsp::{
     CompletionItem, CompletionList, Diagnostic, DiagnosticSeverity, DocumentSymbol, Hover,
     Location, Position, Range, SymbolKind, TextEdit, WorkspaceEdit,
@@ -40,7 +40,7 @@ impl LspService for MockLspService {
     async fn request(&self, method: &str, _params: Value) -> LspServiceResult<Value> {
         let responses = self.responses.read().unwrap();
         responses.get(method).cloned().ok_or_else(|| {
-            cb_server::error::ServerError::runtime(format!("Method not found: {}", method))
+            mill_server::error::ServerError::runtime(format!("Method not found: {}", method))
         })
     }
 

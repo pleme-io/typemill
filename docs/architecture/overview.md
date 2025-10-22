@@ -17,7 +17,7 @@ graph TD
     end
 
     subgraph Core
-        B[cb-server]
+        B[mill-server]
         C[cb-core]
         D[cb-types]
         E[cb-protocol]
@@ -61,7 +61,7 @@ graph TD
 - **`cb-types`**: Defines the fundamental data structures used across the entire application, such as `Symbol`, `SourceLocation`, and `FileEdit`. It has no dependencies on other workspace crates.
 - **`cb-protocol`**: Contains the definitions for the Model Context Protocol (MCP), including request and response formats. Depends only on `cb-types`.
 - **`cb-core`**: Provides application-wide services like configuration management, logging, and error handling. Depends on `cb-types`.
-- **`cb-server`**: The central orchestration crate that wires all services together. It initializes the application state and manages the main request loop.
+- **`mill-server`**: The central orchestration crate that wires all services together. It initializes the application state and manages the main request loop.
 
 ### Service Layer
 
@@ -131,7 +131,7 @@ The "Foundations First" architecture unifies all 44 MCP tools through a consiste
 
 ### The Unified `ToolHandler` Trait
 
-All tool handlers implement a single, consistent interface defined in `crates/cb-server/src/handlers/tools/mod.rs`:
+All tool handlers implement a single, consistent interface defined in `../../crates/mill-server/src/handlers/tools/mod.rs`:
 
 ```rust
 #[async_trait]
@@ -172,7 +172,7 @@ This provides handlers with access to:
 
 ### Macro-Based Registration
 
-The system uses declarative macros for clean, maintainable handler registration (defined in `crates/cb-server/src/handlers/macros.rs`):
+The system uses declarative macros for clean, maintainable handler registration (defined in `../../crates/mill-server/src/handlers/macros.rs`):
 
 ```rust
 register_handlers_with_logging!(registry, {
@@ -369,7 +369,7 @@ graph TD
 The architecture maintains full backward compatibility through the `compat` module:
 
 ```rust
-// crates/cb-server/src/handlers/compat.rs
+// ../../crates/mill-server/src/handlers/compat.rs
 pub use crate::handlers::tools::ToolHandler as LegacyToolHandler;
 pub use crate::handlers::tools::ToolHandlerContext as ToolContext;
 ```
@@ -378,7 +378,7 @@ Legacy handlers can be gradually migrated without breaking existing functionalit
 
 ### Testing Strategy
 
-**Safety Net Test (crates/cb-server/tests/tool_registration_test.rs):**
+**Safety Net Test (../../crates/mill-server/tests/tool_registration_test.rs):**
 
 ```rust
 #[tokio::test]

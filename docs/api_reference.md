@@ -1478,7 +1478,7 @@ Analyze Rust module dependencies to determine which external crates, workspace d
 codebuddy tool analyze.module_dependencies '{
   "target": {
     "kind": "file",
-    "path": "crates/cb-server/src/handlers/analysis_handler.rs"
+    "path": "../crates/mill-server/src/handlers/analysis_handler.rs"
   },
   "options": {
     "include_dev_dependencies": false
@@ -2359,7 +2359,7 @@ Update the workspace members list in the root manifest file (Cargo.toml, package
   "member_path": "crates/new-package",
   "workspace_manifest": "Cargo.toml",
   "members": [
-    "crates/cb-server",
+    "../crates/mill-server",
     "crates/cb-types",
     "crates/new-package"
   ],
@@ -2498,7 +2498,7 @@ codebuddy tool rename_directory '{
     "new_prefix": "cb_types::protocol",
     "imports_updated": 42,
     "files_modified": 8,
-    "modified_files": ["crates/cb-server/src/main.rs", ...]
+    "modified_files": ["../crates/mill-server/src/main.rs", ...]
   },
   "next_steps": "📝 Next step: Add 'pub mod protocol;' to cb_types/src/lib.rs to make the consolidated module public",
   "note": "Consolidation complete! All imports have been automatically updated from 'cb_protocol' to 'cb_types::protocol'."

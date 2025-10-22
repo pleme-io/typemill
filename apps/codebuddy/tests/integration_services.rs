@@ -10,9 +10,9 @@
 // Force linker to include plugin-bundle for inventory collection
 extern crate codebuddy_plugin_bundle;
 
-use cb_server::handlers::AppState;
-use cb_server::services::{DefaultAstService, FileService, LockManager, OperationQueue};
-use cb_server::workspaces::WorkspaceManager;
+use mill_server::handlers::AppState;
+use mill_server::services::{ DefaultAstService , FileService , LockManager , OperationQueue };
+use mill_server::workspaces::WorkspaceManager;
 use codebuddy_ast::AstCache;
 use codebuddy_foundation::protocol::AstService;
 use codebuddy_plugin_system::PluginManager;
@@ -134,7 +134,7 @@ export { main, oldName };
 /// Create application state for testing with the given project root
 async fn create_test_app_state(project_root: PathBuf) -> Arc<AppState> {
     let ast_cache = Arc::new(AstCache::new());
-    let plugin_registry = cb_server::services::registry_builder::build_language_plugin_registry();
+    let plugin_registry = mill_server::services::registry_builder::build_language_plugin_registry();
     let ast_service: Arc<dyn AstService> = Arc::new(DefaultAstService::new(
         ast_cache.clone(),
         plugin_registry.clone(),
@@ -150,9 +150,9 @@ async fn create_test_app_state(project_root: PathBuf) -> Arc<AppState> {
         &config,
         plugin_registry.clone(),
     ));
-    let planner = cb_server::services::planner::DefaultPlanner::new();
+    let planner = mill_server::services::planner::DefaultPlanner::new();
     let plugin_manager = Arc::new(PluginManager::new());
-    let workflow_executor = cb_server::services::workflow_executor::DefaultWorkflowExecutor::new(
+    let workflow_executor = mill_server::services::workflow_executor::DefaultWorkflowExecutor::new(
         plugin_manager.clone(),
     );
     let workspace_manager = Arc::new(WorkspaceManager::new());
@@ -229,7 +229,7 @@ async fn test_cache_performance_improvement() {
 
 #[tokio::test]
 async fn test_workspace_edit_in_process() {
-    use cb_server::test_helpers::create_test_dispatcher_with_root;
+    use mill_server::test_helpers::create_test_dispatcher_with_root;
     use cb_transport::SessionInfo;
     use codebuddy_foundation::core::model::mcp::{McpMessage, McpRequest};
     use std::time::Instant;

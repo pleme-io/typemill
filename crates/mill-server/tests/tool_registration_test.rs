@@ -1,4 +1,4 @@
-use cb_server::handlers::plugin_dispatcher::create_test_dispatcher;
+use mill_server::handlers::plugin_dispatcher::create_test_dispatcher;
 
 #[tokio::test]
 async fn test_all_35_public_tools_are_registered() {

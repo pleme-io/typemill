@@ -166,7 +166,7 @@ pub type ToolContext = ToolHandlerContext;
 /// # Example
 ///
 /// ```text
-/// use cb_server::handlers::tools::{ToolHandler, ToolHandlerContext};
+/// use mill_server::handlers::tools::{ToolHandler, ToolHandlerContext};
 /// use codebuddy_foundation::core::model::mcp::ToolCall;
 /// use async_trait::async_trait;
 ///

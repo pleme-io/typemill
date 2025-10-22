@@ -33,7 +33,7 @@ To fix this architectural violation, we will decouple the services layer from th
 - Removed all language plugin dependencies from `cb-handlers/Cargo.toml`
 - Removed `lang-rust` and `lang-typescript` features
 - Handlers now depend only on `cb-plugin-api` for trait objects
-- Updated `cb-server/Cargo.toml` to remove handler language feature references
+- Updated `mill-server/Cargo.toml` to remove handler language feature references
 
 **Result:** Zero language dependencies in handler layer ✅
 

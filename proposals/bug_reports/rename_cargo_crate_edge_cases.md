@@ -105,7 +105,7 @@ codebuddy tool rename '{
 **Example from real rename:**
 ```toml
 # apps/codebuddy/Cargo.toml:77
-mcp-proxy = ["cb-server/mcp-proxy", "cb-client/mcp-proxy", ...]
+mcp-proxy = ["mill-server/mcp-proxy", "cb-client/mcp-proxy", ...]
 #                                    ^^^^^^^^^^^^^^^^^^^^^
 #                                    Should become mill-client/mcp-proxy
 ```

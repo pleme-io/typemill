@@ -138,7 +138,7 @@ find /workspace -type f \( -name "*.rs" -o -name "*.toml" \) ! -path "*/target/*
 - `/workspace/crates/cb-transport/src/stdio.rs`
 - `/workspace/apps/codebuddy/src/cli.rs`
 - `/workspace/crates/cb-services/src/services/file_service/rename.rs`
-- `/workspace/crates/cb-server/src/main.rs`
+- `/workspace/crates/mill-server/src/main.rs`
 - `/workspace/crates/cb-test-support/benches/forwarding_benchmark.rs`
 - `/workspace/crates/cb-client/src/commands/doctor.rs`
 - `/workspace/crates/cb-services/src/services/move_service/mod.rs`
@@ -206,7 +206,7 @@ The automated sed replacements added new entries without checking for existing o
 **Files Affected**: 11 Cargo.toml files
 - mill-lsp, cb-services, cb-handlers, cb-client
 - cb-lang-typescript, cb-lang-rust, cb-test-support
-- cb-transport, cb-server, tests/e2e, apps/codebuddy
+- cb-transport, mill-server, tests/e2e, apps/codebuddy
 
 **Manual Fix Required**:
 ```bash

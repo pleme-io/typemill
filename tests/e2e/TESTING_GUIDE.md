@@ -371,22 +371,22 @@ The codebase has **two server binaries**:
    - Provides commands: `start`, `stop`, `status`, `serve`, etc.
    - **Not suitable for parallel tests** due to lock conflicts
 
-2. **`cb-server`** (crates/cb-server) - Core MCP server
+2. **`mill-server`** (../../crates/mill-server) - Core MCP server
    - No PID lock file
    - Can run multiple instances in parallel
    - **Used by TestClient for integration tests**
    - Automatically built by cargo when running tests
 
-### Why TestClient Uses `cb-server`
+### Why TestClient Uses `mill-server`
 
-The `TestClient` (in `../../crates/mill-test-support/src/harness/client.rs`) spawns `cb-server` instead of `codebuddy` to allow tests to run in parallel without PID lock conflicts. Each test gets its own isolated server instance.
+The `TestClient` (in `../../crates/mill-test-support/src/harness/client.rs`) spawns `mill-server` instead of `codebuddy` to allow tests to run in parallel without PID lock conflicts. Each test gets its own isolated server instance.
 
-**Important**: `cb-server` is **always available** when running tests because:
+**Important**: `mill-server` is **always available** when running tests because:
 - It's part of the workspace dependencies
 - Cargo automatically builds it when running `cargo test`
 - No additional setup required
 
-If you see test failures about "server already running", it means the test is incorrectly trying to use `codebuddy` instead of `cb-server`.
+If you see test failures about "server already running", it means the test is incorrectly trying to use `codebuddy` instead of `mill-server`.
 
 ## Test Organization
 

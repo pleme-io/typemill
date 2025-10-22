@@ -10,7 +10,7 @@ keywords = ["mcp", "lsp", "ai", "coding", "assistant"]
 categories = ["development-tools", "command-line-utilities"]
 
 [dependencies]
-cb-server = { path = "../../crates/cb-server", default-features = false }
+mill-server = { path = "../../crates/mill-server", default-features = false }
 codebuddy-foundation = { path = "../../crates/codebuddy-foundation" }
 cb-transport = { path = "../../crates/cb-transport", default-features = false }
 cb-plugin-api = { path = "../../crates/cb-plugin-api" }
@@ -37,7 +37,7 @@ codebuddy-ast = { path = "../../crates/codebuddy-ast", default-features = false 
 mill-client = { path = "../../crates/mill-client" }
 
 [dev-dependencies]
-cb-server = { path = "../../crates/cb-server", default-features = false, features = ["test-helpers"] }
+mill-server = { path = "../../crates/mill-server", default-features = false, features = ["test-helpers"] }
 mill-lsp = { path = "../../crates/mill-lsp" }
 cb-plugin-api = { workspace = true }
 tokio = { workspace = true }
@@ -69,12 +69,12 @@ mill-handlers = { path = "../../crates/mill-handlers", default-features = false,
 
 [features]
 default = ["lang-rust", "lang-typescript", "lang-markdown", "lang-toml", "lang-yaml"]
-lang-rust = ["cb-server/lang-rust", "codebuddy-plugin-bundle/lang-rust", "codebuddy-ast/lang-rust", "codebuddy-plugin-system/lang-rust", "cb-transport/lang-rust"]
-lang-typescript = ["cb-server/lang-typescript", "codebuddy-plugin-bundle/lang-typescript", "codebuddy-ast/lang-typescript", "codebuddy-plugin-system/lang-typescript", "cb-transport/lang-typescript"]
-lang-markdown = ["cb-server/lang-markdown", "codebuddy-plugin-bundle/lang-markdown", "codebuddy-ast/lang-markdown", "codebuddy-plugin-system/lang-markdown", "cb-transport/lang-markdown"]
-lang-toml = ["cb-server/lang-toml", "codebuddy-plugin-bundle/lang-toml"]
-lang-yaml = ["cb-server/lang-yaml", "codebuddy-plugin-bundle/lang-yaml"]
-mcp-proxy = ["cb-server/mcp-proxy", "mill-client/mcp-proxy", "codebuddy-foundation/mcp-proxy", "codebuddy-config/mcp-proxy"]
+lang-rust = ["mill-server/lang-rust", "codebuddy-plugin-bundle/lang-rust", "codebuddy-ast/lang-rust", "codebuddy-plugin-system/lang-rust", "cb-transport/lang-rust"]
+lang-typescript = ["mill-server/lang-typescript", "codebuddy-plugin-bundle/lang-typescript", "codebuddy-ast/lang-typescript", "codebuddy-plugin-system/lang-typescript", "cb-transport/lang-typescript"]
+lang-markdown = ["mill-server/lang-markdown", "codebuddy-plugin-bundle/lang-markdown", "codebuddy-ast/lang-markdown", "codebuddy-plugin-system/lang-markdown", "cb-transport/lang-markdown"]
+lang-toml = ["mill-server/lang-toml", "codebuddy-plugin-bundle/lang-toml"]
+lang-yaml = ["mill-server/lang-yaml", "codebuddy-plugin-bundle/lang-yaml"]
+mcp-proxy = ["mill-server/mcp-proxy", "mill-client/mcp-proxy", "codebuddy-foundation/mcp-proxy", "codebuddy-config/mcp-proxy"]
 
 # Platform-specific dependencies for process management
 [target.'cfg(unix)'.dependencies]

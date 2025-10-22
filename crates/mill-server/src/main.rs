@@ -49,7 +49,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let plugin_registry = Arc::new(plugin_registry);
 
     // Create dispatcher using shared library function (reduces duplication)
-    let dispatcher = cb_server::create_dispatcher_with_workspace(
+    let dispatcher = mill_server::create_dispatcher_with_workspace(
         config.clone(),
         workspace_manager,
         plugin_registry,
@@ -75,7 +75,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Start admin server on a separate port
             let admin_port = config.server.port + 1000; // Admin on port+1000
             let admin_config = config.clone();
-            let admin_workspace_manager = Arc::new(cb_server::workspaces::WorkspaceManager::new());
+            let admin_workspace_manager = Arc::new(mill_server::workspaces::WorkspaceManager::new());
             tokio::spawn(async move {
                 if let Err(e) = cb_transport::start_admin_server(
                     admin_port,

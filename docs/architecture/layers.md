@@ -158,7 +158,7 @@ Layers are organized from foundational (bottom) to application (top). Each layer
 **Purpose:** Server, client, transport, and CLI entry points
 
 **Crates:**
-- `cb-server` / `codebuddy-server` (MCP server orchestration)
+- `mill-server` / `codebuddy-server` (MCP server orchestration)
 - `mill-client` / `codebuddy-client` (CLI client, WebSocket client)
 - `cb-transport` / `codebuddy-transport` (stdio, WebSocket protocols)
 - `codebuddy-auth` (authentication)

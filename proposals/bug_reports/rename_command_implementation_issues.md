@@ -219,7 +219,7 @@ Files:
 - `crates/cb-services/Cargo.toml`
 - `../../crates/mill-client/Cargo.toml`
 - `crates/cb-transport/Cargo.toml`
-- `crates/cb-server/Cargo.toml`
+- `../../crates/mill-server/Cargo.toml`
 - `apps/codebuddy/Cargo.toml`
 
 ### Manual Fix Applied

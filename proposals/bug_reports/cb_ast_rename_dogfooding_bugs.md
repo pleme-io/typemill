@@ -42,7 +42,7 @@ error: failed to load manifest for workspace member `/workspace/crates/codebuddy
 
 **Examples**:
 ```rust
-// crates/cb-server/src/lib.rs:64
+// ../../crates/mill-server/src/lib.rs:64
 let cache_settings = cb_ast::CacheSettings::from_config(  // ❌ NOT updated
 
 // ../../crates/mill-handlers/src/handlers/inline_handler.rs:106
@@ -54,7 +54,7 @@ let parsed: cb_ast::package_extractor::ExtractModuleToPackageParams =  // ❌ NO
 
 **Total affected**:
 - 60+ occurrences across 16 crates
-- Files: cb-server, cb-handlers, cb-services, codebuddy-plugin-system
+- Files: mill-server, cb-handlers, cb-services, codebuddy-plugin-system
 
 **Expected**: All qualified paths should have been updated by the rename plan
 

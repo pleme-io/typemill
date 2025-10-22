@@ -8,7 +8,7 @@ license = "MIT"
 [dependencies]
 codebuddy-foundation = { path = "../../crates/codebuddy-foundation" }
 cb-plugin-api = { path = "../../crates/cb-plugin-api" }
-cb-server = { path = "../../crates/cb-server", default-features = false, features = ["test-helpers"] }
+mill-server = { path = "../../crates/mill-server", default-features = false, features = ["test-helpers"] }
 tokio = { workspace = true }
 async-trait = { workspace = true }
 mockall = { workspace = true }

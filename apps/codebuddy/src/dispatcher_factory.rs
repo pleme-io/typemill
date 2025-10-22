@@ -3,8 +3,8 @@
 //! Eliminates duplication across CLI, stdio, WebSocket entry points
 
 use cb_plugin_api::PluginRegistry;
-use cb_server::handlers::plugin_dispatcher::PluginDispatcher;
-use cb_server::workspaces::WorkspaceManager;
+use mill_server::handlers::plugin_dispatcher::PluginDispatcher;
+use mill_server::workspaces::WorkspaceManager;
 use std::sync::Arc;
 
 /// Create and initialize a PluginDispatcher with all dependencies
@@ -30,7 +30,7 @@ pub async fn create_initialized_dispatcher_with_workspace(
     let plugin_registry = Arc::new(plugin_registry);
 
     // Create dispatcher using shared library function (reduces duplication)
-    let dispatcher = cb_server::create_dispatcher_with_workspace(
+    let dispatcher = mill_server::create_dispatcher_with_workspace(
         Arc::new(config),
         workspace_manager,
         plugin_registry,

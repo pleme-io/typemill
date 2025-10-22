@@ -99,9 +99,9 @@ Fast reference for test organization, execution, and best practices.
 | Binary | Location | PID Lock | Parallel Tests | Used By |
 |--------|----------|----------|----------------|---------|
 | `codebuddy` | `apps/codebuddy` | ✅ `/tmp/codebuddy.pid` | ❌ Conflicts | CLI, users |
-| `cb-server` | `crates/cb-server` | ❌ No lock | ✅ Isolated instances | TestClient, CI |
+| `mill-server` | `../crates/mill-server` | ❌ No lock | ✅ Isolated instances | TestClient, CI |
 
-**Important:** TestClient uses `cb-server` (not `codebuddy`) to enable parallel test execution.
+**Important:** TestClient uses `mill-server` (not `codebuddy`) to enable parallel test execution.
 
 ### Test Helpers
 
@@ -182,7 +182,7 @@ workspace/
 | LSP tests fail | LSP servers not installed | Install: `npm i -g typescript-language-server`, `rustup component add rust-analyzer` |
 | LSP servers not found | Not in PATH | Check: `which typescript-language-server` |
 | Smoke tests skip | Marked `#[ignore]` | Run: `cargo nextest run --ignored --features lsp-tests` |
-| Server already running | Using `codebuddy` not `cb-server` | TestClient should use `cb-server` |
+| Server already running | Using `codebuddy` not `mill-server` | TestClient should use `mill-server` |
 | Tests fail intermittently | Race conditions | Fix synchronization, avoid sleeps |
 
 ## Warning Signs

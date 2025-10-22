@@ -4,7 +4,7 @@ members = [
     "crates/codebuddy-plugin-system",
     "crates/mill-lsp",
     "crates/cb-services",
-    "crates/cb-server",
+    "crates/mill-server",
     "crates/cb-transport",
     "crates/cb-lang-common",
     "crates/cb-lang-rust",
