@@ -92,7 +92,7 @@ Renaming `integration-tests/` → `tests/e2e/`:
 
 ### 1.1 What Gets Updated
 
-**Source: `/workspace/crates/cb-services/src/services/reference_updater/mod.rs` (Lines 39-369)**
+**Source: `/workspace/crates/mill-services/src/services/reference_updater/mod.rs` (Lines 39-369)**
 
 The pipeline works as follows:
 
@@ -184,7 +184,7 @@ The TypeScript plugin delegates to `import_support::rewrite_imports_for_move_wit
 
 ### 1.4 Cargo.toml Manifest Updates
 
-**Source: `/workspace/crates/cb-services/src/services/move_service/planner.rs` (Lines 63-214)**
+**Source: `/workspace/crates/mill-services/src/services/move_service/planner.rs` (Lines 63-214)**
 
 For directory moves (when Cargo.toml detected), the system updates:
 
@@ -341,7 +341,7 @@ User initiates rename: src/utils.rs → src/helpers.rs
 
 ### 4.2 Affected File Detection
 
-**Rust Detector: `/workspace/crates/cb-services/src/services/reference_updater/detectors/rust.rs`**
+**Rust Detector: `/workspace/crates/mill-services/src/services/reference_updater/detectors/rust.rs`**
 
 For Rust file moves:
 1. Line 69-93: Extract crate name from Cargo.toml (or fallback to directory name)
@@ -353,7 +353,7 @@ For Rust file moves:
 - Scans ALL `.rs` files in project
 - Returns list of files that import from old path
 
-**Generic Detector: `/workspace/crates/cb-services/src/services/reference_updater/detectors/generic.rs`**
+**Generic Detector: `/workspace/crates/mill-services/src/services/reference_updater/detectors/generic.rs`**
 
 Fallback for non-Rust files:
 1. Line 13-62: For each file in project
@@ -513,9 +513,9 @@ extract_import_path(line)  // Regex-based: `from "path"` or `require('path')`
 ## 8. Key Files for Implementation
 
 ### Core Services
-- **Reference Updater**: `/workspace/crates/cb-services/src/services/reference_updater/mod.rs` (532 lines)
-- **Rust Detector**: `/workspace/crates/cb-services/src/services/reference_updater/detectors/rust.rs` (603 lines)
-- **Generic Detector**: `/workspace/crates/cb-services/src/services/reference_updater/detectors/generic.rs` (245 lines)
+- **Reference Updater**: `/workspace/crates/mill-services/src/services/reference_updater/mod.rs` (532 lines)
+- **Rust Detector**: `/workspace/crates/mill-services/src/services/reference_updater/detectors/rust.rs` (603 lines)
+- **Generic Detector**: `/workspace/crates/mill-services/src/services/reference_updater/detectors/generic.rs` (245 lines)
 
 ### Plugin Implementations
 - **Rust Plugin**: `/workspace/crates/cb-lang-rust/src/lib.rs` (1140 lines)
@@ -526,7 +526,7 @@ extract_import_path(line)  // Regex-based: `from "path"` or `require('path')`
 ### Move/Rename Handlers
 - **File Rename Handler**: `/workspace/crates/cb-handlers/src/handlers/rename_handler/file_rename.rs` (217 lines)
 - **File Move Handler**: `/workspace/crates/cb-handlers/src/handlers/move/file_move.rs` (91 lines)
-- **Move Planner**: `/workspace/crates/cb-services/src/services/move_service/planner.rs` (214 lines)
+- **Move Planner**: `/workspace/crates/mill-services/src/services/move_service/planner.rs` (214 lines)
 
 ---
 

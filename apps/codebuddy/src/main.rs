@@ -12,7 +12,7 @@ use axum::{
 };
 use mill_server::handlers::plugin_dispatcher::PluginDispatcher;
 use mill_server::workspaces::WorkspaceManager;
-use cb_transport::SessionInfo;
+use mill_transport::SessionInfo;
 use std::sync::Arc;
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tracing::{debug, error, info};
@@ -163,7 +163,7 @@ pub async fn run_websocket_server_with_port(port: u16) {
     let admin_workspace_manager = workspace_manager.clone();
     tokio::spawn(async move {
         if let Err(e) =
-            cb_transport::start_admin_server(admin_port, admin_config, admin_workspace_manager)
+            mill_transport::start_admin_server(admin_port, admin_config, admin_workspace_manager)
                 .await
         {
             error!(

@@ -1,5 +1,5 @@
 [package]
-name = "cb-transport"
+name = "mill-transport"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

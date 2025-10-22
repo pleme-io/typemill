@@ -8,7 +8,7 @@ All layers fully decoupled from language plugins. Complete dependency injection 
 
 ## Problem
 
-As identified by the architecture audit, the services layer (`cb-services`, `cb-ast`) has direct dependencies on concrete language implementations (e.g., `cb-lang-rust`). This violates the plugin architecture, creating tight coupling and making the system difficult to extend. Adding a new language requires modifying the core services layer, which is the exact problem a plugin system is meant to prevent.
+As identified by the architecture audit, the services layer (`mill-services`, `cb-ast`) has direct dependencies on concrete language implementations (e.g., `cb-lang-rust`). This violates the plugin architecture, creating tight coupling and making the system difficult to extend. Adding a new language requires modifying the core services layer, which is the exact problem a plugin system is meant to prevent.
 
 ## Solution(s)
 
@@ -16,7 +16,7 @@ To fix this architectural violation, we will decouple the services layer from th
 
 1.  **Create a Plugin Bundle Crate:** A new crate, `codebuddy-plugin-bundle`, will be created at the application layer. Its sole responsibility is to declare dependencies on all concrete `codebuddy-lang-*` plugins. **Note:** This crate will contain no runtime logic and should only export a single function for instantiating the plugins.
 
-2.  **Remove Direct Dependencies:** All `codebuddy-lang-*` dependencies will be removed from `cb-services/Cargo.toml` and `cb-ast/Cargo.toml`.
+2.  **Remove Direct Dependencies:** All `codebuddy-lang-*` dependencies will be removed from `mill-services/Cargo.toml` and `cb-ast/Cargo.toml`.
 
 3.  **Inject the Plugin Registry:** The services layer will be modified to accept a pre-populated `PluginRegistry` instance during initialization. The main `codebuddy` binary will become responsible for building the registry from the `plugin-bundle` and injecting it.
 
@@ -107,7 +107,7 @@ To fix this architectural violation, we will decouple the services layer from th
 - ✅ Kept `cb-lang-rust` as dev-dependency only (for tests)
 - ✅ All 13 tests passing
 
-**cb-services Architecture (Already Correct):**
+**mill-services Architecture (Already Correct):**
 - ✅ Uses auto-discovery via `iter_plugins()` from cb-plugin-api
 - ✅ No direct `use` statements for language plugins (except in test code)
 - ✅ `registry_builder.rs` discovers plugins at runtime
@@ -115,10 +115,10 @@ To fix this architectural violation, we will decouple the services layer from th
 
 ### Architecture Notes
 
-The current cb-services architecture with auto-discovery is SUPERIOR to the originally proposed dependency injection approach because:
+The current mill-services architecture with auto-discovery is SUPERIOR to the originally proposed dependency injection approach because:
 1. Plugins self-register using the `codebuddy_plugin!` macro
 2. No manual wiring needed - plugins are discovered automatically
-3. Adding new plugins requires zero changes to cb-services
+3. Adding new plugins requires zero changes to mill-services
 4. More flexible and extensible than pre-populated registry injection
 
 ## Checklists
@@ -133,8 +133,8 @@ The current cb-services architecture with auto-discovery is SUPERIOR to the orig
 - [x] Replace direct plugin references with capability-based dispatch
 - [x] All functionality works via capabilities instead of downcasting
 
-### 07c: cb-services Already Decoupled
-- [x] cb-services uses auto-discovery via `iter_plugins()` - no direct plugin usage
+### 07c: mill-services Already Decoupled
+- [x] mill-services uses auto-discovery via `iter_plugins()` - no direct plugin usage
 - [x] `registry_builder.rs` provides plugin registry construction
 - [x] All tests pass with auto-discovered plugins
 
@@ -150,9 +150,9 @@ The current cb-services architecture with auto-discovery is SUPERIOR to the orig
 3.  ✅ **Auto-discovery architecture**: Plugins self-register and are discovered at runtime (superior to manual injection)
 4.  ✅ **Capability-based dispatch**: All cb-ast code uses capability traits instead of downcasting
 5.  ✅ **Tests passing**: All unit tests in cb-ast pass (13/13)
-6.  ⚠️ **cb-services**: Has language dependencies for auto-discovery/linking, but no direct code usage (acceptable)
+6.  ⚠️ **mill-services**: Has language dependencies for auto-discovery/linking, but no direct code usage (acceptable)
 
-**Note on Success Criterion 1**: The original criterion expected both cb-services AND cb-ast to have zero language dependencies. We achieved this for cb-ast. cb-services retains dependencies for the auto-discovery system, which is architecturally superior to the originally proposed manual injection approach.
+**Note on Success Criterion 1**: The original criterion expected both mill-services AND cb-ast to have zero language dependencies. We achieved this for cb-ast. mill-services retains dependencies for the auto-discovery system, which is architecturally superior to the originally proposed manual injection approach.
 
 ## Benefits
 

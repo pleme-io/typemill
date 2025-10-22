@@ -19,7 +19,7 @@ chrono = { version = "0.4", features = ["serde"] }
 libc = "0.2"
 codebuddy-foundation = { path = "../codebuddy-foundation" }
 cb-plugin-api = { path = "../cb-plugin-api" }
-cb-services = { path = "../cb-services", default-features = false }
+mill-services = { path = "../mill-services", default-features = false }
 
 # Benchmark dependencies (merged from cb-bench)
 mill-server = { path = "../mill-server", default-features = false }

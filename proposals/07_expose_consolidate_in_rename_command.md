@@ -31,7 +31,7 @@ codebuddy tool rename_directory '{
 
 **B. FileService implementation (backend):**
 ```rust
-// In cb-services/src/services/file_service/cargo.rs
+// In mill-services/src/services/file_service/cargo.rs
 pub(super) async fn consolidate_rust_package(
     &self,
     old_package_path: &Path,

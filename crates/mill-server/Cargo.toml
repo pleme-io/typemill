@@ -7,9 +7,9 @@ license = "MIT"
 [dependencies]
 cb-plugin-api = { path = "../cb-plugin-api" }
 codebuddy-foundation = { path = "../codebuddy-foundation" }
-cb-transport = { path = "../cb-transport", default-features = false }
+mill-transport = { path = "../mill-transport", default-features = false }
 mill-lsp = { path = "../mill-lsp" }
-cb-services = { path = "../cb-services", default-features = false }
+mill-services = { path = "../mill-services", default-features = false }
 tokio = { workspace = true }
 async-trait = { workspace = true }
 futures-util = "0.3"
@@ -42,12 +42,12 @@ mill-handlers = { path = "../mill-handlers", default-features = false, features 
 [features]
 default = ["lang-rust", "lang-typescript", "lang-markdown"]
 # NOTE: cb-handlers no longer has language features - it uses dependency injection
-lang-rust = ["cb-services/lang-rust", "codebuddy-ast/lang-rust", "codebuddy-plugin-bundle/lang-rust", "codebuddy-plugin-system/lang-rust", "cb-transport/lang-rust"]
-lang-typescript = ["cb-services/lang-typescript", "codebuddy-ast/lang-typescript", "codebuddy-plugin-bundle/lang-typescript", "codebuddy-plugin-system/lang-typescript", "cb-transport/lang-typescript"]
-lang-markdown = ["cb-services/lang-markdown", "codebuddy-ast/lang-markdown", "codebuddy-plugin-bundle/lang-markdown", "codebuddy-plugin-system/lang-markdown", "cb-transport/lang-markdown"]
+lang-rust = ["mill-services/lang-rust", "codebuddy-ast/lang-rust", "codebuddy-plugin-bundle/lang-rust", "codebuddy-plugin-system/lang-rust", "mill-transport/lang-rust"]
+lang-typescript = ["mill-services/lang-typescript", "codebuddy-ast/lang-typescript", "codebuddy-plugin-bundle/lang-typescript", "codebuddy-plugin-system/lang-typescript", "mill-transport/lang-typescript"]
+lang-markdown = ["mill-services/lang-markdown", "codebuddy-ast/lang-markdown", "codebuddy-plugin-bundle/lang-markdown", "codebuddy-plugin-system/lang-markdown", "mill-transport/lang-markdown"]
 lang-toml = ["codebuddy-plugin-bundle/lang-toml"]
 lang-yaml = ["codebuddy-plugin-bundle/lang-yaml"]
-mcp-proxy = ["codebuddy-foundation/mcp-proxy", "codebuddy-config/mcp-proxy", "cb-services/mcp-proxy"]
+mcp-proxy = ["codebuddy-foundation/mcp-proxy", "codebuddy-config/mcp-proxy", "mill-services/mcp-proxy"]
 test-helpers = []
 
 [dev-dependencies]

@@ -118,7 +118,7 @@ lsp-types = "0.97"
 
 ### Import Update Logic
 
-**Location**: `/workspace/crates/cb-services/src/services/reference_updater/mod.rs`
+**Location**: `/workspace/crates/mill-services/src/services/reference_updater/mod.rs`
 
 **Hypothesis**: The import updater likely operates at the **file move level**, not at the **crate consolidation level**:
 
@@ -138,7 +138,7 @@ The updater may be looking for file path changes but missing the **crate name + 
 
 ### Dependency Merge Logic
 
-**Location**: Should be in `/workspace/crates/cb-services/src/services/file_service/consolidation.rs` or execution pipeline
+**Location**: Should be in `/workspace/crates/mill-services/src/services/file_service/consolidation.rs` or execution pipeline
 
 **Hypothesis**: The consolidation post-processing handles structural tasks but **doesn't parse or merge Cargo.toml dependencies**:
 
@@ -216,7 +216,7 @@ pub async fn execute_consolidation_post_processing(&self, metadata: &Consolidati
 
 ### Fix #1: Update Import Paths During Consolidation
 
-**Location**: `/workspace/crates/cb-services/src/services/reference_updater/mod.rs`
+**Location**: `/workspace/crates/mill-services/src/services/reference_updater/mod.rs`
 
 **Add consolidation-aware import updating**:
 ```rust
@@ -238,7 +238,7 @@ pub async fn update_imports_for_consolidation(
 
 ### Fix #2: Fix Self-Imports in Moved Code
 
-**Location**: `/workspace/crates/cb-services/src/services/file_service/consolidation.rs`
+**Location**: `/workspace/crates/mill-services/src/services/file_service/consolidation.rs`
 
 **Add new post-processing step**:
 ```rust
@@ -260,7 +260,7 @@ async fn fix_self_imports_in_consolidated_module(
 
 ### Fix #3: Merge Dependencies from Source Cargo.toml
 
-**Location**: `/workspace/crates/cb-services/src/services/file_service/consolidation.rs`
+**Location**: `/workspace/crates/mill-services/src/services/file_service/consolidation.rs`
 
 **Add dependency merge logic**:
 ```rust
@@ -318,9 +318,9 @@ async fn test_consolidation_leaves_workspace_buildable() {
 - 2 Cargo.toml files (missing dependency merges)
 
 **Code to modify**:
-- `/workspace/crates/cb-services/src/services/reference_updater/mod.rs` - Add consolidation import logic
-- `/workspace/crates/cb-services/src/services/file_service/consolidation.rs` - Add dependency merge + self-import fixes
-- `/workspace/crates/cb-services/src/services/file_service/edit_plan.rs` - Call new consolidation steps
+- `/workspace/crates/mill-services/src/services/reference_updater/mod.rs` - Add consolidation import logic
+- `/workspace/crates/mill-services/src/services/file_service/consolidation.rs` - Add dependency merge + self-import fixes
+- `/workspace/crates/mill-services/src/services/file_service/edit_plan.rs` - Call new consolidation steps
 
 **Tests to add**:
 - `/workspace/tests/e2e/tests/consolidation_imports_test.rs` - Test import updates

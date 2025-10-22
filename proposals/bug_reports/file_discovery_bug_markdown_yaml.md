@@ -36,7 +36,7 @@ The file discovery logic in the reference updater is not properly scanning for m
 **Evidence from logs:**
 
 ```rust
-// From crates/cb-services/src/services/move_service/planner.rs:273
+// From ../../crates/mill-services/src/services/move_service/planner.rs:273
 INFO Found files for extension, extension: "markdown", files_found: 0
 INFO Found files for extension, extension: "toml", files_found: 3  ✅
 INFO Found files for extension, extension: "yaml", files_found: 0
@@ -121,11 +121,11 @@ When `scope: "all"` is specified (the default), the rename planner should:
 
 ### Primary suspect: File discovery logic
 
-**Location**: `crates/cb-services/src/services/reference_updater/mod.rs`
+**Location**: `../../crates/mill-services/src/services/reference_updater/mod.rs`
 
 The `find_project_files()` function appears to have special handling for different file types, but markdown/YAML may not be included in the scan.
 
-**Log evidence points to**: `crates/cb-services/src/services/move_service/planner.rs:273`
+**Log evidence points to**: `../../crates/mill-services/src/services/move_service/planner.rs:273`
 
 This is where the scanner reports finding 0 markdown files despite them existing in the workspace.
 
@@ -133,7 +133,7 @@ This is where the scanner reports finding 0 markdown files despite them existing
 
 1. **File scanning**:
    ```rust
-   // crates/cb-services/src/services/reference_updater/mod.rs
+   // ../../crates/mill-services/src/services/reference_updater/mod.rs
    pub async fn find_project_files(
        project_root: &Path,
        old_path: &Path,
@@ -145,7 +145,7 @@ This is where the scanner reports finding 0 markdown files despite them existing
 
 2. **Extension-based scanning**:
    ```rust
-   // crates/cb-services/src/services/move_service/planner.rs:273
+   // ../../crates/mill-services/src/services/move_service/planner.rs:273
    // Logs: "Found files for extension, extension: \"markdown\", files_found: 0"
    ```
 

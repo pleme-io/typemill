@@ -62,7 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Some(Commands::Start) => {
             // Start stdio MCP server
             tracing::info!("Starting stdio MCP server");
-            if let Err(e) = cb_transport::start_stdio_server(dispatcher).await {
+            if let Err(e) = mill_transport::start_stdio_server(dispatcher).await {
                 tracing::error!(
                     error_category = "transport_error",
                     error = %e,
@@ -77,7 +77,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let admin_config = config.clone();
             let admin_workspace_manager = Arc::new(mill_server::workspaces::WorkspaceManager::new());
             tokio::spawn(async move {
-                if let Err(e) = cb_transport::start_admin_server(
+                if let Err(e) = mill_transport::start_admin_server(
                     admin_port,
                     admin_config,
                     admin_workspace_manager,
@@ -101,7 +101,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             );
             tracing::info!("Admin endpoints available on 127.0.0.1:{}", admin_port);
 
-            if let Err(e) = cb_transport::start_ws_server(config, dispatcher).await {
+            if let Err(e) = mill_transport::start_ws_server(config, dispatcher).await {
                 tracing::error!(
                     error_category = "transport_error",
                     error = %e,

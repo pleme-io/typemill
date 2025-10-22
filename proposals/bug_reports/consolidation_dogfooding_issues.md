@@ -120,14 +120,14 @@ codebuddy-foundation = { path = "../codebuddy-foundation" }
 ### Files Affected
 16+ `Cargo.toml` files across workspace:
 - `../../crates/mill-lsp/Cargo.toml`
-- `crates/cb-services/Cargo.toml`
+- `../../crates/mill-services/Cargo.toml`
 - `../../crates/mill-handlers/Cargo.toml`
 - `crates/cb-plugin-api/Cargo.toml`
 - `../../crates/mill-client/Cargo.toml`
 - `crates/cb-lang-*/Cargo.toml`
 - `../../crates/mill-test-support/Cargo.toml`
 - `crates/cb-ast/Cargo.toml`
-- `crates/cb-transport/Cargo.toml`
+- `../../crates/mill-transport/Cargo.toml`
 - `crates/codebuddy-plugin-system/Cargo.toml`
 - `../../crates/mill-server/Cargo.toml`
 - `apps/codebuddy/Cargo.toml`
@@ -318,7 +318,7 @@ cargo test --lib -p e2e dogfood_consolidate_cb_protocol -- --ignored --nocapture
 ## Proposed Fixes
 
 ### Fix #1 & #2: Correct Directory Structure
-**File**: `crates/cb-services/src/services/file_service/rename.rs`
+**File**: `../../crates/mill-services/src/services/file_service/rename.rs`
 
 ```rust
 // In consolidation logic:
@@ -372,7 +372,7 @@ pub fn update_workspace_dependencies(
 ```
 
 ### Fix #5: Auto-add Module Declaration
-**File**: `crates/cb-services/src/services/file_service/rename.rs`
+**File**: `../../crates/mill-services/src/services/file_service/rename.rs`
 
 ```rust
 if is_consolidation {

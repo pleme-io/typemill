@@ -134,8 +134,8 @@ use cb_core::config;  // → use codebuddy_core::config
 ### Files Affected
 
 - `../../crates/mill-client/src/commands/doctor.rs` (2 qualified paths)
-- `crates/cb-transport/src/stdio.rs` (1 qualified path)
-- `crates/cb-transport/src/ws.rs` (1 qualified path)
+- `../../crates/mill-transport/src/stdio.rs` (1 qualified path)
+- `../../crates/mill-transport/src/ws.rs` (1 qualified path)
 - Various other files (found via `grep -r "cb_core::"`)
 
 ### Root Cause
@@ -160,7 +160,7 @@ find crates/ apps/ tests/ -name "*.rs" -type f -exec sed -i 's/cb_core::/codebud
 
 **Enhance import updater to handle qualified paths:**
 
-Location: `crates/cb-services/src/services/reference_updater/detectors/`
+Location: `../../crates/mill-services/src/services/reference_updater/detectors/`
 
 Add a new detection pass for qualified paths in addition to use statements:
 
@@ -216,9 +216,9 @@ error: feature `mcp-proxy` includes `cb-core/mcp-proxy`, but `cb-core` is not a 
 Files:
 - `Cargo.toml` (workspace root)
 - `crates/codebuddy-plugin-system/Cargo.toml`
-- `crates/cb-services/Cargo.toml`
+- `../../crates/mill-services/Cargo.toml`
 - `../../crates/mill-client/Cargo.toml`
-- `crates/cb-transport/Cargo.toml`
+- `../../crates/mill-transport/Cargo.toml`
 - `../../crates/mill-server/Cargo.toml`
 - `apps/codebuddy/Cargo.toml`
 
@@ -234,7 +234,7 @@ sed -i 's/cb-core/codebuddy-core/g' crates/*/Cargo.toml apps/*/Cargo.toml
 
 ### Root Cause
 
-The rename tool's Cargo.toml updater (in `crates/cb-services/src/services/file_service/cargo.rs`) handles:
+The rename tool's Cargo.toml updater (in `../../crates/mill-services/src/services/file_service/cargo.rs`) handles:
 - ✅ Workspace member paths
 - ✅ Package name in renamed crate's Cargo.toml
 - ✅ Path dependencies
@@ -248,7 +248,7 @@ But misses:
 
 **Extend Cargo.toml updater to handle feature flags:**
 
-Location: `crates/cb-services/src/services/file_service/cargo.rs`
+Location: `../../crates/mill-services/src/services/file_service/cargo.rs`
 
 ```rust
 // Add new function

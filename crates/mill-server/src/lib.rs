@@ -19,7 +19,7 @@ pub use codebuddy_workspaces as workspaces;
 
 // Re-export from new crates for backward compatibility
 pub use mill_handlers::handlers;
-pub use cb_services::services;
+pub use mill_services::services;
 
 use mill_handlers::handlers::plugin_dispatcher::{ AppState , PluginDispatcher };
 use codebuddy_config::AppConfig;
@@ -75,9 +75,9 @@ pub async fn bootstrap(options: ServerOptions) -> ServerResult<ServerHandle> {
     let project_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
 
     // Use the app_state_factory to create services and app_state
-    use cb_services::services::app_state_factory::create_services_bundle;
+    use mill_services::services::app_state_factory::create_services_bundle;
     #[cfg(feature = "mcp-proxy")]
-    use cb_services::services::app_state_factory::register_mcp_proxy_if_enabled;
+    use mill_services::services::app_state_factory::register_mcp_proxy_if_enabled;
 
     let cache_settings = codebuddy_ast::CacheSettings::from_config(
         options.config.cache.enabled,
@@ -94,7 +94,7 @@ pub async fn bootstrap(options: ServerOptions) -> ServerResult<ServerHandle> {
     // Use injected plugin registry or build one
     let plugin_registry = options.plugin_registry.unwrap_or_else(|| {
         tracing::debug!("No plugin registry injected, building default registry");
-        cb_services::services::registry_builder::build_language_plugin_registry()
+        mill_services::services::registry_builder::build_language_plugin_registry()
     });
 
     let services = create_services_bundle(
@@ -156,7 +156,7 @@ impl ServerOptions {
     ///
     /// # Example
     /// ```rust
-    /// use cb_services::services::registry_builder::build_language_plugin_registry;
+    /// use mill_services::services::registry_builder::build_language_plugin_registry;
     ///
     /// let registry = build_language_plugin_registry();
     /// let options = ServerOptions::from_config(config)
@@ -187,9 +187,9 @@ pub async fn create_dispatcher_with_workspace(
     let project_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
 
     // Use the app_state_factory to create services
-    use cb_services::services::app_state_factory::create_services_bundle;
+    use mill_services::services::app_state_factory::create_services_bundle;
     #[cfg(feature = "mcp-proxy")]
-    use cb_services::services::app_state_factory::register_mcp_proxy_if_enabled;
+    use mill_services::services::app_state_factory::register_mcp_proxy_if_enabled;
 
     let cache_settings = codebuddy_ast::CacheSettings::from_config(
         config.cache.enabled,
@@ -216,7 +216,7 @@ pub async fn create_dispatcher_with_workspace(
     {
         let queue = services.operation_queue.clone();
         tokio::spawn(async move {
-            use cb_services::services::operation_queue::OperationType;
+            use mill_services::services::operation_queue::OperationType;
             use serde_json::Value;
             use std::path::Path;
             use tokio::fs;

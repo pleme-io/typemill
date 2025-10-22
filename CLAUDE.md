@@ -459,7 +459,7 @@ The server loads configuration from `.codebuddy/config.json` in the current work
 }
 ```
 
-### Service Layer (`crates/cb-services/`)
+### Service Layer (`crates/mill-services/`)
 
 - File service for file system operations
 - AST service for code parsing and analysis

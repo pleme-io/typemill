@@ -151,7 +151,7 @@ pub async fn create_test_dispatcher_with_root(
     project_root: std::path::PathBuf,
 ) -> PluginDispatcher {
     // Build language plugin registry (centralized)
-    let plugin_registry = cb_services::services::build_language_plugin_registry();
+    let plugin_registry = mill_services::services::build_language_plugin_registry();
 
     let ast_cache = Arc::new(AstCache::new());
     let ast_service = Arc::new(DefaultAstService::new(

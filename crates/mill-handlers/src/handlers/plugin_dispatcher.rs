@@ -18,9 +18,9 @@
 
 use crate::register_handlers_with_logging;
 use async_trait::async_trait;
-use cb_services::services::planner::Planner;
-use cb_services::services::workflow_executor::WorkflowExecutor;
-use cb_transport::McpDispatcher;
+use mill_services::services::planner::Planner;
+use mill_services::services::workflow_executor::WorkflowExecutor;
+use mill_transport::McpDispatcher;
 use codebuddy_foundation::core::model::mcp::{McpMessage, McpRequest, McpResponse, ToolCall};
 use codebuddy_foundation::protocol::AstService;
 use codebuddy_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
@@ -40,7 +40,7 @@ pub struct AppState {
     /// AST service for code analysis and parsing
     pub ast_service: Arc<dyn AstService>,
     /// File service for file operations with import awareness
-    pub file_service: Arc<cb_services::services::FileService>,
+    pub file_service: Arc<mill_services::services::FileService>,
     /// Planner service for generating workflows from intents
     pub planner: Arc<dyn Planner>,
     /// Workflow executor for running planned workflows
@@ -48,9 +48,9 @@ pub struct AppState {
     /// Project root directory
     pub project_root: std::path::PathBuf,
     /// Lock manager for file-level locking
-    pub lock_manager: Arc<cb_services::services::LockManager>,
+    pub lock_manager: Arc<mill_services::services::LockManager>,
     /// Operation queue for serializing file operations
-    pub operation_queue: Arc<cb_services::services::OperationQueue>,
+    pub operation_queue: Arc<mill_services::services::OperationQueue>,
     /// Server start time for uptime calculation
     pub start_time: Instant,
     /// Workspace manager for tracking connected containers
@@ -64,8 +64,8 @@ impl AppState {
     ///
     /// This provides direct access to MoveService without going through FileService.
     /// Handlers should use this factory method instead of calling FileService wrappers.
-    pub fn move_service(&self) -> cb_services::services::MoveService<'_> {
-        cb_services::services::MoveService::new(
+    pub fn move_service(&self) -> mill_services::services::MoveService<'_> {
+        mill_services::services::MoveService::new(
             &self.file_service.reference_updater,
             &self.language_plugins.inner,
             &self.project_root,
@@ -100,7 +100,7 @@ impl PluginDispatcher {
     }
 
     /// Returns a reference to the operation queue.
-    pub fn operation_queue(&self) -> Arc<cb_services::services::OperationQueue> {
+    pub fn operation_queue(&self) -> Arc<mill_services::services::OperationQueue> {
         self.app_state.operation_queue.clone()
     }
 
@@ -354,7 +354,7 @@ impl PluginDispatcher {
     pub async fn dispatch(
         &self,
         message: McpMessage,
-        session_info: &cb_transport::SessionInfo,
+        session_info: &mill_transport::SessionInfo,
     ) -> ServerResult<McpMessage> {
         self.initialize().await?;
 
@@ -376,7 +376,7 @@ impl PluginDispatcher {
     async fn handle_request(
         &self,
         request: McpRequest,
-        session_info: &cb_transport::SessionInfo,
+        session_info: &mill_transport::SessionInfo,
     ) -> ServerResult<McpMessage> {
         let response = match request.method.as_str() {
             "initialize" => self.handle_initialize(request.params).await?,
@@ -411,7 +411,7 @@ impl PluginDispatcher {
     async fn handle_tool_call(
         &self,
         params: Option<Value>,
-        session_info: &cb_transport::SessionInfo,
+        session_info: &mill_transport::SessionInfo,
     ) -> ServerResult<Value> {
         let start_time = Instant::now();
 
@@ -556,7 +556,7 @@ impl McpDispatcher for PluginDispatcher {
     async fn dispatch(
         &self,
         message: McpMessage,
-        session_info: &cb_transport::SessionInfo,
+        session_info: &mill_transport::SessionInfo,
     ) -> codebuddy_foundation::protocol::ApiResult<McpMessage> {
         self.dispatch(message, session_info)
             .await
@@ -574,9 +574,9 @@ pub async fn create_test_dispatcher() -> PluginDispatcher {
     let config = codebuddy_config::AppConfig::default();
 
     // Build plugin registry for tests
-    let plugin_registry = cb_services::services::registry_builder::build_language_plugin_registry();
+    let plugin_registry = mill_services::services::registry_builder::build_language_plugin_registry();
 
-    let services = cb_services::services::app_state_factory::create_services_bundle(
+    let services = mill_services::services::app_state_factory::create_services_bundle(
         &project_root,
         cache_settings,
         plugin_manager.clone(),
@@ -613,20 +613,20 @@ mod tests {
 
         // Build plugin registry for tests
         let plugin_registry =
-            cb_services::services::registry_builder::build_language_plugin_registry();
+            mill_services::services::registry_builder::build_language_plugin_registry();
         let language_plugins = crate::LanguagePluginRegistry::from_registry(plugin_registry);
         let ast_cache = Arc::new(codebuddy_ast::AstCache::new());
-        let ast_service = Arc::new(cb_services::services::DefaultAstService::new(
+        let ast_service = Arc::new(mill_services::services::DefaultAstService::new(
             ast_cache.clone(),
             language_plugins.inner.clone(),
         ));
         let project_root = temp_dir.path().to_path_buf();
-        let lock_manager = Arc::new(cb_services::services::LockManager::new());
-        let operation_queue = Arc::new(cb_services::services::OperationQueue::new(
+        let lock_manager = Arc::new(mill_services::services::LockManager::new());
+        let operation_queue = Arc::new(mill_services::services::OperationQueue::new(
             lock_manager.clone(),
         ));
         let config = codebuddy_config::AppConfig::default();
-        let file_service = Arc::new(cb_services::services::FileService::new(
+        let file_service = Arc::new(mill_services::services::FileService::new(
             project_root.clone(),
             ast_cache.clone(),
             lock_manager.clone(),
@@ -634,10 +634,10 @@ mod tests {
             &config,
             language_plugins.inner.clone(),
         ));
-        let planner = cb_services::services::planner::DefaultPlanner::new();
+        let planner = mill_services::services::planner::DefaultPlanner::new();
         let plugin_manager = Arc::new(PluginManager::new());
         let workflow_executor =
-            cb_services::services::workflow_executor::DefaultWorkflowExecutor::new(plugin_manager);
+            mill_services::services::workflow_executor::DefaultWorkflowExecutor::new(plugin_manager);
         let workspace_manager = Arc::new(WorkspaceManager::new());
 
         Arc::new(AppState {
@@ -677,7 +677,7 @@ mod tests {
             method: "tools/list".to_string(),
             params: None,
         };
-        let session_info = cb_transport::SessionInfo::default();
+        let session_info = mill_transport::SessionInfo::default();
 
         let response = dispatcher
             .dispatch(McpMessage::Request(request), &session_info)

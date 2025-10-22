@@ -44,9 +44,9 @@ The codebuddy codebase has undergone **comprehensive architectural refactoring**
 The system is organized into distinct layers with minimal cross-layer coupling:
 
 ```
-Presentation Layer (cb-transport, cb-handlers)
+Presentation Layer (mill-transport, cb-handlers)
           ↓
-Business Logic Layer (cb-services, cb-ast)
+Business Logic Layer (mill-services, cb-ast)
           ↓
 Data Access Layer (file-service, reference-updater)
           ↓
@@ -57,8 +57,8 @@ Infrastructure Layer (mill-lsp, cb-plugins, cb-core)
 
 | Layer | Crates | Responsibility |
 |-------|--------|-----------------|
-| **Presentation** | cb-transport, cb-handlers | MCP routing, HTTP/WebSocket handling, request/response marshaling |
-| **Business Logic** | cb-services, cb-ast | Refactoring planning, import management, code analysis |
+| **Presentation** | mill-transport, cb-handlers | MCP routing, HTTP/WebSocket handling, request/response marshaling |
+| **Business Logic** | mill-services, cb-ast | Refactoring planning, import management, code analysis |
 | **Data Access** | file-service, reference-updater | File I/O, import graph construction, caching |
 | **Infrastructure** | mill-lsp, cb-plugins, cb-core | LSP communication, language plugin dispatch, configuration |
 
@@ -67,14 +67,14 @@ Infrastructure Layer (mill-lsp, cb-plugins, cb-core)
 ## 2. Presentation Layer Analysis
 
 ### Location
-- `crates/cb-transport/` - Communication protocols
+- `../../crates/mill-transport/` - Communication protocols
 - `../../crates/mill-handlers/` - MCP tool handlers
 
 ### Strengths
 
 **1. Clean Routing Pattern**
 ```rust
-// File: crates/cb-transport/src/ws.rs:104-108
+// File: ../../crates/mill-transport/src/ws.rs:104-108
 async fn handle_connection(
     stream: TcpStream,
     config: Arc<AppConfig>,
@@ -87,7 +87,7 @@ async fn handle_connection(
 
 **2. Trait-Based Abstraction**
 ```rust
-// File: crates/cb-transport/src/lib.rs:22-30
+// File: ../../crates/mill-transport/src/lib.rs:22-30
 #[async_trait]
 pub trait McpDispatcher: Send + Sync {
     async fn dispatch(
@@ -163,7 +163,7 @@ if let RefactorPlan::DeletePlan(delete_plan) = &params.plan {
 }
 ```
 - **VIOLATION**: Complex plan conversion logic in presentation layer
-- Should be in business logic layer (cb-services)
+- Should be in business logic layer (mill-services)
 - **Severity: Medium** - Plan conversion is business logic, not routing
 
 ---
@@ -171,7 +171,7 @@ if let RefactorPlan::DeletePlan(delete_plan) = &params.plan {
 ## 3. Business Logic Layer Analysis
 
 ### Location
-- `crates/cb-services/src/services/`
+- `../../crates/mill-services/src/services/`
 - `crates/codebuddy-ast/src/`
 
 ### Strengths
@@ -229,7 +229,7 @@ Analysis Handler → AnalysisEngine → AstService → Language Plugins
 
 **1. FileService Mixing Responsibilities**
 ```rust
-// File: crates/cb-services/src/services/file_service/mod.rs:28-49
+// File: ../../crates/mill-services/src/services/file_service/mod.rs:28-49
 pub struct FileService {
     pub reference_updater: ReferenceUpdater,
     pub plugin_registry: Arc<cb_plugin_api::PluginRegistry>,
@@ -264,9 +264,9 @@ fn extract_workspace_edit(...) -> WorkspaceEdit { }
 fn get_checksums_from_plan(...) -> HashMap<String, String> { }
 ```
 - **VIOLATION**: Plan conversion logic buried in handler file
-- Should be in a dedicated `PlanConverter` service in cb-services
+- Should be in a dedicated `PlanConverter` service in mill-services
 - **Severity: Medium** - Hard to test and reuse
-- **Recommended Fix**: Extract to `crates/cb-services/src/services/plan_converter.rs`
+- **Recommended Fix**: Extract to `../../crates/mill-services/src/services/plan_converter.rs`
 
 **3. Navigation Handler Plugin Dispatch**
 ```rust
@@ -296,14 +296,14 @@ async fn handle_search_symbols(&self, context: &ToolHandlerContext, tool_call: &
 ## 4. Data Access Layer Analysis
 
 ### Location
-- `crates/cb-services/src/services/file_service/`
-- `crates/cb-services/src/services/reference_updater/`
+- `../../crates/mill-services/src/services/file_service/`
+- `../../crates/mill-services/src/services/reference_updater/`
 
 ### Strengths
 
 **1. Abstracted File Operations**
 ```rust
-// File: crates/cb-services/src/services/file_service/mod.rs:51-88
+// File: ../../crates/mill-services/src/services/file_service/mod.rs:51-88
 pub fn new(
     project_root: impl AsRef<Path>,
     ast_cache: Arc<AstCache>,
@@ -319,7 +319,7 @@ pub fn new(
 
 **2. Atomic Operations with Locks**
 ```rust
-// File: crates/cb-services/src/services/lock_manager.rs
+// File: ../../crates/mill-services/src/services/lock_manager.rs
 pub struct LockManager;
 
 impl LockManager {
@@ -333,7 +333,7 @@ impl LockManager {
 
 **3. Import Graph Construction Abstracted**
 ```rust
-// File: crates/cb-services/src/services/reference_updater/mod.rs
+// File: ../../crates/mill-services/src/services/reference_updater/mod.rs
 pub struct ReferenceUpdater {
     // Encapsulates import tracking
 }
@@ -390,7 +390,7 @@ if let Ok(mut file) = std::fs::OpenOptions::new()
 
 **3. GitService Integrated into FileService**
 ```rust
-// File: crates/cb-services/src/services/file_service/mod.rs:41-46
+// File: ../../crates/mill-services/src/services/file_service/mod.rs:41-46
 pub(super) git_service: GitService,
 pub(super) use_git: bool,
 ```
@@ -540,7 +540,7 @@ pub file_service: Arc<cb_services::services::FileService>,
 
 **2. Infrastructure in Business Logic**
 ```rust
-// File: crates/cb-services/src/services/file_service/mod.rs:29-44
+// File: ../../crates/mill-services/src/services/file_service/mod.rs:29-44
 pub struct FileService {
     pub reference_updater: ReferenceUpdater,  // Business logic
     pub plugin_registry: Arc<cb_plugin_api::PluginRegistry>,  // Infrastructure
@@ -582,7 +582,7 @@ pub async fn create_test_dispatcher() -> PluginDispatcher {
 
 **1. FileService Construction Requires Many Dependencies**
 ```rust
-// File: crates/cb-services/src/services/file_service/mod.rs:53-88
+// File: ../../crates/mill-services/src/services/file_service/mod.rs:53-88
 pub fn new(
     project_root: impl AsRef<Path>,
     ast_cache: Arc<AstCache>,
@@ -609,8 +609,8 @@ pub fn new(
 
 ### ✅ Medium Issues (ALL RESOLVED)
 1. ~~**Plan conversion logic in presentation layer**~~ ✅ **FIXED (Oct 19)**
-   - **Fix Applied:** Created `PlanConverter` service in cb-services
-   - **Location:** `/workspace/crates/cb-services/src/services/plan_converter.rs`
+   - **Fix Applied:** Created `PlanConverter` service in mill-services
+   - **Location:** `/workspace/crates/mill-services/src/services/plan_converter.rs`
    - **Result:** Business logic properly separated
 
 2. ~~**FileService mixes multiple concerns**~~ ✅ **FIXED (Oct 19-20)**
@@ -700,7 +700,7 @@ debug!("workspace_apply_handler: entry point");  // Structured logging
 
 ### ✅ Priority 2: Extract Service Classes (COMPLETE)
 ```rust
-// NEW: crates/cb-services/src/services/plan_converter.rs ✅
+// NEW: ../../crates/mill-services/src/services/plan_converter.rs ✅
 pub struct PlanConverter;
 
 impl PlanConverter {
@@ -713,7 +713,7 @@ impl PlanConverter {
     }
 }
 
-// NEW: crates/cb-services/src/services/checksum_validator.rs ✅
+// NEW: ../../crates/mill-services/src/services/checksum_validator.rs ✅
 pub struct ChecksumValidator {
     file_service: std::sync::Arc<FileService>,
 }
@@ -725,13 +725,13 @@ impl ChecksumValidator {
 }
 
 // ALSO CREATED ✅:
-// - DryRunGenerator (crates/cb-services/src/services/dry_run_generator.rs)
-// - PostApplyValidator (crates/cb-services/src/services/post_apply_validator.rs)
+// - DryRunGenerator (../../crates/mill-services/src/services/dry_run_generator.rs)
+// - PostApplyValidator (../../crates/mill-services/src/services/post_apply_validator.rs)
 ```
 
 ### ✅ Priority 3: Split FileService (COMPLETE)
 ```rust
-// REFACTORED: crates/cb-services/src/services/file_service/mod.rs ✅
+// REFACTORED: ../../crates/mill-services/src/services/file_service/mod.rs ✅
 pub struct FileService {
     pub reference_updater: ReferenceUpdater,
     pub plugin_registry: Arc<cb_plugin_api::PluginRegistry>,
@@ -752,7 +752,7 @@ impl FileService {
     }
 }
 
-// NEW: crates/cb-services/src/services/move_service/ ✅ (separate module)
+// NEW: ../../crates/mill-services/src/services/move_service/ ✅ (separate module)
 pub struct MoveService<'a> {
     reference_updater: &'a ReferenceUpdater,
     plugin_registry: &'a Arc<cb_plugin_api::PluginRegistry>,
@@ -762,11 +762,11 @@ pub struct MoveService<'a> {
 
 ### ✅ Priority 4: Plugin System Refactoring (COMPLETE)
 ```rust
-// BEFORE: cb-services had direct dependencies on cb-lang-rust
+// BEFORE: mill-services had direct dependencies on cb-lang-rust
 // Services contained Rust-specific logic (2,098 lines)
 
 // AFTER ✅: Language-agnostic plugin architecture
-// cb-services → cb-plugin-api → cb-lang-rust
+// mill-services → cb-plugin-api → cb-lang-rust
 // Zero production dependencies from services to language plugins
 
 // MOVED to cb-lang-rust plugin (Oct 20):

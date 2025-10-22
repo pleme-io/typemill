@@ -27,9 +27,9 @@ graph TD
         F[cb-ast]
         G[cb-plugins]
         H[mill-lsp]
-        I[cb-services]
+        I[mill-services]
         J[cb-handlers]
-        K[cb-transport]
+        K[mill-transport]
     end
 
     subgraph LanguagePlugins
@@ -68,9 +68,9 @@ graph TD
 - **`cb-ast`**: Handles Abstract Syntax Tree (AST) parsing, code analysis, and transformations. It's responsible for language intelligence features like finding unused imports and analyzing code complexity.
 - **`cb-plugins`**: Manages the language plugin system, including plugin registration, discovery, and dispatching requests to the appropriate language plugin.
 - **`mill-lsp`**: Provides the integration with the Language Server Protocol (LSP), managing LSP clients and translating between MCP and LSP.
-- **`cb-services`**: Contains business logic for file operations, import management, and other core services.
+- **`mill-services`**: Contains business logic for file operations, import management, and other core services.
 - **`mill-handlers`**: Defines the handlers for each MCP tool, mapping tool requests to the corresponding service implementations.
-- **`cb-transport`**: Implements the communication protocols, including WebSocket and stdio, for receiving MCP requests and sending responses.
+- **`mill-transport`**: Implements the communication protocols, including WebSocket and stdio, for receiving MCP requests and sending responses.
 
 ### Language Plugin Layer
 
@@ -447,7 +447,7 @@ pub struct AppState {
 **Architecture**: Self-registering plugins with link-time discovery.
 
 **Core Design**:
-- **Decoupling**: The core system (`cb-services`, `cb-core`, etc.) has no direct knowledge of specific language plugins.
+- **Decoupling**: The core system (`mill-services`, `cb-core`, etc.) has no direct knowledge of specific language plugins.
 - **Self-Registration**: Each language plugin crate is responsible for registering itself with the system.
 - **Link-Time Discovery**: The main server binary discovers all available plugins at link time, meaning no runtime file scanning or complex configuration is needed. Adding a language is as simple as adding the crate to the workspace.
 
@@ -485,7 +485,7 @@ This macro expands into a static `PluginDescriptor` that `inventory` picks up.
 At startup, the `PluginRegistry` is built by simply iterating over the discovered plugins:
 
 ```rust
-// In crates/cb-services/src/services/registry_builder.rs
+// In ../../crates/mill-services/src/services/registry_builder.rs
 pub fn build_language_plugin_registry() -> Arc<PluginRegistry> {
     let mut registry = PluginRegistry::new();
     for descriptor in cb_plugin_registry::iter_plugins() {

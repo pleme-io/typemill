@@ -31,13 +31,13 @@ impl LanguagePluginRegistry {
     ///
     /// This is the primary way to create a LanguagePluginRegistry. The PluginRegistry
     /// should be built at the application layer (e.g., in apps/codebuddy/src/main.rs)
-    /// using `cb_services::services::registry_builder::build_language_plugin_registry()`,
+    /// using `mill_services::services::registry_builder::build_language_plugin_registry()`,
     /// then injected here.
     ///
     /// # Example
     /// ```rust
     /// use cb_plugin_api::PluginRegistry;
-    /// use cb_services::services::registry_builder::build_language_plugin_registry;
+    /// use mill_services::services::registry_builder::build_language_plugin_registry;
     /// use std::sync::Arc;
     ///
     /// // At application layer (apps/codebuddy/src/main.rs)

@@ -203,7 +203,7 @@ make test-integration-nav
 **Note:** Single-language builds (Rust-only or TypeScript-only) are **not currently feasible** without significant architectural changes. This limitation is documented here for future reference.
 
 **Why not supported:**
-- Language plugins are hard-wired as unconditional dependencies across multiple crates (`cb-ast`, `cb-services`, `cb-plugins`, `apps/codebuddy`)
+- Language plugins are hard-wired as unconditional dependencies across multiple crates (`cb-ast`, `mill-services`, `cb-plugins`, `apps/codebuddy`)
 - Code contains direct downcasts to concrete plugin types (e.g., `plugin.downcast_ref::<TypeScriptPlugin>()`)
 - Services eagerly link all language crates and call directly into them
 - Would require extensive refactoring to feature-gate all cross-language references

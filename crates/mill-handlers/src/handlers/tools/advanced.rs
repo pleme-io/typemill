@@ -57,7 +57,7 @@ impl ToolHandler for AdvancedToolsHandler {
                     .await
             }
             "execute_batch" => {
-                use cb_services::services::OperationType;
+                use mill_services::services::OperationType;
                 use serde::Deserialize;
                 use serde_json::json;
                 use std::path::PathBuf;
@@ -295,7 +295,7 @@ impl ToolHandler for AdvancedToolsHandler {
                         }
                     };
 
-                    let file_op = cb_services::services::FileOperation::new(
+                    let file_op = mill_services::services::FileOperation::new(
                         "execute_batch".to_string(),
                         operation_type,
                         file_path,

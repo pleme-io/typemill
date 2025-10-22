@@ -8,7 +8,7 @@
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                     PRESENTATION LAYER                          │
-│                  (cb-transport, cb-handlers)                    │
+│                  (mill-transport, cb-handlers)                    │
 ├─────────────────────────────────────────────────────────────────┤
 │ Concerns:                          │ Status:                    │
 │ • MCP request routing              │ ✓ Clean routing            │
@@ -21,7 +21,7 @@
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │                    BUSINESS LOGIC LAYER                         │
-│     (cb-services, codebuddy-ast, codebuddy-foundation)          │
+│     (mill-services, codebuddy-ast, codebuddy-foundation)          │
 ├─────────────────────────────────────────────────────────────────┤
 │ Concerns:                          │ Status:                    │
 │ • Refactoring planning             │ ✓ Service traits           │
@@ -81,8 +81,8 @@ PRESENTATION: Transport (ws.rs)
          ↓
     PRESENTATION: ToolHandler (e.g., WorkspaceApplyHandler) ✅ CLEAN
          ├─ Parse arguments
-         ├─ Call ChecksumValidator ✅ (moved to cb-services)
-         ├─ Call PlanConverter ✅ (moved to cb-services)
+         ├─ Call ChecksumValidator ✅ (moved to mill-services)
+         ├─ Call PlanConverter ✅ (moved to mill-services)
          └─ Call FileService
               ↓
          BUSINESS LOGIC: FileService ✅ FOCUSED
@@ -108,8 +108,8 @@ MCP Client receives result
 ```
 PRESENTATION      (0 violations ✅)
   ├─ Debug file I/O           ✅ FIXED (Oct 19)
-  ├─ Plan conversion          ✅ MOVED to cb-services
-  └─ Checksum validation      ✅ MOVED to cb-services
+  ├─ Plan conversion          ✅ MOVED to mill-services
+  └─ Checksum validation      ✅ MOVED to mill-services
 
 BUSINESS LOGIC    (0 violations ✅)
   ├─ FileService focus        ✅ FIXED (Phase 2)
@@ -153,7 +153,7 @@ NEW Structure (Oct 20) ✅:
       │                                              │
 ┌─────▼──────────┐  ┌────────▼───────────┐  ┌───────▼────────┐
 │ MoveService    │  │ ChecksumValidator  │  │ PlanConverter  │
-│ (in cb-services│  │ (in cb-services)   │  │ (in cb-services│
+│ (in mill-services│  │ (in mill-services)   │  │ (in mill-services│
 │  separate file)│  │                    │  │  separate file)│
 └────────────────┘  └────────────────────┘  └────────────────┘
 (BUSINESS LOGIC)    (BUSINESS LOGIC)        (BUSINESS LOGIC)
@@ -190,7 +190,7 @@ Plugin Layer (6 active plugins):
   ├─ cb-lang-yaml (now active ✅)
   └─ cb-lang-common (shared utilities)
 
-Services Layer (cb-services):
+Services Layer (mill-services):
   ├─ file_service/ (focused on file I/O)
   ├─ move_service/ (split out Oct 19 ✅)
   ├─ reference_updater/ (import tracking)
@@ -217,7 +217,7 @@ codebuddy-foundation/protocol (THE BOUNDARY)
 └───────────────────────────────────────────┘
     ↑                           ↑
     │                           │
-    ├─ cb-services implements   ├─ cb-handlers implements
+    ├─ mill-services implements   ├─ cb-handlers implements
     │  (business logic)         │  (presentation)
     │                           │
     └─────────────────┬─────────┘
@@ -236,8 +236,8 @@ codebuddy-foundation/protocol (THE BOUNDARY)
 ✅ Phase 3 Achievement (Oct 20):
    Services layer has ZERO production dependencies on language plugins!
 
-   Before: cb-services → cb-lang-rust (coupling)
-   After:  cb-services → cb-plugin-api → cb-lang-rust (abstraction)
+   Before: mill-services → cb-lang-rust (coupling)
+   After:  mill-services → cb-plugin-api → cb-lang-rust (abstraction)
 ```
 
 ## Error Handling Boundaries (Excellent - Unchanged)
@@ -322,7 +322,7 @@ Improvement: +1.5 points (+20%)
 ├─ Complexity: MEDIUM
 ├─ Risk: LOW
 ├─ Created: ChecksumValidator, PlanConverter, DryRunGenerator, PostApplyValidator
-├─ Location: /workspace/crates/cb-services/src/services/
+├─ Location: /workspace/crates/mill-services/src/services/
 └─ Result: Clean separation, all tests passing
 
 ✅ Priority 3: Split FileService (COMPLETE - Phase 2)

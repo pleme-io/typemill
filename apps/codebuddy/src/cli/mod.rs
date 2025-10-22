@@ -4,7 +4,7 @@ mod conventions;
 mod flag_parser;
 
 use mill_client::format_plan;
-use cb_transport::SessionInfo;
+use mill_transport::SessionInfo;
 use clap::{Parser, Subcommand};
 use codebuddy_config::config::AppConfig;
 use codebuddy_foundation::core::utils::system::command_exists;

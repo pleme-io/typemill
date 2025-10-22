@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tempfile::TempDir;
 
 pub async fn create_test_app_state() -> (Arc<AppState>, TempDir) {
-    use cb_services::services::app_state_factory::create_services_bundle;
+    use mill_services::services::app_state_factory::create_services_bundle;
     use codebuddy_plugin_system::PluginManager;
     use codebuddy_workspaces::WorkspaceManager;
 
@@ -16,7 +16,7 @@ pub async fn create_test_app_state() -> (Arc<AppState>, TempDir) {
     let config = codebuddy_config::AppConfig::default();
 
     // Build plugin registry for tests
-    let plugin_registry = cb_services::services::registry_builder::build_language_plugin_registry();
+    let plugin_registry = mill_services::services::registry_builder::build_language_plugin_registry();
 
     let services = create_services_bundle(
         &project_root,

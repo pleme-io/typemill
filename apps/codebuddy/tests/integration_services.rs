@@ -230,7 +230,7 @@ async fn test_cache_performance_improvement() {
 #[tokio::test]
 async fn test_workspace_edit_in_process() {
     use mill_server::test_helpers::create_test_dispatcher_with_root;
-    use cb_transport::SessionInfo;
+    use mill_transport::SessionInfo;
     use codebuddy_foundation::core::model::mcp::{McpMessage, McpRequest};
     use std::time::Instant;
     use tempfile::TempDir;

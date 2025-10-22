@@ -94,8 +94,8 @@ package `cb-plugin-api`
 **Files Affected**:
 - `/workspace/crates/codebuddy-foundation/src/core/logging.rs` (removed)
 - `/workspace/crates/codebuddy-config/src/logging.rs` (new location)
-- `/workspace/crates/cb-transport/src/stdio.rs` (import updated)
-- `/workspace/crates/cb-transport/src/ws.rs` (import updated)
+- `/workspace/crates/mill-transport/src/stdio.rs` (import updated)
+- `/workspace/crates/mill-transport/src/ws.rs` (import updated)
 - `/workspace/crates/codebuddy-config/Cargo.toml` (dependency added)
 
 ---
@@ -130,18 +130,18 @@ find /workspace -type f \( -name "*.rs" -o -name "*.toml" \) ! -path "*/target/*
 ```
 
 **Files Affected**: 19 files
-- `/workspace/crates/cb-services/src/services/workflow_executor.rs`
+- `/workspace/crates/mill-services/src/services/workflow_executor.rs`
 - `/workspace/crates/cb-handlers/src/handlers/workflow_handler.rs`
-- `/workspace/crates/cb-transport/src/ws.rs`
+- `/workspace/crates/mill-transport/src/ws.rs`
 - `/workspace/crates/cb-handlers/src/handlers/rename_handler/mod.rs`
 - `/workspace/crates/cb-handlers/src/handlers/tools/mod.rs`
-- `/workspace/crates/cb-transport/src/stdio.rs`
+- `/workspace/crates/mill-transport/src/stdio.rs`
 - `/workspace/apps/codebuddy/src/cli.rs`
-- `/workspace/crates/cb-services/src/services/file_service/rename.rs`
+- `/workspace/crates/mill-services/src/services/file_service/rename.rs`
 - `/workspace/crates/mill-server/src/main.rs`
 - `/workspace/crates/cb-test-support/benches/forwarding_benchmark.rs`
 - `/workspace/crates/cb-client/src/commands/doctor.rs`
-- `/workspace/crates/cb-services/src/services/move_service/mod.rs`
+- `/workspace/crates/mill-services/src/services/move_service/mod.rs`
 - `/workspace/crates/codebuddy-foundation/src/core/tests/rename_scope_test.rs`
 - `/workspace/crates/codebuddy-foundation/src/core/tests/acceptance_config.rs`
 - `/workspace/crates/codebuddy-foundation/src/core/tests/model_tests.rs`
@@ -204,15 +204,15 @@ codebuddy-foundation = { path = "../codebuddy-foundation" }  # line 32 - duplica
 The automated sed replacements added new entries without checking for existing ones, or failed to remove old entries first.
 
 **Files Affected**: 11 Cargo.toml files
-- mill-lsp, cb-services, cb-handlers, cb-client
+- mill-lsp, mill-services, cb-handlers, cb-client
 - cb-lang-typescript, cb-lang-rust, cb-test-support
-- cb-transport, mill-server, tests/e2e, apps/codebuddy
+- mill-transport, mill-server, tests/e2e, apps/codebuddy
 
 **Manual Fix Required**:
 ```bash
 # Remove duplicate lines individually
 sed -i '19d' /workspace/crates/mill-lsp/Cargo.toml
-sed -i '34d' /workspace/crates/cb-services/Cargo.toml
+sed -i '34d' /workspace/crates/mill-services/Cargo.toml
 # ... (repeated for all affected files)
 ```
 

@@ -112,7 +112,7 @@ Layers are organized from foundational (bottom) to application (top). Each layer
 
 **Crates:**
 - `cb-ast` / `codebuddy-ast` (AST parsing, code analysis)
-- `cb-services` / `codebuddy-services` (file service, lock manager, planner)
+- `mill-services` / `codebuddy-services` (file service, lock manager, planner)
 - `mill-lsp` / `codebuddy-lsp` (LSP client management)
 - `codebuddy-plugin-bundle` (plugin registration)
 - `codebuddy-plugin-system` (plugin loading, dispatch)
@@ -125,7 +125,7 @@ Layers are organized from foundational (bottom) to application (top). Each layer
 **Constraints:**
 - Services coordinate plugins but don't implement language logic
 - No dependencies on handlers or application layer
-- Services can depend on each other within this layer (cb-services may use cb-ast)
+- Services can depend on each other within this layer (mill-services may use cb-ast)
 
 **Planned Consolidation:**
 - **Target:** Merge plugin-related crates → `codebuddy-plugin-system`
@@ -160,7 +160,7 @@ Layers are organized from foundational (bottom) to application (top). Each layer
 **Crates:**
 - `mill-server` / `codebuddy-server` (MCP server orchestration)
 - `mill-client` / `codebuddy-client` (CLI client, WebSocket client)
-- `cb-transport` / `codebuddy-transport` (stdio, WebSocket protocols)
+- `mill-transport` / `codebuddy-transport` (stdio, WebSocket protocols)
 - `codebuddy-auth` (authentication)
 - `codebuddy-workspaces` (workspace management)
 

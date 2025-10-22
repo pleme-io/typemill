@@ -24,7 +24,7 @@ refactor-all = ["refactor-rename", "refactor-extract", "refactor-inline", "refac
 
 [dependencies]
 codebuddy-foundation = { path = "../codebuddy-foundation" }
-cb-services = { path = "../cb-services", default-features = false }
+mill-services = { path = "../mill-services", default-features = false }
 cb-plugin-api = { path = "../cb-plugin-api" }
 mill-lsp = { path = "../mill-lsp" }
 
@@ -53,7 +53,7 @@ toml = "0.9"
 toml_edit = "0.23"
 tempfile = "3.0"
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
-cb-transport = { path = "../cb-transport", default-features = false }
+mill-transport = { path = "../mill-transport", default-features = false }
 chrono = { version = "0.4", features = ["serde"] }
 walkdir = "2.5"
 futures = { workspace = true }

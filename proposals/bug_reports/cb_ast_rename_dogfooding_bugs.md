@@ -54,7 +54,7 @@ let parsed: cb_ast::package_extractor::ExtractModuleToPackageParams =  // ❌ NO
 
 **Total affected**:
 - 60+ occurrences across 16 crates
-- Files: mill-server, cb-handlers, cb-services, codebuddy-plugin-system
+- Files: mill-server, cb-handlers, mill-services, codebuddy-plugin-system
 
 **Expected**: All qualified paths should have been updated by the rename plan
 

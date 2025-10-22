@@ -57,8 +57,8 @@ This proposal outlines the complete strategy for renaming the project from **Cod
 - `mill-handlers` - MCP tool handler implementations
 - `mill-lsp` - LSP client and server management
 - `mill-server` - MCP server core
-- `cb-services` - Core services (file, AST, planner, workflow)
-- `cb-transport` - WebSocket and stdio transport
+- `mill-services` - Core services (file, AST, planner, workflow)
+- `mill-transport` - WebSocket and stdio transport
 - `cb-plugin-api` - Plugin API definitions
 - `cb-test-support` - Testing utilities and harness
 
@@ -106,8 +106,8 @@ All crates will adopt the `mill-*` prefix for consistency and simplicity.
 - `mill-handlers` → `mill-handlers`
 - `mill-lsp` → `mill-lsp`
 - `mill-server` → `mill-server`
-- `cb-services` → `mill-services`
-- `cb-transport` → `mill-transport`
+- `mill-services` → `mill-services`
+- `mill-transport` → `mill-transport`
 - `cb-plugin-api` → `mill-plugin-api`
 - `cb-test-support` → `mill-test-support`
 
@@ -484,8 +484,8 @@ git tag v2.0.0
 - [ ] `mill-handlers` → `mill-handlers`
 - [ ] `mill-lsp` → `mill-lsp`
 - [ ] `mill-server` → `mill-server`
-- [ ] `cb-services` → `mill-services`
-- [ ] `cb-transport` → `mill-transport`
+- [ ] `mill-services` → `mill-services`
+- [ ] `mill-transport` → `mill-transport`
 - [ ] `cb-plugin-api` → `mill-plugin-api`
 - [ ] `cb-test-support` → `mill-test-support`
 
@@ -1014,8 +1014,8 @@ See full documentation at https://typemill.org/docs/migration
   ../crates/mill-handlers → crates/mill-handlers
   ../crates/mill-lsp → crates/mill-lsp
   ../crates/mill-server → crates/mill-server
-  crates/cb-services → crates/mill-services
-  crates/cb-transport → crates/mill-transport
+  ../crates/mill-services → crates/mill-services
+  ../crates/mill-transport → crates/mill-transport
   crates/cb-plugin-api → crates/mill-plugin-api
   ../crates/mill-test-support → crates/mill-test-support
   crates/cb-lang-common → crates/mill-lang-common
@@ -1044,8 +1044,8 @@ See full documentation at https://typemill.org/docs/migration
   cb-handlers → mill-handlers
   mill-lsp → mill-lsp
   mill-server → mill-server
-  cb-services → mill-services
-  cb-transport → mill-transport
+  mill-services → mill-services
+  mill-transport → mill-transport
   cb-plugin-api → mill-plugin-api
   cb-test-support → mill-test-support
   cb-lang-common → mill-lang-common

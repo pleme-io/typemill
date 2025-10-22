@@ -106,7 +106,7 @@ The project underwent a complete architectural transformation from TypeScript/No
 - **Plugin Self-Registration System** - Self-registering language plugins with link-time discovery
   - New `cb-plugin-registry` crate with `PluginDescriptor` and `codebuddy_plugin!` macro
   - Plugins self-register using `inventory` crate for automatic discovery at link time
-  - Core crates (`cb-core`, `cb-services`, `cb-ast`) completely decoupled from specific languages
+  - Core crates (`cb-core`, `mill-services`, `cb-ast`) completely decoupled from specific languages
   - No more `languages.toml` or build-time code generation required
   - Adding/removing languages requires no core crate changes - just link the crate
   - Contract tests/e2e automatically validate all discovered plugins

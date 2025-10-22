@@ -57,7 +57,7 @@ The codebuddy codebase has achieved **production-ready separation of concerns** 
 ### Resolved Violations ✅
 
 1. ✅ **Debug file I/O** - Removed (commit 7be64098)
-2. ✅ **Plan conversion logic in handlers** - Extracted to cb-services
+2. ✅ **Plan conversion logic in handlers** - Extracted to mill-services
 3. ✅ **FileService mixing concerns** - Refactored into focused services
 4. ✅ **Git service coupling** - Now optional feature flag
 5. ✅ **Plugin system coupling** - Language-agnostic architecture
@@ -95,7 +95,7 @@ The codebuddy codebase has achieved **production-ready separation of concerns** 
 
 ### All Major Violations Resolved ✅
 1. ~~**Business logic in presentation layer**~~ ✅ **FIXED (Oct 19)**
-   - Extracted 4 service classes to cb-services
+   - Extracted 4 service classes to mill-services
    - Handlers are now thin routing layers
 
 2. ~~**FileService mixing concerns**~~ ✅ **FIXED (Oct 19-20)**
@@ -117,7 +117,7 @@ The codebuddy codebase has achieved **production-ready separation of concerns** 
 - File: `../../crates/mill-handlers/src/handlers/workspace_apply_handler.rs`
 
 ### Priority 2 (1-2 hours) - Extract Plan Conversion Service
-- Create `crates/cb-services/src/services/plan_converter.rs`
+- Create `../../crates/mill-services/src/services/plan_converter.rs`
 - Move: `convert_to_edit_plan`, `extract_workspace_edit`, `validate_checksums`
 - Fixes business logic leakage from presentation layer
 
@@ -142,14 +142,14 @@ The codebuddy codebase has achieved **production-ready separation of concerns** 
 
 ### Medium
 - `/workspace/crates/cb-handlers/src/handlers/workspace_apply_handler.rs` (lines 228-290 - plan conversion)
-- `/workspace/crates/cb-services/src/services/file_service/mod.rs` (lines 28-49 - mixed concerns)
+- `/workspace/crates/mill-services/src/services/file_service/mod.rs` (lines 28-49 - mixed concerns)
 - `/workspace/crates/mill-lsp/src/lsp_system/client.rs` (lines 90-145 - PATH logic)
-- `/workspace/crates/cb-services/src/services/file_service/mod.rs` (lines 41-46 - git coupling)
+- `/workspace/crates/mill-services/src/services/file_service/mod.rs` (lines 41-46 - git coupling)
 
 ### Low
 - `/workspace/crates/mill-lsp/src/lsp_system/client.rs` (multiple eprintln! calls)
 - `/workspace/crates/cb-handlers/src/handlers/tools/navigation.rs` (lines 25-118 - plugin dispatch)
-- `/workspace/crates/cb-services/src/services/file_service/mod.rs` (line 53 - too many params)
+- `/workspace/crates/mill-services/src/services/file_service/mod.rs` (line 53 - too many params)
 
 ## Testing Impact
 

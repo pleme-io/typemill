@@ -28,23 +28,23 @@ WorkspaceApplyHandler  // Orchestration only
 
 ## Checklists
 
-- [ ] Create `crates/cb-services/src/services/checksum_validator.rs`
+- [ ] Create `../../crates/mill-services/src/services/checksum_validator.rs`
 - [ ] Move `validate_checksums()` function
 - [ ] Move `calculate_checksum()` function
 - [ ] Add unit tests for validation logic
 - [ ] Export ChecksumValidator from services module
-- [ ] Create `crates/cb-services/src/services/plan_converter.rs`
+- [ ] Create `../../crates/mill-services/src/services/plan_converter.rs`
 - [ ] Move `convert_to_edit_plan()` function (210 lines)
 - [ ] Move all `extract_*()` helper functions
 - [ ] Move all `get_*()` helper functions
 - [ ] Add unit tests for each plan type conversion
 - [ ] Export PlanConverter from services module
-- [ ] Create `crates/cb-services/src/services/dry_run_generator.rs`
+- [ ] Create `../../crates/mill-services/src/services/dry_run_generator.rs`
 - [ ] Move dry-run preview creation logic
 - [ ] Move result formatting code
 - [ ] Add unit tests for preview generation
 - [ ] Export DryRunGenerator from services module
-- [ ] Create `crates/cb-services/src/services/post_apply_validator.rs`
+- [ ] Create `../../crates/mill-services/src/services/post_apply_validator.rs`
 - [ ] Move `run_validation()` function
 - [ ] Move external command execution logic
 - [ ] Move timeout handling code

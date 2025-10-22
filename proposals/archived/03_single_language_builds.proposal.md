@@ -25,7 +25,7 @@ cb-lang-rust = { workspace = true }
 cb-lang-typescript = { workspace = true }
 cb-lang-markdown = { workspace = true }
 
-# crates/cb-services/Cargo.toml:29
+# ../../crates/mill-services/Cargo.toml:29
 cb-lang-rust = { workspace = true }
 cb-lang-typescript = { workspace = true }
 
@@ -42,10 +42,10 @@ That forces both Rust and TypeScript (plus Markdown) to compile on every build.
 
 ### 2. Eager Linking and Direct Code Calls
 
-**cb-services** links languages eagerly:
+**mill-services** links languages eagerly:
 
 ```rust
-// crates/cb-services/src/lib.rs:3
+// ../../crates/mill-services/src/lib.rs:3
 pub extern crate cb_lang_rust;
 pub extern crate cb_lang_typescript;
 ```
@@ -53,7 +53,7 @@ pub extern crate cb_lang_typescript;
 Its import graph logic calls directly into each crate:
 
 ```rust
-// crates/cb-services/src/services/ast_service.rs:169
+// ../../crates/mill-services/src/services/ast_service.rs:169
 match extension {
     "rs" => cb_lang_rust::build_import_graph(...),
     "ts" | "tsx" => cb_lang_typescript::build_import_graph(...),
@@ -90,7 +90,7 @@ Those branches expect both plugins to exist.
 
 **Why this doesn't scale:**
 
-Every new language requires updating shared code in cb-ast, cb-services, and cb-handlers. Here's the pattern that causes pain:
+Every new language requires updating shared code in cb-ast, mill-services, and cb-handlers. Here's the pattern that causes pain:
 
 **Current downcasting pattern:**
 ```rust
@@ -131,7 +131,7 @@ pub fn default() -> Self {
     }
 }
 
-// crates/cb-services/src/services/registry_builder.rs:102
+// ../../crates/mill-services/src/services/registry_builder.rs:102
 pub fn with_default_languages(mut self) -> Self {
     self.languages.push(Box::new(cb_lang_rust::RustPlugin::new()));
     self.languages.push(Box::new(cb_lang_typescript::TypeScriptPlugin::new()));
@@ -162,7 +162,7 @@ lang-markdown = ["dep:cb-lang-markdown"]
 ```
 
 Repeat for:
-- `cb-services/Cargo.toml`
+- `mill-services/Cargo.toml`
 - `cb-plugins/Cargo.toml`
 - `apps/codebuddy/Cargo.toml`
 - `cb-handlers/Cargo.toml`
@@ -248,11 +248,11 @@ if let Some(scanner) = plugin.as_capability::<dyn ModuleReferenceScanner>() {
 }
 ```
 
-#### 2.4: Update cb-services to Use Capability Traits
+#### 2.4: Update mill-services to Use Capability Traits
 
 **Before:**
 ```rust
-// crates/cb-services/src/services/ast_service.rs:169
+// ../../crates/mill-services/src/services/ast_service.rs:169
 match extension {
     "rs" => cb_lang_rust::build_import_graph(file_path)?,
     "ts" | "tsx" => cb_lang_typescript::build_import_graph(file_path)?,
@@ -262,7 +262,7 @@ match extension {
 
 **After:**
 ```rust
-// crates/cb-services/src/services/ast_service.rs
+// ../../crates/mill-services/src/services/ast_service.rs
 let plugin = self.plugin_manager.get_plugin_for_extension(extension)?;
 if let Some(analyzer) = plugin.as_capability::<dyn ImportAnalyzer>() {
     analyzer.build_import_graph(file_path)?
@@ -313,14 +313,14 @@ impl LanguagePlugin for RustPlugin {
 Guard every language-specific use and match arm with `#[cfg(feature = "...")]`:
 
 ```rust
-// crates/cb-services/src/lib.rs
+// ../../crates/mill-services/src/lib.rs
 #[cfg(feature = "lang-rust")]
 pub extern crate cb_lang_rust;
 
 #[cfg(feature = "lang-typescript")]
 pub extern crate cb_lang_typescript;
 
-// crates/cb-services/src/services/registry_builder.rs:102
+// ../../crates/mill-services/src/services/registry_builder.rs:102
 pub fn with_default_languages(mut self) -> Self {
     #[cfg(feature = "lang-rust")]
     self.languages.push(Box::new(cb_lang_rust::RustPlugin::new()));
@@ -407,7 +407,7 @@ make test-ts-only
 
 ## Scaling to 8+ Languages
 
-The capability trait approach prevents duplication as we add more languages. As shown in the blockers section, the current downcasting pattern requires updating shared code in cb-ast/cb-services/cb-handlers for every new language.
+The capability trait approach prevents duplication as we add more languages. As shown in the blockers section, the current downcasting pattern requires updating shared code in cb-ast/mill-services/cb-handlers for every new language.
 
 **With capability traits:** Adding a new language just means implementing the trait in its crate. No changes needed in shared code.
 
@@ -464,8 +464,8 @@ The capability trait approach prevents duplication as we add more languages. As 
    - Refactor one usage site in `cb-ast` to use trait instead of downcast
    - Validate approach works before full rollout
 
-2. **Make cb-services compile with `--no-default-features --features lang-rust`**:
-   - Add optional deps and features to `cb-services/Cargo.toml`
+2. **Make mill-services compile with `--no-default-features --features lang-rust`**:
+   - Add optional deps and features to `mill-services/Cargo.toml`
    - Gate language imports with `#[cfg(feature = "...")]`
    - This exposes precise trait gaps that need capability traits
 
