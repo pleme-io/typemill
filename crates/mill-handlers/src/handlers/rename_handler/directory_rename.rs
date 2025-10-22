@@ -1,4 +1,4 @@
-use super::{RenameHandler, RenamePlanParams};
+use super::{RenameHandler, RenameOptions, RenameTarget};
 use crate::handlers::common::calculate_checksums_for_directory_rename;
 use crate::handlers::tools::ToolHandlerContext;
 use codebuddy_foundation::protocol::{
@@ -40,31 +40,32 @@ impl RenameHandler {
     /// Generate plan for directory rename using FileService
     pub(crate) async fn plan_directory_rename(
         &self,
-        params: &RenamePlanParams,
+        target: &RenameTarget,
+        new_name: &str,
+        options: &RenameOptions,
         context: &ToolHandlerContext,
     ) -> ServerResult<RenamePlan> {
         debug!(
-            old_path = %params.target.path,
-            new_path = %params.new_name,
+            old_path = %target.path,
+            new_path = %new_name,
             "Planning directory rename"
         );
 
         // Resolve paths against workspace root, not CWD
         let workspace_root = &context.app_state.project_root;
-        let old_path = if Path::new(&params.target.path).is_absolute() {
-            Path::new(&params.target.path).to_path_buf()
+        let old_path = if Path::new(&target.path).is_absolute() {
+            Path::new(&target.path).to_path_buf()
         } else {
-            workspace_root.join(&params.target.path)
+            workspace_root.join(&target.path)
         };
-        let new_path = if Path::new(&params.new_name).is_absolute() {
-            Path::new(&params.new_name).to_path_buf()
+        let new_path = if Path::new(new_name).is_absolute() {
+            Path::new(new_name).to_path_buf()
         } else {
-            workspace_root.join(&params.new_name)
+            workspace_root.join(new_name)
         };
 
         // Determine if this is a consolidation (explicit flag or auto-detect)
-        let is_consolidation = params
-            .options
+        let is_consolidation = options
             .consolidate
             .unwrap_or_else(|| Self::is_consolidation_move(&old_path, &new_path));
 
@@ -77,7 +78,7 @@ impl RenameHandler {
         }
 
         // Get scope configuration from options
-        let rename_scope = params.options.to_rename_scope();
+        let rename_scope = options.to_rename_scope();
 
         // Get the EditPlan with import updates (call MoveService directly)
         let edit_plan = context

@@ -42,21 +42,31 @@ impl Default for RenameHandler {
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)] // Reserved for future options support
 pub(crate) struct RenamePlanParams {
-    target: RenameTarget,
-    new_name: String,
+    /// Single target (existing API)
+    #[serde(default)]
+    target: Option<RenameTarget>,
+    /// Multiple targets for batch operations (new API)
+    #[serde(default)]
+    targets: Option<Vec<RenameTarget>>,
+    /// New name for single target (ignored when targets is set)
+    #[serde(default)]
+    new_name: Option<String>,
     #[serde(default)]
     options: RenameOptions,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub(crate) struct RenameTarget {
     kind: String, // "symbol" | "file" | "directory"
     path: String,
+    /// New name for this target (required for batch mode, optional for single mode)
+    #[serde(default)]
+    new_name: Option<String>,
     #[serde(default)]
     selector: Option<SymbolSelector>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub(crate) struct SymbolSelector {
     position: Position,
 }
@@ -132,23 +142,51 @@ impl ToolHandler for RenameHandler {
             ServerError::InvalidRequest(format!("Invalid rename.plan parameters: {}", e))
         })?;
 
-        debug!(
-            kind = %params.target.kind,
-            path = %params.target.path,
-            new_name = %params.new_name,
-            "Generating rename plan"
-        );
+        // Validate parameters: must have either target or targets, but not both
+        let plan = match (&params.target, &params.targets) {
+            (Some(target), None) => {
+                // Single target mode (existing API)
+                let new_name = params.new_name.as_ref().ok_or_else(|| {
+                    ServerError::InvalidRequest("new_name is required for single target mode".into())
+                })?;
 
-        // Dispatch based on target kind
-        let plan = match params.target.kind.as_str() {
-            "symbol" => self.plan_symbol_rename(&params, context).await?,
-            "file" => self.plan_file_rename(&params, context).await?,
-            "directory" => self.plan_directory_rename(&params, context).await?,
-            kind => {
-                return Err(ServerError::InvalidRequest(format!(
-                    "Unsupported rename kind: {}. Must be one of: symbol, file, directory",
-                    kind
-                )));
+                debug!(
+                    kind = %target.kind,
+                    path = %target.path,
+                    new_name = %new_name,
+                    "Generating single rename plan"
+                );
+
+                match target.kind.as_str() {
+                    "symbol" => self.plan_symbol_rename(target, new_name, &params.options, context).await?,
+                    "file" => self.plan_file_rename(target, new_name, &params.options, context).await?,
+                    "directory" => self.plan_directory_rename(target, new_name, &params.options, context).await?,
+                    kind => {
+                        return Err(ServerError::InvalidRequest(format!(
+                            "Unsupported rename kind: {}. Must be one of: symbol, file, directory",
+                            kind
+                        )));
+                    }
+                }
+            }
+            (None, Some(targets)) => {
+                // Batch mode (new API)
+                debug!(
+                    targets_count = targets.len(),
+                    "Generating batch rename plan"
+                );
+
+                self.plan_batch_rename(targets, &params.options, context).await?
+            }
+            (Some(_), Some(_)) => {
+                return Err(ServerError::InvalidRequest(
+                    "Cannot specify both 'target' and 'targets'. Use 'target' for single rename or 'targets' for batch.".into()
+                ));
+            }
+            (None, None) => {
+                return Err(ServerError::InvalidRequest(
+                    "Must specify either 'target' (for single rename) or 'targets' (for batch).".into()
+                ));
             }
         };
 
@@ -288,5 +326,166 @@ impl RenameHandler {
         let warnings = Vec::new();
 
         Ok((file_checksums, summary, warnings))
+    }
+
+    /// Plan batch rename for multiple targets
+    pub(crate) async fn plan_batch_rename(
+        &self,
+        targets: &[RenameTarget],
+        options: &RenameOptions,
+        context: &ToolHandlerContext,
+    ) -> ServerResult<codebuddy_foundation::protocol::refactor_plan::RenamePlan> {
+        use codebuddy_foundation::protocol::refactor_plan::{PlanMetadata, RenamePlan};
+
+        debug!(targets_count = targets.len(), "Planning batch rename");
+
+        // Validate all targets have new_name
+        for (idx, target) in targets.iter().enumerate() {
+            if target.new_name.is_none() {
+                return Err(ServerError::InvalidRequest(format!(
+                    "Target {} (path: {}) missing new_name field (required for batch mode)",
+                    idx, target.path
+                )));
+            }
+        }
+
+        // Detect naming conflicts (same new_name from different sources)
+        let mut new_names_map: HashMap<String, Vec<String>> = HashMap::new();
+        for target in targets {
+            let new_name = target.new_name.as_ref().unwrap();
+            new_names_map
+                .entry(new_name.clone())
+                .or_default()
+                .push(target.path.clone());
+        }
+
+        let mut warnings = Vec::new();
+        for (new_name, sources) in &new_names_map {
+            if sources.len() > 1 {
+                warnings.push(PlanWarning {
+                    code: "BATCH_RENAME_CONFLICT".to_string(),
+                    message: format!(
+                        "Multiple targets rename to '{}': {}",
+                        new_name,
+                        sources.join(", ")
+                    ),
+                    candidates: Some(sources.clone()),
+                });
+            }
+        }
+
+        // Fail if there are conflicts
+        if !warnings.is_empty() {
+            return Err(ServerError::InvalidRequest(format!(
+                "Batch rename has naming conflicts: {}",
+                warnings
+                    .iter()
+                    .map(|w| w.message.clone())
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            )));
+        }
+
+        // Plan each rename individually
+        let mut all_edits = Vec::new();
+        let mut all_file_checksums = HashMap::new();
+        let mut total_affected_files = HashSet::new();
+
+        for target in targets {
+            let new_name = target.new_name.as_ref().unwrap();
+
+            debug!(
+                kind = %target.kind,
+                path = %target.path,
+                new_name = %new_name,
+                "Planning individual rename in batch"
+            );
+
+            let plan = match target.kind.as_str() {
+                "symbol" => {
+                    self.plan_symbol_rename(target, new_name, options, context)
+                        .await?
+                }
+                "file" => {
+                    self.plan_file_rename(target, new_name, options, context)
+                        .await?
+                }
+                "directory" => {
+                    self.plan_directory_rename(target, new_name, options, context)
+                        .await?
+                }
+                kind => {
+                    return Err(ServerError::InvalidRequest(format!(
+                        "Unsupported rename kind in batch: {}. Must be one of: symbol, file, directory",
+                        kind
+                    )));
+                }
+            };
+
+            // Collect edits from this plan
+            if let Some(ref changes) = plan.edits.changes {
+                for (uri, text_edits) in changes {
+                    all_edits.push((uri.clone(), text_edits.clone()));
+                }
+            }
+
+            // Merge file checksums
+            all_file_checksums.extend(plan.file_checksums);
+
+            // Track affected files (for summary)
+            if let Some(ref changes) = plan.edits.changes {
+                for uri in changes.keys() {
+                    if let Ok(decoded) = urlencoding::decode(uri.path().as_str()) {
+                        total_affected_files.insert(std::path::PathBuf::from(decoded.into_owned()));
+                    }
+                }
+            }
+        }
+
+        // Merge all edits into a single WorkspaceEdit
+        let mut merged_changes: HashMap<lsp_types::Uri, Vec<lsp_types::TextEdit>> = HashMap::new();
+        for (uri, text_edits) in all_edits {
+            merged_changes
+                .entry(uri)
+                .or_default()
+                .extend(text_edits);
+        }
+
+        let merged_workspace_edit = WorkspaceEdit {
+            changes: Some(merged_changes),
+            document_changes: None,
+            change_annotations: None,
+        };
+
+        // Build summary
+        let summary = PlanSummary {
+            affected_files: total_affected_files.len(),
+            created_files: 0,
+            deleted_files: 0,
+        };
+
+        // Build metadata
+        let metadata = PlanMetadata {
+            plan_version: "1.0".to_string(),
+            kind: "batch_rename".to_string(),
+            language: "multi".to_string(),
+            estimated_impact: utils::estimate_impact(total_affected_files.len()),
+            created_at: chrono::Utc::now().to_rfc3339(),
+        };
+
+        info!(
+            targets_count = targets.len(),
+            affected_files = total_affected_files.len(),
+            "Batch rename plan completed"
+        );
+
+        Ok(RenamePlan {
+            edits: merged_workspace_edit,
+            summary,
+            warnings,
+            metadata,
+            file_checksums: all_file_checksums,
+            is_consolidation: false,
+        })
     }
 }

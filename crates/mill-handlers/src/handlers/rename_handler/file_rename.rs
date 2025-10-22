@@ -1,4 +1,4 @@
-use super::{RenameHandler, RenamePlanParams};
+use super::{RenameHandler, RenameOptions, RenameTarget};
 use crate::handlers::tools::ToolHandlerContext;
 use codebuddy_foundation::protocol::{
     refactor_plan::{PlanMetadata, PlanSummary, RenamePlan},
@@ -12,23 +12,25 @@ impl RenameHandler {
     /// Generate plan for file rename using MoveService
     pub(crate) async fn plan_file_rename(
         &self,
-        params: &RenamePlanParams,
+        target: &RenameTarget,
+        new_name: &str,
+        options: &RenameOptions,
         context: &ToolHandlerContext,
     ) -> ServerResult<RenamePlan> {
         debug!(
-            old_path = %params.target.path,
-            new_path = %params.new_name,
+            old_path = %target.path,
+            new_path = %new_name,
             "Planning file rename"
         );
 
         // Resolve paths relative to project root (not CWD) BEFORE passing to MoveService
-        let old_path = Path::new(&params.target.path);
-        let new_path = Path::new(&params.new_name);
+        let old_path = Path::new(&target.path);
+        let new_path = Path::new(new_name);
         let abs_old = context.app_state.file_service.to_absolute_path(old_path);
         let abs_new = context.app_state.file_service.to_absolute_path(new_path);
 
         // Get scope configuration from options
-        let rename_scope = params.options.to_rename_scope();
+        let rename_scope = options.to_rename_scope();
 
         // Call MoveService directly to get the EditPlan (using absolute paths)
         let edit_plan = context

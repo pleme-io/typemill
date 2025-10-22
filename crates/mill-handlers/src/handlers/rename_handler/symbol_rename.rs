@@ -1,4 +1,4 @@
-use super::{RenameHandler, RenamePlanParams};
+use super::{RenameHandler, RenameOptions, RenameTarget};
 use crate::handlers::tools::ToolHandlerContext;
 use codebuddy_foundation::protocol::{
     refactor_plan::{PlanMetadata, RenamePlan},
@@ -13,14 +13,15 @@ impl RenameHandler {
     /// Generate plan for symbol rename using LSP
     pub(crate) async fn plan_symbol_rename(
         &self,
-        params: &RenamePlanParams,
+        target: &RenameTarget,
+        new_name: &str,
+        _options: &RenameOptions,
         context: &ToolHandlerContext,
     ) -> ServerResult<RenamePlan> {
-        debug!(path = %params.target.path, "Planning symbol rename via LSP");
+        debug!(path = %target.path, new_name = %new_name, "Planning symbol rename via LSP");
 
         // Extract position from selector
-        let position = params
-            .target
+        let position = target
             .selector
             .as_ref()
             .ok_or_else(|| {
@@ -29,14 +30,14 @@ impl RenameHandler {
             .position;
 
         // Get file extension to determine LSP client
-        let path = Path::new(&params.target.path);
+        let path = Path::new(&target.path);
         let extension = path
             .extension()
             .and_then(|ext| ext.to_str())
             .ok_or_else(|| {
                 ServerError::InvalidRequest(format!(
                     "File has no extension: {}",
-                    params.target.path
+                    target.path
                 ))
             })?;
 
@@ -68,7 +69,7 @@ impl RenameHandler {
                 "uri": file_uri
             },
             "position": position,
-            "newName": params.new_name
+            "newName": new_name
         });
 
         // Send textDocument/rename request to LSP
