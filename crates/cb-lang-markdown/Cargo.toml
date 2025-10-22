@@ -14,6 +14,8 @@ cb-lang-common = { path = "../cb-lang-common" }
 
 # For markdown link parsing
 regex = "1.10"
+# fancy-regex for prose updates (supports lookahead/lookbehind)
+fancy-regex = "0.13"
 tracing = { workspace = true }
 
 # Serialization

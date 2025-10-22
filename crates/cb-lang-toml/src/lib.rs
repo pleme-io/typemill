@@ -114,35 +114,80 @@ impl LanguagePlugin for TomlLanguagePlugin {
         _project_root: &Path,
         rename_info: Option<&serde_json::Value>,
     ) -> Option<(String, usize)> {
-        // Extract update_exact_matches from rename_info
+        // Extract flags from rename_info
         let update_exact_matches = rename_info
             .and_then(|v| v.get("update_exact_matches"))
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
 
-        match self
+        let update_comments = rename_info
+            .and_then(|v| v.get("update_comments"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
+        // Phase 1: Structured value updates (existing logic)
+        let (mut result, mut count) = match self
             .import_support
             .rewrite_toml_paths(content, old_path, new_path, update_exact_matches)
         {
-            Ok((new_content, count)) => {
-                if count > 0 {
+            Ok((new_content, value_count)) => {
+                if value_count > 0 {
                     debug!(
-                        changes = count,
+                        changes = value_count,
                         old_path = %old_path.display(),
                         new_path = %new_path.display(),
                         "Updated paths in TOML file"
                     );
                 }
-                Some((new_content, count))
+                (new_content, value_count)
             }
             Err(e) => {
                 tracing::error!(
                     error = ?e,
                     "Failed to rewrite TOML paths"
                 );
-                None
+                return None;
+            }
+        };
+
+        // Phase 2: Comment updates (opt-in via update_comments flag)
+        if update_comments {
+            let old_basename = old_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or_else(|| old_path.to_str().unwrap_or(""));
+            let new_basename = new_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or_else(|| new_path.to_str().unwrap_or(""));
+
+            // Smart boundary matching: NOT preceded/followed by alphanumeric
+            // Allows: "cb-handlers", "cb-handlers-style", "# cb-handlers"
+            // Blocks: "mycb-handlers", "cb-handlersystem"
+            let pattern = format!(
+                r"(?<![a-zA-Z0-9]){}(?![a-zA-Z0-9])",
+                fancy_regex::escape(old_basename)
+            );
+
+            if let Ok(regex) = fancy_regex::Regex::new(&pattern) {
+                let comment_result = regex.replace_all(&result, new_basename);
+                let comment_count = comment_result.matches(new_basename).count()
+                    - result.matches(new_basename).count();
+
+                if comment_count > 0 {
+                    debug!(
+                        comment_changes = comment_count,
+                        old_basename = old_basename,
+                        new_basename = new_basename,
+                        "Updated identifiers in TOML comments"
+                    );
+                    result = comment_result.to_string();
+                    count += comment_count;
+                }
             }
         }
+
+        Some((result, count))
     }
 }
 
@@ -224,5 +269,84 @@ target-dir = "integration-tests/target"
 
         assert!(caps.imports);
         assert!(!caps.workspace);
+    }
+
+    #[test]
+    fn test_updates_comments_with_flag() {
+        let content = r#"
+# Layer 6: Handlers (cb-handlers)
+[package]
+name = "test"
+
+# Analysis crates are optional runtime dependencies (feature-gated in cb-handlers)
+# Allow cb-handlers to optionally depend on them via feature flags
+wrappers = ["cb-handlers", "other-crate"]
+"#;
+
+        let plugin = TomlLanguagePlugin::new();
+
+        // Test with update_comments flag enabled
+        let rename_info = serde_json::json!({
+            "update_comments": true
+        });
+
+        let result = plugin.rewrite_file_references(
+            content,
+            Path::new("cb-handlers"),
+            Path::new("mill-handlers"),
+            Path::new("."),
+            Path::new("."),
+            Some(&rename_info),
+        );
+
+        assert!(result.is_some());
+        let (new_content, count) = result.unwrap();
+
+        // Should update: 3 comments + 1 value = 4 total
+        assert_eq!(count, 4);
+
+        // Verify comment updates
+        assert!(new_content.contains("# Layer 6: Handlers (mill-handlers)"));
+        assert!(new_content.contains("(feature-gated in mill-handlers)"));
+        assert!(new_content.contains("# Allow mill-handlers to optionally"));
+
+        // Verify value update
+        assert!(new_content.contains("\"mill-handlers\""));
+    }
+
+    #[test]
+    fn test_smart_boundaries_in_comments() {
+        let content = r#"
+# The cb-handlers-style API is simple
+# Don't use mycb-handlers (should NOT change)
+wrappers = ["cb-handlers"]
+"#;
+
+        let plugin = TomlLanguagePlugin::new();
+
+        let rename_info = serde_json::json!({
+            "update_comments": true
+        });
+
+        let result = plugin.rewrite_file_references(
+            content,
+            Path::new("cb-handlers"),
+            Path::new("mill-handlers"),
+            Path::new("."),
+            Path::new("."),
+            Some(&rename_info),
+        );
+
+        assert!(result.is_some());
+        let (new_content, count) = result.unwrap();
+
+        // Should update: "cb-handlers-style" and "cb-handlers" value = 2 total
+        assert_eq!(count, 2);
+
+        // Hyphenated identifier should update
+        assert!(new_content.contains("mill-handlers-style"));
+
+        // Partial match should NOT update
+        assert!(new_content.contains("mycb-handlers"));
     }
 }

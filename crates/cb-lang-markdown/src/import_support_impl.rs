@@ -201,9 +201,6 @@ impl MarkdownImportSupport {
         old_path: &Path,
         new_path: &Path,
     ) -> (String, usize) {
-        let mut result = content.to_string();
-        let mut count = 0;
-
         // Extract basenames for matching
         let old_basename = old_path
             .file_name()
@@ -214,41 +211,47 @@ impl MarkdownImportSupport {
             .and_then(|n| n.to_str())
             .unwrap_or_else(|| new_path.to_str().unwrap_or(""));
 
-        // Pattern 1: "depend(s|ing)? on IDENTIFIER"
-        // Matches: "depend on mill-test-support", "depends on mill-test-support", "depending on mill-test-support"
-        let depend_pattern = format!(
-            r"\b(depend(?:s|ing)? on)\s+({})\b",
-            regex::escape(old_basename)
-        );
-        if let Ok(depend_regex) = Regex::new(&depend_pattern) {
-            result = depend_regex
-                .replace_all(&result, |caps: &Captures| {
-                    count += 1;
-                    format!("{} {}", &caps[1], new_basename)
-                })
-                .to_string();
-        }
-
-        // Pattern 2: Backticked identifiers `mill-test-support`
-        // Matches inline code references
-        let backtick_pattern = format!(r"`({})`", regex::escape(old_basename));
-        if let Ok(backtick_regex) = Regex::new(&backtick_pattern) {
-            result = backtick_regex
-                .replace_all(&result, |_caps: &Captures| {
-                    count += 1;
-                    format!("`{}`", new_basename)
-                })
-                .to_string();
-        }
-
-        debug!(
-            old_basename,
-            new_basename,
-            count,
-            "Updated prose identifiers in markdown"
+        // Smart boundary matching: NOT preceded/followed by alphanumeric
+        // This simple approach:
+        // - Works in ANY language (not just English)
+        // - Handles hyphenated identifiers: "cb-handlers-style" → "mill-handlers-style"
+        // - Updates ALL prose occurrences (no fancy patterns needed)
+        // - Blocks partial matches: "mycb-handlers" won't match
+        //
+        // Examples of what gets updated:
+        // - "depend on cb-handlers" → "depend on mill-handlers"
+        // - "only cb-handlers can" → "only mill-handlers can"
+        // - "`cb-handlers`" → "`mill-handlers`"
+        // - "cb-handlers-style" → "mill-handlers-style"
+        let pattern = format!(
+            r"(?<![a-zA-Z0-9]){}(?![a-zA-Z0-9])",
+            fancy_regex::escape(old_basename)
         );
 
-        (result, count)
+        match fancy_regex::Regex::new(&pattern) {
+            Ok(regex) => {
+                let result = regex.replace_all(content, new_basename);
+                let count = result.matches(new_basename).count()
+                    - content.matches(new_basename).count();
+
+                debug!(
+                    old_basename,
+                    new_basename,
+                    count,
+                    "Updated prose identifiers in markdown"
+                );
+
+                (result.to_string(), count)
+            }
+            Err(e) => {
+                tracing::warn!(
+                    error = ?e,
+                    old_basename,
+                    "Failed to compile prose pattern"
+                );
+                (content.to_string(), 0)
+            }
+        }
     }
 }
 
