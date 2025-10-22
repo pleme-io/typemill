@@ -255,6 +255,48 @@ impl LanguagePlugin for RustPlugin {
                     }
                 }
 
+                // Phase 3: Comment updates (opt-in via update_comments flag)
+                let update_comments = rename_info
+                    .and_then(|v| v.get("update_comments"))
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+
+                if update_comments {
+                    let old_basename = old_path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or_else(|| old_path.to_str().unwrap_or(""));
+                    let new_basename = new_path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or_else(|| new_path.to_str().unwrap_or(""));
+
+                    // Smart boundary matching: NOT preceded/followed by alphanumeric
+                    // Allows: "cb-lsp", "cb-lsp-style", "// cb-lsp"
+                    // Blocks: "mycb-lsp", "cb-lspsystem"
+                    let pattern = format!(
+                        r"(?<![a-zA-Z0-9]){}(?![a-zA-Z0-9])",
+                        fancy_regex::escape(old_basename)
+                    );
+
+                    if let Ok(regex) = fancy_regex::Regex::new(&pattern) {
+                        let comment_result = regex.replace_all(&modified_content, new_basename);
+                        let comment_count = comment_result.matches(new_basename).count()
+                            - modified_content.matches(new_basename).count();
+
+                        if comment_count > 0 {
+                            tracing::debug!(
+                                comment_changes = comment_count,
+                                old_basename = old_basename,
+                                new_basename = new_basename,
+                                "Updated identifiers in Rust comments"
+                            );
+                            modified_content = comment_result.to_string();
+                            total_changes += comment_count;
+                        }
+                    }
+                }
+
                 Ok((modified_content, total_changes))
             }
             Err(e) => {
@@ -1447,5 +1489,74 @@ pub fn process(x: i32) -> i32 {
             "Should not contain 'pub mod utils;'\nActual: {}",
             new_content
         );
+    }
+
+    #[test]
+    fn test_updates_comments_with_flag() {
+        let content = r#"
+//! System components (now moved to cb-lsp crate)
+
+// Re-export from cb-lsp for backward compatibility
+pub use cb_lsp::LspClient;
+
+// Don't use mycb-lsp (should NOT change)
+"#;
+
+        let plugin = RustPlugin::new();
+
+        let rename_info = serde_json::json!({
+            "update_comments": true
+        });
+
+        let result = plugin.rewrite_file_references(
+            content,
+            Path::new("crates/cb-lsp"),
+            Path::new("crates/mill-lsp"),
+            Path::new("src/main.rs"),
+            Path::new("/workspace"),
+            Some(&rename_info),
+        );
+
+        assert!(result.is_some());
+        let (new_content, count) = result.unwrap();
+
+        // Should update 2 comments
+        assert!(count >= 2, "Should have at least 2 changes, got {}", count);
+        assert!(new_content.contains("mill-lsp crate"), "Should update first comment");
+        assert!(new_content.contains("from mill-lsp"), "Should update second comment");
+
+        // Should NOT update partial match
+        assert!(new_content.contains("mycb-lsp"), "Should preserve partial matches");
+    }
+
+    #[test]
+    fn test_comments_not_updated_without_flag() {
+        let content = r#"
+//! System components (now moved to cb-lsp crate)
+
+// Re-export from cb-lsp for backward compatibility
+pub use cb_lsp::LspClient;
+"#;
+
+        let plugin = RustPlugin::new();
+
+        // No update_comments flag
+        let rename_info = serde_json::json!({});
+
+        let result = plugin.rewrite_file_references(
+            content,
+            Path::new("crates/cb-lsp"),
+            Path::new("crates/mill-lsp"),
+            Path::new("src/main.rs"),
+            Path::new("/workspace"),
+            Some(&rename_info),
+        );
+
+        assert!(result.is_some());
+        let (new_content, _count) = result.unwrap();
+
+        // Comments should NOT be updated without flag
+        assert!(new_content.contains("cb-lsp crate"), "Should preserve first comment without flag");
+        assert!(new_content.contains("from cb-lsp"), "Should preserve second comment without flag");
     }
 }
