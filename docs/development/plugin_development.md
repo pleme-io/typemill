@@ -4,13 +4,13 @@ Fast reference for implementing new language plugins.
 
 ## Quick Start
 
-Creating a new language plugin involves creating a standard Cargo crate and registering it with the `codebuddy-plugin-bundle`.
+Creating a new language plugin involves creating a standard Cargo crate and registering it with the `mill-plugin-bundle`.
 
 | Step | Action | Notes |
 |------|--------|-------|
 | 1. Create Crate | `cargo new --lib crates/cb-lang-mynewlang` | Creates the standard plugin structure |
 | 2. Implement Logic | Edit `src/lib.rs` to implement `LanguagePlugin` trait | See reference implementations below |
-| 3. Register Plugin | Add to `codebuddy-plugin-bundle/Cargo.toml` and `lib.rs` | Makes plugin discoverable via auto-discovery |
+| 3. Register Plugin | Add to `mill-plugin-bundle/Cargo.toml` and `lib.rs` | Makes plugin discoverable via auto-discovery |
 | 4. Build Workspace | `cargo build -p cb-lang-mynewlang` | Verify compilation |
 | 5. Run Tests | `cargo nextest run -p cb-lang-mynewlang` | Add tests and verify functionality |
 
@@ -112,14 +112,14 @@ codebuddy_plugin! {
 
 ### Step 2: Add to Plugin Bundle
 
-Edit `crates/codebuddy-plugin-bundle/Cargo.toml`:
+Edit `../../crates/mill-plugin-bundle/Cargo.toml`:
 
 ```toml
 [dependencies]
 cb-lang-python = { path = "../cb-lang-python" }
 ```
 
-Edit `crates/codebuddy-plugin-bundle/src/lib.rs`:
+Edit `../../crates/mill-plugin-bundle/src/lib.rs`:
 
 ```rust
 use cb_lang_python::PythonPlugin;
@@ -255,8 +255,8 @@ Essential utilities to reduce boilerplate (~460 lines saved):
 
 ### Integration
 - [ ] `codebuddy_plugin!` macro implemented in `src/lib.rs`
-- [ ] Added to `codebuddy-plugin-bundle/Cargo.toml` dependencies
-- [ ] Added to `codebuddy-plugin-bundle/src/lib.rs` `_force_plugin_linkage()`
+- [ ] Added to `mill-plugin-bundle/Cargo.toml` dependencies
+- [ ] Added to `mill-plugin-bundle/src/lib.rs` `_force_plugin_linkage()`
 - [ ] Workspace builds: `cargo build --workspace`
 
 ## Running Tests
@@ -279,7 +279,7 @@ Essential utilities to reduce boilerplate (~460 lines saved):
 | LanguageMetadata constant not found | Build error | Run `cargo clean && cargo build -p cb-lang-yourlang` |
 | Import rewriting changes non-imports | Regex too broad | Use AST-based rewriting or specific regex: `^import\s+{}`  |
 | Workspace operations corrupt manifest | String manipulation | Use parser library (`toml_edit`, `serde_json`), validate output |
-| Tests fail with "plugin not found" | Missing from bundle | Add to `codebuddy-plugin-bundle/Cargo.toml` and rebuild |
+| Tests fail with "plugin not found" | Missing from bundle | Add to `mill-plugin-bundle/Cargo.toml` and rebuild |
 
 ## Code Examples
 
@@ -493,6 +493,6 @@ capability.method().await?
 ## Key References
 
 - [cb-plugin-api/src/lib.rs](../crates/cb-plugin-api/src/lib.rs) - Core trait definitions
-- [codebuddy-plugin-bundle/src/lib.rs](../crates/codebuddy-plugin-bundle/src/lib.rs) - Bundle implementation
+- [mill-plugin-bundle/src/lib.rs](../../../crates/mill-plugin-bundle/src/lib.rs) - Bundle implementation
 - [cb-lang-rust/](../crates/cb-lang-rust/) - Full reference implementation
 - [CLAUDE.md](../CLAUDE.md) - Project documentation including plugin overview

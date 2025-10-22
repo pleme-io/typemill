@@ -22,7 +22,7 @@ pub async fn create_initialized_dispatcher_with_workspace(
         .map_err(|e| std::io::Error::other(e.to_string()))?;
 
     // Build plugin registry from the plugin bundle
-    let plugins = codebuddy_plugin_bundle::all_plugins();
+    let plugins = mill_plugin_bundle::all_plugins();
     let mut plugin_registry = PluginRegistry::new();
     for plugin in plugins {
         plugin_registry.register(plugin);

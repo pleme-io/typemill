@@ -54,7 +54,7 @@ fn _force_plugin_linkage() {
 /// # Example
 ///
 /// ```no_run
-/// use codebuddy_plugin_bundle::all_plugins;
+/// use mill_plugin_bundle::all_plugins;
 /// use cb_plugin_api::PluginRegistry;
 ///
 /// let plugins = all_plugins();

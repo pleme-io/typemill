@@ -114,7 +114,7 @@ Layers are organized from foundational (bottom) to application (top). Each layer
 - `cb-ast` / `codebuddy-ast` (AST parsing, code analysis)
 - `mill-services` / `codebuddy-services` (file service, lock manager, planner)
 - `mill-lsp` / `codebuddy-lsp` (LSP client management)
-- `codebuddy-plugin-bundle` (plugin registration)
+- `mill-plugin-bundle` (plugin registration)
 - `codebuddy-plugin-system` (plugin loading, dispatch)
 
 **Dependencies:**
@@ -162,7 +162,7 @@ Layers are organized from foundational (bottom) to application (top). Each layer
 - `mill-client` / `codebuddy-client` (CLI client, WebSocket client)
 - `mill-transport` / `codebuddy-transport` (stdio, WebSocket protocols)
 - `mill-auth` (authentication)
-- `codebuddy-workspaces` (workspace management)
+- `mill-workspaces` (workspace management)
 
 **Dependencies:**
 - Layer 6: Handlers

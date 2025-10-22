@@ -16,7 +16,7 @@ mill-transport = { path = "../../crates/mill-transport", default-features = fals
 cb-plugin-api = { path = "../../crates/cb-plugin-api" }
 
 # Plugin bundle - contains all language plugins for inventory discovery
-codebuddy-plugin-bundle = { path = "../../crates/codebuddy-plugin-bundle", default-features = false }
+mill-plugin-bundle = { path = "../../crates/mill-plugin-bundle", default-features = false }
 
 tokio = { version = "1", features = ["full"] }
 axum = { version = "0.8", features = ["ws"] }
@@ -70,11 +70,11 @@ mill-handlers = { path = "../../crates/mill-handlers", default-features = false,
 
 [features]
 default = ["lang-rust", "lang-typescript", "lang-markdown", "lang-toml", "lang-yaml"]
-lang-rust = ["mill-server/lang-rust", "codebuddy-plugin-bundle/lang-rust", "codebuddy-ast/lang-rust", "codebuddy-plugin-system/lang-rust", "mill-transport/lang-rust"]
-lang-typescript = ["mill-server/lang-typescript", "codebuddy-plugin-bundle/lang-typescript", "codebuddy-ast/lang-typescript", "codebuddy-plugin-system/lang-typescript", "mill-transport/lang-typescript"]
-lang-markdown = ["mill-server/lang-markdown", "codebuddy-plugin-bundle/lang-markdown", "codebuddy-ast/lang-markdown", "codebuddy-plugin-system/lang-markdown", "mill-transport/lang-markdown"]
-lang-toml = ["mill-server/lang-toml", "codebuddy-plugin-bundle/lang-toml"]
-lang-yaml = ["mill-server/lang-yaml", "codebuddy-plugin-bundle/lang-yaml"]
+lang-rust = ["mill-server/lang-rust", "mill-plugin-bundle/lang-rust", "codebuddy-ast/lang-rust", "codebuddy-plugin-system/lang-rust", "mill-transport/lang-rust"]
+lang-typescript = ["mill-server/lang-typescript", "mill-plugin-bundle/lang-typescript", "codebuddy-ast/lang-typescript", "codebuddy-plugin-system/lang-typescript", "mill-transport/lang-typescript"]
+lang-markdown = ["mill-server/lang-markdown", "mill-plugin-bundle/lang-markdown", "codebuddy-ast/lang-markdown", "codebuddy-plugin-system/lang-markdown", "mill-transport/lang-markdown"]
+lang-toml = ["mill-server/lang-toml", "mill-plugin-bundle/lang-toml"]
+lang-yaml = ["mill-server/lang-yaml", "mill-plugin-bundle/lang-yaml"]
 mcp-proxy = ["mill-server/mcp-proxy", "mill-client/mcp-proxy", "codebuddy-foundation/mcp-proxy", "mill-config/mcp-proxy"]
 
 # Platform-specific dependencies for process management

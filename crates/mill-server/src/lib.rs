@@ -14,8 +14,8 @@
 #[cfg(any(test, feature = "test-helpers"))]
 pub mod test_helpers;
 
-// Re-export workspaces from codebuddy-workspaces for backward compatibility
-pub use codebuddy_workspaces as workspaces;
+// Re-export workspaces from mill-workspaces for backward compatibility
+pub use mill_workspaces as workspaces;
 
 // Re-export from new crates for backward compatibility
 pub use mill_handlers::handlers;
@@ -106,7 +106,7 @@ pub async fn bootstrap(options: ServerOptions) -> ServerResult<ServerHandle> {
     )
     .await;
 
-    let workspace_manager = Arc::new(codebuddy_workspaces::WorkspaceManager::new());
+    let workspace_manager = Arc::new(mill_workspaces::WorkspaceManager::new());
 
     // Create application state
     let app_state = Arc::new(AppState {
@@ -180,7 +180,7 @@ impl ServerOptions {
 /// the standalone binary (main.rs) and the unified binary (apps/codebuddy).
 pub async fn create_dispatcher_with_workspace(
     config: Arc<AppConfig>,
-    workspace_manager: Arc<codebuddy_workspaces::WorkspaceManager>,
+    workspace_manager: Arc<mill_workspaces::WorkspaceManager>,
     plugin_registry: Arc<cb_plugin_api::PluginRegistry>,
 ) -> ServerResult<Arc<PluginDispatcher>> {
     // Get project root

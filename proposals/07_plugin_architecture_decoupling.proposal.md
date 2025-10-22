@@ -14,7 +14,7 @@ As identified by the architecture audit, the services layer (`mill-services`, `c
 
 To fix this architectural violation, we will decouple the services layer from the language implementations using dependency injection.
 
-1.  **Create a Plugin Bundle Crate:** A new crate, `codebuddy-plugin-bundle`, will be created at the application layer. Its sole responsibility is to declare dependencies on all concrete `codebuddy-lang-*` plugins. **Note:** This crate will contain no runtime logic and should only export a single function for instantiating the plugins.
+1.  **Create a Plugin Bundle Crate:** A new crate, `mill-plugin-bundle`, will be created at the application layer. Its sole responsibility is to declare dependencies on all concrete `codebuddy-lang-*` plugins. **Note:** This crate will contain no runtime logic and should only export a single function for instantiating the plugins.
 
 2.  **Remove Direct Dependencies:** All `codebuddy-lang-*` dependencies will be removed from `mill-services/Cargo.toml` and `cb-ast/Cargo.toml`.
 
@@ -124,7 +124,7 @@ The current mill-services architecture with auto-discovery is SUPERIOR to the or
 ## Checklists
 
 ### 07a: Create the Plugin Bundle
-- [x] ~~Create a new crate: `crates/codebuddy-plugin-bundle`~~ - Already exists
+- [x] ~~Create a new crate: `../crates/mill-plugin-bundle`~~ - Already exists
 - [x] ~~Add dependencies for all existing `codebuddy-lang-*` crates~~ - Already done
 - [x] ~~Expose plugin instantiation function~~ - Uses auto-discovery instead (better)
 
@@ -146,7 +146,7 @@ The current mill-services architecture with auto-discovery is SUPERIOR to the or
 ## Success Criteria
 
 1.  ✅ **cb-ast decoupled**: `cb-ast/Cargo.toml` contains no runtime dependencies on language plugins (dev-dependency only)
-2.  ✅ **Plugin bundle exists**: `codebuddy-plugin-bundle` crate exists and is a dependency of the binary
+2.  ✅ **Plugin bundle exists**: `mill-plugin-bundle` crate exists and is a dependency of the binary
 3.  ✅ **Auto-discovery architecture**: Plugins self-register and are discovered at runtime (superior to manual injection)
 4.  ✅ **Capability-based dispatch**: All cb-ast code uses capability traits instead of downcasting
 5.  ✅ **Tests passing**: All unit tests in cb-ast pass (13/13)

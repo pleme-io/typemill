@@ -1,5 +1,5 @@
 [package]
-name = "codebuddy-plugin-bundle"
+name = "mill-plugin-bundle"
 version = "0.1.0"
 edition = "2021"
 license.workspace = true

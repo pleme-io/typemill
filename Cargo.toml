@@ -12,7 +12,7 @@ members = [
     "crates/cb-lang-markdown",
     "crates/cb-lang-toml",
     "crates/cb-lang-yaml",
-    "crates/codebuddy-plugin-bundle",
+    "crates/mill-plugin-bundle",
     "apps/codebuddy",
     "analysis/cb-analysis-common",
     "analysis/cb-analysis-dead-code",
@@ -21,7 +21,7 @@ members = [
     "analysis/cb-analysis-circular-deps",
     "tests/e2e",
     "crates/codebuddy-foundation",
-    "crates/codebuddy-workspaces",
+    "crates/mill-workspaces",
     "crates/mill-auth",
     "crates/xtask", "crates/codebuddy-ast", "crates/mill-client", "crates/mill-test-support", "crates/mill-handlers", "crates/mill-config",
 ]

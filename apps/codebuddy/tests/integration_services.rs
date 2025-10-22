@@ -8,7 +8,7 @@
 //! instantiate service components and test their integration.
 
 // Force linker to include plugin-bundle for inventory collection
-extern crate codebuddy_plugin_bundle;
+extern crate mill_plugin_bundle;
 
 use mill_server::handlers::AppState;
 use mill_server::services::{ DefaultAstService , FileService , LockManager , OperationQueue };

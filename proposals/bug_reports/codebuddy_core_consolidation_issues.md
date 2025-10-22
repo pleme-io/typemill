@@ -431,7 +431,7 @@ This would:
 **Workaround Complexity**: Medium - requires understanding of Rust module system and dependency graphs
 **Time to Fix**: ~2 hours of manual work to resolve all issues
 
-**Recommendation**: Implement Fixes #1, #2, and #3 before next consolidation phase (mill-config/codebuddy-workspaces/mill-auth → codebuddy-foundation).
+**Recommendation**: Implement Fixes #1, #2, and #3 before next consolidation phase (mill-config/mill-workspaces/mill-auth → codebuddy-foundation).
 
 ---
 

@@ -1,5 +1,5 @@
 [package]
-name = "codebuddy-workspaces"
+name = "mill-workspaces"
 edition = "2021"
 description = "Workspace management for Codeflow Buddy (multi-tenant container orchestration)"
 license = "MIT"

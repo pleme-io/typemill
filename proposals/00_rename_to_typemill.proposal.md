@@ -75,9 +75,9 @@ This proposal outlines the complete strategy for renaming the project from **Cod
 - `mill-config` - Configuration system
 - `codebuddy-ast` - AST processing and manipulation
 - `mill-auth` - Authentication and authorization
-- `codebuddy-workspaces` - Workspace management
+- `mill-workspaces` - Workspace management
 - `codebuddy-plugin-system` - Plugin system orchestration
-- `codebuddy-plugin-bundle` - Plugin bundle packaging
+- `mill-plugin-bundle` - Plugin bundle packaging
 
 **Analysis Crates (5 crates - `cb-analysis-*` prefix):**
 - `cb-analysis-common` - Common analysis utilities
@@ -124,9 +124,9 @@ All crates will adopt the `mill-*` prefix for consistency and simplicity.
 - `mill-config` → `mill-config`
 - `codebuddy-ast` → `mill-ast`
 - `mill-auth` → `mill-auth`
-- `codebuddy-workspaces` → `mill-workspaces`
+- `mill-workspaces` → `mill-workspaces`
 - `codebuddy-plugin-system` → `mill-plugin-system`
-- `codebuddy-plugin-bundle` → `mill-plugin-bundle`
+- `mill-plugin-bundle` → `mill-plugin-bundle`
 
 **Analysis:**
 - `cb-analysis-common` → `mill-analysis-common`
@@ -502,9 +502,9 @@ git tag v2.0.0
 - [ ] `mill-config` → `mill-config`
 - [ ] `codebuddy-ast` → `mill-ast`
 - [ ] `mill-auth` → `mill-auth`
-- [ ] `codebuddy-workspaces` → `mill-workspaces`
+- [ ] `mill-workspaces` → `mill-workspaces`
 - [ ] `codebuddy-plugin-system` → `mill-plugin-system`
-- [ ] `codebuddy-plugin-bundle` → `mill-plugin-bundle`
+- [ ] `mill-plugin-bundle` → `mill-plugin-bundle`
 
 **Analysis (5 crates):**
 - [ ] `cb-analysis-common` → `mill-analysis-common`
@@ -1028,9 +1028,9 @@ See full documentation at https://typemill.org/docs/migration
   ../crates/mill-config → crates/mill-config
   crates/codebuddy-ast → crates/mill-ast
   ../crates/mill-auth → crates/mill-auth
-  crates/codebuddy-workspaces → crates/mill-workspaces
+  ../crates/mill-workspaces → crates/mill-workspaces
   crates/codebuddy-plugin-system → crates/mill-plugin-system
-  crates/codebuddy-plugin-bundle → crates/mill-plugin-bundle
+  ../crates/mill-plugin-bundle → crates/mill-plugin-bundle
   analysis/cb-analysis-common → analysis/mill-analysis-common
   analysis/cb-analysis-dead-code → analysis/mill-analysis-dead-code
   analysis/cb-analysis-deep-dead-code → analysis/mill-analysis-deep-dead-code
@@ -1058,9 +1058,9 @@ See full documentation at https://typemill.org/docs/migration
   mill-config → mill-config
   codebuddy-ast → mill-ast
   mill-auth → mill-auth
-  codebuddy-workspaces → mill-workspaces
+  mill-workspaces → mill-workspaces
   codebuddy-plugin-system → mill-plugin-system
-  codebuddy-plugin-bundle → mill-plugin-bundle
+  mill-plugin-bundle → mill-plugin-bundle
   cb-analysis-common → mill-analysis-common
   cb-analysis-dead-code → mill-analysis-dead-code
   cb-analysis-deep-dead-code → mill-analysis-deep-dead-code

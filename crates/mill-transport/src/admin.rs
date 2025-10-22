@@ -10,7 +10,7 @@ use axum::{
 use mill_auth::{ generate_token , jwt::{ decode , Claims , DecodingKey , Validation } , };
 use mill_config::config::AppConfig;
 use codebuddy_foundation::protocol::ApiResult;
-use codebuddy_workspaces::{Workspace, WorkspaceManager};
+use mill_workspaces::{ Workspace , WorkspaceManager };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::sync::Arc;

@@ -34,19 +34,19 @@ reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-feature
 tempfile = "3.0"
 codebuddy-plugin-system = { path = "../codebuddy-plugin-system", default-features = false, features = ["runtime"] }
 mill-config = { path = "../mill-config" }
-codebuddy-plugin-bundle = { path = "../codebuddy-plugin-bundle", default-features = false }
-codebuddy-workspaces = { path = "../codebuddy-workspaces" }
+mill-plugin-bundle = { path = "../mill-plugin-bundle", default-features = false }
+mill-workspaces = { path = "../mill-workspaces" }
 codebuddy-ast = { path = "../codebuddy-ast", default-features = false }
 mill-handlers = { path = "../mill-handlers", default-features = false, features = ["analysis-deep-dead-code", "refactor-all"] }
 
 [features]
 default = ["lang-rust", "lang-typescript", "lang-markdown"]
 # NOTE: cb-handlers no longer has language features - it uses dependency injection
-lang-rust = ["mill-services/lang-rust", "codebuddy-ast/lang-rust", "codebuddy-plugin-bundle/lang-rust", "codebuddy-plugin-system/lang-rust", "mill-transport/lang-rust"]
-lang-typescript = ["mill-services/lang-typescript", "codebuddy-ast/lang-typescript", "codebuddy-plugin-bundle/lang-typescript", "codebuddy-plugin-system/lang-typescript", "mill-transport/lang-typescript"]
-lang-markdown = ["mill-services/lang-markdown", "codebuddy-ast/lang-markdown", "codebuddy-plugin-bundle/lang-markdown", "codebuddy-plugin-system/lang-markdown", "mill-transport/lang-markdown"]
-lang-toml = ["codebuddy-plugin-bundle/lang-toml"]
-lang-yaml = ["codebuddy-plugin-bundle/lang-yaml"]
+lang-rust = ["mill-services/lang-rust", "codebuddy-ast/lang-rust", "mill-plugin-bundle/lang-rust", "codebuddy-plugin-system/lang-rust", "mill-transport/lang-rust"]
+lang-typescript = ["mill-services/lang-typescript", "codebuddy-ast/lang-typescript", "mill-plugin-bundle/lang-typescript", "codebuddy-plugin-system/lang-typescript", "mill-transport/lang-typescript"]
+lang-markdown = ["mill-services/lang-markdown", "codebuddy-ast/lang-markdown", "mill-plugin-bundle/lang-markdown", "codebuddy-plugin-system/lang-markdown", "mill-transport/lang-markdown"]
+lang-toml = ["mill-plugin-bundle/lang-toml"]
+lang-yaml = ["mill-plugin-bundle/lang-yaml"]
 mcp-proxy = ["codebuddy-foundation/mcp-proxy", "mill-config/mcp-proxy", "mill-services/mcp-proxy"]
 test-helpers = []
 

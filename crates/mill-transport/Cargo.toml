@@ -11,7 +11,7 @@ description = "Transport layer for WebSocket and stdio communication"
 codebuddy-foundation = { path = "../codebuddy-foundation" }
 mill-auth = { path = "../mill-auth" }
 mill-config = { path = "../mill-config" }
-codebuddy-workspaces = { path = "../codebuddy-workspaces" }
+mill-workspaces = { path = "../mill-workspaces" }
 tokio = { workspace = true }
 async-trait = { workspace = true }
 serde = { workspace = true }

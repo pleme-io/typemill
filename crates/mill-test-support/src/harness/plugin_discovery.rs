@@ -20,7 +20,7 @@ fn get_or_init_registry() -> &'static Arc<PluginRegistry> {
         // This ensures all plugins are available via inventory
         #[cfg(test)]
         {
-            let _plugins = codebuddy_plugin_bundle::all_plugins();
+            let _plugins = mill_plugin_bundle::all_plugins();
         }
         build_language_plugin_registry()
     })

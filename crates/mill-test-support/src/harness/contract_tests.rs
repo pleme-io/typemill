@@ -13,7 +13,7 @@ use tokio::runtime::Runtime;
 // Force linker to include plugin-bundle for inventory collection in tests
 // The bundle includes all language plugins without direct coupling
 #[cfg(test)]
-extern crate codebuddy_plugin_bundle;
+extern crate mill_plugin_bundle;
 
 /// A test harness that runs a set of contract tests for each discovered plugin.
 #[test]

@@ -66,5 +66,5 @@ urlencoding = "2.1.3"
 pathdiff = "0.2"
 codebuddy-plugin-system = { path = "../codebuddy-plugin-system", default-features = false, features = ["runtime"] }
 mill-config = { path = "../mill-config" }
-codebuddy-workspaces = { path = "../codebuddy-workspaces" }
+mill-workspaces = { path = "../mill-workspaces" }
 codebuddy-ast = { path = "../codebuddy-ast", default-features = false }

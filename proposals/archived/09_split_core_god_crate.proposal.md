@@ -31,10 +31,10 @@ To resolve this, `codebuddy-core` will be systematically decomposed into smaller
 - [ ] Update all workspace crates that use `codebuddy_core::config` to depend on and use `codebuddy_config` instead.
 - [ ] Remove the `config` and `refactor_config` modules from `codebuddy-core/src/lib.rs`.
 
-### 09c: Extract `codebuddy-workspaces`
-- [ ] Create the new crate `crates/codebuddy-workspaces`.
+### 09c: Extract `mill-workspaces`
+- [ ] Create the new crate `../../crates/mill-workspaces`.
 - [ ] Move the `workspaces` module from `codebuddy-core/src/` to the new crate.
-- [ ] Update `codebuddy-workspaces/Cargo.toml` with its required dependencies.
+- [ ] Update `mill-workspaces/Cargo.toml` with its required dependencies.
 - [ ] Update all workspace crates that use `codebuddy_core::workspaces` to depend on and use `codebuddy_workspaces` instead.
 - [ ] Remove the `workspaces` module from `codebuddy-core/src/lib.rs`.
 
@@ -45,7 +45,7 @@ To resolve this, `codebuddy-core` will be systematically decomposed into smaller
 
 ## Success Criteria
 
-1.  New crates `mill-auth`, `mill-config`, and `codebuddy-workspaces` exist and are used by the workspace.
+1.  New crates `mill-auth`, `mill-config`, and `mill-workspaces` exist and are used by the workspace.
 2.  The `auth`, `config`, `refactor_config`, and `workspaces` modules are no longer present in the `codebuddy-core` source tree.
 3.  `codebuddy-core` is significantly smaller and more focused on its core responsibilities.
 4.  The entire workspace successfully builds and passes all tests via `cargo test --workspace`.

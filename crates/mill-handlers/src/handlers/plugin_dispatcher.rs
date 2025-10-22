@@ -25,7 +25,7 @@ use codebuddy_foundation::core::model::mcp::{McpMessage, McpRequest, McpResponse
 use codebuddy_foundation::protocol::AstService;
 use codebuddy_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use codebuddy_plugin_system::{LspAdapterPlugin, PluginManager};
-use codebuddy_workspaces::WorkspaceManager;
+use mill_workspaces::WorkspaceManager;
 use serde_json::{json, Value};
 use std::sync::Arc;
 use std::time::Instant;

@@ -1,7 +1,7 @@
 //! Remote command execution utilities
 
 use codebuddy_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
-use codebuddy_workspaces::WorkspaceManager;
+use mill_workspaces::WorkspaceManager;
 use reqwest;
 use serde_json::json;
 use std::time::Duration;

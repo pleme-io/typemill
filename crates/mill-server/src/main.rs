@@ -34,10 +34,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Starting Codeflow Buddy Server");
 
     // Create workspace manager for tracking connected containers
-    let workspace_manager = Arc::new(codebuddy_workspaces::WorkspaceManager::new());
+    let workspace_manager = Arc::new(mill_workspaces::WorkspaceManager::new());
 
     // Build plugin registry using the application-layer bundle
-    let all_plugins = codebuddy_plugin_bundle::all_plugins();
+    let all_plugins = mill_plugin_bundle::all_plugins();
     tracing::info!(
         discovered_plugins_count = all_plugins.len(),
         "Discovered language plugins from bundle"
