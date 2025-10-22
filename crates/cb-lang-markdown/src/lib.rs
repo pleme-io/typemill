@@ -138,7 +138,7 @@ impl LanguagePlugin for MarkdownPlugin {
         new_path: &std::path::Path,
         current_file: &std::path::Path,
         project_root: &std::path::Path,
-        _rename_info: Option<&serde_json::Value>,
+        rename_info: Option<&serde_json::Value>,
     ) -> Option<(String, usize)> {
         tracing::info!(
             "MarkdownPlugin::rewrite_file_references CALLED - old_path={}, new_path={}, current_file={}",
@@ -146,6 +146,12 @@ impl LanguagePlugin for MarkdownPlugin {
             new_path.display(),
             current_file.display()
         );
+
+        // Extract flags from rename_info (following TOML plugin pattern)
+        let update_markdown_prose = rename_info
+            .and_then(|v| v.get("update_markdown_prose"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
 
         // For markdown links, we need to compute file-relative paths
         // because markdown links should be relative to the file they're in
@@ -196,6 +202,20 @@ impl LanguagePlugin for MarkdownPlugin {
         if count2 > 0 {
             result = result2;
             count += count2;
+        }
+
+        // Third pass: context-aware prose identifier matching (when enabled)
+        if update_markdown_prose {
+            let (result3, count3) = self.import_support.update_prose_identifiers(
+                &result,
+                old_path,
+                new_path,
+            );
+
+            if count3 > 0 {
+                result = result3;
+                count += count3;
+            }
         }
 
         debug!(total_changes = count, "Completed markdown link rewriting");

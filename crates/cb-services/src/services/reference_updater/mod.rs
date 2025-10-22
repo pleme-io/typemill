@@ -50,6 +50,12 @@ impl ReferenceUpdater {
     ) -> ServerResult<EditPlan> {
         let is_directory_rename = old_path.is_dir();
 
+        // Serialize rename_scope to JSON and merge with existing rename_info
+        // This ensures plugins receive BOTH cargo package info AND scope flags
+        // (e.g., update_exact_matches, update_comments, update_markdown_prose)
+        // Created early so it's available for BOTH detection and rewriting phases
+        let merged_rename_info = merge_rename_info(rename_info, rename_scope);
+
         // From edit_builder.rs
         let mut project_files =
             find_project_files(&self.project_root, plugins, rename_scope).await?;
@@ -87,7 +93,7 @@ impl ReferenceUpdater {
                 new_path = %new_path.display(),
                 "Detected Rust crate rename, using crate-level detection"
             );
-            self.find_affected_files_for_rename(old_path, new_path, &project_files, plugins)
+            self.find_affected_files_for_rename(old_path, new_path, &project_files, plugins, merged_rename_info.as_ref())
                 .await?
         } else if is_directory_rename {
             // For non-Rust directory renames, use BOTH per-file AND directory-level detection
@@ -105,7 +111,7 @@ impl ReferenceUpdater {
                 "Running directory-level detection for string literals"
             );
             let directory_level_affected = self
-                .find_affected_files_for_rename(old_path, new_path, &project_files, plugins)
+                .find_affected_files_for_rename(old_path, new_path, &project_files, plugins, merged_rename_info.as_ref())
                 .await?;
 
             for file in directory_level_affected {
@@ -129,6 +135,7 @@ impl ReferenceUpdater {
                         &new_file_path,
                         &project_files,
                         plugins,
+                        merged_rename_info.as_ref(),
                     )
                     .await?;
 
@@ -156,7 +163,7 @@ impl ReferenceUpdater {
 
             affected_vec
         } else {
-            self.find_affected_files_for_rename(old_path, new_path, &project_files, plugins)
+            self.find_affected_files_for_rename(old_path, new_path, &project_files, plugins, merged_rename_info.as_ref())
                 .await?
         };
 
@@ -193,11 +200,6 @@ impl ReferenceUpdater {
         }
 
         let mut all_edits = Vec::new();
-
-        // Serialize rename_scope to JSON and merge with existing rename_info
-        // This ensures plugins receive BOTH cargo package info AND scope flags
-        // (e.g., update_exact_matches, update_comments, update_markdown_prose)
-        let merged_rename_info = merge_rename_info(rename_info, rename_scope);
 
         tracing::info!(
             affected_files_count = affected_files.len(),
@@ -503,12 +505,18 @@ impl ReferenceUpdater {
 
     /// Find affected files for a rename operation, checking both old and new paths.
     /// This handles the case where the file has already been moved during execution.
+    ///
+    /// # Arguments
+    ///
+    /// * `rename_info` - Optional JSON containing scope flags and cargo package info.
+    ///   Passed to generic detector so plugins can use flags like update_exact_matches.
     pub async fn find_affected_files_for_rename(
         &self,
         old_path: &Path,
         new_path: &Path,
         project_files: &[PathBuf],
         plugins: &[std::sync::Arc<dyn cb_plugin_api::LanguagePlugin>],
+        rename_info: Option<&serde_json::Value>,
     ) -> ServerResult<Vec<PathBuf>> {
         // Rust-specific cross-crate move detection
         // Rust uses crate-qualified imports (e.g., "use common::utils::foo") which the generic
@@ -547,6 +555,7 @@ impl ReferenceUpdater {
                 &self.project_root,
                 &non_rust_files,
                 plugins,
+                rename_info,
             );
 
             all_affected.extend(generic_affected);
@@ -558,6 +567,7 @@ impl ReferenceUpdater {
                 &self.project_root,
                 project_files,
                 plugins,
+                rename_info,
             );
 
             all_affected.extend(generic_affected);
@@ -909,7 +919,7 @@ mod tests {
 
         // Test: find_affected_files_for_rename should detect my_crate/src/main.rs
         let affected = updater
-            .find_affected_files_for_rename(&old_path, &new_path, &project_files, plugins)
+            .find_affected_files_for_rename(&old_path, &new_path, &project_files, plugins, None)
             .await
             .unwrap();
 
@@ -993,7 +1003,7 @@ mod tests {
 
         // Test: find_affected_files_for_rename should detect common/src/processor.rs
         let affected = updater
-            .find_affected_files_for_rename(&old_path, &new_path, &project_files, plugins)
+            .find_affected_files_for_rename(&old_path, &new_path, &project_files, plugins, None)
             .await
             .unwrap();
 

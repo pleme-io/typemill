@@ -175,6 +175,81 @@ impl MarkdownImportSupport {
         let anchor = Self::extract_anchor(original_path);
         format!("<{}{}>", new_path, anchor)
     }
+
+    /// Update prose identifiers with context-aware matching
+    ///
+    /// This method detects identifier references in prose text using context patterns
+    /// to reduce false positives. Only updates when high-confidence patterns match.
+    ///
+    /// # Patterns
+    ///
+    /// 1. **"depend(s|ing)? on IDENTIFIER"** - High confidence technical reference
+    /// 2. **`IDENTIFIER`** - Backticked identifiers (code references)
+    ///
+    /// # Arguments
+    ///
+    /// * `content` - The markdown content to process
+    /// * `old_path` - The old path (basename will be extracted for matching)
+    /// * `new_path` - The new path (basename will be used for replacement)
+    ///
+    /// # Returns
+    ///
+    /// Tuple of (updated_content, change_count)
+    pub fn update_prose_identifiers(
+        &self,
+        content: &str,
+        old_path: &Path,
+        new_path: &Path,
+    ) -> (String, usize) {
+        let mut result = content.to_string();
+        let mut count = 0;
+
+        // Extract basenames for matching
+        let old_basename = old_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_else(|| old_path.to_str().unwrap_or(""));
+        let new_basename = new_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_else(|| new_path.to_str().unwrap_or(""));
+
+        // Pattern 1: "depend(s|ing)? on IDENTIFIER"
+        // Matches: "depend on mill-test-support", "depends on mill-test-support", "depending on mill-test-support"
+        let depend_pattern = format!(
+            r"\b(depend(?:s|ing)? on)\s+({})\b",
+            regex::escape(old_basename)
+        );
+        if let Ok(depend_regex) = Regex::new(&depend_pattern) {
+            result = depend_regex
+                .replace_all(&result, |caps: &Captures| {
+                    count += 1;
+                    format!("{} {}", &caps[1], new_basename)
+                })
+                .to_string();
+        }
+
+        // Pattern 2: Backticked identifiers `mill-test-support`
+        // Matches inline code references
+        let backtick_pattern = format!(r"`({})`", regex::escape(old_basename));
+        if let Ok(backtick_regex) = Regex::new(&backtick_pattern) {
+            result = backtick_regex
+                .replace_all(&result, |_caps: &Captures| {
+                    count += 1;
+                    format!("`{}`", new_basename)
+                })
+                .to_string();
+        }
+
+        debug!(
+            old_basename,
+            new_basename,
+            count,
+            "Updated prose identifiers in markdown"
+        );
+
+        (result, count)
+    }
 }
 
 impl Default for MarkdownImportSupport {

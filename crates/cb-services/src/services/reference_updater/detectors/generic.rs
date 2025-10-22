@@ -13,12 +13,18 @@ use std::path::{Path, PathBuf};
 /// 2. Plugin rewrite detection (for string literals, config paths, etc.)
 ///
 /// This ensures consistent behavior regardless of which code path is taken.
+///
+/// # Arguments
+///
+/// * `rename_info` - Optional JSON containing scope flags (update_exact_matches, etc.)
+///   and cargo package info. Passed to plugins to control rewriting behavior.
 pub fn find_generic_affected_files(
     old_path: &Path,
     new_path: &Path,
     project_root: &Path,
     project_files: &[PathBuf],
     plugins: &[std::sync::Arc<dyn cb_plugin_api::LanguagePlugin>],
+    rename_info: Option<&serde_json::Value>,
 ) -> Vec<PathBuf> {
     use std::collections::HashSet;
 
@@ -68,13 +74,14 @@ pub fn find_generic_affected_files(
                 for plugin in plugins {
                     if plugin.handles_extension(ext) {
                         // Try rewriting to see if this file would be affected
+                        // Pass rename_info so plugins receive scope flags (update_exact_matches, etc.)
                         let rewrite_result = plugin.rewrite_file_references(
                             &content,
                             old_path,
                             new_path,
                             file,
                             project_root,
-                            None,
+                            rename_info,
                         );
 
                         if let Some((updated_content, change_count)) = rewrite_result {
@@ -268,7 +275,7 @@ export function main() {
 
         // Test generic detector
         let affected =
-            find_generic_affected_files(&old_path, &new_path, root, &project_files, plugins);
+            find_generic_affected_files(&old_path, &new_path, root, &project_files, plugins, None);
 
         println!("DEBUG: Old path: {}", old_path.display());
         println!("DEBUG: New path: {}", new_path.display());
@@ -311,7 +318,7 @@ export function main() {
         let plugins = plugin_registry.all();
 
         let affected =
-            find_generic_affected_files(old_path, new_path, root, &project_files, plugins);
+            find_generic_affected_files(old_path, new_path, root, &project_files, plugins, None);
 
         assert!(
             affected.iter().any(|p| p.ends_with("config.yml")),
@@ -352,7 +359,7 @@ export function main() {
         let plugins = plugin_registry.all();
 
         let affected =
-            find_generic_affected_files(old_path, new_path, root, &project_files, plugins);
+            find_generic_affected_files(old_path, new_path, root, &project_files, plugins, None);
 
         assert!(
             affected.iter().any(|p| p.ends_with("config.toml")),
@@ -438,7 +445,7 @@ export function main() {
         let plugins = plugin_registry.all();
 
         let affected =
-            find_generic_affected_files(old_path, new_path, root, &project_files, plugins);
+            find_generic_affected_files(old_path, new_path, root, &project_files, plugins, None);
 
         assert!(
             affected.iter().any(|p| p.ends_with("main.rs")),
