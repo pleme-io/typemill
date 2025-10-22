@@ -215,7 +215,7 @@ skip-tree = [
 #
 # Layer Hierarchy (after consolidation):
 # - Layer 7: Application (cb-server, mill-client, cb-transport, codebuddy, codebuddy-auth, codebuddy-workspaces)
-# - Layer 6: Handlers (cb-handlers)
+# - Layer 6: Handlers (mill-handlers)
 # - Layer 5: Services (cb-services, cb-ast, cb-lsp, codebuddy-plugin-system, codebuddy-plugin-bundle)
 # - Layer 4: Language Plugins (cb-lang-*)
 # - Layer 3: Plugin API (cb-plugin-api)
@@ -311,8 +311,8 @@ wrappers = ["codebuddy", "e2e"]
 # =============================================================================
 # ANALYSIS WORKSPACE ISOLATION
 # =============================================================================
-# Analysis crates are optional runtime dependencies (feature-gated in cb-handlers)
-# Allow cb-handlers to optionally depend on them via feature flags
+# Analysis crates are optional runtime dependencies (feature-gated in mill-handlers)
+# Allow mill-handlers to optionally depend on them via feature flags
 
 [[bans.deny]]
 name = "cb-analysis-common"

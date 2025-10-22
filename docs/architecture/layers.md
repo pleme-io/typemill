@@ -217,7 +217,7 @@ cargo depgraph --workspace-only | dot -Tpng > deps.png
 - Services (Layer 5) cannot depend on Handlers (Layer 6) or higher
 - Handlers (Layer 6) cannot depend on Application (Layer 7)
 - Production crates cannot depend on mill-test-support
-- Analysis crates remain isolated (only cb-handlers can optionally use them via features)
+- Analysis crates remain isolated (only mill-handlers can optionally use them via features)
 
 **⚠️ Not Enforced by cargo-deny:**
 - Foundation (Layer 2) isolation - Manually verify codebuddy-foundation only depends on external crates
