@@ -35,11 +35,11 @@ async-trait = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
 anyhow = { workspace = true }
 codebuddy-plugin-system = { path = "../codebuddy-plugin-system", optional = true }
-codebuddy-config = { path = "../codebuddy-config" }
+mill-config = { path = "../mill-config" }
 
 [features]
 default = []
-mcp-proxy = ["codebuddy-plugin-system", "codebuddy-foundation/mcp-proxy", "codebuddy-config/mcp-proxy"]
+mcp-proxy = ["codebuddy-plugin-system", "codebuddy-foundation/mcp-proxy", "mill-config/mcp-proxy"]
 
 [dev-dependencies]
 tempfile = "3.0"

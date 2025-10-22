@@ -20,16 +20,16 @@ ignore = "0.4"
 reqwest = { version = "0.12", features = ["blocking", "rustls-tls"], default-features = false }
 html2md-rs = "0.10"
 url = "2.4"
-codebuddy-config = { path = "../codebuddy-config", optional = true }
 codebuddy-ast = { path = "../codebuddy-ast", optional = true, default-features = false }
+mill-config = { path = "../mill-config", optional = true }
 
 [dev-dependencies]
 tokio-test = "0.4"
 
 [features]
 default = ["runtime"]
-runtime = ["codebuddy-foundation", "codebuddy-config", "codebuddy-ast"]
-mcp-proxy = ["runtime", "codebuddy-config/mcp-proxy"]
+runtime = ["codebuddy-foundation", "mill-config", "codebuddy-ast"]
+mcp-proxy = ["runtime", "mill-config/mcp-proxy"]
 lang-rust = ["runtime", "codebuddy-ast/lang-rust"]
 lang-typescript = ["runtime", "codebuddy-ast/lang-typescript"]
 lang-markdown = ["runtime", "codebuddy-ast/lang-markdown"]

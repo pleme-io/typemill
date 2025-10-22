@@ -26,7 +26,7 @@ pub async fn create_services_bundle(
     project_root: &PathBuf,
     cache_settings: codebuddy_ast::CacheSettings,
     plugin_manager: Arc<codebuddy_plugin_system::PluginManager>,
-    config: &codebuddy_config::AppConfig,
+    config: &mill_config::AppConfig,
     plugin_registry: Arc<cb_plugin_api::PluginRegistry>,
 ) -> ServicesBundle {
     // Plugin registry is now injected by the caller (dependency injection)
@@ -207,7 +207,7 @@ fn spawn_operation_worker(
 #[cfg(feature = "mcp-proxy")]
 pub async fn register_mcp_proxy_if_enabled(
     plugin_manager: &Arc<codebuddy_plugin_system::PluginManager>,
-    external_mcp_config: Option<&codebuddy_config::config::ExternalMcpConfig>,
+    external_mcp_config: Option<&mill_config::config::ExternalMcpConfig>,
 ) -> Result<(), codebuddy_foundation::protocol::ApiError> {
     if let Some(config) = external_mcp_config {
         use codebuddy_plugin_system::mcp::McpProxyPlugin;

@@ -61,15 +61,15 @@ package `cb-plugin-api`
 **Impact**: Workspace build failure
 
 **Description**:
-Similar to Bug #1, `logging.rs` was moved into `codebuddy-foundation/src/core/`, but it depends on `codebuddy-config::{AppConfig, LogFormat}`. This creates another circular dependency:
+Similar to Bug #1, `logging.rs` was moved into `codebuddy-foundation/src/core/`, but it depends on `mill-config::{AppConfig, LogFormat}`. This creates another circular dependency:
 
 ```
-cb-plugin-api → codebuddy-foundation → codebuddy-config → cb-plugin-api
+cb-plugin-api → codebuddy-foundation → mill-config → cb-plugin-api
 ```
 
-Additionally, `codebuddy-config` directly depends on `codebuddy-foundation`, so:
+Additionally, `mill-config` directly depends on `codebuddy-foundation`, so:
 ```
-codebuddy-foundation → (logging.rs) → codebuddy-config → codebuddy-foundation
+codebuddy-foundation → (logging.rs) → mill-config → codebuddy-foundation
 ```
 
 **Root Cause**:
@@ -79,24 +79,24 @@ Same as Bug #1 - the consolidation tool doesn't analyze transitive dependencies 
 ```
 error: cyclic package dependency: package `cb-plugin-api v0.0.0` depends on itself. Cycle:
 package `cb-plugin-api`
-    ... which satisfies path dependency `cb-plugin-api` of package `codebuddy-config`
-    ... which satisfies path dependency `codebuddy-config` of package `codebuddy-foundation`
+    ... which satisfies path dependency `cb-plugin-api` of package `mill-config`
+    ... which satisfies path dependency `mill-config` of package `codebuddy-foundation`
     ... which satisfies path dependency `codebuddy-foundation` of package `cb-plugin-api`
 ```
 
 **Workaround Applied**:
 - Removed `logging.rs` from consolidation target
-- Moved `logging.rs` to `codebuddy-config` crate (since it depends on config types)
+- Moved `logging.rs` to `mill-config` crate (since it depends on config types)
 - Updated imports from `codebuddy_foundation::core::logging` → `codebuddy_config::logging`
 - Fixed self-imports: `use codebuddy_config::` → `use crate::`
-- Added missing dependency: `tracing-subscriber` to `codebuddy-config/Cargo.toml`
+- Added missing dependency: `tracing-subscriber` to `mill-config/Cargo.toml`
 
 **Files Affected**:
 - `/workspace/crates/codebuddy-foundation/src/core/logging.rs` (removed)
-- `/workspace/crates/codebuddy-config/src/logging.rs` (new location)
+- `/workspace/crates/mill-config/src/logging.rs` (new location)
 - `/workspace/crates/mill-transport/src/stdio.rs` (import updated)
 - `/workspace/crates/mill-transport/src/ws.rs` (import updated)
-- `/workspace/crates/codebuddy-config/Cargo.toml` (dependency added)
+- `/workspace/crates/mill-config/Cargo.toml` (dependency added)
 
 ---
 
@@ -179,7 +179,7 @@ sed -i 's/use cb_plugin_api::iter_plugins;/use crate::iter_plugins;/g' \
   /workspace/crates/cb-plugin-api/src/language.rs
 
 sed -i 's/use codebuddy_config::/use crate::/g' \
-  /workspace/crates/codebuddy-config/src/logging.rs
+  /workspace/crates/mill-config/src/logging.rs
 ```
 
 ---
@@ -260,7 +260,7 @@ Despite the issues above, the following modules from `codebuddy-core` were succe
 ✅ `rename_scope.rs` - Rename scope configuration
 ✅ `utils/` - Utility functions (mod.rs, system.rs)
 ❌ `language.rs` - Moved to `cb-plugin-api` (circular dependency)
-❌ `logging.rs` - Moved to `codebuddy-config` (circular dependency)
+❌ `logging.rs` - Moved to `mill-config` (circular dependency)
 
 **Module Re-exports**: Successfully updated in `codebuddy-foundation/src/core/mod.rs`:
 ```rust
@@ -431,7 +431,7 @@ This would:
 **Workaround Complexity**: Medium - requires understanding of Rust module system and dependency graphs
 **Time to Fix**: ~2 hours of manual work to resolve all issues
 
-**Recommendation**: Implement Fixes #1, #2, and #3 before next consolidation phase (codebuddy-config/codebuddy-workspaces/codebuddy-auth → codebuddy-foundation).
+**Recommendation**: Implement Fixes #1, #2, and #3 before next consolidation phase (mill-config/codebuddy-workspaces/mill-auth → codebuddy-foundation).
 
 ---
 

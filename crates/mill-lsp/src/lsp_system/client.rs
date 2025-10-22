@@ -1,7 +1,7 @@
 //! LSP client implementation for communicating with a single LSP server
 
 use crate::progress::{ProgressError, ProgressManager, ProgressParams, ProgressToken};
-use codebuddy_config::LspServerConfig;
+use mill_config::LspServerConfig;
 use codebuddy_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde_json::{json, Value};
 use std::collections::HashMap;

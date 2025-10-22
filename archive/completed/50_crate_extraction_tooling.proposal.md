@@ -24,7 +24,7 @@ Add 3 new public MCP tools + 1 enhancement to existing tool for complete crate e
 **Parameters:**
 ```json
 {
-  "crate_path": "crates/codebuddy-auth",     // Required
+  "crate_path": "../../crates/mill-auth",     // Required
   "crate_type": "lib",                       // Optional: "lib" (default) or "bin"
   "options": {
     "dry_run": true,                         // Optional: preview mode
@@ -38,12 +38,12 @@ Add 3 new public MCP tools + 1 enhancement to existing tool for complete crate e
 ```json
 {
   "created_files": [
-    "crates/codebuddy-auth/Cargo.toml",
-    "crates/codebuddy-auth/src/lib.rs"
+    "../../crates/mill-auth/Cargo.toml",
+    "../../crates/mill-auth/src/lib.rs"
   ],
   "workspace_updated": true,
   "cargo_toml": {
-    "package_name": "codebuddy-auth",
+    "package_name": "mill-auth",
     "version": "0.1.0"
   }
 }
@@ -106,7 +106,7 @@ Add 3 new public MCP tools + 1 enhancement to existing tool for complete crate e
 ```json
 {
   "source_manifest": "../../crates/codebuddy-foundation/src/core/Cargo.toml",
-  "target_manifest": "crates/codebuddy-auth/Cargo.toml",
+  "target_manifest": "../../crates/mill-auth/Cargo.toml",
   "dependencies": ["tokio", "jsonwebtoken", "serde"],  // From analyze.module_dependencies
   "options": {
     "dry_run": true,
@@ -145,7 +145,7 @@ Add 3 new public MCP tools + 1 enhancement to existing tool for complete crate e
     "kind": "file",
     "path": "../../crates/codebuddy-foundation/src/core/src/auth.rs"
   },
-  "new_name": "crates/codebuddy-auth/src/lib.rs",
+  "new_name": "../../crates/mill-auth/src/lib.rs",
   "options": {
     "split": true,                           // NEW: Extract module into new crate
     "analyze_dependencies": true             // NEW: Include dependency analysis in plan
@@ -190,7 +190,7 @@ Add 3 new public MCP tools + 1 enhancement to existing tool for complete crate e
 ```json
 {
   "operation": "add",                        // "add" or "remove"
-  "member": "crates/codebuddy-auth",
+  "member": "../../crates/mill-auth",
   "manifest_path": "./Cargo.toml",           // Optional: defaults to workspace root
   "options": {
     "dry_run": true
@@ -202,11 +202,11 @@ Add 3 new public MCP tools + 1 enhancement to existing tool for complete crate e
 ```json
 {
   "operation": "add",
-  "member": "crates/codebuddy-auth",
+  "member": "../../crates/mill-auth",
   "manifest_updated": true,
   "current_members": [
     "../../crates/codebuddy-foundation/src/core",
-    "crates/codebuddy-auth",
+    "../../crates/mill-auth",
     // ... etc
   ]
 }
@@ -219,14 +219,14 @@ Add 3 new public MCP tools + 1 enhancement to existing tool for complete crate e
 
 ## End-to-End Workflow Example
 
-**Goal:** Extract `auth` module from `codebuddy-core` into new `codebuddy-auth` crate.
+**Goal:** Extract `auth` module from `codebuddy-core` into new `mill-auth` crate.
 
 ### Step 1: Create new crate structure
 ```json
 {
   "tool": "workspace.create_crate",
   "arguments": {
-    "crate_path": "crates/codebuddy-auth",
+    "crate_path": "../../crates/mill-auth",
     "options": { "dry_run": false }
   }
 }
@@ -253,7 +253,7 @@ Add 3 new public MCP tools + 1 enhancement to existing tool for complete crate e
   "tool": "workspace.extract_dependencies",
   "arguments": {
     "source_manifest": "../../crates/codebuddy-foundation/src/core/Cargo.toml",
-    "target_manifest": "crates/codebuddy-auth/Cargo.toml",
+    "target_manifest": "../../crates/mill-auth/Cargo.toml",
     "dependencies": ["tokio", "jsonwebtoken", "serde"],
     "options": { "dry_run": false }
   }
@@ -270,7 +270,7 @@ Add 3 new public MCP tools + 1 enhancement to existing tool for complete crate e
       "kind": "file",
       "path": "../../crates/codebuddy-foundation/src/core/src/auth.rs"
     },
-    "new_name": "crates/codebuddy-auth/src/lib.rs",
+    "new_name": "../../crates/mill-auth/src/lib.rs",
     "options": { "split": true }
   }
 }

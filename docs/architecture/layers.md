@@ -48,7 +48,7 @@ Layers are organized from foundational (bottom) to application (top). Each layer
 **Crates:**
 - `cb-types` / `codebuddy-types`
 - `cb-protocol` / `codebuddy-protocol`
-- `codebuddy-config`
+- `mill-config`
 - `codebuddy-core` (configuration, logging, errors)
 
 **Dependencies:**
@@ -161,7 +161,7 @@ Layers are organized from foundational (bottom) to application (top). Each layer
 - `mill-server` / `codebuddy-server` (MCP server orchestration)
 - `mill-client` / `codebuddy-client` (CLI client, WebSocket client)
 - `mill-transport` / `codebuddy-transport` (stdio, WebSocket protocols)
-- `codebuddy-auth` (authentication)
+- `mill-auth` (authentication)
 - `codebuddy-workspaces` (workspace management)
 
 **Dependencies:**

@@ -1,7 +1,7 @@
 //! cb-server main binary
 
 use clap::{Parser, Subcommand};
-use codebuddy_config::AppConfig;
+use mill_config::AppConfig;
 use std::sync::Arc;
 
 #[derive(Parser)]
@@ -29,7 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Arc::new(AppConfig::load()?);
 
     // Initialize tracing based on configuration
-    codebuddy_config::logging::initialize(&config);
+    mill_config::logging::initialize(&config);
 
     tracing::info!("Starting Codeflow Buddy Server");
 

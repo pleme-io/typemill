@@ -26,7 +26,7 @@ tokio = { workspace = true } # For async file operations in import_updater
 tracing = { workspace = true } # For logging in import_updater
 dashmap = { workspace = true } # For thread-safe concurrent caching
 toml_edit = "0.23" # For parsing and modifying Cargo.toml files
-codebuddy-config = { path = "../codebuddy-config" }
+mill-config = { path = "../mill-config" }
 
 [features]
 # Language features are preserved for backward compatibility but do not enable dependencies

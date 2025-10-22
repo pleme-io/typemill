@@ -72,9 +72,9 @@ This proposal outlines the complete strategy for renaming the project from **Cod
 
 **Foundation/Infrastructure Crates (7 crates - `codebuddy-*` prefix):**
 - `codebuddy-foundation` - Core foundation layer
-- `codebuddy-config` - Configuration system
+- `mill-config` - Configuration system
 - `codebuddy-ast` - AST processing and manipulation
-- `codebuddy-auth` - Authentication and authorization
+- `mill-auth` - Authentication and authorization
 - `codebuddy-workspaces` - Workspace management
 - `codebuddy-plugin-system` - Plugin system orchestration
 - `codebuddy-plugin-bundle` - Plugin bundle packaging
@@ -121,9 +121,9 @@ All crates will adopt the `mill-*` prefix for consistency and simplicity.
 
 **Foundation/Infrastructure:**
 - `codebuddy-foundation` → `mill-foundation`
-- `codebuddy-config` → `mill-config`
+- `mill-config` → `mill-config`
 - `codebuddy-ast` → `mill-ast`
-- `codebuddy-auth` → `mill-auth`
+- `mill-auth` → `mill-auth`
 - `codebuddy-workspaces` → `mill-workspaces`
 - `codebuddy-plugin-system` → `mill-plugin-system`
 - `codebuddy-plugin-bundle` → `mill-plugin-bundle`
@@ -499,9 +499,9 @@ git tag v2.0.0
 
 **Foundation/Infrastructure (7 crates):**
 - [ ] `codebuddy-foundation` → `mill-foundation`
-- [ ] `codebuddy-config` → `mill-config`
+- [ ] `mill-config` → `mill-config`
 - [ ] `codebuddy-ast` → `mill-ast`
-- [ ] `codebuddy-auth` → `mill-auth`
+- [ ] `mill-auth` → `mill-auth`
 - [ ] `codebuddy-workspaces` → `mill-workspaces`
 - [ ] `codebuddy-plugin-system` → `mill-plugin-system`
 - [ ] `codebuddy-plugin-bundle` → `mill-plugin-bundle`
@@ -1025,9 +1025,9 @@ See full documentation at https://typemill.org/docs/migration
   crates/cb-lang-toml → crates/mill-lang-toml
   crates/cb-lang-yaml → crates/mill-lang-yaml
   crates/codebuddy-foundation → crates/mill-foundation
-  crates/codebuddy-config → crates/mill-config
+  ../crates/mill-config → crates/mill-config
   crates/codebuddy-ast → crates/mill-ast
-  crates/codebuddy-auth → crates/mill-auth
+  ../crates/mill-auth → crates/mill-auth
   crates/codebuddy-workspaces → crates/mill-workspaces
   crates/codebuddy-plugin-system → crates/mill-plugin-system
   crates/codebuddy-plugin-bundle → crates/mill-plugin-bundle
@@ -1055,9 +1055,9 @@ See full documentation at https://typemill.org/docs/migration
   cb-lang-toml → mill-lang-toml
   cb-lang-yaml → mill-lang-yaml
   codebuddy-foundation → mill-foundation
-  codebuddy-config → mill-config
+  mill-config → mill-config
   codebuddy-ast → mill-ast
-  codebuddy-auth → mill-auth
+  mill-auth → mill-auth
   codebuddy-workspaces → mill-workspaces
   codebuddy-plugin-system → mill-plugin-system
   codebuddy-plugin-bundle → mill-plugin-bundle

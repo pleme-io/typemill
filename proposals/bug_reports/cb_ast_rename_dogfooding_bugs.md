@@ -21,7 +21,7 @@ During the dogfooding rename of `cb-ast` → `codebuddy-ast`, the rename plan su
 codebuddy-ast = { path = "../codebuddy-ast", optional = true }  # ✅ Updated correctly
 
 [features]
-runtime = ["codebuddy-foundation", "codebuddy-config", "cb-ast"]  # ❌ NOT updated
+runtime = ["codebuddy-foundation", "mill-config", "cb-ast"]  # ❌ NOT updated
 ```
 
 **Expected**: Feature flag should have been updated to `"codebuddy-ast"`

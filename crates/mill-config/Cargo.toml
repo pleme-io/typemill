@@ -1,5 +1,5 @@
 [package]
-name = "codebuddy-config"
+name = "mill-config"
 edition = "2021"
 description = "Configuration management for Codeflow Buddy"
 license = "MIT"

@@ -18,7 +18,7 @@ use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tracing::{debug, error, info};
 
 fn warn_if_fuse_enabled() {
-    if let Ok(config) = codebuddy_config::config::AppConfig::load() {
+    if let Ok(config) = mill_config::config::AppConfig::load() {
         if config.fuse.is_some() {
             eprintln!("⚠️  FUSE configured - requires SYS_ADMIN capability");
             eprintln!("   Only use in trusted development environments");
@@ -133,7 +133,7 @@ pub async fn run_websocket_server() {
 /// * `port` - The port to listen on.
 pub async fn run_websocket_server_with_port(port: u16) {
     // Load configuration
-    let config = match codebuddy_config::config::AppConfig::load() {
+    let config = match mill_config::config::AppConfig::load() {
         Ok(c) => Arc::new(c),
         Err(e) => {
             error!(error = %e, "Failed to load configuration");

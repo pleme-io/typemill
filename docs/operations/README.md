@@ -18,7 +18,7 @@ Location: `.codebuddy/config.json`
 
 **Auto-detect:** Run `codebuddy setup` to generate config from project files.
 
-**Manual config:** See [examples/setup/codebuddy-config.json](../examples/setup/codebuddy-config.json)
+**Manual config:** See [examples/setup/mill-config.json](../examples/setup/mill-config.json)
 
 ### Analysis Configuration
 

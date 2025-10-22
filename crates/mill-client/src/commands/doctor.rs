@@ -1,6 +1,6 @@
 use crate::commands::{Command, GlobalArgs};
 use crate::ClientResult;
-use codebuddy_config::config::AppConfig;
+use mill_config::config::AppConfig;
 
 pub struct DoctorCommand;
 
@@ -46,7 +46,7 @@ impl DoctorCommand {
     }
 
     /// Checks for the existence of configured LSP servers.
-    async fn check_language_servers(&self, servers: &[codebuddy_config::config::LspServerConfig]) {
+    async fn check_language_servers(&self, servers: &[mill_config::config::LspServerConfig]) {
         println!("\nChecking language servers:");
         for server in servers {
             let cmd = &server.command[0];

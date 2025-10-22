@@ -26,7 +26,7 @@ chrono = "0.4"
 sha2 = "0.10"
 urlencoding = "2.1"
 codebuddy-plugin-system = { path = "../codebuddy-plugin-system", default-features = false, features = ["runtime"] }
-codebuddy-config = { path = "../codebuddy-config" }
+mill-config = { path = "../mill-config" }
 codebuddy-ast = { path = "../codebuddy-ast", default-features = false }
 
 [features]
@@ -34,7 +34,7 @@ default = ["lang-rust", "lang-typescript", "lang-markdown"]
 lang-rust = ["codebuddy-ast/lang-rust", "codebuddy-plugin-system/lang-rust"]
 lang-typescript = ["codebuddy-ast/lang-typescript", "codebuddy-plugin-system/lang-typescript"]
 lang-markdown = ["codebuddy-ast/lang-markdown", "codebuddy-plugin-system/lang-markdown"]
-mcp-proxy = ["codebuddy-foundation/mcp-proxy", "codebuddy-config/mcp-proxy", "codebuddy-plugin-system/mcp-proxy"]
+mcp-proxy = ["codebuddy-foundation/mcp-proxy", "mill-config/mcp-proxy", "codebuddy-plugin-system/mcp-proxy"]
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

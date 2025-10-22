@@ -33,7 +33,7 @@ toml_edit = "0.23"
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 tempfile = "3.0"
 codebuddy-plugin-system = { path = "../codebuddy-plugin-system", default-features = false, features = ["runtime"] }
-codebuddy-config = { path = "../codebuddy-config" }
+mill-config = { path = "../mill-config" }
 codebuddy-plugin-bundle = { path = "../codebuddy-plugin-bundle", default-features = false }
 codebuddy-workspaces = { path = "../codebuddy-workspaces" }
 codebuddy-ast = { path = "../codebuddy-ast", default-features = false }
@@ -47,7 +47,7 @@ lang-typescript = ["mill-services/lang-typescript", "codebuddy-ast/lang-typescri
 lang-markdown = ["mill-services/lang-markdown", "codebuddy-ast/lang-markdown", "codebuddy-plugin-bundle/lang-markdown", "codebuddy-plugin-system/lang-markdown", "mill-transport/lang-markdown"]
 lang-toml = ["codebuddy-plugin-bundle/lang-toml"]
 lang-yaml = ["codebuddy-plugin-bundle/lang-yaml"]
-mcp-proxy = ["codebuddy-foundation/mcp-proxy", "codebuddy-config/mcp-proxy", "mill-services/mcp-proxy"]
+mcp-proxy = ["codebuddy-foundation/mcp-proxy", "mill-config/mcp-proxy", "mill-services/mcp-proxy"]
 test-helpers = []
 
 [dev-dependencies]

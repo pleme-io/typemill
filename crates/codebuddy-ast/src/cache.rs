@@ -61,7 +61,7 @@ impl CacheSettings {
     }
 
     /// Create cache settings from core config
-    /// This allows creating cache settings from codebuddy_config::config::CacheConfig
+    /// This allows creating cache settings from mill_config::config::CacheConfig
     pub fn from_config(enabled: bool, ttl_seconds: u64, max_size_bytes: u64) -> Self {
         // Calculate max_entries based on max_size_bytes
         // Assuming average entry size of ~10KB (includes path + import graph)

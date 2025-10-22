@@ -103,7 +103,7 @@ pub async fn start_stdio_server(
         let request_id = Uuid::new_v4();
 
         // Create request span for automatic context propagation
-        let span = codebuddy_config::logging::request_span(&request_id.to_string(), "stdio");
+        let span = mill_config::logging::request_span(&request_id.to_string(), "stdio");
         let _enter = span.enter();
 
         tracing::debug!(message_length = message.len(), "Received framed message");

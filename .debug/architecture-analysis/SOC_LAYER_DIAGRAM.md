@@ -49,7 +49,7 @@
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │                  INFRASTRUCTURE LAYER                           │
-│      (mill-lsp, cb-plugins, codebuddy-config, plugin system)      │
+│      (mill-lsp, cb-plugins, mill-config, plugin system)      │
 ├─────────────────────────────────────────────────────────────────┤
 │ Concerns:                          │ Status:                    │
 │ • LSP server communication         │ ✓ LSP encapsulation        │

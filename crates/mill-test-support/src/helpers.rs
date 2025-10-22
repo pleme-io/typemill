@@ -1,6 +1,6 @@
 //! Test helper functions and utilities
 
-use codebuddy_config::AppConfig;
+use mill_config::AppConfig;
 use codebuddy_foundation::core::model::*;
 use codebuddy_foundation::protocol::{EditPlan, ImportGraph};
 use serde_json::json;

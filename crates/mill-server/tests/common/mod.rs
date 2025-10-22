@@ -13,7 +13,7 @@ pub async fn create_test_app_state() -> (Arc<AppState>, TempDir) {
     let project_root = temp_dir.path().to_path_buf();
     let cache_settings = codebuddy_ast::CacheSettings::default();
     let plugin_manager = Arc::new(PluginManager::new());
-    let config = codebuddy_config::AppConfig::default();
+    let config = mill_config::AppConfig::default();
 
     // Build plugin registry for tests
     let plugin_registry = mill_services::services::registry_builder::build_language_plugin_registry();

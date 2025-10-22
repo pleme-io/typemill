@@ -21,10 +21,9 @@ members = [
     "analysis/cb-analysis-circular-deps",
     "tests/e2e",
     "crates/codebuddy-foundation",
-    "crates/codebuddy-config",
     "crates/codebuddy-workspaces",
-    "crates/codebuddy-auth",
-    "crates/xtask", "crates/codebuddy-ast", "crates/mill-client", "crates/mill-test-support", "crates/mill-handlers",
+    "crates/mill-auth",
+    "crates/xtask", "crates/codebuddy-ast", "crates/mill-client", "crates/mill-test-support", "crates/mill-handlers", "crates/mill-config",
 ]
 resolver = "2"
 

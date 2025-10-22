@@ -7,11 +7,8 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use codebuddy_auth::{
-    generate_token,
-    jwt::{decode, Claims, DecodingKey, Validation},
-};
-use codebuddy_config::config::AppConfig;
+use mill_auth::{ generate_token , jwt::{ decode , Claims , DecodingKey , Validation } , };
+use mill_config::config::AppConfig;
 use codebuddy_foundation::protocol::ApiResult;
 use codebuddy_workspaces::{Workspace, WorkspaceManager};
 use serde::{Deserialize, Serialize};

@@ -25,7 +25,7 @@ mill-services = { path = "../mill-services", default-features = false }
 mill-server = { path = "../mill-server", default-features = false }
 simd-json = "0.16"
 codebuddy-plugin-system = { path = "../codebuddy-plugin-system", default-features = false, features = ["runtime"] }
-codebuddy-config = { path = "../codebuddy-config" }
+mill-config = { path = "../mill-config" }
 codebuddy-ast = { path = "../codebuddy-ast", default-features = false }
 mill-handlers = { path = "../mill-handlers", default-features = false, features = ["refactor-all"] }
 

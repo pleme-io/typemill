@@ -22,7 +22,7 @@ pub use mill_handlers::handlers;
 pub use mill_services::services;
 
 use mill_handlers::handlers::plugin_dispatcher::{ AppState , PluginDispatcher };
-use codebuddy_config::AppConfig;
+use mill_config::AppConfig;
 pub use codebuddy_foundation::protocol::{
     ApiError as ServerError, ApiResult as ServerResult, AstService, LspService,
 };

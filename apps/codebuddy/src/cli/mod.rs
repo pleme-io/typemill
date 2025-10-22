@@ -6,7 +6,7 @@ mod flag_parser;
 use mill_client::format_plan;
 use mill_transport::SessionInfo;
 use clap::{Parser, Subcommand};
-use codebuddy_config::config::AppConfig;
+use mill_config::config::AppConfig;
 use codebuddy_foundation::core::utils::system::command_exists;
 use codebuddy_foundation::protocol::analysis_result::AnalysisResult;
 use codebuddy_foundation::protocol::refactor_plan::RefactorPlan;
@@ -263,7 +263,7 @@ pub async fn run() {
         Commands::Start { .. } | Commands::Serve { .. } => {
             // Load configuration to determine log format
             let config = AppConfig::load().unwrap_or_default();
-            codebuddy_config::logging::initialize(&config);
+            mill_config::logging::initialize(&config);
         }
         _ => {
             // For other commands, we want direct console output

@@ -9,8 +9,8 @@ description = "Transport layer for WebSocket and stdio communication"
 
 [dependencies]
 codebuddy-foundation = { path = "../codebuddy-foundation" }
-codebuddy-auth = { path = "../codebuddy-auth" }
-codebuddy-config = { path = "../codebuddy-config" }
+mill-auth = { path = "../mill-auth" }
+mill-config = { path = "../mill-config" }
 codebuddy-workspaces = { path = "../codebuddy-workspaces" }
 tokio = { workspace = true }
 async-trait = { workspace = true }
@@ -32,4 +32,4 @@ default = ["lang-rust", "lang-typescript", "lang-markdown"]
 lang-rust = ["codebuddy-ast/lang-rust"]
 lang-typescript = ["codebuddy-ast/lang-typescript"]
 lang-markdown = ["codebuddy-ast/lang-markdown"]
-mcp-proxy = ["codebuddy-foundation/mcp-proxy", "codebuddy-config/mcp-proxy"]
+mcp-proxy = ["codebuddy-foundation/mcp-proxy", "mill-config/mcp-proxy"]

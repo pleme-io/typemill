@@ -5,7 +5,7 @@
 use mill_server::{ bootstrap , ServerOptions };
 use mill_test_support::create_test_config;
 use mill_test_support::harness::{ TestClient , TestWorkspace };
-use codebuddy_config::AppConfig;
+use mill_config::AppConfig;
 use e2e::TestHarnessError;
 use serde_json::json;
 

@@ -117,7 +117,7 @@ impl PluginDispatcher {
             let plugin_registry = self.app_state.language_plugins.inner.clone();
 
             // Get LSP configuration from app config
-            let app_config = codebuddy_config::config::AppConfig::load()
+            let app_config = mill_config::config::AppConfig::load()
                 .map_err(|e| {
                     error!(error = %e, "Failed to load app config");
                     ServerError::Internal(format!("Failed to load app config: {}", e))
@@ -571,7 +571,7 @@ pub async fn create_test_dispatcher() -> PluginDispatcher {
 
     let cache_settings = codebuddy_ast::CacheSettings::default();
     let plugin_manager = Arc::new(PluginManager::new());
-    let config = codebuddy_config::AppConfig::default();
+    let config = mill_config::AppConfig::default();
 
     // Build plugin registry for tests
     let plugin_registry = mill_services::services::registry_builder::build_language_plugin_registry();
@@ -625,7 +625,7 @@ mod tests {
         let operation_queue = Arc::new(mill_services::services::OperationQueue::new(
             lock_manager.clone(),
         ));
-        let config = codebuddy_config::AppConfig::default();
+        let config = mill_config::AppConfig::default();
         let file_service = Arc::new(mill_services::services::FileService::new(
             project_root.clone(),
             ast_cache.clone(),

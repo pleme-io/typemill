@@ -141,7 +141,7 @@ async fn create_test_app_state(project_root: PathBuf) -> Arc<AppState> {
     ));
     let lock_manager = Arc::new(LockManager::new());
     let operation_queue = Arc::new(OperationQueue::new(lock_manager.clone()));
-    let config = codebuddy_config::AppConfig::default();
+    let config = mill_config::AppConfig::default();
     let file_service = Arc::new(FileService::new(
         project_root.clone(),
         ast_cache.clone(),

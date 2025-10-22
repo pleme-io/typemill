@@ -55,7 +55,7 @@ impl FileService {
 
             // For Report action, just include the errors in the response
             match self.validation_config.on_failure {
-                codebuddy_config::config::ValidationFailureAction::Report => Some(json!({
+                mill_config::config::ValidationFailureAction::Report => Some(json!({
                     "validation_status": "failed",
                     "validation_command": self.validation_config.command,
                     "validation_errors": stderr,
@@ -65,7 +65,7 @@ impl FileService {
                         self.validation_config.command
                     )
                 })),
-                codebuddy_config::config::ValidationFailureAction::Rollback => {
+                mill_config::config::ValidationFailureAction::Rollback => {
                     warn!(
                         stderr = %stderr,
                         "Validation failed. Executing automatic rollback via 'git reset --hard HEAD'"
@@ -105,7 +105,7 @@ impl FileService {
                         }
                     }))
                 }
-                codebuddy_config::config::ValidationFailureAction::Interactive => Some(json!({
+                mill_config::config::ValidationFailureAction::Interactive => Some(json!({
                     "validation_status": "failed",
                     "validation_action": "interactive_prompt",
                     "validation_command": self.validation_config.command,

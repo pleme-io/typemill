@@ -1,4 +1,4 @@
-use codebuddy_config::config::AppConfig;
+use mill_config::config::AppConfig;
 use std::fs;
 
 #[test]
@@ -55,7 +55,7 @@ fn test_app_config_contract() {
     assert_eq!(config.logging.level, "info");
     assert_eq!(
         config.logging.format,
-        codebuddy_config::config::LogFormat::Json
+        mill_config::config::LogFormat::Json
     );
     if let Some(file) = &config.logging.file {
         assert_eq!(file.path.to_str().unwrap(), "/tmp/codeflow.log");

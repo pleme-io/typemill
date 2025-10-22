@@ -214,7 +214,7 @@ skip-tree = [
 # Enforces the layered architecture documented in docs/architecture/layers.md
 #
 # Layer Hierarchy (after consolidation):
-# - Layer 7: Application (mill-server, mill-client, mill-transport, codebuddy, codebuddy-auth, codebuddy-workspaces)
+# - Layer 7: Application (mill-server, mill-client, mill-transport, codebuddy, mill-auth, codebuddy-workspaces)
 # - Layer 6: Handlers (mill-handlers)
 # - Layer 5: Services (mill-services, cb-ast, mill-lsp, codebuddy-plugin-system, codebuddy-plugin-bundle)
 # - Layer 4: Language Plugins (cb-lang-*)
