@@ -1,7 +1,7 @@
 //! Builds a `DependencyGraph` from a project's source files.
 
 use cb_analysis_graph::dependency::{Dependency, DependencyGraph, DependencyKind};
-use cb_plugin_api::{import_support::ImportParser, PluginRegistry};
+use mill_plugin_api::{ import_support::ImportParser , PluginRegistry };
 use ignore::WalkBuilder;
 use std::fs;
 use std::path::{Path, PathBuf};

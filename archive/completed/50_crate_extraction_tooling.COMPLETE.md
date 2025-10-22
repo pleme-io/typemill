@@ -55,7 +55,7 @@ Successfully implemented all 5 tools for complete crate extraction workflow:
 ## Implementation Details
 
 **New Files Created:**
-- `crates/cb-plugin-api/src/project_factory.rs` - ProjectFactory trait
+- `../../crates/mill-plugin-api/src/project_factory.rs` - ProjectFactory trait
 - `crates/cb-lang-rust/src/project_factory.rs` - Rust implementation
 - `../../crates/mill-handlers/src/handlers/tools/workspace_create.rs` - Handler
 - `../../crates/mill-handlers/src/handlers/tools/analysis/module_dependencies.rs` - Handler
@@ -68,7 +68,7 @@ Successfully implemented all 5 tools for complete crate extraction workflow:
 - `tests/e2e/src/test_consolidation_metadata.rs` - Tests
 
 **Modified Files:**
-- `crates/cb-plugin-api/src/lib.rs` - Added PluginCapabilities builder pattern
+- `../../crates/mill-plugin-api/src/lib.rs` - Added PluginCapabilities builder pattern
 - `../../../../crates/mill-foundation/src/protocol/src/refactor_plan.rs` - Added is_consolidation field
 - `../../crates/mill-handlers/src/handlers/rename_handler/directory_rename.rs` - Consolidation detection
 - `../../crates/mill-handlers/src/handlers/plugin_dispatcher.rs` - Handler registration

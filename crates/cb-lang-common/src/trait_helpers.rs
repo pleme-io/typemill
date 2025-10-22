@@ -20,7 +20,7 @@
 #[macro_export]
 macro_rules! workspace_support_impl {
     ($struct_name:ident) => {
-        impl cb_plugin_api::WorkspaceSupport for $struct_name {
+        impl mill_plugin_api::WorkspaceSupport for $struct_name {
             fn add_workspace_member(&self, content: &str, member: &str) -> String {
                 tracing::debug!(member = %member, "Adding workspace member");
 

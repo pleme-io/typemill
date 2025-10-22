@@ -1,10 +1,10 @@
-use cb_plugin_api::ModuleReference;
+use mill_plugin_api::ModuleReference;
 use std::path::Path;
 use tracing::debug;
 
 /// Helper function to create TextEdits from ModuleReferences for import path updates
 pub(crate) fn create_text_edits_from_references(
-    references: &[cb_plugin_api::ModuleReference],
+    references: &[mill_plugin_api::ModuleReference],
     file_path: &Path,
     old_module_name: &str,
     new_module_name: &str,
@@ -28,9 +28,9 @@ pub(crate) fn create_text_edits_from_references(
             description: format!(
                 "Update {} reference from '{}' to '{}'",
                 match refer.kind {
-                    cb_plugin_api::ReferenceKind::Declaration => "import",
-                    cb_plugin_api::ReferenceKind::QualifiedPath => "qualified path",
-                    cb_plugin_api::ReferenceKind::StringLiteral => "string literal",
+                    mill_plugin_api::ReferenceKind::Declaration => "import",
+                    mill_plugin_api::ReferenceKind::QualifiedPath => "qualified path",
+                    mill_plugin_api::ReferenceKind::StringLiteral => "string literal",
                 },
                 old_module_name,
                 new_module_name
@@ -57,8 +57,8 @@ pub(crate) fn find_inline_crate_references(
     content: &str,
     file_path: &Path,
     crate_name: &str,
-) -> Vec<cb_plugin_api::ModuleReference> {
-    use cb_plugin_api::ReferenceKind;
+) -> Vec<mill_plugin_api::ModuleReference> {
+    use mill_plugin_api::ReferenceKind;
 
     let mut references = Vec::new();
 

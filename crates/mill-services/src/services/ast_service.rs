@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use std::path::Path;
 use std::sync::Arc;
 
-use cb_plugin_api::PluginRegistry;
+use mill_plugin_api::PluginRegistry;
 use mill_ast::AstCache;
 use mill_foundation::protocol::{ ApiResult , CacheStats , ImportGraph };
 use tracing::{debug, trace};

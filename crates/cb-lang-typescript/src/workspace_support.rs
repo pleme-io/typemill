@@ -2,7 +2,7 @@
 //!
 //! Handles workspace operations through package.json and pnpm-workspace.yaml manipulation.
 
-use cb_plugin_api::WorkspaceSupport;
+use mill_plugin_api::WorkspaceSupport;
 use serde_json::{json, Value};
 use tracing::{debug, warn};
 

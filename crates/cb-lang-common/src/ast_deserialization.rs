@@ -4,7 +4,7 @@
 //! Provides standard formats that language plugins can use when implementing
 //! their AST tools in Python, Node.js, Go, Java, etc.
 
-use cb_plugin_api::{PluginResult, SourceLocation, Symbol, SymbolKind};
+use mill_plugin_api::{ PluginResult , SourceLocation , Symbol , SymbolKind };
 use mill_foundation::protocol::ImportInfo;
 use serde::{Deserialize, Serialize};
 
@@ -92,7 +92,7 @@ pub struct AstToolOutput {
 }
 
 impl AstToolOutput {
-    /// Convert to cb-plugin-api Symbol list
+    /// Convert to mill-plugin-api Symbol list
     pub fn into_symbols(self) -> Vec<Symbol> {
         self.symbols.into_iter().map(Symbol::from).collect()
     }
@@ -118,7 +118,7 @@ impl AstToolOutput {
 /// ```
 pub fn parse_ast_output(json: &str) -> PluginResult<AstToolOutput> {
     serde_json::from_str(json).map_err(|e| {
-        cb_plugin_api::PluginError::parse(format!("Failed to parse AST tool output: {}", e))
+        mill_plugin_api::PluginError::parse(format!("Failed to parse AST tool output: {}", e))
     })
 }
 
@@ -127,7 +127,7 @@ pub fn parse_ast_output(json: &str) -> PluginResult<AstToolOutput> {
 /// Wraps a simple symbol array in the standard AstToolOutput structure
 pub fn parse_symbol_array(json: &str) -> PluginResult<Vec<Symbol>> {
     let symbols: Vec<AstSymbol> = serde_json::from_str(json).map_err(|e| {
-        cb_plugin_api::PluginError::parse(format!("Failed to parse symbol array: {}", e))
+        mill_plugin_api::PluginError::parse(format!("Failed to parse symbol array: {}", e))
     })?;
 
     Ok(symbols.into_iter().map(Symbol::from).collect())

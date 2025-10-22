@@ -325,7 +325,7 @@ pub fn module_function() {}
         is_workspace_member: Some(true),
     };
 
-    let mut registry = cb_plugin_api::PluginRegistry::new();
+    let mut registry = mill_plugin_api::PluginRegistry::new();
     registry.register(Arc::new(RustPlugin::default()));
 
     let result = plan_extract_module_to_package(params, &registry).await;
@@ -386,7 +386,7 @@ version = "0.1.0"
         is_workspace_member: Some(false),
     };
 
-    let mut registry = cb_plugin_api::PluginRegistry::new();
+    let mut registry = mill_plugin_api::PluginRegistry::new();
     registry.register(Arc::new(RustPlugin::default()));
 
     let result = plan_extract_module_to_package(params, &registry).await;

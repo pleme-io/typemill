@@ -4,15 +4,8 @@
 //! This enables `rename.plan` to track markdown link references when files are moved.
 
 use async_trait::async_trait;
-use cb_plugin_api::codebuddy_plugin;
-use cb_plugin_api::{
-    import_support::{
-        ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportParser,
-        ImportRenameSupport,
-    },
-    LanguageMetadata, LanguagePlugin, ManifestData, ParsedSource, PluginCapabilities, PluginError,
-    PluginResult, SourceLocation, Symbol, SymbolKind,
-};
+use mill_plugin_api::codebuddy_plugin;
+use mill_plugin_api::{ import_support::{ ImportAdvancedSupport , ImportMoveSupport , ImportMutationSupport , ImportParser , ImportRenameSupport , } , LanguageMetadata , LanguagePlugin , ManifestData , ParsedSource , PluginCapabilities , PluginError , PluginResult , SourceLocation , Symbol , SymbolKind , };
 use regex::Regex;
 use std::path::Path;
 use tracing::debug;

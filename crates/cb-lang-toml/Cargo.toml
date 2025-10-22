@@ -5,7 +5,7 @@ edition = "2021"
 license.workspace = true
 
 [dependencies]
-cb-plugin-api = { path = "../cb-plugin-api" }
+mill-plugin-api = { path = "../mill-plugin-api" }
 async-trait = "0.1"
 toml_edit = "0.22"
 tracing = "0.1"

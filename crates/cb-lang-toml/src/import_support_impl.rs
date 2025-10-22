@@ -1,6 +1,6 @@
 //! Import/rename support implementation for TOML files
 
-use cb_plugin_api::{ImportRenameSupport, PluginResult};
+use mill_plugin_api::{ ImportRenameSupport , PluginResult };
 use std::path::Path;
 use toml_edit::{DocumentMut, Item, Value};
 
@@ -20,7 +20,7 @@ impl TomlImportSupport {
         update_exact_matches: bool,
     ) -> PluginResult<(String, usize)> {
         let mut doc: DocumentMut = content.parse().map_err(|e| {
-            cb_plugin_api::PluginError::parse(format!("Failed to parse TOML: {}", e))
+            mill_plugin_api::PluginError::parse(format!("Failed to parse TOML: {}", e))
         })?;
         let mut changes = 0;
 

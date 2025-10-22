@@ -70,7 +70,7 @@ use mill_foundation::protocol::analysis_result::AnalysisResult;
 pub fn detect_imports(
     _complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
-    _symbols: &[cb_plugin_api::Symbol],
+    _symbols: &[mill_plugin_api::Symbol],
     language: &str,
     file_path: &str,
     registry: &crate::LanguagePluginRegistry,
@@ -216,7 +216,7 @@ pub fn detect_imports(
 pub fn detect_graph(
     _complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
-    _symbols: &[cb_plugin_api::Symbol],
+    _symbols: &[mill_plugin_api::Symbol],
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
@@ -312,7 +312,7 @@ pub fn detect_graph(
 pub fn detect_circular(
     _complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
-    _symbols: &[cb_plugin_api::Symbol],
+    _symbols: &[mill_plugin_api::Symbol],
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
@@ -417,7 +417,7 @@ pub fn detect_circular(
 pub fn detect_coupling(
     _complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
-    _symbols: &[cb_plugin_api::Symbol],
+    _symbols: &[mill_plugin_api::Symbol],
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
@@ -536,7 +536,7 @@ pub fn detect_coupling(
 pub fn detect_cohesion(
     complexity_report: &mill_ast::complexity::ComplexityReport,
     _content: &str,
-    _symbols: &[cb_plugin_api::Symbol],
+    _symbols: &[mill_plugin_api::Symbol],
     _language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
@@ -658,7 +658,7 @@ pub fn detect_cohesion(
 pub fn detect_depth(
     _complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
-    _symbols: &[cb_plugin_api::Symbol],
+    _symbols: &[mill_plugin_api::Symbol],
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,

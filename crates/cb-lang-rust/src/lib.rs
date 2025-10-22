@@ -33,11 +33,8 @@ use cb_lang_common::{
     manifest_templates::{ManifestTemplate, TomlManifestTemplate},
     read_manifest,
 };
-use cb_plugin_api::codebuddy_plugin;
-use cb_plugin_api::{
-    LanguageMetadata, LanguagePlugin, LspConfig, ManifestData, ParsedSource, PluginCapabilities,
-    PluginResult,
-};
+use mill_plugin_api::codebuddy_plugin;
+use mill_plugin_api::{ LanguageMetadata , LanguagePlugin , LspConfig , ManifestData , ParsedSource , PluginCapabilities , PluginResult , };
 use std::path::Path;
 
 // Import helpers from the imports module
@@ -102,7 +99,7 @@ impl LanguagePlugin for RustPlugin {
 
         // Parse the source into a syn AST and serialize it as JSON
         let ast: syn::File = syn::parse_file(source).map_err(|e| {
-            cb_plugin_api::PluginError::parse(format!("Failed to parse Rust code: {}", e))
+            mill_plugin_api::PluginError::parse(format!("Failed to parse Rust code: {}", e))
         })?;
 
         // Serialize the AST to JSON using quote
@@ -122,7 +119,7 @@ impl LanguagePlugin for RustPlugin {
     async fn analyze_manifest(&self, path: &Path) -> PluginResult<ManifestData> {
         // Verify this is a Cargo.toml file
         if path.file_name().and_then(|s| s.to_str()) != Some("Cargo.toml") {
-            return Err(cb_plugin_api::PluginError::invalid_input(format!(
+            return Err(mill_plugin_api::PluginError::invalid_input(format!(
                 "Expected Cargo.toml, got: {:?}",
                 path.file_name()
             )));
@@ -147,60 +144,60 @@ impl LanguagePlugin for RustPlugin {
         self
     }
 
-    fn import_parser(&self) -> Option<&dyn cb_plugin_api::ImportParser> {
+    fn import_parser(&self) -> Option<&dyn mill_plugin_api::ImportParser> {
         Some(&self.import_support)
     }
 
-    fn import_rename_support(&self) -> Option<&dyn cb_plugin_api::ImportRenameSupport> {
+    fn import_rename_support(&self) -> Option<&dyn mill_plugin_api::ImportRenameSupport> {
         Some(&self.import_support)
     }
 
-    fn import_move_support(&self) -> Option<&dyn cb_plugin_api::ImportMoveSupport> {
+    fn import_move_support(&self) -> Option<&dyn mill_plugin_api::ImportMoveSupport> {
         Some(&self.import_support)
     }
 
-    fn import_mutation_support(&self) -> Option<&dyn cb_plugin_api::ImportMutationSupport> {
+    fn import_mutation_support(&self) -> Option<&dyn mill_plugin_api::ImportMutationSupport> {
         Some(&self.import_support)
     }
 
-    fn import_advanced_support(&self) -> Option<&dyn cb_plugin_api::ImportAdvancedSupport> {
+    fn import_advanced_support(&self) -> Option<&dyn mill_plugin_api::ImportAdvancedSupport> {
         Some(&self.import_support)
     }
 
-    fn workspace_support(&self) -> Option<&dyn cb_plugin_api::WorkspaceSupport> {
+    fn workspace_support(&self) -> Option<&dyn mill_plugin_api::WorkspaceSupport> {
         Some(&self.workspace_support)
     }
 
-    fn reference_detector(&self) -> Option<&dyn cb_plugin_api::ReferenceDetector> {
+    fn reference_detector(&self) -> Option<&dyn mill_plugin_api::ReferenceDetector> {
         Some(&self.reference_detector)
     }
 
-    fn project_factory(&self) -> Option<&dyn cb_plugin_api::ProjectFactory> {
+    fn project_factory(&self) -> Option<&dyn mill_plugin_api::ProjectFactory> {
         Some(&self.project_factory)
     }
 
     // Capability trait discovery methods
-    fn module_reference_scanner(&self) -> Option<&dyn cb_plugin_api::ModuleReferenceScanner> {
+    fn module_reference_scanner(&self) -> Option<&dyn mill_plugin_api::ModuleReferenceScanner> {
         Some(self)
     }
 
-    fn refactoring_provider(&self) -> Option<&dyn cb_plugin_api::RefactoringProvider> {
+    fn refactoring_provider(&self) -> Option<&dyn mill_plugin_api::RefactoringProvider> {
         Some(self)
     }
 
-    fn import_analyzer(&self) -> Option<&dyn cb_plugin_api::ImportAnalyzer> {
+    fn import_analyzer(&self) -> Option<&dyn mill_plugin_api::ImportAnalyzer> {
         Some(self)
     }
 
-    fn manifest_updater(&self) -> Option<&dyn cb_plugin_api::ManifestUpdater> {
+    fn manifest_updater(&self) -> Option<&dyn mill_plugin_api::ManifestUpdater> {
         Some(self)
     }
 
-    fn module_declaration_support(&self) -> Option<&dyn cb_plugin_api::ModuleDeclarationSupport> {
+    fn module_declaration_support(&self) -> Option<&dyn mill_plugin_api::ModuleDeclarationSupport> {
         Some(self)
     }
 
-    fn module_locator(&self) -> Option<&dyn cb_plugin_api::ModuleLocator> {
+    fn module_locator(&self) -> Option<&dyn mill_plugin_api::ModuleLocator> {
         Some(self)
     }
 
@@ -316,19 +313,19 @@ impl LanguagePlugin for RustPlugin {
 // Capability Trait Implementations
 // ============================================================================
 
-impl cb_plugin_api::ModuleReferenceScanner for RustPlugin {
+impl mill_plugin_api::ModuleReferenceScanner for RustPlugin {
     fn scan_references(
         &self,
         content: &str,
         module_name: &str,
-        scope: cb_plugin_api::ScanScope,
-    ) -> cb_plugin_api::PluginResult<Vec<cb_plugin_api::ModuleReference>> {
+        scope: mill_plugin_api::ScanScope,
+    ) -> mill_plugin_api::PluginResult<Vec<mill_plugin_api::ModuleReference>> {
         self.find_module_references(content, module_name, scope)
     }
 }
 
 #[async_trait]
-impl cb_plugin_api::RefactoringProvider for RustPlugin {
+impl mill_plugin_api::RefactoringProvider for RustPlugin {
     fn supports_inline_variable(&self) -> bool {
         true
     }
@@ -339,9 +336,9 @@ impl cb_plugin_api::RefactoringProvider for RustPlugin {
         variable_line: u32,
         variable_col: u32,
         file_path: &str,
-    ) -> cb_plugin_api::PluginResult<mill_foundation::protocol::EditPlan> {
+    ) -> mill_plugin_api::PluginResult<mill_foundation::protocol::EditPlan> {
         refactoring::plan_inline_variable(source, variable_line, variable_col, file_path).map_err(
-            |e| cb_plugin_api::PluginError::internal(format!("Rust refactoring error: {}", e)),
+            |e| mill_plugin_api::PluginError::internal(format!("Rust refactoring error: {}", e)),
         )
     }
 
@@ -356,10 +353,10 @@ impl cb_plugin_api::RefactoringProvider for RustPlugin {
         end_line: u32,
         function_name: &str,
         file_path: &str,
-    ) -> cb_plugin_api::PluginResult<mill_foundation::protocol::EditPlan> {
+    ) -> mill_plugin_api::PluginResult<mill_foundation::protocol::EditPlan> {
         refactoring::plan_extract_function(source, start_line, end_line, function_name, file_path)
             .map_err(|e| {
-                cb_plugin_api::PluginError::internal(format!("Rust refactoring error: {}", e))
+                mill_plugin_api::PluginError::internal(format!("Rust refactoring error: {}", e))
             })
     }
 
@@ -376,7 +373,7 @@ impl cb_plugin_api::RefactoringProvider for RustPlugin {
         end_col: u32,
         variable_name: Option<String>,
         file_path: &str,
-    ) -> cb_plugin_api::PluginResult<mill_foundation::protocol::EditPlan> {
+    ) -> mill_plugin_api::PluginResult<mill_foundation::protocol::EditPlan> {
         refactoring::plan_extract_variable(
             source,
             start_line,
@@ -386,25 +383,25 @@ impl cb_plugin_api::RefactoringProvider for RustPlugin {
             variable_name,
             file_path,
         )
-        .map_err(|e| cb_plugin_api::PluginError::internal(format!("Rust refactoring error: {}", e)))
+        .map_err(|e| mill_plugin_api::PluginError::internal(format!("Rust refactoring error: {}", e)))
     }
 }
 
-impl cb_plugin_api::ImportAnalyzer for RustPlugin {
+impl mill_plugin_api::ImportAnalyzer for RustPlugin {
     fn build_import_graph(
         &self,
         file_path: &Path,
-    ) -> cb_plugin_api::PluginResult<mill_foundation::protocol::ImportGraph> {
+    ) -> mill_plugin_api::PluginResult<mill_foundation::protocol::ImportGraph> {
         // Read the file content
         let content = std::fs::read_to_string(file_path).map_err(|e| {
-            cb_plugin_api::PluginError::internal(format!("Failed to read file: {}", e))
+            mill_plugin_api::PluginError::internal(format!("Failed to read file: {}", e))
         })?;
 
         // Use the existing analyze_detailed_imports method
         self.analyze_detailed_imports(&content, Some(file_path))
     }
 
-    fn find_unused_imports(&self, _file_path: &Path) -> cb_plugin_api::PluginResult<Vec<String>> {
+    fn find_unused_imports(&self, _file_path: &Path) -> mill_plugin_api::PluginResult<Vec<String>> {
         // TODO: Implement unused import detection
         // For now, return empty vector
         Ok(Vec::new())
@@ -416,14 +413,14 @@ impl cb_plugin_api::ImportAnalyzer for RustPlugin {
 // ============================================================================
 
 #[async_trait::async_trait]
-impl cb_plugin_api::ManifestUpdater for RustPlugin {
+impl mill_plugin_api::ManifestUpdater for RustPlugin {
     async fn update_dependency(
         &self,
         manifest_path: &Path,
         old_name: &str,
         new_name: &str,
         new_version: Option<&str>,
-    ) -> cb_plugin_api::PluginResult<String> {
+    ) -> mill_plugin_api::PluginResult<String> {
         // Delegate to the inherent method implementation
         RustPlugin::update_dependency(self, manifest_path, old_name, new_name, new_version).await
     }
@@ -439,7 +436,7 @@ impl cb_plugin_api::ManifestUpdater for RustPlugin {
         dep_name: &str,
         dep_path: &str,
         base_path: &Path,
-    ) -> cb_plugin_api::PluginResult<String> {
+    ) -> mill_plugin_api::PluginResult<String> {
         // Delegate to the inherent method implementation
         RustPlugin::add_manifest_path_dependency(
             self,
@@ -457,12 +454,12 @@ impl cb_plugin_api::ManifestUpdater for RustPlugin {
 // ============================================================================
 
 #[async_trait::async_trait]
-impl cb_plugin_api::ModuleLocator for RustPlugin {
+impl mill_plugin_api::ModuleLocator for RustPlugin {
     async fn locate_module_files(
         &self,
         package_path: &Path,
         module_path: &str,
-    ) -> cb_plugin_api::PluginResult<Vec<std::path::PathBuf>> {
+    ) -> mill_plugin_api::PluginResult<Vec<std::path::PathBuf>> {
         // Delegate to the inherent method implementation
         RustPlugin::locate_module_files(self, package_path, module_path).await
     }
@@ -473,12 +470,12 @@ impl cb_plugin_api::ModuleLocator for RustPlugin {
 // ============================================================================
 
 #[async_trait::async_trait]
-impl cb_plugin_api::ModuleDeclarationSupport for RustPlugin {
+impl mill_plugin_api::ModuleDeclarationSupport for RustPlugin {
     async fn remove_module_declaration(
         &self,
         source: &str,
         module_name: &str,
-    ) -> cb_plugin_api::PluginResult<String> {
+    ) -> mill_plugin_api::PluginResult<String> {
         // Delegate to the inherent method implementation
         RustPlugin::remove_module_declaration(self, source, module_name).await
     }
@@ -526,7 +523,7 @@ impl RustPlugin {
     ) -> PluginResult<Vec<std::path::PathBuf>> {
         // Handle empty module path
         if module_path.is_empty() {
-            return Err(cb_plugin_api::PluginError::invalid_input(
+            return Err(mill_plugin_api::PluginError::invalid_input(
                 "Module path cannot be empty",
             ));
         }
@@ -538,7 +535,7 @@ impl RustPlugin {
         // Start from src/ directory
         let src_dir = package_path.join("src");
         if !src_dir.exists() {
-            return Err(cb_plugin_api::PluginError::internal(format!(
+            return Err(mill_plugin_api::PluginError::internal(format!(
                 "Source directory not found: {}",
                 src_dir.display()
             )));
@@ -561,7 +558,7 @@ impl RustPlugin {
                 } else if mod_dir.exists() {
                     result_files.push(mod_dir);
                 } else {
-                    return Err(cb_plugin_api::PluginError::invalid_input(format!(
+                    return Err(mill_plugin_api::PluginError::invalid_input(format!(
                         "Module not found: {}",
                         module_path
                     )));
@@ -570,7 +567,7 @@ impl RustPlugin {
                 // Navigate to subdirectory
                 current_path = current_path.join(part);
                 if !current_path.exists() {
-                    return Err(cb_plugin_api::PluginError::invalid_input(format!(
+                    return Err(mill_plugin_api::PluginError::invalid_input(format!(
                         "Module path not found: {}",
                         current_path.display()
                     )));
@@ -620,7 +617,7 @@ impl RustPlugin {
 
         // Parse the source file
         let ast: File = syn::parse_file(source).map_err(|e| {
-            cb_plugin_api::PluginError::parse(format!("Failed to parse Rust code: {}", e))
+            mill_plugin_api::PluginError::parse(format!("Failed to parse Rust code: {}", e))
         })?;
 
         // Filter out module declarations matching the name
@@ -769,7 +766,7 @@ impl RustPlugin {
 
         while let Some(current_dir) = queue.pop() {
             let mut entries = fs::read_dir(&current_dir).await.map_err(|e| {
-                cb_plugin_api::PluginError::internal(format!(
+                mill_plugin_api::PluginError::internal(format!(
                     "Failed to read directory {}: {}",
                     current_dir.display(),
                     e
@@ -777,11 +774,11 @@ impl RustPlugin {
             })?;
 
             while let Some(entry) = entries.next_entry().await.map_err(|e| {
-                cb_plugin_api::PluginError::internal(format!("Failed to read entry: {}", e))
+                mill_plugin_api::PluginError::internal(format!("Failed to read entry: {}", e))
             })? {
                 let path = entry.path();
                 let metadata = entry.metadata().await.map_err(|e| {
-                    cb_plugin_api::PluginError::internal(format!("Failed to get metadata: {}", e))
+                    mill_plugin_api::PluginError::internal(format!("Failed to get metadata: {}", e))
                 })?;
 
                 if metadata.is_dir() {
@@ -813,13 +810,13 @@ impl RustPlugin {
         &self,
         content: &str,
         module_to_find: &str,
-        _scope: cb_plugin_api::ScanScope,
-    ) -> PluginResult<Vec<cb_plugin_api::ModuleReference>> {
-        use cb_plugin_api::{ModuleReference, ReferenceKind};
+        _scope: mill_plugin_api::ScanScope,
+    ) -> PluginResult<Vec<mill_plugin_api::ModuleReference>> {
+        use mill_plugin_api::{ ModuleReference , ReferenceKind };
         use syn::{File, Item};
 
         let ast: File = syn::parse_file(content).map_err(|e| {
-            cb_plugin_api::PluginError::parse(format!("Failed to parse Rust code: {}", e))
+            mill_plugin_api::PluginError::parse(format!("Failed to parse Rust code: {}", e))
         })?;
 
         let mut references = Vec::new();
@@ -1209,7 +1206,7 @@ struct TestStruct {
             .iter()
             .find(|s| s.name == "test_function")
             .unwrap();
-        assert_eq!(func.kind, cb_plugin_api::SymbolKind::Function);
+        assert_eq!(func.kind, mill_plugin_api::SymbolKind::Function);
         assert!(func.documentation.is_some());
 
         // Check struct
@@ -1218,7 +1215,7 @@ struct TestStruct {
             .iter()
             .find(|s| s.name == "TestStruct")
             .unwrap();
-        assert_eq!(struc.kind, cb_plugin_api::SymbolKind::Struct);
+        assert_eq!(struc.kind, mill_plugin_api::SymbolKind::Struct);
     }
 
     #[tokio::test]
@@ -1273,7 +1270,7 @@ impl Wrapper {
 
         // Use the ImportRenameSupport trait method instead
         let rename_support = plugin_trait.import_rename_support().unwrap();
-        let (result, count) = cb_plugin_api::ImportRenameSupport::rewrite_imports_for_rename(
+        let (result, count) = mill_plugin_api::ImportRenameSupport::rewrite_imports_for_rename(
             rename_support,
             source,
             "old_crate",

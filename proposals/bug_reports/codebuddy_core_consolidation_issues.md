@@ -24,10 +24,10 @@ During the consolidation of `codebuddy-core` into `mill-foundation/src/core`, mu
 **Impact**: Workspace build failure
 
 **Description**:
-The consolidation tool moved `language.rs` into `mill-foundation/src/core/`, but this module depends on `cb-plugin-api::iter_plugins()`. This creates a circular dependency:
+The consolidation tool moved `language.rs` into `mill-foundation/src/core/`, but this module depends on `mill-plugin-api::iter_plugins()`. This creates a circular dependency:
 
 ```
-cb-plugin-api → mill-foundation → (language.rs) → cb-plugin-api
+mill-plugin-api → mill-foundation → (language.rs) → mill-plugin-api
 ```
 
 **Root Cause**:
@@ -35,21 +35,21 @@ The consolidation tool doesn't detect or prevent circular dependencies when movi
 
 **Error Message**:
 ```
-error: cyclic package dependency: package `cb-plugin-api v0.0.0` depends on itself. Cycle:
-package `cb-plugin-api`
-    ... which satisfies path dependency `cb-plugin-api` of package `mill-foundation`
-    ... which satisfies path dependency `mill-foundation` of package `cb-plugin-api`
+error: cyclic package dependency: package `mill-plugin-api v0.0.0` depends on itself. Cycle:
+package `mill-plugin-api`
+    ... which satisfies path dependency `mill-plugin-api` of package `mill-foundation`
+    ... which satisfies path dependency `mill-foundation` of package `mill-plugin-api`
 ```
 
 **Workaround Applied**:
 - Removed `language.rs` from consolidation target
-- Moved `language.rs` to `cb-plugin-api` crate instead
+- Moved `language.rs` to `mill-plugin-api` crate instead
 - Updated imports from `codebuddy_core::language` → `cb_plugin_api::language`
 - Fixed self-imports: `use cb_plugin_api::iter_plugins` → `use crate::iter_plugins`
 
 **Files Affected**:
 - `/workspace/crates/mill-foundation/src/core/language.rs` (removed)
-- `/workspace/crates/cb-plugin-api/src/language.rs` (new location)
+- `/workspace/crates/mill-plugin-api/src/language.rs` (new location)
 - `/workspace/crates/cb-ast/src/package_extractor/planner.rs` (import updated)
 - `/workspace/crates/mill-plugin-system/src/system_tools_plugin.rs` (import updated)
 
@@ -64,7 +64,7 @@ package `cb-plugin-api`
 Similar to Bug #1, `logging.rs` was moved into `mill-foundation/src/core/`, but it depends on `mill-config::{AppConfig, LogFormat}`. This creates another circular dependency:
 
 ```
-cb-plugin-api → mill-foundation → mill-config → cb-plugin-api
+mill-plugin-api → mill-foundation → mill-config → mill-plugin-api
 ```
 
 Additionally, `mill-config` directly depends on `mill-foundation`, so:
@@ -77,11 +77,11 @@ Same as Bug #1 - the consolidation tool doesn't analyze transitive dependencies 
 
 **Error Message**:
 ```
-error: cyclic package dependency: package `cb-plugin-api v0.0.0` depends on itself. Cycle:
-package `cb-plugin-api`
-    ... which satisfies path dependency `cb-plugin-api` of package `mill-config`
+error: cyclic package dependency: package `mill-plugin-api v0.0.0` depends on itself. Cycle:
+package `mill-plugin-api`
+    ... which satisfies path dependency `mill-plugin-api` of package `mill-config`
     ... which satisfies path dependency `mill-config` of package `mill-foundation`
-    ... which satisfies path dependency `mill-foundation` of package `cb-plugin-api`
+    ... which satisfies path dependency `mill-foundation` of package `mill-plugin-api`
 ```
 
 **Workaround Applied**:
@@ -158,12 +158,12 @@ find /workspace -type f \( -name "*.rs" -o -name "*.toml" \) ! -path "*/target/*
 When modules are moved to a new crate location, self-imports (imports of the containing crate) are not automatically converted from external crate references to `crate::` or `super::` paths.
 
 **Example**:
-In `language.rs` after moving to `cb-plugin-api`:
+In `language.rs` after moving to `mill-plugin-api`:
 ```rust
 // Before move (in codebuddy-core):
 use cb_plugin_api::iter_plugins;  // ✓ correct
 
-// After move to cb-plugin-api (incorrect):
+// After move to mill-plugin-api (incorrect):
 use cb_plugin_api::iter_plugins;  // ✗ circular self-import
 
 // Should be:
@@ -176,7 +176,7 @@ The consolidation tool doesn't analyze whether moved modules are importing their
 **Manual Fix Required**:
 ```bash
 sed -i 's/use cb_plugin_api::iter_plugins;/use crate::iter_plugins;/g' \
-  /workspace/crates/cb-plugin-api/src/language.rs
+  /workspace/crates/mill-plugin-api/src/language.rs
 
 sed -i 's/use codebuddy_config::/use crate::/g' \
   /workspace/crates/mill-config/src/logging.rs
@@ -259,7 +259,7 @@ Despite the issues above, the following modules from `codebuddy-core` were succe
 ✅ `dry_run.rs` - Dry run execution utilities
 ✅ `rename_scope.rs` - Rename scope configuration
 ✅ `utils/` - Utility functions (mod.rs, system.rs)
-❌ `language.rs` - Moved to `cb-plugin-api` (circular dependency)
+❌ `language.rs` - Moved to `mill-plugin-api` (circular dependency)
 ❌ `logging.rs` - Moved to `mill-config` (circular dependency)
 
 **Module Re-exports**: Successfully updated in `mill-foundation/src/core/mod.rs`:
@@ -319,7 +319,7 @@ Enhance `update_imports_for_consolidation()` to:
 
 2. **Handle self-imports correctly**:
    ```rust
-   // When moving to cb-plugin-api, detect and convert:
+   // When moving to mill-plugin-api, detect and convert:
    use cb_plugin_api::iter_plugins;  // ✗
    // →
    use crate::iter_plugins;  // ✓

@@ -8,7 +8,7 @@ use crate::{
     PluginResult,
 };
 use async_trait::async_trait;
-use cb_plugin_api::language::detect_package_manager;
+use mill_plugin_api::language::detect_package_manager;
 use ignore::WalkBuilder;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -21,7 +21,7 @@ pub struct SystemToolsPlugin {
     metadata: PluginMetadata,
     capabilities: Capabilities,
     /// Language plugin registry for AST operations
-    plugin_registry: Arc<cb_plugin_api::PluginRegistry>,
+    plugin_registry: Arc<mill_plugin_api::PluginRegistry>,
 }
 
 impl SystemToolsPlugin {
@@ -43,7 +43,7 @@ impl SystemToolsPlugin {
     /// # Returns
     ///
     /// A new `SystemToolsPlugin` instance with all capabilities registered
-    pub fn new(plugin_registry: Arc<cb_plugin_api::PluginRegistry>) -> Self {
+    pub fn new(plugin_registry: Arc<mill_plugin_api::PluginRegistry>) -> Self {
         let mut capabilities = Capabilities::default();
 
         // Add custom capabilities for system tools

@@ -7,7 +7,7 @@ use super::{
     suggestions::{SuggestionConfig, SuggestionGenerator},
     tests_handler, AnalysisConfig,
 };
-use cb_plugin_api::Symbol;
+use mill_plugin_api::Symbol;
 use mill_foundation::protocol::analysis_result::{ AnalysisResult , AnalysisScope , Finding , FindingLocation , Position , Range , Severity , };
 use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};

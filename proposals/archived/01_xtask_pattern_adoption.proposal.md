@@ -395,7 +395,7 @@ repository.workspace = true
 homepage.workspace = true
 
 [dependencies]
-cb-plugin-api = {{ path = "../cb-plugin-api" }}
+mill-plugin-api = {{ path = "../mill-plugin-api" }}
 cb-lang-common = {{ path = "../cb-lang-common" }}
 cb-protocol = {{ path = "../cb-protocol" }}
 

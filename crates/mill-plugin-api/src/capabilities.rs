@@ -28,7 +28,7 @@ use std::path::Path;
 /// # Example
 ///
 /// ```rust,ignore
-/// use cb_plugin_api::capabilities::ModuleReferenceScanner;
+/// use mill_plugin_api::capabilities::ModuleReferenceScanner;
 ///
 /// if let Some(scanner) = plugin.module_reference_scanner() {
 ///     let refs = scanner.scan_references(file_path, content, "my_module", scope)?;
@@ -117,7 +117,7 @@ pub struct TextEdit {
 /// # Example
 ///
 /// ```rust,ignore
-/// use cb_plugin_api::capabilities::RefactoringProvider;
+/// use mill_plugin_api::capabilities::RefactoringProvider;
 ///
 /// if let Some(provider) = plugin.refactoring_provider() {
 ///     if provider.supports_inline_variable() {
@@ -247,7 +247,7 @@ pub trait RefactoringProvider: Send + Sync {
 /// # Example
 ///
 /// ```rust,ignore
-/// use cb_plugin_api::capabilities::ImportAnalyzer;
+/// use mill_plugin_api::capabilities::ImportAnalyzer;
 ///
 /// if let Some(analyzer) = plugin.import_analyzer() {
 ///     let graph = analyzer.build_import_graph(file_path)?;
@@ -293,7 +293,7 @@ pub trait ImportAnalyzer: Send + Sync {
 /// # Example
 ///
 /// ```rust,ignore
-/// use cb_plugin_api::capabilities::ModuleLocator;
+/// use mill_plugin_api::capabilities::ModuleLocator;
 ///
 /// if let Some(locator) = plugin.module_locator() {
 ///     let files = locator.locate_module_files(
@@ -345,7 +345,7 @@ pub trait ModuleLocator: Send + Sync {
 /// # Example
 ///
 /// ```rust,ignore
-/// use cb_plugin_api::capabilities::ManifestUpdater;
+/// use mill_plugin_api::capabilities::ManifestUpdater;
 ///
 /// if let Some(updater) = plugin.manifest_updater() {
 ///     let updated_content = updater.update_dependency(
@@ -465,7 +465,7 @@ pub trait ManifestUpdater: Send + Sync {
 /// # Example
 ///
 /// ```rust,ignore
-/// use cb_plugin_api::capabilities::ModuleDeclarationSupport;
+/// use mill_plugin_api::capabilities::ModuleDeclarationSupport;
 ///
 /// if let Some(mod_support) = plugin.module_declaration_support() {
 ///     let updated = mod_support.remove_module_declaration(

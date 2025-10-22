@@ -9,13 +9,13 @@
 //! injected via `from_registry()`. This eliminates compile-time coupling between
 //! the handler layer and specific language implementations.
 
-use cb_plugin_api::{LanguagePlugin, PluginRegistry};
+use mill_plugin_api::{ LanguagePlugin , PluginRegistry };
 use std::sync::Arc;
 use tracing::debug;
 
 /// Language plugin registry for the handler layer
 ///
-/// This registry wraps the core `PluginRegistry` from `cb-plugin-api` and
+/// This registry wraps the core `PluginRegistry` from `mill-plugin-api` and
 /// provides additional functionality for integration with the handler system.
 ///
 /// **IMPORTANT**: This registry requires dependency injection. Create it using
@@ -36,7 +36,7 @@ impl LanguagePluginRegistry {
     ///
     /// # Example
     /// ```rust
-    /// use cb_plugin_api::PluginRegistry;
+    /// use mill_plugin_api::PluginRegistry;
     /// use mill_services::services::registry_builder::build_language_plugin_registry;
     /// use std::sync::Arc;
     ///

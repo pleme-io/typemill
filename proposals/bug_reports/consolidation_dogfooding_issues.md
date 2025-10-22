@@ -122,7 +122,7 @@ mill-foundation = { path = "../mill-foundation" }
 - `../../crates/mill-lsp/Cargo.toml`
 - `../../crates/mill-services/Cargo.toml`
 - `../../crates/mill-handlers/Cargo.toml`
-- `crates/cb-plugin-api/Cargo.toml`
+- `../../crates/mill-plugin-api/Cargo.toml`
 - `../../crates/mill-client/Cargo.toml`
 - `crates/cb-lang-*/Cargo.toml`
 - `../../crates/mill-test-support/Cargo.toml`
@@ -170,7 +170,7 @@ Root `Cargo.toml` workspace members list still includes deleted `cb-protocol` cr
 [workspace]
 members = [
     # "crates/cb-protocol",  # REMOVED
-    "crates/cb-plugin-api",
+    "../../crates/mill-plugin-api",
     # ...
 ]
 ```
@@ -180,7 +180,7 @@ members = [
 [workspace]
 members = [
     "crates/cb-protocol",  # Still present, but directory deleted!
-    "crates/cb-plugin-api",
+    "../../crates/mill-plugin-api",
     # ...
 ]
 ```

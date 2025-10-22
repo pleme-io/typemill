@@ -80,7 +80,7 @@ impl FileService {
         old_path: &Path,
         new_path: &Path,
         dry_run: bool,
-        scan_scope: Option<cb_plugin_api::ScanScope>,
+        scan_scope: Option<mill_plugin_api::ScanScope>,
     ) -> ServerResult<DryRunnable<Value>> {
         info!(old_path = ?old_path, new_path = ?new_path, dry_run, "Renaming file");
 
@@ -228,7 +228,7 @@ impl FileService {
         old_dir_path: &Path,
         new_dir_path: &Path,
         dry_run: bool,
-        scan_scope: Option<cb_plugin_api::ScanScope>,
+        scan_scope: Option<mill_plugin_api::ScanScope>,
         details: bool,
     ) -> ServerResult<DryRunnable<Value>> {
         info!(old_path = ?old_dir_path, new_path = ?new_dir_path, dry_run, "Renaming directory (legacy internal tool)");

@@ -85,8 +85,8 @@ mod dispatch {
         operation: F,
     ) -> ApiResult<T>
     where
-        F: FnOnce(&dyn cb_plugin_api::LanguagePlugin, String) -> Fut,
-        Fut: std::future::Future<Output = cb_plugin_api::PluginResult<T>>,
+        F: FnOnce(&dyn mill_plugin_api::LanguagePlugin, String) -> Fut,
+        Fut: std::future::Future<Output = mill_plugin_api::PluginResult<T>>,
     {
         // Get file extension
         let path = Path::new(file_path);
@@ -121,15 +121,15 @@ mod dispatch {
         operation(plugin, content).await.map_err(|e| {
             // Convert PluginError to ApiError
             match e {
-                cb_plugin_api::PluginError::Parse { message, .. } => ApiError::Parse { message },
-                cb_plugin_api::PluginError::Manifest { message } => ApiError::Parse { message },
-                cb_plugin_api::PluginError::NotSupported { operation } => {
+                mill_plugin_api::PluginError::Parse { message, .. } => ApiError::Parse { message },
+                mill_plugin_api::PluginError::Manifest { message } => ApiError::Parse { message },
+                mill_plugin_api::PluginError::NotSupported { operation } => {
                     ApiError::Unsupported(operation)
                 }
-                cb_plugin_api::PluginError::InvalidInput { message } => {
+                mill_plugin_api::PluginError::InvalidInput { message } => {
                     ApiError::InvalidRequest(message)
                 }
-                cb_plugin_api::PluginError::Internal { message } => ApiError::Internal(message),
+                mill_plugin_api::PluginError::Internal { message } => ApiError::Internal(message),
             }
         })
     }

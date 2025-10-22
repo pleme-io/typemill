@@ -91,7 +91,7 @@ pub async fn plan_extract_function(
     new_function_name: &str,
     file_path: &str,
     lsp_service: Option<&dyn LspRefactoringService>,
-    language_plugins: Option<&cb_plugin_api::PluginRegistry>,
+    language_plugins: Option<&mill_plugin_api::PluginRegistry>,
 ) -> AstResult<EditPlan> {
     // Try language plugin capability first (faster, more reliable, under our control)
     if let Some(plugins) = language_plugins {

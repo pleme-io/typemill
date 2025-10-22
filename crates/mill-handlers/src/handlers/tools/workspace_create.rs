@@ -6,7 +6,7 @@
 
 use super::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
-use cb_plugin_api::{CreatePackageConfig, PackageType, Template};
+use mill_plugin_api::{ CreatePackageConfig , PackageType , Template };
 use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::protocol::{ ApiError , ApiResult as ServerResult };
 use serde::{Deserialize, Serialize};
@@ -159,15 +159,15 @@ async fn handle_create_package(
         error!(error = ?e, "Failed to create package");
         // Convert PluginError to ApiError
         match e {
-            cb_plugin_api::PluginError::Parse { message, .. } => ApiError::Parse { message },
-            cb_plugin_api::PluginError::Manifest { message } => ApiError::Parse { message },
-            cb_plugin_api::PluginError::NotSupported { operation } => {
+            mill_plugin_api::PluginError::Parse { message, .. } => ApiError::Parse { message },
+            mill_plugin_api::PluginError::Manifest { message } => ApiError::Parse { message },
+            mill_plugin_api::PluginError::NotSupported { operation } => {
                 ApiError::Unsupported(operation)
             }
-            cb_plugin_api::PluginError::InvalidInput { message } => {
+            mill_plugin_api::PluginError::InvalidInput { message } => {
                 ApiError::InvalidRequest(message)
             }
-            cb_plugin_api::PluginError::Internal { message } => ApiError::Internal(message),
+            mill_plugin_api::PluginError::Internal { message } => ApiError::Internal(message),
         }
     })?;
 

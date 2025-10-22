@@ -1,5 +1,5 @@
 use super::{edits, manifest, workspace, AstResult, ExtractModuleToPackageParams};
-use cb_plugin_api::language::detect_project_language;
+use mill_plugin_api::language::detect_project_language;
 use mill_foundation::protocol::{ EditPlan , EditPlanMetadata , ValidationRule , ValidationType };
 use serde_json::json;
 use std::collections::HashMap;
@@ -8,7 +8,7 @@ use tracing::{debug, info};
 
 pub(crate) async fn plan_extract_module_to_package(
     params: ExtractModuleToPackageParams,
-    plugin_registry: &cb_plugin_api::PluginRegistry,
+    plugin_registry: &mill_plugin_api::PluginRegistry,
 ) -> AstResult<EditPlan> {
     info!(
         source_package = %params.source_package,

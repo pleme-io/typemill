@@ -1,7 +1,7 @@
 //! Planning logic for file and directory moves
 
 use crate::services::reference_updater::ReferenceUpdater;
-use cb_plugin_api::{PluginRegistry, ScanScope};
+use mill_plugin_api::{ PluginRegistry , ScanScope };
 use mill_foundation::protocol::{ ApiResult as ServerResult , EditPlan };
 use std::path::Path;
 use tracing::{info, warn};

@@ -23,7 +23,7 @@ pub fn find_generic_affected_files(
     new_path: &Path,
     project_root: &Path,
     project_files: &[PathBuf],
-    plugins: &[std::sync::Arc<dyn cb_plugin_api::LanguagePlugin>],
+    plugins: &[std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
     rename_info: Option<&serde_json::Value>,
 ) -> Vec<PathBuf> {
     use std::collections::HashSet;
@@ -120,7 +120,7 @@ pub fn find_generic_affected_files(
 pub fn get_all_imported_files(
     content: &str,
     current_file: &Path,
-    plugins: &[std::sync::Arc<dyn cb_plugin_api::LanguagePlugin>],
+    plugins: &[std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
     project_files: &[PathBuf],
     project_root: &Path,
 ) -> Vec<PathBuf> {

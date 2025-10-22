@@ -3,7 +3,7 @@
 //! This module provides functionality for parsing Rust source code into ASTs,
 //! extracting symbols, and analyzing imports.
 use cb_lang_common::ImportGraphBuilder;
-use cb_plugin_api::{PluginError, PluginResult, SourceLocation, Symbol, SymbolKind};
+use mill_plugin_api::{ PluginError , PluginResult , SourceLocation , Symbol , SymbolKind };
 use mill_foundation::protocol::{ ImportGraph , ImportInfo , ImportType , NamedImport };
 use syn::{visit::Visit, File, Item, ItemUse, UseTree};
 /// A visitor that walks the AST and collects function names

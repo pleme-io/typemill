@@ -6,7 +6,7 @@ license.workspace = true
 [dependencies]
 mill-foundation = { path = "../mill-foundation" }
 mill-lsp = { path = "../mill-lsp" }
-cb-plugin-api = { path = "../cb-plugin-api" }
+mill-plugin-api = { path = "../mill-plugin-api" }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }

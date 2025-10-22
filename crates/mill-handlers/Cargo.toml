@@ -25,7 +25,7 @@ refactor-all = ["refactor-rename", "refactor-extract", "refactor-inline", "refac
 [dependencies]
 mill-foundation = { path = "../mill-foundation" }
 mill-services = { path = "../mill-services", default-features = false }
-cb-plugin-api = { path = "../cb-plugin-api" }
+mill-plugin-api = { path = "../mill-plugin-api" }
 mill-lsp = { path = "../mill-lsp" }
 
 # NOTE: No language plugin dependencies here!

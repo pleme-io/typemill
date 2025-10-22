@@ -11,8 +11,8 @@
 //! `codebuddy_plugin!` macro, and this builder collects them into the
 //! `PluginRegistry`.
 
-use cb_plugin_api::iter_plugins;
-use cb_plugin_api::PluginRegistry;
+use mill_plugin_api::iter_plugins;
+use mill_plugin_api::PluginRegistry;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tracing::{debug, warn};

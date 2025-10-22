@@ -6,10 +6,7 @@
 use cb_lang_common::import_helpers::{
     find_last_matching_line, insert_line_at, remove_lines_matching,
 };
-use cb_plugin_api::{
-    ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportParser,
-    ImportRenameSupport,
-};
+use mill_plugin_api::{ ImportAdvancedSupport , ImportMoveSupport , ImportMutationSupport , ImportParser , ImportRenameSupport , };
 use std::path::Path;
 use tracing::debug;
 

@@ -15,7 +15,7 @@ use crate::handlers::tools::analysis::suggestions::{
     SuggestionGenerator,
 };
 use async_trait::async_trait;
-use cb_plugin_api::ParsedSource;
+use mill_plugin_api::ParsedSource;
 use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::protocol::analysis_result::{ Finding , FindingLocation , Position , Range , SafetyLevel , Severity , Suggestion , };
 use mill_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
@@ -56,7 +56,7 @@ use tracing::debug;
 pub fn detect_unused_imports(
     _complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
-    _symbols: &[cb_plugin_api::Symbol],
+    _symbols: &[mill_plugin_api::Symbol],
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
@@ -277,7 +277,7 @@ pub fn detect_unused_imports(
 pub fn detect_unused_symbols(
     complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
-    _symbols: &[cb_plugin_api::Symbol],
+    _symbols: &[mill_plugin_api::Symbol],
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
@@ -415,7 +415,7 @@ pub fn detect_unused_symbols(
 pub fn detect_unreachable_code(
     _complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
-    _symbols: &[cb_plugin_api::Symbol],
+    _symbols: &[mill_plugin_api::Symbol],
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
@@ -598,7 +598,7 @@ pub fn detect_unreachable_code(
 pub fn detect_unused_parameters(
     complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
-    _symbols: &[cb_plugin_api::Symbol],
+    _symbols: &[mill_plugin_api::Symbol],
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
@@ -778,7 +778,7 @@ pub fn detect_unused_parameters(
 pub fn detect_unused_types(
     _complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
-    symbols: &[cb_plugin_api::Symbol],
+    symbols: &[mill_plugin_api::Symbol],
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
@@ -792,10 +792,10 @@ pub fn detect_unused_types(
         .filter(|s| {
             matches!(
                 s.kind,
-                cb_plugin_api::SymbolKind::Interface
-                    | cb_plugin_api::SymbolKind::Enum
-                    | cb_plugin_api::SymbolKind::Struct
-                    | cb_plugin_api::SymbolKind::Class
+                mill_plugin_api::SymbolKind::Interface
+                    | mill_plugin_api::SymbolKind::Enum
+                    | mill_plugin_api::SymbolKind::Struct
+                    | mill_plugin_api::SymbolKind::Class
             )
         })
         .collect();
@@ -809,10 +809,10 @@ pub fn detect_unused_types(
         // Check if type is used in code
         if !is_symbol_used_in_code(content, &type_symbol.name) {
             let type_kind = match type_symbol.kind {
-                cb_plugin_api::SymbolKind::Interface => "interface",
-                cb_plugin_api::SymbolKind::Enum => "enum",
-                cb_plugin_api::SymbolKind::Struct => "struct",
-                cb_plugin_api::SymbolKind::Class => "class",
+                mill_plugin_api::SymbolKind::Interface => "interface",
+                mill_plugin_api::SymbolKind::Enum => "enum",
+                mill_plugin_api::SymbolKind::Struct => "struct",
+                mill_plugin_api::SymbolKind::Class => "class",
                 _ => "type",
             };
 
@@ -903,7 +903,7 @@ pub fn detect_unused_types(
 pub fn detect_unused_variables(
     complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
-    _symbols: &[cb_plugin_api::Symbol],
+    _symbols: &[mill_plugin_api::Symbol],
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,

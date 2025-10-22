@@ -766,7 +766,7 @@ pub struct MoveService<'a> {
 // Services contained Rust-specific logic (2,098 lines)
 
 // AFTER ✅: Language-agnostic plugin architecture
-// mill-services → cb-plugin-api → cb-lang-rust
+// mill-services → mill-plugin-api → cb-lang-rust
 // Zero production dependencies from services to language plugins
 
 // MOVED to cb-lang-rust plugin (Oct 20):

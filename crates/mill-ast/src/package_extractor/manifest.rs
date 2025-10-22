@@ -1,4 +1,4 @@
-use cb_plugin_api::LanguagePlugin;
+use mill_plugin_api::LanguagePlugin;
 use std::path::PathBuf;
 use tracing::debug;
 
@@ -48,7 +48,7 @@ pub(crate) async fn extract_dependencies(
 }
 
 pub(crate) fn generate_manifest_for_plugin(
-    manifest_updater: &dyn cb_plugin_api::ManifestUpdater,
+    manifest_updater: &dyn mill_plugin_api::ManifestUpdater,
     package_name: &str,
     dependencies: &[String],
 ) -> String {

@@ -81,7 +81,7 @@ repository.workspace = true
 homepage.workspace = true
 
 [dependencies]
-cb-plugin-api = {{ path = "../cb-plugin-api" }}
+mill-plugin-api = {{ path = "../mill-plugin-api" }}
 cb-lang-common = {{ path = "../cb-lang-common" }}
 cb-protocol = {{ path = "../cb-protocol" }}
 
@@ -111,7 +111,7 @@ fn generate_lib_rs(lang: &str) -> String {
         lang_upper
     ));
     code.push_str("use async_trait::async_trait;\n");
-    code.push_str("use cb_plugin_api::{LanguagePlugin, LanguagePluginMetadata, ParsedSource};\n");
+    code.push_str("use mill_plugin_api::{LanguagePlugin, LanguagePluginMetadata, ParsedSource};\n");
     code.push_str("use mill_foundation::protocol::ApiError;\n");
     code.push_str("use std::path::Path;\n\n");
 
@@ -163,7 +163,7 @@ fn generate_lib_rs(lang: &str) -> String {
     code.push_str("        _parsed_source: &ParsedSource,\n");
     code.push_str("        _line: usize,\n");
     code.push_str("        _character: usize,\n");
-    code.push_str("    ) -> Result<Option<cb_plugin_api::Symbol>, ApiError> {\n");
+    code.push_str("    ) -> Result<Option<mill_plugin_api::Symbol>, ApiError> {\n");
     code.push_str("        // TODO: Implement symbol lookup\n");
     code.push_str("        Ok(None)\n");
     code.push_str("    }\n");
@@ -192,7 +192,7 @@ fn generate_test(lang: &str) -> String {
         r#"//! Integration tests for {} plugin
 
 use cb_lang_{lang}::{}Plugin;
-use cb_plugin_api::LanguagePlugin;
+use mill_plugin_api::LanguagePlugin;
 use std::path::Path;
 
 #[tokio::test]

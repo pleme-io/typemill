@@ -8,7 +8,7 @@ use std::collections::HashMap;
 // Edit plan types now come from cb-api
 
 /// Plan a refactoring operation based on an intent
-use cb_plugin_api::PluginRegistry;
+use mill_plugin_api::PluginRegistry;
 
 pub fn plan_refactor(
     intent: &IntentSpec,
@@ -267,7 +267,7 @@ fn plan_remove_import(
                     || line_trimmed.contains(&format!(" {} ", import_name))
                 {
                     if let Some(mutation_support) = import_mutation {
-                        let new_line = cb_plugin_api::ImportMutationSupport::remove_named_import(
+                        let new_line = mill_plugin_api::ImportMutationSupport::remove_named_import(
                             mutation_support,
                             line,
                             import_name,

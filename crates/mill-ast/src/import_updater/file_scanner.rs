@@ -30,7 +30,7 @@ impl ImportPathResolver {
         &self,
         renamed_file: &Path,
         project_files: &[PathBuf],
-        plugins: &[std::sync::Arc<dyn cb_plugin_api::LanguagePlugin>],
+        plugins: &[std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
     ) -> AstResult<Vec<PathBuf>> {
         let mut affected = Vec::new();
 
@@ -133,7 +133,7 @@ impl ImportPathResolver {
         &self,
         content: &str,
         current_file: &Path,
-        plugins: &[std::sync::Arc<dyn cb_plugin_api::LanguagePlugin>],
+        plugins: &[std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
         project_files: &[PathBuf],
     ) -> Vec<PathBuf> {
         let mut imported_files = Vec::new();
@@ -145,7 +145,7 @@ impl ImportPathResolver {
                     if let Some(import_parser) = plugin.import_parser() {
                         // Parse all imports using the plugin
                         let import_specifiers =
-                            cb_plugin_api::ImportParser::parse_imports(import_parser, content);
+                            mill_plugin_api::ImportParser::parse_imports(import_parser, content);
 
                         // Resolve each import specifier to an absolute file path
                         for specifier in import_specifiers {
@@ -276,14 +276,14 @@ pub fn extract_import_path(line: &str) -> Option<String> {
 /// Find all project files that match the language adapters
 pub async fn find_project_files(
     project_root: &Path,
-    plugins: &[std::sync::Arc<dyn cb_plugin_api::LanguagePlugin>],
+    plugins: &[std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
 ) -> AstResult<Vec<PathBuf>> {
     let mut files = Vec::new();
 
     fn collect_files<'a>(
         dir: &'a Path,
         files: &'a mut Vec<PathBuf>,
-        plugins: &'a [std::sync::Arc<dyn cb_plugin_api::LanguagePlugin>],
+        plugins: &'a [std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = AstResult<()>> + Send + 'a>> {
         Box::pin(async move {
             if dir.is_dir() {

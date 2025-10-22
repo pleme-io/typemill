@@ -32,7 +32,7 @@ To fix this architectural violation, we will decouple the services layer from th
 **Solution:**
 - Removed all language plugin dependencies from `cb-handlers/Cargo.toml`
 - Removed `lang-rust` and `lang-typescript` features
-- Handlers now depend only on `cb-plugin-api` for trait objects
+- Handlers now depend only on `mill-plugin-api` for trait objects
 - Updated `mill-server/Cargo.toml` to remove handler language feature references
 
 **Result:** Zero language dependencies in handler layer ✅
@@ -108,7 +108,7 @@ To fix this architectural violation, we will decouple the services layer from th
 - ✅ All 13 tests passing
 
 **mill-services Architecture (Already Correct):**
-- ✅ Uses auto-discovery via `iter_plugins()` from cb-plugin-api
+- ✅ Uses auto-discovery via `iter_plugins()` from mill-plugin-api
 - ✅ No direct `use` statements for language plugins (except in test code)
 - ✅ `registry_builder.rs` discovers plugins at runtime
 - ✅ Cargo.toml dependencies are for linking/discovery only, not direct code usage

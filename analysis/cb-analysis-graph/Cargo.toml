@@ -23,7 +23,7 @@ thiserror = { workspace = true }
 
 # Logging
 tracing = { workspace = true }
-cb-plugin-api = { workspace = true }
+mill-plugin-api = { workspace = true }
 mill-foundation = { workspace = true }
 
 [dev-dependencies]

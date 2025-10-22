@@ -178,10 +178,10 @@ Tie crate features together so enabling `lang-typescript` in the binary flips on
 
 **Start with:** Module reference scanning (simplest capability, used in `import_updater/edit_builder.rs:135`). Once proven, extend to refactoring and import analysis.
 
-#### 2.1: Define Capability Traits in cb-plugin-api
+#### 2.1: Define Capability Traits in mill-plugin-api
 
 ```rust
-// crates/cb-plugin-api/src/capabilities.rs
+// ../../crates/mill-plugin-api/src/capabilities.rs
 
 /// Capability for scanning module references in a file
 pub trait ModuleReferenceScanner {
@@ -274,7 +274,7 @@ if let Some(analyzer) = plugin.as_capability::<dyn ImportAnalyzer>() {
 #### 2.5: Add Capability Discovery to LanguagePlugin
 
 ```rust
-// crates/cb-plugin-api/src/traits.rs
+// ../../crates/mill-plugin-api/src/traits.rs
 
 pub trait LanguagePlugin: Send + Sync {
     // ... existing methods ...
@@ -459,7 +459,7 @@ The capability trait approach prevents duplication as we add more languages. As 
 ## Suggested Next Steps
 
 1. **Prototype capability traits** in a branch:
-   - Define `ModuleReferenceScanner` trait in `cb-plugin-api`
+   - Define `ModuleReferenceScanner` trait in `mill-plugin-api`
    - Implement for `RustPlugin` and `TypeScriptPlugin`
    - Refactor one usage site in `cb-ast` to use trait instead of downcast
    - Validate approach works before full rollout

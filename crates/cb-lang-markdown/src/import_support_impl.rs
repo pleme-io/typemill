@@ -2,13 +2,7 @@
 //!
 //! Treats markdown file links as "imports" for the purpose of file rename tracking.
 
-use cb_plugin_api::{
-    import_support::{
-        ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportParser,
-        ImportRenameSupport,
-    },
-    PluginResult,
-};
+use mill_plugin_api::{ import_support::{ ImportAdvancedSupport , ImportMoveSupport , ImportMutationSupport , ImportParser , ImportRenameSupport , } , PluginResult , };
 use mill_foundation::protocol::DependencyUpdate;
 use regex::{Captures, Regex};
 use std::path::Path;
@@ -646,7 +640,7 @@ impl ImportMutationSupport for MarkdownImportSupport {
 
     fn remove_named_import(&self, _line: &str, _import_name: &str) -> PluginResult<String> {
         // Markdown doesn't have the concept of "named imports"
-        Err(cb_plugin_api::PluginError::not_supported(
+        Err(mill_plugin_api::PluginError::not_supported(
             "Markdown does not support named imports",
         ))
     }

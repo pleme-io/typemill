@@ -3,7 +3,7 @@
 //! Language-agnostic utilities for parsing version specifiers and
 //! detecting dependency sources (registry, git, path, workspace).
 
-use cb_plugin_api::DependencySource;
+use mill_plugin_api::DependencySource;
 
 /// Detect the type of dependency from a version/path specification string
 ///
@@ -16,7 +16,7 @@ use cb_plugin_api::DependencySource;
 ///
 /// ```rust
 /// use cb_lang_common::versioning::detect_dependency_source;
-/// use cb_plugin_api::DependencySource;
+/// use mill_plugin_api::DependencySource;
 ///
 /// let git = detect_dependency_source("git+https://github.com/user/repo.git");
 /// assert!(matches!(git, DependencySource::Git { .. }));

@@ -37,7 +37,7 @@ use tracing::{debug, info};
 pub type AnalysisFn = fn(
     &mill_ast::complexity::ComplexityReport,
     &str,
-    &[cb_plugin_api::Symbol],
+    &[mill_plugin_api::Symbol],
     &str,
     &str,
     &crate::LanguagePluginRegistry,
@@ -148,7 +148,7 @@ pub fn extract_file_path(args: &Value, scope_param: &ScopeParam) -> ServerResult
 /// fn my_analysis_fn(
 ///     complexity_report: &mill_ast::complexity::ComplexityReport,
 ///     content: &str,
-///     symbols: &[cb_plugin_api::Symbol],
+///     symbols: &[mill_plugin_api::Symbol],
 ///     language: &str,
 ///     file_path: &str,
 ///     registry: &crate::LanguagePluginRegistry,
@@ -207,7 +207,7 @@ pub async fn run_analysis(
 /// fn my_analysis_fn(
 ///     complexity_report: &mill_ast::complexity::ComplexityReport,
 ///     content: &str,
-///     symbols: &[cb_plugin_api::Symbol],
+///     symbols: &[mill_plugin_api::Symbol],
 ///     language: &str,
 ///     file_path: &str,
 ///     registry: &crate::LanguagePluginRegistry,

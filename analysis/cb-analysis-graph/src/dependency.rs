@@ -3,7 +3,7 @@
 //! This data structure represents the relationships between files/modules
 //! in a codebase, tracking imports, exports, and re-exports.
 
-use cb_plugin_api::Symbol;
+use mill_plugin_api::Symbol;
 use petgraph::graph::{DiGraph, NodeIndex};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

@@ -1,6 +1,6 @@
 //! TypeScript/JavaScript import parsing and symbol extraction logic.
 use cb_lang_common::{parse_with_fallback, run_ast_tool, ImportGraphBuilder, SubprocessAstTool};
-use cb_plugin_api::{PluginError, PluginResult, Symbol, SymbolKind};
+use mill_plugin_api::{ PluginError , PluginResult , Symbol , SymbolKind };
 use mill_foundation::protocol::{ ImportGraph , ImportInfo , ImportType , SourceLocation };
 use serde::Deserialize;
 use std::path::Path;
@@ -222,7 +222,7 @@ fn extract_symbols_ast(source: &str) -> Result<Vec<Symbol>, PluginError> {
                 "variable" => SymbolKind::Variable,
                 _ => SymbolKind::Other,
             },
-            location: cb_plugin_api::SourceLocation {
+            location: mill_plugin_api::SourceLocation {
                 line: s.location.start_line,
                 column: s.location.start_column,
             },

@@ -3,7 +3,7 @@
 //! This module provides ergonomic builders and macros for creating `PluginError` instances
 //! with rich context. Reduces boilerplate from repetitive error construction patterns.
 
-use cb_plugin_api::PluginError;
+use mill_plugin_api::PluginError;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -162,7 +162,7 @@ impl ErrorBuilder {
 #[macro_export]
 macro_rules! parse_error {
     ($($arg:tt)*) => {
-        cb_plugin_api::PluginError::parse(format!($($arg)*))
+        mill_plugin_api::PluginError::parse(format!($($arg)*))
     };
 }
 
@@ -170,7 +170,7 @@ macro_rules! parse_error {
 #[macro_export]
 macro_rules! manifest_error {
     ($($arg:tt)*) => {
-        cb_plugin_api::PluginError::manifest(format!($($arg)*))
+        mill_plugin_api::PluginError::manifest(format!($($arg)*))
     };
 }
 
@@ -178,7 +178,7 @@ macro_rules! manifest_error {
 #[macro_export]
 macro_rules! internal_error {
     ($($arg:tt)*) => {
-        cb_plugin_api::PluginError::internal(format!($($arg)*))
+        mill_plugin_api::PluginError::internal(format!($($arg)*))
     };
 }
 

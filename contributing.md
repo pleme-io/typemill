@@ -465,7 +465,7 @@ if let Some(updater) = plugin.manifest_updater() {
 
 #### Available Capability Traits
 
-Located in `crates/cb-plugin-api/src/capabilities.rs`:
+Located in `crates/mill-plugin-api/src/capabilities.rs`:
 
 **1. ManifestUpdater** - Update package manifests (Cargo.toml, package.json)
 ```rust
@@ -780,7 +780,7 @@ mod tests {
 For complete examples, see:
 - **[crates/cb-lang-rust/src/lib.rs](../crates/cb-lang-rust/src/lib.rs)** - Full capability implementation
 - **[crates/cb-lang-typescript/src/lib.rs](../crates/cb-lang-typescript/src/lib.rs)** - Partial capability support
-- **[crates/cb-plugin-api/src/capabilities.rs](../crates/cb-plugin-api/src/capabilities.rs)** - Capability trait definitions
+- **[crates/mill-plugin-api/src/capabilities.rs](../crates/mill-plugin-api/src/capabilities.rs)** - Capability trait definitions
 
 ## Adding New MCP Tools
 

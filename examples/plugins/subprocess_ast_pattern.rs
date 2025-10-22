@@ -2,7 +2,7 @@
 // Best for: High accuracy, language-native parsers
 
 use cb_lang_common::{SubprocessAstTool, run_ast_tool, parse_with_fallback, ImportGraphBuilder};
-use cb_plugin_api::{PluginResult, Symbol, SymbolKind};
+use mill_plugin_api::{ PluginResult , Symbol , SymbolKind };
 use mill_foundation::protocol::{ ImportGraph , ImportInfo };
 
 /// Analyze imports using AST parser with regex fallback

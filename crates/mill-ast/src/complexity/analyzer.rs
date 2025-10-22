@@ -8,7 +8,7 @@ use std::collections::HashMap;
 pub fn analyze_file_complexity(
     file_path: &str,
     content: &str,
-    symbols: &[cb_plugin_api::Symbol],
+    symbols: &[mill_plugin_api::Symbol],
     language: &str,
 ) -> ComplexityReport {
     let mut functions = Vec::new();
@@ -17,7 +17,7 @@ pub fn analyze_file_complexity(
         // Only analyze functions and methods
         if !matches!(
             symbol.kind,
-            cb_plugin_api::SymbolKind::Function | cb_plugin_api::SymbolKind::Method
+            mill_plugin_api::SymbolKind::Function | mill_plugin_api::SymbolKind::Method
         ) {
             continue;
         }
@@ -162,7 +162,7 @@ pub fn analyze_file_complexity(
 ///
 /// This is a heuristic extraction since Symbol only has a start location.
 /// We extract from the symbol line to the end of the logical block.
-fn extract_function_body(content: &str, location: &cb_plugin_api::SourceLocation) -> String {
+fn extract_function_body(content: &str, location: &mill_plugin_api::SourceLocation) -> String {
     let lines: Vec<&str> = content.lines().collect();
 
     let start_line = location.line.saturating_sub(1);

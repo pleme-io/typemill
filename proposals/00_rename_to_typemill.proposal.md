@@ -59,7 +59,7 @@ This proposal outlines the complete strategy for renaming the project from **Cod
 - `mill-server` - MCP server core
 - `mill-services` - Core services (file, AST, planner, workflow)
 - `mill-transport` - WebSocket and stdio transport
-- `cb-plugin-api` - Plugin API definitions
+- `mill-plugin-api` - Plugin API definitions
 - `cb-test-support` - Testing utilities and harness
 
 **Language Plugins (6 crates - `cb-lang-*` prefix):**
@@ -108,7 +108,7 @@ All crates will adopt the `mill-*` prefix for consistency and simplicity.
 - `mill-server` → `mill-server`
 - `mill-services` → `mill-services`
 - `mill-transport` → `mill-transport`
-- `cb-plugin-api` → `mill-plugin-api`
+- `mill-plugin-api` → `mill-plugin-api`
 - `cb-test-support` → `mill-test-support`
 
 **Language Plugins:**
@@ -486,7 +486,7 @@ git tag v2.0.0
 - [ ] `mill-server` → `mill-server`
 - [ ] `mill-services` → `mill-services`
 - [ ] `mill-transport` → `mill-transport`
-- [ ] `cb-plugin-api` → `mill-plugin-api`
+- [ ] `mill-plugin-api` → `mill-plugin-api`
 - [ ] `cb-test-support` → `mill-test-support`
 
 **Language Plugins (6 crates):**
@@ -1016,7 +1016,7 @@ See full documentation at https://typemill.org/docs/migration
   ../crates/mill-server → crates/mill-server
   ../crates/mill-services → crates/mill-services
   ../crates/mill-transport → crates/mill-transport
-  crates/cb-plugin-api → crates/mill-plugin-api
+  ../crates/mill-plugin-api → crates/mill-plugin-api
   ../crates/mill-test-support → crates/mill-test-support
   crates/cb-lang-common → crates/mill-lang-common
   crates/cb-lang-rust → crates/mill-lang-rust
@@ -1046,7 +1046,7 @@ See full documentation at https://typemill.org/docs/migration
   mill-server → mill-server
   mill-services → mill-services
   mill-transport → mill-transport
-  cb-plugin-api → mill-plugin-api
+  mill-plugin-api → mill-plugin-api
   cb-test-support → mill-test-support
   cb-lang-common → mill-lang-common
   cb-lang-rust → mill-lang-rust

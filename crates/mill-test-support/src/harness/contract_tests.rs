@@ -6,7 +6,7 @@
 
 #[allow(unused_imports)]
 use crate::harness::plugin_discovery;
-use cb_plugin_api::LanguagePlugin;
+use mill_plugin_api::LanguagePlugin;
 #[allow(unused_imports)]
 use tokio::runtime::Runtime;
 

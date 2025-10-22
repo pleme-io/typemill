@@ -8,7 +8,7 @@
 //! remain decoupled from specific language implementations, while the application
 //! binary can easily access all available plugins.
 
-use cb_plugin_api::{iter_plugins, LanguagePlugin};
+use mill_plugin_api::{ iter_plugins , LanguagePlugin };
 use std::sync::Arc;
 
 // Force linker to include language plugins by actively using them.
@@ -55,7 +55,7 @@ fn _force_plugin_linkage() {
 ///
 /// ```no_run
 /// use mill_plugin_bundle::all_plugins;
-/// use cb_plugin_api::PluginRegistry;
+/// use mill_plugin_api::PluginRegistry;
 ///
 /// let plugins = all_plugins();
 /// let mut registry = PluginRegistry::new();

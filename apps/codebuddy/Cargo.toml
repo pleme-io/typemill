@@ -13,7 +13,7 @@ categories = ["development-tools", "command-line-utilities"]
 mill-server = { path = "../../crates/mill-server", default-features = false }
 mill-foundation = { path = "../../crates/mill-foundation" }
 mill-transport = { path = "../../crates/mill-transport", default-features = false }
-cb-plugin-api = { path = "../../crates/cb-plugin-api" }
+mill-plugin-api = { path = "../../crates/mill-plugin-api" }
 
 # Plugin bundle - contains all language plugins for inventory discovery
 mill-plugin-bundle = { path = "../../crates/mill-plugin-bundle", default-features = false }
@@ -40,7 +40,7 @@ mill-client = { path = "../../crates/mill-client" }
 [dev-dependencies]
 mill-server = { path = "../../crates/mill-server", default-features = false, features = ["test-helpers"] }
 mill-lsp = { path = "../../crates/mill-lsp" }
-cb-plugin-api = { workspace = true }
+mill-plugin-api = { workspace = true }
 tokio = { workspace = true }
 async-trait = { workspace = true }
 mockall = { workspace = true }

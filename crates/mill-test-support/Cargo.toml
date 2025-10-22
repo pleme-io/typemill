@@ -18,7 +18,7 @@ shellexpand = "3.1"
 chrono = { version = "0.4", features = ["serde"] }
 libc = "0.2"
 mill-foundation = { path = "../mill-foundation" }
-cb-plugin-api = { path = "../cb-plugin-api" }
+mill-plugin-api = { path = "../mill-plugin-api" }
 mill-services = { path = "../mill-services", default-features = false }
 
 # Benchmark dependencies (merged from cb-bench)

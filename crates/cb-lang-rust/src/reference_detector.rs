@@ -4,7 +4,7 @@
 //! Uses module path analysis to detect imports that need updating.
 
 use async_trait::async_trait;
-use cb_plugin_api::ReferenceDetector;
+use mill_plugin_api::ReferenceDetector;
 use std::path::{Path, PathBuf};
 
 use crate::imports::{compute_module_path_from_file, find_crate_name_from_cargo_toml};

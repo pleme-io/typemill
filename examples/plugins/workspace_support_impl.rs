@@ -1,7 +1,7 @@
 // Example: WorkspaceSupport Trait Implementation
 // Purpose: Enable workspace-level operations (Cargo.toml, package.json, etc.)
 
-use cb_plugin_api::WorkspaceSupport;
+use mill_plugin_api::WorkspaceSupport;
 use toml_edit::{Document, Item, Array};
 
 pub struct MyLanguageWorkspaceSupport;

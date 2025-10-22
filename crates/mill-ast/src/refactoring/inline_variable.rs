@@ -79,7 +79,7 @@ pub async fn plan_inline_variable(
     variable_col: u32,
     file_path: &str,
     lsp_service: Option<&dyn LspRefactoringService>,
-    language_plugins: Option<&cb_plugin_api::PluginRegistry>,
+    language_plugins: Option<&mill_plugin_api::PluginRegistry>,
 ) -> AstResult<EditPlan> {
     // Try language plugin capability first (faster, more reliable, under our control)
     if let Some(plugins) = language_plugins {

@@ -116,10 +116,7 @@ mod manifest;
 pub mod import_support;
 pub mod workspace_support;
 
-use cb_plugin_api::{{
-    LanguagePlugin, LanguageMetadata, LanguageCapabilities, ManifestData,
-    ParsedSource, PluginResult,
-}};
+use mill_plugin_api::{{ LanguagePlugin , LanguageMetadata , LanguageCapabilities , ManifestData , ParsedSource , PluginResult , }};
 use async_trait::async_trait;
 use std::path::Path;
 
@@ -190,7 +187,7 @@ mod tests {{
         format!(
             r#"//! {lang} source code parsing and symbol extraction
 
-use cb_plugin_api::{{ParsedSource, PluginResult}};
+use mill_plugin_api::{{ ParsedSource , PluginResult }};
 
 /// Parse {lang} source code and extract symbols
 ///
@@ -234,7 +231,7 @@ mod tests {{
 //!
 //! Handles {manifest_file} files for {lang} projects.
 
-use cb_plugin_api::{{ManifestData, PluginError, PluginResult}};
+use mill_plugin_api::{{ ManifestData , PluginError , PluginResult }};
 use std::path::Path;
 
 /// Analyze {lang} manifest file
@@ -302,7 +299,7 @@ homepage.workspace = true
 
 [dependencies]
 # Codebuddy workspace dependencies
-cb-plugin-api = {{ path = "../../cb-plugin-api" }}
+mill-plugin-api = {{ path = "../../mill-plugin-api" }}
 cb-protocol = {{ path = "../../cb-protocol" }}
 cb-core = {{ path = "../../cb-core" }}
 cb-lang-common = {{ path = "../cb-lang-common" }}

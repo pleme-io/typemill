@@ -42,7 +42,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         discovered_plugins_count = all_plugins.len(),
         "Discovered language plugins from bundle"
     );
-    let mut plugin_registry = cb_plugin_api::PluginRegistry::new();
+    let mut plugin_registry = mill_plugin_api::PluginRegistry::new();
     for plugin in all_plugins {
         plugin_registry.register(plugin);
     }

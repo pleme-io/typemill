@@ -1,5 +1,5 @@
 [package]
-name = "cb-plugin-api"
+name = "mill-plugin-api"
 edition = "2021"
 license.workspace = true
 

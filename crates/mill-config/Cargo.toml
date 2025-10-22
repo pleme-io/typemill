@@ -6,7 +6,7 @@ license = "MIT"
 
 [dependencies]
 mill-foundation = { path = "../mill-foundation" }
-cb-plugin-api = { path = "../cb-plugin-api" }
+mill-plugin-api = { path = "../mill-plugin-api" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

@@ -1,7 +1,7 @@
 //! Plugin system for language-specific code intelligence
 //!
 //! This crate consolidates runtime plugin management from cb-plugins.
-//! Static plugin registration (inventory) has been moved to cb-plugin-api (Layer 0).
+//! Static plugin registration (inventory) has been moved to mill-plugin-api (Layer 0).
 
 pub mod adapters;
 pub mod capabilities;
@@ -27,5 +27,5 @@ pub use registry::PluginRegistry;
 /// Plugin system version for compatibility checking
 pub const PLUGIN_SYSTEM_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-// Re-export static plugin registration from cb-plugin-api for backward compatibility
-pub use cb_plugin_api::{codebuddy_plugin, iter_plugins, PluginDescriptor};
+// Re-export static plugin registration from mill-plugin-api for backward compatibility
+pub use mill_plugin_api::{ codebuddy_plugin , iter_plugins , PluginDescriptor };

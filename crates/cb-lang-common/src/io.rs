@@ -3,7 +3,7 @@
 //! Provides standardized async file operations with consistent error handling
 //! for language plugin implementations.
 
-use cb_plugin_api::{PluginError, PluginResult};
+use mill_plugin_api::{ PluginError , PluginResult };
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use tracing::debug;

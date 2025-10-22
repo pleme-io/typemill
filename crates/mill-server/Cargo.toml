@@ -5,7 +5,7 @@ description = "Codeflow Buddy server implementation"
 license = "MIT"
 
 [dependencies]
-cb-plugin-api = { path = "../cb-plugin-api" }
+mill-plugin-api = { path = "../mill-plugin-api" }
 mill-foundation = { path = "../mill-foundation" }
 mill-transport = { path = "../mill-transport", default-features = false }
 mill-lsp = { path = "../mill-lsp" }

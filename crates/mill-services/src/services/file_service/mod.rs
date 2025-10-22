@@ -29,7 +29,7 @@ pub struct FileService {
     /// Reference updater for handling import updates
     pub reference_updater: ReferenceUpdater,
     /// Language plugin registry
-    pub plugin_registry: Arc<cb_plugin_api::PluginRegistry>,
+    pub plugin_registry: Arc<mill_plugin_api::PluginRegistry>,
     /// Project root directory
     pub(super) project_root: PathBuf,
     /// AST cache for invalidation after edits
@@ -55,7 +55,7 @@ impl FileService {
         lock_manager: Arc<LockManager>,
         operation_queue: Arc<OperationQueue>,
         config: &AppConfig,
-        plugin_registry: Arc<cb_plugin_api::PluginRegistry>,
+        plugin_registry: Arc<mill_plugin_api::PluginRegistry>,
     ) -> Self {
         let project_root = project_root.as_ref().to_path_buf();
 

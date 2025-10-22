@@ -218,7 +218,7 @@ skip-tree = [
 # - Layer 6: Handlers (mill-handlers)
 # - Layer 5: Services (mill-services, cb-ast, mill-lsp, mill-plugin-system, mill-plugin-bundle)
 # - Layer 4: Language Plugins (cb-lang-*)
-# - Layer 3: Plugin API (cb-plugin-api)
+# - Layer 3: Plugin API (mill-plugin-api)
 # - Layer 2: Foundation (mill-foundation)
 # - Layer 1: Support (mill-test-support, xtask, analysis/*)
 #

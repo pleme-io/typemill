@@ -4,11 +4,8 @@
 //! This enables `rename.plan` to track path references when files are moved.
 
 use async_trait::async_trait;
-use cb_plugin_api::codebuddy_plugin;
-use cb_plugin_api::{
-    import_support::ImportRenameSupport, LanguageMetadata, LanguagePlugin, ManifestData,
-    ParsedSource, PluginCapabilities, PluginError, PluginResult,
-};
+use mill_plugin_api::codebuddy_plugin;
+use mill_plugin_api::{ import_support::ImportRenameSupport , LanguageMetadata , LanguagePlugin , ManifestData , ParsedSource , PluginCapabilities , PluginError , PluginResult , };
 use std::path::Path;
 use tracing::debug;
 

@@ -81,7 +81,7 @@ All success criteria met. The capability registration system is fully implemente
 
 ### Capability Traits Created
 
-**1. ManifestUpdater** (`cb-plugin-api/src/capabilities.rs`)
+**1. ManifestUpdater** (`mill-plugin-api/src/capabilities.rs`)
 ```rust
 #[async_trait]
 pub trait ManifestUpdater: Send + Sync {
@@ -95,7 +95,7 @@ pub trait ManifestUpdater: Send + Sync {
 }
 ```
 
-**2. ModuleLocator** (`cb-plugin-api/src/capabilities.rs`)
+**2. ModuleLocator** (`mill-plugin-api/src/capabilities.rs`)
 ```rust
 #[async_trait]
 pub trait ModuleLocator: Send + Sync {
@@ -107,7 +107,7 @@ pub trait ModuleLocator: Send + Sync {
 }
 ```
 
-**3. RefactoringProvider (Extended)** (`cb-plugin-api/src/capabilities.rs`)
+**3. RefactoringProvider (Extended)** (`mill-plugin-api/src/capabilities.rs`)
 ```rust
 #[async_trait]
 pub trait RefactoringProvider: Send + Sync {
@@ -135,8 +135,8 @@ plugin.capability_trait()?.method()
 ```
 
 ### Files Modified
-- `cb-plugin-api/src/capabilities.rs` - Added 3 capability traits
-- `cb-plugin-api/src/lib.rs` - Added capability discovery methods
+- `mill-plugin-api/src/capabilities.rs` - Added 3 capability traits
+- `mill-plugin-api/src/lib.rs` - Added capability discovery methods
 - `cb-lang-rust/src/lib.rs` - Implemented all 3 traits
 - `cb-lang-typescript/src/lib.rs` - Implemented ManifestUpdater and RefactoringProvider
 - `cb-handlers/src/handlers/tools/workspace.rs` - Removed 2 cfg guards

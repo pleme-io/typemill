@@ -71,7 +71,7 @@ Layers are organized from foundational (bottom) to application (top). Each layer
 **Purpose:** Define language plugin trait and capabilities
 
 **Crates:**
-- `cb-plugin-api` / `codebuddy-plugin-api`
+- `mill-plugin-api` / `codebuddy-plugin-api`
 
 **Dependencies:**
 - Layer 2: Foundation (types, protocol)

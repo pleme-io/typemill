@@ -21,10 +21,10 @@ pub async fn update_imports_for_rename(
     old_path: &Path,
     new_path: &Path,
     project_root: &Path,
-    plugins: &[std::sync::Arc<dyn cb_plugin_api::LanguagePlugin>],
+    plugins: &[std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
     rename_info: Option<&serde_json::Value>,
     dry_run: bool,
-    scan_scope: Option<cb_plugin_api::ScanScope>,
+    scan_scope: Option<mill_plugin_api::ScanScope>,
 ) -> AstResult<mill_foundation::protocol::EditPlan> {
     edit_builder::build_import_update_plan(
         old_path,

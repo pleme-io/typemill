@@ -9,7 +9,7 @@
 //!
 //! We do NOT use serde_yaml parsing as it destroys all formatting.
 
-use cb_plugin_api::{ImportRenameSupport, PluginResult};
+use mill_plugin_api::{ ImportRenameSupport , PluginResult };
 use std::path::Path;
 
 pub struct YamlImportSupport;

@@ -492,7 +492,7 @@ capability.method().await?
 
 ## Key References
 
-- [cb-plugin-api/src/lib.rs](../crates/cb-plugin-api/src/lib.rs) - Core trait definitions
+- [mill-plugin-api/src/lib.rs](../../../crates/mill-plugin-api/src/lib.rs) - Core trait definitions
 - [mill-plugin-bundle/src/lib.rs](../../../crates/mill-plugin-bundle/src/lib.rs) - Bundle implementation
 - [cb-lang-rust/](../crates/cb-lang-rust/) - Full reference implementation
 - [CLAUDE.md](../CLAUDE.md) - Project documentation including plugin overview

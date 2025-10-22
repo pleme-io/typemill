@@ -8,7 +8,7 @@ homepage.workspace = true
 
 [dependencies]
 cb-analysis-graph = { workspace = true }
-cb-plugin-api = { workspace = true }
+mill-plugin-api = { workspace = true }
 petgraph = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

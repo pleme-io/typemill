@@ -2,7 +2,7 @@
 //!
 //! Treats markdown file links as "imports" for the purpose of file rename tracking.
 
-use cb_plugin_api::{ImportSupport, PluginResult};
+use mill_plugin_api::{ ImportSupport , PluginResult };
 use mill_foundation::protocol::DependencyUpdate;
 use regex::{Captures, Regex};
 use std::path::Path;

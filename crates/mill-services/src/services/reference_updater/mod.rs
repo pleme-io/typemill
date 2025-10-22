@@ -39,10 +39,10 @@ impl ReferenceUpdater {
         &self,
         old_path: &Path,
         new_path: &Path,
-        plugins: &[std::sync::Arc<dyn cb_plugin_api::LanguagePlugin>],
+        plugins: &[std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
         rename_info: Option<&serde_json::Value>,
         _dry_run: bool,
-        _scan_scope: Option<cb_plugin_api::ScanScope>,
+        _scan_scope: Option<mill_plugin_api::ScanScope>,
         rename_scope: Option<&mill_foundation::core::rename_scope::RenameScope>,
     ) -> ServerResult<EditPlan> {
         let is_directory_rename = old_path.is_dir();
@@ -492,7 +492,7 @@ impl ReferenceUpdater {
         &self,
         renamed_file: &Path,
         project_files: &[PathBuf],
-        plugins: &[std::sync::Arc<dyn cb_plugin_api::LanguagePlugin>],
+        plugins: &[std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
     ) -> ServerResult<Vec<PathBuf>> {
         let mut affected = Vec::new();
 
@@ -525,7 +525,7 @@ impl ReferenceUpdater {
         old_path: &Path,
         new_path: &Path,
         project_files: &[PathBuf],
-        plugins: &[std::sync::Arc<dyn cb_plugin_api::LanguagePlugin>],
+        plugins: &[std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
         rename_info: Option<&serde_json::Value>,
     ) -> ServerResult<Vec<PathBuf>> {
         // Rust-specific cross-crate move detection
@@ -594,7 +594,7 @@ impl ReferenceUpdater {
         &self,
         content: &str,
         current_file: &Path,
-        plugins: &[std::sync::Arc<dyn cb_plugin_api::LanguagePlugin>],
+        plugins: &[std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
         project_files: &[PathBuf],
     ) -> Vec<PathBuf> {
         detectors::get_all_imported_files(
@@ -610,7 +610,7 @@ impl ReferenceUpdater {
         &self,
         file_path: &Path,
         update: &DependencyUpdate,
-        plugins: &[std::sync::Arc<dyn cb_plugin_api::LanguagePlugin>],
+        plugins: &[std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
     ) -> ServerResult<bool> {
         let extension = match file_path.extension().and_then(|s| s.to_str()) {
             Some(ext) => ext,
@@ -789,7 +789,7 @@ fn merge_rename_info(
 /// Vector of absolute paths to files that should be scanned
 pub async fn find_project_files(
     project_root: &Path,
-    plugins: &[std::sync::Arc<dyn cb_plugin_api::LanguagePlugin>],
+    plugins: &[std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
     rename_scope: Option<&mill_foundation::core::rename_scope::RenameScope>,
 ) -> ServerResult<Vec<PathBuf>> {
     let mut files = Vec::new();
@@ -797,7 +797,7 @@ pub async fn find_project_files(
     fn collect_files<'a>(
         dir: &'a Path,
         files: &'a mut Vec<PathBuf>,
-        plugins: &'a [std::sync::Arc<dyn cb_plugin_api::LanguagePlugin>],
+        plugins: &'a [std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
         rename_scope: Option<&'a mill_foundation::core::rename_scope::RenameScope>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ServerResult<()>> + Send + 'a>> {
         Box::pin(async move {

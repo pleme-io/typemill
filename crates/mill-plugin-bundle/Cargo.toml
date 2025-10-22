@@ -7,7 +7,7 @@ description = "Plugin bundle containing all language plugins for codebuddy"
 
 [dependencies]
 # Core plugin API
-cb-plugin-api = { path = "../cb-plugin-api" }
+mill-plugin-api = { path = "../mill-plugin-api" }
 
 # All language plugins (optional)
 cb-lang-rust = { path = "../cb-lang-rust", optional = true, default-features = false }

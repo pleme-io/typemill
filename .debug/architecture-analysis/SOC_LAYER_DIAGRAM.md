@@ -237,7 +237,7 @@ mill-foundation/protocol (THE BOUNDARY)
    Services layer has ZERO production dependencies on language plugins!
 
    Before: mill-services → cb-lang-rust (coupling)
-   After:  mill-services → cb-plugin-api → cb-lang-rust (abstraction)
+   After:  mill-services → mill-plugin-api → cb-lang-rust (abstraction)
 ```
 
 ## Error Handling Boundaries (Excellent - Unchanged)

@@ -4,7 +4,7 @@
 //! synchronous methods for manipulating Cargo.toml workspace manifests.
 
 use async_trait::async_trait;
-use cb_plugin_api::workspace_support::WorkspaceSupport;
+use mill_plugin_api::workspace_support::WorkspaceSupport;
 use std::path::Path;
 use toml_edit::DocumentMut;
 use tracing::debug;
@@ -83,8 +83,8 @@ impl WorkspaceSupport for RustWorkspaceSupport {
         old_path: &std::path::Path,
         new_path: &std::path::Path,
         project_root: &std::path::Path,
-    ) -> Option<cb_plugin_api::MoveManifestPlan> {
-        use cb_plugin_api::MoveManifestPlan;
+    ) -> Option<mill_plugin_api::MoveManifestPlan> {
+        use mill_plugin_api::MoveManifestPlan;
         use tracing::{info, warn};
 
         // Check if this is a Cargo package

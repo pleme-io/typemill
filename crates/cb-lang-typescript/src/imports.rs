@@ -1,4 +1,4 @@
-use cb_plugin_api::{PluginError, PluginResult};
+use mill_plugin_api::{ PluginError , PluginResult };
 use mill_foundation::protocol::DependencyUpdate;
 use std::path::Path;
 use swc_common::{sync::Lrc, FileName, FilePathMapping, SourceMap};

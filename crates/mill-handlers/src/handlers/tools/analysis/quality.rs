@@ -486,7 +486,7 @@ impl QualityHandler {
 pub fn detect_smells(
     complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
-    _symbols: &[cb_plugin_api::Symbol],
+    _symbols: &[mill_plugin_api::Symbol],
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
@@ -722,7 +722,7 @@ fn detect_magic_numbers_for_smells(content: &str, file_path: &str, language: &st
 pub fn analyze_readability(
     complexity_report: &mill_ast::complexity::ComplexityReport,
     _content: &str,
-    _symbols: &[cb_plugin_api::Symbol],
+    _symbols: &[mill_plugin_api::Symbol],
     _language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
@@ -951,7 +951,7 @@ pub fn analyze_readability(
 pub fn analyze_maintainability(
     complexity_report: &mill_ast::complexity::ComplexityReport,
     _content: &str,
-    _symbols: &[cb_plugin_api::Symbol],
+    _symbols: &[mill_plugin_api::Symbol],
     _language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,

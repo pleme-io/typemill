@@ -3,10 +3,7 @@
 
 use crate::process_manager::PluginProcess;
 use async_trait::async_trait;
-use cb_plugin_api::{
-    LanguageMetadata, LanguagePlugin, ManifestData, ParsedSource, PluginCapabilities, PluginError,
-    PluginResult,
-};
+use mill_plugin_api::{ LanguageMetadata , LanguagePlugin , ManifestData , ParsedSource , PluginCapabilities , PluginError , PluginResult , };
 use serde_json::Value;
 use std::path::Path;
 use std::sync::Arc;

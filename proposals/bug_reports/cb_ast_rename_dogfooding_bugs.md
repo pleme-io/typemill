@@ -121,18 +121,18 @@ error[E0433]: failed to resolve: use of unresolved module or unlinked crate `cb_
 
 ### Issue 1: Missing Test Dependency
 **Severity**: Low
-**File**: `crates/cb-plugin-api/Cargo.toml`
+**File**: `../../crates/mill-plugin-api/Cargo.toml`
 **Issue**: Tests use `tempfile` but it's not in `[dev-dependencies]`
 
 **Error**:
 ```
 error[E0432]: unresolved import `tempfile`
-   --> crates/cb-plugin-api/src/language.rs:172:13
+   --> ../../crates/mill-plugin-api/src/language.rs:172:13
 ```
 
 **Impact**: `cargo nextest run --workspace` fails (12 test compilation errors)
 
-**Fix needed**: Add to `crates/cb-plugin-api/Cargo.toml`:
+**Fix needed**: Add to `../../crates/mill-plugin-api/Cargo.toml`:
 ```toml
 [dev-dependencies]
 tempfile = { workspace = true }
@@ -155,7 +155,7 @@ tempfile = { workspace = true }
    - Add tests for optional dependency renames
 
 3. **Add missing test dependency**
-   - Add `tempfile` to cb-plugin-api dev-dependencies
+   - Add `tempfile` to mill-plugin-api dev-dependencies
 
 ### Testing Improvements
 

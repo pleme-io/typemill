@@ -923,7 +923,7 @@ fn test_capability_routing() {
 }
 ```
 
-**See [crates/cb-plugin-api/src/lib.rs](crates/cb-plugin-api/src/lib.rs)** for the complete plugin registry implementation and capability routing logic.
+**See [crates/mill-plugin-api/src/lib.rs](crates/mill-plugin-api/src/lib.rs)** for the complete plugin registry implementation and capability routing logic.
 
 ### Adding New MCP Tools
 

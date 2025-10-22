@@ -2,7 +2,7 @@
 //!
 //! Eliminates duplication across CLI, stdio, WebSocket entry points
 
-use cb_plugin_api::PluginRegistry;
+use mill_plugin_api::PluginRegistry;
 use mill_server::handlers::plugin_dispatcher::PluginDispatcher;
 use mill_server::workspaces::WorkspaceManager;
 use std::sync::Arc;

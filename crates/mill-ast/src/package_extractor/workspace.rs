@@ -1,5 +1,5 @@
 use crate::package_extractor::ExtractModuleToPackageParams;
-use cb_plugin_api::LanguagePlugin;
+use mill_plugin_api::LanguagePlugin;
 use mill_foundation::protocol::{ EditLocation , EditType , TextEdit };
 use std::path::Path;
 use tracing::debug;

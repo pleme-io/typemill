@@ -7,7 +7,7 @@
 //! This module provides functionality to detect circular dependencies
 //! that would be created by consolidating one crate into another.
 
-use cb_plugin_api::{PluginError, PluginResult};
+use mill_plugin_api::{ PluginError , PluginResult };
 use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::visit::Dfs;
 use serde::{Deserialize, Serialize};
@@ -28,7 +28,7 @@ pub struct CircularDependencyAnalysis {
     pub target_crate: String,
 
     /// The dependency chain that creates the cycle
-    /// Example: ["cb-plugin-api", "mill-foundation", "cb-plugin-api"]
+    /// Example: ["mill-plugin-api", "mill-foundation", "mill-plugin-api"]
     pub dependency_chain: Vec<String>,
 
     /// Modules in source crate that cause the circular dependency
@@ -434,7 +434,7 @@ mod tests {
         let content = r#"
             use std::path::Path;
             pub use crate::foo::Bar;
-            use cb_plugin_api::iter_plugins;
+            use mill_plugin_api::iter_plugins;
             use codebuddy_core::utils;
         "#;
 
@@ -443,7 +443,7 @@ mod tests {
         assert_eq!(imports.len(), 4);
         assert!(imports.contains(&"std::path::Path".to_string()));
         assert!(imports.contains(&"crate::foo::Bar".to_string()));
-        assert!(imports.contains(&"cb_plugin_api::iter_plugins".to_string()));
+        assert!(imports.contains(&"mill_plugin_api::iter_plugins".to_string()));
         assert!(imports.contains(&"codebuddy_core::utils".to_string()));
     }
 }

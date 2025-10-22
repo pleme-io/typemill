@@ -76,7 +76,7 @@ graph TD
 
 - **`cb-lang-*`**: A collection of individual crates, each providing language-specific support for a particular programming language (e.g., `cb-lang-rust`, `cb-lang-typescript`).
 - **`cb-lang-common`**: A utility crate that provides shared code and helpers for language plugin development, reducing boilerplate.
-- **`cb-plugin-api`**: Defines the `LanguagePlugin` trait and other core APIs that all language plugins must implement.
+- **`mill-plugin-api`**: Defines the `LanguagePlugin` trait and other core APIs that all language plugins must implement.
 
 ### Application Layer
 

@@ -3,7 +3,7 @@
 //! This data structure represents the relationships between functions and methods
 //! in a codebase, tracking definitions and call sites.
 
-use cb_plugin_api::SourceLocation;
+use mill_plugin_api::SourceLocation;
 use petgraph::graph::{DiGraph, NodeIndex};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -106,7 +106,7 @@ impl Default for CallGraph {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cb_plugin_api::SourceLocation;
+    use mill_plugin_api::SourceLocation;
     use pretty_assertions::assert_eq;
 
     fn create_test_call_graph() -> (CallGraph, FunctionId, FunctionId, FunctionId) {

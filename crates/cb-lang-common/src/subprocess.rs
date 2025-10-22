@@ -18,7 +18,7 @@
 //! let functions: Vec<String> = run_ast_tool(tool, source)?;
 //! ```
 
-use cb_plugin_api::{PluginError, PluginResult};
+use mill_plugin_api::{ PluginError , PluginResult };
 use serde::de::DeserializeOwned;
 use std::io::Write;
 use std::process::{Command, Stdio};

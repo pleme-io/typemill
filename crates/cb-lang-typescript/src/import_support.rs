@@ -7,13 +7,7 @@ use crate::imports::{remove_named_import_from_line, update_import_reference_ast}
 use cb_lang_common::import_helpers::{
     find_last_matching_line, insert_line_at, remove_lines_matching,
 };
-use cb_plugin_api::{
-    import_support::{
-        ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportParser,
-        ImportRenameSupport,
-    },
-    PluginResult,
-};
+use mill_plugin_api::{ import_support::{ ImportAdvancedSupport , ImportMoveSupport , ImportMutationSupport , ImportParser , ImportRenameSupport , } , PluginResult , };
 use mill_foundation::protocol::DependencyUpdate;
 use std::path::Path;
 use tracing::{debug, warn};

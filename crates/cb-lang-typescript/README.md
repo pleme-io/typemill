@@ -174,5 +174,5 @@ When adding new features:
 ## See Also
 
 - [Language Plugins Guide](../README.md)
-- [Plugin API Reference](../../cb-plugin-api/README.md)
+- [Plugin API Reference](../../mill-plugin-api/README.md)
 - [Babel Parser Documentation](https://babeljs.io/docs/en/babel-parser)

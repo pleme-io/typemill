@@ -8,7 +8,7 @@ homepage.workspace = true
 
 [dependencies]
 # Our core plugin API
-cb-plugin-api = { path = "../cb-plugin-api" }
+mill-plugin-api = { path = "../mill-plugin-api" }
 mill-foundation = { path = "../mill-foundation" }
 cb-lang-common = { path = "../cb-lang-common" }
 

@@ -8,15 +8,8 @@ pub mod workspace_support;
 
 use async_trait::async_trait;
 use cb_lang_common::read_manifest;
-use cb_plugin_api::codebuddy_plugin;
-use cb_plugin_api::{
-    import_support::{
-        ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportParser,
-        ImportRenameSupport,
-    },
-    LanguageMetadata, LanguagePlugin, LspConfig, ManifestData, ParsedSource, PluginCapabilities,
-    PluginError, PluginResult, WorkspaceSupport,
-};
+use mill_plugin_api::codebuddy_plugin;
+use mill_plugin_api::{ import_support::{ ImportAdvancedSupport , ImportMoveSupport , ImportMutationSupport , ImportParser , ImportRenameSupport , } , LanguageMetadata , LanguagePlugin , LspConfig , ManifestData , ParsedSource , PluginCapabilities , PluginError , PluginResult , WorkspaceSupport , };
 use std::path::Path;
 
 // Self-register the plugin with the Codebuddy system.
@@ -119,19 +112,19 @@ impl LanguagePlugin for TypeScriptPlugin {
     }
 
     // Capability trait discovery methods
-    fn module_reference_scanner(&self) -> Option<&dyn cb_plugin_api::ModuleReferenceScanner> {
+    fn module_reference_scanner(&self) -> Option<&dyn mill_plugin_api::ModuleReferenceScanner> {
         Some(self)
     }
 
-    fn refactoring_provider(&self) -> Option<&dyn cb_plugin_api::RefactoringProvider> {
+    fn refactoring_provider(&self) -> Option<&dyn mill_plugin_api::RefactoringProvider> {
         Some(self)
     }
 
-    fn import_analyzer(&self) -> Option<&dyn cb_plugin_api::ImportAnalyzer> {
+    fn import_analyzer(&self) -> Option<&dyn mill_plugin_api::ImportAnalyzer> {
         Some(self)
     }
 
-    fn manifest_updater(&self) -> Option<&dyn cb_plugin_api::ManifestUpdater> {
+    fn manifest_updater(&self) -> Option<&dyn mill_plugin_api::ManifestUpdater> {
         Some(self)
     }
 
@@ -160,19 +153,19 @@ impl LanguagePlugin for TypeScriptPlugin {
 // Capability Trait Implementations
 // ============================================================================
 
-impl cb_plugin_api::ModuleReferenceScanner for TypeScriptPlugin {
+impl mill_plugin_api::ModuleReferenceScanner for TypeScriptPlugin {
     fn scan_references(
         &self,
         content: &str,
         module_name: &str,
-        scope: cb_plugin_api::ScanScope,
-    ) -> cb_plugin_api::PluginResult<Vec<cb_plugin_api::ModuleReference>> {
+        scope: mill_plugin_api::ScanScope,
+    ) -> mill_plugin_api::PluginResult<Vec<mill_plugin_api::ModuleReference>> {
         Ok(self.find_module_references(content, module_name, scope))
     }
 }
 
 #[async_trait]
-impl cb_plugin_api::RefactoringProvider for TypeScriptPlugin {
+impl mill_plugin_api::RefactoringProvider for TypeScriptPlugin {
     fn supports_inline_variable(&self) -> bool {
         true
     }
@@ -183,7 +176,7 @@ impl cb_plugin_api::RefactoringProvider for TypeScriptPlugin {
         variable_line: u32,
         variable_col: u32,
         file_path: &str,
-    ) -> cb_plugin_api::PluginResult<mill_foundation::protocol::EditPlan> {
+    ) -> mill_plugin_api::PluginResult<mill_foundation::protocol::EditPlan> {
         refactoring::plan_inline_variable(source, variable_line, variable_col, file_path)
     }
 
@@ -198,7 +191,7 @@ impl cb_plugin_api::RefactoringProvider for TypeScriptPlugin {
         end_line: u32,
         function_name: &str,
         file_path: &str,
-    ) -> cb_plugin_api::PluginResult<mill_foundation::protocol::EditPlan> {
+    ) -> mill_plugin_api::PluginResult<mill_foundation::protocol::EditPlan> {
         refactoring::plan_extract_function(source, start_line, end_line, function_name, file_path)
     }
 
@@ -215,7 +208,7 @@ impl cb_plugin_api::RefactoringProvider for TypeScriptPlugin {
         end_col: u32,
         variable_name: Option<String>,
         file_path: &str,
-    ) -> cb_plugin_api::PluginResult<mill_foundation::protocol::EditPlan> {
+    ) -> mill_plugin_api::PluginResult<mill_foundation::protocol::EditPlan> {
         refactoring::plan_extract_variable(
             source,
             start_line,
@@ -228,21 +221,21 @@ impl cb_plugin_api::RefactoringProvider for TypeScriptPlugin {
     }
 }
 
-impl cb_plugin_api::ImportAnalyzer for TypeScriptPlugin {
+impl mill_plugin_api::ImportAnalyzer for TypeScriptPlugin {
     fn build_import_graph(
         &self,
         file_path: &Path,
-    ) -> cb_plugin_api::PluginResult<mill_foundation::protocol::ImportGraph> {
+    ) -> mill_plugin_api::PluginResult<mill_foundation::protocol::ImportGraph> {
         // Read the file content
         let content = std::fs::read_to_string(file_path).map_err(|e| {
-            cb_plugin_api::PluginError::internal(format!("Failed to read file: {}", e))
+            mill_plugin_api::PluginError::internal(format!("Failed to read file: {}", e))
         })?;
 
         // Use the existing analyze_detailed_imports method
         self.analyze_detailed_imports(&content, Some(file_path))
     }
 
-    fn find_unused_imports(&self, _file_path: &Path) -> cb_plugin_api::PluginResult<Vec<String>> {
+    fn find_unused_imports(&self, _file_path: &Path) -> mill_plugin_api::PluginResult<Vec<String>> {
         // TODO: Implement unused import detection
         // For now, return empty vector
         Ok(Vec::new())
@@ -254,14 +247,14 @@ impl cb_plugin_api::ImportAnalyzer for TypeScriptPlugin {
 // ============================================================================
 
 #[async_trait::async_trait]
-impl cb_plugin_api::ManifestUpdater for TypeScriptPlugin {
+impl mill_plugin_api::ManifestUpdater for TypeScriptPlugin {
     async fn update_dependency(
         &self,
         manifest_path: &Path,
         old_name: &str,
         new_name: &str,
         new_version: Option<&str>,
-    ) -> cb_plugin_api::PluginResult<String> {
+    ) -> mill_plugin_api::PluginResult<String> {
         // Delegate to the inherent method implementation
         TypeScriptPlugin::update_dependency(self, manifest_path, old_name, new_name, new_version)
             .await
@@ -301,9 +294,9 @@ impl TypeScriptPlugin {
         &self,
         content: &str,
         module_to_find: &str,
-        _scope: cb_plugin_api::ScanScope,
-    ) -> Vec<cb_plugin_api::ModuleReference> {
-        use cb_plugin_api::{ModuleReference, ReferenceKind};
+        _scope: mill_plugin_api::ScanScope,
+    ) -> Vec<mill_plugin_api::ModuleReference> {
+        use mill_plugin_api::{ ModuleReference , ReferenceKind };
         let mut references = Vec::new();
         for (line_num, line) in content.lines().enumerate() {
             if (line.contains("import") || line.contains("from")) && line.contains(module_to_find) {
@@ -342,7 +335,7 @@ impl TypeScriptPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cb_plugin_api::LanguagePlugin;
+    use mill_plugin_api::LanguagePlugin;
 
     #[test]
     fn test_typescript_capabilities() {

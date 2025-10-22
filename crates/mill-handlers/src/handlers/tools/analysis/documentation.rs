@@ -14,7 +14,7 @@
 
 use super::super::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
-use cb_plugin_api::{Symbol, SymbolKind};
+use mill_plugin_api::{ Symbol , SymbolKind };
 use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::protocol::analysis_result::{ Finding , FindingLocation , Position , Range , SafetyLevel , Severity , Suggestion , };
 use mill_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };

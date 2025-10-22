@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "crates/cb-plugin-api",
+    "crates/mill-plugin-api",
     "crates/mill-plugin-system",
     "crates/mill-lsp",
     "crates/mill-services",
@@ -74,7 +74,7 @@ futures = "0.3"
 # Core API crates
 mill-foundation = { path = "crates/mill-foundation" }
 codebuddy-config = { path = "crates/codebuddy-config" }
-cb-plugin-api = { path = "crates/cb-plugin-api" }
+mill-plugin-api = { path = "crates/mill-plugin-api" }
 
 # Graph analysis
 petgraph = { version = "0.6", features = ["serde-1"] }

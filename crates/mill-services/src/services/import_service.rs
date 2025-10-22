@@ -1,6 +1,6 @@
 //! Service for managing import updates across the codebase
 
-use cb_plugin_api::PluginRegistry;
+use mill_plugin_api::PluginRegistry;
 use mill_ast::{ find_project_files , update_imports_for_rename , ImportPathResolver };
 use mill_foundation::protocol::DependencyUpdate;
 use mill_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
@@ -40,7 +40,7 @@ impl ImportService {
         new_path: &Path,
         rename_info: Option<&serde_json::Value>,
         dry_run: bool,
-        scan_scope: Option<cb_plugin_api::ScanScope>,
+        scan_scope: Option<mill_plugin_api::ScanScope>,
     ) -> ServerResult<mill_foundation::protocol::EditPlan> {
         info!(
             old_path = ?old_path,
@@ -171,7 +171,7 @@ impl ImportService {
         };
 
         let original_content = content.clone();
-        let updated_content = cb_plugin_api::ImportAdvancedSupport::update_import_reference(
+        let updated_content = mill_plugin_api::ImportAdvancedSupport::update_import_reference(
             import_advanced,
             file_path,
             &content,

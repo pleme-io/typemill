@@ -40,7 +40,7 @@ pub struct ExtractModuleToPackageParams {
 /// * `plugin_registry` - Registry of language plugins
 pub async fn plan_extract_module_to_package_with_registry(
     params: ExtractModuleToPackageParams,
-    plugin_registry: &cb_plugin_api::PluginRegistry,
+    plugin_registry: &mill_plugin_api::PluginRegistry,
 ) -> AstResult<EditPlan> {
     planner::plan_extract_module_to_package(params, plugin_registry).await
 }

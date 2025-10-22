@@ -2,7 +2,7 @@
 // Best for: Zero subprocess overhead, pure Rust parsers
 
 use syn::{File, Item, ItemFn, ItemStruct, Attribute};
-use cb_plugin_api::{Symbol, SymbolKind, PluginResult, PluginError};
+use mill_plugin_api::{ Symbol , SymbolKind , PluginResult , PluginError };
 use mill_foundation::protocol::SourceLocation;
 
 pub fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {

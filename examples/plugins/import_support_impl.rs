@@ -1,7 +1,7 @@
 // Example: ImportSupport Trait Implementation
 // Purpose: Enable import analysis and rewriting
 
-use cb_plugin_api::{ImportSupport, ModuleReference, ReferenceKind};
+use mill_plugin_api::{ ImportSupport , ModuleReference , ReferenceKind };
 use std::path::Path;
 
 pub struct MyLanguageImportSupport;

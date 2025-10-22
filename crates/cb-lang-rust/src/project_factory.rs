@@ -2,10 +2,8 @@
 //!
 //! Handles creation of new Rust crates with proper workspace integration.
 
-use cb_plugin_api::project_factory::{
-    CreatePackageConfig, CreatePackageResult, PackageInfo, PackageType, ProjectFactory, Template,
-};
-use cb_plugin_api::{PluginError, PluginResult};
+use mill_plugin_api::project_factory::{ CreatePackageConfig , CreatePackageResult , PackageInfo , PackageType , ProjectFactory , Template , };
+use mill_plugin_api::{ PluginError , PluginResult };
 use std::fs;
 use std::path::{Path, PathBuf};
 use tracing::{debug, error};
@@ -305,7 +303,7 @@ fn update_workspace_members(workspace_root: &Path, package_path: &Path) -> Plugi
     debug!(member = %member_str, "Adding workspace member");
 
     // Use workspace support to add member
-    use cb_plugin_api::WorkspaceSupport;
+    use mill_plugin_api::WorkspaceSupport;
     let workspace_support = crate::workspace_support::RustWorkspaceSupport;
     let updated_content = workspace_support.add_workspace_member(&content, &member_str);
 
