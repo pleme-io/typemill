@@ -66,7 +66,6 @@ impl ImportRenameSupport for RustImportSupport {
         tracing::info!(
             old_name = %old_name,
             new_name = %new_name,
-            content = %content,
             "RustImportSupport::rewrite_imports_for_rename ENTRY"
         );
 
@@ -76,234 +75,89 @@ impl ImportRenameSupport for RustImportSupport {
 
         tracing::info!(lines_count = lines.len(), "Split content into lines");
 
-        // Process line by line, using AST-based rewriting for use statements only
-        for (idx, line) in lines.iter().enumerate() {
+        // State machine for collecting multi-line use statements
+        let mut in_use_stmt = false;
+        let mut use_stmt_lines: Vec<(usize, &str)> = Vec::new(); // (line_index, line_content)
+        let mut use_stmt_indent = 0;
+
+        let mut idx = 0;
+        while idx < lines.len() {
+            let line = lines[idx];
             let trimmed = line.trim();
 
-            tracing::info!(
-                idx = idx,
-                line = %line,
-                trimmed = %trimmed,
-                starts_with_use = trimmed.starts_with("use "),
-                contains_old_name = trimmed.contains(old_name),
-                "Processing line"
-            );
+            // Check if starting a new use statement
+            if !in_use_stmt && trimmed.starts_with("use ") {
+                in_use_stmt = true;
+                use_stmt_lines.clear();
+                use_stmt_indent = line.len() - trimmed.len();
+                use_stmt_lines.push((idx, line));
 
-            // Check if this line is a use statement containing our module path
-            // Also handle crate:: prefix (e.g., "use crate::core::types" should match "mylib::core::types")
-            // Also handle crate-relative imports (e.g., "use utils::helpers" should match "mylib::utils::helpers")
-            let is_use_statement = trimmed.starts_with("use ");
-            let contains_old_module = trimmed.contains(old_name);
-
-            // Check if this is a crate:: import that matches our module path
-            // Extract suffix from old_name (e.g., "mylib::core::types" → "core::types")
-            let crate_import_matches = if old_name.contains("::") {
-                old_name
-                    .split_once("::")
-                    .map(|(_, suffix)| {
-                        let crate_pattern = format!("crate::{}", suffix);
-                        trimmed.contains(&crate_pattern)
-                    })
-                    .unwrap_or(false)
-            } else {
-                false
-            };
-
-            // Check if this is a crate-relative import (e.g., "use utils::helpers::process" matches "mylib::utils::helpers")
-            // This handles imports from lib.rs or other crate root files
-            let relative_import_matches = if old_name.contains("::") {
-                old_name
-                    .split_once("::")
-                    .map(|(_, suffix)| {
-                        let relative_pattern = format!("use {}::", suffix);
-                        trimmed.starts_with(&relative_pattern) || {
-                            // Also check for "use {suffix};" (no :: after, for leaf imports)
-                            let leaf_pattern = format!("use {};", suffix);
-                            trimmed.starts_with(&leaf_pattern)
-                        }
-                    })
-                    .unwrap_or(false)
-            } else {
-                false
-            };
-
-            // Check for relative imports using super:: or self::
-            // Extract the last component (module name) from old_name
-            let old_module_name = old_name.split("::").last().unwrap_or("");
-            let super_import_matches = !old_module_name.is_empty()
-                && (trimmed.contains(&format!("super::{}::", old_module_name))
-                    || trimmed.contains(&format!("super::{}::*", old_module_name)));
-            let self_import_matches = !old_module_name.is_empty()
-                && (trimmed.contains(&format!("self::{}::", old_module_name))
-                    || trimmed.contains(&format!("self::{}::*", old_module_name)));
-
-            if is_use_statement
-                && (contains_old_module
-                    || crate_import_matches
-                    || relative_import_matches
-                    || super_import_matches
-                    || self_import_matches)
-            {
-                tracing::info!(
-                    line = %trimmed,
-                    old_name = %old_name,
-                    super_import_matches = super_import_matches,
-                    self_import_matches = self_import_matches,
-                    "Found use statement containing old module name"
-                );
-
-                // For super:: and self:: imports, do simple string replacement
-                // because they're relative and don't need full module path rewriting
-                if super_import_matches || self_import_matches {
-                    let new_module_name = new_name.split("::").last().unwrap_or("");
-                    if !old_module_name.is_empty() && !new_module_name.is_empty() {
-                        let mut new_line = trimmed.to_string();
-
-                        // Replace all occurrences of the old module name in super:: and self:: contexts
-                        new_line = new_line.replace(
-                            &format!("super::{}::", old_module_name),
-                            &format!("super::{}::", new_module_name),
-                        );
-                        new_line = new_line.replace(
-                            &format!("super::{}::*", old_module_name),
-                            &format!("super::{}::*", new_module_name),
-                        );
-                        new_line = new_line.replace(
-                            &format!("self::{}::", old_module_name),
-                            &format!("self::{}::", new_module_name),
-                        );
-                        new_line = new_line.replace(
-                            &format!("self::{}::*", old_module_name),
-                            &format!("self::{}::*", new_module_name),
-                        );
-
-                        // Preserve indentation
-                        let indent = line.len() - trimmed.len();
-                        let indent_str = &line[..indent];
-
-                        result.push_str(indent_str);
-                        result.push_str(&new_line);
-
-                        // Add newline if not last line
-                        if idx < lines.len() - 1 {
-                            result.push('\n');
-                        }
-                        changes_count += 1;
-                        continue;
-                    }
-                }
-
-                // Extract just the use statement (up to and including the semicolon)
-                // This handles cases like: "use foo::bar; fn main() {}"
-                let use_stmt = if let Some(semi_idx) = trimmed.find(';') {
-                    &trimmed[..=semi_idx]
-                } else {
-                    trimmed
-                };
-
-                // Try to parse just the use statement
-                match syn::parse_str::<syn::ItemUse>(use_stmt) {
-                    Ok(item_use) => {
-                        tracing::info!(
-                            "Successfully parsed use statement, calling rewrite_use_tree"
-                        );
-
-                        // Compute effective old and new module paths based on the import style
-                        let (effective_old, effective_new) = if crate_import_matches {
-                            // For crate:: imports, strip the crate name from both old and new
-                            // e.g., old_name="mylib::core::types", new_name="mylib::core::models"
-                            //   → effective_old="crate::core::types", effective_new="crate::core::models"
-                            let old_suffix =
-                                old_name.split_once("::").map(|(_, s)| s).unwrap_or("");
-                            let new_suffix =
-                                new_name.split_once("::").map(|(_, s)| s).unwrap_or("");
-                            (
-                                format!("crate::{}", old_suffix),
-                                format!("crate::{}", new_suffix),
-                            )
-                        } else if relative_import_matches {
-                            // For crate-relative imports (from lib.rs), use just the suffix
-                            // e.g., old_name="mylib::utils::helpers", new_name="mylib::utils::support"
-                            //   → effective_old="utils::helpers", effective_new="utils::support"
-                            let old_suffix = old_name
-                                .split_once("::")
-                                .map(|(_, s)| s)
-                                .unwrap_or(old_name);
-                            let new_suffix = new_name
-                                .split_once("::")
-                                .map(|(_, s)| s)
-                                .unwrap_or(new_name);
-                            (old_suffix.to_string(), new_suffix.to_string())
-                        } else {
-                            (old_name.to_string(), new_name.to_string())
-                        };
-
-                        tracing::info!(
-                            effective_old = %effective_old,
-                            effective_new = %effective_new,
-                            crate_import_matches = crate_import_matches,
-                            relative_import_matches = relative_import_matches,
-                            "Computed effective module paths for rewrite"
-                        );
-
-                        // Try to rewrite using AST-based transformation
-                        let rewrite_result = crate::parser::rewrite_use_tree(
-                            &item_use.tree,
-                            &effective_old,
-                            &effective_new,
-                        );
-                        tracing::info!(
-                            rewrite_result = ?rewrite_result,
-                            "rewrite_use_tree returned"
-                        );
-                        if let Some(new_tree) = rewrite_result {
-                            // Preserve original indentation
-                            let indent = line.len() - trimmed.len();
-                            let indent_str = &line[..indent];
-
-                            // Write rewritten use statement with original indentation
-                            result.push_str(indent_str);
-                            // quote! adds spaces around ::, so we need to remove them
-                            let formatted = format!("use {};", quote::quote!(#new_tree));
-                            let normalized = formatted.replace(" :: ", "::");
-                            result.push_str(&normalized);
-
-                            // If there was code after the semicolon, preserve it
-                            if let Some(semi_idx) = trimmed.find(';') {
-                                if semi_idx + 1 < trimmed.len() {
-                                    let remainder = &trimmed[semi_idx + 1..];
-                                    if !remainder.trim().is_empty() {
-                                        result.push(' ');
-                                        result.push_str(remainder.trim());
-                                    }
-                                }
-                            }
-
-                            // Add newline if not last line
+                // Check if it's a single-line statement (has semicolon)
+                if trimmed.contains(';') {
+                    in_use_stmt = false;
+                    // Process this complete use statement
+                    if let Some(change) = self.process_use_statement(
+                        &use_stmt_lines,
+                        old_name,
+                        new_name,
+                        use_stmt_indent,
+                        &lines,
+                    ) {
+                        result.push_str(&change.0);
+                        changes_count += change.1;
+                    } else {
+                        // No change, keep original
+                        for (_, original_line) in &use_stmt_lines {
+                            result.push_str(original_line);
                             if idx < lines.len() - 1 {
                                 result.push('\n');
                             }
-                            changes_count += 1;
-                            continue;
                         }
                     }
-                    Err(_) => {
-                        // If parsing fails (e.g., multi-line use statement), keep original
-                        debug!(
-                            line = %line,
-                            "Could not parse use statement, keeping original"
-                        );
-                    }
+                    use_stmt_lines.clear();
                 }
+                idx += 1;
+                continue;
             }
 
-            // Keep original line (either not a use statement, or parsing failed)
-            result.push_str(line);
+            // If we're inside a use statement, continue collecting lines
+            if in_use_stmt {
+                use_stmt_lines.push((idx, line));
 
-            // Add newline if not last line
+                // Check if this line completes the statement (has semicolon)
+                if trimmed.contains(';') {
+                    in_use_stmt = false;
+                    // Process this complete multi-line use statement
+                    if let Some(change) = self.process_use_statement(
+                        &use_stmt_lines,
+                        old_name,
+                        new_name,
+                        use_stmt_indent,
+                        &lines,
+                    ) {
+                        result.push_str(&change.0);
+                        changes_count += change.1;
+                    } else {
+                        // No change, keep original lines
+                        for (line_idx, original_line) in &use_stmt_lines {
+                            result.push_str(original_line);
+                            if *line_idx < lines.len() - 1 {
+                                result.push('\n');
+                            }
+                        }
+                    }
+                    use_stmt_lines.clear();
+                }
+                idx += 1;
+                continue;
+            }
+
+            // Not a use statement, just copy the line
+            result.push_str(line);
             if idx < lines.len() - 1 {
                 result.push('\n');
             }
+            idx += 1;
         }
 
         debug!(changes = changes_count, "Rewrote Rust imports using AST");
@@ -439,6 +293,201 @@ impl ImportMutationSupport for RustImportSupport {
 
         debug!(removed = removed_count, "Removed import lines");
         result
+    }
+}
+
+// Helper methods for RustImportSupport
+impl RustImportSupport {
+    /// Process a complete use statement (single-line or multi-line) and return the transformed version if changed.
+    ///
+    /// Returns: Option<(transformed_text, change_count)>
+    fn process_use_statement(
+        &self,
+        use_stmt_lines: &[(usize, &str)],
+        old_name: &str,
+        new_name: &str,
+        indent: usize,
+        all_lines: &[&str],
+    ) -> Option<(String, usize)> {
+        if use_stmt_lines.is_empty() {
+            return None;
+        }
+
+        // Concatenate all lines to form the complete use statement
+        let concatenated: String = use_stmt_lines
+            .iter()
+            .map(|(_, line)| line.trim())
+            .collect::<Vec<_>>()
+            .join(" ");
+
+        let trimmed = concatenated.trim();
+
+        tracing::info!(
+            use_statement = %trimmed,
+            old_name = %old_name,
+            new_name = %new_name,
+            "Processing use statement"
+        );
+
+        // Check if this statement contains the old module name
+        let contains_old_module = trimmed.contains(old_name);
+
+        // Check for various import patterns
+        let crate_import_matches = if old_name.contains("::") {
+            old_name
+                .split_once("::")
+                .map(|(_, suffix)| {
+                    let crate_pattern = format!("crate::{}", suffix);
+                    trimmed.contains(&crate_pattern)
+                })
+                .unwrap_or(false)
+        } else {
+            false
+        };
+
+        let relative_import_matches = if old_name.contains("::") {
+            old_name
+                .split_once("::")
+                .map(|(_, suffix)| {
+                    let relative_pattern = format!("use {}::", suffix);
+                    trimmed.starts_with(&relative_pattern) || {
+                        let leaf_pattern = format!("use {};", suffix);
+                        trimmed.starts_with(&leaf_pattern)
+                    }
+                })
+                .unwrap_or(false)
+        } else {
+            false
+        };
+
+        let old_module_name = old_name.split("::").last().unwrap_or("");
+        let super_import_matches = !old_module_name.is_empty()
+            && (trimmed.contains(&format!("super::{}::", old_module_name))
+                || trimmed.contains(&format!("super::{}::*", old_module_name)));
+        let self_import_matches = !old_module_name.is_empty()
+            && (trimmed.contains(&format!("self::{}::", old_module_name))
+                || trimmed.contains(&format!("self::{}::*", old_module_name)));
+
+        // If none of the patterns match, no change needed
+        if !contains_old_module
+            && !crate_import_matches
+            && !relative_import_matches
+            && !super_import_matches
+            && !self_import_matches
+        {
+            return None;
+        }
+
+        // Handle super:: and self:: imports with simple string replacement
+        if super_import_matches || self_import_matches {
+            let new_module_name = new_name.split("::").last().unwrap_or("");
+            if !old_module_name.is_empty() && !new_module_name.is_empty() {
+                let mut new_stmt = trimmed.to_string();
+
+                new_stmt = new_stmt.replace(
+                    &format!("super::{}::", old_module_name),
+                    &format!("super::{}::", new_module_name),
+                );
+                new_stmt = new_stmt.replace(
+                    &format!("super::{}::*", old_module_name),
+                    &format!("super::{}::*", new_module_name),
+                );
+                new_stmt = new_stmt.replace(
+                    &format!("self::{}::", old_module_name),
+                    &format!("self::{}::", new_module_name),
+                );
+                new_stmt = new_stmt.replace(
+                    &format!("self::{}::*", old_module_name),
+                    &format!("self::{}::*", new_module_name),
+                );
+
+                let indent_str = " ".repeat(indent);
+                let mut result = format!("{}{}\n", indent_str, new_stmt);
+
+                // Don't add extra newline if this is the last line
+                let last_line_idx = use_stmt_lines.last().map(|(idx, _)| *idx).unwrap_or(0);
+                if last_line_idx >= all_lines.len() - 1 {
+                    result.pop(); // Remove trailing newline
+                }
+
+                return Some((result, 1));
+            }
+        }
+
+        // Extract just the use statement (up to and including the semicolon)
+        let use_stmt = if let Some(semi_idx) = trimmed.find(';') {
+            &trimmed[..=semi_idx]
+        } else {
+            trimmed
+        };
+
+        // Try to parse the use statement
+        match syn::parse_str::<syn::ItemUse>(use_stmt) {
+            Ok(item_use) => {
+                // Compute effective module paths
+                let (effective_old, effective_new) = if crate_import_matches {
+                    let old_suffix = old_name.split_once("::").map(|(_, s)| s).unwrap_or("");
+                    let new_suffix = new_name.split_once("::").map(|(_, s)| s).unwrap_or("");
+                    (
+                        format!("crate::{}", old_suffix),
+                        format!("crate::{}", new_suffix),
+                    )
+                } else if relative_import_matches {
+                    let old_suffix = old_name
+                        .split_once("::")
+                        .map(|(_, s)| s)
+                        .unwrap_or(old_name);
+                    let new_suffix = new_name
+                        .split_once("::")
+                        .map(|(_, s)| s)
+                        .unwrap_or(new_name);
+                    (old_suffix.to_string(), new_suffix.to_string())
+                } else {
+                    (old_name.to_string(), new_name.to_string())
+                };
+
+                tracing::info!(
+                    effective_old = %effective_old,
+                    effective_new = %effective_new,
+                    "Computed effective module paths"
+                );
+
+                // Try to rewrite using AST transformation
+                if let Some(new_tree) = crate::parser::rewrite_use_tree(
+                    &item_use.tree,
+                    &effective_old,
+                    &effective_new,
+                ) {
+                    let formatted = format!("use {};", quote::quote!(#new_tree));
+                    let normalized = formatted.replace(" :: ", "::");
+                    let indent_str = " ".repeat(indent);
+                    let mut result = format!("{}{}\n", indent_str, normalized);
+
+                    // Don't add extra newline if this is the last line
+                    let last_line_idx = use_stmt_lines.last().map(|(idx, _)| *idx).unwrap_or(0);
+                    if last_line_idx >= all_lines.len() - 1 {
+                        result.pop(); // Remove trailing newline
+                    }
+
+                    tracing::info!(
+                        original = %trimmed,
+                        transformed = %normalized,
+                        "Successfully transformed use statement"
+                    );
+
+                    return Some((result, 1));
+                }
+            }
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    statement = %use_stmt,
+                    "Failed to parse use statement"
+                );
+            }
+        }
+
+        None
     }
 }
 
@@ -736,6 +785,68 @@ pub fn example() {
         assert!(
             result.contains("codebuddy_ast::"),
             "Should normalize to standard spacing"
+        );
+    }
+
+    #[test]
+    fn test_multiline_grouped_imports() {
+        let support = RustImportSupport;
+
+        // Test case that was failing: multi-line grouped imports
+        let content = r#"use crate::handlers::tools::{ToolHandler, ToolHandlerContext};
+use async_trait::async_trait;
+use cb_services::{
+    services::file_service::EditPlanResult, ChecksumValidator, DryRunGenerator, PlanConverter,
+    PostApplyValidator, ValidationConfig, ValidationResult,
+};
+use codebuddy_foundation::core::model::mcp::ToolCall;
+
+pub fn example() {
+    let validator = cb_services::ChecksumValidator::new();
+}
+"#;
+
+        let (result, changes) =
+            support.rewrite_imports_for_rename(content, "cb_services", "mill_services");
+
+        println!("Result:\n{}", result);
+        println!("Changes: {}", changes);
+
+        // Should update both the multi-line import and the qualified path
+        assert!(changes >= 2, "Should detect at least 2 changes (import + qualified path)");
+        assert!(
+            !result.contains("cb_services"),
+            "Should replace all cb_services references"
+        );
+        assert!(
+            result.contains("use mill_services::{"),
+            "Should update multi-line grouped import"
+        );
+        assert!(
+            result.contains("mill_services::ChecksumValidator"),
+            "Should update qualified path in code"
+        );
+    }
+
+    #[test]
+    fn test_multiline_imports_preserve_formatting() {
+        let support = RustImportSupport;
+
+        // Test that indentation is preserved
+        let content = r#"    use cb_services::{
+        ChecksumValidator,
+        DryRunGenerator,
+    };
+"#;
+
+        let (result, changes) =
+            support.rewrite_imports_for_rename(content, "cb_services", "mill_services");
+
+        assert_eq!(changes, 1, "Should detect 1 change");
+        // Result should start with the same indentation (4 spaces)
+        assert!(
+            result.starts_with("    use mill_services"),
+            "Should preserve leading indentation"
         );
     }
 }
