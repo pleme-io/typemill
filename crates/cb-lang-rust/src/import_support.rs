@@ -448,6 +448,42 @@ impl RustImportSupport {
             trimmed
         };
 
+        // Skip AST rewrite if this appears to be inside a format string template
+        // Format strings use {{ and }} to escape braces, which never appear in valid use syntax
+        // This prevents breaking format string escaping when we reserialize via quote!
+        if use_stmt.contains("{{") || use_stmt.contains("}}") {
+            tracing::debug!(
+                use_stmt = %use_stmt,
+                "Skipping AST rewrite for format string template (contains escaped braces)"
+            );
+
+            // Apply regex replacement directly since AST rewrite would break escaping
+            let old_rust_ident = old_name.replace('-', "_");
+            let new_rust_ident = new_name.replace('-', "_");
+            let pattern = format!(r"\b{}\s*::", regex::escape(&old_rust_ident));
+
+            if let Ok(re) = regex::Regex::new(&pattern) {
+                let new_content = re.replace_all(trimmed, |_caps: &regex::Captures| {
+                    format!("{}::", new_rust_ident)
+                });
+
+                if new_content != trimmed {
+                    let indent_str = " ".repeat(indent);
+                    let mut result = format!("{}{}\n", indent_str, new_content);
+
+                    // Don't add extra newline if this is the last line
+                    let last_line_idx = use_stmt_lines.last().map(|(idx, _)| *idx).unwrap_or(0);
+                    if last_line_idx >= all_lines.len() - 1 {
+                        result.pop();
+                    }
+
+                    return Some((result, 1));
+                }
+            }
+
+            return None;
+        }
+
         // Try to parse the use statement
         match syn::parse_str::<syn::ItemUse>(use_stmt) {
             Ok(item_use) => {
@@ -704,7 +740,7 @@ pub fn example() {
 "#;
 
         let (result, changes) =
-            support.rewrite_imports_for_rename(content, "cb_ast", "codebuddy_ast");
+            support.rewrite_imports_for_rename(content, "cb_ast", "mill_ast");
 
         assert!(changes > 0, "Should detect changes");
         assert!(
@@ -738,7 +774,7 @@ pub fn example() {
 "#;
 
         let (result, changes) =
-            support.rewrite_imports_for_rename(content, "cb_ast", "codebuddy_ast");
+            support.rewrite_imports_for_rename(content, "cb_ast", "mill_ast");
 
         // Both the use statement AND the qualified path should be updated
         assert!(
@@ -775,7 +811,7 @@ pub fn example() {
 "#;
 
         let (result, _changes) =
-            support.rewrite_imports_for_rename(content, "cb_ast", "codebuddy_ast");
+            support.rewrite_imports_for_rename(content, "cb_ast", "mill_ast");
 
         assert!(
             result.contains("mill_ast::CacheSettings"),
@@ -790,7 +826,7 @@ pub fn example() {
             "Should preserve variable names with cb_ast in them"
         );
         assert_eq!(
-            result.matches("codebuddy_ast").count(),
+            result.matches("mill_ast").count(),
             1,
             "Should only replace the qualified path, not variable names"
         );
@@ -807,7 +843,7 @@ pub fn example() {
 "#;
 
         let (result, changes) =
-            support.rewrite_imports_for_rename(content, "cb_ast", "codebuddy_ast");
+            support.rewrite_imports_for_rename(content, "cb_ast", "mill_ast");
 
         assert!(changes > 0, "Should detect changes");
         assert!(
@@ -1011,5 +1047,32 @@ fn init() {
         // Verify no old names remain
         assert!(!result2.contains("codebuddy_plugin_bundle"));
         assert!(!result2.contains("codebuddy_workspaces"));
+    }
+
+    #[test]
+    fn test_format_string_template_escaping() {
+        let support = RustImportSupport;
+
+        // Simulates code generation templates like those in plugin_scaffold.rs
+        // The use statement appears to be inside a string with escaped braces
+        let content = "use cb_plugin_api::{{ ParsedSource, PluginResult }};\nuse std::path::Path;";
+
+        let (result, changes) = support.rewrite_imports_for_rename(
+            content,
+            "cb-plugin-api",  // Hyphenated crate name (will be converted to cb_plugin_api for matching)
+            "mill-plugin-api",
+        );
+
+        // Should update via regex within process_use_statement because AST rewrite is skipped for {{ }}
+        assert!(changes > 0);
+
+        // The escaped braces {{ }} must be preserved
+        assert!(result.contains("mill_plugin_api::{{ ParsedSource, PluginResult }}"));
+
+        // Should not break into { {
+        assert!(!result.contains("mill_plugin_api::{ { ParsedSource"));
+
+        // Old name should be replaced
+        assert!(!result.contains("cb_plugin_api"));
     }
 }
