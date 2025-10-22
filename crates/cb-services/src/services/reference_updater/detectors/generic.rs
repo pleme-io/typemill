@@ -396,7 +396,7 @@ export function main() {
         let plugins = plugin_registry.all();
 
         let affected =
-            find_generic_affected_files(&old_path, &new_path, root, &project_files, plugins);
+            find_generic_affected_files(&old_path, &new_path, root, &project_files, plugins, None);
 
         assert!(
             affected.iter().any(|p| p.ends_with("README.md")),

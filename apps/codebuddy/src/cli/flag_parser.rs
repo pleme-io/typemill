@@ -201,40 +201,62 @@ fn parse_rename_flags(flags: HashMap<String, String>) -> Result<Value, FlagParse
     let mut options = json!({});
     let mut has_options = false;
 
+    // Check if any update flags are present (including update_all)
+    // If so, we need to create a custom scope even if --scope wasn't explicitly set
+    let has_update_flags = flags.keys().any(|k| {
+        matches!(
+            k.as_str(),
+            "update_code"
+                | "update_string_literals"
+                | "update_docs"
+                | "update_configs"
+                | "update_examples"
+                | "update_comments"
+                | "update_markdown_prose"
+                | "update_exact_matches"
+                | "update_all"
+        )
+    }) || flags.contains_key("exclude_patterns");
+
     // Scope configuration
-    if let Some(scope) = flags.get("scope") {
-        validate_scope_value(scope)?;
-        options["scope"] = json!(scope);
+    let scope = flags.get("scope").map(|s| s.as_str());
+
+    // Auto-upgrade to custom scope if update flags are present
+    let effective_scope = if has_update_flags && scope != Some("code-only") {
+        "custom"
+    } else {
+        scope.unwrap_or("all")
+    };
+
+    // Only set scope in options if it was explicitly provided or auto-upgraded
+    if scope.is_some() || has_update_flags {
+        validate_scope_value(effective_scope)?;
+        options["scope"] = json!(effective_scope);
         has_options = true;
+    }
 
-        // If scope is "custom", build custom_scope object
-        if scope == "custom" {
-            let mut custom_scope = json!({});
-            let mut has_custom = false;
+    // Build custom_scope object if needed
+    if effective_scope == "custom" && has_update_flags {
+        let mut custom_scope = json!({});
 
-            // Pass through all update flags (including update_all)
-            // RenameScope.resolve_update_all() will handle the expansion
-            for (key, value) in &flags {
-                match key.as_str() {
-                    "update_code" | "update_string_literals" | "update_docs"
-                    | "update_configs" | "update_examples" | "update_comments"
-                    | "update_markdown_prose" | "update_exact_matches" | "update_all" => {
-                        custom_scope[key] = json!(parse_bool(value)?);
-                        has_custom = true;
-                    }
-                    _ => {}
+        // Pass through all update flags (including update_all)
+        // RenameScope.resolve_update_all() will handle the expansion
+        for (key, value) in &flags {
+            match key.as_str() {
+                "update_code" | "update_string_literals" | "update_docs"
+                | "update_configs" | "update_examples" | "update_comments"
+                | "update_markdown_prose" | "update_exact_matches" | "update_all" => {
+                    custom_scope[key] = json!(parse_bool(value)?);
                 }
-            }
-
-            if let Some(patterns) = flags.get("exclude_patterns") {
-                custom_scope["exclude_patterns"] = parse_string_array(patterns)?;
-                has_custom = true;
-            }
-
-            if has_custom {
-                options["custom_scope"] = custom_scope;
+                _ => {}
             }
         }
+
+        if let Some(patterns) = flags.get("exclude_patterns") {
+            custom_scope["exclude_patterns"] = parse_string_array(patterns)?;
+        }
+
+        options["custom_scope"] = custom_scope;
     }
 
     // Other options
