@@ -114,7 +114,7 @@ The codebuddy codebase has achieved **production-ready separation of concerns** 
 ### Priority 1 (30 min) - Remove Debug File I/O
 - Critical issue affecting production code
 - Simple fix: replace with tracing logs
-- File: `crates/cb-handlers/src/handlers/workspace_apply_handler.rs`
+- File: `../../crates/mill-handlers/src/handlers/workspace_apply_handler.rs`
 
 ### Priority 2 (1-2 hours) - Extract Plan Conversion Service
 - Create `crates/cb-services/src/services/plan_converter.rs`

@@ -10,7 +10,6 @@ codebuddy-foundation = { path = "../codebuddy-foundation" }
 cb-transport = { path = "../cb-transport", default-features = false }
 cb-lsp = { path = "../cb-lsp" }
 cb-services = { path = "../cb-services", default-features = false }
-cb-handlers = { path = "../cb-handlers", default-features = false, features = ["analysis-deep-dead-code", "refactor-all"] }
 tokio = { workspace = true }
 async-trait = { workspace = true }
 futures-util = "0.3"
@@ -38,6 +37,7 @@ codebuddy-config = { path = "../codebuddy-config" }
 codebuddy-plugin-bundle = { path = "../codebuddy-plugin-bundle", default-features = false }
 codebuddy-workspaces = { path = "../codebuddy-workspaces" }
 codebuddy-ast = { path = "../codebuddy-ast", default-features = false }
+mill-handlers = { path = "../mill-handlers", default-features = false, features = ["analysis-deep-dead-code", "refactor-all"] }
 
 [features]
 default = ["lang-rust", "lang-typescript", "lang-markdown"]

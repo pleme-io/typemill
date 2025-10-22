@@ -886,7 +886,7 @@ codebuddy tool analyze.quality '{
 
 **Analysis Handler Architecture:**
 
-Analysis handlers are organized by category in `crates/cb-handlers/src/handlers/tools/analysis/`:
+Analysis handlers are organized by category in `crates/mill-handlers/src/handlers/tools/analysis/`:
 
 - `quality.rs` - Code quality analysis (4 kinds)
 - `dead_code.rs` - Unused code detection (6 kinds)
@@ -916,23 +916,23 @@ Handlers are organized by functionality:
 
 | Handler | Location | Purpose | Example Tools |
 |---------|----------|---------|---------------|
-| **AnalysisHandler** | `crates/cb-handlers/src/handlers/tools/analysis/*.rs` | Unified Analysis API (7 categories) | `analyze.quality`, `analyze.dead_code`, `analyze.dependencies`, `analyze.structure`, `analyze.documentation`, `analyze.tests`, `analyze.batch` |
-| **AdvancedHandler** | `crates/cb-handlers/src/handlers/tools/advanced.rs` | Advanced operations | `apply_edits`, `batch_execute` |
-| **FileOpsHandler** | `crates/cb-handlers/src/handlers/tools/file_ops.rs` | File operations | `create_file`, `read_file`, `write_file`, `delete_file`, `rename_file`, `list_files` |
-| **InternalEditingHandler** | `crates/cb-handlers/src/handlers/tools/internal_editing.rs` | Internal editing tools (hidden from MCP) | `format_document`, `optimize_imports` |
-| **InternalWorkspaceHandler** | `crates/cb-handlers/src/handlers/tools/internal_workspace.rs` | Internal workspace tools (hidden from MCP) | `rename_symbol_with_imports`, `apply_workspace_edit` |
-| **LifecycleHandler** | `crates/cb-handlers/src/handlers/tools/lifecycle.rs` | File lifecycle events | `notify_file_opened`, `notify_file_saved`, `notify_file_closed` |
-| **NavigationHandler** | `crates/cb-handlers/src/handlers/tools/navigation.rs` | Code navigation | `find_definition`, `find_references` |
-| **RenameHandler** | `crates/cb-handlers/src/handlers/rename_handler.rs` | Rename refactoring (plan step) | `rename.plan` |
-| **ExtractHandler** | `crates/cb-handlers/src/handlers/extract_handler.rs` | Extract refactoring (plan step) | `extract.plan` |
-| **InlineHandler** | `crates/cb-handlers/src/handlers/inline_handler.rs` | Inline refactoring (plan step) | `inline.plan` |
-| **MoveHandler** | `crates/cb-handlers/src/handlers/move_handler.rs` | Move refactoring (plan step) | `move.plan` |
-| **ReorderHandler** | `crates/cb-handlers/src/handlers/reorder_handler.rs` | Reorder refactoring (plan step) | `reorder.plan` |
-| **TransformHandler** | `crates/cb-handlers/src/handlers/transform_handler.rs` | Transform refactoring (plan step) | `transform.plan` |
-| **DeleteHandler** | `crates/cb-handlers/src/handlers/delete_handler.rs` | Delete refactoring (plan step) | `delete.plan` |
-| **WorkspaceApplyHandler** | `crates/cb-handlers/src/handlers/workspace_apply_handler.rs` | Apply refactoring plans | `workspace.apply_edit` |
-| **SystemHandler** | `crates/cb-handlers/src/handlers/tools/system.rs` | System operations | `health_check`, `web_fetch`, `system_status` |
-| **WorkspaceHandler** | `crates/cb-handlers/src/handlers/tools/workspace.rs` | Workspace operations | `rename_directory`, `analyze.dependencies`, `analyze.dead_code` |
+| **AnalysisHandler** | `crates/mill-handlers/src/handlers/tools/analysis/*.rs` | Unified Analysis API (7 categories) | `analyze.quality`, `analyze.dead_code`, `analyze.dependencies`, `analyze.structure`, `analyze.documentation`, `analyze.tests`, `analyze.batch` |
+| **AdvancedHandler** | `crates/mill-handlers/src/handlers/tools/advanced.rs` | Advanced operations | `apply_edits`, `batch_execute` |
+| **FileOpsHandler** | `crates/mill-handlers/src/handlers/tools/file_ops.rs` | File operations | `create_file`, `read_file`, `write_file`, `delete_file`, `rename_file`, `list_files` |
+| **InternalEditingHandler** | `crates/mill-handlers/src/handlers/tools/internal_editing.rs` | Internal editing tools (hidden from MCP) | `format_document`, `optimize_imports` |
+| **InternalWorkspaceHandler** | `crates/mill-handlers/src/handlers/tools/internal_workspace.rs` | Internal workspace tools (hidden from MCP) | `rename_symbol_with_imports`, `apply_workspace_edit` |
+| **LifecycleHandler** | `crates/mill-handlers/src/handlers/tools/lifecycle.rs` | File lifecycle events | `notify_file_opened`, `notify_file_saved`, `notify_file_closed` |
+| **NavigationHandler** | `crates/mill-handlers/src/handlers/tools/navigation.rs` | Code navigation | `find_definition`, `find_references` |
+| **RenameHandler** | `crates/mill-handlers/src/handlers/rename_handler.rs` | Rename refactoring (plan step) | `rename.plan` |
+| **ExtractHandler** | `crates/mill-handlers/src/handlers/extract_handler.rs` | Extract refactoring (plan step) | `extract.plan` |
+| **InlineHandler** | `crates/mill-handlers/src/handlers/inline_handler.rs` | Inline refactoring (plan step) | `inline.plan` |
+| **MoveHandler** | `crates/mill-handlers/src/handlers/move_handler.rs` | Move refactoring (plan step) | `move.plan` |
+| **ReorderHandler** | `crates/mill-handlers/src/handlers/reorder_handler.rs` | Reorder refactoring (plan step) | `reorder.plan` |
+| **TransformHandler** | `crates/mill-handlers/src/handlers/transform_handler.rs` | Transform refactoring (plan step) | `transform.plan` |
+| **DeleteHandler** | `crates/mill-handlers/src/handlers/delete_handler.rs` | Delete refactoring (plan step) | `delete.plan` |
+| **WorkspaceApplyHandler** | `crates/mill-handlers/src/handlers/workspace_apply_handler.rs` | Apply refactoring plans | `workspace.apply_edit` |
+| **SystemHandler** | `crates/mill-handlers/src/handlers/tools/system.rs` | System operations | `health_check`, `web_fetch`, `system_status` |
+| **WorkspaceHandler** | `crates/mill-handlers/src/handlers/tools/workspace.rs` | Workspace operations | `rename_directory`, `analyze.dependencies`, `analyze.dead_code` |
 
 #### Step 2: Add the Tool Name
 
@@ -940,7 +940,7 @@ Open the appropriate handler file and add your tool name to the `TOOL_NAMES` con
 
 ```rust
 // Example: Adding a tool to NavigationHandler
-// crates/cb-handlers/src/handlers/tools/navigation.rs
+// crates/mill-handlers/src/handlers/tools/navigation.rs
 
 const TOOL_NAMES: &[&str] = &[
     "find_definition",
@@ -949,11 +949,11 @@ const TOOL_NAMES: &[&str] = &[
 ];
 ```
 
-**For refactoring tools**, handlers are in `crates/cb-handlers/src/handlers/` (not in `tools/` subdirectory):
+**For refactoring tools**, handlers are in `crates/mill-handlers/src/handlers/` (not in `tools/` subdirectory):
 
 ```rust
 // Example: RenameHandler
-// crates/cb-handlers/src/handlers/rename_handler.rs
+// crates/mill-handlers/src/handlers/rename_handler.rs
 
 const TOOL_NAMES: &[&str] = &[
     "rename.plan",  // Note: Only the .plan command
@@ -1095,12 +1095,12 @@ Create a new handler when adding a category of related tools that doesn't fit ex
 
 There are two main types of handlers:
 
-1. **Standard Tool Handlers** (in `crates/cb-handlers/src/handlers/tools/`):
+1. **Standard Tool Handlers** (in `crates/mill-handlers/src/handlers/tools/`):
    - Navigation, analysis, file operations, etc.
    - Return immediate results
    - Example: `NavigationHandler`, `AnalysisHandler`
 
-2. **Refactoring Plan Handlers** (in `crates/cb-handlers/src/handlers/`):
+2. **Refactoring Plan Handlers** (in `crates/mill-handlers/src/handlers/`):
    - Part of the unified refactoring API
    - Generate read-only plans that must be applied with `workspace.apply_edit`
    - Example: `RenameHandler`, `ExtractHandler`, `InlineHandler`
@@ -1109,12 +1109,12 @@ There are two main types of handlers:
 
 **For standard tools:**
 ```bash
-touch crates/cb-handlers/src/handlers/tools/diagnostics.rs
+touch crates/mill-handlers/src/handlers/tools/diagnostics.rs
 ```
 
 **For refactoring tools:**
 ```bash
-touch crates/cb-handlers/src/handlers/my_refactoring_handler.rs
+touch crates/mill-handlers/src/handlers/my_refactoring_handler.rs
 ```
 
 #### Step 2: Define the Handler Struct
@@ -1198,14 +1198,14 @@ impl ToolHandler for DiagnosticsHandler {
 
 #### Step 4: Register the Handler
 
-Add to `crates/cb-handlers/src/handlers/tools/mod.rs`:
+Add to `crates/mill-handlers/src/handlers/tools/mod.rs`:
 
 ```rust
 pub mod diagnostics;
 pub use diagnostics::DiagnosticsHandler;
 ```
 
-Add to the dispatcher in `crates/cb-handlers/src/handlers/plugin_dispatcher.rs`:
+Add to the dispatcher in `crates/mill-handlers/src/handlers/plugin_dispatcher.rs`:
 
 ```rust
 register_handlers_with_logging!(registry, {

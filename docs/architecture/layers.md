@@ -138,7 +138,7 @@ Layers are organized from foundational (bottom) to application (top). Each layer
 **Purpose:** MCP tool implementations that delegate to services
 
 **Crates:**
-- `cb-handlers` / `codebuddy-handlers`
+- `mill-handlers` / `codebuddy-handlers`
 
 **Dependencies:**
 - Layer 5: Services

@@ -4,7 +4,7 @@ use crate::harness::{
     TEST_DATA_DIR,
 };
 use codebuddy_foundation::protocol::analysis_result::{ AnalysisResult , Finding };
-use cb_handlers::handlers::tools::analysis::suggestions::validation::validate_suggestion;
+use mill_handlers::handlers::tools::analysis::suggestions::validation::validate_suggestion;
 use serde_json::json;
 
 #[tokio::test]

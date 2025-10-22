@@ -69,7 +69,7 @@ graph TD
 - **`cb-plugins`**: Manages the language plugin system, including plugin registration, discovery, and dispatching requests to the appropriate language plugin.
 - **`cb-lsp`**: Provides the integration with the Language Server Protocol (LSP), managing LSP clients and translating between MCP and LSP.
 - **`cb-services`**: Contains business logic for file operations, import management, and other core services.
-- **`cb-handlers`**: Defines the handlers for each MCP tool, mapping tool requests to the corresponding service implementations.
+- **`mill-handlers`**: Defines the handlers for each MCP tool, mapping tool requests to the corresponding service implementations.
 - **`cb-transport`**: Implements the communication protocols, including WebSocket and stdio, for receiving MCP requests and sending responses.
 
 ### Language Plugin Layer

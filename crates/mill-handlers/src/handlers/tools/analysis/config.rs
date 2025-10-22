@@ -39,7 +39,7 @@
 //! # Usage
 //!
 //! ```no_run
-//! use cb_handlers::handlers::tools::analysis::config::AnalysisConfig;
+//! use mill_handlers::handlers::tools::analysis::config::AnalysisConfig;
 //! use std::path::Path;
 //!
 //! // Load from file
@@ -131,7 +131,7 @@ impl AnalysisConfig {
     ///
     /// # Example
     /// ```no_run
-    /// use cb_handlers::handlers::tools::analysis::config::AnalysisConfig;
+    /// use mill_handlers::handlers::tools::analysis::config::AnalysisConfig;
     /// use std::path::Path;
     ///
     /// let config = AnalysisConfig::load(Path::new("/workspace"))
@@ -253,7 +253,7 @@ impl AnalysisConfig {
     ///
     /// # Example
     /// ```no_run
-    /// # use cb_handlers::handlers::tools::analysis::config::AnalysisConfig;
+    /// # use mill_handlers::handlers::tools::analysis::config::AnalysisConfig;
     /// let config = AnalysisConfig::default();
     /// if let Some(threshold) = config.get_threshold("quality", "complexity_threshold") {
     ///     println!("Complexity threshold: {}", threshold);
@@ -283,7 +283,7 @@ impl AnalysisConfig {
     ///
     /// # Example
     /// ```no_run
-    /// # use cb_handlers::handlers::tools::analysis::config::AnalysisConfig;
+    /// # use mill_handlers::handlers::tools::analysis::config::AnalysisConfig;
     /// let config = AnalysisConfig::default();
     /// if config.is_kind_enabled("quality", "complexity") {
     ///     // Run complexity analysis

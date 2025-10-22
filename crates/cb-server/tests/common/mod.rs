@@ -1,6 +1,6 @@
 //! Shared test utilities
 
-use cb_handlers::handlers::plugin_dispatcher::AppState;
+use mill_handlers::handlers::plugin_dispatcher::AppState;
 use std::sync::Arc;
 use tempfile::TempDir;
 
@@ -38,7 +38,7 @@ pub async fn create_test_app_state() -> (Arc<AppState>, TempDir) {
         operation_queue: services.operation_queue,
         start_time: std::time::Instant::now(),
         workspace_manager,
-        language_plugins: cb_handlers::LanguagePluginRegistry::from_registry(plugin_registry),
+        language_plugins: mill_handlers::LanguagePluginRegistry::from_registry(plugin_registry),
     });
 
     (app_state, temp_dir)

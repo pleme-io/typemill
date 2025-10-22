@@ -12,7 +12,7 @@
 
 This violates Single Responsibility Principle and creates merge conflicts when multiple developers modify validation, conversion, or execution logic simultaneously.
 
-**File:** `crates/cb-handlers/src/handlers/workspace_apply_handler.rs`
+**File:** `../../crates/mill-handlers/src/handlers/workspace_apply_handler.rs`
 
 ## Solution
 

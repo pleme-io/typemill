@@ -68,7 +68,7 @@ Infrastructure Layer (cb-lsp, cb-plugins, cb-core)
 
 ### Location
 - `crates/cb-transport/` - Communication protocols
-- `crates/cb-handlers/` - MCP tool handlers
+- `../../crates/mill-handlers/` - MCP tool handlers
 
 ### Strengths
 
@@ -103,7 +103,7 @@ pub trait McpDispatcher: Send + Sync {
 
 **3. Handler Organization**
 ```rust
-// File: crates/cb-handlers/src/handlers/mod.rs
+// File: ../../crates/mill-handlers/src/handlers/mod.rs
 pub mod analysis_handler;
 pub mod delete_handler;
 pub mod extract_handler;
@@ -119,7 +119,7 @@ pub mod inline_handler;
 
 **1. Direct Service Access in Handlers**
 ```rust
-// File: crates/cb-handlers/src/handlers/file_operation_handler.rs:199-206
+// File: ../../crates/mill-handlers/src/handlers/file_operation_handler.rs:199-206
 let result = context
     .app_state
     .file_service
@@ -132,7 +132,7 @@ let result = context
 
 **2. Debug Logging in Presentation Layer**
 ```rust
-// File: crates/cb-handlers/src/handlers/workspace_apply_handler.rs:149-159
+// File: ../../crates/mill-handlers/src/handlers/workspace_apply_handler.rs:149-159
 if let Ok(mut file) = std::fs::OpenOptions::new()
     .create(true)
     .append(true)
@@ -150,7 +150,7 @@ if let Ok(mut file) = std::fs::OpenOptions::new()
 
 **3. Business Logic Leakage in Presentation**
 ```rust
-// File: crates/cb-handlers/src/handlers/workspace_apply_handler.rs:228-290
+// File: ../../crates/mill-handlers/src/handlers/workspace_apply_handler.rs:228-290
 // Complex plan conversion and validation logic
 let workspace_edit = extract_workspace_edit(&params.plan);
 let mut edit_plan = convert_to_edit_plan(workspace_edit, &params.plan)?;
@@ -198,7 +198,7 @@ pub trait LspService: Send + Sync {
 
 **2. Dependency Injection via AppState**
 ```rust
-// File: crates/cb-handlers/src/handlers/plugin_dispatcher.rs:37-60
+// File: ../../crates/mill-handlers/src/handlers/plugin_dispatcher.rs:37-60
 pub struct AppState {
     pub ast_service: Arc<dyn AstService>,
     pub file_service: Arc<cb_services::services::FileService>,
@@ -257,7 +257,7 @@ pub struct FileService {
 
 **2. Plan Conversion Not Centralized**
 ```rust
-// File: crates/cb-handlers/src/handlers/workspace_apply_handler.rs:524-735
+// File: ../../crates/mill-handlers/src/handlers/workspace_apply_handler.rs:524-735
 // Large function with many private helpers
 fn convert_to_edit_plan(...) -> ServerResult<EditPlan> { }
 fn extract_workspace_edit(...) -> WorkspaceEdit { }
@@ -270,7 +270,7 @@ fn get_checksums_from_plan(...) -> HashMap<String, String> { }
 
 **3. Navigation Handler Plugin Dispatch**
 ```rust
-// File: crates/cb-handlers/src/handlers/tools/navigation.rs:25-118
+// File: ../../crates/mill-handlers/src/handlers/tools/navigation.rs:25-118
 async fn handle_search_symbols(&self, context: &ToolHandlerContext, tool_call: &ToolCall) -> ServerResult<Value> {
     let plugin_names = context.plugin_manager.list_plugins().await;
     let mut all_symbols = Vec::new();
@@ -351,7 +351,7 @@ impl ReferenceUpdater {
 
 **1. Data Access in Presentation Layer**
 ```rust
-// File: crates/cb-handlers/src/handlers/workspace_apply_handler.rs:420-465
+// File: ../../crates/mill-handlers/src/handlers/workspace_apply_handler.rs:420-465
 async fn validate_checksums(
     plan: &RefactorPlan,
     file_service: &cb_services::services::FileService,
@@ -373,7 +373,7 @@ async fn validate_checksums(
 
 **2. Direct File I/O for Debugging**
 ```rust
-// File: crates/cb-handlers/src/handlers/workspace_apply_handler.rs (multiple places)
+// File: ../../crates/mill-handlers/src/handlers/workspace_apply_handler.rs (multiple places)
 if let Ok(mut file) = std::fs::OpenOptions::new()
     .create(true)
     .append(true)
@@ -428,7 +428,7 @@ pub struct LspClient {
 
 **2. Plugin System with Dispatch**
 ```rust
-// File: crates/cb-handlers/src/handlers/plugin_dispatcher.rs:275-325
+// File: ../../crates/mill-handlers/src/handlers/plugin_dispatcher.rs:275-325
 #[instrument(skip(self, message, session_info))]
 pub async fn dispatch(
     &self,
@@ -495,7 +495,7 @@ if let Ok(home) = std::env::var("HOME") {
 
 **2. Handler Trait**
 ```rust
-// File: crates/cb-handlers/src/handlers/tools/mod.rs:189-230
+// File: ../../crates/mill-handlers/src/handlers/tools/mod.rs:189-230
 #[async_trait]
 pub trait ToolHandler: Send + Sync {
     fn tool_names(&self) -> &[&str];
@@ -531,7 +531,7 @@ pub enum ApiError {
 
 **1. Direct Concrete Types in Trait Objects**
 ```rust
-// File: crates/cb-handlers/src/handlers/plugin_dispatcher.rs:43
+// File: ../../crates/mill-handlers/src/handlers/plugin_dispatcher.rs:43
 pub file_service: Arc<cb_services::services::FileService>,
 ```
 - **VIOLATION**: `FileService` is concrete, not trait object
@@ -559,7 +559,7 @@ pub struct FileService {
 ### Strengths
 
 ```rust
-// File: crates/cb-handlers/src/handlers/plugin_dispatcher.rs:447-479
+// File: ../../crates/mill-handlers/src/handlers/plugin_dispatcher.rs:447-479
 pub async fn create_test_dispatcher() -> PluginDispatcher {
     let temp_dir = tempfile::TempDir::new().unwrap();
     let project_root = temp_dir.path().to_path_buf();
@@ -602,7 +602,7 @@ pub fn new(
 
 ### ✅ Critical Issues (ALL RESOLVED)
 1. ~~**Debug file I/O in production code**~~ ✅ **FIXED (Oct 19)**
-   - ~~Location: `crates/cb-handlers/src/handlers/workspace_apply_handler.rs`~~
+   - ~~Location: `../../crates/mill-handlers/src/handlers/workspace_apply_handler.rs`~~
    - **Fix Applied:** Removed all `/tmp/directory_rename_debug.log` writes
    - **Commit:** 7be64098
    - **Result:** Clean structured logging via `tracing` crate

@@ -4,7 +4,6 @@ members = [
     "crates/codebuddy-plugin-system",
     "crates/cb-lsp",
     "crates/cb-services",
-    "crates/cb-handlers",
     "crates/cb-server",
     "crates/cb-transport",
     "crates/cb-lang-common",
@@ -25,7 +24,7 @@ members = [
     "crates/codebuddy-config",
     "crates/codebuddy-workspaces",
     "crates/codebuddy-auth",
-    "crates/xtask", "crates/codebuddy-ast", "crates/mill-client", "crates/mill-test-support",
+    "crates/xtask", "crates/codebuddy-ast", "crates/mill-client", "crates/mill-test-support", "crates/mill-handlers",
 ]
 resolver = "2"
 

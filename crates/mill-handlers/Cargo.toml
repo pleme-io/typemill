@@ -1,5 +1,5 @@
 [package]
-name = "cb-handlers"
+name = "mill-handlers"
 edition = "2021"
 license.workspace = true
 

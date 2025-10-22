@@ -45,7 +45,7 @@ error: failed to load manifest for workspace member `/workspace/crates/codebuddy
 // crates/cb-server/src/lib.rs:64
 let cache_settings = cb_ast::CacheSettings::from_config(  // ❌ NOT updated
 
-// crates/cb-handlers/src/handlers/inline_handler.rs:106
+// ../../crates/mill-handlers/src/handlers/inline_handler.rs:106
 let edit_plan = cb_ast::refactoring::inline_variable::plan_inline_variable(  // ❌ NOT updated
 
 // crates/codebuddy-plugin-system/src/system_tools_plugin.rs:325

@@ -19,7 +19,6 @@ chrono = { version = "0.4", features = ["serde"] }
 libc = "0.2"
 codebuddy-foundation = { path = "../codebuddy-foundation" }
 cb-plugin-api = { path = "../cb-plugin-api" }
-cb-handlers = { path = "../cb-handlers", default-features = false, features = ["refactor-all"] }
 cb-services = { path = "../cb-services", default-features = false }
 
 # Benchmark dependencies (merged from cb-bench)
@@ -28,6 +27,7 @@ simd-json = "0.16"
 codebuddy-plugin-system = { path = "../codebuddy-plugin-system", default-features = false, features = ["runtime"] }
 codebuddy-config = { path = "../codebuddy-config" }
 codebuddy-ast = { path = "../codebuddy-ast", default-features = false }
+mill-handlers = { path = "../mill-handlers", default-features = false, features = ["refactor-all"] }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }

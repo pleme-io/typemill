@@ -18,10 +18,10 @@ pub mod test_helpers;
 pub use codebuddy_workspaces as workspaces;
 
 // Re-export from new crates for backward compatibility
-pub use cb_handlers::handlers;
+pub use mill_handlers::handlers;
 pub use cb_services::services;
 
-use cb_handlers::handlers::plugin_dispatcher::{AppState, PluginDispatcher};
+use mill_handlers::handlers::plugin_dispatcher::{ AppState , PluginDispatcher };
 use codebuddy_config::AppConfig;
 pub use codebuddy_foundation::protocol::{
     ApiError as ServerError, ApiResult as ServerResult, AstService, LspService,
@@ -119,7 +119,7 @@ pub async fn bootstrap(options: ServerOptions) -> ServerResult<ServerHandle> {
         operation_queue: services.operation_queue,
         start_time: std::time::Instant::now(),
         workspace_manager,
-        language_plugins: cb_handlers::LanguagePluginRegistry::from_registry(plugin_registry),
+        language_plugins: mill_handlers::LanguagePluginRegistry::from_registry(plugin_registry),
     });
 
     // Create dispatcher
@@ -332,7 +332,7 @@ pub async fn create_dispatcher_with_workspace(
         operation_queue: services.operation_queue,
         start_time: std::time::Instant::now(),
         workspace_manager,
-        language_plugins: cb_handlers::LanguagePluginRegistry::from_registry(plugin_registry),
+        language_plugins: mill_handlers::LanguagePluginRegistry::from_registry(plugin_registry),
     });
 
     // Create and return dispatcher

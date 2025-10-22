@@ -237,19 +237,19 @@ skip-tree = [
 
 [[bans.deny]]
 name = "cb-services"
-wrappers = ["cb-handlers", "cb-server", "mill-client", "codebuddy", "mill-test-support", "e2e"]
+wrappers = ["mill-handlers", "cb-server", "mill-client", "codebuddy", "mill-test-support", "e2e"]
 
 [[bans.deny]]
 name = "cb-ast"
-wrappers = ["cb-transport", "cb-services", "codebuddy-plugin-system", "cb-handlers", "cb-server", "codebuddy", "mill-test-support", "e2e"]
+wrappers = ["cb-transport", "cb-services", "codebuddy-plugin-system", "mill-handlers", "cb-server", "codebuddy", "mill-test-support", "e2e"]
 
 [[bans.deny]]
 name = "cb-lsp"
-wrappers = ["cb-services", "cb-handlers", "cb-server", "codebuddy", "mill-test-support", "e2e"]
+wrappers = ["cb-services", "mill-handlers", "cb-server", "codebuddy", "mill-test-support", "e2e"]
 
 [[bans.deny]]
 name = "codebuddy-plugin-system"
-wrappers = ["cb-services", "cb-handlers", "cb-server", "mill-client", "codebuddy", "mill-test-support", "e2e"]
+wrappers = ["cb-services", "mill-handlers", "cb-server", "mill-client", "codebuddy", "mill-test-support", "e2e"]
 
 [[bans.deny]]
 name = "codebuddy-plugin-bundle"
@@ -262,11 +262,11 @@ wrappers = ["cb-services", "cb-server", "codebuddy", "mill-test-support"]
 
 [[bans.deny]]
 name = "cb-lang-rust"
-wrappers = ["cb-ast", "cb-handlers", "cb-services", "codebuddy-plugin-system", "codebuddy-plugin-bundle", "cb-server", "codebuddy", "mill-test-support", "e2e"]
+wrappers = ["cb-ast", "mill-handlers", "cb-services", "codebuddy-plugin-system", "codebuddy-plugin-bundle", "cb-server", "codebuddy", "mill-test-support", "e2e"]
 
 [[bans.deny]]
 name = "cb-lang-typescript"
-wrappers = ["cb-ast", "cb-handlers", "cb-services", "codebuddy-plugin-system", "codebuddy-plugin-bundle", "cb-server", "codebuddy", "mill-test-support", "e2e"]
+wrappers = ["cb-ast", "mill-handlers", "cb-services", "codebuddy-plugin-system", "codebuddy-plugin-bundle", "cb-server", "codebuddy", "mill-test-support", "e2e"]
 
 [[bans.deny]]
 name = "cb-lang-markdown"
@@ -285,7 +285,7 @@ wrappers = ["cb-services", "codebuddy-plugin-system", "codebuddy-plugin-bundle",
 # =============================================================================
 
 [[bans.deny]]
-name = "cb-handlers"
+name = "mill-handlers"
 wrappers = ["cb-server", "codebuddy", "mill-test-support", "e2e"]
 
 # =============================================================================
@@ -316,23 +316,23 @@ wrappers = ["codebuddy", "e2e"]
 
 [[bans.deny]]
 name = "cb-analysis-common"
-wrappers = ["cb-handlers", "cb-analysis-dead-code", "cb-analysis-deep-dead-code", "cb-analysis-graph", "cb-analysis-circular-deps"]
+wrappers = ["mill-handlers", "cb-analysis-dead-code", "cb-analysis-deep-dead-code", "cb-analysis-graph", "cb-analysis-circular-deps"]
 
 [[bans.deny]]
 name = "cb-analysis-dead-code"
-wrappers = ["cb-handlers"]
+wrappers = ["mill-handlers"]
 
 [[bans.deny]]
 name = "cb-analysis-deep-dead-code"
-wrappers = ["cb-handlers"]
+wrappers = ["mill-handlers"]
 
 [[bans.deny]]
 name = "cb-analysis-graph"
-wrappers = ["cb-handlers", "cb-analysis-circular-deps"]
+wrappers = ["mill-handlers", "cb-analysis-circular-deps"]
 
 [[bans.deny]]
 name = "cb-analysis-circular-deps"
-wrappers = ["cb-handlers"]
+wrappers = ["mill-handlers"]
 
 # List of features to allow/deny
 # Each entry the name of a crate and a version range. If version is

@@ -58,7 +58,7 @@ The plan JSON is large (2000+ lines with all file edits), making it impractical 
 Created `QuickRenameHandler` that internally combines both operations:
 
 ```rust
-// New handler in crates/cb-handlers/src/handlers/quick_rename_handler.rs
+// New handler in ../../crates/mill-handlers/src/handlers/quick_rename_handler.rs
 impl QuickRenameHandler {
     async fn handle_tool_call(...) -> ServerResult<Value> {
         // Step 1: Generate plan

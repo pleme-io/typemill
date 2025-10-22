@@ -143,7 +143,7 @@ pub fn extract_file_path(args: &Value, scope_param: &ScopeParam) -> ServerResult
 ///
 /// # Example
 /// ```no_run
-/// use cb_handlers::handlers::tools::analysis::engine::{run_analysis, AnalysisFn};
+/// use mill_handlers::handlers::tools::analysis::engine::{run_analysis, AnalysisFn};
 ///
 /// fn my_analysis_fn(
 ///     complexity_report: &codebuddy_ast::complexity::ComplexityReport,
@@ -201,8 +201,8 @@ pub async fn run_analysis(
 ///
 /// # Example
 /// ```no_run
-/// use cb_handlers::handlers::tools::analysis::engine::{run_analysis_with_config, AnalysisFn};
-/// use cb_handlers::handlers::tools::analysis::config::AnalysisConfig;
+/// use mill_handlers::handlers::tools::analysis::engine::{run_analysis_with_config, AnalysisFn};
+/// use mill_handlers::handlers::tools::analysis::config::AnalysisConfig;
 ///
 /// fn my_analysis_fn(
 ///     complexity_report: &codebuddy_ast::complexity::ComplexityReport,

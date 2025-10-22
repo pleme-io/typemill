@@ -121,7 +121,7 @@ codebuddy-foundation = { path = "../codebuddy-foundation" }
 16+ `Cargo.toml` files across workspace:
 - `crates/cb-lsp/Cargo.toml`
 - `crates/cb-services/Cargo.toml`
-- `crates/cb-handlers/Cargo.toml`
+- `../../crates/mill-handlers/Cargo.toml`
 - `crates/cb-plugin-api/Cargo.toml`
 - `../../crates/mill-client/Cargo.toml`
 - `crates/cb-lang-*/Cargo.toml`

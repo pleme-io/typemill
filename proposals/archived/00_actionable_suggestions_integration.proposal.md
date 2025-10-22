@@ -97,7 +97,7 @@ Implement finding-specific refactoring candidate generators:
 ### Step 1: Add SuggestionGenerator to Handler
 
 ```rust
-// Example: crates/cb-handlers/src/handlers/tools/analysis/quality.rs
+// Example: ../../crates/mill-handlers/src/handlers/tools/analysis/quality.rs
 
 use crate::handlers::tools::analysis::suggestions::{
     SuggestionGenerator, AnalysisContext, RefactoringCandidate,
@@ -518,7 +518,7 @@ All 6 dead code analysis kinds now generate actionable `delete.plan` suggestions
 6. ✅ **unused_variables** - Removes unused local variable declarations
 
 **Implementation Location:**
-- Handler: `crates/cb-handlers/src/handlers/tools/analysis/dead_code.rs`
+- Handler: `../../crates/mill-handlers/src/handlers/tools/analysis/dead_code.rs`
 - Generator: `generate_dead_code_refactoring_candidates()` (lines 1445-1489)
 - Integration: Lines 1978-2171 (all 6 kinds)
 

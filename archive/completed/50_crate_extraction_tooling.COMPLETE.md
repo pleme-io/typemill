@@ -57,10 +57,10 @@ Successfully implemented all 5 tools for complete crate extraction workflow:
 **New Files Created:**
 - `crates/cb-plugin-api/src/project_factory.rs` - ProjectFactory trait
 - `crates/cb-lang-rust/src/project_factory.rs` - Rust implementation
-- `crates/cb-handlers/src/handlers/tools/workspace_create.rs` - Handler
-- `crates/cb-handlers/src/handlers/tools/analysis/module_dependencies.rs` - Handler
-- `crates/cb-handlers/src/handlers/tools/workspace_extract_deps.rs` - Handler
-- `crates/cb-handlers/src/handlers/tools/workspace_update_members.rs` - Handler
+- `../../crates/mill-handlers/src/handlers/tools/workspace_create.rs` - Handler
+- `../../crates/mill-handlers/src/handlers/tools/analysis/module_dependencies.rs` - Handler
+- `../../crates/mill-handlers/src/handlers/tools/workspace_extract_deps.rs` - Handler
+- `../../crates/mill-handlers/src/handlers/tools/workspace_update_members.rs` - Handler
 - `tests/e2e/src/test_workspace_create.rs` - Tests
 - `tests/e2e/src/test_analyze_module_dependencies.rs` - Tests
 - `tests/e2e/src/test_workspace_extract_deps.rs` - Tests
@@ -70,9 +70,9 @@ Successfully implemented all 5 tools for complete crate extraction workflow:
 **Modified Files:**
 - `crates/cb-plugin-api/src/lib.rs` - Added PluginCapabilities builder pattern
 - `../../crates/codebuddy-foundation/src/protocol/src/refactor_plan.rs` - Added is_consolidation field
-- `crates/cb-handlers/src/handlers/rename_handler/directory_rename.rs` - Consolidation detection
-- `crates/cb-handlers/src/handlers/plugin_dispatcher.rs` - Handler registration
-- `crates/cb-handlers/src/handlers/tools/mod.rs` - Module exports
+- `../../crates/mill-handlers/src/handlers/rename_handler/directory_rename.rs` - Consolidation detection
+- `../../crates/mill-handlers/src/handlers/plugin_dispatcher.rs` - Handler registration
+- `../../crates/mill-handlers/src/handlers/tools/mod.rs` - Module exports
 - `tests/e2e/src/lib.rs` - Test module registration
 
 **Total Implementation:**

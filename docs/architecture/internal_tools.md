@@ -242,6 +242,6 @@ A: No. `is_internal()` applies to all tools in a handler. If you need mixed visi
 
 ## See Also
 
-- [`ToolHandler` trait documentation](../../crates/cb-handlers/src/handlers/tools/mod.rs)
-- [`ToolRegistry` implementation](../../crates/cb-handlers/src/handlers/tool_registry.rs)
+- [`ToolHandler` trait documentation](../../../../crates/mill-handlers/src/handlers/tools/mod.rs)
+- [`ToolRegistry` implementation](../../../../crates/mill-handlers/src/handlers/tool_registry.rs)
 - [Tool registration tests](../../crates/cb-server/tests/tool_registration_test.rs)
