@@ -260,7 +260,7 @@ serde = "0.9"
 
     // Verify dependencies_added includes both (with already_exists flag for serde)
     let deps_added = content
-        .get("dependencies_added")
+        .get("dependenciesAdded")
         .and_then(|v| v.as_array())
         .expect("Should have dependencies_added");
 
@@ -272,7 +272,7 @@ serde = "0.9"
         .expect("Should have serde info");
 
     assert_eq!(
-        serde_info.get("already_exists").and_then(|v| v.as_bool()),
+        serde_info.get("alreadyExists").and_then(|v| v.as_bool()),
         Some(true),
         "Serde should be marked as already_exists"
     );
@@ -646,7 +646,7 @@ edition = "2021"
 
     // Verify optional flag in result
     let deps_added = content
-        .get("dependencies_added")
+        .get("dependenciesAdded")
         .and_then(|v| v.as_array())
         .expect("Should have dependencies_added");
 
