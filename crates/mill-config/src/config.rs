@@ -400,7 +400,7 @@ impl AppConfig {
     /// Load configuration from environment and config files
     ///
     /// Configuration is loaded in the following priority order (highest to lowest):
-    /// 1. Environment variables (CODEBUDDY__*)
+    /// 1. Environment variables (TYPEMILL__*)
     /// 2. Environment-specific profile from codebuddy.toml (based on CODEBUDDY_ENV)
     /// 3. Base configuration from codebuddy.toml
     /// 4. Default values
@@ -453,7 +453,7 @@ impl AppConfig {
 
         // 4. Apply environment variable overrides
         let figment_final = figment_with_toml.merge(
-            Env::prefixed("CODEBUDDY__")
+            Env::prefixed("TYPEMILL__")
                 .split("__")
                 .map(|k| k.as_str().replace("__", ".").to_lowercase().into()),
         );
