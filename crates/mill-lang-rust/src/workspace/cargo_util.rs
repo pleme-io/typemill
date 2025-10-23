@@ -300,6 +300,37 @@ pub async fn plan_workspace_manifest_updates(
                     // Update in-place to preserve array order and formatting
                     members.replace(index, new_path_str.as_str());
 
+                    // Also update workspace.dependencies if the key matches the crate name
+                    // Derive crate names from directory names (convert _ → -)
+                    let old_crate_name = old_package_path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .map(|s| s.replace('_', "-"))
+                        .unwrap_or_default();
+                    let new_crate_name = new_package_path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .map(|s| s.replace('_', "-"))
+                        .unwrap_or_default();
+
+                    if let Some(deps) = doc.get_mut("workspace")
+                        .and_then(|w| w.get_mut("dependencies"))
+                        .and_then(|d| d.as_table_mut())
+                    {
+                        // Check if old crate name exists in dependencies
+                        if let Some(dep_value) = deps.remove(&old_crate_name) {
+                            // Update path in the dependency if it exists
+                            let mut updated_dep = dep_value;
+                            if let Some(dep_table) = updated_dep.as_inline_table_mut() {
+                                if let Some(path_entry) = dep_table.get_mut("path") {
+                                    *path_entry = toml_edit::Value::from(new_path_str.as_str());
+                                }
+                            }
+                            // Reinsert under new crate name
+                            deps.insert(&new_crate_name, updated_dep);
+                        }
+                    }
+
                     let new_content = doc.to_string();
                     planned_updates.push((
                         workspace_toml_path.clone(),
