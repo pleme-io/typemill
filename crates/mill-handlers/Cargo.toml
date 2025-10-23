@@ -9,7 +9,7 @@ default = ["refactor-all"]
 # Language plugins are registered at the binary level (apps/codebuddy/src/main.rs),
 # not at the handler layer. This eliminates compile-time coupling.
 analysis-dead-code = ["dep:mill-analysis-dead-code", "dep:mill-analysis-common"]
-analysis-circular-deps = ["dep:cb-analysis-circular-deps", "dep:mill-analysis-graph"]
+analysis-circular-deps = ["dep:mill-analysis-circular-deps", "dep:mill-analysis-graph"]
 analysis-deep-dead-code = ["dep:mill-analysis-deep-dead-code", "dep:mill-analysis-common"]
 
 # Refactoring operations - optional for faster compilation
@@ -27,7 +27,6 @@ mill-foundation = { path = "../mill-foundation" }
 mill-services = { path = "../mill-services", default-features = false }
 mill-plugin-api = { path = "../mill-plugin-api" }
 mill-lsp = { path = "../mill-lsp" }
-cb-analysis-circular-deps = { path = "../../analysis/cb-analysis-circular-deps", optional = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
@@ -62,3 +61,4 @@ mill-analysis-common = { path = "../../analysis/mill-analysis-common", optional 
 mill-analysis-dead-code = { path = "../../analysis/mill-analysis-dead-code", optional = true }
 mill-analysis-deep-dead-code = { path = "../../analysis/mill-analysis-deep-dead-code", optional = true }
 mill-analysis-graph = { path = "../../analysis/mill-analysis-graph", optional = true }
+mill-analysis-circular-deps = { path = "../../analysis/mill-analysis-circular-deps", optional = true }

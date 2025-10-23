@@ -24,9 +24,7 @@ use std::collections::HashMap;
 use tracing::debug;
 
 #[cfg(feature = "analysis-circular-deps")]
-use cb_analysis_circular_deps::{
-    builder::DependencyGraphBuilder, find_circular_dependencies, Cycle,
-};
+use mill_analysis_circular_deps::{ builder::DependencyGraphBuilder , find_circular_dependencies , Cycle , };
 
 #[cfg(feature = "analysis-circular-deps")]
 use mill_foundation::protocol::analysis_result::AnalysisResult;

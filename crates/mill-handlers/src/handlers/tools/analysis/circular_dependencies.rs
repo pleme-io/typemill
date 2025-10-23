@@ -1,9 +1,7 @@
 use super::super::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 #[cfg(feature = "analysis-circular-deps")]
-use cb_analysis_circular_deps::{
-    builder::DependencyGraphBuilder, find_circular_dependencies, Cycle,
-};
+use mill_analysis_circular_deps::{ builder::DependencyGraphBuilder , find_circular_dependencies , Cycle , };
 use mill_foundation::core::model::mcp::ToolCall;
 #[cfg(feature = "analysis-circular-deps")]
 use mill_foundation::protocol::analysis_result::{ AnalysisResult , Finding , FindingLocation , SafetyLevel , Severity , Suggestion , };

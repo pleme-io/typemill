@@ -18,7 +18,7 @@ members = [
     "analysis/mill-analysis-dead-code",
     "analysis/mill-analysis-deep-dead-code",
     "analysis/mill-analysis-graph",
-    "analysis/cb-analysis-circular-deps",
+    "analysis/mill-analysis-circular-deps",
     "tests/e2e",
     "crates/mill-workspaces",
     "crates/mill-auth",

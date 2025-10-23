@@ -188,7 +188,7 @@ This proposal outlines the complete strategy for renaming the project from **Cod
 - `../analysis/mill-analysis-dead-code` → `analysis/mill-analysis-dead-code`
 - `../analysis/mill-analysis-deep-dead-code` → `analysis/mill-analysis-deep-dead-code`
 - `../analysis/mill-analysis-graph` → `analysis/mill-analysis-graph`
-- `analysis/cb-analysis-circular-deps` → `analysis/mill-analysis-circular-deps`
+- `../analysis/mill-analysis-circular-deps` → `analysis/mill-analysis-circular-deps`
 
 **Application Needing Rename (1 crate):**
 - `apps/codebuddy` → `apps/mill`
@@ -465,7 +465,7 @@ codebuddy rename.plan \
   --dry-run
 
 codebuddy rename.plan \
-  --target directory:analysis/cb-analysis-circular-deps \
+  --target directory:../analysis/mill-analysis-circular-deps \
   --new-name analysis/mill-analysis-circular-deps \
   --dry-run
 
@@ -487,7 +487,7 @@ codebuddy rename.plan '{
     {"kind": "directory", "path": "../analysis/mill-analysis-dead-code", "new_name": "analysis/mill-analysis-dead-code"},
     {"kind": "directory", "path": "../analysis/mill-analysis-deep-dead-code", "new_name": "analysis/mill-analysis-deep-dead-code"},
     {"kind": "directory", "path": "../analysis/mill-analysis-graph", "new_name": "analysis/mill-analysis-graph"},
-    {"kind": "directory", "path": "analysis/cb-analysis-circular-deps", "new_name": "analysis/mill-analysis-circular-deps"}
+    {"kind": "directory", "path": "../analysis/mill-analysis-circular-deps", "new_name": "analysis/mill-analysis-circular-deps"}
   ],
   "options": {"scope": "all"}
 }'
@@ -700,7 +700,7 @@ git tag v2.0.0
 - [ ] `../analysis/mill-analysis-dead-code` → `analysis/mill-analysis-dead-code`
 - [ ] `../analysis/mill-analysis-deep-dead-code` → `analysis/mill-analysis-deep-dead-code`
 - [ ] `../analysis/mill-analysis-graph` → `analysis/mill-analysis-graph`
-- [ ] `analysis/cb-analysis-circular-deps` → `analysis/mill-analysis-circular-deps`
+- [ ] `../analysis/mill-analysis-circular-deps` → `analysis/mill-analysis-circular-deps`
 
 **Applications:**
 - [ ] `apps/codebuddy` → `apps/mill` (including binary name)
@@ -1224,7 +1224,7 @@ See full documentation at https://typemill.org/docs/migration
 - `../analysis/mill-analysis-dead-code` → `analysis/mill-analysis-dead-code`
 - `../analysis/mill-analysis-deep-dead-code` → `analysis/mill-analysis-deep-dead-code`
 - `../analysis/mill-analysis-graph` → `analysis/mill-analysis-graph`
-- `analysis/cb-analysis-circular-deps` → `analysis/mill-analysis-circular-deps`
+- `../analysis/mill-analysis-circular-deps` → `analysis/mill-analysis-circular-deps`
 
 **Applications (1):**
 - `apps/codebuddy` → `apps/mill`

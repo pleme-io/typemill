@@ -1,5 +1,5 @@
 [package]
-name = "cb-analysis-circular-deps"
+name = "mill-analysis-circular-deps"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
