@@ -37,8 +37,10 @@ pub enum FlagParseError {
     /// A required flag is missing
     MissingRequiredFlag(String),
     /// A flag has an invalid format
+    #[allow(dead_code)]
     InvalidFormat { flag: String, expected: String },
     /// Multiple conflicting flags were provided
+    #[allow(dead_code)]
     ConflictingFlags(Vec<String>),
     /// An unknown flag was provided
     UnknownFlag(String),
