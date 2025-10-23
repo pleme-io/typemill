@@ -2,11 +2,39 @@
 
 > **🐶 DOGFOODING NOTE**: This proposal demonstrates using TypeMill's own CLI commands to perform the rename operation. All file movements, symbol renames, and refactoring operations will be executed using the `mill` CLI (via `rename.plan`, `move.plan`, and `workspace.apply_edit` commands) rather than manual text replacement. This serves as both a practical implementation guide and a validation of TypeMill's LSP-backed refactoring capabilities on a real-world, complex codebase.
 
-**Status**: Ready for Review
+**Status**: In Progress (Phase 3 - Language Plugins Complete ✅)
 **Author**: Project Team
 **Date**: 2025-10-20
+**Updated**: 2025-10-22
 **Current Name**: `codebuddy` / `codebuddy` CLI
 **Proposed Name**: `typemill` / `mill` CLI
+
+## Progress Update (2025-10-22)
+
+**Completed:**
+- ✅ **Phase 3a: Language Plugin Renames** (3/3 crates)
+  - `cb-lang-rust` → `mill-lang-rust` (commit 4f12e96b, fab598ae)
+  - `cb-lang-typescript` → `mill-lang-typescript` (commit 65aca23e)
+  - `cb-lang-yaml` → `mill-lang-yaml` (commit 4f12e96b)
+  - All workspace members, dependencies, and config files updated
+  - Build passes without manual intervention
+
+- ✅ **CLI API Cleanup** (commit f3e90d7e)
+  - Removed 5 legacy/redundant flags (pre-release cleanup)
+  - Clean minimal API: `--scope`, `--update-comments`, `--update-markdown-prose`, `--update-all`
+  - Default scope now comprehensive (code + docs + configs + exact matches)
+
+- ✅ **Rename Tool Bug Fixes** (commit 5a901441)
+  - Fixed workspace members formatting mismatch
+  - Added cargo flag recognition for .cargo/config.toml
+  - Fixed batch mode edit conflicts (deduplication)
+  - Enabled `update_exact_matches` in default scope
+
+**Next Steps:**
+- Phase 3b: Analysis crate renames (5 remaining: cb-analysis-*)
+- Phase 4: Application binary rename (apps/codebuddy → apps/typemill)
+- Phase 5: String literals and environment variables
+- Phase 6: Documentation and infrastructure
 
 ---
 
@@ -69,13 +97,13 @@ This proposal outlines the complete strategy for renaming the project from **Cod
 - `mill-plugin-system` - Plugin system orchestration
 - `mill-plugin-bundle` - Plugin bundle packaging
 
-**Language Plugins (6 crates - mixed `mill-*` and `cb-lang-*` prefixes):**
-- `mill-lang-common` - Common language plugin infrastructure
-- `cb-lang-rust` - Rust language plugin *(needs rename)*
-- `mill-lang-typescript` - TypeScript/JavaScript plugin *(needs rename)*
-- `mill-lang-markdown` - Markdown documentation plugin
-- `mill-lang-toml` - TOML configuration plugin
-- `cb-lang-yaml` - YAML configuration plugin *(needs rename)*
+**Language Plugins (6 crates - `mill-lang-*` prefix):**
+- `mill-lang-common` - Common language plugin infrastructure ✅
+- `mill-lang-rust` - Rust language plugin ✅
+- `mill-lang-typescript` - TypeScript/JavaScript plugin ✅
+- `mill-lang-markdown` - Markdown documentation plugin ✅
+- `mill-lang-toml` - TOML configuration plugin ✅
+- `mill-lang-yaml` - YAML configuration plugin ✅
 
 **Analysis Crates (5 crates - `cb-analysis-*` prefix):**
 - `cb-analysis-common` - Common analysis utilities *(needs rename)*
@@ -90,7 +118,7 @@ This proposal outlines the complete strategy for renaming the project from **Cod
 **Development Tools:**
 - `crates/xtask` - Build automation tasks
 
-**TOTAL: 31+ crates** (15 mill-* already renamed, 11 cb-* needing rename, 1 app, 1 dev tool)
+**TOTAL: 31+ crates** (21 mill-* renamed ✅, 5 cb-analysis-* needing rename, 1 app, 1 dev tool)
 
 ### Additional Rename Targets
 
