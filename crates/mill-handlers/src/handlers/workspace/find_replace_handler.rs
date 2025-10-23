@@ -343,7 +343,7 @@ fn convert_literal_matches_to_edits(
                     start_line: m.line - 1, // Convert from 1-indexed to 0-indexed
                     start_column: m.column - 1,
                     end_line: m.line - 1,
-                    end_column: m.column - 1 + m.matched_text.len() as u32,
+                    end_column: m.column - 1 + m.matched_text.chars().count() as u32,
                 },
                 original_text: m.matched_text.clone(),
                 new_text: replacement_text,
@@ -371,7 +371,7 @@ fn convert_regex_matches_to_edits(
                     start_line: m.line - 1, // Convert from 1-indexed to 0-indexed
                     start_column: m.column,
                     end_line: m.line - 1,
-                    end_column: m.column + m.matched_text.len() as u32,
+                    end_column: m.column + m.matched_text.chars().count() as u32,
                 },
                 original_text: m.matched_text.clone(),
                 new_text: m.replacement_text.clone(),
@@ -484,6 +484,14 @@ async fn apply_plan(
     Ok(modified_files)
 }
 
+/// Convert a character index to a byte index in a UTF-8 string
+fn char_index_to_byte_index(s: &str, char_idx: usize) -> usize {
+    s.char_indices()
+        .nth(char_idx)
+        .map(|(byte_idx, _)| byte_idx)
+        .unwrap_or(s.len())
+}
+
 /// Apply a single TextEdit to content
 fn apply_single_edit(content: &str, edit: &TextEdit) -> Result<String, ApiError> {
     let lines: Vec<&str> = content.lines().collect();
@@ -515,30 +523,37 @@ fn apply_single_edit(content: &str, edit: &TextEdit) -> Result<String, ApiError>
     if start_line == end_line {
         // Single line edit
         let line = lines[start_line];
-        let start_char = edit.location.start_column as usize;
-        let end_char = edit.location.end_column as usize;
+        let start_char_idx = edit.location.start_column as usize;
+        let end_char_idx = edit.location.end_column as usize;
 
-        if start_char > line.len() || end_char > line.len() {
+        // Convert character indices to byte indices for UTF-8 safety
+        let start_byte = char_index_to_byte_index(line, start_char_idx);
+        let end_byte = char_index_to_byte_index(line, end_char_idx);
+
+        if start_byte > line.len() || end_byte > line.len() {
             return Err(ApiError::Internal(format!(
-                "Edit character range out of bounds: {} to {}, line length {}",
-                start_char,
-                end_char,
+                "Edit byte range out of bounds: {} to {}, line length {}",
+                start_byte,
+                end_byte,
                 line.len()
             )));
         }
 
-        result.push_str(&line[..start_char]);
+        result.push_str(&line[..start_byte]);
         result.push_str(&edit.new_text);
-        result.push_str(&line[end_char..]);
+        result.push_str(&line[end_byte..]);
         result.push('\n');
     } else {
         // Multi-line edit (rare for find/replace)
         let first_line = lines[start_line];
         let last_line = lines[end_line];
 
-        result.push_str(&first_line[..edit.location.start_column as usize]);
+        let start_byte = char_index_to_byte_index(first_line, edit.location.start_column as usize);
+        let end_byte = char_index_to_byte_index(last_line, edit.location.end_column as usize);
+
+        result.push_str(&first_line[..start_byte]);
         result.push_str(&edit.new_text);
-        result.push_str(&last_line[edit.location.end_column as usize..]);
+        result.push_str(&last_line[end_byte..]);
         result.push('\n');
     }
 
