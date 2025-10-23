@@ -12,7 +12,7 @@
 
 ## Executive Summary
 
-This proposal outlines the complete strategy for renaming the project from **CodeBuddy** to **TypeMill**, with the CLI command changing from `codebuddy` to `mill`. The rename encompasses 28 Rust crates, comprehensive documentation, infrastructure configuration, and user-facing interfaces, executed as a major version bump to **v2.0.0**.
+This proposal outlines the complete strategy for renaming the project from **CodeBuddy** to **TypeMill**, with the CLI command changing from `codebuddy` to `mill`. The rename encompasses **31+ Rust crates**, comprehensive documentation, infrastructure configuration, user-facing interfaces, macros, and test fixtures, executed as a major version bump to **v2.0.0**.
 
 ---
 
@@ -50,27 +50,17 @@ This proposal outlines the complete strategy for renaming the project from **Cod
 
 ## Current State Inventory
 
-### Workspace Structure (28 Crates)
+### Workspace Structure (31+ Crates)
 
-**Core Service Crates (14 crates - `cb-*` prefix):**
-- `cb-client` - CLI client implementation
+**Core Infrastructure Crates (15 crates - `mill-*` prefix):**
+- `mill-client` - CLI client implementation
 - `mill-handlers` - MCP tool handler implementations
 - `mill-lsp` - LSP client and server management
 - `mill-server` - MCP server core
 - `mill-services` - Core services (file, AST, planner, workflow)
 - `mill-transport` - WebSocket and stdio transport
 - `mill-plugin-api` - Plugin API definitions
-- `cb-test-support` - Testing utilities and harness
-
-**Language Plugins (6 crates - `cb-lang-*` prefix):**
-- `mill-lang-common` - Common language plugin infrastructure
-- `cb-lang-rust` - Rust language plugin
-- `cb-lang-typescript` - TypeScript/JavaScript plugin
-- `cb-lang-markdown` - Markdown documentation plugin
-- `mill-lang-toml` - TOML configuration plugin
-- `cb-lang-yaml` - YAML configuration plugin
-
-**Foundation/Infrastructure Crates (7 crates - `codebuddy-*` prefix):**
+- `mill-test-support` - Testing utilities and harness
 - `mill-foundation` - Core foundation layer
 - `mill-config` - Configuration system
 - `mill-ast` - AST processing and manipulation
@@ -79,69 +69,107 @@ This proposal outlines the complete strategy for renaming the project from **Cod
 - `mill-plugin-system` - Plugin system orchestration
 - `mill-plugin-bundle` - Plugin bundle packaging
 
+**Language Plugins (6 crates - mixed `mill-*` and `cb-lang-*` prefixes):**
+- `mill-lang-common` - Common language plugin infrastructure
+- `cb-lang-rust` - Rust language plugin *(needs rename)*
+- `cb-lang-typescript` - TypeScript/JavaScript plugin *(needs rename)*
+- `mill-lang-markdown` - Markdown documentation plugin
+- `mill-lang-toml` - TOML configuration plugin
+- `cb-lang-yaml` - YAML configuration plugin *(needs rename)*
+
 **Analysis Crates (5 crates - `cb-analysis-*` prefix):**
-- `cb-analysis-common` - Common analysis utilities
-- `cb-analysis-dead-code` - Dead code detection
-- `cb-analysis-deep-dead-code` - Deep dead code analysis
-- `cb-analysis-graph` - Dependency graph analysis
-- `cb-analysis-circular-deps` - Circular dependency detection
+- `cb-analysis-common` - Common analysis utilities *(needs rename)*
+- `cb-analysis-dead-code` - Dead code detection *(needs rename)*
+- `cb-analysis-deep-dead-code` - Deep dead code analysis *(needs rename)*
+- `cb-analysis-graph` - Dependency graph analysis *(needs rename)*
+- `cb-analysis-circular-deps` - Circular dependency detection *(needs rename)*
 
 **Applications:**
-- `apps/codebuddy` - Main binary application (produces `codebuddy` executable)
+- `apps/codebuddy` - Main binary application (produces `codebuddy` executable) *(needs rename)*
 
 **Development Tools:**
 - `crates/xtask` - Build automation tasks
+
+**TOTAL: 31+ crates** (15 mill-* already renamed, 11 cb-* needing rename, 1 app, 1 dev tool)
+
+### Additional Rename Targets
+
+**Plugin Registration Macro:**
+- `codebuddy_plugin!` → `typemill_plugin!` (or `mill_plugin!`)
+  - Location: `crates/mill-plugin-api/src/plugin_registry.rs`
+  - Used in: All language plugins for self-registration
+  - Impact: Requires updates in 6+ plugin files
+
+**Test Fixtures:**
+- `tests/e2e/test-fixtures/rust/Cargo.toml` - Package: `codebuddy-playground` → `mill-playground`
+- `tests/e2e/test-fixtures/python/pyproject.toml` - Package: `codebuddy-playground-python` → `mill-playground-python`
+- `crates/mill-test-support/src/harness/fixtures.rs` - Java package: `com.codebuddy.example` → `com.mill.example`
+
+**Configuration Files:**
+- `codebuddy.toml` → `typemill.toml` (main configuration file)
+- `codebuddy.example.toml` → `typemill.example.toml` (example configuration)
+
+**Scripts and Shell Files (10+ files):**
+- `install.sh` - Main installation script
+- `scripts/install.sh` - Script directory installation
+- `scripts/new-lang.sh` - New language plugin scaffolding
+- `.codebuddy/start-with-lsp.sh` - LSP startup script
+- `examples/setup/install.sh` - Example setup
+- Various debug scripts in `.debug/` directory
+
+**Repository Metadata:**
+- Repository URL: `https://github.com/goobits/codebuddy` → `https://github.com/goobits/typemill`
+- Homepage: Same as repository
+- Appears in: Root `Cargo.toml` + 31+ crate `Cargo.toml` files
 
 ---
 
 ## Scope of Changes
 
-### 1. Crate and Package Names (All → `mill-*`)
+### 1. Crate and Package Names
 
-**Unified Naming Convention:**
-All crates will adopt the `mill-*` prefix for consistency and simplicity.
+**Status: 15/31 crates already use `mill-*` prefix**
 
-**Core Service Crates:**
-- `cb-client` → `mill-client`
-- `mill-handlers` → `mill-handlers`
-- `mill-lsp` → `mill-lsp`
-- `mill-server` → `mill-server`
-- `mill-services` → `mill-services`
-- `mill-transport` → `mill-transport`
-- `mill-plugin-api` → `mill-plugin-api`
-- `cb-test-support` → `mill-test-support`
+**Crates Already Using `mill-*` Prefix (No rename needed - 15 crates):**
+- `mill-client` ✓
+- `mill-handlers` ✓
+- `mill-lsp` ✓
+- `mill-server` ✓
+- `mill-services` ✓
+- `mill-transport` ✓
+- `mill-plugin-api` ✓
+- `mill-test-support` ✓
+- `mill-lang-common` ✓
+- `mill-lang-markdown` ✓
+- `mill-lang-toml` ✓
+- `mill-foundation` ✓
+- `mill-config` ✓
+- `mill-ast` ✓
+- `mill-auth` ✓
+- `mill-workspaces` ✓
+- `mill-plugin-system` ✓
+- `mill-plugin-bundle` ✓
 
-**Language Plugins:**
-- `mill-lang-common` → `mill-lang-common`
-- `cb-lang-rust` → `mill-lang-rust`
-- `cb-lang-typescript` → `mill-lang-typescript`
-- `cb-lang-markdown` → `mill-lang-markdown`
-- `mill-lang-toml` → `mill-lang-toml`
-- `cb-lang-yaml` → `mill-lang-yaml`
+**Language Plugins Needing Rename (3 crates):**
+- `crates/cb-lang-rust` → `crates/mill-lang-rust`
+- `crates/cb-lang-typescript` → `crates/mill-lang-typescript`
+- `crates/cb-lang-yaml` → `crates/mill-lang-yaml`
 
-**Foundation/Infrastructure:**
-- `mill-foundation` → `mill-foundation`
-- `mill-config` → `mill-config`
-- `mill-ast` → `mill-ast`
-- `mill-auth` → `mill-auth`
-- `mill-workspaces` → `mill-workspaces`
-- `mill-plugin-system` → `mill-plugin-system`
-- `mill-plugin-bundle` → `mill-plugin-bundle`
+**Analysis Crates Needing Rename (5 crates):**
+- `analysis/cb-analysis-common` → `analysis/mill-analysis-common`
+- `analysis/cb-analysis-dead-code` → `analysis/mill-analysis-dead-code`
+- `analysis/cb-analysis-deep-dead-code` → `analysis/mill-analysis-deep-dead-code`
+- `analysis/cb-analysis-graph` → `analysis/mill-analysis-graph`
+- `analysis/cb-analysis-circular-deps` → `analysis/mill-analysis-circular-deps`
 
-**Analysis:**
-- `cb-analysis-common` → `mill-analysis-common`
-- `cb-analysis-dead-code` → `mill-analysis-dead-code`
-- `cb-analysis-deep-dead-code` → `mill-analysis-deep-dead-code`
-- `cb-analysis-graph` → `mill-analysis-graph`
-- `cb-analysis-circular-deps` → `mill-analysis-circular-deps`
-
-**Applications:**
+**Application Needing Rename (1 crate):**
 - `apps/codebuddy` → `apps/mill`
+  - Binary name: `codebuddy` → `mill`
 
-**Development Tools:**
-- `crates/xtask` → `crates/xtask` (unchanged - internal development tool)
+**Development Tools (No rename - 1 crate):**
+- `crates/xtask` (unchanged - internal development tool)
 
-**Total Crates to Rename: 27 crates** (excluding xtask)
+**Total Crates Needing Rename: 9 crates** (3 language plugins + 5 analysis + 1 app)
 
 ---
 
@@ -174,12 +202,53 @@ mill serve
 
 ---
 
-### 3. Configuration and Paths
+### 3. Plugin System Macro
+
+**Macro Rename:**
+- `codebuddy_plugin!` → `mill_plugin!` (or `typemill_plugin!`)
+
+**Definition Location:**
+- `crates/mill-plugin-api/src/plugin_registry.rs`
+
+**Usage Sites (6+ files):**
+- `crates/mill-lang-rust/src/lib.rs`
+- `crates/cb-lang-rust/src/lib.rs`
+- `crates/mill-lang-typescript/src/lib.rs`
+- `crates/cb-lang-typescript/src/lib.rs`
+- `crates/mill-lang-markdown/src/lib.rs`
+- `crates/mill-lang-toml/src/lib.rs`
+- `crates/cb-lang-yaml/src/lib.rs`
+
+**Example Change:**
+```rust
+// Old
+codebuddy_plugin!(
+    name: "rust",
+    extensions: ["rs"],
+    // ...
+)
+
+// New
+mill_plugin!(
+    name: "rust",
+    extensions: ["rs"],
+    // ...
+)
+```
+
+---
+
+### 4. Configuration and Paths
 
 **Configuration Directory:**
 - `.codebuddy/` → `.typemill/`
 - `.codebuddy/config.json` → `.typemill/config.json`
 - `.codebuddy/analysis.toml` → `.typemill/analysis.toml`
+- `.codebuddy/workflows.json` → `.typemill/workflows.json`
+
+**Configuration Files:**
+- `codebuddy.toml` → `typemill.toml`
+- `codebuddy.example.toml` → `typemill.example.toml`
 
 **Binary Path:**
 - `target/release/codebuddy` → `target/release/mill`
@@ -188,7 +257,7 @@ mill serve
 
 ---
 
-### 4. Environment Variables
+### 5. Environment Variables
 
 **Prefix Migration:**
 - `CODEBUDDY__*` (multilevel config) → `TYPEMILL__*`
@@ -207,7 +276,23 @@ mill serve
 
 ---
 
-### 5. Documentation Updates
+### 6. Test Fixtures and Examples
+
+**Test Playground Packages:**
+- `tests/e2e/test-fixtures/rust/Cargo.toml`:
+  - Package name: `codebuddy-playground` → `mill-playground`
+- `tests/e2e/test-fixtures/python/pyproject.toml`:
+  - Package name: `codebuddy-playground-python` → `mill-playground-python`
+
+**Test Support Fixtures:**
+- `crates/mill-test-support/src/harness/fixtures.rs`:
+  - Java package: `com.codebuddy.example` → `com.mill.example`
+
+**Impact:** These fixtures are used in integration tests and need updating to prevent test failures.
+
+---
+
+### 7. Documentation Updates
 
 **Critical Files:**
 - `README.md` - Project name, CLI examples, installation
@@ -233,7 +318,7 @@ cargo run --bin mill
 
 ---
 
-### 6. Code References
+### 8. Code References
 
 **Rust Code:**
 - Module imports: `use codebuddy::*` → `use mill::*`
@@ -250,7 +335,7 @@ cargo run --bin mill
 
 ---
 
-### 7. Infrastructure
+### 9. Infrastructure
 
 **Docker:**
 - Image names: `codebuddy:latest` → `mill:latest`
@@ -307,25 +392,78 @@ rg '"codebuddy"' --type rust
 rg "'codebuddy'" --type rust
 ```
 
-### Phase 3: Crate Renames (27 Crates)
+### Phase 3: Crate Renames (9 Crates)
 
-Rename each crate directory using `rename.plan` + `workspace.apply_edit`:
+**NOTE:** 18 crates already use `mill-*` prefix and don't need renaming.
+
+Rename remaining crate directories using `rename.plan` + `workspace.apply_edit`:
 
 ```bash
-# Example: Rename cb-client → mill-client
+# Language Plugins (3 crates)
 codebuddy rename.plan \
-  --target directory:../crates/mill-client \
-  --new-name crates/mill-client \
+  --target directory:crates/cb-lang-rust \
+  --new-name crates/mill-lang-rust \
   --dry-run
 
-# Review the plan, then apply
+codebuddy rename.plan \
+  --target directory:crates/cb-lang-typescript \
+  --new-name crates/mill-lang-typescript \
+  --dry-run
+
+codebuddy rename.plan \
+  --target directory:crates/cb-lang-yaml \
+  --new-name crates/mill-lang-yaml \
+  --dry-run
+
+# Analysis Crates (5 crates)
+codebuddy rename.plan \
+  --target directory:analysis/cb-analysis-common \
+  --new-name analysis/mill-analysis-common \
+  --dry-run
+
+codebuddy rename.plan \
+  --target directory:analysis/cb-analysis-dead-code \
+  --new-name analysis/mill-analysis-dead-code \
+  --dry-run
+
+codebuddy rename.plan \
+  --target directory:analysis/cb-analysis-deep-dead-code \
+  --new-name analysis/mill-analysis-deep-dead-code \
+  --dry-run
+
+codebuddy rename.plan \
+  --target directory:analysis/cb-analysis-graph \
+  --new-name analysis/mill-analysis-graph \
+  --dry-run
+
+codebuddy rename.plan \
+  --target directory:analysis/cb-analysis-circular-deps \
+  --new-name analysis/mill-analysis-circular-deps \
+  --dry-run
+
+# Review each plan, then apply
 codebuddy workspace.apply_edit --plan <plan-from-above>
 
-# Verify
+# Verify after each rename
 codebuddy get_diagnostics --scope workspace
 ```
 
-**Repeat for all 27 crates** (scripted execution recommended).
+**OR use batch rename for efficiency:**
+```bash
+codebuddy rename.plan '{
+  "targets": [
+    {"kind": "directory", "path": "crates/cb-lang-rust", "new_name": "crates/mill-lang-rust"},
+    {"kind": "directory", "path": "crates/cb-lang-typescript", "new_name": "crates/mill-lang-typescript"},
+    {"kind": "directory", "path": "crates/cb-lang-yaml", "new_name": "crates/mill-lang-yaml"},
+    {"kind": "directory", "path": "analysis/cb-analysis-common", "new_name": "analysis/mill-analysis-common"},
+    {"kind": "directory", "path": "analysis/cb-analysis-dead-code", "new_name": "analysis/mill-analysis-dead-code"},
+    {"kind": "directory", "path": "analysis/cb-analysis-deep-dead-code", "new_name": "analysis/mill-analysis-deep-dead-code"},
+    {"kind": "directory", "path": "analysis/cb-analysis-graph", "new_name": "analysis/mill-analysis-graph"},
+    {"kind": "directory", "path": "analysis/cb-analysis-circular-deps", "new_name": "analysis/mill-analysis-circular-deps"}
+  ],
+  "options": {"scope": "all"}
+}'
+```
 
 ### Phase 4: Binary and App Rename
 
@@ -359,7 +497,46 @@ rg "\.codebuddy" --files-with-matches
 # - crates/mill-foundation/src/core/tests/acceptance_config.rs
 ```
 
-### Phase 6: Environment Variable Updates
+### Phase 6: Plugin Macro Rename
+
+```bash
+# Find all codebuddy_plugin! usages
+rg "codebuddy_plugin!" --files-with-matches
+
+# Manual code edits required:
+# 1. Update macro definition in crates/mill-plugin-api/src/plugin_registry.rs
+#    - Rename `codebuddy_plugin!` → `mill_plugin!`
+#    - Keep macro_export attribute
+#    - Update any internal references
+
+# 2. Update all plugin invocations (6+ files):
+#    - crates/mill-lang-rust/src/lib.rs
+#    - crates/cb-lang-rust/src/lib.rs
+#    - crates/mill-lang-typescript/src/lib.rs
+#    - crates/cb-lang-typescript/src/lib.rs
+#    - crates/mill-lang-markdown/src/lib.rs
+#    - crates/mill-lang-toml/src/lib.rs
+#    - crates/cb-lang-yaml/src/lib.rs
+
+# Search and replace pattern:
+# codebuddy_plugin!( → mill_plugin!(
+```
+
+### Phase 7: Test Fixture Updates
+
+```bash
+# Update test playground packages
+# tests/e2e/test-fixtures/rust/Cargo.toml
+sed -i 's/codebuddy-playground/mill-playground/g' tests/e2e/test-fixtures/rust/Cargo.toml
+
+# tests/e2e/test-fixtures/python/pyproject.toml
+sed -i 's/codebuddy-playground-python/mill-playground-python/g' tests/e2e/test-fixtures/python/pyproject.toml
+
+# crates/mill-test-support/src/harness/fixtures.rs
+sed -i 's/com.codebuddy.example/com.mill.example/g' crates/mill-test-support/src/harness/fixtures.rs
+```
+
+### Phase 8: Environment Variable Updates
 
 ```bash
 # Find all CODEBUDDY_ references
@@ -374,7 +551,7 @@ rg "CODEBUDDY_" --files-with-matches
 # - Implement `mill env migrate` CLI command
 ```
 
-### Phase 7: Documentation and String Literals
+### Phase 9: Documentation and String Literals
 
 ```bash
 # Update all markdown files
@@ -387,14 +564,18 @@ fd -e toml -x sed -i 's/codebuddy/mill/g' {} \;
 # Update YAML files
 fd -e yaml -e yml -x sed -i 's/codebuddy/mill/g' {} \;
 
+# Update shell scripts
+fd -e sh -x sed -i 's/codebuddy/mill/g' {} \;
+
 # Manual review required for:
 # - README.md
 # - CLAUDE.md / AGENTS.md / GEMINI.md
 # - CONTRIBUTING.md
 # - All docs/**/*.md
+# - install.sh and scripts/
 ```
 
-### Phase 8: Infrastructure Files
+### Phase 10: Infrastructure Files
 
 ```bash
 # Docker files
@@ -408,7 +589,7 @@ sed -i 's/codebuddy/mill/g' .github/workflows/*.yml
 sed -i 's/codebuddy/mill/g' scripts/install.sh
 ```
 
-### Phase 9: Validation
+### Phase 11: Validation
 
 ```bash
 # Full rebuild
@@ -431,7 +612,7 @@ cargo nextest run --workspace --all-features
 ./target/release/mill analyze.dependencies --kind circular --scope workspace
 ```
 
-### Phase 10: Documentation and Release
+### Phase 12: Documentation and Release
 
 ```bash
 # Update CHANGELOG.md
@@ -477,49 +658,43 @@ git tag v2.0.0
 - [ ] Document all CODEBUDDY_* environment variables in use
 - [ ] Review and approve this proposal with team
 
-### Crate Rename Checklist (27 crates)
+### Crate Rename Checklist (9 crates needing rename)
 
-**Core Service Crates (8 crates):**
-- [ ] `cb-client` → `mill-client`
-- [ ] `mill-handlers` → `mill-handlers`
-- [ ] `mill-lsp` → `mill-lsp`
-- [ ] `mill-server` → `mill-server`
-- [ ] `mill-services` → `mill-services`
-- [ ] `mill-transport` → `mill-transport`
-- [ ] `mill-plugin-api` → `mill-plugin-api`
-- [ ] `cb-test-support` → `mill-test-support`
+**NOTE:** 18 crates already use `mill-*` prefix ✓
 
-**Language Plugins (6 crates):**
-- [ ] `mill-lang-common` → `mill-lang-common`
-- [ ] `cb-lang-rust` → `mill-lang-rust`
-- [ ] `cb-lang-typescript` → `mill-lang-typescript`
-- [ ] `cb-lang-markdown` → `mill-lang-markdown`
-- [ ] `mill-lang-toml` → `mill-lang-toml`
-- [ ] `cb-lang-yaml` → `mill-lang-yaml`
-
-**Foundation/Infrastructure (7 crates):**
-- [ ] `mill-foundation` → `mill-foundation`
-- [ ] `mill-config` → `mill-config`
-- [ ] `mill-ast` → `mill-ast`
-- [ ] `mill-auth` → `mill-auth`
-- [ ] `mill-workspaces` → `mill-workspaces`
-- [ ] `mill-plugin-system` → `mill-plugin-system`
-- [ ] `mill-plugin-bundle` → `mill-plugin-bundle`
+**Language Plugins (3 crates):**
+- [ ] `crates/cb-lang-rust` → `crates/mill-lang-rust`
+- [ ] `crates/cb-lang-typescript` → `crates/mill-lang-typescript`
+- [ ] `crates/cb-lang-yaml` → `crates/mill-lang-yaml`
 
 **Analysis (5 crates):**
-- [ ] `cb-analysis-common` → `mill-analysis-common`
-- [ ] `cb-analysis-dead-code` → `mill-analysis-dead-code`
-- [ ] `cb-analysis-deep-dead-code` → `mill-analysis-deep-dead-code`
-- [ ] `cb-analysis-graph` → `mill-analysis-graph`
-- [ ] `cb-analysis-circular-deps` → `mill-analysis-circular-deps`
+- [ ] `analysis/cb-analysis-common` → `analysis/mill-analysis-common`
+- [ ] `analysis/cb-analysis-dead-code` → `analysis/mill-analysis-dead-code`
+- [ ] `analysis/cb-analysis-deep-dead-code` → `analysis/mill-analysis-deep-dead-code`
+- [ ] `analysis/cb-analysis-graph` → `analysis/mill-analysis-graph`
+- [ ] `analysis/cb-analysis-circular-deps` → `analysis/mill-analysis-circular-deps`
 
 **Applications:**
-- [ ] `apps/codebuddy` → `apps/mill`
+- [ ] `apps/codebuddy` → `apps/mill` (including binary name)
 
 **After each rename:**
 - [ ] Validate with `get_diagnostics`
 - [ ] Check imports updated correctly
 - [ ] Verify Cargo.toml workspace members
+
+### Plugin Macro Updates
+
+- [ ] Update macro definition: `codebuddy_plugin!` → `mill_plugin!`
+- [ ] Update macro invocations in 6+ plugin files
+- [ ] Verify all plugins still register correctly after rename
+- [ ] Test plugin system works with new macro name
+
+### Test Fixture Updates
+
+- [ ] Update `tests/e2e/test-fixtures/rust/Cargo.toml` package name
+- [ ] Update `tests/e2e/test-fixtures/python/pyproject.toml` package name
+- [ ] Update Java package references in test support fixtures
+- [ ] Run integration tests to verify fixtures work
 
 ### Configuration and Path Updates
 
@@ -528,6 +703,7 @@ git tag v2.0.0
 - [ ] Add migration warnings for legacy paths
 - [ ] Update path constants in code
 - [ ] Update configuration file names (codebuddy.toml → typemill.toml)
+- [ ] Update `.codebuddy/workflows.json` → `.typemill/workflows.json`
 
 ### Environment Variable Updates
 
@@ -1006,95 +1182,150 @@ See full documentation at https://typemill.org/docs/migration
 
 --------
 
-● Complete TypeMill Rename List
+## APPENDIX E: Complete TypeMill Rename Summary
 
-  Crate Directory Renames (27 crates)
+### Crate Directory Renames (9 crates needing rename)
 
-  ../crates/mill-client → crates/mill-client
-  ../crates/mill-handlers → crates/mill-handlers
-  ../crates/mill-lsp → crates/mill-lsp
-  ../crates/mill-server → crates/mill-server
-  ../crates/mill-services → crates/mill-services
-  ../crates/mill-transport → crates/mill-transport
-  ../crates/mill-plugin-api → crates/mill-plugin-api
-  ../crates/mill-test-support → crates/mill-test-support
-  ../crates/mill-lang-common → crates/mill-lang-common
-  crates/cb-lang-rust → crates/mill-lang-rust
-  crates/cb-lang-typescript → crates/mill-lang-typescript
-  ../crates/mill-lang-markdown → crates/mill-lang-markdown
-  ../crates/mill-lang-toml → crates/mill-lang-toml
-  crates/cb-lang-yaml → crates/mill-lang-yaml
-  ../crates/mill-foundation → crates/mill-foundation
-  ../crates/mill-config → crates/mill-config
-  ../crates/mill-ast → crates/mill-ast
-  ../crates/mill-auth → crates/mill-auth
-  ../crates/mill-workspaces → crates/mill-workspaces
-  ../crates/mill-plugin-system → crates/mill-plugin-system
-  ../crates/mill-plugin-bundle → crates/mill-plugin-bundle
-  analysis/cb-analysis-common → analysis/mill-analysis-common
-  analysis/cb-analysis-dead-code → analysis/mill-analysis-dead-code
-  analysis/cb-analysis-deep-dead-code → analysis/mill-analysis-deep-dead-code
-  analysis/cb-analysis-graph → analysis/mill-analysis-graph
-  analysis/cb-analysis-circular-deps → analysis/mill-analysis-circular-deps
-  apps/codebuddy → apps/mill
+**Language Plugins (3):**
+- `crates/cb-lang-rust` → `crates/mill-lang-rust`
+- `crates/cb-lang-typescript` → `crates/mill-lang-typescript`
+- `crates/cb-lang-yaml` → `crates/mill-lang-yaml`
 
-  Package Names in Cargo.toml (27 crates)
+**Analysis Crates (5):**
+- `analysis/cb-analysis-common` → `analysis/mill-analysis-common`
+- `analysis/cb-analysis-dead-code` → `analysis/mill-analysis-dead-code`
+- `analysis/cb-analysis-deep-dead-code` → `analysis/mill-analysis-deep-dead-code`
+- `analysis/cb-analysis-graph` → `analysis/mill-analysis-graph`
+- `analysis/cb-analysis-circular-deps` → `analysis/mill-analysis-circular-deps`
 
-  cb-client → mill-client
-  cb-handlers → mill-handlers
-  mill-lsp → mill-lsp
-  mill-server → mill-server
-  mill-services → mill-services
-  mill-transport → mill-transport
-  mill-plugin-api → mill-plugin-api
-  cb-test-support → mill-test-support
-  mill-lang-common → mill-lang-common
-  cb-lang-rust → mill-lang-rust
-  cb-lang-typescript → mill-lang-typescript
-  cb-lang-markdown → mill-lang-markdown
-  mill-lang-toml → mill-lang-toml
-  cb-lang-yaml → mill-lang-yaml
-  mill-foundation → mill-foundation
-  mill-config → mill-config
-  mill-ast → mill-ast
-  mill-auth → mill-auth
-  mill-workspaces → mill-workspaces
-  mill-plugin-system → mill-plugin-system
-  mill-plugin-bundle → mill-plugin-bundle
-  cb-analysis-common → mill-analysis-common
-  cb-analysis-dead-code → mill-analysis-dead-code
-  cb-analysis-deep-dead-code → mill-analysis-deep-dead-code
-  cb-analysis-graph → mill-analysis-graph
-  cb-analysis-circular-deps → mill-analysis-circular-deps
-  codebuddy (binary) → mill (binary)
+**Applications (1):**
+- `apps/codebuddy` → `apps/mill`
 
-  Configuration & Paths
+**Already Renamed (18 crates using mill-* prefix):** ✓
+- mill-client, mill-handlers, mill-lsp, mill-server, mill-services, mill-transport
+- mill-plugin-api, mill-test-support, mill-lang-common, mill-lang-markdown, mill-lang-toml
+- mill-foundation, mill-config, mill-ast, mill-auth, mill-workspaces, mill-plugin-system, mill-plugin-bundle
 
-  .codebuddy/ → .typemill/
-  .codebuddy/config.json → .typemill/config.json
-  .codebuddy/analysis.toml → .typemill/analysis.toml
-  codebuddy.toml → typemill.toml
-  codebuddy.example.toml → typemill.example.toml
-  target/release/codebuddy → target/release/mill
-  /usr/local/bin/codebuddy → /usr/local/bin/mill
-  ~/.local/bin/codebuddy → ~/.local/bin/mill
+---
 
-  Environment Variables
+### Macro Renames (1 definition + 6+ usage sites)
 
-  CODEBUDDY_DISABLE_CACHE → TYPEMILL_DISABLE_CACHE
-  CODEBUDDY_DISABLE_AST_CACHE → TYPEMILL_DISABLE_AST_CACHE
-  CODEBUDDY_DISABLE_IMPORT_CACHE → TYPEMILL_DISABLE_IMPORT_CACHE
-  CODEBUDDY_DISABLE_LSP_METHOD_CACHE → TYPEMILL_DISABLE_LSP_METHOD_CACHE
-  CODEBUDDY__* (any multilevel config) → TYPEMILL__*
+**Macro Definition:**
+- `codebuddy_plugin!` → `mill_plugin!` (in crates/mill-plugin-api/src/plugin_registry.rs)
 
-  Documentation Files
+**Macro Usage Sites (6+):**
+- All language plugin lib.rs files
 
-  No renames, just content updates in place (README.md, CLAUDE.md, etc.)
+---
 
-  Infrastructure Files
+### Test Fixture Renames (3 files)
 
-  .github/workflows/codebuddy-ci.yml → .github/workflows/mill-ci.yml
-  Docker image: codebuddy:latest → mill:latest
-  Docker containers: codebuddy-dev → mill-dev
+- `tests/e2e/test-fixtures/rust/Cargo.toml` - Package: `codebuddy-playground` → `mill-playground`
+- `tests/e2e/test-fixtures/python/pyproject.toml` - Package: `codebuddy-playground-python` → `mill-playground-python`
+- `crates/mill-test-support/src/harness/fixtures.rs` - Java package: `com.codebuddy.example` → `com.mill.example`
 
-  Total Renames: 27 crate directories + 27 package names + 11 config/binary paths + 5+ env vars + 2 infrastructure files = ~72 rename operations
+---
+
+### Configuration & Path Renames
+
+**Configuration Directory:**
+- `.codebuddy/` → `.typemill/`
+- `.codebuddy/config.json` → `.typemill/config.json`
+- `.codebuddy/analysis.toml` → `.typemill/analysis.toml`
+- `.codebuddy/workflows.json` → `.typemill/workflows.json`
+
+**Configuration Files:**
+- `codebuddy.toml` → `typemill.toml`
+- `codebuddy.example.toml` → `typemill.example.toml`
+
+**Binary Paths:**
+- `target/release/codebuddy` → `target/release/mill`
+- `/usr/local/bin/codebuddy` → `/usr/local/bin/mill`
+- `~/.local/bin/codebuddy` → `~/.local/bin/mill`
+
+---
+
+### Environment Variables (10+ variables)
+
+**Cache Control:**
+- `CODEBUDDY_DISABLE_CACHE` → `TYPEMILL_DISABLE_CACHE`
+- `CODEBUDDY_DISABLE_AST_CACHE` → `TYPEMILL_DISABLE_AST_CACHE`
+- `CODEBUDDY_DISABLE_IMPORT_CACHE` → `TYPEMILL_DISABLE_IMPORT_CACHE`
+- `CODEBUDDY_DISABLE_LSP_METHOD_CACHE` → `TYPEMILL_DISABLE_LSP_METHOD_CACHE`
+
+**Client/Server Config:**
+- `CODEBUDDY_URL` → `TYPEMILL_URL`
+- `CODEBUDDY_TOKEN` → `TYPEMILL_TOKEN`
+- `CODEBUDDY_TIMEOUT` → `TYPEMILL_TIMEOUT`
+- `CODEBUDDY__SERVER__PORT` → `TYPEMILL__SERVER__PORT`
+- `CODEBUDDY__LOGGING__LEVEL` → `TYPEMILL__LOGGING__LEVEL`
+- `CODEBUDDY__CACHE__ENABLED` → `TYPEMILL__CACHE__ENABLED`
+
+---
+
+### Documentation Files (Content updates, no renames)
+
+**Core Documentation:**
+- README.md, CLAUDE.md, AGENTS.md, GEMINI.md, CONTRIBUTING.md, CHANGELOG.md
+
+**API & Tools Documentation:**
+- docs/api_reference.md, docs/tools_catalog.md, docs/tools/*.md
+
+**Architecture & Operations:**
+- docs/architecture/*.md, docs/operations/*.md, docs/development/*.md
+
+---
+
+### Infrastructure Files
+
+**CI/CD:**
+- `.github/workflows/*.yml` - Update codebuddy references to mill
+
+**Docker:**
+- Image names: `codebuddy:latest` → `mill:latest`
+- Container names: `codebuddy-dev` → `mill-dev`
+- Dockerfile and docker-compose files
+
+**Scripts (10+ files):**
+- `install.sh`, `scripts/install.sh`, `scripts/new-lang.sh`
+- `.codebuddy/start-with-lsp.sh` → `.typemill/start-with-lsp.sh`
+- `examples/setup/install.sh`
+- Debug scripts in `.debug/` directory
+
+---
+
+### Repository Metadata (32+ files)
+
+**GitHub URLs (in all Cargo.toml files):**
+- `repository = "https://github.com/goobits/codebuddy"` → `"https://github.com/goobits/typemill"`
+- `homepage = "https://github.com/goobits/codebuddy"` → `"https://github.com/goobits/typemill"`
+
+**Appears in:**
+- Root Cargo.toml + 31 crate Cargo.toml files
+
+---
+
+### Total Rename Operations Summary
+
+| Category | Count |
+|----------|-------|
+| Crate directory renames | 9 |
+| Macro renames (definition + usage) | 7+ |
+| Test fixture updates | 3 |
+| Configuration files/directories | 6 |
+| Binary paths | 3 |
+| Environment variables | 10+ |
+| Documentation files (content) | 15+ |
+| Infrastructure files | 5+ |
+| Repository URLs (Cargo.toml) | 32 |
+| **TOTAL OPERATIONS** | **90+** |
+
+**Breakdown:**
+- **9 directory renames** (automated via CodeBuddy's batch rename)
+- **7+ macro updates** (manual search-replace)
+- **3 test fixtures** (manual edits)
+- **67+ configuration, path, and metadata updates** (mix of automated + manual)
+
+**Automation Potential:**
+- ~60% can be automated with CodeBuddy's own tools
+- ~40% requires manual edits (macros, env vars, prose docs)
