@@ -138,15 +138,24 @@ impl TestClient {
             }
         });
 
-        // Wait for server startup (longer wait for LSP preloading to complete)
-        thread::sleep(Duration::from_millis(5000));
-
-        TestClient {
+        let mut client = TestClient {
             process,
             stdin,
             stdout_receiver,
             stderr_receiver,
-        }
+        };
+
+        // Wait for server to be ready via health check polling
+        // This is much faster than fixed 5s sleep - typically ready in 200-500ms
+        let start = Instant::now();
+        client
+            .wait_for_ready(Duration::from_secs(5))
+            .unwrap_or_else(|e| {
+                panic!("Server failed to start: {}", e)
+            });
+        eprintln!("✓ Server ready in {}ms", start.elapsed().as_millis());
+
+        client
     }
 
     /// Send a JSON-RPC request and wait for response.
