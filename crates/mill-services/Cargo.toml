@@ -47,5 +47,5 @@ tokio = { workspace = true }
 cb-lang-rust = { workspace = true }
 cb-lang-typescript = { workspace = true }
 mill-lang-toml = { path = "../mill-lang-toml" }
-cb-lang-yaml = { path = "../cb-lang-yaml" }
 mill-lang-markdown = { workspace = true }
+mill-lang-yaml = { path = "../mill-lang-yaml" }

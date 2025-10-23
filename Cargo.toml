@@ -11,7 +11,7 @@ members = [
     "crates/cb-lang-typescript",
     "crates/mill-lang-markdown",
     "crates/mill-lang-toml",
-    "crates/cb-lang-yaml",
+    "crates/mill-lang-yaml",
     "crates/mill-plugin-bundle",
     "apps/codebuddy",
     "analysis/cb-analysis-common",

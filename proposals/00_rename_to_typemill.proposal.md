@@ -153,7 +153,7 @@ This proposal outlines the complete strategy for renaming the project from **Cod
 **Language Plugins Needing Rename (3 crates):**
 - `crates/cb-lang-rust` → `crates/mill-lang-rust`
 - `crates/cb-lang-typescript` → `crates/mill-lang-typescript`
-- `crates/cb-lang-yaml` → `crates/mill-lang-yaml`
+- `../crates/mill-lang-yaml` → `crates/mill-lang-yaml`
 
 **Analysis Crates Needing Rename (5 crates):**
 - `analysis/cb-analysis-common` → `analysis/mill-analysis-common`
@@ -217,7 +217,7 @@ mill serve
 - `crates/cb-lang-typescript/src/lib.rs`
 - `crates/mill-lang-markdown/src/lib.rs`
 - `crates/mill-lang-toml/src/lib.rs`
-- `crates/cb-lang-yaml/src/lib.rs`
+- `../crates/mill-lang-yaml/src/lib.rs`
 
 **Example Change:**
 ```rust
@@ -411,7 +411,7 @@ codebuddy rename.plan \
   --dry-run
 
 codebuddy rename.plan \
-  --target directory:crates/cb-lang-yaml \
+  --target directory:../crates/mill-lang-yaml \
   --new-name crates/mill-lang-yaml \
   --dry-run
 
@@ -454,7 +454,7 @@ codebuddy rename.plan '{
   "targets": [
     {"kind": "directory", "path": "crates/cb-lang-rust", "new_name": "crates/mill-lang-rust"},
     {"kind": "directory", "path": "crates/cb-lang-typescript", "new_name": "crates/mill-lang-typescript"},
-    {"kind": "directory", "path": "crates/cb-lang-yaml", "new_name": "crates/mill-lang-yaml"},
+    {"kind": "directory", "path": "../crates/mill-lang-yaml", "new_name": "crates/mill-lang-yaml"},
     {"kind": "directory", "path": "analysis/cb-analysis-common", "new_name": "analysis/mill-analysis-common"},
     {"kind": "directory", "path": "analysis/cb-analysis-dead-code", "new_name": "analysis/mill-analysis-dead-code"},
     {"kind": "directory", "path": "analysis/cb-analysis-deep-dead-code", "new_name": "analysis/mill-analysis-deep-dead-code"},
@@ -516,7 +516,7 @@ rg "codebuddy_plugin!" --files-with-matches
 #    - crates/cb-lang-typescript/src/lib.rs
 #    - crates/mill-lang-markdown/src/lib.rs
 #    - crates/mill-lang-toml/src/lib.rs
-#    - crates/cb-lang-yaml/src/lib.rs
+#    - ../crates/mill-lang-yaml/src/lib.rs
 
 # Search and replace pattern:
 # codebuddy_plugin!( → mill_plugin!(
@@ -665,7 +665,7 @@ git tag v2.0.0
 **Language Plugins (3 crates):**
 - [ ] `crates/cb-lang-rust` → `crates/mill-lang-rust`
 - [ ] `crates/cb-lang-typescript` → `crates/mill-lang-typescript`
-- [ ] `crates/cb-lang-yaml` → `crates/mill-lang-yaml`
+- [ ] `../crates/mill-lang-yaml` → `crates/mill-lang-yaml`
 
 **Analysis (5 crates):**
 - [ ] `analysis/cb-analysis-common` → `analysis/mill-analysis-common`
@@ -1189,7 +1189,7 @@ See full documentation at https://typemill.org/docs/migration
 **Language Plugins (3):**
 - `crates/cb-lang-rust` → `crates/mill-lang-rust`
 - `crates/cb-lang-typescript` → `crates/mill-lang-typescript`
-- `crates/cb-lang-yaml` → `crates/mill-lang-yaml`
+- `../crates/mill-lang-yaml` → `crates/mill-lang-yaml`
 
 **Analysis Crates (5):**
 - `analysis/cb-analysis-common` → `analysis/mill-analysis-common`

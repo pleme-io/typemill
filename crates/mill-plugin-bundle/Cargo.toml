@@ -13,11 +13,11 @@ mill-plugin-api = { path = "../mill-plugin-api" }
 cb-lang-rust = { path = "../cb-lang-rust", optional = true, default-features = false }
 cb-lang-typescript = { path = "../cb-lang-typescript", optional = true, default-features = false }
 mill-lang-toml = { path = "../mill-lang-toml", optional = true, default-features = false }
-cb-lang-yaml = { path = "../cb-lang-yaml", optional = true, default-features = false }
 
 # Logging
 tracing = { workspace = true }
 mill-lang-markdown = { path = "../mill-lang-markdown", optional = true, default-features = false }
+mill-lang-yaml = { path = "../mill-lang-yaml", optional = true, default-features = false }
 
 [features]
 default = []
@@ -25,4 +25,4 @@ lang-rust = ["dep:cb-lang-rust"]
 lang-typescript = ["dep:cb-lang-typescript"]
 lang-markdown = ["dep:mill-lang-markdown"]
 lang-toml = ["dep:mill-lang-toml"]
-lang-yaml = ["dep:cb-lang-yaml"]
+lang-yaml = ["dep:mill-lang-yaml"]

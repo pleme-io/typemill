@@ -277,7 +277,7 @@ name = "mill-lang-toml"
 wrappers = ["mill-services", "mill-plugin-system", "mill-plugin-bundle", "mill-test-support"]
 
 [[bans.deny]]
-name = "cb-lang-yaml"
+name = "mill-lang-yaml"
 wrappers = ["mill-services", "mill-plugin-system", "mill-plugin-bundle", "mill-test-support"]
 
 # =============================================================================

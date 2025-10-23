@@ -23,7 +23,7 @@ use mill_lang_toml::TomlLanguagePlugin;
 #[cfg(feature = "lang-typescript")]
 use cb_lang_typescript::TypeScriptPlugin;
 #[cfg(feature = "lang-yaml")]
-use cb_lang_yaml::YamlLanguagePlugin;
+use mill_lang_yaml::YamlLanguagePlugin;
 
 // This function is never called but ensures the linker includes all plugin crates
 #[allow(dead_code)]
@@ -102,7 +102,7 @@ mod tests {
     #[cfg(all(test, feature = "lang-typescript"))]
     extern crate cb_lang_typescript;
     #[cfg(all(test, feature = "lang-yaml"))]
-    extern crate cb_lang_yaml;
+    extern crate mill_lang_yaml;
 
     #[test]
     fn test_all_plugins_returns_plugins() {

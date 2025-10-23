@@ -186,7 +186,7 @@ Essential utilities to reduce boilerplate (~460 lines saved):
 |----------|---------------|----------|
 | Native Rust parsing | Rust plugin | `crates/cb-lang-rust/` |
 | Simple document plugin | Markdown plugin | `../../crates/mill-lang-markdown/` |
-| Config file plugin | TOML/YAML plugins | `../../crates/mill-lang-toml/`, `crates/cb-lang-yaml/` |
+| Config file plugin | TOML/YAML plugins | `../../crates/mill-lang-toml/`, `../../crates/mill-lang-yaml/` |
 | **Auto-Discovery Pattern** | **All current plugins** | **`src/lib.rs` - `codebuddy_plugin!` macro** |
 | Simple ImportParser only | Markdown plugin | `cb-lang-markdown/src/import_support.rs` |
 | Full import trait suite | Rust plugin | `cb-lang-rust/src/import_support.rs` |
@@ -286,7 +286,7 @@ Essential utilities to reduce boilerplate (~460 lines saved):
 See existing plugins for complete reference implementations:
 - **Rust**: `crates/cb-lang-rust/` - Full-featured with all capabilities
 - **Markdown**: `../../crates/mill-lang-markdown/` - Simple plugin with basic import support
-- **TOML/YAML**: `../../crates/mill-lang-toml/`, `crates/cb-lang-yaml/` - Config file plugins
+- **TOML/YAML**: `../../crates/mill-lang-toml/`, `../../crates/mill-lang-yaml/` - Config file plugins
 - **TypeScript**: `crates/cb-lang-typescript/` - JavaScript ecosystem plugin
 
 ## Plugin Dispatch Patterns

@@ -125,7 +125,7 @@ mod tests {
     #[cfg(test)]
     extern crate cb_lang_typescript;
     #[cfg(test)]
-    extern crate cb_lang_yaml;
+    extern crate mill_lang_yaml;
 
     #[test]
     fn test_registry_builder_creates_non_empty_registry() {
