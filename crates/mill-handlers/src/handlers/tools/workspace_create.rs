@@ -46,6 +46,7 @@ impl ToolHandler for WorkspaceCreateHandler {
 // Parameter types for MCP interface
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreatePackageParams {
     pub package_path: String,
     #[serde(default = "default_lib")]
@@ -59,6 +60,7 @@ fn default_lib() -> PackageType {
 }
 
 #[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct CreatePackageOptions {
     #[serde(default)]
     pub dry_run: bool,

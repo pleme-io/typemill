@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 /// Represents a target for deletion (file or directory)
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DeletionTarget {
     pub path: String,
     pub kind: String, // "file" or "directory"
@@ -29,6 +30,7 @@ pub enum ChangeCategory {
 
 /// Discriminated union type for all refactoring plans
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[serde(tag = "plan_type")]
 pub enum RefactorPlan {
     RenamePlan(RenamePlan),
@@ -42,6 +44,7 @@ pub enum RefactorPlan {
 
 /// Base structure shared by all plans
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PlanMetadata {
     pub plan_version: String, // Always "1.0"
     pub kind: String,
@@ -51,6 +54,7 @@ pub struct PlanMetadata {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PlanSummary {
     pub affected_files: usize,
     pub created_files: usize,
@@ -58,6 +62,7 @@ pub struct PlanSummary {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PlanWarning {
     pub code: String,
     pub message: String,
@@ -65,6 +70,7 @@ pub struct PlanWarning {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RenamePlan {
     pub edits: WorkspaceEdit,
     pub summary: PlanSummary,
@@ -78,6 +84,7 @@ pub struct RenamePlan {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ExtractPlan {
     pub edits: WorkspaceEdit,
     pub summary: PlanSummary,
@@ -87,6 +94,7 @@ pub struct ExtractPlan {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct InlinePlan {
     pub edits: WorkspaceEdit,
     pub summary: PlanSummary,
@@ -96,6 +104,7 @@ pub struct InlinePlan {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MovePlan {
     pub edits: WorkspaceEdit,
     pub summary: PlanSummary,
@@ -105,6 +114,7 @@ pub struct MovePlan {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ReorderPlan {
     pub edits: WorkspaceEdit,
     pub summary: PlanSummary,
@@ -114,6 +124,7 @@ pub struct ReorderPlan {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TransformPlan {
     pub edits: WorkspaceEdit,
     pub summary: PlanSummary,
@@ -123,6 +134,7 @@ pub struct TransformPlan {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DeletePlan {
     pub deletions: Vec<DeletionTarget>,
     pub summary: PlanSummary,

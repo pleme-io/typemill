@@ -39,6 +39,7 @@ impl Default for FindReplaceHandler {
 
 /// Parameters for find/replace operations
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FindReplaceParams {
     /// Pattern to search for (literal or regex)
     pub pattern: String,
@@ -85,6 +86,7 @@ fn default_dry_run() -> bool {
 
 /// Scope configuration for controlling which files to search
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ScopeConfig {
     /// Glob patterns to include (e.g., ["**/*.rs", "**/*.toml"])
     #[serde(default)]

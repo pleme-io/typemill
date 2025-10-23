@@ -8,6 +8,7 @@ use std::collections::HashMap;
 
 /// Unified result structure returned by all analysis commands
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AnalysisResult {
     /// List of findings from the analysis
     pub findings: Vec<Finding>,
@@ -19,6 +20,7 @@ pub struct AnalysisResult {
 
 /// A single finding from an analysis operation
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Finding {
     /// Unique identifier for this finding
     pub id: String,
@@ -49,6 +51,7 @@ pub enum Severity {
 
 /// Location information for a finding
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FindingLocation {
     /// File path where the finding was detected
     pub file_path: String,
@@ -65,6 +68,7 @@ pub struct FindingLocation {
 
 /// Position range in a file
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Range {
     pub start: Position,
     pub end: Position,
@@ -72,6 +76,7 @@ pub struct Range {
 
 /// Position in a file (1-indexed line, 0-indexed character)
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Position {
     /// Line number (1-indexed)
     pub line: u32,
@@ -81,6 +86,7 @@ pub struct Position {
 
 /// Actionable suggestion for addressing a finding
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Suggestion {
     /// Action type (e.g., "extract_function", "inline_variable")
     pub action: String,
@@ -116,6 +122,7 @@ pub enum SafetyLevel {
 
 /// Target for a suggestion
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SuggestionTarget {
     /// Range to apply the suggestion
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -124,6 +131,7 @@ pub struct SuggestionTarget {
 
 /// Reference to a refactoring command
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RefactorCall {
     /// Command name (e.g., "extract.plan", "inline.plan")
     pub command: String,
@@ -133,6 +141,7 @@ pub struct RefactorCall {
 
 /// Summary statistics for an analysis
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AnalysisSummary {
     /// Total findings available (may be more than returned)
     pub total_findings: usize,
@@ -153,6 +162,7 @@ pub struct AnalysisSummary {
 
 /// Breakdown of findings by severity
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SeverityBreakdown {
     pub high: usize,
     pub medium: usize,
@@ -161,6 +171,7 @@ pub struct SeverityBreakdown {
 
 /// Metadata about the analysis execution
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AnalysisMetadata {
     /// Analysis category (e.g., "quality", "dead_code")
     pub category: String,
@@ -180,6 +191,7 @@ pub struct AnalysisMetadata {
 
 /// Scope specification for analysis
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AnalysisScope {
     /// Scope type (workspace, directory, file, symbol)
     #[serde(rename = "type")]

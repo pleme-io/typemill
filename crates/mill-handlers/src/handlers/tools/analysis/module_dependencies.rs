@@ -33,6 +33,7 @@ use tracing::{debug, error, info};
 
 /// Parameters for module dependency analysis
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ModuleDependenciesParams {
     /// Target to analyze (file or directory)
     pub target: TargetSpec,
@@ -44,6 +45,7 @@ pub struct ModuleDependenciesParams {
 
 /// Target specification for analysis
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TargetSpec {
     /// Kind of target (file or directory)
     pub kind: TargetKind,
@@ -65,6 +67,7 @@ pub enum TargetKind {
 
 /// Options for dependency analysis
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ModuleDependenciesOptions {
     /// Include development dependencies (default: false)
     #[serde(default)]
@@ -95,6 +98,7 @@ impl Default for ModuleDependenciesOptions {
 
 /// Result of module dependency analysis
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ModuleDependenciesResult {
     /// External dependencies (from crates.io)
     pub external_dependencies: HashMap<String, DependencySpec>,
@@ -114,6 +118,7 @@ pub struct ModuleDependenciesResult {
 
 /// Dependency specification
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DependencySpec {
     /// Version requirement
     pub version: String,
@@ -133,6 +138,7 @@ pub struct DependencySpec {
 
 /// Import analysis summary
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ImportAnalysisSummary {
     /// Total imports found
     pub total_imports: usize,

@@ -21,6 +21,7 @@ use tracing::{error, info, warn};
 // --- New Data Structures for Multi-Query Batching ---
 
 #[derive(Debug, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct AnalysisQuery {
     pub command: String,
     pub kind: String,
@@ -30,6 +31,7 @@ pub struct AnalysisQuery {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct QueryScope {
     #[serde(rename = "type")]
     pub scope_type: String,
@@ -63,6 +65,7 @@ pub struct BatchAnalysisResult {
 // --- Shared Data Structures (mostly unchanged) ---
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BatchSummary {
     pub total_queries: usize,
     pub total_files_scanned: usize,
@@ -74,6 +77,7 @@ pub struct BatchSummary {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BatchMetadata {
     pub started_at: String,
     pub completed_at: String,

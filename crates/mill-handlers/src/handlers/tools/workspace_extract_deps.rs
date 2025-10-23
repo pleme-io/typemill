@@ -51,6 +51,7 @@ impl ToolHandler for WorkspaceExtractDepsHandler {
 // Parameter types for MCP interface
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ExtractDependenciesParams {
     pub source_manifest: String,
     pub target_manifest: String,
@@ -60,6 +61,7 @@ pub struct ExtractDependenciesParams {
 }
 
 #[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct ExtractDependenciesOptions {
     #[serde(default)]
     pub dry_run: bool,

@@ -49,6 +49,7 @@ impl ToolHandler for WorkspaceUpdateMembersHandler {
 // Parameter types for MCP interface
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdateMembersParams {
     pub workspace_manifest: String,
     pub action: MemberAction,
@@ -67,6 +68,7 @@ pub enum MemberAction {
 }
 
 #[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdateMembersOptions {
     #[serde(default)]
     pub dry_run: bool,

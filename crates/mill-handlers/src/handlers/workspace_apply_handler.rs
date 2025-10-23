@@ -59,6 +59,7 @@ struct WorkspaceApplyServices {
 
 /// Parameters for workspace.apply_edit command
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct ApplyEditParams {
     plan: RefactorPlan,
     #[serde(default)]
@@ -67,6 +68,7 @@ struct ApplyEditParams {
 
 /// Options for applying a refactoring plan
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[serde(default)]
 struct ApplyOptions {
     /// Preview mode - don't actually apply changes
