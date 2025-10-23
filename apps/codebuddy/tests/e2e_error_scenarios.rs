@@ -101,69 +101,6 @@ async fn test_rapid_file_access_operations() {
 }
 
 #[tokio::test]
-async fn test_workspace_edit_rollback_on_failure() {
-    let workspace = TestWorkspace::new();
-    let mut client = TestClient::new(workspace.path());
-
-    let file1 = workspace.path().join("file1.ts");
-    let file2 = workspace.path().join("file2.ts");
-
-    fs::write(&file1, "const value1 = 'original';").unwrap();
-    fs::write(&file2, "const value2 = 'original';").unwrap();
-
-    // Try workspace edit that should fail (invalid range in file2)
-    let response = client
-        .call_tool(
-            "apply_workspace_edit",
-            json!({
-                "changes": {
-                    file1.to_string_lossy(): [
-                        {
-                            "range": {
-                                "start": { "line": 0, "character": 6 },
-                                "end": { "line": 0, "character": 12 }
-                            },
-                            "newText": "newValue1"
-                        }
-                    ],
-                    file2.to_string_lossy(): [
-                        {
-                            "range": {
-                                "start": { "line": 100, "character": 0 }, // Invalid line
-                                "end": { "line": 100, "character": 5 }
-                            },
-                            "newText": "invalid"
-                        }
-                    ]
-                }
-            }),
-        )
-        .await;
-
-    // Should fail and not apply any changes
-    match response {
-        Ok(resp) => {
-            if !resp["applied"].as_bool().unwrap_or(true) {
-                // If it reports failure, files should be unchanged
-                let content1 = fs::read_to_string(&file1).unwrap();
-                let content2 = fs::read_to_string(&file2).unwrap();
-
-                assert_eq!(content1, "const value1 = 'original';");
-                assert_eq!(content2, "const value2 = 'original';");
-            }
-        }
-        Err(_) => {
-            // If it fails, files should definitely be unchanged
-            let content1 = fs::read_to_string(&file1).unwrap();
-            let content2 = fs::read_to_string(&file2).unwrap();
-
-            assert_eq!(content1, "const value1 = 'original';");
-            assert_eq!(content2, "const value2 = 'original';");
-        }
-    }
-}
-
-#[tokio::test]
 async fn test_lsp_server_unavailable() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());

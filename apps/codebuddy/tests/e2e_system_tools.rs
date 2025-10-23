@@ -144,25 +144,40 @@ edition = "2021"
         eprintln!("Note: cargo not available, skipping initial validation");
     }
     let mut client = TestClient::new(workspace.path());
-    let result = client
+
+    // Step 1: Generate rename plan using public API
+    let plan_result = client
         .call_tool(
-            "move_directory",
-            json!({ "old_path" : "crates/crate_b", "new_path" : "crates/crate_renamed" }),
+            "rename.plan",
+            json!({
+                "target": {
+                    "kind": "directory",
+                    "path": "crates/crate_b"
+                },
+                "new_name": "crates/crate_renamed"
+            }),
         )
         .await;
-    assert!(result.is_ok(), "Tool call should succeed");
-    let response: serde_json::Value = result.unwrap();
-    if let Some(result_obj) = response.get("result") {
-        assert_eq!(
-            result_obj["success"], true,
-            "Result should indicate success"
-        );
-    } else {
-        assert_eq!(
-            response["result"]["success"], true,
-            "Response should indicate success"
-        );
-    }
+    assert!(plan_result.is_ok(), "rename.plan should succeed");
+    let plan_response = plan_result.unwrap();
+    let plan = &plan_response["result"];
+
+    // Step 2: Apply the plan using workspace.apply_edit
+    let apply_result = client
+        .call_tool(
+            "workspace.apply_edit",
+            json!({
+                "plan": plan,
+                "options": { "dry_run": false }
+            }),
+        )
+        .await;
+    assert!(apply_result.is_ok(), "workspace.apply_edit should succeed");
+    let apply_response = apply_result.unwrap();
+    assert_eq!(
+        apply_response["result"]["applied"], true,
+        "Edit should be applied successfully"
+    );
     let ws_manifest = workspace.read_file("Cargo.toml");
     assert!(
         ws_manifest.contains("\"crates/crate_renamed\"")
