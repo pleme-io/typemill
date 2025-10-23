@@ -12,6 +12,34 @@ All plan types support checksum validation, rollback on error, and post-apply va
 **Tool count:** 15 tools
 **Related categories:** [Navigation](navigation.md), [Analysis](analysis.md), [Workspace](workspace.md)
 
+## Table of Contents
+
+- [Tools](#tools)
+  - [rename.plan](#renameplan)
+  - [rename](#rename)
+  - [extract.plan](#extractplan)
+  - [extract](#extract)
+  - [inline.plan](#inlineplan)
+  - [inline](#inline)
+  - [move.plan](#moveplan)
+  - [move](#move)
+  - [reorder.plan](#reorderplan)
+  - [reorder](#reorder)
+  - [transform.plan](#transformplan)
+  - [transform](#transform)
+  - [delete.plan](#deleteplan)
+  - [delete](#delete)
+  - [workspace.apply_edit](#workspaceapply_edit)
+- [Common Patterns](#common-patterns)
+  - [Two-Step Workflow (Recommended)](#two-step-workflow-recommended)
+  - [Dry-Run Preview](#dry-run-preview)
+  - [Checksum Validation](#checksum-validation)
+  - [Post-Apply Validation](#post-apply-validation)
+  - [Batch Operations](#batch-operations)
+  - [Rust-Specific: Crate Consolidation](#rust-specific-crate-consolidation)
+  - [Rust-Specific: File Rename Updates](#rust-specific-file-rename-updates)
+  - [Comprehensive Rename Coverage](#comprehensive-rename-coverage)
+
 ---
 
 ## Tools

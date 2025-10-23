@@ -30,6 +30,23 @@ All analysis tools follow a consistent `analyze.<category>(kind, scope, options)
 - AST caching for batch operations
 - Integration with refactoring API (suggestions → commands)
 
+## Table of Contents
+
+- [Tools](#tools)
+  - [analyze.quality](#analyzequality)
+  - [analyze.dead_code](#analyzedead_code)
+  - [analyze.dependencies](#analyzedependencies)
+  - [analyze.structure](#analyzestructure)
+  - [analyze.documentation](#analyzedocumentation)
+  - [analyze.tests](#analyzetests)
+  - [analyze.batch](#analyzebatch)
+  - [analyze.module_dependencies](#analyzemodule_dependencies)
+- [Common Patterns](#common-patterns)
+  - [Unified kind/scope API](#unified-kindscope-api)
+  - [Batch operations with AST caching](#batch-operations-with-ast-caching)
+  - [Actionable suggestions](#actionable-suggestions)
+  - [Performance considerations](#performance-considerations)
+
 ---
 
 ## Tools

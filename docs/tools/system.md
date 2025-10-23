@@ -5,6 +5,16 @@ Health monitoring and server diagnostics for production observability.
 **Tool count:** 1 tool
 **Related categories:** None (standalone monitoring)
 
+## Table of Contents
+
+- [Tools](#tools)
+  - [health_check](#health_check)
+- [Common Patterns](#common-patterns)
+  - [Production Health Monitoring](#production-health-monitoring)
+  - [Debugging Server State](#debugging-server-state)
+  - [Uptime Tracking](#uptime-tracking)
+  - [Plugin Verification](#plugin-verification)
+
 ---
 
 ## Tools

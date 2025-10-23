@@ -5,6 +5,21 @@ Package management operations for multi-crate Rust workspaces. Create new packag
 **Tool count:** 3 tools
 **Related categories:** [Refactoring](refactoring.md) (rename for crate consolidation), [Analysis](analysis.md) (analyze.module_dependencies for dependency analysis)
 
+## Table of Contents
+
+- [Tools](#tools)
+  - [workspace.create_package](#workspacecreate_package)
+  - [workspace.extract_dependencies](#workspaceextract_dependencies)
+  - [workspace.update_members](#workspaceupdate_members)
+- [Common Patterns](#common-patterns)
+  - [Crate Extraction Workflow](#crate-extraction-workflow)
+  - [Package Creation with Dependencies](#package-creation-with-dependencies)
+  - [Workspace Reorganization](#workspace-reorganization)
+  - [Dependency Audit Before Extraction](#dependency-audit-before-extraction)
+- [Integration with Other Tools](#integration-with-other-tools)
+  - [With rename.plan (Crate Consolidation)](#with-renameplan-crate-consolidation)
+  - [With analyze.module_dependencies](#with-analyzemodule_dependencies)
+
 ---
 
 ## Tools
