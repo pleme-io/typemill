@@ -247,12 +247,22 @@ async fn test_create_package_dry_run() {
                 }
             }),
         )
-        .await
-        .expect("call_tool should return a response");
+        .await;
 
-    // Should have an error in the JSON-RPC response
-    let has_error = result.get("error").is_some();
-    assert!(has_error, "Dry run mode should return an error response");
+    // Should return an error (call_tool converts JSON-RPC errors to Result::Err)
+    assert!(
+        result.is_err(),
+        "Dry run mode should return an error, got: {:?}",
+        result
+    );
+
+    // Verify the error message mentions dry_run
+    let error_msg = result.unwrap_err().to_string();
+    assert!(
+        error_msg.contains("dry_run") || error_msg.contains("not yet supported"),
+        "Error message should mention dry_run, got: {}",
+        error_msg
+    );
 
     // Verify nothing was created
     assert!(
