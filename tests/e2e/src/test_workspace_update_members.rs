@@ -44,12 +44,12 @@ edition = "2021"
         .call_tool(
             "workspace.update_members",
             json!({
-                "workspace_manifest": manifest_path.to_string_lossy(),
+                "workspaceManifest": manifest_path.to_string_lossy(),
                 "action": "add",
                 "members": ["crates/new-crate1", "crates/new-crate2"],
                 "options": {
                     "dryRun": false,
-                    "create_if_missing": false
+                    "createIfMissing": false
                 }
             }),
         )
@@ -127,7 +127,7 @@ edition = "2021"
         .call_tool(
             "workspace.update_members",
             json!({
-                "workspace_manifest": manifest_path.to_string_lossy(),
+                "workspaceManifest": manifest_path.to_string_lossy(),
                 "action": "remove",
                 "members": ["crates/crate2"],
                 "options": {
@@ -207,7 +207,7 @@ edition = "2021"
         .call_tool(
             "workspace.update_members",
             json!({
-                "workspace_manifest": manifest_path.to_string_lossy(),
+                "workspaceManifest": manifest_path.to_string_lossy(),
                 "action": "list"
             }),
         )
@@ -283,7 +283,7 @@ edition = "2021"
         .call_tool(
             "workspace.update_members",
             json!({
-                "workspace_manifest": manifest_path.to_string_lossy(),
+                "workspaceManifest": manifest_path.to_string_lossy(),
                 "action": "add",
                 "members": ["crates/existing-crate"],
                 "options": {
@@ -343,7 +343,7 @@ edition = "2021"
         .call_tool(
             "workspace.update_members",
             json!({
-                "workspace_manifest": manifest_path.to_string_lossy(),
+                "workspaceManifest": manifest_path.to_string_lossy(),
                 "action": "add",
                 "members": ["crates/new-crate"],
                 "options": {
@@ -413,12 +413,12 @@ edition = "2021"
         .call_tool(
             "workspace.update_members",
             json!({
-                "workspace_manifest": manifest_path.to_string_lossy(),
+                "workspaceManifest": manifest_path.to_string_lossy(),
                 "action": "add",
                 "members": ["crates/new-crate"],
                 "options": {
                     "dryRun": false,
-                    "create_if_missing": true
+                    "createIfMissing": true
                 }
             }),
         )
@@ -475,12 +475,12 @@ edition = "2021"
         .call_tool(
             "workspace.update_members",
             json!({
-                "workspace_manifest": manifest_path.to_string_lossy(),
+                "workspaceManifest": manifest_path.to_string_lossy(),
                 "action": "add",
                 "members": ["crates/new-crate"],
                 "options": {
                     "dryRun": false,
-                    "create_if_missing": false
+                    "createIfMissing": false
                 }
             }),
         )
@@ -514,7 +514,7 @@ async fn test_error_on_nonexistent_manifest() {
         .call_tool(
             "workspace.update_members",
             json!({
-                "workspace_manifest": manifest_path.to_string_lossy(),
+                "workspaceManifest": manifest_path.to_string_lossy(),
                 "action": "list"
             }),
         )
@@ -560,7 +560,7 @@ edition = "2021"
         .call_tool(
             "workspace.update_members",
             json!({
-                "workspace_manifest": manifest_path.to_string_lossy(),
+                "workspaceManifest": manifest_path.to_string_lossy(),
                 "action": "remove",
                 "members": ["crates/nonexistent"],
                 "options": {
@@ -612,7 +612,7 @@ edition = "2021"
         .call_tool(
             "workspace.update_members",
             json!({
-                "workspace_manifest": manifest_path.to_string_lossy(),
+                "workspaceManifest": manifest_path.to_string_lossy(),
                 "action": "add",
                 "members": ["crates\\my-crate"],
                 "options": {

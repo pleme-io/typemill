@@ -42,11 +42,11 @@ edition = "2021"
         .call_tool(
             "workspace.create_package",
             json!({
-                "package_path": package_path.to_string_lossy(),
-                "package_type": "library",
+                "packagePath": package_path.to_string_lossy(),
+                "packageType": "library",
                 "options": {
                     "dryRun": false,
-                    "add_to_workspace": true,
+                    "addToWorkspace": true,
                     "template": "minimal"
                 }
             }),
@@ -127,11 +127,11 @@ edition = "2021"
         .call_tool(
             "workspace.create_package",
             json!({
-                "package_path": package_path.to_string_lossy(),
-                "package_type": "binary",
+                "packagePath": package_path.to_string_lossy(),
+                "packageType": "binary",
                 "options": {
                     "dryRun": false,
-                    "add_to_workspace": true,
+                    "addToWorkspace": true,
                     "template": "minimal"
                 }
             }),
@@ -190,11 +190,11 @@ edition = "2021"
         .call_tool(
             "workspace.create_package",
             json!({
-                "package_path": package_path.to_string_lossy(),
-                "package_type": "library",
+                "packagePath": package_path.to_string_lossy(),
+                "packageType": "library",
                 "options": {
                     "dryRun": false,
-                    "add_to_workspace": false,
+                    "addToWorkspace": false,
                     "template": "minimal"
                 }
             }),
@@ -238,11 +238,11 @@ async fn test_create_package_dry_run() {
         .call_tool(
             "workspace.create_package",
             json!({
-                "package_path": package_path.to_string_lossy(),
-                "package_type": "library",
+                "packagePath": package_path.to_string_lossy(),
+                "packageType": "library",
                 "options": {
                     "dryRun": true,
-                    "add_to_workspace": true,
+                    "addToWorkspace": true,
                     "template": "minimal"
                 }
             }),
@@ -289,11 +289,11 @@ edition = "2021"
         .call_tool(
             "workspace.create_package",
             json!({
-                "package_path": package_path.to_string_lossy(),
-                "package_type": "library",
+                "packagePath": package_path.to_string_lossy(),
+                "packageType": "library",
                 "options": {
                     "dryRun": false,
-                    "add_to_workspace": true,
+                    "addToWorkspace": true,
                     "template": "full"
                 }
             }),
@@ -352,11 +352,11 @@ edition = "2021"
         .call_tool(
             "workspace.create_package",
             json!({
-                "package_path": package_path.to_string_lossy(),
-                "package_type": "library",
+                "packagePath": package_path.to_string_lossy(),
+                "packageType": "library",
                 "options": {
                     "dryRun": false,
-                    "add_to_workspace": true,
+                    "addToWorkspace": true,
                     "template": "minimal"
                 }
             }),

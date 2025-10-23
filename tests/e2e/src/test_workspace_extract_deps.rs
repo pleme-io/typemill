@@ -58,13 +58,13 @@ edition = "2021"
         .call_tool(
             "workspace.extract_dependencies",
             json!({
-                "source_manifest": source_path.to_string_lossy(),
-                "target_manifest": target_path.to_string_lossy(),
+                "sourceManifest": source_path.to_string_lossy(),
+                "targetManifest": target_path.to_string_lossy(),
                 "dependencies": ["tokio", "serde"],
                 "options": {
                     "dryRun": false,
-                    "preserve_versions": true,
-                    "preserve_features": true,
+                    "preserveVersions": true,
+                    "preserveFeatures": true,
                     "section": "dependencies"
                 }
             }),
@@ -160,8 +160,8 @@ edition = "2021"
         .call_tool(
             "workspace.extract_dependencies",
             json!({
-                "source_manifest": source_path.to_string_lossy(),
-                "target_manifest": target_path.to_string_lossy(),
+                "sourceManifest": source_path.to_string_lossy(),
+                "targetManifest": target_path.to_string_lossy(),
                 "dependencies": ["tempfile"],
                 "options": {
                     "dryRun": false,
@@ -233,8 +233,8 @@ serde = "0.9"
         .call_tool(
             "workspace.extract_dependencies",
             json!({
-                "source_manifest": source_path.to_string_lossy(),
-                "target_manifest": target_path.to_string_lossy(),
+                "sourceManifest": source_path.to_string_lossy(),
+                "targetManifest": target_path.to_string_lossy(),
                 "dependencies": ["tokio", "serde"],
                 "options": {
                     "dryRun": false
@@ -326,8 +326,8 @@ edition = "2021"
         .call_tool(
             "workspace.extract_dependencies",
             json!({
-                "source_manifest": source_path.to_string_lossy(),
-                "target_manifest": target_path.to_string_lossy(),
+                "sourceManifest": source_path.to_string_lossy(),
+                "targetManifest": target_path.to_string_lossy(),
                 "dependencies": ["my-common"],
                 "options": {
                     "dryRun": false
@@ -396,8 +396,8 @@ edition = "2021"
         .call_tool(
             "workspace.extract_dependencies",
             json!({
-                "source_manifest": source_path.to_string_lossy(),
-                "target_manifest": target_path.to_string_lossy(),
+                "sourceManifest": source_path.to_string_lossy(),
+                "targetManifest": target_path.to_string_lossy(),
                 "dependencies": ["my-local"],
                 "options": {
                     "dryRun": false
@@ -466,8 +466,8 @@ edition = "2021"
         .call_tool(
             "workspace.extract_dependencies",
             json!({
-                "source_manifest": source_path.to_string_lossy(),
-                "target_manifest": target_path.to_string_lossy(),
+                "sourceManifest": source_path.to_string_lossy(),
+                "targetManifest": target_path.to_string_lossy(),
                 "dependencies": ["nonexistent"],
                 "options": {
                     "dryRun": false
@@ -540,8 +540,8 @@ edition = "2021"
         .call_tool(
             "workspace.extract_dependencies",
             json!({
-                "source_manifest": source_path.to_string_lossy(),
-                "target_manifest": target_path.to_string_lossy(),
+                "sourceManifest": source_path.to_string_lossy(),
+                "targetManifest": target_path.to_string_lossy(),
                 "dependencies": ["tokio"],
                 "options": {
                     "dryRun": true
@@ -625,8 +625,8 @@ edition = "2021"
         .call_tool(
             "workspace.extract_dependencies",
             json!({
-                "source_manifest": source_path.to_string_lossy(),
-                "target_manifest": target_path.to_string_lossy(),
+                "sourceManifest": source_path.to_string_lossy(),
+                "targetManifest": target_path.to_string_lossy(),
                 "dependencies": ["feature-dep"],
                 "options": {
                     "dryRun": false
@@ -704,8 +704,8 @@ edition = "2021"
         .call_tool(
             "workspace.extract_dependencies",
             json!({
-                "source_manifest": source_path.to_string_lossy(),
-                "target_manifest": target_path.to_string_lossy(),
+                "sourceManifest": source_path.to_string_lossy(),
+                "targetManifest": target_path.to_string_lossy(),
                 "dependencies": ["cc"],
                 "options": {
                     "dryRun": false,

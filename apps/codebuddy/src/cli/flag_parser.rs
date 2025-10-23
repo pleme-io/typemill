@@ -17,10 +17,10 @@
 //!
 //! let mut flags = HashMap::new();
 //! flags.insert("target".to_string(), "file:src/utils.rs".to_string());
-//! flags.insert("newName".to_string(), "src/helpers.rs".to_string());
+//! flags.insert("new_name".to_string(), "src/helpers.rs".to_string());
 //!
 //! let json = parse_flags_to_json("rename.plan", flags)?;
-//! // Returns: {"target": {"kind": "file", "path": "src/utils.rs"}, "newName": "src/helpers.rs"}
+//! // Returns: {"target": {"kind": "file", "path": "src/utils.rs"}, "new_name": "src/helpers.rs"}
 //! ```
 
 use serde_json::{json, Value};
@@ -112,7 +112,7 @@ impl std::error::Error for FlagParseError {}
 /// ```rust
 /// let mut flags = HashMap::new();
 /// flags.insert("target".to_string(), "file:src/app.rs".to_string());
-/// flags.insert("newName".to_string(), "src/main.rs".to_string());
+/// flags.insert("new_name".to_string(), "src/main.rs".to_string());
 ///
 /// let json = parse_flags_to_json("rename.plan", flags)?;
 /// ```
@@ -158,11 +158,11 @@ pub fn parse_flags_to_json(
 /// ```json
 /// {
 ///   "target": {"kind": "file|directory|symbol", "path": "...", "selector": {...}},
-///   "newName": "...",
+///   "new_name": "...",
 ///   "options": {
 ///     "scope": "all|code-only|custom",
 ///     "custom_scope": {...},
-///     "excludePatterns": [...],
+///     "exclude_patterns": [...],
 ///     "strict": bool,
 ///     "validate_scope": bool,
 ///     "update_imports": bool,
@@ -176,9 +176,9 @@ fn parse_rename_flags(flags: HashMap<String, String>) -> Result<Value, FlagParse
         &flags,
         &[
             "target",
-            "newName",
+            "new_name",
             "scope",
-            "excludePatterns",
+            "exclude_patterns",
             "strict",
             "validate_scope",
             "consolidate",
@@ -193,15 +193,15 @@ fn parse_rename_flags(flags: HashMap<String, String>) -> Result<Value, FlagParse
         .get("target")
         .ok_or_else(|| FlagParseError::MissingRequiredFlag("target".to_string()))?;
     let new_name = flags
-        .get("newName")
-        .ok_or_else(|| FlagParseError::MissingRequiredFlag("newName".to_string()))?;
+        .get("new_name")
+        .ok_or_else(|| FlagParseError::MissingRequiredFlag("new_name".to_string()))?;
 
     // Parse target using convention (Agent 2 will implement)
     let target_json = parse_target_convention(target)?;
 
     let mut result = json!({
         "target": target_json,
-        "newName": new_name,
+        "new_name": new_name,
     });
 
     // Build options object if any optional flags are present
@@ -215,7 +215,7 @@ fn parse_rename_flags(flags: HashMap<String, String>) -> Result<Value, FlagParse
             k.as_str(),
             "update_comments" | "update_markdown_prose" | "update_all"
         )
-    }) || flags.contains_key("excludePatterns");
+    }) || flags.contains_key("exclude_patterns");
 
     // Scope configuration
     let scope = flags.get("scope").map(|s| s.as_str());
@@ -248,8 +248,8 @@ fn parse_rename_flags(flags: HashMap<String, String>) -> Result<Value, FlagParse
             }
         }
 
-        if let Some(patterns) = flags.get("excludePatterns") {
-            custom_scope["excludePatterns"] = parse_string_array(patterns)?;
+        if let Some(patterns) = flags.get("exclude_patterns") {
+            custom_scope["exclude_patterns"] = parse_string_array(patterns)?;
         }
 
         options["custom_scope"] = custom_scope;
@@ -294,7 +294,7 @@ fn parse_rename_flags(flags: HashMap<String, String>) -> Result<Value, FlagParse
 /// {
 ///   "kind": "function|variable|constant",
 ///   "source": {
-///     "filePath": "...",
+///     "file_path": "...",
 ///     "range": {"start": {"line": N, "character": N}, "end": {...}}
 ///   },
 ///   "name": "...",
@@ -348,11 +348,11 @@ fn parse_extract_flags(flags: HashMap<String, String>) -> Result<Value, FlagPars
 /// {
 ///   "kind": "symbol|to_module",
 ///   "source": {
-///     "filePath": "...",
+///     "file_path": "...",
 ///     "position": {"line": N, "character": N}
 ///   },
 ///   "destination": {
-///     "filePath": "..."
+///     "file_path": "..."
 ///   },
 ///   "options": {
 ///     "update_imports": bool
@@ -365,12 +365,12 @@ fn parse_move_flags(flags: HashMap<String, String>) -> Result<Value, FlagParseEr
     // The 'rename' tool is for moving/renaming FILES and DIRECTORIES.
 
     // Check 1: If --target or --new-name are present, user wants 'rename'
-    if flags.contains_key("target") || flags.contains_key("newName") {
+    if flags.contains_key("target") || flags.contains_key("new_name") {
         let source_example = flags.get("target")
             .or_else(|| flags.get("source"))
             .cloned()
             .unwrap_or_else(|| "docs/old.md".to_string());
-        let dest_example = flags.get("newName")
+        let dest_example = flags.get("new_name")
             .or_else(|| flags.get("destination"))
             .cloned()
             .unwrap_or_else(|| "docs/new.md".to_string());
@@ -459,7 +459,7 @@ fn parse_move_flags(flags: HashMap<String, String>) -> Result<Value, FlagParseEr
 /// {
 ///   "kind": "variable|function",
 ///   "target": {
-///     "filePath": "...",
+///     "file_path": "...",
 ///     "position": {"line": N, "character": N}
 ///   },
 ///   "options": {
@@ -510,7 +510,7 @@ fn parse_inline_flags(flags: HashMap<String, String>) -> Result<Value, FlagParse
 /// {
 ///   "kind": "parameters|imports",
 ///   "target": {
-///     "filePath": "...",
+///     "file_path": "...",
 ///     "position": {"line": N, "character": N}  // For parameters
 ///     // OR just file_path for imports
 ///   },
@@ -581,7 +581,7 @@ fn parse_reorder_flags(flags: HashMap<String, String>) -> Result<Value, FlagPars
 /// {
 ///   "kind": "to_async|loop_to_iterator",
 ///   "target": {
-///     "filePath": "...",
+///     "file_path": "...",
 ///     "position": {"line": N, "character": N}
 ///     // OR range: {"start": {...}, "end": {...}}
 ///   }
@@ -688,7 +688,7 @@ fn parse_target_convention(s: &str) -> Result<Value, FlagParseError> {
 /// Parse source convention using Agent 2's implementation
 ///
 /// Examples:
-/// - "src/app.rs:10:5" -> {"filePath": "src/app.rs", "line": 10, "character": 5}
+/// - "src/app.rs:10:5" -> {"file_path": "src/app.rs", "line": 10, "character": 5}
 fn parse_source_convention(s: &str) -> Result<Value, FlagParseError> {
     use super::conventions;
     conventions::parse_source_convention(s)
@@ -698,8 +698,8 @@ fn parse_source_convention(s: &str) -> Result<Value, FlagParseError> {
 /// Parse destination convention using Agent 2's implementation
 ///
 /// Examples:
-/// - "src/new.rs" -> {"filePath": "src/new.rs"}
-/// - "src/new.rs:10:0" -> {"filePath": "src/new.rs", "line": 10, "character": 0}
+/// - "src/new.rs" -> {"file_path": "src/new.rs"}
+/// - "src/new.rs:10:0" -> {"file_path": "src/new.rs", "line": 10, "character": 0}
 fn parse_destination_convention(s: &str) -> Result<Value, FlagParseError> {
     use super::conventions;
     conventions::parse_destination_convention(s)
@@ -901,20 +901,20 @@ mod tests {
     fn test_rename_basic_file() {
         let result = parse_flags_to_json(
             "rename.plan",
-            flags(&[("target", "file:src/utils.rs"), ("newName", "src/helpers.rs")]),
+            flags(&[("target", "file:src/utils.rs"), ("new_name", "src/helpers.rs")]),
         );
         assert!(result.is_ok());
         let json = result.unwrap();
         assert_eq!(json["target"]["kind"], "file");
         assert_eq!(json["target"]["path"], "src/utils.rs");
-        assert_eq!(json["newName"], "src/helpers.rs");
+        assert_eq!(json["new_name"], "src/helpers.rs");
     }
 
     #[test]
     fn test_rename_directory() {
         let result = parse_flags_to_json(
             "rename.plan",
-            flags(&[("target", "directory:old-dir"), ("newName", "new-dir")]),
+            flags(&[("target", "directory:old-dir"), ("new_name", "new-dir")]),
         );
         assert!(result.is_ok());
         let json = result.unwrap();
@@ -928,7 +928,7 @@ mod tests {
             "rename.plan",
             flags(&[
                 ("target", "file:src/app.rs"),
-                ("newName", "src/main.rs"),
+                ("new_name", "src/main.rs"),
                 ("scope", "code-only"),
             ]),
         );
@@ -943,11 +943,11 @@ mod tests {
             "rename.plan",
             flags(&[
                 ("target", "file:src/app.rs"),
-                ("newName", "src/main.rs"),
+                ("new_name", "src/main.rs"),
                 ("scope", "custom"),
                 ("update_code", "true"),
                 ("update_docs", "false"),
-                ("excludePatterns", "test_*,fixtures/**"),
+                ("exclude_patterns", "test_*,fixtures/**"),
             ]),
         );
         assert!(result.is_ok());
@@ -956,7 +956,7 @@ mod tests {
         assert_eq!(json["options"]["custom_scope"]["update_code"], true);
         assert_eq!(json["options"]["custom_scope"]["update_docs"], false);
         assert_eq!(
-            json["options"]["custom_scope"]["excludePatterns"][0],
+            json["options"]["custom_scope"]["exclude_patterns"][0],
             "test_*"
         );
     }
@@ -977,7 +977,7 @@ mod tests {
             "rename.plan",
             flags(&[
                 ("target", "file:src/app.rs"),
-                ("newName", "src/main.rs"),
+                ("new_name", "src/main.rs"),
                 ("invalid_flag", "value"),
             ]),
         );
@@ -991,7 +991,7 @@ mod tests {
             "rename.plan",
             flags(&[
                 ("target", "file:src/app.rs"),
-                ("newName", "src/main.rs"),
+                ("new_name", "src/main.rs"),
                 ("scope", "invalid"),
             ]),
         );
@@ -1016,7 +1016,7 @@ mod tests {
         assert!(result.is_ok());
         let json = result.unwrap();
         assert_eq!(json["kind"], "function");
-        assert_eq!(json["source"]["filePath"], "src/app.rs");
+        assert_eq!(json["source"]["file_path"], "src/app.rs");
         assert_eq!(json["name"], "handleLogin");
     }
 
@@ -1078,8 +1078,8 @@ mod tests {
         );
         assert!(result.is_ok());
         let json = result.unwrap();
-        assert_eq!(json["source"]["filePath"], "src/app.rs");
-        assert_eq!(json["destination"]["filePath"], "src/utils.rs");
+        assert_eq!(json["source"]["file_path"], "src/app.rs");
+        assert_eq!(json["destination"]["file_path"], "src/utils.rs");
     }
 
     #[test]
@@ -1117,7 +1117,7 @@ mod tests {
             parse_flags_to_json("inline.plan", flags(&[("target", "src/app.rs:10:5")]));
         assert!(result.is_ok());
         let json = result.unwrap();
-        assert_eq!(json["target"]["filePath"], "src/app.rs");
+        assert_eq!(json["target"]["file_path"], "src/app.rs");
     }
 
     #[test]

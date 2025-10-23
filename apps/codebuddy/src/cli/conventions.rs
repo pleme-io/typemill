@@ -112,7 +112,7 @@ pub fn parse_target_convention(s: &str) -> Result<Value, ConventionError> {
 /// ```
 /// use codebuddy::cli::conventions::parse_source_convention;
 /// let result = parse_source_convention("src/app.rs:45:8").unwrap();
-/// assert_eq!(result["filePath"], "src/app.rs");
+/// assert_eq!(result["file_path"], "src/app.rs");
 /// assert_eq!(result["line"], 45);
 /// assert_eq!(result["character"], 8);
 /// ```
@@ -121,7 +121,7 @@ pub fn parse_target_convention(s: &str) -> Result<Value, ConventionError> {
 /// ```
 /// use codebuddy::cli::conventions::parse_source_convention;
 /// let result = parse_source_convention("src/app.rs").unwrap();
-/// assert_eq!(result["filePath"], "src/app.rs");
+/// assert_eq!(result["file_path"], "src/app.rs");
 /// ```
 pub fn parse_source_convention(s: &str) -> Result<Value, ConventionError> {
     let parts: Vec<&str> = s.split(':').collect();
@@ -130,7 +130,7 @@ pub fn parse_source_convention(s: &str) -> Result<Value, ConventionError> {
         [path] => {
             // Just a file path, no position (used for reorder imports, etc.)
             Ok(json!({
-                "filePath": path
+                "file_path": path
             }))
         }
         [path, line, char] => {
@@ -144,7 +144,7 @@ pub fn parse_source_convention(s: &str) -> Result<Value, ConventionError> {
             })?;
 
             Ok(json!({
-                "filePath": path,
+                "file_path": path,
                 "line": line_num,
                 "character": char_num
             }))
@@ -164,14 +164,14 @@ pub fn parse_source_convention(s: &str) -> Result<Value, ConventionError> {
 /// ```
 /// use codebuddy::cli::conventions::parse_destination_convention;
 /// let result = parse_destination_convention("src/utils.rs").unwrap();
-/// assert_eq!(result["filePath"], "src/utils.rs");
+/// assert_eq!(result["file_path"], "src/utils.rs");
 /// ```
 ///
 /// Path with position:
 /// ```
 /// use codebuddy::cli::conventions::parse_destination_convention;
 /// let result = parse_destination_convention("src/utils.rs:10:0").unwrap();
-/// assert_eq!(result["filePath"], "src/utils.rs");
+/// assert_eq!(result["file_path"], "src/utils.rs");
 /// assert_eq!(result["line"], 10);
 /// assert_eq!(result["character"], 0);
 /// ```
@@ -182,7 +182,7 @@ pub fn parse_destination_convention(s: &str) -> Result<Value, ConventionError> {
         [path] => {
             // Simple path only
             Ok(json!({
-                "filePath": path
+                "file_path": path
             }))
         }
         [path, line, char] => {
@@ -197,7 +197,7 @@ pub fn parse_destination_convention(s: &str) -> Result<Value, ConventionError> {
             })?;
 
             Ok(json!({
-                "filePath": path,
+                "file_path": path,
                 "line": line_num,
                 "character": char_num
             }))
@@ -386,7 +386,7 @@ mod tests {
     #[test]
     fn test_parse_source_valid() {
         let result = parse_source_convention("src/app.rs:45:8").unwrap();
-        assert_eq!(result["filePath"], "src/app.rs");
+        assert_eq!(result["file_path"], "src/app.rs");
         assert_eq!(result["line"], 45);
         assert_eq!(result["character"], 8);
     }
@@ -396,7 +396,7 @@ mod tests {
         // Now supports just a path for operations like reorder imports
         let result = parse_source_convention("src/app.rs");
         assert!(result.is_ok());
-        assert_eq!(result.unwrap()["filePath"], "src/app.rs");
+        assert_eq!(result.unwrap()["file_path"], "src/app.rs");
     }
 
     #[test]
@@ -429,7 +429,7 @@ mod tests {
     #[test]
     fn test_parse_destination_path_only() {
         let result = parse_destination_convention("src/utils.rs").unwrap();
-        assert_eq!(result["filePath"], "src/utils.rs");
+        assert_eq!(result["file_path"], "src/utils.rs");
         assert!(result.get("line").is_none());
         assert!(result.get("character").is_none());
     }
@@ -437,7 +437,7 @@ mod tests {
     #[test]
     fn test_parse_destination_with_position() {
         let result = parse_destination_convention("src/utils.rs:10:0").unwrap();
-        assert_eq!(result["filePath"], "src/utils.rs");
+        assert_eq!(result["file_path"], "src/utils.rs");
         assert_eq!(result["line"], 10);
         assert_eq!(result["character"], 0);
     }

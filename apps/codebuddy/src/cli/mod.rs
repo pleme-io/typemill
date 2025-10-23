@@ -84,7 +84,7 @@ pub enum Commands {
         args: Option<String>,
 
         /// Read arguments from file
-        #[arg(long, conflicts_with_all = ["args", "target", "source", "destination", "newName", "name", "kind", "scope", "update_comments", "update_markdown_prose", "update_all"])]
+        #[arg(long, conflicts_with_all = ["args", "target", "source", "destination", "new_name", "name", "kind", "scope", "update_comments", "update_markdown_prose", "update_all"])]
         input_file: Option<String>,
 
         /// Output format (pretty or compact)
@@ -1081,7 +1081,7 @@ async fn handle_tool_command(
             flags.insert("destination".to_string(), v.to_string());
         }
         if let Some(v) = new_name {
-            flags.insert("newName".to_string(), v.to_string());
+            flags.insert("new_name".to_string(), v.to_string());
         }
         if let Some(v) = name {
             flags.insert("name".to_string(), v.to_string());
@@ -1250,7 +1250,7 @@ async fn handle_convert_naming(
                 targets.push(json!({
                     "kind": target_type,
                     "path": file_path,
-                    "newName": new_path.to_str().unwrap(),
+                    "new_name": new_path.to_str().unwrap(),
                 }));
             } else {
                 skipped.push(file_path.clone());
@@ -1270,7 +1270,7 @@ async fn handle_convert_naming(
     for target in &targets {
         println!("  {} → {}",
             target["path"].as_str().unwrap(),
-            target["newName"].as_str().unwrap()
+            target["new_name"].as_str().unwrap()
         );
     }
     if !skipped.is_empty() {
@@ -1336,7 +1336,7 @@ async fn handle_convert_naming(
                         "arguments": {
                             "plan": content,
                             "options": {
-                                "dryRun": false
+                                "dry_run": false
                             }
                         }
                     });
