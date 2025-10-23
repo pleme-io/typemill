@@ -205,10 +205,13 @@ fn is_clean_pascal_or_camel(text: &str) -> bool {
 
     // Mixed if we have both single-char and multi-char segments
     // (indicates acronyms mixed with normal words)
-    if has_single_char_words && has_multi_char_words && words.len() > 2 {
-        // Exception: Two-word combos like "XMLParser" are acceptable as Pascal
-        // But three+ with single chars like "XMLHttpRequest" are Mixed
-        return words.len() <= 2;
+    if has_single_char_words && has_multi_char_words {
+        // Count multi-char words (not single-char acronym letters)
+        let multi_char_word_count = words.iter().filter(|w| w.len() > 1).count();
+
+        // XMLParser: ["X","M","L","Parser"] → 1 multi-char word = Pascal (acronym + 1 word)
+        // XMLHttpRequest: ["X","M","L","Http","Request"] → 2 multi-char words = Mixed (acronym + 2+ words)
+        return multi_char_word_count <= 1;
     }
 
     true

@@ -471,7 +471,7 @@ edition = "2021"
     let manifest_path = workspace.absolute_path("Cargo.toml");
 
     // Call workspace.update_members WITHOUT create_if_missing
-    let result = client
+    let error = client
         .call_tool(
             "workspace.update_members",
             json!({
@@ -485,20 +485,15 @@ edition = "2021"
             }),
         )
         .await
-        .expect("call_tool should return a response");
+        .expect_err("Should return an error");
 
-    // Should have an error
-    let has_error = result.get("error").is_some();
-    assert!(has_error, "Should return an error response");
-
-    if let Some(error) = result.get("error") {
-        let message = error.get("message").and_then(|m| m.as_str()).unwrap_or("");
-        assert!(
-            message.contains("workspace"),
-            "Error should mention workspace section: {}",
-            message
-        );
-    }
+    // Error should mention workspace section
+    let error_msg = error.to_string();
+    assert!(
+        error_msg.contains("workspace"),
+        "Error should mention workspace section: {}",
+        error_msg
+    );
 }
 
 #[tokio::test]
@@ -510,7 +505,7 @@ async fn test_error_on_nonexistent_manifest() {
     let manifest_path = workspace.absolute_path("nonexistent/Cargo.toml");
 
     // Call workspace.update_members on nonexistent file
-    let result = client
+    let error = client
         .call_tool(
             "workspace.update_members",
             json!({
@@ -519,20 +514,15 @@ async fn test_error_on_nonexistent_manifest() {
             }),
         )
         .await
-        .expect("call_tool should return a response");
+        .expect_err("Should return an error");
 
-    // Should have an error
-    let has_error = result.get("error").is_some();
-    assert!(has_error, "Should return an error response");
-
-    if let Some(error) = result.get("error") {
-        let message = error.get("message").and_then(|m| m.as_str()).unwrap_or("");
-        assert!(
-            message.contains("not found") || message.contains("does not exist"),
-            "Error should mention file not found: {}",
-            message
-        );
-    }
+    // Error should mention file not found
+    let error_msg = error.to_string();
+    assert!(
+        error_msg.contains("not found") || error_msg.contains("does not exist"),
+        "Error should mention file not found: {}",
+        error_msg
+    );
 }
 
 #[tokio::test]

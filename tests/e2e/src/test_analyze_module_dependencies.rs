@@ -372,7 +372,7 @@ async fn test_error_nonexistent_path() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
-    let result = client
+    let error = client
         .call_tool(
             "analyze.module_dependencies",
             json!({
@@ -383,11 +383,15 @@ async fn test_error_nonexistent_path() {
             }),
         )
         .await
-        .expect("call_tool should return a response");
+        .expect_err("Should return an error");
 
-    // Should have an error in the JSON-RPC response
-    let has_error = result.get("error").is_some();
-    assert!(has_error, "Should return error for nonexistent path");
+    // Error should mention nonexistent path
+    let error_msg = error.to_string();
+    assert!(
+        error_msg.contains("does not exist") || error_msg.contains("not found"),
+        "Should return error for nonexistent path: {}",
+        error_msg
+    );
 }
 
 #[tokio::test]
