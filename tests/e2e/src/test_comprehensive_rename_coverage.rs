@@ -54,8 +54,8 @@ async fn test_rename_plan_basic_structure() {
 
     // Verify basic plan structure
     assert_eq!(
-        plan.get("plan_type").and_then(|v| v.as_str()),
-        Some("RenamePlan"),
+        plan.get("planType").and_then(|v| v.as_str()),
+        Some("renamePlan"),
         "Should be RenamePlan"
     );
     assert!(plan.get("metadata").is_some(), "Should have metadata");

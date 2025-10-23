@@ -48,8 +48,8 @@ async fn test_inline_variable_plan_and_apply() {
                 .expect("Plan should exist");
 
             assert_eq!(
-                plan.get("plan_type").and_then(|v| v.as_str()),
-                Some("InlinePlan"),
+                plan.get("planType").and_then(|v| v.as_str()),
+                Some("inlinePlan"),
                 "Should be InlinePlan"
             );
 

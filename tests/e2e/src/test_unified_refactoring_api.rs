@@ -50,8 +50,8 @@ async fn test_rename_plan_and_apply_workflow() {
 
     // Verify plan type
     assert_eq!(
-        plan.get("plan_type").and_then(|v| v.as_str()),
-        Some("RenamePlan"),
+        plan.get("planType").and_then(|v| v.as_str()),
+        Some("renamePlan"),
         "Should be RenamePlan"
     );
 
@@ -140,8 +140,8 @@ async fn test_extract_plan_and_apply_workflow() {
 
     // Verify plan type
     assert_eq!(
-        plan.get("plan_type").and_then(|v| v.as_str()),
-        Some("ExtractPlan"),
+        plan.get("planType").and_then(|v| v.as_str()),
+        Some("extractPlan"),
         "Should be ExtractPlan"
     );
 
@@ -172,7 +172,7 @@ async fn test_extract_plan_and_apply_workflow() {
 }
 
 #[tokio::test]
-async fn test_checksum_validation_across_all_plan_types() {
+async fn test_checksum_validation_across_all_planTypes() {
     // Test that checksum validation works for all plan types
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());

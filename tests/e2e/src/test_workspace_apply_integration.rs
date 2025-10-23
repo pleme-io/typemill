@@ -40,8 +40,8 @@ async fn test_workspace_apply_discriminated_union_rename() {
 
     // Verify discriminated union tag
     assert_eq!(
-        plan.get("plan_type").and_then(|v| v.as_str()),
-        Some("RenamePlan"),
+        plan.get("planType").and_then(|v| v.as_str()),
+        Some("renamePlan"),
         "Should have discriminated union tag"
     );
 
@@ -105,8 +105,8 @@ async fn test_workspace_apply_discriminated_union_move() {
 
     // Verify discriminated union tag
     assert_eq!(
-        plan.get("plan_type").and_then(|v| v.as_str()),
-        Some("MovePlan"),
+        plan.get("planType").and_then(|v| v.as_str()),
+        Some("movePlan"),
         "Should have discriminated union tag"
     );
 
@@ -162,8 +162,8 @@ async fn test_workspace_apply_discriminated_union_delete() {
 
     // Verify discriminated union tag
     assert_eq!(
-        plan.get("plan_type").and_then(|v| v.as_str()),
-        Some("DeletePlan"),
+        plan.get("planType").and_then(|v| v.as_str()),
+        Some("deletePlan"),
         "Should have discriminated union tag"
     );
 
@@ -196,7 +196,7 @@ async fn test_workspace_apply_discriminated_union_delete() {
 }
 
 #[tokio::test]
-async fn test_workspace_apply_checksum_validation_all_plan_types() {
+async fn test_workspace_apply_checksum_validation_all_planTypes() {
     // Test checksum validation works across all plan types
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
@@ -255,7 +255,7 @@ async fn test_workspace_apply_checksum_validation_all_plan_types() {
 }
 
 #[tokio::test]
-async fn test_workspace_apply_dry_run_all_plan_types() {
+async fn test_workspace_apply_dry_run_all_planTypes() {
     // Test dry_run mode works across all plan types
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());

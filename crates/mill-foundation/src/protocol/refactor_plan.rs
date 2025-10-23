@@ -31,7 +31,7 @@ pub enum ChangeCategory {
 /// Discriminated union type for all refactoring plans
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-#[serde(tag = "plan_type")]
+#[serde(tag = "planType")]
 pub enum RefactorPlan {
     RenamePlan(RenamePlan),
     ExtractPlan(ExtractPlan),

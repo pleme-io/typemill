@@ -107,8 +107,8 @@ async fn test_move_file_plan_and_apply() {
         .expect("Plan should exist");
 
     assert_eq!(
-        plan.get("plan_type").and_then(|v| v.as_str()),
-        Some("MovePlan"),
+        plan.get("planType").and_then(|v| v.as_str()),
+        Some("movePlan"),
         "Should be MovePlan"
     );
 
@@ -322,7 +322,7 @@ async fn test_move_module_plan_structure() {
     assert!(plan.get("metadata").is_some(), "Should have metadata");
     assert!(plan.get("summary").is_some(), "Should have summary");
     assert!(
-        plan.get("file_checksums").is_some(),
+        plan.get("fileChecksums").is_some(),
         "Should have checksums"
     );
     assert!(plan.get("edits").is_some(), "Should have edits");

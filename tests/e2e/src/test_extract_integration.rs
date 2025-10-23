@@ -55,8 +55,8 @@ async fn test_extract_function_plan_basic_workflow() {
                 .expect("Plan should exist");
 
             assert_eq!(
-                plan.get("plan_type").and_then(|v| v.as_str()),
-                Some("ExtractPlan"),
+                plan.get("planType").and_then(|v| v.as_str()),
+                Some("extractPlan"),
                 "Should be ExtractPlan"
             );
 
@@ -294,7 +294,7 @@ async fn test_extract_plan_metadata_structure() {
             assert!(plan.get("metadata").is_some(), "Plan should have metadata");
             assert!(plan.get("summary").is_some(), "Plan should have summary");
             assert!(
-                plan.get("file_checksums").is_some(),
+                plan.get("fileChecksums").is_some(),
                 "Plan should have checksums"
             );
             assert!(plan.get("edits").is_some(), "Plan should have edits");

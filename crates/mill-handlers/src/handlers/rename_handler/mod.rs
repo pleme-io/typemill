@@ -37,6 +37,7 @@ impl Default for RenameHandler {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[allow(dead_code)] // Reserved for future options support
 pub(crate) struct RenamePlanParams {
     /// Single target (existing API)
@@ -53,6 +54,7 @@ pub(crate) struct RenamePlanParams {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct RenameTarget {
     kind: String, // "symbol" | "file" | "directory"
     path: String,
@@ -64,11 +66,13 @@ pub(crate) struct RenameTarget {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct SymbolSelector {
     position: Position,
 }
 
 #[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 #[allow(dead_code)] // Reserved for future configuration
 pub(crate) struct RenameOptions {
     #[serde(default)]

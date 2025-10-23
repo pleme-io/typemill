@@ -50,7 +50,7 @@ async fn test_rename_file_dry_run_does_not_modify_disk() {
 
     let plan = &plan_response["result"]["content"];
     assert_eq!(
-        plan["plan_type"], "RenamePlan",
+        plan["planType"], "renamePlan",
         "Should generate a RenamePlan"
     );
 
@@ -124,7 +124,7 @@ async fn test_create_file_dry_run_does_not_create_file() {
 
     let plan = &plan_response["result"]["content"];
     assert_eq!(
-        plan["plan_type"], "ExtractPlan",
+        plan["planType"], "extractPlan",
         "Should generate an ExtractPlan"
     );
 
@@ -182,7 +182,7 @@ async fn test_delete_file_dry_run_does_not_delete_file() {
 
     let plan = &plan_response["result"]["content"];
     assert_eq!(
-        plan["plan_type"], "DeletePlan",
+        plan["planType"], "deletePlan",
         "Should generate a DeletePlan"
     );
 
@@ -244,7 +244,7 @@ async fn test_rename_directory_dry_run_does_not_modify_disk() {
 
     let plan = &plan_response["result"]["content"];
     assert_eq!(
-        plan["plan_type"], "RenamePlan",
+        plan["planType"], "renamePlan",
         "Should generate a RenamePlan"
     );
 
@@ -317,7 +317,7 @@ async fn test_dry_run_rename_file_shows_accurate_files_to_modify() {
 
     // Verify: Plan contains accurate preview data
     assert_eq!(
-        plan["plan_type"], "RenamePlan",
+        plan["planType"], "renamePlan",
         "Should generate a RenamePlan"
     );
 
@@ -494,7 +494,7 @@ async fn test_dry_run_rename_directory_shows_files_list() {
 
     let plan = &plan_response["result"]["content"];
     assert_eq!(
-        plan["plan_type"], "RenamePlan",
+        plan["planType"], "renamePlan",
         "Should generate a RenamePlan"
     );
 

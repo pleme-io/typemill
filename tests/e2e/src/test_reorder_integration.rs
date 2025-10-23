@@ -63,8 +63,8 @@ pub fn test() {}
             let plan = plan.unwrap();
 
             assert_eq!(
-                plan.get("plan_type").and_then(|v| v.as_str()),
-                Some("ReorderPlan"),
+                plan.get("planType").and_then(|v| v.as_str()),
+                Some("reorderPlan"),
                 "Should be ReorderPlan"
             );
 
@@ -344,7 +344,7 @@ async fn test_reorder_statements_plan_structure() {
             assert!(plan.get("metadata").is_some(), "Should have metadata");
             assert!(plan.get("summary").is_some(), "Should have summary");
             assert!(
-                plan.get("file_checksums").is_some(),
+                plan.get("fileChecksums").is_some(),
                 "Should have checksums"
             );
 

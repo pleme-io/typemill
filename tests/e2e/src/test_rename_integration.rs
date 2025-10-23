@@ -41,14 +41,14 @@ async fn test_rename_file_plan_and_apply() {
         .expect("Plan should have result.content");
 
     assert_eq!(
-        plan.get("plan_type").and_then(|v| v.as_str()),
-        Some("RenamePlan"),
+        plan.get("planType").and_then(|v| v.as_str()),
+        Some("renamePlan"),
         "Plan should be RenamePlan"
     );
     assert!(plan.get("metadata").is_some(), "Plan should have metadata");
     assert!(
-        plan.get("file_checksums").is_some(),
-        "Plan should have file_checksums"
+        plan.get("fileChecksums").is_some(),
+        "Plan should have fileChecksums"
     );
 
     // 3. Apply plan via workspace.apply_edit
@@ -251,8 +251,8 @@ async fn test_rename_directory_plan_and_apply() {
         .expect("Plan should exist");
 
     assert_eq!(
-        plan.get("plan_type").and_then(|v| v.as_str()),
-        Some("RenamePlan"),
+        plan.get("planType").and_then(|v| v.as_str()),
+        Some("renamePlan"),
         "Should be RenamePlan"
     );
 

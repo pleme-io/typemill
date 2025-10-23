@@ -69,7 +69,7 @@ async fn test_transform_if_to_match_plan_and_apply() {
             let plan = plan.unwrap();
 
             assert_eq!(
-                plan.get("plan_type").and_then(|v| v.as_str()),
+                plan.get("planType").and_then(|v| v.as_str()),
                 Some("TransformPlan"),
                 "Should be TransformPlan"
             );
@@ -356,7 +356,7 @@ async fn test_transform_plan_metadata_structure() {
             assert!(plan.get("metadata").is_some(), "Should have metadata");
             assert!(plan.get("summary").is_some(), "Should have summary");
             assert!(
-                plan.get("file_checksums").is_some(),
+                plan.get("fileChecksums").is_some(),
                 "Should have checksums"
             );
             assert!(plan.get("edits").is_some(), "Should have edits");

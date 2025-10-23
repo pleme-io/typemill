@@ -43,8 +43,8 @@ async fn test_delete_file_plan_and_apply() {
     );
 
     assert_eq!(
-        plan.get("plan_type").and_then(|v| v.as_str()),
-        Some("DeletePlan"),
+        plan.get("planType").and_then(|v| v.as_str()),
+        Some("deletePlan"),
         "Should be DeletePlan"
     );
 
@@ -233,8 +233,8 @@ async fn test_delete_directory_plan_and_apply() {
         .expect("Plan should exist");
 
     assert_eq!(
-        plan.get("plan_type").and_then(|v| v.as_str()),
-        Some("DeletePlan"),
+        plan.get("planType").and_then(|v| v.as_str()),
+        Some("deletePlan"),
         "Should be DeletePlan"
     );
 
@@ -314,7 +314,7 @@ fn unused_helper() -> i32 {
             assert!(plan.get("metadata").is_some(), "Should have metadata");
             assert!(plan.get("summary").is_some(), "Should have summary");
             assert!(
-                plan.get("file_checksums").is_some(),
+                plan.get("fileChecksums").is_some(),
                 "Should have checksums"
             );
 
