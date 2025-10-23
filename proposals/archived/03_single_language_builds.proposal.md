@@ -22,20 +22,20 @@ Multiple core crates hard-wire every language as an unconditional dependency:
 ```toml
 # cb-ast/Cargo.toml:11
 cb-lang-rust = { workspace = true }
-cb-lang-typescript = { workspace = true }
+mill-lang-typescript = { workspace = true }
 cb-lang-markdown = { workspace = true }
 
 # ../../crates/mill-services/Cargo.toml:29
 cb-lang-rust = { workspace = true }
-cb-lang-typescript = { workspace = true }
+mill-lang-typescript = { workspace = true }
 
 # crates/cb-plugins/Cargo.toml:17
 cb-lang-rust = { workspace = true }
-cb-lang-typescript = { workspace = true }
+mill-lang-typescript = { workspace = true }
 
 # apps/codebuddy/Cargo.toml:19
 cb-lang-rust = { workspace = true }
-cb-lang-typescript = { workspace = true }
+mill-lang-typescript = { workspace = true }
 ```
 
 That forces both Rust and TypeScript (plus Markdown) to compile on every build.
@@ -151,13 +151,13 @@ Mark every language dependency as optional and expose matching features at each 
 # cb-ast/Cargo.toml
 [dependencies]
 cb-lang-rust = { workspace = true, optional = true }
-cb-lang-typescript = { workspace = true, optional = true }
+mill-lang-typescript = { workspace = true, optional = true }
 cb-lang-markdown = { workspace = true, optional = true }
 
 [features]
 default = ["lang-rust", "lang-typescript", "lang-markdown"]
 lang-rust = ["dep:cb-lang-rust"]
-lang-typescript = ["dep:cb-lang-typescript"]
+lang-typescript = ["dep:mill-lang-typescript"]
 lang-markdown = ["dep:cb-lang-markdown"]
 ```
 

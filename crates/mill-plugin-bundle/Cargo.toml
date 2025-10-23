@@ -8,7 +8,7 @@ description = "Plugin bundle containing all language plugins for codebuddy"
 [dependencies]
 # Core plugin API
 mill-plugin-api = { path = "../mill-plugin-api" }
-cb-lang-typescript = { path = "../cb-lang-typescript", optional = true, default-features = false }
+mill-lang-typescript = { path = "../mill-lang-typescript", optional = true, default-features = false }
 mill-lang-toml = { path = "../mill-lang-toml", optional = true, default-features = false }
 
 # Logging
@@ -20,7 +20,7 @@ mill-lang-rust = { path = "../mill-lang-rust", optional = true, default-features
 [features]
 default = []
 lang-rust = ["dep:mill-lang-rust"]
-lang-typescript = ["dep:cb-lang-typescript"]
+lang-typescript = ["dep:mill-lang-typescript"]
 lang-markdown = ["dep:mill-lang-markdown"]
 lang-toml = ["dep:mill-lang-toml"]
 lang-yaml = ["dep:mill-lang-yaml"]

@@ -16,11 +16,11 @@ pub fn build_import_graph(source: &str, path: &Path) -> AstResult<ImportGraph> {
     };
     let imports = match language {
         "typescript" | "javascript" => {
-            // TypeScript/JavaScript parsing is handled by cb-lang-typescript plugin
-            // Cannot be called here due to circular dependency (cb-lang-typescript depends on cb-ast)
+            // TypeScript/JavaScript parsing is handled by mill-lang-typescript plugin
+            // Cannot be called here due to circular dependency (mill-lang-typescript depends on cb-ast)
             tracing::debug!(
                 file_path = % path.display(),
-                "TypeScript/JavaScript import parsing should use cb-lang-typescript plugin directly"
+                "TypeScript/JavaScript import parsing should use mill-lang-typescript plugin directly"
             );
             Vec::new()
         }
@@ -58,9 +58,9 @@ pub fn build_import_graph(source: &str, path: &Path) -> AstResult<ImportGraph> {
         },
     })
 }
-// TypeScript/JavaScript import parsing has been moved to cb-lang-typescript plugin
+// TypeScript/JavaScript import parsing has been moved to mill-lang-typescript plugin
 // The functions parse_js_ts_imports_swc() and parse_js_ts_imports_enhanced() have been removed
-// Use cb_lang_typescript::parser::analyze_imports() instead
+// Use mill_lang_typescript::parser::analyze_imports() instead
 /// Basic import parsing (simplified for foundation)
 fn parse_imports_basic(source: &str) -> AstResult<Vec<ImportInfo>> {
     let mut imports = Vec::new();
@@ -402,7 +402,7 @@ fn find_cycles_dfs(
 #[cfg(test)]
 mod tests {
     use super::*;
-    // TypeScript/JavaScript import parsing tests have been moved to cb-lang-typescript plugin tests
+    // TypeScript/JavaScript import parsing tests have been moved to mill-lang-typescript plugin tests
     // Python import parsing tests have been moved to cb-lang-python plugin tests
     #[test]
     fn test_is_external_dependency() {
@@ -462,5 +462,5 @@ mod tests {
         let importers = dep_graph.get_importers("b.ts");
         assert_eq!(importers.len(), 0);
     }
-    // test_parse_named_imports_enhanced removed - see cb-lang-typescript plugin tests
+    // test_parse_named_imports_enhanced removed - see mill-lang-typescript plugin tests
 }

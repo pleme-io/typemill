@@ -25,7 +25,7 @@ CodeBuddy supports multiple languages via LSP integration and language plugins. 
 |------|-------------------|-------------|-----------------|--------|
 | 1    | **Python**        | ✅          | ✅ `cb-lang-python` | ✅ **COMPLETE** - AST + manifest parsing |
 | 3    | **Java**          | ✅          | ✅ `cb-lang-java` | ✅ **COMPLETE** - AST + manifest parsing |
-| 4    | **JavaScript/TypeScript** | ✅ | ✅ `cb-lang-typescript` | ✅ **COMPLETE** - SWC parser |
+| 4    | **JavaScript/TypeScript** | ✅ | ✅ `mill-lang-typescript` | ✅ **COMPLETE** - SWC parser |
 | 5    | **C#**            | ✅          | ✅ `cb-lang-csharp` | ✅ **COMPLETE** - AST + manifest parsing (some refactoring bugs exist) |
 | 7    | **Go**            | ✅          | ✅ `cb-lang-go` | ✅ **COMPLETE** - AST + manifest parsing |
 | 8    | **Rust**          | ✅          | ✅ `cb-lang-rust` | ✅ **COMPLETE** - AST + manifest + workspace support |

@@ -174,7 +174,7 @@ The `ImportRenameSupport::rewrite_imports_for_rename()` method:
 
 ### 1.3 TypeScript/JavaScript Updates
 
-**Source: `/workspace/crates/cb-lang-typescript/src/lib.rs` (Lines 114-194)**
+**Source: `/workspace/crates/mill-lang-typescript/src/lib.rs` (Lines 114-194)**
 
 The TypeScript plugin delegates to `import_support::rewrite_imports_for_move_with_context()`:
 - Handles relative path updates in imports
@@ -251,7 +251,7 @@ Each plugin can implement these traits:
 
 From the codebase:
 - **Rust plugin** (`/workspace/crates/cb-lang-rust/`) - Handles `.rs` files
-- **TypeScript plugin** (`/workspace/crates/cb-lang-typescript/`) - Handles `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs`
+- **TypeScript plugin** (`/workspace/crates/mill-lang-typescript/`) - Handles `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs`
 - **Markdown plugin** (`/workspace/crates/cb-lang-markdown/`) - **EXISTS but NOT wired into rename/move pipeline**
 
 ### 2.4 Missing Plugin Support
@@ -285,7 +285,7 @@ Uses `syn` crate for AST parsing:
 
 ### 3.2 TypeScript AST Capabilities
 
-**Parser: `/workspace/crates/cb-lang-typescript/src/parser.rs`**
+**Parser: `/workspace/crates/mill-lang-typescript/src/parser.rs`**
 
 Uses regex-based extraction (not full AST):
 - ✅ Extract import statements via regex
@@ -520,7 +520,7 @@ extract_import_path(line)  // Regex-based: `from "path"` or `require('path')`
 ### Plugin Implementations
 - **Rust Plugin**: `/workspace/crates/cb-lang-rust/src/lib.rs` (1140 lines)
 - **Rust Import Support**: `/workspace/crates/cb-lang-rust/src/import_support.rs` (520 lines)
-- **TypeScript Plugin**: `/workspace/crates/cb-lang-typescript/src/lib.rs` (220 lines)
+- **TypeScript Plugin**: `/workspace/crates/mill-lang-typescript/src/lib.rs` (220 lines)
 - **Markdown Plugin**: `/workspace/crates/cb-lang-markdown/src/lib.rs` (exists but not used)
 
 ### Move/Rename Handlers

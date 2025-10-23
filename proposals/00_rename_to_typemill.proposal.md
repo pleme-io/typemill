@@ -72,7 +72,7 @@ This proposal outlines the complete strategy for renaming the project from **Cod
 **Language Plugins (6 crates - mixed `mill-*` and `cb-lang-*` prefixes):**
 - `mill-lang-common` - Common language plugin infrastructure
 - `cb-lang-rust` - Rust language plugin *(needs rename)*
-- `cb-lang-typescript` - TypeScript/JavaScript plugin *(needs rename)*
+- `mill-lang-typescript` - TypeScript/JavaScript plugin *(needs rename)*
 - `mill-lang-markdown` - Markdown documentation plugin
 - `mill-lang-toml` - TOML configuration plugin
 - `cb-lang-yaml` - YAML configuration plugin *(needs rename)*
@@ -152,7 +152,7 @@ This proposal outlines the complete strategy for renaming the project from **Cod
 
 **Language Plugins Needing Rename (3 crates):**
 - `../crates/mill-lang-rust` → `crates/mill-lang-rust`
-- `crates/cb-lang-typescript` → `crates/mill-lang-typescript`
+- `../crates/mill-lang-typescript` → `crates/mill-lang-typescript`
 - `../crates/mill-lang-yaml` → `crates/mill-lang-yaml`
 
 **Analysis Crates Needing Rename (5 crates):**
@@ -214,7 +214,7 @@ mill serve
 - `crates/mill-lang-rust/src/lib.rs`
 - `../crates/mill-lang-rust/src/lib.rs`
 - `crates/mill-lang-typescript/src/lib.rs`
-- `crates/cb-lang-typescript/src/lib.rs`
+- `../crates/mill-lang-typescript/src/lib.rs`
 - `crates/mill-lang-markdown/src/lib.rs`
 - `crates/mill-lang-toml/src/lib.rs`
 - `../crates/mill-lang-yaml/src/lib.rs`
@@ -406,7 +406,7 @@ codebuddy rename.plan \
   --dry-run
 
 codebuddy rename.plan \
-  --target directory:crates/cb-lang-typescript \
+  --target directory:../crates/mill-lang-typescript \
   --new-name crates/mill-lang-typescript \
   --dry-run
 
@@ -453,7 +453,7 @@ codebuddy get_diagnostics --scope workspace
 codebuddy rename.plan '{
   "targets": [
     {"kind": "directory", "path": "../crates/mill-lang-rust", "new_name": "crates/mill-lang-rust"},
-    {"kind": "directory", "path": "crates/cb-lang-typescript", "new_name": "crates/mill-lang-typescript"},
+    {"kind": "directory", "path": "../crates/mill-lang-typescript", "new_name": "crates/mill-lang-typescript"},
     {"kind": "directory", "path": "../crates/mill-lang-yaml", "new_name": "crates/mill-lang-yaml"},
     {"kind": "directory", "path": "analysis/cb-analysis-common", "new_name": "analysis/mill-analysis-common"},
     {"kind": "directory", "path": "analysis/cb-analysis-dead-code", "new_name": "analysis/mill-analysis-dead-code"},
@@ -513,7 +513,7 @@ rg "codebuddy_plugin!" --files-with-matches
 #    - crates/mill-lang-rust/src/lib.rs
 #    - ../crates/mill-lang-rust/src/lib.rs
 #    - crates/mill-lang-typescript/src/lib.rs
-#    - crates/cb-lang-typescript/src/lib.rs
+#    - ../crates/mill-lang-typescript/src/lib.rs
 #    - crates/mill-lang-markdown/src/lib.rs
 #    - crates/mill-lang-toml/src/lib.rs
 #    - ../crates/mill-lang-yaml/src/lib.rs
@@ -664,7 +664,7 @@ git tag v2.0.0
 
 **Language Plugins (3 crates):**
 - [ ] `../crates/mill-lang-rust` → `crates/mill-lang-rust`
-- [ ] `crates/cb-lang-typescript` → `crates/mill-lang-typescript`
+- [ ] `../crates/mill-lang-typescript` → `crates/mill-lang-typescript`
 - [ ] `../crates/mill-lang-yaml` → `crates/mill-lang-yaml`
 
 **Analysis (5 crates):**
@@ -1188,7 +1188,7 @@ See full documentation at https://typemill.org/docs/migration
 
 **Language Plugins (3):**
 - `../crates/mill-lang-rust` → `crates/mill-lang-rust`
-- `crates/cb-lang-typescript` → `crates/mill-lang-typescript`
+- `../crates/mill-lang-typescript` → `crates/mill-lang-typescript`
 - `../crates/mill-lang-yaml` → `crates/mill-lang-yaml`
 
 **Analysis Crates (5):**

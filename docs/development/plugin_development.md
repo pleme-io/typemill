@@ -287,7 +287,7 @@ See existing plugins for complete reference implementations:
 - **Rust**: `../../crates/mill-lang-rust/` - Full-featured with all capabilities
 - **Markdown**: `../../crates/mill-lang-markdown/` - Simple plugin with basic import support
 - **TOML/YAML**: `../../crates/mill-lang-toml/`, `../../crates/mill-lang-yaml/` - Config file plugins
-- **TypeScript**: `crates/cb-lang-typescript/` - JavaScript ecosystem plugin
+- **TypeScript**: `../../crates/mill-lang-typescript/` - JavaScript ecosystem plugin
 
 ## Plugin Dispatch Patterns
 

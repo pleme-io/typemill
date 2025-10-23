@@ -779,7 +779,7 @@ mod tests {
 
 For complete examples, see:
 - **[crates/mill-lang-rust/src/lib.rs](../crates/mill-lang-rust/src/lib.rs)** - Full capability implementation
-- **[crates/cb-lang-typescript/src/lib.rs](../crates/cb-lang-typescript/src/lib.rs)** - Partial capability support
+- **[crates/mill-lang-typescript/src/lib.rs](../crates/mill-lang-typescript/src/lib.rs)** - Partial capability support
 - **[crates/mill-plugin-api/src/capabilities.rs](../crates/mill-plugin-api/src/capabilities.rs)** - Capability trait definitions
 
 ## Adding New MCP Tools

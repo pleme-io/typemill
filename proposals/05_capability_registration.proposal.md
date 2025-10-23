@@ -138,7 +138,7 @@ plugin.capability_trait()?.method()
 - `mill-plugin-api/src/capabilities.rs` - Added 3 capability traits
 - `mill-plugin-api/src/lib.rs` - Added capability discovery methods
 - `cb-lang-rust/src/lib.rs` - Implemented all 3 traits
-- `cb-lang-typescript/src/lib.rs` - Implemented ManifestUpdater and RefactoringProvider
+- `mill-lang-typescript/src/lib.rs` - Implemented ManifestUpdater and RefactoringProvider
 - `cb-handlers/src/handlers/tools/workspace.rs` - Removed 2 cfg guards
 - `mill-ast/src/package_extractor/planner.rs` - Removed 1 downcast
 - `mill-ast/src/refactoring/extract_function.rs` - Removed 3 cfg guards

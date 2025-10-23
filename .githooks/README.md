@@ -21,7 +21,7 @@ Checks for missing external parser artifacts before allowing commits.
 **What it checks:**
 - Java parser JAR file (`cb-lang-java`)
 - C# parser build output (`cb-lang-csharp`)
-- TypeScript parser dependencies (`cb-lang-typescript`)
+- TypeScript parser dependencies (`mill-lang-typescript`)
 - Swift SourceKitten installation (optional warning)
 
 **If artifacts are missing:**

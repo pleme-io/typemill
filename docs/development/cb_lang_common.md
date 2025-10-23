@@ -317,4 +317,4 @@ let ts_imports: Vec<TsImportInfo> = run_ast_tool(tool, source)?;
 
 For detailed implementation examples, see:
 - [plugin_development.md](../plugin_development.md) - Step-by-step guide
-- Plugin implementations: [`cb-lang-go`](../cb-lang-go/), [`cb-lang-python`](../cb-lang-python/), [`cb-lang-typescript`](../cb-lang-typescript/), [`cb-lang-rust`](../cb-lang-rust/)
+- Plugin implementations: [`cb-lang-go`](../cb-lang-go/), [`cb-lang-python`](../cb-lang-python/), [`mill-lang-typescript`](../mill-lang-typescript/), [`cb-lang-rust`](../cb-lang-rust/)

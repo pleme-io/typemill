@@ -43,7 +43,7 @@ libc = "0.2"
 futures-util = "0.3"
 chrono = "0.4"
 tokio = { workspace = true }
-cb-lang-typescript = { workspace = true }
+mill-lang-typescript = { workspace = true }
 mill-lang-toml = { path = "../mill-lang-toml" }
 mill-lang-markdown = { workspace = true }
 mill-lang-yaml = { path = "../mill-lang-yaml" }

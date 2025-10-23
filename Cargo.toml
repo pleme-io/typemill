@@ -8,7 +8,7 @@ members = [
     "crates/mill-transport",
     "crates/mill-lang-common",
     "crates/mill-lang-rust",
-    "crates/cb-lang-typescript",
+    "crates/mill-lang-typescript",
     "crates/mill-lang-markdown",
     "crates/mill-lang-toml",
     "crates/mill-lang-yaml",
@@ -96,7 +96,7 @@ cb-analysis-graph = { path = "analysis/cb-analysis-graph" }
 
 # Language plugins (temporarily reduced to TS + Rust during unified API refactoring)
 mill-lang-common = { path = "crates/mill-lang-common", default-features = false }
-cb-lang-typescript = { path = "crates/cb-lang-typescript", default-features = false }
+mill-lang-typescript = { path = "crates/mill-lang-typescript", default-features = false }
 mill-lang-markdown = { path = "crates/mill-lang-markdown", default-features = false }
 mill-lang-rust = { path = "crates/mill-lang-rust", default-features = false }
 

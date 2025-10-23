@@ -11,7 +11,7 @@ The codebase has mature regex infrastructure and some basic case conversion util
 ### 1.1 Regex Libraries Used
 
 **Standard regex crate (1.10)**
-- Used in: `cb-lang-rust`, `cb-lang-typescript`, `mill-lang-common`, `mill-handlers`, `mill-ast`
+- Used in: `cb-lang-rust`, `mill-lang-typescript`, `mill-lang-common`, `mill-handlers`, `mill-ast`
 - Purpose: Basic regex matching without lookahead/lookbehind
 
 **fancy-regex (0.13)** 

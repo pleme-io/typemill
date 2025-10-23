@@ -30,7 +30,7 @@ The batch rename tool (`rename` with `targets` array) successfully renames direc
        },
        {
          "kind": "directory",
-         "path": "crates/cb-lang-typescript",
+         "path": "../../crates/mill-lang-typescript",
          "new_name": "crates/mill-lang-typescript"
        }
      ],
@@ -73,7 +73,7 @@ The tool **partially** updated references:
    # MISSED - Still references old paths
    members = [
        "../../crates/mill-lang-rust",           # ❌ Should be mill-lang-rust
-       "crates/cb-lang-typescript",     # ❌ Should be mill-lang-typescript
+       "../../crates/mill-lang-typescript",     # ❌ Should be mill-lang-typescript
    ]
    ```
 
@@ -81,7 +81,7 @@ The tool **partially** updated references:
    ```toml
    # MISSED - Still references old crate names
    cb-lang-rust = { path = "../../crates/mill-lang-rust", default-features = false }
-   cb-lang-typescript = { path = "crates/cb-lang-typescript", default-features = false }
+   mill-lang-typescript = { path = "../../crates/mill-lang-typescript", default-features = false }
    ```
 
 3. **`crates/mill-services/Cargo.toml`** (line 47):
@@ -102,8 +102,8 @@ The tool **partially** updated references:
 5. **`.cargo/config.toml`** (lines 115-116):
    ```toml
    # MISSED - Cargo alias commands
-   check-lang = "check -p mill-lang-common -p cb-lang-rust -p cb-lang-typescript"
-   test-lang = "nextest run -p mill-lang-common -p cb-lang-rust -p cb-lang-typescript"
+   check-lang = "check -p mill-lang-common -p cb-lang-rust -p mill-lang-typescript"
+   test-lang = "nextest run -p mill-lang-common -p cb-lang-rust -p mill-lang-typescript"
    ```
 
 6. **`deny.toml`** (lines 264, 268):
@@ -113,7 +113,7 @@ The tool **partially** updated references:
    name = "cb-lang-rust"
 
    [[bans.deny]]
-   name = "cb-lang-typescript"
+   name = "mill-lang-typescript"
    ```
 
 ## Build Failure
@@ -291,7 +291,7 @@ fn test_rename_updates_deny_toml() {
 
 ## Stash Reference
 
-Changes stashed in: `WIP: Batch rename cb-lang-rust and cb-lang-typescript - incomplete tool updates`
+Changes stashed in: `WIP: Batch rename cb-lang-rust and mill-lang-typescript - incomplete tool updates`
 
 Contains:
 - Manual fixes for all 5 config files

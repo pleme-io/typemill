@@ -27,7 +27,7 @@ To fix this architectural violation, we will decouple the services layer from th
 **Complete handler layer decoupling achieved** - All four blocking issues resolved:
 
 ### Issue 1: cb-handlers Language Dependencies Removed ✅
-**Problem:** `cb-handlers/Cargo.toml` had direct dependencies on `cb-lang-rust` and `cb-lang-typescript`, creating compile-time coupling.
+**Problem:** `cb-handlers/Cargo.toml` had direct dependencies on `cb-lang-rust` and `mill-lang-typescript`, creating compile-time coupling.
 
 **Solution:**
 - Removed all language plugin dependencies from `cb-handlers/Cargo.toml`

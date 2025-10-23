@@ -32,8 +32,8 @@
 //!   may not convert correctly across case styles.
 //! - **Single characters**: Single letters are converted to lowercase for safety.
 
-use std::collections::HashMap;
-use std::sync::Mutex;
+use dashmap::DashMap;
+use std::sync::OnceLock;
 
 /// Represents the detected case style of an identifier
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -66,30 +66,10 @@ impl CaseStyle {
     }
 }
 
-/// Cache for case style detection results to avoid repeated analysis
-struct CaseStyleCache {
-    cache: Mutex<HashMap<String, CaseStyle>>,
-}
-
-impl CaseStyleCache {
-    fn new() -> Self {
-        Self {
-            cache: Mutex::new(HashMap::new()),
-        }
-    }
-
-    fn get(&self, text: &str) -> Option<CaseStyle> {
-        self.cache.lock().unwrap().get(text).copied()
-    }
-
-    fn insert(&self, text: String, style: CaseStyle) {
-        self.cache.lock().unwrap().insert(text, style);
-    }
-}
-
-// Global cache instance
-lazy_static::lazy_static! {
-    static ref CASE_STYLE_CACHE: CaseStyleCache = CaseStyleCache::new();
+// Global cache instance using DashMap for concurrent access without locks
+fn case_style_cache() -> &'static DashMap<String, CaseStyle> {
+    static CACHE: OnceLock<DashMap<String, CaseStyle>> = OnceLock::new();
+    CACHE.get_or_init(DashMap::new)
 }
 
 /// Detect the case style used in a string
@@ -121,14 +101,14 @@ lazy_static::lazy_static! {
 /// ```
 pub fn detect_case_style(text: &str) -> CaseStyle {
     // Check cache first
-    if let Some(cached) = CASE_STYLE_CACHE.get(text) {
-        return cached;
+    if let Some(cached) = case_style_cache().get(text) {
+        return *cached;
     }
 
     let style = detect_case_style_impl(text);
 
     // Cache the result
-    CASE_STYLE_CACHE.insert(text.to_string(), style);
+    case_style_cache().insert(text.to_string(), style);
 
     style
 }
@@ -679,33 +659,43 @@ mod tests {
 
     #[test]
     fn test_to_snake_case() {
-        assert_eq!(to_snake_case(&["user", "name"]), "user_name");
-        assert_eq!(to_snake_case(&["get", "user", "by", "id"]), "get_user_by_id");
+        let words = vec!["user".to_string(), "name".to_string()];
+        assert_eq!(to_snake_case(&words), "user_name");
+        let words = vec!["get".to_string(), "user".to_string(), "by".to_string(), "id".to_string()];
+        assert_eq!(to_snake_case(&words), "get_user_by_id");
     }
 
     #[test]
     fn test_to_camel_case() {
-        assert_eq!(to_camel_case(&["user", "name"]), "userName");
-        assert_eq!(to_camel_case(&["get", "user", "by", "id"]), "getUserById");
+        let words = vec!["user".to_string(), "name".to_string()];
+        assert_eq!(to_camel_case(&words), "userName");
+        let words = vec!["get".to_string(), "user".to_string(), "by".to_string(), "id".to_string()];
+        assert_eq!(to_camel_case(&words), "getUserById");
         assert_eq!(to_camel_case(&[]), "");
     }
 
     #[test]
     fn test_to_pascal_case() {
-        assert_eq!(to_pascal_case(&["user", "name"]), "UserName");
-        assert_eq!(to_pascal_case(&["get", "user", "by", "id"]), "GetUserById");
+        let words = vec!["user".to_string(), "name".to_string()];
+        assert_eq!(to_pascal_case(&words), "UserName");
+        let words = vec!["get".to_string(), "user".to_string(), "by".to_string(), "id".to_string()];
+        assert_eq!(to_pascal_case(&words), "GetUserById");
     }
 
     #[test]
     fn test_to_kebab_case() {
-        assert_eq!(to_kebab_case(&["user", "name"]), "user-name");
-        assert_eq!(to_kebab_case(&["get", "user", "by", "id"]), "get-user-by-id");
+        let words = vec!["user".to_string(), "name".to_string()];
+        assert_eq!(to_kebab_case(&words), "user-name");
+        let words = vec!["get".to_string(), "user".to_string(), "by".to_string(), "id".to_string()];
+        assert_eq!(to_kebab_case(&words), "get-user-by-id");
     }
 
     #[test]
     fn test_to_screaming_snake_case() {
-        assert_eq!(to_screaming_snake_case(&["user", "name"]), "USER_NAME");
-        assert_eq!(to_screaming_snake_case(&["max", "buffer", "size"]), "MAX_BUFFER_SIZE");
+        let words = vec!["user".to_string(), "name".to_string()];
+        assert_eq!(to_screaming_snake_case(&words), "USER_NAME");
+        let words = vec!["max".to_string(), "buffer".to_string(), "size".to_string()];
+        assert_eq!(to_screaming_snake_case(&words), "MAX_BUFFER_SIZE");
     }
 
     // ===== Cache Tests =====

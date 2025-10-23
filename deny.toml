@@ -265,7 +265,7 @@ name = "mill-lang-rust"
 wrappers = ["cb-ast", "mill-handlers", "mill-services", "mill-plugin-system", "mill-plugin-bundle", "mill-server", "codebuddy", "mill-test-support", "e2e"]
 
 [[bans.deny]]
-name = "cb-lang-typescript"
+name = "mill-lang-typescript"
 wrappers = ["cb-ast", "mill-handlers", "mill-services", "mill-plugin-system", "mill-plugin-bundle", "mill-server", "codebuddy", "mill-test-support", "e2e"]
 
 [[bans.deny]]

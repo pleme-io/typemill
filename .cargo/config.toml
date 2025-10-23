@@ -112,8 +112,8 @@ check-core = "check --workspace --exclude integration-tests --exclude cb-bench"
 test-core = "nextest run --workspace --exclude integration-tests --exclude cb-bench"
 
 # Language plugins only
-check-lang = "check -p mill-lang-common -p cb-lang-rust -p cb-lang-typescript -p cb-lang-markdown"
-test-lang = "nextest run -p mill-lang-common -p cb-lang-rust -p cb-lang-typescript -p cb-lang-markdown"
+check-lang = "check -p mill-lang-common -p cb-lang-rust -p mill-lang-typescript -p cb-lang-markdown"
+test-lang = "nextest run -p mill-lang-common -p cb-lang-rust -p mill-lang-typescript -p cb-lang-markdown"
 
 # Navigation/analysis only (no refactoring handlers - 15-25% faster)
 check-handlers-nav = "check -p cb-handlers --no-default-features --features lang-rust,lang-typescript"

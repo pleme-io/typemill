@@ -167,7 +167,7 @@ NEW Structure (Oct 20) ✅:
 
 Language-Specific Logic Moved to Plugins (Phase 3):
       ┌────────────────────┐  ┌──────────────────┐
-      │ cb-lang-rust       │  │ cb-lang-typescript│
+      │ cb-lang-rust       │  │ mill-lang-typescript│
       │ • Consolidation    │  │ • Import support  │
       │ • Rust detector    │  │ • Path rewriting  │
       │ • Cargo helpers    │  │                   │
@@ -184,7 +184,7 @@ Foundation Layer (mill-foundation):
 
 Plugin Layer (6 active plugins):
   ├─ cb-lang-rust (620 lines: reference detector moved ✅)
-  ├─ cb-lang-typescript
+  ├─ mill-lang-typescript
   ├─ cb-lang-markdown (now active ✅)
   ├─ mill-lang-toml (now active ✅)
   ├─ cb-lang-yaml (now active ✅)

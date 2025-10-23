@@ -45,7 +45,7 @@ use mill_foundation::protocol::analysis_result::AnalysisResult;
 /// 5. Generate findings with Low severity (informational)
 ///
 /// # Plugin-First Approach
-/// - TypeScript/JavaScript: Uses cb_lang_typescript::parser::analyze_imports
+/// - TypeScript/JavaScript: Uses mill_lang_typescript::parser::analyze_imports
 /// - Rust: Uses mill_lang_rust::parser::parse_imports
 /// - Unsupported languages: Returns empty findings (no regex fallback)
 ///

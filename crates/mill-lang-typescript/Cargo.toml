@@ -1,5 +1,5 @@
 [package]
-name = "cb-lang-typescript"
+name = "mill-lang-typescript"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

@@ -123,7 +123,7 @@ mod tests {
     #[cfg(test)]
     extern crate mill_lang_toml;
     #[cfg(test)]
-    extern crate cb_lang_typescript;
+    extern crate mill_lang_typescript;
     #[cfg(test)]
     extern crate mill_lang_yaml;
 

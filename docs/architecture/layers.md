@@ -90,7 +90,7 @@ Layers are organized from foundational (bottom) to application (top). Each layer
 **Crates:**
 - `mill-lang-common` / `codebuddy-lang-common` (shared utilities)
 - `cb-lang-rust` / `codebuddy-lang-rust`
-- `cb-lang-typescript` / `codebuddy-lang-typescript`
+- `mill-lang-typescript` / `codebuddy-lang-typescript`
 - `cb-lang-markdown` / `codebuddy-lang-markdown`
 - `mill-lang-toml` / `codebuddy-lang-toml`
 - `cb-lang-yaml` / `codebuddy-lang-yaml`

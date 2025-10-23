@@ -51,7 +51,7 @@ The plugin uses a **dual-mode approach** for parsing:
 
 ### 1. AST Mode (Primary)
 
-Embeds `resources/ast_tool.js` and spawns it as a subprocess to leverage Node.js with Babel parser (`@babel/parser`) for accurate parsing of both TypeScript and JavaScript. Supports JSX/TSX through Babel plugins.
+Embeds `../mill-lang-typescript/resources/ast_tool.js` and spawns it as a subprocess to leverage Node.js with Babel parser (`@babel/parser`) for accurate parsing of both TypeScript and JavaScript. Supports JSX/TSX through Babel plugins.
 
 **Subprocess Communication:**
 ```
@@ -64,7 +64,7 @@ When Node.js is unavailable, falls back to regex-based parsing for basic import 
 
 **Fallback Detection:**
 - Checks for `node` in PATH
-- Validates `resources/ast_tool.js` existence
+- Validates `../mill-lang-typescript/resources/ast_tool.js` existence
 - Falls back gracefully on errors
 
 This ensures the plugin works in environments without Node.js installed, while providing full features when Node.js is available.
@@ -76,7 +76,7 @@ The plugin is automatically included when the `lang-typescript` feature is enabl
 ```toml
 [features]
 default = ["lang-typescript"]
-lang-typescript = ["dep:cb-lang-typescript"]
+lang-typescript = ["dep:mill-lang-typescript"]
 ```
 
 ## Usage
@@ -114,26 +114,26 @@ println!("Package: {}", manifest.name);
 
 ```bash
 # Run all tests
-cargo test -p cb-lang-typescript
+cargo test -p mill-lang-typescript
 
 # Run with output
-cargo test -p cb-lang-typescript -- --nocapture
+cargo test -p mill-lang-typescript -- --nocapture
 
 # Test with real TypeScript project
 cd /path/to/typescript/project
-cargo test -p cb-lang-typescript test_typescript_integration -- --nocapture
+cargo test -p mill-lang-typescript test_typescript_integration -- --nocapture
 ```
 
 ## Implementation Details
 
-### Parser Module (`src/parser.rs`)
+### Parser Module (`../mill-lang-typescript/src/parser.rs`)
 
 - `extract_symbols()` - Extract functions, classes, interfaces, types, enums
 - `analyze_imports()` - Parse all import styles (ES6, CommonJS, dynamic)
 - `parse_with_subprocess()` - Spawn Node.js subprocess for AST parsing
 - `parse_with_regex()` - Fallback regex-based import extraction
 
-### Manifest Module (`src/manifest.rs`)
+### Manifest Module (`../mill-lang-typescript/src/manifest.rs`)
 
 - `load_package_json()` - Parse package.json into ManifestData
 - `generate_manifest()` - Create package.json for new packages

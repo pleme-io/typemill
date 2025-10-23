@@ -205,7 +205,7 @@ The automated sed replacements added new entries without checking for existing o
 
 **Files Affected**: 11 Cargo.toml files
 - mill-lsp, mill-services, cb-handlers, cb-client
-- cb-lang-typescript, cb-lang-rust, cb-test-support
+- mill-lang-typescript, cb-lang-rust, cb-test-support
 - mill-transport, mill-server, tests/e2e, apps/codebuddy
 
 **Manual Fix Required**:

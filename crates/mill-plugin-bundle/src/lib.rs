@@ -21,7 +21,7 @@ use mill_lang_rust::RustPlugin;
 #[cfg(feature = "lang-toml")]
 use mill_lang_toml::TomlLanguagePlugin;
 #[cfg(feature = "lang-typescript")]
-use cb_lang_typescript::TypeScriptPlugin;
+use mill_lang_typescript::TypeScriptPlugin;
 #[cfg(feature = "lang-yaml")]
 use mill_lang_yaml::YamlLanguagePlugin;
 
@@ -100,7 +100,7 @@ mod tests {
     #[cfg(all(test, feature = "lang-toml"))]
     extern crate mill_lang_toml;
     #[cfg(all(test, feature = "lang-typescript"))]
-    extern crate cb_lang_typescript;
+    extern crate mill_lang_typescript;
     #[cfg(all(test, feature = "lang-yaml"))]
     extern crate mill_lang_yaml;
 
