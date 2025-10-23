@@ -18,11 +18,11 @@ codebuddy tool workspace.find_replace '{
   "pattern": "\"dry_run\"",
   "replacement": "\"dryRun\"",
   "options": {
-    "whole_word": false,
+    "wholeWord": false,
     "scope": {
-      "include_patterns": ["tests/**/*.rs"]
+      "includePatterns": ["tests/**/*.rs"]
     },
-    "dry_run": true
+    "dryRun": true
   }
 }'
 
@@ -31,8 +31,8 @@ codebuddy tool workspace.find_replace '{
   "pattern": "\"whole_word\"",
   "replacement": "\"wholeWord\"",
   "options": {
-    "scope": {"include_patterns": ["tests/**/*.rs"]},
-    "dry_run": true
+    "scope": {"includePatterns": ["tests/**/*.rs"]},
+    "dryRun": true
   }
 }'
 
@@ -62,7 +62,7 @@ Same find/replace commands as Phase 1, but with scope:
 ```json
 {
   "scope": {
-    "include_patterns": ["**/*.md"]
+    "includePatterns": ["**/*.md"]
   }
 }
 ```
@@ -88,9 +88,9 @@ codebuddy tool workspace.find_replace '{
   "options": {
     "pattern_type": "regex",
     "scope": {
-      "include_patterns": ["crates/mill-handlers/src/handlers/**/*.rs"]
+      "includePatterns": ["crates/mill-handlers/src/handlers/**/*.rs"]
     },
-    "dry_run": true
+    "dryRun": true
   }
 }'
 ```
@@ -155,7 +155,7 @@ cargo nextest run --workspace --all-features --status-level skip
 cargo nextest run --workspace --features lsp-tests
 
 # Manual smoke test
-codebuddy tool rename.plan '{"target": {"kind": "file", "path": "test.rs"}, "new_name": "test2.rs", "options": {"dryRun": true}}'
+codebuddy tool rename.plan '{"target": {"kind": "file", "path": "test.rs"}, "newName": "test2.rs", "options": {"dryRun": true}}'
 ```
 
 ---
@@ -195,14 +195,14 @@ git checkout HEAD -- .
 1. **Regex annotations** - Could add duplicates or break formatting
    - **Mitigation:** Always use `dry_run: true` first, review diff
 
-2. **Field name collisions** - Might convert unrelated "dry_run" strings
+2. **Field name collisions** - Might convert unrelated "dryRun" strings
    - **Mitigation:** Use `whole_word: true` and scope filtering
 
 3. **Breaking API contracts** - External consumers might expect snake_case
    - **Mitigation:** Confirmed zero external users
 
 ### Safety Checklist:
-- ✅ Always run with `"dry_run": true` first
+- ✅ Always run with `"dryRun": true` first
 - ✅ Review full diff before applying
 - ✅ Compile check after each phase
 - ✅ Run tests after each phase

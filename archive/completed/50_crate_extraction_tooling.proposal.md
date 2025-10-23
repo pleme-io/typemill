@@ -28,7 +28,7 @@ Add 3 new public MCP tools + 1 enhancement to existing tool for complete crate e
   "crate_type": "lib",                       // Optional: "lib" (default) or "bin"
   "options": {
     "dryRun": true,                         // Optional: preview mode
-    "add_to_workspace": true,                // Optional: auto-register (default: true)
+    "addToWorkspace": true,                // Optional: auto-register (default: true)
     "template": "minimal"                    // Optional: "minimal" (default) or "full"
   }
 }
@@ -145,7 +145,7 @@ Add 3 new public MCP tools + 1 enhancement to existing tool for complete crate e
     "kind": "file",
     "path": "../../../../crates/mill-foundation/src/core/src/auth.rs"
   },
-  "new_name": "../../crates/mill-auth/src/lib.rs",
+  "newName": "../../crates/mill-auth/src/lib.rs",
   "options": {
     "split": true,                           // NEW: Extract module into new crate
     "analyze_dependencies": true             // NEW: Include dependency analysis in plan
@@ -270,7 +270,7 @@ Add 3 new public MCP tools + 1 enhancement to existing tool for complete crate e
       "kind": "file",
       "path": "../../../../crates/mill-foundation/src/core/src/auth.rs"
     },
-    "new_name": "../../crates/mill-auth/src/lib.rs",
+    "newName": "../../crates/mill-auth/src/lib.rs",
     "options": { "split": true }
   }
 }

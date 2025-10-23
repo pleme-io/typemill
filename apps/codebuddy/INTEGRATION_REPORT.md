@@ -111,7 +111,7 @@ fn parse_rename_flags(flags: HashMap<String, String>) -> Result<Value, FlagParse
 
     let result = json!({
         "target": target_json,
-        "new_name": new_name,
+        "newName": new_name,
     });
 
     Ok(result)

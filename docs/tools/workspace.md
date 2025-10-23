@@ -58,11 +58,11 @@ Object with creation details:
   "params": {
     "name": "workspace.create_package",
     "arguments": {
-      "package_path": "/workspace/crates/my-util",
+      "packagePath": "/workspace/crates/my-util",
       "package_type": "library",
       "options": {
-        "dry_run": false,
-        "add_to_workspace": true,
+        "dryRun": false,
+        "addToWorkspace": true,
         "template": "minimal"
       }
     }
@@ -82,7 +82,7 @@ Object with creation details:
       "version": "0.1.0",
       "manifest_path": "/workspace/crates/my-util/Cargo.toml"
     },
-    "dry_run": false
+    "dryRun": false
   }
 }
 ```
@@ -95,10 +95,10 @@ Object with creation details:
   "params": {
     "name": "workspace.create_package",
     "arguments": {
-      "package_path": "/workspace/crates/my-cli",
+      "packagePath": "/workspace/crates/my-cli",
       "package_type": "binary",
       "options": {
-        "add_to_workspace": true,
+        "addToWorkspace": true,
         "template": "minimal"
       }
     }
@@ -116,7 +116,7 @@ Object with creation details:
   "params": {
     "name": "workspace.create_package",
     "arguments": {
-      "package_path": "/workspace/crates/full-lib",
+      "packagePath": "/workspace/crates/full-lib",
       "package_type": "library",
       "options": {
         "template": "full"
@@ -181,7 +181,7 @@ Object with extraction results:
       "target_manifest": "/workspace/crates/new-crate/Cargo.toml",
       "dependencies": ["tokio", "serde"],
       "options": {
-        "dry_run": false,
+        "dryRun": false,
         "preserve_versions": true,
         "preserve_features": true,
         "section": "dependencies"
@@ -207,7 +207,7 @@ Object with extraction results:
       }
     ],
     "target_manifest_updated": true,
-    "dry_run": false,
+    "dryRun": false,
     "warnings": []
   }
 }
@@ -271,7 +271,7 @@ Object with extraction results:
       "target_manifest": "/workspace/target/Cargo.toml",
       "dependencies": ["anyhow"],
       "options": {
-        "dry_run": true
+        "dryRun": true
       }
     }
   }
@@ -331,7 +331,7 @@ Object with update results:
       "action": "add",
       "members": ["crates/new-crate1", "crates/new-crate2"],
       "options": {
-        "dry_run": false,
+        "dryRun": false,
         "create_if_missing": false
       }
     }
@@ -350,7 +350,7 @@ Object with update results:
     ],
     "changes_made": 2,
     "workspace_updated": true,
-    "dry_run": false
+    "dryRun": false
   }
 }
 ```
@@ -367,7 +367,7 @@ Object with update results:
       "action": "remove",
       "members": ["crates/deprecated"],
       "options": {
-        "dry_run": false
+        "dryRun": false
       }
     }
   }
@@ -381,7 +381,7 @@ Object with update results:
     "members_after": ["crates/foo", "crates/bar"],
     "changes_made": 1,
     "workspace_updated": true,
-    "dry_run": false
+    "dryRun": false
   }
 }
 ```
@@ -408,7 +408,7 @@ Object with update results:
     "members_after": ["crates/a", "crates/b", "crates/c"],
     "changes_made": 0,
     "workspace_updated": false,
-    "dry_run": false
+    "dryRun": false
   }
 }
 ```
@@ -447,7 +447,7 @@ Object with update results:
       "action": "add",
       "members": ["crates/preview"],
       "options": {
-        "dry_run": true
+        "dryRun": true
       }
     }
   }
@@ -458,7 +458,7 @@ Object with update results:
   "result": {
     "changes_made": 1,
     "workspace_updated": false,
-    "dry_run": true
+    "dryRun": true
   }
 }
 ```
@@ -562,7 +562,7 @@ When `dry_run: false`, returns ApplyResult:
       "pattern": "user",
       "replacement": "account",
       "mode": "literal",
-      "whole_word": true
+      "wholeWord": true
     }
   }
 }
@@ -601,7 +601,7 @@ When `dry_run: false`, returns ApplyResult:
       "pattern": "user_name",
       "replacement": "account_id",
       "mode": "literal",
-      "preserve_case": true
+      "preserveCase": true
     }
   }
 }
@@ -624,8 +624,8 @@ When `dry_run: false`, returns ApplyResult:
       "pattern": "old_function",
       "replacement": "new_function",
       "scope": {
-        "include_patterns": ["**/*.rs"],
-        "exclude_patterns": ["**/target/**", "**/tests/**"]
+        "includePatterns": ["**/*.rs"],
+        "excludePatterns": ["**/target/**", "**/tests/**"]
       }
     }
   }
@@ -662,7 +662,7 @@ When `dry_run: false`, returns ApplyResult:
     "arguments": {
       "pattern": "old_config_path",
       "replacement": "new_config_path",
-      "dry_run": false
+      "dryRun": false
     }
   }
 }
@@ -731,10 +731,10 @@ codebuddy tool analyze.module_dependencies '{
 
 # 2. Create new package
 codebuddy tool workspace.create_package '{
-  "package_path": "crates/cb-analysis",
+  "packagePath": "crates/cb-analysis",
   "package_type": "library",
   "options": {
-    "add_to_workspace": true,
+    "addToWorkspace": true,
     "template": "minimal"
   }
 }'
@@ -756,7 +756,7 @@ codebuddy tool rename.plan '{
     "kind": "directory",
     "path": "crates/big-crate/src/analysis"
   },
-  "new_name": "crates/cb-analysis/src"
+  "newName": "crates/cb-analysis/src"
 }'
 
 # 5. Apply the move
@@ -772,7 +772,7 @@ Create a new package and set up dependencies in one workflow:
 ```bash
 # 1. Create package
 codebuddy tool workspace.create_package '{
-  "package_path": "crates/new-service",
+  "packagePath": "crates/new-service",
   "package_type": "binary"
 }'
 
@@ -820,7 +820,7 @@ codebuddy tool workspace.extract_dependencies '{
   "target_manifest": "crates/target/Cargo.toml",
   "dependencies": ["dep1", "dep2", "dep3"],
   "options": {
-    "dry_run": true
+    "dryRun": true
   }
 }'
 
@@ -832,7 +832,7 @@ codebuddy tool workspace.extract_dependencies '{
   "target_manifest": "crates/target/Cargo.toml",
   "dependencies": ["dep1", "dep2", "dep3"],
   "options": {
-    "dry_run": false
+    "dryRun": false
   }
 }'
 ```
@@ -848,7 +848,7 @@ codebuddy tool workspace.find_replace '{
   "replacement": "TYPEMILL_$1",
   "mode": "regex",
   "scope": {
-    "include_patterns": ["**/*.rs", "**/*.toml", "**/*.md"]
+    "includePatterns": ["**/*.rs", "**/*.toml", "**/*.md"]
   }
 }'
 
@@ -860,15 +860,15 @@ codebuddy tool workspace.find_replace '{
   "replacement": "TYPEMILL_$1",
   "mode": "regex",
   "scope": {
-    "include_patterns": ["**/*.rs", "**/*.toml", "**/*.md"]
+    "includePatterns": ["**/*.rs", "**/*.toml", "**/*.md"]
   },
-  "dry_run": false
+  "dryRun": false
 }'
 
 # Alternative: Use workspace.apply_edit with the plan from step 1
 codebuddy tool workspace.apply_edit '{
   "plan": "<plan from step 1>",
-  "options": {"dry_run": false}
+  "options": {"dryRun": false}
 }'
 ```
 
@@ -892,7 +892,7 @@ Workspace tools integrate with `rename.plan` for crate consolidation:
 # See CLAUDE.md "Rust Crate Consolidation" section
 codebuddy tool rename.plan '{
   "target": {"kind": "directory", "path": "crates/source-crate"},
-  "new_name": "crates/target-crate/src/module",
+  "newName": "crates/target-crate/src/module",
   "options": {"consolidate": true}
 }'
 

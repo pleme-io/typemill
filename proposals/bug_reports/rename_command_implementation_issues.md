@@ -74,7 +74,7 @@ impl QuickRenameHandler {
 
 **New usage:**
 ```bash
-./target/debug/codebuddy tool rename '{"target": {"kind": "directory", "path": "crates/cb-core"}, "new_name": "crates/codebuddy-core"}'
+./target/debug/codebuddy tool rename '{"target": {"kind": "directory", "path": "crates/cb-core"}, "newName": "crates/codebuddy-core"}'
 ```
 
 ### Recommendation

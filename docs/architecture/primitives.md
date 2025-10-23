@@ -409,7 +409,7 @@ PLAN=$(codebuddy tool rename.plan '{
     "path": "src/app.ts",
     "selector": { "position": { "line": 15, "character": 8 } }
   },
-  "new_name": "newUser"
+  "newName": "newUser"
 }')
 
 # Step 2: Inspect plan (optional)

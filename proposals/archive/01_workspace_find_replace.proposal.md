@@ -33,12 +33,12 @@ Implement `workspace.find_replace` as a public MCP tool with:
     "pattern": "CODEBUDDY_([A-Z_]+)",
     "replacement": "TYPEMILL_$1",
     "mode": "literal|regex",
-    "preserve_case": false,
+    "preserveCase": false,
     "scope": {
-      "include_patterns": ["**/*.rs", "**/*.toml", "**/*.md"],
-      "exclude_patterns": ["**/target/**"]
+      "includePatterns": ["**/*.rs", "**/*.toml", "**/*.md"],
+      "excludePatterns": ["**/target/**"]
     },
-    "dry_run": true
+    "dryRun": true
   }
 }
 ```

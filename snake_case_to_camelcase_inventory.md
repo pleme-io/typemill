@@ -1128,8 +1128,8 @@ git checkout -b camelcase-phase-2-workspace
 # etc.
 
 # Use sed for bulk test file updates
-find tests/e2e/src -name "*.rs" -exec sed -i 's/"dry_run":/"dryRun":/g' {} \;
-find tests/e2e/src -name "*.rs" -exec sed -i 's/"new_name":/"newName":/g' {} \;
+find tests/e2e/src -name "*.rs" -exec sed -i 's/"dryRun":/"dryRun":/g' {} \;
+find tests/e2e/src -name "*.rs" -exec sed -i 's/"newName":/"newName":/g' {} \;
 # etc.
 ```
 
@@ -1176,8 +1176,8 @@ find crates/mill-handlers/src/handlers -name "*.rs" -exec sed -i \
 
 # Convert all test JSON fields
 declare -A fields=(
-  ["dry_run"]="dryRun"
-  ["new_name"]="newName"
+  ["dryRun"]="dryRun"
+  ["newName"]="newName"
   ["validate_checksums"]="validateChecksums"
   ["file_path"]="filePath"
   # ... all 82 fields
@@ -1338,9 +1338,9 @@ All JSON field names now use camelCase instead of snake_case:
 // OLD (v1.0)
 {
   "target": {"kind": "file", "path": "src/main.rs"},
-  "new_name": "src/app.rs",
+  "newName": "src/app.rs",
   "options": {
-    "dry_run": false,
+    "dryRun": false,
     "update_imports": true,
     "validate_scope": true
   }

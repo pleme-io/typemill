@@ -480,14 +480,14 @@ codebuddy get_diagnostics --scope workspace
 ```bash
 codebuddy rename.plan '{
   "targets": [
-    {"kind": "directory", "path": "../crates/mill-lang-rust", "new_name": "crates/mill-lang-rust"},
-    {"kind": "directory", "path": "../crates/mill-lang-typescript", "new_name": "crates/mill-lang-typescript"},
-    {"kind": "directory", "path": "../crates/mill-lang-yaml", "new_name": "crates/mill-lang-yaml"},
-    {"kind": "directory", "path": "../analysis/mill-analysis-common", "new_name": "analysis/mill-analysis-common"},
-    {"kind": "directory", "path": "../analysis/mill-analysis-dead-code", "new_name": "analysis/mill-analysis-dead-code"},
-    {"kind": "directory", "path": "../analysis/mill-analysis-deep-dead-code", "new_name": "analysis/mill-analysis-deep-dead-code"},
-    {"kind": "directory", "path": "../analysis/mill-analysis-graph", "new_name": "analysis/mill-analysis-graph"},
-    {"kind": "directory", "path": "../analysis/mill-analysis-circular-deps", "new_name": "analysis/mill-analysis-circular-deps"}
+    {"kind": "directory", "path": "../crates/mill-lang-rust", "newName": "crates/mill-lang-rust"},
+    {"kind": "directory", "path": "../crates/mill-lang-typescript", "newName": "crates/mill-lang-typescript"},
+    {"kind": "directory", "path": "../crates/mill-lang-yaml", "newName": "crates/mill-lang-yaml"},
+    {"kind": "directory", "path": "../analysis/mill-analysis-common", "newName": "analysis/mill-analysis-common"},
+    {"kind": "directory", "path": "../analysis/mill-analysis-dead-code", "newName": "analysis/mill-analysis-dead-code"},
+    {"kind": "directory", "path": "../analysis/mill-analysis-deep-dead-code", "newName": "analysis/mill-analysis-deep-dead-code"},
+    {"kind": "directory", "path": "../analysis/mill-analysis-graph", "newName": "analysis/mill-analysis-graph"},
+    {"kind": "directory", "path": "../analysis/mill-analysis-circular-deps", "newName": "analysis/mill-analysis-circular-deps"}
   ],
   "options": {"scope": "all"}
 }'

@@ -47,7 +47,7 @@ codebuddy tool workspace.find_replace '{
 codebuddy tool workspace.find_replace '{
   "pattern": "username",
   "replacement": "user_id",
-  "dry_run": false
+  "dryRun": false
 }'
 ```
 
@@ -75,7 +75,7 @@ Avoid partial matches by using whole word mode:
 codebuddy tool workspace.find_replace '{
   "pattern": "user",
   "replacement": "account",
-  "whole_word": true
+  "wholeWord": true
 }'
 ```
 
@@ -101,7 +101,7 @@ Automatically preserve case styles across different naming conventions:
 codebuddy tool workspace.find_replace '{
   "pattern": "user_name",
   "replacement": "account_id",
-  "preserve_case": true
+  "preserveCase": true
 }'
 ```
 
@@ -149,7 +149,7 @@ codebuddy tool workspace.find_replace '{
   "replacement": "TYPEMILL_$1",
   "mode": "regex",
   "scope": {
-    "include_patterns": ["**/*.rs", "**/*.toml", "**/*.md", "**/*.sh"]
+    "includePatterns": ["**/*.rs", "**/*.toml", "**/*.md", "**/*.sh"]
   }
 }'
 ```
@@ -204,7 +204,7 @@ codebuddy tool workspace.find_replace '{
   "replacement": "${function}_from_${module}()",
   "mode": "regex",
   "scope": {
-    "include_patterns": ["**/*.rs"]
+    "includePatterns": ["**/*.rs"]
   }
 }'
 ```
@@ -233,7 +233,7 @@ codebuddy tool workspace.find_replace '{
   "replacement": "version = \"0.2.$1\"",
   "mode": "regex",
   "scope": {
-    "include_patterns": ["**/Cargo.toml"]
+    "includePatterns": ["**/Cargo.toml"]
   }
 }'
 ```
@@ -271,8 +271,8 @@ codebuddy tool workspace.find_replace '{
   "pattern": "OldType",
   "replacement": "NewType",
   "scope": {
-    "include_patterns": ["**/*.rs"],
-    "exclude_patterns": ["**/target/**", "**/examples/**"]
+    "includePatterns": ["**/*.rs"],
+    "excludePatterns": ["**/target/**", "**/examples/**"]
   }
 }'
 ```
@@ -286,7 +286,7 @@ codebuddy tool workspace.find_replace '{
   "pattern": "codebuddy",
   "replacement": "typemill",
   "scope": {
-    "include_patterns": ["**/*.md", "**/README*"]
+    "includePatterns": ["**/*.md", "**/README*"]
   }
 }'
 ```
@@ -334,7 +334,7 @@ codebuddy tool workspace.find_replace '{
   "pattern": "old_setting",
   "replacement": "new_setting",
   "scope": {
-    "include_patterns": ["**/*.toml", "**/*.yaml", "**/*.yml"]
+    "includePatterns": ["**/*.toml", "**/*.yaml", "**/*.yml"]
   }
 }'
 ```
@@ -352,9 +352,9 @@ Complete project rename from "codebuddy" to "typemill":
 codebuddy tool workspace.find_replace '{
   "pattern": "codebuddy",
   "replacement": "typemill",
-  "preserve_case": true,
+  "preserveCase": true,
   "scope": {
-    "include_patterns": ["**/*.rs", "**/*.toml", "**/*.md", "**/*.json"]
+    "includePatterns": ["**/*.rs", "**/*.toml", "**/*.md", "**/*.json"]
   }
 }'
 
@@ -364,11 +364,11 @@ codebuddy tool workspace.find_replace '{
 codebuddy tool workspace.find_replace '{
   "pattern": "codebuddy",
   "replacement": "typemill",
-  "preserve_case": true,
+  "preserveCase": true,
   "scope": {
-    "include_patterns": ["**/*.rs", "**/*.toml", "**/*.md", "**/*.json"]
+    "includePatterns": ["**/*.rs", "**/*.toml", "**/*.md", "**/*.json"]
   },
-  "dry_run": false
+  "dryRun": false
 }'
 ```
 
@@ -388,7 +388,7 @@ codebuddy tool workspace.find_replace '{
   "replacement": "/api/v2/$1",
   "mode": "regex",
   "scope": {
-    "include_patterns": ["**/*.rs", "**/*.ts", "**/*.md"]
+    "includePatterns": ["**/*.rs", "**/*.ts", "**/*.md"]
   }
 }'
 ```
@@ -414,7 +414,7 @@ codebuddy tool workspace.find_replace '{
   "pattern": "use old_crate::",
   "replacement": "use new_crate::",
   "scope": {
-    "include_patterns": ["**/*.rs"]
+    "includePatterns": ["**/*.rs"]
   }
 }'
 ```
@@ -443,8 +443,8 @@ codebuddy tool workspace.find_replace '{
   "replacement": "AppError",
   "mode": "regex",
   "scope": {
-    "include_patterns": ["**/*.rs"],
-    "exclude_patterns": ["**/tests/**"]
+    "includePatterns": ["**/*.rs"],
+    "excludePatterns": ["**/tests/**"]
   }
 }'
 ```
@@ -476,22 +476,22 @@ For complex refactorings, perform staged replacements:
 codebuddy tool workspace.find_replace '{
   "pattern": "OldServiceImpl",
   "replacement": "NewServiceImpl",
-  "dry_run": false
+  "dryRun": false
 }'
 
 # Stage 2: Update trait references
 codebuddy tool workspace.find_replace '{
   "pattern": "OldService",
   "replacement": "NewService",
-  "whole_word": true,
-  "dry_run": false
+  "wholeWord": true,
+  "dryRun": false
 }'
 
 # Stage 3: Update module paths
 codebuddy tool workspace.find_replace '{
   "pattern": "use services::old_service",
   "replacement": "use services::new_service",
-  "dry_run": false
+  "dryRun": false
 }'
 ```
 
@@ -506,7 +506,7 @@ codebuddy tool workspace.find_replace '{
   "replacement": "(settings: ",
   "mode": "regex",
   "scope": {
-    "include_patterns": ["**/*.rs"]
+    "includePatterns": ["**/*.rs"]
   }
 }'
 ```
@@ -537,7 +537,7 @@ codebuddy tool workspace.find_replace '{
   "replacement": "fn $1(&self) -> Result<$2>",
   "mode": "regex",
   "scope": {
-    "include_patterns": ["src/**/*.rs"]
+    "includePatterns": ["src/**/*.rs"]
   }
 }'
 ```
@@ -573,9 +573,9 @@ codebuddy tool workspace.find_replace '{
 # Use:
 codebuddy tool workspace.find_replace '{
   "pattern": "data",
-  "whole_word": true,
+  "wholeWord": true,
   "scope": {
-    "include_patterns": ["src/models/**/*.rs"]
+    "includePatterns": ["src/models/**/*.rs"]
   }
 }'
 ```
@@ -609,7 +609,7 @@ codebuddy tool workspace.find_replace '{
   "pattern": "user.*",
   "replacement": "account",
   "mode": "regex",
-  "preserve_case": true
+  "preserveCase": true
 }'
 
 # Will preserve case:
@@ -617,7 +617,7 @@ codebuddy tool workspace.find_replace '{
   "pattern": "user_name",
   "replacement": "account_id",
   "mode": "literal",
-  "preserve_case": true
+  "preserveCase": true
 }'
 ```
 
@@ -653,7 +653,7 @@ codebuddy tool workspace.find_replace '{
   "pattern": "something",
   "replacement": "other",
   "scope": {
-    "exclude_patterns": [
+    "excludePatterns": [
       "**/target/**",
       "**/node_modules/**",
       "**/.git/**",
@@ -686,7 +686,7 @@ codebuddy tool workspace.find_replace '{
 codebuddy tool workspace.find_replace '{
   "pattern": "old_name",
   "scope": {
-    "include_patterns": ["crates/my-crate/**/*.rs"]
+    "includePatterns": ["crates/my-crate/**/*.rs"]
   }
 }'
 ```

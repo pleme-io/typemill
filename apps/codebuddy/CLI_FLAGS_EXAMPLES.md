@@ -131,7 +131,7 @@ codebuddy tool rename.plan '{
     "kind": "directory",
     "path": "../../crates/mill-client"
   },
-  "new_name": "crates/cb-core/src/client"
+  "newName": "crates/cb-core/src/client"
 }'
 ```
 

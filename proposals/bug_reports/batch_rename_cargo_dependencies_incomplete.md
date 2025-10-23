@@ -26,12 +26,12 @@ The batch rename tool (`rename` with `targets` array) successfully renames direc
        {
          "kind": "directory",
          "path": "../../crates/mill-lang-rust",
-         "new_name": "crates/mill-lang-rust"
+         "newName": "crates/mill-lang-rust"
        },
        {
          "kind": "directory",
          "path": "../../crates/mill-lang-typescript",
-         "new_name": "crates/mill-lang-typescript"
+         "newName": "crates/mill-lang-typescript"
        }
      ],
      "options": {
@@ -186,7 +186,7 @@ The rename tool appears to use **different update strategies** for different fil
 ## Comparison: Single vs Batch Rename
 
 **Same issue occurs in both modes:**
-- Single rename: `codebuddy tool rename '{"target": {...}, "new_name": "..."}'`
+- Single rename: `codebuddy tool rename '{"target": {...}, "newName": "..."}'`
 - Batch rename: `codebuddy tool rename '{"targets": [...]}'`
 
 This is **not** a batch-specific bug, but a general Cargo.toml update coverage issue.

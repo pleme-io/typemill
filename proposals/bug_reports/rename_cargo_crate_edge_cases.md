@@ -37,7 +37,7 @@ some-feature = ["foo/feature-x"]
 ```bash
 codebuddy tool rename '{
   "target": {"kind": "directory", "path": "crates/foo"},
-  "new_name": "crates/baz",
+  "newName": "crates/baz",
   "options": {"scope": "custom", "custom_scope": {"update_all": true}}
 }'
 ```
@@ -70,7 +70,7 @@ name = "mylib"
 ```bash
 codebuddy tool rename '{
   "target": {"kind": "directory", "path": "crates/mylib"},
-  "new_name": "crates/yourlib"
+  "newName": "crates/yourlib"
 }'
 ```
 

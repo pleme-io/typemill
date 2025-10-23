@@ -409,7 +409,7 @@ Allow users to exclude specific modules from consolidation:
 ```json
 {
   "target": {"kind": "directory", "path": "crates/codebuddy-core"},
-  "new_name": "../../crates/mill-foundation/src/core",
+  "newName": "../../crates/mill-foundation/src/core",
   "options": {
     "consolidate": true,
     "exclude_modules": ["language.rs", "logging.rs"]

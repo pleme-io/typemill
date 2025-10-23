@@ -25,7 +25,7 @@ codebuddy tool rename_directory '{
   "old_path": "crates/cb-types",
   "new_path": "crates/codebuddy-core/src/types",
   "consolidate": true,
-  "dry_run": true
+  "dryRun": true
 }'
 ```
 
@@ -138,7 +138,7 @@ codebuddy tool rename '{
     "kind": "directory",
     "path": "crates/cb-types"
   },
-  "new_name": "crates/codebuddy-core/src/types",
+  "newName": "crates/codebuddy-core/src/types",
   "options": {
     "consolidate": true
   }
@@ -172,7 +172,7 @@ fn is_consolidation_move(old_path: &Path, new_path: &Path) -> bool {
 # Auto-detects consolidation (no flag needed):
 codebuddy tool rename '{
   "target": {"kind": "directory", "path": "crates/cb-types"},
-  "new_name": "crates/codebuddy-core/src/types"
+  "newName": "crates/codebuddy-core/src/types"
 }'
 ```
 
@@ -244,7 +244,7 @@ codebuddy tool consolidate.plan '{
    ```bash
    # These are equivalent:
    codebuddy tool consolidate '{"source": "...", "target": "..."}'
-   codebuddy tool rename '{"target": {"kind": "directory", "path": "..."}, "new_name": "...", "options": {"consolidate": true}}'
+   codebuddy tool rename '{"target": {"kind": "directory", "path": "..."}, "newName": "...", "options": {"consolidate": true}}'
    ```
 
 ### Implementation Steps
@@ -294,7 +294,7 @@ codebuddy tool rename_directory '{
   "old_path": "crates/cb-types",
   "new_path": "crates/codebuddy-core/src/types",
   "consolidate": true,
-  "dry_run": true
+  "dryRun": true
 }'
 ```
 
@@ -304,14 +304,14 @@ codebuddy tool rename_directory '{
 # Option A: Explicit flag
 codebuddy tool rename '{
   "target": {"kind": "directory", "path": "crates/cb-types"},
-  "new_name": "crates/codebuddy-core/src/types",
+  "newName": "crates/codebuddy-core/src/types",
   "options": {"consolidate": true}
 }'
 
 # Option B: Auto-detect (implicit)
 codebuddy tool rename '{
   "target": {"kind": "directory", "path": "crates/cb-types"},
-  "new_name": "crates/codebuddy-core/src/types"
+  "newName": "crates/codebuddy-core/src/types"
 }'
 # Auto-detects: "Oh, you're moving a crate into another crate's src/, I'll consolidate!"
 
@@ -352,7 +352,7 @@ fn test_consolidate_via_rename() {
         name: "rename".into(),
         arguments: json!({
             "target": {"kind": "directory", "path": "crates/source"},
-            "new_name": "crates/target/src/module",
+            "newName": "crates/target/src/module",
             "options": {"consolidate": true}
         })
     }).await?;

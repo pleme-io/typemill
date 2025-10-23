@@ -188,7 +188,7 @@ pub async fn execute_consolidation_post_processing(&self, metadata: &Consolidati
    ```json
    {
      "target": {"kind": "directory", "path": "crates/source-crate"},
-     "new_name": "crates/target-crate/src/source",
+     "newName": "crates/target-crate/src/source",
      "options": {"consolidate": true}
    }
    ```

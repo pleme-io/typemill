@@ -378,7 +378,7 @@ Additional codes must be documented before release.
 {
   "plan": { ... },
   "options": {
-    "dry_run": false,
+    "dryRun": false,
     "validate_checksums": true,
     "validate_plan_type": true,
     "force": false,

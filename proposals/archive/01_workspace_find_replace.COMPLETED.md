@@ -98,14 +98,14 @@ This optimization benefits ALL test suites using TestClient.
     "name": "workspace.find_replace",
     "arguments": {
       "pattern": "old_name",
-      "replacement": "new_name",
+      "replacement": "newName",
       "mode": "literal",
-      "preserve_case": true,
+      "preserveCase": true,
       "scope": {
-        "include_patterns": ["**/*.rs"],
-        "exclude_patterns": ["**/target/**"]
+        "includePatterns": ["**/*.rs"],
+        "excludePatterns": ["**/target/**"]
       },
-      "dry_run": false
+      "dryRun": false
     }
   }
 }

@@ -44,7 +44,7 @@ All refactoring operations follow a safe two-step pattern:
     "file_path": "src/api.ts",
     "line": 10,
     "character": 5,
-    "new_name": "getData"
+    "newName": "getData"
   }
 }
 
@@ -60,7 +60,7 @@ All refactoring operations follow a safe two-step pattern:
   "name": "workspace.apply_edit",
   "arguments": {
     "edit_id": "550e8400-e29b-41d4-a716-446655440000",
-    "options": { "dry_run": false }
+    "options": { "dryRun": false }
   }
 }
 ```

@@ -84,7 +84,7 @@ Found files for extension, extension: "markdown", files_found: 0
 ```bash
 ./target/debug/codebuddy tool rename.plan '{
   "target": {"kind": "directory", "path": "../../crates/mill-test-support"},
-  "new_name": "crates/mill-test-support"
+  "newName": "crates/mill-test-support"
 }'
 ```
 
@@ -253,7 +253,7 @@ After fix, the following should work:
    ```bash
    ./target/debug/codebuddy tool rename.plan '{
      "target": {"kind": "directory", "path": "../../crates/mill-test-support"},
-     "new_name": "crates/mill-test-support"
+     "newName": "crates/mill-test-support"
    }'
    # Should show 29 files (currently shows 22)
    ```

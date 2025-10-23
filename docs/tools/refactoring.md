@@ -86,7 +86,7 @@ A `RenamePlan` object containing:
         "kind": "file",
         "path": "/workspace/src/utils.rs"
       },
-      "new_name": "/workspace/src/helpers.rs"
+      "newName": "/workspace/src/helpers.rs"
     }
   }
 }
@@ -165,7 +165,7 @@ Same structure as `workspace.apply_edit` result (see `workspace.apply_edit` sect
         "kind": "file",
         "path": "/workspace/src/old.rs"
       },
-      "new_name": "/workspace/src/new.rs"
+      "newName": "/workspace/src/new.rs"
     }
   }
 }
@@ -771,7 +771,7 @@ An `ApplyResult` object containing:
         "is_consolidation": false
       },
       "options": {
-        "dry_run": false,
+        "dryRun": false,
         "validate_checksums": true,
         "rollback_on_error": true,
         "validation": {
@@ -832,7 +832,7 @@ The safest refactoring approach:
   "name": "rename.plan",
   "arguments": {
     "target": {"kind": "file", "path": "/workspace/src/old.rs"},
-    "new_name": "/workspace/src/new.rs"
+    "newName": "/workspace/src/new.rs"
   }
 }
 
@@ -844,7 +844,7 @@ The safest refactoring approach:
   "arguments": {
     "plan": { /* plan from step 1 */ },
     "options": {
-      "dry_run": false,
+      "dryRun": false,
       "validate_checksums": true,
       "validation": {
         "command": "cargo test",
@@ -872,7 +872,7 @@ Use `dry_run: true` for final review before applying:
   "arguments": {
     "plan": { /* plan */ },
     "options": {
-      "dry_run": true  // Returns success without modifying files
+      "dryRun": true  // Returns success without modifying files
     }
   }
 }
@@ -959,7 +959,7 @@ Merge a Rust crate into another crate's module:
       "kind": "directory",
       "path": "/workspace/crates/source-crate"
     },
-    "new_name": "/workspace/crates/target-crate/src/module",
+    "newName": "/workspace/crates/target-crate/src/module",
     "options": {
       "consolidate": true  // Optional - auto-detected
     }

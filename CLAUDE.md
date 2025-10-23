@@ -131,7 +131,7 @@ The `rename.plan` command supports a special **consolidation mode** for merging 
         "kind": "directory",
         "path": "crates/source-crate"
       },
-      "new_name": "crates/target-crate/src/module",
+      "newName": "crates/target-crate/src/module",
       "options": {
         "consolidate": true
       }
@@ -149,7 +149,7 @@ Example auto-detected consolidation (no `consolidate: true` needed):
 ```json
 {
   "target": {"kind": "directory", "path": "crates/cb-types"},
-  "new_name": "crates/codebuddy-core/src/types"
+  "newName": "crates/codebuddy-core/src/types"
 }
 ```
 
@@ -233,7 +233,7 @@ pub fn lib_fn() {
         "kind": "file",
         "path": "src/utils.rs"
       },
-      "new_name": "src/helpers.rs"
+      "newName": "src/helpers.rs"
     }
   }
 }
@@ -245,7 +245,7 @@ pub fn lib_fn() {
     "name": "workspace.apply_edit",
     "arguments": {
       "plan": "<plan from step 1>",
-      "options": { "dry_run": false }
+      "options": { "dryRun": false }
     }
   }
 }
@@ -295,7 +295,7 @@ Use the `options.scope` parameter to control what gets updated:
 ```json
 {
   "target": {"kind": "directory", "path": "old-dir"},
-  "new_name": "new-dir",
+  "newName": "new-dir",
   "options": {
     "scope": "code-only"  // Skip .md, .toml, .yaml files
   }
@@ -333,7 +333,7 @@ CodeBuddy supports renaming **multiple files and/or directories** in a single at
 ```json
 {
   "target": {"kind": "directory", "path": "old-dir"},
-  "new_name": "new-dir"
+  "newName": "new-dir"
 }
 ```
 
@@ -341,9 +341,9 @@ CodeBuddy supports renaming **multiple files and/or directories** in a single at
 ```json
 {
   "targets": [
-    {"kind": "directory", "path": "old-dir1", "new_name": "new-dir1"},
-    {"kind": "directory", "path": "old-dir2", "new_name": "new-dir2"},
-    {"kind": "file", "path": "src/old.rs", "new_name": "src/new.rs"}
+    {"kind": "directory", "path": "old-dir1", "newName": "new-dir1"},
+    {"kind": "directory", "path": "old-dir2", "newName": "new-dir2"},
+    {"kind": "file", "path": "src/old.rs", "newName": "src/new.rs"}
   ]
 }
 ```
@@ -365,8 +365,8 @@ CodeBuddy supports renaming **multiple files and/or directories** in a single at
 # Preview batch rename
 codebuddy tool rename.plan '{
   "targets": [
-    {"kind": "file", "path": "src/utils.rs", "new_name": "src/helpers.rs"},
-    {"kind": "file", "path": "src/config.rs", "new_name": "src/settings.rs"}
+    {"kind": "file", "path": "src/utils.rs", "newName": "src/helpers.rs"},
+    {"kind": "file", "path": "src/config.rs", "newName": "src/settings.rs"}
   ],
   "options": {"scope": "all"}
 }'
@@ -374,8 +374,8 @@ codebuddy tool rename.plan '{
 # Apply immediately (one-step)
 codebuddy tool rename '{
   "targets": [
-    {"kind": "directory", "path": "tests/unit", "new_name": "tests/unit-tests"},
-    {"kind": "directory", "path": "tests/integration", "new_name": "tests/e2e"}
+    {"kind": "directory", "path": "tests/unit", "newName": "tests/unit-tests"},
+    {"kind": "directory", "path": "tests/integration", "newName": "tests/e2e"}
   ]
 }'
 ```

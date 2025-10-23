@@ -813,7 +813,7 @@ Codebuddy uses a **unified refactoring API** with a consistent `plan -> apply` p
 # Step 1: Generate a plan (read-only, safe to explore)
 PLAN=$(codebuddy tool rename.plan '{
   "target": {"kind": "symbol", "path": "src/app.ts", "selector": {"position": {"line": 15, "character": 8}}},
-  "new_name": "newUser"
+  "newName": "newUser"
 }')
 
 # Step 2: Inspect the plan (it contains edits, summary, warnings)
@@ -1342,7 +1342,7 @@ mod tests {
                     "path": "src/test.ts",
                     "selector": {"position": {"line": 10, "character": 5}}
                 },
-                "new_name": "newName"
+                "newName": "newName"
             })),
         };
 

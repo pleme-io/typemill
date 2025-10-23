@@ -29,12 +29,12 @@ Used the batch rename feature (added in commit 15d46fe4) to rename two crates si
     {
       "kind": "directory",
       "path": "crates/codebuddy-config",
-      "new_name": "crates/mill-config"
+      "newName": "crates/mill-config"
     },
     {
       "kind": "directory",
       "path": "crates/codebuddy-auth",
-      "new_name": "crates/mill-auth"
+      "newName": "crates/mill-auth"
     }
   ],
   "options": {
@@ -137,8 +137,8 @@ Fell back to individual renames (which work perfectly):
 ```json
 {
   "targets": [
-    {"kind": "directory", "path": "crates/codebuddy-config", "new_name": "crates/mill-config"},
-    {"kind": "directory", "path": "crates/codebuddy-auth", "new_name": "crates/mill-auth"}
+    {"kind": "directory", "path": "crates/codebuddy-config", "newName": "crates/mill-config"},
+    {"kind": "directory", "path": "crates/codebuddy-auth", "newName": "crates/mill-auth"}
   ],
   "options": {"scope": "all"}
 }
@@ -220,8 +220,8 @@ No fix needed. This issue can be CLOSED.
    ```bash
    ./target/release/codebuddy tool rename.plan '{
      "targets": [
-       {"kind": "directory", "path": "crates/A", "new_name": "crates/B"},
-       {"kind": "directory", "path": "crates/C", "new_name": "crates/D"}
+       {"kind": "directory", "path": "crates/A", "newName": "crates/B"},
+       {"kind": "directory", "path": "crates/C", "newName": "crates/D"}
      ]
    }'
    ```
