@@ -54,33 +54,26 @@ graph TD
     I --> F
 ```
 
-## Crate Responsibilities
+## Architectural Layers
 
-### Core Layer
+The codebase follows a strict layered architecture with enforced dependencies:
 
-- **`cb-types`**: Defines the fundamental data structures used across the entire application, such as `Symbol`, `SourceLocation`, and `FileEdit`. It has no dependencies on other workspace crates.
-- **`cb-protocol`**: Contains the definitions for the Model Context Protocol (MCP), including request and response formats. Depends only on `cb-types`.
-- **`cb-core`**: Provides application-wide services like configuration management, logging, and error handling. Depends on `cb-types`.
-- **`mill-server`**: The central orchestration crate that wires all services together. It initializes the application state and manages the main request loop.
+**7 Layers** (from foundation to application):
+1. **Support** - Testing and tooling (can access any layer)
+2. **Foundation** - Core types, protocol, config
+3. **Plugin API** - Language plugin contracts
+4. **Language Plugins** - Language-specific implementations
+5. **Services** - Business logic, LSP integration, AST
+6. **Handlers** - MCP tool implementations
+7. **Application** - Server, client, transport
 
-### Service Layer
+**Key crates:**
+- **Foundation**: `cb-types`, `cb-protocol`, `mill-config`, `codebuddy-core`
+- **Services**: `cb-ast`, `mill-services`, `mill-lsp`, `mill-plugin-bundle`
+- **Handlers**: `mill-handlers`
+- **Application**: `mill-server`, `mill-client`, `mill-transport`, `apps/codebuddy`
 
-- **`cb-ast`**: Handles Abstract Syntax Tree (AST) parsing, code analysis, and transformations. It's responsible for language intelligence features like finding unused imports and analyzing code complexity.
-- **`cb-plugins`**: Manages the language plugin system, including plugin registration, discovery, and dispatching requests to the appropriate language plugin.
-- **`mill-lsp`**: Provides the integration with the Language Server Protocol (LSP), managing LSP clients and translating between MCP and LSP.
-- **`mill-services`**: Contains business logic for file operations, import management, and other core services.
-- **`mill-handlers`**: Defines the handlers for each MCP tool, mapping tool requests to the corresponding service implementations.
-- **`mill-transport`**: Implements the communication protocols, including WebSocket and stdio, for receiving MCP requests and sending responses.
-
-### Language Plugin Layer
-
-- **`cb-lang-*`**: A collection of individual crates, each providing language-specific support for a particular programming language (e.g., `cb-lang-rust`, `mill-lang-typescript`).
-- **`mill-lang-common`**: A utility crate that provides shared code and helpers for language plugin development, reducing boilerplate.
-- **`mill-plugin-api`**: Defines the `LanguagePlugin` trait and other core APIs that all language plugins must implement.
-
-### Application Layer
-
-- **`apps/codebuddy`**: The executable entry point for the application. It handles CLI argument parsing, server bootstrap, and process management.
+For detailed layer definitions, dependency rules, and enforcement via `cargo-deny`, see **[layers.md](layers.md)**.
 
 ## Request Lifecycle
 
