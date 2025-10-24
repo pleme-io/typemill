@@ -283,7 +283,7 @@ mod tests {
                         {
                             "tool": "get_document_symbols",
                             "params": {
-                                "filePath": "{file_path}"
+                                "filePath": "{filePath}"
                             },
                             "description": "Find the location of symbol '{symbol_name}'",
                             "requires_confirmation": null
@@ -291,7 +291,7 @@ mod tests {
                         {
                             "tool": "get_hover",
                             "params": {
-                                "filePath": "{file_path}",
+                                "filePath": "{filePath}",
                                 "line": "$steps.0.symbols.0.range.start.line",
                                 "character": "$steps.0.symbols.0.range.start.character"
                             },
@@ -302,7 +302,7 @@ mod tests {
                             "tool": "apply_workspace_edit",
                             "params": {
                                 "changes": {
-                                    "{file_path}": [
+                                    "{filePath}": [
                                         {
                                             "range": {
                                                 "start": {

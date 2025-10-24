@@ -20,7 +20,7 @@
 //! flags.insert("new_name".to_string(), "src/helpers.rs".to_string());
 //!
 //! let json = parse_flags_to_json("rename.plan", flags)?;
-//! // Returns: {"target": {"kind": "file", "path": "src/utils.rs"}, "new_name": "src/helpers.rs"}
+//! // Returns: {"target": {"kind": "file", "path": "src/utils.rs"}, "newName": "src/helpers.rs"}
 //! ```
 
 use serde_json::{json, Value};
@@ -158,7 +158,7 @@ pub fn parse_flags_to_json(
 /// ```json
 /// {
 ///   "target": {"kind": "file|directory|symbol", "path": "...", "selector": {...}},
-///   "new_name": "...",
+///   "newName": "...",
 ///   "options": {
 ///     "scope": "all|code-only|custom",
 ///     "custom_scope": {...},
@@ -182,9 +182,14 @@ fn parse_rename_flags(flags: HashMap<String, String>) -> Result<Value, FlagParse
             "strict",
             "validate_scope",
             "consolidate",
+            "update_code",
+            "update_docs",
+            "update_configs",
             "update_comments",
             "update_markdown_prose",
             "update_all",
+            "update_string_literals",
+            "update_exact_matches",
         ],
     )?;
 
@@ -201,7 +206,7 @@ fn parse_rename_flags(flags: HashMap<String, String>) -> Result<Value, FlagParse
 
     let mut result = json!({
         "target": target_json,
-        "new_name": new_name,
+        "newName": new_name,
     });
 
     // Build options object if any optional flags are present
@@ -213,7 +218,7 @@ fn parse_rename_flags(flags: HashMap<String, String>) -> Result<Value, FlagParse
     let has_update_flags = flags.keys().any(|k| {
         matches!(
             k.as_str(),
-            "update_comments" | "update_markdown_prose" | "update_all"
+            "update_code" | "update_docs" | "update_configs" | "update_comments" | "update_markdown_prose" | "update_all" | "update_string_literals" | "update_exact_matches"
         )
     }) || flags.contains_key("exclude_patterns");
 
@@ -238,10 +243,10 @@ fn parse_rename_flags(flags: HashMap<String, String>) -> Result<Value, FlagParse
     if effective_scope == "custom" && has_update_flags {
         let mut custom_scope = json!({});
 
-        // Pass through opt-in update flags only (update_all triggers expansion in RenameScope.resolve_update_all())
+        // Pass through all update flags to custom_scope
         for (key, value) in &flags {
             match key.as_str() {
-                "update_comments" | "update_markdown_prose" | "update_all" => {
+                "update_code" | "update_docs" | "update_configs" | "update_comments" | "update_markdown_prose" | "update_all" | "update_string_literals" | "update_exact_matches" => {
                     custom_scope[key] = json!(parse_bool(value)?);
                 }
                 _ => {}
@@ -907,7 +912,7 @@ mod tests {
         let json = result.unwrap();
         assert_eq!(json["target"]["kind"], "file");
         assert_eq!(json["target"]["path"], "src/utils.rs");
-        assert_eq!(json["new_name"], "src/helpers.rs");
+        assert_eq!(json["newName"], "src/helpers.rs");
     }
 
     #[test]
