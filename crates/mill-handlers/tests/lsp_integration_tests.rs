@@ -5,6 +5,10 @@
 //!
 //! Note: These tests use internal APIs like `get_document_symbols` which is not exposed
 //! to public MCP clients but is used internally for LSP integration testing.
+//!
+//! Run with: cargo nextest run --workspace --features lsp-tests
+
+#![cfg(feature = "lsp-tests")]
 
 use mill_test_support::harness::{TestClient, TestWorkspace};
 use serde_json::json;
