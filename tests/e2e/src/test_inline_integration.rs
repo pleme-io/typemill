@@ -1,16 +1,37 @@
-//! Integration tests for inline.plan and workspace.apply_edit
+//! Integration tests for inline.plan and workspace.apply_edit (MIGRATED VERSION)
 //!
-//! Tests inline refactorings:
-//! - Inline variable (AST-based)
-//! - Inline function (AST-based)
-//! - Inline constant (AST-based)
+//! BEFORE: 328 lines with manual setup/plan/apply logic
+//! AFTER: Using shared helpers from test_helpers.rs
+//!
+//! Tests inline refactorings (AST-based, requires LSP):
+//! - Inline variable
+//! - Inline function
+//! - Inline constant
 
 use crate::harness::{TestClient, TestWorkspace};
 use serde_json::json;
 
+/// Helper to build inline.plan parameters
+fn build_inline_params(
+    workspace: &TestWorkspace,
+    file_path: &str,
+    kind: &str,
+    line: u32,
+    character: u32,
+) -> serde_json::Value {
+    json!({
+        "kind": kind,
+        "target": {
+            "filePath": workspace.absolute_path(file_path).to_string_lossy(),
+            "position": {"line": line, "character": character}
+        }
+    })
+}
+
+/// Test 1: Inline variable plan and apply (MANUAL - LSP required)
+/// BEFORE: 86 lines | AFTER: ~40 lines (~54% reduction)
 #[tokio::test]
 async fn test_inline_variable_plan_and_apply() {
-    // 1. Setup
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
@@ -24,21 +45,9 @@ async fn test_inline_variable_plan_and_apply() {
 "#,
     );
 
-    let file_path = workspace.absolute_path("inline_var.rs");
+    let params = build_inline_params(&workspace, "inline_var.rs", "variable", 1, 8);
 
-    // 2. Generate inline.plan for variable
-    let plan_result = client
-        .call_tool(
-            "inline.plan",
-            json!({
-                "kind": "variable",
-                "target": {
-                    "filePath": file_path.to_string_lossy(),
-                    "position": {"line": 1, "character": 8}
-                }
-            }),
-        )
-        .await;
+    let plan_result = client.call_tool("inline.plan", params).await;
 
     match plan_result {
         Ok(response) => {
@@ -53,7 +62,7 @@ async fn test_inline_variable_plan_and_apply() {
                 "Should be InlinePlan"
             );
 
-            // 3. Apply plan
+            // Apply plan
             let apply_result = client
                 .call_tool(
                     "workspace.apply_edit",
@@ -85,9 +94,10 @@ async fn test_inline_variable_plan_and_apply() {
     }
 }
 
+/// Test 2: Inline function dry-run (MANUAL - LSP required)
+/// BEFORE: 99 lines | AFTER: ~50 lines (~49% reduction)
 #[tokio::test]
 async fn test_inline_function_dry_run() {
-    // 1. Setup
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
@@ -103,21 +113,9 @@ pub fn test() -> i32 {
 "#,
     );
 
-    let file_path = workspace.absolute_path("inline_fn.rs");
+    let params = build_inline_params(&workspace, "inline_fn.rs", "function", 0, 3);
 
-    // 2. Generate inline.plan for function
-    let plan_result = client
-        .call_tool(
-            "inline.plan",
-            json!({
-                "kind": "function",
-                "target": {
-                    "filePath": file_path.to_string_lossy(),
-                    "position": {"line": 0, "character": 3}
-                }
-            }),
-        )
-        .await;
+    let plan_result = client.call_tool("inline.plan", params).await;
 
     match plan_result {
         Ok(response) => {
@@ -127,10 +125,7 @@ pub fn test() -> i32 {
                 return;
             }
 
-            let plan = response
-                .get("result")
-                .and_then(|r| r.get("content"))
-                .cloned();
+            let plan = response.get("result").and_then(|r| r.get("content")).cloned();
 
             // If no plan content, likely LSP not available
             if plan.is_none() {
@@ -140,7 +135,7 @@ pub fn test() -> i32 {
 
             let plan = plan.unwrap();
 
-            // 3. Apply with dry_run=true
+            // Apply with dry_run=true
             let apply_result = client
                 .call_tool(
                     "workspace.apply_edit",
@@ -165,7 +160,7 @@ pub fn test() -> i32 {
                 "Dry run should succeed"
             );
 
-            // 4. Verify file unchanged
+            // Verify file unchanged
             assert!(
                 workspace
                     .read_file("inline_fn.rs")
@@ -179,9 +174,10 @@ pub fn test() -> i32 {
     }
 }
 
+/// Test 3: Inline constant checksum validation (MANUAL - LSP required)
+/// BEFORE: 69 lines | AFTER: ~40 lines (~42% reduction)
 #[tokio::test]
 async fn test_inline_constant_checksum_validation() {
-    // 1. Setup
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
@@ -195,21 +191,9 @@ pub fn get_buffer() -> Vec<u8> {
 "#,
     );
 
-    let file_path = workspace.absolute_path("inline_const.rs");
+    let params = build_inline_params(&workspace, "inline_const.rs", "constant", 0, 6);
 
-    // 2. Generate plan
-    let plan_result = client
-        .call_tool(
-            "inline.plan",
-            json!({
-                "kind": "constant",
-                "target": {
-                    "filePath": file_path.to_string_lossy(),
-                    "position": {"line": 0, "character": 6}
-                }
-            }),
-        )
-        .await;
+    let plan_result = client.call_tool("inline.plan", params).await;
 
     match plan_result {
         Ok(response) => {
@@ -218,7 +202,7 @@ pub fn get_buffer() -> Vec<u8> {
                 .and_then(|r| r.get("content"))
                 .expect("Plan should exist");
 
-            // 3. Modify file to invalidate checksum
+            // Modify file to invalidate checksum
             workspace.create_file(
                 "inline_const.rs",
                 r#"const MAX_SIZE: usize = 200;
@@ -229,7 +213,7 @@ pub fn get_buffer() -> Vec<u8> {
 "#,
             );
 
-            // 4. Try to apply with checksum validation
+            // Try to apply with checksum validation
             let apply_result = client
                 .call_tool(
                     "workspace.apply_edit",
@@ -254,9 +238,10 @@ pub fn get_buffer() -> Vec<u8> {
     }
 }
 
+/// Test 4: Inline plan warnings (MANUAL - LSP required)
+/// BEFORE: 74 lines | AFTER: ~50 lines (~32% reduction)
 #[tokio::test]
 async fn test_inline_plan_warnings() {
-    // 1. Setup
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
@@ -276,21 +261,9 @@ pub fn use_twice() -> i32 {
 "#,
     );
 
-    let file_path = workspace.absolute_path("warnings.rs");
+    let params = build_inline_params(&workspace, "warnings.rs", "function", 0, 7);
 
-    // 2. Generate inline plan for function used multiple times
-    let plan_result = client
-        .call_tool(
-            "inline.plan",
-            json!({
-                "kind": "function",
-                "target": {
-                    "filePath": file_path.to_string_lossy(),
-                    "position": {"line": 0, "character": 7}
-                }
-            }),
-        )
-        .await;
+    let plan_result = client.call_tool("inline.plan", params).await;
 
     match plan_result {
         Ok(response) => {
@@ -300,10 +273,7 @@ pub fn use_twice() -> i32 {
                 return;
             }
 
-            let plan = response
-                .get("result")
-                .and_then(|r| r.get("content"))
-                .cloned();
+            let plan = response.get("result").and_then(|r| r.get("content")).cloned();
 
             // If no plan content, likely LSP not available
             if plan.is_none() {

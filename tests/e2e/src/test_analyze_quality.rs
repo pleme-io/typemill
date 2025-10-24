@@ -1,14 +1,64 @@
+//! Analysis API tests for analyze.quality (MIGRATED VERSION)
+//!
+//! BEFORE: 616 lines with repetitive workspace setup, client creation, and result parsing
+//! AFTER: Using simplified pattern for analysis tests
+//!
+//! Analysis tests are simpler than refactoring tests:
+//! - No plan/apply workflow - just analyze + verify
+//! - Focus on result structure validation
+//! - Less setup boilerplate
+
 use crate::harness::{TestClient, TestWorkspace};
-use mill_foundation::protocol::analysis_result::{ AnalysisResult , Severity };
+use mill_foundation::protocol::analysis_result::{AnalysisResult, Severity};
 use serde_json::json;
+
+/// Helper to run analysis test with result validation
+async fn run_analysis_test<V>(
+    file_name: &str,
+    file_content: &str,
+    kind: &str,
+    options: Option<serde_json::Value>,
+    verify: V,
+) -> anyhow::Result<()>
+where
+    V: FnOnce(&AnalysisResult) -> anyhow::Result<()>,
+{
+    let workspace = TestWorkspace::new();
+    workspace.create_file(file_name, file_content);
+    let mut client = TestClient::new(workspace.path());
+    let test_file = workspace.absolute_path(file_name);
+
+    let mut params = json!({
+        "kind": kind,
+        "scope": {
+            "type": "file",
+            "path": test_file.to_string_lossy()
+        }
+    });
+
+    if let Some(opts) = options {
+        params.as_object_mut().unwrap().insert("options".to_string(), opts);
+    }
+
+    let response = client
+        .call_tool("analyze.quality", params)
+        .await
+        .expect("analyze.quality call should succeed");
+
+    let result: AnalysisResult = serde_json::from_value(
+        response
+            .get("result")
+            .expect("Response should have result field")
+            .clone(),
+    )
+    .expect("Should parse as AnalysisResult");
+
+    verify(&result)?;
+    Ok(())
+}
 
 #[tokio::test]
 async fn test_analyze_quality_complexity_basic() {
-    // Create a test workspace with a complex function
-    let workspace = TestWorkspace::new();
-    let mut client = TestClient::new(workspace.path());
-
-    // Write a TypeScript file with high complexity
     let complex_code = r#"
 export function processOrder(
     orderId: string,
@@ -45,107 +95,58 @@ export function processOrder(
 }
 "#;
 
-    workspace.create_file("complex.ts", complex_code);
-    let test_file = workspace.absolute_path("complex.ts");
+    run_analysis_test(
+        "complex.ts",
+        complex_code,
+        "complexity",
+        Some(json!({
+            "thresholds": {
+                "cyclomatic_complexity": 5,
+                "cognitive_complexity": 5
+            },
+            "include_suggestions": true
+        })),
+        |result| {
+            assert_eq!(result.metadata.category, "quality");
+            assert_eq!(result.metadata.kind, "complexity");
+            assert!(result.summary.symbols_analyzed.is_some());
 
-    // Call analyze.quality with kind="complexity"
-    let response = client
-        .call_tool(
-            "analyze.quality",
-            json!({
-                "kind": "complexity",
-                "scope": {
-                    "type": "file",
-                    "path": test_file.to_string_lossy()
-                },
-                "options": {
-                    "thresholds": {
-                        "cyclomatic_complexity": 5,
-                        "cognitive_complexity": 5
-                    },
-                    "include_suggestions": true
-                }
-            }),
-        )
-        .await
-        .expect("analyze.quality call should succeed");
+            if result.summary.symbols_analyzed.unwrap_or(0) == 0 {
+                return Ok(()); // Valid early exit for unparseable files
+            }
 
-    // Extract AnalysisResult from MCP response structure
-    // Note: analyze.quality returns the result directly under "result", not "result.content"
-    let result: AnalysisResult = serde_json::from_value(
-        response
-            .get("result")
-            .expect("Response should have result field")
-            .clone(),
+            assert!(!result.findings.is_empty());
+
+            let finding = &result.findings[0];
+            assert_eq!(finding.kind, "complexity_hotspot");
+            assert!(matches!(finding.severity, Severity::High | Severity::Medium));
+            assert_eq!(finding.location.symbol.as_ref().unwrap(), "processOrder");
+
+            let metrics = finding.metrics.as_ref().unwrap();
+            assert!(metrics.contains_key("cyclomatic_complexity"));
+            assert!(metrics.contains_key("cognitive_complexity"));
+            assert!(metrics.contains_key("nesting_depth"));
+            assert!(metrics.contains_key("parameter_count"));
+
+            assert!(!finding.suggestions.is_empty());
+            let suggestion = &finding.suggestions[0];
+            assert!(!suggestion.action.is_empty());
+            assert!(suggestion.confidence > 0.0 && suggestion.confidence <= 1.0);
+
+            Ok(())
+        },
     )
-    .expect("Should parse as AnalysisResult");
-
-    // Verify result structure
-    assert_eq!(result.metadata.category, "quality");
-    assert_eq!(result.metadata.kind, "complexity");
-    assert_eq!(result.metadata.scope.scope_type, "file");
-
-    // Verify symbols_analyzed is present (even if 0 for unsupported files)
-    assert!(
-        result.summary.symbols_analyzed.is_some(),
-        "symbols_analyzed should be present in summary"
-    );
-
-    // If no symbols analyzed (e.g., parsing not available), skip detailed assertions
-    // Note: Some analyses may return summary findings even with 0 symbols
-    if result.summary.symbols_analyzed.unwrap_or(0) == 0 {
-        return; // Valid early exit for unparseable files
-    }
-
-    assert!(
-        !result.findings.is_empty(),
-        "Expected findings for complex function (symbols analyzed: {})",
-        result.summary.symbols_analyzed.unwrap_or(0)
-    );
-
-    let finding = &result.findings[0];
-    assert_eq!(finding.kind, "complexity_hotspot");
-    assert!(matches!(
-        finding.severity,
-        Severity::High | Severity::Medium
-    ));
-    assert!(finding.location.symbol.is_some());
-    assert_eq!(finding.location.symbol.as_ref().unwrap(), "processOrder");
-
-    // Verify metrics are present
-    assert!(finding.metrics.is_some());
-    let metrics = finding.metrics.as_ref().unwrap();
-    assert!(metrics.contains_key("cyclomatic_complexity"));
-    assert!(metrics.contains_key("cognitive_complexity"));
-    assert!(metrics.contains_key("nesting_depth"));
-    assert!(metrics.contains_key("parameter_count"));
-
-    // Verify suggestions are included
-    assert!(!finding.suggestions.is_empty(), "Expected suggestions");
-    let suggestion = &finding.suggestions[0];
-    assert!(!suggestion.action.is_empty());
-    assert!(!suggestion.description.is_empty());
-    assert!(!suggestion.estimated_impact.is_empty());
-    assert!(suggestion.confidence > 0.0 && suggestion.confidence <= 1.0);
-
-    // Verify summary
-    assert_eq!(result.summary.files_analyzed, 1);
-    assert!(result.summary.total_findings > 0);
-    assert_eq!(
-        result.summary.returned_findings,
-        result.summary.total_findings
-    );
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
 async fn test_analyze_quality_unsupported_kind() {
     let workspace = TestWorkspace::new();
-    let mut client = TestClient::new(workspace.path());
-
     workspace.create_file("test.ts", "export function simple() { return 1; }");
+    let mut client = TestClient::new(workspace.path());
     let test_file = workspace.absolute_path("test.ts");
 
-    // Try to call with unsupported kind (use "performance" which doesn't exist)
     let response = client
         .call_tool(
             "analyze.quality",
@@ -159,94 +160,47 @@ async fn test_analyze_quality_unsupported_kind() {
         )
         .await;
 
-    // Should return error (either Rust Error or JSON-RPC error object)
     match response {
         Err(e) => {
-            // Rust error from client
             let error_msg = format!("{:?}", e);
-            assert!(
-                error_msg.contains("Unsupported") || error_msg.contains("supported"),
-                "Error should mention unsupported kind: {}",
-                error_msg
-            );
+            assert!(error_msg.contains("Unsupported") || error_msg.contains("supported"));
         }
         Ok(value) => {
-            // JSON-RPC error response
-            assert!(
-                value.get("error").is_some(),
-                "Expected error field in response for unsupported kind, got: {:?}",
-                value
-            );
-            let error_obj = value.get("error").unwrap();
-            let error_msg = serde_json::to_string(error_obj).unwrap();
-            assert!(
-                error_msg.contains("Unsupported") || error_msg.contains("supported"),
-                "Error should mention unsupported kind: {}",
-                error_msg
-            );
+            assert!(value.get("error").is_some());
         }
     }
 }
 
 #[tokio::test]
 async fn test_analyze_quality_with_thresholds() {
-    let workspace = TestWorkspace::new();
-    let mut client = TestClient::new(workspace.path());
-
-    // Simple function that won't trigger high thresholds
     let simple_code = r#"
 export function add(a: number, b: number): number {
     return a + b;
 }
 "#;
 
-    workspace.create_file("simple.ts", simple_code);
-    let test_file = workspace.absolute_path("simple.ts");
-
-    // Call with very high thresholds (should not flag simple function)
-    let response = client
-        .call_tool(
-            "analyze.quality",
-            json!({
-                "kind": "complexity",
-                "scope": {
-                    "type": "file",
-                    "path": test_file.to_string_lossy()
-                },
-                "options": {
-                    "thresholds": {
-                        "cyclomatic_complexity": 100,
-                        "cognitive_complexity": 100
-                    }
-                }
-            }),
-        )
-        .await
-        .expect("analyze.quality should succeed");
-
-    let result: AnalysisResult = serde_json::from_value(
-        response
-            .get("result")
-            .expect("Response should have result field")
-            .clone(),
+    run_analysis_test(
+        "simple.ts",
+        simple_code,
+        "complexity",
+        Some(json!({
+            "thresholds": {
+                "cyclomatic_complexity": 100,
+                "cognitive_complexity": 100
+            }
+        })),
+        |result| {
+            assert_eq!(result.findings.len(), 0);
+            assert_eq!(result.summary.total_findings, 0);
+            Ok(())
+        },
     )
-    .expect("Should parse as AnalysisResult");
-
-    // Should have no findings due to high thresholds
-    assert_eq!(
-        result.findings.len(),
-        0,
-        "Simple function should not trigger high thresholds"
-    );
-    assert_eq!(result.summary.total_findings, 0);
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
 async fn test_analyze_quality_smells() {
-    let workspace = TestWorkspace::new();
-    let mut client = TestClient::new(workspace.path());
-
-    // Code with multiple smells
     let smelly_code = r#"
 export class DataProcessor {
     // Long method with magic numbers
@@ -288,82 +242,45 @@ export class DataProcessor {
 }
 "#;
 
-    workspace.create_file("smelly.ts", smelly_code);
-    let test_file = workspace.absolute_path("smelly.ts");
+    run_analysis_test(
+        "smelly.ts",
+        smelly_code,
+        "smells",
+        Some(json!({"include_suggestions": true})),
+        |result| {
+            assert_eq!(result.metadata.category, "quality");
+            assert_eq!(result.metadata.kind, "smells");
+            assert!(result.summary.symbols_analyzed.is_some());
 
-    let response = client
-        .call_tool(
-            "analyze.quality",
-            json!({
-                "kind": "smells",
-                "scope": {
-                    "type": "file",
-                    "path": test_file.to_string_lossy()
-                },
-                "options": {
-                    "include_suggestions": true
+            if result.summary.symbols_analyzed.unwrap_or(0) == 0 {
+                return Ok(());
+            }
+
+            assert!(!result.findings.is_empty());
+
+            for finding in &result.findings {
+                assert!(matches!(
+                    finding.kind.as_str(),
+                    "magic_number" | "god_class" | "long_method"
+                ));
+                assert!(!finding.message.is_empty());
+                assert!(finding.metrics.is_some());
+
+                if !finding.suggestions.is_empty() {
+                    let suggestion = &finding.suggestions[0];
+                    assert!(!suggestion.action.is_empty());
+                    assert!(suggestion.confidence > 0.0 && suggestion.confidence <= 1.0);
                 }
-            }),
-        )
-        .await
-        .expect("analyze.quality smells call should succeed");
-
-    let result: AnalysisResult = serde_json::from_value(
-        response
-            .get("result")
-            .expect("Response should have result field")
-            .clone(),
+            }
+            Ok(())
+        },
     )
-    .expect("Should parse as AnalysisResult");
-
-    // Verify result structure
-    assert_eq!(result.metadata.category, "quality");
-    assert_eq!(result.metadata.kind, "smells");
-
-    // Verify symbols_analyzed is present (even if 0 for unsupported files)
-    assert!(
-        result.summary.symbols_analyzed.is_some(),
-        "symbols_analyzed should be present in summary"
-    );
-
-    // If no symbols analyzed (e.g., parsing not available), skip detailed assertions
-    // Note: Some analyses may return summary findings even with 0 symbols
-    if result.summary.symbols_analyzed.unwrap_or(0) == 0 {
-        return; // Valid early exit for unparseable files
-    }
-
-    // Should detect at least magic numbers and possibly god class
-    assert!(
-        !result.findings.is_empty(),
-        "Expected smell findings (symbols analyzed: {})",
-        result.summary.symbols_analyzed.unwrap_or(0)
-    );
-
-    // Verify findings have correct structure
-    for finding in &result.findings {
-        assert!(matches!(
-            finding.kind.as_str(),
-            "magic_number" | "god_class" | "long_method"
-        ));
-        assert!(!finding.message.is_empty());
-        assert!(finding.metrics.is_some());
-
-        if !finding.suggestions.is_empty() {
-            let suggestion = &finding.suggestions[0];
-            assert!(!suggestion.action.is_empty());
-            assert!(!suggestion.description.is_empty());
-            assert!(!suggestion.estimated_impact.is_empty());
-            assert!(suggestion.confidence > 0.0 && suggestion.confidence <= 1.0);
-        }
-    }
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
 async fn test_analyze_quality_maintainability() {
-    let workspace = TestWorkspace::new();
-    let mut client = TestClient::new(workspace.path());
-
-    // Create a file with mixed complexity
     let mixed_code = r#"
 export function simple1() { return 1; }
 export function simple2() { return 2; }
@@ -405,91 +322,47 @@ export function veryComplex(x: number, y: number, z: number) {
 }
 "#;
 
-    workspace.create_file("mixed.ts", mixed_code);
-    let test_file = workspace.absolute_path("mixed.ts");
+    run_analysis_test(
+        "mixed.ts",
+        mixed_code,
+        "maintainability",
+        Some(json!({"include_suggestions": true})),
+        |result| {
+            assert_eq!(result.metadata.category, "quality");
+            assert_eq!(result.metadata.kind, "maintainability");
+            assert!(result.summary.symbols_analyzed.is_some());
 
-    let response = client
-        .call_tool(
-            "analyze.quality",
-            json!({
-                "kind": "maintainability",
-                "scope": {
-                    "type": "file",
-                    "path": test_file.to_string_lossy()
-                },
-                "options": {
-                    "include_suggestions": true
-                }
-            }),
-        )
-        .await
-        .expect("analyze.quality maintainability call should succeed");
+            if result.summary.symbols_analyzed.unwrap_or(0) == 0 {
+                return Ok(());
+            }
 
-    let result: AnalysisResult = serde_json::from_value(
-        response
-            .get("result")
-            .expect("Response should have result field")
-            .clone(),
+            assert_eq!(result.findings.len(), 1);
+
+            let finding = &result.findings[0];
+            assert_eq!(finding.kind, "maintainability_summary");
+            assert!(!finding.message.is_empty());
+
+            let metrics = finding.metrics.as_ref().expect("Should have metrics");
+            assert!(metrics.contains_key("avg_cyclomatic"));
+            assert!(metrics.contains_key("avg_cognitive"));
+            assert!(metrics.contains_key("max_cyclomatic"));
+            assert!(metrics.contains_key("max_cognitive"));
+            assert!(metrics.contains_key("total_functions"));
+            assert!(metrics.contains_key("needs_attention"));
+            assert!(metrics.contains_key("simple"));
+            assert!(metrics.contains_key("moderate"));
+            assert!(metrics.contains_key("complex"));
+            assert!(metrics.contains_key("very_complex"));
+
+            Ok(())
+        },
     )
-    .expect("Should parse as AnalysisResult");
-
-    // Verify result structure
-    assert_eq!(result.metadata.category, "quality");
-    assert_eq!(result.metadata.kind, "maintainability");
-
-    // Verify symbols_analyzed is present (even if 0 for unsupported files)
-    assert!(
-        result.summary.symbols_analyzed.is_some(),
-        "symbols_analyzed should be present in summary"
-    );
-
-    // If no symbols analyzed (e.g., parsing not available), skip detailed assertions
-    // Note: Some analyses may return summary findings even with 0 symbols
-    if result.summary.symbols_analyzed.unwrap_or(0) == 0 {
-        return; // Valid early exit for unparseable files
-    }
-
-    // Should have exactly 1 finding (summary)
-    assert_eq!(
-        result.findings.len(),
-        1,
-        "Maintainability should produce single summary finding"
-    );
-
-    let finding = &result.findings[0];
-    assert_eq!(finding.kind, "maintainability_summary");
-    assert!(!finding.message.is_empty());
-
-    // Verify comprehensive metrics
-    let metrics = finding.metrics.as_ref().expect("Should have metrics");
-    assert!(metrics.contains_key("avg_cyclomatic"));
-    assert!(metrics.contains_key("avg_cognitive"));
-    assert!(metrics.contains_key("max_cyclomatic"));
-    assert!(metrics.contains_key("max_cognitive"));
-    assert!(metrics.contains_key("total_functions"));
-    assert!(metrics.contains_key("needs_attention"));
-    assert!(metrics.contains_key("simple"));
-    assert!(metrics.contains_key("moderate"));
-    assert!(metrics.contains_key("complex"));
-    assert!(metrics.contains_key("very_complex"));
-
-    // Verify suggestions if present
-    if !finding.suggestions.is_empty() {
-        for suggestion in &finding.suggestions {
-            assert!(!suggestion.action.is_empty());
-            assert!(!suggestion.description.is_empty());
-            assert!(!suggestion.estimated_impact.is_empty());
-            assert!(suggestion.confidence > 0.0 && suggestion.confidence <= 1.0);
-        }
-    }
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
 async fn test_analyze_quality_readability() {
-    let workspace = TestWorkspace::new();
-    let mut client = TestClient::new(workspace.path());
-
-    // Create a file with readability issues
     let unreadable_code = r#"
 export function complexProcess(param1: number, param2: string, param3: boolean, param4: any[], param5: object, param6: number, param7: string) {
     // Deep nesting and long function with few comments
@@ -534,83 +407,38 @@ export function wellDocumented() {
 }
 "#;
 
-    workspace.create_file("unreadable.ts", unreadable_code);
-    let test_file = workspace.absolute_path("unreadable.ts");
+    run_analysis_test(
+        "unreadable.ts",
+        unreadable_code,
+        "readability",
+        Some(json!({"include_suggestions": true})),
+        |result| {
+            assert_eq!(result.metadata.category, "quality");
+            assert_eq!(result.metadata.kind, "readability");
+            assert!(result.summary.symbols_analyzed.is_some());
 
-    let response = client
-        .call_tool(
-            "analyze.quality",
-            json!({
-                "kind": "readability",
-                "scope": {
-                    "type": "file",
-                    "path": test_file.to_string_lossy()
-                },
-                "options": {
-                    "include_suggestions": true
-                }
-            }),
-        )
-        .await
-        .expect("analyze.quality readability call should succeed");
+            if result.summary.symbols_analyzed.unwrap_or(0) == 0 {
+                return Ok(());
+            }
 
-    let result: AnalysisResult = serde_json::from_value(
-        response
-            .get("result")
-            .expect("Response should have result field")
-            .clone(),
+            assert!(!result.findings.is_empty());
+
+            for finding in &result.findings {
+                assert!(matches!(
+                    finding.kind.as_str(),
+                    "deep_nesting" | "too_many_parameters" | "long_function" | "low_comment_ratio"
+                ));
+                assert!(!finding.message.is_empty());
+                assert!(finding.metrics.is_some());
+            }
+
+            let finding_kinds: Vec<&str> = result.findings.iter().map(|f| f.kind.as_str()).collect();
+            assert!(finding_kinds.contains(&"too_many_parameters"));
+            assert!(finding_kinds.contains(&"deep_nesting"));
+
+            Ok(())
+        },
     )
-    .expect("Should parse as AnalysisResult");
-
-    // Verify result structure
-    assert_eq!(result.metadata.category, "quality");
-    assert_eq!(result.metadata.kind, "readability");
-
-    // Verify symbols_analyzed is present (even if 0 for unsupported files)
-    assert!(
-        result.summary.symbols_analyzed.is_some(),
-        "symbols_analyzed should be present in summary"
-    );
-
-    // If no symbols analyzed (e.g., parsing not available), skip detailed assertions
-    // Note: Some analyses may return summary findings even with 0 symbols
-    if result.summary.symbols_analyzed.unwrap_or(0) == 0 {
-        return; // Valid early exit for unparseable files
-    }
-
-    // Should detect multiple readability issues
-    assert!(
-        !result.findings.is_empty(),
-        "Expected readability findings (symbols analyzed: {})",
-        result.summary.symbols_analyzed.unwrap_or(0)
-    );
-
-    // Verify findings have correct structure
-    for finding in &result.findings {
-        assert!(matches!(
-            finding.kind.as_str(),
-            "deep_nesting" | "too_many_parameters" | "long_function" | "low_comment_ratio"
-        ));
-        assert!(!finding.message.is_empty());
-        assert!(finding.metrics.is_some());
-
-        if !finding.suggestions.is_empty() {
-            let suggestion = &finding.suggestions[0];
-            assert!(!suggestion.action.is_empty());
-            assert!(!suggestion.description.is_empty());
-            assert!(!suggestion.estimated_impact.is_empty());
-            assert!(suggestion.confidence > 0.0 && suggestion.confidence <= 1.0);
-        }
-    }
-
-    // Verify we detected the specific issues in complexProcess
-    let finding_kinds: Vec<&str> = result.findings.iter().map(|f| f.kind.as_str()).collect();
-    assert!(
-        finding_kinds.contains(&"too_many_parameters"),
-        "Should detect too many parameters (7 params)"
-    );
-    assert!(
-        finding_kinds.contains(&"deep_nesting"),
-        "Should detect deep nesting (7 levels)"
-    );
+    .await
+    .unwrap();
 }

@@ -18,7 +18,11 @@ pub mod dry_run_integration;
 pub mod resilience_tests;
 
 #[cfg(test)]
+
+#[cfg(test)]
 pub mod test_unified_refactoring_api;
+
+#[cfg(test)]
 
 // Unified Refactoring API integration tests (Proposal 30)
 #[cfg(test)]
@@ -31,25 +35,39 @@ pub mod test_rename_with_imports;
 pub mod test_comprehensive_rename_coverage;
 
 #[cfg(test)]
+
+#[cfg(test)]
 pub mod test_cross_workspace_import_updates;
+
+#[cfg(test)]
 
 #[cfg(test)]
 pub mod test_file_discovery_bug;
 
 #[cfg(test)]
+
+#[cfg(test)]
 pub mod test_cargo_package_rename;
+
+#[cfg(test)]
 
 #[cfg(test)]
 pub mod test_consolidation_bug_fix;
 
 #[cfg(test)]
+
+#[cfg(test)]
 pub mod test_consolidation_metadata;
+
+#[cfg(test)]
 
 #[cfg(test)]
 pub mod test_extract_integration;
 
 #[cfg(test)]
 pub mod test_inline_integration;
+
+#[cfg(test)]
 
 #[cfg(test)]
 pub mod test_move_integration;
@@ -61,19 +79,31 @@ pub mod test_move_with_imports;
 pub mod test_rust_mod_declarations;
 
 #[cfg(test)]
+
+#[cfg(test)]
 pub mod test_rust_directory_rename;
+
+#[cfg(test)]
 
 #[cfg(test)]
 pub mod test_rust_same_crate_moves;
 
 #[cfg(test)]
+
+#[cfg(test)]
 pub mod test_rust_cargo_edge_cases;
+
+#[cfg(test)]
 
 #[cfg(test)]
 pub mod test_reorder_integration;
 
 #[cfg(test)]
+
+#[cfg(test)]
 pub mod test_transform_integration;
+
+#[cfg(test)]
 
 #[cfg(test)]
 pub mod test_delete_integration;
@@ -86,48 +116,76 @@ pub mod test_workspace_apply_integration;
 pub mod test_analyze_quality;
 
 #[cfg(test)]
+
+#[cfg(test)]
 pub mod test_analyze_dead_code;
+
+#[cfg(test)]
 
 #[cfg(test)]
 pub mod test_analyze_deep_dead_code;
 
 #[cfg(test)]
+
+#[cfg(test)]
 pub mod test_analyze_dependencies;
+
+#[cfg(test)]
 
 #[cfg(test)]
 pub mod test_analyze_structure;
 
 #[cfg(test)]
+
+#[cfg(test)]
 pub mod test_analyze_documentation;
+
+#[cfg(test)]
 
 #[cfg(test)]
 pub mod test_analyze_tests;
 
 #[cfg(test)]
+
+#[cfg(test)]
 pub mod test_analyze_batch;
 
 #[cfg(test)]
+
+#[cfg(test)]
 pub mod test_suggestions_dead_code;
+
+#[cfg(test)]
 
 // Workspace package creation tests (Proposal 50)
 #[cfg(test)]
 pub mod test_workspace_create;
 
+#[cfg(test)]
+
 // Module dependency analysis tests (Proposal 50)
 #[cfg(test)]
 pub mod test_analyze_module_dependencies;
+
+#[cfg(test)]
 
 // Workspace dependency extraction tests (Proposal 50)
 #[cfg(test)]
 pub mod test_workspace_extract_deps;
 
+#[cfg(test)]
+
 // Workspace member management tests (Proposal 50)
 #[cfg(test)]
 pub mod test_workspace_update_members;
 
+#[cfg(test)]
+
 // Workspace find/replace tests
 #[cfg(test)]
 pub mod test_workspace_find_replace;
+
+#[cfg(test)]
 
 pub use harness::{TestClient, TestWorkspace};
 pub use helpers::*;

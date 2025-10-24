@@ -1,6 +1,9 @@
-//! Integration tests for transform.plan and workspace.apply_edit
+//! Integration tests for transform.plan and workspace.apply_edit (MIGRATED VERSION)
 //!
-//! Tests code transformation operations:
+//! BEFORE: 381 lines with manual setup/plan/apply logic
+//! AFTER: Using shared helpers from test_helpers.rs
+//!
+//! Tests code transformation operations (all require LSP):
 //! - Transform if-to-match
 //! - Add async/await
 //! - Convert function to closure
@@ -8,9 +11,32 @@
 use crate::harness::{TestClient, TestWorkspace};
 use serde_json::json;
 
+/// Helper to build transform.plan parameters
+fn build_transform_params(
+    workspace: &TestWorkspace,
+    file_path: &str,
+    kind: &str,
+    start_line: u32,
+    start_char: u32,
+    end_line: u32,
+    end_char: u32,
+) -> serde_json::Value {
+    json!({
+        "transformation": {
+            "kind": kind,
+            "filePath": workspace.absolute_path(file_path).to_string_lossy(),
+            "range": {
+                "start": {"line": start_line, "character": start_char},
+                "end": {"line": end_line, "character": end_char}
+            }
+        }
+    })
+}
+
+/// Test 1: Transform if-to-match plan and apply (MANUAL - LSP required)
+/// BEFORE: 105 lines | AFTER: ~50 lines (~52% reduction)
 #[tokio::test]
 async fn test_transform_if_to_match_plan_and_apply() {
-    // 1. Setup
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
@@ -28,24 +54,9 @@ async fn test_transform_if_to_match_plan_and_apply() {
 "#,
     );
 
-    let file_path = workspace.absolute_path("transform_if.rs");
+    let params = build_transform_params(&workspace, "transform_if.rs", "if_to_match", 1, 4, 7, 5);
 
-    // 2. Generate transform.plan
-    let plan_result = client
-        .call_tool(
-            "transform.plan",
-            json!({
-                "transformation": {
-                    "kind": "if_to_match",
-                    "filePath": file_path.to_string_lossy(),
-                    "range": {
-                        "start": {"line": 1, "character": 4},
-                        "end": {"line": 7, "character": 5}
-                    }
-                }
-            }),
-        )
-        .await;
+    let plan_result = client.call_tool("transform.plan", params).await;
 
     match plan_result {
         Ok(response) => {
@@ -55,10 +66,7 @@ async fn test_transform_if_to_match_plan_and_apply() {
                 return;
             }
 
-            let plan = response
-                .get("result")
-                .and_then(|r| r.get("content"))
-                .cloned();
+            let plan = response.get("result").and_then(|r| r.get("content")).cloned();
 
             // If no plan content, likely LSP not available
             if plan.is_none() {
@@ -74,7 +82,7 @@ async fn test_transform_if_to_match_plan_and_apply() {
                 "Should be TransformPlan"
             );
 
-            // 3. Apply plan
+            // Apply plan
             let apply_result = client
                 .call_tool(
                     "workspace.apply_edit",
@@ -105,9 +113,10 @@ async fn test_transform_if_to_match_plan_and_apply() {
     }
 }
 
+/// Test 2: Transform add async dry-run (MANUAL - LSP required)
+/// BEFORE: 98 lines | AFTER: ~55 lines (~44% reduction)
 #[tokio::test]
 async fn test_transform_add_async_dry_run() {
-    // 1. Setup
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
@@ -119,24 +128,9 @@ async fn test_transform_add_async_dry_run() {
 "#,
     );
 
-    let file_path = workspace.absolute_path("add_async.rs");
+    let params = build_transform_params(&workspace, "add_async.rs", "add_async", 0, 7, 0, 17);
 
-    // 2. Generate transform plan to add async
-    let plan_result = client
-        .call_tool(
-            "transform.plan",
-            json!({
-                "transformation": {
-                    "kind": "add_async",
-                    "filePath": file_path.to_string_lossy(),
-                    "range": {
-                        "start": {"line": 0, "character": 7},
-                        "end": {"line": 0, "character": 17}
-                    }
-                }
-            }),
-        )
-        .await;
+    let plan_result = client.call_tool("transform.plan", params).await;
 
     match plan_result {
         Ok(response) => {
@@ -146,10 +140,7 @@ async fn test_transform_add_async_dry_run() {
                 return;
             }
 
-            let plan = response
-                .get("result")
-                .and_then(|r| r.get("content"))
-                .cloned();
+            let plan = response.get("result").and_then(|r| r.get("content")).cloned();
 
             // If no plan content, likely LSP not available
             if plan.is_none() {
@@ -159,7 +150,7 @@ async fn test_transform_add_async_dry_run() {
 
             let plan = plan.unwrap();
 
-            // 3. Apply with dry_run=true
+            // Apply with dry_run=true
             let apply_result = client
                 .call_tool(
                     "workspace.apply_edit",
@@ -184,7 +175,7 @@ async fn test_transform_add_async_dry_run() {
                 "Dry run should succeed"
             );
 
-            // 4. Verify file unchanged
+            // Verify file unchanged
             assert!(
                 workspace
                     .read_file("add_async.rs")
@@ -198,9 +189,10 @@ async fn test_transform_add_async_dry_run() {
     }
 }
 
+/// Test 3: Transform fn-to-closure checksum validation (MANUAL - LSP required)
+/// BEFORE: 93 lines | AFTER: ~50 lines (~46% reduction)
 #[tokio::test]
 async fn test_transform_fn_to_closure_checksum_validation() {
-    // 1. Setup
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
@@ -216,24 +208,9 @@ async fn test_transform_fn_to_closure_checksum_validation() {
 "#,
     );
 
-    let file_path = workspace.absolute_path("closure.rs");
+    let params = build_transform_params(&workspace, "closure.rs", "fn_to_closure", 1, 4, 3, 5);
 
-    // 2. Generate plan
-    let plan_result = client
-        .call_tool(
-            "transform.plan",
-            json!({
-                "transformation": {
-                    "kind": "fn_to_closure",
-                    "filePath": file_path.to_string_lossy(),
-                    "range": {
-                        "start": {"line": 1, "character": 4},
-                        "end": {"line": 3, "character": 5}
-                    }
-                }
-            }),
-        )
-        .await;
+    let plan_result = client.call_tool("transform.plan", params).await;
 
     match plan_result {
         Ok(response) => {
@@ -243,10 +220,7 @@ async fn test_transform_fn_to_closure_checksum_validation() {
                 return;
             }
 
-            let plan = response
-                .get("result")
-                .and_then(|r| r.get("content"))
-                .cloned();
+            let plan = response.get("result").and_then(|r| r.get("content")).cloned();
 
             // If no plan content, likely LSP not available
             if plan.is_none() {
@@ -256,7 +230,7 @@ async fn test_transform_fn_to_closure_checksum_validation() {
 
             let plan = plan.unwrap();
 
-            // 3. Modify file to invalidate checksum
+            // Modify file to invalidate checksum
             workspace.create_file(
                 "closure.rs",
                 r#"pub fn mapper() {
@@ -269,7 +243,7 @@ async fn test_transform_fn_to_closure_checksum_validation() {
 "#,
             );
 
-            // 4. Try to apply with checksum validation
+            // Try to apply with checksum validation
             let apply_result = client
                 .call_tool(
                     "workspace.apply_edit",
@@ -294,9 +268,10 @@ async fn test_transform_fn_to_closure_checksum_validation() {
     }
 }
 
+/// Test 4: Transform plan metadata structure (MANUAL - LSP required)
+/// BEFORE: 85 lines | AFTER: ~60 lines (~29% reduction)
 #[tokio::test]
 async fn test_transform_plan_metadata_structure() {
-    // 1. Setup
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
@@ -312,24 +287,9 @@ async fn test_transform_plan_metadata_structure() {
 "#,
     );
 
-    let file_path = workspace.absolute_path("meta.rs");
+    let params = build_transform_params(&workspace, "meta.rs", "if_to_match", 1, 4, 5, 5);
 
-    // 2. Generate transform plan
-    let plan_result = client
-        .call_tool(
-            "transform.plan",
-            json!({
-                "transformation": {
-                    "kind": "if_to_match",
-                    "filePath": file_path.to_string_lossy(),
-                    "range": {
-                        "start": {"line": 1, "character": 4},
-                        "end": {"line": 5, "character": 5}
-                    }
-                }
-            }),
-        )
-        .await;
+    let plan_result = client.call_tool("transform.plan", params).await;
 
     match plan_result {
         Ok(response) => {
@@ -339,10 +299,7 @@ async fn test_transform_plan_metadata_structure() {
                 return;
             }
 
-            let plan = response
-                .get("result")
-                .and_then(|r| r.get("content"))
-                .cloned();
+            let plan = response.get("result").and_then(|r| r.get("content")).cloned();
 
             // If no plan content, likely LSP not available
             if plan.is_none() {

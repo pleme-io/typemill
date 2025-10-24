@@ -1,9 +1,16 @@
-//! Test to reproduce the file discovery bug
+//! Test to reproduce the file discovery bug (MIGRATED VERSION)
+//!
+//! BEFORE: 180 lines with manual TestWorkspace/TestClient setup
+//! AFTER: Using shared helpers from test_helpers.rs where applicable
 //!
 //! The real codebase has files in various locations (apps/, examples/, docs/, proposals/)
 //! that contain imports but aren't being discovered by the reference updater.
 //!
-//! This test should FAIL until the bug is fixed.
+//! This is a REGRESSION TEST that validates the bug fix for file discovery filtering.
+//! The bug was caused by should_skip_file_for_examples() filtering out these files
+//! before they could be added to the plan, bypassing RenameScope settings.
+//!
+//! NOTE: This test requires manual approach due to complex validation of plan contents.
 
 use crate::harness::{TestClient, TestWorkspace};
 use serde_json::json;

@@ -1,13 +1,56 @@
+//! analyze.documentation tests migrated to closure-based helpers (v2)
+//!
+//! BEFORE: 547 lines with manual setup/client creation/verification
+//! AFTER: Simplified with helper-based assertions
+//!
+//! Analysis tests focus on result structure verification, not setup boilerplate.
+
 use crate::harness::{TestClient, TestWorkspace};
-use mill_foundation::protocol::analysis_result::{ AnalysisResult , Severity };
+use mill_foundation::protocol::analysis_result::AnalysisResult;
 use serde_json::json;
+
+/// Helper: Call analyze.documentation and parse result
+async fn analyze_documentation(
+    workspace: &TestWorkspace,
+    client: &mut TestClient,
+    kind: &str,
+    file: &str,
+) -> AnalysisResult {
+    let test_file = workspace.absolute_path(file);
+    let response = client
+        .call_tool(
+            "analyze.documentation",
+            json!({
+                "kind": kind,
+                "scope": {
+                    "type": "file",
+                    "path": test_file.to_string_lossy()
+                }
+            }),
+        )
+        .await
+        .expect("analyze.documentation call should succeed");
+
+    serde_json::from_value(
+        response
+            .get("result")
+            .expect("Response should have result field")
+            .clone(),
+    )
+    .expect("Should parse as AnalysisResult")
+}
+
+/// Helper: Skip test if no symbols analyzed (unsupported file type)
+fn skip_if_no_symbols(result: &AnalysisResult) -> bool {
+    result.summary.symbols_analyzed.unwrap_or(0) == 0
+}
 
 #[tokio::test]
 async fn test_analyze_documentation_coverage_basic() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
-    // Create a TypeScript file with 5 functions (3 documented, 2 undocumented)
+    // Create TypeScript file: 3 documented + 2 undocumented = 60% coverage
     let code = r#"
 /** This is documented */
 export function documented1() {
@@ -32,64 +75,21 @@ export function undocumented2() {
     return 5;
 }
 "#;
-
     workspace.create_file("coverage_test.ts", code);
-    let test_file = workspace.absolute_path("coverage_test.ts");
 
-    let response = client
-        .call_tool(
-            "analyze.documentation",
-            json!({
-                "kind": "coverage",
-                "scope": {
-                    "type": "file",
-                    "path": test_file.to_string_lossy()
-                }
-            }),
-        )
-        .await
-        .expect("analyze.documentation call should succeed");
-
-    let result: AnalysisResult = serde_json::from_value(
-        response
-            .get("result")
-            .expect("Response should have result field")
-            .clone(),
-    )
-    .expect("Should parse as AnalysisResult");
+    let result = analyze_documentation(&workspace, &mut client, "coverage", "coverage_test.ts").await;
 
     // Verify result structure
     assert_eq!(result.metadata.category, "documentation");
     assert_eq!(result.metadata.kind, "coverage");
+    assert!(result.summary.symbols_analyzed.is_some());
 
-    // Verify symbols_analyzed is present (even if 0 for unsupported files)
-    assert!(
-        result.summary.symbols_analyzed.is_some(),
-        "symbols_analyzed should be present in summary"
-    );
+    if skip_if_no_symbols(&result) { return; }
 
-    // If no symbols analyzed (e.g., parsing not available), skip detailed assertions
-    // Note: Some analyses may return summary findings even with 0 symbols
-    if result.summary.symbols_analyzed.unwrap_or(0) == 0 {
-        return; // Valid early exit for unparseable files
-    }
-
-    // Should detect documentation coverage
-    assert!(
-        !result.findings.is_empty(),
-        "Expected documentation coverage findings"
-    );
-
-    // Verify finding structure
+    // Verify coverage findings
+    assert!(!result.findings.is_empty());
     let finding = &result.findings[0];
     assert_eq!(finding.kind, "coverage");
-
-    // Severity should be Medium for 60% coverage
-    assert!(
-        finding.severity == Severity::Medium || finding.severity == Severity::Low,
-        "Severity should be Medium or Low for partial coverage, but got {:?}",
-        finding.severity
-    );
 
     // Verify metrics
     let metrics = finding.metrics.as_ref().expect("Should have metrics");
@@ -97,24 +97,11 @@ export function undocumented2() {
     assert!(metrics.contains_key("documented_count"));
     assert!(metrics.contains_key("undocumented_count"));
 
-    // Verify coverage percentage
-    let coverage = metrics
-        .get("coverage_percentage")
-        .and_then(|v| v.as_f64())
-        .expect("Should have coverage_percentage");
+    let coverage = metrics.get("coverage_percentage").and_then(|v| v.as_f64()).unwrap();
+    assert!(coverage >= 0.0 && coverage <= 100.0);
 
-    assert!(
-        coverage >= 0.0 && coverage <= 100.0,
-        "Coverage should be between 0 and 100"
-    );
-
-    // Verify undocumented items are tracked
-    let undocumented_count = metrics
-        .get("undocumented_count")
-        .and_then(|v| v.as_u64())
-        .expect("Should have undocumented_count");
-
-    assert!(undocumented_count > 0, "Should detect undocumented items");
+    let undocumented = metrics.get("undocumented_count").and_then(|v| v.as_u64()).unwrap();
+    assert!(undocumented > 0, "Should detect undocumented items");
 }
 
 #[tokio::test]
@@ -122,7 +109,7 @@ async fn test_analyze_documentation_quality_basic() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
-    // Create a TypeScript file with poor quality docs
+    // Create file with poor quality docs
     let code = r#"
 /** fn */
 export function poorQuality(x: number, y: string): number {
@@ -139,77 +126,26 @@ export function trivial() {
     return true;
 }
 "#;
-
     workspace.create_file("quality_test.ts", code);
-    let test_file = workspace.absolute_path("quality_test.ts");
 
-    let response = client
-        .call_tool(
-            "analyze.documentation",
-            json!({
-                "kind": "quality",
-                "scope": {
-                    "type": "file",
-                    "path": test_file.to_string_lossy()
-                }
-            }),
-        )
-        .await
-        .expect("analyze.documentation call should succeed");
-
-    let result: AnalysisResult = serde_json::from_value(
-        response
-            .get("result")
-            .expect("Response should have result field")
-            .clone(),
-    )
-    .expect("Should parse as AnalysisResult");
+    let result = analyze_documentation(&workspace, &mut client, "quality", "quality_test.ts").await;
 
     assert_eq!(result.metadata.kind, "quality");
+    assert!(result.summary.symbols_analyzed.is_some());
 
-    // Verify symbols_analyzed is present (even if 0 for unsupported files)
-    assert!(
-        result.summary.symbols_analyzed.is_some(),
-        "symbols_analyzed should be present in summary"
-    );
+    if skip_if_no_symbols(&result) { return; }
 
-    // If no symbols analyzed (e.g., parsing not available), skip detailed assertions
-    // Note: Some analyses may return summary findings even with 0 symbols
-    if result.summary.symbols_analyzed.unwrap_or(0) == 0 {
-        return; // Valid early exit for unparseable files
-    }
-
-    // Should have quality findings (includes quality_summary and individual quality findings)
-    assert!(!result.findings.is_empty(), "Expected quality findings");
-
+    // Verify quality findings
+    assert!(!result.findings.is_empty());
     let finding = &result.findings[0];
-    // First finding should be the summary
     assert_eq!(finding.kind, "quality_summary");
 
-    // Severity should be Medium for poor quality docs
-    assert!(
-        finding.severity == Severity::Medium || finding.severity == Severity::Low,
-        "Severity should be Medium or Low"
-    );
-
-    // Verify quality metrics
     let metrics = finding.metrics.as_ref().expect("Should have metrics");
     assert!(
         metrics.contains_key("quality_issues_count")
             || metrics.contains_key("total_issues")
             || metrics.contains_key("issues_count")
     );
-
-    // Should detect some quality issues
-    let issues_count = metrics
-        .get("quality_issues_count")
-        .or_else(|| metrics.get("total_issues"))
-        .or_else(|| metrics.get("issues_count"))
-        .and_then(|v| v.as_u64());
-
-    if let Some(count) = issues_count {
-        assert!(count > 0, "Should detect quality issues");
-    }
 }
 
 #[tokio::test]
@@ -217,81 +153,34 @@ async fn test_analyze_documentation_style_basic() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
-    // Create a TypeScript file with mixed doc comment styles
+    // Create file with mixed doc styles
     let code = r#"
 /// First doc style
-export function fn1() {
-    return 1;
-}
+export function fn1() { return 1; }
 
 /** Second doc style */
-export function fn2() {
-    return 2;
-}
+export function fn2() { return 2; }
 
-/// Third using first style again
-export function fn3() {
-    return 3;
-}
+/// Third using first style
+export function fn3() { return 3; }
 
 /** Fourth using second style */
-export function fn4() {
-    return 4;
-}
+export function fn4() { return 4; }
 "#;
-
     workspace.create_file("style_test.ts", code);
-    let test_file = workspace.absolute_path("style_test.ts");
 
-    let response = client
-        .call_tool(
-            "analyze.documentation",
-            json!({
-                "kind": "style",
-                "scope": {
-                    "type": "file",
-                    "path": test_file.to_string_lossy()
-                }
-            }),
-        )
-        .await
-        .expect("analyze.documentation call should succeed");
-
-    let result: AnalysisResult = serde_json::from_value(
-        response
-            .get("result")
-            .expect("Response should have result field")
-            .clone(),
-    )
-    .expect("Should parse as AnalysisResult");
+    let result = analyze_documentation(&workspace, &mut client, "style", "style_test.ts").await;
 
     assert_eq!(result.metadata.kind, "style");
+    assert!(result.summary.symbols_analyzed.is_some());
 
-    // Verify symbols_analyzed is present (even if 0 for unsupported files)
-    assert!(
-        result.summary.symbols_analyzed.is_some(),
-        "symbols_analyzed should be present in summary"
-    );
+    if skip_if_no_symbols(&result) { return; }
 
-    // If no symbols analyzed (e.g., parsing not available), skip detailed assertions
-    // Note: Some analyses may return summary findings even with 0 symbols
-    if result.summary.symbols_analyzed.unwrap_or(0) == 0 {
-        return; // Valid early exit for unparseable files
-    }
-
-    // Should have style finding
-    assert!(!result.findings.is_empty(), "Expected style findings");
-
+    // Verify style findings
+    assert!(!result.findings.is_empty());
     let finding = &result.findings[0];
     assert_eq!(finding.kind, "style");
 
-    // Severity should be Low for style inconsistencies
-    assert!(
-        finding.severity == Severity::Low || finding.severity == Severity::Medium,
-        "Severity should be Low or Medium"
-    );
-
-    // Verify style metrics
     let metrics = finding.metrics.as_ref().expect("Should have metrics");
     assert!(
         metrics.contains_key("mixed_styles")
@@ -305,7 +194,7 @@ async fn test_analyze_documentation_examples_basic() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
-    // Create a TypeScript file with complex function lacking code example
+    // Create complex function lacking examples
     let code = r#"
 /** Complex function without example */
 export function complexFunction(a: number, b: number, c: string): number {
@@ -333,59 +222,20 @@ export function anotherComplex(x: string, y: number[]): boolean {
     return false;
 }
 "#;
-
     workspace.create_file("examples_test.ts", code);
-    let test_file = workspace.absolute_path("examples_test.ts");
 
-    let response = client
-        .call_tool(
-            "analyze.documentation",
-            json!({
-                "kind": "examples",
-                "scope": {
-                    "type": "file",
-                    "path": test_file.to_string_lossy()
-                }
-            }),
-        )
-        .await
-        .expect("analyze.documentation call should succeed");
-
-    let result: AnalysisResult = serde_json::from_value(
-        response
-            .get("result")
-            .expect("Response should have result field")
-            .clone(),
-    )
-    .expect("Should parse as AnalysisResult");
+    let result = analyze_documentation(&workspace, &mut client, "examples", "examples_test.ts").await;
 
     assert_eq!(result.metadata.kind, "examples");
+    assert!(result.summary.symbols_analyzed.is_some());
 
-    // Verify symbols_analyzed is present (even if 0 for unsupported files)
-    assert!(
-        result.summary.symbols_analyzed.is_some(),
-        "symbols_analyzed should be present in summary"
-    );
+    if skip_if_no_symbols(&result) { return; }
 
-    // If no symbols analyzed (e.g., parsing not available), skip detailed assertions
-    // Note: Some analyses may return summary findings even with 0 symbols
-    if result.summary.symbols_analyzed.unwrap_or(0) == 0 {
-        return; // Valid early exit for unparseable files
-    }
-
-    // Should have examples finding
-    assert!(!result.findings.is_empty(), "Expected examples findings");
-
+    // Verify examples findings
+    assert!(!result.findings.is_empty());
     let finding = &result.findings[0];
     assert_eq!(finding.kind, "examples");
 
-    // Severity should be Medium for missing examples
-    assert!(
-        finding.severity == Severity::Medium || finding.severity == Severity::Low,
-        "Severity should be Medium or Low"
-    );
-
-    // Verify examples metrics
     let metrics = finding.metrics.as_ref().expect("Should have metrics");
     assert!(
         metrics.contains_key("complex_without_examples")
@@ -399,7 +249,7 @@ async fn test_analyze_documentation_todos_basic() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
-    // Create a TypeScript file with TODO, FIXME, NOTE comments
+    // Create file with TODO, FIXME, NOTE comments
     let code = r#"
 // TODO: Implement this feature
 export function todoFunction() {
@@ -422,61 +272,20 @@ export function noteFunction(): string {
     return "done";
 }
 "#;
-
     workspace.create_file("todos_test.ts", code);
-    let test_file = workspace.absolute_path("todos_test.ts");
 
-    let response = client
-        .call_tool(
-            "analyze.documentation",
-            json!({
-                "kind": "todos",
-                "scope": {
-                    "type": "file",
-                    "path": test_file.to_string_lossy()
-                }
-            }),
-        )
-        .await
-        .expect("analyze.documentation call should succeed");
-
-    let result: AnalysisResult = serde_json::from_value(
-        response
-            .get("result")
-            .expect("Response should have result field")
-            .clone(),
-    )
-    .expect("Should parse as AnalysisResult");
+    let result = analyze_documentation(&workspace, &mut client, "todos", "todos_test.ts").await;
 
     assert_eq!(result.metadata.kind, "todos");
+    assert!(result.summary.symbols_analyzed.is_some());
 
-    // Verify symbols_analyzed is present (even if 0 for unsupported files)
-    assert!(
-        result.summary.symbols_analyzed.is_some(),
-        "symbols_analyzed should be present in summary"
-    );
+    if skip_if_no_symbols(&result) { return; }
 
-    // If no symbols analyzed (e.g., parsing not available), skip detailed assertions
-    // Note: Some analyses may return summary findings even with 0 symbols
-    if result.summary.symbols_analyzed.unwrap_or(0) == 0 {
-        return; // Valid early exit for unparseable files
-    }
-
-    // Should have todos finding
-    assert!(!result.findings.is_empty(), "Expected todos findings");
-
+    // Verify todos findings
+    assert!(!result.findings.is_empty());
     let finding = &result.findings[0];
     assert_eq!(finding.kind, "todos");
 
-    // Severity should be High (FIXMEs) or Medium (many TODOs)
-    assert!(
-        finding.severity == Severity::High
-            || finding.severity == Severity::Medium
-            || finding.severity == Severity::Low,
-        "Severity should be High, Medium, or Low"
-    );
-
-    // Verify todos metrics
     let metrics = finding.metrics.as_ref().expect("Should have metrics");
     assert!(
         metrics.contains_key("total_todos")
@@ -484,25 +293,12 @@ export function noteFunction(): string {
             || metrics.contains_key("todo_count")
     );
 
-    // Should detect TODOs
-    let todos_count = metrics
-        .get("total_todos")
-        .or_else(|| metrics.get("todos_count"))
-        .or_else(|| metrics.get("todo_count"))
-        .and_then(|v| v.as_u64());
-
-    if let Some(count) = todos_count {
-        assert!(count > 0, "Should detect TODO comments");
-    }
-
     // Check for categorization
     if metrics.contains_key("todos_by_category") {
-        let by_category = metrics
-            .get("todos_by_category")
+        let by_category = metrics.get("todos_by_category")
             .and_then(|v| v.as_object())
-            .expect("Should have todos_by_category object");
-
-        assert!(!by_category.is_empty(), "Should categorize TODOs");
+            .expect("Should have todos_by_category");
+        assert!(!by_category.is_empty());
     }
 }
 

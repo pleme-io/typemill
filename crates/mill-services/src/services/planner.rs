@@ -202,7 +202,7 @@ mod tests {
         {
             "workflows": {
                 "refactor.renameSymbol": {
-                    "name": "Rename '{old_name}' to '{new_name}'",
+                    "name": "Rename '{old_name}' to '{newName}'",
                     "metadata": {
                         "complexity": 2
                     },
@@ -217,9 +217,9 @@ mod tests {
                                         "symbol_name": "{old_name}"
                                     }
                                 },
-                                "newName": "{new_name}"
+                                "newName": "{newName}"
                             },
-                            "description": "Generate rename plan for '{old_name}' → '{new_name}'",
+                            "description": "Generate rename plan for '{old_name}' → '{newName}'",
                             "requires_confirmation": null
                         },
                         {

@@ -1,13 +1,57 @@
+//! Analysis API tests for analyze.structure (MIGRATED VERSION)
+//!
+//! BEFORE: 573 lines with repetitive setup and result parsing
+//! AFTER: Using simplified helper pattern for analysis tests
+//!
+//! Tests structure analysis: symbols, hierarchy, interfaces, inheritance, modules
+
 use crate::harness::{TestClient, TestWorkspace};
-use mill_foundation::protocol::analysis_result::{ AnalysisResult , Severity };
+use mill_foundation::protocol::analysis_result::{AnalysisResult, Severity};
 use serde_json::json;
+
+/// Helper to run structure analysis test
+async fn run_structure_test<V>(
+    file_name: &str,
+    file_content: &str,
+    kind: &str,
+    verify: V,
+) -> anyhow::Result<()>
+where
+    V: FnOnce(&AnalysisResult) -> anyhow::Result<()>,
+{
+    let workspace = TestWorkspace::new();
+    workspace.create_file(file_name, file_content);
+    let mut client = TestClient::new(workspace.path());
+    let test_file = workspace.absolute_path(file_name);
+
+    let response = client
+        .call_tool(
+            "analyze.structure",
+            json!({
+                "kind": kind,
+                "scope": {
+                    "type": "file",
+                    "path": test_file.to_string_lossy()
+                }
+            }),
+        )
+        .await
+        .expect("analyze.structure call should succeed");
+
+    let result: AnalysisResult = serde_json::from_value(
+        response
+            .get("result")
+            .expect("Response should have result field")
+            .clone(),
+    )
+    .expect("Should parse as AnalysisResult");
+
+    verify(&result)?;
+    Ok(())
+}
 
 #[tokio::test]
 async fn test_analyze_structure_symbols_basic() {
-    let workspace = TestWorkspace::new();
-    let mut client = TestClient::new(workspace.path());
-
-    // Create a TypeScript file with diverse symbols
     let code = r#"
 export interface User {
     id: number;
@@ -35,84 +79,48 @@ export type UserData = {
 };
 "#;
 
-    workspace.create_file("symbols_test.ts", code);
-    let test_file = workspace.absolute_path("symbols_test.ts");
+    run_structure_test("symbols_test.ts", code, "symbols", |result| {
+        assert_eq!(result.metadata.category, "structure");
+        assert_eq!(result.metadata.kind, "symbols");
+        assert!(result.summary.symbols_analyzed.is_some());
 
-    let response = client
-        .call_tool(
-            "analyze.structure",
-            json!({
-                "kind": "symbols",
-                "scope": {
-                    "type": "file",
-                    "path": test_file.to_string_lossy()
-                }
-            }),
-        )
-        .await
-        .expect("analyze.structure call should succeed");
+        if result.summary.symbols_analyzed.unwrap_or(0) == 0 {
+            return Ok(());
+        }
 
-    let result: AnalysisResult = serde_json::from_value(
-        response
-            .get("result")
-            .expect("Response should have result field")
-            .clone(),
-    )
-    .expect("Should parse as AnalysisResult");
+        assert!(!result.findings.is_empty());
 
-    // Verify result structure
-    assert_eq!(result.metadata.category, "structure");
-    assert_eq!(result.metadata.kind, "symbols");
+        let finding = &result.findings[0];
+        assert_eq!(finding.kind, "symbols");
+        assert_eq!(finding.severity, Severity::Low);
 
-    // Verify symbols_analyzed is present (even if 0 for unsupported files)
-    assert!(
-        result.summary.symbols_analyzed.is_some(),
-        "symbols_analyzed should be present in summary"
-    );
+        let metrics = finding.metrics.as_ref().expect("Should have metrics");
+        assert!(metrics.contains_key("total_symbols"));
+        assert!(metrics.contains_key("symbols_by_kind"));
+        assert!(metrics.contains_key("visibility_breakdown"));
 
-    // If no symbols analyzed (e.g., parsing not available), skip detailed assertions
-    // Note: Some analyses may return summary findings even with 0 symbols
-    if result.summary.symbols_analyzed.unwrap_or(0) == 0 {
-        return; // Valid early exit for unparseable files
-    }
+        let total_symbols = metrics
+            .get("total_symbols")
+            .and_then(|v| v.as_u64())
+            .expect("Should have total_symbols");
 
-    // Should detect symbols
-    assert!(!result.findings.is_empty(), "Expected symbol findings");
+        assert!(total_symbols > 0);
 
-    // Verify finding structure
-    let finding = &result.findings[0];
-    assert_eq!(finding.kind, "symbols");
-    assert_eq!(finding.severity, Severity::Low);
+        let symbols_by_kind = metrics
+            .get("symbols_by_kind")
+            .and_then(|v| v.as_object())
+            .expect("Should have symbols_by_kind object");
 
-    // Verify metrics
-    let metrics = finding.metrics.as_ref().expect("Should have metrics");
-    assert!(metrics.contains_key("total_symbols"));
-    assert!(metrics.contains_key("symbols_by_kind"));
-    assert!(metrics.contains_key("visibility_breakdown"));
+        assert!(!symbols_by_kind.is_empty());
 
-    // Verify we detected symbols
-    let total_symbols = metrics
-        .get("total_symbols")
-        .and_then(|v| v.as_u64())
-        .expect("Should have total_symbols");
-
-    assert!(total_symbols > 0, "Should detect symbols");
-
-    // Verify symbols_by_kind is present
-    let symbols_by_kind = metrics
-        .get("symbols_by_kind")
-        .and_then(|v| v.as_object())
-        .expect("Should have symbols_by_kind object");
-
-    assert!(!symbols_by_kind.is_empty(), "Should categorize symbols");
+        Ok(())
+    })
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
 async fn test_analyze_structure_hierarchy_basic() {
-    let workspace = TestWorkspace::new();
-    let mut client = TestClient::new(workspace.path());
-
-    // Create a TypeScript file with class hierarchy
     let code = r#"
 export class BaseClass {
     baseMethod() {
@@ -133,90 +141,49 @@ export class LeafClass extends MiddleClass {
 }
 "#;
 
-    workspace.create_file("hierarchy_test.ts", code);
-    let test_file = workspace.absolute_path("hierarchy_test.ts");
+    run_structure_test("hierarchy_test.ts", code, "hierarchy", |result| {
+        assert_eq!(result.metadata.kind, "hierarchy");
+        assert!(result.summary.symbols_analyzed.is_some());
 
-    let response = client
-        .call_tool(
-            "analyze.structure",
-            json!({
-                "kind": "hierarchy",
-                "scope": {
-                    "type": "file",
-                    "path": test_file.to_string_lossy()
-                }
-            }),
-        )
-        .await
-        .expect("analyze.structure call should succeed");
+        if result.summary.symbols_analyzed.unwrap_or(0) == 0 {
+            return Ok(());
+        }
 
-    let result: AnalysisResult = serde_json::from_value(
-        response
-            .get("result")
-            .expect("Response should have result field")
-            .clone(),
-    )
-    .expect("Should parse as AnalysisResult");
+        assert!(!result.findings.is_empty());
 
-    assert_eq!(result.metadata.kind, "hierarchy");
+        let finding = &result.findings[0];
+        assert_eq!(finding.kind, "hierarchy");
+        assert!(finding.severity == Severity::Medium || finding.severity == Severity::Low);
 
-    // Verify symbols_analyzed is present (even if 0 for unsupported files)
-    assert!(
-        result.summary.symbols_analyzed.is_some(),
-        "symbols_analyzed should be present in summary"
-    );
+        let metrics = finding.metrics.as_ref().expect("Should have metrics");
+        assert!(metrics.contains_key("max_depth"));
+        assert!(metrics.contains_key("total_classes"));
+        assert!(metrics.contains_key("root_classes"));
+        assert!(metrics.contains_key("leaf_classes"));
+        assert!(metrics.contains_key("hierarchy_tree"));
 
-    // If no symbols analyzed (e.g., parsing not available), skip detailed assertions
-    // Note: Some analyses may return summary findings even with 0 symbols
-    if result.summary.symbols_analyzed.unwrap_or(0) == 0 {
-        return; // Valid early exit for unparseable files
-    }
+        let total_classes = metrics
+            .get("total_classes")
+            .and_then(|v| v.as_u64())
+            .expect("Should have total_classes");
 
-    // Should have hierarchy finding
-    assert!(!result.findings.is_empty(), "Expected hierarchy findings");
+        assert!(total_classes >= 3);
 
-    let finding = &result.findings[0];
-    assert_eq!(finding.kind, "hierarchy");
+        let max_depth = metrics
+            .get("max_depth")
+            .and_then(|v| v.as_u64())
+            .expect("Should have max_depth");
 
-    // Severity can be Medium (depth > 5) or Low (acceptable depth)
-    assert!(
-        finding.severity == Severity::Medium || finding.severity == Severity::Low,
-        "Severity should be Medium or Low"
-    );
+        assert!(max_depth > 0);
 
-    // Verify hierarchy metrics
-    let metrics = finding.metrics.as_ref().expect("Should have metrics");
-    assert!(metrics.contains_key("max_depth"));
-    assert!(metrics.contains_key("total_classes"));
-    assert!(metrics.contains_key("root_classes"));
-    assert!(metrics.contains_key("leaf_classes"));
-    assert!(metrics.contains_key("hierarchy_tree"));
-
-    // Verify we detected hierarchy
-    let total_classes = metrics
-        .get("total_classes")
-        .and_then(|v| v.as_u64())
-        .expect("Should have total_classes");
-
-    assert!(
-        total_classes >= 3,
-        "Should detect at least 3 classes in hierarchy"
-    );
-
-    let max_depth = metrics
-        .get("max_depth")
-        .and_then(|v| v.as_u64())
-        .expect("Should have max_depth");
-
-    assert!(max_depth > 0, "Should calculate hierarchy depth");
+        Ok(())
+    })
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
 async fn test_analyze_structure_interfaces_basic() {
-    let workspace = TestWorkspace::new();
-    let mut client = TestClient::new(workspace.path());
-
-    // Create a TypeScript file with interfaces (including fat interface)
     let code = r#"
 // Fat interface with 12 methods (violates ISP)
 export interface FatService {
@@ -241,90 +208,47 @@ export interface SimpleInterface {
 }
 "#;
 
-    workspace.create_file("interfaces_test.ts", code);
-    let test_file = workspace.absolute_path("interfaces_test.ts");
+    run_structure_test("interfaces_test.ts", code, "interfaces", |result| {
+        assert_eq!(result.metadata.kind, "interfaces");
+        assert!(result.summary.symbols_analyzed.is_some());
 
-    let response = client
-        .call_tool(
-            "analyze.structure",
-            json!({
-                "kind": "interfaces",
-                "scope": {
-                    "type": "file",
-                    "path": test_file.to_string_lossy()
-                }
-            }),
-        )
-        .await
-        .expect("analyze.structure call should succeed");
+        if result.summary.symbols_analyzed.unwrap_or(0) == 0 {
+            return Ok(());
+        }
 
-    let result: AnalysisResult = serde_json::from_value(
-        response
-            .get("result")
-            .expect("Response should have result field")
-            .clone(),
-    )
-    .expect("Should parse as AnalysisResult");
+        assert!(!result.findings.is_empty());
 
-    assert_eq!(result.metadata.kind, "interfaces");
+        let finding = &result.findings[0];
+        assert_eq!(finding.kind, "interfaces");
+        assert!(finding.severity == Severity::Medium || finding.severity == Severity::Low);
 
-    // Verify symbols_analyzed is present (even if 0 for unsupported files)
-    assert!(
-        result.summary.symbols_analyzed.is_some(),
-        "symbols_analyzed should be present in summary"
-    );
+        let metrics = finding.metrics.as_ref().expect("Should have metrics");
+        assert!(metrics.contains_key("interface_count"));
+        assert!(metrics.contains_key("methods_per_interface"));
+        assert!(metrics.contains_key("fat_interfaces"));
 
-    // If no symbols analyzed (e.g., parsing not available), skip detailed assertions
-    // Note: Some analyses may return summary findings even with 0 symbols
-    if result.summary.symbols_analyzed.unwrap_or(0) == 0 {
-        return; // Valid early exit for unparseable files
-    }
+        let interface_count = metrics
+            .get("interface_count")
+            .and_then(|v| v.as_u64())
+            .expect("Should have interface_count");
 
-    // Should have interface finding
-    assert!(!result.findings.is_empty(), "Expected interface findings");
+        assert!(interface_count >= 2);
 
-    let finding = &result.findings[0];
-    assert_eq!(finding.kind, "interfaces");
+        let fat_interfaces = metrics
+            .get("fat_interfaces")
+            .and_then(|v| v.as_array())
+            .expect("Should have fat_interfaces array");
 
-    // Severity can be Medium (fat interfaces) or Low (clean interfaces)
-    assert!(
-        finding.severity == Severity::Medium || finding.severity == Severity::Low,
-        "Severity should be Medium or Low"
-    );
+        assert!(fat_interfaces.len() > 0);
 
-    // Verify interface metrics
-    let metrics = finding.metrics.as_ref().expect("Should have metrics");
-    assert!(metrics.contains_key("interface_count"));
-    assert!(metrics.contains_key("methods_per_interface"));
-    assert!(metrics.contains_key("fat_interfaces"));
-
-    // Verify we detected interfaces
-    let interface_count = metrics
-        .get("interface_count")
-        .and_then(|v| v.as_u64())
-        .expect("Should have interface_count");
-
-    assert!(interface_count >= 2, "Should detect at least 2 interfaces");
-
-    // Verify fat interfaces are detected
-    let fat_interfaces = metrics
-        .get("fat_interfaces")
-        .and_then(|v| v.as_array())
-        .expect("Should have fat_interfaces array");
-
-    // Should detect the FatService interface
-    assert!(
-        fat_interfaces.len() > 0,
-        "Should detect at least one fat interface"
-    );
+        Ok(())
+    })
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
 async fn test_analyze_structure_inheritance_basic() {
-    let workspace = TestWorkspace::new();
-    let mut client = TestClient::new(workspace.path());
-
-    // Create a TypeScript file with inheritance chain (5 levels - deep inheritance)
     let code = r#"
 export class Level1 {
     method1() {
@@ -357,89 +281,47 @@ export class Level5 extends Level4 {
 }
 "#;
 
-    workspace.create_file("inheritance_test.ts", code);
-    let test_file = workspace.absolute_path("inheritance_test.ts");
+    run_structure_test("inheritance_test.ts", code, "inheritance", |result| {
+        assert_eq!(result.metadata.kind, "inheritance");
+        assert!(result.summary.symbols_analyzed.is_some());
 
-    let response = client
-        .call_tool(
-            "analyze.structure",
-            json!({
-                "kind": "inheritance",
-                "scope": {
-                    "type": "file",
-                    "path": test_file.to_string_lossy()
-                }
-            }),
-        )
-        .await
-        .expect("analyze.structure call should succeed");
+        if result.summary.symbols_analyzed.unwrap_or(0) == 0 {
+            return Ok(());
+        }
 
-    let result: AnalysisResult = serde_json::from_value(
-        response
-            .get("result")
-            .expect("Response should have result field")
-            .clone(),
-    )
-    .expect("Should parse as AnalysisResult");
+        assert!(!result.findings.is_empty());
 
-    assert_eq!(result.metadata.kind, "inheritance");
+        let finding = &result.findings[0];
+        assert_eq!(finding.kind, "inheritance");
+        assert!(finding.severity == Severity::High || finding.severity == Severity::Low);
 
-    // Verify symbols_analyzed is present (even if 0 for unsupported files)
-    assert!(
-        result.summary.symbols_analyzed.is_some(),
-        "symbols_analyzed should be present in summary"
-    );
+        let metrics = finding.metrics.as_ref().expect("Should have metrics");
+        assert!(metrics.contains_key("max_inheritance_depth"));
+        assert!(metrics.contains_key("classes_by_depth"));
+        assert!(metrics.contains_key("inheritance_chains"));
 
-    // If no symbols analyzed (e.g., parsing not available), skip detailed assertions
-    // Note: Some analyses may return summary findings even with 0 symbols
-    if result.summary.symbols_analyzed.unwrap_or(0) == 0 {
-        return; // Valid early exit for unparseable files
-    }
+        let max_depth = metrics
+            .get("max_inheritance_depth")
+            .and_then(|v| v.as_u64())
+            .expect("Should have max_inheritance_depth");
 
-    // Should have inheritance finding
-    assert!(!result.findings.is_empty(), "Expected inheritance findings");
+        assert!(max_depth > 0);
 
-    let finding = &result.findings[0];
-    assert_eq!(finding.kind, "inheritance");
+        let inheritance_chains = metrics
+            .get("inheritance_chains")
+            .and_then(|v| v.as_array())
+            .expect("Should have inheritance_chains array");
 
-    // Severity can be High (depth > 4) or Low (acceptable depth)
-    assert!(
-        finding.severity == Severity::High || finding.severity == Severity::Low,
-        "Severity should be High or Low"
-    );
+        assert!(!inheritance_chains.is_empty());
 
-    // Verify inheritance metrics
-    let metrics = finding.metrics.as_ref().expect("Should have metrics");
-    assert!(metrics.contains_key("max_inheritance_depth"));
-    assert!(metrics.contains_key("classes_by_depth"));
-    assert!(metrics.contains_key("inheritance_chains"));
-
-    // Verify we detected inheritance
-    let max_depth = metrics
-        .get("max_inheritance_depth")
-        .and_then(|v| v.as_u64())
-        .expect("Should have max_inheritance_depth");
-
-    assert!(max_depth > 0, "Should detect inheritance depth");
-
-    // Verify inheritance chains
-    let inheritance_chains = metrics
-        .get("inheritance_chains")
-        .and_then(|v| v.as_array())
-        .expect("Should have inheritance_chains array");
-
-    assert!(
-        !inheritance_chains.is_empty(),
-        "Should detect inheritance chains"
-    );
+        Ok(())
+    })
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
 async fn test_analyze_structure_modules_basic() {
-    let workspace = TestWorkspace::new();
-    let mut client = TestClient::new(workspace.path());
-
-    // Create a TypeScript file with namespace organization
     let code = r#"
 export namespace Utils {
     export function fn1() { return 1; }
@@ -464,80 +346,45 @@ export function helper2() { return "helper2"; }
 export function helper3() { return "helper3"; }
 "#;
 
-    workspace.create_file("modules_test.ts", code);
-    let test_file = workspace.absolute_path("modules_test.ts");
+    run_structure_test("modules_test.ts", code, "modules", |result| {
+        assert_eq!(result.metadata.kind, "modules");
+        assert!(result.summary.symbols_analyzed.is_some());
 
-    let response = client
-        .call_tool(
-            "analyze.structure",
-            json!({
-                "kind": "modules",
-                "scope": {
-                    "type": "file",
-                    "path": test_file.to_string_lossy()
-                }
-            }),
-        )
-        .await
-        .expect("analyze.structure call should succeed");
+        if result.summary.symbols_analyzed.unwrap_or(0) == 0 {
+            return Ok(());
+        }
 
-    let result: AnalysisResult = serde_json::from_value(
-        response
-            .get("result")
-            .expect("Response should have result field")
-            .clone(),
-    )
-    .expect("Should parse as AnalysisResult");
+        assert!(!result.findings.is_empty());
 
-    assert_eq!(result.metadata.kind, "modules");
+        let finding = &result.findings[0];
+        assert_eq!(finding.kind, "modules");
+        assert!(finding.severity == Severity::Medium || finding.severity == Severity::Low);
 
-    // Verify symbols_analyzed is present (even if 0 for unsupported files)
-    assert!(
-        result.summary.symbols_analyzed.is_some(),
-        "symbols_analyzed should be present in summary"
-    );
+        let metrics = finding.metrics.as_ref().expect("Should have metrics");
+        assert!(metrics.contains_key("module_count"));
+        assert!(metrics.contains_key("items_per_module"));
+        assert!(metrics.contains_key("god_modules"));
+        assert!(metrics.contains_key("orphaned_items_count"));
+        assert!(metrics.contains_key("total_items"));
 
-    // If no symbols analyzed (e.g., parsing not available), skip detailed assertions
-    // Note: Some analyses may return summary findings even with 0 symbols
-    if result.summary.symbols_analyzed.unwrap_or(0) == 0 {
-        return; // Valid early exit for unparseable files
-    }
+        let total_items = metrics
+            .get("total_items")
+            .and_then(|v| v.as_u64())
+            .expect("Should have total_items");
 
-    // Should have module finding
-    assert!(!result.findings.is_empty(), "Expected module findings");
+        assert!(total_items > 0);
 
-    let finding = &result.findings[0];
-    assert_eq!(finding.kind, "modules");
-
-    // Severity can be Medium (god modules or many orphaned items) or Low (acceptable)
-    assert!(
-        finding.severity == Severity::Medium || finding.severity == Severity::Low,
-        "Severity should be Medium or Low"
-    );
-
-    // Verify module metrics
-    let metrics = finding.metrics.as_ref().expect("Should have metrics");
-    assert!(metrics.contains_key("module_count"));
-    assert!(metrics.contains_key("items_per_module"));
-    assert!(metrics.contains_key("god_modules"));
-    assert!(metrics.contains_key("orphaned_items_count"));
-    assert!(metrics.contains_key("total_items"));
-
-    // Verify we detected modules or items
-    let total_items = metrics
-        .get("total_items")
-        .and_then(|v| v.as_u64())
-        .expect("Should have total_items");
-
-    assert!(total_items > 0, "Should detect items");
+        Ok(())
+    })
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
 async fn test_analyze_structure_unsupported_kind() {
     let workspace = TestWorkspace::new();
-    let mut client = TestClient::new(workspace.path());
-
     workspace.create_file("test.ts", "export function foo() { return 1; }");
+    let mut client = TestClient::new(workspace.path());
     let test_file = workspace.absolute_path("test.ts");
 
     let response = client
@@ -553,21 +400,13 @@ async fn test_analyze_structure_unsupported_kind() {
         )
         .await;
 
-    // Should return error for unsupported kind
     match response {
         Err(e) => {
             let error_msg = format!("{:?}", e);
-            assert!(
-                error_msg.contains("Unsupported") || error_msg.contains("supported"),
-                "Error should mention unsupported kind: {}",
-                error_msg
-            );
+            assert!(error_msg.contains("Unsupported") || error_msg.contains("supported"));
         }
         Ok(value) => {
-            assert!(
-                value.get("error").is_some(),
-                "Expected error for unsupported kind"
-            );
+            assert!(value.get("error").is_some());
         }
     }
 }

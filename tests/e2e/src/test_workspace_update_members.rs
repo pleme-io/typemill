@@ -1,45 +1,50 @@
-//! Workspace member management integration tests
+//! workspace.update_members tests migrated to closure-based helpers (v2)
 //!
-//! Tests for workspace.update_members tool (Proposal 50: Crate Extraction Tooling)
+//! BEFORE: 636 lines with repetitive setup
+//! AFTER: Focused workspace member management verification
 //!
-//! Tests:
-//! - Adding new members
-//! - Removing existing members
-//! - Listing members
-//! - Duplicate detection (adding existing member)
-//! - Dry-run mode
-//! - Creating [workspace] section if missing
-//! - Error handling (nonexistent workspace file)
+//! Tests workspace member add/remove/list operations.
 
 use crate::harness::{TestClient, TestWorkspace};
 use serde_json::json;
 
-#[tokio::test]
-async fn test_add_members_basic() {
-    // Test adding new members to workspace
-    let workspace = TestWorkspace::new();
-    let mut client = TestClient::new(workspace.path());
+/// Helper: Create workspace with initial members
+fn setup_workspace(workspace: &TestWorkspace, members: &[&str]) -> std::path::PathBuf {
+    let members_str = members
+        .iter()
+        .map(|m| format!("\"{}\"", m))
+        .collect::<Vec<_>>()
+        .join(", ");
 
-    // Create a workspace Cargo.toml with initial members
     workspace.create_file(
         "Cargo.toml",
-        r#"[workspace]
-members = ["crates/existing-crate"]
+        &format!(
+            r#"[workspace]
+members = [{}]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
 "#,
+            members_str
+        ),
     );
 
-    // Create member directories (to avoid warnings)
+    workspace.absolute_path("Cargo.toml")
+}
+
+#[tokio::test]
+async fn test_add_members_basic() {
+    let workspace = TestWorkspace::new();
+    let mut client = TestClient::new(workspace.path());
+
+    let manifest_path = setup_workspace(&workspace, &["crates/existing-crate"]);
+
+    // Create directories
     workspace.create_directory("crates/existing-crate/src");
     workspace.create_directory("crates/new-crate1/src");
     workspace.create_directory("crates/new-crate2/src");
 
-    let manifest_path = workspace.absolute_path("Cargo.toml");
-
-    // Call workspace.update_members to add new members
     let result = client
         .call_tool(
             "workspace.update_members",
@@ -58,71 +63,37 @@ edition = "2021"
 
     let content = result.get("result").expect("Result should exist");
 
-    // Verify the operation succeeded
     assert_eq!(
         content.get("action").and_then(|v| v.as_str()),
-        Some("add"),
-        "Action should be 'add'"
+        Some("add")
     );
-
     assert_eq!(
         content.get("changesMade").and_then(|v| v.as_u64()),
-        Some(2),
-        "Should have made 2 changes"
+        Some(2)
     );
-
     assert_eq!(
         content.get("workspaceUpdated").and_then(|v| v.as_bool()),
-        Some(true),
-        "Workspace should be updated"
+        Some(true)
     );
 
-    // Verify members_before and members_after
-    let members_before = content
-        .get("membersBefore")
-        .and_then(|v| v.as_array())
-        .expect("members_before should be an array");
+    let members_before = content.get("membersBefore").and_then(|v| v.as_array()).unwrap();
     assert_eq!(members_before.len(), 1);
 
-    let members_after = content
-        .get("membersAfter")
-        .and_then(|v| v.as_array())
-        .expect("members_after should be an array");
+    let members_after = content.get("membersAfter").and_then(|v| v.as_array()).unwrap();
     assert_eq!(members_after.len(), 3);
 
-    // Verify the file was actually updated
     let cargo_toml = workspace.read_file("Cargo.toml");
-    assert!(
-        cargo_toml.contains("crates/new-crate1"),
-        "Should contain new-crate1"
-    );
-    assert!(
-        cargo_toml.contains("crates/new-crate2"),
-        "Should contain new-crate2"
-    );
+    assert!(cargo_toml.contains("crates/new-crate1"));
+    assert!(cargo_toml.contains("crates/new-crate2"));
 }
 
 #[tokio::test]
 async fn test_remove_members_basic() {
-    // Test removing members from workspace
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
-    // Create a workspace Cargo.toml with multiple members
-    workspace.create_file(
-        "Cargo.toml",
-        r#"[workspace]
-members = ["crates/crate1", "crates/crate2", "crates/crate3"]
+    let manifest_path = setup_workspace(&workspace, &["crates/crate1", "crates/crate2", "crates/crate3"]);
 
-[workspace.package]
-version = "0.1.0"
-edition = "2021"
-"#,
-    );
-
-    let manifest_path = workspace.absolute_path("Cargo.toml");
-
-    // Call workspace.update_members to remove a member
     let result = client
         .call_tool(
             "workspace.update_members",
@@ -140,69 +111,35 @@ edition = "2021"
 
     let content = result.get("result").expect("Result should exist");
 
-    // Verify the operation
     assert_eq!(
         content.get("action").and_then(|v| v.as_str()),
-        Some("remove"),
-        "Action should be 'remove'"
+        Some("remove")
     );
-
     assert_eq!(
         content.get("changesMade").and_then(|v| v.as_u64()),
-        Some(1),
-        "Should have made 1 change"
+        Some(1)
     );
-
     assert_eq!(
         content.get("workspaceUpdated").and_then(|v| v.as_bool()),
-        Some(true),
-        "Workspace should be updated"
+        Some(true)
     );
 
-    // Verify members count
-    let members_after = content
-        .get("membersAfter")
-        .and_then(|v| v.as_array())
-        .expect("members_after should be an array");
+    let members_after = content.get("membersAfter").and_then(|v| v.as_array()).unwrap();
     assert_eq!(members_after.len(), 2);
 
-    // Verify the file was actually updated
     let cargo_toml = workspace.read_file("Cargo.toml");
-    assert!(
-        cargo_toml.contains("crates/crate1"),
-        "Should still contain crate1"
-    );
-    assert!(
-        !cargo_toml.contains("crates/crate2"),
-        "Should not contain crate2"
-    );
-    assert!(
-        cargo_toml.contains("crates/crate3"),
-        "Should still contain crate3"
-    );
+    assert!(cargo_toml.contains("crates/crate1"));
+    assert!(!cargo_toml.contains("crates/crate2"));
+    assert!(cargo_toml.contains("crates/crate3"));
 }
 
 #[tokio::test]
 async fn test_list_members() {
-    // Test listing workspace members
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
-    // Create a workspace Cargo.toml with members
-    workspace.create_file(
-        "Cargo.toml",
-        r#"[workspace]
-members = ["crates/crate1", "crates/crate2", "crates/crate3"]
+    let manifest_path = setup_workspace(&workspace, &["crates/crate1", "crates/crate2", "crates/crate3"]);
 
-[workspace.package]
-version = "0.1.0"
-edition = "2021"
-"#,
-    );
-
-    let manifest_path = workspace.absolute_path("Cargo.toml");
-
-    // Call workspace.update_members to list members
     let result = client
         .call_tool(
             "workspace.update_members",
@@ -216,39 +153,25 @@ edition = "2021"
 
     let content = result.get("result").expect("Result should exist");
 
-    // Verify the operation
     assert_eq!(
         content.get("action").and_then(|v| v.as_str()),
-        Some("list"),
-        "Action should be 'list'"
+        Some("list")
     );
-
     assert_eq!(
         content.get("changesMade").and_then(|v| v.as_u64()),
-        Some(0),
-        "Should have made 0 changes"
+        Some(0)
     );
-
     assert_eq!(
         content.get("workspaceUpdated").and_then(|v| v.as_bool()),
-        Some(false),
-        "Workspace should not be updated"
+        Some(false)
     );
 
-    // Verify members list
-    let members_before = content
-        .get("membersBefore")
-        .and_then(|v| v.as_array())
-        .expect("members_before should be an array");
+    let members_before = content.get("membersBefore").and_then(|v| v.as_array()).unwrap();
     assert_eq!(members_before.len(), 3);
 
-    let members_after = content
-        .get("membersAfter")
-        .and_then(|v| v.as_array())
-        .expect("members_after should be an array");
+    let members_after = content.get("membersAfter").and_then(|v| v.as_array()).unwrap();
     assert_eq!(members_after.len(), 3);
 
-    // Verify members are correct
     let member_strings: Vec<String> = members_after
         .iter()
         .filter_map(|v| v.as_str().map(|s| s.to_string()))
@@ -260,25 +183,11 @@ edition = "2021"
 
 #[tokio::test]
 async fn test_add_duplicate_member() {
-    // Test that adding an already existing member is handled gracefully
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
-    // Create a workspace Cargo.toml with a member
-    workspace.create_file(
-        "Cargo.toml",
-        r#"[workspace]
-members = ["crates/existing-crate"]
+    let manifest_path = setup_workspace(&workspace, &["crates/existing-crate"]);
 
-[workspace.package]
-version = "0.1.0"
-edition = "2021"
-"#,
-    );
-
-    let manifest_path = workspace.absolute_path("Cargo.toml");
-
-    // Try to add the same member again
     let result = client
         .call_tool(
             "workspace.update_members",
@@ -296,49 +205,27 @@ edition = "2021"
 
     let content = result.get("result").expect("Result should exist");
 
-    // Verify no changes were made
     assert_eq!(
         content.get("changesMade").and_then(|v| v.as_u64()),
-        Some(0),
-        "Should have made 0 changes"
+        Some(0)
     );
-
     assert_eq!(
         content.get("workspaceUpdated").and_then(|v| v.as_bool()),
-        Some(false),
-        "Workspace should not be updated"
+        Some(false)
     );
 
-    // Verify members list unchanged
-    let members_after = content
-        .get("membersAfter")
-        .and_then(|v| v.as_array())
-        .expect("members_after should be an array");
+    let members_after = content.get("membersAfter").and_then(|v| v.as_array()).unwrap();
     assert_eq!(members_after.len(), 1);
 }
 
 #[tokio::test]
 async fn test_dry_run_mode() {
-    // Test dry-run mode doesn't modify the file
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
-    // Create a workspace Cargo.toml
-    workspace.create_file(
-        "Cargo.toml",
-        r#"[workspace]
-members = ["crates/crate1"]
-
-[workspace.package]
-version = "0.1.0"
-edition = "2021"
-"#,
-    );
-
-    let manifest_path = workspace.absolute_path("Cargo.toml");
+    let manifest_path = setup_workspace(&workspace, &["crates/crate1"]);
     let original_content = workspace.read_file("Cargo.toml");
 
-    // Call workspace.update_members with dry_run = true
     let result = client
         .call_tool(
             "workspace.update_members",
@@ -356,47 +243,34 @@ edition = "2021"
 
     let content = result.get("result").expect("Result should exist");
 
-    // Verify dry_run flag
     assert_eq!(
         content.get("dryRun").and_then(|v| v.as_bool()),
-        Some(true),
-        "dry_run should be true"
+        Some(true)
     );
-
     assert_eq!(
         content.get("workspaceUpdated").and_then(|v| v.as_bool()),
-        Some(false),
-        "Workspace should not be updated in dry-run"
+        Some(false)
     );
 
-    // Verify the file was NOT modified
+    // Verify file unchanged
     let current_content = workspace.read_file("Cargo.toml");
-    assert_eq!(
-        original_content, current_content,
-        "File should not be modified in dry-run"
-    );
+    assert_eq!(original_content, current_content);
 
-    // Verify we got the preview of changes
+    // Verify preview of changes
     assert_eq!(
         content.get("changesMade").and_then(|v| v.as_u64()),
-        Some(1),
-        "Should report 1 change would be made"
+        Some(1)
     );
 
-    let members_after = content
-        .get("membersAfter")
-        .and_then(|v| v.as_array())
-        .expect("members_after should show preview");
+    let members_after = content.get("membersAfter").and_then(|v| v.as_array()).unwrap();
     assert_eq!(members_after.len(), 2);
 }
 
 #[tokio::test]
 async fn test_create_workspace_section_if_missing() {
-    // Test create_if_missing option creates [workspace] section
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
-    // Create a Cargo.toml WITHOUT workspace section
     workspace.create_file(
         "Cargo.toml",
         r#"[package]
@@ -408,7 +282,6 @@ edition = "2021"
 
     let manifest_path = workspace.absolute_path("Cargo.toml");
 
-    // Call workspace.update_members with create_if_missing = true
     let result = client
         .call_tool(
             "workspace.update_members",
@@ -427,38 +300,25 @@ edition = "2021"
 
     let content = result.get("result").expect("Result should exist");
 
-    // Verify the operation succeeded
     assert_eq!(
         content.get("workspaceUpdated").and_then(|v| v.as_bool()),
-        Some(true),
-        "Workspace should be updated"
+        Some(true)
     );
-
     assert_eq!(
         content.get("changesMade").and_then(|v| v.as_u64()),
-        Some(1),
-        "Should have made 1 change"
+        Some(1)
     );
 
-    // Verify [workspace] section was created
     let cargo_toml = workspace.read_file("Cargo.toml");
-    assert!(
-        cargo_toml.contains("[workspace]"),
-        "Should have created [workspace] section"
-    );
-    assert!(
-        cargo_toml.contains("crates/new-crate"),
-        "Should contain new member"
-    );
+    assert!(cargo_toml.contains("[workspace]"));
+    assert!(cargo_toml.contains("crates/new-crate"));
 }
 
 #[tokio::test]
 async fn test_error_on_missing_workspace_section() {
-    // Test that without create_if_missing, error is returned
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
-    // Create a Cargo.toml WITHOUT workspace section
     workspace.create_file(
         "Cargo.toml",
         r#"[package]
@@ -470,7 +330,6 @@ edition = "2021"
 
     let manifest_path = workspace.absolute_path("Cargo.toml");
 
-    // Call workspace.update_members WITHOUT create_if_missing
     let error = client
         .call_tool(
             "workspace.update_members",
@@ -487,7 +346,6 @@ edition = "2021"
         .await
         .expect_err("Should return an error");
 
-    // Error should mention workspace section
     let error_msg = error.to_string();
     assert!(
         error_msg.contains("workspace"),
@@ -498,13 +356,11 @@ edition = "2021"
 
 #[tokio::test]
 async fn test_error_on_nonexistent_manifest() {
-    // Test error handling for nonexistent workspace file
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
     let manifest_path = workspace.absolute_path("nonexistent/Cargo.toml");
 
-    // Call workspace.update_members on nonexistent file
     let error = client
         .call_tool(
             "workspace.update_members",
@@ -516,7 +372,6 @@ async fn test_error_on_nonexistent_manifest() {
         .await
         .expect_err("Should return an error");
 
-    // Error should mention file not found
     let error_msg = error.to_string();
     assert!(
         error_msg.contains("not found") || error_msg.contains("does not exist"),
@@ -527,25 +382,11 @@ async fn test_error_on_nonexistent_manifest() {
 
 #[tokio::test]
 async fn test_remove_nonexistent_member() {
-    // Test that removing a nonexistent member doesn't error
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
-    // Create a workspace Cargo.toml
-    workspace.create_file(
-        "Cargo.toml",
-        r#"[workspace]
-members = ["crates/crate1"]
+    let manifest_path = setup_workspace(&workspace, &["crates/crate1"]);
 
-[workspace.package]
-version = "0.1.0"
-edition = "2021"
-"#,
-    );
-
-    let manifest_path = workspace.absolute_path("Cargo.toml");
-
-    // Try to remove a member that doesn't exist
     let result = client
         .call_tool(
             "workspace.update_members",
@@ -563,41 +404,23 @@ edition = "2021"
 
     let content = result.get("result").expect("Result should exist");
 
-    // Verify no changes were made
     assert_eq!(
         content.get("changesMade").and_then(|v| v.as_u64()),
-        Some(0),
-        "Should have made 0 changes"
+        Some(0)
     );
-
     assert_eq!(
         content.get("workspaceUpdated").and_then(|v| v.as_bool()),
-        Some(false),
-        "Workspace should not be updated"
+        Some(false)
     );
 }
 
 #[tokio::test]
 async fn test_path_normalization() {
-    // Test that paths with backslashes are normalized to forward slashes
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
-    // Create a workspace Cargo.toml
-    workspace.create_file(
-        "Cargo.toml",
-        r#"[workspace]
-members = []
+    let manifest_path = setup_workspace(&workspace, &[]);
 
-[workspace.package]
-version = "0.1.0"
-edition = "2021"
-"#,
-    );
-
-    let manifest_path = workspace.absolute_path("Cargo.toml");
-
-    // Add member with backslashes (Windows-style path)
     let result = client
         .call_tool(
             "workspace.update_members",
@@ -615,21 +438,12 @@ edition = "2021"
 
     let content = result.get("result").expect("Result should exist");
 
-    // Verify member was added
     assert_eq!(
         content.get("changesMade").and_then(|v| v.as_u64()),
-        Some(1),
-        "Should have made 1 change"
+        Some(1)
     );
 
-    // Verify the file uses forward slashes
     let cargo_toml = workspace.read_file("Cargo.toml");
-    assert!(
-        cargo_toml.contains("crates/my-crate"),
-        "Should use forward slashes"
-    );
-    assert!(
-        !cargo_toml.contains("crates\\my-crate"),
-        "Should not contain backslashes"
-    );
+    assert!(cargo_toml.contains("crates/my-crate"));
+    assert!(!cargo_toml.contains("crates\\my-crate"));
 }

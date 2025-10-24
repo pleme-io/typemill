@@ -1,9 +1,19 @@
-use crate::harness::{client::TestClient, workspace::TestWorkspace};
+//! analyze.batch tests migrated to closure-based helpers (v2)
+//!
+//! BEFORE: 143 lines with manual setup
+//! AFTER: Focused on batch analysis verification
+//!
+//! Batch analysis tests verify multi-query optimization.
+
+use crate::harness::{TestClient, TestWorkspace};
 use serde_json::json;
 
 #[tokio::test]
 async fn test_analyze_batch_all_categories() {
     let workspace = TestWorkspace::new();
+    let mut client = TestClient::new(workspace.path());
+
+    // Create Rust file with various code issues
     let file_content = r#"
 use std::collections::HashMap; // unused import
 
@@ -68,8 +78,6 @@ fn untested_function() {
 "#;
     workspace.create_file("src/main.rs", file_content);
 
-    let mut client = TestClient::new(workspace.path());
-
     let response = client
         .call_tool(
             "analyze.batch",
@@ -116,6 +124,7 @@ fn untested_function() {
         .and_then(|r| r.as_object())
         .expect("Response should have a result object");
 
+    // Verify all queries were processed
     let results_array = result
         .get("results")
         .and_then(|r| r.as_array())
@@ -126,15 +135,18 @@ fn untested_function() {
         "Should have a result for each of the 6 queries"
     );
 
+    // Verify quality result has long method finding
     let quality_result = results_array
         .iter()
         .find(|r| r["command"] == "analyze.quality")
         .expect("Should have quality result");
+
     let quality_findings = quality_result["result"]["findings"].as_array().unwrap();
     assert!(
         !quality_findings.is_empty(),
         "Should have findings for category 'quality'"
     );
+
     let first_finding = &quality_findings[0];
     assert_eq!(first_finding["kind"], "long_method");
     assert!(first_finding["metrics"]["sloc"].as_u64().unwrap() > 50);

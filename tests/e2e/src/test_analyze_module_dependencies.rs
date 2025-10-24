@@ -1,21 +1,51 @@
-//! End-to-end tests for analyze.module_dependencies tool
+//! analyze.module_dependencies tests migrated to closure-based helpers (v2)
 //!
-//! Tests module dependency analysis functionality including:
-//! - Single file analysis
-//! - Directory analysis
-//! - External vs internal dependency classification
-//! - Standard library detection
-//! - Workspace dependency resolution
+//! BEFORE: 498 lines with manual setup/verification
+//! AFTER: Simplified result verification
+//!
+//! Module dependency analysis tests for Rust crate extraction.
 
 use crate::harness::{TestClient, TestWorkspace};
 use serde_json::json;
+
+/// Helper: Call analyze.module_dependencies
+async fn analyze_module_dependencies(
+    workspace: &TestWorkspace,
+    client: &mut TestClient,
+    path: &str,
+    kind: &str,
+    include_workspace_deps: bool,
+) -> serde_json::Value {
+    let target_path = workspace.absolute_path(path);
+    let response = client
+        .call_tool(
+            "analyze.module_dependencies",
+            json!({
+                "target": {
+                    "kind": kind,
+                    "path": target_path.to_string_lossy()
+                },
+                "options": {
+                    "includeWorkspaceDeps": include_workspace_deps,
+                    "resolve_features": true
+                }
+            }),
+        )
+        .await
+        .expect("analyze.module_dependencies call should succeed");
+
+    response
+        .get("result")
+        .expect("Response should have result field")
+        .clone()
+}
 
 #[tokio::test]
 async fn test_analyze_single_file_dependencies() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
-    // Create a Rust file with various import types
+    // Rust file with various import types
     let code = r#"
 use std::collections::HashMap;
 use tokio::runtime::Runtime;
@@ -27,75 +57,27 @@ pub struct Service {
     data: HashMap<String, String>,
 }
 "#;
-
     workspace.create_file("service.rs", code);
-    let test_file = workspace.absolute_path("service.rs");
 
-    let response = client
-        .call_tool(
-            "analyze.module_dependencies",
-            json!({
-                "target": {
-                    "kind": "file",
-                    "path": test_file.to_string_lossy()
-                },
-                "options": {
-                    "include_workspace_deps": true,
-                    "resolve_features": true
-                }
-            }),
-        )
-        .await
-        .expect("analyze.module_dependencies call should succeed");
-
-    let result = response
-        .get("result")
-        .expect("Response should have result field");
+    let result = analyze_module_dependencies(&workspace, &mut client, "service.rs", "file", true).await;
 
     // Verify external dependencies
-    let external_deps = result["externalDependencies"]
-        .as_object()
-        .expect("Should have external_dependencies");
-
-    assert!(
-        external_deps.contains_key("tokio"),
-        "Should detect tokio dependency"
-    );
-    assert!(
-        external_deps.contains_key("serde"),
-        "Should detect serde dependency"
-    );
-    assert!(
-        external_deps.contains_key("anyhow"),
-        "Should detect anyhow dependency"
-    );
+    let external_deps = result["externalDependencies"].as_object().unwrap();
+    assert!(external_deps.contains_key("tokio"));
+    assert!(external_deps.contains_key("serde"));
+    assert!(external_deps.contains_key("anyhow"));
 
     // Verify std dependencies
-    let std_deps = result["stdDependencies"]
-        .as_array()
-        .expect("Should have std_dependencies");
-
-    assert!(
-        std_deps.iter().any(|v| v.as_str() == Some("std")),
-        "Should detect std library usage"
-    );
+    let std_deps = result["stdDependencies"].as_array().unwrap();
+    assert!(std_deps.iter().any(|v| v.as_str() == Some("std")));
 
     // Verify import analysis
-    let import_analysis = &result["importAnalysis"];
-    assert!(
-        import_analysis["totalImports"].as_u64().unwrap() > 0,
-        "Should count imports"
-    );
-    assert!(
-        import_analysis["externalCrates"].as_u64().unwrap() >= 3,
-        "Should count external crates"
-    );
+    assert!(result["importAnalysis"]["totalImports"].as_u64().unwrap() > 0);
+    assert!(result["importAnalysis"]["externalCrates"].as_u64().unwrap() >= 3);
 
     // Verify files analyzed
-    let files = result["filesAnalyzed"]
-        .as_array()
-        .expect("Should have filesAnalyzed");
-    assert_eq!(files.len(), 1, "Should analyze exactly one file");
+    let files = result["filesAnalyzed"].as_array().unwrap();
+    assert_eq!(files.len(), 1);
 }
 
 #[tokio::test]
@@ -103,11 +85,10 @@ async fn test_analyze_workspace_internal_dependencies() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
-    // Create workspace structure with internal dependencies
+    // Create workspace structure
     workspace.create_file(
         "Cargo.toml",
-        r#"
-[workspace]
+        r#"[workspace]
 members = ["crate-a", "crate-b"]
 
 [workspace.dependencies]
@@ -115,29 +96,14 @@ tokio = "1.0"
 "#,
     );
 
-    workspace.create_file(
-        "crate-a/Cargo.toml",
-        r#"
-[package]
+    workspace.create_file("crate-a/Cargo.toml", r#"[package]
 name = "crate-a"
 version = "0.1.0"
 edition = "2021"
+"#);
+    workspace.create_file("crate-a/src/lib.rs", "pub struct ServiceA;");
 
-[dependencies]
-"#,
-    );
-
-    workspace.create_file(
-        "crate-a/src/lib.rs",
-        r#"
-pub struct ServiceA;
-"#,
-    );
-
-    workspace.create_file(
-        "crate-b/Cargo.toml",
-        r#"
-[package]
+    workspace.create_file("crate-b/Cargo.toml", r#"[package]
 name = "crate-b"
 version = "0.1.0"
 edition = "2021"
@@ -145,10 +111,9 @@ edition = "2021"
 [dependencies]
 crate-a = { path = "../crate-a" }
 tokio = { workspace = true }
-"#,
-    );
+"#);
 
-    let code = r#"
+    workspace.create_file("crate-b/src/lib.rs", r#"
 use crate_a::ServiceA;
 use tokio::runtime::Runtime;
 
@@ -156,38 +121,13 @@ pub struct ServiceB {
     service_a: ServiceA,
     runtime: Runtime,
 }
-"#;
+"#);
 
-    workspace.create_file("crate-b/src/lib.rs", code);
-    let test_file = workspace.absolute_path("crate-b/src/lib.rs");
-
-    let response = client
-        .call_tool(
-            "analyze.module_dependencies",
-            json!({
-                "target": {
-                    "kind": "file",
-                    "path": test_file.to_string_lossy()
-                },
-                "options": {
-                    "include_workspace_deps": true
-                }
-            }),
-        )
-        .await
-        .expect("analyze.module_dependencies call should succeed");
-
-    let result = response
-        .get("result")
-        .expect("Response should have result field");
+    let result = analyze_module_dependencies(&workspace, &mut client, "crate-b/src/lib.rs", "file", true).await;
 
     // Verify workspace dependencies detected
-    let workspace_deps = result["workspaceDependencies"]
-        .as_array()
-        .expect("Should have workspace_dependencies");
-
+    let workspace_deps = result["workspaceDependencies"].as_array().unwrap();
     let workspace_dep_names: Vec<&str> = workspace_deps.iter().filter_map(|v| v.as_str()).collect();
-
     assert!(
         workspace_dep_names.contains(&"crate_a") || workspace_dep_names.contains(&"crate-a"),
         "Should detect internal workspace dependency, got: {:?}",
@@ -195,20 +135,9 @@ pub struct ServiceB {
     );
 
     // Verify external dependencies don't include workspace crates
-    let external_deps = result["externalDependencies"]
-        .as_object()
-        .expect("Should have external_dependencies");
-
-    assert!(
-        !external_deps.contains_key("crate_a") && !external_deps.contains_key("crate-a"),
-        "Workspace crate should not be in external dependencies"
-    );
-
-    // Verify tokio is in external dependencies
-    assert!(
-        external_deps.contains_key("tokio"),
-        "Should detect tokio as external dependency"
-    );
+    let external_deps = result["externalDependencies"].as_object().unwrap();
+    assert!(!external_deps.contains_key("crate_a") && !external_deps.contains_key("crate-a"));
+    assert!(external_deps.contains_key("tokio"));
 }
 
 #[tokio::test]
@@ -216,7 +145,7 @@ async fn test_analyze_std_only_dependencies() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
-    // Create a file with only std imports
+    // File with only std imports
     let code = r#"
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -226,53 +155,19 @@ pub fn process(data: HashMap<String, Arc<dyn Display>>) {
     // Implementation
 }
 "#;
-
     workspace.create_file("std_only.rs", code);
-    let test_file = workspace.absolute_path("std_only.rs");
 
-    let response = client
-        .call_tool(
-            "analyze.module_dependencies",
-            json!({
-                "target": {
-                    "kind": "file",
-                    "path": test_file.to_string_lossy()
-                }
-            }),
-        )
-        .await
-        .expect("analyze.module_dependencies call should succeed");
+    let result = analyze_module_dependencies(&workspace, &mut client, "std_only.rs", "file", true).await;
 
-    let result = response
-        .get("result")
-        .expect("Response should have result field");
-
-    // Verify std dependencies detected
-    let std_deps = result["stdDependencies"]
-        .as_array()
-        .expect("Should have std_dependencies");
-
+    // Verify std dependencies
+    let std_deps = result["stdDependencies"].as_array().unwrap();
     let std_dep_names: Vec<&str> = std_deps.iter().filter_map(|v| v.as_str()).collect();
-
-    assert!(
-        std_dep_names.contains(&"std"),
-        "Should detect std library usage"
-    );
-    assert!(
-        std_dep_names.contains(&"core"),
-        "Should detect core library usage"
-    );
+    assert!(std_dep_names.contains(&"std"));
+    assert!(std_dep_names.contains(&"core"));
 
     // Verify no external dependencies
-    let external_deps = result["externalDependencies"]
-        .as_object()
-        .expect("Should have external_dependencies");
-
-    assert_eq!(
-        external_deps.len(),
-        0,
-        "Should have no external dependencies"
-    );
+    let external_deps = result["externalDependencies"].as_object().unwrap();
+    assert_eq!(external_deps.len(), 0);
 }
 
 #[tokio::test]
@@ -280,91 +175,36 @@ async fn test_analyze_directory_dependencies() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
-    // Create multiple files in a directory
-    workspace.create_file(
-        "auth/mod.rs",
-        r#"
-pub mod jwt;
-pub mod session;
-"#,
-    );
-
-    workspace.create_file(
-        "auth/jwt.rs",
-        r#"
+    // Create multiple files in directory
+    workspace.create_file("auth/mod.rs", "pub mod jwt;\npub mod session;");
+    workspace.create_file("auth/jwt.rs", r#"
 use jsonwebtoken::{encode, decode};
 use serde::{Serialize, Deserialize};
 
-pub fn create_token() -> String {
-    String::new()
-}
-"#,
-    );
-
-    workspace.create_file(
-        "auth/session.rs",
-        r#"
+pub fn create_token() -> String { String::new() }
+"#);
+    workspace.create_file("auth/session.rs", r#"
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 pub struct SessionStore {
     data: Arc<RwLock<()>>,
 }
-"#,
-    );
+"#);
 
-    let auth_dir = workspace.absolute_path("auth");
-
-    let response = client
-        .call_tool(
-            "analyze.module_dependencies",
-            json!({
-                "target": {
-                    "kind": "directory",
-                    "path": auth_dir.to_string_lossy()
-                },
-                "options": {
-                    "include_workspace_deps": true
-                }
-            }),
-        )
-        .await
-        .expect("analyze.module_dependencies call should succeed");
-
-    let result = response
-        .get("result")
-        .expect("Response should have result field");
+    let result = analyze_module_dependencies(&workspace, &mut client, "auth", "directory", true).await;
 
     // Verify multiple files analyzed
-    let files = result["filesAnalyzed"]
-        .as_array()
-        .expect("Should have filesAnalyzed");
-
-    assert!(
-        files.len() >= 3,
-        "Should analyze all .rs files in directory"
-    );
+    let files = result["filesAnalyzed"].as_array().unwrap();
+    assert!(files.len() >= 3);
 
     // Verify external dependencies from both files
-    let external_deps = result["externalDependencies"]
-        .as_object()
-        .expect("Should have external_dependencies");
+    let external_deps = result["externalDependencies"].as_object().unwrap();
+    assert!(external_deps.contains_key("jsonwebtoken"));
+    assert!(external_deps.contains_key("tokio"));
 
-    assert!(
-        external_deps.contains_key("jsonwebtoken"),
-        "Should detect jsonwebtoken from jwt.rs"
-    );
-    assert!(
-        external_deps.contains_key("tokio"),
-        "Should detect tokio from session.rs"
-    );
-
-    // Verify import analysis counts
-    let import_analysis = &result["importAnalysis"];
-    assert!(
-        import_analysis["totalImports"].as_u64().unwrap() > 0,
-        "Should count imports from all files"
-    );
+    // Verify import analysis
+    assert!(result["importAnalysis"]["totalImports"].as_u64().unwrap() > 0);
 }
 
 #[tokio::test]
@@ -385,7 +225,6 @@ async fn test_error_nonexistent_path() {
         .await
         .expect_err("Should return an error");
 
-    // Error should mention nonexistent path
     let error_msg = error.to_string();
     assert!(
         error_msg.contains("does not exist") || error_msg.contains("not found"),
@@ -400,30 +239,11 @@ async fn test_exclude_workspace_deps_option() {
     let mut client = TestClient::new(workspace.path());
 
     // Create workspace with internal and external deps
-    workspace.create_file(
-        "Cargo.toml",
-        r#"
-[workspace]
-members = ["lib-a", "lib-b"]
-"#,
-    );
-
-    workspace.create_file(
-        "lib-a/Cargo.toml",
-        r#"
-[package]
-name = "lib-a"
-version = "0.1.0"
-edition = "2021"
-"#,
-    );
-
+    workspace.create_file("Cargo.toml", "[workspace]\nmembers = [\"lib-a\", \"lib-b\"]");
+    workspace.create_file("lib-a/Cargo.toml", "[package]\nname = \"lib-a\"\nversion = \"0.1.0\"\nedition = \"2021\"");
     workspace.create_file("lib-a/src/lib.rs", "pub struct A;");
 
-    workspace.create_file(
-        "lib-b/Cargo.toml",
-        r#"
-[package]
+    workspace.create_file("lib-b/Cargo.toml", r#"[package]
 name = "lib-b"
 version = "0.1.0"
 edition = "2021"
@@ -431,10 +251,9 @@ edition = "2021"
 [dependencies]
 lib-a = { path = "../lib-a" }
 serde = "1.0"
-"#,
-    );
+"#);
 
-    let code = r#"
+    workspace.create_file("lib-b/src/lib.rs", r#"
 use lib_a::A;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -442,56 +261,19 @@ use std::collections::HashMap;
 pub struct B {
     a: A,
 }
-"#;
+"#);
 
-    workspace.create_file("lib-b/src/lib.rs", code);
-    let test_file = workspace.absolute_path("lib-b/src/lib.rs");
+    let result = analyze_module_dependencies(&workspace, &mut client, "lib-b/src/lib.rs", "file", false).await;
 
-    let response = client
-        .call_tool(
-            "analyze.module_dependencies",
-            json!({
-                "target": {
-                    "kind": "file",
-                    "path": test_file.to_string_lossy()
-                },
-                "options": {
-                    "include_workspace_deps": false
-                }
-            }),
-        )
-        .await
-        .expect("analyze.module_dependencies call should succeed");
-
-    let result = response
-        .get("result")
-        .expect("Response should have result field");
-
-    // Verify workspace dependencies are excluded
-    let workspace_deps = result["workspaceDependencies"]
-        .as_array()
-        .expect("Should have workspace_dependencies");
-
-    assert_eq!(
-        workspace_deps.len(),
-        0,
-        "Workspace dependencies should be excluded"
-    );
+    // Verify workspace dependencies excluded
+    let workspace_deps = result["workspaceDependencies"].as_array().unwrap();
+    assert_eq!(workspace_deps.len(), 0);
 
     // Verify std dependencies also excluded
-    let std_deps = result["stdDependencies"]
-        .as_array()
-        .expect("Should have std_dependencies");
-
-    assert_eq!(std_deps.len(), 0, "Std dependencies should be excluded");
+    let std_deps = result["stdDependencies"].as_array().unwrap();
+    assert_eq!(std_deps.len(), 0);
 
     // Verify external dependencies still present
-    let external_deps = result["externalDependencies"]
-        .as_object()
-        .expect("Should have external_dependencies");
-
-    assert!(
-        external_deps.len() > 0,
-        "External dependencies should still be included"
-    );
+    let external_deps = result["externalDependencies"].as_object().unwrap();
+    assert!(external_deps.len() > 0);
 }
