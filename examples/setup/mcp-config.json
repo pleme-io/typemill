@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "mill": {
-      "command": "mill",
-      "args": ["start"]
-    }
-  }
-}

@@ -197,11 +197,11 @@ workspace/
 
 ## Examples
 
-See `examples/tests/` for code examples:
-- Unit test patterns
-- Integration test patterns
-- E2E workflow patterns
-- Data-driven test fixtures
+See real test implementations in the codebase:
+- **Unit tests**: Inline in `crates/*/src/` with `#[test]` or `#[cfg(test)]`
+- **Integration tests**: `tests/e2e/src/` - Cross-crate workflows with test harness
+- **E2E tests**: `apps/mill/tests/` - Complete workflows with real components
+- **Test fixtures**: `crates/mill-test-support/fixtures/` - Shared test data
 
 ## Next Steps to Expand Coverage
 
@@ -217,5 +217,5 @@ See `examples/tests/` for code examples:
 
 - [Test Pyramid Pattern](https://martinfowler.com/articles/practical-test-pyramid.html)
 - [contributing.md](../contributing.md) - Development setup
-- [examples/tests/](../examples/tests/) - Test code examples
+- [tests/e2e/](../../tests/e2e/) - Integration test suite
 - [docs/archive/testing_guide-verbose.md](archive/testing_guide-verbose.md) - Full guide with explanations

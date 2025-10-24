@@ -42,8 +42,6 @@ Add to your MCP configuration (e.g., Claude Desktop):
 }
 ```
 
-Full example: [examples/setup/mcp-config.json](examples/setup/mcp-config.json)
-
 ### First Commands
 Ask your AI assistant:
 ```
