@@ -204,7 +204,7 @@ Refactoring tools support dry-run mode:
 **Two-step (recommended):**
 1. Generate plan with `*.plan` tool (always dry-run, never modifies files)
 2. Review the plan
-3. Apply with `workspace.apply_edit` (can set `dry_run: true` for final preview)
+3. Apply with `workspace.apply_edit` (can set `dryRun: true` for final preview)
 
 **One-step (quick):**
 Use tool without `.plan` suffix to combine plan + execute in one call.

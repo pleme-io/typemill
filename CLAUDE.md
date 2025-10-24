@@ -88,7 +88,7 @@ The Unified Refactoring API supports both safe two-step and convenient one-step 
 
 #### Two-Step Pattern (Recommended for Safety)
 - **`*.plan()` commands are always dry runs.** They generate a plan of changes but never write to the filesystem. This is the primary way to preview a refactoring.
-- **`workspace.apply_edit`** can be run with `dry_run: true` in its options for a final preview before execution.
+- **`workspace.apply_edit`** can be run with `dryRun: true` in its options for a final preview before execution.
 
 #### One-Step Pattern (Quick Operations)
 For convenience, each refactoring has a "quick" version that combines plan + execute in one call:
@@ -109,7 +109,7 @@ For convenience, each refactoring has a "quick" version that combines plan + exe
 
 **Supported operations:**
 - Refactoring plans: All `*.plan` commands (always dry-run)
-- Workspace execution: `workspace.apply_edit` (supports `dry_run: true`)
+- Workspace execution: `workspace.apply_edit` (supports `dryRun: true`)
 
 **Benefits:**
 - Preview changes before applying them

@@ -189,7 +189,7 @@ Same structure as `workspace.apply_edit` result (see `workspace.apply_edit` sect
 **Notes:**
 - Less safe than two-step pattern - no preview before execution
 - Use for small, low-risk refactorings when you trust the operation
-- Automatically applies with `dry_run: false`
+- Automatically applies with `dryRun: false`
 
 ---
 
@@ -734,7 +734,7 @@ Same structure as `workspace.apply_edit` result.
 |------|------|----------|-------------|
 | `plan` | `object` | Yes | Any plan type from `*.plan` tools (discriminated union) |
 | `options` | `object` | No | Apply options (see options below) |
-| `options.dry_run` | `boolean` | No | Preview mode - don't actually apply changes (default: false) |
+| `options.dryRun` | `boolean` | No | Preview mode - don't actually apply changes (default: false) |
 | `options.validate_checksums` | `boolean` | No | Validate file checksums before applying (default: true) |
 | `options.rollback_on_error` | `boolean` | No | Automatically rollback all changes if any error occurs (default: true) |
 | `options.validation` | `object` | No | Post-apply validation configuration |
@@ -864,7 +864,7 @@ The safest refactoring approach:
 
 ### Dry-Run Preview
 
-Use `dry_run: true` for final review before applying:
+Use `dryRun: true` for final review before applying:
 
 ```json
 {

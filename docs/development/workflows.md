@@ -30,7 +30,7 @@ All refactoring operations follow a safe two-step pattern:
 |---------|--------------|---------|
 | **Mandatory Preview** | `*.plan` always returns preview | Can't accidentally apply changes |
 | **Detailed Change Preview** | Shows all files, exact changes, counts | Full visibility before commit |
-| **Double Preview** | `workspace.apply_edit` supports `dry_run: true` | Final check before execution |
+| **Double Preview** | `workspace.apply_edit` supports `dryRun: true` | Final check before execution |
 | **Atomic Operations** | All files updated or none | Transaction-like behavior |
 | **Edit Caching** | Plans cached 5 minutes | Time for review |
 
@@ -83,7 +83,7 @@ All refactoring operations follow a safe two-step pattern:
 |------|------------|---------|
 | **Plan Only** | `intent` only | Preview workflow steps |
 | **Execute** | `intent` + `execute: true` | Run workflow |
-| **Dry Run** | `intent` + `execute: true` + `dry_run: true` | Preview changes without modifying files |
+| **Dry Run** | `intent` + `execute: true` + `dryRun: true` | Preview changes without modifying files |
 | **Resume** | `workflow_id` | Continue paused workflow |
 
 ### Parameter Templating

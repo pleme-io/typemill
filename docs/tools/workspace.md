@@ -37,7 +37,7 @@ Package management operations for multi-crate Rust workspaces. Create new packag
 | package_path | string | Yes | Absolute or workspace-relative path for new package (e.g., "crates/my-lib") |
 | package_type | string | No | Package type: "library" or "binary" (default: "library") |
 | options | object | No | Creation options |
-| options.dry_run | boolean | No | Preview operation (not yet supported - returns error) |
+| options.dryRun | boolean | No | Preview operation (not yet supported - returns error) |
 | options.add_to_workspace | boolean | No | Add to workspace members list (default: true) |
 | options.template | string | No | Template: "minimal" or "full" (default: "minimal") |
 
@@ -47,7 +47,7 @@ Object with creation details:
 - `created_files` (string[]): Absolute paths to all created files
 - `workspace_updated` (boolean): Whether workspace manifest was updated
 - `package_info` (object): Package metadata (name, version, manifest_path)
-- `dry_run` (boolean): Whether this was a dry-run
+- `dryRun` (boolean): Whether this was a dry-run
 
 **Example:**
 
@@ -137,7 +137,7 @@ Object with creation details:
 - Updates workspace `Cargo.toml` members array if `add_to_workspace: true`
 - Package name derived from final path component (converts hyphens to underscores for crate name)
 - Template "minimal" creates basic structure, "full" adds README, tests, examples
-- Dry-run mode not yet supported - returns error if `dry_run: true`
+- Dry-run mode not yet supported - returns error if `dryRun: true`
 - Standalone packages: Set `add_to_workspace: false` to skip workspace registration
 
 ---
@@ -154,7 +154,7 @@ Object with creation details:
 | target_manifest | string | Yes | Path to target Cargo.toml |
 | dependencies | string[] | Yes | List of dependency names to extract |
 | options | object | No | Extraction options |
-| options.dry_run | boolean | No | Preview without modifying target (default: false) |
+| options.dryRun | boolean | No | Preview without modifying target (default: false) |
 | options.preserve_versions | boolean | No | Preserve version constraints (default: true) |
 | options.preserve_features | boolean | No | Preserve features array (default: true) |
 | options.section | string | No | Section: "dependencies", "dev-dependencies", "build-dependencies" (default: "dependencies") |
@@ -165,7 +165,7 @@ Object with extraction results:
 - `dependencies_extracted` (number): Count of dependencies extracted
 - `dependencies_added` (object[]): Details of each dependency (name, version, features, optional, already_exists)
 - `target_manifest_updated` (boolean): Whether target file was modified
-- `dry_run` (boolean): Whether this was a dry-run
+- `dryRun` (boolean): Whether this was a dry-run
 - `warnings` (string[]): Warnings about conflicts or missing dependencies
 
 **Example:**
@@ -305,7 +305,7 @@ Object with extraction results:
 | action | string | Yes | Action: "add", "remove", or "list" |
 | members | string[] | Conditional | Member paths (required for add/remove, ignored for list) |
 | options | object | No | Update options |
-| options.dry_run | boolean | No | Preview without modifying file (default: false) |
+| options.dryRun | boolean | No | Preview without modifying file (default: false) |
 | options.create_if_missing | boolean | No | Create [workspace] section if missing (default: false) |
 
 **Returns:**
@@ -316,7 +316,7 @@ Object with update results:
 - `members_after` (string[]): Members list after operation
 - `changes_made` (number): Count of changes made
 - `workspace_updated` (boolean): Whether file was modified
-- `dry_run` (boolean): Whether this was a dry-run
+- `dryRun` (boolean): Whether this was a dry-run
 
 **Example - Add members:**
 
@@ -491,18 +491,18 @@ Object with update results:
 | scope | object | No | File scope configuration |
 | scope.include_patterns | string[] | No | Glob patterns to include (e.g., ["**/*.rs"]) (default: []) |
 | scope.exclude_patterns | string[] | No | Glob patterns to exclude (default: see below) |
-| dry_run | boolean | No | Preview changes without applying (default: true) |
+| dryRun | boolean | No | Preview changes without applying (default: true) |
 
 **Default Excludes:** `**/target/**`, `**/node_modules/**`, `**/.git/**`, `**/build/**`, `**/dist/**`
 
 **Returns:**
 
-When `dry_run: true` (default), returns an EditPlan:
+When `dryRun: true` (default), returns an EditPlan:
 - `source_file` (string): Always "workspace" for workspace operations
 - `edits` (TextEdit[]): Array of text edits with file paths, locations, and changes
 - `metadata` (object): Operation metadata (intent, complexity, impact areas)
 
-When `dry_run: false`, returns ApplyResult:
+When `dryRun: false`, returns ApplyResult:
 - `success` (boolean): Whether operation succeeded
 - `files_modified` (string[]): List of modified file paths
 - `matches_found` (number): Total number of matches discovered
@@ -524,7 +524,7 @@ When `dry_run: false`, returns ApplyResult:
   }
 }
 
-// Response (dry_run: true by default)
+// Response (dryRun: true by default)
 {
   "result": {
     "source_file": "workspace",
@@ -652,7 +652,7 @@ When `dry_run: false`, returns ApplyResult:
 // Converts: utils::format → format_from_utils
 ```
 
-**Example - Execute replacement (dry_run: false):**
+**Example - Execute replacement (dryRun: false):**
 
 ```json
 {
@@ -691,18 +691,18 @@ When `dry_run: false`, returns ApplyResult:
 | Internal: "Failed to read file" | Permission denied or file locked | Check file permissions |
 
 **Notes:**
-- **Safety-first design:** `dry_run` defaults to `true` to prevent accidental mass replacements
+- **Safety-first design:** `dryRun` defaults to `true` to prevent accidental mass replacements
 - **Case preservation limitations:** May not handle acronyms perfectly (e.g., "HTTPServer")
 - **Regex mode:** Does not support case preservation (use literal mode instead)
 - **Binary files:** Automatically skipped during file discovery
 - **Large files:** Files over 100MB may be slow to process
-- **Atomic operations:** When `dry_run: false`, all changes are applied atomically (all succeed or all rollback)
+- **Atomic operations:** When `dryRun: false`, all changes are applied atomically (all succeed or all rollback)
 - **Git-aware:** Respects `.gitignore` patterns during file discovery
 - **Performance:** For 1000+ matches, consider using include_patterns to reduce scope
 
 **Best Practices:**
 
-1. **Always preview first:** Use default `dry_run: true` to review changes
+1. **Always preview first:** Use default `dryRun: true` to review changes
 2. **Scope appropriately:** Use include/exclude patterns to target specific file types
 3. **Test regex patterns:** Validate complex regex on small samples before workspace-wide replacement
 4. **Case preservation:** Review changes when using preserve_case with acronyms or mixed-case identifiers
@@ -842,7 +842,7 @@ codebuddy tool workspace.extract_dependencies '{
 Safe workflow for replacing text across the workspace:
 
 ```bash
-# 1. Preview replacement (dry_run defaults to true)
+# 1. Preview replacement (dryRun defaults to true)
 codebuddy tool workspace.find_replace '{
   "pattern": "CODEBUDDY_([A-Z_]+)",
   "replacement": "TYPEMILL_$1",

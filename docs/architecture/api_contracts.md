@@ -387,7 +387,7 @@ Additional codes must be documented before release.
 }
 ```
 - `plan` must include `plan_type`, `plan_version`, and (when required) `file_checksums`.
-- `dry_run`: when true, simulate edits without file writes; still validates.
+- `dryRun`: when true, simulate edits without file writes; still validates.
 - `validate_checksums`: compares provided hashes; failure returns error code `STALE_PLAN`.
 - `validate_plan_type`: ensures plan structure matches expected schema.
 - `force`: bypasses validations (sets `warnings` entry `VALIDATION_SKIPPED`).

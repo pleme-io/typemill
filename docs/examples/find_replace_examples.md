@@ -695,7 +695,7 @@ codebuddy tool workspace.find_replace '{
 
 ## Best Practices Summary
 
-1. **Always preview first** - Use default `dry_run: true` to review changes
+1. **Always preview first** - Use default `dryRun: true` to review changes
 2. **Use whole_word for identifiers** - Avoid partial matches in variable names
 3. **Scope narrowly** - Use include/exclude patterns to target specific files
 4. **Test regex on small scope** - Validate pattern on single directory first
