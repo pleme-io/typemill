@@ -55,9 +55,6 @@ pub mod test_inline_integration;
 pub mod test_move_integration;
 
 #[cfg(test)]
-pub mod test_move_integration_v2;
-
-#[cfg(test)]
 pub mod test_move_with_imports;
 
 #[cfg(test)]
