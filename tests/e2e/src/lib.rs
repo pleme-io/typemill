@@ -36,6 +36,7 @@ pub mod test_cross_workspace_import_updates;
 pub mod test_file_discovery_bug;
 
 #[cfg(test)]
+pub mod test_scope_presets;
 
 #[cfg(test)]
 pub mod test_cargo_package_rename;

@@ -71,6 +71,12 @@ pub enum Commands {
     ///   extract - Extract code into functions/variables
     ///   inline  - Inline variables/functions
     ///
+    /// Scope examples (for rename operations):
+    ///   --scope code        : Code only (minimal)
+    ///   --scope project     : Code + docs + configs (default, recommended)
+    ///   --scope comments    : Project + code comments
+    ///   --scope everything  : Comments + markdown prose (most comprehensive)
+    ///
     /// Use 'codebuddy tools' to list all available tools.
     Tool {
         /// Tool name (e.g., "rename", "move", "find_definition")
@@ -121,7 +127,8 @@ pub enum Commands {
         #[arg(long, conflicts_with_all = ["args", "input_file"])]
         kind: Option<String>,
 
-        /// Scope preset: "all" (default - code/docs/configs/exact matches), "code-only" (imports/strings only), "custom" (via --input-file)
+        /// Scope preset: "project" (default - code/docs/configs), "code" (imports/strings only), "comments" (+ comments), "everything" (+ prose), "custom" (via --input-file)
+        /// Deprecated: "all" (use "project"), "code-only" (use "code")
         #[arg(long, conflicts_with_all = ["args", "input_file"])]
         scope: Option<String>,
 
