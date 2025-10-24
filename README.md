@@ -1,46 +1,36 @@
-# Codebuddy
+# 🤖 Codebuddy
+Pure Rust MCP server bridging Language Server Protocol (LSP) to AI coding assistants
 
-**Pure Rust MCP server bridging Language Server Protocol (LSP) to AI coding assistants**
+Provides 36 MCP tools for code navigation, refactoring, analysis, and batch operations across TypeScript and Rust projects.
 
-Codebuddy provides 36 comprehensive MCP tools for code navigation, refactoring, code intelligence, and batch operations. Built on Rust for performance and safety.
+## ✨ Key Features
+- **🎯 Safe Refactoring** - Two-step plan → apply pattern with automatic rollback on failure
+- **🔍 LSP Integration** - Native language server support for precise code intelligence
+- **⚡ Rust Performance** - Zero-cost abstractions, memory safety, async I/O
+- **🔄 Comprehensive Updates** - Automatic import updates, cross-file reference tracking
+- **🐳 Production Ready** - WebSocket server, JWT auth, multi-tenant isolation, Docker support
+- **🛠️ 36 Tools** - Navigation, refactoring, analysis, workspace operations, batch processing
 
-## Quick Start
-
-Get Codebuddy running in 2 minutes.
-
-### Prerequisites
-
-- Language server for your project (e.g., `typescript-language-server`, `rust-analyzer`)
-- AI assistant with MCP support (Claude Desktop, etc.)
-
-### Installation
-
-**Option A: Install script (recommended)**
+## 🚀 Quick Start
 ```bash
+# Install (recommended method)
 curl -fsSL https://raw.githubusercontent.com/goobits/codebuddy/main/install.sh | bash
-```
 
-**Option B: Build from source**
-```bash
+# Alternative: Build from source
 cargo install codebuddy --locked
-```
 
-### Setup
-
-Auto-detect languages and create `.codebuddy/config.json`:
-```bash
+# Auto-detect languages and configure
 codebuddy setup
-```
 
-### Start Server
-
-```bash
+# Start the server
 codebuddy start
+
+# Verify it's running
+codebuddy status
 ```
 
 ### Connect Your AI Assistant
-
-Add to your MCP configuration:
+Add to your MCP configuration (e.g., Claude Desktop):
 ```json
 {
   "mcpServers": {
@@ -54,78 +44,61 @@ Add to your MCP configuration:
 
 Full example: [examples/setup/mcp-config.json](examples/setup/mcp-config.json)
 
-### Verify
-
-```bash
-codebuddy status
-```
-
-## First Tool Calls
-
+### First Commands
 Ask your AI assistant:
-- "Find the definition of `main` in src/main.rs"
-- "Show me all references to the `Config` type"
-- "Rename the function `oldName` to `newName`"
+```
+"Find the definition of main in src/main.rs"
+"Show me all references to the Config type"
+"Rename the function oldName to newName"
+```
 
-## Common CLI Commands
-
-### File Operations
-
+## 🛠️ CLI Usage
 ```bash
-# Move/rename a file
+# File operations (no position needed)
 codebuddy tool rename --target file:src/old.rs --new-name src/new.rs
-
-# Move a directory
 codebuddy tool rename --target directory:old-dir --new-name new-dir
-```
 
-### Code Operations
-
-```bash
-# Move code symbol (function/class) between files
+# Code operations (requires line:char position)
 codebuddy tool move --source src/app.rs:10:5 --destination src/utils.rs
-
-# Extract function
 codebuddy tool extract --kind function --source src/app.rs:10:5 --name handleLogin
+
+# Analysis
+codebuddy tool analyze.quality --kind complexity --scope workspace
+codebuddy tool analyze.dead_code --kind unused_imports --scope file:src/app.rs
+
+# Workspace operations
+codebuddy tool workspace.find_replace --pattern "oldName" --replacement "newName"
 ```
 
-**Important:**
-- Use `rename` for **file/directory operations**
-- Use `move` for **code symbol operations** (requires line:char position)
+**Key Distinction:**
+- Use `rename` for file/directory operations
+- Use `move` for code symbol operations (requires source position)
 
-If you use the wrong tool, Codebuddy will provide a helpful error with the correct command.
+## 📚 Available Tools (36 total)
 
-## Available Tools (36 total)
-
-**Navigation & Intelligence (8 tools)**
+**🔍 Navigation & Intelligence (8 tools)**
 - `find_definition`, `find_references`, `search_symbols`
 - `find_implementations`, `find_type_definition`, `get_symbol_info`
 - `get_diagnostics`, `get_call_hierarchy`
 
-**Editing & Refactoring (15 tools)**
+**✂️ Editing & Refactoring (15 tools)**
 - **Plan Operations**: `rename.plan`, `extract.plan`, `inline.plan`, `move.plan`, `reorder.plan`, `transform.plan`, `delete.plan`
 - **Quick Operations**: `rename`, `extract`, `inline`, `move`, `reorder`, `transform`, `delete`
 - **Apply**: `workspace.apply_edit`
 
-**Analysis (8 tools)**
+**📊 Analysis (8 tools)**
 - `analyze.quality`, `analyze.dead_code`, `analyze.dependencies`
 - `analyze.structure`, `analyze.documentation`, `analyze.tests`
 - `analyze.batch`, `analyze.module_dependencies`
 
-**Workspace (4 tools)**
-- `workspace.create_package`, `workspace.extract_dependencies`, `workspace.update_members`, `workspace.find_replace`
+**📦 Workspace (4 tools)**
+- `workspace.create_package`, `workspace.extract_dependencies`
+- `workspace.update_members`, `workspace.find_replace`
 
-**System (1 tool)**
+**💚 System (1 tool)**
 - `health_check`
 
-## Documentation
-
-- **[docs/tools/](docs/tools/)** - Complete tool reference (36 tools across 5 categories)
-- **[contributing.md](contributing.md)** - Development guide
-- **[docs/architecture/overview.md](docs/architecture/overview.md)** - System architecture
-- **[docs/operations/docker_deployment.md](docs/operations/docker_deployment.md)** - Docker deployment
-
-## Language Support
+## 🌐 Language Support
 
 | Language | Extensions | LSP Server | Refactoring |
 |----------|-----------|------------|-------------|
@@ -134,53 +107,93 @@ If you use the wrong tool, Codebuddy will provide a helpful error with the corre
 
 *Additional languages (Python, Go, Java, Swift, C#) available in git tag `pre-language-reduction`*
 
-## Troubleshooting
+## ⚙️ Configuration
+```bash
+# View current configuration
+cat .codebuddy/config.json
+
+# Restart LSP servers (if experiencing issues)
+codebuddy stop && codebuddy start
+
+# Enable caching (disabled by default for development)
+export CODEBUDDY_DISABLE_CACHE=0
+```
+
+### Example Configuration
+```json
+{
+  "servers": [
+    {
+      "extensions": ["ts", "tsx", "js", "jsx"],
+      "command": ["typescript-language-server", "--stdio"],
+      "restartInterval": 10
+    },
+    {
+      "extensions": ["rs"],
+      "command": ["rust-analyzer"],
+      "restartInterval": 30
+    }
+  ]
+}
+```
+
+## 🔧 Troubleshooting
 
 **Server won't start:**
-- Check `codebuddy status` for LSP server availability
-- Verify language servers are installed and in PATH
-- Check `.codebuddy/config.json` for correct command paths
+```bash
+# Check LSP server availability
+codebuddy status
+
+# Verify language servers are installed
+which typescript-language-server
+which rust-analyzer
+
+# Review config file
+cat .codebuddy/config.json
+```
 
 **Tools not working:**
-- Ensure file extensions match config (e.g., `.rs` → `rust-analyzer`)
+- Ensure file extensions match config (`.rs` → `rust-analyzer`)
 - Check MCP connection with AI assistant
 - Review server logs for errors
 
 **Performance issues:**
-- Enable cache (disabled by default for development)
+- Enable cache: `unset CODEBUDDY_DISABLE_CACHE`
 - Adjust `restartInterval` in config (recommended: 10-30 minutes)
 - Check system resources (LSP servers can be memory-intensive)
 
-## Features
+## 📖 Documentation
+- **[Tool Reference](docs/tools/)** - Complete API for all 36 tools
+- **[Architecture Overview](docs/architecture/overview.md)** - System design and components
+- **[Contributing Guide](contributing.md)** - Development setup and workflow
+- **[Docker Deployment](docs/operations/docker_deployment.md)** - Production deployment
+- **[CLAUDE.md](CLAUDE.md)** - AI agent instructions and comprehensive guide
 
-**Safe Refactoring**
-- Two-step plan → apply pattern for all refactorings
-- Dry-run mode previews changes before applying
-- Atomic operations with automatic rollback on failure
+## 🧪 Development
+```bash
+# Clone repository
+git clone https://github.com/goobits/codebuddy.git
+cd codebuddy
 
-**Comprehensive Coverage**
-- Automatic import updates for file renames
-- Cross-file reference tracking
-- Rust-specific crate consolidation support
-- Batch operations for bulk changes
+# First-time setup (installs dev tools, builds parsers, validates)
+make first-time-setup
 
-**Production Ready**
-- Pure Rust implementation for performance
-- WebSocket server with JWT authentication
-- Multi-tenant workspace isolation
-- Structured logging for observability
-- Docker deployment support
+# Run tests
+cargo nextest run --workspace
 
-## Contributing
+# Run with LSP server tests (~60s, requires LSP servers)
+cargo nextest run --workspace --features lsp-tests
 
-See [contributing.md](contributing.md) for development setup, testing, and PR workflow.
+# Code quality checks
+cargo fmt && cargo clippy && cargo nextest run
+```
 
-## License
+See [contributing.md](contributing.md) for detailed development guide.
 
+## 📝 License
 See [LICENSE](LICENSE) for details.
 
-## Links
-
+## 💡 Support
 - **Issues:** [GitHub Issues](https://github.com/goobits/codebuddy/issues)
 - **Discussions:** [GitHub Discussions](https://github.com/goobits/codebuddy/discussions)
 - **Security:** security@goobits.com (private disclosure)
