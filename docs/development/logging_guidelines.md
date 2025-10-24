@@ -326,3 +326,9 @@ RUST_LOG=cb_server::handlers=debug cargo run
 ```
 
 This structured approach ensures consistent, queryable, and maintainable logging across the entire Codebuddy codebase.
+
+---
+
+## See Also
+
+- **[CLAUDE.md](../../CLAUDE.md)** - Project documentation referencing these logging standards

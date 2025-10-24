@@ -2,6 +2,8 @@
 
 **Welcome to the Codebuddy documentation hub.** Find everything you need to use, deploy, and contribute to Codebuddy.
 
+> **🤖 For AI agents:** See [CLAUDE.md](../CLAUDE.md) for complete project instructions and MCP tools overview.
+
 ---
 
 ## 🚀 Getting Started

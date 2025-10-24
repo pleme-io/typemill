@@ -250,6 +250,13 @@ Common error codes:
 
 ---
 
+## See Also
+
+- **[CLAUDE.md](../../CLAUDE.md)** - Main project documentation and AI agent instructions
+- **[contributing.md](../../contributing.md)** - How to add new tools and contribute
+
+---
+
 ## Links
 
 - **[Main Documentation](../README.md)** - Complete documentation index

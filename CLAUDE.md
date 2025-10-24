@@ -782,3 +782,4 @@ All debug scripts, test analysis, and experimental code goes in `.debug/` (gitig
 ### For Tool Reference
 - **[docs/tools/](docs/tools/)** - Complete MCP tools API organized by category
 - **[docs/tools/README.md](docs/tools/README.md)** - Quick catalog of all 36 tools
+- **[docs/README.md](docs/README.md)** - Documentation index and navigation hub

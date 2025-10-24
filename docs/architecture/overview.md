@@ -797,3 +797,10 @@ This section defines the external and internal contracts for the MCP server impl
 - Deprecated items have at least one minor version warning period
 - Migration guides provided for breaking changes
 - Semantic versioning strictly followed
+
+---
+
+## See Also
+
+- **[CLAUDE.md](../../CLAUDE.md)** - Complete project documentation including MCP tools overview
+- **[contributing.md](../../contributing.md)** - Contributor guide and development workflow
