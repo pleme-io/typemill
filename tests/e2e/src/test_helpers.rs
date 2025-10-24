@@ -512,3 +512,16 @@ pub fn build_delete_params(
         }
     })
 }
+
+/// Helper to create workspace from fixture with directory structure
+pub fn setup_workspace_from_fixture(workspace: &TestWorkspace, files: &[(&str, &str)]) {
+    for (file_path, content) in files {
+        // Ensure parent directories exist
+        if let Some(parent) = std::path::Path::new(file_path).parent() {
+            if parent != std::path::Path::new("") {
+                workspace.create_directory(parent.to_str().unwrap());
+            }
+        }
+        workspace.create_file(file_path, content);
+    }
+}
