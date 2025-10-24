@@ -106,8 +106,8 @@ impl RenameOptions {
             Some("code") => {
                 Some(mill_foundation::core::rename_scope::RenameScope::code())
             }
-            Some("project") | None => {
-                Some(mill_foundation::core::rename_scope::RenameScope::project())
+            Some("standard") | None => {
+                Some(mill_foundation::core::rename_scope::RenameScope::standard())
             }
             Some("comments") => {
                 Some(mill_foundation::core::rename_scope::RenameScope::comments())
@@ -121,7 +121,7 @@ impl RenameOptions {
                 Some(mill_foundation::core::rename_scope::RenameScope::code())
             }
             Some("all") => {
-                Some(mill_foundation::core::rename_scope::RenameScope::project())
+                Some(mill_foundation::core::rename_scope::RenameScope::standard())
             }
 
             Some("custom") => self.custom_scope.clone(),

@@ -67,7 +67,7 @@ fn default_true() -> bool {
 
 impl Default for RenameScope {
     fn default() -> Self {
-        Self::project() // CHANGED FROM: Self::all()
+        Self::standard() // CHANGED FROM: Self::all()
     }
 }
 
@@ -89,7 +89,7 @@ impl RenameScope {
     }
 
     /// All preset: update everything (default)
-    #[deprecated(since = "2.0.0", note = "Use `project()` instead")]
+    #[deprecated(since = "2.0.0", note = "Use `standard()` instead")]
     pub fn all() -> Self {
         Self {
             update_code: true,
@@ -111,19 +111,19 @@ impl RenameScope {
         Self::code_only() // Delegate to existing implementation
     }
 
-    /// Project preset: update code + docs + configs (DEFAULT)
+    /// Standard preset: update code + docs + configs (DEFAULT)
     ///
     /// This is the new name for `all()` and the recommended default scope.
     /// Updates all structural parts of the project without touching comments or prose.
-    pub fn project() -> Self {
+    pub fn standard() -> Self {
         Self::all() // Delegate to existing implementation
     }
 
-    /// Comments preset: project scope + code comments
+    /// Comments preset: standard scope + code comments
     ///
-    /// Adds code comment updates to the project scope.
+    /// Adds code comment updates to the standard scope.
     pub fn comments() -> Self {
-        let mut scope = Self::project();
+        let mut scope = Self::standard();
         scope.update_comments = true;
         scope
     }
@@ -212,8 +212,8 @@ mod tests {
     }
 
     #[test]
-    fn test_project_preset() {
-        let scope = RenameScope::project();
+    fn test_standard_preset() {
+        let scope = RenameScope::standard();
         assert!(scope.update_code);
         assert!(scope.update_string_literals);
         assert!(scope.update_docs);
@@ -255,9 +255,9 @@ mod tests {
 
         #[allow(deprecated)]
         let all = RenameScope::all();
-        let project = RenameScope::project();
-        assert_eq!(all.update_code, project.update_code);
-        assert_eq!(all.update_docs, project.update_docs);
+        let standard = RenameScope::standard();
+        assert_eq!(all.update_code, standard.update_code);
+        assert_eq!(all.update_docs, standard.update_docs);
     }
 
     #[test]
@@ -321,12 +321,12 @@ mod tests {
 
     #[test]
     fn test_markdown_prose_opt_in() {
-        let default_scope = RenameScope::project();
+        let default_scope = RenameScope::standard();
         assert!(!default_scope.update_markdown_prose); // Opt-in by default
 
         let custom_scope = RenameScope {
             update_markdown_prose: true,
-            ..RenameScope::project()
+            ..RenameScope::standard()
         };
         assert!(custom_scope.update_markdown_prose);
     }

@@ -1,6 +1,6 @@
 //! E2E tests for scope preset behavior
 //!
-//! Tests the new scope architecture (code/project/comments/everything)
+//! Tests the new scope architecture (code/standard/comments/everything)
 //! and verifies backward compatibility with deprecated names (code-only/all).
 
 use crate::harness::{TestClient, TestWorkspace};
@@ -97,9 +97,9 @@ old = { path = "src/old.rs" }
     );
 }
 
-/// Test "project" scope (default) - updates code + docs + configs
+/// Test "standard" scope (default) - updates code + docs + configs
 #[tokio::test]
-async fn test_scope_project_updates_code_docs_configs() {
+async fn test_scope_standard_updates_code_docs_configs() {
     let workspace = TestWorkspace::new();
 
     workspace.create_file("src/old.rs", r#"pub fn hello() {}"#);
@@ -120,7 +120,7 @@ Check out `src/old.rs` for the source code.
 
     let mut client = TestClient::new(workspace.path());
 
-    // Rename with "project" scope (default)
+    // Rename with "standard" scope (default)
     let plan = client
         .call_tool(
             "rename.plan",
@@ -131,7 +131,7 @@ Check out `src/old.rs` for the source code.
                 },
                 "newName": workspace.absolute_path("src/new.rs").to_string_lossy(),
                 "options": {
-                    "scope": "project"
+                    "scope": "standard"
                 }
             }),
         )
@@ -153,18 +153,18 @@ Check out `src/old.rs` for the source code.
     // Verify: file renamed
     assert!(workspace.file_exists("src/new.rs"));
 
-    // Verify: docs UPDATED (project scope includes docs)
+    // Verify: docs UPDATED (standard scope includes docs)
     let readme = workspace.read_file("README.md");
     assert!(
         readme.contains("new.rs"),
-        "With 'project' scope, markdown links should be updated"
+        "With 'standard' scope, markdown links should be updated"
     );
 
-    // Verify: docs/guide.md UPDATED (docs updated with project scope)
+    // Verify: docs/guide.md UPDATED (docs updated with standard scope)
     let guide = workspace.read_file("docs/guide.md");
     assert!(
         guide.contains("src/new.rs") || guide.contains("new.rs"),
-        "With 'project' scope, documentation paths should be updated"
+        "With 'standard' scope, documentation paths should be updated"
     );
 }
 
@@ -422,13 +422,13 @@ Source: `src/old.rs`
         .await
         .expect("workspace.apply_edit should succeed");
 
-    // Verify: behaves same as "project" scope
+    // Verify: behaves same as "standard" scope
     assert!(workspace.file_exists("src/new.rs"));
 
     let readme = workspace.read_file("README.md");
     assert!(
         readme.contains("new.rs"),
-        "Deprecated 'all' should behave like 'project' scope"
+        "Deprecated 'all' should behave like 'standard' scope"
     );
 
     let api = workspace.read_file("docs/api.md");
@@ -438,9 +438,9 @@ Source: `src/old.rs`
     );
 }
 
-/// Test default scope behavior (no scope specified = "project")
+/// Test default scope behavior (no scope specified = "standard")
 #[tokio::test]
-async fn test_default_scope_is_project() {
+async fn test_default_scope_is_standard() {
     let workspace = TestWorkspace::new();
 
     workspace.create_file("src/old.rs", r#"pub fn test() {}"#);
@@ -448,7 +448,7 @@ async fn test_default_scope_is_project() {
 
     let mut client = TestClient::new(workspace.path());
 
-    // Don't specify scope - should default to "project"
+    // Don't specify scope - should default to "standard"
     let plan = client
         .call_tool(
             "rename.plan",
@@ -476,12 +476,12 @@ async fn test_default_scope_is_project() {
         .await
         .expect("workspace.apply_edit should succeed");
 
-    // Verify: default behaves like "project" scope
+    // Verify: default behaves like "standard" scope
     assert!(workspace.file_exists("src/new.rs"));
 
     let readme = workspace.read_file("README.md");
     assert!(
         readme.contains("new.rs"),
-        "Default scope should update docs (project scope behavior)"
+        "Default scope should update docs (standard scope behavior)"
     );
 }

@@ -160,7 +160,7 @@ pub fn parse_flags_to_json(
 ///   "target": {"kind": "file|directory|symbol", "path": "...", "selector": {...}},
 ///   "newName": "...",
 ///   "options": {
-///     "scope": "all|code-only|custom",
+///     "scope": "code|standard|comments|everything|custom",
 ///     "custom_scope": {...},
 ///     "exclude_patterns": [...],
 ///     "strict": bool,
@@ -226,10 +226,11 @@ fn parse_rename_flags(flags: HashMap<String, String>) -> Result<Value, FlagParse
     let scope = flags.get("scope").map(|s| s.as_str());
 
     // Auto-upgrade to custom scope if update flags are present
+    // Accept both new names (code) and deprecated aliases (code-only)
     let effective_scope = if has_update_flags && scope != Some("code") && scope != Some("code-only") {
         "custom"
     } else {
-        scope.unwrap_or("project")
+        scope.unwrap_or("standard")
     };
 
     // Only set scope in options if it was explicitly provided or auto-upgraded
@@ -778,7 +779,7 @@ fn parse_string_array(s: &str) -> Result<Value, FlagParseError> {
 fn validate_scope_value(scope: &str) -> Result<(), FlagParseError> {
     match scope {
         // New scope names (preferred)
-        "code" | "project" | "comments" | "everything" | "custom" => Ok(()),
+        "code" | "standard" | "comments" | "everything" | "custom" => Ok(()),
 
         // Deprecated but still accepted
         "code-only" => {
@@ -786,14 +787,14 @@ fn validate_scope_value(scope: &str) -> Result<(), FlagParseError> {
             Ok(())
         }
         "all" => {
-            eprintln!("⚠️  Warning: 'all' is deprecated. Use 'project' instead.");
+            eprintln!("⚠️  Warning: 'all' is deprecated. Use 'standard' instead.");
             Ok(())
         }
 
         _ => Err(FlagParseError::InvalidValue {
             flag: "scope".to_string(),
             value: scope.to_string(),
-            reason: "must be 'code', 'project', 'comments', 'everything', or 'custom'".to_string(),
+            reason: "must be 'code', 'standard', 'comments', 'everything', or 'custom'".to_string(),
         }),
     }
 }
@@ -946,12 +947,12 @@ mod tests {
             flags(&[
                 ("target", "file:src/app.rs"),
                 ("new_name", "src/main.rs"),
-                ("scope", "code-only"),
+                ("scope", "code"),
             ]),
         );
         assert!(result.is_ok());
         let json = result.unwrap();
-        assert_eq!(json["options"]["scope"], "code-only");
+        assert_eq!(json["options"]["scope"], "code");
     }
 
     #[test]
@@ -1378,11 +1379,11 @@ mod tests {
         let err = FlagParseError::InvalidValue {
             flag: "scope".to_string(),
             value: "bad".to_string(),
-            reason: "must be 'all' or 'code-only'".to_string(),
+            reason: "must be 'code', 'standard', 'comments', 'everything', or 'custom'".to_string(),
         };
         assert_eq!(
             err.to_string(),
-            "Invalid value 'bad' for --scope: must be 'all' or 'code-only'"
+            "Invalid value 'bad' for --scope: must be 'code', 'standard', 'comments', 'everything', or 'custom'"
         );
     }
 
