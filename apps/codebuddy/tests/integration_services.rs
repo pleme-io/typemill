@@ -243,7 +243,7 @@ async fn test_workspace_edit_in_process() {
     let dispatcher = create_test_dispatcher_with_root(workspace_path.clone()).await;
     let session_info = SessionInfo::default();
 
-    // Create 50 test files
+    // Create 50 test files directly via filesystem (not using internal MCP create_file tool)
     let file_count = 50;
     let mut file_paths = Vec::new();
 
@@ -265,44 +265,12 @@ const oldConstant{} = "old_value_{}";
             i, i, i, i, i
         );
 
-        let request = McpMessage::Request(McpRequest {
-            jsonrpc: "2.0".to_string(),
-            id: Some(json!(format!("create-{}", i))),
-            method: "tools/call".to_string(),
-            params: Some(json!({
-                "name": "create_file",
-                "arguments": {
-                    "filePath": file_path.to_string_lossy(),
-                    "content": content
-                }
-            })),
-        });
-
-        let response_msg = dispatcher.dispatch(request, &session_info).await.unwrap();
-        let response = match response_msg {
-            McpMessage::Response(resp) => {
-                if let Some(error) = resp.error {
-                    panic!("File creation failed for {}: {:?}", i, error);
-                }
-                resp.result.expect("Response should have result field")
-            }
-            _ => panic!("Expected response message"),
-        };
-
-        assert!(response.get("success").is_some());
-        assert!(response["success"].as_bool().unwrap_or(false));
+        // Write file directly to filesystem instead of using internal create_file tool
+        tokio::fs::write(&file_path, content).await.unwrap();
         file_paths.push(file_path);
     }
 
-    eprintln!("DEBUG: Created {} files", file_count);
-
-    // CRITICAL: Wait for operation queue to complete all file writes
-    eprintln!("DEBUG: Waiting for operation queue to become idle...");
-    dispatcher.operation_queue().wait_until_idle().await;
-    eprintln!("DEBUG: Operation queue is idle!");
-
-    // Additional safety: small delay to ensure all file handles are closed
-    tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+    eprintln!("DEBUG: Created {} files via filesystem", file_count);
 
     // Verify all files have content
     for (i, file_path) in file_paths.iter().enumerate() {
@@ -346,7 +314,9 @@ const oldConstant{} = "old_value_{}";
         ]);
     }
 
-    // Execute large workspace edit
+    // Execute large workspace edit using internal apply_workspace_edit tool
+    // Note: This uses an internal tool for raw LSP changes (not the public workspace.apply_edit
+    // which expects a plan object). This test validates in-process edit performance.
     let start = Instant::now();
     let request = McpMessage::Request(McpRequest {
         jsonrpc: "2.0".to_string(),

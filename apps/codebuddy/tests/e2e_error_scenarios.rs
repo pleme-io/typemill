@@ -225,70 +225,8 @@ export class Class{} implements Interface{} {{
     }
 }
 
-#[tokio::test]
-async fn test_resource_exhaustion() {
-    let workspace = TestWorkspace::new();
-    let mut client = TestClient::new(workspace.path());
-
-    // Try to create many files rapidly in sequence to test resource limits
-    let mut successful_creates = 0;
-    let mut successful_reads = 0;
-
-    for i in 0..20 {
-        // Reduced count for sequential processing
-        let file_path = workspace.path().join(format!("file_{}.txt", i));
-        let content = format!("Content for file {}", i);
-
-        let create_result = client
-            .call_tool(
-                "create_file",
-                json!({
-                    "filePath": file_path.to_string_lossy(),
-                    "content": content
-                }),
-            )
-            .await;
-
-        let read_result = client
-            .call_tool(
-                "read_file",
-                json!({
-                    "filePath": file_path.to_string_lossy()
-                }),
-            )
-            .await;
-
-        if create_result.is_ok() {
-            successful_creates += 1;
-        }
-        if read_result.is_ok() {
-            successful_reads += 1;
-        }
-    }
-
-    // Should handle at least some operations successfully
-    assert!(
-        successful_creates > 0,
-        "Should successfully create some files"
-    );
-    assert!(successful_reads > 0, "Should successfully read some files");
-
-    // Cleanup - try to list all created files
-    let list_response = client
-        .call_tool(
-            "list_files",
-            json!({
-                "directory": workspace.path().to_string_lossy()
-            }),
-        )
-        .await;
-
-    if let Ok(list_response) = list_response {
-        if let Some(files) = list_response["files"].as_array() {
-            assert!(!files.is_empty(), "Should list created files");
-        }
-    }
-}
+// Note: test_resource_exhaustion removed - used internal file operation tools
+// (create_file, read_file, list_files) that are no longer part of the public MCP API
 
 #[tokio::test]
 async fn test_invalid_characters_in_paths() {
