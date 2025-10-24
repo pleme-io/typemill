@@ -421,7 +421,7 @@ my-crate = { git = "https://github.com/..." }
 
 ## Adding New Language Plugins
 
-To add support for a new programming language, see the **[Language Plugins Guide](crates/languages/README.md)** which provides:
+To add support for a new programming language, see the **[Language Plugins Guide](docs/development/plugin_development.md)** which provides:
 
 - Complete plugin structure and schema requirements
 - Required trait implementations (`LanguagePlugin`)

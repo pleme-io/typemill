@@ -928,4 +928,4 @@ codebuddy tool workspace.extract_dependencies '{
 **Related Documentation:**
 - [Refactoring Tools](refactoring.md) - rename.plan for crate consolidation
 - [Analysis Tools](analysis.md) - analyze.module_dependencies for dependency analysis
-- [Main API Reference](../api_reference.md) - Complete API documentation
+- [Main API Reference](README.md) - Complete API documentation

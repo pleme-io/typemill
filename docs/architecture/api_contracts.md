@@ -1,6 +1,6 @@
 # Unified Analysis & Refactoring API Contracts
 
-> **Note:** This document provides formal implementation contracts. For user-friendly documentation with examples, see [api_reference.md](../api_reference.md).
+> **Note:** This document provides formal implementation contracts. For user-friendly documentation with examples, see [docs/tools/README.md](../tools/README.md).
 
 ## Scope
 - Defines canonical request/response contracts for the unified analysis and refactoring APIs.
