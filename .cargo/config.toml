@@ -2,7 +2,7 @@
 # Cargo Build Configuration for TypeMill
 # =============================================================================
 # This file configures build optimizations that apply to all team members
-# See scripts/setup-dev-tools.sh for installation of required tools
+# See 'make first-time-setup' to install required development tools
 
 # =============================================================================
 # Compilation Caching with sccache
