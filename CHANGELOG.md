@@ -11,6 +11,115 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 The project underwent a complete architectural transformation from TypeScript/Node.js to pure Rust in 2025, bringing native performance, memory safety, and compile-time type guarantees.
 
+### [0.7.0] - 2025-10-24
+
+🚀 **Version 0.7.0** - TypeMill rebranding, API standardization, and comprehensive rename architecture
+
+#### Breaking Changes
+
+- **TypeMill Branding Migration** - Complete rename from CodeBuddy to TypeMill
+  - Configuration directory: `.codebuddy/` → `.typemill/`
+  - Binary name: `codebuddy` → `mill` (apps/codebuddy → apps/mill)
+  - Environment variables: `CODEBUDDY__*` → `TYPEMILL__*`
+  - All internal crates renamed: `cb-*` → `mill-*` (27 crate renames)
+  - Package name: `codebuddy` → `typemill`
+
+- **JSON API Standardization** - All JSON parameters converted to camelCase
+  - 487 field replacements across codebase for consistency
+  - Documentation updated with 153 camelCase conversions
+  - Affects all MCP tool parameters and responses
+  - CLI maintains both snake_case flags and camelCase JSON compatibility
+
+- **Scope Architecture Changes**
+  - Scope preset renamed: `"project"` → `"standard"`
+  - Deprecated presets (`"code-only"`, `"all"`) still work with warnings
+
+#### Added
+
+- **New Scope Architecture** - Comprehensive rename scope control system
+  - 5 scope presets: `code`, `standard`, `comments`, `everything`, `custom`
+  - CLI help text with detailed examples and usage patterns
+  - E2E tests validating all scope modes and edge cases
+  - Fine-grained control over what files get updated during renames
+
+- **workspace.find_replace Tool** - Find and replace text across workspace
+  - 100% test coverage with edge case handling
+  - UTF-8 safe character boundary handling
+  - MCP protocol-compliant response format
+  - Health check polling for reliable test infrastructure
+
+- **Batch Rename Support** - Enhanced `targets` parameter
+  - Rename multiple files/directories in single operation
+  - Comprehensive documentation with examples
+  - Conflict detection and validation
+
+- **Tool Access Control** - Internal tools blocked from CLI/MCP
+  - Clean separation of public API (36 tools) vs internal tools (20 tools)
+  - Prevents accidental usage of internal plumbing tools
+  - Better security and API surface management
+
+#### Changed
+
+- **Test Infrastructure Modernization** - Comprehensive test consolidation
+  - Closure-based test helpers (Solution A pattern)
+  - Migration of 32 test files to new architecture
+  - Removed 5 superfluous test files (-302 lines)
+  - LSP integration tests gated behind `lsp-tests` feature
+  - Fixed 5s sleep → health check polling for reliability
+
+- **Documentation Overhaul** - Category-based organization
+  - Split tool reference into 5 category files
+  - Added table of contents to all tool docs
+  - Fixed critical accuracy issues in AI assistant docs
+  - Documentation consolidation with proper README structure
+  - Fixed broken internal links and case sensitivity issues
+
+- **Rust Crate Organization** - Complete mill-* naming convention
+  - Analysis crates: cb-analysis-* → mill-analysis-* (5 crates)
+  - Language plugins: cb-lang-* → mill-lang-* (5 crates)
+  - Core crates: codebuddy-* → mill-* (17 crates)
+  - Foundation crates: cb-plugin-api → mill-plugin-api, etc.
+
+#### Fixed
+
+- **Rust Import Rewrite System** - Complete overhaul for reliability
+  - Fixed incomplete Cargo.toml updates in directory renames
+  - Support for `extern crate` and `pub use` patterns
+  - Handle bare crate names in feature arrays (`crate/feature` syntax)
+  - Guard format string escaping in import rewriter
+  - Fix workspace.dependencies key updates during crate rename
+  - Batch rename now collects `documentChanges` correctly
+
+- **Test Suite Fixes** - 100% pass rate maintained
+  - Fixed 13 tests for camelCase JSON field expectations
+  - Fixed 3 error handling tests for protocol errors
+  - Fixed 3 deep dead code tests
+  - Fixed 2 workspace.extract_deps tests
+  - Updated test expectations for camelCase field names
+
+- **CLI & Configuration** - Environment variable handling
+  - Config loader uses `TYPEMILL__` prefix
+  - Removed legacy CLI flags for clean minimal API
+  - Standardized JSON parameters to snake_case, then to camelCase
+
+#### Removed
+
+- **Legacy Naming** - All references to old CodeBuddy branding
+  - Removed `.codebuddy/` configuration directory support
+  - Removed `codebuddy` binary name (use `mill` instead)
+  - Removed `CODEBUDDY__*` environment variable support
+  - Cleaned up stale nested crates in mill-lang-markdown
+
+#### Migration Notes
+
+- **Configuration**: Move `.codebuddy/` to `.typemill/` in your projects
+- **Binary**: Update scripts and commands from `codebuddy` to `mill`
+- **Environment**: Rename `CODEBUDDY__*` to `TYPEMILL__*` in your environment
+- **JSON API**: Update client code to use camelCase for all JSON parameters
+- **Scope**: Update `"project"` to `"standard"` (old name deprecated with warning)
+
+---
+
 ### [0.6.1] - 2025-10-22
 
 🚀 **Version 0.6.1** - Rename tool enhancements, quick refactoring operations, and comprehensive comment/prose updates
