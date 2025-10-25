@@ -788,39 +788,43 @@ This section explains how to add new tools and handlers to the system.
 
 ### Understanding the Unified Refactoring API
 
-TypeMill uses a **unified refactoring API** with a consistent `plan -> apply` pattern for all code refactorings. This architecture provides:
+TypeMill uses a **unified refactoring API** with a consistent `dryRun` option for all code refactorings. This architecture provides:
 
-1. **Safety**: All `.plan` commands are read-only and never modify files
+1. **Safety**: Default `dryRun: true` prevents accidental execution
 2. **Preview**: Users can inspect changes before applying them
-3. **Atomicity**: `workspace.apply_edit` applies all changes atomically with automatic rollback on failure
+3. **Atomicity**: All changes applied atomically with automatic rollback on failure
 4. **Consistency**: All refactoring operations follow the same pattern
 
 **Current Refactoring Tools:**
 
-| Tool | Purpose | Returns |
-|------|---------|---------|
-| `rename.plan` | Plan symbol/file/directory rename | `RenamePlan` |
-| `extract.plan` | Plan extract function/variable/constant | `ExtractPlan` |
-| `inline.plan` | Plan inline variable/function | `InlinePlan` |
-| `move.plan` | Plan move symbol to another file | `MovePlan` |
-| `reorder.plan` | Plan reorder parameters/imports | `ReorderPlan` |
-| `transform.plan` | Plan transform (e.g., to async) | `TransformPlan` |
-| `delete.plan` | Plan delete unused code/imports | `DeletePlan` |
-| `workspace.apply_edit` | Execute any plan | Execution result |
+| Tool | Purpose | Default Behavior | Execution Mode |
+|------|---------|-----------------|----------------|
+| `rename` | Rename symbols/files/directories | `dryRun: true` (preview) | `dryRun: false` (execute) |
+| `extract` | Extract functions/variables/constants | `dryRun: true` (preview) | `dryRun: false` (execute) |
+| `inline` | Inline variables/functions | `dryRun: true` (preview) | `dryRun: false` (execute) |
+| `move` | Move symbols to another file | `dryRun: true` (preview) | `dryRun: false` (execute) |
+| `reorder` | Reorder parameters/imports | `dryRun: true` (preview) | `dryRun: false` (execute) |
+| `transform` | Transform code (e.g., to async) | `dryRun: true` (preview) | `dryRun: false` (execute) |
+| `delete` | Delete unused code/imports | `dryRun: true` (preview) | `dryRun: false` (execute) |
 
 **Example Flow:**
 ```bash
-# Step 1: Generate a plan (read-only, safe to explore)
-PLAN=$(mill tool rename.plan '{
+# Step 1: Preview changes (default dryRun: true)
+mill tool rename '{
   "target": {"kind": "symbol", "path": "src/app.ts", "selector": {"position": {"line": 15, "character": 8}}},
   "newName": "newUser"
-}')
+}'
 
-# Step 2: Inspect the plan (it contains edits, summary, warnings)
-echo $PLAN | jq .
+# Output: RenamePlan with edits, summary, warnings, file_checksums
 
-# Step 3: Apply the plan (atomic, with rollback on failure)
-mill tool workspace.apply_edit "{\"plan\": $PLAN}"
+# Step 2: Execute changes (explicit dryRun: false)
+mill tool rename '{
+  "target": {"kind": "symbol", "path": "src/app.ts", "selector": {"position": {"line": 15, "character": 8}}},
+  "newName": "newUser",
+  "options": {"dryRun": false}
+}'
+
+# Output: ExecutionResult with success, applied_files, warnings
 ```
 
 **Internal Tools (Hidden from MCP):**
