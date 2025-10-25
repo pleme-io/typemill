@@ -1,9 +1,15 @@
 # Workspace Tools
 
-Package management operations for multi-crate Rust workspaces. Create new packages, extract dependencies for crate extraction workflows, and manage workspace member lists in Cargo.toml.
+Package management operations for multi-language workspaces. Create new packages, extract dependencies, and manage workspace member lists.
 
+**Supported languages:** Rust (Cargo), TypeScript (npm/yarn/pnpm), Python (PDM/Poetry/Hatch)
 **Tool count:** 4 tools
 **Related categories:** [Refactoring](refactoring.md) (rename for crate consolidation), [Analysis](analysis.md) (analyze.module_dependencies for dependency analysis)
+
+**Language-specific guides:**
+- **[Rust/Cargo](workspace-rust.md)** - Cargo.toml, crate structure, Rust conventions
+- **[TypeScript](workspace-typescript.md)** - package.json, tsconfig.json, npm/yarn/pnpm workspaces
+- **[Python](workspace-python.md)** - pyproject.toml, src layout, PDM/Poetry/Hatch
 
 ## Table of Contents
 
@@ -28,13 +34,16 @@ Package management operations for multi-crate Rust workspaces. Create new packag
 
 ### workspace.create_package
 
-**Purpose:** Create a new Rust package (library or binary) with proper manifest and source structure.
+**Purpose:** Create a new package (library or binary) with proper manifest and source structure. Language auto-detected from workspace or specified via file extension.
+
+**Supported:** Rust (Cargo), TypeScript (npm/yarn/pnpm), Python (PDM/Poetry/Hatch)
+**Language-specific details:** See [Rust](workspace-rust.md), [TypeScript](workspace-typescript.md), [Python](workspace-python.md)
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| package_path | string | Yes | Absolute or workspace-relative path for new package (e.g., "crates/my-lib") |
+| package_path | string | Yes | Absolute or workspace-relative path for new package (e.g., "crates/my-lib", "packages/utils") |
 | package_type | string | No | Package type: "library" or "binary" (default: "library") |
 | options | object | No | Creation options |
 | options.dryRun | boolean | No | Preview operation (not yet supported - returns error) |
@@ -49,45 +58,35 @@ Object with creation details:
 - `package_info` (object): Package metadata (name, version, manifest_path)
 - `dryRun` (boolean): Whether this was a dry-run
 
-**Example:**
+**Templates:**
+
+| Template | All Languages | Language-Specific Extras |
+|----------|---------------|-------------------------|
+| `minimal` | manifest + config + entry file + README + .gitignore + tests | None |
+| `full` | minimal + | Rust: examples/, TS: .eslintrc.json, Python: setup.py |
+
+**Example - Create library:**
 
 ```json
-// MCP request - Create library with minimal template
 {
   "method": "tools/call",
   "params": {
     "name": "workspace.create_package",
     "arguments": {
-      "packagePath": "/workspace/crates/my-util",
+      "packagePath": "packages/my-util",
       "package_type": "library",
       "options": {
-        "dryRun": false,
-        "addToWorkspace": true,
-        "template": "minimal"
+        "template": "minimal",
+        "addToWorkspace": true
       }
     }
   }
 }
 
-// Response
-{
-  "result": {
-    "created_files": [
-      "/workspace/crates/my-util/Cargo.toml",
-      "/workspace/crates/my-util/src/lib.rs"
-    ],
-    "workspace_updated": true,
-    "package_info": {
-      "name": "my-util",
-      "version": "0.1.0",
-      "manifest_path": "/workspace/crates/my-util/Cargo.toml"
-    },
-    "dryRun": false
-  }
-}
+// Creates manifest, entry file, README, .gitignore, tests
 ```
 
-**Example - Binary package:**
+**Example - Create binary:**
 
 ```json
 {
@@ -95,29 +94,8 @@ Object with creation details:
   "params": {
     "name": "workspace.create_package",
     "arguments": {
-      "packagePath": "/workspace/crates/my-cli",
+      "packagePath": "packages/my-cli",
       "package_type": "binary",
-      "options": {
-        "addToWorkspace": true,
-        "template": "minimal"
-      }
-    }
-  }
-}
-
-// Creates src/main.rs instead of src/lib.rs
-```
-
-**Example - Full template:**
-
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "workspace.create_package",
-    "arguments": {
-      "packagePath": "/workspace/crates/full-lib",
-      "package_type": "library",
       "options": {
         "template": "full"
       }
@@ -125,20 +103,17 @@ Object with creation details:
   }
 }
 
-// Creates additional structure:
-// - README.md
-// - tests/integration_test.rs
-// - examples/basic.rs
+// Creates minimal files + language-specific extras
 ```
 
 **Notes:**
-- Automatically creates Cargo.toml with proper package metadata
-- Library packages get `src/lib.rs`, binary packages get `src/main.rs`
-- Updates workspace `Cargo.toml` members array if `add_to_workspace: true`
-- Package name derived from final path component (converts hyphens to underscores for crate name)
-- Template "minimal" creates basic structure, "full" adds README, tests, examples
+- Language auto-detected from workspace structure
+- Package name derived from final path component
+- Minimal template includes README, .gitignore, and starter tests (as of recent updates)
+- Full template adds language-specific files (see language-specific guides)
 - Dry-run mode not yet supported - returns error if `dryRun: true`
 - Standalone packages: Set `add_to_workspace: false` to skip workspace registration
+- Workspace paths normalized to forward slashes (cross-platform compatibility)
 
 ---
 

@@ -65,8 +65,9 @@ Comprehensive code analysis covering quality, dead code, dependencies, structure
 
 ### [Workspace](workspace.md)
 **4 workspace management tools** for package and text operations.
+**Language-specific guides:** [Rust](workspace-rust.md) | [TypeScript](workspace-typescript.md) | [Python](workspace-python.md)
 
-Create packages, extract dependencies for crate extraction, manage workspace member lists, and perform workspace-wide find/replace operations. Essential for maintaining multi-package Rust workspaces.
+Create packages, extract dependencies, manage workspace member lists, and perform workspace-wide find/replace operations. Supports Rust (Cargo), TypeScript (npm/yarn/pnpm), and Python (PDM/Poetry/Hatch) workspaces.
 
 ### [System](system.md)
 **1 health monitoring tool** for server diagnostics.
