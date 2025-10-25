@@ -24,6 +24,8 @@ use mill_lang_toml::TomlLanguagePlugin;
 use mill_lang_typescript::TypeScriptPlugin;
 #[cfg(feature = "lang-yaml")]
 use mill_lang_yaml::YamlLanguagePlugin;
+#[cfg(feature = "lang-gitignore")]
+use mill_lang_gitignore::GitignoreLanguagePlugin;
 
 // This function is never called but ensures the linker includes all plugin crates
 #[allow(dead_code)]
@@ -40,6 +42,8 @@ fn _force_plugin_linkage() {
     let _: Option<TypeScriptPlugin> = None;
     #[cfg(feature = "lang-yaml")]
     let _: Option<YamlLanguagePlugin> = None;
+    #[cfg(feature = "lang-gitignore")]
+    let _: Option<GitignoreLanguagePlugin> = None;
 }
 
 /// Returns all language plugins available in this bundle.
@@ -103,6 +107,8 @@ mod tests {
     extern crate mill_lang_typescript;
     #[cfg(all(test, feature = "lang-yaml"))]
     extern crate mill_lang_yaml;
+    #[cfg(all(test, feature = "lang-gitignore"))]
+    extern crate mill_lang_gitignore;
 
     #[test]
     fn test_all_plugins_returns_plugins() {

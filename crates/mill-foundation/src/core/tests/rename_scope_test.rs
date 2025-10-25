@@ -13,6 +13,7 @@ fn test_rename_scope_code() {
     assert!(!scope.should_include_file(Path::new("README.md")));
     assert!(!scope.should_include_file(Path::new("Cargo.toml")));
     assert!(!scope.should_include_file(Path::new("config.yaml")));
+    assert!(!scope.should_include_file(Path::new(".gitignore")));
 }
 
 #[test]
@@ -24,6 +25,7 @@ fn test_rename_scope_project() {
     assert!(scope.should_include_file(Path::new("README.md")));
     assert!(scope.should_include_file(Path::new("Cargo.toml")));
     assert!(scope.should_include_file(Path::new("config.yaml")));
+    assert!(scope.should_include_file(Path::new(".gitignore")));
 }
 
 #[test]
@@ -66,10 +68,12 @@ fn test_rename_scope_exclude_patterns() {
         update_string_literals: true,
         update_docs: true,
         update_configs: true,
+        update_gitignore: true,
         update_comments: false,
         update_markdown_prose: false,
         update_exact_matches: false,
         exclude_patterns: vec!["**/test_*".to_string(), "**/fixtures/**".to_string()],
+        update_all: false,
     };
 
     // Normal files should be included
@@ -89,10 +93,12 @@ fn test_rename_scope_custom() {
         update_string_literals: false,
         update_docs: true,
         update_configs: false,
+        update_gitignore: false,
         update_comments: false,
         update_markdown_prose: false,
         update_exact_matches: false,
         exclude_patterns: vec![],
+        update_all: false,
     };
 
     // Code and docs included

@@ -16,6 +16,7 @@ tracing = { workspace = true }
 mill-lang-markdown = { path = "../mill-lang-markdown", optional = true, default-features = false }
 mill-lang-yaml = { path = "../mill-lang-yaml", optional = true, default-features = false }
 mill-lang-rust = { path = "../mill-lang-rust", optional = true, default-features = false }
+mill-lang-gitignore = { path = "../mill-lang-gitignore", optional = true, default-features = false }
 
 [features]
 default = []
@@ -24,3 +25,4 @@ lang-typescript = ["dep:mill-lang-typescript"]
 lang-markdown = ["dep:mill-lang-markdown"]
 lang-toml = ["dep:mill-lang-toml"]
 lang-yaml = ["dep:mill-lang-yaml"]
+lang-gitignore = ["dep:mill-lang-gitignore"]

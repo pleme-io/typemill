@@ -22,6 +22,10 @@ pub struct RenameScope {
     #[serde(default = "default_true")]
     pub update_configs: bool,
 
+    /// Update .gitignore pattern files
+    #[serde(default = "default_true")]
+    pub update_gitignore: bool,
+
     /// Update code comments (experimental, opt-in)
     #[serde(default)]
     pub update_comments: bool,
@@ -80,6 +84,7 @@ impl RenameScope {
             update_string_literals: true,
             update_docs: false,
             update_configs: false,
+            update_gitignore: false,
             update_comments: false,
             update_markdown_prose: false,
             update_exact_matches: false,
@@ -96,6 +101,7 @@ impl RenameScope {
             update_string_literals: true,
             update_docs: true,
             update_configs: true,
+            update_gitignore: true,
             update_comments: false,
             update_markdown_prose: false, // Still opt-in for safety
             update_exact_matches: true,   // Enable for Cargo crate names and config files
@@ -145,6 +151,7 @@ impl RenameScope {
             self.update_string_literals = true;
             self.update_docs = true;
             self.update_configs = true;
+            self.update_gitignore = true;
             self.update_comments = true;
             self.update_markdown_prose = true;
             self.update_exact_matches = true;
@@ -178,6 +185,13 @@ impl RenameScope {
                 if glob_pattern.matches(&path_str) {
                     return false;
                 }
+            }
+        }
+
+        // Check for special filenames without extensions
+        if let Some(filename) = path.file_name().and_then(|f| f.to_str()) {
+            if filename == ".gitignore" {
+                return self.update_gitignore;
             }
         }
 
