@@ -8,7 +8,7 @@ use mill_foundation::protocol::{
 };
 use crate::services::file_service::EditPlanResult;
 use crate::{
-    ChecksumValidator, DryRunGenerator, PlanConverter, PostApplyValidator, ValidationConfig,
+    ChecksumValidator, PlanConverter, PostApplyValidator, ValidationConfig,
     ValidationResult,
 };
 use serde::{Deserialize, Serialize};
@@ -23,10 +23,6 @@ pub struct ExecutionOptions {
     #[serde(default = "default_true")]
     pub validate_checksums: bool,
 
-    /// Automatically rollback all changes if any error occurs
-    #[serde(default = "default_true")]
-    pub rollback_on_error: bool,
-
     /// Post-apply validation configuration
     #[serde(default)]
     pub validation: Option<ValidationConfig>,
@@ -40,7 +36,6 @@ impl Default for ExecutionOptions {
     fn default() -> Self {
         Self {
             validate_checksums: true,
-            rollback_on_error: true,
             validation: None,
         }
     }
@@ -62,7 +57,6 @@ pub struct ExecutionResult {
 /// Service for executing refactoring plans
 pub struct PlanExecutor {
     checksum_validator: Arc<ChecksumValidator>,
-    dry_run_generator: Arc<DryRunGenerator>,
     post_apply_validator: Arc<PostApplyValidator>,
     plan_converter: Arc<PlanConverter>,
     file_service: Arc<crate::services::FileService>,
@@ -72,7 +66,6 @@ impl PlanExecutor {
     pub fn new(file_service: Arc<crate::services::FileService>) -> Self {
         Self {
             checksum_validator: Arc::new(ChecksumValidator::new(file_service.clone())),
-            dry_run_generator: Arc::new(DryRunGenerator::new()),
             post_apply_validator: Arc::new(PostApplyValidator::new()),
             plan_converter: Arc::new(PlanConverter::new()),
             file_service,
