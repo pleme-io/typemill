@@ -1,38 +1,30 @@
 # Editing & Refactoring Tools
 
-**15 tools following the unified plan → apply pattern for safe, reviewable refactoring operations**
+**7 tools with unified dryRun API for safe, reviewable refactoring operations**
 
-The Unified Refactoring API provides two execution modes for all refactoring operations:
+The Unified Refactoring API provides a single tool per refactoring operation with an `options.dryRun` parameter:
 
-1. **Two-step pattern (recommended):** Generate a plan with `*.plan` tools (always dry-run, never modifies files), review changes, then apply with `workspace.apply_edit`
-2. **One-step pattern (quick):** Use tools without `.plan` suffix to combine plan + execute in one call for trusted operations
+- **Default behavior (`dryRun: true`):** Generate a plan of changes without modifying files (safe preview mode)
+- **Execution mode (`dryRun: false`):** Apply changes immediately with validation and rollback support
 
-All plan types support checksum validation, rollback on error, and post-apply validation.
+All refactoring operations support checksum validation, rollback on error, and post-apply validation.
 
-**Tool count:** 15 tools
+**Tool count:** 7 tools
 **Related categories:** [Navigation](navigation.md), [Analysis](analysis.md), [Workspace](workspace.md)
 
 ## Table of Contents
 
 - [Tools](#tools)
-  - [rename.plan](#renameplan)
   - [rename](#rename)
-  - [extract.plan](#extractplan)
   - [extract](#extract)
-  - [inline.plan](#inlineplan)
   - [inline](#inline)
-  - [move.plan](#moveplan)
   - [move](#move)
-  - [reorder.plan](#reorderplan)
   - [reorder](#reorder)
-  - [transform.plan](#transformplan)
   - [transform](#transform)
-  - [delete.plan](#deleteplan)
   - [delete](#delete)
-  - [workspace.apply_edit](#workspaceapply_edit)
 - [Common Patterns](#common-patterns)
-  - [Two-Step Workflow (Recommended)](#two-step-workflow-recommended)
-  - [Dry-Run Preview](#dry-run-preview)
+  - [Safe Preview Pattern (Recommended)](#safe-preview-pattern-recommended)
+  - [Direct Execution Pattern](#direct-execution-pattern)
   - [Checksum Validation](#checksum-validation)
   - [Post-Apply Validation](#post-apply-validation)
   - [Batch Operations](#batch-operations)
@@ -44,9 +36,9 @@ All plan types support checksum validation, rollback on error, and post-apply va
 
 ## Tools
 
-### rename.plan
+### rename
 
-**Purpose:** Generate a plan for renaming symbols, files, or directories with automatic import/reference updates.
+**Purpose:** Rename symbols, files, or directories with automatic import/reference updates.
 
 **Parameters:**
 
@@ -59,12 +51,13 @@ All plan types support checksum validation, rollback on error, and post-apply va
 | `target.character` | `number` | Conditional | Column position (0-indexed) - required for symbol renames |
 | `new_name` | `string` | Yes | New name or path |
 | `options` | `object` | No | Rename options (see options below) |
+| `options.dryRun` | `boolean` | No | Preview mode - don't apply changes (default: true) |
 | `options.consolidate` | `boolean` | No | Enable Rust crate consolidation mode (auto-detected if not specified) |
-| `options.scope` | `string` | No | Update scope: `"all"` (default), `"code-only"`, or `"custom"` |
+| `options.scope` | `string` | No | Update scope: `"standard"` (default), `"code"`, `"comments"`, `"everything"`, or `"custom"` |
 
 **Returns:**
 
-A `RenamePlan` object containing:
+**Preview mode (`dryRun: true`, default):** Returns a `RenamePlan` object containing:
 - `plan_type`: `"RenamePlan"`
 - `edits`: LSP `WorkspaceEdit` with all file changes
 - `summary`: Counts of affected/created/deleted files
@@ -73,14 +66,23 @@ A `RenamePlan` object containing:
 - `file_checksums`: SHA-256 checksums for validation
 - `is_consolidation`: Boolean flag for crate consolidation (Rust-specific)
 
-**Example:**
+**Execution mode (`dryRun: false`):** Returns an `ExecutionResult` object containing:
+- `success`: Boolean indicating operation success
+- `applied_files`: Array of file paths that were modified
+- `created_files`: Array of newly created file paths
+- `deleted_files`: Array of deleted file paths
+- `warnings`: Array of warning messages
+- `validation`: Optional validation result object
+- `rollback_available`: Boolean indicating if rollback is still possible
+
+**Example - Preview mode (safe default):**
 
 ```json
-// Request - Rename a Rust file
+// Request - Preview rename (dryRun defaults to true)
 {
   "method": "tools/call",
   "params": {
-    "name": "rename.plan",
+    "name": "rename",
     "arguments": {
       "target": {
         "kind": "file",
@@ -91,7 +93,7 @@ A `RenamePlan` object containing:
   }
 }
 
-// Response
+// Response - Plan preview (no files modified)
 {
   "result": {
     "content": {
@@ -120,7 +122,7 @@ A `RenamePlan` object containing:
         "kind": "rename",
         "language": "rust",
         "estimated_impact": "low",
-        "created_at": "2025-10-22T10:30:00Z"
+        "created_at": "2025-10-25T10:30:00Z"
       },
       "file_checksums": {
         "/workspace/src/utils.rs": "a1b2c3...",
@@ -132,30 +134,10 @@ A `RenamePlan` object containing:
 }
 ```
 
-**Notes:**
-- **Rust file renames** automatically update module declarations (`pub mod utils;` → `pub mod helpers;`), import statements (`use utils::*`), and qualified paths (`utils::helper()`)
-- **Directory renames** update all string literal paths, markdown links, config file paths, and Cargo.toml entries (100% coverage when `scope: "all"`)
-- **Crate consolidation mode** merges dependencies and removes source crate from workspace when renaming into another crate's `src/` directory
-- **Checksum validation** prevents applying stale plans after file modifications
-
----
-
-### rename
-
-**Purpose:** Execute rename operation in one step (combines `rename.plan` + `workspace.apply_edit`).
-
-**Parameters:**
-
-Same as `rename.plan` - all parameters pass through to the planning phase.
-
-**Returns:**
-
-Same structure as `workspace.apply_edit` result (see `workspace.apply_edit` section).
-
-**Example:**
+**Example - Execution mode (explicit opt-in):**
 
 ```json
-// Request - Quick rename without review
+// Request - Execute rename immediately
 {
   "method": "tools/call",
   "params": {
@@ -165,12 +147,15 @@ Same structure as `workspace.apply_edit` result (see `workspace.apply_edit` sect
         "kind": "file",
         "path": "/workspace/src/old.rs"
       },
-      "newName": "/workspace/src/new.rs"
+      "newName": "/workspace/src/new.rs",
+      "options": {
+        "dryRun": false  // Explicit execution
+      }
     }
   }
 }
 
-// Response
+// Response - Execution result
 {
   "result": {
     "content": {
@@ -187,15 +172,17 @@ Same structure as `workspace.apply_edit` result (see `workspace.apply_edit` sect
 ```
 
 **Notes:**
-- Less safe than two-step pattern - no preview before execution
-- Use for small, low-risk refactorings when you trust the operation
-- Automatically applies with `dryRun: false`
+- **Rust file renames** automatically update module declarations (`pub mod utils;` → `pub mod helpers;`), import statements (`use utils::*`), and qualified paths (`utils::helper()`)
+- **Directory renames** update all string literal paths, markdown links, config file paths, and Cargo.toml entries (100% coverage with `scope: "standard"`)
+- **Crate consolidation mode** merges dependencies and removes source crate from workspace when renaming into another crate's `src/` directory
+- **Checksum validation** prevents applying stale operations after file modifications
+- **Safe default:** `dryRun: true` requires explicit `dryRun: false` for execution
 
 ---
 
-### extract.plan
+### extract
 
-**Purpose:** Generate a plan for extracting code into functions, variables, constants, or modules.
+**Purpose:** Extract code into functions, variables, constants, or modules.
 
 **Parameters:**
 
@@ -210,27 +197,23 @@ Same structure as `workspace.apply_edit` result (see `workspace.apply_edit` sect
 | `source.name` | `string` | Yes | Name for extracted element |
 | `source.destination` | `string` | No | Destination file path (for module extraction) |
 | `options` | `object` | No | Extract options (see options below) |
+| `options.dryRun` | `boolean` | No | Preview mode - don't apply changes (default: true) |
 | `options.visibility` | `string` | No | Visibility modifier: `"public"` or `"private"` |
 | `options.destination_path` | `string` | No | Override destination path |
 
 **Returns:**
 
-An `ExtractPlan` object containing:
-- `plan_type`: `"ExtractPlan"`
-- `edits`: LSP `WorkspaceEdit` with code changes
-- `summary`: File counts (typically only affected_files, no created/deleted)
-- `warnings`: Array of warnings
-- `metadata`: Plan metadata
-- `file_checksums`: SHA-256 checksums
+**Preview mode (`dryRun: true`, default):** Returns an `ExtractPlan` object.
+**Execution mode (`dryRun: false`):** Returns an `ExecutionResult` object.
 
-**Example:**
+**Example - Preview extraction:**
 
 ```json
-// Request - Extract function from code block
+// Request - Preview function extraction
 {
   "method": "tools/call",
   "params": {
-    "name": "extract.plan",
+    "name": "extract",
     "arguments": {
       "kind": "function",
       "source": {
@@ -248,7 +231,7 @@ An `ExtractPlan` object containing:
   }
 }
 
-// Response
+// Response - Preview (dryRun: true by default)
 {
   "result": {
     "content": {
@@ -284,7 +267,7 @@ An `ExtractPlan` object containing:
         "kind": "extract",
         "language": "rust",
         "estimated_impact": "low",
-        "created_at": "2025-10-22T10:35:00Z"
+        "created_at": "2025-10-25T10:35:00Z"
       },
       "file_checksums": {
         "/workspace/src/calc.rs": "f7g8h9..."
@@ -298,30 +281,13 @@ An `ExtractPlan` object containing:
 - Uses AST-based refactoring (no LSP required)
 - Automatically infers parameters and return types
 - Module extraction requires language plugin support
+- Preview mode (`dryRun: true`) is the safe default
 
 ---
 
-### extract
+### inline
 
-**Purpose:** Execute extract operation in one step (combines `extract.plan` + `workspace.apply_edit`).
-
-**Parameters:**
-
-Same as `extract.plan`.
-
-**Returns:**
-
-Same structure as `workspace.apply_edit` result.
-
-**Notes:**
-- Convenient for quick extractions
-- Skips plan review step
-
----
-
-### inline.plan
-
-**Purpose:** Generate a plan for inlining variables, functions, or constants by replacing references with definitions.
+**Purpose:** Inline variables, functions, or constants by replacing references with definitions.
 
 **Parameters:**
 
@@ -332,26 +298,22 @@ Same structure as `workspace.apply_edit` result.
 | `target.file_path` | `string` | Yes | Absolute path to file containing definition |
 | `target.position` | `object` | Yes | Position of definition: `{line: number, character: number}` |
 | `options` | `object` | No | Inline options (see options below) |
+| `options.dryRun` | `boolean` | No | Preview mode - don't apply changes (default: true) |
 | `options.inline_all` | `boolean` | No | Inline all usages (true) or current only (false, default) |
 
 **Returns:**
 
-An `InlinePlan` object containing:
-- `plan_type`: `"InlinePlan"`
-- `edits`: LSP `WorkspaceEdit` replacing references
-- `summary`: File counts
-- `warnings`: Array of warnings
-- `metadata`: Plan metadata
-- `file_checksums`: SHA-256 checksums
+**Preview mode (`dryRun: true`, default):** Returns an `InlinePlan` object.
+**Execution mode (`dryRun: false`):** Returns an `ExecutionResult` object.
 
 **Example:**
 
 ```json
-// Request - Inline a variable
+// Request - Preview variable inline
 {
   "method": "tools/call",
   "params": {
-    "name": "inline.plan",
+    "name": "inline",
     "arguments": {
       "kind": "variable",
       "target": {
@@ -365,7 +327,7 @@ An `InlinePlan` object containing:
   }
 }
 
-// Response
+// Response - Plan preview (dryRun: true default)
 {
   "result": {
     "content": {
@@ -401,7 +363,7 @@ An `InlinePlan` object containing:
         "kind": "inline",
         "language": "rust",
         "estimated_impact": "low",
-        "created_at": "2025-10-22T10:40:00Z"
+        "created_at": "2025-10-25T10:40:00Z"
       },
       "file_checksums": {
         "/workspace/src/vars.rs": "j1k2l3..."
@@ -415,53 +377,48 @@ An `InlinePlan` object containing:
 - Uses AST-based refactoring
 - Removes definition after inlining
 - Does not create or delete files
+- Preview mode is the safe default
 
 ---
 
-### inline
+### move
 
-**Purpose:** Execute inline operation in one step (combines `inline.plan` + `workspace.apply_edit`).
-
-**Parameters:**
-
-Same as `inline.plan`.
-
-**Returns:**
-
-Same structure as `workspace.apply_edit` result.
-
----
-
-### move.plan
-
-**Purpose:** Generate a plan for moving symbols or code blocks to different files/modules.
+**Purpose:** Move symbols, files, directories, or code blocks to different locations.
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `source` | `object` | Yes | Source location (file, range, or symbol) |
-| `destination` | `string` | Yes | Destination file path |
-| `options` | `object` | No | Move options (scope, visibility, etc.) |
+| `target` | `object` | Yes | Target to move (see target structure) |
+| `target.kind` | `string` | Yes | Move type: `"symbol"`, `"file"`, `"directory"`, or `"module"` |
+| `target.path` | `string` | Yes | Absolute path to source |
+| `target.selector` | `object` | Conditional | Symbol selector - required for symbol moves |
+| `target.selector.position` | `object` | Conditional | Position: `{line: number, character: number}` |
+| `destination` | `string` | Yes | Destination file path or directory |
+| `options` | `object` | No | Move options (see options below) |
+| `options.dryRun` | `boolean` | No | Preview mode - don't apply changes (default: true) |
+| `options.update_imports` | `boolean` | No | Update import statements (default: true) |
+| `options.preserve_formatting` | `boolean` | No | Preserve code formatting (default: true) |
 
 **Returns:**
 
-A `MovePlan` object with structure similar to other plan types.
+**Preview mode (`dryRun: true`, default):** Returns a `MovePlan` object.
+**Execution mode (`dryRun: false`):** Returns an `ExecutionResult` object.
 
 **Example:**
 
 ```json
-// Request - Move a function to different file
+// Request - Preview function move
 {
   "method": "tools/call",
   "params": {
-    "name": "move.plan",
+    "name": "move",
     "arguments": {
-      "source": {
-        "file_path": "/workspace/src/utils.rs",
-        "range": {
-          "start": {"line": 5, "character": 0},
-          "end": {"line": 10, "character": 1}
+      "target": {
+        "kind": "symbol",
+        "path": "/workspace/src/utils.rs",
+        "selector": {
+          "position": {"line": 5, "character": 4}
         }
       },
       "destination": "/workspace/src/helpers.rs"
@@ -473,26 +430,14 @@ A `MovePlan` object with structure similar to other plan types.
 **Notes:**
 - Automatically updates imports and references
 - Handles cross-file symbol moves
+- File/directory moves update all references
+- Module moves require language plugin support
 
 ---
 
-### move
+### reorder
 
-**Purpose:** Execute move operation in one step.
-
-**Parameters:**
-
-Same as `move.plan`.
-
-**Returns:**
-
-Same structure as `workspace.apply_edit` result.
-
----
-
-### reorder.plan
-
-**Purpose:** Generate a plan for reordering function parameters, struct fields, imports, or statements.
+**Purpose:** Reorder function parameters, struct fields, imports, or statements.
 
 **Parameters:**
 
@@ -504,21 +449,23 @@ Same structure as `workspace.apply_edit` result.
 | `target.position` | `object` | Yes | Position: `{line: number, character: number}` |
 | `new_order` | `array` | Yes | Array of strings specifying new order |
 | `options` | `object` | No | Reorder options (see options below) |
+| `options.dryRun` | `boolean` | No | Preview mode - don't apply changes (default: true) |
 | `options.preserve_formatting` | `boolean` | No | Preserve code formatting (default: true) |
 | `options.update_call_sites` | `boolean` | No | Update all call sites for parameter reordering (default: true) |
 
 **Returns:**
 
-A `ReorderPlan` object with standard plan structure.
+**Preview mode (`dryRun: true`, default):** Returns a `ReorderPlan` object.
+**Execution mode (`dryRun: false`):** Returns an `ExecutionResult` object.
 
 **Example:**
 
 ```json
-// Request - Reorder function parameters
+// Request - Preview parameter reorder
 {
   "method": "tools/call",
   "params": {
-    "name": "reorder.plan",
+    "name": "reorder",
     "arguments": {
       "target": {
         "kind": "parameters",
@@ -537,26 +484,13 @@ A `ReorderPlan` object with standard plan structure.
 **Notes:**
 - Parameter reordering updates all call sites across the codebase
 - Requires LSP server support for best results
+- Import reordering uses LSP organize imports feature
 
 ---
 
-### reorder
+### transform
 
-**Purpose:** Execute reorder operation in one step.
-
-**Parameters:**
-
-Same as `reorder.plan`.
-
-**Returns:**
-
-Same structure as `workspace.apply_edit` result.
-
----
-
-### transform.plan
-
-**Purpose:** Generate a plan for syntax transformations (if-to-match, add/remove async, etc.).
+**Purpose:** Apply syntax transformations (if-to-match, add/remove async, etc.).
 
 **Parameters:**
 
@@ -567,21 +501,23 @@ Same structure as `workspace.apply_edit` result.
 | `transformation.file_path` | `string` | Yes | Absolute path to file |
 | `transformation.range` | `object` | Yes | LSP range to transform |
 | `options` | `object` | No | Transform options (see options below) |
+| `options.dryRun` | `boolean` | No | Preview mode - don't apply changes (default: true) |
 | `options.preserve_formatting` | `boolean` | No | Preserve code formatting (default: true) |
 | `options.preserve_comments` | `boolean` | No | Preserve comments (default: true) |
 
 **Returns:**
 
-A `TransformPlan` object with standard plan structure.
+**Preview mode (`dryRun: true`, default):** Returns a `TransformPlan` object.
+**Execution mode (`dryRun: false`):** Returns an `ExecutionResult` object.
 
 **Example:**
 
 ```json
-// Request - Convert if-else to match
+// Request - Preview if-to-match transformation
 {
   "method": "tools/call",
   "params": {
-    "name": "transform.plan",
+    "name": "transform",
     "arguments": {
       "transformation": {
         "kind": "if_to_match",
@@ -604,26 +540,13 @@ A `TransformPlan` object with standard plan structure.
 - Uses LSP code actions when available
 - Falls back to AST-based transformations
 - Language-specific transformation support
+- Preview mode is the safe default
 
 ---
 
-### transform
+### delete
 
-**Purpose:** Execute transform operation in one step.
-
-**Parameters:**
-
-Same as `transform.plan`.
-
-**Returns:**
-
-Same structure as `workspace.apply_edit` result.
-
----
-
-### delete.plan
-
-**Purpose:** Generate a plan for deleting symbols, files, directories, or dead code.
+**Purpose:** Delete symbols, files, directories, or dead code.
 
 **Parameters:**
 
@@ -637,13 +560,14 @@ Same structure as `workspace.apply_edit` result.
 | `target.selector.character` | `number` | Conditional | Column position (0-indexed) |
 | `target.selector.symbol_name` | `string` | No | Optional symbol name hint |
 | `options` | `object` | No | Delete options (see options below) |
+| `options.dryRun` | `boolean` | No | Preview mode - don't apply changes (default: true) |
 | `options.cleanup_imports` | `boolean` | No | Remove unused imports (default: true) |
 | `options.remove_tests` | `boolean` | No | Also delete associated tests (default: false) |
 | `options.force` | `boolean` | No | Force delete without safety checks (default: false) |
 
 **Returns:**
 
-A `DeletePlan` object containing:
+**Preview mode (`dryRun: true`, default):** Returns a `DeletePlan` object containing:
 - `plan_type`: `"DeletePlan"`
 - `deletions`: Array of deletion targets with path and kind
 - `summary`: File counts
@@ -651,14 +575,16 @@ A `DeletePlan` object containing:
 - `metadata`: Plan metadata
 - `file_checksums`: SHA-256 checksums
 
+**Execution mode (`dryRun: false`):** Returns an `ExecutionResult` object.
+
 **Example:**
 
 ```json
-// Request - Delete a file
+// Request - Preview file deletion
 {
   "method": "tools/call",
   "params": {
-    "name": "delete.plan",
+    "name": "delete",
     "arguments": {
       "target": {
         "kind": "file",
@@ -671,7 +597,7 @@ A `DeletePlan` object containing:
   }
 }
 
-// Response
+// Response - Plan preview
 {
   "result": {
     "content": {
@@ -693,7 +619,7 @@ A `DeletePlan` object containing:
         "kind": "delete",
         "language": "rust",
         "estimated_impact": "low",
-        "created_at": "2025-10-22T10:50:00Z"
+        "created_at": "2025-10-25T10:50:00Z"
       },
       "file_checksums": {
         "/workspace/src/deprecated.rs": "m4n5o6..."
@@ -704,218 +630,124 @@ A `DeletePlan` object containing:
 ```
 
 **Notes:**
-- File/directory deletes are implemented, symbol/dead_code deletes are placeholders
+- File/directory deletes are fully implemented
+- Symbol/dead_code deletes are placeholders (require AST support)
 - Cleanup imports automatically when deleting files
 - DeletePlan uses `deletions` field instead of LSP `WorkspaceEdit`
-
----
-
-### delete
-
-**Purpose:** Execute delete operation in one step.
-
-**Parameters:**
-
-Same as `delete.plan`.
-
-**Returns:**
-
-Same structure as `workspace.apply_edit` result.
-
----
-
-### workspace.apply_edit
-
-**Purpose:** Apply a refactoring plan generated by any `*.plan` tool with validation and rollback support.
-
-**Parameters:**
-
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `plan` | `object` | Yes | Any plan type from `*.plan` tools (discriminated union) |
-| `options` | `object` | No | Apply options (see options below) |
-| `options.dryRun` | `boolean` | No | Preview mode - don't actually apply changes (default: false) |
-| `options.validate_checksums` | `boolean` | No | Validate file checksums before applying (default: true) |
-| `options.rollback_on_error` | `boolean` | No | Automatically rollback all changes if any error occurs (default: true) |
-| `options.validation` | `object` | No | Post-apply validation configuration |
-| `options.validation.command` | `string` | Conditional | Shell command to run (e.g., "cargo test") |
-| `options.validation.timeout_seconds` | `number` | No | Command timeout in seconds (default: 300) |
-
-**Returns:**
-
-An `ApplyResult` object containing:
-- `success`: Boolean indicating operation success
-- `applied_files`: Array of file paths that were modified
-- `created_files`: Array of newly created file paths
-- `deleted_files`: Array of deleted file paths
-- `warnings`: Array of warning messages
-- `validation`: Optional validation result object
-- `rollback_available`: Boolean indicating if rollback is still possible
-
-**Example:**
-
-```json
-// Request - Apply a rename plan with validation
-{
-  "method": "tools/call",
-  "params": {
-    "name": "workspace.apply_edit",
-    "arguments": {
-      "plan": {
-        "plan_type": "RenamePlan",
-        "edits": { /* ... */ },
-        "summary": { /* ... */ },
-        "warnings": [],
-        "metadata": { /* ... */ },
-        "file_checksums": { /* ... */ },
-        "is_consolidation": false
-      },
-      "options": {
-        "dryRun": false,
-        "validate_checksums": true,
-        "rollback_on_error": true,
-        "validation": {
-          "command": "cargo check",
-          "timeout_seconds": 60
-        }
-      }
-    }
-  }
-}
-
-// Response
-{
-  "result": {
-    "content": {
-      "success": true,
-      "applied_files": [
-        "/workspace/src/helpers.rs",
-        "/workspace/src/lib.rs",
-        "/workspace/src/main.rs"
-      ],
-      "created_files": [],
-      "deleted_files": ["/workspace/src/utils.rs"],
-      "warnings": [],
-      "validation": {
-        "success": true,
-        "command": "cargo check",
-        "exit_code": 0,
-        "stdout": "Checking workspace...\nFinished",
-        "stderr": "",
-        "duration_ms": 1234
-      },
-      "rollback_available": false
-    }
-  }
-}
-```
-
-**Notes:**
-- **Only command that writes files** - all `*.plan` tools are dry-run only
-- Supports all 7 plan types: RenamePlan, ExtractPlan, InlinePlan, MovePlan, ReorderPlan, TransformPlan, DeletePlan
-- Checksum validation prevents applying stale plans (files modified after planning)
-- Post-apply validation runs custom commands (e.g., tests) and rolls back on failure
-- Atomic operations with automatic rollback on any error
-- Dry-run mode provides final preview before execution
+- Preview mode is the safe default
 
 ---
 
 ## Common Patterns
 
-### Two-Step Workflow (Recommended)
+### Safe Preview Pattern (Recommended)
 
-The safest refactoring approach:
+The safest refactoring approach uses the default `dryRun: true` behavior:
 
 ```json
-// Step 1: Generate plan (always dry-run, never modifies files)
+// Step 1: Preview changes (dryRun defaults to true)
 {
-  "name": "rename.plan",
+  "name": "rename",
   "arguments": {
     "target": {"kind": "file", "path": "/workspace/src/old.rs"},
     "newName": "/workspace/src/new.rs"
   }
 }
 
-// Step 2: Review the plan output (edits, summary, warnings)
+// Step 2: Review the plan output (edits, summary, warnings, metadata)
 
-// Step 3: Apply with validation
+// Step 3: Execute if satisfied (explicit dryRun: false)
 {
-  "name": "workspace.apply_edit",
+  "name": "rename",
   "arguments": {
-    "plan": { /* plan from step 1 */ },
+    "target": {"kind": "file", "path": "/workspace/src/old.rs"},
+    "newName": "/workspace/src/new.rs",
     "options": {
-      "dryRun": false,
-      "validate_checksums": true,
-      "validation": {
-        "command": "cargo test",
-        "timeout_seconds": 120
-      }
+      "dryRun": false
     }
   }
 }
 ```
 
 **Benefits:**
-- Preview all changes before execution
+- Default behavior prevents accidental execution
+- Preview all changes before applying
 - Verify estimated impact and affected files
 - Catch issues early with warnings
-- Post-apply validation ensures correctness
-- Automatic rollback on validation failure
+- Explicit opt-in required for execution
 
-### Dry-Run Preview
+### Direct Execution Pattern
 
-Use `dryRun: true` for final review before applying:
+For small, trusted operations, you can execute directly:
 
 ```json
 {
-  "name": "workspace.apply_edit",
+  "name": "rename",
   "arguments": {
-    "plan": { /* plan */ },
+    "target": {"kind": "file", "path": "/workspace/src/old.rs"},
+    "newName": "/workspace/src/new.rs",
     "options": {
-      "dryRun": true  // Returns success without modifying files
+      "dryRun": false  // Skip preview, execute immediately
     }
   }
 }
 ```
 
 **Use cases:**
-- Final safety check before large refactorings
-- Debugging plan generation
-- Testing refactoring logic
+- Small, low-risk refactorings
+- Operations you've previewed before
+- Trusted automated workflows
+
+**Caution:** Less safe than preview pattern - no review step before execution.
 
 ### Checksum Validation
 
-Prevent applying stale plans after file modifications:
+Checksums prevent applying stale operations after file modifications:
 
 ```json
-// Generate plan at T0
-{"name": "rename.plan", "arguments": {...}}
-
-// File modified at T1 (plan now stale)
-
-// Try to apply at T2 - will fail with checksum mismatch
+// T0: Preview rename
 {
-  "name": "workspace.apply_edit",
+  "name": "rename",
   "arguments": {
-    "plan": { /* stale plan */ },
+    "target": {"kind": "file", "path": "/workspace/src/file.rs"},
+    "newName": "/workspace/src/new.rs"
+  }
+}
+// Returns plan with file_checksums: {"file.rs": "abc123..."}
+
+// T1: File modified externally (plan now stale)
+
+// T2: Try to execute - will detect checksum mismatch
+{
+  "name": "rename",
+  "arguments": {
+    "target": {"kind": "file", "path": "/workspace/src/file.rs"},
+    "newName": "/workspace/src/new.rs",
     "options": {
-      "validate_checksums": true  // Prevents stale apply
+      "dryRun": false
     }
   }
 }
-// Error: "Checksum mismatch for /workspace/src/file.rs"
+// Error: "Checksum mismatch for /workspace/src/file.rs - file modified since plan generation"
 ```
+
+**How it works:**
+1. Preview mode captures SHA-256 checksums of all affected files
+2. Execution mode validates checksums before applying
+3. Mismatches abort the operation to prevent data loss
 
 ### Post-Apply Validation
 
-Run tests or checks after applying changes:
+Run tests or checks after applying changes with automatic rollback on failure:
 
 ```json
 {
-  "name": "workspace.apply_edit",
+  "name": "rename",
   "arguments": {
-    "plan": { /* plan */ },
+    "target": {"kind": "directory", "path": "/workspace/src/module"},
+    "newName": "/workspace/src/refactored",
     "options": {
+      "dryRun": false,
       "validation": {
         "command": "cargo test --workspace",
         "timeout_seconds": 300
@@ -926,26 +758,49 @@ Run tests or checks after applying changes:
 ```
 
 **Behavior:**
-- Applies changes first
-- Runs validation command
-- If validation fails: automatic rollback to pre-apply state
-- If validation succeeds: changes are permanent
+1. Applies changes to filesystem
+2. Runs validation command (`cargo test --workspace`)
+3. If validation **fails**: automatic rollback to pre-apply state
+4. If validation **succeeds**: changes are permanent
+
+**Note:** Validation options are only available in execution mode (`dryRun: false`).
 
 ### Batch Operations
 
-Apply multiple refactorings atomically:
+Apply multiple refactorings sequentially:
 
 ```json
-// Generate multiple plans
-const renamePlan = await call("rename.plan", {...});
-const extractPlan = await call("extract.plan", {...});
+// Each operation is atomic and safe
+await call("rename", {
+  target: {kind: "file", path: "src/old1.rs"},
+  newName: "src/new1.rs",
+  options: {dryRun: false}
+});
 
-// Apply each plan separately (each is atomic)
-await call("workspace.apply_edit", {plan: renamePlan});
-await call("workspace.apply_edit", {plan: extractPlan});
+await call("rename", {
+  target: {kind: "file", path: "src/old2.rs"},
+  newName: "src/new2.rs",
+  options: {dryRun: false}
+});
 ```
 
-**Note:** Each `workspace.apply_edit` is atomic, but multiple calls are not. For true multi-plan atomicity, combine operations at the planning stage.
+**Note:** Each operation is atomic, but multiple calls are not. For dependent refactorings, preview all operations first to ensure they won't conflict.
+
+**Alternative - Batch rename:**
+```json
+{
+  "name": "rename",
+  "arguments": {
+    "targets": [
+      {"kind": "file", "path": "src/old1.rs", "newName": "src/new1.rs"},
+      {"kind": "file", "path": "src/old2.rs", "newName": "src/new2.rs"}
+    ],
+    "options": {
+      "dryRun": false
+    }
+  }
+}
+```
 
 ### Rust-Specific: Crate Consolidation
 
@@ -953,7 +808,7 @@ Merge a Rust crate into another crate's module:
 
 ```json
 {
-  "name": "rename.plan",
+  "name": "rename",
   "arguments": {
     "target": {
       "kind": "directory",
@@ -961,7 +816,8 @@ Merge a Rust crate into another crate's module:
     },
     "newName": "/workspace/crates/target-crate/src/module",
     "options": {
-      "consolidate": true  // Optional - auto-detected
+      "consolidate": true,  // Optional - auto-detected
+      "dryRun": false
     }
   }
 }
@@ -993,15 +849,15 @@ helpers::another();
 ```
 
 **Coverage:**
-- ✅ Module declarations in parent files
-- ✅ Use statements
-- ✅ Qualified paths in code
-- ✅ Nested module paths
+- ✅ Module declarations in parent files (`pub mod`)
+- ✅ Use statements (`use utils::*`)
+- ✅ Qualified paths in code (`utils::helper()`)
+- ✅ Nested module paths (`parent::utils::*`)
 - ✅ Cross-crate imports
 
 ### Comprehensive Rename Coverage
 
-When `scope: "all"` (default), directory/file renames update:
+When `scope: "standard"` (default), directory/file renames update:
 
 1. **Code files** (.rs, .ts, .js): imports, module declarations, qualified paths, string literal paths
 2. **Documentation** (.md): markdown links, inline code references
@@ -1017,13 +873,25 @@ When `scope: "all"` (default), directory/file renames update:
 **Scope control:**
 ```json
 {
-  "options": {
-    "scope": "code-only"  // Skip .md, .toml, .yaml files
+  "name": "rename",
+  "arguments": {
+    "target": {"kind": "directory", "path": "old-dir"},
+    "newName": "new-dir",
+    "options": {
+      "scope": "code"  // Only update code files, skip .md, .toml, .yaml
+    }
   }
 }
 ```
 
+**Available scopes:**
+- `"code"`: Code only (imports, module declarations, string literal paths)
+- `"standard"` (default): Code + docs + configs (recommended for most renames)
+- `"comments"`: Standard scope + code comments
+- `"everything"`: Comments scope + markdown prose text
+- `"custom"`: Fine-grained control with exclude patterns
+
 ---
 
-**Last Updated:** 2025-10-22
-**API Version:** 1.0.0-rc4
+**Last Updated:** 2025-10-25
+**API Version:** 1.0.0-rc5
