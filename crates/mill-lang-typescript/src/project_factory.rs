@@ -35,18 +35,6 @@ impl ProjectFactory for TypeScriptProjectFactory {
             )));
         }
 
-        // Validate parent exists
-        let parent = package_path.parent().ok_or_else(|| {
-            PluginError::invalid_input(format!("Invalid package path: {}", package_path.display()))
-        })?;
-
-        if !parent.exists() {
-            return Err(PluginError::invalid_input(format!(
-                "Parent directory does not exist: {}",
-                parent.display()
-            )));
-        }
-
         // Derive package name
         let package_name = package_path
             .file_name()
@@ -115,18 +103,46 @@ impl ProjectFactory for TypeScriptProjectFactory {
 fn resolve_package_path(workspace_root: &Path, package_path: &str) -> PluginResult<PathBuf> {
     let path = Path::new(package_path);
 
+    // Reject paths with parent directory components to prevent traversal
+    use std::path::Component;
+    for component in path.components() {
+        if matches!(component, Component::ParentDir) {
+            return Err(PluginError::invalid_input(format!(
+                "Package path cannot contain '..' components: {}",
+                package_path
+            )));
+        }
+    }
+
     let resolved = if path.is_absolute() {
         path.to_path_buf()
     } else {
         workspace_root.join(path)
     };
 
-    // Ensure within workspace
+    // Canonicalize both paths for comparison (handles symlinks, . and .. after join)
     let canonical_root = workspace_root.canonicalize().map_err(|e| {
         PluginError::internal(format!("Failed to canonicalize workspace root: {}", e))
     })?;
 
-    if !resolved.starts_with(&canonical_root) {
+    // For the resolved path, we need to canonicalize the parent since the target doesn't exist yet
+    let canonical_resolved = if let Some(parent) = resolved.parent() {
+        if parent.exists() {
+            let canonical_parent = parent.canonicalize().map_err(|e| {
+                PluginError::internal(format!("Failed to canonicalize parent directory: {}", e))
+            })?;
+            resolved.file_name()
+                .map(|name| canonical_parent.join(name))
+                .ok_or_else(|| PluginError::invalid_input("Invalid package path"))?
+        } else {
+            // Parent doesn't exist yet, we'll create it - just verify it would be within workspace
+            resolved.clone()
+        }
+    } else {
+        resolved.clone()
+    };
+
+    if !canonical_resolved.starts_with(&canonical_root) {
         return Err(PluginError::invalid_input(format!(
             "Package path {} is outside workspace",
             package_path
@@ -171,7 +187,8 @@ fn generate_package_json(package_name: &str, package_type: PackageType) -> Strin
   "types": "dist/index.d.ts",
   "scripts": {{
     "build": "tsc",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint src --ext .ts"
   }},
   "keywords": [],
   "author": "",
@@ -194,7 +211,8 @@ fn generate_package_json(package_name: &str, package_type: PackageType) -> Strin
   "scripts": {{
     "build": "tsc",
     "start": "node dist/main.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint src --ext .ts"
   }},
   "keywords": [],
   "author": "",
@@ -213,9 +231,9 @@ fn generate_package_json(package_name: &str, package_type: PackageType) -> Strin
 fn generate_tsconfig() -> String {
     r#"{
   "compilerOptions": {
-    "target": "ES2020",
+    "target": "ES2022",
     "module": "commonjs",
-    "lib": ["ES2020"],
+    "lib": ["ES2022"],
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,
@@ -380,7 +398,11 @@ fn update_workspace_members(workspace_root: &Path, package_path: &Path) -> Plugi
     let relative_path = pathdiff::diff_paths(package_path, workspace_dir)
         .ok_or_else(|| PluginError::internal("Failed to calculate relative path"))?;
 
-    let member_str = relative_path.to_string_lossy();
+    // Normalize to forward slashes for cross-platform compatibility
+    // npm/yarn/pnpm expect forward slashes even on Windows
+    let member_str = relative_path
+        .to_string_lossy()
+        .replace('\\', "/");
 
     debug!(member = %member_str, "Adding workspace member");
 
@@ -407,18 +429,37 @@ fn update_workspace_members(workspace_root: &Path, package_path: &Path) -> Plugi
 }
 
 fn find_workspace_manifest(workspace_root: &Path) -> PluginResult<PathBuf> {
+    use mill_plugin_api::WorkspaceSupport;
+    let workspace_support = crate::workspace_support::TypeScriptWorkspaceSupport;
     let mut current = workspace_root.to_path_buf();
 
     loop {
-        let manifest = current.join("package.json");
+        // Check for pnpm-workspace.yaml first
+        let pnpm_manifest = current.join("pnpm-workspace.yaml");
+        if pnpm_manifest.exists() {
+            let content = fs::read_to_string(&pnpm_manifest).map_err(|e| {
+                PluginError::internal(format!("Failed to read pnpm-workspace.yaml: {}", e))
+            })?;
 
+            if workspace_support.is_workspace_manifest(&content) {
+                // Return package.json path for pnpm workspaces (for consistency)
+                // but we know pnpm-workspace.yaml exists
+                let package_json = current.join("package.json");
+                if package_json.exists() {
+                    return Ok(package_json);
+                }
+            }
+        }
+
+        // Check for package.json with workspaces
+        let manifest = current.join("package.json");
         if manifest.exists() {
             let content = fs::read_to_string(&manifest).map_err(|e| {
                 PluginError::internal(format!("Failed to read package.json: {}", e))
             })?;
 
-            // Check if it's a workspace manifest
-            if content.contains("\"workspaces\"") {
+            // Check if it's a workspace manifest using workspace_support
+            if workspace_support.is_workspace_manifest(&content) {
                 return Ok(manifest);
             }
         }
@@ -427,7 +468,7 @@ fn find_workspace_manifest(workspace_root: &Path) -> PluginResult<PathBuf> {
         current = current
             .parent()
             .ok_or_else(|| {
-                PluginError::invalid_input("No workspace package.json found in hierarchy")
+                PluginError::invalid_input("No workspace manifest found in hierarchy")
             })?
             .to_path_buf();
 
@@ -438,7 +479,7 @@ fn find_workspace_manifest(workspace_root: &Path) -> PluginResult<PathBuf> {
     }
 
     Err(PluginError::invalid_input(
-        "No workspace package.json found",
+        "No workspace manifest found (package.json or pnpm-workspace.yaml)",
     ))
 }
 

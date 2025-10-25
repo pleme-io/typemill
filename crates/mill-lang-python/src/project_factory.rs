@@ -35,18 +35,6 @@ impl ProjectFactory for PythonProjectFactory {
             )));
         }
 
-        // Validate parent exists
-        let parent = package_path.parent().ok_or_else(|| {
-            PluginError::invalid_input(format!("Invalid package path: {}", package_path.display()))
-        })?;
-
-        if !parent.exists() {
-            return Err(PluginError::invalid_input(format!(
-                "Parent directory does not exist: {}",
-                parent.display()
-            )));
-        }
-
         // Derive package name
         let package_name = package_path
             .file_name()
@@ -109,18 +97,46 @@ impl ProjectFactory for PythonProjectFactory {
 fn resolve_package_path(workspace_root: &Path, package_path: &str) -> PluginResult<PathBuf> {
     let path = Path::new(package_path);
 
+    // Reject paths with parent directory components to prevent traversal
+    use std::path::Component;
+    for component in path.components() {
+        if matches!(component, Component::ParentDir) {
+            return Err(PluginError::invalid_input(format!(
+                "Package path cannot contain '..' components: {}",
+                package_path
+            )));
+        }
+    }
+
     let resolved = if path.is_absolute() {
         path.to_path_buf()
     } else {
         workspace_root.join(path)
     };
 
-    // Ensure within workspace
+    // Canonicalize both paths for comparison (handles symlinks, . and .. after join)
     let canonical_root = workspace_root.canonicalize().map_err(|e| {
         PluginError::internal(format!("Failed to canonicalize workspace root: {}", e))
     })?;
 
-    if !resolved.starts_with(&canonical_root) {
+    // For the resolved path, we need to canonicalize the parent since the target doesn't exist yet
+    let canonical_resolved = if let Some(parent) = resolved.parent() {
+        if parent.exists() {
+            let canonical_parent = parent.canonicalize().map_err(|e| {
+                PluginError::internal(format!("Failed to canonicalize parent directory: {}", e))
+            })?;
+            resolved.file_name()
+                .map(|name| canonical_parent.join(name))
+                .ok_or_else(|| PluginError::invalid_input("Invalid package path"))?
+        } else {
+            // Parent doesn't exist yet, we'll create it - just verify it would be within workspace
+            resolved.clone()
+        }
+    } else {
+        resolved.clone()
+    };
+
+    if !canonical_resolved.starts_with(&canonical_root) {
         return Err(PluginError::invalid_input(format!(
             "Package path {} is outside workspace",
             package_path
@@ -169,6 +185,12 @@ dependencies = []
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
 "#,
             package_name
         ),
@@ -186,6 +208,12 @@ dependencies = []
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
 "#,
             package_name, package_name, package_name
         ),
@@ -339,7 +367,11 @@ fn update_workspace_members(workspace_root: &Path, package_path: &Path) -> Plugi
     let relative_path = pathdiff::diff_paths(package_path, workspace_dir)
         .ok_or_else(|| PluginError::internal("Failed to calculate relative path"))?;
 
-    let member_str = relative_path.to_string_lossy();
+    // Normalize to forward slashes for cross-platform compatibility
+    // PDM/Poetry/Hatch expect forward slashes even on Windows
+    let member_str = relative_path
+        .to_string_lossy()
+        .replace('\\', "/");
 
     debug!(member = %member_str, "Adding workspace member");
 
