@@ -20,7 +20,7 @@ TypeMill distinguishes between **public tools** (exposed to AI agents via MCP) a
 - Listed in MCP `tools/list` requests
 - Designed for direct use by AI agents
 - Well-documented, user-friendly APIs
-- Examples: `find_definition`, `rename.plan`, `workspace.apply_edit`, `read_file`
+- Examples: `find_definition`, `rename`, `extract`, `read_file`
 
 ### Internal Tools (Hidden from AI Agents)
 - **Hidden** from MCP `tools/list` requests
@@ -92,7 +92,7 @@ A tool should be internal if it meets **any** of these criteria:
 ### 3. Redundancy
 - Functionality fully covered by other public tools
 - Internal convenience for specific backend use cases
-- Example: `rename_symbol_with_imports` (covered by unified refactoring API: `rename.plan` + `workspace.apply_edit`)
+- Example: `rename_symbol_with_imports` (covered by unified refactoring API: `rename` with `dryRun` option)
 
 ### 4. Dangerous/Unstable
 - Experimental features not ready for general use
@@ -108,10 +108,10 @@ A tool should be internal if it meets **any** of these criteria:
 - `apply_workspace_edit`
 
 **Rationale**: These are legacy workflow wrappers and low-level LSP protocol interop tools. AI agents should use the unified refactoring API instead:
-- Instead of `rename_symbol_with_imports`: Use `rename.plan` + `workspace.apply_edit`
-- Instead of `apply_workspace_edit` (low-level): Use the public `workspace.apply_edit` with a plan from any `*.plan` command
+- Instead of `rename_symbol_with_imports`: Use `rename` with `options.dryRun: false`
+- Instead of `apply_workspace_edit` (low-level): Use the public refactoring tools (`rename`, `extract`, `inline`, etc.) with built-in execution mode
 
-The internal `apply_workspace_edit` accepts raw LSP `WorkspaceEdit` format, while the public `workspace.apply_edit` accepts structured refactoring plans with enhanced safety features (checksums, validation, rollback).
+The internal `apply_workspace_edit` accepts raw LSP `WorkspaceEdit` format, while the public refactoring tools accept structured parameters with enhanced safety features (checksums, validation, rollback, default preview mode).
 
 ## Implementation Details
 
@@ -162,12 +162,12 @@ $ mill tools
 │ TOOL NAME                      │ HANDLER            │
 ├────────────────────────────────┼────────────────────┤
 │ find_definition                │ NavigationHandler  │
-│ rename.plan                    │ RenameHandler      │
-│ workspace.apply_edit           │ WorkspaceApplyHandler │
+│ rename                         │ RenameHandler      │
+│ extract                        │ ExtractHandler     │
 └────────────────────────────────┴────────────────────┘
 
-Public tools: 24 across 18 handlers
-(Internal tools hidden - 20 backend-only tools not shown)
+Public tools: 28 across handlers
+(Internal tools hidden - backend-only tools not shown)
 ```
 
 **To see internal tools programmatically**, use the Rust API:
