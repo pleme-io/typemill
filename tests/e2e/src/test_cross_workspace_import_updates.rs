@@ -134,7 +134,7 @@ resolver = "2"
     // Generate rename plan
     let plan = client
         .call_tool(
-            "rename.plan",
+            "rename",
             json!({
                 "target": {
                     "kind": "directory",

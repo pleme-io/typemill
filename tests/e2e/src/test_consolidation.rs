@@ -144,7 +144,7 @@ async fn test_consolidation_flag_explicit() {
     // Generate consolidation plan with explicit flag
     let plan_result = client
         .call_tool(
-            "rename.plan",
+            "rename",
             json!({
                 "target": {
                     "kind": "directory",
@@ -182,7 +182,7 @@ async fn test_consolidation_auto_detection() {
     // Auto-detection should kick in: source has Cargo.toml, target is inside another crate's src/
     let plan_result = client
         .call_tool(
-            "rename.plan",
+            "rename",
             json!({
                 "target": {
                     "kind": "directory",
@@ -217,7 +217,7 @@ async fn test_consolidation_override_auto_detection() {
     // Generate plan with explicit consolidate: false to override auto-detection
     let plan_result = client
         .call_tool(
-            "rename.plan",
+            "rename",
             json!({
                 "target": {
                     "kind": "directory",
@@ -248,7 +248,7 @@ async fn test_consolidation_override_auto_detection() {
 async fn test_non_consolidation_rename() {
     run_tool_test_with_plan_validation(
         &[("src/old_dir/file.rs", "pub fn test() {}")],
-        "rename.plan",
+        "rename",
         |ws| {
             json!({
                 "target": {
@@ -358,7 +358,7 @@ fn main() {
     // Generate consolidation plan: crates/lib → crates/app/src/lib_mod
     let plan_result = client
         .call_tool(
-            "rename.plan",
+            "rename",
             json!({
                 "target": {
                     "kind": "directory",
@@ -525,7 +525,7 @@ fn main() {
     // Generate and apply consolidation plan
     let plan_result = client
         .call_tool(
-            "rename.plan",
+            "rename",
             json!({
                 "target": {
                     "kind": "directory",

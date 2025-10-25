@@ -80,7 +80,7 @@ function main() {
     );
 
     let result = analyze_dead_code(&workspace, &mut client, "unused_imports", "test_file.ts").await;
-    verify_suggestion(&result, "delete.plan", "import");
+    verify_suggestion(&result, "delete", "import");
 
     let test_file = workspace.absolute_path("test_file.ts");
     let refactor_call = &result.findings[0].suggestions[0].refactor_call.as_ref().unwrap();
@@ -114,7 +114,7 @@ usedFunction();
     let finding = &result.findings[0];
     assert_eq!(finding.location.symbol.as_ref().unwrap(), "unusedFunction");
 
-    verify_suggestion(&result, "delete.plan", "function");
+    verify_suggestion(&result, "delete", "function");
 }
 
 #[tokio::test]
@@ -131,7 +131,7 @@ function unreachable() {
     workspace.create_file("test_file.ts", test_code);
 
     let result = analyze_dead_code(&workspace, &mut client, "unreachable_code", "test_file.ts").await;
-    verify_suggestion(&result, "delete.plan", "block");
+    verify_suggestion(&result, "delete", "block");
 }
 
 #[tokio::test]
@@ -148,7 +148,7 @@ unusedParameter(1, 2);
     workspace.create_file("test_file.ts", test_code);
 
     let result = analyze_dead_code(&workspace, &mut client, "unused_parameters", "test_file.ts").await;
-    verify_suggestion(&result, "delete.plan", "parameter");
+    verify_suggestion(&result, "delete", "parameter");
 }
 
 #[tokio::test]
@@ -164,7 +164,7 @@ interface UnusedType {
     workspace.create_file("test_file.ts", test_code);
 
     let result = analyze_dead_code(&workspace, &mut client, "unused_types", "test_file.ts").await;
-    verify_suggestion(&result, "delete.plan", "type");
+    verify_suggestion(&result, "delete", "type");
 }
 
 #[tokio::test]
@@ -182,5 +182,5 @@ unusedVariable();
     workspace.create_file("test_file.ts", test_code);
 
     let result = analyze_dead_code(&workspace, &mut client, "unused_variables", "test_file.ts").await;
-    verify_suggestion(&result, "delete.plan", "variable");
+    verify_suggestion(&result, "delete", "variable");
 }

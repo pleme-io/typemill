@@ -60,7 +60,7 @@ testing = ["integration-tests/test-feature"]
             ),
             ("app/src/lib.rs", "pub fn app_fn() {}"),
         ],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "integration-tests", "tests", "directory"),
         |ws| {
             // VERIFICATION 1: Root workspace Cargo.toml members list updated

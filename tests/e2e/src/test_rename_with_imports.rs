@@ -23,7 +23,7 @@ async fn test_rename_file_updates_imports_from_fixtures() {
         let mut client = TestClient::new(workspace.path());
         let params = build_rename_params(&workspace, case.old_file_path, case.new_file_path, "file");
 
-        let plan_response = client.call_tool("rename.plan", params).await
+        let plan_response = client.call_tool("rename", params).await
             .expect("rename.plan should succeed");
         let plan = plan_response.get("result").and_then(|r| r.get("content"))
             .expect("Plan should have result.content").clone();
@@ -74,7 +74,7 @@ async fn test_rename_file_updates_parent_directory_importer() {
     let mut client = TestClient::new(workspace.path());
     let params = build_rename_params(&workspace, "lib/utils.ts", "lib/helpers.ts", "file");
 
-    let plan_response = client.call_tool("rename.plan", params).await.unwrap();
+    let plan_response = client.call_tool("rename", params).await.unwrap();
     let plan = plan_response.get("result").and_then(|r| r.get("content")).unwrap().clone();
 
     client.call_tool("workspace.apply_edit", json!({
@@ -102,7 +102,7 @@ async fn test_rename_file_updates_sibling_directory_importer() {
     let mut client = TestClient::new(workspace.path());
     let params = build_rename_params(&workspace, "services/api.ts", "services/dataService.ts", "file");
 
-    let plan_response = client.call_tool("rename.plan", params).await.unwrap();
+    let plan_response = client.call_tool("rename", params).await.unwrap();
     let plan = plan_response.get("result").and_then(|r| r.get("content")).unwrap().clone();
 
     client.call_tool("workspace.apply_edit", json!({
@@ -126,7 +126,7 @@ async fn test_directory_rename_updates_all_imports() {
     let mut client = TestClient::new(workspace.path());
     let params = build_rename_params(&workspace, "old_utils", "new_utils", "directory");
 
-    let plan_response = client.call_tool("rename.plan", params).await.unwrap();
+    let plan_response = client.call_tool("rename", params).await.unwrap();
     let plan = plan_response.get("result").and_then(|r| r.get("content")).unwrap().clone();
 
     client.call_tool("workspace.apply_edit", json!({
@@ -151,7 +151,7 @@ async fn test_markdown_file_rename_updates_links() {
         let mut client = TestClient::new(workspace.path());
         let params = build_rename_params(&workspace, case.old_file_path, case.new_file_path, "file");
 
-        let plan_response = client.call_tool("rename.plan", params).await
+        let plan_response = client.call_tool("rename", params).await
             .expect("rename.plan should succeed");
         let plan = plan_response.get("result").and_then(|r| r.get("content"))
             .expect("Plan should exist").clone();
@@ -189,7 +189,7 @@ Check [GitHub](https://github.com/user/repo) repo.
     let mut client = TestClient::new(workspace.path());
     let params = build_rename_params(&workspace, "docs/guide.md", "docs/user-guide.md", "file");
 
-    let plan_response = client.call_tool("rename.plan", params).await.unwrap();
+    let plan_response = client.call_tool("rename", params).await.unwrap();
     let plan = plan_response.get("result").and_then(|r| r.get("content")).unwrap().clone();
 
     client.call_tool("workspace.apply_edit", json!({

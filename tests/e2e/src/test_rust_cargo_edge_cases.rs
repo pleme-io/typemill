@@ -47,7 +47,7 @@ utils = { path = "../utils" }
                 "use utils::utility;\n\nfn main() {\n    println!(\"{}\", utility());\n}\n",
             ),
         ],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "crates/utils", "crates/helpers", "directory"),
         |ws| {
             let app_cargo = ws.read_file("crates/app/Cargo.toml");
@@ -123,7 +123,7 @@ utils = { workspace = true }
                 "use utils::utility;\n\nfn main() {\n    println!(\"{}\", utility());\n}\n",
             ),
         ],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "crates/utils", "crates/helpers", "directory"),
         |ws| {
             let root_cargo = ws.read_file("Cargo.toml");
@@ -190,7 +190,7 @@ utils = { path = "../utils", version = "0.1.0" }
                 "use utils::helper;\n\nfn main() {\n    helper();\n}\n",
             ),
         ],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "crates/utils", "crates/core", "directory"),
         |ws| {
             let app_cargo = ws.read_file("crates/app/Cargo.toml");
@@ -256,7 +256,7 @@ path = "../common"
                 "use common::func;\n\nfn main() {\n    func();\n}\n",
             ),
         ],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "crates/common", "crates/shared", "directory"),
         |ws| {
             let app_cargo = ws.read_file("crates/app/Cargo.toml");

@@ -51,7 +51,7 @@ edition = "2021"
                 "pub fn hello() -> String {\n    String::from(\"Hello\")\n}\n",
             ),
         ],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "crates/my-crate", "crates/my-renamed-crate", "directory"),
         |ws| {
             // Directory renamed
@@ -135,7 +135,7 @@ common = { path = "../common" }
                 "use common::utility;\n\nfn main() {\n    println!(\"{}\", utility());\n}\n",
             ),
         ],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "crates/common", "crates/shared", "directory"),
         |ws| {
             let app_cargo = ws.read_file("crates/app/Cargo.toml");
@@ -199,7 +199,7 @@ common = { path = "../common" }
                 "use common::util;\n\nfn main() {\n    println!(\"{}\", util());\n}\n",
             ),
         ],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "crates/common", "crates/shared", "directory"),
         |ws| {
             let main_content = ws.read_file("crates/app/src/main.rs");
@@ -252,7 +252,7 @@ edition = "2021"
                 "mod utils;\n\nuse utils::strings::uppercase;\nuse utils::numbers::double;\n\nfn main() {\n    println!(\"{}\", uppercase(\"hello\"));\n    println!(\"{}\", double(21));\n}\n",
             ),
         ],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "src/utils", "src/helpers", "directory"),
         |ws| {
             assert!(
@@ -359,7 +359,7 @@ utils = { path = "../utils" }
                 "use core::Engine;\nuse utils::create_engine;\n\nfn main() {\n    let engine = create_engine();\n    println!(\"Engine power: {}\", engine.power);\n}\n",
             ),
         ],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "crates/core", "crates/engine", "directory"),
         |ws| {
             // Workspace members updated
@@ -452,7 +452,7 @@ async fn test_rust_rename_updates_mod_in_parent_mod_rs() -> Result<()> {
             ),
             ("src/utils.rs", "pub fn helper() {}\n"),
         ],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "src/utils.rs", "src/helpers.rs", "file"),
         |ws| {
             let mod_content = ws.read_file("src/mod.rs");
@@ -487,7 +487,7 @@ async fn test_rust_rename_updates_mod_in_lib_rs() -> Result<()> {
             ),
             ("src/utils.rs", "pub fn helper() {}\n"),
         ],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "src/utils.rs", "src/helpers.rs", "file"),
         |ws| {
             let lib_content = ws.read_file("src/lib.rs");
@@ -522,7 +522,7 @@ async fn test_rust_rename_updates_sibling_mod_rs() -> Result<()> {
             ),
             ("src/utils/helpers.rs", "pub fn do_work() {}\n"),
         ],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "src/utils/helpers.rs", "src/utils/support.rs", "file"),
         |ws| {
             let mod_content = ws.read_file("src/utils/mod.rs");
@@ -569,7 +569,7 @@ edition = "2021"
             ),
             ("src/utils/helpers.rs", "pub fn process() {}\n"),
         ],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "src/utils/helpers.rs", "src/utils/support.rs", "file"),
         |ws| {
             let utils_mod = ws.read_file("src/utils/mod.rs");
@@ -616,7 +616,7 @@ async fn test_rust_rename_affects_both_mod_and_use() -> Result<()> {
             ),
             ("src/utils.rs", "pub fn helper() {}\n"),
         ],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "src/utils.rs", "src/helpers.rs", "file"),
         |ws| {
             let lib_content = ws.read_file("src/lib.rs");
@@ -689,7 +689,7 @@ edition = "2021"
                 "use common::utils::calculate;\n\nfn main() {\n    println!(\"{}\", calculate(21));\n}\n",
             ),
         ],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "common/src/utils.rs", "common/src/helpers.rs", "file"),
         |ws| {
             assert!(
@@ -763,7 +763,7 @@ edition = "2021"
                 "use common::old_dir::helper;\n\npub fn process() -> &'static str {\n    helper()\n}\n",
             ),
         ],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "common/src/old_dir", "common/src/new_dir", "directory"),
         |ws| {
             assert!(
@@ -845,7 +845,7 @@ edition = "2021"
                 "use mylib::core::types::Entity;\n\nfn main() {\n    let _ = Entity::new();\n}\n",
             ),
         ],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "mylib/src/core/types.rs", "mylib/src/core/models.rs", "file"),
         |ws| {
             assert!(

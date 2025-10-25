@@ -37,7 +37,7 @@ fn main() {
 "#,
             ),
         ],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "config", "configuration", "directory"),
         |ws| {
             let content = ws.read_file("src/main.rs");
@@ -70,7 +70,7 @@ See the [Guide](docs/guide.md) for details.
 "#,
             ),
         ],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "docs", "documentation", "directory"),
         |ws| {
             let content = ws.read_file("README.md");
@@ -113,7 +113,7 @@ jobs:
 "#,
             ),
         ],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "integration-tests", "tests", "directory"),
         |ws| {
             let content = ws.read_file(".github/workflows/ci.yml");
@@ -145,7 +145,7 @@ async fn test_david_scope_filtering() {
     // Test code-only scope
     let plan = client
         .call_tool(
-            "rename.plan",
+            "rename",
             json!({
                 "target": {
                     "kind": "directory",
@@ -200,7 +200,7 @@ async fn test_comprehensive_93_percent_coverage() {
 
     let plan = client
         .call_tool(
-            "rename.plan",
+            "rename",
             json!({
                 "target": {
                     "kind": "directory",

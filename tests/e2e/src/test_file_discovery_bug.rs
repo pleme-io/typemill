@@ -117,7 +117,7 @@ Configuration: `crates/my-crate/Cargo.toml`
     // Generate rename plan
     let plan_result = client
         .call_tool(
-            "rename.plan",
+            "rename",
             json!({
                 "target": {
                     "kind": "directory",

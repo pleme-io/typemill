@@ -41,7 +41,7 @@ async fn test_move_file_updates_imports_from_fixtures() {
         let params = build_move_params(&workspace, case.old_file_path, case.new_file_path, "file");
 
         // 2. Generate and apply move plan
-        let plan_response = client.call_tool("move.plan", params).await
+        let plan_response = client.call_tool("move", params).await
             .expect("move.plan should succeed");
         let plan = plan_response.get("result").and_then(|r| r.get("content"))
             .expect("Plan should have result.content")
@@ -114,7 +114,7 @@ async fn test_rust_move_file_updates_imports_from_fixtures() {
         let params = build_move_params(&workspace, case.old_file_path, case.new_file_path, "file");
 
         // 2. Generate and apply move plan
-        let plan_response = client.call_tool("move.plan", params).await
+        let plan_response = client.call_tool("move", params).await
             .expect("move.plan should succeed");
         let plan = plan_response.get("result").and_then(|r| r.get("content"))
             .expect("Plan should have result.content")

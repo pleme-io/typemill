@@ -47,7 +47,7 @@ old = { path = "src/old.rs" }
     // Rename with "code" scope
     let plan = client
         .call_tool(
-            "rename.plan",
+            "rename",
             json!({
                 "target": {
                     "kind": "file",
@@ -123,7 +123,7 @@ Check out `src/old.rs` for the source code.
     // Rename with "standard" scope (default)
     let plan = client
         .call_tool(
-            "rename.plan",
+            "rename",
             json!({
                 "target": {
                     "kind": "file",
@@ -200,7 +200,7 @@ pub fn use_old() {
     // Rename with "comments" scope
     let plan = client
         .call_tool(
-            "rename.plan",
+            "rename",
             json!({
                 "target": {
                     "kind": "file",
@@ -276,7 +276,7 @@ use old;
     // Rename with "everything" scope
     let plan = client
         .call_tool(
-            "rename.plan",
+            "rename",
             json!({
                 "target": {
                     "kind": "file",
@@ -338,7 +338,7 @@ async fn test_deprecated_code_only_alias_still_works() {
     // Use deprecated "code-only" name
     let plan = client
         .call_tool(
-            "rename.plan",
+            "rename",
             json!({
                 "target": {
                     "kind": "file",
@@ -395,7 +395,7 @@ Source: `src/old.rs`
     // Use deprecated "all" name
     let plan = client
         .call_tool(
-            "rename.plan",
+            "rename",
             json!({
                 "target": {
                     "kind": "file",
@@ -451,7 +451,7 @@ async fn test_default_scope_is_standard() {
     // Don't specify scope - should default to "standard"
     let plan = client
         .call_tool(
-            "rename.plan",
+            "rename",
             json!({
                 "target": {
                     "kind": "file",
