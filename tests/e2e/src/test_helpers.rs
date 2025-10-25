@@ -1,27 +1,27 @@
 //! Test helper functions to reduce boilerplate across E2E tests
 //!
-//! These helpers implement the standard test pattern: setup → plan → apply → verify
+//! These helpers implement the standard test pattern: setup → execute → verify
 //! Each helper creates FRESH TestWorkspace and TestClient instances to ensure test isolation.
 //!
 //! Design principles:
 //! - Fresh instances per test (no state bleed)
 //! - Automatic cleanup via Drop
 //! - Closure-based custom assertions
-//! - Follows established pattern from all 204 existing tests
+//! - Uses unified refactoring API with dryRun option
 
 use crate::harness::{TestClient, TestWorkspace};
 use anyhow::{Context, Result};
 use serde_json::{json, Value};
 use std::path::Path;
 
-/// Standard test helper: setup → plan → apply → verify (CLOSURE-BASED PARAMS)
+/// Standard test helper: setup → execute → verify (CLOSURE-BASED PARAMS)
 ///
-/// Creates a fresh workspace and client, runs the tool workflow, and executes custom verifications.
-/// **NEW:** Accepts closure to build params, solving the workspace dependency issue.
+/// Creates a fresh workspace and client, executes the tool with dryRun: false, and runs verifications.
+/// Uses unified refactoring API (single call with dryRun option instead of plan + apply).
 ///
 /// # Arguments
 /// * `files` - Initial files to create in workspace (path, content)
-/// * `tool` - Tool name (e.g., "rename.plan", "move.plan")
+/// * `tool` - Tool name (e.g., "rename", "move", "extract")
 /// * `params_fn` - Closure that builds params given workspace (for absolute paths)
 /// * `verify` - Closure for custom assertions on the workspace after operation
 ///
@@ -29,7 +29,7 @@ use std::path::Path;
 /// ```no_run
 /// run_tool_test(
 ///     &[("old.rs", "pub fn test() {}")],
-///     "rename.plan",
+///     "rename",
 ///     |ws| build_rename_params(ws, "old.rs", "new.rs", "file"),
 ///     |ws| {
 ///         assert!(ws.file_exists("new.rs"));
@@ -68,32 +68,20 @@ where
     // BUILD PARAMS with workspace access
     let params = params_fn(&workspace);
 
-    // Generate plan
-    let plan_result = client
+    // Ensure dryRun: false is set (execute mode)
+    let mut params = params;
+    if let Some(obj) = params.as_object_mut() {
+        obj.entry("options").or_insert_with(|| json!({}));
+        if let Some(options) = obj.get_mut("options").and_then(|v| v.as_object_mut()) {
+            options.insert("dryRun".to_string(), json!(false));
+        }
+    }
+
+    // Execute operation (plan + apply atomically)
+    client
         .call_tool(tool, params)
         .await
-        .map_err(|e| anyhow::anyhow!("Failed to call tool '{}': {}", tool, e))?;
-
-    let plan = plan_result
-        .get("result")
-        .and_then(|r| r.get("content"))
-        .cloned()
-        .ok_or_else(|| anyhow::anyhow!("Plan should have result.content"))?;
-
-    // Apply plan
-    client
-        .call_tool(
-            "workspace.apply_edit",
-            json!({
-                "plan": plan,
-                "options": {
-                    "dryRun": false,
-                    "validateChecksums": true
-                }
-            }),
-        )
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to apply plan: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to execute tool '{}': {}", tool, e))?;
 
     // Run custom verifications
     verify(&workspace)?;
@@ -103,13 +91,13 @@ where
     Ok(())
 }
 
-/// Test helper with plan validation: setup → plan → validate plan → apply → verify (CLOSURE-BASED PARAMS)
+/// Test helper with plan validation: setup → preview → validate plan → execute → verify (CLOSURE-BASED PARAMS)
 ///
-/// Same as `run_tool_test` but allows inspection/assertion on the plan before applying.
+/// Uses unified API: calls tool with dryRun: true to get plan, validates it, then calls with dryRun: false to execute.
 ///
 /// # Arguments
 /// * `files` - Initial files to create
-/// * `tool` - Tool name
+/// * `tool` - Tool name (e.g., "rename", "extract")
 /// * `params_fn` - Closure that builds params given workspace (for absolute paths)
 /// * `plan_validator` - Closure to assert on plan structure/metadata
 /// * `result_validator` - Closure to assert on final workspace state
@@ -118,7 +106,7 @@ where
 /// ```no_run
 /// run_tool_test_with_plan_validation(
 ///     &[("file.rs", "content")],
-///     "rename.plan",
+///     "rename",
 ///     |ws| build_rename_params(ws, "file.rs", "renamed.rs", "file"),
 ///     |plan| {
 ///         assert_eq!(plan.get("planType").and_then(|v| v.as_str()), Some("renamePlan"));
@@ -160,11 +148,19 @@ where
     // BUILD PARAMS with workspace access
     let params = params_fn(&workspace);
 
-    // Generate plan
+    // Step 1: Preview mode (dryRun: true) - get plan
+    let mut preview_params = params.clone();
+    if let Some(obj) = preview_params.as_object_mut() {
+        obj.entry("options").or_insert_with(|| json!({}));
+        if let Some(options) = obj.get_mut("options").and_then(|v| v.as_object_mut()) {
+            options.insert("dryRun".to_string(), json!(true));
+        }
+    }
+
     let plan_result = client
-        .call_tool(tool, params)
+        .call_tool(tool, preview_params)
         .await
-        .map_err(|e| anyhow::anyhow!("Failed to call tool '{}': {}", tool, e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to preview with '{}': {}", tool, e))?;
 
     let plan = plan_result
         .get("result")
@@ -172,23 +168,22 @@ where
         .cloned()
         .ok_or_else(|| anyhow::anyhow!("Plan should have result.content"))?;
 
-    // VALIDATE PLAN BEFORE APPLYING
+    // VALIDATE PLAN BEFORE EXECUTING
     plan_validator(&plan).map_err(|e| anyhow::anyhow!("Plan validation failed: {}", e))?;
 
-    // Apply plan
+    // Step 2: Execute mode (dryRun: false) - apply changes
+    let mut execute_params = params;
+    if let Some(obj) = execute_params.as_object_mut() {
+        obj.entry("options").or_insert_with(|| json!({}));
+        if let Some(options) = obj.get_mut("options").and_then(|v| v.as_object_mut()) {
+            options.insert("dryRun".to_string(), json!(false));
+        }
+    }
+
     client
-        .call_tool(
-            "workspace.apply_edit",
-            json!({
-                "plan": plan,
-                "options": {
-                    "dryRun": false,
-                    "validateChecksums": true
-                }
-            }),
-        )
+        .call_tool(tool, execute_params)
         .await
-        .map_err(|e| anyhow::anyhow!("Failed to apply plan: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to execute '{}': {}", tool, e))?;
 
     // Validate result
     result_validator(&workspace).map_err(|e| anyhow::anyhow!("Result validation failed: {}", e))?;
@@ -196,13 +191,14 @@ where
     Ok(())
 }
 
-/// Test helper expecting failure: setup → plan/apply → assert error (CLOSURE-BASED PARAMS)
+/// Test helper expecting failure: setup → execute → assert error (CLOSURE-BASED PARAMS)
 ///
 /// Verifies that the operation fails with expected error message.
+/// Note: Add dryRun: false to params_fn if you want to test execution failure.
 ///
 /// # Arguments
 /// * `files` - Initial files to create
-/// * `tool` - Tool name
+/// * `tool` - Tool name (e.g., "rename", "extract")
 /// * `params_fn` - Closure that builds params given workspace (for absolute paths)
 /// * `error_contains` - Optional substring that error message should contain
 ///
@@ -210,7 +206,7 @@ where
 /// ```no_run
 /// run_tool_test_expecting_failure(
 ///     &[("file.rs", "content")],
-///     "rename.plan",
+///     "rename",
 ///     |ws| build_rename_params(ws, "nonexistent.rs", "new.rs", "file"),
 ///     Some("file not found")
 /// ).await?;
@@ -282,11 +278,13 @@ where
     }
 }
 
-/// Helper for dry-run tests: setup → plan → apply with dryRun=true → verify no changes (CLOSURE-BASED PARAMS)
+/// Helper for dry-run tests: setup → preview with dryRun=true → verify no changes (CLOSURE-BASED PARAMS)
+///
+/// Uses unified API with dryRun: true (default) to verify preview mode doesn't modify files.
 ///
 /// # Arguments
 /// * `files` - Initial files to create
-/// * `tool` - Tool name
+/// * `tool` - Tool name (e.g., "rename", "extract")
 /// * `params_fn` - Closure that builds params given workspace (for absolute paths)
 /// * `verify_no_changes` - Closure to assert workspace is unchanged
 ///
@@ -294,7 +292,7 @@ where
 /// ```no_run
 /// run_dry_run_test(
 ///     &[("original.rs", "content")],
-///     "rename.plan",
+///     "rename",
 ///     |ws| build_rename_params(ws, "original.rs", "renamed.rs", "file"),
 ///     |ws| {
 ///         assert!(ws.file_exists("original.rs"), "Original file should still exist");
@@ -328,131 +326,24 @@ where
     let mut client = TestClient::new(workspace.path());
 
     // BUILD PARAMS with workspace access
-    let params = params_fn(&workspace);
+    let mut params = params_fn(&workspace);
 
-    // Generate plan
-    let plan_result = client
-        .call_tool(tool, params)
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to call tool '{}': {}", tool, e))?;
-
-    let plan = plan_result
-        .get("result")
-        .and_then(|r| r.get("content"))
-        .cloned()
-        .ok_or_else(|| anyhow::anyhow!("Plan should exist"))?;
-
-    // Apply with DRY RUN
-    client
-        .call_tool(
-            "workspace.apply_edit",
-            json!({
-                "plan": plan,
-                "options": {
-                    "dryRun": true  // Critical: no actual changes
-                }
-            }),
-        )
-        .await
-        .map_err(|e| anyhow::anyhow!("Dry run failed: {}", e))?;
-
-    // Verify nothing changed
-    verify_no_changes(&workspace).map_err(|e| anyhow::anyhow!("Dry run should not modify workspace: {}", e))?;
-
-    Ok(())
-}
-
-/// Helper for tests with mutation between plan and apply (CLOSURE-BASED PARAMS)
-///
-/// Useful for checksum validation tests that modify files after plan generation
-/// but before application to test that checksum guards work.
-///
-/// # Arguments
-/// * `files` - Initial files to create
-/// * `tool` - Tool name
-/// * `params_fn` - Closure that builds params given workspace (for absolute paths)
-/// * `mutate_fn` - Closure to mutate workspace BETWEEN plan generation and application
-/// * `verify` - Closure for custom assertions on the workspace after operation
-///
-/// # Example
-/// ```no_run
-/// run_tool_test_with_mutation(
-///     &[("source/file.rs", "original content")],
-///     "move.plan",
-///     |ws| build_move_params(ws, "source/file.rs", "target/file.rs", "file"),
-///     |ws, _plan| {
-///         // Mutate file after plan generated to trigger checksum validation
-///         ws.create_file("source/file.rs", "MODIFIED CONTENT");
-///     },
-///     |ws| {
-///         // Should fail checksum validation, file stays in original location
-///         assert!(ws.file_exists("source/file.rs"));
-///         assert!(!ws.file_exists("target/file.rs"));
-///         Ok(())
-///     }
-/// ).await?;
-/// ```
-pub async fn run_tool_test_with_mutation<P, M, V>(
-    files: &[(&str, &str)],
-    tool: &str,
-    params_fn: P,
-    mutate_fn: M,
-    verify: V,
-) -> Result<()>
-where
-    P: FnOnce(&TestWorkspace) -> Value,
-    M: FnOnce(&TestWorkspace, &Value),
-    V: FnOnce(&TestWorkspace) -> Result<()>,
-{
-    let workspace = TestWorkspace::new();
-
-    // Setup initial files
-    for (file_path, content) in files {
-        if let Some(parent) = Path::new(file_path).parent() {
-            if parent != Path::new("") {
-                workspace.create_directory(parent.to_str().unwrap());
-            }
+    // Ensure dryRun: true is set (preview mode - default, but explicit here)
+    if let Some(obj) = params.as_object_mut() {
+        obj.entry("options").or_insert_with(|| json!({}));
+        if let Some(options) = obj.get_mut("options").and_then(|v| v.as_object_mut()) {
+            options.insert("dryRun".to_string(), json!(true));
         }
-        workspace.create_file(file_path, content);
     }
 
-    let mut client = TestClient::new(workspace.path());
-
-    // BUILD PARAMS with workspace access
-    let params = params_fn(&workspace);
-
-    // Generate plan
-    let plan_result = client
+    // Call tool in preview mode (should not modify workspace)
+    client
         .call_tool(tool, params)
         .await
-        .map_err(|e| anyhow::anyhow!("Failed to call tool '{}': {}", tool, e))?;
+        .map_err(|e| anyhow::anyhow!("Preview mode failed for '{}': {}", tool, e))?;
 
-    let plan = plan_result
-        .get("result")
-        .and_then(|r| r.get("content"))
-        .cloned()
-        .ok_or_else(|| anyhow::anyhow!("Plan should have result.content"))?;
-
-    // MUTATE workspace between plan and apply
-    mutate_fn(&workspace, &plan);
-
-    // Apply plan (may fail if checksums invalid)
-    client
-        .call_tool(
-            "workspace.apply_edit",
-            json!({
-                "plan": plan,
-                "options": {
-                    "dryRun": false,
-                    "validateChecksums": true
-                }
-            }),
-        )
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to apply plan: {}", e))?;
-
-    // Run custom verifications
-    verify(&workspace)?;
+    // Verify nothing changed
+    verify_no_changes(&workspace).map_err(|e| anyhow::anyhow!("Preview mode should not modify workspace: {}", e))?;
 
     Ok(())
 }
