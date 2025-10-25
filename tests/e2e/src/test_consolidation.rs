@@ -157,7 +157,7 @@ async fn test_consolidation_flag_explicit() {
             }),
         )
         .await
-        .expect("rename.plan should succeed");
+        .expect("Rename should succeed");
 
     let plan = plan_result
         .get("result")
@@ -193,7 +193,7 @@ async fn test_consolidation_auto_detection() {
             }),
         )
         .await
-        .expect("rename.plan should succeed");
+        .expect("Rename should succeed");
 
     let plan = plan_result
         .get("result")
@@ -230,7 +230,7 @@ async fn test_consolidation_override_auto_detection() {
             }),
         )
         .await
-        .expect("rename.plan should succeed");
+        .expect("Rename should succeed");
 
     let plan = plan_result
         .get("result")
@@ -371,7 +371,7 @@ fn main() {
             }),
         )
         .await
-        .expect("rename.plan should succeed");
+        .expect("Rename should succeed");
 
     let plan = plan_result
         .get("result")
@@ -538,7 +538,7 @@ fn main() {
             }),
         )
         .await
-        .expect("rename.plan should succeed");
+        .expect("Rename should succeed");
 
     // Apply the plan with unified API (dryRun: false)
     let mut params_exec = json!({

@@ -38,7 +38,7 @@ pub async fn execute_consolidation_post_processing(
     // NOTE: This validation should happen during PLANNING, not during post-processing.
     // By the time post-processing runs, files have already been moved, so source_crate_path
     // no longer exists at its original location.
-    // TODO: Move this validation to the planning phase (rename.plan)
+    // TODO: Move this validation to the planning phase (rename)
 
     // Task 1: Fix nested src/ structure
     flatten_nested_src_directory(&metadata.target_module_path).await?;

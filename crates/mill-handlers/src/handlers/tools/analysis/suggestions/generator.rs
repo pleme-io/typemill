@@ -85,14 +85,14 @@ impl SuggestionGenerator {
 
     fn build_refactor_call(&self, candidate: &RefactoringCandidate) -> Result<RefactorCall> {
         let tool = match candidate.refactor_type {
-            RefactorType::ExtractMethod => "extract.plan",
-            RefactorType::Inline => "inline.plan",
-            RefactorType::Move => "move.plan",
-            RefactorType::Rename => "rename.plan",
-            RefactorType::Transform | RefactorType::SimplifyBooleanExpression => "transform.plan",
+            RefactorType::ExtractMethod => "extract",
+            RefactorType::Inline => "inline",
+            RefactorType::Move => "move",
+            RefactorType::Rename => "rename",
+            RefactorType::Transform | RefactorType::SimplifyBooleanExpression => "transform",
             RefactorType::RemoveUnusedImport
             | RefactorType::RemoveUnusedVariable
-            | RefactorType::RemoveDeadCode => "delete.plan",
+            | RefactorType::RemoveDeadCode => "delete",
         };
 
         Ok(RefactorCall {

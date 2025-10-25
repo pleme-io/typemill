@@ -220,7 +220,7 @@ impl ToolRegistry {
     /// [
     ///     ("find_definition", "NavigationHandler"),
     ///     ("health_check", "SystemHandler"),
-    ///     ("rename.plan", "RenameHandler"),
+    ///     ("rename", "RenameHandler"),
     /// ]
     /// ```
     pub fn list_public_tools_with_handlers(&self) -> Vec<(String, String)> {

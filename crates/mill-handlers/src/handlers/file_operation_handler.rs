@@ -149,9 +149,9 @@ impl FileOperationHandler {
             )));
         }
 
-        // Note: Consolidation is now handled by the Unified Refactoring API (rename.plan)
+        // Note: Consolidation is now handled by the Unified Refactoring API (rename)
         // This legacy internal tool no longer supports the consolidate parameter.
-        // Use rename.plan with options.consolidate instead.
+        // Use rename with options.consolidate instead.
         let result = context
             .app_state
             .file_service

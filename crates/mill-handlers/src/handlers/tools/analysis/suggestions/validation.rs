@@ -34,15 +34,15 @@ pub fn validate_suggestion(suggestion: &Suggestion) -> Result<()> {
 
 /// Validates refactor_call structure
 fn validate_refactor_call(refactor_call: &RefactorCall) -> Result<()> {
-    // Valid tool names (commands)
+    // Valid tool names (commands) - unified dryRun API
     let valid_commands = [
-        "extract.plan",
-        "inline.plan",
-        "move.plan",
-        "rename.plan",
-        "transform.plan",
-        "delete.plan",
-        "reorder.plan",
+        "extract",
+        "inline",
+        "move",
+        "rename",
+        "transform",
+        "delete",
+        "reorder",
     ];
 
     if !valid_commands.contains(&refactor_call.command.as_str()) {
@@ -56,9 +56,9 @@ fn validate_refactor_call(refactor_call: &RefactorCall) -> Result<()> {
 
     // Tool-specific argument validation
     match refactor_call.command.as_str() {
-        "delete.plan" => validate_delete_args(&refactor_call.arguments)?,
-        "extract.plan" => validate_extract_args(&refactor_call.arguments)?,
-        "inline.plan" => validate_inline_args(&refactor_call.arguments)?,
+        "delete" => validate_delete_args(&refactor_call.arguments)?,
+        "extract" => validate_extract_args(&refactor_call.arguments)?,
+        "inline" => validate_inline_args(&refactor_call.arguments)?,
         // ... other tools can be added here
         _ => {}
     }
@@ -68,30 +68,30 @@ fn validate_refactor_call(refactor_call: &RefactorCall) -> Result<()> {
 
 fn validate_delete_args(args: &Value) -> Result<()> {
     if args.get("filePath").is_none() {
-        bail!("delete.plan missing file_path");
+        bail!("delete missing file_path");
     }
     if args.get("line").is_none() && args.get("start_line").is_none() {
-        bail!("delete.plan missing line or start_line");
+        bail!("delete missing line or start_line");
     }
     Ok(())
 }
 
 fn validate_extract_args(args: &Value) -> Result<()> {
     if args.get("filePath").is_none() {
-        bail!("extract.plan missing file_path");
+        bail!("extract missing file_path");
     }
     if args.get("start_line").is_none() || args.get("end_line").is_none() {
-        bail!("extract.plan missing start_line/end_line");
+        bail!("extract missing start_line/end_line");
     }
     Ok(())
 }
 
 fn validate_inline_args(args: &Value) -> Result<()> {
     if args.get("filePath").is_none() {
-        bail!("inline.plan missing file_path");
+        bail!("inline missing file_path");
     }
     if args.get("line").is_none() {
-        bail!("inline.plan missing line");
+        bail!("inline missing line");
     }
     Ok(())
 }
@@ -113,7 +113,7 @@ mod tests {
             confidence: 0.85,
             reversible: true,
             refactor_call: Some(RefactorCall {
-                command: "delete.plan".to_string(),
+                command: "delete".to_string(),
                 arguments: json!({
                     "filePath": "test.rs",
                     "line": 10,
@@ -164,7 +164,7 @@ mod tests {
     fn test_validate_missing_delete_args() {
         let mut suggestion = mock_suggestion();
         if let Some(ref mut call) = suggestion.refactor_call {
-            call.command = "delete.plan".to_string();
+            call.command = "delete".to_string();
             call.arguments = json!({}); // Missing args
         }
         assert!(validate_suggestion(&suggestion).is_err());

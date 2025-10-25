@@ -1,7 +1,7 @@
 //! YAML Language Plugin
 //!
 //! Provides support for detecting and updating file references in YAML config files.
-//! This enables `rename.plan` to track path references when files are moved.
+//! This enables `rename` to track path references when files are moved.
 
 use async_trait::async_trait;
 use mill_plugin_api::mill_plugin;

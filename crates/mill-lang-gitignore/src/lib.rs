@@ -1,7 +1,7 @@
 //! .gitignore Language Plugin
 //!
 //! Provides support for detecting and updating file path patterns in .gitignore files.
-//! This enables `rename.plan` to update ignore patterns when files/directories are moved.
+//! This enables `rename` to update ignore patterns when files/directories are moved.
 
 use async_trait::async_trait;
 use mill_plugin_api::mill_plugin;

@@ -97,7 +97,7 @@ pub fn create_test_edit_plan() -> EditPlan {
         dependency_updates: vec![],
         validations: vec![],
         metadata: EditPlanMetadata {
-            intent_name: "rename.plan".to_string(),
+            intent_name: "rename".to_string(),
             intent_arguments: json!({"oldName": "oldFunction", "newName": "newFunction"}),
             created_at: chrono::Utc::now(),
             complexity: 3,

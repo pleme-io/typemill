@@ -1,7 +1,7 @@
 //! Markdown Language Plugin
 //!
 //! Provides support for detecting and updating file references in Markdown documents.
-//! This enables `rename.plan` to track markdown link references when files are moved.
+//! This enables `rename` to track markdown link references when files are moved.
 
 use async_trait::async_trait;
 use mill_plugin_api::mill_plugin;

@@ -16,10 +16,10 @@ pub fn plan_refactor(
     plugin_registry: &PluginRegistry,
 ) -> AstResult<EditPlan> {
     match intent.name() {
-        // Unified Refactoring API intent names
-        "rename.plan" => plan_rename_symbol(intent, source),
-        "extract.plan" => plan_extract_function(intent, source),
-        "inline.plan" => plan_inline_function(intent, source),
+        // Unified Refactoring API intent names (dryRun option)
+        "rename" => plan_rename_symbol(intent, source),
+        "extract" => plan_extract_function(intent, source),
+        "inline" => plan_inline_function(intent, source),
         // Import-related operations (still used internally)
         "add_import" => plan_add_import(intent, source),
         "remove_import" => plan_remove_import(intent, source, plugin_registry),
