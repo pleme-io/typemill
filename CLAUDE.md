@@ -608,6 +608,30 @@ Supported language servers (configurable):
 
 **Note:** Additional language servers (Go/gopls, Java/jdtls, Swift/sourcekit-lsp, C#/omnisharp) can be configured but require language plugins from git tag `pre-language-reduction` and documented migration process (see `.debug/language-plugin-migration/`).
 
+
+### Language Plugin Parity Status
+
+TypeMill now has **100% feature parity** across TypeScript, Rust, and Python for all common capabilities:
+
+| Capability | TypeScript | Rust | Python |
+|-----------|-----------|------|--------|
+| Core LanguagePlugin | ✅ | ✅ | ✅ |
+| Import Support (5 traits) | ✅ | ✅ | ✅ |
+| Workspace Operations | ✅ | ✅ | ✅ |
+| Refactoring (3 operations) | ✅ | ✅ | ✅ |
+| Analysis (2 traits) | ✅ | ✅ | ✅ |
+| Manifest Management | ✅ | ✅ | ✅ |
+| **Project Creation** | ✅ | ✅ | ✅ |
+
+**Rust-specific features** (not applicable to other languages):
+- ReferenceDetector
+- ModuleDeclarationSupport (Rust `mod` declarations)
+- ModuleLocator (Rust module file structure)
+
+**Python restored**: 2025-10-25 with full parity implementation.
+
+See `.debug/language-plugin-migration/COMPLETE_PARITY_ANALYSIS.md` for detailed comparison.
+
 ## Configuration
 
 The server loads configuration from `.typemill/config.json` in the current working directory. If no configuration exists, run `mill setup` to create one.

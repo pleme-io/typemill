@@ -437,7 +437,43 @@ pub struct AppState {
 
 ## Language Plugin System
 
-**Architecture**: Self-registering plugins with link-time discovery.
+### Currently Supported (100% Parity)
+
+- **Rust** (complete implementation, reference for other languages)
+- **TypeScript/JavaScript** (full parity with Rust common features)
+- **Python** (restored 2025-10-25, full parity achieved)
+
+All three languages support:
+- AST parsing and symbol extraction
+- Import analysis and rewriting (5 capability traits)
+- Workspace operations and manifest management
+- Code refactoring (extract function, inline variable, extract variable)
+- Module reference scanning and import graph analysis
+- Project/package creation via ProjectFactory
+
+### Paused Languages (Restorable)
+
+The following languages were implemented and can be restored using the documented migration process:
+- Go
+- Java
+- Swift
+- C#
+
+See `.debug/language-plugin-migration/PYTHON_MIGRATION_GUIDE.md` for restoration process (~30 minutes per language).
+
+### Plugin Architecture
+
+Each language plugin implements the `LanguagePlugin` trait and provides:
+1. **Core methods**: parse(), analyze_manifest(), list_functions()
+2. **Import capabilities**: 5 segregated traits for different import operations
+3. **Refactoring capabilities**: AST-based code transformations
+4. **Workspace capabilities**: Multi-package coordination
+5. **Project capabilities**: Package scaffolding and creation
+
+Plugins delegate single-file analysis to LSP servers (rust-analyzer, typescript-language-server, pylsp) for superior accuracy, while providing workspace-scale batch operations that LSPs don't support.
+
+---
+### Self-Registration System
 
 **Core Design**:
 - **Decoupling**: The core system (`mill-services`, `mill-core`, etc.) has no direct knowledge of specific language plugins.

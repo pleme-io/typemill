@@ -1,4 +1,5 @@
 //! TypeScript/JavaScript Language Plugin for TypeMill
+mod project_factory;
 pub mod import_support;
 pub mod imports;
 mod manifest;
@@ -23,10 +24,20 @@ mill_plugin! {
 }
 
 /// TypeScript/JavaScript language plugin implementation.
-#[derive(Default)]
 pub struct TypeScriptPlugin {
     import_support: import_support::TypeScriptImportSupport,
     workspace_support: workspace_support::TypeScriptWorkspaceSupport,
+    project_factory: project_factory::TypeScriptProjectFactory,
+}
+
+impl Default for TypeScriptPlugin {
+    fn default() -> Self {
+        Self {
+            import_support: Default::default(),
+            workspace_support: Default::default(),
+            project_factory: Default::default(),
+        }
+    }
 }
 
 impl TypeScriptPlugin {
@@ -41,8 +52,10 @@ impl TypeScriptPlugin {
     };
 
     /// The capabilities of this plugin.
-    pub const CAPABILITIES: PluginCapabilities =
-        PluginCapabilities::none().with_imports().with_workspace();
+    pub const CAPABILITIES: PluginCapabilities = PluginCapabilities::none()
+        .with_imports()
+        .with_workspace()
+        .with_project_factory();
 
     /// Creates a new, boxed instance of the plugin.
     #[allow(clippy::new_ret_no_self)]
@@ -109,6 +122,10 @@ impl LanguagePlugin for TypeScriptPlugin {
 
     fn workspace_support(&self) -> Option<&dyn WorkspaceSupport> {
         Some(&self.workspace_support)
+    }
+
+    fn project_factory(&self) -> Option<&dyn mill_plugin_api::project_factory::ProjectFactory> {
+        Some(&self.project_factory)
     }
 
     // Capability trait discovery methods

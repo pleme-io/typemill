@@ -13,6 +13,7 @@
 pub mod import_support;
 pub mod manifest;
 pub mod parser;
+pub mod project_factory;
 pub mod refactoring;
 pub mod test_fixtures;
 pub mod workspace_support;
@@ -47,10 +48,20 @@ mill_plugin! {
 /// - Import statement analysis
 /// - Multiple manifest format handling (requirements.txt, pyproject.toml)
 /// - Code refactoring operations
-#[derive(Default)]
 pub struct PythonPlugin {
     import_support: import_support::PythonImportSupport,
     workspace_support: workspace_support::PythonWorkspaceSupport,
+    project_factory: project_factory::PythonProjectFactory,
+}
+
+impl Default for PythonPlugin {
+    fn default() -> Self {
+        Self {
+            import_support: Default::default(),
+            workspace_support: Default::default(),
+            project_factory: Default::default(),
+        }
+    }
 }
 
 impl PythonPlugin {
@@ -67,7 +78,8 @@ impl PythonPlugin {
     /// The capabilities of this plugin.
     pub const CAPABILITIES: PluginCapabilities = PluginCapabilities::none()
         .with_imports()
-        .with_workspace();
+        .with_workspace()
+        .with_project_factory();
 
     /// Creates a new, boxed instance of the plugin.
     #[allow(clippy::new_ret_no_self)]
@@ -219,6 +231,10 @@ impl LanguagePlugin for PythonPlugin {
 
     fn manifest_updater(&self) -> Option<&dyn mill_plugin_api::ManifestUpdater> {
         Some(self)
+    }
+
+    fn project_factory(&self) -> Option<&dyn mill_plugin_api::project_factory::ProjectFactory> {
+        Some(&self.project_factory)
     }
 }
 
