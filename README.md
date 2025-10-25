@@ -77,7 +77,7 @@ mill tool workspace.find_replace --pattern "oldName" --replacement "newName"
 - Use `rename` for file/directory operations
 - Use `move` for code symbol operations (requires source position)
 
-## 📚 Available Tools (36 total)
+## 📚 Available Tools (28 total)
 
 **🔍 Navigation & Intelligence (8 tools)**
 - `find_definition`, `find_references`, `search_symbols`

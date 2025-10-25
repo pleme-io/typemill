@@ -876,7 +876,7 @@ mill tool analyze.quality '{
           "action": "extract_function",
           "description": "Extract nested block",
           "refactor_call": {
-            "command": "extract.plan",
+            "command": "extract",
             "arguments": {...}
           }
         }
@@ -927,14 +927,13 @@ Handlers are organized by functionality:
 | **InternalWorkspaceHandler** | `crates/mill-handlers/src/handlers/tools/internal_workspace.rs` | Internal workspace tools (hidden from MCP) | `rename_symbol_with_imports`, `apply_workspace_edit` |
 | **LifecycleHandler** | `crates/mill-handlers/src/handlers/tools/lifecycle.rs` | File lifecycle events | `notify_file_opened`, `notify_file_saved`, `notify_file_closed` |
 | **NavigationHandler** | `crates/mill-handlers/src/handlers/tools/navigation.rs` | Code navigation | `find_definition`, `find_references` |
-| **RenameHandler** | `crates/mill-handlers/src/handlers/rename_handler.rs` | Rename refactoring (plan step) | `rename.plan` |
-| **ExtractHandler** | `crates/mill-handlers/src/handlers/extract_handler.rs` | Extract refactoring (plan step) | `extract.plan` |
-| **InlineHandler** | `crates/mill-handlers/src/handlers/inline_handler.rs` | Inline refactoring (plan step) | `inline.plan` |
-| **MoveHandler** | `crates/mill-handlers/src/handlers/move_handler.rs` | Move refactoring (plan step) | `move.plan` |
-| **ReorderHandler** | `crates/mill-handlers/src/handlers/reorder_handler.rs` | Reorder refactoring (plan step) | `reorder.plan` |
-| **TransformHandler** | `crates/mill-handlers/src/handlers/transform_handler.rs` | Transform refactoring (plan step) | `transform.plan` |
-| **DeleteHandler** | `crates/mill-handlers/src/handlers/delete_handler.rs` | Delete refactoring (plan step) | `delete.plan` |
-| **WorkspaceApplyHandler** | `crates/mill-handlers/src/handlers/workspace_apply_handler.rs` | Apply refactoring plans | `workspace.apply_edit` |
+| **RenameHandler** | `crates/mill-handlers/src/handlers/rename_handler.rs` | Rename refactoring (unified API with dryRun) | `rename` |
+| **ExtractHandler** | `crates/mill-handlers/src/handlers/extract_handler.rs` | Extract refactoring (unified API with dryRun) | `extract` |
+| **InlineHandler** | `crates/mill-handlers/src/handlers/inline_handler.rs` | Inline refactoring (unified API with dryRun) | `inline` |
+| **MoveHandler** | `crates/mill-handlers/src/handlers/move_handler.rs` | Move refactoring (unified API with dryRun) | `move` |
+| **ReorderHandler** | `crates/mill-handlers/src/handlers/reorder_handler.rs` | Reorder refactoring (unified API with dryRun) | `reorder` |
+| **TransformHandler** | `crates/mill-handlers/src/handlers/transform_handler.rs` | Transform refactoring (unified API with dryRun) | `transform` |
+| **DeleteHandler** | `crates/mill-handlers/src/handlers/delete_handler.rs` | Delete refactoring (unified API with dryRun) | `delete` |
 | **SystemHandler** | `crates/mill-handlers/src/handlers/tools/system.rs` | System operations | `health_check`, `web_fetch`, `system_status` |
 | **WorkspaceHandler** | `crates/mill-handlers/src/handlers/tools/workspace.rs` | Workspace operations | `rename_directory`, `analyze.dependencies`, `analyze.dead_code` |
 
@@ -960,7 +959,7 @@ const TOOL_NAMES: &[&str] = &[
 // crates/mill-handlers/src/handlers/rename_handler.rs
 
 const TOOL_NAMES: &[&str] = &[
-    "rename.plan",  // Note: Only the .plan command
+    "rename",  // Note: Only the .plan command
 ];
 ```
 
@@ -995,7 +994,7 @@ async fn handle_tool_call(
     tool_call: &ToolCall,
 ) -> ServerResult<Value> {
     match tool_call.name.as_str() {
-        "rename.plan" => self.handle_rename_plan(context, tool_call).await,
+        "rename" => self.handle_rename_plan(context, tool_call).await,
         _ => Err(ServerError::Unsupported(format!(
             "Unsupported rename tool: {}",
             tool_call.name
@@ -1106,7 +1105,7 @@ There are two main types of handlers:
 
 2. **Refactoring Plan Handlers** (in `crates/mill-handlers/src/handlers/`):
    - Part of the unified refactoring API
-   - Generate read-only plans that must be applied with `workspace.apply_edit`
+   - Support unified dryRun API (default: true for preview, false to execute)
    - Example: `RenameHandler`, `ExtractHandler`, `InlineHandler`
 
 #### Step 1: Create the Handler File
@@ -1162,10 +1161,10 @@ use cb_core::model::mcp::ToolCall;
 use serde_json::Value;
 use tracing::{debug, error};
 
-/// Handler for my_refactoring.plan
+/// Handler for my_refactoring (with dryRun option)
 pub struct MyRefactoringHandler;
 
-const TOOL_NAMES: &[&str] = &["my_refactoring.plan"];
+const TOOL_NAMES: &[&str] = &["my_refactoring (with dryRun option)"];
 
 impl MyRefactoringHandler {
     pub fn new() -> Self {
@@ -1222,7 +1221,7 @@ register_handlers_with_logging!(registry, {
 
 #### Naming Conventions
 - **Tool names**: snake_case (e.g., `get_diagnostics`)
-- **Refactoring plan tools**: `<operation>.plan` (e.g., `rename.plan`, `extract.plan`)
+- **Refactoring plan tools**: `<operation>.plan` (e.g., `rename`, `extract`)
 - **Handler names**: PascalCase with "Handler" suffix (e.g., `DiagnosticsHandler`, `RenameHandler`)
 - **File names**: snake_case matching handler (e.g., `diagnostics.rs`, `rename_handler.rs`)
 
@@ -1339,7 +1338,7 @@ mod tests {
         let handler = RenameHandler::new();
 
         let tool_call = ToolCall {
-            name: "rename.plan".to_string(),
+            name: "rename".to_string(),
             arguments: Some(json!({
                 "target": {
                     "kind": "symbol",

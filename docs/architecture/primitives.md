@@ -508,14 +508,14 @@ All primitives **preserve correctness**. This guarantees:
 
 | Primitive | MCP Tools | Handler |
 |-----------|-----------|---------|
-| **Rename** | `rename.plan`, `workspace.apply_edit`, `rename_file`, `rename_directory` | RefactoringHandler, FileOpsHandler, WorkspaceHandler |
-| **Extract** | `extract.plan`, `workspace.apply_edit`, `extract_module_to_package` | RefactoringHandler, WorkspaceHandler |
+| **Rename** | `rename` (with dryRun option), `rename_file`, `rename_directory` | RenameHandler, FileOpsHandler |
+| **Extract** | `extract` (with dryRun option), `extract_module_to_package` | ExtractHandler, WorkspaceHandler |
 | **Inject/Insert** | `apply_edits`, `write_file`, code actions | EditingHandler, FileOpsHandler |
-| **Move** | `move.plan`, `workspace.apply_edit`, `rename_file`, `rename_directory` | RefactoringHandler, FileOpsHandler, WorkspaceHandler |
-| **Inline** | `inline.plan`, `workspace.apply_edit` | RefactoringHandler |
-| **Reorder** | `reorder.plan`, `workspace.apply_edit`, `format_document`, code actions | RefactoringHandler, EditingHandler |
-| **Transform** | `transform.plan`, `workspace.apply_edit`, `get_code_actions`, `apply_edits` | RefactoringHandler, EditingHandler |
-| **Delete** | `delete.plan`, `workspace.apply_edit`, `delete_file`, code actions | RefactoringHandler, FileOpsHandler |
+| **Move** | `move` (with dryRun option), `rename_file`, `rename_directory` | MoveHandler, FileOpsHandler |
+| **Inline** | `inline` (with dryRun option) | InlineHandler |
+| **Reorder** | `reorder` (with dryRun option), `format_document`, code actions | ReorderHandler, EditingHandler |
+| **Transform** | `transform` (with dryRun option), `get_code_actions`, `apply_edits` | TransformHandler, EditingHandler |
+| **Delete** | `delete` (with dryRun option), `delete_file`, code actions | DeleteHandler, FileOpsHandler |
 
 ### Analysis Primitives → MCP Tools
 

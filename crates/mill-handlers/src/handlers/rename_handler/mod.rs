@@ -21,7 +21,7 @@ use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use tracing::{debug, info};
 
-/// Handler for rename.plan operations
+/// Handler for rename operations (unified API with dryRun option)
 pub struct RenameHandler;
 
 impl RenameHandler {
