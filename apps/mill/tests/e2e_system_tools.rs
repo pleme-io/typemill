@@ -145,8 +145,8 @@ edition = "2021"
     }
     let mut client = TestClient::new(workspace.path());
 
-    // Step 1: Generate rename plan using public API
-    let plan_result = client
+    // Execute rename with unified API (dryRun: false)
+    let apply_result = client
         .call_tool(
             "rename",
             json!({
@@ -154,29 +154,18 @@ edition = "2021"
                     "kind": "directory",
                     "path": "crates/crate_b"
                 },
-                "newName": "crates/crate_renamed"
+                "newName": "crates/crate_renamed",
+                "options": {
+                    "dryRun": false
+                }
             }),
         )
         .await;
-    assert!(plan_result.is_ok(), "rename should succeed");
-    let plan_response = plan_result.unwrap();
-    let plan = &plan_response["result"]["content"];
-
-    // Step 2: Apply the plan using workspace.apply_edit
-    let apply_result = client
-        .call_tool(
-            "workspace.apply_edit",
-            json!({
-                "plan": plan,
-                "options": { "dryRun": false }
-            }),
-        )
-        .await;
-    assert!(apply_result.is_ok(), "workspace.apply_edit should succeed");
+    assert!(apply_result.is_ok(), "Rename should succeed");
     let apply_response = apply_result.unwrap();
     assert_eq!(
         apply_response["result"]["content"]["success"], true,
-        "Edit should be applied successfully"
+        "Rename should be applied successfully"
     );
     let ws_manifest = workspace.read_file("Cargo.toml");
     assert!(

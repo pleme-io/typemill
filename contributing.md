@@ -1367,7 +1367,7 @@ mod tests {
 
 **Integration tests for unified refactoring API:**
 - Test in `tests/e2e/src/test_<operation>_integration.rs`
-- Cover both plan generation and application via `workspace.apply_edit`
+- Test with options.dryRun: true (preview) and dryRun: false (execution)
 - Test rollback behavior on errors
 - Test checksum validation
 

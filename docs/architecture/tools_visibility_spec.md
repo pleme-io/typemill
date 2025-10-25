@@ -4,7 +4,7 @@
 
 ---
 
-## Public Tools (23 total)
+## Public Tools (28 total)
 
 ### Navigation (8) - Point Queries for IDE Workflows
 - `find_definition`
@@ -16,30 +16,33 @@
 - `get_diagnostics`
 - `get_call_hierarchy`
 
-### Refactoring (7) - Unified Refactoring API
-- `rename.plan`
-- `extract.plan`
-- `inline.plan`
-- `move.plan`
-- `reorder.plan`
-- `transform.plan`
-- `delete.plan`
+### Refactoring (7) - Unified API with dryRun Option
+- `rename` - Rename files, directories, symbols (options.dryRun: true/false)
+- `extract` - Extract function, variable, constant (options.dryRun: true/false)
+- `inline` - Inline variable, function, constant (options.dryRun: true/false)
+- `move` - Move symbols, files, directories (options.dryRun: true/false)
+- `reorder` - Reorder imports, parameters, fields (options.dryRun: true/false)
+- `transform` - Code transformations (options.dryRun: true/false)
+- `delete` - Delete files, directories, dead code (options.dryRun: true/false)
 
-### Workspace (1) - Single Execution Command
-- `workspace.apply_edit`
+### Workspace (4) - Workspace Operations
+- `workspace.create_package`
+- `workspace.extract_dependencies`
+- `workspace.update_members`
+- `workspace.find_replace`
 
 ### System (1) - Health Monitoring
 - `health_check`
 
-### Analysis (6) - Unified Analysis API ✅ **IMPLEMENTED**
+### Analysis (8) - Unified Analysis API ✅ **IMPLEMENTED**
 - `analyze.quality` - Code quality analysis (complexity, smells, maintainability, readability)
 - `analyze.dead_code` - Unused code detection (imports, symbols, parameters, variables, types, unreachable)
 - `analyze.dependencies` - Dependency analysis (imports, graph, circular, coupling, cohesion, depth)
 - `analyze.structure` - Code structure analysis (symbols, hierarchy, interfaces, inheritance, modules)
 - `analyze.documentation` - Documentation quality (coverage, quality, style, examples, todos)
 - `analyze.tests` - Test analysis (coverage, quality, assertions, organization)
-
-**Note**: `analyze.batch` planned but not yet implemented
+- `analyze.batch` - Multi-file batch analysis with optimized AST caching
+- `analyze.module_dependencies` - Rust module dependency analysis for crate extraction
 
 ---
 
@@ -77,8 +80,8 @@
 - `list_files`
 
 ### Legacy Advanced (2) - Low-Level Plumbing
-- `execute_edits` → replaced by `workspace.apply_edit`
-- `execute_batch` → replaced by `analyze.batch` *(future)*
+- `execute_edits` → replaced by unified refactoring API (rename, extract, etc.)
+- `execute_batch` → replaced by `analyze.batch`
 
 ### Legacy Analysis - **FULLY REMOVED** ✅
 The following legacy analysis tools were retired in Proposal 45:

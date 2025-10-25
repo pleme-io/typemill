@@ -3,9 +3,9 @@
 //! Handles basic file utilities: read_file, write_file, list_files
 //!
 //! NOTE: Refactoring file operations (create, delete, move/rename) have been
-//! removed in favor of the Unified Refactoring API:
-//! - Use `delete.plan("file", ...)` + `workspace.apply_edit()` for file deletion
-//! - Use `move.plan("symbol", ...)` + `workspace.apply_edit()` for file moves
+//! removed in favor of the Unified Refactoring API with dryRun:
+//! - Use `delete` with options.dryRun: false for file deletion
+//! - Use `move` with options.dryRun: false for file moves
 //! - File creation is typically part of extract/move operations
 
 use super::{ToolHandler, ToolHandlerContext};

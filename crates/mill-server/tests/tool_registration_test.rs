@@ -1,14 +1,14 @@
 use mill_server::handlers::plugin_dispatcher::create_test_dispatcher;
 
 #[tokio::test]
-async fn test_all_36_public_tools_are_registered() {
+async fn test_all_28_public_tools_are_registered() {
     let dispatcher = create_test_dispatcher().await;
     dispatcher.initialize().await.unwrap();
 
     let registry = dispatcher.tool_registry.lock().await;
     let registered_tools = registry.list_tools();
 
-    const EXPECTED_TOOLS: [&str; 36] = [
+    const EXPECTED_TOOLS: [&str; 28] = [
         // Navigation (8) - get_document_symbols moved to internal
         "find_definition",
         "find_references",
@@ -18,15 +18,7 @@ async fn test_all_36_public_tools_are_registered() {
         "get_symbol_info",
         "get_diagnostics",
         "get_call_hierarchy",
-        // Refactoring Plans (7)
-        "rename.plan",
-        "extract.plan",
-        "inline.plan",
-        "move.plan",
-        "reorder.plan",
-        "transform.plan",
-        "delete.plan",
-        // Quick Operations (7) - one-step plan + apply for each refactoring type
+        // Quick Operations (7) - Unified dryRun API
         "rename",
         "extract",
         "inline",
@@ -34,8 +26,7 @@ async fn test_all_36_public_tools_are_registered() {
         "reorder",
         "transform",
         "delete",
-        // Workspace (5)
-        "workspace.apply_edit",
+        // Workspace (4)
         "workspace.create_package",
         "workspace.extract_dependencies",
         "workspace.update_members",

@@ -387,7 +387,7 @@ export function func{}() {{
     }
 }
 
-/// Test unified refactoring API: rename → workspace.apply_edit
+/// Test unified refactoring API with dryRun option
 #[tokio::test]
 async fn test_unified_refactoring_rename() {
     let workspace = TestWorkspace::new();
@@ -412,54 +412,44 @@ export function caller() {
     // Wait for LSP initialization
     tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
 
-    // Step 1: Generate rename plan
-    let plan_response = client
+    // Execute rename with unified API (dryRun: false)
+    let apply_response = client
         .call_tool(
             "rename",
             json!({
                 "filePath": test_file.to_string_lossy(),
                 "line": 2,
                 "character": 17,
-                "newName": "newFunctionName"
+                "newName": "newFunctionName",
+                "options": {
+                    "dryRun": false
+                }
             }),
         )
         .await;
 
-    // Verify plan was generated
-    if let Ok(plan_value) = plan_response {
-        if let Some(result) = plan_value.get("result") {
-            // Step 2: Apply the plan using workspace.apply_edit
-            let apply_response = client
-                .call_tool(
-                    "workspace.apply_edit",
-                    json!({
-                        "plan": result
-                    }),
-                )
-                .await;
+    // Verify edit was applied successfully
+    if let Ok(apply_value) = apply_response {
+        if let Some(result) = apply_value.get("result") {
+            assert!(
+                result.get("content").is_some(),
+                "Rename should return result content"
+            );
 
-            // Verify edit was applied successfully
-            if let Ok(apply_value) = apply_response {
-                assert!(
-                    apply_value.get("result").is_some(),
-                    "workspace.apply_edit should return result"
-                );
-
-                // Verify the file was actually modified
-                let modified_content = std::fs::read_to_string(&test_file).unwrap();
-                assert!(
-                    modified_content.contains("newFunctionName"),
-                    "File should contain the new function name"
-                );
-                assert!(
-                    !modified_content.contains("oldFunctionName"),
-                    "File should not contain the old function name"
-                );
-            } else {
-                eprintln!(
-                    "ℹ️  Test 'test_unified_refactoring_rename': workspace.apply_edit skipped (requires LSP support)"
-                );
-            }
+            // Verify the file was actually modified
+            let modified_content = std::fs::read_to_string(&test_file).unwrap();
+            assert!(
+                modified_content.contains("newFunctionName"),
+                "File should contain the new function name"
+            );
+            assert!(
+                !modified_content.contains("oldFunctionName"),
+                "File should not contain the old function name"
+            );
+        } else {
+            eprintln!(
+                "ℹ️  Test 'test_unified_refactoring_rename': Rename skipped (requires LSP support)"
+            );
         }
     } else {
         eprintln!(

@@ -173,7 +173,7 @@ register_handlers_with_logging!(registry, {
     LifecycleHandler => "LifecycleHandler with 3 tools: notify_file_opened, notify_file_saved, notify_file_closed",
     NavigationHandler => "NavigationHandler with 10 tools: find_definition, find_references, ...",
     EditingHandler => "EditingHandler with 9 tools: format_document, get_code_actions, ...",
-    RefactoringHandler => "RefactoringHandler with 8 tools: rename.plan, extract.plan, inline.plan, move.plan, reorder.plan, transform.plan, delete.plan, workspace.apply_edit",
+    RefactoringHandler => "RefactoringHandler with 7 tools: rename, extract, inline, move, reorder, transform, delete (unified dryRun API)",
     FileOpsHandler => "FileOpsHandler with 6 tools: read_file, write_file, ...",
     WorkspaceHandler => "WorkspaceHandler with 7 tools: list_files, analyze.dead_code, ...",
 });
@@ -322,11 +322,11 @@ When `error_on_ambiguity: false` (default):
 | **LifecycleHandler** | 3 | Lifecycle | File open/save/close notifications |
 | **NavigationHandler** | 10 | LSP | Symbol navigation, references, definitions |
 | **EditingHandler** | 9 | LSP | Formatting, code actions, diagnostics |
-| **RefactoringHandler** | 8 | Unified API | Unified refactoring: *.plan commands + workspace.apply_edit |
+| **RefactoringHandler** | 7 | Unified API | Unified refactoring with dryRun option (rename, extract, inline, move, reorder, transform, delete) |
 | **FileOpsHandler** | 6 | File | File read/write/delete/create operations |
 | **WorkspaceHandler** | 7 | Workspace | Workspace-wide analysis and refactoring |
 
-**Total: 46 Tools across 7 Handlers**
+**Total: 45 Tools across 7 Handlers**
 
 ### Dispatch Flow
 
@@ -664,19 +664,22 @@ The system provides comprehensive code intelligence through various tool categor
 - **Path Resolution**: Canonical path handling
 - **File Watching**: Real-time file system monitoring
 
-### 6. Refactoring Tools (Unified API)
-The unified refactoring API provides a consistent `plan -> apply` pattern for all refactoring operations:
+### 6. Refactoring Tools (Unified API with dryRun)
+The unified refactoring API provides a consistent dryRun option for all refactoring operations:
 
-- **Planning Tools**: Generate refactoring plans without modifying files
-  - `rename.plan` - Plan symbol, file, or directory rename
-  - `extract.plan` - Plan code extraction (function, variable, constant)
-  - `inline.plan` - Plan inlining (variable, function)
-  - `move.plan` - Plan moving code between files/modules
-  - `reorder.plan` - Plan reordering (parameters, imports)
-  - `transform.plan` - Plan code transformations (async conversion, etc.)
-  - `delete.plan` - Plan deletion of unused code
-- **Application Tool**: Execute any refactoring plan
-  - `workspace.apply_edit` - Apply plans with atomic execution, checksum validation, and rollback
+- **Refactoring Tools**: All support `options.dryRun: true` (preview) or `false` (execute)
+  - `rename` - Symbol, file, or directory rename with import updates
+  - `extract` - Code extraction (function, variable, constant)
+  - `inline` - Inlining (variable, function)
+  - `move` - Moving code between files/modules
+  - `reorder` - Reordering (parameters, imports)
+  - `transform` - Code transformations (async conversion, etc.)
+  - `delete` - Deletion of unused code
+
+**Features**:
+- Default: `dryRun: true` (safe preview without filesystem modifications)
+- Atomic execution with checksum validation and rollback on errors
+- Single-step execution: `rename` with `dryRun: false` applies changes directly
 
 ## Configuration Management
 

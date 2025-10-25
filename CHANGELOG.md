@@ -160,7 +160,7 @@ The project underwent a complete architectural transformation from TypeScript/No
 - **stdin and File Input Support** - Handle large JSON payloads for tool command
   - `--input-file <path>` reads arguments from file
   - Args value `"-"` reads from stdin
-  - Enables dogfooding of `rename.plan` + `workspace.apply_edit` workflow
+  - Originally for two-step workflow (renamed to unified API in Phase 5)
   - Solves shell argument limit issues (600KB+ plans)
 
 #### Fixed
@@ -216,12 +216,13 @@ The project underwent a complete architectural transformation from TypeScript/No
   - Markdown link updates in documentation
   - TOML/YAML config file updates for build configs and CI/CD
   - Smart path detection (requires `/` or file extension)
-  - All edits surface in `rename.plan` dry-run for review
+  - All edits surface in rename dry-run (options.dryRun: true) for review
 
-- **Unified Refactoring API** - Complete `plan -> apply` refactoring pattern
-  - `rename.plan`, `extract.plan`, `inline.plan`, `move.plan`, `reorder.plan`, `transform.plan`, `delete.plan`
-  - `workspace.apply_edit` executes plans atomically with rollback
+- **Unified Refactoring API** - Integrated dryRun option (migrated to unified API in Phase 5)
+  - Originally: Two-step pattern with `.plan` tools and `workspace.apply_edit`
+  - Now: Single tools with `options.dryRun: true/false`
   - Safe dry-run previews without filesystem modifications
+  - Atomic execution with rollback on errors
 
 - **Unified Analysis API** - 6 analysis tools with 26 detection kinds
   - `analyze.quality` - complexity, smells, maintainability, readability
@@ -253,7 +254,7 @@ The project underwent a complete architectural transformation from TypeScript/No
 
 #### Removed
 
-- **Legacy Refactoring Tools** - Replaced by unified `*.plan` + `workspace.apply_edit` API
+- **Legacy Refactoring Tools** - Replaced by unified API (evolved to dryRun option in Phase 5)
 - **Dead-Weight Analysis Tools** - Removed tools fully covered by unified analysis API
 - **Internal Tool Count** - Reduced from 25 → 20 tools
 
@@ -437,7 +438,7 @@ The project underwent a complete architectural transformation from TypeScript/No
 - **Cross-platform installation script** - Enterprise-grade `install.sh` with support for macOS, Ubuntu/Debian, Fedora/RHEL, and Arch
 - **Plugin architecture completion** - Full language adapter migration with composable plugin system
 - **Java AST support** - Tree-sitter based parser integration
-- **Refactoring tools** - Full AST-based implementation for extract_function, inline_variable, and extract_variable (later migrated to unified `*.plan` + `workspace.apply_edit` API)
+- **Refactoring tools** - Full AST-based implementation for extract_function, inline_variable, and extract_variable (evolved through unified API phases, now using dryRun option)
 - **SWC-based AST parsing** - TypeScript/JavaScript AST parsing with native Rust performance
 - **VFS (Virtual Filesystem)** - Optional experimental feature (Unix only, feature-gated)
 - **44 MCP Tools** - Complete implementation across all categories
@@ -742,7 +743,7 @@ This release represents a complete architectural transformation, implementing ad
   - Symlink handling - correctly resolves and edits target files
   - Multi-file workspace edits for complex rename operations across multiple files
   - Comprehensive validation for file existence, permissions, and types
-  - `dry_run` parameter for safe preview mode on both `rename_symbol` and `rename_symbol_strict` (legacy tools, later replaced by unified `rename.plan` + `workspace.apply_edit` API in Rust implementation)
+  - `dry_run` parameter for safe preview mode on both `rename_symbol` and `rename_symbol_strict` (legacy tools, evolved through unified API phases, now using options.dryRun)
 
 ### Enhanced
 
@@ -896,7 +897,7 @@ Your contributions help make mill better for everyone! 🙏
 - **BREAKING**: Complete redesign of MCP tool API from position-based to symbol name/kind-based lookup
 - `find_definition` now accepts `symbol_name` and `symbol_kind` instead of `line` and `character`
 - `find_references` now accepts `symbol_name` and `symbol_kind` instead of `line` and `character`
-- `rename_symbol` now accepts `symbol_name` and `symbol_kind` instead of `line` and `character` (legacy tool, later replaced by unified `rename.plan` + `workspace.apply_edit` API in Rust implementation)
+- `rename_symbol` now accepts `symbol_name` and `symbol_kind` instead of `line` and `character` (legacy tool, evolved through unified API phases, now using unified rename tool)
 - Enhanced LSP stderr forwarding directly to MCP stderr for better debugging
 - Improved position accuracy for `SymbolInformation` with file content analysis
 
@@ -998,7 +999,7 @@ Your contributions help make mill better for everyone! 🙏
 
 ### Added
 
-- `rename_symbol` MCP tool for refactoring symbols across codebases (legacy tool, later replaced by unified `rename.plan` + `workspace.apply_edit` API in Rust implementation)
+- `rename_symbol` MCP tool for refactoring symbols across codebases (legacy tool, evolved through unified API phases, now using unified rename tool)
 - Enhanced error handling for LSP server failures
 
 ### Changed

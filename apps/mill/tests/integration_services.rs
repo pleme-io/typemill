@@ -229,8 +229,8 @@ async fn test_cache_performance_improvement() {
 
 // Note: test_workspace_edit_in_process removed - used internal tool 'apply_workspace_edit'
 // that is no longer part of the public MCP API. This was a performance stress test
-// for the internal workspace edit mechanism. The public equivalent (workspace.apply_edit)
-// requires a plan-based API structure that would need significant test refactoring.
+// for the internal workspace edit mechanism. The public equivalent is now the unified
+// refactoring API (rename, extract, etc. with options.dryRun: false).
 #[allow(dead_code)]
 async fn test_workspace_edit_in_process_removed() {
     // Function removed - see comment above

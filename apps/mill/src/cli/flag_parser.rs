@@ -121,15 +121,7 @@ pub fn parse_flags_to_json(
     flags: HashMap<String, String>,
 ) -> Result<Value, FlagParseError> {
     match tool_name {
-        // Plan tools (two-step: plan -> apply)
-        "rename" => parse_rename_flags(flags),
-        "extract" => parse_extract_flags(flags),
-        "move" => parse_move_flags(flags),
-        "inline" => parse_inline_flags(flags),
-        "reorder" => parse_reorder_flags(flags),
-        "transform" => parse_transform_flags(flags),
-        "delete" => parse_delete_flags(flags),
-        // Quick tools (one-step: plan + apply) - use same flag parsers
+        // Refactoring tools (unified dryRun API)
         "rename" => parse_rename_flags(flags),
         "extract" => parse_extract_flags(flags),
         "move" => parse_move_flags(flags),

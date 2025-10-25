@@ -371,27 +371,30 @@ Additional codes must be documented before release.
   - Optional `range` for precise deletions.
 - `options.aggressive`: boolean (default false).
 
-### Apply Command
+### Unified Refactoring API (with dryRun option)
 
-#### `workspace.apply_edit`
+All refactoring tools (`rename`, `extract`, `inline`, `move`, `reorder`, `transform`, `delete`) support execution via the `options` parameter:
+
 ```json
 {
-  "plan": { ... },
+  "target": { ... },
+  "newName": "...",  // or other operation-specific params
   "options": {
     "dryRun": false,
-    "validate_checksums": true,
-    "validate_plan_type": true,
-    "force": false,
-    "rollback_on_error": true
+    "validateChecksums": true,
+    "force": false
   }
 }
 ```
-- `plan` must include `plan_type`, `plan_version`, and (when required) `file_checksums`.
-- `dryRun`: when true, simulate edits without file writes; still validates.
-- `validate_checksums`: compares provided hashes; failure returns error code `STALE_PLAN`.
-- `validate_plan_type`: ensures plan structure matches expected schema.
-- `force`: bypasses validations (sets `warnings` entry `VALIDATION_SKIPPED`).
-- `rollback_on_error`: when true, partial application reverts edits via snapshot.
+
+**Options:**
+- `dryRun`: when `true` (default), preview changes without modifying files; when `false`, execute changes
+- `validateChecksums`: compares file hashes before applying; failure returns error code `STALE_PLAN`
+- `force`: bypasses validations (sets `warnings` entry `VALIDATION_SKIPPED`)
+
+**Execution:**
+- Default behavior: `dryRun: true` returns preview plan
+- Explicit execution: `dryRun: false` applies changes atomically with rollback on error
 
 #### Apply Response
 ```json

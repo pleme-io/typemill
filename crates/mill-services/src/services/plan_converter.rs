@@ -103,13 +103,24 @@ impl PlanConverter {
         // Extract consolidation metadata if this is a consolidation operation
         let consolidation = self.extract_consolidation_metadata(plan, &workspace_edit)?;
 
+        // Extract refactoring kind from plan for intent name
+        let intent_name = match plan {
+            RefactorPlan::RenamePlan(p) => &p.metadata.kind,
+            RefactorPlan::ExtractPlan(p) => &p.metadata.kind,
+            RefactorPlan::InlinePlan(p) => &p.metadata.kind,
+            RefactorPlan::MovePlan(p) => &p.metadata.kind,
+            RefactorPlan::ReorderPlan(p) => &p.metadata.kind,
+            RefactorPlan::TransformPlan(p) => &p.metadata.kind,
+            RefactorPlan::DeletePlan(p) => &p.metadata.kind,
+        };
+
         Ok(EditPlan {
             source_file: String::new(), // Multi-file workspace edit
             edits,
             dependency_updates: Vec::new(), // Handled separately by plan-specific logic
             validations: Vec::new(),
             metadata: EditPlanMetadata {
-                intent_name: "workspace.apply_edit".to_string(),
+                intent_name: intent_name.clone(),
                 intent_arguments: serde_json::to_value(plan).unwrap(),
                 created_at: chrono::Utc::now(),
                 complexity: plan.complexity(),
