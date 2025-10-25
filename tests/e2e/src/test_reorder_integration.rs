@@ -57,7 +57,7 @@ pub fn test() {}
         json!([]),
     );
 
-    let plan_result = client.call_tool("reorder.plan", params).await;
+    let plan_result = client.call_tool("reorder", params).await;
 
     match plan_result {
         Ok(response) => {
@@ -143,7 +143,7 @@ pub fn test() {
         json!(["z", "x", "y"]),
     );
 
-    let plan_result = client.call_tool("reorder.plan", params).await;
+    let plan_result = client.call_tool("reorder", params).await;
 
     match plan_result {
         Ok(response) => {
@@ -228,7 +228,7 @@ async fn test_reorder_fields_checksum_validation() {
         json!(["z", "y", "x"]),
     );
 
-    let plan_result = client.call_tool("reorder.plan", params).await;
+    let plan_result = client.call_tool("reorder", params).await;
 
     match plan_result {
         Ok(response) => {
@@ -311,7 +311,7 @@ async fn test_reorder_statements_plan_structure() {
         json!(["let a = 1;", "let b = 2;", "let c = 3;"]),
     );
 
-    let plan_result = client.call_tool("reorder.plan", params).await;
+    let plan_result = client.call_tool("reorder", params).await;
 
     match plan_result {
         Ok(response) => {

@@ -56,7 +56,7 @@ async fn test_transform_if_to_match_plan_and_apply() {
 
     let params = build_transform_params(&workspace, "transform_if.rs", "if_to_match", 1, 4, 7, 5);
 
-    let plan_result = client.call_tool("transform.plan", params).await;
+    let plan_result = client.call_tool("transform", params).await;
 
     match plan_result {
         Ok(response) => {
@@ -130,7 +130,7 @@ async fn test_transform_add_async_dry_run() {
 
     let params = build_transform_params(&workspace, "add_async.rs", "add_async", 0, 7, 0, 17);
 
-    let plan_result = client.call_tool("transform.plan", params).await;
+    let plan_result = client.call_tool("transform", params).await;
 
     match plan_result {
         Ok(response) => {
@@ -210,7 +210,7 @@ async fn test_transform_fn_to_closure_checksum_validation() {
 
     let params = build_transform_params(&workspace, "closure.rs", "fn_to_closure", 1, 4, 3, 5);
 
-    let plan_result = client.call_tool("transform.plan", params).await;
+    let plan_result = client.call_tool("transform", params).await;
 
     match plan_result {
         Ok(response) => {
@@ -289,7 +289,7 @@ async fn test_transform_plan_metadata_structure() {
 
     let params = build_transform_params(&workspace, "meta.rs", "if_to_match", 1, 4, 5, 5);
 
-    let plan_result = client.call_tool("transform.plan", params).await;
+    let plan_result = client.call_tool("transform", params).await;
 
     match plan_result {
         Ok(response) => {

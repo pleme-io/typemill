@@ -15,7 +15,7 @@ use serde_json::json;
 async fn test_delete_file_plan_and_apply() {
     run_tool_test_with_plan_validation(
         &[("to_delete.rs", "pub fn unused() {}\n")],
-        "delete.plan",
+        "delete",
         |ws| build_delete_params(ws, "to_delete.rs", "file"),
         |plan| {
             assert_eq!(plan.get("planType").and_then(|v| v.as_str()), Some("deletePlan"),
@@ -35,7 +35,7 @@ async fn test_delete_file_plan_and_apply() {
 async fn test_delete_file_dry_run_preview() {
     run_dry_run_test(
         &[("keep_for_now.rs", "pub fn test() {}\n")],
-        "delete.plan",
+        "delete",
         |ws| build_delete_params(ws, "keep_for_now.rs", "file"),
         |ws| {
             assert!(ws.file_exists("keep_for_now.rs"),
@@ -55,7 +55,7 @@ async fn test_delete_file_checksum_validation() {
     let mut client = TestClient::new(workspace.path());
     let params = build_delete_params(&workspace, "file.rs", "file");
 
-    let plan = client.call_tool("delete.plan", params).await.unwrap()
+    let plan = client.call_tool("delete", params).await.unwrap()
         .get("result").and_then(|r| r.get("content")).cloned().unwrap();
 
     // Modify file to invalidate checksum
@@ -82,7 +82,7 @@ async fn test_delete_directory_plan_and_apply() {
     let mut client = TestClient::new(workspace.path());
     let params = build_delete_params(&workspace, "temp_dir", "directory");
 
-    let plan = client.call_tool("delete.plan", params).await
+    let plan = client.call_tool("delete", params).await
         .expect("delete.plan should succeed")
         .get("result").and_then(|r| r.get("content"))
         .cloned().expect("Plan should exist");
@@ -115,7 +115,7 @@ fn unused_helper() -> i32 {
     let mut client = TestClient::new(workspace.path());
     let file_path = workspace.absolute_path("dead_code.rs");
 
-    let plan_result = client.call_tool("delete.plan", json!({
+    let plan_result = client.call_tool("delete", json!({
         "target": {
             "kind": "dead_code",
             "path": file_path.to_string_lossy()

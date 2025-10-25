@@ -26,7 +26,7 @@ async fn test_extract_function_plan_basic_workflow() {
     let mut client = TestClient::new(workspace.path());
     let file_path = workspace.absolute_path("calc.rs");
 
-    let plan_result = client.call_tool("extract.plan", json!({
+    let plan_result = client.call_tool("extract", json!({
         "kind": "function",
         "source": {
             "filePath": file_path.to_string_lossy(),
@@ -78,7 +78,7 @@ async fn test_extract_variable_dry_run() {
     let mut client = TestClient::new(workspace.path());
     let file_path = workspace.absolute_path("vars.rs");
 
-    let plan_result = client.call_tool("extract.plan", json!({
+    let plan_result = client.call_tool("extract", json!({
         "kind": "variable",
         "source": {
             "filePath": file_path.to_string_lossy(),
@@ -128,7 +128,7 @@ async fn test_extract_constant_checksum_validation() {
     let mut client = TestClient::new(workspace.path());
     let file_path = workspace.absolute_path("constants.rs");
 
-    let plan_result = client.call_tool("extract.plan", json!({
+    let plan_result = client.call_tool("extract", json!({
         "kind": "constant",
         "source": {
             "filePath": file_path.to_string_lossy(),
@@ -180,7 +180,7 @@ async fn test_extract_plan_metadata_structure() {
     let mut client = TestClient::new(workspace.path());
     let file_path = workspace.absolute_path("meta.rs");
 
-    let plan_result = client.call_tool("extract.plan", json!({
+    let plan_result = client.call_tool("extract", json!({
         "kind": "variable",
         "source": {
             "filePath": file_path.to_string_lossy(),

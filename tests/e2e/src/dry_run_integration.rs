@@ -15,7 +15,7 @@ use crate::test_helpers::*;
 async fn test_rename_file_dry_run_does_not_modify_disk() {
     run_dry_run_test(
         &[("original.txt", "content")],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "original.txt", "renamed.txt", "file"),
         |ws| {
             assert!(ws.file_exists("original.txt"), "Original file should still exist after dry run");
@@ -33,7 +33,7 @@ async fn test_rename_file_dry_run_does_not_modify_disk() {
 async fn test_create_file_dry_run_does_not_create_file() {
     run_dry_run_test(
         &[("source.rs", "pub fn extract_me() {}\n")],
-        "delete.plan",
+        "delete",
         |ws| build_delete_params(ws, "source.rs", "file"),
         |ws| {
             assert!(ws.file_exists("source.rs"), "Source file should still exist");
@@ -48,7 +48,7 @@ async fn test_create_file_dry_run_does_not_create_file() {
 async fn test_delete_file_dry_run_does_not_delete_file() {
     run_dry_run_test(
         &[("to_delete.txt", "this should not be deleted")],
-        "delete.plan",
+        "delete",
         |ws| build_delete_params(ws, "to_delete.txt", "file"),
         |ws| {
             assert!(ws.file_exists("to_delete.txt"), "File should still exist after dry run");
@@ -67,7 +67,7 @@ async fn test_rename_directory_dry_run_does_not_modify_disk() {
             ("old_dir/file1.txt", "content1"),
             ("old_dir/file2.txt", "content2"),
         ],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "old_dir", "new_dir", "directory"),
         |ws| {
             assert!(ws.file_exists("old_dir"), "Old directory should still exist");
@@ -85,7 +85,7 @@ async fn test_rename_directory_dry_run_does_not_modify_disk() {
 async fn test_dry_run_vs_execution_consistency() {
     run_dry_run_test(
         &[("file.rs", "pub fn test() {}\n")],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "file.rs", "renamed.rs", "file"),
         |ws| {
             assert!(ws.file_exists("file.rs"), "Original should exist");
@@ -104,7 +104,7 @@ async fn test_dry_run_rename_file_shows_accurate_files_to_modify() {
             ("utils.rs", "pub fn helper() {}\n"),
             ("main.rs", "use utils::helper;\n"),
         ],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "utils.rs", "helpers.rs", "file"),
         |ws| {
             assert!(ws.file_exists("utils.rs"), "Original file should exist");
@@ -124,7 +124,7 @@ async fn test_dry_run_rename_directory_shows_import_updates() {
             ("old_module/lib.rs", "pub fn func() {}\n"),
             ("other.rs", "use old_module::func;\n"),
         ],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "old_module", "new_module", "directory"),
         |ws| {
             assert!(ws.file_exists("old_module"), "Old directory should exist");
@@ -146,7 +146,7 @@ async fn test_dry_run_rename_directory_shows_files_list() {
             ("module/b.rs", "pub fn b() {}\n"),
             ("module/c.rs", "pub fn c() {}\n"),
         ],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "module", "renamed_module", "directory"),
         |ws| {
             assert!(ws.file_exists("module"), "Old directory should exist");
@@ -169,7 +169,7 @@ async fn test_dry_run_rename_file_rust_mod_declarations() {
             ("src/utils.rs", "pub fn helper() {}\n"),
             ("src/main.rs", "use crate::utils::helper;\n"),
         ],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "src/utils.rs", "src/helpers.rs", "file"),
         |ws| {
             assert!(ws.file_exists("src/utils.rs"), "Original should exist");

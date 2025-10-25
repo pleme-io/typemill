@@ -47,7 +47,7 @@ async fn test_inline_variable_plan_and_apply() {
 
     let params = build_inline_params(&workspace, "inline_var.rs", "variable", 1, 8);
 
-    let plan_result = client.call_tool("inline.plan", params).await;
+    let plan_result = client.call_tool("inline", params).await;
 
     match plan_result {
         Ok(response) => {
@@ -115,7 +115,7 @@ pub fn test() -> i32 {
 
     let params = build_inline_params(&workspace, "inline_fn.rs", "function", 0, 3);
 
-    let plan_result = client.call_tool("inline.plan", params).await;
+    let plan_result = client.call_tool("inline", params).await;
 
     match plan_result {
         Ok(response) => {
@@ -193,7 +193,7 @@ pub fn get_buffer() -> Vec<u8> {
 
     let params = build_inline_params(&workspace, "inline_const.rs", "constant", 0, 6);
 
-    let plan_result = client.call_tool("inline.plan", params).await;
+    let plan_result = client.call_tool("inline", params).await;
 
     match plan_result {
         Ok(response) => {
@@ -263,7 +263,7 @@ pub fn use_twice() -> i32 {
 
     let params = build_inline_params(&workspace, "warnings.rs", "function", 0, 7);
 
-    let plan_result = client.call_tool("inline.plan", params).await;
+    let plan_result = client.call_tool("inline", params).await;
 
     match plan_result {
         Ok(response) => {

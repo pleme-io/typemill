@@ -1,4 +1,4 @@
-//! Integration tests for rename.plan and workspace.apply_edit (MIGRATED VERSION)
+//! Integration tests for unified refactoring API with dryRun (MIGRATED VERSION)
 //!
 //! This file demonstrates the test helper consolidation for rename operations:
 //! - BEFORE: 304 lines with duplicated setup/plan/apply/verify logic
@@ -21,7 +21,7 @@ use serde_json::json;
 async fn test_rename_file_plan_and_apply() {
     run_tool_test_with_plan_validation(
         &[("original.rs", "pub fn hello() {}\n")],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "original.rs", "renamed.rs", "file"),
         |plan| {
             assert_eq!(plan.get("planType").and_then(|v| v.as_str()), Some("renamePlan"), "Plan should be RenamePlan");
@@ -45,7 +45,7 @@ async fn test_rename_file_plan_and_apply() {
 async fn test_rename_file_dry_run_preview() {
     run_dry_run_test(
         &[("test.rs", "pub fn test() {}\n")],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "test.rs", "test_renamed.rs", "file"),
         |ws| {
             assert!(ws.file_exists("test.rs"), "Original file should still exist after dry run");
@@ -68,7 +68,7 @@ async fn test_rename_checksum_validation_rejects_stale_plan() {
     let params = build_rename_params(&workspace, "file.rs", "renamed.rs", "file");
 
     // Generate plan
-    let plan = client.call_tool("rename.plan", params).await.unwrap()
+    let plan = client.call_tool("rename", params).await.unwrap()
         .get("result").and_then(|r| r.get("content")).cloned().unwrap();
 
     // Invalidate checksum after plan generated
@@ -93,7 +93,7 @@ async fn test_rename_directory_plan_and_apply() {
             ("old_module/lib.rs", "pub fn old() {}\n"),
             ("old_module/utils.rs", "pub fn util() {}\n"),
         ],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "old_module", "new_module", "directory"),
         |plan| {
             assert_eq!(plan.get("planType").and_then(|v| v.as_str()), Some("renamePlan"), "Should be RenamePlan");

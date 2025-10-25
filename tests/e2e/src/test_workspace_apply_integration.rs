@@ -17,7 +17,7 @@ use serde_json::json;
 async fn test_workspace_apply_discriminated_union_rename() {
     run_tool_test(
         &[("file.rs", "pub fn test() {}\n")],
-        "rename.plan",
+        "rename",
         |ws| build_rename_params(ws, "file.rs", "renamed.rs", "file"),
         |ws| {
             // Verify file was renamed
@@ -42,7 +42,7 @@ async fn test_workspace_apply_discriminated_union_move() {
     let params = build_move_params(&workspace, "src/util.rs", "lib/util.rs", "file");
 
     // Generate and apply plan
-    let plan = client.call_tool("move.plan", params).await.unwrap()
+    let plan = client.call_tool("move", params).await.unwrap()
         .get("result").and_then(|r| r.get("content")).cloned().unwrap();
 
     client.call_tool("workspace.apply_edit", json!({"plan": plan}))
@@ -59,7 +59,7 @@ async fn test_workspace_apply_discriminated_union_move() {
 async fn test_workspace_apply_discriminated_union_delete() {
     run_tool_test(
         &[("obsolete.rs", "pub fn old() {}\n")],
-        "delete.plan",
+        "delete",
         |ws| build_delete_params(ws, "obsolete.rs", "file"),
         |ws| {
             assert!(!ws.file_exists("obsolete.rs"), "File should be deleted");
@@ -79,7 +79,7 @@ async fn test_workspace_apply_checksum_validation_all_planTypes() {
     let params = build_rename_params(&workspace, "check.rs", "new.rs", "file");
 
     // Generate plan
-    let plan = client.call_tool("rename.plan", params).await.unwrap()
+    let plan = client.call_tool("rename", params).await.unwrap()
         .get("result").and_then(|r| r.get("content")).cloned().unwrap();
 
     // Invalidate checksum
@@ -101,7 +101,7 @@ async fn test_workspace_apply_checksum_validation_all_planTypes() {
 async fn test_workspace_apply_dry_run_all_planTypes() {
     run_dry_run_test(
         &[("dry.rs", "pub fn test() {}\n")],
-        "delete.plan",
+        "delete",
         |ws| build_delete_params(ws, "dry.rs", "file"),
         |ws| {
             assert!(ws.file_exists("dry.rs"), "File should NOT be deleted in dry run mode");
@@ -121,7 +121,7 @@ async fn test_workspace_apply_rollback_on_error() {
     let mut client = TestClient::new(workspace.path());
     let params = build_rename_params(&workspace, "rollback.rs", "renamed.rs", "file");
 
-    let plan = client.call_tool("rename.plan", params).await.unwrap()
+    let plan = client.call_tool("rename", params).await.unwrap()
         .get("result").and_then(|r| r.get("content")).cloned().unwrap();
 
     // Apply with rollback_on_error=true (default)
@@ -143,7 +143,7 @@ async fn test_workspace_apply_post_validation_success() {
     let mut client = TestClient::new(workspace.path());
     let params = build_rename_params(&workspace, "validate.rs", "validated.rs", "file");
 
-    let plan = client.call_tool("rename.plan", params).await.unwrap()
+    let plan = client.call_tool("rename", params).await.unwrap()
         .get("result").and_then(|r| r.get("content")).cloned().unwrap();
 
     // Apply with post-validation (using simple passing command)
@@ -180,7 +180,7 @@ async fn test_workspace_apply_post_validation_failure() {
     let mut client = TestClient::new(workspace.path());
     let params = build_delete_params(&workspace, "fail.rs", "file");
 
-    let plan = client.call_tool("delete.plan", params).await.unwrap()
+    let plan = client.call_tool("delete", params).await.unwrap()
         .get("result").and_then(|r| r.get("content")).cloned().unwrap();
 
     // Apply with post-validation (using failing command)
@@ -210,7 +210,7 @@ async fn test_workspace_apply_result_structure() {
     let mut client = TestClient::new(workspace.path());
     let params = build_delete_params(&workspace, "result.rs", "file");
 
-    let plan = client.call_tool("delete.plan", params).await.unwrap()
+    let plan = client.call_tool("delete", params).await.unwrap()
         .get("result").and_then(|r| r.get("content")).cloned().unwrap();
 
     // Apply plan

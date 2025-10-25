@@ -37,7 +37,7 @@ async fn test_move_folder_with_imports() {
         let params = build_move_params(&workspace, case.old_file_path, case.new_file_path, "directory");
 
         let plan = client
-            .call_tool("move.plan", params)
+            .call_tool("move", params)
             .await
             .expect("move.plan should succeed")
             .get("result")
@@ -77,7 +77,7 @@ async fn test_move_folder_with_imports() {
 async fn test_move_file_plan_and_apply() {
     run_tool_test_with_plan_validation(
         &[("src/helper.rs", "pub fn helper() -> i32 { 42 }\n")],
-        "move.plan",
+        "move",
         |ws| build_move_params(ws, "src/helper.rs", "lib/helper.rs", "file"),
         |plan| {
             assert_eq!(plan.get("planType").and_then(|v| v.as_str()), Some("movePlan"), "Should be MovePlan");
@@ -99,7 +99,7 @@ async fn test_move_file_plan_and_apply() {
 async fn test_move_file_dry_run_preview() {
     run_dry_run_test(
         &[("source/file.rs", "pub fn test() {}\n")],
-        "move.plan",
+        "move",
         |ws| build_move_params(ws, "source/file.rs", "target/file.rs", "file"),
         |ws| {
             assert!(ws.file_exists("source/file.rs"), "Source should still exist");
@@ -121,7 +121,7 @@ async fn test_move_file_checksum_validation() {
     let mut client = TestClient::new(workspace.path());
     let params = build_move_params(&workspace, "dir1/data.rs", "dir2/data.rs", "file");
 
-    let plan = client.call_tool("move.plan", params).await.unwrap()
+    let plan = client.call_tool("move", params).await.unwrap()
         .get("result").and_then(|r| r.get("content")).cloned().unwrap();
 
     // Invalidate checksum after plan generated
@@ -149,7 +149,7 @@ async fn test_move_module_plan_structure() {
 
     let plan = client
         .call_tool(
-            "move.plan",
+            "move",
             build_move_params(&workspace, "old_location/module.rs", "new_location/module.rs", "file"),
         )
         .await
