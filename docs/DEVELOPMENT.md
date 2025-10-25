@@ -1,4 +1,19 @@
-# Language Plugin Development
+# Development Guide
+
+Complete guide for TypeMill development covering plugin creation, refactoring workflows, and utility libraries.
+
+---
+
+## Table of Contents
+
+1. [Plugin Development](#plugin-development)
+2. [Language Utilities (mill-lang-common)](#language-utilities-mill-lang-common)
+3. [Workflows & Refactoring](#workflows--refactoring)
+4. [Additional Resources](#additional-resources)
+
+---
+
+# Plugin Development
 
 Fast reference for implementing new language plugins.
 
@@ -98,7 +113,7 @@ TypeMill uses compile-time auto-discovery via the `mill_plugin!` macro and `inve
 In your plugin's `src/lib.rs`:
 
 ```rust
-use cb_plugin_api::mill_plugin;
+use mill_plugin_api::mill_plugin;
 
 mill_plugin! {
     name: "python",
@@ -112,17 +127,17 @@ mill_plugin! {
 
 ### Step 2: Add to Plugin Bundle
 
-Edit `../../crates/mill-plugin-bundle/Cargo.toml`:
+Edit `crates/mill-plugin-bundle/Cargo.toml`:
 
 ```toml
 [dependencies]
 mill-lang-python = { path = "../mill-lang-python" }
 ```
 
-Edit `../../crates/mill-plugin-bundle/src/lib.rs`:
+Edit `crates/mill-plugin-bundle/src/lib.rs`:
 
 ```rust
-use cb_lang_python::PythonPlugin;
+use mill_lang_python::PythonPlugin;
 
 fn _force_plugin_linkage() {
     let _: Option<PythonPlugin> = None;
@@ -155,21 +170,6 @@ fn _force_plugin_linkage() {
 
 **When to use:** Rust parser available, performance critical
 
-## mill-lang-common Utilities
-
-Essential utilities to reduce boilerplate (~460 lines saved):
-
-| Utility | Purpose | Always Use? |
-|---------|---------|-------------|
-| `SubprocessAstTool` | Spawn external parsers | For subprocess parsers |
-| `run_ast_tool()` | Execute subprocess + deserialize | For subprocess parsers |
-| `ImportGraphBuilder` | Build ImportGraph | ✅ Always |
-| `parse_with_fallback()` | Resilient parsing (AST → regex) | For subprocess parsers |
-| `read_manifest()` | Standardized file I/O | ✅ Always |
-| `LineExtractor` | Extract/replace source lines | For refactoring |
-| `ErrorBuilder` | Rich error context | Recommended |
-| `parse_import_alias()` | Parse "foo as bar" syntax | If language has aliases |
-
 ## Test Coverage Requirements
 
 | Category | Minimum Tests | What to Test |
@@ -184,22 +184,13 @@ Essential utilities to reduce boilerplate (~460 lines saved):
 
 | Use Case | Best Reference | Location |
 |----------|---------------|----------|
-| Native Rust parsing | Rust plugin | `../../crates/mill-lang-rust/` |
-| Simple document plugin | Markdown plugin | `../../crates/mill-lang-markdown/` |
-| Config file plugin | TOML/YAML plugins | `../../crates/mill-lang-toml/`, `../../crates/mill-lang-yaml/` |
+| Native Rust parsing | Rust plugin | `crates/mill-lang-rust/` |
+| Simple document plugin | Markdown plugin | `crates/mill-lang-markdown/` |
+| Config file plugin | TOML/YAML plugins | `crates/mill-lang-toml/`, `crates/mill-lang-yaml/` |
 | **Auto-Discovery Pattern** | **All current plugins** | **`src/lib.rs` - `mill_plugin!` macro** |
 | Simple ImportParser only | Markdown plugin | `mill-lang-markdown/src/import_support.rs` |
 | Full import trait suite | Rust plugin | `mill-lang-rust/src/import_support.rs` |
 | WorkspaceSupport | Rust plugin | `mill-lang-rust/src/workspace_support.rs` |
-
-## Plugin Comparison
-
-| Plugin | Parser Type | LOC | Import Support | Workspace Support | Tests |
-|--------|-------------|-----|----------------|-------------------|-------|
-| Rust | Native (`syn`) | ~450 | ✅ | ✅ | 30+ |
-| Go | Subprocess | ~520 | ✅ | ✅ | 35+ |
-| Python | Subprocess | ~480 | ✅ | ✅ | 32+ |
-| TypeScript | Subprocess | ~510 | ✅ | ✅ | 33+ |
 
 ## Implementation Checklist
 
@@ -269,26 +260,6 @@ Essential utilities to reduce boilerplate (~460 lines saved):
 | `cargo nextest run --workspace --lib` | All language plugin tests |
 | `RUST_LOG=debug cargo nextest run -p mill-lang-mylanguage` | With verbose logging |
 
-## Troubleshooting
-
-| Problem | Cause | Solution |
-|---------|-------|----------|
-| Plugin not found during build | Not registered | Check `mill_plugin!` macro in src/lib.rs, verify bundle link, check `_force_plugin_linkage()` |
-| Plugin not auto-discovered | Linker optimization | Ensure plugin is in `_force_plugin_linkage()` in bundle's lib.rs |
-| ImportGraph has no imports | Not being called | Verify `parse_imports()` called, check regex patterns, use debug logging |
-| LanguageMetadata constant not found | Build error | Run `cargo clean && cargo build -p mill-lang-yourlang` |
-| Import rewriting changes non-imports | Regex too broad | Use AST-based rewriting or specific regex: `^import\s+{}`  |
-| Workspace operations corrupt manifest | String manipulation | Use parser library (`toml_edit`, `serde_json`), validate output |
-| Tests fail with "plugin not found" | Missing from bundle | Add to `mill-plugin-bundle/Cargo.toml` and rebuild |
-
-## Code Examples
-
-See existing plugins for complete reference implementations:
-- **Rust**: `../../crates/mill-lang-rust/` - Full-featured with all capabilities
-- **Markdown**: `../../crates/mill-lang-markdown/` - Simple plugin with basic import support
-- **TOML/YAML**: `../../crates/mill-lang-toml/`, `../../crates/mill-lang-yaml/` - Config file plugins
-- **TypeScript**: `../../crates/mill-lang-typescript/` - JavaScript ecosystem plugin
-
 ## Plugin Dispatch Patterns
 
 > **📌 IMPORTANT: Capability-Based Dispatch is the ONLY Correct Pattern**
@@ -324,114 +295,7 @@ let updated_content = manifest_updater
 
 ### New Capability Traits
 
-**1. ManifestUpdater** - For manifest file updates
-
-```rust
-#[async_trait]
-pub trait ManifestUpdater: Send + Sync {
-    async fn update_dependency(
-        &self,
-        manifest_path: &Path,
-        old_name: &str,
-        new_name: &str,
-        new_version: Option<&str>,
-    ) -> PluginResult<String>;
-}
-
-// Implementation in language plugin:
-impl cb_plugin_api::ManifestUpdater for RustPlugin {
-    async fn update_dependency(...) -> PluginResult<String> {
-        // Update Cargo.toml dependencies
-    }
-}
-
-// Discovery method:
-fn manifest_updater(&self) -> Option<&dyn ManifestUpdater> {
-    Some(self)
-}
-```
-
-**2. ModuleLocator** - For module file discovery
-
-```rust
-#[async_trait]
-pub trait ModuleLocator: Send + Sync {
-    async fn locate_module_files(
-        &self,
-        package_path: &Path,
-        module_path: &str,
-    ) -> PluginResult<Vec<PathBuf>>;
-}
-
-// Implementation in language plugin:
-impl cb_plugin_api::ModuleLocator for RustPlugin {
-    async fn locate_module_files(...) -> PluginResult<Vec<PathBuf>> {
-        // Locate files for module path like "crate::utils::helpers"
-    }
-}
-
-// Discovery method:
-fn module_locator(&self) -> Option<&dyn ModuleLocator> {
-    Some(self)
-}
-```
-
-**3. RefactoringProvider** - For AST refactoring operations
-
-```rust
-#[async_trait]
-pub trait RefactoringProvider: Send + Sync {
-    fn supports_inline_variable(&self) -> bool;
-    fn supports_extract_function(&self) -> bool;
-    fn supports_extract_variable(&self) -> bool;
-
-    async fn plan_inline_variable(
-        &self,
-        source: &str,
-        variable_line: u32,
-        variable_col: u32,
-        file_path: &str,
-    ) -> PluginResult<EditPlan>;
-
-    async fn plan_extract_function(
-        &self,
-        source: &str,
-        start_line: u32,
-        end_line: u32,
-        function_name: &str,
-        file_path: &str,
-    ) -> PluginResult<EditPlan>;
-
-    async fn plan_extract_variable(
-        &self,
-        source: &str,
-        start_line: u32,
-        start_col: u32,
-        end_line: u32,
-        end_col: u32,
-        variable_name: Option<String>,
-        file_path: &str,
-    ) -> PluginResult<EditPlan>;
-}
-
-// Implementation in language plugin:
-impl cb_plugin_api::RefactoringProvider for RustPlugin {
-    fn supports_inline_variable(&self) -> bool { true }
-    fn supports_extract_function(&self) -> bool { true }
-    fn supports_extract_variable(&self) -> bool { true }
-
-    async fn plan_inline_variable(...) -> PluginResult<EditPlan> {
-        refactoring::plan_inline_variable(source, variable_line, variable_col, file_path)
-            .map_err(|e| PluginError::internal(format!("Rust refactoring error: {}", e)))
-    }
-    // ... other methods
-}
-
-// Discovery method:
-fn refactoring_provider(&self) -> Option<&dyn RefactoringProvider> {
-    Some(self)
-}
-```
+See [docs/architecture/overview.md](architecture/overview.md) for complete details on ManifestUpdater, ModuleLocator, and RefactoringProvider traits.
 
 ### Migration Pattern: Old → New
 
@@ -471,6 +335,303 @@ capability.method().await?
 
 **Results:** 12 cfg guards removed, 2 downcasts eliminated, -48 net lines while adding MORE functionality.
 
+---
+
+# Language Utilities (mill-lang-common)
+
+**Version**: 1.0.0-rc2
+**Location**: `/workspace/crates/mill-lang-common`
+
+Shared functionality for all language plugins to reduce boilerplate and maintain consistency.
+
+## Quick Reference
+
+| Module | Use When | Key Functions |
+|--------|----------|---------------|
+| **subprocess** | External AST parsers needed | `SubprocessAstTool`, `run_ast_tool()` |
+| **import_graph** | Building ImportGraph | `ImportGraphBuilder` |
+| **refactoring** | Code extraction, indentation | `LineExtractor`, `extract_lines()` |
+| **parsing** | AST + fallback parsing | `parse_with_fallback()` |
+| **error_helpers** | Rich errors with context | `rich_error()`, `error_with_context()` |
+| **io** | File operations | `read_manifest()`, `read_source_file()` |
+| **import_parsing** | Import statement parsing | `parse_import_alias()`, `parse_module_path()` |
+
+## Core Utilities
+
+### subprocess
+
+Spawn external AST parsers (Python, Node, Go, Java) with automatic temp file management.
+
+```rust
+use mill_lang_common::{SubprocessAstTool, run_ast_tool};
+
+let tool = SubprocessAstTool::new("node")
+    .with_embedded_str(AST_TOOL_JS)
+    .with_temp_filename("ast_tool.js")
+    .with_arg("analyze-imports");
+
+let result: Vec<MyImport> = run_ast_tool(tool, source)?;
+```
+
+**Builder methods:**
+- `new(runtime: &str)` - Runtime command (e.g., "python3", "node", "go")
+- `with_embedded_str(source: &str)` - Embed tool source code
+- `with_temp_filename(name: &str)` - Temp file name
+- `with_arg(arg: &str)` - Add argument
+- `with_env(key, val)` - Set environment variable
+
+### import_graph
+
+Build `ImportGraph` with consistent structure.
+
+```rust
+use mill_lang_common::ImportGraphBuilder;
+
+let graph = ImportGraphBuilder::new("python")
+    .with_source_file(Some(path))
+    .with_imports(imports)
+    .extract_external_dependencies(is_external_dependency)
+    .with_parser_version("1.0.0")
+    .build();
+```
+
+### refactoring
+
+Extract code ranges and detect indentation.
+
+```rust
+use mill_lang_common::{extract_lines, LineExtractor};
+
+// Extract lines 10-15
+let code = extract_lines(source, 10, 15)?;
+
+// Get indentation
+let indent = LineExtractor::get_indentation_str(source, line_num);
+```
+
+### parsing
+
+Resilient parsing with fallback strategy.
+
+```rust
+use mill_lang_common::parse_with_fallback;
+
+let imports = parse_with_fallback(
+    source,
+    |src| parse_with_ast(src),           // Try AST first
+    |src| parse_with_regex(src),         // Fall back to regex
+    "import parsing"
+)?;
+```
+
+## File Operations
+
+### io
+
+Standardized file I/O with error handling.
+
+```rust
+use mill_lang_common::{read_manifest, read_source_file};
+
+// Read manifest (package.json, Cargo.toml, etc.)
+let content = read_manifest(path).await?;
+
+// Read source file
+let source = read_source_file(path).await?;
+```
+
+## Error Handling
+
+### error_helpers
+
+Rich error construction with context.
+
+```rust
+use mill_lang_common::{rich_error, error_with_context};
+
+// Rich error with multiple context fields
+return Err(rich_error(
+    "Failed to parse AST",
+    &[("file", path), ("parser", "babel"), ("line", &line.to_string())]
+));
+```
+
+## Import Utilities
+
+### import_parsing
+
+Parse import statement syntax.
+
+```rust
+use mill_lang_common::{parse_import_alias, parse_module_path};
+
+// Parse "foo as bar" -> ("foo", Some("bar"))
+let (name, alias) = parse_import_alias("numpy as np");
+
+// Parse "a.b.c" -> vec!["a", "b", "c"]
+let path = parse_module_path("package.module.Class");
+```
+
+## Usage Statistics
+
+Current adoption across 4 plugins (Go, Python, Rust, TypeScript):
+
+| Utility | Go | Python | Rust | TypeScript | Total Uses |
+|---------|---:|-------:|-----:|-----------:|-----------:|
+| SubprocessAstTool | ✅ | ✅ | - | ✅ | 3 |
+| ImportGraphBuilder | ✅ | ✅ | ✅ | ✅ | 4 |
+| read_manifest | ✅ | ✅ | ✅ | ✅ | 4 |
+| LineExtractor | ✅ | ✅ | ✅ | ✅ | 4 |
+| parse_with_fallback | ✅ | ✅ | - | ✅ | 3 |
+
+**Code reduction**: ~460 lines saved per plugin (average)
+
+## Migration Example
+
+### Before (TypeScript plugin, 40 lines)
+```rust
+let tmp_dir = Builder::new()
+    .prefix("mill-ts-ast")
+    .tempdir()
+    .map_err(|e| PluginError::internal(format!("Failed to create temp dir: {}", e)))?;
+
+let ast_tool_path = tmp_dir.path().join("ast_tool.js");
+std::fs::write(&ast_tool_path, AST_TOOL_JS)
+    .map_err(|e| PluginError::internal(format!("Failed to write AST tool: {}", e)))?;
+
+let output = Command::new("node")
+    .arg(&ast_tool_path)
+    .arg("analyze-imports")
+    .stdin(Stdio::piped())
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .spawn()
+    .map_err(|e| PluginError::external_tool(format!("Failed to spawn node: {}", e)))?;
+// ... 25 more lines of error handling ...
+```
+
+### After (10 lines)
+```rust
+use mill_lang_common::{SubprocessAstTool, run_ast_tool};
+
+let tool = SubprocessAstTool::new("node")
+    .with_embedded_str(AST_TOOL_JS)
+    .with_temp_filename("ast_tool.js")
+    .with_arg("analyze-imports");
+
+let ts_imports: Vec<TsImportInfo> = run_ast_tool(tool, source)?;
+```
+
+**Savings**: 30 lines removed, cleaner code, better error handling
+
+---
+
+# Workflows & Refactoring
+
+Fast reference for workflow automation and refactoring operations.
+
+## Unified Refactoring API (Recommended)
+
+All refactoring operations follow a safe two-step pattern:
+
+| Step | Tool | Purpose | Modifies Files? |
+|------|------|---------|-----------------|
+| 1. Plan | `*.plan` | Preview changes | ❌ No |
+| 2. Apply | `workspace.apply_edit` | Execute changes | ✅ Yes |
+
+### Available Refactorings
+
+| Tool | Purpose | Required Parameters |
+|------|---------|---------------------|
+| `rename.plan` | Rename symbol/file/directory | `file_path`, `line`, `character`, `new_name` |
+| `extract.plan` | Extract function/variable | `file_path`, `range`, `new_name` |
+| `inline.plan` | Inline variable | `file_path`, `line`, `character` |
+| `move.plan` | Move code between files | `kind`, `source`, `destination` |
+| `reorder.plan` | Reorder parameters/imports | `kind`, `target`, `options` |
+| `transform.plan` | Transform code (e.g., to async) | `kind`, `target` |
+| `delete.plan` | Delete unused code | `kind`, `target` |
+| `workspace.apply_edit` | Apply any plan | `edit_id` (from plan), `options` (optional) |
+
+### Safety Features
+
+| Feature | How It Works | Benefit |
+|---------|--------------|---------|
+| **Mandatory Preview** | `*.plan` always returns preview | Can't accidentally apply changes |
+| **Detailed Change Preview** | Shows all files, exact changes, counts | Full visibility before commit |
+| **Double Preview** | `workspace.apply_edit` supports `dryRun: true` | Final check before execution |
+| **Atomic Operations** | All files updated or none | Transaction-like behavior |
+| **Edit Caching** | Plans cached 5 minutes | Time for review |
+
+### Example Usage
+
+```json
+// Step 1: Plan (preview only)
+{
+  "name": "rename.plan",
+  "arguments": {
+    "file_path": "src/api.ts",
+    "line": 10,
+    "character": 5,
+    "newName": "getData"
+  }
+}
+
+// Response
+{
+  "edit_id": "550e8400-e29b-41d4-a716-446655440000",
+  "changes": { "src/api.ts": [...], "src/client.ts": [...] },
+  "summary": "Rename 'fetchData' to 'getData' (3 files, 12 occurrences)"
+}
+
+// Step 2: Apply
+{
+  "name": "workspace.apply_edit",
+  "arguments": {
+    "edit_id": "550e8400-e29b-41d4-a716-446655440000",
+    "options": { "dryRun": false }
+  }
+}
+```
+
+## Best Practices
+
+### For Refactoring
+
+| Practice | Rationale |
+|----------|-----------|
+| Use Unified API | Simpler, safer than legacy workflows |
+| Always preview first | Call `*.plan` before applying |
+| Review changes carefully | Examine detailed preview |
+| Use dry run for final check | Extra safety layer |
+| Leverage atomic operations | All succeed or none applied |
+
+## Advanced Features
+
+| Feature | Purpose | Details |
+|---------|---------|---------|
+| **State Management** | Access previous results | `HashMap<usize, Value>`, `$steps.{index}` |
+| **Dry-Run Mode** | Preview changes | No file modifications |
+| **Workflow Metadata** | Estimate scope | Complexity score = number of steps |
+| **Interactive Workflows** | User approval | Pause/resume with UUID |
+
+---
+
+# Additional Resources
+
+## Documentation
+
+- [Testing Guide](development/testing.md) - Comprehensive testing patterns
+- [Logging Guidelines](development/logging_guidelines.md) - Structured logging standards
+- [Architecture Overview](architecture/overview.md) - System architecture
+- [Tools API Reference](tools/README.md) - Complete tool documentation
+
+## Reference Implementations
+
+- **Rust Plugin**: `crates/mill-lang-rust/` - Full-featured reference
+- **TypeScript Plugin**: `crates/mill-lang-typescript/` - Subprocess parser pattern
+- **Markdown Plugin**: `crates/mill-lang-markdown/` - Simple document plugin
+- **TOML/YAML Plugins**: `crates/mill-lang-toml/`, `crates/mill-lang-yaml/` - Config files
+
 ## Key Principles
 
 | Principle | Rationale |
@@ -480,6 +641,7 @@ capability.method().await?
 | Write comprehensive tests | 30+ tests minimum for robust code |
 | Use structured logging | Machine-readable, production-ready |
 | Implement fallback parsers | Works in environments without runtime |
+| Use capability traits | Language-agnostic architecture |
 
 ## Time Estimates
 
@@ -489,10 +651,3 @@ capability.method().await?
 | Core implementation | 1-2 days |
 | Testing and polish | 1 day |
 | **Total** | **2-3 days** |
-
-## Key References
-
-- [mill-plugin-api/src/lib.rs](../../../crates/mill-plugin-api/src/lib.rs) - Core trait definitions
-- [mill-plugin-bundle/src/lib.rs](../../../crates/mill-plugin-bundle/src/lib.rs) - Bundle implementation
-- [mill-lang-rust/](../../../crates/mill-lang-rust/) - Full reference implementation
-- [CLAUDE.md](../CLAUDE.md) - Project documentation including plugin overview
