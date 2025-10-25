@@ -535,7 +535,6 @@ As TypeMill evolves, additional primitives may be added:
 
 - **[docs/tools/README.md](../tools/README.md)** - Complete MCP tool API reference
 - **[ARCHITECTURE.md](overview.md)** - System architecture and design
-- **[workflows.md](../development/workflows.md)** - Intent-based workflow automation
 - **[contributing.md](../../contributing.md)** - Adding new tools and primitives
 
 ---

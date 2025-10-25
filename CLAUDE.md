@@ -687,10 +687,61 @@ cargo build --release
 
 ### Environment Variables
 
+TypeMill supports environment variable overrides for **all configuration values** using the `TYPEMILL__` prefix (note: double underscores as separators).
+
+**Configuration Overrides (TYPEMILL__ Prefix):**
+
+Any value in your configuration can be overridden via environment variables using the pattern `TYPEMILL__SECTION__SUBSECTION__KEY`:
+
+```bash
+# Server configuration
+export TYPEMILL__SERVER__PORT=3000
+export TYPEMILL__SERVER__HOST="127.0.0.1"
+export TYPEMILL__SERVER__TIMEOUT_MS=5000
+
+# JWT Authentication (RECOMMENDED for secrets)
+export TYPEMILL__SERVER__AUTH__JWT_SECRET="your-secret-key-here"
+export TYPEMILL__SERVER__AUTH__JWT_EXPIRY_SECONDS=3600
+export TYPEMILL__SERVER__AUTH__JWT_ISSUER="typemill"
+export TYPEMILL__SERVER__AUTH__JWT_AUDIENCE="typemill-clients"
+
+# Cache configuration
+export TYPEMILL__CACHE__ENABLED=true
+export TYPEMILL__CACHE__TTL_SECONDS=3600
+export TYPEMILL__CACHE__MAX_SIZE_BYTES=104857600
+
+# Logging
+export TYPEMILL__LOGGING__LEVEL="info"
+export TYPEMILL__LOGGING__FORMAT="json"
+```
+
+**Secrets Management Best Practices:**
+
+- ✅ **Use environment variables for secrets** (JWT_SECRET, API keys, database credentials)
+- ✅ **Never commit secrets** to configuration files (`.typemill/config.json`, `mill.toml`)
+- ✅ **Use `.env` files locally** (automatically gitignored)
+- ✅ **Use secret management services in production** (HashiCorp Vault, AWS Secrets Manager, Azure Key Vault)
+- ⚠️ **Keep server bound to `127.0.0.1`** for local development (not `0.0.0.0`)
+
+**Example .env file:**
+```bash
+# .env (git ignored)
+TYPEMILL__SERVER__AUTH__JWT_SECRET=dev-secret-change-in-production
+TYPEMILL__SERVER__PORT=3000
+TYPEMILL__CACHE__ENABLED=true
+```
+
+**Configuration Priority (highest to lowest):**
+
+1. Environment variables (`TYPEMILL__*`)
+2. Environment-specific profile in `mill.toml` (based on `TYPEMILL_ENV`)
+3. Base configuration from `mill.toml` or `.typemill/config.toml`
+4. Default values
+
 **Logging:**
 - `RUST_LOG` - Logging level (debug/info/warn/error)
 
-**Cache Control:**
+**Cache Control (Legacy Toggles):**
 - `TYPEMILL_DISABLE_CACHE=1` - Disable all caches (master switch)
 - `TYPEMILL_DISABLE_AST_CACHE=1` - Disable only AST cache
 - `TYPEMILL_DISABLE_IMPORT_CACHE=1` - Disable only import cache

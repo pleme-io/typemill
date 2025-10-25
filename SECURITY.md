@@ -2,10 +2,13 @@
 
 ## Supported Versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.0.x   | :white_check_mark: |
-| < 1.0   | :x:                |
+We provide security updates for:
+- **Latest stable release** (currently v0.7.0)
+- **Previous minor version** (currently v0.6.x) for critical vulnerabilities only
+
+Older versions are not supported. Please upgrade to the latest release.
+
+Version 1.0.0 will be released when the API is fully stabilized.
 
 ## Reporting a Vulnerability
 

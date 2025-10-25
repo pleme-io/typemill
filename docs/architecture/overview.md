@@ -695,7 +695,7 @@ This architecture provides a robust and secure foundation for multi-user environ
 
 ### Language Plugin Development
 
-For adding support for new programming languages, see the **[Language Plugins Guide](../development/plugin_development.md)** which provides:
+For adding support for new programming languages, see the **[Language Plugins Guide](../DEVELOPMENT.md)** which provides:
 
 1. **Plugin Structure**: Directory layout and file organization
 2. **Trait Implementation**: `LanguagePlugin` trait requirements

@@ -1,4 +1,9 @@
 # 🤖 TypeMill
+
+![CI Status](https://github.com/goobits/typemill/actions/workflows/ci.yml/badge.svg)
+![Version](https://img.shields.io/crates/v/typemill)
+![License](https://img.shields.io/crates/l/typemill)
+
 Pure Rust MCP server bridging Language Server Protocol (LSP) to AI coding assistants
 
 Provides 36 MCP tools for code navigation, refactoring, analysis, and batch operations across TypeScript and Rust projects.

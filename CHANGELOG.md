@@ -11,13 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 The project underwent a complete architectural transformation from TypeScript/Node.js to pure Rust in 2025, bringing native performance, memory safety, and compile-time type guarantees.
 
+### [Unreleased]
+
 ### [0.7.0] - 2025-10-24
 
 🚀 **Version 0.7.0** - TypeMill rebranding, API standardization, and comprehensive rename architecture
 
 #### Breaking Changes
 
-- **TypeMill Branding Migration** - Complete rename from TypeMill to TypeMill
+- **TypeMill Branding Migration** - Complete rename from mill to TypeMill
   - Configuration directory: `.mill/` → `.typemill/`
   - Binary name: `mill` → `mill` (apps/mill → apps/mill)
   - Environment variables: `TYPEMILL__*` → `TYPEMILL__*`
