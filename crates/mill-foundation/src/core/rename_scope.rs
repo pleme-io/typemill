@@ -320,6 +320,7 @@ mod tests {
             update_code: true,
             update_docs: true,
             update_configs: true,
+            update_gitignore: true,
             update_string_literals: true,
             update_comments: false,
             update_markdown_prose: false,

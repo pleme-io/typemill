@@ -197,7 +197,7 @@ impl FileService {
 
         // Verify containment within project root using cached canonical root
         if !canonical.starts_with(&self.canonical_project_root) {
-            return Err(ServerError::PermissionDenied(format!(
+            return Err(ServerError::Auth(format!(
                 "Path traversal detected: {:?} escapes project root {:?}",
                 path, self.project_root
             )));

@@ -6,9 +6,10 @@
 use async_trait::async_trait;
 use mill_plugin_api::mill_plugin;
 use mill_plugin_api::{
-    import_support::ImportRenameSupport, LanguageMetadata, LanguagePlugin, ManifestData,
-    ParsedSource, PluginCapabilities, PluginError, PluginResult,
+    import_support::ImportMoveSupport, LanguageMetadata, LanguagePlugin, ManifestData,
+    ParsedSource, PluginCapabilities, PluginResult,
 };
+use serde_json::json;
 use std::path::Path;
 use tracing::debug;
 
@@ -22,7 +23,7 @@ mill_plugin! {
     extensions: [],  // .gitignore has no extension
     manifest: ".gitignore",
     capabilities: GitignoreLanguagePlugin::CAPABILITIES,
-    factory: GitignoreLanguagePlugin::arc,
+    factory: GitignoreLanguagePlugin::boxed,
     lsp: None
 }
 
@@ -54,13 +55,15 @@ impl GitignoreLanguagePlugin {
                 extensions: &[],  // Special case - matched by filename
                 manifest_filename: ".gitignore",
                 source_dir: ".",
+                entry_point: ".gitignore",
+                module_separator: "/",
             },
             import_support: GitignoreImportSupport::new(),
         }
     }
 
-    pub fn arc() -> std::sync::Arc<dyn LanguagePlugin> {
-        std::sync::Arc::new(Self::new())
+    pub fn boxed() -> Box<dyn LanguagePlugin> {
+        Box::new(Self::new())
     }
 }
 
@@ -72,16 +75,26 @@ impl Default for GitignoreLanguagePlugin {
 
 #[async_trait]
 impl LanguagePlugin for GitignoreLanguagePlugin {
-    fn get_metadata(&self) -> &LanguageMetadata {
+    fn metadata(&self) -> &LanguageMetadata {
         &self.metadata
     }
 
-    fn parse(&self, _content: &str, _file_path: &Path) -> PluginResult<ParsedSource> {
+    async fn parse(&self, _source: &str) -> PluginResult<ParsedSource> {
         // .gitignore doesn't need full AST parsing, but we need to implement this
         Ok(ParsedSource {
-            imports: vec![],
+            data: json!({}),
             symbols: vec![],
-            errors: vec![],
+        })
+    }
+
+    async fn analyze_manifest(&self, _path: &Path) -> PluginResult<ManifestData> {
+        // .gitignore is not a package manifest - return minimal data
+        Ok(ManifestData {
+            name: ".gitignore".to_string(),
+            version: "0.0.0".to_string(),
+            dependencies: vec![],
+            dev_dependencies: vec![],
+            raw_data: json!({}),
         })
     }
 
@@ -89,36 +102,18 @@ impl LanguagePlugin for GitignoreLanguagePlugin {
         Self::CAPABILITIES
     }
 
-    fn handles_extension(&self, extension: &str) -> bool {
-        // .gitignore has no extension, but we'll match on filename instead
-        extension.is_empty()
-    }
-
-    fn handles_file(&self, file_path: &Path) -> bool {
-        // Match based on filename
-        file_path
-            .file_name()
-            .and_then(|f| f.to_str())
-            .map(|name| name == ".gitignore")
-            .unwrap_or(false)
-    }
-
-    async fn get_manifest(&self, _workspace_root: &Path) -> PluginResult<Option<ManifestData>> {
-        // .gitignore is not a package manifest
-        Ok(None)
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
-#[async_trait]
-impl ImportRenameSupport for GitignoreLanguagePlugin {
-    async fn rewrite_import_paths(
+impl ImportMoveSupport for GitignoreLanguagePlugin {
+    fn rewrite_imports_for_move(
         &self,
         content: &str,
-        _file_path: &Path,
         old_path: &Path,
         new_path: &Path,
-        _rename_info: Option<&serde_json::Value>,
-    ) -> PluginResult<(String, usize)> {
+    ) -> (String, usize) {
         debug!(
             old_path = %old_path.display(),
             new_path = %new_path.display(),
@@ -127,16 +122,7 @@ impl ImportRenameSupport for GitignoreLanguagePlugin {
 
         self.import_support
             .rewrite_gitignore_patterns(content, old_path, new_path)
-    }
-
-    async fn detect_imports(
-        &self,
-        _content: &str,
-        _file_path: &Path,
-        _search_path: &Path,
-    ) -> PluginResult<Vec<String>> {
-        // For .gitignore, we don't detect imports in the traditional sense
-        Ok(vec![])
+            .unwrap_or_else(|_| (content.to_string(), 0))
     }
 }
 

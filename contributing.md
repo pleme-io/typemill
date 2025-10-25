@@ -1441,3 +1441,117 @@ If builds are slower than expected:
    rm -rf target/
    cargo build
    ```
+
+### Troubleshooting Cargo Registry Corruption on ARM64
+
+**Symptoms:**
+- `error[E0463]: can't find crate for 'X'` errors during build
+- Crate exists in `Cargo.toml` but cargo claims it's missing
+- Inconsistent build failures (works sometimes, fails other times)
+- Occurs more frequently on ARM64/aarch64 Linux in containers
+
+**Root Cause:**
+
+Concurrent cargo operations writing to the shared registry cache (`~/.cargo/registry`) simultaneously on slower container storage (overlay2 filesystem). When multiple cargo commands run in parallel, they create partially written crate metadata, causing subsequent builds to fail with "can't find crate" errors.
+
+**Prevention:**
+
+1. **Never run multiple cargo commands simultaneously:**
+   ```bash
+   # ❌ BAD: Multiple cargo operations at once
+   make first-time-setup &  # Background job
+   cargo build              # Another cargo operation
+
+   # ✅ GOOD: Let one finish before starting the next
+   make first-time-setup
+   cargo build
+   ```
+
+2. **Use single-threaded builds in containers:**
+   ```bash
+   # Pre-populate registry first
+   cargo fetch --locked
+
+   # Build with offline mode and single thread
+   cargo build --release --locked --offline -j 1
+   ```
+
+3. **Set environment variables for container builds:**
+   ```bash
+   export CARGO_BUILD_JOBS=6      # Limit parallel compilations
+   export CARGO_INCREMENTAL=0     # Disable incremental compilation in containers
+   ```
+
+**Recovery (if registry is corrupted):**
+
+```bash
+# Complete cleanup
+rm -rf ~/.cargo ~/.rustup target Cargo.lock
+
+# Reinstall Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+source "$HOME/.cargo/env"
+
+# Populate registry with single fetch
+cargo fetch --locked
+
+# Build with offline mode
+cargo build --release --locked --offline -j 1
+```
+
+**Docker/Devcontainer Best Practices:**
+
+For production container builds, use BuildKit cache mounts with `sharing=locked`:
+
+```dockerfile
+RUN --mount=type=cache,sharing=locked,target=/usr/local/cargo/registry \
+    --mount=type=cache,sharing=locked,target=/usr/local/cargo/git \
+    cargo build --release --locked
+```
+
+This ensures exclusive access to the cargo cache, preventing corruption from parallel builds.
+
+**Alternative: Vendored Dependencies**
+
+For maximum reliability, vendor all dependencies:
+
+```bash
+# Vendor dependencies into ./vendor
+cargo vendor
+
+# Configure to use vendored deps
+mkdir -p .cargo
+cat > .cargo/config.toml << 'EOF'
+[source.crates-io]
+replace-with = "vendored-sources"
+
+[source.vendored-sources]
+directory = "vendor"
+EOF
+
+# Build using vendored dependencies (no registry access)
+cargo build --release --locked --offline
+```
+
+**Performance Optimization:**
+
+For faster container builds without corruption:
+
+1. **Use tmpfs for target directory** (eliminates overlay2 I/O bottleneck):
+   ```yaml
+   # docker-compose.yml
+   services:
+     mill:
+       volumes:
+         - type: tmpfs
+           target: /workspace/target
+   ```
+
+2. **Install cargo-hakari** (reduces duplicate builds via feature unification):
+   ```bash
+   cargo install cargo-hakari
+   cargo hakari generate
+   cargo hakari verify
+   ```
+
+See **[docs/operations/docker_deployment.md](docs/operations/docker_deployment.md)** for complete Docker deployment guide.

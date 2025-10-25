@@ -371,13 +371,11 @@ impl<'a> MoveService<'a> {
 
         // Verify containment within project root
         let canonical_root = self.project_root.canonicalize().map_err(|e| {
-            ServerError::Internal {
-                message: format!("Project root canonicalization failed: {}", e),
-            }
+            ServerError::internal(format!("Project root canonicalization failed: {}", e))
         })?;
 
         if !canonical.starts_with(&canonical_root) {
-            return Err(ServerError::PermissionDenied(format!(
+            return Err(ServerError::Auth(format!(
                 "Path traversal detected: {:?} escapes project root {:?}",
                 path, self.project_root
             )));

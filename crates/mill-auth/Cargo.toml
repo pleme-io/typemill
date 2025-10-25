@@ -8,6 +8,7 @@ homepage.workspace = true
 description = "Authentication and JWT utilities for TypeMill"
 
 [dependencies]
+mill-config = { path = "../mill-config" }
 mill-foundation = { path = "../mill-foundation" }
 jsonwebtoken = { workspace = true }
 serde = { workspace = true }
