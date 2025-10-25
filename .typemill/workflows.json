@@ -7,7 +7,7 @@
       },
       "steps": [
         {
-          "tool": "rename.plan",
+          "tool": "rename",
           "params": {
             "target": {
               "kind": "symbol",
@@ -16,21 +16,13 @@
                 "symbol_name": "{old_name}"
               }
             },
-            "newName": "{newName}"
-          },
-          "description": "Generate rename plan for '{old_name}' → '{newName}'",
-          "requires_confirmation": null
-        },
-        {
-          "tool": "workspace.apply_edit",
-          "params": {
-            "plan": "$steps.0.plan",
+            "newName": "{newName}",
             "options": {
-              "validate_checksums": true,
-              "dry_run": false
+              "dryRun": false,
+              "validateChecksums": true
             }
           },
-          "description": "Apply rename changes across the project",
+          "description": "Rename '{old_name}' → '{newName}' across the project",
           "requires_confirmation": true
         }
       ],
@@ -43,7 +35,7 @@
       },
       "steps": [
         {
-          "tool": "extract.plan",
+          "tool": "extract",
           "params": {
             "kind": "function",
             "source": {
@@ -53,21 +45,13 @@
                 "end": {"line": "{end_line}", "character": 0}
               },
               "name": "{function_name}"
-            }
-          },
-          "description": "Generate extract plan for function '{function_name}'",
-          "requires_confirmation": null
-        },
-        {
-          "tool": "workspace.apply_edit",
-          "params": {
-            "plan": "$steps.0.plan",
+            },
             "options": {
-              "validate_checksums": true,
-              "dry_run": false
+              "dryRun": false,
+              "validateChecksums": true
             }
           },
-          "description": "Apply extraction changes",
+          "description": "Extract function '{function_name}' and apply changes",
           "requires_confirmation": true
         }
       ],
@@ -131,7 +115,7 @@
       },
       "steps": [
         {
-          "tool": "rename.plan",
+          "tool": "rename",
           "params": {
             "target": {
               "kind": "symbol",
@@ -140,21 +124,13 @@
                 "symbol_name": "{old_name}"
               }
             },
-            "newName": "{newName}"
-          },
-          "description": "Generate rename plan for '{old_name}' → '{newName}'",
-          "requires_confirmation": null
-        },
-        {
-          "tool": "workspace.apply_edit",
-          "params": {
-            "plan": "$steps.0.plan",
+            "newName": "{newName}",
             "options": {
-              "validate_checksums": true,
-              "dry_run": false
+              "dryRun": false,
+              "validateChecksums": true
             }
           },
-          "description": "Apply rename changes across the project",
+          "description": "Rename '{old_name}' → '{newName}' with import updates",
           "requires_confirmation": true
         }
       ],

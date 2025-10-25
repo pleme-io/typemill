@@ -222,7 +222,7 @@ impl FileService {
     /// Rename a directory and update all imports pointing to files within it
     ///
     /// NOTE: This is a legacy internal tool. New code should use the Unified Refactoring API
-    /// (rename.plan + workspace.apply_edit) which handles consolidation through the plugin system.
+    /// (rename with dryRun option) which handles consolidation through the plugin system.
     pub async fn rename_directory_with_imports(
         &self,
         old_dir_path: &Path,

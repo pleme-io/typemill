@@ -208,7 +208,7 @@ mod tests {
                     },
                     "steps": [
                         {
-                            "tool": "rename.plan",
+                            "tool": "rename",
                             "params": {
                                 "target": {
                                     "kind": "symbol",
@@ -217,21 +217,13 @@ mod tests {
                                         "symbol_name": "{old_name}"
                                     }
                                 },
-                                "newName": "{newName}"
-                            },
-                            "description": "Generate rename plan for '{old_name}' → '{newName}'",
-                            "requires_confirmation": null
-                        },
-                        {
-                            "tool": "workspace.apply_edit",
-                            "params": {
-                                "plan": "$steps.0.plan",
+                                "newName": "{newName}",
                                 "options": {
-                                    "validateChecksums": true,
-                                    "dryRun": false
+                                    "dryRun": false,
+                                    "validateChecksums": true
                                 }
                             },
-                            "description": "Apply rename changes across the project",
+                            "description": "Rename '{old_name}' → '{newName}' across the project",
                             "requires_confirmation": true
                         }
                     ],
@@ -244,7 +236,7 @@ mod tests {
                     },
                     "steps": [
                         {
-                            "tool": "extract.plan",
+                            "tool": "extract",
                             "params": {
                                 "kind": "function",
                                 "source": {
@@ -254,21 +246,13 @@ mod tests {
                                         "end": {"line": "{end_line}", "character": 0}
                                     },
                                     "name": "{function_name}"
-                                }
-                            },
-                            "description": "Generate extract plan for function '{function_name}'",
-                            "requires_confirmation": null
-                        },
-                        {
-                            "tool": "workspace.apply_edit",
-                            "params": {
-                                "plan": "$steps.0.plan",
+                                },
                                 "options": {
-                                    "validateChecksums": true,
-                                    "dryRun": false
+                                    "dryRun": false,
+                                    "validateChecksums": true
                                 }
                             },
-                            "description": "Apply extraction changes",
+                            "description": "Extract function '{function_name}' and apply changes",
                             "requires_confirmation": true
                         }
                     ],
@@ -355,11 +339,11 @@ mod tests {
 
         let workflow = result.unwrap();
         assert_eq!(workflow.name, "Rename 'oldFunc' to 'newFunc'");
-        assert_eq!(workflow.steps.len(), 2);
+        assert_eq!(workflow.steps.len(), 1);
         assert_eq!(workflow.metadata.complexity, 2);
 
-        // Check first step (rename.plan)
-        assert_eq!(workflow.steps[0].tool, "rename.plan");
+        // Check rename step (unified API with dryRun: false)
+        assert_eq!(workflow.steps[0].tool, "rename");
         assert!(workflow.steps[0].params.get("target").is_some());
         assert_eq!(
             workflow.steps[0]
@@ -370,11 +354,7 @@ mod tests {
                 .unwrap(),
             "newFunc"
         );
-
-        // Check second step (workspace.apply_edit)
-        assert_eq!(workflow.steps[1].tool, "workspace.apply_edit");
-        assert!(workflow.steps[1].params.get("plan").is_some());
-        assert_eq!(workflow.steps[1].requires_confirmation, Some(true));
+        assert_eq!(workflow.steps[0].requires_confirmation, Some(true));
     }
 
     #[test]
@@ -395,19 +375,15 @@ mod tests {
 
         let workflow = result.unwrap();
         assert_eq!(workflow.name, "Extract function 'extractedFunc'");
-        assert_eq!(workflow.steps.len(), 2);
+        assert_eq!(workflow.steps.len(), 1);
         assert_eq!(workflow.metadata.complexity, 1);
 
-        // Check first step (extract.plan)
+        // Check extract step (unified API with dryRun: false)
         let step = &workflow.steps[0];
-        assert_eq!(step.tool, "extract.plan");
+        assert_eq!(step.tool, "extract");
         assert!(step.params.get("kind").is_some());
         assert!(step.params.get("source").is_some());
-
-        // Check second step (workspace.apply_edit)
-        let step2 = &workflow.steps[1];
-        assert_eq!(step2.tool, "workspace.apply_edit");
-        assert!(step2.params.get("plan").is_some());
+        assert_eq!(step.requires_confirmation, Some(true));
     }
 
     #[test]
@@ -520,31 +496,23 @@ mod tests {
         );
         assert_eq!(
             workflow.steps.len(),
-            2,
-            "Should have exactly 2 steps (plan + apply)"
+            1,
+            "Should have exactly 1 step (unified API with dryRun)"
         );
         assert_eq!(workflow.metadata.complexity, 2);
 
-        // Check step 1: rename.plan
+        // Check rename step (unified API with dryRun: false)
         let step1 = &workflow.steps[0];
-        assert_eq!(step1.tool, "rename.plan");
+        assert_eq!(step1.tool, "rename");
         assert!(step1.params.get("target").is_some(), "Should have target");
         assert_eq!(
             step1.params.get("newName").unwrap().as_str().unwrap(),
             "NewStruct"
         );
-
-        // Check step 2: workspace.apply_edit
-        let step2 = &workflow.steps[1];
-        assert_eq!(step2.tool, "workspace.apply_edit");
-        assert!(
-            step2.params.get("plan").is_some(),
-            "Should have plan reference"
-        );
         assert_eq!(
-            step2.requires_confirmation,
+            step1.requires_confirmation,
             Some(true),
-            "Apply step should require user confirmation"
+            "Rename step should require user confirmation"
         );
     }
 }
