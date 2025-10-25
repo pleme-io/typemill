@@ -1,9 +1,11 @@
 # Bug Report: Consolidation Mode Issues (Dogfooding cb-protocol)
 
 **Date**: 2025-10-18
-**Status**: OPEN
+**Status**: RESOLVED (API updated in Phase 5)
 **Severity**: HIGH (Blocks successful consolidation)
 **Context**: Dogfooding consolidation of `cb-protocol` → `mill-foundation/src/protocol`
+
+> **Resolution Note (Phase 5)**: The two-step API pattern (`rename.plan` + `workspace.apply_edit`) referenced in this report has been replaced by the unified dryRun API. All refactoring tools now use `options.dryRun: true/false` instead of separate plan and apply steps.
 
 ## Summary
 

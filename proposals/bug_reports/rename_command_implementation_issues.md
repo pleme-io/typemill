@@ -3,6 +3,9 @@
 **Date:** 2025-10-17
 **Feature:** QuickRenameHandler (`rename` tool)
 **Context:** Implementing one-step rename command and dogfooding it to rename `cb-core → mill-core`
+**Status:** RESOLVED (API updated in Phase 5)
+
+> **Resolution Note (Phase 5)**: The two-step API pattern (`rename.plan` + `workspace.apply_edit`) and CLI piping issues described in this report have been resolved by the unified dryRun API. All refactoring tools now accept `options.dryRun: true/false` directly, eliminating the need for piping between plan and apply steps.
 
 ---
 
