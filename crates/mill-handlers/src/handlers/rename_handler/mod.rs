@@ -75,6 +75,10 @@ pub(crate) struct SymbolSelector {
 #[serde(rename_all = "camelCase")]
 #[allow(dead_code)] // Reserved for future configuration
 pub(crate) struct RenameOptions {
+    /// Preview mode - don't actually apply changes (default: true for safety)
+    #[serde(default = "default_true")]
+    pub dry_run: bool,
+
     #[serde(default)]
     strict: Option<bool>,
     #[serde(default)]
@@ -95,6 +99,10 @@ pub(crate) struct RenameOptions {
     /// When None, auto-detects based on path patterns (moving crate into another crate's src/).
     #[serde(default)]
     pub consolidate: Option<bool>,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl RenameOptions {
@@ -136,7 +144,7 @@ impl RenameOptions {
 #[async_trait]
 impl ToolHandler for RenameHandler {
     fn tool_names(&self) -> &[&str] {
-        &["rename.plan"]
+        &["rename"]
     }
 
     fn is_internal(&self) -> bool {
@@ -207,15 +215,55 @@ impl ToolHandler for RenameHandler {
             }
         };
 
-        // Wrap in RefactorPlan enum for discriminant, then serialize for MCP protocol
+        // Wrap in RefactorPlan enum for discriminant
         let refactor_plan = RefactorPlan::RenamePlan(plan);
-        let plan_json = serde_json::to_value(&refactor_plan).map_err(|e| {
-            ServerError::Internal(format!("Failed to serialize rename plan: {}", e))
-        })?;
 
-        Ok(json!({
-            "content": plan_json
-        }))
+        // Check if we should execute or just return plan
+        if params.options.dry_run {
+            // Return plan only (existing behavior - preview mode)
+            let plan_json = serde_json::to_value(&refactor_plan).map_err(|e| {
+                ServerError::Internal(format!("Failed to serialize rename plan: {}", e))
+            })?;
+
+            info!(
+                operation = "rename",
+                dry_run = true,
+                "Returning rename plan (preview mode)"
+            );
+
+            Ok(json!({
+                "content": plan_json
+            }))
+        } else {
+            // NEW: Execute the plan
+            info!(
+                operation = "rename",
+                dry_run = false,
+                "Executing rename plan"
+            );
+
+            use mill_services::services::{ExecutionOptions, PlanExecutor};
+
+            let executor = PlanExecutor::new(context.app_state.file_service.clone());
+            let result = executor
+                .execute_plan(refactor_plan, ExecutionOptions::default())
+                .await?;
+
+            let result_json = serde_json::to_value(&result).map_err(|e| {
+                ServerError::Internal(format!("Failed to serialize execution result: {}", e))
+            })?;
+
+            info!(
+                operation = "rename",
+                success = result.success,
+                applied_files = result.applied_files.len(),
+                "Rename execution completed"
+            );
+
+            Ok(json!({
+                "content": result_json
+            }))
+        }
     }
 }
 
