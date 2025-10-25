@@ -443,13 +443,88 @@ pub struct AppState {
 - **TypeScript/JavaScript** (full parity with Rust common features)
 - **Python** (restored 2025-10-25, full parity achieved)
 
-All three languages support:
-- AST parsing and symbol extraction
-- Import analysis and rewriting (5 capability traits)
-- Workspace operations and manifest management
-- Code refactoring (extract function, inline variable, extract variable)
-- Module reference scanning and import graph analysis
-- Project/package creation via ProjectFactory
+#### Language Plugin Parity Matrix
+
+All three languages implement the complete set of capability traits:
+
+| Capability Trait | Rust | TypeScript | Python | Description |
+|-----------------|:----:|:----------:|:------:|-------------|
+| **Core LanguagePlugin** ||||
+| `metadata()` | ✅ | ✅ | ✅ | Language metadata (name, extensions, manifest) |
+| `parse()` | ✅ | ✅ | ✅ | AST parsing and symbol extraction |
+| `analyze_manifest()` | ✅ | ✅ | ✅ | Parse manifest files (Cargo.toml, package.json, pyproject.toml) |
+| `list_functions()` | ✅ | ✅ | ✅ | Extract function definitions |
+| `analyze_detailed_imports()` | ✅ | ✅ | ✅ | Full ImportGraph with metadata |
+| **Import Support (5 traits)** ||||
+| `ImportParser` | ✅ | ✅ | ✅ | Parse import statements |
+| `ImportRenameSupport` | ✅ | ✅ | ✅ | Rewrite imports for symbol renames |
+| `ImportMoveSupport` | ✅ | ✅ | ✅ | Rewrite imports for file moves |
+| `ImportMutationSupport` | ✅ | ✅ | ✅ | Add/remove imports programmatically |
+| `ImportAdvancedSupport` | ✅ | ✅ | ✅ | AST-based import transformations |
+| **Workspace & Manifest** ||||
+| `WorkspaceSupport` | ✅ | ✅ | ✅ | Multi-package workspace operations |
+| `ManifestUpdater` | ✅ | ✅ | ✅ | Update dependencies, generate manifests |
+| **Refactoring (3 operations)** ||||
+| `RefactoringProvider` | ✅ | ✅ | ✅ | Code transformation operations |
+| - Extract Function | ✅ | ✅ | ✅ | Extract code block into new function |
+| - Inline Variable | ✅ | ✅ | ✅ | Replace variable usages with initializer |
+| - Extract Variable | ✅ | ✅ | ✅ | Extract expression into named variable |
+| **Analysis & Scanning** ||||
+| `ModuleReferenceScanner` | ✅ | ✅ | ✅ | Find all references to a module |
+| `ImportAnalyzer` | ✅ | ✅ | ✅ | Build import graphs, analyze dependencies |
+| **Project Creation** ||||
+| `ProjectFactory` | ✅ | ✅ | ✅ | Create new packages/projects |
+| **Rust-Specific Features** ||||
+| `ReferenceDetector` | ✅ | ❌ | ❌ | Rust module system tracking |
+| `ModuleDeclarationSupport` | ✅ | ❌ | ❌ | Manage `pub mod` declarations |
+| `ModuleLocator` | ✅ | ❌ | ❌ | Navigate Rust module file structure |
+
+**Total Common Capabilities**: 15/15 (100% parity)
+**Rust-Specific Capabilities**: 3 additional traits (not applicable to other languages)
+
+#### Detailed Capability Breakdown
+
+**All 15 common capability traits implemented across all languages:**
+
+1. **Core LanguagePlugin** (5 methods)
+   - Parse source code into AST representation
+   - Analyze manifest files (Cargo.toml, package.json, pyproject.toml)
+   - Extract function definitions
+   - Provide detailed import analysis with full metadata
+
+2. **Import Support** (5 segregated traits)
+   - `ImportParser`: Extract import statements from source
+   - `ImportRenameSupport`: Rewrite imports when symbols are renamed
+   - `ImportMoveSupport`: Rewrite imports when files are moved
+   - `ImportMutationSupport`: Add/remove imports programmatically
+   - `ImportAdvancedSupport`: AST-based import transformations for complex refactoring
+
+3. **Workspace Operations** (1 trait)
+   - Multi-package workspace management
+   - Handles monorepo structures
+   - Cross-package dependency tracking
+
+4. **Refactoring Operations** (1 trait, 3 operations)
+   - Extract Function: Extract code block into new function with proper parameter detection
+   - Inline Variable: Replace variable usages with initializer expression
+   - Extract Variable: Extract expression into named variable with type inference
+
+5. **Code Analysis** (2 traits)
+   - ModuleReferenceScanner: Find all references to a module (imports, qualified paths, string literals)
+   - ImportAnalyzer: Build dependency graphs, detect circular dependencies
+
+6. **Manifest Management** (1 trait)
+   - Update package dependencies programmatically
+   - Generate new manifest files from templates
+   - Preserve formatting when updating existing manifests
+
+7. **Project Creation** (1 trait)
+   - Create new packages with proper structure
+   - Support Library and Binary package types
+   - Minimal and Full templates (README, tests, config files)
+   - Automatic workspace integration
+
+**Python Restoration**: Successfully restored 2025-10-25 with full parity using documented migration process. See `.debug/language-plugin-migration/COMPLETE_PARITY_ANALYSIS.md` for detailed comparison.
 
 ### Paused Languages (Restorable)
 
