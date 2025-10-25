@@ -726,7 +726,7 @@ impl FileService {
 
     /// Apply text edits to file content and return the modified content (synchronous, no I/O)
     ///
-    /// Delegates to cb-ast transformer for the actual text manipulation,
+    /// Delegates to mill-ast transformer for the actual text manipulation,
     /// maintaining clean separation of concerns:
     /// - FileService: Orchestrates filesystem operations
     /// - Transformer: Single source of truth for text edit logic
@@ -765,7 +765,7 @@ impl FileService {
             },
         };
 
-        // Delegate to cb-ast transformer - the single source of truth for text edits
+        // Delegate to mill-ast transformer - the single source of truth for text edits
         let transform_result =
             transformer::apply_edit_plan(original_content, &temp_plan).map_err(|e| {
                 error!(

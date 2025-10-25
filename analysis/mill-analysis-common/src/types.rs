@@ -1,4 +1,4 @@
-// analysis/cb-analysis-common/src/types.rs
+// analysis/mill-analysis-common/src/types.rs
 
 /// Metadata about an analysis engine
 #[derive(Debug, Clone)]

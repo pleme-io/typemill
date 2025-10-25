@@ -1,6 +1,6 @@
 # cb-ast
 
-AST parsing and code analysis crate for Codebuddy.
+AST parsing and code analysis crate for TypeMill.
 
 ## Overview
 

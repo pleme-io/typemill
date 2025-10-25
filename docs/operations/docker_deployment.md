@@ -1,6 +1,6 @@
 # Docker Deployment
 
-Everything you need to deploy Codebuddy with Docker—from local development to production.
+Everything you need to deploy TypeMill with Docker—from local development to production.
 
 ## Quick Start: Development
 

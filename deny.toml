@@ -216,8 +216,8 @@ skip-tree = [
 # Layer Hierarchy (after consolidation):
 # - Layer 7: Application (mill-server, mill-client, mill-transport, mill, mill-auth, mill-workspaces)
 # - Layer 6: Handlers (mill-handlers)
-# - Layer 5: Services (mill-services, cb-ast, mill-lsp, mill-plugin-system, mill-plugin-bundle)
-# - Layer 4: Language Plugins (cb-lang-*)
+# - Layer 5: Services (mill-services, mill-ast, mill-lsp, mill-plugin-system, mill-plugin-bundle)
+# - Layer 4: Language Plugins (mill-lang-*)
 # - Layer 3: Plugin API (mill-plugin-api)
 # - Layer 2: Foundation (mill-foundation)
 # - Layer 1: Support (mill-test-support, xtask, analysis/*)
@@ -240,7 +240,7 @@ name = "mill-services"
 wrappers = ["mill-handlers", "mill-server", "mill-client", "mill", "mill-test-support", "e2e"]
 
 [[bans.deny]]
-name = "cb-ast"
+name = "mill-ast"
 wrappers = ["mill-transport", "mill-services", "mill-plugin-system", "mill-handlers", "mill-server", "mill", "mill-test-support", "e2e"]
 
 [[bans.deny]]
@@ -262,15 +262,15 @@ wrappers = ["mill-services", "mill-server", "mill", "mill-test-support"]
 
 [[bans.deny]]
 name = "mill-lang-rust"
-wrappers = ["cb-ast", "mill-handlers", "mill-services", "mill-plugin-system", "mill-plugin-bundle", "mill-server", "mill", "mill-test-support", "e2e"]
+wrappers = ["mill-ast", "mill-handlers", "mill-services", "mill-plugin-system", "mill-plugin-bundle", "mill-server", "mill", "mill-test-support", "e2e"]
 
 [[bans.deny]]
 name = "mill-lang-typescript"
-wrappers = ["cb-ast", "mill-handlers", "mill-services", "mill-plugin-system", "mill-plugin-bundle", "mill-server", "mill", "mill-test-support", "e2e"]
+wrappers = ["mill-ast", "mill-handlers", "mill-services", "mill-plugin-system", "mill-plugin-bundle", "mill-server", "mill", "mill-test-support", "e2e"]
 
 [[bans.deny]]
-name = "cb-lang-markdown"
-wrappers = ["cb-ast", "mill-services", "mill-plugin-system", "mill-plugin-bundle", "mill-test-support"]
+name = "mill-lang-markdown"
+wrappers = ["mill-ast", "mill-services", "mill-plugin-system", "mill-plugin-bundle", "mill-test-support"]
 
 [[bans.deny]]
 name = "mill-lang-toml"

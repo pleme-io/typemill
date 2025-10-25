@@ -1,4 +1,4 @@
-// analysis/cb-analysis-deep-dead-code/src/lib.rs
+// analysis/mill-analysis-deep-dead-code/src/lib.rs
 
 mod ast_parser;
 mod dead_code_finder;

@@ -115,13 +115,13 @@ fn build_import_graph_with_plugin(
             mill_foundation::protocol::ApiError::internal("File has no extension")
         })?;
 
-    // For languages without plugins, fall back to cb-ast
+    // For languages without plugins, fall back to mill-ast
     // Note: Only Rust and TypeScript supported after language reduction
     if !matches!(
         extension,
         "ts" | "tsx" | "js" | "jsx" | "mjs" | "cjs" | "rs"
     ) {
-        // Fallback to cb-ast parser for other languages (if any remain)
+        // Fallback to mill-ast parser for other languages (if any remain)
         return mill_ast::parser::build_import_graph(source, path).map_err(|e| {
             mill_foundation::protocol::ApiError::internal(format!("AST parsing failed: {}", e))
         });

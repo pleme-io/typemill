@@ -1,4 +1,4 @@
-//! cb-server: Core server implementation for Codeflow Buddy
+//! mill-server: Core server implementation for TypeMill
 //!
 //! This crate implements the main server functionality including the MCP protocol
 //! handlers, plugin system dispatcher, Language Server Protocol (LSP) client management,
@@ -62,7 +62,7 @@ pub struct ServerHandle {
 
 /// Bootstrap the server with given options
 pub async fn bootstrap(options: ServerOptions) -> ServerResult<ServerHandle> {
-    tracing::info!("Bootstrapping Codeflow Buddy server");
+    tracing::info!("Bootstrapping TypeMill server");
 
     // Validate configuration
     if options.config.server.port == 0 {

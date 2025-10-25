@@ -560,7 +560,7 @@ To expand test coverage:
 1. **Add Java to LSP fixtures** - Extend test coverage to Java language
 2. **Add more edge cases** - Test error conditions, multi-file scenarios
 3. **Add property-based tests** - Use proptest for fuzzing
-4. **Add performance crates/cb-bench** - Track performance over time
+4. **Add performance crates/mill-bench** - Track performance over time
 5. **Add more workflow scenarios** - Complex multi-step operations
 
 The architecture makes all of these expansions straightforward!

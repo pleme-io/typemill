@@ -9,7 +9,7 @@
 
 ## Reporting a Vulnerability
 
-We take security seriously. If you discover a security vulnerability in Codebuddy, please report it privately:
+We take security seriously. If you discover a security vulnerability in TypeMill, please report it privately:
 
 1. **DO NOT** open a public GitHub issue
 2. Email security issues to: security@goobits.com
@@ -124,4 +124,4 @@ Subscribe to security advisories:
 
 ## License
 
-This security policy is part of the Codebuddy project and follows the same MIT license.
+This security policy is part of the TypeMill project and follows the same MIT license.

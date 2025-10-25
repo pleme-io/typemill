@@ -1,4 +1,4 @@
-// analysis/cb-analysis-common/src/traits.rs
+// analysis/mill-analysis-common/src/traits.rs
 
 use crate::error::AnalysisError;
 use crate::types::AnalysisMetadata;

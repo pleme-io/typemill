@@ -2,7 +2,7 @@
 # Post-create script for dev container setup
 set -e
 
-echo "🚀 Setting up Codebuddy development environment..."
+echo "🚀 Setting up Typemill development environment..."
 echo ""
 echo "Running: make first-time-setup"
 echo "This will install all tools and build the project (~5-8 minutes)"

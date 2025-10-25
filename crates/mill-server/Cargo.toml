@@ -1,11 +1,11 @@
 [package]
 name = "mill-server"
 edition = "2021"
-description = "Codeflow Buddy server implementation"
+description = "TypeMill server implementation"
 license = "MIT"
 
 [[bin]]
-name = "cb-server"
+name = "mill-server"
 path = "src/main.rs"
 
 [dependencies]
@@ -45,7 +45,7 @@ mill-handlers = { path = "../mill-handlers", default-features = false, features 
 
 [features]
 default = ["lang-rust", "lang-typescript", "lang-markdown"]
-# NOTE: cb-handlers no longer has language features - it uses dependency injection
+# NOTE: mill-handlers no longer has language features - it uses dependency injection
 lang-rust = ["mill-services/lang-rust", "mill-ast/lang-rust", "mill-plugin-bundle/lang-rust", "mill-plugin-system/lang-rust", "mill-transport/lang-rust"]
 lang-typescript = ["mill-services/lang-typescript", "mill-ast/lang-typescript", "mill-plugin-bundle/lang-typescript", "mill-plugin-system/lang-typescript", "mill-transport/lang-typescript"]
 lang-markdown = ["mill-services/lang-markdown", "mill-ast/lang-markdown", "mill-plugin-bundle/lang-markdown", "mill-plugin-system/lang-markdown", "mill-transport/lang-markdown"]

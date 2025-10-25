@@ -1,4 +1,4 @@
-# 🤖 Codebuddy
+# 🤖 TypeMill
 Pure Rust MCP server bridging Language Server Protocol (LSP) to AI coding assistants
 
 Provides 36 MCP tools for code navigation, refactoring, analysis, and batch operations across TypeScript and Rust projects.

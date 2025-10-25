@@ -92,32 +92,32 @@ protocol = "sparse"
 xtask = "run --package xtask --"
 
 # Analysis subsystem - check only analysis crates
-check-analysis = "check -p cb-analysis-common -p cb-analysis-dead-code -p cb-analysis-deep-dead-code -p cb-analysis-graph -p cb-analysis-circular-deps"
-test-analysis = "nextest run -p cb-analysis-common -p cb-analysis-dead-code -p cb-analysis-deep-dead-code -p cb-analysis-graph -p cb-analysis-circular-deps"
+check-analysis = "check -p mill-analysis-common -p mill-analysis-dead-code -p mill-analysis-deep-dead-code -p mill-analysis-graph -p mill-analysis-circular-deps"
+test-analysis = "nextest run -p mill-analysis-common -p mill-analysis-dead-code -p mill-analysis-deep-dead-code -p mill-analysis-graph -p mill-analysis-circular-deps"
 
 # Handlers - minimal feature set for faster iteration (both languages, no analysis)
-check-handlers-core = "check -p cb-handlers --no-default-features --features lang-rust,lang-typescript"
-test-handlers-core = "nextest run -p cb-handlers --no-default-features --features lang-rust,lang-typescript"
+check-handlers-core = "check -p mill-handlers --no-default-features --features lang-rust,lang-typescript"
+test-handlers-core = "nextest run -p mill-handlers --no-default-features --features lang-rust,lang-typescript"
 
 # Handlers - TypeScript only
-check-handlers-ts = "check -p cb-handlers --no-default-features --features lang-typescript"
-test-handlers-ts = "nextest run -p cb-handlers --no-default-features --features lang-typescript"
+check-handlers-ts = "check -p mill-handlers --no-default-features --features lang-typescript"
+test-handlers-ts = "nextest run -p mill-handlers --no-default-features --features lang-typescript"
 
 # Handlers - with specific analysis features
-check-handlers-dead-code = "check -p cb-handlers --no-default-features --features lang-rust,analysis-dead-code"
-test-handlers-dead-code = "nextest run -p cb-handlers --no-default-features --features lang-rust,analysis-dead-code"
+check-handlers-dead-code = "check -p mill-handlers --no-default-features --features lang-rust,analysis-dead-code"
+test-handlers-dead-code = "nextest run -p mill-handlers --no-default-features --features lang-rust,analysis-dead-code"
 
 # Core libraries without integration tests
-check-core = "check --workspace --exclude integration-tests --exclude cb-bench"
-test-core = "nextest run --workspace --exclude integration-tests --exclude cb-bench"
+check-core = "check --workspace --exclude integration-tests --exclude mill-bench"
+test-core = "nextest run --workspace --exclude integration-tests --exclude mill-bench"
 
 # Language plugins only
-check-lang = "check -p mill-lang-common -p cb-lang-rust -p mill-lang-typescript -p cb-lang-markdown"
-test-lang = "nextest run -p mill-lang-common -p cb-lang-rust -p mill-lang-typescript -p cb-lang-markdown"
+check-lang = "check -p mill-lang-common -p mill-lang-rust -p mill-lang-typescript -p mill-lang-markdown"
+test-lang = "nextest run -p mill-lang-common -p mill-lang-rust -p mill-lang-typescript -p mill-lang-markdown"
 
 # Navigation/analysis only (no refactoring handlers - 15-25% faster)
-check-handlers-nav = "check -p cb-handlers --no-default-features --features lang-rust,lang-typescript"
-test-handlers-nav = "nextest run -p cb-handlers --no-default-features --features lang-rust,lang-typescript"
+check-handlers-nav = "check -p mill-handlers --no-default-features --features lang-rust,lang-typescript"
+test-handlers-nav = "nextest run -p mill-handlers --no-default-features --features lang-rust,lang-typescript"
 
 # Integration test filtering (60-80% faster for targeted tests)
 test-integration-refactor = "nextest run -p integration-tests -E 'test(/(rename|extract|inline|move|reorder|transform|delete)/)'"

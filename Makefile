@@ -266,23 +266,23 @@ ci: test-full check
 # Build all external language parsers that require a separate build step
 build-parsers:
 	@echo "🔨 Building external language parsers..."
-	@if [ -f "crates/cb-lang-java/resources/java-parser/pom.xml" ]; then \
+	@if [ -f "crates/mill-lang-java/resources/java-parser/pom.xml" ]; then \
 		echo "  → Building Java parser..."; \
-		(cd crates/cb-lang-java/resources/java-parser && mvn -q package) && echo "  ✅ Java parser built." || echo "  ⚠️  Java parser build failed."; \
+		(cd crates/mill-lang-java/resources/java-parser && mvn -q package) && echo "  ✅ Java parser built." || echo "  ⚠️  Java parser build failed."; \
 	else \
 		echo "  ⏭  Skipping Java parser (not found)."; \
 	fi
-	@if [ -d "crates/cb-lang-csharp/resources/csharp-parser" ]; then \
+	@if [ -d "crates/mill-lang-csharp/resources/csharp-parser" ]; then \
 		echo "  → Building C# parser..."; \
-		(cd crates/cb-lang-csharp/resources/csharp-parser && dotnet publish -c Release -r linux-x64 --self-contained > /dev/null) && \
-		cp crates/cb-lang-csharp/resources/csharp-parser/bin/Release/net8.0/linux-x64/publish/csharp-parser crates/cb-lang-csharp/csharp-parser && \
+		(cd crates/mill-lang-csharp/resources/csharp-parser && dotnet publish -c Release -r linux-x64 --self-contained > /dev/null) && \
+		cp crates/mill-lang-csharp/resources/csharp-parser/bin/Release/net8.0/linux-x64/publish/csharp-parser crates/mill-lang-csharp/csharp-parser && \
 		echo "  ✅ C# parser built." || echo "  ⚠️  C# parser build failed."; \
 	else \
 		echo "  ⏭  Skipping C# parser (not found)."; \
 	fi
-	@if [ -f "crates/cb-lang-typescript/resources/package.json" ]; then \
+	@if [ -f "crates/mill-lang-typescript/resources/package.json" ]; then \
 		echo "  → Installing TypeScript parser dependencies..."; \
-		(cd crates/cb-lang-typescript/resources && npm install > /dev/null 2>&1) && echo "  ✅ TypeScript dependencies installed." || echo "  ⚠️  TypeScript dependencies installation failed."; \
+		(cd crates/mill-lang-typescript/resources && npm install > /dev/null 2>&1) && echo "  ✅ TypeScript dependencies installed." || echo "  ⚠️  TypeScript dependencies installation failed."; \
 	else \
 		echo "  ⏭  Skipping TypeScript parser (not found)."; \
 	fi

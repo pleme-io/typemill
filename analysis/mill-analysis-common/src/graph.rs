@@ -1,4 +1,4 @@
-// analysis/cb-analysis-common/src/graph.rs
+// analysis/mill-analysis-common/src/graph.rs
 
 //! A generic dependency graph for symbol analysis.
 

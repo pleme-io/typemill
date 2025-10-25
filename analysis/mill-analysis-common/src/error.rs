@@ -1,4 +1,4 @@
-// analysis/cb-analysis-common/src/error.rs
+// analysis/mill-analysis-common/src/error.rs
 
 /// Common error type for analysis operations
 #[derive(Debug, thiserror::Error)]

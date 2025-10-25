@@ -1,6 +1,6 @@
 # Cache Configuration
 
-Codebuddy uses multiple caching layers to improve performance. This document describes the caching system, configuration options, and troubleshooting.
+TypeMill uses multiple caching layers to improve performance. This document describes the caching system, configuration options, and troubleshooting.
 
 ## Cache Types
 
@@ -56,7 +56,7 @@ Codebuddy uses multiple caching layers to improve performance. This document des
 
 ## Environment Variable Control
 
-Codebuddy supports environment variables for fine-grained cache control. This is especially useful for:
+TypeMill supports environment variables for fine-grained cache control. This is especially useful for:
 - **Debugging**: Isolate cache-related bugs
 - **Testing**: Ensure fresh parses in CI/CD
 - **Development**: Force fresh data during active development
@@ -176,7 +176,7 @@ Cache warming (pre-populating caches on startup) is a planned feature.
 
 ### Issue: Stale data after file changes
 
-**Symptom:** Codebuddy returns outdated results after file modifications
+**Symptom:** TypeMill returns outdated results after file modifications
 
 **Solutions:**
 1. Check if file modification times are being updated correctly
@@ -188,7 +188,7 @@ Cache warming (pre-populating caches on startup) is a planned feature.
 
 ### Issue: High memory usage
 
-**Symptom:** Codebuddy process consuming excessive memory
+**Symptom:** TypeMill process consuming excessive memory
 
 **Solutions:**
 1. Reduce `maxSizeBytes` in configuration

@@ -1,4 +1,4 @@
-// analysis/cb-analysis-dead-code/src/lib.rs
+// analysis/mill-analysis-dead-code/src/lib.rs
 
 pub mod config;
 pub mod detector;

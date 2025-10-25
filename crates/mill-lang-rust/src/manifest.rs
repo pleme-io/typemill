@@ -201,11 +201,11 @@ pub fn rename_dependency(
             if let Some(feature_array) = feature_value.as_array_mut() {
                 for element in feature_array.iter_mut() {
                     if let Some(dep_ref) = element.as_str() {
-                        // Check for exact match (e.g., "cb-ast")
+                        // Check for exact match (e.g., "mill-ast")
                         if dep_ref == old_name {
                             *element = toml_edit::Value::from(new_name);
                         }
-                        // Check for slash-prefixed feature (e.g., "cb-ast/some-feature")
+                        // Check for slash-prefixed feature (e.g., "mill-ast/some-feature")
                         else if let Some(feature_suffix) =
                             dep_ref.strip_prefix(&format!("{}/", old_name))
                         {
@@ -320,18 +320,18 @@ name = "test-crate"
 version = "0.1.0"
 
 [dependencies]
-cb-ast = { path = "../cb-ast", optional = true }
+mill-ast = { path = "../mill-ast", optional = true }
 other-dep = { path = "../other" }
 
 [features]
 default = ["runtime"]
-runtime = ["other-dep", "cb-ast"]
-advanced = ["cb-ast/extra-feature"]
+runtime = ["other-dep", "mill-ast"]
+advanced = ["mill-ast/extra-feature"]
 "#;
 
         let result = rename_dependency(
             cargo_toml,
-            "cb-ast",
+            "mill-ast",
             "mill-ast",
             Some("../mill-ast"),
         )
@@ -339,7 +339,7 @@ advanced = ["cb-ast/extra-feature"]
 
         // Verify dependency was renamed
         assert!(result.contains("mill-ast = { path"));
-        assert!(!result.contains("cb-ast = { path"));
+        assert!(!result.contains("mill-ast = { path"));
 
         // Verify feature flags were updated
         assert!(result.contains("mill-ast"));
@@ -364,8 +364,8 @@ advanced = ["cb-ast/extra-feature"]
 
         // Verify old name is completely gone
         assert!(
-            !result.contains("cb-ast"),
-            "cb-ast should not appear anywhere in result"
+            !result.contains("mill-ast"),
+            "mill-ast should not appear anywhere in result"
         );
     }
 

@@ -8,7 +8,7 @@ use swc_ecma_parser::{lexer::Lexer, Parser, StringInput, Syntax, TsSyntax};
 use tracing::debug;
 
 /// Remove a named import from an import line using AST parsing.
-/// This function is moved from `cb-ast/src/analyzer.rs`.
+/// This function is moved from `mill-ast/src/analyzer.rs`.
 pub fn remove_named_import_from_line(line: &str, import_name: &str) -> PluginResult<String> {
     // Set up SWC parser
     let cm = Lrc::new(SourceMap::new(FilePathMapping::empty()));

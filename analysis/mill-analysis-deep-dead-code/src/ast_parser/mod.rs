@@ -1,4 +1,4 @@
-// analysis/cb-analysis-deep-dead-code/src/ast_parser/mod.rs
+// analysis/mill-analysis-deep-dead-code/src/ast_parser/mod.rs
 
 //! This module is responsible for parsing source code into an Abstract Syntax Tree (AST)
 //! and extracting symbol information from it.

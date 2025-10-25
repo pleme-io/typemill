@@ -159,8 +159,8 @@ impl LanguagePlugin for TomlLanguagePlugin {
                 .unwrap_or_else(|| new_path.to_str().unwrap_or(""));
 
             // Smart boundary matching: NOT preceded/followed by alphanumeric
-            // Allows: "cb-handlers", "cb-handlers-style", "# cb-handlers"
-            // Blocks: "mycb-handlers", "cb-handlersystem"
+            // Allows: "mill-handlers", "mill-handlers-style", "# mill-handlers"
+            // Blocks: "mymill-handlers", "mill-handlersystem"
             let pattern = format!(
                 r"(?<![a-zA-Z0-9]){}(?![a-zA-Z0-9])",
                 fancy_regex::escape(old_basename)
@@ -271,13 +271,13 @@ target-dir = "integration-tests/target"
     #[test]
     fn test_updates_comments_with_flag() {
         let content = r#"
-# Layer 6: Handlers (cb-handlers)
+# Layer 6: Handlers (mill-handlers)
 [package]
 name = "test"
 
-# Analysis crates are optional runtime dependencies (feature-gated in cb-handlers)
-# Allow cb-handlers to optionally depend on them via feature flags
-wrappers = ["cb-handlers", "other-crate"]
+# Analysis crates are optional runtime dependencies (feature-gated in mill-handlers)
+# Allow mill-handlers to optionally depend on them via feature flags
+wrappers = ["mill-handlers", "other-crate"]
 "#;
 
         let plugin = TomlLanguagePlugin::new();
@@ -289,7 +289,7 @@ wrappers = ["cb-handlers", "other-crate"]
 
         let result = plugin.rewrite_file_references(
             content,
-            Path::new("cb-handlers"),
+            Path::new("mill-handlers"),
             Path::new("mill-handlers"),
             Path::new("."),
             Path::new("."),
@@ -314,9 +314,9 @@ wrappers = ["cb-handlers", "other-crate"]
     #[test]
     fn test_smart_boundaries_in_comments() {
         let content = r#"
-# The cb-handlers-style API is simple
-# Don't use mycb-handlers (should NOT change)
-wrappers = ["cb-handlers"]
+# The mill-handlers-style API is simple
+# Don't use mymill-handlers (should NOT change)
+wrappers = ["mill-handlers"]
 "#;
 
         let plugin = TomlLanguagePlugin::new();
@@ -327,7 +327,7 @@ wrappers = ["cb-handlers"]
 
         let result = plugin.rewrite_file_references(
             content,
-            Path::new("cb-handlers"),
+            Path::new("mill-handlers"),
             Path::new("mill-handlers"),
             Path::new("."),
             Path::new("."),
@@ -337,13 +337,13 @@ wrappers = ["cb-handlers"]
         assert!(result.is_some());
         let (new_content, count) = result.unwrap();
 
-        // Should update: "cb-handlers-style" and "cb-handlers" value = 2 total
+        // Should update: "mill-handlers-style" and "mill-handlers" value = 2 total
         assert_eq!(count, 2);
 
         // Hyphenated identifier should update
         assert!(new_content.contains("mill-handlers-style"));
 
         // Partial match should NOT update
-        assert!(new_content.contains("mycb-handlers"));
+        assert!(new_content.contains("mymill-handlers"));
     }
 }

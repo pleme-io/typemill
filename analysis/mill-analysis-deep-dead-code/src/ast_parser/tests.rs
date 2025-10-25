@@ -1,4 +1,4 @@
-// analysis/cb-analysis-deep-dead-code/src/ast_parser/tests.rs
+// analysis/mill-analysis-deep-dead-code/src/ast_parser/tests.rs
 
 use super::*;
 use tempfile::tempdir;

@@ -1,11 +1,11 @@
-name: Codebuddy CI Test
+name: Typemill CI Test
 
 on: [push, pull_request]
 
 jobs:
   test-mill-install:
     runs-on: ubuntu-latest
-    name: Test Codebuddy Installation from Scratch
+    name: Test Typemill Installation from Scratch
 
     steps:
       - uses: actions/checkout@v4
@@ -31,7 +31,7 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Install Codebuddy via cargo
+      - name: Install Typemill via cargo
         run: |
           cargo install mill --locked
           mill --version
@@ -40,7 +40,7 @@ jobs:
         run: |
           npm install -g typescript-language-server typescript
 
-      - name: Configure Codebuddy
+      - name: Configure Typemill
         run: |
           mkdir -p .typemill
           cat > .typemill/config.json <<'EOF'
@@ -63,7 +63,7 @@ jobs:
           mkdir -p src
           echo 'function hello() { console.log("hello world"); }' > src/main.ts
 
-      - name: Run Codebuddy Tools to Verify Installation
+      - name: Run Typemill Tools to Verify Installation
         run: |
           echo "Running status and doctor..."
           mill status

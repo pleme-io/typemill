@@ -1,5 +1,5 @@
 {
-  "name": "Codebuddy Development",
+  "name": "Typemill Development",
   "image": "mcr.microsoft.com/devcontainers/rust:1-bookworm",
 
   "features": {

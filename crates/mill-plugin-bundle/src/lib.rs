@@ -4,7 +4,7 @@
 //! in the mill system. It depends on all concrete language implementations
 //! and provides a simple function to instantiate them.
 //!
-//! This separation ensures that core service layers (`cb-services`, `cb-ast`)
+//! This separation ensures that core service layers (`mill-services`, `mill-ast`)
 //! remain decoupled from specific language implementations, while the application
 //! binary can easily access all available plugins.
 

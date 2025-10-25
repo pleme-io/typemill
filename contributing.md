@@ -1,9 +1,9 @@
-# Contributing to Codebuddy
+# Contributing to TypeMill
 
 > **📌 New to the project?** This guide is for developers building from source.
 > End users: see [README.md](README.md) for installation instructions.
 
-First off, thank you for considering contributing! It's people like you that make Codebuddy such a great tool.
+First off, thank you for considering contributing! It's people like you that make TypeMill such a great tool.
 
 ## Getting Started
 
@@ -203,7 +203,7 @@ make test-integration-nav
 **Note:** Single-language builds (Rust-only or TypeScript-only) are **not currently feasible** without significant architectural changes. This limitation is documented here for future reference.
 
 **Why not supported:**
-- Language plugins are hard-wired as unconditional dependencies across multiple crates (`cb-ast`, `mill-services`, `cb-plugins`, `apps/mill`)
+- Language plugins are hard-wired as unconditional dependencies across multiple crates (`mill-ast`, `mill-services`, `mill-plugins`, `apps/mill`)
 - Code contains direct downcasts to concrete plugin types (e.g., `plugin.downcast_ref::<TypeScriptPlugin>()`)
 - Services eagerly link all language crates and call directly into them
 - Would require extensive refactoring to feature-gate all cross-language references
@@ -788,7 +788,7 @@ This section explains how to add new tools and handlers to the system.
 
 ### Understanding the Unified Refactoring API
 
-Codebuddy uses a **unified refactoring API** with a consistent `plan -> apply` pattern for all code refactorings. This architecture provides:
+TypeMill uses a **unified refactoring API** with a consistent `plan -> apply` pattern for all code refactorings. This architecture provides:
 
 1. **Safety**: All `.plan` commands are read-only and never modify files
 2. **Preview**: Users can inspect changes before applying them
@@ -830,7 +830,7 @@ mill tool workspace.apply_edit "{\"plan\": $PLAN}"
 
 ### Understanding the Unified Analysis API
 
-Codebuddy uses a **unified analysis API** with a consistent `analyze.<category>(kind, scope, options) → AnalysisResult` pattern for all code analysis. This architecture provides:
+TypeMill uses a **unified analysis API** with a consistent `analyze.<category>(kind, scope, options) → AnalysisResult` pattern for all code analysis. This architecture provides:
 
 1. **Consistency**: All analysis operations follow the same pattern and return the same result structure
 2. **Composability**: Batch analysis with shared AST parsing for performance

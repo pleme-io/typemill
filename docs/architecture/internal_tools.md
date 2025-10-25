@@ -12,7 +12,7 @@ Understanding which tools are visible to AI agents and which are reserved for ba
 
 ## Overview
 
-Codebuddy distinguishes between **public tools** (exposed to AI agents via MCP) and **internal tools** (backend-only, hidden from MCP listings).
+TypeMill distinguishes between **public tools** (exposed to AI agents via MCP) and **internal tools** (backend-only, hidden from MCP listings).
 
 ## Internal vs Public Tools
 

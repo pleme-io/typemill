@@ -1,4 +1,4 @@
-// analysis/cb-analysis-dead-code/src/utils.rs
+// analysis/mill-analysis-dead-code/src/utils.rs
 
 /// Convert LSP SymbolKind number to human-readable string
 pub fn lsp_kind_to_string(kind: u64) -> String {

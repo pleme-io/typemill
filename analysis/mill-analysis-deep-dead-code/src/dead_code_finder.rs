@@ -1,4 +1,4 @@
-// analysis/cb-analysis-deep-dead-code/src/dead_code_finder.rs
+// analysis/mill-analysis-deep-dead-code/src/dead_code_finder.rs
 
 use crate::DeepDeadCodeConfig;
 use mill_analysis_common::graph::{ DependencyGraph , SymbolNode };

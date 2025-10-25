@@ -9,7 +9,7 @@ use swc_ecma_ast::*;
 use swc_ecma_parser::{lexer::Lexer, Parser, StringInput, Syntax, TsSyntax};
 use swc_ecma_visit::{Visit, VisitWith};
 
-// Note: These structs are moved from cb-ast/src/refactoring.rs
+// Note: These structs are moved from mill-ast/src/refactoring.rs
 // They might be better in a shared crate in the future.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CodeRange {
@@ -62,7 +62,7 @@ impl From<CodeRange> for EditLocation {
     }
 }
 
-// Moved from cb-ast/src/refactoring.rs
+// Moved from mill-ast/src/refactoring.rs
 pub fn plan_extract_function(
     source: &str,
     start_line: u32,
@@ -309,7 +309,7 @@ fn ast_extract_variable_ts_js(
     })
 }
 
-// --- Analysis Functions (moved from cb-ast) ---
+// --- Analysis Functions (moved from mill-ast) ---
 
 pub fn analyze_extract_function(
     source: &str,
@@ -390,7 +390,7 @@ pub fn analyze_extract_variable(
     }
 }
 
-// --- Visitors (moved from cb-ast) ---
+// --- Visitors (moved from mill-ast) ---
 
 struct ExtractFunctionAnalyzer {
     selection_range: CodeRange,
@@ -449,7 +449,7 @@ impl Visit for InlineVariableAnalyzer {
     // Simplified visit implementation
 }
 
-// --- Helper Functions (moved from cb-ast) ---
+// --- Helper Functions (moved from mill-ast) ---
 
 fn check_extractability(expression: &str) -> (bool, Vec<String>) {
     let mut can_extract = true;

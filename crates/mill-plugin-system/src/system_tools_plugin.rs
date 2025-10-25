@@ -360,8 +360,8 @@ impl SystemToolsPlugin {
             "Extracting module to package"
         );
 
-        // Call the planning function from cb-ast with injected registry
-        // cb-ast is now language-agnostic and uses capability-based dispatch
+        // Call the planning function from mill-ast with injected registry
+        // mill-ast is now language-agnostic and uses capability-based dispatch
         let edit_plan =
             mill_ast::package_extractor::plan_extract_module_to_package_with_registry(
                 parsed,

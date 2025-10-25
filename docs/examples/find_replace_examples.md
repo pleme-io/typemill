@@ -374,7 +374,7 @@ mill tool workspace.find_replace '{
 
 **Changes applied:**
 - `mill` → `typemill` (lowercase)
-- `Codebuddy` → `Typemill` (title case)
+- `TypeMill` → `Typemill` (title case)
 - `CODEBUDDY` → `TYPEMILL` (uppercase)
 - `TypeMill` → `TypeMill` (PascalCase)
 

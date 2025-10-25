@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-**Complete API reference for all 36 Codebuddy MCP tools**
+**Complete API reference for all 36 TypeMill MCP tools**
 
 This directory contains focused documentation for each tool category. Each category file follows a consistent structure with terse but complete documentation, real examples from the codebase, and common patterns.
 

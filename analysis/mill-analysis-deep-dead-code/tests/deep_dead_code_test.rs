@@ -1,4 +1,4 @@
-// analysis/cb-analysis-deep-dead-code/tests/deep_dead_code_test.rs
+// analysis/mill-analysis-deep-dead-code/tests/deep_dead_code_test.rs
 
 use async_trait::async_trait;
 use mill_analysis_common::{ AnalysisEngine , AnalysisError , LspProvider };

@@ -1,6 +1,6 @@
 # Git Hooks
 
-Custom git hooks for Codebuddy development.
+Custom git hooks for Typemill development.
 
 ## Installation
 
@@ -19,8 +19,8 @@ This tells git to use the hooks in this directory instead of `.git/hooks/`.
 Checks for missing external parser artifacts before allowing commits.
 
 **What it checks:**
-- Java parser JAR file (`cb-lang-java`)
-- C# parser build output (`cb-lang-csharp`)
+- Java parser JAR file (`mill-lang-java`)
+- C# parser build output (`mill-lang-csharp`)
 - TypeScript parser dependencies (`mill-lang-typescript`)
 - Swift SourceKitten installation (optional warning)
 

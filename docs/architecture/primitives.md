@@ -1,10 +1,10 @@
-# Code Primitives: The Foundation of Codebuddy
+# Code Primitives: The Foundation of TypeMill
 
 ## Overview
 
-Codebuddy's design philosophy is built on two foundational pillars that work together to provide comprehensive code intelligence and transformation capabilities. These primitives represent the "DNA" of developer tooling — minimal, composable building blocks that combine to solve complex software engineering challenges.
+TypeMill's design philosophy is built on two foundational pillars that work together to provide comprehensive code intelligence and transformation capabilities. These primitives represent the "DNA" of developer tooling — minimal, composable building blocks that combine to solve complex software engineering challenges.
 
-This document explains the conceptual framework underlying Codebuddy's tool design and how these primitives map to actual MCP tools in the system.
+This document explains the conceptual framework underlying TypeMill's tool design and how these primitives map to actual MCP tools in the system.
 
 ---
 
@@ -364,7 +364,7 @@ The power of this framework comes from composing primitives to achieve complex g
 
 ## The Unified Refactoring API Pattern
 
-Codebuddy implements a consistent, safe `plan -> apply` pattern for all refactoring operations. This two-step approach enhances safety by allowing preview and validation before making changes.
+TypeMill implements a consistent, safe `plan -> apply` pattern for all refactoring operations. This two-step approach enhances safety by allowing preview and validation before making changes.
 
 ### Two-Step Process
 
@@ -486,7 +486,7 @@ All primitives **preserve correctness**. This guarantees:
 
 ---
 
-## Mapping to Codebuddy Tools
+## Mapping to TypeMill Tools
 
 ### Refactoring Primitives → MCP Tools
 
@@ -515,7 +515,7 @@ All primitives **preserve correctness**. This guarantees:
 
 ## Future Primitive Extensions
 
-As Codebuddy evolves, additional primitives may be added:
+As TypeMill evolves, additional primitives may be added:
 
 ### Potential Refactoring Primitives
 - **Merge** - Combine multiple functions/modules
@@ -542,7 +542,7 @@ As Codebuddy evolves, additional primitives may be added:
 
 ## Summary
 
-Codebuddy's primitive-based architecture provides:
+TypeMill's primitive-based architecture provides:
 
 1. **Clear Mental Model** - Easy to understand tool capabilities
 2. **Composable Operations** - Build complex workflows from simple parts
@@ -550,4 +550,4 @@ Codebuddy's primitive-based architecture provides:
 4. **Safety Guarantees** - Correctness-preserving transformations
 5. **Extensible Design** - Easy to add new primitives
 
-By organizing all 44+ MCP tools into these two pillars (Refactoring and Analysis), Codebuddy provides a complete foundation for AI-assisted code intelligence and transformation.
+By organizing all 44+ MCP tools into these two pillars (Refactoring and Analysis), TypeMill provides a complete foundation for AI-assisted code intelligence and transformation.

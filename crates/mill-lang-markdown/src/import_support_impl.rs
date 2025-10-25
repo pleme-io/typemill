@@ -208,15 +208,15 @@ impl MarkdownImportSupport {
         // Smart boundary matching: NOT preceded/followed by alphanumeric
         // This simple approach:
         // - Works in ANY language (not just English)
-        // - Handles hyphenated identifiers: "cb-handlers-style" → "mill-handlers-style"
+        // - Handles hyphenated identifiers: "mill-handlers-style" → "mill-handlers-style"
         // - Updates ALL prose occurrences (no fancy patterns needed)
-        // - Blocks partial matches: "mycb-handlers" won't match
+        // - Blocks partial matches: "my-old-handlers" won't match
         //
         // Examples of what gets updated:
-        // - "depend on cb-handlers" → "depend on mill-handlers"
-        // - "only cb-handlers can" → "only mill-handlers can"
-        // - "`cb-handlers`" → "`mill-handlers`"
-        // - "cb-handlers-style" → "mill-handlers-style"
+        // - "depend on mill-handlers" → "depend on mill-handlers"
+        // - "only mill-handlers can" → "only mill-handlers can"
+        // - "`mill-handlers`" → "`mill-handlers`"
+        // - "mill-handlers-style" → "mill-handlers-style"
         let pattern = format!(
             r"(?<![a-zA-Z0-9]){}(?![a-zA-Z0-9])",
             fancy_regex::escape(old_basename)

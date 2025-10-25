@@ -17,7 +17,7 @@ pub fn build_import_graph(source: &str, path: &Path) -> AstResult<ImportGraph> {
     let imports = match language {
         "typescript" | "javascript" => {
             // TypeScript/JavaScript parsing is handled by mill-lang-typescript plugin
-            // Cannot be called here due to circular dependency (mill-lang-typescript depends on cb-ast)
+            // Cannot be called here due to circular dependency (mill-lang-typescript depends on mill-ast)
             tracing::debug!(
                 file_path = % path.display(),
                 "TypeScript/JavaScript import parsing should use mill-lang-typescript plugin directly"
@@ -25,10 +25,10 @@ pub fn build_import_graph(source: &str, path: &Path) -> AstResult<ImportGraph> {
             Vec::new()
         }
         "rust" => {
-            // Rust import parsing is handled by cb-lang-rust plugin
-            // Cannot be called here due to circular dependency (cb-lang-rust depends on cb-ast)
+            // Rust import parsing is handled by mill-lang-rust plugin
+            // Cannot be called here due to circular dependency (mill-lang-rust depends on mill-ast)
             // Use mill_lang_rust::parse_imports() directly when needed
-            tracing::debug!("Rust import parsing should use cb-lang-rust plugin directly");
+            tracing::debug!("Rust import parsing should use mill-lang-rust plugin directly");
             Vec::new()
         }
         _ => parse_imports_basic(source)?,
@@ -403,7 +403,7 @@ fn find_cycles_dfs(
 mod tests {
     use super::*;
     // TypeScript/JavaScript import parsing tests have been moved to mill-lang-typescript plugin tests
-    // Python import parsing tests have been moved to cb-lang-python plugin tests
+    // Python import parsing tests have been moved to mill-lang-python plugin tests
     #[test]
     fn test_is_external_dependency() {
         assert!(is_external_dependency("react"));

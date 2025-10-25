@@ -266,8 +266,8 @@ impl LanguagePlugin for RustPlugin {
                         .unwrap_or_else(|| new_path.to_str().unwrap_or(""));
 
                     // Smart boundary matching: NOT preceded/followed by alphanumeric
-                    // Allows: "cb-lsp", "cb-lsp-style", "// cb-lsp"
-                    // Blocks: "mycb-lsp", "cb-lspsystem"
+                    // Allows: "mill-lsp", "mill-lsp-style", "// mill-lsp"
+                    // Blocks: "mymill-lsp", "mill-lspsystem"
                     let pattern = format!(
                         r"(?<![a-zA-Z0-9]){}(?![a-zA-Z0-9])",
                         fancy_regex::escape(old_basename)
@@ -1488,12 +1488,12 @@ pub fn process(x: i32) -> i32 {
     #[test]
     fn test_updates_comments_with_flag() {
         let content = r#"
-//! System components (now moved to cb-lsp crate)
+//! System components (now moved to mill-lsp crate)
 
-// Re-export from cb-lsp for backward compatibility
+// Re-export from mill-lsp for backward compatibility
 pub use cb_lsp::LspClient;
 
-// Don't use mycb-lsp (should NOT change)
+// Don't use mymill-lsp (should NOT change)
 "#;
 
         let plugin = RustPlugin::new();
@@ -1504,7 +1504,7 @@ pub use cb_lsp::LspClient;
 
         let result = plugin.rewrite_file_references(
             content,
-            Path::new("crates/cb-lsp"),
+            Path::new("crates/mill-lsp"),
             Path::new("crates/mill-lsp"),
             Path::new("src/main.rs"),
             Path::new("/workspace"),
@@ -1520,15 +1520,15 @@ pub use cb_lsp::LspClient;
         assert!(new_content.contains("from mill-lsp"), "Should update second comment");
 
         // Should NOT update partial match
-        assert!(new_content.contains("mycb-lsp"), "Should preserve partial matches");
+        assert!(new_content.contains("mymill-lsp"), "Should preserve partial matches");
     }
 
     #[test]
     fn test_comments_not_updated_without_flag() {
         let content = r#"
-//! System components (now moved to cb-lsp crate)
+//! System components (now moved to mill-lsp crate)
 
-// Re-export from cb-lsp for backward compatibility
+// Re-export from mill-lsp for backward compatibility
 pub use cb_lsp::LspClient;
 "#;
 
@@ -1539,7 +1539,7 @@ pub use cb_lsp::LspClient;
 
         let result = plugin.rewrite_file_references(
             content,
-            Path::new("crates/cb-lsp"),
+            Path::new("crates/mill-lsp"),
             Path::new("crates/mill-lsp"),
             Path::new("src/main.rs"),
             Path::new("/workspace"),
@@ -1550,7 +1550,7 @@ pub use cb_lsp::LspClient;
         let (new_content, _count) = result.unwrap();
 
         // Comments should NOT be updated without flag
-        assert!(new_content.contains("cb-lsp crate"), "Should preserve first comment without flag");
-        assert!(new_content.contains("from cb-lsp"), "Should preserve second comment without flag");
+        assert!(new_content.contains("mill-lsp crate"), "Should preserve first comment without flag");
+        assert!(new_content.contains("from mill-lsp"), "Should preserve second comment without flag");
     }
 }

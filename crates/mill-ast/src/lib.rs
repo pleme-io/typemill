@@ -1,4 +1,4 @@
-//! cb-ast: Abstract Syntax Tree parsing, analysis, and transformation for Codeflow Buddy
+//! mill-ast: Abstract Syntax Tree parsing, analysis, and transformation for TypeMill
 //!
 //! This crate provides sophisticated AST-based code analysis capabilities including
 //! import graph building, project-wide refactoring planning, and intelligent caching

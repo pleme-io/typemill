@@ -1,6 +1,6 @@
-# Codebuddy Documentation
+# TypeMill Documentation
 
-**Welcome to the Codebuddy documentation hub.** Find everything you need to use, deploy, and contribute to Codebuddy.
+**Welcome to the TypeMill documentation hub.** Find everything you need to use, deploy, and contribute to TypeMill.
 
 > **🤖 For AI agents:** See [CLAUDE.md](../CLAUDE.md) for complete project instructions and MCP tools overview.
 
@@ -17,7 +17,7 @@
 
 ## 📖 User Guides
 
-**Using Codebuddy in production:**
+**Using TypeMill in production:**
 
 - **[Docker Deployment](operations/docker_deployment.md)** - Containerized deployment guide
 - **[Cache Configuration](operations/cache_configuration.md)** - Performance tuning with caching
@@ -27,7 +27,7 @@
 
 ## 💻 Developer Documentation
 
-**Contributing to Codebuddy:**
+**Contributing to TypeMill:**
 
 - **[Contributing Guide](../contributing.md)** - Setup, workflow, PR process (root-level file)
 - **[Plugin Development](development/plugin_development.md)** - Create language plugins

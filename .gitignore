@@ -71,7 +71,7 @@ mcp/*/storage.json
 # Local claude settings
 .claude/settings.local.json
 
-# Codebuddy runtime files
+# Typemill runtime files
 .typemill/server.pid
 .typemill/config.json
 
@@ -104,6 +104,3 @@ jscpd-report/
 complexity-report.json
 test_scanner
 .claude/
-
-# Language-specific build artifacts
-/crates/cb-lang-csharp/csharp-parser

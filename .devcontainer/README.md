@@ -1,4 +1,4 @@
-# Dev Container for Codebuddy
+# Dev Container for Typemill
 
 This directory contains configuration for [VS Code Dev Containers](https://code.visualstudio.com/docs/devcontainers/containers) and [GitHub Codespaces](https://github.com/features/codespaces).
 

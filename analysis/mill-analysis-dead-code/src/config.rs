@@ -1,4 +1,4 @@
-// analysis/cb-analysis-dead-code/src/config.rs
+// analysis/mill-analysis-dead-code/src/config.rs
 
 /// Configuration for dead code analysis
 #[derive(Debug, Clone)]

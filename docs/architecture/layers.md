@@ -1,6 +1,6 @@
 # Architectural Layers
 
-This document defines the layered dependency model for the Codebuddy/TypeMill workspace. These layers are programmatically enforced using `cargo-deny` to prevent "spider web" dependencies and maintain clean architecture.
+This document defines the layered dependency model for the TypeMill/TypeMill workspace. These layers are programmatically enforced using `cargo-deny` to prevent "spider web" dependencies and maintain clean architecture.
 
 ## Layer Hierarchy
 

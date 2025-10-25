@@ -1,4 +1,4 @@
-// analysis/cb-analysis-common/src/lib.rs
+// analysis/mill-analysis-common/src/lib.rs
 
 pub mod error;
 pub mod graph;

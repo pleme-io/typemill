@@ -27,7 +27,7 @@ pub struct Message {
     pub params: serde_json::Value,
 }
 
-/// Import graph representation - concrete implementation from cb-ast
+/// Import graph representation - concrete implementation from mill-ast
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportGraph {
@@ -124,7 +124,7 @@ pub struct ImportGraphMetadata {
     pub external_dependencies: Vec<String>,
 }
 
-/// Edit plan for code transformations - concrete implementation from cb-ast
+/// Edit plan for code transformations - concrete implementation from mill-ast
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct EditPlan {

@@ -1,6 +1,6 @@
 # Structured Logging Guidelines
 
-Your guide to structured logging in Codebuddy using the `tracing` crate. Follow these patterns to keep logs consistent, machine-readable, and easy to debug in production.
+Your guide to structured logging in TypeMill using the `tracing` crate. Follow these patterns to keep logs consistent, machine-readable, and easy to debug in production.
 
 ## Overview
 
@@ -284,7 +284,7 @@ handle_request().await;
 
 ### Log Output
 
-**Note:** Codebuddy writes all logs to standard error (`stderr`). Native file logging (e.g., via a `LOG_FILE` variable) is not currently supported.
+**Note:** TypeMill writes all logs to standard error (`stderr`). Native file logging (e.g., via a `LOG_FILE` variable) is not currently supported.
 
 To save logs to a file, use your shell's redirection capabilities:
 
@@ -325,7 +325,7 @@ RUST_LOG=info LOG_FORMAT=json cargo run
 RUST_LOG=cb_server::handlers=debug cargo run
 ```
 
-This structured approach ensures consistent, queryable, and maintainable logging across the entire Codebuddy codebase.
+This structured approach ensures consistent, queryable, and maintainable logging across the entire TypeMill codebase.
 
 ---
 

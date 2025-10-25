@@ -2,7 +2,7 @@
 
 ## Overview
 
-Codebuddy is a pure Rust MCP server that bridges Model Context Protocol (MCP) with Language Server Protocol (LSP) functionality. The architecture follows a service-oriented design with clear crate separation, AI-friendly boundaries, and comprehensive code intelligence tools.
+TypeMill is a pure Rust MCP server that bridges Model Context Protocol (MCP) with Language Server Protocol (LSP) functionality. The architecture follows a service-oriented design with clear crate separation, AI-friendly boundaries, and comprehensive code intelligence tools.
 
 **For the conceptual framework underlying the tool design, see [PRIMITIVES.md](primitives.md)** - which explains the two-pillar philosophy (Refactoring Primitives and Analysis Primitives) that guides how all 44+ MCP tools are organized.
 
@@ -631,7 +631,7 @@ ApiError ← CoreError ← ServerError ← Transport-specific errors
 
 ## Multi-Tenancy Architecture
 
-To support multiple users securely, Codebuddy implements a multi-tenancy model that ensures user data and workspaces are isolated.
+To support multiple users securely, TypeMill implements a multi-tenancy model that ensures user data and workspaces are isolated.
 
 ### Core Principles
 

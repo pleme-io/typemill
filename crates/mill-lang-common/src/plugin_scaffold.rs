@@ -286,7 +286,7 @@ mod tests {{
     /// Generate Cargo.toml content
     pub fn generate_cargo_toml(&self) -> String {
         let lang_lower = self.language.to_lowercase();
-        let crate_name = format!("cb-lang-{}", lang_lower);
+        let crate_name = format!("mill-lang-{}", lang_lower);
 
         format!(
             r#"[package]
@@ -300,8 +300,8 @@ homepage.workspace = true
 [dependencies]
 # TypeMill workspace dependencies
 mill-plugin-api = {{ path = "../../mill-plugin-api" }}
-cb-protocol = {{ path = "../../cb-protocol" }}
-cb-core = {{ path = "../../cb-core" }}
+mill-plugin-api = {{ path = "../../mill-plugin-api" }}
+mill-foundation = {{ path = "../../mill-foundation" }}
 mill-lang-common = {{ path = "../mill-lang-common" }}
 
 # Async operations
@@ -353,7 +353,7 @@ tempfile = "3.10"
 ## Testing
 
 ```bash
-cargo test -p cb-lang-{lang_lower}
+cargo test -p mill-lang-{lang_lower}
 ```
 
 ## Implementation Status
@@ -420,7 +420,7 @@ mod tests {
         let scaffold = PluginScaffold::new("Elixir");
         let cargo_toml = scaffold.generate_cargo_toml();
 
-        assert!(cargo_toml.contains("name = \"cb-lang-elixir\""));
+        assert!(cargo_toml.contains("name = \"mill-lang-elixir\""));
         assert!(cargo_toml.contains("mill-lang-common"));
     }
 }

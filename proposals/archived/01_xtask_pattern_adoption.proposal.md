@@ -113,7 +113,7 @@ mod utils;
 
 #[derive(Parser)]
 #[command(name = "xtask")]
-#[command(about = "Codebuddy build automation tasks")]
+#[command(about = "TypeMill build automation tasks")]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -417,7 +417,7 @@ tokio-test = "0.4"
 
 fn generate_lib_rs(lang: &str) -> String {
     format!(
-        r#"//! {} language plugin for Codebuddy
+        r#"//! {} language plugin for TypeMill
 
 use async_trait::async_trait;
 use cb_plugin_api::{{LanguagePlugin, ParsedSource, Symbol}};

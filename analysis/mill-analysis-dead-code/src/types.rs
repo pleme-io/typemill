@@ -1,4 +1,4 @@
-// analysis/cb-analysis-dead-code/src/types.rs
+// analysis/mill-analysis-dead-code/src/types.rs
 
 use std::path::PathBuf;
 

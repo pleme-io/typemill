@@ -91,7 +91,7 @@ Plugins now implement 5 focused traits instead of one monolithic `ImportSupport`
 
 ## Plugin Registration (Auto-Discovery)
 
-Codebuddy uses compile-time auto-discovery via the `mill_plugin!` macro and `inventory` crate:
+TypeMill uses compile-time auto-discovery via the `mill_plugin!` macro and `inventory` crate:
 
 ### Step 1: Self-Register Your Plugin
 

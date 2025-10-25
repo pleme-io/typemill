@@ -1,12 +1,12 @@
-//! cb-server main binary
+//! mill-server main binary
 
 use clap::{Parser, Subcommand};
 use mill_config::AppConfig;
 use std::sync::Arc;
 
 #[derive(Parser)]
-#[command(name = "cb-server")]
-#[command(about = "Codeflow Buddy Server")]
+#[command(name = "mill-server")]
+#[command(about = "TypeMill Server")]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
@@ -31,7 +31,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize tracing based on configuration
     mill_config::logging::initialize(&config);
 
-    tracing::info!("Starting Codeflow Buddy Server");
+    tracing::info!("Starting TypeMill Server");
 
     // Create workspace manager for tracking connected containers
     let workspace_manager = Arc::new(mill_workspaces::WorkspaceManager::new());
