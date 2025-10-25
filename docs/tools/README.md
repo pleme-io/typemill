@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-**Complete API reference for all 36 TypeMill MCP tools**
+**Complete API reference for all 28 TypeMill MCP tools**
 
 This directory contains focused documentation for each tool category. Each category file follows a consistent structure with terse but complete documentation, real examples from the codebase, and common patterns.
 
@@ -19,22 +19,14 @@ This directory contains focused documentation for each tool category. Each categ
 | `get_symbol_info` | Navigation | Get detailed symbol information | [navigation.md](navigation.md#get_symbol_info) |
 | `get_diagnostics` | Navigation | Get errors/warnings/hints | [navigation.md](navigation.md#get_diagnostics) |
 | `get_call_hierarchy` | Navigation | Get call hierarchy (callers/callees) | [navigation.md](navigation.md#get_call_hierarchy) |
-| **Editing & Refactoring (15 tools)** ||||
-| `rename.plan` | Refactoring | Plan rename operation (dry-run) | [refactoring.md](refactoring.md#renameplan) |
-| `rename` | Refactoring | Execute rename (one-step) | [refactoring.md](refactoring.md#rename) |
-| `extract.plan` | Refactoring | Plan extract function/variable (dry-run) | [refactoring.md](refactoring.md#extractplan) |
-| `extract` | Refactoring | Execute extract (one-step) | [refactoring.md](refactoring.md#extract) |
-| `inline.plan` | Refactoring | Plan inline operation (dry-run) | [refactoring.md](refactoring.md#inlineplan) |
-| `inline` | Refactoring | Execute inline (one-step) | [refactoring.md](refactoring.md#inline) |
-| `move.plan` | Refactoring | Plan move symbol (dry-run) | [refactoring.md](refactoring.md#moveplan) |
-| `move` | Refactoring | Execute move (one-step) | [refactoring.md](refactoring.md#move) |
-| `reorder.plan` | Refactoring | Plan reorder params/imports (dry-run) | [refactoring.md](refactoring.md#reorderplan) |
-| `reorder` | Refactoring | Execute reorder (one-step) | [refactoring.md](refactoring.md#reorder) |
-| `transform.plan` | Refactoring | Plan code transformation (dry-run) | [refactoring.md](refactoring.md#transformplan) |
-| `transform` | Refactoring | Execute transform (one-step) | [refactoring.md](refactoring.md#transform) |
-| `delete.plan` | Refactoring | Plan delete operation (dry-run) | [refactoring.md](refactoring.md#deleteplan) |
-| `delete` | Refactoring | Execute delete (one-step) | [refactoring.md](refactoring.md#delete) |
-| `workspace.apply_edit` | Refactoring | Apply refactoring plan | [refactoring.md](refactoring.md#workspaceapply_edit) |
+| **Editing & Refactoring (7 tools)** ||||
+| `rename` | Refactoring | Rename symbols/files/directories (dryRun option) | [refactoring.md](refactoring.md#rename) |
+| `extract` | Refactoring | Extract functions/variables (dryRun option) | [refactoring.md](refactoring.md#extract) |
+| `inline` | Refactoring | Inline variables/functions (dryRun option) | [refactoring.md](refactoring.md#inline) |
+| `move` | Refactoring | Move symbols/files (dryRun option) | [refactoring.md](refactoring.md#move) |
+| `reorder` | Refactoring | Reorder params/imports (dryRun option) | [refactoring.md](refactoring.md#reorder) |
+| `transform` | Refactoring | Code transformations (dryRun option) | [refactoring.md](refactoring.md#transform) |
+| `delete` | Refactoring | Delete symbols/files/directories (dryRun option) | [refactoring.md](refactoring.md#delete) |
 | **Analysis (8 tools)** ||||
 | `analyze.quality` | Analysis | Code quality analysis | [analysis.md](analysis.md#analyzequality) |
 | `analyze.dead_code` | Analysis | Unused code detection | [analysis.md](analysis.md#analyzedead_code) |
@@ -62,9 +54,9 @@ This directory contains focused documentation for each tool category. Each categ
 Navigate codebases with precision using language server protocol integration. Find definitions, references, implementations, and get rich symbol information with full IDE-quality intelligence.
 
 ### [Editing & Refactoring](refactoring.md)
-**15 tools** following the unified plan → apply pattern for safe refactoring.
+**7 tools** with unified dryRun API for safe, reviewable refactoring.
 
-All refactoring operations support two-step workflow: generate a plan (dry-run) with `*.plan` tools, review changes, then apply with `workspace.apply_edit`. Quick one-step versions available for trusted operations.
+All refactoring operations use a single tool with `options.dryRun` parameter: default `true` generates a preview plan without modifying files, explicit `false` applies changes immediately with validation and rollback support.
 
 ### [Analysis](analysis.md)
 **8 unified analysis tools** with consistent kind/scope API.
@@ -199,15 +191,35 @@ All tools are called via MCP JSON-RPC protocol:
 
 ### Dry-Run Pattern
 
-Refactoring tools support dry-run mode:
+All refactoring tools use a unified `options.dryRun` parameter:
 
-**Two-step (recommended):**
-1. Generate plan with `*.plan` tool (always dry-run, never modifies files)
-2. Review the plan
-3. Apply with `workspace.apply_edit` (can set `dryRun: true` for final preview)
+**Preview mode (default, safe):**
+```json
+{
+  "name": "rename",
+  "arguments": {
+    "target": {...},
+    "newName": "...",
+    // options.dryRun defaults to true - preview only
+  }
+}
+```
 
-**One-step (quick):**
-Use tool without `.plan` suffix to combine plan + execute in one call.
+**Execution mode (explicit opt-in):**
+```json
+{
+  "name": "rename",
+  "arguments": {
+    "target": {...},
+    "newName": "...",
+    "options": {
+      "dryRun": false  // Execute changes
+    }
+  }
+}
+```
+
+**Safe default:** `dryRun: true` requires explicit `dryRun: false` for execution.
 
 ### Error Handling
 
@@ -266,5 +278,5 @@ Common error codes:
 
 ---
 
-**Last Updated:** 2025-10-22
-**API Version:** 1.0.0-rc4
+**Last Updated:** 2025-10-25
+**API Version:** 1.0.0-rc5
