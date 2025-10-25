@@ -140,6 +140,30 @@ export TYPEMILL_DISABLE_CACHE=0
 }
 ```
 
+### Environment Variable Overrides
+
+Override any configuration value using `TYPEMILL__` prefix (double underscores):
+
+```bash
+# Server configuration
+export TYPEMILL__SERVER__PORT=3000
+export TYPEMILL__SERVER__HOST="127.0.0.1"
+
+# Authentication (use env vars for secrets!)
+export TYPEMILL__SERVER__AUTH__JWT_SECRET="your-secret-key"
+
+# Cache settings
+export TYPEMILL__CACHE__ENABLED=true
+export TYPEMILL__CACHE__TTL_SECONDS=3600
+
+# Or use a .env file (gitignored)
+echo 'TYPEMILL__SERVER__AUTH__JWT_SECRET=dev-secret' > .env
+```
+
+**Security**: Never commit secrets to config files. Always use environment variables for sensitive data.
+
+See [CLAUDE.md](CLAUDE.md#environment-variables) for complete environment variable reference.
+
 ## 🔧 Troubleshooting
 
 **Server won't start:**
