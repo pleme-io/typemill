@@ -17,7 +17,7 @@ impl FileService {
         overwrite: bool,
         dry_run: bool,
     ) -> ServerResult<DryRunnable<Value>> {
-        let abs_path = self.to_absolute_path(path);
+        let abs_path = self.to_absolute_path_checked(path)?;
         let content = content.unwrap_or("").to_string();
 
         if dry_run {
@@ -103,7 +103,7 @@ impl FileService {
         force: bool,
         dry_run: bool,
     ) -> ServerResult<DryRunnable<Value>> {
-        let abs_path = self.to_absolute_path(path);
+        let abs_path = self.to_absolute_path_checked(path)?;
 
         if dry_run {
             // Preview mode - just return what would happen
@@ -231,7 +231,7 @@ impl FileService {
 
     /// Read file contents
     pub async fn read_file(&self, path: &Path) -> ServerResult<String> {
-        let abs_path = self.to_absolute_path(path);
+        let abs_path = self.to_absolute_path_checked(path)?;
 
         if !abs_path.exists() {
             return Err(ServerError::NotFound(format!(
@@ -254,7 +254,7 @@ impl FileService {
         content: &str,
         dry_run: bool,
     ) -> ServerResult<DryRunnable<Value>> {
-        let abs_path = self.to_absolute_path(path);
+        let abs_path = self.to_absolute_path_checked(path)?;
         let content = content.to_string();
 
         if dry_run {
@@ -330,7 +330,7 @@ impl FileService {
         recursive: bool,
         pattern: Option<&str>,
     ) -> ServerResult<Vec<String>> {
-        let abs_path = self.to_absolute_path(path);
+        let abs_path = self.to_absolute_path_checked(path)?;
 
         if !abs_path.exists() {
             return Err(ServerError::NotFound(format!(

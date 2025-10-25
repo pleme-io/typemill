@@ -73,26 +73,93 @@ impl Session {
     }
 }
 
+/// Connection guard that tracks active connections
+///
+/// Increments counter on creation, decrements on drop.
+/// Used to enforce max_clients limit.
+struct ConnectionGuard {
+    counter: Arc<std::sync::atomic::AtomicUsize>,
+}
+
+impl ConnectionGuard {
+    fn new(counter: Arc<std::sync::atomic::AtomicUsize>) -> Self {
+        counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        Self { counter }
+    }
+}
+
+impl Drop for ConnectionGuard {
+    fn drop(&mut self) {
+        self.counter.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
 /// Start the WebSocket server
 pub async fn start_ws_server(
     config: Arc<AppConfig>,
     dispatcher: Arc<dyn McpDispatcher>,
 ) -> ApiResult<()> {
+    // Enforce TLS for non-loopback hosts
+    if !config.server.is_loopback_host() {
+        if config.server.tls.is_none() {
+            return Err(ApiError::bootstrap(
+                format!(
+                    "TLS is required when binding to non-loopback address '{}'. \
+                     Configure server.tls or bind to 127.0.0.1",
+                    config.server.host
+                )
+            ));
+        }
+        tracing::info!(
+            host = %config.server.host,
+            "TLS enabled for non-loopback host"
+        );
+    } else if config.server.tls.is_none() {
+        tracing::warn!(
+            host = %config.server.host,
+            "WebSocket server running without TLS on loopback. \
+             Enable TLS in production environments."
+        );
+    }
+
     let addr = format!("{}:{}", config.server.host, config.server.port);
     let listener = TcpListener::bind(&addr)
         .await
         .map_err(|e| ApiError::bootstrap(format!("Failed to bind to {}: {}", addr, e)))?;
 
+    // Connection tracking for max_clients enforcement
+    let active_connections = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+
     tracing::info!("WebSocket server listening on {}", addr);
 
     while let Ok((stream, addr)) = listener.accept().await {
+        // Check max_clients limit before accepting connection
+        if let Some(max_clients) = config.server.max_clients {
+            let current = active_connections.load(std::sync::atomic::Ordering::SeqCst);
+            if current >= max_clients {
+                tracing::warn!(
+                    current_connections = current,
+                    max_clients = max_clients,
+                    client_addr = %addr,
+                    "Max clients limit reached, rejecting connection"
+                );
+                // Connection will be dropped, closing the socket
+                continue;
+            }
+        }
+
         tracing::debug!(
             client_addr = %addr,
             "New connection"
         );
         let config = config.clone();
         let dispatcher = dispatcher.clone();
-        tokio::spawn(handle_connection(stream, config, dispatcher));
+        let connection_counter = active_connections.clone();
+
+        tokio::spawn(async move {
+            let _guard = ConnectionGuard::new(connection_counter);
+            handle_connection(stream, config, dispatcher).await;
+        });
     }
 
     Ok(())
@@ -127,11 +194,29 @@ async fn handle_connection(
                     // Decode token to validate and extract user_id
                     let key = DecodingKey::from_secret(auth_config.jwt_secret.as_ref());
                     let mut validation = Validation::default();
-                    validation.validate_aud = false;
+
+                    // Use config to determine if audience validation is enabled
+                    validation.validate_aud = auth_config.validate_audience;
+
+                    if auth_config.validate_audience {
+                        let audience = auth_config
+                            .jwt_audience_override
+                            .as_ref()
+                            .unwrap_or(&auth_config.jwt_audience);
+                        validation.set_audience(&[audience]);
+                    }
 
                     match decode::<Claims>(token, &key, &validation) {
                         Ok(token_data) => {
                             tracing::debug!("WebSocket connection authenticated");
+
+                            // Warn if project_id is missing (deprecation path)
+                            if token_data.claims.project_id.is_none() {
+                                tracing::warn!(
+                                    "WebSocket connection authenticated but token missing project_id claim - this will be required in future versions"
+                                );
+                            }
+
                             user_id_from_token = token_data.claims.user_id;
                             return Ok(response);
                         }
@@ -425,6 +510,8 @@ mod tests {
                         jwt_expiry_seconds: 3600,
                         jwt_issuer: "test".to_string(),
                         jwt_audience: "test".to_string(),
+                        validate_audience: false,
+                        jwt_audience_override: None,
                     })
                 } else {
                     None
@@ -470,5 +557,74 @@ mod tests {
         } else {
             panic!("Expected Response message");
         }
+    }
+
+    #[test]
+    fn test_connection_guard_increments_on_creation() {
+        let counter = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+
+        assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 0);
+
+        {
+            let _guard = ConnectionGuard::new(counter.clone());
+            assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 1);
+        }
+
+        // Guard dropped, should decrement
+        assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn test_connection_guard_multiple_connections() {
+        let counter = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+
+        let _guard1 = ConnectionGuard::new(counter.clone());
+        assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 1);
+
+        let _guard2 = ConnectionGuard::new(counter.clone());
+        assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 2);
+
+        let _guard3 = ConnectionGuard::new(counter.clone());
+        assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 3);
+
+        drop(_guard1);
+        assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 2);
+
+        drop(_guard2);
+        assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 1);
+
+        drop(_guard3);
+        assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn test_is_loopback_host_valid() {
+        let mut config = create_test_config(false);
+
+        config.server.host = "127.0.0.1".to_string();
+        assert!(config.server.is_loopback_host(), "127.0.0.1 should be loopback");
+
+        config.server.host = "::1".to_string();
+        assert!(config.server.is_loopback_host(), "::1 should be loopback");
+
+        config.server.host = "localhost".to_string();
+        assert!(config.server.is_loopback_host(), "localhost should be loopback");
+    }
+
+    #[test]
+    fn test_is_loopback_host_invalid() {
+        let mut config = create_test_config(false);
+
+        config.server.host = "0.0.0.0".to_string();
+        assert!(!config.server.is_loopback_host(), "0.0.0.0 should NOT be loopback (binds all interfaces)");
+
+        config.server.host = "192.168.1.1".to_string();
+        assert!(!config.server.is_loopback_host(), "192.168.1.1 should NOT be loopback");
+
+        config.server.host = "10.0.0.1".to_string();
+        assert!(!config.server.is_loopback_host(), "10.0.0.1 should NOT be loopback");
+
+        config.server.host = "example.com".to_string();
+        assert!(!config.server.is_loopback_host(), "example.com should NOT be loopback");
     }
 }

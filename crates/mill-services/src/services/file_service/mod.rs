@@ -9,6 +9,9 @@ mod utils;
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
+mod path_safety_tests;
+
 // Re-export public types
 pub use self::edit_plan::EditPlanResult;
 pub use self::utils::DocumentationUpdateReport;
@@ -32,6 +35,8 @@ pub struct FileService {
     pub plugin_registry: Arc<mill_plugin_api::PluginRegistry>,
     /// Project root directory
     pub(super) project_root: PathBuf,
+    /// Canonicalized project root (cached for performance)
+    pub(super) canonical_project_root: PathBuf,
     /// AST cache for invalidation after edits
     pub(super) ast_cache: Arc<AstCache>,
     /// Lock manager for atomic operations
@@ -59,6 +64,19 @@ impl FileService {
     ) -> Self {
         let project_root = project_root.as_ref().to_path_buf();
 
+        // Canonicalize project root once for performance and security
+        // This cached value is used for all path containment checks
+        let canonical_project_root = project_root
+            .canonicalize()
+            .unwrap_or_else(|e| {
+                tracing::warn!(
+                    project_root = %project_root.display(),
+                    error = %e,
+                    "Failed to canonicalize project root, using as-is (path safety checks may fail)"
+                );
+                project_root.clone()
+            });
+
         // Determine if we should use git based on:
         // 1. Configuration git.enabled flag
         // 2. Whether the project is actually a git repository
@@ -67,6 +85,7 @@ impl FileService {
 
         debug!(
             project_root = %project_root.display(),
+            canonical_root = %canonical_project_root.display(),
             git_enabled_in_config = config.git.enabled,
             is_git_repo,
             use_git,
@@ -77,6 +96,7 @@ impl FileService {
             reference_updater: ReferenceUpdater::new(&project_root),
             plugin_registry,
             project_root,
+            canonical_project_root,
             ast_cache,
             lock_manager,
             operation_queue,

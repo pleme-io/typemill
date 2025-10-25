@@ -66,8 +66,8 @@ impl<'a> MoveService<'a> {
             "Planning file move"
         );
 
-        let old_abs = self.to_absolute_path(old_path);
-        let new_abs = self.to_absolute_path(new_path);
+        let old_abs = self.to_absolute_path_checked(old_path)?;
+        let new_abs = self.to_absolute_path_checked(new_path)?;
 
         // Validate source file exists
         if !old_abs.exists() {
@@ -109,8 +109,8 @@ impl<'a> MoveService<'a> {
             "Planning directory move"
         );
 
-        let old_abs = self.to_absolute_path(old_path);
-        let new_abs = self.to_absolute_path(new_path);
+        let old_abs = self.to_absolute_path_checked(old_path)?;
+        let new_abs = self.to_absolute_path_checked(new_path)?;
 
         // Validate source directory exists
         if !old_abs.exists() {
@@ -155,8 +155,8 @@ impl<'a> MoveService<'a> {
             "Planning file move with scope"
         );
 
-        let old_abs = self.to_absolute_path(old_path);
-        let new_abs = self.to_absolute_path(new_path);
+        let old_abs = self.to_absolute_path_checked(old_path)?;
+        let new_abs = self.to_absolute_path_checked(new_path)?;
 
         // Validate source file exists
         if !old_abs.exists() {
@@ -230,8 +230,8 @@ impl<'a> MoveService<'a> {
             "Planning directory move with scope"
         );
 
-        let old_abs = self.to_absolute_path(old_path);
-        let new_abs = self.to_absolute_path(new_path);
+        let old_abs = self.to_absolute_path_checked(old_path)?;
+        let new_abs = self.to_absolute_path_checked(new_path)?;
 
         // Validate source directory exists
         if !old_abs.exists() {
@@ -299,12 +299,91 @@ impl<'a> MoveService<'a> {
     }
 
     /// Convert relative path to absolute path
+    ///
+    /// # ⚠️ DEPRECATED (for tests only)
+    /// Use `to_absolute_path_checked` for production code
+    #[allow(dead_code)] // Used in tests only
     fn to_absolute_path(&self, path: &Path) -> PathBuf {
         if path.is_absolute() {
             path.to_path_buf()
         } else {
             self.project_root.join(path)
         }
+    }
+
+    /// Convert path to absolute and verify it's within project root
+    ///
+    /// This performs canonicalization and containment checking to prevent
+    /// directory traversal attacks. Supports both existing and non-existent paths.
+    ///
+    /// # Errors
+    /// Returns error if path escapes project root or cannot be validated
+    fn to_absolute_path_checked(&self, path: &Path) -> ServerResult<PathBuf> {
+        // Convert to absolute
+        let abs_path = if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            self.project_root.join(path)
+        };
+
+        // Try to canonicalize the full path if it exists
+        let canonical = if abs_path.exists() {
+            abs_path.canonicalize().map_err(|e| {
+                ServerError::InvalidRequest(format!(
+                    "Path canonicalization failed for {:?}: {}",
+                    abs_path, e
+                ))
+            })?
+        } else {
+            // Path doesn't exist - canonicalize parent + join component
+            if let Some(parent) = abs_path.parent() {
+                let filename = abs_path.file_name().ok_or_else(|| {
+                    ServerError::InvalidRequest(format!(
+                        "Invalid path: no filename component in {:?}",
+                        abs_path
+                    ))
+                })?;
+
+                if !parent.exists() {
+                    return Err(ServerError::InvalidRequest(format!(
+                        "Parent directory does not exist: {:?}",
+                        parent
+                    )));
+                }
+
+                let canonical_parent = parent.canonicalize().map_err(|e| {
+                    ServerError::InvalidRequest(format!(
+                        "Parent canonicalization failed for {:?}: {}",
+                        parent, e
+                    ))
+                })?;
+
+                canonical_parent.join(filename)
+            } else {
+                abs_path.canonicalize().map_err(|e| {
+                    ServerError::InvalidRequest(format!(
+                        "Path canonicalization failed for {:?}: {}",
+                        abs_path, e
+                    ))
+                })?
+            }
+        };
+
+        // Verify containment within project root
+        let canonical_root = self.project_root.canonicalize().map_err(|e| {
+            ServerError::Internal {
+                message: format!("Project root canonicalization failed: {}", e),
+            }
+        })?;
+
+        if !canonical.starts_with(&canonical_root) {
+            return Err(ServerError::PermissionDenied(format!(
+                "Path traversal detected: {:?} escapes project root {:?}",
+                path, self.project_root
+            )));
+        }
+
+        Ok(canonical)
     }
 }
 

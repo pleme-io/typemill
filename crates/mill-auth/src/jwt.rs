@@ -26,11 +26,24 @@ pub struct Claims {
 }
 
 /// Validate a JWT token and return true if valid
-pub fn validate_token(token: &str, secret: &str) -> Result<bool, CoreError> {
+pub fn validate_token(
+    token: &str,
+    secret: &str,
+    auth_config: &mill_config::config::AuthConfig,
+) -> Result<bool, CoreError> {
     let key = DecodingKey::from_secret(secret.as_ref());
     let mut validation = Validation::default();
-    // Don't require aud claim in tests
-    validation.validate_aud = false;
+
+    // Use config to determine if audience validation is enabled
+    validation.validate_aud = auth_config.validate_audience;
+
+    if auth_config.validate_audience {
+        let audience = auth_config
+            .jwt_audience_override
+            .as_ref()
+            .unwrap_or(&auth_config.jwt_audience);
+        validation.set_audience(&[audience]);
+    }
 
     decode::<Claims>(token, &key, &validation)
         .map(|_| true)
@@ -42,11 +55,21 @@ pub fn validate_token_with_project(
     token: &str,
     secret: &str,
     expected_project_id: &str,
+    auth_config: &mill_config::config::AuthConfig,
 ) -> Result<bool, CoreError> {
     let key = DecodingKey::from_secret(secret.as_ref());
     let mut validation = Validation::default();
-    // Don't require aud claim in tests
-    validation.validate_aud = false;
+
+    // Use config to determine if audience validation is enabled
+    validation.validate_aud = auth_config.validate_audience;
+
+    if auth_config.validate_audience {
+        let audience = auth_config
+            .jwt_audience_override
+            .as_ref()
+            .unwrap_or(&auth_config.jwt_audience);
+        validation.set_audience(&[audience]);
+    }
 
     let token_data = decode::<Claims>(token, &key, &validation)
         .map_err(|e| CoreError::permission_denied(e.to_string()))?;
@@ -63,6 +86,9 @@ pub fn validate_token_with_project(
         }
     } else {
         // No project_id claim, allow access (for backward compatibility)
+        tracing::warn!(
+            "JWT token missing project_id claim - this will be required in future versions"
+        );
         Ok(true)
     }
 }
@@ -106,6 +132,17 @@ mod tests {
     use jsonwebtoken::{encode, EncodingKey, Header};
     use std::time::{SystemTime, UNIX_EPOCH};
 
+    fn create_test_auth_config(validate_audience: bool) -> mill_config::config::AuthConfig {
+        mill_config::config::AuthConfig {
+            jwt_secret: "test_secret".to_string(),
+            jwt_expiry_seconds: 3600,
+            jwt_issuer: "mill".to_string(),
+            jwt_audience: "codeflow-clients".to_string(),
+            validate_audience,
+            jwt_audience_override: None,
+        }
+    }
+
     fn create_test_token(secret: &str, project_id: Option<String>) -> String {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -130,44 +167,49 @@ mod tests {
     #[test]
     fn test_validate_token_success() {
         let secret = "test_secret";
+        let auth_config = create_test_auth_config(false);
         let token = create_test_token(secret, None);
 
-        assert!(validate_token(&token, secret).expect("Test token should be valid"));
+        assert!(validate_token(&token, secret, &auth_config).expect("Test token should be valid"));
     }
 
     #[test]
     fn test_validate_token_wrong_secret() {
         let secret = "test_secret";
+        let auth_config = create_test_auth_config(false);
         let token = create_test_token(secret, None);
 
-        assert!(validate_token(&token, "wrong_secret").is_err());
+        assert!(validate_token(&token, "wrong_secret", &auth_config).is_err());
     }
 
     #[test]
     fn test_validate_token_with_project_success() {
         let secret = "test_secret";
+        let auth_config = create_test_auth_config(false);
         let project_id = "test_project";
         let token = create_test_token(secret, Some(project_id.to_string()));
 
-        assert!(validate_token_with_project(&token, secret, project_id).unwrap());
+        assert!(validate_token_with_project(&token, secret, project_id, &auth_config).unwrap());
     }
 
     #[test]
     fn test_validate_token_with_project_mismatch() {
         let secret = "test_secret";
+        let auth_config = create_test_auth_config(false);
         let project_id = "test_project";
         let token = create_test_token(secret, Some(project_id.to_string()));
 
-        assert!(validate_token_with_project(&token, secret, "different_project").is_err());
+        assert!(validate_token_with_project(&token, secret, "different_project", &auth_config).is_err());
     }
 
     #[test]
     fn test_validate_token_with_project_no_claim() {
         let secret = "test_secret";
+        let auth_config = create_test_auth_config(false);
         let token = create_test_token(secret, None);
 
         // Should succeed when no project_id claim is present
-        assert!(validate_token_with_project(&token, secret, "any_project")
+        assert!(validate_token_with_project(&token, secret, "any_project", &auth_config)
             .expect("Test token should be valid"));
     }
 }

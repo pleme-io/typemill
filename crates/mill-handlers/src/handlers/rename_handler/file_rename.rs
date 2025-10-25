@@ -23,8 +23,8 @@ impl RenameHandler {
         // Resolve paths relative to project root (not CWD) BEFORE passing to MoveService
         let old_path = Path::new(&target.path);
         let new_path = Path::new(new_name);
-        let abs_old = context.app_state.file_service.to_absolute_path(old_path);
-        let abs_new = context.app_state.file_service.to_absolute_path(new_path);
+        let abs_old = context.app_state.file_service.to_absolute_path_checked(old_path)?;
+        let abs_new = context.app_state.file_service.to_absolute_path_checked(new_path)?;
 
         // Get scope configuration from options
         let rename_scope = options.to_rename_scope();

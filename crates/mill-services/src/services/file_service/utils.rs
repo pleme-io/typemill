@@ -119,12 +119,91 @@ impl FileService {
     }
 
     /// Convert a path to absolute path within the project
+    ///
+    /// # ⚠️ DEPRECATED
+    /// This method does NOT validate path containment. Use `to_absolute_path_checked`
+    /// for all security-sensitive operations. This method will be removed in a future version.
+    #[deprecated(since = "0.4.0", note = "Use to_absolute_path_checked for security")]
     pub fn to_absolute_path(&self, path: &Path) -> PathBuf {
         if path.is_absolute() {
             path.to_path_buf()
         } else {
             self.project_root.join(path)
         }
+    }
+
+    /// Convert path to absolute and verify it's within project root
+    ///
+    /// This performs canonicalization and containment checking to prevent
+    /// directory traversal attacks. Supports both existing and non-existent paths
+    /// (for file creation operations).
+    ///
+    /// # Errors
+    /// Returns error if path escapes project root or cannot be validated
+    pub fn to_absolute_path_checked(&self, path: &Path) -> ServerResult<PathBuf> {
+        use mill_foundation::protocol::ApiError as ServerError;
+
+        // Convert to absolute
+        let abs_path = if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            self.project_root.join(path)
+        };
+
+        // Try to canonicalize the full path if it exists
+        let canonical = if abs_path.exists() {
+            abs_path.canonicalize().map_err(|e| {
+                ServerError::InvalidRequest(format!(
+                    "Path canonicalization failed for {:?}: {}",
+                    abs_path, e
+                ))
+            })?
+        } else {
+            // Path doesn't exist (e.g., file creation) - canonicalize parent + join component
+            if let Some(parent) = abs_path.parent() {
+                let filename = abs_path.file_name().ok_or_else(|| {
+                    ServerError::InvalidRequest(format!(
+                        "Invalid path: no filename component in {:?}",
+                        abs_path
+                    ))
+                })?;
+
+                // Parent must exist for containment check
+                if !parent.exists() {
+                    return Err(ServerError::InvalidRequest(format!(
+                        "Parent directory does not exist: {:?}. Create parent directories first.",
+                        parent
+                    )));
+                }
+
+                let canonical_parent = parent.canonicalize().map_err(|e| {
+                    ServerError::InvalidRequest(format!(
+                        "Parent canonicalization failed for {:?}: {}",
+                        parent, e
+                    ))
+                })?;
+
+                canonical_parent.join(filename)
+            } else {
+                // No parent means it's a root path - try to canonicalize as-is
+                abs_path.canonicalize().map_err(|e| {
+                    ServerError::InvalidRequest(format!(
+                        "Path canonicalization failed for {:?}: {}",
+                        abs_path, e
+                    ))
+                })?
+            }
+        };
+
+        // Verify containment within project root using cached canonical root
+        if !canonical.starts_with(&self.canonical_project_root) {
+            return Err(ServerError::PermissionDenied(format!(
+                "Path traversal detected: {:?} escapes project root {:?}",
+                path, self.project_root
+            )));
+        }
+
+        Ok(canonical)
     }
 
     /// Adjust a relative path based on depth change

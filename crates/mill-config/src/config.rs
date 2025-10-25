@@ -76,6 +76,13 @@ pub struct AuthConfig {
     pub jwt_issuer: String,
     /// JWT audience
     pub jwt_audience: String,
+    /// Validate JWT audience claim (default: false for backward compatibility)
+    #[serde(default)]
+    pub validate_audience: bool,
+    /// Optional audience override for validation
+    /// If None, uses jwt_audience field
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub jwt_audience_override: Option<String>,
 }
 
 /// LSP server configuration
@@ -375,6 +382,19 @@ impl Default for ValidationConfig {
             command: "cargo check".to_string(),
             on_failure: ValidationFailureAction::Report,
         }
+    }
+}
+
+impl ServerConfig {
+    /// Check if host is a loopback address
+    ///
+    /// Only 127.0.0.1, ::1, and localhost are considered loopback.
+    /// Note: 0.0.0.0 is NOT loopback - it binds to all interfaces.
+    pub fn is_loopback_host(&self) -> bool {
+        matches!(
+            self.host.as_str(),
+            "127.0.0.1" | "::1" | "localhost"
+        )
     }
 }
 

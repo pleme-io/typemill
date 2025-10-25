@@ -84,8 +84,8 @@ impl FileService {
     ) -> ServerResult<DryRunnable<Value>> {
         info!(old_path = ?old_path, new_path = ?new_path, dry_run, "Renaming file");
 
-        let old_abs = self.to_absolute_path(old_path);
-        let new_abs = self.to_absolute_path(new_path);
+        let old_abs = self.to_absolute_path_checked(old_path)?;
+        let new_abs = self.to_absolute_path_checked(new_path)?;
 
         if dry_run {
             // Preview mode - just return what would happen
@@ -233,8 +233,8 @@ impl FileService {
     ) -> ServerResult<DryRunnable<Value>> {
         info!(old_path = ?old_dir_path, new_path = ?new_dir_path, dry_run, "Renaming directory (legacy internal tool)");
 
-        let old_abs_dir = self.to_absolute_path(old_dir_path);
-        let new_abs_dir = self.to_absolute_path(new_dir_path);
+        let old_abs_dir = self.to_absolute_path_checked(old_dir_path)?;
+        let new_abs_dir = self.to_absolute_path_checked(new_dir_path)?;
 
         if dry_run {
             // Preview mode - just return what would happen

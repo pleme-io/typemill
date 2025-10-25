@@ -722,6 +722,8 @@ export TYPEMILL__LOGGING__FORMAT="json"
 - ✅ **Use `.env` files locally** (automatically gitignored)
 - ✅ **Use secret management services in production** (HashiCorp Vault, AWS Secrets Manager, Azure Key Vault)
 - ⚠️ **Keep server bound to `127.0.0.1`** for local development (not `0.0.0.0`)
+- ⚠️ **Enable TLS when binding to non-loopback addresses** - Server enforces TLS for production deployments
+- ℹ️ **Loopback addresses**: Only `127.0.0.1`, `::1`, and `localhost` are considered safe without TLS
 
 **Example .env file:**
 ```bash

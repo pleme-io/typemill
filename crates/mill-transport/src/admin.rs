@@ -248,7 +248,17 @@ fn extract_user_id_from_jwt(
 
     let key = DecodingKey::from_secret(auth_config.jwt_secret.as_ref());
     let mut validation = Validation::default();
-    validation.validate_aud = false;
+
+    // Use config to determine if audience validation is enabled
+    validation.validate_aud = auth_config.validate_audience;
+
+    if auth_config.validate_audience {
+        let audience = auth_config
+            .jwt_audience_override
+            .as_ref()
+            .unwrap_or(&auth_config.jwt_audience);
+        validation.set_audience(&[audience]);
+    }
 
     let token_data = decode::<Claims>(token, &key, &validation)
         .map_err(|e| (StatusCode::UNAUTHORIZED, format!("Invalid token: {}", e)))?;

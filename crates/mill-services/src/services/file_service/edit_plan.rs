@@ -69,8 +69,8 @@ impl FileService {
         for edit in &plan.edits {
             if edit.edit_type == EditType::Move {
                 if let Some(old_path_str) = &edit.file_path {
-                    let old_path = self.to_absolute_path(Path::new(old_path_str));
-                    let new_path = self.to_absolute_path(Path::new(&edit.new_text));
+                    let old_path = self.to_absolute_path_checked(Path::new(old_path_str))?;
+                    let new_path = self.to_absolute_path_checked(Path::new(&edit.new_text))?;
 
                     debug!(
                         old_path = %old_path.display(),
@@ -118,7 +118,7 @@ impl FileService {
         // Main source file (may not have edits if this is a rename operation)
         // Skip empty source_file (used in multi-file workspace edits)
         if !plan.source_file.is_empty() {
-            let main_file = self.to_absolute_path(Path::new(&plan.source_file));
+            let main_file = self.to_absolute_path_checked(Path::new(&plan.source_file))?;
             let snapshot_path = map_new_to_old(&main_file);
             affected_files.insert(snapshot_path);
         }
@@ -140,7 +140,7 @@ impl FileService {
             }
 
             if let Some(file_path) = &edit.file_path {
-                let abs_path = self.to_absolute_path(Path::new(file_path));
+                let abs_path = self.to_absolute_path_checked(Path::new(file_path))?;
                 // Map NEW path to OLD path for snapshot creation
                 let snapshot_path = map_new_to_old(&abs_path);
                 affected_files.insert(snapshot_path);
@@ -159,7 +159,7 @@ impl FileService {
 
         // Files affected by dependency updates
         for dep_update in &plan.dependency_updates {
-            let target_file = self.to_absolute_path(Path::new(&dep_update.target_file));
+            let target_file = self.to_absolute_path_checked(Path::new(&dep_update.target_file))?;
             let snapshot_path = map_new_to_old(&target_file);
             affected_files.insert(snapshot_path);
         }
@@ -235,8 +235,8 @@ impl FileService {
 
                         // Perform low-level file rename without import updates
                         // (import updates should be handled separately via dependency_updates in the plan)
-                        let abs_old_path = self.to_absolute_path(old_path);
-                        let abs_new_path = self.to_absolute_path(new_path);
+                        let abs_old_path = self.to_absolute_path_checked(old_path)?;
+                        let abs_new_path = self.to_absolute_path_checked(new_path)?;
 
                         // Create parent directory for new path if needed
                         if let Some(parent) = abs_new_path.parent() {
@@ -402,7 +402,7 @@ impl FileService {
                 "Processing file edits"
             );
 
-            let abs_file_path = self.to_absolute_path(Path::new(&file_path));
+            let abs_file_path = self.to_absolute_path_checked(Path::new(&file_path))?;
             let file_lock = self.lock_manager.get_lock(&abs_file_path).await;
             let _guard = file_lock.write().await;
 
@@ -511,7 +511,7 @@ impl FileService {
 
         // Step 5: Apply dependency updates to other files with locking
         for dep_update in &plan.dependency_updates {
-            let target_file = self.to_absolute_path(Path::new(&dep_update.target_file));
+            let target_file = self.to_absolute_path_checked(Path::new(&dep_update.target_file))?;
             let file_lock = self.lock_manager.get_lock(&target_file).await;
             let _guard = file_lock.write().await;
 
@@ -541,7 +541,7 @@ impl FileService {
 
         // Step 6: Invalidate AST cache for all modified files
         for file_path in &modified_files {
-            let abs_path = self.to_absolute_path(Path::new(file_path));
+            let abs_path = self.to_absolute_path_checked(Path::new(file_path))?;
             self.ast_cache.invalidate(&abs_path);
             debug!(file_path = %file_path, "Invalidated AST cache");
         }

@@ -141,6 +141,29 @@ pub async fn run_websocket_server_with_port(port: u16) {
         }
     };
 
+    // Enforce TLS for non-loopback hosts
+    if !config.server.is_loopback_host() {
+        if config.server.tls.is_none() {
+            error!(
+                host = %config.server.host,
+                "TLS is required when binding to non-loopback addresses. \
+                 Configure server.tls in config or bind to 127.0.0.1"
+            );
+            eprintln!("❌ ERROR: TLS required for non-loopback host '{}'", config.server.host);
+            eprintln!("   Either:");
+            eprintln!("   1. Configure server.tls.cert_path and server.tls.key_path");
+            eprintln!("   2. Or bind to 127.0.0.1 (loopback only)");
+            return;
+        }
+        info!(host = %config.server.host, "TLS enabled for non-loopback host");
+    } else if config.server.tls.is_none() {
+        tracing::warn!(
+            host = %config.server.host,
+            "Server running without TLS on loopback address. \
+             This is acceptable for development but consider enabling TLS for production."
+        );
+    }
+
     // Create workspace manager
     let workspace_manager = Arc::new(WorkspaceManager::new());
 

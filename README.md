@@ -160,9 +160,13 @@ export TYPEMILL__CACHE__TTL_SECONDS=3600
 echo 'TYPEMILL__SERVER__AUTH__JWT_SECRET=dev-secret' > .env
 ```
 
-**Security**: Never commit secrets to config files. Always use environment variables for sensitive data.
+**Security Best Practices**:
+- ✅ Never commit secrets to config files - use environment variables
+- ✅ Keep server on `127.0.0.1` for local development (not `0.0.0.0`)
+- ✅ Enable TLS when binding to non-loopback addresses for production
+- ✅ Use secret management services (Vault, AWS Secrets Manager) in production
 
-See [CLAUDE.md](CLAUDE.md#environment-variables) for complete environment variable reference.
+See [CLAUDE.md](CLAUDE.md#environment-variables) for complete environment variable reference and [Docker Deployment](docs/operations/docker_deployment.md) for production setup.
 
 ## 🔧 Troubleshooting
 
