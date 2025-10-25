@@ -30,10 +30,9 @@ Together, these pillars form a complete code intelligence ecosystem: **analysis 
 **Concept**: Change the name of a symbol (variable, function, class, module, or file) throughout the codebase.
 
 **Implemented Tools**:
-- `rename.plan` - Plan renaming of symbols, files, or directories (unified API)
-- `workspace.apply_edit` - Execute rename plans with atomic application
-- `rename_file` - Legacy direct file rename with automatic import updates
-- `rename_directory` - Legacy direct directory rename with automatic import updates
+- `rename` - Rename symbols, files, or directories with dryRun option (unified API)
+  - Preview mode: `dryRun: true` (default) - Returns RenamePlan
+  - Execution mode: `dryRun: false` - Applies changes atomically
 
 **Key Characteristics**:
 - Scope-aware (local vs. global scope)
@@ -52,9 +51,9 @@ Together, these pillars form a complete code intelligence ecosystem: **analysis 
 **Concept**: Pull a block of code into its own function, file, or module for better organization and reusability.
 
 **Implemented Tools**:
-- `extract.plan` - Plan code extraction (function, variable, constant) (unified API)
-- `workspace.apply_edit` - Execute extraction plans with atomic application
-- `extract_module_to_package` - Extract module into a separate package (workspace-level)
+- `extract` - Extract functions, variables, or constants with dryRun option (unified API)
+  - Preview mode: `dryRun: true` (default) - Returns ExtractPlan
+  - Execution mode: `dryRun: false` - Applies changes atomically
 
 **Key Characteristics**:
 - Scope preservation (captures necessary parameters)
@@ -96,10 +95,9 @@ Together, these pillars form a complete code intelligence ecosystem: **analysis 
 **Concept**: Relocate code between files or directories while maintaining functionality.
 
 **Implemented Tools**:
-- `move.plan` - Plan moving of symbols, files, or directories (unified API)
-- `workspace.apply_edit` - Execute move plans with atomic application
-- `rename_file` - Legacy direct file move with automatic import updates
-- `rename_directory` - Legacy direct directory move with automatic import updates
+- `move` - Move symbols, files, or directories with dryRun option (unified API)
+  - Preview mode: `dryRun: true` (default) - Returns MovePlan
+  - Execution mode: `dryRun: false` - Applies changes atomically
 
 **Key Characteristics**:
 - Import/export rewiring
@@ -119,8 +117,9 @@ Together, these pillars form a complete code intelligence ecosystem: **analysis 
 **Concept**: Replace a reference with its value or implementation, reducing indirection.
 
 **Implemented Tools**:
-- `inline.plan` - Plan inlining of variables or functions (unified API)
-- `workspace.apply_edit` - Execute inlining plans with atomic application
+- `inline` - Inline variables or functions with dryRun option (unified API)
+  - Preview mode: `dryRun: true` (default) - Returns InlinePlan
+  - Execution mode: `dryRun: false` - Applies changes atomically
 
 **Key Characteristics**:
 - Scope-aware replacement
@@ -140,8 +139,9 @@ Together, these pillars form a complete code intelligence ecosystem: **analysis 
 **Concept**: Change the sequence of code elements for clarity or convention compliance.
 
 **Implemented Tools**:
-- `reorder.plan` - Plan reordering of parameters, imports, etc. (unified API)
-- `workspace.apply_edit` - Execute reordering plans with atomic application
+- `reorder` - Reorder parameters, fields, imports, or statements with dryRun option (unified API)
+  - Preview mode: `dryRun: true` (default) - Returns ReorderPlan
+  - Execution mode: `dryRun: false` - Applies changes atomically
 - Code actions from `get_code_actions` - Quick fixes for import organization
 - `format_document` - Format code according to style guidelines
 
@@ -163,8 +163,9 @@ Together, these pillars form a complete code intelligence ecosystem: **analysis 
 **Concept**: Modify code structure while preserving behavior (control flow, data structures).
 
 **Implemented Tools**:
-- `transform.plan` - Plan code transformations (async conversion, etc.) (unified API)
-- `workspace.apply_edit` - Execute transformation plans with atomic application
+- `transform` - Apply code transformations (if-to-match, async conversion, etc.) with dryRun option (unified API)
+  - Preview mode: `dryRun: true` (default) - Returns TransformPlan
+  - Execution mode: `dryRun: false` - Applies changes atomically
 - `get_code_actions` - Provides transformation suggestions via LSP
 - `format_document` - Apply formatting transformations
 - `apply_edits` - Execute complex multi-file transformations
@@ -187,8 +188,9 @@ Together, these pillars form a complete code intelligence ecosystem: **analysis 
 
 #### Delete
 **Implemented Tools**:
-- `delete.plan` - Plan deletion of unused code (imports, dead code) (unified API)
-- `workspace.apply_edit` - Execute deletion plans with atomic application
+- `delete` - Delete symbols, files, directories, or dead code with dryRun option (unified API)
+  - Preview mode: `dryRun: true` (default) - Returns DeletePlan
+  - Execution mode: `dryRun: false` - Applies changes atomically
 - `delete_file` - Remove files from the workspace (file-level)
 - Code actions - Quick fixes for removing unused imports
 
@@ -340,8 +342,8 @@ The power of this framework comes from composing primitives to achieve complex g
 **Primitive Sequence**:
 1. **Analyze Dependencies** (`analyze.dependencies`) - Understand current structure
 2. **Detect Complexity** (`get_document_symbols`) - Identify extraction candidates
-3. **Extract Functions** (`extract.plan` + `workspace.apply_edit`) - Pull out logical units
-4. **Move to New Files** (`move.plan` + `workspace.apply_edit`) - Create new module structure
+3. **Extract Functions** (`extract` with `dryRun: false`) - Pull out logical units
+4. **Move to New Files** (`move` with `dryRun: false`) - Create new module structure
 5. **Update Imports** (automatic via unified API) - Maintain references
 6. **Verify No Dead Code** (`analyze.dead_code`) - Ensure clean migration
 7. **Format All Files** (`format_document`) - Apply consistent style
@@ -354,29 +356,31 @@ The power of this framework comes from composing primitives to achieve complex g
 
 **Primitive Sequence**:
 1. **Analyze Complexity** (`prepare_call_hierarchy`) - Identify hot paths
-2. **Inline Hot Variables** (`inline.plan` + `workspace.apply_edit`) - Reduce overhead
-3. **Extract Reusable Parts** (`extract.plan` + `workspace.apply_edit`) - Enable caching
+2. **Inline Hot Variables** (`inline` with `dryRun: false`) - Reduce overhead
+3. **Extract Reusable Parts** (`extract` with `dryRun: false`) - Enable caching
 4. **Verify References** (`find_references`) - Ensure no breaking changes
 5. **Run Diagnostics** (`get_diagnostics`) - Check for introduced errors
-6. **Transform Patterns** (`transform.plan` + `workspace.apply_edit`) - Apply optimization patterns
+6. **Transform Patterns** (`transform` with `dryRun: false`) - Apply optimization patterns
 
 ---
 
 ## The Unified Refactoring API Pattern
 
-TypeMill implements a consistent, safe `plan -> apply` pattern for all refactoring operations. This two-step approach enhances safety by allowing preview and validation before making changes.
+TypeMill implements a consistent, safe `dryRun` option for all refactoring operations. Each tool supports both preview and execution modes through a single command with the `options.dryRun` parameter.
 
-### Two-Step Process
+### Unified API Design
 
-1. **Planning Phase** (`*.plan` commands)
+All refactoring tools (`rename`, `extract`, `inline`, `move`, `reorder`, `transform`, `delete`) support:
+
+1. **Preview Mode (default: `dryRun: true`)**
    - **Always read-only** - Never modifies files
    - Generates a detailed refactoring plan
    - Includes checksums for affected files
    - Returns warnings about potential issues
-   - Available for: `rename.plan`, `extract.plan`, `inline.plan`, `move.plan`, `reorder.plan`, `transform.plan`, `delete.plan`
+   - Safe default prevents accidental execution
 
-2. **Application Phase** (`workspace.apply_edit`)
-   - **Single execution command** for all refactoring types
+2. **Execution Mode (explicit: `dryRun: false`)**
+   - Applies changes immediately with validation
    - Validates checksums to prevent stale edits
    - Atomic execution (all changes succeed or all rollback)
    - Optional validation command execution (e.g., `cargo check`)
@@ -384,10 +388,15 @@ TypeMill implements a consistent, safe `plan -> apply` pattern for all refactori
 
 ### Safety Features
 
+**Safe Defaults**:
+- All refactoring tools default to `dryRun: true` (preview mode)
+- Execution requires explicit `dryRun: false` opt-in
+- Prevents accidental changes from exploratory commands
+
 **Checksum Validation**:
-- Each plan includes SHA-256 hashes of files to be modified
-- `workspace.apply_edit` verifies files haven't changed since plan creation
-- Prevents applying stale plans to modified code
+- Each preview includes SHA-256 hashes of files to be modified
+- Execution mode verifies files haven't changed since preview
+- Prevents applying stale operations to modified code
 
 **Atomic Application**:
 - All file changes succeed together or rollback together
@@ -402,32 +411,39 @@ TypeMill implements a consistent, safe `plan -> apply` pattern for all refactori
 ### Example Workflow
 
 ```bash
-# Step 1: Generate rename plan (read-only, safe to explore)
-PLAN=$(mill tool rename.plan '{
+# Step 1: Preview changes (default dryRun: true)
+mill tool rename '{
   "target": {
     "kind": "symbol",
     "path": "src/app.ts",
     "selector": { "position": { "line": 15, "character": 8 } }
   },
   "newName": "newUser"
-}')
+}'
 
-# Step 2: Inspect plan (optional)
-echo "$PLAN" | jq '.edits | length'  # See number of changes
-echo "$PLAN" | jq '.warnings'        # Check for warnings
+# Output: RenamePlan with edits, summary, warnings, file_checksums
 
-# Step 3: Apply plan with validation
-mill tool workspace.apply_edit "{
-  \"plan\": $PLAN,
-  \"options\": {
-    \"validate_checksums\": true,
-    \"rollback_on_error\": true,
-    \"validation\": {
-      \"command\": \"npm test\",
-      \"timeout_seconds\": 120
+# Step 2: Inspect preview (optional)
+# Review the plan output to verify correctness
+
+# Step 3: Execute changes (explicit dryRun: false)
+mill tool rename '{
+  "target": {
+    "kind": "symbol",
+    "path": "src/app.ts",
+    "selector": { "position": { "line": 15, "character": 8 } }
+  },
+  "newName": "newUser",
+  "options": {
+    "dryRun": false,
+    "validation": {
+      "command": "cargo check",
+      "timeout_seconds": 60
     }
   }
-}"
+}'
+
+# Output: ExecutionResult with success, applied_files, warnings
 ```
 
 ### Benefits Over Legacy Tools
