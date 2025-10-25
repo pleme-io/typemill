@@ -30,11 +30,9 @@
 **Contributing to TypeMill:**
 
 - **[Contributing Guide](../contributing.md)** - Setup, workflow, PR process (root-level file)
-- **[Plugin Development](development/plugin_development.md)** - Create language plugins
+- **[Plugin Development](DEVELOPMENT.md)** - Create language plugins (comprehensive guide)
 - **[Testing Guide](development/testing.md)** - Test infrastructure and workflow
-- **[Workflows](development/workflows.md)** - Workflow automation engine
 - **[Logging Guidelines](development/logging_guidelines.md)** - Structured logging standards
-- **[mill-lang-common API](development/cb_lang_common.md)** - Language plugin utilities
 
 ---
 
@@ -49,6 +47,38 @@
 - **[Primitives](architecture/primitives.md)** - Core data structures
 - **[Tool Visibility Spec](architecture/tools_visibility_spec.md)** - Tool discovery rules
 - **[Lang Common API](architecture/lang_common_api.md)** - Language abstraction layer
+
+---
+
+## 🗺️ Learning Paths
+
+Choose your path based on your role:
+
+### 🚀 For New Users
+**Goal**: Get TypeMill running and understand basic usage
+1. Start: [../README.md](../README.md) - 2-minute quickstart
+2. Explore: [Tools Reference](tools/) - Browse available MCP tools
+3. Deploy: [Docker Deployment](operations/docker_deployment.md) - Production setup
+
+### 💻 For Contributors
+**Goal**: Set up development environment and add features
+1. Start: [Contributing Guide](../contributing.md) - Setup & workflow
+2. Learn: [DEVELOPMENT.md](DEVELOPMENT.md) - Plugin development
+3. Test: [Testing Guide](development/testing.md) - Run and write tests
+4. Debug: [Logging Guidelines](development/logging_guidelines.md) - Structured logging
+
+### 🔧 For Operators
+**Goal**: Deploy and maintain TypeMill in production
+1. Deploy: [Docker Deployment](operations/docker_deployment.md) - Container setup
+2. Optimize: [Cache Configuration](operations/cache_configuration.md) - Performance tuning
+3. Monitor: [Logging Guidelines](development/logging_guidelines.md) - Production logs
+
+### 🏗️ For Architecture Explorers
+**Goal**: Understand TypeMill internals deeply
+1. Overview: [System Architecture](architecture/overview.md) - Complete system design
+2. APIs: [API Contracts](architecture/api_contracts.md) - Handler patterns
+3. Layers: [Layer Architecture](architecture/layers.md) - System boundaries
+4. Tools: [Internal Tools Policy](architecture/internal_tools.md) - Tool visibility
 
 ---
 

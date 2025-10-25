@@ -7,7 +7,7 @@ This file provides guidance to AI assistants when working with code in this repo
 
 **Before working with this codebase, please read:**
 
-1. **[docs/tools/](docs/tools/)** - **READ THIS FIRST** - Complete MCP tools API reference (36 tools across 5 categories)
+1. **[docs/tools/](docs/tools/)** - **READ THIS FIRST** - Complete MCP tools API reference
 
 ---
 
@@ -29,11 +29,11 @@ Pure Rust MCP server bridging Language Server Protocol (LSP) functionality to AI
 
 TypeMill provides comprehensive MCP tools for code intelligence and refactoring. See **[docs/tools/](docs/tools/)** for complete API reference with detailed parameters, return types, and examples.
 
-**Current Architecture**: 36 public tools visible to AI agents via MCP `tools/list`, plus 20 internal tools for backend workflows.
+**Current Architecture**: Public tools visible to AI agents via MCP `tools/list`, plus internal tools for backend workflows.
 
 **Note:** Internal tools exist for backend use only (lifecycle hooks, workflow plumbing, legacy operations). These are hidden from MCP `tools/list` to simplify the API surface for AI agents. See [docs/architecture/internal_tools.md](docs/architecture/internal_tools.md) for details.
 
-### Quick Reference (36 Public Tools)
+### Quick Reference
 
 **Navigation & Intelligence (8 tools)**
 - `find_definition`, `find_references`, `search_symbols`
@@ -653,40 +653,7 @@ make check-duplicates     # Detect duplicate code & complexity
 
 ## Structured Logging Standards
 
-The codebase uses **structured tracing** for all logging to enable machine-readable logs and enhanced production observability.
-
-### Logging Requirements
-
-**✅ DO - Use structured key-value format:**
-```rust
-// Correct structured logging
-error!(error = %e, file_path = %path, "Failed to read file");
-info!(user_id = %user.id, action = "login", "User authenticated");
-debug!(request_id = %req_id, duration_ms = elapsed, "Request completed");
-```
-
-**❌ DON'T - Use string interpolation:**
-```rust
-// Incorrect - string interpolation
-error!("Failed to read file {}: {}", path, e);
-info!("User {} authenticated with action {}", user.id, "login");
-debug!("Request {} completed in {}ms", req_id, elapsed);
-```
-
-### Field Naming Conventions
-
-- **Errors**: `error = %e`
-- **File paths**: `file_path = %path.display()` or `path = ?path`
-- **IDs**: `user_id = %id`, `request_id = %req_id`
-- **Counts**: `files_count = count`, `items_processed = num`
-- **Durations**: `duration_ms = elapsed`, `timeout_seconds = timeout`
-
-### Log Levels
-
-- **`error!`**: Runtime errors, failed operations, system failures
-- **`warn!`**: Recoverable issues, deprecation warnings, fallback actions
-- **`info!`**: Important business events, service lifecycle, user actions
-- **`debug!`**: Detailed execution flow, internal state changes
+All logging uses structured tracing with key-value pairs for machine-readable logs. See **[docs/development/logging_guidelines.md](docs/development/logging_guidelines.md)** for complete standards including field naming conventions, log levels, and production configuration.
 
 ## LSP Protocol Details
 
@@ -747,7 +714,7 @@ See **[docs/operations/cache_configuration.md](docs/operations/cache_configurati
 
 ### Adding New Language Plugins
 
-**See [docs/development/plugin_development.md](docs/development/plugin_development.md)** for complete guide on implementing language plugins:
+**See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** for complete guide on implementing language plugins:
 - Plugin structure and schema requirements
 - `LanguagePlugin` trait implementation
 - Data types (ParsedSource, Symbol, ManifestData)
@@ -768,7 +735,7 @@ The codebase uses a **capability-based dispatch pattern** where plugins expose c
 - `ModuleLocator` - Find module files within packages
 - `RefactoringProvider` - AST-based refactoring operations
 
-For implementation details and examples, see **[docs/development/plugin_development.md](docs/development/plugin_development.md#plugin-dispatch-patterns)**.
+For implementation details and examples, see **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)**.
 
 ### Adding New MCP Tools
 
@@ -811,9 +778,8 @@ All debug scripts, test analysis, and experimental code goes in `.debug/` (gitig
 ### For Understanding the System
 - **[docs/architecture/overview.md](docs/architecture/overview.md)** - Complete system architecture
 - **[docs/architecture/internal_tools.md](docs/architecture/internal_tools.md)** - Internal vs public tools policy
-- **[docs/development/workflows.md](docs/development/workflows.md)** - Workflow automation engine
 
 ### For Tool Reference
 - **[docs/tools/](docs/tools/)** - Complete MCP tools API organized by category
-- **[docs/tools/README.md](docs/tools/README.md)** - Quick catalog of all 36 tools
+- **[docs/tools/README.md](docs/tools/README.md)** - Complete tools catalog
 - **[docs/README.md](docs/README.md)** - Documentation index and navigation hub

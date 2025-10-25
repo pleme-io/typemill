@@ -214,7 +214,7 @@ export RUST_LOG=info
 export LOG_FORMAT=json
 
 # Enable debug logging for specific modules
-export RUST_LOG=cb_server::handlers=debug,cb_plugins=info
+export RUST_LOG=mill_server::handlers=debug,mill_plugins=info
 ```
 
 ### Configuration Example
@@ -229,7 +229,7 @@ export RUST_LOG=cb_server::handlers=debug,cb_plugins=info
 
 ### Centralized Initialization
 
-All logging is initialized through `cb_core::logging::initialize()` which provides:
+All logging is initialized through `mill_core::logging::initialize()` which provides:
 
 **Configuration Sources** (in priority order):
 1. `RUST_LOG` environment variable (most powerful, module-level filtering)
@@ -238,7 +238,7 @@ All logging is initialized through `cb_core::logging::initialize()` which provid
 4. Application configuration file (`config.logging`)
 
 **Standard Environment Variables**:
-- `RUST_LOG`: Module-level filtering (e.g., `cb_handlers=debug,cb_lsp=info`)
+- `RUST_LOG`: Module-level filtering (e.g., `mill_handlers=debug,mill_lsp=info`)
 - `LOG_LEVEL`: Simple level control (trace, debug, info, warn, error)
 - `LOG_FORMAT`: Format override (json, pretty, human)
 
@@ -251,17 +251,17 @@ LOG_LEVEL=debug cargo run
 LOG_LEVEL=info LOG_FORMAT=json ./mill serve
 
 # Module-specific filtering (most control)
-RUST_LOG=cb_handlers=debug,cb_lsp=info cargo run
+RUST_LOG=mill_handlers=debug,mill_lsp=info cargo run
 ```
 
 ### Request Context Propagation (via Spans)
 
-Use `cb_core::logging::request_span()` at transport layer to create spans with request context:
+Use `mill_core::logging::request_span()` at transport layer to create spans with request context:
 
 ```rust
 // In transport layer (ws.rs, stdio.rs)
 let request_id = uuid::Uuid::new_v4();
-let span = cb_core::logging::request_span(&request_id.to_string(), "websocket");
+let span = mill_core::logging::request_span(&request_id.to_string(), "websocket");
 let _enter = span.enter();
 
 // All logs within this scope automatically include:
@@ -322,7 +322,7 @@ RUST_LOG=debug cargo run
 RUST_LOG=info LOG_FORMAT=json cargo run
 
 # Filter by module
-RUST_LOG=cb_server::handlers=debug cargo run
+RUST_LOG=mill_server::handlers=debug cargo run
 ```
 
 This structured approach ensures consistent, queryable, and maintainable logging across the entire TypeMill codebase.

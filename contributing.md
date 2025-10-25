@@ -210,7 +210,7 @@ make test-integration-nav
 
 **Estimated effort to enable:** 2-3 weeks
 
-**For details on blockers and a complete solution design**, see [proposals/07_single_language_builds.proposal.md](../proposals/07_single_language_builds.proposal.md).
+**For details on blockers and a complete solution design**, see [proposals/archived/03_single_language_builds.proposal.md](../proposals/archived/03_single_language_builds.proposal.md).
 
 **Key insight:** The solution involves replacing downcasting with capability traits (similar to LSP's capabilities model), which would also improve scalability as we add more languages.
 
@@ -421,7 +421,7 @@ my-crate = { git = "https://github.com/..." }
 
 ## Adding New Language Plugins
 
-To add support for a new programming language, see the **[Language Plugins Guide](docs/development/plugin_development.md)** which provides:
+To add support for a new programming language, see the **[Language Plugins Guide](docs/DEVELOPMENT.md)** which provides:
 
 - Complete plugin structure and schema requirements
 - Required trait implementations (`LanguagePlugin`)
