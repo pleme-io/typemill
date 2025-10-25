@@ -9,6 +9,7 @@ members = [
     "crates/mill-lang-common",
     "crates/mill-lang-rust",
     "crates/mill-lang-typescript",
+    "crates/mill-lang-python",
     "crates/mill-lang-markdown",
     "crates/mill-lang-toml",
     "crates/mill-lang-yaml",

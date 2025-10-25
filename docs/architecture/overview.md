@@ -68,7 +68,7 @@ The codebase follows a strict layered architecture with enforced dependencies:
 7. **Application** - Server, client, transport
 
 **Key crates:**
-- **Foundation**: `mill-types`, `mill-protocol`, `mill-config`, `mill-core`
+- **Foundation**: `mill-foundation`, `mill-config`, `mill-plugin-api`
 - **Services**: `mill-ast`, `mill-services`, `mill-lsp`, `mill-plugin-bundle`
 - **Handlers**: `mill-handlers`
 - **Application**: `mill-server`, `mill-client`, `mill-transport`, `../../apps/mill`
@@ -120,11 +120,11 @@ The current architecture uses a plugin-based dispatch system:
 
 ## Core Architecture: Unified Handlers & Plugins
 
-The "Foundations First" architecture unifies all 44 MCP tools through a consistent, high-performance handler pattern. This design eliminates technical debt, enables zero-cost abstractions, and provides a scalable foundation for future tool additions.
+The "Foundations First" architecture unifies 55 tools (36 public MCP tools + 19 internal tools) through a consistent, high-performance handler pattern. This design eliminates technical debt, enables zero-cost abstractions, and provides a scalable foundation for future tool additions.
 
 ### The Unified `ToolHandler` Trait
 
-All tool handlers implement a single, consistent interface defined in `../../crates/mill-server/src/handlers/tools/mod.rs`:
+All tool handlers implement a single, consistent interface defined in `crates/mill-handlers/src/handlers/tools/mod.rs`:
 
 ```rust
 #[async_trait]
@@ -642,7 +642,7 @@ To support multiple users securely, TypeMill implements a multi-tenancy model th
 ### Implementation Details
 
 -   **`user_id` Claim**: The JWT payload must contain a `user_id` claim, which is a unique identifier for the user.
--   **`WorkspaceManager` Partitioning**: The `WorkspaceManager` no longer uses a simple `workspace_id` as the key. Instead, it uses a composite key `(user_id, workspace_id)`. This change in `../../../../../../crates/mill-foundation/src/core/src/workspaces.rs` is the core of the data isolation model.
+-   **`WorkspaceManager` Partitioning**: The `WorkspaceManager` no longer uses a simple `workspace_id` as the key. Instead, it uses a composite key `(user_id, workspace_id)` for data isolation.
 -   **API Endpoint Authorization**: Endpoints that manage workspaces (e.g., `/workspaces/register`, `/workspaces/{id}/execute`) now extract the `user_id` from the JWT. All subsequent calls to the `WorkspaceManager` must provide this `user_id`, ensuring that operations are performed only on the workspaces owned by that user.
 
 This architecture provides a robust and secure foundation for multi-user environments, preventing data leakage and unauthorized access.

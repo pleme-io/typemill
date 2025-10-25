@@ -338,12 +338,11 @@ Use the `options.scope` parameter to control what gets updated:
 
 **Coverage Example:**
 
-Renaming `integration-tests/e2e/` → `tests/e2e/`:
-- ✅ 3 Rust files (imports + string literals like `"tests/e2e/fixtures/data.json"`)
-- ✅ 3 Cargo.toml files (workspace members list, package name, moved manifest)
-- ✅ 3 Markdown files (links `[readme](tests/e2e/README.md)`)
-- ✅ 2 Config files (.cargo/config.toml, CI YAML workflows)
-- **Total: 11 files updated (100% of affected references)**
+See `tests/e2e/src/test_comprehensive_rename_coverage.rs` for validated test cases covering:
+- ✅ Rust files (imports + string literals in code)
+- ✅ Cargo.toml files (workspace members, package names)
+- ✅ Markdown files (inline and reference-style links)
+- ✅ Config files (TOML, YAML path values)
 
 **Path Detection:**
 
@@ -549,13 +548,6 @@ For Docker deployment details, see **[docs/operations/docker_deployment.md](docs
 
 - **Plugin System** (`crates/mill-plugins/`) - Extensible plugin architecture
 - **AST Processing** (`crates/mill-ast/`) - Code parsing and analysis
-- **Virtual Filesystem** (`crates/mill-vfs/`) - FUSE filesystem support (Unix only)
-  - ⚠️ **EXPERIMENTAL - Development Only**
-  - Requires `SYS_ADMIN` capability (disables container security boundaries)
-  - Not recommended for production use
-  - To disable: set `"fuse": null` in `.typemill/config.json`
-  - Docker: Use `deployment/docker-compose --profile fuse up mill-fuse` to enable
-- **API Interfaces** (`crates/mill-protocol/`) - Service trait definitions
 - **Client Library** (`crates/mill-client/`) - CLI client and WebSocket client
 
 ### Data Flow

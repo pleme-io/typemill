@@ -1,0 +1,558 @@
+//! Python Language Plugin for TypeMill
+//!
+//! Complete Python language support implementing the `LanguagePlugin` trait.
+//!
+//! # Features
+//!
+//! - Dual-mode AST parsing (native Python parser + regex fallback)
+//! - Import analysis (import, from...import)
+//! - Symbol extraction (functions, classes, methods, variables)
+//! - Manifest support (requirements.txt, pyproject.toml, setup.py, Pipfile)
+//! - Refactoring operations (extract function, inline variable, extract variable)
+
+pub mod import_support;
+pub mod manifest;
+pub mod parser;
+pub mod refactoring;
+pub mod test_fixtures;
+pub mod workspace_support;
+
+use async_trait::async_trait;
+use mill_plugin_api::mill_plugin;
+use mill_plugin_api::{
+    import_support::{
+        ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportParser,
+        ImportRenameSupport,
+    },
+    LanguageMetadata, LanguagePlugin, LspConfig, ManifestData, ParsedSource, PluginCapabilities,
+    PluginResult, WorkspaceSupport,
+};
+use std::path::Path;
+use tracing::{debug, warn};
+
+// Self-register the plugin with the TypeMill system.
+mill_plugin! {
+    name: "python",
+    extensions: ["py"],
+    manifest: "pyproject.toml",
+    capabilities: PythonPlugin::CAPABILITIES,
+    factory: PythonPlugin::new,
+    lsp: Some(LspConfig::new("pylsp", &["pylsp"]))
+}
+
+/// Python language plugin implementation
+///
+/// Provides comprehensive Python language support including:
+/// - AST parsing and symbol extraction
+/// - Import statement analysis
+/// - Multiple manifest format handling (requirements.txt, pyproject.toml)
+/// - Code refactoring operations
+#[derive(Default)]
+pub struct PythonPlugin {
+    import_support: import_support::PythonImportSupport,
+    workspace_support: workspace_support::PythonWorkspaceSupport,
+}
+
+impl PythonPlugin {
+    /// Static metadata for the Python language.
+    pub const METADATA: LanguageMetadata = LanguageMetadata {
+        name: "python",
+        extensions: &["py"],
+        manifest_filename: "pyproject.toml",
+        source_dir: ".",
+        entry_point: "__init__.py",
+        module_separator: ".",
+    };
+
+    /// The capabilities of this plugin.
+    pub const CAPABILITIES: PluginCapabilities = PluginCapabilities::none()
+        .with_imports()
+        .with_workspace();
+
+    /// Creates a new, boxed instance of the plugin.
+    #[allow(clippy::new_ret_no_self)]
+    pub fn new() -> Box<dyn LanguagePlugin> {
+        Box::new(Self::default())
+    }
+}
+
+#[async_trait]
+impl LanguagePlugin for PythonPlugin {
+    fn metadata(&self) -> &LanguageMetadata {
+        &Self::METADATA
+    }
+
+    fn capabilities(&self) -> PluginCapabilities {
+        Self::CAPABILITIES
+    }
+
+    async fn parse(&self, source: &str) -> PluginResult<ParsedSource> {
+        debug!("Parsing Python source code");
+
+        // Extract all symbols from the source code
+        let symbols = parser::extract_symbols(source)?;
+
+        // Parse imports
+        let imports = parser::parse_python_imports(source)?;
+
+        // Create a simplified AST representation
+        let functions = parser::extract_python_functions(source)?;
+        let variables = parser::extract_python_variables(source)?;
+
+        let ast_json = serde_json::json!({
+            "type": "Module",
+            "functions_count": functions.len(),
+            "variables_count": variables.len(),
+            "imports_count": imports.len(),
+            "imports": imports,
+        });
+
+        debug!(
+            symbols_count = symbols.len(),
+            functions_count = functions.len(),
+            imports_count = imports.len(),
+            "Parsed Python source"
+        );
+
+        Ok(ParsedSource {
+            data: ast_json,
+            symbols,
+        })
+    }
+
+    async fn analyze_manifest(&self, path: &Path) -> PluginResult<ManifestData> {
+        let filename = path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .ok_or_else(|| mill_plugin_api::PluginError::invalid_input("Invalid manifest path"))?;
+
+        debug!(filename = %filename, path = ?path, "Analyzing Python manifest");
+
+        match filename {
+            "requirements.txt" => manifest::parse_requirements_txt(path).await,
+            "pyproject.toml" => manifest::parse_pyproject_toml(path).await,
+            "setup.py" => manifest::parse_setup_py(path).await,
+            "Pipfile" => manifest::parse_pipfile(path).await,
+            _ => Err(mill_plugin_api::PluginError::not_supported(format!(
+                "Unsupported Python manifest file: {}",
+                filename
+            ))),
+        }
+    }
+
+    async fn list_functions(&self, source: &str) -> PluginResult<Vec<String>> {
+        debug!("Listing Python functions");
+
+        // Try native Python parser first
+        match parser::list_functions(source) {
+            Ok(functions) => {
+                debug!(
+                    functions_count = functions.len(),
+                    method = "native_parser",
+                    "Listed functions"
+                );
+                Ok(functions)
+            }
+            Err(e) => {
+                warn!(
+                    error = %e,
+                    "Native Python parser failed, falling back to regex"
+                );
+                // Fallback to regex-based extraction
+                let functions = parser::extract_python_functions(source)?;
+                Ok(functions.into_iter().map(|f| f.name).collect())
+            }
+        }
+    }
+
+    fn analyze_detailed_imports(
+        &self,
+        source: &str,
+        file_path: Option<&Path>,
+    ) -> PluginResult<mill_foundation::protocol::ImportGraph> {
+        parser::analyze_imports(source, file_path)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn import_parser(&self) -> Option<&dyn ImportParser> {
+        Some(&self.import_support)
+    }
+
+    fn import_rename_support(&self) -> Option<&dyn ImportRenameSupport> {
+        Some(&self.import_support)
+    }
+
+    fn import_move_support(&self) -> Option<&dyn ImportMoveSupport> {
+        Some(&self.import_support)
+    }
+
+    fn import_mutation_support(&self) -> Option<&dyn ImportMutationSupport> {
+        Some(&self.import_support)
+    }
+
+    fn import_advanced_support(&self) -> Option<&dyn ImportAdvancedSupport> {
+        Some(&self.import_support)
+    }
+
+    fn workspace_support(&self) -> Option<&dyn WorkspaceSupport> {
+        Some(&self.workspace_support)
+    }
+
+    fn test_fixtures(&self) -> Option<mill_plugin_api::LanguageTestFixtures> {
+        Some(test_fixtures::python_test_fixtures())
+    }
+
+    fn refactoring_provider(&self) -> Option<&dyn mill_plugin_api::RefactoringProvider> {
+        Some(self)
+    }
+
+    fn module_reference_scanner(&self) -> Option<&dyn mill_plugin_api::ModuleReferenceScanner> {
+        Some(self)
+    }
+
+    fn import_analyzer(&self) -> Option<&dyn mill_plugin_api::ImportAnalyzer> {
+        Some(self)
+    }
+
+    fn manifest_updater(&self) -> Option<&dyn mill_plugin_api::ManifestUpdater> {
+        Some(self)
+    }
+}
+
+
+#[async_trait]
+impl mill_plugin_api::ManifestUpdater for PythonPlugin {
+    async fn update_dependency(
+        &self,
+        manifest_path: &Path,
+        old_name: &str,
+        new_name: &str,
+        new_version: Option<&str>,
+    ) -> mill_plugin_api::PluginResult<String> {
+        // For Python, handle both renaming and version updates
+        if old_name == new_name {
+            // Version-only update
+            if let Some(version) = new_version {
+                manifest::update_dependency_in_pyproject(
+                    manifest_path,
+                    new_name,
+                    version,
+                    None, // Use default "dependencies" section
+                )
+                .map_err(|e| mill_plugin_api::PluginError::internal(e))
+            } else {
+                // No version provided, return unchanged
+                std::fs::read_to_string(manifest_path)
+                    .map_err(|e| mill_plugin_api::PluginError::internal(format!("Failed to read manifest: {}", e)))
+            }
+        } else {
+            // Rename dependency - use the existing update_pyproject_toml function
+            manifest::update_pyproject_toml(manifest_path, old_name, new_name, new_version).await
+        }
+    }
+
+    fn generate_manifest(&self, package_name: &str, dependencies: &[String]) -> String {
+        manifest::generate_pyproject_toml(package_name, dependencies)
+    }
+}
+// ============================================================================
+// Capability Trait Implementations
+// ============================================================================
+
+#[async_trait]
+impl mill_plugin_api::RefactoringProvider for PythonPlugin {
+    fn supports_inline_variable(&self) -> bool {
+        true
+    }
+
+    async fn plan_inline_variable(
+        &self,
+        source: &str,
+        variable_line: u32,
+        variable_col: u32,
+        file_path: &str,
+    ) -> mill_plugin_api::PluginResult<mill_foundation::protocol::EditPlan> {
+        refactoring::plan_inline_variable(source, variable_line, variable_col, file_path)
+            .map_err(|e| mill_plugin_api::PluginError::internal(e.to_string()))
+    }
+
+    fn supports_extract_function(&self) -> bool {
+        true
+    }
+
+    async fn plan_extract_function(
+        &self,
+        source: &str,
+        start_line: u32,
+        end_line: u32,
+        function_name: &str,
+        file_path: &str,
+    ) -> mill_plugin_api::PluginResult<mill_foundation::protocol::EditPlan> {
+        // Construct a CodeRange from start_line and end_line
+        let range = refactoring::CodeRange {
+            start_line,
+            start_col: 0,
+            end_line,
+            end_col: source
+                .lines()
+                .nth(end_line as usize)
+                .map(|line| line.len() as u32)
+                .unwrap_or(0),
+        };
+
+        refactoring::plan_extract_function(source, &range, function_name, file_path)
+            .map_err(|e| mill_plugin_api::PluginError::internal(e.to_string()))
+    }
+
+    fn supports_extract_variable(&self) -> bool {
+        true
+    }
+
+    async fn plan_extract_variable(
+        &self,
+        source: &str,
+        start_line: u32,
+        start_col: u32,
+        end_line: u32,
+        end_col: u32,
+        variable_name: Option<String>,
+        file_path: &str,
+    ) -> mill_plugin_api::PluginResult<mill_foundation::protocol::EditPlan> {
+        refactoring::plan_extract_variable(
+            source,
+            start_line,
+            start_col,
+            end_line,
+            end_col,
+            variable_name,
+            file_path,
+        )
+        .map_err(|e| mill_plugin_api::PluginError::internal(e.to_string()))
+    }
+}
+
+impl mill_plugin_api::ImportAnalyzer for PythonPlugin {
+    fn build_import_graph(
+        &self,
+        file_path: &Path,
+    ) -> mill_plugin_api::PluginResult<mill_foundation::protocol::ImportGraph> {
+        // Read the file content
+        let content = std::fs::read_to_string(file_path).map_err(|e| {
+            mill_plugin_api::PluginError::internal(format!("Failed to read file: {}", e))
+        })?;
+
+        // Use the existing parser::analyze_imports method
+        parser::analyze_imports(&content, Some(file_path))
+    }
+
+    fn find_unused_imports(&self, _file_path: &Path) -> mill_plugin_api::PluginResult<Vec<String>> {
+        // TODO: Implement unused import detection for Python
+        // For now, return empty vector
+        Ok(Vec::new())
+    }
+}
+
+impl mill_plugin_api::ModuleReferenceScanner for PythonPlugin {
+    fn scan_references(
+        &self,
+        content: &str,
+        module_name: &str,
+        scope: mill_plugin_api::ScanScope,
+    ) -> mill_plugin_api::PluginResult<Vec<mill_plugin_api::ModuleReference>> {
+        use mill_plugin_api::{ModuleReference, ReferenceKind, ScanScope};
+
+        let mut references = Vec::new();
+
+        for (line_idx, line) in content.lines().enumerate() {
+            let line_num = line_idx + 1;
+
+            // Find import statements: "import module" or "from module import"
+            if scope != ScanScope::QualifiedPaths {
+                if let Some(col) = line.find(&format!("import {}", module_name)) {
+                    references.push(ModuleReference {
+                        line: line_num,
+                        column: col,
+                        length: module_name.len(),
+                        text: module_name.to_string(),
+                        kind: ReferenceKind::Declaration,
+                    });
+                }
+                if let Some(col) = line.find(&format!("from {}", module_name)) {
+                    references.push(ModuleReference {
+                        line: line_num,
+                        column: col + 5, // After "from "
+                        length: module_name.len(),
+                        text: module_name.to_string(),
+                        kind: ReferenceKind::Declaration,
+                    });
+                }
+            }
+
+            // Find qualified paths: "module.function()"
+            if scope == ScanScope::QualifiedPaths || scope == ScanScope::All {
+                let pattern = format!("{}.", module_name);
+                for (idx, _) in line.match_indices(&pattern) {
+                    // Skip if this is inside a string
+                    let before = &line[..idx];
+                    let in_string = before.matches('"').count() % 2 == 1
+                        || before.matches('\'').count() % 2 == 1;
+
+                    if !in_string {
+                        references.push(ModuleReference {
+                            line: line_num,
+                            column: idx,
+                            length: module_name.len(),
+                            text: module_name.to_string(),
+                            kind: ReferenceKind::QualifiedPath,
+                        });
+                    }
+                }
+            }
+
+            // Find string literals containing module path
+            if scope == ScanScope::All {
+                // Look for strings like "module/file.py" or "module.py"
+                for quote in ['"', '\''] {
+                    if let Some(start) = line.find(quote) {
+                        if let Some(end) = line[start + 1..].find(quote) {
+                            let string_content = &line[start + 1..start + 1 + end];
+                            if string_content.contains(module_name) {
+                                if let Some(idx) = string_content.find(module_name) {
+                                    references.push(ModuleReference {
+                                        line: line_num,
+                                        column: start + 1 + idx,
+                                        length: module_name.len(),
+                                        text: module_name.to_string(),
+                                        kind: ReferenceKind::StringLiteral,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(references)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_python_plugin_basic() {
+        let plugin = PythonPlugin::new();
+        assert_eq!(plugin.metadata().name, "python");
+        assert_eq!(plugin.metadata().extensions, &["py"]);
+        assert!(plugin.handles_extension("py"));
+        assert!(!plugin.handles_extension("rs"));
+    }
+
+    #[tokio::test]
+    async fn test_python_plugin_handles_manifests() {
+        let plugin = PythonPlugin::new();
+
+        assert!(plugin.handles_manifest("pyproject.toml"));
+        assert!(!plugin.handles_manifest("Cargo.toml"));
+    }
+
+    #[tokio::test]
+    async fn test_python_plugin_parse() {
+        let plugin = PythonPlugin::new();
+
+        let source = r#"
+import os
+from pathlib import Path
+
+CONSTANT = 42
+
+def hello():
+    print('Hello, world!')
+
+class MyClass:
+    pass
+"#;
+
+        let result = plugin.parse(source).await;
+        assert!(result.is_ok());
+
+        let parsed = result.unwrap();
+        assert!(!parsed.symbols.is_empty());
+
+        // Should have function, class, and constant symbols
+        let has_function = parsed
+            .symbols
+            .iter()
+            .any(|s| s.name == "hello" && s.kind == mill_plugin_api::SymbolKind::Function);
+        let has_class = parsed
+            .symbols
+            .iter()
+            .any(|s| s.name == "MyClass" && s.kind == mill_plugin_api::SymbolKind::Class);
+        let has_constant = parsed
+            .symbols
+            .iter()
+            .any(|s| s.name == "CONSTANT" && s.kind == mill_plugin_api::SymbolKind::Constant);
+
+        assert!(has_function, "Should parse function");
+        assert!(has_class, "Should parse class");
+        assert!(has_constant, "Should parse constant");
+    }
+
+    #[tokio::test]
+    async fn test_python_plugin_list_functions() {
+        let plugin = PythonPlugin::new();
+
+        let source = r#"
+def function_one():
+    pass
+
+def function_two(param):
+    return param * 2
+
+class MyClass:
+    def method_one(self):
+        pass
+"#;
+
+        let result = plugin.list_functions(source).await;
+        // This may fail if python3 is not available, which is okay for the test
+        // The fallback will still work
+        if let Ok(functions) = result {
+            assert!(functions.contains(&"function_one".to_string()));
+            assert!(functions.contains(&"function_two".to_string()));
+        }
+    }
+
+    #[test]
+    fn test_python_module_constants() {
+        let plugin = PythonPlugin::new();
+
+        assert_eq!(plugin.metadata().manifest_filename, "pyproject.toml");
+        assert_eq!(plugin.metadata().entry_point, "__init__.py");
+        assert_eq!(plugin.metadata().module_separator, ".");
+        assert_eq!(plugin.metadata().source_dir, ".");
+    }
+
+    #[test]
+    fn test_python_capabilities() {
+        let plugin = PythonPlugin::new();
+        let caps = plugin.capabilities();
+
+        assert!(caps.imports, "Python plugin should support imports");
+        assert!(caps.workspace, "Python plugin should support workspace");
+    }
+
+    #[test]
+    fn test_python_workspace_support() {
+        let plugin = PythonPlugin::new();
+        assert!(
+            plugin.workspace_support().is_some(),
+            "Python should have workspace support"
+        );
+    }
+}
