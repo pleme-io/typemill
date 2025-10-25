@@ -709,8 +709,7 @@ When `dryRun: false`, returns ApplyResult:
 5. **Large replacements:** For 100+ file modifications, consider breaking into smaller scoped operations
 
 **Related Tools:**
-- `workspace.apply_edit` - Apply a generated EditPlan from dry-run preview
-- `rename.plan` - For renaming files, directories, and symbols (more semantic than text replacement)
+- `rename` - For renaming files, directories, and symbols (more semantic than text replacement)
 
 ---
 
@@ -750,8 +749,8 @@ mill tool workspace.extract_dependencies '{
   }
 }'
 
-# 4. Move code files (using rename.plan + workspace.apply_edit)
-mill tool rename.plan '{
+# 4. Preview directory move
+mill tool rename '{
   "target": {
     "kind": "directory",
     "path": "crates/big-crate/src/analysis"
@@ -759,9 +758,14 @@ mill tool rename.plan '{
   "newName": "crates/mill-analysis/src"
 }'
 
-# 5. Apply the move
-mill tool workspace.apply_edit '{
-  "plan": "<plan from step 4>"
+# 5. Execute the move (explicit dryRun: false)
+mill tool rename '{
+  "target": {
+    "kind": "directory",
+    "path": "crates/big-crate/src/analysis"
+  },
+  "newName": "crates/mill-analysis/src",
+  "options": { "dryRun": false }
 }'
 ```
 
@@ -863,12 +867,6 @@ mill tool workspace.find_replace '{
     "includePatterns": ["**/*.rs", "**/*.toml", "**/*.md"]
   },
   "dryRun": false
-}'
-
-# Alternative: Use workspace.apply_edit with the plan from step 1
-mill tool workspace.apply_edit '{
-  "plan": "<plan from step 1>",
-  "options": {"dryRun": false}
 }'
 ```
 
