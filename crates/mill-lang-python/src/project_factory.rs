@@ -67,9 +67,13 @@ impl ProjectFactory for PythonProjectFactory {
         write_file(&entry_file_path, &entry_content)?;
         created_files.push(entry_file_path.display().to_string());
 
-        // Create additional files for full template
+        // Create baseline files (README, .gitignore, tests) for minimal template
+        let baseline = create_baseline_files(&package_path, &package_name)?;
+        created_files.extend(baseline);
+
+        // Create additional files for full template (setup.py)
         if matches!(config.template, Template::Full) {
-            let additional = create_full_template(&package_path, &package_name)?;
+            let additional = create_full_template_extras(&package_path)?;
             created_files.extend(additional);
         }
 
@@ -255,7 +259,7 @@ fn write_file(path: &Path, content: &str) -> PluginResult<()> {
     })
 }
 
-fn create_full_template(package_path: &Path, package_name: &str) -> PluginResult<Vec<String>> {
+fn create_baseline_files(package_path: &Path, package_name: &str) -> PluginResult<Vec<String>> {
     let mut created = Vec::new();
 
     // README.md
@@ -326,7 +330,13 @@ def test_basic():
     write_file(&test_path, &test_content)?;
     created.push(test_path.display().to_string());
 
-    // setup.py (backwards compatibility)
+    Ok(created)
+}
+
+fn create_full_template_extras(package_path: &Path) -> PluginResult<Vec<String>> {
+    let mut created = Vec::new();
+
+    // setup.py (backwards compatibility, Full template only)
     let setup_path = package_path.join("setup.py");
     let setup_content = r#"""Legacy setup.py for backwards compatibility"""
 

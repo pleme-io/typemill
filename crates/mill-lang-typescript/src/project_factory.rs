@@ -73,9 +73,13 @@ impl ProjectFactory for TypeScriptProjectFactory {
         write_file(&entry_file_path, &entry_content)?;
         created_files.push(entry_file_path.display().to_string());
 
-        // Create additional files for full template
+        // Create baseline files (README, .gitignore, tests) for minimal template
+        let baseline = create_baseline_files(&package_path, &package_name)?;
+        created_files.extend(baseline);
+
+        // Create additional files for full template (.eslintrc.json)
         if matches!(config.template, Template::Full) {
-            let additional = create_full_template(&package_path, &package_name)?;
+            let additional = create_full_template_extras(&package_path)?;
             created_files.extend(additional);
         }
 
@@ -286,7 +290,7 @@ fn write_file(path: &Path, content: &str) -> PluginResult<()> {
     })
 }
 
-fn create_full_template(package_path: &Path, package_name: &str) -> PluginResult<Vec<String>> {
+fn create_baseline_files(package_path: &Path, package_name: &str) -> PluginResult<Vec<String>> {
     let mut created = Vec::new();
 
     // README.md
@@ -350,7 +354,13 @@ describe("{}", () => {{
     write_file(&test_path, &test_content)?;
     created.push(test_path.display().to_string());
 
-    // .eslintrc.json
+    Ok(created)
+}
+
+fn create_full_template_extras(package_path: &Path) -> PluginResult<Vec<String>> {
+    let mut created = Vec::new();
+
+    // .eslintrc.json (Full template only)
     let eslintrc_path = package_path.join(".eslintrc.json");
     let eslintrc_content = r#"{
   "parser": "@typescript-eslint/parser",
@@ -359,7 +369,7 @@ describe("{}", () => {{
     "plugin:@typescript-eslint/recommended"
   ],
   "parserOptions": {
-    "ecmaVersion": 2020,
+    "ecmaVersion": 2022,
     "sourceType": "module"
   },
   "rules": {}
@@ -372,7 +382,7 @@ describe("{}", () => {{
 }
 
 fn update_workspace_members(workspace_root: &Path, package_path: &Path) -> PluginResult<bool> {
-    // Find workspace package.json
+    // Find workspace manifest (package.json or pnpm-workspace.yaml)
     let workspace_manifest = find_workspace_manifest(workspace_root)?;
 
     debug!(
@@ -387,7 +397,10 @@ fn update_workspace_members(workspace_root: &Path, package_path: &Path) -> Plugi
             workspace_manifest = %workspace_manifest.display(),
             "Failed to read workspace manifest"
         );
-        PluginError::internal(format!("Failed to read workspace package.json: {}", e))
+        PluginError::internal(format!(
+            "Failed to read workspace manifest: {}",
+            e
+        ))
     })?;
 
     // Calculate relative path
@@ -412,14 +425,17 @@ fn update_workspace_members(workspace_root: &Path, package_path: &Path) -> Plugi
     let updated_content = workspace_support.add_workspace_member(&content, &member_str);
 
     if updated_content != content {
-        // Write updated manifest
+        // Write updated manifest (package.json or pnpm-workspace.yaml)
         fs::write(&workspace_manifest, &updated_content).map_err(|e| {
             error!(
                 error = %e,
                 workspace_manifest = %workspace_manifest.display(),
                 "Failed to write workspace manifest"
             );
-            PluginError::internal(format!("Failed to write workspace package.json: {}", e))
+            PluginError::internal(format!(
+                "Failed to write workspace manifest: {}",
+                e
+            ))
         })?;
 
         Ok(true)
@@ -434,7 +450,7 @@ fn find_workspace_manifest(workspace_root: &Path) -> PluginResult<PathBuf> {
     let mut current = workspace_root.to_path_buf();
 
     loop {
-        // Check for pnpm-workspace.yaml first
+        // Check for pnpm-workspace.yaml first (pnpm reads this file, not package.json)
         let pnpm_manifest = current.join("pnpm-workspace.yaml");
         if pnpm_manifest.exists() {
             let content = fs::read_to_string(&pnpm_manifest).map_err(|e| {
@@ -442,12 +458,8 @@ fn find_workspace_manifest(workspace_root: &Path) -> PluginResult<PathBuf> {
             })?;
 
             if workspace_support.is_workspace_manifest(&content) {
-                // Return package.json path for pnpm workspaces (for consistency)
-                // but we know pnpm-workspace.yaml exists
-                let package_json = current.join("package.json");
-                if package_json.exists() {
-                    return Ok(package_json);
-                }
+                // Return pnpm-workspace.yaml path so updates are written to the correct file
+                return Ok(pnpm_manifest);
             }
         }
 
@@ -515,7 +527,8 @@ mod tests {
     #[test]
     fn test_generate_tsconfig() {
         let content = generate_tsconfig();
-        assert!(content.contains("\"target\": \"ES2020\""));
+        assert!(content.contains("\"target\": \"ES2022\""));
+        assert!(content.contains("\"lib\": [\"ES2022\"]"));
         assert!(content.contains("\"outDir\": \"./dist\""));
         assert!(content.contains("\"strict\": true"));
     }
