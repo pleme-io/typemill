@@ -126,23 +126,25 @@ mod tests {
 
     #[test]
     fn test_non_existent_parent() {
-        let (service, _temp) = create_test_service();
+        let (service, temp) = create_test_service();
 
-        // Non-existent parent directory
-        let result = service.to_absolute_path_checked(Path::new("nonexistent/file.rs"));
+        // Non-existent parent directory - should now be allowed (walks up to find existing ancestor)
+        let result = service.to_absolute_path_checked(Path::new("nonexistent/nested/file.rs"));
 
         assert!(
-            result.is_err(),
-            "Should reject file in non-existent parent"
+            result.is_ok(),
+            "Should allow paths with non-existent parents by walking up to existing ancestor"
         );
 
-        if let Err(e) = result {
-            assert!(
-                e.to_string().contains("Parent directory does not exist"),
-                "Error should mention non-existent parent: {}",
-                e
-            );
-        }
+        let canonical = result.unwrap();
+        assert!(
+            canonical.starts_with(temp.path()),
+            "Path should be within project root"
+        );
+        assert!(
+            canonical.ends_with("nonexistent/nested/file.rs"),
+            "Should preserve full nested path"
+        );
     }
 
     #[test]
