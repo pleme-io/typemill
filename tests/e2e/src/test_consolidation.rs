@@ -152,7 +152,8 @@ async fn test_consolidation_flag_explicit() {
                 },
                 "newName": workspace.absolute_path("crates/app/src/lib_mod").to_string_lossy(),
                 "options": {
-                    "consolidate": true
+                    "consolidate": true,
+                    "dryRun": true
                 }
             }),
         )
@@ -188,8 +189,11 @@ async fn test_consolidation_auto_detection() {
                     "kind": "directory",
                     "path": workspace.absolute_path("crates/lib").to_string_lossy()
                 },
-                "newName": workspace.absolute_path("crates/app/src/lib_mod").to_string_lossy()
-                // NOTE: No "options.consolidate" specified
+                "newName": workspace.absolute_path("crates/app/src/lib_mod").to_string_lossy(),
+                "options": {
+                    "dryRun": true  // Get plan to inspect metadata
+                }
+                // NOTE: No "options.consolidate" specified - auto-detection should work
             }),
         )
         .await
@@ -225,7 +229,8 @@ async fn test_consolidation_override_auto_detection() {
                 },
                 "newName": workspace.absolute_path("crates/app/src/lib_mod").to_string_lossy(),
                 "options": {
-                    "consolidate": false  // Explicitly disable consolidation
+                    "consolidate": false,  // Explicitly disable consolidation
+                    "dryRun": true
                 }
             }),
         )
@@ -366,7 +371,8 @@ fn main() {
                 },
                 "newName": workspace.absolute_path("crates/app/src/lib_mod").to_string_lossy(),
                 "options": {
-                    "consolidate": true
+                    "consolidate": true,
+                    "dryRun": true
                 }
             }),
         )

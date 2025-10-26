@@ -114,7 +114,7 @@ Configuration: `crates/my-crate/Cargo.toml`
 "#,
     );
 
-    // Generate rename plan
+    // Generate rename plan (dry run to inspect changes)
     let plan_result = client
         .call_tool(
             "rename",
@@ -123,7 +123,10 @@ Configuration: `crates/my-crate/Cargo.toml`
                     "kind": "directory",
                     "path": workspace.absolute_path("crates/my-crate").to_string_lossy()
                 },
-                "newName": workspace.absolute_path("crates/renamed-crate").to_string_lossy()
+                "newName": workspace.absolute_path("crates/renamed-crate").to_string_lossy(),
+                "options": {
+                    "dryRun": true
+                }
             }),
         )
         .await
