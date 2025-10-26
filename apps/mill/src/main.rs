@@ -68,8 +68,21 @@ pub async fn run_stdio_mode() {
                 break; // EOF
             }
             Ok(_) => {
-                debug!(message = %line.trim(), "Received message");
-                match serde_json::from_str(&line) {
+                let trimmed = line.trim();
+
+                // Skip frame delimiter used by test harness
+                if trimmed == "---FRAME---" {
+                    debug!("Skipping frame delimiter");
+                    continue;
+                }
+
+                // Skip empty lines
+                if trimmed.is_empty() {
+                    continue;
+                }
+
+                debug!(message = %trimmed, "Received message");
+                match serde_json::from_str(trimmed) {
                     Ok(mcp_message) => {
                         debug!("Parsed MCP message, dispatching");
                         match dispatcher.dispatch(mcp_message, &session_info).await {
@@ -90,6 +103,11 @@ pub async fn run_stdio_mode() {
                                     error!(error = %e, "Error writing newline");
                                     break;
                                 }
+                                // Send frame delimiter for test harness compatibility
+                                if let Err(e) = stdout.write_all(b"---FRAME---\n").await {
+                                    error!(error = %e, "Error writing frame delimiter");
+                                    break;
+                                }
                                 if let Err(e) = stdout.flush().await {
                                     error!(error = %e, "Error flushing stdout");
                                     break;
@@ -101,7 +119,7 @@ pub async fn run_stdio_mode() {
                         }
                     }
                     Err(e) => {
-                        error!(error = %e, "Failed to parse JSON");
+                        error!(error = %e, line = %trimmed, "Failed to parse JSON");
                     }
                 }
             }
