@@ -10,8 +10,18 @@
 
 > **API Update Note (Phase 5)**: This proposal has been updated to use the unified dryRun API. Code examples now show single-tool execution with the `options.dryRun` parameter.
 >
-> **Historical Context (Pre-Phase 5, REMOVED)**: Previously used two-step workflow with separate `.plan` tools and `workspace.apply_edit`
-> **Current API (Phase 5+)**: Single tool call with `options.dryRun: true` (preview) or `false` (execute)
+> **Historical Context (Pre-Phase 5, REMOVED)**: The two-step workflow with separate `.plan` tools and `workspace.apply_edit` has been replaced.
+>
+> ```diff
+> - // Old: Two-step workflow (REMOVED)
+> - const plan = await rename.plan({ target: {...}, newName: "..." });
+> - await workspace.apply_edit({ edits: plan.edits });
+>
+> + // New: Single-step with dryRun option
+> + await rename({ target: {...}, newName: "...", options: { dryRun: false } });
+> ```
+>
+> **Current API (Phase 5+)**: All refactoring tools accept `options.dryRun: true` (preview) or `false` (execute). See [docs/tools/refactoring.md](../docs/tools/refactoring.md) for complete API reference.
 
 ---
 

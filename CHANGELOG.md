@@ -220,10 +220,11 @@ The project underwent a complete architectural transformation from TypeScript/No
 
 - **Unified Refactoring API** - Single-step refactoring with integrated dryRun option
   - **Current API**: All refactoring tools (`rename`, `extract`, `inline`, `move`, `delete`, `transform`, `reorder`) accept `options.dryRun: true/false` directly
-  - **Previous workflow (before Phase 5)**: Required separate planning and execution steps with intermediate plan objects
+  - **Previous workflow (before Phase 5)**: Required separate planning and execution steps with intermediate plan objects (`.plan` suffix + `workspace.apply_edit`)
   - **Now**: Single tool call with preview (`dryRun: true`) or execution (`dryRun: false`)
   - Safe dry-run previews without filesystem modifications
   - Atomic execution with rollback on errors
+  - **See**: [docs/tools/refactoring.md](docs/tools/refactoring.md) for complete unified API documentation
 
 - **Unified Analysis API** - 6 analysis tools with 26 detection kinds
   - `analyze.quality` - complexity, smells, maintainability, readability

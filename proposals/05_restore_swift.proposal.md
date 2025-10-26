@@ -1,5 +1,7 @@
 # Restore Swift Language Plugin
 
+> **Note on Naming**: This proposal references legacy `cb-*` crate names in migration steps. These are the **old names** being migrated **from** (in git tag `pre-language-reduction`) to the current `mill-*` naming convention. Current crate names follow the `mill-*` pattern.
+
 ## Problem
 
 Swift language plugin (`mill-lang-swift`) was removed during unified API refactoring and preserved in `pre-language-reduction` git tag. iOS/macOS developers currently cannot use TypeMill for Swift projects. Plugin needs restoration to current codebase with 100% feature parity.

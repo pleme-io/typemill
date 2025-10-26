@@ -6,8 +6,8 @@
 use async_trait::async_trait;
 use mill_plugin_api::mill_plugin;
 use mill_plugin_api::{
-    import_support::ImportMoveSupport, LanguageMetadata, LanguagePlugin, ManifestData,
-    ParsedSource, PluginCapabilities, PluginResult,
+    import_support, import_support::ImportMoveSupport, LanguageMetadata, LanguagePlugin,
+    ManifestData, ParsedSource, PluginCapabilities, PluginResult,
 };
 use serde_json::json;
 use std::path::Path;

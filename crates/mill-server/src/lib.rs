@@ -344,7 +344,7 @@ impl ServerHandle {
 
         // Note: The actual server implementation is in main.rs
         // This method exists for API compatibility but the real
-        // server startup is handled by cb-transport layer
+        // server startup is handled by mill-transport layer
 
         tracing::info!("Server started successfully");
         Ok(())

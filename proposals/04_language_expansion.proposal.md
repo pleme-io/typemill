@@ -23,13 +23,15 @@ TypeMill supports multiple languages via LSP integration and language plugins. T
 
 | Rank | Language           | LSP Support | Language Plugin | Status |
 |------|-------------------|-------------|-----------------|--------|
-| 1    | **Python**        | ✅          | ✅ `cb-lang-python` | ✅ **COMPLETE** - AST + manifest parsing |
-| 3    | **Java**          | ✅          | ✅ `cb-lang-java` | ✅ **COMPLETE** - AST + manifest parsing |
+| 1    | **Python**        | ✅          | ✅ `mill-lang-python` | ✅ **COMPLETE** - AST + manifest parsing |
+| 3    | **Java**          | ✅          | ⚠️ Legacy `pre-language-reduction` | ✅ **ARCHIVED** - AST + manifest parsing |
 | 4    | **JavaScript/TypeScript** | ✅ | ✅ `mill-lang-typescript` | ✅ **COMPLETE** - SWC parser |
-| 5    | **C#**            | ✅          | ✅ `cb-lang-csharp` | ✅ **COMPLETE** - AST + manifest parsing (some refactoring bugs exist) |
-| 7    | **Go**            | ✅          | ✅ `cb-lang-go` | ✅ **COMPLETE** - AST + manifest parsing |
-| 8    | **Rust**          | ✅          | ✅ `cb-lang-rust` | ✅ **COMPLETE** - AST + manifest + workspace support |
-| 9    | **Swift**         | ✅          | ✅ `cb-lang-swift` | ✅ **COMPLETE** - AST + manifest parsing |
+| 5    | **C#**            | ✅          | ⚠️ Legacy `pre-language-reduction` | ✅ **ARCHIVED** - AST + manifest parsing (some refactoring bugs exist) |
+| 7    | **Go**            | ✅          | ⚠️ Legacy `pre-language-reduction` | ✅ **ARCHIVED** - AST + manifest parsing |
+| 8    | **Rust**          | ✅          | ✅ `mill-lang-rust` | ✅ **COMPLETE** - AST + manifest + workspace support |
+| 9    | **Swift**         | ✅          | ⚠️ Legacy `pre-language-reduction` | ✅ **ARCHIVED** - AST + manifest parsing |
+
+> **Note on Legacy Plugins**: Java, C#, Go, and Swift plugins are preserved in git tag `pre-language-reduction` and can be restored following the migration guide in `.debug/language-plugin-migration/`. Current active support focuses on TypeScript, Rust, and Python (100% feature parity).
 
 **Completion Rate: 70% (7/10 languages)**
 
@@ -45,7 +47,7 @@ TypeMill supports multiple languages via LSP integration and language plugins. T
 
 ## Remaining Work Checklist
 
-### [ ] C++ Support (`crates/cb-lang-cpp`)
+### [ ] C++ Support (`crates/mill-lang-cpp`)
 
 **Goal:** Enable full LSP and plugin support for C++ projects
 
@@ -55,8 +57,8 @@ TypeMill supports multiple languages via LSP integration and language plugins. T
   - [ ] Test initialization and basic navigation (find definition, references)
   - [ ] Verify diagnostics and code actions work
 
-- [ ] **Language Plugin (`cb-lang-cpp`)**
-  - [ ] Create crate structure (`crates/cb-lang-cpp/`)
+- [ ] **Language Plugin (`mill-lang-cpp`)**
+  - [ ] Create crate structure (`crates/mill-lang-cpp/`)
   - [ ] Implement `LanguagePlugin` trait
   - [ ] Integrate `tree-sitter-cpp` for AST parsing
   - [ ] Implement `ImportSupport` trait (C++ includes: `#include`, `import`)
@@ -79,7 +81,7 @@ TypeMill supports multiple languages via LSP integration and language plugins. T
   - [ ] Add C++ examples to tool documentation
   - [ ] Create C++ plugin development guide
 
-### [ ] C Support (`crates/cb-lang-c`)
+### [ ] C Support (`crates/mill-lang-c`)
 
 **Goal:** Enable full LSP and plugin support for C projects
 
@@ -89,8 +91,8 @@ TypeMill supports multiple languages via LSP integration and language plugins. T
   - [ ] Test with pure C projects (no C++ features)
   - [ ] Verify standard library navigation works
 
-- [ ] **Language Plugin (`cb-lang-c`)**
-  - [ ] Create crate structure (`crates/cb-lang-c/`)
+- [ ] **Language Plugin (`mill-lang-c`)**
+  - [ ] Create crate structure (`crates/mill-lang-c/`)
   - [ ] Implement `LanguagePlugin` trait
   - [ ] Integrate `tree-sitter-c` for AST parsing
   - [ ] Implement `ImportSupport` trait (C includes: `#include`)
@@ -109,7 +111,7 @@ TypeMill supports multiple languages via LSP integration and language plugins. T
   - [ ] Add C examples to tool documentation
   - [ ] Note C vs C++ differences in plugin guides
 
-### [ ] PHP Support (`crates/cb-lang-php`)
+### [ ] PHP Support (`crates/mill-lang-php`)
 
 **Goal:** Enable full LSP and plugin support for PHP projects
 
@@ -120,8 +122,8 @@ TypeMill supports multiple languages via LSP integration and language plugins. T
   - [ ] Test with Laravel/Symfony projects
   - [ ] Verify namespace navigation and autocompletion
 
-- [ ] **Language Plugin (`cb-lang-php`)**
-  - [ ] Create crate structure (`crates/cb-lang-php/`)
+- [ ] **Language Plugin (`mill-lang-php`)**
+  - [ ] Create crate structure (`crates/mill-lang-php/`)
   - [ ] Implement `LanguagePlugin` trait
   - [ ] Integrate `tree-sitter-php` for AST parsing
   - [ ] Implement `ImportSupport` trait (PHP: `use`, `require`, `include`)
