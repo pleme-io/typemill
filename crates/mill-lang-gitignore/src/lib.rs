@@ -87,7 +87,23 @@ impl LanguagePlugin for GitignoreLanguagePlugin {
         })
     }
 
-    async fn analyze_manifest(&self, _path: &Path) -> PluginResult<ManifestData> {
+    async fn analyze_manifest(&self, path: &Path) -> PluginResult<ManifestData> {
+        // Verify the file exists
+        if !path.exists() {
+            return Err(mill_plugin_api::PluginError::invalid_input(format!(
+                "File does not exist: {:?}",
+                path
+            )));
+        }
+
+        // Verify this is a .gitignore file
+        if path.file_name().and_then(|s| s.to_str()) != Some(".gitignore") {
+            return Err(mill_plugin_api::PluginError::invalid_input(format!(
+                "Expected .gitignore, got: {:?}",
+                path.file_name()
+            )));
+        }
+
         // .gitignore is not a package manifest - return minimal data
         Ok(ManifestData {
             name: ".gitignore".to_string(),
