@@ -1484,12 +1484,12 @@ pub fn process(x: i32) -> i32 {
     #[test]
     fn test_updates_comments_with_flag() {
         let content = r#"
-//! System components (now moved to mill-lsp crate)
+//! System components (now moved to old-lsp crate)
 
-// Re-export from mill-lsp for backward compatibility
-pub use cb_lsp::LspClient;
+// Re-export from old-lsp for backward compatibility
+pub use old_lsp::LspClient;
 
-// Don't use mymill-lsp (should NOT change)
+// Don't use myold-lsp (should NOT change)
 "#;
 
         let plugin = RustPlugin::new();
@@ -1500,8 +1500,8 @@ pub use cb_lsp::LspClient;
 
         let result = plugin.rewrite_file_references(
             content,
-            Path::new("crates/mill-lsp"),
-            Path::new("crates/mill-lsp"),
+            Path::new("crates/old-lsp"),
+            Path::new("crates/new-lsp"),
             Path::new("src/main.rs"),
             Path::new("/workspace"),
             Some(&rename_info),
@@ -1512,20 +1512,20 @@ pub use cb_lsp::LspClient;
 
         // Should update 2 comments
         assert!(count >= 2, "Should have at least 2 changes, got {}", count);
-        assert!(new_content.contains("mill-lsp crate"), "Should update first comment");
-        assert!(new_content.contains("from mill-lsp"), "Should update second comment");
+        assert!(new_content.contains("new-lsp crate"), "Should update first comment");
+        assert!(new_content.contains("from new-lsp"), "Should update second comment");
 
         // Should NOT update partial match
-        assert!(new_content.contains("mymill-lsp"), "Should preserve partial matches");
+        assert!(new_content.contains("myold-lsp"), "Should preserve partial matches");
     }
 
     #[test]
     fn test_comments_not_updated_without_flag() {
         let content = r#"
-//! System components (now moved to mill-lsp crate)
+//! System components (now moved to old-lsp crate)
 
-// Re-export from mill-lsp for backward compatibility
-pub use cb_lsp::LspClient;
+// Re-export from old-lsp for backward compatibility
+pub use old_lsp::LspClient;
 "#;
 
         let plugin = RustPlugin::new();
@@ -1535,8 +1535,8 @@ pub use cb_lsp::LspClient;
 
         let result = plugin.rewrite_file_references(
             content,
-            Path::new("crates/mill-lsp"),
-            Path::new("crates/mill-lsp"),
+            Path::new("crates/old-lsp"),
+            Path::new("crates/new-lsp"),
             Path::new("src/main.rs"),
             Path::new("/workspace"),
             Some(&rename_info),
@@ -1546,7 +1546,7 @@ pub use cb_lsp::LspClient;
         let (new_content, _count) = result.unwrap();
 
         // Comments should NOT be updated without flag
-        assert!(new_content.contains("mill-lsp crate"), "Should preserve first comment without flag");
-        assert!(new_content.contains("from mill-lsp"), "Should preserve second comment without flag");
+        assert!(new_content.contains("old-lsp crate"), "Should preserve first comment without flag");
+        assert!(new_content.contains("from old-lsp"), "Should preserve second comment without flag");
     }
 }

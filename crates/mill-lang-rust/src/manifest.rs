@@ -320,51 +320,51 @@ name = "test-crate"
 version = "0.1.0"
 
 [dependencies]
-mill-ast = { path = "../mill-ast", optional = true }
+old-ast = { path = "../old-ast", optional = true }
 other-dep = { path = "../other" }
 
 [features]
 default = ["runtime"]
-runtime = ["other-dep", "mill-ast"]
-advanced = ["mill-ast/extra-feature"]
+runtime = ["other-dep", "old-ast"]
+advanced = ["old-ast/extra-feature"]
 "#;
 
         let result = rename_dependency(
             cargo_toml,
-            "mill-ast",
-            "mill-ast",
-            Some("../mill-ast"),
+            "old-ast",
+            "new-ast",
+            Some("../new-ast"),
         )
         .unwrap();
 
         // Verify dependency was renamed
-        assert!(result.contains("mill-ast = { path"));
-        assert!(!result.contains("mill-ast = { path"));
+        assert!(result.contains("new-ast = { path"));
+        assert!(!result.contains("old-ast = { path"));
 
         // Verify feature flags were updated
-        assert!(result.contains("mill-ast"));
+        assert!(result.contains("new-ast"));
         assert!(result.contains("other-dep"));
 
         // Check that feature references were updated
-        let has_runtime_feature = result.contains(r#"runtime = ["other-dep", "mill-ast"]"#)
+        let has_runtime_feature = result.contains(r#"runtime = ["other-dep", "new-ast"]"#)
             || (result.contains("runtime")
-                && result.contains("mill-ast")
+                && result.contains("new-ast")
                 && result.contains("other-dep"));
         assert!(
             has_runtime_feature,
-            "runtime feature should reference mill-ast"
+            "runtime feature should reference new-ast"
         );
 
-        let has_advanced_feature = result.contains(r#"advanced = ["mill-ast/extra-feature"]"#)
-            || (result.contains("advanced") && result.contains("mill-ast/extra-feature"));
+        let has_advanced_feature = result.contains(r#"advanced = ["new-ast/extra-feature"]"#)
+            || (result.contains("advanced") && result.contains("new-ast/extra-feature"));
         assert!(
             has_advanced_feature,
-            "advanced feature should reference mill-ast/extra-feature"
+            "advanced feature should reference new-ast/extra-feature"
         );
 
         // Verify old name is completely gone
         assert!(
-            !result.contains("mill-ast"),
+            !result.contains("old-ast"),
             "mill-ast should not appear anywhere in result"
         );
     }

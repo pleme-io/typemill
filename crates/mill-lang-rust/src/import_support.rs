@@ -1190,18 +1190,18 @@ pub fn example() {
         let support = RustImportSupport;
 
         // Test extern crate declarations (deprecated Rust 2015 pattern)
-        let content = r#"extern crate mill_plugin_bundle;
+        let content = r#"extern crate old_plugin_bundle;
 extern crate other_crate;
 
 fn main() {
-    mill_plugin_bundle::init();
+    old_plugin_bundle::init();
 }
 "#;
 
         let (result, changes) = support.rewrite_imports_for_rename(
             content,
-            "mill-plugin-bundle", // Note: hyphenated input
-            "mill-plugin-bundle",
+            "old-plugin-bundle", // Note: hyphenated input
+            "new-plugin-bundle",
         );
 
         println!("Result:\n{}", result);
@@ -1210,15 +1210,15 @@ fn main() {
         // Should update both extern crate and qualified path
         assert_eq!(changes, 2, "Should detect 2 changes (extern crate + qualified path)");
         assert!(
-            result.contains("extern crate mill_plugin_bundle;"),
+            result.contains("extern crate new_plugin_bundle;"),
             "Should update extern crate with underscores"
         );
         assert!(
-            !result.contains("mill_plugin_bundle"),
+            !result.contains("old_plugin_bundle"),
             "Should replace all old references"
         );
         assert!(
-            result.contains("mill_plugin_bundle::init()"),
+            result.contains("new_plugin_bundle::init()"),
             "Should update qualified paths"
         );
         assert!(
@@ -1232,18 +1232,18 @@ fn main() {
         let support = RustImportSupport;
 
         // Test pub use ... as pattern (re-exports)
-        let content = r#"pub use mill_workspaces as workspaces;
-use mill_workspaces::Thing;
+        let content = r#"pub use old_workspaces as workspaces;
+use old_workspaces::Thing;
 
 fn main() {
-    mill_workspaces::utility();
+    old_workspaces::utility();
 }
 "#;
 
         let (result, changes) = support.rewrite_imports_for_rename(
             content,
-            "mill-workspaces", // Note: hyphenated input
-            "mill-workspaces",
+            "old-workspaces", // Note: hyphenated input
+            "new-workspaces",
         );
 
         println!("Result:\n{}", result);
@@ -1252,19 +1252,19 @@ fn main() {
         // Should update pub use, regular use, and qualified path
         assert_eq!(changes, 3, "Should detect 3 changes");
         assert!(
-            result.contains("pub use mill_workspaces as workspaces;"),
+            result.contains("pub use new_workspaces as workspaces;"),
             "Should update pub use with underscores"
         );
         assert!(
-            result.contains("use mill_workspaces::Thing;"),
+            result.contains("use new_workspaces::Thing;"),
             "Should update regular use statement"
         );
         assert!(
-            result.contains("mill_workspaces::utility()"),
+            result.contains("new_workspaces::utility()"),
             "Should update qualified paths"
         );
         assert!(
-            !result.contains("mill_workspaces"),
+            !result.contains("old_workspaces"),
             "Should replace all old references"
         );
     }
@@ -1275,45 +1275,45 @@ fn main() {
 
         // Real-world test case combining both patterns
         let content = r#"// Force linker to include plugin-bundle
-extern crate mill_plugin_bundle;
+extern crate old_plugin_bundle;
 
 // Re-export workspaces
-pub use mill_workspaces as workspaces;
+pub use old_workspaces as workspaces;
 
-use mill_workspaces::WorkspaceManager;
+use old_workspaces::WorkspaceManager;
 
 fn init() {
-    let _plugins = mill_plugin_bundle::all_plugins();
-    let manager = mill_workspaces::WorkspaceManager::new();
+    let _plugins = old_plugin_bundle::all_plugins();
+    let manager = old_workspaces::WorkspaceManager::new();
 }
 "#;
 
         // Rename plugin-bundle
         let (result1, changes1) = support.rewrite_imports_for_rename(
             content,
-            "mill-plugin-bundle",
-            "mill-plugin-bundle",
+            "old-plugin-bundle",
+            "new-plugin-bundle",
         );
 
         assert_eq!(changes1, 2, "Should update extern crate + qualified path");
-        assert!(result1.contains("extern crate mill_plugin_bundle;"));
-        assert!(result1.contains("mill_plugin_bundle::all_plugins()"));
+        assert!(result1.contains("extern crate new_plugin_bundle;"));
+        assert!(result1.contains("new_plugin_bundle::all_plugins()"));
 
         // Rename workspaces
         let (result2, changes2) = support.rewrite_imports_for_rename(
             &result1,
-            "mill-workspaces",
-            "mill-workspaces",
+            "old-workspaces",
+            "new-workspaces",
         );
 
         assert_eq!(changes2, 3, "Should update pub use + use + qualified path");
-        assert!(result2.contains("pub use mill_workspaces as workspaces;"));
-        assert!(result2.contains("use mill_workspaces::WorkspaceManager;"));
-        assert!(result2.contains("mill_workspaces::WorkspaceManager::new()"));
+        assert!(result2.contains("pub use new_workspaces as workspaces;"));
+        assert!(result2.contains("use new_workspaces::WorkspaceManager;"));
+        assert!(result2.contains("new_workspaces::WorkspaceManager::new()"));
 
         // Verify no old names remain
-        assert!(!result2.contains("mill_plugin_bundle"));
-        assert!(!result2.contains("mill_workspaces"));
+        assert!(!result2.contains("old_plugin_bundle"));
+        assert!(!result2.contains("old_workspaces"));
     }
 
     #[test]
