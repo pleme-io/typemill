@@ -138,5 +138,33 @@ pub use io::{file_path_to_module, find_source_files, read_manifest, read_source}
 // Re-export macros
 pub use trait_helpers::WorkspaceSupportInternal;
 
-// Re-export plugin helper macros (no items to re-export, just ensure they're accessible)
-// The macros are defined with #[macro_export] so they're automatically available at crate root
+// ============================================================================
+// Plugin Helper Macros (re-exported for discoverability)
+// ============================================================================
+//
+// The following macros are defined with #[macro_export] in plugin_helpers module,
+// which automatically places them at the crate root (mill_lang_common::macro_name).
+//
+// Available macros:
+// - `define_language_plugin!` - Comprehensive plugin scaffolding generator
+//   Generates: struct, METADATA, CAPABILITIES, new(), mill_plugin! registration
+//
+// - `impl_language_plugin_basics!` - Standard LanguagePlugin method delegation
+//   Generates: metadata(), capabilities(), as_any()
+//
+// - `impl_capability_delegations!` - Capability trait method delegation
+//   Generates: Optional trait delegation methods for import/workspace/etc.
+//
+// Usage:
+// ```rust
+// use mill_lang_common::{define_language_plugin, impl_capability_delegations};
+//
+// define_language_plugin! {
+//     struct: MyPlugin,
+//     name: "my-lang",
+//     // ... configuration ...
+// }
+// ```
+//
+// Note: No explicit re-export needed - #[macro_export] makes them available
+// at mill_lang_common:: namespace automatically.

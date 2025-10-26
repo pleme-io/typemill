@@ -1,4 +1,28 @@
 //! Helper macros for reducing boilerplate in language plugin implementations
+//!
+//! This module provides three complementary macros for language plugin development:
+//!
+//! 1. **`define_language_plugin!`** - Plugin scaffolding generator (struct, constants, registration)
+//! 2. **`impl_language_plugin_basics!`** - Standard method delegation (metadata, capabilities, as_any)
+//! 3. **`impl_capability_delegations!`** - Capability trait delegation (imports, workspace, etc.)
+//!
+//! These macros work together to eliminate ~70 lines of boilerplate per plugin.
+//!
+//! # Organization Note
+//!
+//! All three macros are defined in this single file rather than split into submodules because:
+//! - They're always used together (no plugin uses only one)
+//! - Declarative macros have zero compile-time cost when not invoked
+//! - Single file is easier to maintain and review
+//!
+//! # Performance
+//!
+//! Declarative macros (`macro_rules!`) are expanded at call sites only, so having all three
+//! in one module doesn't add overhead for consumers that only need some of them.
+
+// ============================================================================
+// 1. Plugin Scaffolding Generator
+// ============================================================================
 
 /// Comprehensive macro to define a complete language plugin with all scaffolding.
 ///
@@ -90,6 +114,10 @@ macro_rules! define_language_plugin {
     };
 }
 
+// ============================================================================
+// 2. Capability Trait Delegation
+// ============================================================================
+
 /// Macro to generate capability delegation methods for LanguagePlugin implementations.
 ///
 /// This macro eliminates the repetitive boilerplate of delegating capability trait methods
@@ -178,6 +206,10 @@ macro_rules! __impl_capability_delegations_inner {
         )+
     };
 }
+
+// ============================================================================
+// 3. Standard LanguagePlugin Methods
+// ============================================================================
 
 /// Macro to generate standard LanguagePlugin boilerplate.
 ///
