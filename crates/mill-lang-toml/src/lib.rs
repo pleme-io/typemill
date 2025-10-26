@@ -271,13 +271,13 @@ target-dir = "integration-tests/target"
     #[test]
     fn test_updates_comments_with_flag() {
         let content = r#"
-# Layer 6: Handlers (mill-handlers)
+# Layer 6: Handlers (old-handlers)
 [package]
 name = "test"
 
-# Analysis crates are optional runtime dependencies (feature-gated in mill-handlers)
-# Allow mill-handlers to optionally depend on them via feature flags
-wrappers = ["mill-handlers", "other-crate"]
+# Analysis crates are optional runtime dependencies (feature-gated in old-handlers)
+# Allow old-handlers to optionally depend on them via feature flags
+wrappers = ["old-handlers", "other-crate"]
 "#;
 
         let plugin = TomlLanguagePlugin::new();
@@ -289,8 +289,8 @@ wrappers = ["mill-handlers", "other-crate"]
 
         let result = plugin.rewrite_file_references(
             content,
-            Path::new("mill-handlers"),
-            Path::new("mill-handlers"),
+            Path::new("old-handlers"),
+            Path::new("new-handlers"),
             Path::new("."),
             Path::new("."),
             Some(&rename_info),
@@ -303,20 +303,20 @@ wrappers = ["mill-handlers", "other-crate"]
         assert_eq!(count, 4);
 
         // Verify comment updates
-        assert!(new_content.contains("# Layer 6: Handlers (mill-handlers)"));
-        assert!(new_content.contains("(feature-gated in mill-handlers)"));
-        assert!(new_content.contains("# Allow mill-handlers to optionally"));
+        assert!(new_content.contains("# Layer 6: Handlers (new-handlers)"));
+        assert!(new_content.contains("(feature-gated in new-handlers)"));
+        assert!(new_content.contains("# Allow new-handlers to optionally"));
 
         // Verify value update
-        assert!(new_content.contains("\"mill-handlers\""));
+        assert!(new_content.contains("\"new-handlers\""));
     }
 
     #[test]
     fn test_smart_boundaries_in_comments() {
         let content = r#"
-# The mill-handlers-style API is simple
-# Don't use mymill-handlers (should NOT change)
-wrappers = ["mill-handlers"]
+# The old-handlers-style API is simple
+# Don't use myold-handlers (should NOT change)
+wrappers = ["old-handlers"]
 "#;
 
         let plugin = TomlLanguagePlugin::new();
@@ -327,8 +327,8 @@ wrappers = ["mill-handlers"]
 
         let result = plugin.rewrite_file_references(
             content,
-            Path::new("mill-handlers"),
-            Path::new("mill-handlers"),
+            Path::new("old-handlers"),
+            Path::new("new-handlers"),
             Path::new("."),
             Path::new("."),
             Some(&rename_info),
@@ -337,13 +337,13 @@ wrappers = ["mill-handlers"]
         assert!(result.is_some());
         let (new_content, count) = result.unwrap();
 
-        // Should update: "mill-handlers-style" and "mill-handlers" value = 2 total
+        // Should update: "old-handlers-style" and "old-handlers" value = 2 total
         assert_eq!(count, 2);
 
         // Hyphenated identifier should update
-        assert!(new_content.contains("mill-handlers-style"));
+        assert!(new_content.contains("new-handlers-style"));
 
         // Partial match should NOT update
-        assert!(new_content.contains("mymill-handlers"));
+        assert!(new_content.contains("myold-handlers"));
     }
 }
