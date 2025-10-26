@@ -437,7 +437,7 @@ All refactoring tools (`rename`, `extract`, `inline`, `move`, `reorder`, `transf
 - Maintain JSON Schema files (`schemas/unified_analysis.schema.json`, `schemas/unified_refactor.schema.json`) mirroring this doc for automated validation (future work).
 - CI must:
   - Validate sample payloads against schemas.
-  - Ensure `suggestions[].refactor_call` references valid `*.plan` operations.
+  - Ensure `suggestions[].refactor_call` references valid refactoring operations (e.g., `rename`, `extract`, `delete`).
   - Confirm all plan implementations set `plan_type`, `plan_version`, and `file_checksums`.
 - Documentation updates must reference this file; proposals should defer to it for authoritative contracts.
 - Follow-up actions:

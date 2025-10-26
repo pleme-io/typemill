@@ -959,7 +959,7 @@ const TOOL_NAMES: &[&str] = &[
 // crates/mill-handlers/src/handlers/rename_handler.rs
 
 const TOOL_NAMES: &[&str] = &[
-    "rename",  // Note: Only the .plan command
+    "rename",  // Unified API: single tool with options.dryRun
 ];
 ```
 
@@ -1221,13 +1221,13 @@ register_handlers_with_logging!(registry, {
 
 #### Naming Conventions
 - **Tool names**: snake_case (e.g., `get_diagnostics`)
-- **Refactoring plan tools**: `<operation>.plan` (e.g., `rename`, `extract`)
+- **Refactoring tools**: Single tool name with `options.dryRun` parameter (e.g., `rename`, `extract`)
 - **Handler names**: PascalCase with "Handler" suffix (e.g., `DiagnosticsHandler`, `RenameHandler`)
 - **File names**: snake_case matching handler (e.g., `diagnostics.rs`, `rename_handler.rs`)
 
 #### Refactoring Plan Structure
 
-All refactoring `.plan` handlers must return a consistent plan structure:
+All refactoring handlers with `options.dryRun: true` must return a consistent plan structure:
 
 ```rust
 // Required fields in all plan responses
@@ -1249,7 +1249,7 @@ All refactoring `.plan` handlers must return a consistent plan structure:
 ```
 
 **Key principles:**
-- **Read-only**: `.plan` commands must NEVER modify files
+- **Read-only**: Dry-run mode (`options.dryRun: true`) must NEVER modify files
 - **Idempotent**: Multiple calls with same params should produce same plan
 - **Checksums**: Always include file checksums for validation
 - **Summary**: Provide clear summary of what will change

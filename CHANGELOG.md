@@ -141,7 +141,7 @@ The project underwent a complete architectural transformation from TypeScript/No
 - **Quick Refactoring Operations** - One-step plan+execute tools
   - Generic `QuickRefactoringHandler` eliminates code duplication
   - 7 quick tools: `rename`, `extract`, `inline`, `move`, `reorder`, `transform`, `delete`
-  - Same parameters as `*.plan` versions but auto-apply changes
+  - Same parameters as dry-run mode but automatically execute changes
   - CLI flag support for convenient command-line usage
 
 - **Comment and Prose Updates** - Comprehensive rename coverage for documentation
