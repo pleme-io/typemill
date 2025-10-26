@@ -3,9 +3,8 @@
 //! Handles creation of new Python packages with proper workspace integration.
 
 use mill_lang_common::project_factory::{
-    derive_package_name, find_workspace_manifest, resolve_package_path,
-    update_workspace_manifest, validate_package_path_not_exists, write_project_file,
-    WorkspaceManifestDetector,
+    derive_package_name, resolve_package_path, update_workspace_manifest,
+    validate_package_path_not_exists, write_project_file, WorkspaceManifestDetector,
 };
 use mill_plugin_api::project_factory::{
     CreatePackageConfig, CreatePackageResult, PackageInfo, PackageType, ProjectFactory, Template,
@@ -13,7 +12,7 @@ use mill_plugin_api::project_factory::{
 use mill_plugin_api::{PluginError, PluginResult, WorkspaceSupport};
 use std::fs;
 use std::path::{Path, PathBuf};
-use tracing::debug;
+use tracing::{debug, error};
 
 /// Python project factory implementation
 #[derive(Default)]
@@ -47,13 +46,13 @@ impl ProjectFactory for PythonProjectFactory {
         // Write pyproject.toml
         let pyproject_path = package_path.join("pyproject.toml");
         let pyproject_content = generate_pyproject_toml(&package_name, config.package_type);
-        write_file(&pyproject_path, &pyproject_content)?;
+        write_project_file(&pyproject_path, &pyproject_content)?;
         created_files.push(pyproject_path.display().to_string());
 
         // Write entry file
         let entry_file_path = package_path.join(entry_file(&package_name, config.package_type));
         let entry_content = generate_entry_content(&package_name, config.package_type);
-        write_file(&entry_file_path, &entry_content)?;
+        write_project_file(&entry_file_path, &entry_content)?;
         created_files.push(entry_file_path.display().to_string());
 
         // Create baseline files (README, .gitignore, tests) for minimal template
@@ -68,7 +67,14 @@ impl ProjectFactory for PythonProjectFactory {
 
         // Update workspace if requested
         let workspace_updated = if config.add_to_workspace {
-            update_workspace_members(workspace_root, &package_path)?
+            let workspace_support = crate::workspace_support::PythonWorkspaceSupport;
+            update_workspace_manifest(
+                workspace_root,
+                &package_path,
+                "pyproject.toml",
+                &PythonManifestDetector,
+                |content, member| workspace_support.add_workspace_member(content, member),
+            )?
         } else {
             false
         };
@@ -86,6 +92,15 @@ impl ProjectFactory for PythonProjectFactory {
 }
 
 // Helper functions
+
+/// Workspace manifest detector for Python projects
+struct PythonManifestDetector;
+
+impl WorkspaceManifestDetector for PythonManifestDetector {
+    fn is_workspace_manifest(&self, content: &str) -> bool {
+        crate::workspace_support::PythonWorkspaceSupport.is_workspace_manifest(content)
+    }
+}
 
 fn create_directory_structure(package_path: &Path, package_name: &str) -> PluginResult<()> {
     debug!(package_path = %package_path.display(), "Creating directory structure");
@@ -188,14 +203,6 @@ if __name__ == "__main__":
     }
 }
 
-fn write_file(path: &Path, content: &str) -> PluginResult<()> {
-    debug!(path = %path.display(), "Writing file");
-    fs::write(path, content).map_err(|e| {
-        error!(error = %e, path = %path.display(), "Failed to write file");
-        PluginError::internal(format!("Failed to write file: {}", e))
-    })
-}
-
 fn create_baseline_files(package_path: &Path, package_name: &str) -> PluginResult<Vec<String>> {
     let mut created = Vec::new();
 
@@ -205,7 +212,7 @@ fn create_baseline_files(package_path: &Path, package_name: &str) -> PluginResul
         "# {}\n\nTODO: Add project description\n\n## Installation\n\n```bash\npip install {}\n```\n\n## Usage\n\nTODO: Add usage examples\n",
         package_name, package_name
     );
-    write_file(&readme_path, &readme_content)?;
+    write_project_file(&readme_path, &readme_content)?;
     created.push(readme_path.display().to_string());
 
     // .gitignore
@@ -243,7 +250,7 @@ ENV/
 *.swp
 *.swo
 "#;
-    write_file(&gitignore_path, gitignore_content)?;
+    write_project_file(&gitignore_path, gitignore_content)?;
     created.push(gitignore_path.display().to_string());
 
     // tests/test_basic.py
@@ -264,7 +271,7 @@ def test_basic():
 "#,
         package_name
     );
-    write_file(&test_path, &test_content)?;
+    write_project_file(&test_path, &test_content)?;
     created.push(test_path.display().to_string());
 
     Ok(created)
@@ -281,101 +288,10 @@ from setuptools import setup
 
 setup()
 "#;
-    write_file(&setup_path, setup_content)?;
+    write_project_file(&setup_path, setup_content)?;
     created.push(setup_path.display().to_string());
 
     Ok(created)
-}
-
-fn update_workspace_members(workspace_root: &Path, package_path: &Path) -> PluginResult<bool> {
-    // Find workspace pyproject.toml
-    let workspace_manifest = find_workspace_manifest(workspace_root)?;
-
-    debug!(
-        workspace_manifest = %workspace_manifest.display(),
-        "Found workspace manifest"
-    );
-
-    // Read manifest
-    let content = fs::read_to_string(&workspace_manifest).map_err(|e| {
-        error!(
-            error = %e,
-            workspace_manifest = %workspace_manifest.display(),
-            "Failed to read workspace manifest"
-        );
-        PluginError::internal(format!("Failed to read workspace pyproject.toml: {}", e))
-    })?;
-
-    // Calculate relative path
-    let workspace_dir = workspace_manifest
-        .parent()
-        .ok_or_else(|| PluginError::internal("Invalid workspace manifest path"))?;
-
-    let relative_path = pathdiff::diff_paths(package_path, workspace_dir)
-        .ok_or_else(|| PluginError::internal("Failed to calculate relative path"))?;
-
-    // Normalize to forward slashes for cross-platform compatibility
-    // PDM/Poetry/Hatch expect forward slashes even on Windows
-    let member_str = relative_path.to_string_lossy().replace('\\', "/");
-
-    debug!(member = %member_str, "Adding workspace member");
-
-    // Use workspace support to add member
-    let workspace_support = crate::workspace_support::PythonWorkspaceSupport;
-    let updated_content = workspace_support.add_workspace_member(&content, &member_str);
-
-    if updated_content != content {
-        // Write updated manifest
-        fs::write(&workspace_manifest, &updated_content).map_err(|e| {
-            error!(
-                error = %e,
-                workspace_manifest = %workspace_manifest.display(),
-                "Failed to write workspace manifest"
-            );
-            PluginError::internal(format!("Failed to write workspace pyproject.toml: {}", e))
-        })?;
-
-        Ok(true)
-    } else {
-        Ok(false)
-    }
-}
-
-fn find_workspace_manifest(workspace_root: &Path) -> PluginResult<PathBuf> {
-    let mut current = workspace_root.to_path_buf();
-
-    loop {
-        let manifest = current.join("pyproject.toml");
-
-        if manifest.exists() {
-            let content = fs::read_to_string(&manifest).map_err(|e| {
-                PluginError::internal(format!("Failed to read pyproject.toml: {}", e))
-            })?;
-
-            // Check if this is a workspace manifest using workspace support
-            let workspace_support = crate::workspace_support::PythonWorkspaceSupport;
-            if workspace_support.is_workspace_manifest(&content) {
-                return Ok(manifest);
-            }
-        }
-
-        // Move up
-        current = current
-            .parent()
-            .ok_or_else(|| {
-                PluginError::invalid_input("No workspace pyproject.toml found in hierarchy")
-            })?
-            .to_path_buf();
-
-        // Stop at root
-        if current == current.parent().unwrap_or(&current) {
-            break;
-        }
-    }
-
-    Err(PluginError::invalid_input(
-        "No workspace pyproject.toml found",
-    ))
 }
 
 #[cfg(test)]
