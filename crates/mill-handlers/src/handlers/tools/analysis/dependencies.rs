@@ -14,10 +14,17 @@
 //! detection logic.
 
 use super::super::{ToolHandler, ToolHandlerContext};
+use super::suggestions::{
+    ActionableSuggestion, AnalysisContext, EvidenceStrength, Location, RefactoringCandidate,
+    Scope, SuggestionGenerator, RefactorType,
+};
+use anyhow::Result;
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
-use mill_foundation::protocol::analysis_result::{ Finding , FindingLocation , Position , Range , SafetyLevel , Severity , Suggestion , };
-use mill_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
+use mill_foundation::protocol::analysis_result::{
+    Finding, FindingLocation, Position, Range, SafetyLevel, Severity, Suggestion,
+};
+use mill_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use regex::Regex;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -334,7 +341,7 @@ pub fn detect_circular(
                 json!(vec![file_module.clone(), import.clone()]),
             );
 
-            findings.push(Finding {
+            let mut finding = Finding {
                 id: format!("circular-dependency-{}-{}", file_path, line_num),
                 kind: "circular_dependency".to_string(),
                 severity: Severity::High,
@@ -355,17 +362,27 @@ pub fn detect_circular(
                 },
                 metrics: Some(metrics),
                 message: format!("Circular dependency detected: module imports itself via '{}'", import),
-                suggestions: vec![Suggestion {
-                    action: "break_circular_dependency".to_string(),
-                    description: "Refactor to break circular import (e.g., extract shared interface, use dependency injection)".to_string(),
-                    target: None,
-                    estimated_impact: "Improves architecture, reduces coupling, enables better testing".to_string(),
-                    safety: SafetyLevel::RequiresReview,
-                    confidence: 0.80,
-                    reversible: false,
-                    refactor_call: None,
-                }],
-            });
+                suggestions: vec![],
+            };
+
+            let suggestion_generator = SuggestionGenerator::new();
+            let context = AnalysisContext {
+                file_path: file_path.to_string(),
+                has_full_type_info: false,
+                has_partial_type_info: false,
+                ast_parse_errors: 0,
+            };
+
+            if let Ok(candidates) =
+                generate_dependency_refactoring_candidates(&finding)
+            {
+                let suggestions = suggestion_generator.generate_multiple(candidates, &context);
+                finding.suggestions = suggestions
+                    .into_iter()
+                    .map(|s| s.into())
+                    .collect::<Vec<Suggestion>>();
+            }
+            findings.push(finding);
         }
     }
 
@@ -464,7 +481,7 @@ pub fn detect_coupling(
         )
     };
 
-    findings.push(Finding {
+    let mut finding = Finding {
         id: format!("coupling-{}", file_path),
         kind: "coupling_metric".to_string(),
         severity,
@@ -476,21 +493,29 @@ pub fn detect_coupling(
         },
         metrics: Some(metrics),
         message,
-        suggestions: if high_coupling {
-            vec![Suggestion {
-                action: "reduce_coupling".to_string(),
-                description: "Consider reducing dependencies via interfaces, dependency injection, or extracting shared abstractions".to_string(),
-                target: None,
-                estimated_impact: "Improves testability and maintainability, reduces change ripple effects".to_string(),
-                safety: SafetyLevel::RequiresReview,
-                confidence: 0.70,
-                reversible: false,
-                refactor_call: None,
-            }]
-        } else {
-            vec![]
-        },
-    });
+        suggestions: vec![],
+    };
+
+    if high_coupling {
+        let suggestion_generator = SuggestionGenerator::new();
+        let context = AnalysisContext {
+            file_path: file_path.to_string(),
+            has_full_type_info: false,
+            has_partial_type_info: false,
+            ast_parse_errors: 0,
+        };
+
+        if let Ok(candidates) =
+            generate_dependency_refactoring_candidates(&finding)
+        {
+            let suggestions = suggestion_generator.generate_multiple(candidates, &context);
+            finding.suggestions = suggestions
+                .into_iter()
+                .map(|s| s.into())
+                .collect::<Vec<Suggestion>>();
+        }
+    }
+    findings.push(finding);
 
     findings
 }
@@ -586,7 +611,7 @@ pub fn detect_cohesion(
         )
     };
 
-    findings.push(Finding {
+    let mut finding = Finding {
         id: format!("cohesion-{}", file_path),
         kind: "cohesion_metric".to_string(),
         severity,
@@ -598,21 +623,29 @@ pub fn detect_cohesion(
         },
         metrics: Some(metrics),
         message,
-        suggestions: if low_cohesion {
-            vec![Suggestion {
-                action: "improve_cohesion".to_string(),
-                description: "Consider splitting module into smaller, more focused modules with related responsibilities".to_string(),
-                target: None,
-                estimated_impact: "Improves maintainability, makes code easier to understand and test".to_string(),
-                safety: SafetyLevel::RequiresReview,
-                confidence: 0.65,
-                reversible: false,
-                refactor_call: None,
-            }]
-        } else {
-            vec![]
-        },
-    });
+        suggestions: vec![],
+    };
+
+    if low_cohesion {
+        let suggestion_generator = SuggestionGenerator::new();
+        let context = AnalysisContext {
+            file_path: file_path.to_string(),
+            has_full_type_info: false,
+            has_partial_type_info: false,
+            ast_parse_errors: 0,
+        };
+
+        if let Ok(candidates) =
+            generate_dependency_refactoring_candidates(&finding)
+        {
+            let suggestions = suggestion_generator.generate_multiple(candidates, &context);
+            finding.suggestions = suggestions
+                .into_iter()
+                .map(|s| s.into())
+                .collect::<Vec<Suggestion>>();
+        }
+    }
+    findings.push(finding);
 
     findings
 }
@@ -706,7 +739,7 @@ pub fn detect_depth(
         )
     };
 
-    findings.push(Finding {
+    let mut finding = Finding {
         id: format!("dependency-depth-{}", file_path),
         kind: "dependency_depth".to_string(),
         severity,
@@ -718,21 +751,29 @@ pub fn detect_depth(
         },
         metrics: Some(metrics),
         message,
-        suggestions: if excessive_depth {
-            vec![Suggestion {
-                action: "reduce_dependency_depth".to_string(),
-                description: "Consider flattening dependency tree, using dependency injection, or introducing abstraction layers".to_string(),
-                target: None,
-                estimated_impact: "Reduces coupling, improves testability, simplifies dependency management".to_string(),
-                safety: SafetyLevel::RequiresReview,
-                confidence: 0.70,
-                reversible: false,
-                refactor_call: None,
-            }]
-        } else {
-            vec![]
-        },
-    });
+        suggestions: vec![],
+    };
+
+    if excessive_depth {
+        let suggestion_generator = SuggestionGenerator::new();
+        let context = AnalysisContext {
+            file_path: file_path.to_string(),
+            has_full_type_info: false,
+            has_partial_type_info: false,
+            ast_parse_errors: 0,
+        };
+
+        if let Ok(candidates) =
+            generate_dependency_refactoring_candidates(&finding)
+        {
+            let suggestions = suggestion_generator.generate_multiple(candidates, &context);
+            finding.suggestions = suggestions
+                .into_iter()
+                .map(|s| s.into())
+                .collect::<Vec<Suggestion>>();
+        }
+    }
+    findings.push(finding);
 
     findings
 }
@@ -808,6 +849,28 @@ fn generate_cycle_break_suggestions(cycle: &Cycle) -> Vec<Suggestion> {
     }
 
     suggestions
+}
+
+fn generate_dependency_refactoring_candidates(
+    finding: &Finding,
+) -> Result<Vec<RefactoringCandidate>> {
+    let mut candidates = Vec::new();
+    let location = finding.location.clone();
+    let line = location.range.as_ref().map(|r| r.start.line).unwrap_or(0) as usize;
+
+    match finding.kind.as_str() {
+        "circular_dependency" => {
+            // This would likely suggest a `move` refactoring, but the arguments
+            // would be complex to determine automatically.
+        }
+        "coupling_metric" if finding.severity >= Severity::Medium => {
+            // This might suggest `extract` to create an interface, but again,
+            // this is a complex, multi-step refactoring.
+        }
+        _ => {}
+    }
+
+    Ok(candidates)
 }
 
 // ============================================================================

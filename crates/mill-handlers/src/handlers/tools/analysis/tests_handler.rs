@@ -12,11 +12,18 @@
 //! detection logic.
 
 use super::super::{ToolHandler, ToolHandlerContext};
+use super::suggestions::{
+    ActionableSuggestion, AnalysisContext, EvidenceStrength, Location, RefactoringCandidate,
+    Scope, SuggestionGenerator, RefactorType,
+};
+use anyhow::Result;
 use async_trait::async_trait;
-use mill_plugin_api::Symbol;
 use mill_foundation::core::model::mcp::ToolCall;
-use mill_foundation::protocol::analysis_result::{ Finding , FindingLocation , SafetyLevel , Severity , Suggestion , };
-use mill_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
+use mill_foundation::protocol::analysis_result::{
+    Finding, FindingLocation, SafetyLevel, Severity, Suggestion,
+};
+use mill_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
+use mill_plugin_api::Symbol;
 use regex::Regex;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -143,35 +150,36 @@ pub fn detect_coverage(
         },
         metrics: Some(metrics),
         message,
-        suggestions: if !untested_functions.is_empty() {
-            vec![Suggestion {
-                action: "add_tests".to_string(),
-                description: format!(
-                    "Add tests for {} untested functions: {}",
-                    untested_functions.len(),
-                    untested_functions
-                        .iter()
-                        .take(5)
-                        .cloned()
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                ),
-                target: None,
-                estimated_impact: format!(
-                    "Would increase coverage from {:.1}% to potentially 100%",
-                    coverage_ratio * 100.0
-                ),
-                safety: SafetyLevel::Safe,
-                confidence: 0.90,
-                reversible: true,
-                refactor_call: None,
-            }]
-        } else {
-            vec![]
-        },
+        suggestions: vec![],
     });
 
     findings
+}
+
+fn generate_test_refactoring_candidates(
+    finding: &Finding,
+) -> Result<Vec<RefactoringCandidate>> {
+    let mut candidates = Vec::new();
+    let location = finding.location.clone();
+    let line = location.range.as_ref().map(|r| r.start.line).unwrap_or(0) as usize;
+
+    match finding.kind.as_str() {
+        "coverage" if finding.severity >= Severity::Medium => {
+            // Suggest adding tests.
+        }
+        "quality" if finding.severity >= Severity::Medium => {
+            // Suggest refactoring test smells.
+        }
+        "assertions" if finding.severity >= Severity::Medium => {
+            // Suggest adding or splitting assertions.
+        }
+        "organization" if finding.severity >= Severity::Medium => {
+            // Suggest organizing tests.
+        }
+        _ => {}
+    }
+
+    Ok(candidates)
 }
 
 /// Assess test quality

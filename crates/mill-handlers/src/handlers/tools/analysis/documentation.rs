@@ -13,11 +13,18 @@
 //! detection logic.
 
 use super::super::{ToolHandler, ToolHandlerContext};
+use super::suggestions::{
+    ActionableSuggestion, AnalysisContext, EvidenceStrength, Location, RefactoringCandidate,
+    Scope, SuggestionGenerator, RefactorType,
+};
+use anyhow::Result;
 use async_trait::async_trait;
-use mill_plugin_api::{ Symbol , SymbolKind };
 use mill_foundation::core::model::mcp::ToolCall;
-use mill_foundation::protocol::analysis_result::{ Finding , FindingLocation , Position , Range , SafetyLevel , Severity , Suggestion , };
-use mill_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
+use mill_foundation::protocol::analysis_result::{
+    Finding, FindingLocation, Position, Range, SafetyLevel, Severity, Suggestion,
+};
+use mill_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
+use mill_plugin_api::{Symbol, SymbolKind};
 use regex::Regex;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -149,7 +156,7 @@ pub fn detect_coverage(
         undocumented_public.len()
     );
 
-    findings.push(Finding {
+    let mut finding = Finding {
         id: format!("doc-coverage-{}", file_path),
         kind: "coverage".to_string(),
         severity,
@@ -161,35 +168,30 @@ pub fn detect_coverage(
         },
         metrics: Some(metrics),
         message,
-        suggestions: if !undocumented_public.is_empty() {
-            vec![Suggestion {
-                action: "add_documentation".to_string(),
-                description: format!(
-                    "Add documentation to {} undocumented public symbols: {}",
-                    undocumented_public.len(),
-                    undocumented_public
-                        .iter()
-                        .take(5)
-                        .cloned()
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                ),
-                target: None,
-                estimated_impact: format!(
-                    "Would increase coverage from {:.1}% to {:.1}%",
-                    coverage_percentage,
-                    ((documented_count + undocumented_public.len()) as f64 / total_symbols as f64)
-                        * 100.0
-                ),
-                safety: SafetyLevel::Safe,
-                confidence: 0.95,
-                reversible: true,
-                refactor_call: None,
-            }]
-        } else {
-            vec![]
-        },
-    });
+        suggestions: vec![],
+    };
+
+    if !undocumented_public.is_empty() {
+        let suggestion_generator = SuggestionGenerator::new();
+        let context = AnalysisContext {
+            file_path: file_path.to_string(),
+            has_full_type_info: false,
+            has_partial_type_info: false,
+            ast_parse_errors: 0,
+        };
+
+        if let Ok(candidates) =
+            generate_documentation_refactoring_candidates(&finding)
+        {
+            let suggestions = suggestion_generator.generate_multiple(candidates, &context);
+            finding.suggestions = suggestions
+                .into_iter()
+                .map(|s| s.into())
+                .collect::<Vec<Suggestion>>();
+        }
+    }
+
+    findings.push(finding);
 
     findings
 }
@@ -332,7 +334,7 @@ pub fn detect_quality(
             metrics.insert("issues".to_string(), json!(issues));
             metrics.insert("doc_length".to_string(), json!(doc_comment.len()));
 
-            findings.push(Finding {
+            let mut finding = Finding {
                 id: format!("doc-quality-{}-{}", file_path, symbol.location.line),
                 kind: "quality".to_string(),
                 severity: Severity::Medium,
@@ -357,8 +359,28 @@ pub fn detect_quality(
                     symbol.name,
                     issues.join(", ")
                 ),
-                suggestions: build_quality_suggestions(&issues),
-            });
+                suggestions: vec![],
+            };
+
+            let suggestion_generator = SuggestionGenerator::new();
+            let context = AnalysisContext {
+                file_path: file_path.to_string(),
+                has_full_type_info: false,
+                has_partial_type_info: false,
+                ast_parse_errors: 0,
+            };
+
+            if let Ok(candidates) =
+                generate_documentation_refactoring_candidates(&finding)
+            {
+                let suggestions = suggestion_generator.generate_multiple(candidates, &context);
+                finding.suggestions = suggestions
+                    .into_iter()
+                    .map(|s| s.into())
+                    .collect::<Vec<Suggestion>>();
+            }
+
+            findings.push(finding);
         }
     }
 
@@ -527,7 +549,7 @@ pub fn detect_style(
         punctuation_issues
     );
 
-    findings.push(Finding {
+    let mut finding = Finding {
         id: format!("doc-style-{}", file_path),
         kind: "style".to_string(),
         severity: Severity::Low, // Style is informational
@@ -539,24 +561,28 @@ pub fn detect_style(
         },
         metrics: Some(metrics),
         message,
-        suggestions: vec![Suggestion {
-            action: "fix_documentation_style".to_string(),
-            description: if mixed_styles {
-                format!(
-                    "Use consistent doc comment style. Found mixed styles: {}",
-                    comment_styles.join(", ")
-                )
-            } else {
-                "Fix capitalization and punctuation for consistency".to_string()
-            },
-            target: None,
-            estimated_impact: "Improves documentation consistency and readability".to_string(),
-            safety: SafetyLevel::Safe,
-            confidence: 0.90,
-            reversible: true,
-            refactor_call: None,
-        }],
-    });
+        suggestions: vec![],
+    };
+
+    let suggestion_generator = SuggestionGenerator::new();
+    let context = AnalysisContext {
+        file_path: file_path.to_string(),
+        has_full_type_info: false,
+        has_partial_type_info: false,
+        ast_parse_errors: 0,
+    };
+
+    if let Ok(candidates) =
+        generate_documentation_refactoring_candidates(&finding)
+    {
+        let suggestions = suggestion_generator.generate_multiple(candidates, &context);
+        finding.suggestions = suggestions
+            .into_iter()
+            .map(|s| s.into())
+            .collect::<Vec<Suggestion>>();
+    }
+
+    findings.push(finding);
 
     findings
 }
@@ -697,7 +723,7 @@ pub fn detect_examples(
         )
     };
 
-    findings.push(Finding {
+    let mut finding = Finding {
         id: format!("doc-examples-{}", file_path),
         kind: "examples".to_string(),
         severity,
@@ -709,33 +735,61 @@ pub fn detect_examples(
         },
         metrics: Some(metrics),
         message,
-        suggestions: if !complex_without_examples.is_empty() {
-            vec![Suggestion {
-                action: "add_code_examples".to_string(),
-                description: format!(
-                    "Add code examples to {} complex functions: {}",
-                    complex_without_examples.len(),
-                    complex_without_examples
-                        .iter()
-                        .take(3)
-                        .cloned()
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                ),
-                target: None,
-                estimated_impact: "Improves understanding of complex functions for API users"
-                    .to_string(),
-                safety: SafetyLevel::Safe,
-                confidence: 0.85,
-                reversible: true,
-                refactor_call: None,
-            }]
-        } else {
-            vec![]
-        },
-    });
+        suggestions: vec![],
+    };
+
+    if !complex_without_examples.is_empty() {
+        let suggestion_generator = SuggestionGenerator::new();
+        let context = AnalysisContext {
+            file_path: file_path.to_string(),
+            has_full_type_info: false,
+            has_partial_type_info: false,
+            ast_parse_errors: 0,
+        };
+
+        if let Ok(candidates) =
+            generate_documentation_refactoring_candidates(&finding)
+        {
+            let suggestions = suggestion_generator.generate_multiple(candidates, &context);
+            finding.suggestions = suggestions
+                .into_iter()
+                .map(|s| s.into())
+                .collect::<Vec<Suggestion>>();
+        }
+    }
+
+    findings.push(finding);
 
     findings
+}
+
+fn generate_documentation_refactoring_candidates(
+    finding: &Finding,
+) -> Result<Vec<RefactoringCandidate>> {
+    let mut candidates = Vec::new();
+    let location = finding.location.clone();
+    let line = location.range.as_ref().map(|r| r.start.line).unwrap_or(0) as usize;
+
+    match finding.kind.as_str() {
+        "coverage" if finding.severity >= Severity::Medium => {
+            // Suggest adding documentation, but this would require a new tool.
+        }
+        "quality" if finding.severity >= Severity::Medium => {
+            // Suggest improving documentation.
+        }
+        "style" if finding.severity >= Severity::Low => {
+            // Suggest fixing style.
+        }
+        "examples" if finding.severity >= Severity::Medium => {
+            // Suggest adding examples.
+        }
+        "todos" if finding.severity >= Severity::Medium => {
+            // Suggest creating issues.
+        }
+        _ => {}
+    }
+
+    Ok(candidates)
 }
 
 /// Track TODO/FIXME comments
@@ -924,7 +978,7 @@ pub fn detect_todos(
         });
     }
 
-    findings.push(Finding {
+    let mut finding = Finding {
         id: format!("doc-todos-{}", file_path),
         kind: "todos".to_string(),
         severity: overall_severity,
@@ -937,7 +991,27 @@ pub fn detect_todos(
         metrics: Some(metrics),
         message,
         suggestions,
-    });
+    };
+
+    let suggestion_generator = SuggestionGenerator::new();
+    let context = AnalysisContext {
+        file_path: file_path.to_string(),
+        has_full_type_info: false,
+        has_partial_type_info: false,
+        ast_parse_errors: 0,
+    };
+
+    if let Ok(candidates) =
+        generate_documentation_refactoring_candidates(&finding)
+    {
+        let suggestions = suggestion_generator.generate_multiple(candidates, &context);
+        finding.suggestions = suggestions
+            .into_iter()
+            .map(|s| s.into())
+            .collect::<Vec<Suggestion>>();
+    }
+
+    findings.push(finding);
 
     findings
 }

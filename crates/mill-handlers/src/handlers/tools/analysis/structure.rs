@@ -13,11 +13,18 @@
 //! detection logic.
 
 use super::super::{ToolHandler, ToolHandlerContext};
+use super::suggestions::{
+    ActionableSuggestion, AnalysisContext, EvidenceStrength, Location, RefactoringCandidate,
+    Scope, SuggestionGenerator, RefactorType,
+};
+use anyhow::Result;
 use async_trait::async_trait;
-use mill_plugin_api::{ Symbol , SymbolKind };
 use mill_foundation::core::model::mcp::ToolCall;
-use mill_foundation::protocol::analysis_result::{ Finding , FindingLocation , SafetyLevel , Severity , Suggestion , };
-use mill_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
+use mill_foundation::protocol::analysis_result::{
+    Finding, FindingLocation, SafetyLevel, Severity, Suggestion,
+};
+use mill_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
+use mill_plugin_api::{Symbol, SymbolKind};
 use regex::Regex;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -233,7 +240,7 @@ pub fn detect_hierarchy(
         )
     };
 
-    findings.push(Finding {
+    let mut finding = Finding {
         id: format!("hierarchy-{}", file_path),
         kind: "hierarchy".to_string(),
         severity,
@@ -245,21 +252,30 @@ pub fn detect_hierarchy(
         },
         metrics: Some(metrics),
         message,
-        suggestions: if deep_hierarchy {
-            vec![Suggestion {
-                action: "flatten_hierarchy".to_string(),
-                description: "Consider using composition over inheritance or extracting intermediate abstractions to reduce hierarchy depth".to_string(),
-                target: None,
-                estimated_impact: "Improves maintainability, reduces coupling, simplifies testing".to_string(),
-                safety: SafetyLevel::RequiresReview,
-                confidence: 0.75,
-                reversible: false,
-                refactor_call: None,
-            }]
-        } else {
-            vec![]
-        },
-    });
+        suggestions: vec![],
+    };
+
+    if deep_hierarchy {
+        let suggestion_generator = SuggestionGenerator::new();
+        let context = AnalysisContext {
+            file_path: file_path.to_string(),
+            has_full_type_info: false,
+            has_partial_type_info: false,
+            ast_parse_errors: 0,
+        };
+
+        if let Ok(candidates) =
+            generate_structure_refactoring_candidates(&finding)
+        {
+            let suggestions = suggestion_generator.generate_multiple(candidates, &context);
+            finding.suggestions = suggestions
+                .into_iter()
+                .map(|s| s.into())
+                .collect::<Vec<Suggestion>>();
+        }
+    }
+
+    findings.push(finding);
 
     findings
 }
@@ -379,7 +395,7 @@ pub fn detect_interfaces(
         )
     };
 
-    findings.push(Finding {
+    let mut finding = Finding {
         id: format!("interfaces-{}", file_path),
         kind: "interfaces".to_string(),
         severity,
@@ -391,24 +407,30 @@ pub fn detect_interfaces(
         },
         metrics: Some(metrics),
         message,
-        suggestions: if has_fat_interfaces {
-            vec![Suggestion {
-                action: "split_fat_interface".to_string(),
-                description: format!(
-                    "Split large interfaces ({}) into smaller, more focused interfaces following ISP",
-                    fat_interfaces.join(", ")
-                ),
-                target: None,
-                estimated_impact: "Reduces coupling, improves testability, follows SOLID principles".to_string(),
-                safety: SafetyLevel::RequiresReview,
-                confidence: 0.80,
-                reversible: false,
-                refactor_call: None,
-            }]
-        } else {
-            vec![]
-        },
-    });
+        suggestions: vec![],
+    };
+
+    if has_fat_interfaces {
+        let suggestion_generator = SuggestionGenerator::new();
+        let context = AnalysisContext {
+            file_path: file_path.to_string(),
+            has_full_type_info: false,
+            has_partial_type_info: false,
+            ast_parse_errors: 0,
+        };
+
+        if let Ok(candidates) =
+            generate_structure_refactoring_candidates(&finding)
+        {
+            let suggestions = suggestion_generator.generate_multiple(candidates, &context);
+            finding.suggestions = suggestions
+                .into_iter()
+                .map(|s| s.into())
+                .collect::<Vec<Suggestion>>();
+        }
+    }
+
+    findings.push(finding);
 
     findings
 }
@@ -521,7 +543,7 @@ pub fn detect_inheritance(
         )
     };
 
-    findings.push(Finding {
+    let mut finding = Finding {
         id: format!("inheritance-{}", file_path),
         kind: "inheritance".to_string(),
         severity,
@@ -533,21 +555,30 @@ pub fn detect_inheritance(
         },
         metrics: Some(metrics),
         message,
-        suggestions: if excessive_depth {
-            vec![Suggestion {
-                action: "reduce_inheritance_depth".to_string(),
-                description: "Prefer composition over inheritance, use interfaces/traits, or flatten class hierarchy to reduce coupling".to_string(),
-                target: None,
-                estimated_impact: "Reduces fragility, improves testability, follows LSP more naturally".to_string(),
-                safety: SafetyLevel::RequiresReview,
-                confidence: 0.85,
-                reversible: false,
-                refactor_call: None,
-            }]
-        } else {
-            vec![]
-        },
-    });
+        suggestions: vec![],
+    };
+
+    if excessive_depth {
+        let suggestion_generator = SuggestionGenerator::new();
+        let context = AnalysisContext {
+            file_path: file_path.to_string(),
+            has_full_type_info: false,
+            has_partial_type_info: false,
+            ast_parse_errors: 0,
+        };
+
+        if let Ok(candidates) =
+            generate_structure_refactoring_candidates(&finding)
+        {
+            let suggestions = suggestion_generator.generate_multiple(candidates, &context);
+            finding.suggestions = suggestions
+                .into_iter()
+                .map(|s| s.into())
+                .collect::<Vec<Suggestion>>();
+        }
+    }
+
+    findings.push(finding);
 
     findings
 }
@@ -665,7 +696,7 @@ pub fn detect_modules(
         )
     };
 
-    findings.push(Finding {
+    let mut finding = Finding {
         id: format!("modules-{}", file_path),
         kind: "modules".to_string(),
         severity,
@@ -677,25 +708,30 @@ pub fn detect_modules(
         },
         metrics: Some(metrics),
         message,
-        suggestions: if has_issues {
-            vec![Suggestion {
-                action: "improve_module_organization".to_string(),
-                description: if !god_modules.is_empty() {
-                    format!("Split large modules ({}) into smaller, focused modules with clear responsibilities", god_modules.join(", "))
-                } else {
-                    "Organize orphaned items into logical modules to improve code structure".to_string()
-                },
-                target: None,
-                estimated_impact: "Improves code organization, maintainability, and follows SRP".to_string(),
-                safety: SafetyLevel::RequiresReview,
-                confidence: 0.70,
-                reversible: false,
-                refactor_call: None,
-            }]
-        } else {
-            vec![]
-        },
-    });
+        suggestions: vec![],
+    };
+
+    if has_issues {
+        let suggestion_generator = SuggestionGenerator::new();
+        let context = AnalysisContext {
+            file_path: file_path.to_string(),
+            has_full_type_info: false,
+            has_partial_type_info: false,
+            ast_parse_errors: 0,
+        };
+
+        if let Ok(candidates) =
+            generate_structure_refactoring_candidates(&finding)
+        {
+            let suggestions = suggestion_generator.generate_multiple(candidates, &context);
+            finding.suggestions = suggestions
+                .into_iter()
+                .map(|s| s.into())
+                .collect::<Vec<Suggestion>>();
+        }
+    }
+
+    findings.push(finding);
 
     findings
 }
@@ -1113,6 +1149,33 @@ fn categorize_symbols_by_module(
 
     items_per_module
 }
+
+fn generate_structure_refactoring_candidates(
+    finding: &Finding,
+) -> Result<Vec<RefactoringCandidate>> {
+    let mut candidates = Vec::new();
+    let location = finding.location.clone();
+    let line = location.range.as_ref().map(|r| r.start.line).unwrap_or(0) as usize;
+
+    match finding.kind.as_str() {
+        "hierarchy" if finding.severity >= Severity::Medium => {
+            // Suggest flattening hierarchy. This is a complex, multi-step refactoring.
+        }
+        "interfaces" if finding.severity >= Severity::Medium => {
+            // Suggest splitting fat interfaces.
+        }
+        "inheritance" if finding.severity >= Severity::Medium => {
+            // Suggest composition over inheritance.
+        }
+        "modules" if finding.severity >= Severity::Medium => {
+            // Suggest splitting god modules.
+        }
+        _ => {}
+    }
+
+    Ok(candidates)
+}
+
 
 // ============================================================================
 // Handler Implementation

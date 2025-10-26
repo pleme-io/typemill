@@ -1,3 +1,4 @@
+use mill_foundation::protocol::analysis_result::{Suggestion, RefactorCall as ProtocolRefactorCall};
 use serde::{Deserialize, Serialize};
 
 /// Enhanced suggestion with safety metadata and actionable refactor call
@@ -74,6 +75,25 @@ pub struct SuggestionMetadata {
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub benefits: Vec<String>,
 }
+
+impl From<ActionableSuggestion> for Suggestion {
+    fn from(val: ActionableSuggestion) -> Self {
+        Suggestion {
+            action: val.message,
+            description: val.metadata.map(|m| m.rationale).unwrap_or_default(),
+            target: None,
+            estimated_impact: format!("{:?}", val.estimated_impact),
+            safety: val.safety,
+            confidence: val.confidence,
+            reversible: val.reversible,
+            refactor_call: val.refactor_call.map(|c| ProtocolRefactorCall {
+                command: c.tool,
+                arguments: c.arguments,
+            }),
+        }
+    }
+}
+
 
 /// Serialize confidence with 2 decimal places
 fn serialize_confidence<S>(confidence: &f64, serializer: S) -> Result<S::Ok, S::Error>

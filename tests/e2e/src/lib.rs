@@ -122,6 +122,22 @@ pub mod test_analyze_batch;
 pub mod test_suggestions_dead_code;
 
 #[cfg(test)]
+pub mod test_suggestions_quality;
+
+#[cfg(test)]
+pub mod test_suggestions_dependencies;
+
+#[cfg(test)]
+pub mod test_suggestions_structure;
+
+#[cfg(test)]
+pub mod test_suggestions_documentation;
+
+#[cfg(test)]
+pub mod test_suggestions_tests;
+
+#[cfg(test)]
+pub mod test_closed_loop_workflow;
 
 // Workspace package creation tests (Proposal 50)
 #[cfg(test)]
