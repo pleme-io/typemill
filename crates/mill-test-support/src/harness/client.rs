@@ -57,11 +57,15 @@ impl TestClient {
             std::env::var("PATH").unwrap_or_default()
         };
 
+        // Use a unique PID file for each test to avoid conflicts in parallel execution
+        let pid_file = working_dir.join(".mill.pid");
+
         let mut command = Command::new(&server_path);
         command
             .arg("start")
             .current_dir(working_dir)
             .env("PATH", expanded_path)
+            .env("MILL_PID_FILE", pid_file) // Unique PID file per test
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());

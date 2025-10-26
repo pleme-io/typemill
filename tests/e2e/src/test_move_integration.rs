@@ -90,7 +90,10 @@ async fn test_move_file_plan_and_apply() {
 #[tokio::test]
 async fn test_move_file_dry_run_preview() {
     run_dry_run_test(
-        &[("source/file.rs", "pub fn test() {}\n")],
+        &[
+            ("source/file.rs", "pub fn test() {}\n"),
+            ("target/.gitkeep", ""), // Create target directory
+        ],
         "move",
         |ws| build_move_params(ws, "source/file.rs", "target/file.rs", "file"),
         |ws| {
@@ -139,11 +142,12 @@ async fn test_move_module_plan_structure() {
 
     let mut client = TestClient::new(workspace.path());
 
+    // Use dryRun: true to get the plan structure
+    let mut params = build_move_params(&workspace, "old_location/module.rs", "new_location/module.rs", "file");
+    params["options"] = json!({"dryRun": true});
+
     let plan = client
-        .call_tool(
-            "move",
-            build_move_params(&workspace, "old_location/module.rs", "new_location/module.rs", "file"),
-        )
+        .call_tool("move", params)
         .await
         .expect("move should succeed")
         .get("result")

@@ -446,6 +446,7 @@ struct InlineTarget {
 }
 
 #[derive(Debug, Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
 struct InlineOptions {
     /// Preview mode - don't actually apply changes (default: true for safety)
     #[serde(default = "default_true")]

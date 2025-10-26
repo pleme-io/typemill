@@ -57,6 +57,7 @@ struct DeleteSelector {
 }
 
 #[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 struct DeleteOptions {
     /// Preview mode - don't actually apply changes (default: true for safety)
     #[serde(default = "default_true")]

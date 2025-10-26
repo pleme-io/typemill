@@ -824,6 +824,11 @@ fn acquire_pid_lock() -> Result<File, std::io::Error> {
 
 /// Get the path to the PID file
 fn get_pid_file_path() -> PathBuf {
+    // Allow tests to override PID file location to avoid conflicts
+    if let Ok(pid_file) = std::env::var("MILL_PID_FILE") {
+        return PathBuf::from(pid_file);
+    }
+
     #[cfg(unix)]
     {
         PathBuf::from("/tmp/mill.pid")

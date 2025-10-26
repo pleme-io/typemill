@@ -139,6 +139,7 @@ async fn test_extract_variable_dry_run() {
 /// Test 3: Extract constant checksum validation (MANUAL - LSP support required)
 /// BEFORE: 74 lines | AFTER: ~45 lines (~39% reduction)
 #[tokio::test]
+#[ignore = "Checksum validation test removed - unified API doesn't support stale plans"]
 async fn test_extract_constant_checksum_validation() {
     let workspace = TestWorkspace::new();
     workspace.create_file("constants.rs",
@@ -213,6 +214,7 @@ async fn test_extract_plan_metadata_structure() {
     let mut client = TestClient::new(workspace.path());
     let file_path = workspace.absolute_path("meta.rs");
 
+    // Use dryRun: true to get the plan structure
     let plan_result = client.call_tool("extract", json!({
         "kind": "variable",
         "source": {
@@ -222,6 +224,9 @@ async fn test_extract_plan_metadata_structure() {
                 "end": {"line": 2, "character": 9}
             },
             "name": "multiplier"
+        },
+        "options": {
+            "dryRun": true
         }
     })).await;
 

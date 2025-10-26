@@ -50,6 +50,7 @@ struct ReorderTarget {
 }
 
 #[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 #[allow(dead_code)] // Reserved for future configuration
 struct ReorderOptions {
     /// Preview mode - don't actually apply changes (default: true for safety)

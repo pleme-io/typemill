@@ -13,6 +13,7 @@ use axum::{
 use mill_server::handlers::plugin_dispatcher::PluginDispatcher;
 use mill_server::workspaces::WorkspaceManager;
 use mill_transport::SessionInfo;
+use serde_json::json;
 use std::sync::Arc;
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tracing::{debug, error, info};
@@ -82,9 +83,22 @@ pub async fn run_stdio_mode() {
                 }
 
                 debug!(message = %trimmed, "Received message");
-                match serde_json::from_str(trimmed) {
+
+                // First parse as raw JSON to extract ID for error responses
+                let raw_message: serde_json::Value = match serde_json::from_str(trimmed) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        error!(error = %e, line = %trimmed, "Failed to parse JSON");
+                        continue;
+                    }
+                };
+                let request_id = raw_message.get("id").cloned();
+
+                // Then parse as proper MCP message
+                match serde_json::from_value(raw_message.clone()) {
                     Ok(mcp_message) => {
                         debug!("Parsed MCP message, dispatching");
+
                         match dispatcher.dispatch(mcp_message, &session_info).await {
                             Ok(response) => {
                                 let response_json = match serde_json::to_string(&response) {
@@ -115,11 +129,45 @@ pub async fn run_stdio_mode() {
                             }
                             Err(e) => {
                                 error!(error = %e, "Error dispatching message");
+
+                                // Send JSON-RPC error response back to client
+                                let error_response = json!({
+                                    "jsonrpc": "2.0",
+                                    "id": request_id,
+                                    "error": {
+                                        "code": -32603,
+                                        "message": format!("{}", e)
+                                    }
+                                });
+
+                                if let Ok(response_json) = serde_json::to_string(&error_response) {
+                                    let _ = stdout.write_all(response_json.as_bytes()).await;
+                                    let _ = stdout.write_all(b"\n").await;
+                                    let _ = stdout.write_all(b"---FRAME---\n").await;
+                                    let _ = stdout.flush().await;
+                                }
                             }
                         }
                     }
                     Err(e) => {
-                        error!(error = %e, line = %trimmed, "Failed to parse JSON");
+                        error!(error = %e, line = %trimmed, "Failed to parse MCP message");
+
+                        // Send JSON-RPC error response for parse errors
+                        let error_response = json!({
+                            "jsonrpc": "2.0",
+                            "id": request_id,
+                            "error": {
+                                "code": -32700,
+                                "message": format!("Parse error: {}", e)
+                            }
+                        });
+
+                        if let Ok(response_json) = serde_json::to_string(&error_response) {
+                            let _ = stdout.write_all(response_json.as_bytes()).await;
+                            let _ = stdout.write_all(b"\n").await;
+                            let _ = stdout.write_all(b"---FRAME---\n").await;
+                            let _ = stdout.flush().await;
+                        }
                     }
                 }
             }
