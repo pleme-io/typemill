@@ -397,18 +397,16 @@ async fn test_closed_loop_workflow_dead_code_removal() {
         .find(|s| s.safety == SafetyLevel::Safe && s.confidence > 0.9)
         .expect("Should have safe suggestion");
 
-    // Step 3: Apply suggestion via refactor_call
+    // Step 3: Apply suggestion via refactor_call (unified dryRun API)
     let refactor_call = safe_suggestion.refactor_call.as_ref().unwrap();
-    let plan_result = server.call_tool(
-        &refactor_call.tool,
-        refactor_call.arguments.clone(),
-    ).await.unwrap();
+
+    // Add dryRun: false to execute the refactoring
+    let mut arguments = refactor_call.arguments.clone();
+    arguments["options"] = json!({ "dryRun": false });
 
     let apply_result = server.call_tool(
-        "workspace.apply_edit",
-        json!({
-            "plan": plan_result,
-        }),
+        &refactor_call.tool,
+        arguments,
     ).await.unwrap();
 
     assert_eq!(apply_result["success"], true);

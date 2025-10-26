@@ -133,7 +133,7 @@ The project underwent a complete architectural transformation from TypeScript/No
   - Supports batch file renaming with convention transformations
   - Standalone utility for naming convention migration
 
-- **Batch Rename Support** - Enhanced rename tool with batch operations (originally rename.plan, now using unified dryRun API)
+- **Batch Rename Support** - Enhanced rename tool with batch operations (unified dryRun API)
   - Multiple file/directory renames in single operation
   - Coordinated reference updates across batch
   - Optimized for large-scale refactoring projects
