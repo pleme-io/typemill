@@ -43,6 +43,7 @@ fn is_word_boundary_char(ch: char) -> bool {
 ///
 /// This checks if the character immediately BEFORE byte_pos is a word boundary character.
 /// For checking after a match, pass the position after the match end.
+#[allow(dead_code)] // Reserved for future word-boundary matching features
 fn has_word_boundary_at(content: &str, byte_pos: usize) -> bool {
     // At start/end of content is always a word boundary
     if byte_pos == 0 || byte_pos >= content.len() {

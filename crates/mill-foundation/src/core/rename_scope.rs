@@ -76,9 +76,10 @@ impl Default for RenameScope {
 }
 
 impl RenameScope {
-    /// Code-only preset: only update imports and string literals
-    #[deprecated(since = "2.0.0", note = "Use `code()` instead")]
-    pub fn code_only() -> Self {
+    /// Code preset: only update imports and string literals
+    ///
+    /// This is the recommended preset for minimal scope updates.
+    pub fn code() -> Self {
         Self {
             update_code: true,
             update_string_literals: true,
@@ -93,9 +94,11 @@ impl RenameScope {
         }
     }
 
-    /// All preset: update everything (default)
-    #[deprecated(since = "2.0.0", note = "Use `standard()` instead")]
-    pub fn all() -> Self {
+    /// Standard preset: update code + docs + configs (DEFAULT)
+    ///
+    /// This is the recommended default scope.
+    /// Updates all structural parts of the project without touching comments or prose.
+    pub fn standard() -> Self {
         Self {
             update_code: true,
             update_string_literals: true,
@@ -110,19 +113,16 @@ impl RenameScope {
         }
     }
 
-    /// Code preset: only update imports and string literals
-    ///
-    /// This is the new name for `code_only()`. Use this for minimal scope.
-    pub fn code() -> Self {
-        Self::code_only() // Delegate to existing implementation
+    /// Code-only preset: only update imports and string literals
+    #[deprecated(since = "2.0.0", note = "Use `code()` instead")]
+    pub fn code_only() -> Self {
+        Self::code()
     }
 
-    /// Standard preset: update code + docs + configs (DEFAULT)
-    ///
-    /// This is the new name for `all()` and the recommended default scope.
-    /// Updates all structural parts of the project without touching comments or prose.
-    pub fn standard() -> Self {
-        Self::all() // Delegate to existing implementation
+    /// All preset: update everything (default)
+    #[deprecated(since = "2.0.0", note = "Use `standard()` instead")]
+    pub fn all() -> Self {
+        Self::standard()
     }
 
     /// Comments preset: standard scope + code comments
