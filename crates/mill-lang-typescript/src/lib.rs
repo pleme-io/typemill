@@ -8,9 +8,12 @@ pub mod refactoring;
 pub mod workspace_support;
 
 use async_trait::async_trait;
-use mill_lang_common::read_manifest;
+use mill_lang_common::{impl_capability_delegations, impl_language_plugin_basics, read_manifest};
 use mill_plugin_api::mill_plugin;
-use mill_plugin_api::{ import_support::{ ImportAdvancedSupport , ImportMoveSupport , ImportMutationSupport , ImportParser , ImportRenameSupport , } , LanguageMetadata , LanguagePlugin , LspConfig , ManifestData , ParsedSource , PluginCapabilities , PluginError , PluginResult , WorkspaceSupport , };
+use mill_plugin_api::{
+    LanguageMetadata, LanguagePlugin, LspConfig, ManifestData, ParsedSource, PluginCapabilities,
+    PluginError, PluginResult,
+};
 use std::path::Path;
 
 // Self-register the plugin with the TypeMill system.
@@ -58,13 +61,7 @@ impl TypeScriptPlugin {
 
 #[async_trait]
 impl LanguagePlugin for TypeScriptPlugin {
-    fn metadata(&self) -> &LanguageMetadata {
-        &Self::METADATA
-    }
-
-    fn capabilities(&self) -> PluginCapabilities {
-        Self::CAPABILITIES
-    }
+    impl_language_plugin_basics!();
 
     async fn parse(&self, source: &str) -> PluginResult<ParsedSource> {
         let symbols = parser::extract_symbols(source)?;
@@ -88,53 +85,27 @@ impl LanguagePlugin for TypeScriptPlugin {
         parser::analyze_imports(source, file_path)
     }
 
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn import_parser(&self) -> Option<&dyn ImportParser> {
-        Some(&self.import_support)
-    }
-
-    fn import_rename_support(&self) -> Option<&dyn ImportRenameSupport> {
-        Some(&self.import_support)
-    }
-
-    fn import_move_support(&self) -> Option<&dyn ImportMoveSupport> {
-        Some(&self.import_support)
-    }
-
-    fn import_mutation_support(&self) -> Option<&dyn ImportMutationSupport> {
-        Some(&self.import_support)
-    }
-
-    fn import_advanced_support(&self) -> Option<&dyn ImportAdvancedSupport> {
-        Some(&self.import_support)
-    }
-
-    fn workspace_support(&self) -> Option<&dyn WorkspaceSupport> {
-        Some(&self.workspace_support)
-    }
-
-    fn project_factory(&self) -> Option<&dyn mill_plugin_api::project_factory::ProjectFactory> {
-        Some(&self.project_factory)
-    }
-
-    // Capability trait discovery methods
-    fn module_reference_scanner(&self) -> Option<&dyn mill_plugin_api::ModuleReferenceScanner> {
-        Some(self)
-    }
-
-    fn refactoring_provider(&self) -> Option<&dyn mill_plugin_api::RefactoringProvider> {
-        Some(self)
-    }
-
-    fn import_analyzer(&self) -> Option<&dyn mill_plugin_api::ImportAnalyzer> {
-        Some(self)
-    }
-
-    fn manifest_updater(&self) -> Option<&dyn mill_plugin_api::ManifestUpdater> {
-        Some(self)
+    // Use macro to generate capability delegation methods
+    impl_capability_delegations! {
+        this => {
+            module_reference_scanner: ModuleReferenceScanner,
+            refactoring_provider: RefactoringProvider,
+            import_analyzer: ImportAnalyzer,
+            manifest_updater: ManifestUpdater,
+        },
+        import_support => {
+            import_parser: ImportParser,
+            import_rename_support: ImportRenameSupport,
+            import_move_support: ImportMoveSupport,
+            import_mutation_support: ImportMutationSupport,
+            import_advanced_support: ImportAdvancedSupport,
+        },
+        workspace_support => {
+            workspace_support: WorkspaceSupport,
+        },
+        project_factory => {
+            project_factory: ProjectFactory,
+        },
     }
 
     fn rewrite_file_references(

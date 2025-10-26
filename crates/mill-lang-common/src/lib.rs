@@ -85,6 +85,7 @@
 
 // Core modules (Phase 1)
 pub mod manifest_common;
+pub mod plugin_helpers;
 pub mod refactoring;
 pub mod subprocess;
 pub mod trait_helpers;
