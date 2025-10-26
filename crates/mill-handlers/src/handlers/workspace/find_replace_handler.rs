@@ -151,9 +151,8 @@ impl ToolHandler for FindReplaceHandler {
 
         // Validate regex pattern early (before processing any files)
         if params.mode == SearchMode::Regex {
-            regex::Regex::new(&params.pattern).map_err(|e| {
-                ApiError::InvalidRequest(format!("Invalid regex pattern: {}", e))
-            })?;
+            regex::Regex::new(&params.pattern)
+                .map_err(|e| ApiError::InvalidRequest(format!("Invalid regex pattern: {}", e)))?;
         }
 
         info!(
@@ -250,9 +249,9 @@ async fn discover_files(
         })?;
         exclude_builder.add(glob);
     }
-    let exclude_matcher = exclude_builder.build().map_err(|e| {
-        ApiError::Internal(format!("Failed to build exclude matcher: {}", e))
-    })?;
+    let exclude_matcher = exclude_builder
+        .build()
+        .map_err(|e| ApiError::Internal(format!("Failed to build exclude matcher: {}", e)))?;
 
     // Build include matcher (if specified)
     let include_matcher = if scope.include_patterns.is_empty() {
@@ -265,9 +264,11 @@ async fn discover_files(
             })?;
             include_builder.add(glob);
         }
-        Some(include_builder.build().map_err(|e| {
-            ApiError::Internal(format!("Failed to build include matcher: {}", e))
-        })?)
+        Some(
+            include_builder.build().map_err(|e| {
+                ApiError::Internal(format!("Failed to build include matcher: {}", e))
+            })?,
+        )
     };
 
     // Walk the workspace using ignore crate (respects .gitignore)
@@ -325,12 +326,9 @@ async fn process_file(
             convert_literal_matches_to_edits(matches, &params.replacement, params.preserve_case)?
         }
         SearchMode::Regex => {
-            let matches = regex_matcher::find_regex_matches(
-                &content,
-                &params.pattern,
-                &params.replacement,
-            )
-            .map_err(|e| ApiError::InvalidRequest(format!("Regex error: {}", e)))?;
+            let matches =
+                regex_matcher::find_regex_matches(&content, &params.pattern, &params.replacement)
+                    .map_err(|e| ApiError::InvalidRequest(format!("Regex error: {}", e)))?;
             convert_regex_matches_to_edits(matches)?
         }
     };
@@ -479,11 +477,7 @@ async fn apply_plan(
             b.location
                 .start_line
                 .cmp(&a.location.start_line)
-                .then_with(|| {
-                    b.location
-                        .start_column
-                        .cmp(&a.location.start_column)
-                })
+                .then_with(|| b.location.start_column.cmp(&a.location.start_column))
         });
 
         for edit in sorted_edits {

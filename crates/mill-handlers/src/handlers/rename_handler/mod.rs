@@ -13,9 +13,12 @@ mod utils;
 
 use crate::handlers::tools::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
-use mill_foundation::core::model::mcp::ToolCall;
-use mill_foundation::protocol::{ refactor_plan::{ PlanSummary , PlanWarning } , ApiError as ServerError , ApiResult as ServerResult , RefactorPlan , };
 use lsp_types::{Position, WorkspaceEdit};
+use mill_foundation::core::model::mcp::ToolCall;
+use mill_foundation::protocol::{
+    refactor_plan::{PlanSummary, PlanWarning},
+    ApiError as ServerError, ApiResult as ServerResult, RefactorPlan,
+};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
@@ -111,26 +114,18 @@ impl RenameOptions {
     pub fn to_rename_scope(&self) -> Option<mill_foundation::core::rename_scope::RenameScope> {
         let scope = match self.scope.as_deref() {
             // New names (preferred)
-            Some("code") => {
-                Some(mill_foundation::core::rename_scope::RenameScope::code())
-            }
+            Some("code") => Some(mill_foundation::core::rename_scope::RenameScope::code()),
             Some("standard") | None => {
                 Some(mill_foundation::core::rename_scope::RenameScope::standard())
             }
-            Some("comments") => {
-                Some(mill_foundation::core::rename_scope::RenameScope::comments())
-            }
+            Some("comments") => Some(mill_foundation::core::rename_scope::RenameScope::comments()),
             Some("everything") => {
                 Some(mill_foundation::core::rename_scope::RenameScope::everything())
             }
 
             // Deprecated aliases (still work)
-            Some("code-only") => {
-                Some(mill_foundation::core::rename_scope::RenameScope::code())
-            }
-            Some("all") => {
-                Some(mill_foundation::core::rename_scope::RenameScope::standard())
-            }
+            Some("code-only") => Some(mill_foundation::core::rename_scope::RenameScope::code()),
+            Some("all") => Some(mill_foundation::core::rename_scope::RenameScope::standard()),
 
             Some("custom") => self.custom_scope.clone(),
             _ => None,
@@ -159,9 +154,10 @@ impl ToolHandler for RenameHandler {
         info!(tool_name = %tool_call.name, "Handling rename");
 
         // Parse parameters
-        let args = tool_call.arguments.clone().ok_or_else(|| {
-            ServerError::InvalidRequest("Missing arguments for rename".into())
-        })?;
+        let args = tool_call
+            .arguments
+            .clone()
+            .ok_or_else(|| ServerError::InvalidRequest("Missing arguments for rename".into()))?;
 
         let params: RenamePlanParams = serde_json::from_value(args).map_err(|e| {
             ServerError::InvalidRequest(format!("Invalid rename parameters: {}", e))
@@ -172,7 +168,9 @@ impl ToolHandler for RenameHandler {
             (Some(target), None) => {
                 // Single target mode (existing API)
                 let new_name = params.new_name.as_ref().ok_or_else(|| {
-                    ServerError::InvalidRequest("new_name is required for single target mode".into())
+                    ServerError::InvalidRequest(
+                        "new_name is required for single target mode".into(),
+                    )
                 })?;
 
                 debug!(
@@ -183,9 +181,18 @@ impl ToolHandler for RenameHandler {
                 );
 
                 match target.kind.as_str() {
-                    "symbol" => self.plan_symbol_rename(target, new_name, &params.options, context).await?,
-                    "file" => self.plan_file_rename(target, new_name, &params.options, context).await?,
-                    "directory" => self.plan_directory_rename(target, new_name, &params.options, context).await?,
+                    "symbol" => {
+                        self.plan_symbol_rename(target, new_name, &params.options, context)
+                            .await?
+                    }
+                    "file" => {
+                        self.plan_file_rename(target, new_name, &params.options, context)
+                            .await?
+                    }
+                    "directory" => {
+                        self.plan_directory_rename(target, new_name, &params.options, context)
+                            .await?
+                    }
                     kind => {
                         return Err(ServerError::InvalidRequest(format!(
                             "Unsupported rename kind: {}. Must be one of: symbol, file, directory",
@@ -201,7 +208,8 @@ impl ToolHandler for RenameHandler {
                     "Generating batch rename plan"
                 );
 
-                self.plan_batch_rename(targets, &params.options, context).await?
+                self.plan_batch_rename(targets, &params.options, context)
+                    .await?
             }
             (Some(_), Some(_)) => {
                 return Err(ServerError::InvalidRequest(
@@ -210,7 +218,8 @@ impl ToolHandler for RenameHandler {
             }
             (None, None) => {
                 return Err(ServerError::InvalidRequest(
-                    "Must specify either 'target' (for single rename) or 'targets' (for batch).".into()
+                    "Must specify either 'target' (for single rename) or 'targets' (for batch)."
+                        .into(),
                 ));
             }
         };
@@ -275,8 +284,10 @@ impl RenameHandler {
     fn dedupe_document_changes(
         changes: Vec<lsp_types::DocumentChangeOperation>,
     ) -> Vec<lsp_types::DocumentChangeOperation> {
+        use lsp_types::{
+            DocumentChangeOperation, OptionalVersionedTextDocumentIdentifier, TextDocumentEdit,
+        };
         use std::collections::HashMap;
-        use lsp_types::{ DocumentChangeOperation , TextDocumentEdit , OptionalVersionedTextDocumentIdentifier };
 
         // Separate edits from other operations (rename/create/delete)
         // Note: Uri has interior mutability but is effectively immutable in LSP protocol
@@ -310,13 +321,8 @@ impl RenameHandler {
         // Add merged text edits
         for (uri, edits) in edits_by_uri {
             result.push(DocumentChangeOperation::Edit(TextDocumentEdit {
-                text_document: OptionalVersionedTextDocumentIdentifier {
-                    uri,
-                    version: None,
-                },
-                edits: edits.into_iter()
-                    .map(lsp_types::OneOf::Left)
-                    .collect(),
+                text_document: OptionalVersionedTextDocumentIdentifier { uri, version: None },
+                edits: edits.into_iter().map(lsp_types::OneOf::Left).collect(),
             }));
         }
 
@@ -458,7 +464,7 @@ impl RenameHandler {
         options: &RenameOptions,
         context: &ToolHandlerContext,
     ) -> ServerResult<mill_foundation::protocol::refactor_plan::RenamePlan> {
-        use mill_foundation::protocol::refactor_plan::{ PlanMetadata , RenamePlan };
+        use mill_foundation::protocol::refactor_plan::{PlanMetadata, RenamePlan};
 
         debug!(targets_count = targets.len(), "Planning batch rename");
 
@@ -546,7 +552,10 @@ impl RenameHandler {
             };
 
             // Debug: log plan details
-            let plan_doc_changes_count = plan.edits.document_changes.as_ref()
+            let plan_doc_changes_count = plan
+                .edits
+                .document_changes
+                .as_ref()
                 .map(|dc| match dc {
                     lsp_types::DocumentChanges::Operations(ops) => ops.len(),
                     lsp_types::DocumentChanges::Edits(edits) => edits.len(),
@@ -569,7 +578,8 @@ impl RenameHandler {
                     lsp_types::DocumentChanges::Edits(edits) => {
                         // Convert edits to operations
                         for edit in edits {
-                            all_document_changes.push(lsp_types::DocumentChangeOperation::Edit(edit.clone()));
+                            all_document_changes
+                                .push(lsp_types::DocumentChangeOperation::Edit(edit.clone()));
                         }
                     }
                 }
@@ -589,7 +599,9 @@ impl RenameHandler {
         // Build merged WorkspaceEdit with documentChanges
         let merged_workspace_edit = WorkspaceEdit {
             changes: None,
-            document_changes: Some(lsp_types::DocumentChanges::Operations(deduped_document_changes)),
+            document_changes: Some(lsp_types::DocumentChanges::Operations(
+                deduped_document_changes,
+            )),
             change_annotations: None,
         };
 

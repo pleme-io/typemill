@@ -7,7 +7,7 @@
 //! This module provides functionality to detect circular dependencies
 //! that would be created by consolidating one crate into another.
 
-use mill_plugin_api::{ PluginError , PluginResult };
+use mill_plugin_api::{PluginError, PluginResult};
 use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::visit::Dfs;
 use serde::{Deserialize, Serialize};

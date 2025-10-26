@@ -8,9 +8,12 @@
 
 use crate::handlers::tools::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
-use mill_foundation::core::model::mcp::ToolCall;
-use mill_foundation::protocol::{ refactor_plan::{ PlanMetadata , PlanSummary , ReorderPlan } , ApiError as ServerError , ApiResult as ServerResult , RefactorPlan , };
 use lsp_types::{Position, WorkspaceEdit};
+use mill_foundation::core::model::mcp::ToolCall;
+use mill_foundation::protocol::{
+    refactor_plan::{PlanMetadata, PlanSummary, ReorderPlan},
+    ApiError as ServerError, ApiResult as ServerResult, RefactorPlan,
+};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -94,9 +97,10 @@ impl ToolHandler for ReorderHandler {
         info!(tool_name = %tool_call.name, "Handling reorder");
 
         // Parse parameters
-        let args = tool_call.arguments.clone().ok_or_else(|| {
-            ServerError::InvalidRequest("Missing arguments for reorder".into())
-        })?;
+        let args = tool_call
+            .arguments
+            .clone()
+            .ok_or_else(|| ServerError::InvalidRequest("Missing arguments for reorder".into()))?;
 
         let params: ReorderPlanParams = serde_json::from_value(args).map_err(|e| {
             ServerError::InvalidRequest(format!("Invalid reorder parameters: {}", e))

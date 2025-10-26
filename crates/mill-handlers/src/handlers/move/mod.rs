@@ -36,9 +36,11 @@ mod validation;
 
 use crate::handlers::tools::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
-use mill_foundation::core::model::mcp::ToolCall;
-use mill_foundation::protocol::{ refactor_plan::MovePlan , ApiError as ServerError , ApiResult as ServerResult , RefactorPlan , };
 use lsp_types::Position;
+use mill_foundation::core::model::mcp::ToolCall;
+use mill_foundation::protocol::{
+    refactor_plan::MovePlan, ApiError as ServerError, ApiResult as ServerResult, RefactorPlan,
+};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::path::Path;

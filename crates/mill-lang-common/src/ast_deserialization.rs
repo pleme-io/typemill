@@ -4,8 +4,8 @@
 //! Provides standard formats that language plugins can use when implementing
 //! their AST tools in Python, Node.js, Go, Java, etc.
 
-use mill_plugin_api::{ PluginResult , SourceLocation , Symbol , SymbolKind };
 use mill_foundation::protocol::ImportInfo;
+use mill_plugin_api::{PluginResult, SourceLocation, Symbol, SymbolKind};
 use serde::{Deserialize, Serialize};
 
 /// Standard symbol representation from AST tools

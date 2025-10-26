@@ -1,6 +1,6 @@
 //! Configuration management for Codeflow Buddy
 
-use mill_foundation::error::{ CoreError , CoreResult };
+use mill_foundation::error::{CoreError, CoreResult};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -391,10 +391,7 @@ impl ServerConfig {
     /// Only 127.0.0.1, ::1, and localhost are considered loopback.
     /// Note: 0.0.0.0 is NOT loopback - it binds to all interfaces.
     pub fn is_loopback_host(&self) -> bool {
-        matches!(
-            self.host.as_str(),
-            "127.0.0.1" | "::1" | "localhost"
-        )
+        matches!(self.host.as_str(), "127.0.0.1" | "::1" | "localhost")
     }
 }
 

@@ -63,23 +63,23 @@ async fn test_add_members_basic() {
 
     let content = result.get("result").expect("Result should exist");
 
-    assert_eq!(
-        content.get("action").and_then(|v| v.as_str()),
-        Some("add")
-    );
-    assert_eq!(
-        content.get("changesMade").and_then(|v| v.as_u64()),
-        Some(2)
-    );
+    assert_eq!(content.get("action").and_then(|v| v.as_str()), Some("add"));
+    assert_eq!(content.get("changesMade").and_then(|v| v.as_u64()), Some(2));
     assert_eq!(
         content.get("workspaceUpdated").and_then(|v| v.as_bool()),
         Some(true)
     );
 
-    let members_before = content.get("membersBefore").and_then(|v| v.as_array()).unwrap();
+    let members_before = content
+        .get("membersBefore")
+        .and_then(|v| v.as_array())
+        .unwrap();
     assert_eq!(members_before.len(), 1);
 
-    let members_after = content.get("membersAfter").and_then(|v| v.as_array()).unwrap();
+    let members_after = content
+        .get("membersAfter")
+        .and_then(|v| v.as_array())
+        .unwrap();
     assert_eq!(members_after.len(), 3);
 
     let cargo_toml = workspace.read_file("Cargo.toml");
@@ -92,7 +92,10 @@ async fn test_remove_members_basic() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
-    let manifest_path = setup_workspace(&workspace, &["crates/crate1", "crates/crate2", "crates/crate3"]);
+    let manifest_path = setup_workspace(
+        &workspace,
+        &["crates/crate1", "crates/crate2", "crates/crate3"],
+    );
 
     let result = client
         .call_tool(
@@ -115,16 +118,16 @@ async fn test_remove_members_basic() {
         content.get("action").and_then(|v| v.as_str()),
         Some("remove")
     );
-    assert_eq!(
-        content.get("changesMade").and_then(|v| v.as_u64()),
-        Some(1)
-    );
+    assert_eq!(content.get("changesMade").and_then(|v| v.as_u64()), Some(1));
     assert_eq!(
         content.get("workspaceUpdated").and_then(|v| v.as_bool()),
         Some(true)
     );
 
-    let members_after = content.get("membersAfter").and_then(|v| v.as_array()).unwrap();
+    let members_after = content
+        .get("membersAfter")
+        .and_then(|v| v.as_array())
+        .unwrap();
     assert_eq!(members_after.len(), 2);
 
     let cargo_toml = workspace.read_file("Cargo.toml");
@@ -138,7 +141,10 @@ async fn test_list_members() {
     let workspace = TestWorkspace::new();
     let mut client = TestClient::new(workspace.path());
 
-    let manifest_path = setup_workspace(&workspace, &["crates/crate1", "crates/crate2", "crates/crate3"]);
+    let manifest_path = setup_workspace(
+        &workspace,
+        &["crates/crate1", "crates/crate2", "crates/crate3"],
+    );
 
     let result = client
         .call_tool(
@@ -153,23 +159,23 @@ async fn test_list_members() {
 
     let content = result.get("result").expect("Result should exist");
 
-    assert_eq!(
-        content.get("action").and_then(|v| v.as_str()),
-        Some("list")
-    );
-    assert_eq!(
-        content.get("changesMade").and_then(|v| v.as_u64()),
-        Some(0)
-    );
+    assert_eq!(content.get("action").and_then(|v| v.as_str()), Some("list"));
+    assert_eq!(content.get("changesMade").and_then(|v| v.as_u64()), Some(0));
     assert_eq!(
         content.get("workspaceUpdated").and_then(|v| v.as_bool()),
         Some(false)
     );
 
-    let members_before = content.get("membersBefore").and_then(|v| v.as_array()).unwrap();
+    let members_before = content
+        .get("membersBefore")
+        .and_then(|v| v.as_array())
+        .unwrap();
     assert_eq!(members_before.len(), 3);
 
-    let members_after = content.get("membersAfter").and_then(|v| v.as_array()).unwrap();
+    let members_after = content
+        .get("membersAfter")
+        .and_then(|v| v.as_array())
+        .unwrap();
     assert_eq!(members_after.len(), 3);
 
     let member_strings: Vec<String> = members_after
@@ -205,16 +211,16 @@ async fn test_add_duplicate_member() {
 
     let content = result.get("result").expect("Result should exist");
 
-    assert_eq!(
-        content.get("changesMade").and_then(|v| v.as_u64()),
-        Some(0)
-    );
+    assert_eq!(content.get("changesMade").and_then(|v| v.as_u64()), Some(0));
     assert_eq!(
         content.get("workspaceUpdated").and_then(|v| v.as_bool()),
         Some(false)
     );
 
-    let members_after = content.get("membersAfter").and_then(|v| v.as_array()).unwrap();
+    let members_after = content
+        .get("membersAfter")
+        .and_then(|v| v.as_array())
+        .unwrap();
     assert_eq!(members_after.len(), 1);
 }
 
@@ -243,10 +249,7 @@ async fn test_dry_run_mode() {
 
     let content = result.get("result").expect("Result should exist");
 
-    assert_eq!(
-        content.get("dryRun").and_then(|v| v.as_bool()),
-        Some(true)
-    );
+    assert_eq!(content.get("dryRun").and_then(|v| v.as_bool()), Some(true));
     assert_eq!(
         content.get("workspaceUpdated").and_then(|v| v.as_bool()),
         Some(false)
@@ -257,12 +260,12 @@ async fn test_dry_run_mode() {
     assert_eq!(original_content, current_content);
 
     // Verify preview of changes
-    assert_eq!(
-        content.get("changesMade").and_then(|v| v.as_u64()),
-        Some(1)
-    );
+    assert_eq!(content.get("changesMade").and_then(|v| v.as_u64()), Some(1));
 
-    let members_after = content.get("membersAfter").and_then(|v| v.as_array()).unwrap();
+    let members_after = content
+        .get("membersAfter")
+        .and_then(|v| v.as_array())
+        .unwrap();
     assert_eq!(members_after.len(), 2);
 }
 
@@ -304,10 +307,7 @@ edition = "2021"
         content.get("workspaceUpdated").and_then(|v| v.as_bool()),
         Some(true)
     );
-    assert_eq!(
-        content.get("changesMade").and_then(|v| v.as_u64()),
-        Some(1)
-    );
+    assert_eq!(content.get("changesMade").and_then(|v| v.as_u64()), Some(1));
 
     let cargo_toml = workspace.read_file("Cargo.toml");
     assert!(cargo_toml.contains("[workspace]"));
@@ -404,10 +404,7 @@ async fn test_remove_nonexistent_member() {
 
     let content = result.get("result").expect("Result should exist");
 
-    assert_eq!(
-        content.get("changesMade").and_then(|v| v.as_u64()),
-        Some(0)
-    );
+    assert_eq!(content.get("changesMade").and_then(|v| v.as_u64()), Some(0));
     assert_eq!(
         content.get("workspaceUpdated").and_then(|v| v.as_bool()),
         Some(false)
@@ -438,10 +435,7 @@ async fn test_path_normalization() {
 
     let content = result.get("result").expect("Result should exist");
 
-    assert_eq!(
-        content.get("changesMade").and_then(|v| v.as_u64()),
-        Some(1)
-    );
+    assert_eq!(content.get("changesMade").and_then(|v| v.as_u64()), Some(1));
 
     let cargo_toml = workspace.read_file("Cargo.toml");
     assert!(cargo_toml.contains("crates/my-crate"));

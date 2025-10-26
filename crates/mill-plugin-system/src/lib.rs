@@ -28,4 +28,4 @@ pub use registry::PluginRegistry;
 pub const PLUGIN_SYSTEM_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // Re-export static plugin registration from mill-plugin-api for backward compatibility
-pub use mill_plugin_api::{ mill_plugin , iter_plugins , PluginDescriptor };
+pub use mill_plugin_api::{iter_plugins, mill_plugin, PluginDescriptor};

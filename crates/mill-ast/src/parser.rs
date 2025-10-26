@@ -1,6 +1,8 @@
 //! AST parsing functionality
 use crate::error::AstResult;
-use mill_foundation::protocol::{ ImportGraph , ImportGraphMetadata , ImportInfo , ImportType , NamedImport , SourceLocation , };
+use mill_foundation::protocol::{
+    ImportGraph, ImportGraphMetadata, ImportInfo, ImportType, NamedImport, SourceLocation,
+};
 use petgraph::graph::NodeIndex;
 use petgraph::{Direction, Graph};
 use std::collections::{HashMap, HashSet};

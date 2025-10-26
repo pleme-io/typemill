@@ -14,10 +14,13 @@
 
 use crate::handlers::tools::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
+use lsp_types::{Position, Range, WorkspaceEdit};
 use mill_ast::refactoring::CodeRange;
 use mill_foundation::core::model::mcp::ToolCall;
-use mill_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult , EditPlan , ExtractPlan , PlanMetadata , PlanSummary , RefactorPlan , };
-use lsp_types::{Position, Range, WorkspaceEdit};
+use mill_foundation::protocol::{
+    ApiError as ServerError, ApiResult as ServerResult, EditPlan, ExtractPlan, PlanMetadata,
+    PlanSummary, RefactorPlan,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;

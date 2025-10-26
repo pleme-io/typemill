@@ -23,11 +23,7 @@ impl fmt::Display for ConventionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ConventionError::InvalidFormat { input, expected } => {
-                write!(
-                    f,
-                    "Invalid format: '{}'. Expected: {}",
-                    input, expected
-                )
+                write!(f, "Invalid format: '{}'. Expected: {}", input, expected)
             }
             ConventionError::InvalidNumber { field, value } => {
                 write!(
@@ -247,12 +243,8 @@ fn convert_string(s: &str, from: &str, to: &str) -> Option<String> {
 /// Split a string into words based on naming convention
 fn split_by_convention(s: &str, convention: &str) -> Option<Vec<String>> {
     match convention {
-        "kebab-case" => {
-            Some(s.split('-').map(|w| w.to_lowercase()).collect())
-        }
-        "snake_case" => {
-            Some(s.split('_').map(|w| w.to_lowercase()).collect())
-        }
+        "kebab-case" => Some(s.split('-').map(|w| w.to_lowercase()).collect()),
+        "snake_case" => Some(s.split('_').map(|w| w.to_lowercase()).collect()),
         "camelCase" => {
             // Split on capital letters: userName -> ["user", "Name"]
             let mut words = Vec::new();
@@ -305,16 +297,11 @@ fn join_by_convention(words: &[String], convention: &str) -> String {
                 String::new()
             } else {
                 let first = words[0].to_lowercase();
-                let rest: String = words[1..]
-                    .iter()
-                    .map(|w| capitalize_first(w))
-                    .collect();
+                let rest: String = words[1..].iter().map(|w| capitalize_first(w)).collect();
                 format!("{}{}", first, rest)
             }
         }
-        "PascalCase" => {
-            words.iter().map(|w| capitalize_first(w)).collect()
-        }
+        "PascalCase" => words.iter().map(|w| capitalize_first(w)).collect(),
         _ => words.join(""),
     }
 }

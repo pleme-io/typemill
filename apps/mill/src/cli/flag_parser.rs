@@ -45,11 +45,20 @@ pub enum FlagParseError {
     /// An unknown flag was provided
     UnknownFlag(String),
     /// Invalid value for a flag
-    InvalidValue { flag: String, value: String, reason: String },
+    InvalidValue {
+        flag: String,
+        value: String,
+        reason: String,
+    },
     /// Convention parsing error (from Agent 2's parsers)
     ConventionError(String),
     /// Wrong tool for operation (with suggested correct tool)
-    WrongTool { current_tool: String, suggested_tool: String, reason: String, example: String },
+    WrongTool {
+        current_tool: String,
+        suggested_tool: String,
+        reason: String,
+        example: String,
+    },
 }
 
 impl fmt::Display for FlagParseError {
@@ -67,13 +76,22 @@ impl fmt::Display for FlagParseError {
             FlagParseError::UnknownFlag(flag) => {
                 write!(f, "Unknown flag: --{}", flag)
             }
-            FlagParseError::InvalidValue { flag, value, reason } => {
+            FlagParseError::InvalidValue {
+                flag,
+                value,
+                reason,
+            } => {
                 write!(f, "Invalid value '{}' for --{}: {}", value, flag, reason)
             }
             FlagParseError::ConventionError(msg) => {
                 write!(f, "Convention parsing error: {}", msg)
             }
-            FlagParseError::WrongTool { current_tool, suggested_tool, reason, example } => {
+            FlagParseError::WrongTool {
+                current_tool,
+                suggested_tool,
+                reason,
+                example,
+            } => {
                 write!(
                     f,
                     "Wrong tool for this operation.\n\n\
@@ -210,7 +228,14 @@ fn parse_rename_flags(flags: HashMap<String, String>) -> Result<Value, FlagParse
     let has_update_flags = flags.keys().any(|k| {
         matches!(
             k.as_str(),
-            "update_code" | "update_docs" | "update_configs" | "update_comments" | "update_markdown_prose" | "update_all" | "update_string_literals" | "update_exact_matches"
+            "update_code"
+                | "update_docs"
+                | "update_configs"
+                | "update_comments"
+                | "update_markdown_prose"
+                | "update_all"
+                | "update_string_literals"
+                | "update_exact_matches"
         )
     }) || flags.contains_key("exclude_patterns");
 
@@ -219,7 +244,8 @@ fn parse_rename_flags(flags: HashMap<String, String>) -> Result<Value, FlagParse
 
     // Auto-upgrade to custom scope if update flags are present
     // Accept both new names (code) and deprecated aliases (code-only)
-    let effective_scope = if has_update_flags && scope != Some("code") && scope != Some("code-only") {
+    let effective_scope = if has_update_flags && scope != Some("code") && scope != Some("code-only")
+    {
         "custom"
     } else {
         scope.unwrap_or("standard")
@@ -239,7 +265,14 @@ fn parse_rename_flags(flags: HashMap<String, String>) -> Result<Value, FlagParse
         // Pass through all update flags to custom_scope
         for (key, value) in &flags {
             match key.as_str() {
-                "update_code" | "update_docs" | "update_configs" | "update_comments" | "update_markdown_prose" | "update_all" | "update_string_literals" | "update_exact_matches" => {
+                "update_code"
+                | "update_docs"
+                | "update_configs"
+                | "update_comments"
+                | "update_markdown_prose"
+                | "update_all"
+                | "update_string_literals"
+                | "update_exact_matches" => {
                     custom_scope[key] = json!(parse_bool(value)?);
                 }
                 _ => {}
@@ -364,21 +397,24 @@ fn parse_move_flags(flags: HashMap<String, String>) -> Result<Value, FlagParseEr
 
     // Check 1: If --target or --new-name are present, user wants 'rename'
     if flags.contains_key("target") || flags.contains_key("new_name") {
-        let source_example = flags.get("target")
+        let source_example = flags
+            .get("target")
             .or_else(|| flags.get("source"))
             .cloned()
             .unwrap_or_else(|| "docs/old.md".to_string());
-        let dest_example = flags.get("new_name")
+        let dest_example = flags
+            .get("new_name")
             .or_else(|| flags.get("destination"))
             .cloned()
             .unwrap_or_else(|| "docs/new.md".to_string());
 
         // Ensure file: prefix is added only once
-        let source_with_prefix = if source_example.starts_with("file:") || source_example.starts_with("directory:") {
-            source_example
-        } else {
-            format!("file:{}", source_example)
-        };
+        let source_with_prefix =
+            if source_example.starts_with("file:") || source_example.starts_with("directory:") {
+                source_example
+            } else {
+                format!("file:{}", source_example)
+            };
 
         return Err(FlagParseError::WrongTool {
             current_tool: "move".to_string(),
@@ -397,7 +433,10 @@ fn parse_move_flags(flags: HashMap<String, String>) -> Result<Value, FlagParseEr
         // If it lacks ":" or has only one ":", it's likely a file path
         let colon_count = source.matches(':').count();
         if colon_count < 2 {
-            let dest = flags.get("destination").map(|s| s.as_str()).unwrap_or("destination/path");
+            let dest = flags
+                .get("destination")
+                .map(|s| s.as_str())
+                .unwrap_or("destination/path");
             return Err(FlagParseError::WrongTool {
                 current_tool: "move".to_string(),
                 suggested_tool: "rename".to_string(),
@@ -760,7 +799,11 @@ fn parse_bool(s: &str) -> Result<bool, FlagParseError> {
 
 /// Parse a comma-separated string into a JSON array
 fn parse_string_array(s: &str) -> Result<Value, FlagParseError> {
-    let items: Vec<&str> = s.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()).collect();
+    let items: Vec<&str> = s
+        .split(',')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .collect();
     Ok(json!(items))
 }
 
@@ -900,7 +943,10 @@ mod tests {
 
     // Helper to create flags HashMap
     fn flags(pairs: &[(&str, &str)]) -> HashMap<String, String> {
-        pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
+        pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect()
     }
 
     // ========================================================================
@@ -911,7 +957,10 @@ mod tests {
     fn test_rename_basic_file() {
         let result = parse_flags_to_json(
             "rename",
-            flags(&[("target", "file:src/utils.rs"), ("new_name", "src/helpers.rs")]),
+            flags(&[
+                ("target", "file:src/utils.rs"),
+                ("new_name", "src/helpers.rs"),
+            ]),
         );
         assert!(result.is_ok());
         let json = result.unwrap();
@@ -992,7 +1041,10 @@ mod tests {
             ]),
         );
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), FlagParseError::UnknownFlag(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            FlagParseError::UnknownFlag(_)
+        ));
     }
 
     #[test]
@@ -1006,7 +1058,10 @@ mod tests {
             ]),
         );
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), FlagParseError::InvalidValue { .. }));
+        assert!(matches!(
+            result.unwrap_err(),
+            FlagParseError::InvalidValue { .. }
+        ));
     }
 
     // ========================================================================
@@ -1070,7 +1125,10 @@ mod tests {
             ]),
         );
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), FlagParseError::InvalidValue { .. }));
+        assert!(matches!(
+            result.unwrap_err(),
+            FlagParseError::InvalidValue { .. }
+        ));
     }
 
     // ========================================================================
@@ -1123,8 +1181,7 @@ mod tests {
 
     #[test]
     fn test_inline_variable() {
-        let result =
-            parse_flags_to_json("inline", flags(&[("target", "src/app.rs:10:5")]));
+        let result = parse_flags_to_json("inline", flags(&[("target", "src/app.rs:10:5")]));
         assert!(result.is_ok());
         let json = result.unwrap();
         assert_eq!(json["target"]["file_path"], "src/app.rs");
@@ -1260,7 +1317,10 @@ mod tests {
             flags(&[("kind", "invalid"), ("target", "src/app.rs:10:5")]),
         );
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), FlagParseError::InvalidValue { .. }));
+        assert!(matches!(
+            result.unwrap_err(),
+            FlagParseError::InvalidValue { .. }
+        ));
     }
 
     // ========================================================================
@@ -1387,6 +1447,9 @@ mod tests {
     fn test_unknown_tool() {
         let result = parse_flags_to_json("unknown.plan", flags(&[]));
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), FlagParseError::UnknownFlag(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            FlagParseError::UnknownFlag(_)
+        ));
     }
 }

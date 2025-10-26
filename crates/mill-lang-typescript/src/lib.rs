@@ -1,14 +1,16 @@
 //! TypeScript/JavaScript Language Plugin for TypeMill
-mod project_factory;
 pub mod import_support;
 pub mod imports;
 mod manifest;
 pub mod parser;
+mod project_factory;
 pub mod refactoring;
 pub mod workspace_support;
 
 use async_trait::async_trait;
-use mill_lang_common::{define_language_plugin, impl_capability_delegations, impl_language_plugin_basics, read_manifest};
+use mill_lang_common::{
+    define_language_plugin, impl_capability_delegations, impl_language_plugin_basics, read_manifest,
+};
 use mill_plugin_api::{LanguagePlugin, ManifestData, ParsedSource, PluginError, PluginResult};
 use std::path::Path;
 
@@ -245,7 +247,7 @@ impl TypeScriptPlugin {
         module_to_find: &str,
         _scope: mill_plugin_api::ScanScope,
     ) -> Vec<mill_plugin_api::ModuleReference> {
-        use mill_plugin_api::{ ModuleReference , ReferenceKind };
+        use mill_plugin_api::{ModuleReference, ReferenceKind};
         let mut references = Vec::new();
         for (line_num, line) in content.lines().enumerate() {
             if (line.contains("import") || line.contains("from")) && line.contains(module_to_find) {

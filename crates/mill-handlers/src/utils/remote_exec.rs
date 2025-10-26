@@ -1,6 +1,6 @@
 //! Remote command execution utilities
 
-use mill_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
+use mill_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use mill_workspaces::WorkspaceManager;
 use reqwest;
 use serde_json::json;

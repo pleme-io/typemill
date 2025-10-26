@@ -4,8 +4,8 @@
 //! the lifecycle of external language plugins that run as separate processes.
 //! It uses a JSON-RPC protocol over stdio, similar to the LSP.
 
-use mill_foundation::protocol::plugin_protocol::{ PluginRequest , PluginResponse };
 use dashmap::DashMap;
+use mill_foundation::protocol::plugin_protocol::{PluginRequest, PluginResponse};
 use serde_json::Value;
 use std::process::Stdio;
 use std::sync::atomic::{AtomicU64, Ordering};

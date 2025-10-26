@@ -1,6 +1,6 @@
 //! Import/rename support implementation for TOML files
 
-use mill_plugin_api::{ ImportRenameSupport , PluginResult };
+use mill_plugin_api::{ImportRenameSupport, PluginResult};
 use std::path::Path;
 use toml_edit::{DocumentMut, Item, Value};
 
@@ -29,14 +29,26 @@ impl TomlImportSupport {
 
         // Update root items
         for (_key, item) in doc.iter_mut() {
-            Self::update_toml_item(item, &old_path_str, &new_path_str, update_exact_matches, &mut changes);
+            Self::update_toml_item(
+                item,
+                &old_path_str,
+                &new_path_str,
+                update_exact_matches,
+                &mut changes,
+            );
         }
 
         Ok((doc.to_string(), changes))
     }
 
     /// Recursively update paths in TOML values
-    fn update_toml_item(item: &mut Item, old_path: &str, new_path: &str, update_exact_matches: bool, changes: &mut usize) {
+    fn update_toml_item(
+        item: &mut Item,
+        old_path: &str,
+        new_path: &str,
+        update_exact_matches: bool,
+        changes: &mut usize,
+    ) {
         match item {
             Item::Value(Value::String(s)) => {
                 let formatted = s.value();
@@ -49,7 +61,9 @@ impl TomlImportSupport {
 
                     // Check for cargo command-line flags first
                     if update_exact_matches {
-                        if let Some(new_value) = Self::update_cargo_flags(formatted, old_path, new_path) {
+                        if let Some(new_value) =
+                            Self::update_cargo_flags(formatted, old_path, new_path)
+                        {
                             *s = toml_edit::Formatted::new(new_value);
                             *changes += 1;
                             return;
@@ -83,13 +97,25 @@ impl TomlImportSupport {
             }
             Item::Table(table) => {
                 for (_key, value) in table.iter_mut() {
-                    Self::update_toml_item(value, old_path, new_path, update_exact_matches, changes);
+                    Self::update_toml_item(
+                        value,
+                        old_path,
+                        new_path,
+                        update_exact_matches,
+                        changes,
+                    );
                 }
             }
             Item::ArrayOfTables(array) => {
                 for table in array.iter_mut() {
                     for (_key, value) in table.iter_mut() {
-                        Self::update_toml_item(value, old_path, new_path, update_exact_matches, changes);
+                        Self::update_toml_item(
+                            value,
+                            old_path,
+                            new_path,
+                            update_exact_matches,
+                            changes,
+                        );
                     }
                 }
             }
@@ -106,7 +132,9 @@ impl TomlImportSupport {
 
                             // Check for cargo command-line flags first
                             if update_exact_matches {
-                                if let Some(new_value) = Self::update_cargo_flags(formatted, old_path, new_path) {
+                                if let Some(new_value) =
+                                    Self::update_cargo_flags(formatted, old_path, new_path)
+                                {
                                     *s = toml_edit::Formatted::new(new_value);
                                     *changes += 1;
                                     continue;
@@ -123,7 +151,8 @@ impl TomlImportSupport {
                                     let new_basename_str = new_basename.to_string_lossy();
 
                                     if formatted == &*old_basename_str {
-                                        *s = toml_edit::Formatted::new(new_basename_str.to_string());
+                                        *s =
+                                            toml_edit::Formatted::new(new_basename_str.to_string());
                                         *changes += 1;
                                         continue;
                                     }

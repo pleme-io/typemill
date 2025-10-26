@@ -2,10 +2,10 @@
 //!
 //! Tests server bootstrap, configuration loading, and shutdown behavior.
 
-use mill_server::{ bootstrap , ServerOptions };
-use mill_test_support::create_test_config;
-use mill_config::AppConfig;
 use e2e::TestHarnessError;
+use mill_config::AppConfig;
+use mill_server::{bootstrap, ServerOptions};
+use mill_test_support::create_test_config;
 
 // ============================================================================
 // Server Bootstrap and Configuration Tests
@@ -78,4 +78,3 @@ async fn test_configuration_loading() -> Result<(), TestHarnessError> {
 
     Ok(())
 }
-

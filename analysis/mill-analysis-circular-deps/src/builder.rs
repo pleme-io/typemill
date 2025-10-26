@@ -1,8 +1,8 @@
 //! Builds a `DependencyGraph` from a project's source files.
 
-use mill_analysis_graph::dependency::{ Dependency , DependencyGraph , DependencyKind };
-use mill_plugin_api::{ import_support::ImportParser , PluginRegistry };
 use ignore::WalkBuilder;
+use mill_analysis_graph::dependency::{Dependency, DependencyGraph, DependencyKind};
+use mill_plugin_api::{import_support::ImportParser, PluginRegistry};
 use std::fs;
 use std::path::{Path, PathBuf};
 use tracing::{debug, warn};

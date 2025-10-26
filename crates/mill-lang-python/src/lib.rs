@@ -19,7 +19,9 @@ pub mod test_fixtures;
 pub mod workspace_support;
 
 use async_trait::async_trait;
-use mill_lang_common::{define_language_plugin, impl_capability_delegations, impl_language_plugin_basics};
+use mill_lang_common::{
+    define_language_plugin, impl_capability_delegations, impl_language_plugin_basics,
+};
 use mill_plugin_api::{LanguagePlugin, ManifestData, ParsedSource, PluginResult};
 use std::path::Path;
 use tracing::{debug, warn};
@@ -163,7 +165,6 @@ impl LanguagePlugin for PythonPlugin {
     }
 }
 
-
 #[async_trait]
 impl mill_plugin_api::ManifestUpdater for PythonPlugin {
     async fn update_dependency(
@@ -186,8 +187,12 @@ impl mill_plugin_api::ManifestUpdater for PythonPlugin {
                 .map_err(mill_plugin_api::PluginError::internal)
             } else {
                 // No version provided, return unchanged
-                std::fs::read_to_string(manifest_path)
-                    .map_err(|e| mill_plugin_api::PluginError::internal(format!("Failed to read manifest: {}", e)))
+                std::fs::read_to_string(manifest_path).map_err(|e| {
+                    mill_plugin_api::PluginError::internal(format!(
+                        "Failed to read manifest: {}",
+                        e
+                    ))
+                })
             }
         } else {
             // Rename dependency - use the existing update_pyproject_toml function

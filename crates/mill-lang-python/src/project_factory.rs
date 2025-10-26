@@ -129,7 +129,8 @@ fn resolve_package_path(workspace_root: &Path, package_path: &str) -> PluginResu
             let canonical_parent = parent.canonicalize().map_err(|e| {
                 PluginError::internal(format!("Failed to canonicalize parent directory: {}", e))
             })?;
-            resolved.file_name()
+            resolved
+                .file_name()
                 .map(|name| canonical_parent.join(name))
                 .ok_or_else(|| PluginError::invalid_input("Invalid package path"))?
         } else {
@@ -379,9 +380,7 @@ fn update_workspace_members(workspace_root: &Path, package_path: &Path) -> Plugi
 
     // Normalize to forward slashes for cross-platform compatibility
     // PDM/Poetry/Hatch expect forward slashes even on Windows
-    let member_str = relative_path
-        .to_string_lossy()
-        .replace('\\', "/");
+    let member_str = relative_path.to_string_lossy().replace('\\', "/");
 
     debug!(member = %member_str, "Adding workspace member");
 

@@ -4,10 +4,13 @@
 //! - EditPlan: Internal planning format used by MoveService
 //! - MovePlan: LSP-based format expected by MCP protocol
 
-use mill_foundation::protocol::{ refactor_plan::{ MovePlan , PlanMetadata , PlanSummary } , ApiError as ServerError , ApiResult as ServerResult , EditPlan , TextEdit as ProtocolTextEdit , };
 use lsp_types::{
     DocumentChangeOperation, DocumentChanges, OptionalVersionedTextDocumentIdentifier, RenameFile,
     ResourceOp, TextDocumentEdit, TextEdit as LspTextEdit,
+};
+use mill_foundation::protocol::{
+    refactor_plan::{MovePlan, PlanMetadata, PlanSummary},
+    ApiError as ServerError, ApiResult as ServerResult, EditPlan, TextEdit as ProtocolTextEdit,
 };
 use std::collections::HashMap;
 use std::path::Path;

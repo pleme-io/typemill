@@ -1,9 +1,9 @@
 //! The WorkflowExecutor service for executing multi-step workflows.
 
-use mill_foundation::core::model::workflow::Workflow;
-use mill_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
-use mill_plugin_system::{ PluginManager , PluginRequest };
 use dashmap::DashMap;
+use mill_foundation::core::model::workflow::Workflow;
+use mill_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
+use mill_plugin_system::{PluginManager, PluginRequest};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -450,10 +450,7 @@ mod tests {
         assert!(resolved.is_ok());
 
         let result = resolved.unwrap();
-        assert_eq!(
-            result.get("filePath").unwrap().as_str().unwrap(),
-            "test.ts"
-        );
+        assert_eq!(result.get("filePath").unwrap().as_str().unwrap(), "test.ts");
         assert!(result.get("locations").unwrap().is_array());
         let locations = result.get("locations").unwrap().as_array().unwrap();
         assert_eq!(locations.len(), 1);

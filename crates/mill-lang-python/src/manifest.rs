@@ -413,8 +413,8 @@ pub fn update_dependency_in_pyproject(
 ) -> Result<String, String> {
     use std::fs;
 
-    let content = fs::read_to_string(manifest_path)
-        .map_err(|e| format!("Failed to read manifest: {}", e))?;
+    let content =
+        fs::read_to_string(manifest_path).map_err(|e| format!("Failed to read manifest: {}", e))?;
 
     let mut doc: toml_edit::DocumentMut = content
         .parse()

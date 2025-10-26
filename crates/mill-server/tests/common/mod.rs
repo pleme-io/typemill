@@ -5,8 +5,8 @@ use std::sync::Arc;
 use tempfile::TempDir;
 
 pub async fn create_test_app_state() -> (Arc<AppState>, TempDir) {
-    use mill_services::services::app_state_factory::create_services_bundle;
     use mill_plugin_system::PluginManager;
+    use mill_services::services::app_state_factory::create_services_bundle;
     use mill_workspaces::WorkspaceManager;
 
     let temp_dir = TempDir::new().unwrap();
@@ -16,7 +16,8 @@ pub async fn create_test_app_state() -> (Arc<AppState>, TempDir) {
     let config = mill_config::AppConfig::default();
 
     // Build plugin registry for tests
-    let plugin_registry = mill_services::services::registry_builder::build_language_plugin_registry();
+    let plugin_registry =
+        mill_services::services::registry_builder::build_language_plugin_registry();
 
     let services = create_services_bundle(
         &project_root,

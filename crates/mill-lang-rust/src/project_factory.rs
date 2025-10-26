@@ -2,8 +2,10 @@
 //!
 //! Handles creation of new Rust crates with proper workspace integration.
 
-use mill_plugin_api::project_factory::{ CreatePackageConfig , CreatePackageResult , PackageInfo , PackageType , ProjectFactory , Template , };
-use mill_plugin_api::{ PluginError , PluginResult };
+use mill_plugin_api::project_factory::{
+    CreatePackageConfig, CreatePackageResult, PackageInfo, PackageType, ProjectFactory, Template,
+};
+use mill_plugin_api::{PluginError, PluginResult};
 use std::fs;
 use std::path::{Path, PathBuf};
 use tracing::{debug, error};

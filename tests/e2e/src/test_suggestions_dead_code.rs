@@ -83,9 +83,14 @@ function main() {
     verify_suggestion(&result, "delete", "import");
 
     let test_file = workspace.absolute_path("test_file.ts");
-    let refactor_call = &result.findings[0].suggestions[0].refactor_call.as_ref().unwrap();
+    let refactor_call = &result.findings[0].suggestions[0]
+        .refactor_call
+        .as_ref()
+        .unwrap();
     assert_eq!(
-        refactor_call.arguments["target"]["filePath"].as_str().unwrap(),
+        refactor_call.arguments["target"]["filePath"]
+            .as_str()
+            .unwrap(),
         test_file.to_string_lossy()
     );
 }
@@ -130,7 +135,8 @@ function unreachable() {
 "#;
     workspace.create_file("test_file.ts", test_code);
 
-    let result = analyze_dead_code(&workspace, &mut client, "unreachable_code", "test_file.ts").await;
+    let result =
+        analyze_dead_code(&workspace, &mut client, "unreachable_code", "test_file.ts").await;
     verify_suggestion(&result, "delete", "block");
 }
 
@@ -147,7 +153,8 @@ unusedParameter(1, 2);
 "#;
     workspace.create_file("test_file.ts", test_code);
 
-    let result = analyze_dead_code(&workspace, &mut client, "unused_parameters", "test_file.ts").await;
+    let result =
+        analyze_dead_code(&workspace, &mut client, "unused_parameters", "test_file.ts").await;
     verify_suggestion(&result, "delete", "parameter");
 }
 
@@ -181,6 +188,7 @@ unusedVariable();
 "#;
     workspace.create_file("test_file.ts", test_code);
 
-    let result = analyze_dead_code(&workspace, &mut client, "unused_variables", "test_file.ts").await;
+    let result =
+        analyze_dead_code(&workspace, &mut client, "unused_variables", "test_file.ts").await;
     verify_suggestion(&result, "delete", "variable");
 }

@@ -3,7 +3,7 @@
 //! Provides a builder pattern for constructing ImportGraph instances,
 //! reducing boilerplate across language plugins.
 
-use mill_foundation::protocol::{ ImportGraph , ImportGraphMetadata , ImportInfo };
+use mill_foundation::protocol::{ImportGraph, ImportGraphMetadata, ImportInfo};
 use std::collections::HashSet;
 use std::path::Path;
 
@@ -185,7 +185,7 @@ mod tests {
     fn test_builder_with_path() {
         let path = Path::new("/project/src/main.rs");
         let graph = ImportGraphBuilder::new("rust")
-            .with_source_file(Some(&path))
+            .with_source_file(Some(path))
             .build();
 
         assert_eq!(graph.source_file, "/project/src/main.rs");

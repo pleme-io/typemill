@@ -3,11 +3,11 @@
 //! This module provides a single source of truth for converting EditPlan
 //! (internal planning format) to WorkspaceEdit (LSP protocol format) for rename operations.
 
-use mill_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult , EditPlan , };
 use lsp_types::{
     DocumentChangeOperation, DocumentChanges, OptionalVersionedTextDocumentIdentifier, RenameFile,
     ResourceOp, TextDocumentEdit, TextEdit, Uri, WorkspaceEdit,
 };
+use mill_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult, EditPlan};
 use std::collections::HashMap;
 use std::path::Path;
 use tracing::debug;
@@ -106,10 +106,7 @@ pub fn editplan_to_workspace_edit(
                 new_text: edit.new_text.clone(),
             };
 
-            files_with_edits
-                .entry(file_uri)
-                .or_default()
-                .push(lsp_edit);
+            files_with_edits.entry(file_uri).or_default().push(lsp_edit);
         } else {
             debug!(
                 edit_type = ?edit.edit_type,

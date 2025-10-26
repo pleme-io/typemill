@@ -8,8 +8,8 @@ use crate::{
     PluginResult,
 };
 use async_trait::async_trait;
-use mill_plugin_api::language::detect_package_manager;
 use ignore::WalkBuilder;
+use mill_plugin_api::language::detect_package_manager;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::path::Path;
@@ -362,16 +362,15 @@ impl SystemToolsPlugin {
 
         // Call the planning function from mill-ast with injected registry
         // mill-ast is now language-agnostic and uses capability-based dispatch
-        let edit_plan =
-            mill_ast::package_extractor::plan_extract_module_to_package_with_registry(
-                parsed,
-                &self.plugin_registry,
-            )
-            .await
-            .map_err(|e| PluginError::PluginRequestFailed {
-                plugin: "system-tools".to_string(),
-                message: format!("Failed to plan extract_module_to_package: {}", e),
-            })?;
+        let edit_plan = mill_ast::package_extractor::plan_extract_module_to_package_with_registry(
+            parsed,
+            &self.plugin_registry,
+        )
+        .await
+        .map_err(|e| PluginError::PluginRequestFailed {
+            plugin: "system-tools".to_string(),
+            message: format!("Failed to plan extract_module_to_package: {}", e),
+        })?;
 
         // Return the edit plan
         Ok(json!({

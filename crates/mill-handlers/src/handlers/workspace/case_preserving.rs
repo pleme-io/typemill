@@ -128,8 +128,14 @@ fn detect_case_style_impl(text: &str) -> CaseStyle {
     let has_hyphen = text.contains('-');
     let has_uppercase = text.chars().any(|c| c.is_uppercase());
     let has_lowercase = text.chars().any(|c| c.is_lowercase());
-    let all_uppercase = text.chars().filter(|c| c.is_alphabetic()).all(|c| c.is_uppercase());
-    let all_lowercase = text.chars().filter(|c| c.is_alphabetic()).all(|c| c.is_lowercase());
+    let all_uppercase = text
+        .chars()
+        .filter(|c| c.is_alphabetic())
+        .all(|c| c.is_uppercase());
+    let all_lowercase = text
+        .chars()
+        .filter(|c| c.is_alphabetic())
+        .all(|c| c.is_lowercase());
 
     // Rule 1: Contains underscore
     if has_underscore {
@@ -307,11 +313,19 @@ pub fn split_into_words(text: &str) -> Vec<String> {
 
     // Check for explicit delimiters first
     if text.contains('_') {
-        return text.split('_').filter(|s| !s.is_empty()).map(|s| s.to_lowercase()).collect();
+        return text
+            .split('_')
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_lowercase())
+            .collect();
     }
 
     if text.contains('-') {
-        return text.split('-').filter(|s| !s.is_empty()).map(|s| s.to_lowercase()).collect();
+        return text
+            .split('-')
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_lowercase())
+            .collect();
     }
 
     // No explicit delimiters - split on case boundaries
@@ -352,7 +366,8 @@ fn split_on_case_boundaries(text: &str) -> Vec<String> {
             }
         } else if ch.is_lowercase() {
             // Lowercase letter
-            if !current.is_empty() && current.chars().all(|c| c.is_uppercase()) && current.len() > 1 {
+            if !current.is_empty() && current.chars().all(|c| c.is_uppercase()) && current.len() > 1
+            {
                 // We were building an acronym, need to split
                 // e.g., "HTTPServer" at 's': current = "HTTPS", need to split to "HTTP" + "Server"
                 let last_char = current.pop().unwrap();
@@ -470,7 +485,10 @@ mod tests {
     #[test]
     fn test_detect_screaming_snake() {
         assert_eq!(detect_case_style("USER_NAME"), CaseStyle::ScreamingSnake);
-        assert_eq!(detect_case_style("MAX_BUFFER_SIZE"), CaseStyle::ScreamingSnake);
+        assert_eq!(
+            detect_case_style("MAX_BUFFER_SIZE"),
+            CaseStyle::ScreamingSnake
+        );
         assert_eq!(detect_case_style("A_B_C"), CaseStyle::ScreamingSnake);
     }
 
@@ -551,15 +569,30 @@ mod tests {
         let new_val = "account_id";
 
         // snake_case → snake_case
-        assert_eq!(apply_case_style(new_val, detect_case_style("user_name")), "account_id");
+        assert_eq!(
+            apply_case_style(new_val, detect_case_style("user_name")),
+            "account_id"
+        );
         // snake_case → camelCase
-        assert_eq!(apply_case_style(new_val, detect_case_style("userName")), "accountId");
+        assert_eq!(
+            apply_case_style(new_val, detect_case_style("userName")),
+            "accountId"
+        );
         // snake_case → PascalCase
-        assert_eq!(apply_case_style(new_val, detect_case_style("UserName")), "AccountId");
+        assert_eq!(
+            apply_case_style(new_val, detect_case_style("UserName")),
+            "AccountId"
+        );
         // snake_case → SCREAMING_SNAKE
-        assert_eq!(apply_case_style(new_val, detect_case_style("USER_NAME")), "ACCOUNT_ID");
+        assert_eq!(
+            apply_case_style(new_val, detect_case_style("USER_NAME")),
+            "ACCOUNT_ID"
+        );
         // snake_case → kebab-case
-        assert_eq!(apply_case_style(new_val, detect_case_style("user-name")), "account-id");
+        assert_eq!(
+            apply_case_style(new_val, detect_case_style("user-name")),
+            "account-id"
+        );
     }
 
     #[test]
@@ -624,25 +657,37 @@ mod tests {
     #[test]
     fn test_split_snake_case() {
         assert_eq!(split_into_words("user_name"), vec!["user", "name"]);
-        assert_eq!(split_into_words("get_user_by_id"), vec!["get", "user", "by", "id"]);
+        assert_eq!(
+            split_into_words("get_user_by_id"),
+            vec!["get", "user", "by", "id"]
+        );
     }
 
     #[test]
     fn test_split_kebab_case() {
         assert_eq!(split_into_words("user-name"), vec!["user", "name"]);
-        assert_eq!(split_into_words("get-user-by-id"), vec!["get", "user", "by", "id"]);
+        assert_eq!(
+            split_into_words("get-user-by-id"),
+            vec!["get", "user", "by", "id"]
+        );
     }
 
     #[test]
     fn test_split_camel_case() {
         assert_eq!(split_into_words("userName"), vec!["user", "name"]);
-        assert_eq!(split_into_words("getUserById"), vec!["get", "user", "by", "id"]);
+        assert_eq!(
+            split_into_words("getUserById"),
+            vec!["get", "user", "by", "id"]
+        );
     }
 
     #[test]
     fn test_split_pascal_case() {
         assert_eq!(split_into_words("UserName"), vec!["user", "name"]);
-        assert_eq!(split_into_words("GetUserById"), vec!["get", "user", "by", "id"]);
+        assert_eq!(
+            split_into_words("GetUserById"),
+            vec!["get", "user", "by", "id"]
+        );
     }
 
     #[test]
@@ -663,7 +708,12 @@ mod tests {
     fn test_to_snake_case() {
         let words = vec!["user".to_string(), "name".to_string()];
         assert_eq!(to_snake_case(&words), "user_name");
-        let words = vec!["get".to_string(), "user".to_string(), "by".to_string(), "id".to_string()];
+        let words = vec![
+            "get".to_string(),
+            "user".to_string(),
+            "by".to_string(),
+            "id".to_string(),
+        ];
         assert_eq!(to_snake_case(&words), "get_user_by_id");
     }
 
@@ -671,7 +721,12 @@ mod tests {
     fn test_to_camel_case() {
         let words = vec!["user".to_string(), "name".to_string()];
         assert_eq!(to_camel_case(&words), "userName");
-        let words = vec!["get".to_string(), "user".to_string(), "by".to_string(), "id".to_string()];
+        let words = vec![
+            "get".to_string(),
+            "user".to_string(),
+            "by".to_string(),
+            "id".to_string(),
+        ];
         assert_eq!(to_camel_case(&words), "getUserById");
         assert_eq!(to_camel_case(&[]), "");
     }
@@ -680,7 +735,12 @@ mod tests {
     fn test_to_pascal_case() {
         let words = vec!["user".to_string(), "name".to_string()];
         assert_eq!(to_pascal_case(&words), "UserName");
-        let words = vec!["get".to_string(), "user".to_string(), "by".to_string(), "id".to_string()];
+        let words = vec![
+            "get".to_string(),
+            "user".to_string(),
+            "by".to_string(),
+            "id".to_string(),
+        ];
         assert_eq!(to_pascal_case(&words), "GetUserById");
     }
 
@@ -688,7 +748,12 @@ mod tests {
     fn test_to_kebab_case() {
         let words = vec!["user".to_string(), "name".to_string()];
         assert_eq!(to_kebab_case(&words), "user-name");
-        let words = vec!["get".to_string(), "user".to_string(), "by".to_string(), "id".to_string()];
+        let words = vec![
+            "get".to_string(),
+            "user".to_string(),
+            "by".to_string(),
+            "id".to_string(),
+        ];
         assert_eq!(to_kebab_case(&words), "get-user-by-id");
     }
 
@@ -723,7 +788,10 @@ mod tests {
         assert_eq!(apply_case_style(words, CaseStyle::Snake), "account_id");
         assert_eq!(apply_case_style(words, CaseStyle::Camel), "accountId");
         assert_eq!(apply_case_style(words, CaseStyle::Pascal), "AccountId");
-        assert_eq!(apply_case_style(words, CaseStyle::ScreamingSnake), "ACCOUNT_ID");
+        assert_eq!(
+            apply_case_style(words, CaseStyle::ScreamingSnake),
+            "ACCOUNT_ID"
+        );
         assert_eq!(apply_case_style(words, CaseStyle::Kebab), "account-id");
     }
 }

@@ -84,11 +84,15 @@ anyhow = "1.0"
     let content = result.get("result").expect("Result should exist");
 
     assert_eq!(
-        content.get("dependenciesExtracted").and_then(|v| v.as_u64()),
+        content
+            .get("dependenciesExtracted")
+            .and_then(|v| v.as_u64()),
         Some(2)
     );
     assert_eq!(
-        content.get("targetManifestUpdated").and_then(|v| v.as_bool()),
+        content
+            .get("targetManifestUpdated")
+            .and_then(|v| v.as_bool()),
         Some(true)
     );
 
@@ -136,7 +140,9 @@ criterion = "0.5"
 
     let content = result.get("result").expect("Result should exist");
     assert_eq!(
-        content.get("dependenciesExtracted").and_then(|v| v.as_u64()),
+        content
+            .get("dependenciesExtracted")
+            .and_then(|v| v.as_u64()),
         Some(1)
     );
 
@@ -180,12 +186,10 @@ serde = "0.9"
 
     // Verify warnings
     let warnings = content.get("warnings").and_then(|v| v.as_array()).unwrap();
-    assert!(
-        warnings
-            .iter()
-            .any(|w| w.as_str().unwrap().contains("serde")
-                && w.as_str().unwrap().contains("already exists"))
-    );
+    assert!(warnings
+        .iter()
+        .any(|w| w.as_str().unwrap().contains("serde")
+            && w.as_str().unwrap().contains("already exists")));
 
     // Verify dependencies_added
     let deps_added = content
@@ -240,7 +244,9 @@ tokio = "1.0"
 
     let content = result.get("result").expect("Result should exist");
     assert_eq!(
-        content.get("dependenciesExtracted").and_then(|v| v.as_u64()),
+        content
+            .get("dependenciesExtracted")
+            .and_then(|v| v.as_u64()),
         Some(1)
     );
 
@@ -279,7 +285,9 @@ my-local = { path = "../my-local" }
 
     let content = result.get("result").expect("Result should exist");
     assert_eq!(
-        content.get("dependenciesExtracted").and_then(|v| v.as_u64()),
+        content
+            .get("dependenciesExtracted")
+            .and_then(|v| v.as_u64()),
         Some(1)
     );
 
@@ -319,17 +327,17 @@ tokio = "1.0"
     let content = result.get("result").expect("Result should exist");
 
     assert_eq!(
-        content.get("dependenciesExtracted").and_then(|v| v.as_u64()),
+        content
+            .get("dependenciesExtracted")
+            .and_then(|v| v.as_u64()),
         Some(0)
     );
 
     let warnings = content.get("warnings").and_then(|v| v.as_array()).unwrap();
-    assert!(
-        warnings
-            .iter()
-            .any(|w| w.as_str().unwrap().contains("nonexistent")
-                && w.as_str().unwrap().contains("not found"))
-    );
+    assert!(warnings
+        .iter()
+        .any(|w| w.as_str().unwrap().contains("nonexistent")
+            && w.as_str().unwrap().contains("not found")));
 }
 
 #[tokio::test]
@@ -364,16 +372,17 @@ tokio = "1.0"
 
     let content = result.get("result").expect("Result should exist");
 
+    assert_eq!(content.get("dryRun").and_then(|v| v.as_bool()), Some(true));
     assert_eq!(
-        content.get("dryRun").and_then(|v| v.as_bool()),
-        Some(true)
-    );
-    assert_eq!(
-        content.get("targetManifestUpdated").and_then(|v| v.as_bool()),
+        content
+            .get("targetManifestUpdated")
+            .and_then(|v| v.as_bool()),
         Some(false)
     );
     assert_eq!(
-        content.get("dependenciesExtracted").and_then(|v| v.as_u64()),
+        content
+            .get("dependenciesExtracted")
+            .and_then(|v| v.as_u64()),
         Some(1)
     );
 
@@ -412,7 +421,9 @@ feature-dep = { version = "1.0", optional = true }
 
     let content = result.get("result").expect("Result should exist");
     assert_eq!(
-        content.get("dependenciesExtracted").and_then(|v| v.as_u64()),
+        content
+            .get("dependenciesExtracted")
+            .and_then(|v| v.as_u64()),
         Some(1)
     );
 
@@ -462,7 +473,9 @@ cc = "1.0"
 
     let content = result.get("result").expect("Result should exist");
     assert_eq!(
-        content.get("dependenciesExtracted").and_then(|v| v.as_u64()),
+        content
+            .get("dependenciesExtracted")
+            .and_then(|v| v.as_u64()),
         Some(1)
     );
 

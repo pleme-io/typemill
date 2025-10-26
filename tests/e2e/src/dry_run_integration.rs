@@ -18,12 +18,24 @@ async fn test_rename_file_dry_run_does_not_modify_disk() {
         "rename",
         |ws| build_rename_params(ws, "original.txt", "renamed.txt", "file"),
         |ws| {
-            assert!(ws.file_exists("original.txt"), "Original file should still exist after dry run");
-            assert!(!ws.file_exists("renamed.txt"), "New file should NOT exist after dry run");
-            assert_eq!(ws.read_file("original.txt"), "content", "Original file content should be unchanged");
+            assert!(
+                ws.file_exists("original.txt"),
+                "Original file should still exist after dry run"
+            );
+            assert!(
+                !ws.file_exists("renamed.txt"),
+                "New file should NOT exist after dry run"
+            );
+            assert_eq!(
+                ws.read_file("original.txt"),
+                "content",
+                "Original file content should be unchanged"
+            );
             Ok(())
-        }
-    ).await.unwrap();
+        },
+    )
+    .await
+    .unwrap();
 }
 
 /// Test 2: File creation dry-run (CLOSURE-BASED API)
@@ -36,10 +48,15 @@ async fn test_create_file_dry_run_does_not_create_file() {
         "delete",
         |ws| build_delete_params(ws, "source.rs", "file"),
         |ws| {
-            assert!(ws.file_exists("source.rs"), "Source file should still exist");
+            assert!(
+                ws.file_exists("source.rs"),
+                "Source file should still exist"
+            );
             Ok(())
-        }
-    ).await.unwrap();
+        },
+    )
+    .await
+    .unwrap();
 }
 
 /// Test 3: File deletion dry-run (CLOSURE-BASED API)
@@ -51,11 +68,20 @@ async fn test_delete_file_dry_run_does_not_delete_file() {
         "delete",
         |ws| build_delete_params(ws, "to_delete.txt", "file"),
         |ws| {
-            assert!(ws.file_exists("to_delete.txt"), "File should still exist after dry run");
-            assert_eq!(ws.read_file("to_delete.txt"), "this should not be deleted", "Content unchanged");
+            assert!(
+                ws.file_exists("to_delete.txt"),
+                "File should still exist after dry run"
+            );
+            assert_eq!(
+                ws.read_file("to_delete.txt"),
+                "this should not be deleted",
+                "Content unchanged"
+            );
             Ok(())
-        }
-    ).await.unwrap();
+        },
+    )
+    .await
+    .unwrap();
 }
 
 /// Test 4: Directory rename dry-run (CLOSURE-BASED API)
@@ -70,12 +96,20 @@ async fn test_rename_directory_dry_run_does_not_modify_disk() {
         "rename",
         |ws| build_rename_params(ws, "old_dir", "new_dir", "directory"),
         |ws| {
-            assert!(ws.file_exists("old_dir"), "Old directory should still exist");
+            assert!(
+                ws.file_exists("old_dir"),
+                "Old directory should still exist"
+            );
             assert!(!ws.file_exists("new_dir"), "New directory should NOT exist");
-            assert!(ws.file_exists("old_dir/file1.txt"), "Files in old directory should still exist");
+            assert!(
+                ws.file_exists("old_dir/file1.txt"),
+                "Files in old directory should still exist"
+            );
             Ok(())
-        }
-    ).await.unwrap();
+        },
+    )
+    .await
+    .unwrap();
 }
 
 /// Test 5: Dry-run vs execution consistency (CLOSURE-BASED API)
@@ -91,8 +125,10 @@ async fn test_dry_run_vs_execution_consistency() {
             assert!(ws.file_exists("file.rs"), "Original should exist");
             assert!(!ws.file_exists("renamed.rs"), "New should NOT exist");
             Ok(())
-        }
-    ).await.unwrap();
+        },
+    )
+    .await
+    .unwrap();
 }
 
 /// Test 6: Dry-run shows accurate files to modify (CLOSURE-BASED API)
@@ -109,10 +145,16 @@ async fn test_dry_run_rename_file_shows_accurate_files_to_modify() {
         |ws| {
             assert!(ws.file_exists("utils.rs"), "Original file should exist");
             assert!(!ws.file_exists("helpers.rs"), "New file should NOT exist");
-            assert_eq!(ws.read_file("main.rs"), "use utils::helper;\n", "Importer unchanged");
+            assert_eq!(
+                ws.read_file("main.rs"),
+                "use utils::helper;\n",
+                "Importer unchanged"
+            );
             Ok(())
-        }
-    ).await.unwrap();
+        },
+    )
+    .await
+    .unwrap();
 }
 
 /// Test 7: Dry-run directory rename shows import updates (CLOSURE-BASED API)
@@ -128,12 +170,24 @@ async fn test_dry_run_rename_directory_shows_import_updates() {
         |ws| build_rename_params(ws, "old_module", "new_module", "directory"),
         |ws| {
             assert!(ws.file_exists("old_module"), "Old directory should exist");
-            assert!(ws.file_exists("old_module/lib.rs"), "Old files should exist");
-            assert!(!ws.file_exists("new_module"), "New directory should NOT exist");
-            assert_eq!(ws.read_file("other.rs"), "use old_module::func;\n", "Importer unchanged");
+            assert!(
+                ws.file_exists("old_module/lib.rs"),
+                "Old files should exist"
+            );
+            assert!(
+                !ws.file_exists("new_module"),
+                "New directory should NOT exist"
+            );
+            assert_eq!(
+                ws.read_file("other.rs"),
+                "use old_module::func;\n",
+                "Importer unchanged"
+            );
             Ok(())
-        }
-    ).await.unwrap();
+        },
+    )
+    .await
+    .unwrap();
 }
 
 /// Test 8: Dry-run directory rename shows file list (CLOSURE-BASED API)
@@ -153,10 +207,15 @@ async fn test_dry_run_rename_directory_shows_files_list() {
             assert!(ws.file_exists("module/a.rs"), "File a should exist");
             assert!(ws.file_exists("module/b.rs"), "File b should exist");
             assert!(ws.file_exists("module/c.rs"), "File c should exist");
-            assert!(!ws.file_exists("renamed_module"), "New directory should NOT exist");
+            assert!(
+                !ws.file_exists("renamed_module"),
+                "New directory should NOT exist"
+            );
             Ok(())
-        }
-    ).await.unwrap();
+        },
+    )
+    .await
+    .unwrap();
 }
 
 /// Test 9: Rust-specific dry-run for mod declarations (CLOSURE-BASED API)
@@ -174,16 +233,26 @@ async fn test_dry_run_rename_file_rust_mod_declarations() {
         |ws| {
             assert!(ws.file_exists("src/utils.rs"), "Original should exist");
             assert!(!ws.file_exists("src/helpers.rs"), "New should NOT exist");
-            assert_eq!(ws.read_file("src/lib.rs"), "pub mod utils;\n", "lib.rs unchanged");
-            assert_eq!(ws.read_file("src/main.rs"), "use crate::utils::helper;\n", "main.rs unchanged");
+            assert_eq!(
+                ws.read_file("src/lib.rs"),
+                "pub mod utils;\n",
+                "lib.rs unchanged"
+            );
+            assert_eq!(
+                ws.read_file("src/main.rs"),
+                "use crate::utils::helper;\n",
+                "main.rs unchanged"
+            );
             Ok(())
-        }
-    ).await.unwrap();
+        },
+    )
+    .await
+    .unwrap();
 }
 
 // Helper function for delete params (similar to build_rename_params)
-use serde_json::{json, Value};
 use crate::harness::TestWorkspace;
+use serde_json::{json, Value};
 
 fn build_delete_params(workspace: &TestWorkspace, path: &str, kind: &str) -> Value {
     json!({

@@ -1,8 +1,8 @@
 //! JWT authentication utilities
 
-use mill_foundation::error::CoreError;
 pub use jsonwebtoken::{decode, DecodingKey, Validation};
 use jsonwebtoken::{encode, EncodingKey, Header};
+use mill_foundation::error::CoreError;
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -199,7 +199,9 @@ mod tests {
         let project_id = "test_project";
         let token = create_test_token(secret, Some(project_id.to_string()));
 
-        assert!(validate_token_with_project(&token, secret, "different_project", &auth_config).is_err());
+        assert!(
+            validate_token_with_project(&token, secret, "different_project", &auth_config).is_err()
+        );
     }
 
     #[test]
@@ -209,7 +211,9 @@ mod tests {
         let token = create_test_token(secret, None);
 
         // Should succeed when no project_id claim is present
-        assert!(validate_token_with_project(&token, secret, "any_project", &auth_config)
-            .expect("Test token should be valid"));
+        assert!(
+            validate_token_with_project(&token, secret, "any_project", &auth_config)
+                .expect("Test token should be valid")
+        );
     }
 }

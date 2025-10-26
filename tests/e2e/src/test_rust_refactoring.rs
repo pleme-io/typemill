@@ -52,7 +52,14 @@ edition = "2021"
             ),
         ],
         "rename",
-        |ws| build_rename_params(ws, "crates/my-crate", "crates/my-renamed-crate", "directory"),
+        |ws| {
+            build_rename_params(
+                ws,
+                "crates/my-crate",
+                "crates/my-renamed-crate",
+                "directory",
+            )
+        },
         |ws| {
             // Directory renamed
             assert!(
@@ -76,7 +83,8 @@ edition = "2021"
                 root_cargo
             );
             assert!(
-                !root_cargo.contains("crates/my-crate\"") && !root_cargo.contains("crates/my-crate]"),
+                !root_cargo.contains("crates/my-crate\"")
+                    && !root_cargo.contains("crates/my-crate]"),
                 "Root Cargo.toml should not contain old member\nActual:\n{}",
                 root_cargo
             );
@@ -118,7 +126,10 @@ version = "0.1.0"
 edition = "2021"
 "#,
             ),
-            ("crates/common/src/lib.rs", "pub fn utility() -> i32 { 42 }\n"),
+            (
+                "crates/common/src/lib.rs",
+                "pub fn utility() -> i32 { 42 }\n",
+            ),
             (
                 "crates/app/Cargo.toml",
                 r#"[package]

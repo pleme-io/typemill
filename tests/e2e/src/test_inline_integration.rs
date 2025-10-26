@@ -63,7 +63,8 @@ async fn test_inline_variable_plan_and_apply() {
             );
 
             // Apply with dryRun=false
-            let mut params_exec = build_inline_params(&workspace, "inline_var.rs", "variable", 1, 8);
+            let mut params_exec =
+                build_inline_params(&workspace, "inline_var.rs", "variable", 1, 8);
             params_exec["options"] = json!({
                 "dryRun": false,
                 "validateChecksums": true
@@ -122,7 +123,10 @@ pub fn test() -> i32 {
                 return;
             }
 
-            let plan = response.get("result").and_then(|r| r.get("content")).cloned();
+            let plan = response
+                .get("result")
+                .and_then(|r| r.get("content"))
+                .cloned();
 
             // If no plan content, likely LSP not available
             if plan.is_none() {
@@ -206,15 +210,14 @@ pub fn get_buffer() -> Vec<u8> {
             );
 
             // Try to apply with checksum validation
-            let mut params_exec = build_inline_params(&workspace, "inline_const.rs", "constant", 0, 6);
+            let mut params_exec =
+                build_inline_params(&workspace, "inline_const.rs", "constant", 0, 6);
             params_exec["options"] = json!({
                 "validateChecksums": true,
                 "dryRun": false
             });
 
-            let apply_result = client
-                .call_tool("inline", params_exec)
-                .await;
+            let apply_result = client.call_tool("inline", params_exec).await;
 
             // Should fail due to checksum mismatch
             assert!(
@@ -263,7 +266,10 @@ pub fn use_twice() -> i32 {
                 return;
             }
 
-            let plan = response.get("result").and_then(|r| r.get("content")).cloned();
+            let plan = response
+                .get("result")
+                .and_then(|r| r.get("content"))
+                .cloned();
 
             // If no plan content, likely LSP not available
             if plan.is_none() {

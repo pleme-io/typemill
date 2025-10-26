@@ -1,8 +1,11 @@
 use async_trait::async_trait;
-use mill_server::helpers::lsp::forward_lsp_request;
-use mill_server::services::lsp::{ LspRequest , LspResponse , LspService , LspServiceResult };
-use mill_foundation::core::model::lsp::{ CompletionItem , CompletionList , Diagnostic , DiagnosticSeverity , DocumentSymbol , Hover , Location , Position , Range , SymbolKind , TextEdit , WorkspaceEdit , };
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use mill_foundation::core::model::lsp::{
+    CompletionItem, CompletionList, Diagnostic, DiagnosticSeverity, DocumentSymbol, Hover,
+    Location, Position, Range, SymbolKind, TextEdit, WorkspaceEdit,
+};
+use mill_server::helpers::lsp::forward_lsp_request;
+use mill_server::services::lsp::{LspRequest, LspResponse, LspService, LspServiceResult};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::Arc;

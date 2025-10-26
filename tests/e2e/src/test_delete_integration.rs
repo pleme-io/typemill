@@ -18,15 +18,20 @@ async fn test_delete_file_plan_and_apply() {
         "delete",
         |ws| build_delete_params(ws, "to_delete.rs", "file"),
         |plan| {
-            assert_eq!(plan.get("planType").and_then(|v| v.as_str()), Some("deletePlan"),
-                "Should be DeletePlan");
+            assert_eq!(
+                plan.get("planType").and_then(|v| v.as_str()),
+                Some("deletePlan"),
+                "Should be DeletePlan"
+            );
             Ok(())
         },
         |ws| {
             assert!(!ws.file_exists("to_delete.rs"), "File should be deleted");
             Ok(())
-        }
-    ).await.unwrap();
+        },
+    )
+    .await
+    .unwrap();
 }
 
 /// Test 2: Delete file dry run preview (CLOSURE-BASED API)
@@ -38,11 +43,15 @@ async fn test_delete_file_dry_run_preview() {
         "delete",
         |ws| build_delete_params(ws, "keep_for_now.rs", "file"),
         |ws| {
-            assert!(ws.file_exists("keep_for_now.rs"),
-                "File should still exist after dry run");
+            assert!(
+                ws.file_exists("keep_for_now.rs"),
+                "File should still exist after dry run"
+            );
             Ok(())
-        }
-    ).await.unwrap();
+        },
+    )
+    .await
+    .unwrap();
 }
 
 /// Test 3: Delete directory plan and apply (CLOSURE-BASED API)
@@ -58,20 +67,33 @@ async fn test_delete_directory_plan_and_apply() {
     let mut params = build_delete_params(&workspace, "temp_dir", "directory");
     params["options"] = json!({"dryRun": true});
 
-    let plan = client.call_tool("delete", params).await
+    let plan = client
+        .call_tool("delete", params)
+        .await
         .expect("delete should succeed")
-        .get("result").and_then(|r| r.get("content"))
-        .cloned().expect("Plan should exist");
+        .get("result")
+        .and_then(|r| r.get("content"))
+        .cloned()
+        .expect("Plan should exist");
 
-    assert_eq!(plan.get("planType").and_then(|v| v.as_str()), Some("deletePlan"),
-        "Should be DeletePlan");
+    assert_eq!(
+        plan.get("planType").and_then(|v| v.as_str()),
+        Some("deletePlan"),
+        "Should be DeletePlan"
+    );
 
     let mut params_exec = build_delete_params(&workspace, "temp_dir", "directory");
     params_exec["options"] = json!({"dryRun": false});
 
-    client.call_tool("delete", params_exec).await.expect("Delete should succeed");
+    client
+        .call_tool("delete", params_exec)
+        .await
+        .expect("Delete should succeed");
 
-    assert!(!workspace.file_exists("temp_dir"), "Directory should be deleted");
+    assert!(
+        !workspace.file_exists("temp_dir"),
+        "Directory should be deleted"
+    );
 }
 
 /// Test 4: Delete dead code plan structure (MANUAL - AST analysis required)
@@ -79,7 +101,8 @@ async fn test_delete_directory_plan_and_apply() {
 #[tokio::test]
 async fn test_delete_dead_code_plan_structure() {
     let workspace = TestWorkspace::new();
-    workspace.create_file("dead_code.rs",
+    workspace.create_file(
+        "dead_code.rs",
         r#"pub fn used() -> i32 {
     42
 }
@@ -87,25 +110,33 @@ async fn test_delete_dead_code_plan_structure() {
 fn unused_helper() -> i32 {
     100
 }
-"#);
+"#,
+    );
 
     let mut client = TestClient::new(workspace.path());
     let file_path = workspace.absolute_path("dead_code.rs");
 
     // Use dryRun: true to get the plan structure (not execution result)
-    let plan_result = client.call_tool("delete", json!({
-        "target": {
-            "kind": "dead_code",
-            "path": file_path.to_string_lossy()
-        },
-        "options": {
-            "dryRun": true
-        }
-    })).await;
+    let plan_result = client
+        .call_tool(
+            "delete",
+            json!({
+                "target": {
+                    "kind": "dead_code",
+                    "path": file_path.to_string_lossy()
+                },
+                "options": {
+                    "dryRun": true
+                }
+            }),
+        )
+        .await;
 
     match plan_result {
         Ok(response) => {
-            let plan = response.get("result").and_then(|r| r.get("content"))
+            let plan = response
+                .get("result")
+                .and_then(|r| r.get("content"))
                 .expect("Plan should exist");
 
             // Verify plan structure
@@ -114,8 +145,11 @@ fn unused_helper() -> i32 {
             assert!(plan.get("fileChecksums").is_some(), "Should have checksums");
 
             let metadata = plan.get("metadata").unwrap();
-            assert_eq!(metadata.get("kind").and_then(|v| v.as_str()), Some("delete"),
-                "Kind should be delete");
+            assert_eq!(
+                metadata.get("kind").and_then(|v| v.as_str()),
+                Some("delete"),
+                "Kind should be delete"
+            );
         }
         Err(_) => {
             eprintln!("INFO: delete dead_code requires AST analysis, skipping test");

@@ -10,12 +10,12 @@
 // Force linker to include plugin-bundle for inventory collection
 extern crate mill_plugin_bundle;
 
-use mill_server::handlers::AppState;
-use mill_server::services::{ DefaultAstService , FileService , LockManager , OperationQueue };
-use mill_server::workspaces::WorkspaceManager;
 use mill_ast::AstCache;
 use mill_foundation::protocol::AstService;
 use mill_plugin_system::PluginManager;
+use mill_server::handlers::AppState;
+use mill_server::services::{DefaultAstService, FileService, LockManager, OperationQueue};
+use mill_server::workspaces::WorkspaceManager;
 use serde_json::json;
 use std::fs;
 use std::path::PathBuf;
@@ -236,5 +236,4 @@ async fn test_workspace_edit_in_process_removed() {
     // Function removed - see comment above
     let _temp_dir = tempfile::TempDir::new().unwrap();
     let _workspace_path = _temp_dir.path().to_path_buf();
-
 }

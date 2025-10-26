@@ -276,10 +276,7 @@ public class Main {
     }
 }
 "#;
-    workspace.create_file(
-        "src/main/java/com/mill/example/Main.java",
-        main_content,
-    );
+    workspace.create_file("src/main/java/com/mill/example/Main.java", main_content);
 
     // Create Helper.java
     let helper_content = r#"package com.mill.example.utils;

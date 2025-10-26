@@ -6,7 +6,7 @@
 
 pub mod cargo_util;
 
-use mill_plugin_api::{ PluginError , PluginResult };
+use mill_plugin_api::{PluginError, PluginResult};
 use std::path::Path;
 use toml_edit::DocumentMut;
 use tracing::debug;

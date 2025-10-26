@@ -2,9 +2,9 @@
 //!
 //! This module provides functionality for parsing Rust source code into ASTs,
 //! extracting symbols, and analyzing imports.
+use mill_foundation::protocol::{ImportGraph, ImportInfo, ImportType, NamedImport};
 use mill_lang_common::ImportGraphBuilder;
-use mill_plugin_api::{ PluginError , PluginResult , SourceLocation , Symbol , SymbolKind };
-use mill_foundation::protocol::{ ImportGraph , ImportInfo , ImportType , NamedImport };
+use mill_plugin_api::{PluginError, PluginResult, SourceLocation, Symbol, SymbolKind};
 use syn::{visit::Visit, File, Item, ItemUse, UseTree};
 /// A visitor that walks the AST and collects function names
 struct FunctionVisitor {
@@ -301,8 +301,10 @@ fn rewrite_use_tree_with_segments(
                     // CRITICAL: Check if this is a cross-crate move (first segment changed)
                     // - Cross-crate (common::utils → new_utils): use ALL new segments
                     // - Same-crate (self::utils → self::helpers): slice from depth to avoid duplication
-                    let use_segments = if !old_segments.is_empty() && !new_segments.is_empty()
-                        && old_segments[0] != new_segments[0] {
+                    let use_segments = if !old_segments.is_empty()
+                        && !new_segments.is_empty()
+                        && old_segments[0] != new_segments[0]
+                    {
                         // Cross-crate: first segment changed, use full new path
                         new_segments
                     } else {
@@ -320,8 +322,11 @@ fn rewrite_use_tree_with_segments(
                         new_segments,
                         depth + 1,
                     ) {
-                        if depth == 0 && !old_segments.is_empty() && !new_segments.is_empty()
-                            && old_segments[0] != new_segments[0] {
+                        if depth == 0
+                            && !old_segments.is_empty()
+                            && !new_segments.is_empty()
+                            && old_segments[0] != new_segments[0]
+                        {
                             // At root level with cross-crate move (first segment changed):
                             // return replacement as-is (don't wrap with current segment)
                             // Example: common::utils -> new_utils (common != new_utils)

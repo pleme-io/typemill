@@ -43,10 +43,16 @@ async fn test_literal_basic_replace() {
 
     assert_eq!(content.get("success").and_then(|v| v.as_bool()), Some(true));
     assert_eq!(
-        content.get("filesModified").and_then(|v| v.as_array()).map(|a| a.len()),
+        content
+            .get("filesModified")
+            .and_then(|v| v.as_array())
+            .map(|a| a.len()),
         Some(1)
     );
-    assert_eq!(content.get("matchesReplaced").and_then(|v| v.as_u64()), Some(4));
+    assert_eq!(
+        content.get("matchesReplaced").and_then(|v| v.as_u64()),
+        Some(4)
+    );
 
     let modified_content = workspace.read_file("test.rs");
     assert!(modified_content.contains("userid: &str"));
@@ -80,7 +86,10 @@ async fn test_literal_whole_word() {
 
     let content = result.get("result").expect("Should have result");
 
-    assert_eq!(content.get("matchesReplaced").and_then(|v| v.as_u64()), Some(2));
+    assert_eq!(
+        content.get("matchesReplaced").and_then(|v| v.as_u64()),
+        Some(2)
+    );
 
     let modified_content = workspace.read_file("test.txt");
     assert!(modified_content.contains("account is not username"));
@@ -111,7 +120,10 @@ async fn test_literal_case_sensitive() {
 
     let content = result.get("result").expect("Should have result");
 
-    assert_eq!(content.get("matchesReplaced").and_then(|v| v.as_u64()), Some(1));
+    assert_eq!(
+        content.get("matchesReplaced").and_then(|v| v.as_u64()),
+        Some(1)
+    );
 
     let modified_content = workspace.read_file("test.txt");
     assert_eq!(modified_content, "User account USER User");
@@ -150,7 +162,10 @@ let user = "Bob";
 
     let content = result.get("result").expect("Should have result");
 
-    assert_eq!(content.get("matchesReplaced").and_then(|v| v.as_u64()), Some(3));
+    assert_eq!(
+        content.get("matchesReplaced").and_then(|v| v.as_u64()),
+        Some(3)
+    );
 
     let modified_content = workspace.read_file("test.rs");
     assert!(modified_content.contains("account_info = \"Alice\""));
@@ -187,7 +202,10 @@ TYPEMILL_MAX_WORKERS = 10
 
     let content = result.get("result").expect("Should have result");
 
-    assert_eq!(content.get("matchesReplaced").and_then(|v| v.as_u64()), Some(3));
+    assert_eq!(
+        content.get("matchesReplaced").and_then(|v| v.as_u64()),
+        Some(3)
+    );
 
     let modified_content = workspace.read_file("config.toml");
     assert!(modified_content.contains("TYPEMILL_ENABLE_LOGS = true"));
@@ -222,7 +240,10 @@ item_count = 42
 
     let content = result.get("result").expect("Should have result");
 
-    assert_eq!(content.get("matchesReplaced").and_then(|v| v.as_u64()), Some(2));
+    assert_eq!(
+        content.get("matchesReplaced").and_then(|v| v.as_u64()),
+        Some(2)
+    );
 
     let modified_content = workspace.read_file("test.py");
     assert!(modified_content.contains("name_user = \"Alice\""));
@@ -286,7 +307,10 @@ let USER_NAME = "screaming";
     let content = result.get("result").expect("Should have result");
 
     // Literal mode is case-sensitive, only snake_case matches
-    assert_eq!(content.get("matchesReplaced").and_then(|v| v.as_u64()), Some(1));
+    assert_eq!(
+        content.get("matchesReplaced").and_then(|v| v.as_u64()),
+        Some(1)
+    );
 
     let modified_content = workspace.read_file("test.rs");
     assert!(modified_content.contains("account_id = \"snake\""));
@@ -318,7 +342,10 @@ async fn test_preserve_case_disabled() {
 
     let content = result.get("result").expect("Should have result");
 
-    assert_eq!(content.get("matchesReplaced").and_then(|v| v.as_u64()), Some(2));
+    assert_eq!(
+        content.get("matchesReplaced").and_then(|v| v.as_u64()),
+        Some(2)
+    );
 
     let modified_content = workspace.read_file("test.txt");
     assert_eq!(modified_content, "accountId accountId");
@@ -357,13 +384,20 @@ async fn test_scope_include_patterns() {
     let content = result.get("result").expect("Should have result");
 
     assert_eq!(
-        content.get("filesModified").and_then(|v| v.as_array()).map(|a| a.len()),
+        content
+            .get("filesModified")
+            .and_then(|v| v.as_array())
+            .map(|a| a.len()),
         Some(2)
     );
 
     assert!(workspace.read_file("test.rs").contains("account_login"));
-    assert!(workspace.read_file("test.toml").contains("account = \"admin\""));
-    assert!(workspace.read_file("test.md").contains("user documentation"));
+    assert!(workspace
+        .read_file("test.toml")
+        .contains("account = \"admin\""));
+    assert!(workspace
+        .read_file("test.md")
+        .contains("user documentation"));
     assert!(workspace.read_file("test.txt").contains("user notes"));
 }
 
@@ -394,12 +428,17 @@ async fn test_scope_exclude_patterns() {
     let content = result.get("result").expect("Should have result");
 
     assert_eq!(
-        content.get("filesModified").and_then(|v| v.as_array()).map(|a| a.len()),
+        content
+            .get("filesModified")
+            .and_then(|v| v.as_array())
+            .map(|a| a.len()),
         Some(1)
     );
 
     assert!(workspace.read_file("src/main.rs").contains("account_main"));
-    assert!(workspace.read_file("target/debug/output.txt").contains("user output"));
+    assert!(workspace
+        .read_file("target/debug/output.txt")
+        .contains("user output"));
 }
 
 #[tokio::test]
@@ -429,13 +468,20 @@ async fn test_scope_default_excludes() {
     let content = result.get("result").expect("Should have result");
 
     assert_eq!(
-        content.get("filesModified").and_then(|v| v.as_array()).map(|a| a.len()),
+        content
+            .get("filesModified")
+            .and_then(|v| v.as_array())
+            .map(|a| a.len()),
         Some(1)
     );
 
     assert!(workspace.read_file("src/main.rs").contains("account code"));
-    assert!(workspace.read_file("target/build.txt").contains("user build"));
-    assert!(workspace.read_file("node_modules/package.txt").contains("user package"));
+    assert!(workspace
+        .read_file("target/build.txt")
+        .contains("user build"));
+    assert!(workspace
+        .read_file("node_modules/package.txt")
+        .contains("user package"));
     assert!(workspace.read_file(".git/config").contains("user = git"));
 }
 
@@ -468,10 +514,16 @@ async fn test_multi_file_replace() {
     let content = result.get("result").expect("Should have result");
 
     assert_eq!(
-        content.get("filesModified").and_then(|v| v.as_array()).map(|a| a.len()),
+        content
+            .get("filesModified")
+            .and_then(|v| v.as_array())
+            .map(|a| a.len()),
         Some(5)
     );
-    assert_eq!(content.get("matchesReplaced").and_then(|v| v.as_u64()), Some(5));
+    assert_eq!(
+        content.get("matchesReplaced").and_then(|v| v.as_u64()),
+        Some(5)
+    );
 
     for i in 1..=5 {
         let content = workspace.read_file(&format!("file{}.txt", i));
@@ -625,8 +677,14 @@ async fn test_pattern_not_found() {
     let content = result.get("result").expect("Should have result");
 
     assert_eq!(content.get("success").and_then(|v| v.as_bool()), Some(true));
-    assert_eq!(content.get("matchesFound").and_then(|v| v.as_u64()), Some(0));
-    assert_eq!(content.get("matchesReplaced").and_then(|v| v.as_u64()), Some(0));
+    assert_eq!(
+        content.get("matchesFound").and_then(|v| v.as_u64()),
+        Some(0)
+    );
+    assert_eq!(
+        content.get("matchesReplaced").and_then(|v| v.as_u64()),
+        Some(0)
+    );
 }
 
 #[tokio::test]
@@ -651,7 +709,10 @@ async fn test_utf8_content() {
 
     let content = result.get("result").expect("Should have result");
 
-    assert_eq!(content.get("matchesReplaced").and_then(|v| v.as_u64()), Some(2));
+    assert_eq!(
+        content.get("matchesReplaced").and_then(|v| v.as_u64()),
+        Some(2)
+    );
 
     let modified = workspace.read_file("test.txt");
     assert!(modified.contains("用户"));
@@ -688,7 +749,9 @@ async fn test_large_file() {
     let result_content = result.get("result").expect("Should have result");
 
     assert_eq!(
-        result_content.get("matchesReplaced").and_then(|v| v.as_u64()),
+        result_content
+            .get("matchesReplaced")
+            .and_then(|v| v.as_u64()),
         Some(1000)
     );
 
@@ -728,7 +791,10 @@ function user_logout() {
 
     let content = result.get("result").expect("Should have result");
 
-    assert_eq!(content.get("matchesReplaced").and_then(|v| v.as_u64()), Some(2));
+    assert_eq!(
+        content.get("matchesReplaced").and_then(|v| v.as_u64()),
+        Some(2)
+    );
 
     let modified = workspace.read_file("test.txt");
     assert!(modified.contains("account_login"));
@@ -763,7 +829,10 @@ let z = user*2;
 
     let content = result.get("result").expect("Should have result");
 
-    assert_eq!(content.get("matchesReplaced").and_then(|v| v.as_u64()), Some(3));
+    assert_eq!(
+        content.get("matchesReplaced").and_then(|v| v.as_u64()),
+        Some(3)
+    );
 
     let modified = workspace.read_file("test.txt");
     assert!(modified.contains("account.name"));

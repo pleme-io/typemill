@@ -66,7 +66,10 @@ async fn test_transform_if_to_match_plan_and_apply() {
                 return;
             }
 
-            let plan = response.get("result").and_then(|r| r.get("content")).cloned();
+            let plan = response
+                .get("result")
+                .and_then(|r| r.get("content"))
+                .cloned();
 
             // If no plan content, likely LSP not available
             if plan.is_none() {
@@ -135,7 +138,10 @@ async fn test_transform_add_async_dry_run() {
                 return;
             }
 
-            let plan = response.get("result").and_then(|r| r.get("content")).cloned();
+            let plan = response
+                .get("result")
+                .and_then(|r| r.get("content"))
+                .cloned();
 
             // If no plan content, likely LSP not available
             if plan.is_none() {
@@ -210,7 +216,10 @@ async fn test_transform_fn_to_closure_checksum_validation() {
                 return;
             }
 
-            let plan = response.get("result").and_then(|r| r.get("content")).cloned();
+            let plan = response
+                .get("result")
+                .and_then(|r| r.get("content"))
+                .cloned();
 
             // If no plan content, likely LSP not available
             if plan.is_none() {
@@ -237,9 +246,7 @@ async fn test_transform_fn_to_closure_checksum_validation() {
             let mut params_exec = params.clone();
             params_exec["options"] = json!({"dryRun": false, "validateChecksums": true});
 
-            let apply_result = client
-                .call_tool("transform", params_exec)
-                .await;
+            let apply_result = client.call_tool("transform", params_exec).await;
 
             // Should fail due to checksum mismatch
             assert!(
@@ -284,7 +291,10 @@ async fn test_transform_plan_metadata_structure() {
                 return;
             }
 
-            let plan = response.get("result").and_then(|r| r.get("content")).cloned();
+            let plan = response
+                .get("result")
+                .and_then(|r| r.get("content"))
+                .cloned();
 
             // If no plan content, likely LSP not available
             if plan.is_none() {
@@ -297,10 +307,7 @@ async fn test_transform_plan_metadata_structure() {
             // Verify plan structure
             assert!(plan.get("metadata").is_some(), "Should have metadata");
             assert!(plan.get("summary").is_some(), "Should have summary");
-            assert!(
-                plan.get("fileChecksums").is_some(),
-                "Should have checksums"
-            );
+            assert!(plan.get("fileChecksums").is_some(), "Should have checksums");
             assert!(plan.get("edits").is_some(), "Should have edits");
 
             let metadata = plan.get("metadata").unwrap();

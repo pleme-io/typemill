@@ -8,9 +8,12 @@
 
 use crate::handlers::tools::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
-use mill_foundation::core::model::mcp::ToolCall;
-use mill_foundation::protocol::{ refactor_plan::{ PlanMetadata , PlanSummary , TransformPlan } , ApiError as ServerError , ApiResult as ServerResult , RefactorPlan , };
 use lsp_types::{Range, WorkspaceEdit};
+use mill_foundation::core::model::mcp::ToolCall;
+use mill_foundation::protocol::{
+    refactor_plan::{PlanMetadata, PlanSummary, TransformPlan},
+    ApiError as ServerError, ApiResult as ServerResult, RefactorPlan,
+};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -93,9 +96,10 @@ impl ToolHandler for TransformHandler {
         info!(tool_name = %tool_call.name, "Handling transform");
 
         // Parse parameters
-        let args = tool_call.arguments.clone().ok_or_else(|| {
-            ServerError::InvalidRequest("Missing arguments for transform".into())
-        })?;
+        let args = tool_call
+            .arguments
+            .clone()
+            .ok_or_else(|| ServerError::InvalidRequest("Missing arguments for transform".into()))?;
 
         let params: TransformPlanParams = serde_json::from_value(args).map_err(|e| {
             ServerError::InvalidRequest(format!("Invalid transform parameters: {}", e))

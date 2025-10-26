@@ -67,7 +67,10 @@ lib = { path = "../lib" }
 }
 
 /// Helper to validate consolidation metadata flag and warning
-fn validate_consolidation_metadata(plan: &serde_json::Value, expected_consolidation: bool) -> anyhow::Result<()> {
+fn validate_consolidation_metadata(
+    plan: &serde_json::Value,
+    expected_consolidation: bool,
+) -> anyhow::Result<()> {
     // Verify is_consolidation flag
     assert_eq!(
         plan.get("isConsolidation").and_then(|v| v.as_bool()),
@@ -284,7 +287,7 @@ async fn test_non_consolidation_rename() {
         |_ws| {
             // No post-execution verification needed
             Ok(())
-        }
+        },
     )
     .await
     .unwrap();

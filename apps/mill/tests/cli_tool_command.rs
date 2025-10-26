@@ -101,4 +101,3 @@ fn test_tool_output_is_valid_json() {
     let parsed: Result<serde_json::Value, _> = serde_json::from_str(&stdout);
     assert!(parsed.is_ok(), "Output should be valid JSON");
 }
-

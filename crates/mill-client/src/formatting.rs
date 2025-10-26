@@ -1,8 +1,8 @@
 use crate::error::ClientError;
 use crate::websocket::MCPResponse;
-use mill_foundation::protocol::refactor_plan::RefactorPlan;
 use console::{style, Emoji};
 use indicatif::{ProgressBar, ProgressStyle};
+use mill_foundation::protocol::refactor_plan::RefactorPlan;
 use serde_json::Value;
 use std::fmt::Write;
 use std::time::Duration;
@@ -648,8 +648,8 @@ pub fn format_client_error(error: &ClientError) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mill_foundation::protocol::refactor_plan::*;
     use lsp_types::WorkspaceEdit;
+    use mill_foundation::protocol::refactor_plan::*;
     use serde_json::json;
     use std::collections::HashMap;
 

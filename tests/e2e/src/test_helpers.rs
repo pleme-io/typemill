@@ -343,7 +343,8 @@ where
         .map_err(|e| anyhow::anyhow!("Preview mode failed for '{}': {}", tool, e))?;
 
     // Verify nothing changed
-    verify_no_changes(&workspace).map_err(|e| anyhow::anyhow!("Preview mode should not modify workspace: {}", e))?;
+    verify_no_changes(&workspace)
+        .map_err(|e| anyhow::anyhow!("Preview mode should not modify workspace: {}", e))?;
 
     Ok(())
 }
@@ -391,11 +392,7 @@ pub fn build_move_params(
 }
 
 /// Helper to build delete parameters with absolute paths
-pub fn build_delete_params(
-    workspace: &TestWorkspace,
-    path: &str,
-    kind: &str,
-) -> Value {
+pub fn build_delete_params(workspace: &TestWorkspace, path: &str, kind: &str) -> Value {
     json!({
         "target": {
             "kind": kind,

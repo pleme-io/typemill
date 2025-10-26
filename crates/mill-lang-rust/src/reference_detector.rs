@@ -260,23 +260,21 @@ impl ReferenceDetector for RustReferenceDetector {
                     if let (Some(old_module_name), Some(new_module_name)) = (
                         old_path.file_stem().and_then(|s| s.to_str()),
                         new_path.file_stem().and_then(|s| s.to_str()),
-                        ) {
+                    ) {
                         // Check lib.rs
                         if lib_rs.exists() {
                             if let Ok(content) = tokio::fs::read_to_string(&lib_rs).await {
                                 // Check for mod declaration for old module name
                                 let has_old_mod_declaration = content.lines().any(|line| {
                                     let trimmed = line.trim();
-                                    (trimmed.starts_with("pub mod ")
-                                        || trimmed.starts_with("mod "))
+                                    (trimmed.starts_with("pub mod ") || trimmed.starts_with("mod "))
                                         && trimmed.contains(&format!("{};", old_module_name))
                                 });
 
                                 // Check if new module name is already declared
                                 let has_new_mod_declaration = content.lines().any(|line| {
                                     let trimmed = line.trim();
-                                    (trimmed.starts_with("pub mod ")
-                                        || trimmed.starts_with("mod "))
+                                    (trimmed.starts_with("pub mod ") || trimmed.starts_with("mod "))
                                         && trimmed.contains(&format!("{};", new_module_name))
                                 });
 
@@ -288,8 +286,7 @@ impl ReferenceDetector for RustReferenceDetector {
                                         new_module = %new_module_name,
                                         "Found parent lib.rs with mod declaration that needs updating"
                                     );
-                                    let canonical_lib_rs =
-                                        lib_rs.canonicalize().unwrap_or(lib_rs);
+                                    let canonical_lib_rs = lib_rs.canonicalize().unwrap_or(lib_rs);
                                     if !affected.contains(&canonical_lib_rs) {
                                         affected.push(canonical_lib_rs);
                                     }
@@ -309,15 +306,13 @@ impl ReferenceDetector for RustReferenceDetector {
                             if let Ok(content) = tokio::fs::read_to_string(&mod_rs).await {
                                 let has_old_mod_declaration = content.lines().any(|line| {
                                     let trimmed = line.trim();
-                                    (trimmed.starts_with("pub mod ")
-                                        || trimmed.starts_with("mod "))
+                                    (trimmed.starts_with("pub mod ") || trimmed.starts_with("mod "))
                                         && trimmed.contains(&format!("{};", old_module_name))
                                 });
 
                                 let has_new_mod_declaration = content.lines().any(|line| {
                                     let trimmed = line.trim();
-                                    (trimmed.starts_with("pub mod ")
-                                        || trimmed.starts_with("mod "))
+                                    (trimmed.starts_with("pub mod ") || trimmed.starts_with("mod "))
                                         && trimmed.contains(&format!("{};", new_module_name))
                                 });
 
@@ -328,8 +323,7 @@ impl ReferenceDetector for RustReferenceDetector {
                                         new_module = %new_module_name,
                                         "Found parent mod.rs with mod declaration that needs updating"
                                     );
-                                    let canonical_mod_rs =
-                                        mod_rs.canonicalize().unwrap_or(mod_rs);
+                                    let canonical_mod_rs = mod_rs.canonicalize().unwrap_or(mod_rs);
                                     if !affected.contains(&canonical_mod_rs) {
                                         affected.push(canonical_mod_rs);
                                     }

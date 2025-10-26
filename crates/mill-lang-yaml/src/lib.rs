@@ -5,7 +5,10 @@
 
 use async_trait::async_trait;
 use mill_plugin_api::mill_plugin;
-use mill_plugin_api::{ import_support::ImportRenameSupport , LanguageMetadata , LanguagePlugin , ManifestData , ParsedSource , PluginCapabilities , PluginError , PluginResult , };
+use mill_plugin_api::{
+    import_support::ImportRenameSupport, LanguageMetadata, LanguagePlugin, ManifestData,
+    ParsedSource, PluginCapabilities, PluginError, PluginResult,
+};
 use std::path::Path;
 use tracing::debug;
 

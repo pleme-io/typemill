@@ -11,8 +11,8 @@
 
 use super::super::ToolHandlerContext;
 use mill_foundation::core::model::mcp::ToolCall;
-use mill_foundation::protocol::analysis_result::{ AnalysisResult , AnalysisScope , Finding };
-use mill_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
+use mill_foundation::protocol::analysis_result::{AnalysisResult, AnalysisScope, Finding};
+use mill_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde::Deserialize;
 use serde_json::Value;
 use std::path::Path;

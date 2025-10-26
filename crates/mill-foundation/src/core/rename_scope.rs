@@ -279,7 +279,8 @@ mod tests {
         let scope = RenameScope {
             update_all: true,
             ..RenameScope::default()
-        }.resolve_update_all();
+        }
+        .resolve_update_all();
 
         assert!(scope.update_code);
         assert!(scope.update_string_literals);
@@ -296,7 +297,8 @@ mod tests {
             update_all: true,
             update_comments: false, // Override: don't update comments
             ..RenameScope::default()
-        }.resolve_update_all();
+        }
+        .resolve_update_all();
 
         assert!(scope.update_code);
         assert!(scope.update_docs);

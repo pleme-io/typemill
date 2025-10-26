@@ -76,9 +76,8 @@ impl ClientConfig {
         let mut actions = Vec::new();
 
         if self.url.is_none() {
-            actions.push(
-                "Set server URL with --url or TYPEMILL_URL environment variable".to_string(),
-            );
+            actions
+                .push("Set server URL with --url or TYPEMILL_URL environment variable".to_string());
         }
 
         if self.token.is_none() {

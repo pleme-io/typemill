@@ -59,7 +59,8 @@ pub struct Service {
 "#;
     workspace.create_file("service.rs", code);
 
-    let result = analyze_module_dependencies(&workspace, &mut client, "service.rs", "file", true).await;
+    let result =
+        analyze_module_dependencies(&workspace, &mut client, "service.rs", "file", true).await;
 
     // Verify external dependencies
     let external_deps = result["externalDependencies"].as_object().unwrap();
@@ -96,14 +97,19 @@ tokio = "1.0"
 "#,
     );
 
-    workspace.create_file("crate-a/Cargo.toml", r#"[package]
+    workspace.create_file(
+        "crate-a/Cargo.toml",
+        r#"[package]
 name = "crate-a"
 version = "0.1.0"
 edition = "2021"
-"#);
+"#,
+    );
     workspace.create_file("crate-a/src/lib.rs", "pub struct ServiceA;");
 
-    workspace.create_file("crate-b/Cargo.toml", r#"[package]
+    workspace.create_file(
+        "crate-b/Cargo.toml",
+        r#"[package]
 name = "crate-b"
 version = "0.1.0"
 edition = "2021"
@@ -111,9 +117,12 @@ edition = "2021"
 [dependencies]
 crate-a = { path = "../crate-a" }
 tokio = { workspace = true }
-"#);
+"#,
+    );
 
-    workspace.create_file("crate-b/src/lib.rs", r#"
+    workspace.create_file(
+        "crate-b/src/lib.rs",
+        r#"
 use crate_a::ServiceA;
 use tokio::runtime::Runtime;
 
@@ -121,9 +130,12 @@ pub struct ServiceB {
     service_a: ServiceA,
     runtime: Runtime,
 }
-"#);
+"#,
+    );
 
-    let result = analyze_module_dependencies(&workspace, &mut client, "crate-b/src/lib.rs", "file", true).await;
+    let result =
+        analyze_module_dependencies(&workspace, &mut client, "crate-b/src/lib.rs", "file", true)
+            .await;
 
     // Verify workspace dependencies detected
     let workspace_deps = result["workspaceDependencies"].as_array().unwrap();
@@ -157,7 +169,8 @@ pub fn process(data: HashMap<String, Arc<dyn Display>>) {
 "#;
     workspace.create_file("std_only.rs", code);
 
-    let result = analyze_module_dependencies(&workspace, &mut client, "std_only.rs", "file", true).await;
+    let result =
+        analyze_module_dependencies(&workspace, &mut client, "std_only.rs", "file", true).await;
 
     // Verify std dependencies
     let std_deps = result["stdDependencies"].as_array().unwrap();
@@ -177,22 +190,29 @@ async fn test_analyze_directory_dependencies() {
 
     // Create multiple files in directory
     workspace.create_file("auth/mod.rs", "pub mod jwt;\npub mod session;");
-    workspace.create_file("auth/jwt.rs", r#"
+    workspace.create_file(
+        "auth/jwt.rs",
+        r#"
 use jsonwebtoken::{encode, decode};
 use serde::{Serialize, Deserialize};
 
 pub fn create_token() -> String { String::new() }
-"#);
-    workspace.create_file("auth/session.rs", r#"
+"#,
+    );
+    workspace.create_file(
+        "auth/session.rs",
+        r#"
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 pub struct SessionStore {
     data: Arc<RwLock<()>>,
 }
-"#);
+"#,
+    );
 
-    let result = analyze_module_dependencies(&workspace, &mut client, "auth", "directory", true).await;
+    let result =
+        analyze_module_dependencies(&workspace, &mut client, "auth", "directory", true).await;
 
     // Verify multiple files analyzed
     let files = result["filesAnalyzed"].as_array().unwrap();
@@ -239,11 +259,19 @@ async fn test_exclude_workspace_deps_option() {
     let mut client = TestClient::new(workspace.path());
 
     // Create workspace with internal and external deps
-    workspace.create_file("Cargo.toml", "[workspace]\nmembers = [\"lib-a\", \"lib-b\"]");
-    workspace.create_file("lib-a/Cargo.toml", "[package]\nname = \"lib-a\"\nversion = \"0.1.0\"\nedition = \"2021\"");
+    workspace.create_file(
+        "Cargo.toml",
+        "[workspace]\nmembers = [\"lib-a\", \"lib-b\"]",
+    );
+    workspace.create_file(
+        "lib-a/Cargo.toml",
+        "[package]\nname = \"lib-a\"\nversion = \"0.1.0\"\nedition = \"2021\"",
+    );
     workspace.create_file("lib-a/src/lib.rs", "pub struct A;");
 
-    workspace.create_file("lib-b/Cargo.toml", r#"[package]
+    workspace.create_file(
+        "lib-b/Cargo.toml",
+        r#"[package]
 name = "lib-b"
 version = "0.1.0"
 edition = "2021"
@@ -251,9 +279,12 @@ edition = "2021"
 [dependencies]
 lib-a = { path = "../lib-a" }
 serde = "1.0"
-"#);
+"#,
+    );
 
-    workspace.create_file("lib-b/src/lib.rs", r#"
+    workspace.create_file(
+        "lib-b/src/lib.rs",
+        r#"
 use lib_a::A;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -261,9 +292,12 @@ use std::collections::HashMap;
 pub struct B {
     a: A,
 }
-"#);
+"#,
+    );
 
-    let result = analyze_module_dependencies(&workspace, &mut client, "lib-b/src/lib.rs", "file", false).await;
+    let result =
+        analyze_module_dependencies(&workspace, &mut client, "lib-b/src/lib.rs", "file", false)
+            .await;
 
     // Verify workspace dependencies excluded
     let workspace_deps = result["workspaceDependencies"].as_array().unwrap();

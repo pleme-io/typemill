@@ -4,9 +4,17 @@
 //! for TypeScript and JavaScript source code.
 
 use crate::imports::{remove_named_import_from_line, update_import_reference_ast};
-use mill_lang_common::import_helpers::{ find_last_matching_line , insert_line_at , remove_lines_matching , };
-use mill_plugin_api::{ import_support::{ ImportAdvancedSupport , ImportMoveSupport , ImportMutationSupport , ImportParser , ImportRenameSupport , } , PluginResult , };
 use mill_foundation::protocol::DependencyUpdate;
+use mill_lang_common::import_helpers::{
+    find_last_matching_line, insert_line_at, remove_lines_matching,
+};
+use mill_plugin_api::{
+    import_support::{
+        ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportParser,
+        ImportRenameSupport,
+    },
+    PluginResult,
+};
 use std::path::Path;
 use tracing::{debug, warn};
 

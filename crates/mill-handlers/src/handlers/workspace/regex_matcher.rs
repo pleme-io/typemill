@@ -37,7 +37,9 @@ impl fmt::Display for RegexError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             RegexError::InvalidPattern(msg) => write!(f, "Invalid regex pattern: {}", msg),
-            RegexError::InvalidReplacement(msg) => write!(f, "Invalid replacement template: {}", msg),
+            RegexError::InvalidReplacement(msg) => {
+                write!(f, "Invalid replacement template: {}", msg)
+            }
         }
     }
 }
@@ -66,8 +68,7 @@ pub fn find_regex_matches(
     replacement_template: &str,
 ) -> Result<Vec<RegexMatch>, RegexError> {
     // Compile the regex pattern
-    let regex = Regex::new(pattern)
-        .map_err(|e| RegexError::InvalidPattern(e.to_string()))?;
+    let regex = Regex::new(pattern).map_err(|e| RegexError::InvalidPattern(e.to_string()))?;
 
     // Validate replacement template early
     validate_replacement_template(replacement_template)?;
@@ -90,7 +91,9 @@ pub fn find_regex_matches(
         let capture_groups: Vec<String> = capture
             .iter()
             .map(|opt_match| {
-                opt_match.map(|m| m.as_str().to_string()).unwrap_or_default()
+                opt_match
+                    .map(|m| m.as_str().to_string())
+                    .unwrap_or_default()
             })
             .collect();
 
@@ -178,7 +181,8 @@ fn expand_replacement(template: &str, captures: &Captures) -> Result<String, Str
                         }
                     }
 
-                    let group_num: usize = num_str.parse()
+                    let group_num: usize = num_str
+                        .parse()
                         .map_err(|_| format!("Invalid capture group number: {}", num_str))?;
 
                     // Get numbered capture
@@ -310,7 +314,10 @@ mod tests {
         assert_eq!(matches.len(), 2);
         assert_eq!(matches[0].capture_groups, vec!["user_name", "user", "name"]);
         assert_eq!(matches[0].replacement_text, "name_user");
-        assert_eq!(matches[1].capture_groups, vec!["item_count", "item", "count"]);
+        assert_eq!(
+            matches[1].capture_groups,
+            vec!["item_count", "item", "count"]
+        );
         assert_eq!(matches[1].replacement_text, "count_item");
     }
 
@@ -337,7 +344,10 @@ mod tests {
 
         assert_eq!(matches.len(), 1);
         // \w includes digits, so \w+ matches "test123", leaving only last digit for \d+
-        assert_eq!(matches[0].replacement_text, "Matched: test123, Word: test12, Digits: 3");
+        assert_eq!(
+            matches[0].replacement_text,
+            "Matched: test123, Word: test12, Digits: 3"
+        );
     }
 
     #[test]

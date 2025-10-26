@@ -18,13 +18,13 @@
 
 use crate::register_handlers_with_logging;
 use async_trait::async_trait;
+use mill_foundation::core::model::mcp::{McpMessage, McpRequest, McpResponse, ToolCall};
+use mill_foundation::protocol::AstService;
+use mill_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
+use mill_plugin_system::{LspAdapterPlugin, PluginManager};
 use mill_services::services::planner::Planner;
 use mill_services::services::workflow_executor::WorkflowExecutor;
 use mill_transport::McpDispatcher;
-use mill_foundation::core::model::mcp::{ McpMessage , McpRequest , McpResponse , ToolCall };
-use mill_foundation::protocol::AstService;
-use mill_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
-use mill_plugin_system::{ LspAdapterPlugin , PluginManager };
 use mill_workspaces::WorkspaceManager;
 use serde_json::{json, Value};
 use std::sync::Arc;
@@ -530,7 +530,8 @@ pub async fn create_test_dispatcher() -> PluginDispatcher {
     let config = mill_config::AppConfig::default();
 
     // Build plugin registry for tests
-    let plugin_registry = mill_services::services::registry_builder::build_language_plugin_registry();
+    let plugin_registry =
+        mill_services::services::registry_builder::build_language_plugin_registry();
 
     let services = mill_services::services::app_state_factory::create_services_bundle(
         &project_root,
@@ -593,7 +594,9 @@ mod tests {
         let planner = mill_services::services::planner::DefaultPlanner::new();
         let plugin_manager = Arc::new(PluginManager::new());
         let workflow_executor =
-            mill_services::services::workflow_executor::DefaultWorkflowExecutor::new(plugin_manager);
+            mill_services::services::workflow_executor::DefaultWorkflowExecutor::new(
+                plugin_manager,
+            );
         let workspace_manager = Arc::new(WorkspaceManager::new());
 
         Arc::new(AppState {

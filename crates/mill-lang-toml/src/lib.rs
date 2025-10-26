@@ -5,7 +5,10 @@
 
 use async_trait::async_trait;
 use mill_plugin_api::mill_plugin;
-use mill_plugin_api::{ import_support::ImportRenameSupport , LanguageMetadata , LanguagePlugin , ManifestData , ParsedSource , PluginCapabilities , PluginError , PluginResult , };
+use mill_plugin_api::{
+    import_support::ImportRenameSupport, LanguageMetadata, LanguagePlugin, ManifestData,
+    ParsedSource, PluginCapabilities, PluginError, PluginResult,
+};
 use std::path::Path;
 use tracing::debug;
 
@@ -123,10 +126,12 @@ impl LanguagePlugin for TomlLanguagePlugin {
             .unwrap_or(false);
 
         // Phase 1: Structured value updates (existing logic)
-        let (mut result, mut count) = match self
-            .import_support
-            .rewrite_toml_paths(content, old_path, new_path, update_exact_matches)
-        {
+        let (mut result, mut count) = match self.import_support.rewrite_toml_paths(
+            content,
+            old_path,
+            new_path,
+            update_exact_matches,
+        ) {
             Ok((new_content, value_count)) => {
                 if value_count > 0 {
                     debug!(

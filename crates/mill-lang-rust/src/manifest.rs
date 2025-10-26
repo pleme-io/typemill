@@ -4,7 +4,7 @@
 //! manifest files, extracting dependency information, and updating dependencies.
 
 use mill_lang_common::read_manifest;
-use mill_plugin_api::{ Dependency , DependencySource , ManifestData , PluginError , PluginResult };
+use mill_plugin_api::{Dependency, DependencySource, ManifestData, PluginError, PluginResult};
 use std::path::Path;
 use toml_edit::{value, DocumentMut, Item};
 
@@ -329,13 +329,8 @@ runtime = ["other-dep", "old-ast"]
 advanced = ["old-ast/extra-feature"]
 "#;
 
-        let result = rename_dependency(
-            cargo_toml,
-            "old-ast",
-            "new-ast",
-            Some("../new-ast"),
-        )
-        .unwrap();
+        let result =
+            rename_dependency(cargo_toml, "old-ast", "new-ast", Some("../new-ast")).unwrap();
 
         // Verify dependency was renamed
         assert!(result.contains("new-ast = { path"));

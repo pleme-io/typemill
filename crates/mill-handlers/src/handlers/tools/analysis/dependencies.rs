@@ -16,15 +16,19 @@
 use super::super::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
-use mill_foundation::protocol::analysis_result::{ Finding , FindingLocation , Position , Range , SafetyLevel , Severity , Suggestion , };
-use mill_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
+use mill_foundation::protocol::analysis_result::{
+    Finding, FindingLocation, Position, Range, SafetyLevel, Severity, Suggestion,
+};
+use mill_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use regex::Regex;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use tracing::debug;
 
 #[cfg(feature = "analysis-circular-deps")]
-use mill_analysis_circular_deps::{ builder::DependencyGraphBuilder , find_circular_dependencies , Cycle , };
+use mill_analysis_circular_deps::{
+    builder::DependencyGraphBuilder, find_circular_dependencies, Cycle,
+};
 
 #[cfg(feature = "analysis-circular-deps")]
 use mill_foundation::protocol::analysis_result::AnalysisResult;
@@ -1158,9 +1162,7 @@ impl ToolHandler for DependenciesHandler {
                 let project_root = &context.app_state.project_root;
                 let builder =
                     DependencyGraphBuilder::new(&context.app_state.language_plugins.inner);
-                let graph = builder
-                    .build(project_root)
-                    .map_err(ServerError::Internal)?;
+                let graph = builder.build(project_root).map_err(ServerError::Internal)?;
                 let result = find_circular_dependencies(&graph, None)
                     .map_err(|e| ServerError::Internal(e.to_string()))?;
 

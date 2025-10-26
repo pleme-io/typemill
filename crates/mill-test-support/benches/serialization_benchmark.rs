@@ -1,5 +1,5 @@
-use mill_foundation::core::model::mcp::{ McpError , McpRequest , McpResponse };
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use mill_foundation::core::model::mcp::{McpError, McpRequest, McpResponse};
 use serde_json::json;
 
 fn create_simple_request() -> McpRequest {

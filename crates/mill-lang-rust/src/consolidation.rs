@@ -11,8 +11,8 @@
 //! 3. Add module declaration to target crate's lib.rs
 
 use crate::cargo_helpers::merge_cargo_dependencies;
-use mill_plugin_api::{ PluginError , PluginResult };
 use mill_foundation::protocol::ConsolidationMetadata;
+use mill_plugin_api::{PluginError, PluginResult};
 use std::path::Path;
 use tokio::fs;
 use tracing::{info, warn};

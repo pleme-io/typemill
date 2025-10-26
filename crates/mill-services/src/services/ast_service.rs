@@ -4,9 +4,9 @@ use async_trait::async_trait;
 use std::path::Path;
 use std::sync::Arc;
 
-use mill_plugin_api::PluginRegistry;
 use mill_ast::AstCache;
-use mill_foundation::protocol::{ ApiResult , CacheStats , ImportGraph };
+use mill_foundation::protocol::{ApiResult, CacheStats, ImportGraph};
+use mill_plugin_api::PluginRegistry;
 use tracing::{debug, trace};
 
 use mill_foundation::protocol::AstService;
@@ -111,9 +111,7 @@ fn build_import_graph_with_plugin(
     let extension = path
         .extension()
         .and_then(|ext| ext.to_str())
-        .ok_or_else(|| {
-            mill_foundation::protocol::ApiError::internal("File has no extension")
-        })?;
+        .ok_or_else(|| mill_foundation::protocol::ApiError::internal("File has no extension"))?;
 
     // For languages without plugins, fall back to mill-ast
     // Note: Only Rust and TypeScript supported after language reduction
@@ -139,9 +137,6 @@ fn build_import_graph_with_plugin(
     plugin
         .analyze_detailed_imports(source, Some(path))
         .map_err(|e| {
-            mill_foundation::protocol::ApiError::internal(format!(
-                "Failed to parse imports: {}",
-                e
-            ))
+            mill_foundation::protocol::ApiError::internal(format!("Failed to parse imports: {}", e))
         })
 }

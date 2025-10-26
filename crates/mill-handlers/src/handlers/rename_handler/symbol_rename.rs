@@ -1,7 +1,10 @@
 use super::{RenameHandler, RenameOptions, RenameTarget};
 use crate::handlers::tools::ToolHandlerContext;
-use mill_foundation::protocol::{ refactor_plan::{ PlanMetadata , RenamePlan } , ApiError as ServerError , ApiResult as ServerResult , };
 use lsp_types::WorkspaceEdit;
+use mill_foundation::protocol::{
+    refactor_plan::{PlanMetadata, RenamePlan},
+    ApiError as ServerError, ApiResult as ServerResult,
+};
 use serde_json::json;
 use std::path::Path;
 use tracing::{debug, error};
@@ -32,10 +35,7 @@ impl RenameHandler {
             .extension()
             .and_then(|ext| ext.to_str())
             .ok_or_else(|| {
-                ServerError::InvalidRequest(format!(
-                    "File has no extension: {}",
-                    target.path
-                ))
+                ServerError::InvalidRequest(format!("File has no extension: {}", target.path))
             })?;
 
         // Get LSP adapter

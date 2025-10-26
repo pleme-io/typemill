@@ -9,7 +9,10 @@ pub mod detectors;
 
 pub use cache::FileImportInfo;
 
-use mill_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult , DependencyUpdate , EditLocation , EditPlan , EditPlanMetadata , EditType , TextEdit , };
+use mill_foundation::protocol::{
+    ApiError as ServerError, ApiResult as ServerResult, DependencyUpdate, EditLocation, EditPlan,
+    EditPlanMetadata, EditType, TextEdit,
+};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -103,8 +106,14 @@ impl ReferenceUpdater {
                 new_path = %new_path.display(),
                 "Detected Rust crate rename, using crate-level detection"
             );
-            self.find_affected_files_for_rename(old_path, new_path, &project_files, plugins, merged_rename_info.as_ref())
-                .await?
+            self.find_affected_files_for_rename(
+                old_path,
+                new_path,
+                &project_files,
+                plugins,
+                merged_rename_info.as_ref(),
+            )
+            .await?
         } else if is_directory_rename {
             // For non-Rust directory renames, use BOTH per-file AND directory-level detection
             // 1. Per-file detection: Find files that import specific files in the directory
@@ -121,7 +130,13 @@ impl ReferenceUpdater {
                 "Running directory-level detection for string literals"
             );
             let directory_level_affected = self
-                .find_affected_files_for_rename(old_path, new_path, &project_files, plugins, merged_rename_info.as_ref())
+                .find_affected_files_for_rename(
+                    old_path,
+                    new_path,
+                    &project_files,
+                    plugins,
+                    merged_rename_info.as_ref(),
+                )
                 .await?;
 
             for file in directory_level_affected {
@@ -173,8 +188,14 @@ impl ReferenceUpdater {
 
             affected_vec
         } else {
-            self.find_affected_files_for_rename(old_path, new_path, &project_files, plugins, merged_rename_info.as_ref())
-                .await?
+            self.find_affected_files_for_rename(
+                old_path,
+                new_path,
+                &project_files,
+                plugins,
+                merged_rename_info.as_ref(),
+            )
+            .await?
         };
 
         // For directory renames, exclude files inside the renamed directory UNLESS it's a Rust crate rename
@@ -189,7 +210,10 @@ impl ReferenceUpdater {
 
                 let files_in_crate: Vec<PathBuf> = project_files
                     .iter()
-                    .filter(|f| f.starts_with(old_path) && f.extension().and_then(|e| e.to_str()) == Some("rs"))
+                    .filter(|f| {
+                        f.starts_with(old_path)
+                            && f.extension().and_then(|e| e.to_str()) == Some("rs")
+                    })
                     .cloned()
                     .collect();
 
@@ -264,14 +288,16 @@ impl ReferenceUpdater {
 
                         // For directory renames, files inside the renamed directory need to use the NEW path
                         // For file renames, all affected files are outside the renamed file, so use original paths
-                        let edit_file_path = if is_directory_rename && file_path.starts_with(old_path) {
-                            // File is inside the renamed directory - compute new path
-                            let relative_path = file_path.strip_prefix(old_path).unwrap_or(&file_path);
-                            new_path.join(relative_path)
-                        } else {
-                            // File is outside the renamed item (or it's a file rename) - use original path
-                            file_path.clone()
-                        };
+                        let edit_file_path =
+                            if is_directory_rename && file_path.starts_with(old_path) {
+                                // File is inside the renamed directory - compute new path
+                                let relative_path =
+                                    file_path.strip_prefix(old_path).unwrap_or(&file_path);
+                                new_path.join(relative_path)
+                            } else {
+                                // File is outside the renamed item (or it's a file rename) - use original path
+                                file_path.clone()
+                            };
 
                         all_edits.push(TextEdit {
                             file_path: Some(edit_file_path.to_string_lossy().to_string()),
@@ -710,7 +736,9 @@ fn merge_rename_info(
             // Both exist - merge them
             let mut merged = info.clone();
             if let Ok(scope_json) = serde_json::to_value(scope) {
-                if let (Some(merged_obj), Some(scope_obj)) = (merged.as_object_mut(), scope_json.as_object()) {
+                if let (Some(merged_obj), Some(scope_obj)) =
+                    (merged.as_object_mut(), scope_json.as_object())
+                {
                     // Merge scope fields into the existing rename_info
                     for (key, value) in scope_obj {
                         merged_obj.insert(key.clone(), value.clone());

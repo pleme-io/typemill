@@ -2,8 +2,14 @@
 //!
 //! Treats markdown file links as "imports" for the purpose of file rename tracking.
 
-use mill_plugin_api::{ import_support::{ ImportAdvancedSupport , ImportMoveSupport , ImportMutationSupport , ImportParser , ImportRenameSupport , } , PluginResult , };
 use mill_foundation::protocol::DependencyUpdate;
+use mill_plugin_api::{
+    import_support::{
+        ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportParser,
+        ImportRenameSupport,
+    },
+    PluginResult,
+};
 use regex::{Captures, Regex};
 use std::path::Path;
 use tracing::debug;
@@ -225,14 +231,12 @@ impl MarkdownImportSupport {
         match fancy_regex::Regex::new(&pattern) {
             Ok(regex) => {
                 let result = regex.replace_all(content, new_basename);
-                let count = result.matches(new_basename).count()
-                    - content.matches(new_basename).count();
+                let count =
+                    result.matches(new_basename).count() - content.matches(new_basename).count();
 
                 debug!(
                     old_basename,
-                    new_basename,
-                    count,
-                    "Updated prose identifiers in markdown"
+                    new_basename, count, "Updated prose identifiers in markdown"
                 );
 
                 (result.to_string(), count)

@@ -7,7 +7,9 @@ mod graph_builder;
 use crate::dead_code_finder::DeadCodeFinder;
 use crate::graph_builder::GraphBuilder;
 use async_trait::async_trait;
-use mill_analysis_common::{ AnalysisEngine , AnalysisError , AnalysisMetadata , LspProvider , SymbolNode , };
+use mill_analysis_common::{
+    AnalysisEngine, AnalysisError, AnalysisMetadata, LspProvider, SymbolNode,
+};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Arc;

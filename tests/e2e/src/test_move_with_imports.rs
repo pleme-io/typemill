@@ -41,9 +41,13 @@ async fn test_move_file_updates_imports_from_fixtures() {
         let params = build_move_params(&workspace, case.old_file_path, case.new_file_path, "file");
 
         // 2. Generate and apply move plan
-        let plan_response = client.call_tool("move", params.clone()).await
+        let plan_response = client
+            .call_tool("move", params.clone())
+            .await
             .expect("move should succeed");
-        let plan = plan_response.get("result").and_then(|r| r.get("content"))
+        let plan = plan_response
+            .get("result")
+            .and_then(|r| r.get("content"))
             .expect("Plan should have result.content")
             .clone();
 
@@ -54,44 +58,80 @@ async fn test_move_file_updates_imports_from_fixtures() {
 
         if case.expect_success {
             let apply_response = apply_result.expect("Move should succeed");
-            let result = apply_response.get("result").and_then(|r| r.get("content"))
+            let result = apply_response
+                .get("result")
+                .and_then(|r| r.get("content"))
                 .expect("Apply should have result.content");
 
-            assert_eq!(result.get("success").and_then(|v| v.as_bool()), Some(true),
-                "Apply should succeed for test case: {}", case.test_name);
+            assert_eq!(
+                result.get("success").and_then(|v| v.as_bool()),
+                Some(true),
+                "Apply should succeed for test case: {}",
+                case.test_name
+            );
 
             // 3. Verify the move occurred
-            assert!(!workspace.file_exists(case.old_file_path),
-                "Old file '{}' should be deleted in test case: {}", case.old_file_path, case.test_name);
-            assert!(workspace.file_exists(case.new_file_path),
-                "New file '{}' should exist in test case: {}", case.new_file_path, case.test_name);
+            assert!(
+                !workspace.file_exists(case.old_file_path),
+                "Old file '{}' should be deleted in test case: {}",
+                case.old_file_path,
+                case.test_name
+            );
+            assert!(
+                workspace.file_exists(case.new_file_path),
+                "New file '{}' should exist in test case: {}",
+                case.new_file_path,
+                case.test_name
+            );
 
             // 4. CRITICAL: Verify imports were updated in dependent files
             for (importer_path, expected_substring) in case.expected_import_updates {
                 let content = workspace.read_file(importer_path);
-                assert!(content.contains(expected_substring),
+                assert!(
+                    content.contains(expected_substring),
                     "❌ Import in '{}' was not updated correctly in test case: '{}'.\n\
                      Expected to find: '{}'\nActual file content:\n{}",
-                    importer_path, case.test_name, expected_substring, content);
+                    importer_path,
+                    case.test_name,
+                    expected_substring,
+                    content
+                );
 
                 // Verify old import path is gone
-                let old_file_name = std::path::Path::new(case.old_file_path).file_stem().unwrap().to_str().unwrap();
-                let new_file_name = std::path::Path::new(case.new_file_path).file_stem().unwrap().to_str().unwrap();
+                let old_file_name = std::path::Path::new(case.old_file_path)
+                    .file_stem()
+                    .unwrap()
+                    .to_str()
+                    .unwrap();
+                let new_file_name = std::path::Path::new(case.new_file_path)
+                    .file_stem()
+                    .unwrap()
+                    .to_str()
+                    .unwrap();
 
                 if old_file_name != new_file_name {
-                    assert!(!content.contains(&format!("from './{}'", old_file_name))
-                        && !content.contains(&format!("from '../{}'", old_file_name)),
+                    assert!(
+                        !content.contains(&format!("from './{}'", old_file_name))
+                            && !content.contains(&format!("from '../{}'", old_file_name)),
                         "❌ Old import path still exists in '{}' for test case: '{}'.\n\
                          This indicates both old and new imports coexist!\nFile content:\n{}",
-                        importer_path, case.test_name, content);
+                        importer_path,
+                        case.test_name,
+                        content
+                    );
                 }
 
-                println!("  ✅ Verified import updated in '{}': contains '{}'",
-                    importer_path, expected_substring);
+                println!(
+                    "  ✅ Verified import updated in '{}': contains '{}'",
+                    importer_path, expected_substring
+                );
             }
         } else {
-            assert!(apply_result.is_err() || apply_result.unwrap().get("error").is_some(),
-                "Operation should fail for test case: {}", case.test_name);
+            assert!(
+                apply_result.is_err() || apply_result.unwrap().get("error").is_some(),
+                "Operation should fail for test case: {}",
+                case.test_name
+            );
         }
 
         println!("✅ Test case '{}' passed", case.test_name);
@@ -114,9 +154,13 @@ async fn test_rust_move_file_updates_imports_from_fixtures() {
         let params = build_move_params(&workspace, case.old_file_path, case.new_file_path, "file");
 
         // 2. Generate and apply move plan
-        let plan_response = client.call_tool("move", params.clone()).await
+        let plan_response = client
+            .call_tool("move", params.clone())
+            .await
             .expect("move should succeed");
-        let plan = plan_response.get("result").and_then(|r| r.get("content"))
+        let plan = plan_response
+            .get("result")
+            .and_then(|r| r.get("content"))
             .expect("Plan should have result.content")
             .clone();
 
@@ -127,17 +171,31 @@ async fn test_rust_move_file_updates_imports_from_fixtures() {
 
         if case.expect_success {
             let apply_response = apply_result.expect("Move should succeed");
-            let result = apply_response.get("result").and_then(|r| r.get("content"))
+            let result = apply_response
+                .get("result")
+                .and_then(|r| r.get("content"))
                 .expect("Apply should have result.content");
 
-            assert_eq!(result.get("success").and_then(|v| v.as_bool()), Some(true),
-                "Apply should succeed for test case: {}", case.test_name);
+            assert_eq!(
+                result.get("success").and_then(|v| v.as_bool()),
+                Some(true),
+                "Apply should succeed for test case: {}",
+                case.test_name
+            );
 
             // 3. Verify the move occurred
-            assert!(!workspace.file_exists(case.old_file_path),
-                "Old file '{}' should be deleted in test case: {}", case.old_file_path, case.test_name);
-            assert!(workspace.file_exists(case.new_file_path),
-                "New file '{}' should exist in test case: {}", case.new_file_path, case.test_name);
+            assert!(
+                !workspace.file_exists(case.old_file_path),
+                "Old file '{}' should be deleted in test case: {}",
+                case.old_file_path,
+                case.test_name
+            );
+            assert!(
+                workspace.file_exists(case.new_file_path),
+                "New file '{}' should exist in test case: {}",
+                case.new_file_path,
+                case.test_name
+            );
 
             // 4. CRITICAL: Verify imports were updated in dependent files
             for (importer_path, expected_substring) in case.expected_import_updates {
@@ -153,22 +211,32 @@ async fn test_rust_move_file_updates_imports_from_fixtures() {
                     eprintln!("=== END STDERR LOGS ===\n");
                 }
 
-                assert!(content.contains(expected_substring),
+                assert!(
+                    content.contains(expected_substring),
                     "❌ Import in '{}' was not updated correctly in test case: '{}'.\n\
                      Expected to find: '{}'\nActual file content:\n{}",
-                    importer_path, case.test_name, expected_substring, content);
+                    importer_path,
+                    case.test_name,
+                    expected_substring,
+                    content
+                );
 
                 // Verify old import path is gone
                 assert!(!content.contains("use common::utils::do_stuff;"),
                     "❌ Old import path still exists in '{}' for test case: '{}'.\nFile content:\n{}",
                     importer_path, case.test_name, content);
 
-                println!("  ✅ Verified import updated in '{}': contains '{}'",
-                    importer_path, expected_substring);
+                println!(
+                    "  ✅ Verified import updated in '{}': contains '{}'",
+                    importer_path, expected_substring
+                );
             }
         } else {
-            assert!(apply_result.is_err() || apply_result.unwrap().get("error").is_some(),
-                "Operation should fail for test case: {}", case.test_name);
+            assert!(
+                apply_result.is_err() || apply_result.unwrap().get("error").is_some(),
+                "Operation should fail for test case: {}",
+                case.test_name
+            );
         }
 
         println!("✅ Test case '{}' passed", case.test_name);

@@ -8,12 +8,14 @@
 //! remain decoupled from specific language implementations, while the application
 //! binary can easily access all available plugins.
 
-use mill_plugin_api::{ iter_plugins , LanguagePlugin };
+use mill_plugin_api::{iter_plugins, LanguagePlugin};
 use std::sync::Arc;
 
 // Force linker to include language plugins by actively using them.
 // This prevents linker dead code elimination from stripping the inventory submissions.
 // We reference each plugin's public type to ensure the crate is linked.
+#[cfg(feature = "lang-gitignore")]
+use mill_lang_gitignore::GitignoreLanguagePlugin;
 #[cfg(feature = "lang-markdown")]
 use mill_lang_markdown::MarkdownPlugin;
 #[cfg(feature = "lang-rust")]
@@ -24,8 +26,6 @@ use mill_lang_toml::TomlLanguagePlugin;
 use mill_lang_typescript::TypeScriptPlugin;
 #[cfg(feature = "lang-yaml")]
 use mill_lang_yaml::YamlLanguagePlugin;
-#[cfg(feature = "lang-gitignore")]
-use mill_lang_gitignore::GitignoreLanguagePlugin;
 
 // This function is never called but ensures the linker includes all plugin crates
 #[allow(dead_code)]
@@ -97,6 +97,8 @@ mod tests {
     use super::*;
 
     // Force linker to include language plugins for inventory collection in tests
+    #[cfg(all(test, feature = "lang-gitignore"))]
+    extern crate mill_lang_gitignore;
     #[cfg(all(test, feature = "lang-markdown"))]
     extern crate mill_lang_markdown;
     #[cfg(all(test, feature = "lang-rust"))]
@@ -107,8 +109,6 @@ mod tests {
     extern crate mill_lang_typescript;
     #[cfg(all(test, feature = "lang-yaml"))]
     extern crate mill_lang_yaml;
-    #[cfg(all(test, feature = "lang-gitignore"))]
-    extern crate mill_lang_gitignore;
 
     #[test]
     fn test_all_plugins_returns_plugins() {

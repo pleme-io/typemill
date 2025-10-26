@@ -3,7 +3,7 @@
 //! This module provides shared functionality for working with different
 //! manifest formats (TOML, JSON, YAML, XML) across language plugins.
 
-use mill_plugin_api::{ PluginError , PluginResult };
+use mill_plugin_api::{PluginError, PluginResult};
 use serde_json::Value as JsonValue;
 use toml_edit::{value, Array, DocumentMut, Item};
 use tracing::debug;

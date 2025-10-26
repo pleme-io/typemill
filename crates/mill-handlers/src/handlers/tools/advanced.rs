@@ -223,9 +223,7 @@ impl ToolHandler for AdvancedToolsHandler {
                                     .await
                                     .map(|response| response.data.unwrap_or_default())
                                     .map_err(|e| {
-                                        mill_foundation::protocol::ApiError::Plugin(
-                                            e.to_string(),
-                                        )
+                                        mill_foundation::protocol::ApiError::Plugin(e.to_string())
                                     })?
                             }
                         };

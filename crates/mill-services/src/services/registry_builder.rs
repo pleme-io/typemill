@@ -131,7 +131,10 @@ mod tests {
     fn test_registry_builder_creates_non_empty_registry() {
         let registry = build_language_plugin_registry();
         // This test requires that plugins are linked and have registered themselves.
-        assert!(!registry.all().is_empty(), "No plugins were discovered. Ensure language crates are linked and use mill_plugin!.");
+        assert!(
+            !registry.all().is_empty(),
+            "No plugins were discovered. Ensure language crates are linked and use mill_plugin!."
+        );
     }
 
     #[test]

@@ -3,12 +3,12 @@
 //! Provides synchronous import parsing, analysis, and rewriting for Python code.
 //! Implements the segregated import traits from mill-plugin-api.
 
+use mill_foundation::protocol::DependencyUpdate;
 use mill_lang_common::import_helpers::{remove_lines_matching, replace_in_lines};
 use mill_plugin_api::{
-    ImportParser, ImportRenameSupport, ImportMoveSupport, ImportMutationSupport,
-    ImportAdvancedSupport, PluginResult,
+    ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportParser,
+    ImportRenameSupport, PluginResult,
 };
-use mill_foundation::protocol::DependencyUpdate;
 use std::path::Path;
 use tracing::debug;
 

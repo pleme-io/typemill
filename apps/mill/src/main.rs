@@ -215,7 +215,10 @@ pub async fn run_websocket_server_with_port(port: u16) {
                 "TLS is required when binding to non-loopback addresses. \
                  Configure server.tls in config or bind to 127.0.0.1"
             );
-            eprintln!("❌ ERROR: TLS required for non-loopback host '{}'", config.server.host);
+            eprintln!(
+                "❌ ERROR: TLS required for non-loopback host '{}'",
+                config.server.host
+            );
             eprintln!("   Either:");
             eprintln!("   1. Configure server.tls.cert_path and server.tls.key_path");
             eprintln!("   2. Or bind to 127.0.0.1 (loopback only)");

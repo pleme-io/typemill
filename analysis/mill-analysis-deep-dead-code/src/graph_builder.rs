@@ -1,8 +1,11 @@
 // analysis/mill-analysis-deep-dead-code/src/graph_builder.rs
 
 use crate::ast_parser::{typescript::TypeScriptSymbolExtractor, RustSymbolExtractor};
-use mill_analysis_common::{ graph::{ DependencyGraph , SymbolNode , UsageContext } , AnalysisError , LspProvider , };
 use lsp_types::{Location, Range};
+use mill_analysis_common::{
+    graph::{DependencyGraph, SymbolNode, UsageContext},
+    AnalysisError, LspProvider,
+};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::PathBuf;

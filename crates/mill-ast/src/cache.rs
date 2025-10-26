@@ -1,7 +1,7 @@
 //! AST caching system for performance optimization
 
-use mill_foundation::protocol::{ CacheStats , ImportGraph };
 use dashmap::DashMap;
+use mill_foundation::protocol::{CacheStats, ImportGraph};
 use std::path::PathBuf;
 use std::time::SystemTime;
 use tracing::{debug, trace};

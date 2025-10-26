@@ -4,7 +4,7 @@
 //! post-processing workflow. Handles merging dependencies from source
 //! crate into target crate during consolidation.
 
-use mill_plugin_api::{ PluginError , PluginResult };
+use mill_plugin_api::{PluginError, PluginResult};
 use std::path::Path;
 use tokio::fs;
 use tracing::{info, warn};

@@ -57,7 +57,7 @@ proptest! {
     /// Property: Result is deterministic (same input = same output)
     #[test]
     fn prop_find_last_deterministic(content in ".*") {
-        let predicate = |line: &str| line.len() % 2 == 0;
+        let predicate = |line: &str| line.len().is_multiple_of(2);
         let result1 = find_last_matching_line(&content, predicate);
         let result2 = find_last_matching_line(&content, predicate);
         prop_assert_eq!(result1, result2);

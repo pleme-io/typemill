@@ -41,10 +41,7 @@ mod tests {
         // Attempt to traverse outside project root using ../
         let result = service.to_absolute_path_checked(Path::new("../../../etc/passwd"));
 
-        assert!(
-            result.is_err(),
-            "Should reject path traversal using ../"
-        );
+        assert!(result.is_err(), "Should reject path traversal using ../");
 
         if let Err(e) = result {
             assert!(
@@ -182,10 +179,7 @@ mod tests {
             if symlink_dir("C:\\Windows", &link_path).is_ok() {
                 let result = service.to_absolute_path_checked(Path::new("escape_link\\system32"));
 
-                assert!(
-                    result.is_err(),
-                    "Should reject symlink escape"
-                );
+                assert!(result.is_err(), "Should reject symlink escape");
             }
         }
     }

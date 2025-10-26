@@ -148,9 +148,7 @@ impl TestClient {
         let start = Instant::now();
         client
             .wait_for_ready(Duration::from_secs(5))
-            .unwrap_or_else(|e| {
-                panic!("Server failed to start: {}", e)
-            });
+            .unwrap_or_else(|e| panic!("Server failed to start: {}", e));
         eprintln!("✓ Server ready in {}ms", start.elapsed().as_millis());
 
         client
@@ -205,7 +203,8 @@ impl TestClient {
 
         // Check if the response contains an error field
         if let Some(error) = response.get("error") {
-            let error_msg = error.get("message")
+            let error_msg = error
+                .get("message")
                 .and_then(|m| m.as_str())
                 .unwrap_or("Unknown error");
             return Err(format!("Tool call error: {}", error_msg).into());

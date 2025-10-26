@@ -3,7 +3,7 @@
 //! Executes external validation commands (e.g., "cargo check") after applying
 //! a refactoring plan to verify the changes didn't break the codebase.
 
-use mill_foundation::protocol::{ ApiError , ApiResult as ServerResult };
+use mill_foundation::protocol::{ApiError, ApiResult as ServerResult};
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
 use tokio::process::Command;
@@ -161,7 +161,10 @@ mod tests {
         assert_eq!(result.exit_code, 0);
         assert!(result.stdout.contains("success"));
         // Duration can be 0 on fast systems with simple commands like echo
-        assert!(result.duration_ms < 1000, "Duration should be reasonable (< 1s)");
+        assert!(
+            result.duration_ms < 1000,
+            "Duration should be reasonable (< 1s)"
+        );
     }
 
     #[tokio::test]

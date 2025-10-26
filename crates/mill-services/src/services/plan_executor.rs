@@ -3,13 +3,12 @@
 //! Extracted from WorkspaceApplyHandler to provide reusable execution logic
 //! for all refactoring handlers (rename, extract, inline, move, etc.)
 
-use mill_foundation::protocol::{
-    ApiError, ApiResult as ServerResult, EditPlan, EditType, RefactorPlan, RefactorPlanExt,
-};
 use crate::services::file_service::EditPlanResult;
 use crate::{
-    ChecksumValidator, PlanConverter, PostApplyValidator, ValidationConfig,
-    ValidationResult,
+    ChecksumValidator, PlanConverter, PostApplyValidator, ValidationConfig, ValidationResult,
+};
+use mill_foundation::protocol::{
+    ApiError, ApiResult as ServerResult, EditPlan, EditType, RefactorPlan, RefactorPlanExt,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -160,7 +159,11 @@ impl PlanExecutor {
     ) -> ServerResult<ExecutionResult> {
         info!(command = %validation_config.command, "Running post-apply validation");
 
-        match self.post_apply_validator.run_validation(&validation_config).await {
+        match self
+            .post_apply_validator
+            .run_validation(&validation_config)
+            .await
+        {
             Ok(validation_result) => {
                 if validation_result.passed {
                     // Validation passed - return success
@@ -170,12 +173,14 @@ impl PlanExecutor {
                         "Post-apply validation passed"
                     );
 
-                    Ok(self.create_success_result(
-                        result,
-                        edit_plan,
-                        plan,
-                        Some(validation_result),
-                    ))
+                    Ok(
+                        self.create_success_result(
+                            result,
+                            edit_plan,
+                            plan,
+                            Some(validation_result),
+                        ),
+                    )
                 } else {
                     // Validation failed - return error with details
                     error!(

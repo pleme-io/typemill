@@ -148,7 +148,10 @@ Configuration: `crates/my-crate/Cargo.toml`
                     item.get("textDocument")
                         .and_then(|td| td.get("uri"))
                         .and_then(|uri| uri.as_str())
-                        .map(|s| s.replace("file://", "").replace(&workspace.path().to_string_lossy().to_string(), ""))
+                        .map(|s| {
+                            s.replace("file://", "")
+                                .replace(&workspace.path().to_string_lossy().to_string(), "")
+                        })
                 })
                 .collect()
         })
@@ -163,13 +166,17 @@ Configuration: `crates/my-crate/Cargo.toml`
 
     // 1. App test file (mirrors apps/mill/tests/e2e_analysis_features.rs)
     assert!(
-        files_in_plan.iter().any(|f| f.contains("apps/client-app/tests/feature_test.rs")),
+        files_in_plan
+            .iter()
+            .any(|f| f.contains("apps/client-app/tests/feature_test.rs")),
         "❌ BUG: apps/client-app/tests/feature_test.rs not in plan (has Rust import!)"
     );
 
     // 2. Examples file
     assert!(
-        files_in_plan.iter().any(|f| f.contains("examples/tests/example_test.rs")),
+        files_in_plan
+            .iter()
+            .any(|f| f.contains("examples/tests/example_test.rs")),
         "❌ BUG: examples/tests/example_test.rs not in plan"
     );
 
@@ -181,7 +188,9 @@ Configuration: `crates/my-crate/Cargo.toml`
 
     // 4. Proposals markdown file
     assert!(
-        files_in_plan.iter().any(|f| f.contains("proposals/01_feature.md")),
+        files_in_plan
+            .iter()
+            .any(|f| f.contains("proposals/01_feature.md")),
         "❌ BUG: proposals/01_feature.md not in plan"
     );
 

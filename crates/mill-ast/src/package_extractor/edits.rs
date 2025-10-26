@@ -1,7 +1,7 @@
 use crate::error::AstError;
 use crate::package_extractor::ExtractModuleToPackageParams;
+use mill_foundation::protocol::{EditLocation, EditType, TextEdit};
 use mill_plugin_api::LanguagePlugin;
-use mill_foundation::protocol::{ EditLocation , EditType , TextEdit };
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tracing::debug;

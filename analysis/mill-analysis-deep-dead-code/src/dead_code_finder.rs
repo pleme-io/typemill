@@ -1,7 +1,7 @@
 // analysis/mill-analysis-deep-dead-code/src/dead_code_finder.rs
 
 use crate::DeepDeadCodeConfig;
-use mill_analysis_common::graph::{ DependencyGraph , SymbolNode };
+use mill_analysis_common::graph::{DependencyGraph, SymbolNode};
 use std::collections::HashSet;
 use std::path::Path;
 use tracing::info;

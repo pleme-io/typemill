@@ -3,8 +3,8 @@
 
 mod common;
 
-use mill_server::services::{ FileOperation , OperationType };
 use mill_foundation::protocol::ApiError;
+use mill_server::services::{FileOperation, OperationType};
 use serde_json::json;
 use std::path::PathBuf;
 use std::sync::Arc;

@@ -53,10 +53,7 @@ fn test_app_config_contract() {
 
     // Verify logging config
     assert_eq!(config.logging.level, "info");
-    assert_eq!(
-        config.logging.format,
-        mill_config::config::LogFormat::Json
-    );
+    assert_eq!(config.logging.format, mill_config::config::LogFormat::Json);
     if let Some(file) = &config.logging.file {
         assert_eq!(file.path.to_str().unwrap(), "/tmp/codeflow.log");
         assert_eq!(file.max_size_bytes, 10485760);

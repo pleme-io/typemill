@@ -1,6 +1,8 @@
 //! Cargo package detection and manifest handling for directory moves
 
-use mill_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult , EditLocation , EditType , TextEdit , };
+use mill_foundation::protocol::{
+    ApiError as ServerError, ApiResult as ServerResult, EditLocation, EditType, TextEdit,
+};
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 use tokio::fs;
@@ -290,11 +292,7 @@ pub async fn plan_workspace_manifest_updates(
                 // Normalize comparison: trim whitespace from both sides to handle formatting quirks
                 let index_opt = members
                     .iter()
-                    .position(|m| {
-                        m.as_str()
-                            .map(|s| s.trim())
-                            == Some(old_path_str.trim())
-                    });
+                    .position(|m| m.as_str().map(|s| s.trim()) == Some(old_path_str.trim()));
 
                 if let Some(index) = index_opt {
                     // Update in-place to preserve array order and formatting
@@ -313,7 +311,8 @@ pub async fn plan_workspace_manifest_updates(
                         .map(|s| s.replace('_', "-"))
                         .unwrap_or_default();
 
-                    if let Some(deps) = doc.get_mut("workspace")
+                    if let Some(deps) = doc
+                        .get_mut("workspace")
                         .and_then(|w| w.get_mut("dependencies"))
                         .and_then(|d| d.as_table_mut())
                     {
@@ -592,7 +591,10 @@ async fn plan_single_cargo_toml_dependency_update(
                         // Handle "crate-name/feature-name" syntax
                         if let Some((crate_part, feature_part)) = feature_ref.split_once('/') {
                             if crate_part == old_crate_name {
-                                *item = toml_edit::Value::from(format!("{}/{}", new_crate_name, feature_part));
+                                *item = toml_edit::Value::from(format!(
+                                    "{}/{}",
+                                    new_crate_name, feature_part
+                                ));
                                 updated = true;
                             }
                         }

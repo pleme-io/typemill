@@ -77,14 +77,17 @@ export function undocumented2() {
 "#;
     workspace.create_file("coverage_test.ts", code);
 
-    let result = analyze_documentation(&workspace, &mut client, "coverage", "coverage_test.ts").await;
+    let result =
+        analyze_documentation(&workspace, &mut client, "coverage", "coverage_test.ts").await;
 
     // Verify result structure
     assert_eq!(result.metadata.category, "documentation");
     assert_eq!(result.metadata.kind, "coverage");
     assert!(result.summary.symbols_analyzed.is_some());
 
-    if skip_if_no_symbols(&result) { return; }
+    if skip_if_no_symbols(&result) {
+        return;
+    }
 
     // Verify coverage findings
     assert!(!result.findings.is_empty());
@@ -97,10 +100,16 @@ export function undocumented2() {
     assert!(metrics.contains_key("documented_count"));
     assert!(metrics.contains_key("undocumented_count"));
 
-    let coverage = metrics.get("coverage_percentage").and_then(|v| v.as_f64()).unwrap();
+    let coverage = metrics
+        .get("coverage_percentage")
+        .and_then(|v| v.as_f64())
+        .unwrap();
     assert!(coverage >= 0.0 && coverage <= 100.0);
 
-    let undocumented = metrics.get("undocumented_count").and_then(|v| v.as_u64()).unwrap();
+    let undocumented = metrics
+        .get("undocumented_count")
+        .and_then(|v| v.as_u64())
+        .unwrap();
     assert!(undocumented > 0, "Should detect undocumented items");
 }
 
@@ -133,7 +142,9 @@ export function trivial() {
     assert_eq!(result.metadata.kind, "quality");
     assert!(result.summary.symbols_analyzed.is_some());
 
-    if skip_if_no_symbols(&result) { return; }
+    if skip_if_no_symbols(&result) {
+        return;
+    }
 
     // Verify quality findings
     assert!(!result.findings.is_empty());
@@ -174,7 +185,9 @@ export function fn4() { return 4; }
     assert_eq!(result.metadata.kind, "style");
     assert!(result.summary.symbols_analyzed.is_some());
 
-    if skip_if_no_symbols(&result) { return; }
+    if skip_if_no_symbols(&result) {
+        return;
+    }
 
     // Verify style findings
     assert!(!result.findings.is_empty());
@@ -224,12 +237,15 @@ export function anotherComplex(x: string, y: number[]): boolean {
 "#;
     workspace.create_file("examples_test.ts", code);
 
-    let result = analyze_documentation(&workspace, &mut client, "examples", "examples_test.ts").await;
+    let result =
+        analyze_documentation(&workspace, &mut client, "examples", "examples_test.ts").await;
 
     assert_eq!(result.metadata.kind, "examples");
     assert!(result.summary.symbols_analyzed.is_some());
 
-    if skip_if_no_symbols(&result) { return; }
+    if skip_if_no_symbols(&result) {
+        return;
+    }
 
     // Verify examples findings
     assert!(!result.findings.is_empty());
@@ -279,7 +295,9 @@ export function noteFunction(): string {
     assert_eq!(result.metadata.kind, "todos");
     assert!(result.summary.symbols_analyzed.is_some());
 
-    if skip_if_no_symbols(&result) { return; }
+    if skip_if_no_symbols(&result) {
+        return;
+    }
 
     // Verify todos findings
     assert!(!result.findings.is_empty());
@@ -295,7 +313,8 @@ export function noteFunction(): string {
 
     // Check for categorization
     if metrics.contains_key("todos_by_category") {
-        let by_category = metrics.get("todos_by_category")
+        let by_category = metrics
+            .get("todos_by_category")
             .and_then(|v| v.as_object())
             .expect("Should have todos_by_category");
         assert!(!by_category.is_empty());

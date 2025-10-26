@@ -1,9 +1,9 @@
 //! Service for managing import updates across the codebase
 
-use mill_plugin_api::PluginRegistry;
-use mill_ast::{ find_project_files , update_imports_for_rename , ImportPathResolver };
+use mill_ast::{find_project_files, update_imports_for_rename, ImportPathResolver};
 use mill_foundation::protocol::DependencyUpdate;
-use mill_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
+use mill_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
+use mill_plugin_api::PluginRegistry;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::fs;

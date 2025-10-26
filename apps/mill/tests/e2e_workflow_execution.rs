@@ -9,7 +9,7 @@
 //! - Workflow failure and rollback scenarios
 //! - Intent-based workflow planning and execution
 
-use mill_test_support::harness::{ TestClient , TestWorkspace };
+use mill_test_support::harness::{TestClient, TestWorkspace};
 use serde_json::json;
 
 /// Test complex workflow with multiple dependencies

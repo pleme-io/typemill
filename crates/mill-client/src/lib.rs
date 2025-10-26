@@ -280,9 +280,7 @@ pub enum Commands {
     #[command(
         long_about = "Execute a raw MCP tool on the server. This is useful for scripting and advanced operations."
     )]
-    #[command(
-        after_help = "Example: mill tool read_file '{\"file_path\":\"/path/to/file.txt\"}'"
-    )]
+    #[command(after_help = "Example: mill tool read_file '{\"file_path\":\"/path/to/file.txt\"}'")]
     Call {
         /// The name of the MCP tool to execute (e.g., `read_file`, `get_hover`).
         tool: String,

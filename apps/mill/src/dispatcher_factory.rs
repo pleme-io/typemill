@@ -18,8 +18,8 @@ pub async fn create_initialized_dispatcher_with_workspace(
     workspace_manager: Arc<WorkspaceManager>,
 ) -> Result<Arc<PluginDispatcher>, std::io::Error> {
     // Load configuration
-    let config = mill_config::config::AppConfig::load()
-        .map_err(|e| std::io::Error::other(e.to_string()))?;
+    let config =
+        mill_config::config::AppConfig::load().map_err(|e| std::io::Error::other(e.to_string()))?;
 
     // Build plugin registry from the plugin bundle
     let plugins = mill_plugin_bundle::all_plugins();

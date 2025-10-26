@@ -34,7 +34,12 @@ async fn test_move_folder_with_imports() {
         let mut client = TestClient::new(workspace.path());
 
         // Use build_move_params helper
-        let params = build_move_params(&workspace, case.old_file_path, case.new_file_path, "directory");
+        let params = build_move_params(
+            &workspace,
+            case.old_file_path,
+            case.new_file_path,
+            "directory",
+        );
 
         // Apply with unified API (dryRun: false)
         let mut params_exec = params.clone();
@@ -72,16 +77,26 @@ async fn test_move_file_plan_and_apply() {
         "move",
         |ws| build_move_params(ws, "src/helper.rs", "lib/helper.rs", "file"),
         |plan| {
-            assert_eq!(plan.get("planType").and_then(|v| v.as_str()), Some("movePlan"), "Should be MovePlan");
+            assert_eq!(
+                plan.get("planType").and_then(|v| v.as_str()),
+                Some("movePlan"),
+                "Should be MovePlan"
+            );
             Ok(())
         },
         |ws| {
             assert!(!ws.file_exists("src/helper.rs"), "Source should be deleted");
             assert!(ws.file_exists("lib/helper.rs"), "Destination should exist");
-            assert_eq!(ws.read_file("lib/helper.rs"), "pub fn helper() -> i32 { 42 }\n", "Content preserved");
+            assert_eq!(
+                ws.read_file("lib/helper.rs"),
+                "pub fn helper() -> i32 { 42 }\n",
+                "Content preserved"
+            );
             Ok(())
-        }
-    ).await.unwrap();
+        },
+    )
+    .await
+    .unwrap();
 }
 
 /// Test 3: Dry-run mode (CLOSURE-BASED API)
@@ -97,11 +112,16 @@ async fn test_move_file_dry_run_preview() {
         "move",
         |ws| build_move_params(ws, "source/file.rs", "target/file.rs", "file"),
         |ws| {
-            assert!(ws.file_exists("source/file.rs"), "Source should still exist");
+            assert!(
+                ws.file_exists("source/file.rs"),
+                "Source should still exist"
+            );
             assert!(!ws.file_exists("target/file.rs"), "Target should NOT exist");
             Ok(())
-        }
-    ).await.unwrap();
+        },
+    )
+    .await
+    .unwrap();
 }
 
 /// Test 4: Plan structure validation
@@ -117,7 +137,12 @@ async fn test_move_module_plan_structure() {
     let mut client = TestClient::new(workspace.path());
 
     // Use dryRun: true to get the plan structure
-    let mut params = build_move_params(&workspace, "old_location/module.rs", "new_location/module.rs", "file");
+    let mut params = build_move_params(
+        &workspace,
+        "old_location/module.rs",
+        "new_location/module.rs",
+        "file",
+    );
     params["options"] = json!({"dryRun": true});
 
     let plan = client

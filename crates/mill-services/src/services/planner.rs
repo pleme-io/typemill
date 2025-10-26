@@ -1,6 +1,6 @@
 //! The Planner service for converting Intents into executable Workflows.
 
-use mill_foundation::core::model::workflow::{ Intent , Step , Workflow , WorkflowMetadata };
+use mill_foundation::core::model::workflow::{Intent, Step, Workflow, WorkflowMetadata};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -487,7 +487,11 @@ mod tests {
         };
 
         let result = planner.plan_for_intent(&intent);
-        assert!(result.is_ok(), "Workflow planning should succeed. Error: {:?}", result.as_ref().err());
+        assert!(
+            result.is_ok(),
+            "Workflow planning should succeed. Error: {:?}",
+            result.as_ref().err()
+        );
 
         let workflow = result.unwrap();
         assert_eq!(

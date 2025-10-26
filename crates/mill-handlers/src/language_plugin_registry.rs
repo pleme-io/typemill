@@ -9,7 +9,7 @@
 //! injected via `from_registry()`. This eliminates compile-time coupling between
 //! the handler layer and specific language implementations.
 
-use mill_plugin_api::{ LanguagePlugin , PluginRegistry };
+use mill_plugin_api::{LanguagePlugin, PluginRegistry};
 use std::sync::Arc;
 use tracing::debug;
 

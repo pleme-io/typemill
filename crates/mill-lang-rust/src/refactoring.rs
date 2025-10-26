@@ -2,8 +2,10 @@
 //!
 //! This module provides AST-based refactoring capabilities for Rust code.
 
+use mill_foundation::protocol::{
+    EditLocation, EditPlan, EditPlanMetadata, EditType, TextEdit, ValidationRule, ValidationType,
+};
 use mill_lang_common::LineExtractor;
-use mill_foundation::protocol::{ EditLocation , EditPlan , EditPlanMetadata , EditType , TextEdit , ValidationRule , ValidationType , };
 use std::collections::HashMap;
 
 /// Plan extract function refactoring for Rust

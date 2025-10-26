@@ -1,8 +1,8 @@
 // analysis/mill-analysis-deep-dead-code/tests/deep_dead_code_test.rs
 
 use async_trait::async_trait;
-use mill_analysis_common::{ AnalysisEngine , AnalysisError , LspProvider };
-use mill_analysis_deep_dead_code::{ DeepDeadCodeAnalyzer , DeepDeadCodeConfig };
+use mill_analysis_common::{AnalysisEngine, AnalysisError, LspProvider};
+use mill_analysis_deep_dead_code::{DeepDeadCodeAnalyzer, DeepDeadCodeConfig};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::fs;

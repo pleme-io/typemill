@@ -1,7 +1,7 @@
 //! A fluent builder for setting up LSP integration tests.
 
 use crate::harness::{MockLspService, RealLspService, TestWorkspace};
-use mill_foundation::protocol::{ ApiError , LspService };
+use mill_foundation::protocol::{ApiError, LspService};
 use std::sync::Arc;
 
 /// Test mode for LSP services

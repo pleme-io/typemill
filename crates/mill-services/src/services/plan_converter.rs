@@ -3,8 +3,11 @@
 //! Converts LSP WorkspaceEdit structures to internal EditPlan format.
 //! Handles all edit types: Replace, Create, Move, Delete.
 
-use mill_foundation::protocol::{ ApiError , ApiResult as ServerResult , ConsolidationMetadata , EditPlan , EditPlanMetadata , EditType , RefactorPlan , RefactorPlanExt , TextEdit , };
 use lsp_types::{Uri, WorkspaceEdit};
+use mill_foundation::protocol::{
+    ApiError, ApiResult as ServerResult, ConsolidationMetadata, EditPlan, EditPlanMetadata,
+    EditType, RefactorPlan, RefactorPlanExt, TextEdit,
+};
 use std::path::Path;
 use tracing::{debug, info};
 

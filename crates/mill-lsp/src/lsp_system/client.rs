@@ -2,7 +2,7 @@
 
 use crate::progress::{ProgressError, ProgressManager, ProgressParams, ProgressToken};
 use mill_config::LspServerConfig;
-use mill_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
+use mill_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::process::Stdio;

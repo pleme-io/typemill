@@ -3,14 +3,14 @@
 mod conventions;
 mod flag_parser;
 
-use mill_client::format_plan;
-use mill_transport::SessionInfo;
 use clap::{Parser, Subcommand};
+use fs2::FileExt;
+use mill_client::format_plan;
 use mill_config::config::AppConfig;
 use mill_foundation::core::utils::system::command_exists;
 use mill_foundation::protocol::analysis_result::AnalysisResult;
 use mill_foundation::protocol::refactor_plan::RefactorPlan;
-use fs2::FileExt;
+use mill_transport::SessionInfo;
 use std::fs::{File, OpenOptions};
 use std::path::PathBuf;
 use std::process;
@@ -100,7 +100,6 @@ pub enum Commands {
         // === Common flags across refactoring tools ===
         // NOTE: Not all flags work with all tools. Tool-specific validation
         // will provide helpful errors if you use the wrong flags.
-
         /// Target (format: kind:path or kind:path:line:char)
         /// Used by: rename, inline, reorder, transform, delete
         #[arg(long, conflicts_with_all = ["args", "input_file"])]
@@ -450,7 +449,7 @@ async fn handle_cycles_command(command: Cycles) {
         }
     };
 
-    use mill_foundation::core::model::mcp::{ McpMessage , McpRequest };
+    use mill_foundation::core::model::mcp::{McpMessage, McpRequest};
     let params = serde_json::json!({
         "name": "analyze.circular_dependencies",
         "arguments": args,
@@ -495,8 +494,7 @@ async fn handle_cycles_command(command: Cycles) {
             process::exit(1);
         }
         Err(server_error) => {
-            let api_error =
-                mill_foundation::protocol::ApiError::internal(server_error.to_string());
+            let api_error = mill_foundation::protocol::ApiError::internal(server_error.to_string());
             output_error(&api_error, &command.format);
             process::exit(1);
         }
@@ -517,16 +515,16 @@ async fn handle_dead_code_command(command: DeadCode) {
     handle_tool_command(
         "analyze.dead_code",
         Some(&args_json),
-        None, // input_file
-        None, // target
-        None, // source
-        None, // destination
-        None, // new_name
-        None, // name
-        None, // kind
-        None, // scope
-        None, // update_comments
-        None, // update_markdown_prose
+        None,  // input_file
+        None,  // target
+        None,  // source
+        None,  // destination
+        None,  // new_name
+        None,  // name
+        None,  // kind
+        None,  // scope
+        None,  // update_comments
+        None,  // update_markdown_prose
         false, // update_all
         "pretty",
     )
@@ -1019,116 +1017,117 @@ async fn handle_tool_command(
     use std::io::{self, Read};
 
     // Build arguments from either JSON, file, stdin, or flags
-    let arguments: serde_json::Value = if let Some(file_path) = input_file {
-        // Read JSON from file
-        let json = match std::fs::read_to_string(file_path) {
-            Ok(content) => content,
-            Err(e) => {
-                let error = mill_foundation::core::model::mcp::McpError::invalid_request(
-                    format!("Failed to read input file '{}': {}", file_path, e),
-                );
-                let api_error = mill_foundation::protocol::ApiError::from(error);
-                output_error(&api_error, format);
-                process::exit(1);
-            }
-        };
-        match serde_json::from_str(&json) {
-            Ok(val) => val,
-            Err(e) => {
-                let error = mill_foundation::core::model::mcp::McpError::invalid_request(
-                    format!("Invalid JSON in file '{}': {}", file_path, e),
-                );
-                let api_error = mill_foundation::protocol::ApiError::from(error);
-                output_error(&api_error, format);
-                process::exit(1);
-            }
-        }
-    } else if let Some(json) = args_json {
-        // Check if args is "-" for stdin
-        if json == "-" {
-            // Read JSON from stdin
-            let mut stdin_content = String::new();
-            if let Err(e) = io::stdin().read_to_string(&mut stdin_content) {
-                let error = mill_foundation::core::model::mcp::McpError::invalid_request(
-                    format!("Failed to read from stdin: {}", e),
-                );
-                let api_error = mill_foundation::protocol::ApiError::from(error);
-                output_error(&api_error, format);
-                process::exit(1);
-            }
-            match serde_json::from_str(&stdin_content) {
-                Ok(val) => val,
+    let arguments: serde_json::Value =
+        if let Some(file_path) = input_file {
+            // Read JSON from file
+            let json = match std::fs::read_to_string(file_path) {
+                Ok(content) => content,
                 Err(e) => {
                     let error = mill_foundation::core::model::mcp::McpError::invalid_request(
-                        format!("Invalid JSON from stdin: {}", e),
+                        format!("Failed to read input file '{}': {}", file_path, e),
                     );
                     let api_error = mill_foundation::protocol::ApiError::from(error);
                     output_error(&api_error, format);
                     process::exit(1);
+                }
+            };
+            match serde_json::from_str(&json) {
+                Ok(val) => val,
+                Err(e) => {
+                    let error = mill_foundation::core::model::mcp::McpError::invalid_request(
+                        format!("Invalid JSON in file '{}': {}", file_path, e),
+                    );
+                    let api_error = mill_foundation::protocol::ApiError::from(error);
+                    output_error(&api_error, format);
+                    process::exit(1);
+                }
+            }
+        } else if let Some(json) = args_json {
+            // Check if args is "-" for stdin
+            if json == "-" {
+                // Read JSON from stdin
+                let mut stdin_content = String::new();
+                if let Err(e) = io::stdin().read_to_string(&mut stdin_content) {
+                    let error = mill_foundation::core::model::mcp::McpError::invalid_request(
+                        format!("Failed to read from stdin: {}", e),
+                    );
+                    let api_error = mill_foundation::protocol::ApiError::from(error);
+                    output_error(&api_error, format);
+                    process::exit(1);
+                }
+                match serde_json::from_str(&stdin_content) {
+                    Ok(val) => val,
+                    Err(e) => {
+                        let error = mill_foundation::core::model::mcp::McpError::invalid_request(
+                            format!("Invalid JSON from stdin: {}", e),
+                        );
+                        let api_error = mill_foundation::protocol::ApiError::from(error);
+                        output_error(&api_error, format);
+                        process::exit(1);
+                    }
+                }
+            } else {
+                // Use JSON string directly
+                match serde_json::from_str(json) {
+                    Ok(val) => val,
+                    Err(e) => {
+                        let error = mill_foundation::core::model::mcp::McpError::invalid_request(
+                            format!("Invalid JSON arguments: {}", e),
+                        );
+                        let api_error = mill_foundation::protocol::ApiError::from(error);
+                        output_error(&api_error, format);
+                        process::exit(1);
+                    }
                 }
             }
         } else {
-            // Use JSON string directly
-            match serde_json::from_str(json) {
-                Ok(val) => val,
+            // Build from flags using flag_parser
+            let mut flags = HashMap::new();
+            if let Some(v) = target {
+                flags.insert("target".to_string(), v.to_string());
+            }
+            if let Some(v) = source {
+                flags.insert("source".to_string(), v.to_string());
+            }
+            if let Some(v) = destination {
+                flags.insert("destination".to_string(), v.to_string());
+            }
+            if let Some(v) = new_name {
+                flags.insert("new_name".to_string(), v.to_string());
+            }
+            if let Some(v) = name {
+                flags.insert("name".to_string(), v.to_string());
+            }
+            if let Some(v) = kind {
+                flags.insert("kind".to_string(), v.to_string());
+            }
+            if let Some(v) = scope {
+                flags.insert("scope".to_string(), v.to_string());
+            }
+
+            // Handle update flags (opt-in flags only - scope presets handle defaults)
+            if update_all {
+                flags.insert("update_all".to_string(), "true".to_string());
+            }
+            if let Some(v) = update_comments {
+                flags.insert("update_comments".to_string(), v.to_string());
+            }
+            if let Some(v) = update_markdown_prose {
+                flags.insert("update_markdown_prose".to_string(), v.to_string());
+            }
+
+            match flag_parser::parse_flags_to_json(tool_name, flags) {
+                Ok(json) => json,
                 Err(e) => {
-                    let error = mill_foundation::core::model::mcp::McpError::invalid_request(
-                        format!("Invalid JSON arguments: {}", e),
-                    );
-                    let api_error = mill_foundation::protocol::ApiError::from(error);
-                    output_error(&api_error, format);
+                    let error = mill_foundation::protocol::ApiError::InvalidRequest(format!(
+                        "Invalid flag arguments: {}",
+                        e
+                    ));
+                    output_error(&error, format);
                     process::exit(1);
                 }
             }
-        }
-    } else {
-        // Build from flags using flag_parser
-        let mut flags = HashMap::new();
-        if let Some(v) = target {
-            flags.insert("target".to_string(), v.to_string());
-        }
-        if let Some(v) = source {
-            flags.insert("source".to_string(), v.to_string());
-        }
-        if let Some(v) = destination {
-            flags.insert("destination".to_string(), v.to_string());
-        }
-        if let Some(v) = new_name {
-            flags.insert("new_name".to_string(), v.to_string());
-        }
-        if let Some(v) = name {
-            flags.insert("name".to_string(), v.to_string());
-        }
-        if let Some(v) = kind {
-            flags.insert("kind".to_string(), v.to_string());
-        }
-        if let Some(v) = scope {
-            flags.insert("scope".to_string(), v.to_string());
-        }
-
-        // Handle update flags (opt-in flags only - scope presets handle defaults)
-        if update_all {
-            flags.insert("update_all".to_string(), "true".to_string());
-        }
-        if let Some(v) = update_comments {
-            flags.insert("update_comments".to_string(), v.to_string());
-        }
-        if let Some(v) = update_markdown_prose {
-            flags.insert("update_markdown_prose".to_string(), v.to_string());
-        }
-
-        match flag_parser::parse_flags_to_json(tool_name, flags) {
-            Ok(json) => json,
-            Err(e) => {
-                let error = mill_foundation::protocol::ApiError::InvalidRequest(format!(
-                    "Invalid flag arguments: {}",
-                    e
-                ));
-                output_error(&error, format);
-                process::exit(1);
-            }
-        }
-    };
+        };
 
     // Initialize dispatcher via factory
     let dispatcher = match crate::dispatcher_factory::create_initialized_dispatcher().await {
@@ -1144,7 +1143,7 @@ async fn handle_tool_command(
     };
 
     // Construct MCP request message
-    use mill_foundation::core::model::mcp::{ McpMessage , McpRequest };
+    use mill_foundation::core::model::mcp::{McpMessage, McpRequest};
     let params = serde_json::json!({
         "name": tool_name,
         "arguments": arguments,
@@ -1192,8 +1191,7 @@ async fn handle_tool_command(
         }
         Err(server_error) => {
             // Convert ServerError to ApiError and output to stderr
-            let api_error =
-                mill_foundation::protocol::ApiError::internal(server_error.to_string());
+            let api_error = mill_foundation::protocol::ApiError::internal(server_error.to_string());
             output_error(&api_error, format);
             process::exit(1);
         }
@@ -1209,8 +1207,8 @@ async fn handle_convert_naming(
     dry_run: bool,
     format: &str,
 ) {
-    use mill_foundation::core::model::mcp::{ McpMessage , McpRequest };
     use glob::glob;
+    use mill_foundation::core::model::mcp::{McpMessage, McpRequest};
     use serde_json::json;
 
     // Scan files matching glob pattern
@@ -1246,7 +1244,9 @@ async fn handle_convert_naming(
 
         if let Some(fname) = filename {
             // Try to convert the filename
-            if let Some(new_filename) = conventions::convert_filename(fname, from_convention, to_convention) {
+            if let Some(new_filename) =
+                conventions::convert_filename(fname, from_convention, to_convention)
+            {
                 // Skip if no change
                 if fname == new_filename {
                     skipped.push(file_path.clone());
@@ -1278,10 +1278,17 @@ async fn handle_convert_naming(
     }
 
     // Show preview
-    println!("🔄 Converting {} {} from {} to {}", targets.len(), target_type, from_convention, to_convention);
+    println!(
+        "🔄 Converting {} {} from {} to {}",
+        targets.len(),
+        target_type,
+        from_convention,
+        to_convention
+    );
     println!();
     for target in &targets {
-        println!("  {} → {}",
+        println!(
+            "  {} → {}",
             target["path"].as_str().unwrap(),
             target["new_name"].as_str().unwrap()
         );
@@ -1362,15 +1369,19 @@ async fn handle_convert_naming(
                     };
 
                     println!("🚀 Applying renames...");
-                    match dispatcher.dispatch(McpMessage::Request(apply_request), &session_info).await {
+                    match dispatcher
+                        .dispatch(McpMessage::Request(apply_request), &session_info)
+                        .await
+                    {
                         Ok(McpMessage::Response(apply_response)) => {
                             if apply_response.error.is_some() {
                                 eprintln!("❌ Failed to apply renames");
                                 output_error(
-                                    &mill_foundation::protocol::ApiError::internal(
-                                        format!("{:?}", apply_response.error)
-                                    ),
-                                    format
+                                    &mill_foundation::protocol::ApiError::internal(format!(
+                                        "{:?}",
+                                        apply_response.error
+                                    )),
+                                    format,
                                 );
                                 process::exit(1);
                             } else {

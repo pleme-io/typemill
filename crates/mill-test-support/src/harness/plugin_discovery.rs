@@ -5,7 +5,7 @@
 //! plugin testing where adding a new language plugin automatically
 //! includes it in the test suite.
 
-use mill_plugin_api::{ LanguagePlugin , LanguageTestFixtures , PluginRegistry };
+use mill_plugin_api::{LanguagePlugin, LanguageTestFixtures, PluginRegistry};
 use mill_services::services::registry_builder::build_language_plugin_registry;
 use once_cell::sync::OnceCell;
 use std::sync::Arc;

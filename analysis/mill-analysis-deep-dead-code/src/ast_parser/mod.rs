@@ -5,8 +5,8 @@
 
 pub mod typescript;
 
-use mill_analysis_common::graph::{ SymbolKind , SymbolNode };
 use lsp_types::{Position, Range};
+use mill_analysis_common::graph::{SymbolKind, SymbolNode};
 use std::fs;
 use std::path::Path;
 use syn::spanned::Spanned;

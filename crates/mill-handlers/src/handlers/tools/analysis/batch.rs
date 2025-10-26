@@ -7,9 +7,11 @@ use super::{
     suggestions::{SuggestionConfig, SuggestionGenerator},
     tests_handler, AnalysisConfig,
 };
-use mill_plugin_api::Symbol;
-use mill_foundation::protocol::analysis_result::{ AnalysisResult , AnalysisScope , Finding , FindingLocation , Position , Range , Severity , };
 use ignore::WalkBuilder;
+use mill_foundation::protocol::analysis_result::{
+    AnalysisResult, AnalysisScope, Finding, FindingLocation, Position, Range, Severity,
+};
+use mill_plugin_api::Symbol;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
@@ -404,12 +406,8 @@ async fn analyze_file_with_cached_ast(
                 for func in &cached_ast.complexity_report.functions {
                     if func.complexity.cognitive >= 10 || func.complexity.cyclomatic >= 15 {
                         let severity = match func.rating {
-                            mill_ast::complexity::ComplexityRating::VeryComplex => {
-                                Severity::High
-                            }
-                            mill_ast::complexity::ComplexityRating::Complex => {
-                                Severity::Medium
-                            }
+                            mill_ast::complexity::ComplexityRating::VeryComplex => Severity::High,
+                            mill_ast::complexity::ComplexityRating::Complex => Severity::Medium,
                             _ => Severity::Low,
                         };
 

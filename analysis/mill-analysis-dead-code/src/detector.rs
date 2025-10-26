@@ -3,8 +3,8 @@
 use crate::config::DeadCodeConfig;
 use crate::types::{AnalysisStats, DeadCodeReport, DeadSymbol};
 use crate::utils::{is_symbol_exported, lsp_kind_to_string};
-use mill_analysis_common::{ AnalysisError , LspProvider };
 use futures::stream::{FuturesUnordered, StreamExt};
+use mill_analysis_common::{AnalysisError, LspProvider};
 use serde_json::{json, Value};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};

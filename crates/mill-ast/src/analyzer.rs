@@ -2,7 +2,9 @@
 
 use crate::error::{AstError, AstResult};
 use mill_foundation::core::model::IntentSpec;
-use mill_foundation::protocol::{ EditLocation , EditPlan , EditPlanMetadata , EditType , TextEdit , ValidationRule , ValidationType , };
+use mill_foundation::protocol::{
+    EditLocation, EditPlan, EditPlanMetadata, EditType, TextEdit, ValidationRule, ValidationType,
+};
 // serde traits no longer needed here
 use std::collections::HashMap;
 // Edit plan types now come from cb-api

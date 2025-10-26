@@ -23,8 +23,8 @@
 //! - **remove_lines_matching**: < 500us for 1K lines
 //! - **replace_in_lines**: < 1ms for 1K lines with 100 replacements
 
-use mill_lang_common::import_helpers::*;
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use mill_lang_common::import_helpers::*;
 
 // ============================================================================
 // Test Data Generation
@@ -273,7 +273,7 @@ fn bench_replace_in_lines(c: &mut Criterion) {
     let content_imports = (0..1_000)
         .map(|i| {
             if i % 10 == 0 {
-                format!("import {{ Foo }} from 'old-package';")
+                "import { Foo } from 'old-package';".to_string()
             } else {
                 format!("class Class_{} {{}}", i)
             }

@@ -24,7 +24,10 @@ version = "0.1.0"
 edition = "2021"
 "#,
             ),
-            ("crates/utils/src/lib.rs", "pub fn utility() -> i32 { 42 }\n"),
+            (
+                "crates/utils/src/lib.rs",
+                "pub fn utility() -> i32 { 42 }\n",
+            ),
             (
                 "crates/app/Cargo.toml",
                 r#"[package]
@@ -106,7 +109,10 @@ version = "0.1.0"
 edition = "2021"
 "#,
             ),
-            ("crates/utils/src/lib.rs", "pub fn utility() -> i32 { 42 }\n"),
+            (
+                "crates/utils/src/lib.rs",
+                "pub fn utility() -> i32 { 42 }\n",
+            ),
             (
                 "crates/app/Cargo.toml",
                 r#"[package]

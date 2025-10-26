@@ -1,5 +1,5 @@
-use mill_lsp::lsp_system::client::LspClient;
 use mill_config::config::LspServerConfig;
+use mill_lsp::lsp_system::client::LspClient;
 use std::time::Duration;
 
 #[tokio::main]

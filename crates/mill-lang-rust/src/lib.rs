@@ -322,7 +322,9 @@ impl mill_plugin_api::RefactoringProvider for RustPlugin {
             variable_name,
             file_path,
         )
-        .map_err(|e| mill_plugin_api::PluginError::internal(format!("Rust refactoring error: {}", e)))
+        .map_err(|e| {
+            mill_plugin_api::PluginError::internal(format!("Rust refactoring error: {}", e))
+        })
     }
 }
 
@@ -747,7 +749,7 @@ impl RustPlugin {
         module_to_find: &str,
         _scope: mill_plugin_api::ScanScope,
     ) -> PluginResult<Vec<mill_plugin_api::ModuleReference>> {
-        use mill_plugin_api::{ ModuleReference , ReferenceKind };
+        use mill_plugin_api::{ModuleReference, ReferenceKind};
         use syn::{File, Item};
 
         let ast: File = syn::parse_file(content).map_err(|e| {
@@ -954,8 +956,11 @@ impl RustPlugin {
                     "Converting crate names for Rust import rewriting"
                 );
 
-                let (new_content, changes) =
-                    rename_support.rewrite_imports_for_rename(&updated_content, &old_rust_name, &new_rust_name);
+                let (new_content, changes) = rename_support.rewrite_imports_for_rename(
+                    &updated_content,
+                    &old_rust_name,
+                    &new_rust_name,
+                );
                 total_changes += changes;
                 updated_content = new_content;
             } else {
@@ -1454,11 +1459,20 @@ pub use old_lsp::LspClient;
 
         // Should update 2 comments
         assert!(count >= 2, "Should have at least 2 changes, got {}", count);
-        assert!(new_content.contains("new-lsp crate"), "Should update first comment");
-        assert!(new_content.contains("from new-lsp"), "Should update second comment");
+        assert!(
+            new_content.contains("new-lsp crate"),
+            "Should update first comment"
+        );
+        assert!(
+            new_content.contains("from new-lsp"),
+            "Should update second comment"
+        );
 
         // Should NOT update partial match
-        assert!(new_content.contains("myold-lsp"), "Should preserve partial matches");
+        assert!(
+            new_content.contains("myold-lsp"),
+            "Should preserve partial matches"
+        );
     }
 
     #[test]
@@ -1488,7 +1502,13 @@ pub use old_lsp::LspClient;
         let (new_content, _count) = result.unwrap();
 
         // Comments should NOT be updated without flag
-        assert!(new_content.contains("old-lsp crate"), "Should preserve first comment without flag");
-        assert!(new_content.contains("from old-lsp"), "Should preserve second comment without flag");
+        assert!(
+            new_content.contains("old-lsp crate"),
+            "Should preserve first comment without flag"
+        );
+        assert!(
+            new_content.contains("from old-lsp"),
+            "Should preserve second comment without flag"
+        );
     }
 }

@@ -37,11 +37,7 @@ pub fn run(args: InstallArgs) -> Result<()> {
 
     // Determine binary location
     let profile_dir = if args.dev { "debug" } else { "release" };
-    let binary_name = if cfg!(windows) {
-        "mill.exe"
-    } else {
-        "mill"
-    };
+    let binary_name = if cfg!(windows) { "mill.exe" } else { "mill" };
     let binary_path = PathBuf::from("target").join(profile_dir).join(binary_name);
 
     if !binary_path.exists() {

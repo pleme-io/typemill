@@ -2,7 +2,7 @@
 //! standalone, out-of-process RPC server that communicates over stdio.
 
 use crate::{LanguagePlugin, PluginResult};
-use mill_foundation::protocol::plugin_protocol::{ PluginRequest , PluginResponse };
+use mill_foundation::protocol::plugin_protocol::{PluginRequest, PluginResponse};
 use serde_json::Value;
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tracing::{error, info};

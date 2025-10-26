@@ -8,7 +8,7 @@
 use super::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
-use mill_foundation::protocol::{ ApiError , ApiResult as ServerResult };
+use mill_foundation::protocol::{ApiError, ApiResult as ServerResult};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
@@ -284,13 +284,7 @@ fn extract_dependencies(
         }
 
         // Add dependency to target
-        add_dependency_to_manifest(
-            &mut target_doc,
-            target_section,
-            dep_name,
-            dep_item,
-            options,
-        )?;
+        add_dependency_to_manifest(&mut target_doc, target_section, dep_name, dep_item, options)?;
 
         // Add to result
         let dep_info = extract_dependency_info(dep_name, dep_item, false);

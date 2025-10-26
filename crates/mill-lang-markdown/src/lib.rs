@@ -5,7 +5,14 @@
 
 use async_trait::async_trait;
 use mill_plugin_api::mill_plugin;
-use mill_plugin_api::{ import_support::{ ImportAdvancedSupport , ImportMoveSupport , ImportMutationSupport , ImportParser , ImportRenameSupport , } , LanguageMetadata , LanguagePlugin , ManifestData , ParsedSource , PluginCapabilities , PluginError , PluginResult , SourceLocation , Symbol , SymbolKind , };
+use mill_plugin_api::{
+    import_support::{
+        ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportParser,
+        ImportRenameSupport,
+    },
+    LanguageMetadata, LanguagePlugin, ManifestData, ParsedSource, PluginCapabilities, PluginError,
+    PluginResult, SourceLocation, Symbol, SymbolKind,
+};
 use regex::Regex;
 use std::path::Path;
 use tracing::debug;
@@ -199,11 +206,9 @@ impl LanguagePlugin for MarkdownPlugin {
 
         // Third pass: context-aware prose identifier matching (when enabled)
         if update_markdown_prose {
-            let (result3, count3) = self.import_support.update_prose_identifiers(
-                &result,
-                old_path,
-                new_path,
-            );
+            let (result3, count3) = self
+                .import_support
+                .update_prose_identifiers(&result, old_path, new_path);
 
             if count3 > 0 {
                 result = result3;

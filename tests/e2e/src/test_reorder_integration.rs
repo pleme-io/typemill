@@ -48,14 +48,7 @@ pub fn test() {}
 "#,
     );
 
-    let params = build_reorder_params(
-        &workspace,
-        "imports.rs",
-        "imports",
-        0,
-        0,
-        json!([]),
-    );
+    let params = build_reorder_params(&workspace, "imports.rs", "imports", 0, 0, json!([]));
 
     let plan_result = client.call_tool("reorder", params.clone()).await;
 
@@ -67,7 +60,10 @@ pub fn test() {}
                 return;
             }
 
-            let plan = response.get("result").and_then(|r| r.get("content")).cloned();
+            let plan = response
+                .get("result")
+                .and_then(|r| r.get("content"))
+                .cloned();
 
             // If no plan content, likely LSP not available
             if plan.is_none() {
@@ -147,7 +143,10 @@ pub fn test() {
                 return;
             }
 
-            let plan = response.get("result").and_then(|r| r.get("content")).cloned();
+            let plan = response
+                .get("result")
+                .and_then(|r| r.get("content"))
+                .cloned();
 
             // If no plan content, likely LSP not available
             if plan.is_none() {
@@ -227,7 +226,10 @@ async fn test_reorder_fields_checksum_validation() {
                 return;
             }
 
-            let plan = response.get("result").and_then(|r| r.get("content")).cloned();
+            let plan = response
+                .get("result")
+                .and_then(|r| r.get("content"))
+                .cloned();
 
             // If no plan content, likely LSP not available
             if plan.is_none() {
@@ -252,9 +254,7 @@ async fn test_reorder_fields_checksum_validation() {
             let mut params_exec = params.clone();
             params_exec["options"] = json!({"dryRun": false, "validateChecksums": true});
 
-            let apply_result = client
-                .call_tool("reorder", params_exec)
-                .await;
+            let apply_result = client.call_tool("reorder", params_exec).await;
 
             // Should fail due to checksum mismatch
             assert!(
@@ -305,7 +305,10 @@ async fn test_reorder_statements_plan_structure() {
                 return;
             }
 
-            let plan = response.get("result").and_then(|r| r.get("content")).cloned();
+            let plan = response
+                .get("result")
+                .and_then(|r| r.get("content"))
+                .cloned();
 
             // If no plan content, likely LSP not available
             if plan.is_none() {
@@ -318,10 +321,7 @@ async fn test_reorder_statements_plan_structure() {
             // Verify plan structure
             assert!(plan.get("metadata").is_some(), "Should have metadata");
             assert!(plan.get("summary").is_some(), "Should have summary");
-            assert!(
-                plan.get("fileChecksums").is_some(),
-                "Should have checksums"
-            );
+            assert!(plan.get("fileChecksums").is_some(), "Should have checksums");
 
             let metadata = plan.get("metadata").unwrap();
             assert_eq!(

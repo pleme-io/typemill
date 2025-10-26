@@ -2,7 +2,7 @@
 
 use mill_config::AppConfig;
 use mill_foundation::core::model::*;
-use mill_foundation::protocol::{ EditPlan , ImportGraph };
+use mill_foundation::protocol::{EditPlan, ImportGraph};
 use serde_json::json;
 use std::path::Path;
 
@@ -45,7 +45,7 @@ pub fn create_test_mcp_response() -> McpMessage {
 
 /// Create a test import graph
 pub fn create_test_import_graph(source_file: &str) -> ImportGraph {
-    use mill_foundation::protocol::{ ImportGraphMetadata , ImportInfo , ImportType , SourceLocation , };
+    use mill_foundation::protocol::{ImportGraphMetadata, ImportInfo, ImportType, SourceLocation};
 
     ImportGraph {
         source_file: source_file.to_string(),
@@ -76,7 +76,7 @@ pub fn create_test_import_graph(source_file: &str) -> ImportGraph {
 
 /// Create a test edit plan
 pub fn create_test_edit_plan() -> EditPlan {
-    use mill_foundation::protocol::{ EditLocation , EditPlanMetadata , EditType , TextEdit };
+    use mill_foundation::protocol::{EditLocation, EditPlanMetadata, EditType, TextEdit};
 
     EditPlan {
         source_file: "test.ts".to_string(),

@@ -1,5 +1,8 @@
 use super::FileService;
-use mill_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult , DependencyUpdate , EditPlan , EditPlanMetadata , TextEdit , };
+use mill_foundation::protocol::{
+    ApiError as ServerError, ApiResult as ServerResult, DependencyUpdate, EditPlan,
+    EditPlanMetadata, TextEdit,
+};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use tokio::fs;

@@ -1,7 +1,9 @@
 //! Mock implementations for testing
 
 use async_trait::async_trait;
-use mill_foundation::protocol::{ ApiError , AstService , CacheStats , ImportGraph , LspService , Message , };
+use mill_foundation::protocol::{
+    ApiError, AstService, CacheStats, ImportGraph, LspService, Message,
+};
 use mockall::mock;
 use std::path::Path;
 

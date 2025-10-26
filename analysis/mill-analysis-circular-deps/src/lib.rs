@@ -2,7 +2,7 @@
 
 pub mod builder;
 
-use mill_analysis_graph::dependency::{ DependencyGraph , NodeId };
+use mill_analysis_graph::dependency::{DependencyGraph, NodeId};
 use petgraph::algo::tarjan_scc;
 use petgraph::visit::EdgeRef;
 use serde::{Deserialize, Serialize};
@@ -189,7 +189,9 @@ fn build_import_chain(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mill_analysis_graph::dependency::{ Dependency , DependencyGraph , DependencyKind , ModuleNode };
+    use mill_analysis_graph::dependency::{
+        Dependency, DependencyGraph, DependencyKind, ModuleNode,
+    };
     use pretty_assertions::assert_eq;
     use std::path::PathBuf;
 
@@ -509,8 +511,7 @@ mod tests {
 
         let result = find_circular_dependencies(&graph, None).unwrap();
 
-        // Verify timing metrics are populated
-        assert!(result.summary.analysis_time_ms > 0 || result.summary.analysis_time_ms == 0); // Very fast could be 0ms
+        // Verify timing metrics are populated (analysis_time_ms is u64, always >= 0)
         assert_eq!(result.summary.files_analyzed, 2);
     }
 }

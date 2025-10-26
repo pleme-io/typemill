@@ -66,16 +66,14 @@ impl FileService {
 
         // Canonicalize project root once for performance and security
         // This cached value is used for all path containment checks
-        let canonical_project_root = project_root
-            .canonicalize()
-            .unwrap_or_else(|e| {
-                tracing::warn!(
-                    project_root = %project_root.display(),
-                    error = %e,
-                    "Failed to canonicalize project root, using as-is (path safety checks may fail)"
-                );
-                project_root.clone()
-            });
+        let canonical_project_root = project_root.canonicalize().unwrap_or_else(|e| {
+            tracing::warn!(
+                project_root = %project_root.display(),
+                error = %e,
+                "Failed to canonicalize project root, using as-is (path safety checks may fail)"
+            );
+            project_root.clone()
+        });
 
         // Determine if we should use git based on:
         // 1. Configuration git.enabled flag

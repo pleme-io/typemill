@@ -15,10 +15,12 @@ use crate::handlers::tools::analysis::suggestions::{
     SuggestionGenerator,
 };
 use async_trait::async_trait;
-use mill_plugin_api::ParsedSource;
 use mill_foundation::core::model::mcp::ToolCall;
-use mill_foundation::protocol::analysis_result::{ Finding , FindingLocation , Position , Range , SafetyLevel , Severity , Suggestion , };
-use mill_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
+use mill_foundation::protocol::analysis_result::{
+    Finding, FindingLocation, Position, Range, SafetyLevel, Severity, Suggestion,
+};
+use mill_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
+use mill_plugin_api::ParsedSource;
 use regex::Regex;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -1515,9 +1517,9 @@ impl DeadCodeHandler {
         kind: &str,
     ) -> ServerResult<Value> {
         use crate::handlers::lsp_adapter::DirectLspAdapter;
-        use mill_analysis_common::{ AnalysisEngine , LspProvider };
-        use mill_analysis_dead_code::{ DeadCodeAnalyzer , DeadCodeConfig };
-        use mill_foundation::protocol::analysis_result::{ AnalysisResult , AnalysisScope };
+        use mill_analysis_common::{AnalysisEngine, LspProvider};
+        use mill_analysis_dead_code::{DeadCodeAnalyzer, DeadCodeConfig};
+        use mill_foundation::protocol::analysis_result::{AnalysisResult, AnalysisScope};
         use std::path::Path;
         use std::sync::Arc;
         use std::time::Instant;
@@ -1762,9 +1764,9 @@ impl DeadCodeHandler {
         kind: &str,
     ) -> ServerResult<Value> {
         use crate::handlers::lsp_adapter::DirectLspAdapter;
-        use mill_analysis_common::{ AnalysisEngine , LspProvider };
-        use mill_analysis_deep_dead_code::{ DeepDeadCodeAnalyzer , DeepDeadCodeConfig };
-        use mill_foundation::protocol::analysis_result::{ AnalysisResult , AnalysisScope };
+        use mill_analysis_common::{AnalysisEngine, LspProvider};
+        use mill_analysis_deep_dead_code::{DeepDeadCodeAnalyzer, DeepDeadCodeConfig};
+        use mill_foundation::protocol::analysis_result::{AnalysisResult, AnalysisScope};
         use std::path::Path;
         use std::sync::Arc;
         use std::time::Instant;

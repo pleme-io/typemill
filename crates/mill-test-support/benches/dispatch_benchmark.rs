@@ -7,10 +7,13 @@
 //! - Plugin registry initialization time
 
 use async_trait::async_trait;
-use mill_server::handlers::plugin_dispatcher::create_test_dispatcher;
-use mill_foundation::core::model::mcp::ToolCall;
-use mill_plugin_system::{ Capabilities , LanguagePlugin , PluginMetadata , PluginRegistry , PluginRequest , PluginResponse , PluginResult , };
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use mill_foundation::core::model::mcp::ToolCall;
+use mill_plugin_system::{
+    Capabilities, LanguagePlugin, PluginMetadata, PluginRegistry, PluginRequest, PluginResponse,
+    PluginResult,
+};
+use mill_server::handlers::plugin_dispatcher::create_test_dispatcher;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::PathBuf;

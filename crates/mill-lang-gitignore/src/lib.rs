@@ -52,7 +52,7 @@ impl GitignoreLanguagePlugin {
         Self {
             metadata: LanguageMetadata {
                 name: "gitignore",
-                extensions: &[],  // Special case - matched by filename
+                extensions: &[], // Special case - matched by filename
                 manifest_filename: ".gitignore",
                 source_dir: ".",
                 entry_point: ".gitignore",

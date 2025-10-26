@@ -75,7 +75,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Start admin server on a separate port
             let admin_port = config.server.port + 1000; // Admin on port+1000
             let admin_config = config.clone();
-            let admin_workspace_manager = Arc::new(mill_server::workspaces::WorkspaceManager::new());
+            let admin_workspace_manager =
+                Arc::new(mill_server::workspaces::WorkspaceManager::new());
             tokio::spawn(async move {
                 if let Err(e) = mill_transport::start_admin_server(
                     admin_port,

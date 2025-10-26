@@ -69,7 +69,9 @@ it('should subtract numbers', () => { expect(subtract(5, 3)).toBe(2); });
     assert_eq!(result.metadata.kind, "coverage");
     assert!(result.summary.symbols_analyzed.is_some());
 
-    if skip_if_no_symbols(&result) { return; }
+    if skip_if_no_symbols(&result) {
+        return;
+    }
 
     // Verify coverage findings
     assert!(!result.findings.is_empty());
@@ -115,7 +117,9 @@ function getData() { return { value: 42 }; }
     assert_eq!(result.metadata.kind, "quality");
     assert!(result.summary.symbols_analyzed.is_some());
 
-    if skip_if_no_symbols(&result) { return; }
+    if skip_if_no_symbols(&result) {
+        return;
+    }
 
     // Verify quality findings
     assert!(!result.findings.is_empty());
@@ -172,7 +176,9 @@ function calculate() { return 42; }
     );
     assert!(result.summary.symbols_analyzed.is_some());
 
-    if skip_if_no_symbols(&result) { return; }
+    if skip_if_no_symbols(&result) {
+        return;
+    }
 
     // Verify assertions findings
     assert!(!result.findings.is_empty());
@@ -218,12 +224,20 @@ describe('ArrayOperations', () => {
 "#;
     workspace.create_file("organization_test.ts", code);
 
-    let result = analyze_tests(&workspace, &mut client, "organization", "organization_test.ts").await;
+    let result = analyze_tests(
+        &workspace,
+        &mut client,
+        "organization",
+        "organization_test.ts",
+    )
+    .await;
 
     assert_eq!(result.metadata.kind, "organization");
     assert!(result.summary.symbols_analyzed.is_some());
 
-    if skip_if_no_symbols(&result) { return; }
+    if skip_if_no_symbols(&result) {
+        return;
+    }
 
     // Verify organization findings
     assert!(!result.findings.is_empty());
@@ -235,7 +249,10 @@ describe('ArrayOperations', () => {
 
     // Check for organization score
     if metrics.contains_key("organization_score") {
-        let score = metrics.get("organization_score").and_then(|v| v.as_f64()).unwrap();
+        let score = metrics
+            .get("organization_score")
+            .and_then(|v| v.as_f64())
+            .unwrap();
         assert!(score >= 0.0 && score <= 1.0);
     }
 

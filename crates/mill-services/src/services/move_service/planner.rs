@@ -1,8 +1,8 @@
 //! Planning logic for file and directory moves
 
 use crate::services::reference_updater::ReferenceUpdater;
-use mill_plugin_api::{ PluginRegistry , ScanScope };
-use mill_foundation::protocol::{ ApiResult as ServerResult , EditPlan };
+use mill_foundation::protocol::{ApiResult as ServerResult, EditPlan};
+use mill_plugin_api::{PluginRegistry, ScanScope};
 use std::path::Path;
 use tracing::{info, warn};
 
@@ -173,7 +173,14 @@ pub async fn plan_directory_move(
     info!("Scanning for documentation and config file updates");
     let doc_config_edits_before = edit_plan.edits.len();
 
-    match plan_documentation_and_config_edits(old_abs, new_abs, plugin_registry, project_root, rename_scope).await
+    match plan_documentation_and_config_edits(
+        old_abs,
+        new_abs,
+        plugin_registry,
+        project_root,
+        rename_scope,
+    )
+    .await
     {
         Ok(edits) if !edits.is_empty() => {
             info!(
@@ -223,7 +230,7 @@ async fn plan_documentation_and_config_edits(
     project_root: &Path,
     rename_scope: Option<&mill_foundation::core::rename_scope::RenameScope>,
 ) -> ServerResult<Vec<mill_foundation::protocol::TextEdit>> {
-    use mill_foundation::protocol::{ EditLocation , EditType , TextEdit };
+    use mill_foundation::protocol::{EditLocation, EditType, TextEdit};
     use std::path::PathBuf;
 
     let mut edits = Vec::new();
@@ -253,10 +260,7 @@ async fn plan_documentation_and_config_edits(
     }
 
     for ext in &file_extensions {
-        info!(
-            extension = ext,
-            "Looking for plugin for extension"
-        );
+        info!(extension = ext, "Looking for plugin for extension");
 
         if let Some(plugin) = plugin_registry.find_by_extension(ext) {
             info!(
@@ -290,7 +294,6 @@ async fn plan_documentation_and_config_edits(
 
             // Process each file with its plugin
             for file_path in &files_to_scan {
-
                 match tokio::fs::read_to_string(file_path).await {
                     Ok(content) => {
                         let mut combined_content = content.clone();
@@ -299,8 +302,7 @@ async fn plan_documentation_and_config_edits(
                         // Call the plugin's rewrite_file_references to get updated content
                         // Returns Option<(String, usize)> where String is new content and usize is change count
                         // Pass rename_scope as JSON for plugins to customize behavior
-                        let rename_info = rename_scope
-                            .and_then(|s| serde_json::to_value(s).ok());
+                        let rename_info = rename_scope.and_then(|s| serde_json::to_value(s).ok());
 
                         if let Some((updated_content, change_count)) = plugin
                             .rewrite_file_references(
@@ -327,7 +329,7 @@ async fn plan_documentation_and_config_edits(
                                     new_file,
                                     file_path,
                                     project_root,
-                                    rename_info.as_ref(),  // Pass rename_info for consistent behavior
+                                    rename_info.as_ref(), // Pass rename_info for consistent behavior
                                 )
                             {
                                 if change_count > 0 && updated_content != combined_content {
@@ -400,10 +402,7 @@ async fn plan_documentation_and_config_edits(
 
             files_to_scan.clear(); // Clear for next extension
         } else {
-            info!(
-                extension = ext,
-                "No plugin found for extension"
-            );
+            info!(extension = ext, "No plugin found for extension");
         }
     }
 

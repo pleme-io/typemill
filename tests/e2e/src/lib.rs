@@ -31,7 +31,6 @@ pub mod test_comprehensive_rename_coverage;
 pub mod test_cross_workspace_import_updates;
 
 #[cfg(test)]
-
 #[cfg(test)]
 pub mod test_file_discovery_bug;
 
@@ -45,7 +44,6 @@ pub mod test_cargo_package_rename;
 pub mod test_consolidation;
 
 #[cfg(test)]
-
 #[cfg(test)]
 pub mod test_extract_integration;
 
@@ -53,7 +51,6 @@ pub mod test_extract_integration;
 pub mod test_inline_integration;
 
 #[cfg(test)]
-
 #[cfg(test)]
 pub mod test_move_integration;
 
@@ -67,17 +64,14 @@ pub mod test_rust_refactoring;
 pub mod test_rust_cargo_edge_cases;
 
 #[cfg(test)]
-
 #[cfg(test)]
 pub mod test_reorder_integration;
 
 #[cfg(test)]
-
 #[cfg(test)]
 pub mod test_transform_integration;
 
 #[cfg(test)]
-
 #[cfg(test)]
 pub mod test_delete_integration;
 
@@ -92,67 +86,55 @@ pub mod test_analyze_quality;
 pub mod test_analyze_dead_code;
 
 #[cfg(test)]
-
 #[cfg(test)]
 pub mod test_analyze_dependencies;
 
 #[cfg(test)]
-
 #[cfg(test)]
 pub mod test_analyze_structure;
 
 #[cfg(test)]
-
 #[cfg(test)]
 pub mod test_analyze_documentation;
 
 #[cfg(test)]
-
 #[cfg(test)]
 pub mod test_analyze_tests;
 
 #[cfg(test)]
-
 #[cfg(test)]
 pub mod test_analyze_batch;
 
 #[cfg(test)]
-
 #[cfg(test)]
 pub mod test_suggestions_dead_code;
 
 #[cfg(test)]
-
 // Workspace package creation tests (Proposal 50)
 #[cfg(test)]
 pub mod test_workspace_create;
 
 #[cfg(test)]
-
 // Module dependency analysis tests (Proposal 50)
 #[cfg(test)]
 pub mod test_analyze_module_dependencies;
 
 #[cfg(test)]
-
 // Workspace dependency extraction tests (Proposal 50)
 #[cfg(test)]
 pub mod test_workspace_extract_deps;
 
 #[cfg(test)]
-
 // Workspace member management tests (Proposal 50)
 #[cfg(test)]
 pub mod test_workspace_update_members;
 
 #[cfg(test)]
-
 // Workspace find/replace tests
 #[cfg(test)]
 pub mod test_workspace_find_replace;
 
 #[cfg(test)]
-
 pub use harness::{TestClient, TestWorkspace};
 pub use helpers::*;
 pub use mocks::{MockAstService, MockLspService};

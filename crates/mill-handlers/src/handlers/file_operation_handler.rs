@@ -6,7 +6,7 @@ use super::tools::{ToolHandler, ToolHandlerContext};
 use crate::utils::{dry_run::wrap_dry_run_result, remote_exec};
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
-use mill_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
+use mill_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde_json::{json, Value};
 use std::path::Path;
 use tracing::debug;
@@ -118,8 +118,8 @@ impl FileOperationHandler {
         })?;
 
         // Deserialize into strongly-typed parameters
-        let params: mill_foundation::protocol::RenameDirectoryParams =
-            serde_json::from_value(args).map_err(|e| {
+        let params: mill_foundation::protocol::RenameDirectoryParams = serde_json::from_value(args)
+            .map_err(|e| {
                 ServerError::InvalidRequest(format!("Invalid rename_directory parameters: {}", e))
             })?;
 

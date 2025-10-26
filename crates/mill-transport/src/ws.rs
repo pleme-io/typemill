@@ -1,11 +1,11 @@
 //! WebSocket transport implementation
 
 use crate::{McpDispatcher, SessionInfo};
-use mill_auth::jwt::{ decode , Claims , DecodingKey , Validation };
-use mill_config::AppConfig;
-use mill_foundation::core::model::mcp::{ McpError , McpMessage , McpRequest , McpResponse };
-use mill_foundation::protocol::{ ApiError , ApiResult };
 use futures_util::{SinkExt, StreamExt};
+use mill_auth::jwt::{decode, Claims, DecodingKey, Validation};
+use mill_config::AppConfig;
+use mill_foundation::core::model::mcp::{McpError, McpMessage, McpRequest, McpResponse};
+use mill_foundation::protocol::{ApiError, ApiResult};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::Arc;
@@ -90,7 +90,8 @@ impl ConnectionGuard {
 
 impl Drop for ConnectionGuard {
     fn drop(&mut self) {
-        self.counter.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+        self.counter
+            .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
     }
 }
 
@@ -102,13 +103,11 @@ pub async fn start_ws_server(
     // Enforce TLS for non-loopback hosts
     if !config.server.is_loopback_host() {
         if config.server.tls.is_none() {
-            return Err(ApiError::bootstrap(
-                format!(
-                    "TLS is required when binding to non-loopback address '{}'. \
+            return Err(ApiError::bootstrap(format!(
+                "TLS is required when binding to non-loopback address '{}'. \
                      Configure server.tls or bind to 127.0.0.1",
-                    config.server.host
-                )
-            ));
+                config.server.host
+            )));
         }
         tracing::info!(
             host = %config.server.host,
@@ -285,8 +284,7 @@ async fn handle_connection(
                 let request_id = uuid::Uuid::new_v4();
 
                 // Create request span for automatic context propagation
-                let span =
-                    mill_config::logging::request_span(&request_id.to_string(), "websocket");
+                let span = mill_config::logging::request_span(&request_id.to_string(), "websocket");
                 let _enter = span.enter();
 
                 tracing::debug!(message_size = text.len(), "Received message");
@@ -494,7 +492,7 @@ async fn handle_initialize(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mill_config::config::{ AuthConfig , CacheConfig , LoggingConfig , LspConfig , ServerConfig , };
+    use mill_config::config::{AuthConfig, CacheConfig, LoggingConfig, LspConfig, ServerConfig};
 
     fn create_test_config(with_auth: bool) -> AppConfig {
         AppConfig {
@@ -602,13 +600,19 @@ mod tests {
         let mut config = create_test_config(false);
 
         config.server.host = "127.0.0.1".to_string();
-        assert!(config.server.is_loopback_host(), "127.0.0.1 should be loopback");
+        assert!(
+            config.server.is_loopback_host(),
+            "127.0.0.1 should be loopback"
+        );
 
         config.server.host = "::1".to_string();
         assert!(config.server.is_loopback_host(), "::1 should be loopback");
 
         config.server.host = "localhost".to_string();
-        assert!(config.server.is_loopback_host(), "localhost should be loopback");
+        assert!(
+            config.server.is_loopback_host(),
+            "localhost should be loopback"
+        );
     }
 
     #[test]
@@ -616,15 +620,27 @@ mod tests {
         let mut config = create_test_config(false);
 
         config.server.host = "0.0.0.0".to_string();
-        assert!(!config.server.is_loopback_host(), "0.0.0.0 should NOT be loopback (binds all interfaces)");
+        assert!(
+            !config.server.is_loopback_host(),
+            "0.0.0.0 should NOT be loopback (binds all interfaces)"
+        );
 
         config.server.host = "192.168.1.1".to_string();
-        assert!(!config.server.is_loopback_host(), "192.168.1.1 should NOT be loopback");
+        assert!(
+            !config.server.is_loopback_host(),
+            "192.168.1.1 should NOT be loopback"
+        );
 
         config.server.host = "10.0.0.1".to_string();
-        assert!(!config.server.is_loopback_host(), "10.0.0.1 should NOT be loopback");
+        assert!(
+            !config.server.is_loopback_host(),
+            "10.0.0.1 should NOT be loopback"
+        );
 
         config.server.host = "example.com".to_string();
-        assert!(!config.server.is_loopback_host(), "example.com should NOT be loopback");
+        assert!(
+            !config.server.is_loopback_host(),
+            "example.com should NOT be loopback"
+        );
     }
 }

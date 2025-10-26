@@ -9,7 +9,7 @@ pub(crate) fn create_text_edits_from_references(
     old_module_name: &str,
     new_module_name: &str,
 ) -> Vec<mill_foundation::protocol::TextEdit> {
-    use mill_foundation::protocol::{ EditLocation , EditType , TextEdit };
+    use mill_foundation::protocol::{EditLocation, EditType, TextEdit};
 
     references
         .iter()

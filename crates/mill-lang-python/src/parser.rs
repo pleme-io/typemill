@@ -9,11 +9,11 @@
 //! Implements dual-mode parsing:
 //! 1. Python native AST via subprocess (high accuracy, requires python3)
 //! 2. Regex-based fallback parsing (always available, good for common cases)
+use mill_foundation::protocol::{ImportGraph, ImportInfo, ImportType, NamedImport, SourceLocation};
 use mill_lang_common::{
     parse_import_alias, parse_with_fallback, run_ast_tool, ImportGraphBuilder, SubprocessAstTool,
 };
 use mill_plugin_api::{PluginError, PluginResult, Symbol, SymbolKind};
-use mill_foundation::protocol::{ImportGraph, ImportInfo, ImportType, NamedImport, SourceLocation};
 use regex::Regex;
 use std::path::Path;
 use tracing::debug;

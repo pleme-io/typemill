@@ -37,7 +37,10 @@ where
     });
 
     if let Some(opts) = options {
-        params.as_object_mut().unwrap().insert("options".to_string(), opts);
+        params
+            .as_object_mut()
+            .unwrap()
+            .insert("options".to_string(), opts);
     }
 
     let response = client
@@ -119,7 +122,10 @@ export function processOrder(
 
             let finding = &result.findings[0];
             assert_eq!(finding.kind, "complexity_hotspot");
-            assert!(matches!(finding.severity, Severity::High | Severity::Medium));
+            assert!(matches!(
+                finding.severity,
+                Severity::High | Severity::Medium
+            ));
             assert_eq!(finding.location.symbol.as_ref().unwrap(), "processOrder");
 
             let metrics = finding.metrics.as_ref().unwrap();
@@ -432,7 +438,8 @@ export function wellDocumented() {
                 assert!(finding.metrics.is_some());
             }
 
-            let finding_kinds: Vec<&str> = result.findings.iter().map(|f| f.kind.as_str()).collect();
+            let finding_kinds: Vec<&str> =
+                result.findings.iter().map(|f| f.kind.as_str()).collect();
             assert!(finding_kinds.contains(&"too_many_parameters"));
             assert!(finding_kinds.contains(&"deep_nesting"));
 

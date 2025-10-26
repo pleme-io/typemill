@@ -21,9 +21,11 @@ pub use mill_workspaces as workspaces;
 pub use mill_handlers::handlers;
 pub use mill_services::services;
 
-use mill_handlers::handlers::plugin_dispatcher::{ AppState , PluginDispatcher };
 use mill_config::AppConfig;
-pub use mill_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult , AstService , LspService , };
+pub use mill_foundation::protocol::{
+    ApiError as ServerError, ApiResult as ServerResult, AstService, LspService,
+};
+use mill_handlers::handlers::plugin_dispatcher::{AppState, PluginDispatcher};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::oneshot;

@@ -3,7 +3,7 @@
 //! Generates human-readable previews of what would happen if a plan were applied,
 //! without actually modifying any files.
 
-use mill_foundation::protocol::{ EditPlan , EditType };
+use mill_foundation::protocol::{EditPlan, EditType};
 use serde::Serialize;
 use std::collections::HashSet;
 
@@ -115,7 +115,7 @@ pub struct ValidationResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mill_foundation::protocol::{ EditLocation , EditPlanMetadata , TextEdit };
+    use mill_foundation::protocol::{EditLocation, EditPlanMetadata, TextEdit};
 
     fn create_test_plan(edits: Vec<TextEdit>) -> EditPlan {
         EditPlan {

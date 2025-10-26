@@ -1,11 +1,15 @@
 use super::super::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 #[cfg(feature = "analysis-circular-deps")]
-use mill_analysis_circular_deps::{ builder::DependencyGraphBuilder , find_circular_dependencies , Cycle , };
+use mill_analysis_circular_deps::{
+    builder::DependencyGraphBuilder, find_circular_dependencies, Cycle,
+};
 use mill_foundation::core::model::mcp::ToolCall;
 #[cfg(feature = "analysis-circular-deps")]
-use mill_foundation::protocol::analysis_result::{ AnalysisResult , Finding , FindingLocation , SafetyLevel , Severity , Suggestion , };
-use mill_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult };
+use mill_foundation::protocol::analysis_result::{
+    AnalysisResult, Finding, FindingLocation, SafetyLevel, Severity, Suggestion,
+};
+use mill_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde_json::{json, Value};
 #[cfg(feature = "analysis-circular-deps")]
 use std::collections::HashMap;
@@ -110,12 +114,11 @@ impl ToolHandler for CircularDependenciesHandler {
                     total_findings: result.summary.total_cycles,
                     returned_findings: result.summary.total_cycles,
                     has_more: false,
-                    by_severity:
-                        mill_foundation::protocol::analysis_result::SeverityBreakdown {
-                            high: result.summary.total_cycles,
-                            medium: 0,
-                            low: 0,
-                        },
+                    by_severity: mill_foundation::protocol::analysis_result::SeverityBreakdown {
+                        high: result.summary.total_cycles,
+                        medium: 0,
+                        low: 0,
+                    },
                     files_analyzed: result.summary.files_analyzed,
                     symbols_analyzed: Some(result.summary.total_modules_in_cycles),
                     analysis_time_ms: result.summary.analysis_time_ms,

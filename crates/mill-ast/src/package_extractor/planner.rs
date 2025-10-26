@@ -1,6 +1,6 @@
 use super::{edits, manifest, workspace, AstResult, ExtractModuleToPackageParams};
+use mill_foundation::protocol::{EditPlan, EditPlanMetadata, ValidationRule, ValidationType};
 use mill_plugin_api::language::detect_project_language;
-use mill_foundation::protocol::{ EditPlan , EditPlanMetadata , ValidationRule , ValidationType };
 use serde_json::json;
 use std::collections::HashMap;
 use std::path::Path;

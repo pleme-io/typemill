@@ -1,7 +1,7 @@
 //! AST transformation functionality
 
 use crate::error::{AstError, AstResult};
-use mill_foundation::protocol::{ EditPlan , TextEdit };
+use mill_foundation::protocol::{EditPlan, TextEdit};
 use serde::{Deserialize, Serialize};
 
 /// Transformation result
@@ -487,7 +487,7 @@ fn apply_multi_line_edit(source: &mut String, edit: &TextEdit) -> AstResult<Edit
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mill_foundation::protocol::{ EditLocation , EditType };
+    use mill_foundation::protocol::{EditLocation, EditType};
 
     #[test]
     fn test_apply_single_line_edit() {

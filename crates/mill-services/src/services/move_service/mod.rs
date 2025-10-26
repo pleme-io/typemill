@@ -19,8 +19,8 @@
 mod planner;
 
 use crate::services::reference_updater::ReferenceUpdater;
-use mill_plugin_api::{ PluginRegistry , ScanScope };
-use mill_foundation::protocol::{ ApiError as ServerError , ApiResult as ServerResult , EditPlan , };
+use mill_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult, EditPlan};
+use mill_plugin_api::{PluginRegistry, ScanScope};
 use std::path::{Path, PathBuf};
 use tracing::info;
 
