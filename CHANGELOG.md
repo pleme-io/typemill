@@ -218,11 +218,11 @@ The project underwent a complete architectural transformation from TypeScript/No
   - Smart path detection (requires `/` or file extension)
   - All edits surface in rename dry-run (options.dryRun: true) for review
 
-- **Unified Refactoring API** - Integrated dryRun option (migrated to unified API in Phase 5)
-  - Originally: Two-step pattern with `.plan` tools and `workspace.apply_edit`
-  - Now: Single tools with `options.dryRun: true/false`
+- **Unified Refactoring API** - Single-step refactoring with integrated dryRun option
+  - All refactoring tools accept `options.dryRun: true/false`
   - Safe dry-run previews without filesystem modifications
   - Atomic execution with rollback on errors
+  - Migrated from two-step workflow to unified API in Phase 5
 
 - **Unified Analysis API** - 6 analysis tools with 26 detection kinds
   - `analyze.quality` - complexity, smells, maintainability, readability

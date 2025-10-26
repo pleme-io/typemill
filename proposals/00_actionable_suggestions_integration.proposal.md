@@ -8,7 +8,7 @@
 **Dependencies**: ✅ 01a, ✅ 01b, ✅ 01c1 (Core Infrastructure - MERGED)
 **Branch**: ✅ `feature/01c2-suggestions-integration` (MERGED)
 
-> **API Update Note (Phase 5)**: Code examples in this proposal reference the two-step pattern (`*.plan` + `workspace.apply_edit`). This has been replaced by the unified dryRun API where all refactoring tools accept `options.dryRun: true/false` directly.
+> **API Update Note (Phase 5)**: This proposal has been updated to reflect the unified dryRun API where all refactoring tools accept `options.dryRun: true/false` directly. The original two-step workflow pattern was migrated in Phase 5.
 
 ---
 
