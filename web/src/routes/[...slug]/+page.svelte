@@ -2,10 +2,28 @@
 	import type { PageData } from './$types';
 	import { marked } from 'marked';
 	import { onMount } from 'svelte';
+	import hljs from 'highlight.js/lib/core';
+	import javascript from 'highlight.js/lib/languages/javascript';
+	import typescript from 'highlight.js/lib/languages/typescript';
+	import rust from 'highlight.js/lib/languages/rust';
+	import python from 'highlight.js/lib/languages/python';
+	import bash from 'highlight.js/lib/languages/bash';
+	import json from 'highlight.js/lib/languages/json';
+	import yaml from 'highlight.js/lib/languages/yaml';
+	import 'highlight.js/styles/github-dark.css';
 
 	export let data: PageData;
 
 	let htmlContent = '';
+
+	// Register languages
+	hljs.registerLanguage('javascript', javascript);
+	hljs.registerLanguage('typescript', typescript);
+	hljs.registerLanguage('rust', rust);
+	hljs.registerLanguage('python', python);
+	hljs.registerLanguage('bash', bash);
+	hljs.registerLanguage('json', json);
+	hljs.registerLanguage('yaml', yaml);
 
 	// Extract title from metadata or generate from slug
 	$: title = data.metadata?.title || formatTitle(data.slug);
@@ -42,16 +60,33 @@
 		return crumbs;
 	}
 
-	// Convert markdown to HTML
+	// Convert markdown to HTML with syntax highlighting
 	$: {
 		marked.setOptions({
 			gfm: true,
 			breaks: false,
 			headerIds: true,
-			mangle: false
+			mangle: false,
+			highlight: function(code, lang) {
+				if (lang && hljs.getLanguage(lang)) {
+					try {
+						return hljs.highlight(code, { language: lang }).value;
+					} catch (err) {
+						console.error('Highlight error:', err);
+					}
+				}
+				return code;
+			}
 		});
 		htmlContent = marked.parse(data.content);
 	}
+
+	// Apply syntax highlighting after mount
+	onMount(() => {
+		document.querySelectorAll('pre code').forEach((block) => {
+			hljs.highlightElement(block as HTMLElement);
+		});
+	});
 </script>
 
 <svelte:head>

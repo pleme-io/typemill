@@ -15,7 +15,7 @@ export const load: PageLoad = async ({ params, fetch }) => {
 	} else if (slug === 'contributing') {
 		filePath = 'contributing.md';
 	} else if (slug === 'DEVELOPMENT') {
-		filePath = 'DEVELOPMENT.md';
+		filePath = 'docs/DEVELOPMENT.md';
 	} else {
 		// Try docs directory first
 		filePath = `docs/${slug}.md`;
