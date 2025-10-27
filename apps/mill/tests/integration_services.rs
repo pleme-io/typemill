@@ -16,7 +16,6 @@ use mill_plugin_system::PluginManager;
 use mill_server::handlers::AppState;
 use mill_server::services::{DefaultAstService, FileService, LockManager, OperationQueue};
 use mill_server::workspaces::WorkspaceManager;
-use serde_json::json;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;

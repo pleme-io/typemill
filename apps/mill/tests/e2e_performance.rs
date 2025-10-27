@@ -880,7 +880,7 @@ export class UserService{} {{
     // This is a known limitation - symbol search depends on LSP server indexing
     // For now, just verify we got some symbols back
     assert!(
-        symbols.len() > 0,
+        !symbols.is_empty(),
         "Should find at least some User-related symbols (got {})",
         symbols.len()
     );

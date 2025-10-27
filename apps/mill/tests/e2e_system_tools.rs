@@ -1,5 +1,5 @@
 use mill_test_support::harness::{TestClient, TestWorkspace};
-use serde_json::{json, Value};
+use serde_json::json;
 #[tokio::test]
 async fn test_health_check_basic() {
     let workspace = TestWorkspace::new();

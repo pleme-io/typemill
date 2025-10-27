@@ -2,9 +2,7 @@
 
 use assert_cmd::Command;
 use predicates::prelude::*;
-use std::fs;
 use std::path::PathBuf;
-use tempfile::TempDir;
 
 /// Helper to create a test binary command with helpful error messaging
 fn mill_cmd() -> Command {

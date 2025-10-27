@@ -36,6 +36,7 @@ impl LanguagePluginRegistry {
     ///
     /// # Example
     /// ```rust
+    /// use mill_handlers::language_plugin_registry::LanguagePluginRegistry;
     /// use mill_plugin_api::PluginRegistry;
     /// use mill_services::services::registry_builder::build_language_plugin_registry;
     /// use std::sync::Arc;

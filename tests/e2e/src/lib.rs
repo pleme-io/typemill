@@ -3,6 +3,7 @@
 //! This crate provides a robust testing infrastructure including test harnesses,
 //! mock implementations, helper utilities, and end-to-end test suites. It ensures
 //! complete coverage of all system functionality including refactoring workflows,
+#![allow(unused_variables)]
 //! plugin system operations, LSP integration, and performance validation.
 //! The testing framework validates both correctness and performance characteristics.
 

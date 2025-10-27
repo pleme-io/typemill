@@ -537,6 +537,7 @@ pub async fn run_rename_test(case: &RenameTestCase, use_real_lsp: bool) {
 use mill_test_support::harness::test_fixtures::{LspComplianceBehavior, LspComplianceTestCase};
 
 /// Executes a single LSP compliance test case.
+#[allow(dead_code)]
 pub async fn run_lsp_compliance_test(case: &LspComplianceTestCase) {
     // 1. Set up the test harness for the specified language.
     let mut builder = LspTestBuilder::new(case.language_id).with_real_lsp();

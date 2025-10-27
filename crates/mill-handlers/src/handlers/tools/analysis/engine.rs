@@ -142,8 +142,10 @@ pub fn extract_file_path(args: &Value, scope_param: &ScopeParam) -> ServerResult
 /// A `ServerResult` containing the serialized AnalysisResult or an error
 ///
 /// # Example
-/// ```no_run
+/// ```ignore
 /// use mill_handlers::handlers::tools::analysis::engine::{run_analysis, AnalysisFn};
+/// use mill_foundation::protocol::analysis_result::Finding;
+/// use mill_handlers::language_plugin_registry::LanguagePluginRegistry;
 ///
 /// fn my_analysis_fn(
 ///     complexity_report: &mill_ast::complexity::ComplexityReport,
@@ -151,14 +153,15 @@ pub fn extract_file_path(args: &Value, scope_param: &ScopeParam) -> ServerResult
 ///     symbols: &[mill_plugin_api::Symbol],
 ///     language: &str,
 ///     file_path: &str,
-///     registry: &crate::LanguagePluginRegistry,
+///     registry: &LanguagePluginRegistry,
 /// ) -> Vec<Finding> {
 ///     // Custom analysis logic here
 ///     vec![]
 /// }
-///
+/// # async fn example(context: mill_handlers::ToolHandlerContext, tool_call: mill_foundation::model::mcp::ToolCall) {
 /// // In your handler:
-/// run_analysis(context, tool_call, "quality", "smells", my_analysis_fn).await
+/// run_analysis(&context, &tool_call, "quality", "smells", my_analysis_fn).await;
+/// # }
 /// ```
 pub async fn run_analysis(
     context: &ToolHandlerContext,
@@ -200,9 +203,11 @@ pub async fn run_analysis(
 /// - Add configuration validation at handler registration time
 ///
 /// # Example
-/// ```no_run
+/// ```ignore
 /// use mill_handlers::handlers::tools::analysis::engine::{run_analysis_with_config, AnalysisFn};
 /// use mill_handlers::handlers::tools::analysis::config::AnalysisConfig;
+/// use mill_foundation::protocol::analysis_result::Finding;
+/// use mill_handlers::language_plugin_registry::LanguagePluginRegistry;
 ///
 /// fn my_analysis_fn(
 ///     complexity_report: &mill_ast::complexity::ComplexityReport,
@@ -210,21 +215,22 @@ pub async fn run_analysis(
 ///     symbols: &[mill_plugin_api::Symbol],
 ///     language: &str,
 ///     file_path: &str,
-///     registry: &crate::LanguagePluginRegistry,
+///     registry: &LanguagePluginRegistry,
 /// ) -> Vec<Finding> {
 ///     vec![]
 /// }
-///
+/// # async fn example(context: mill_handlers::ToolHandlerContext, tool_call: mill_foundation::model::mcp::ToolCall) {
 /// // With configuration:
 /// let config = AnalysisConfig::default();
 /// run_analysis_with_config(
-///     context,
-///     tool_call,
+///     &context,
+///     &tool_call,
 ///     "quality",
 ///     "complexity",
 ///     my_analysis_fn,
 ///     Some(&config)
-/// ).await
+/// ).await;
+/// # }
 /// ```
 pub async fn run_analysis_with_config(
     context: &ToolHandlerContext,

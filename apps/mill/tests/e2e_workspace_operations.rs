@@ -38,7 +38,7 @@ async fn test_zombie_reaper_integration() {
     // Use waitpid to check if process still exists
     let cleanup_check = std::process::Command::new("sh")
         .arg("-c")
-        .arg(&format!(
+        .arg(format!(
             "ps -p {} -o state= 2>/dev/null || echo 'gone'",
             pid
         ))

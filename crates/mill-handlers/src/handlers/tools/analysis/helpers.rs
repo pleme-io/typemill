@@ -41,8 +41,12 @@ pub fn filter_analyzable_files(
 ///
 /// # Example
 /// ```
+/// use mill_handlers::handlers::tools::analysis::helpers::weighted_average;
+///
 /// // Average complexity weighted by function count
-/// let avg = weighted_average(files.iter().map(|f| (f.avg_complexity, f.function_count)));
+/// let values = vec![(5.0, 10), (8.0, 5), (3.0, 15)];  // (complexity, function_count) pairs
+/// let avg = weighted_average(values.into_iter());
+/// assert!(avg > 0.0);
 /// ```
 pub fn weighted_average<I>(values: I) -> f64
 where
