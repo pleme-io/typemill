@@ -85,7 +85,8 @@ aliases:
   geminiyolo: GEMINI_API_KEY=${GEMINI_API_KEY:-} gemini
 claude_sync: true
 gemini_sync: true
-port_range: 3040-3049
+ports:
+  _range: [3240, 3249]
 networking:
   networks:
   - jules
