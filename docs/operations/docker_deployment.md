@@ -1,263 +1,344 @@
-# Docker Deployment
+# Development Container
 
-Everything you need to deploy TypeMill with Docker—from local development to production.
+Everything you need to develop TypeMill with a consistent, containerized environment using VS Code Dev Containers.
 
-## Quick Start: Development
+## Overview
 
-For local development with automatic hot-reloading:
+TypeMill uses Dev Containers for a consistent development experience across all platforms. The devcontainer provides:
 
-```bash
-# Start server with automatic rebuild on file changes
-docker-compose -f deployment/docker/docker-compose.yml up
+- ✅ Complete Rust toolchain (rustc, cargo, clippy, rustfmt)
+- ✅ All language SDKs (Node.js, Python, Java, .NET, Go)
+- ✅ Language servers pre-configured (rust-analyzer, typescript-language-server, pylsp)
+- ✅ Build acceleration tools (sccache, mold)
+- ✅ Testing frameworks (cargo-nextest)
+- ✅ VS Code extensions and settings
 
-# Rebuild development image
-docker-compose -f deployment/docker/docker-compose.yml build
-```
+## Quick Start
 
-Any change saved to a `.rs` file triggers automatic recompile and restart inside the container.
+### Prerequisites
 
-## Production Deployment
+- [Docker](https://www.docker.com/products/docker-desktop)
+- [VS Code](https://code.visualstudio.com/)
+- [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
 
-Production deployment uses a minimal, hardened image without development tools:
+### Launch Development Environment
 
-```bash
-# Set secure JWT secret for authentication
-export JWT_SECRET="your-secure-secret-key"
+1. **Open in VS Code:**
+   ```bash
+   git clone https://github.com/goobits/typemill.git
+   cd typemill
+   code .
+   ```
 
-# Start production stack in background
-docker-compose -f deployment/docker/docker-compose.yml \
-  -f deployment/docker/docker-compose.production.yml up -d
+2. **Reopen in Container:**
+   - Press `F1` or `Ctrl+Shift+P`
+   - Select: `Dev Containers: Reopen in Container`
+   - Wait for container to build (first time: ~5-10 minutes)
 
-# Check service health (via nginx)
-curl http://localhost/health
-```
+3. **Start developing:**
+   ```bash
+   # Inside the container terminal:
+   make first-time-setup  # One-time setup
+   cargo build            # Build project
+   cargo nextest run      # Run tests
+   ```
 
-## Architecture
+## Container Features
 
-### Development Stack (`docker-compose.yml`)
+### Installed Tools
 
-**Components:**
-- **`mill`** - Application server with Rust toolchain and `cargo-watch`
-- **Source Mount** - Local `./rust` directory mounted for live reloading
-- **Build Cache** - Volumes for `cargo` registry and `target` directory
+**Rust:**
+- rust-analyzer (LSP)
+- cargo, clippy, rustfmt
+- cargo-nextest (fast test runner)
 
-**Features:**
-- Automatic rebuild on file changes
-- Persistent build artifacts across restarts
-- Fast incremental compilation
+**Language Support:**
+- Node.js LTS + npm
+- Python 3.11 + pip
+- Java 17 + Maven
+- .NET 8.0
+- Go 1.21
 
-### Production Stack (`docker-compose.production.yml`)
+**Language Servers:**
+- typescript-language-server
+- pylsp (Python Language Server)
+- gopls (Go Language Server)
 
-**Components:**
-- **`mill`** - Minimal hardened image (compiled binary only)
-- **`nginx`** - Reverse proxy with SSL/TLS termination
+**Development Tools:**
+- Git configuration mounted from host
+- Zsh + Oh My Zsh
+- Common utilities (curl, wget, etc.)
 
-**Features:**
-- Security-hardened runtime
-- SSL/TLS support via nginx
-- Health check endpoints
-- Production logging
+### VS Code Extensions
+
+Automatically installed:
+- `rust-lang.rust-analyzer` - Rust LSP
+- `tamasfe.even-better-toml` - TOML support
+- `serayuzgur.crates` - Cargo.toml management
+- `vadimcn.vscode-lldb` - Debugging
+
+### Port Forwarding
+
+Ports automatically forwarded from container to host:
+- `3040` - Web documentation server
+- `3000` - TypeMill MCP server
+
+Access from your browser: `http://localhost:3040`
 
 ## Configuration
 
-Configuration is managed via environment variables in `docker-compose.*.yml` files.
+### Devcontainer Configuration
 
-### Environment Variables
+Location: `.devcontainer/devcontainer.json`
 
-**Required for Production:**
-- `JWT_SECRET` - Secret key for JWT authentication (use strong random value)
-
-**Optional:**
-- `RUST_LOG` - Log level (debug/info/warn/error)
-- `PORT` - Application port (default: 3000)
-
-**Using .env File:**
-```bash
-# Create .env file for production secrets
-echo "JWT_SECRET=$(openssl rand -hex 32)" > .env
-docker-compose -f deployment/docker/docker-compose.yml \
-  -f deployment/docker/docker-compose.production.yml up -d
-```
-
-## Building Images
-
-Force rebuild with `--no-cache` flag:
-
-```bash
-# Rebuild development image
-docker-compose -f deployment/docker/docker-compose.yml build --no-cache
-
-# Rebuild production image
-docker-compose -f deployment/docker/docker-compose.yml \
-  -f deployment/docker/docker-compose.production.yml build --no-cache
-```
-
-## Viewing Logs
-
-```bash
-# Development logs (follow)
-docker-compose -f deployment/docker/docker-compose.yml logs -f
-
-# Production logs (follow)
-docker-compose -f deployment/docker/docker-compose.yml \
-  -f deployment/docker/docker-compose.production.yml logs -f
-
-# Filter by service
-docker-compose logs -f mill
-docker-compose logs -f nginx
-```
-
-## Health Monitoring
-
-### Health Check Endpoints
-
-```bash
-# Application health (direct)
-curl http://localhost:3000/health
-
-# Application health (via nginx - production)
-curl http://localhost/health
-
-# Detailed status
-curl http://localhost:3000/api/v1/status
-```
-
-### Expected Responses
-
-**Healthy:**
+Key settings:
 ```json
 {
-  "status": "healthy",
-  "uptime_seconds": 3600,
-  "version": "1.0.0"
+  "name": "Typemill Development",
+  "image": "mcr.microsoft.com/devcontainers/rust:1-bookworm",
+  "features": {
+    "python": { "version": "3.11" },
+    "node": { "version": "lts" },
+    "java": { "version": "17", "installMaven": true },
+    "dotnet": { "version": "8.0" },
+    "go": { "version": "1.21" }
+  }
 }
 ```
 
-**Unhealthy:**
-```json
-{
-  "status": "unhealthy",
-  "error": "LSP server connection failed"
-}
+### Post-Create Setup
+
+The container runs `.devcontainer/post-create.sh` after creation:
+- Installs Rust components
+- Installs language servers
+- Configures build tools
+- Sets up pre-commit hooks
+
+## Common Tasks
+
+### Building
+
+```bash
+# Development build
+cargo build
+
+# Release build
+cargo build --release
+
+# Check without building
+cargo check
 ```
 
-## Security Best Practices
+### Testing
 
-### Production Deployment
+```bash
+# Fast tests only
+make test
 
-1. **Always use strong JWT secret:**
-   ```bash
-   export JWT_SECRET="$(openssl rand -hex 32)"
-   ```
+# Full test suite
+make test-full
 
-2. **Enable SSL/TLS in nginx:**
-   - Configure SSL certificates in `nginx.conf`
-   - Use Let's Encrypt for free certificates
+# Tests with LSP servers
+make test-lsp
 
-3. **Restrict network access:**
-   - Use firewall rules to limit exposed ports
-   - Only expose port 80/443 (nginx) to public
-
-4. **Regular updates:**
-   ```bash
-   # Rebuild with latest base images
-   docker-compose pull
-   docker-compose build --no-cache
-   ```
-
-### FUSE Capabilities
-
-⚠️ **FUSE is EXPERIMENTAL and development-only**
-
-FUSE requires `SYS_ADMIN` capability which disables container security boundaries:
-
-```yaml
-# DO NOT USE IN PRODUCTION
-services:
-  mill-fuse:
-    cap_add:
-      - SYS_ADMIN  # Required for FUSE, disables security
+# Watch mode (auto-run on changes)
+make dev-handlers
 ```
 
-**To disable FUSE:**
-Set `"fuse": null` in `.typemill/config.json`
+### Code Quality
+
+```bash
+# Format code
+cargo fmt
+
+# Run linter
+cargo clippy
+
+# All checks
+make check
+```
+
+### Web Documentation
+
+```bash
+# Start documentation server
+cd web
+npm install  # First time only
+npm run dev
+
+# Access at http://localhost:3040
+```
 
 ## Troubleshooting
 
-### Common Issues
+### Container Won't Build
 
-**Port already in use:**
+**Problem:** Timeout or network errors during build
+
+**Solution:**
 ```bash
-# Check what's using the port
-lsof -i :3000
-
-# Use different port
-PORT=3041 docker-compose up
+# Rebuild without cache
+docker system prune -a
+# Then reopen in container
 ```
 
-**Permission denied:**
+### Extensions Not Loading
+
+**Problem:** VS Code extensions missing after reopen
+
+**Solution:**
 ```bash
-# Fix ownership (development)
-sudo chown -R $USER:$USER target/
+# Rebuild container
+F1 → "Dev Containers: Rebuild Container"
 ```
 
-**Build cache issues:**
+### Slow Performance
+
+**Problem:** Container feels sluggish
+
+**Solutions:**
+- Increase Docker memory allocation (Docker Desktop → Settings → Resources)
+- Enable BuildKit: `export DOCKER_BUILDKIT=1`
+- Use named volumes instead of bind mounts (already configured)
+
+### Ports Not Forwarding
+
+**Problem:** Can't access localhost:3040 or localhost:3000
+
+**Solution:**
 ```bash
-# Clear Docker build cache
-docker builder prune
-
-# Remove volumes
-docker-compose down -v
+# Check VS Code port forwarding
+View → Ports (or F1 → "Forward a Port")
+# Manually forward 3040 and 3000
 ```
 
-**LSP server not starting:**
+## Advanced Usage
+
+### Multiple Workspaces
+
+Open multiple instances:
 ```bash
-# Check LSP configuration
-cat .typemill/config.json
+# Terminal 1: Main development
+code typemill/
 
-# View detailed logs
-RUST_LOG=debug docker-compose up
+# Terminal 2: Experimental branch
+code typemill-feature/
 ```
 
-## Performance Tuning
+Each gets its own container instance.
 
-### Development
+### Attach Additional Terminal
 
-**Faster builds:**
-```yaml
-# Use sccache in Dockerfile
-ENV RUSTC_WRAPPER=sccache
+While container is running:
+1. Open VS Code terminal: `Ctrl+` ` (backtick)
+2. Click `+` to add terminal
+3. All terminals share the same container
+
+### Custom Docker Settings
+
+Edit `.devcontainer/devcontainer.json`:
+
+```json
+{
+  "runArgs": [
+    "--cpus=4",          // Limit CPU cores
+    "--memory=8g"        // Limit RAM
+  ],
+  "mounts": [
+    "source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,readonly,type=bind"
+  ]
+}
 ```
 
-**Reduce disk usage:**
+### Debugging
+
+Launch configurations in `.vscode/launch.json`:
+
+```json
+{
+  "type": "lldb",
+  "request": "launch",
+  "name": "Debug mill",
+  "cargo": {
+    "args": ["build", "--bin=mill"]
+  }
+}
+```
+
+Press `F5` to start debugging.
+
+## Architecture
+
+```
+Host Machine
+    ↓
+VS Code (local)
+    ↓
+Docker Container (devcontainer)
+    ├── Rust toolchain
+    ├── Language SDKs
+    ├── Language servers
+    ├── /workspace (mounted from host)
+    └── VS Code Server (remote)
+```
+
+**Key benefits:**
+- Source code stays on host (fast file I/O)
+- Build artifacts in container (consistent environment)
+- Extensions run in container (full language support)
+- Git configuration shared from host
+
+## Production Deployment
+
+For production deployments, TypeMill is typically installed via:
+
+### Cargo Install (Recommended)
+
 ```bash
-# Clean build artifacts
-docker-compose exec mill cargo clean
-
-# Remove unused images
-docker image prune
+cargo install mill --locked
+mill setup
+mill start
 ```
 
-### Production
+### From Source
 
-**Optimize image size:**
-- Use multi-stage builds (already configured)
-- Strip debug symbols from binary
-- Use Alpine-based images where possible
-
-**Resource limits:**
-```yaml
-services:
-  mill:
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 2G
+```bash
+git clone https://github.com/goobits/typemill.git
+cd typemill
+cargo build --release
+./target/release/mill setup
+./target/release/mill start
 ```
+
+### Docker Production (Future)
+
+Production Docker images are not currently provided but may be added in the future. For now, use cargo installation on your server.
 
 ## See Also
 
-- [Architecture Documentation](../architecture/overview.md) - System design
-- [Configuration Guide](../../README.md#configuration) - Setup options
-- [Security Policy](../../SECURITY.md) - Security practices
+- [Contributing Guide](../../contributing.md) - Setup and development workflow
+- [Development Guide](../DEVELOPMENT.md) - Language plugin development
+- [Testing Guide](../development/testing.md) - Test infrastructure
+- [Logging Guidelines](../development/logging_guidelines.md) - Structured logging
+
+## FAQ
+
+**Q: Do I need to install Rust on my host machine?**
+A: No, everything runs in the container.
+
+**Q: Can I use this without VS Code?**
+A: Yes, but you'll need to manually run `docker compose` with the devcontainer configuration. VS Code provides the best experience.
+
+**Q: How much disk space does this use?**
+A: ~5-10 GB for the container image and build cache.
+
+**Q: Can I develop on Windows?**
+A: Yes, Dev Containers work on Windows, macOS, and Linux with Docker Desktop.
+
+**Q: What happens to my changes when the container stops?**
+A: Source code changes persist (mounted from host). Build artifacts are preserved in Docker volumes.
+
+---
+
+**Last Updated:** 2025-10-27
+**Container Image:** `mcr.microsoft.com/devcontainers/rust:1-bookworm`
