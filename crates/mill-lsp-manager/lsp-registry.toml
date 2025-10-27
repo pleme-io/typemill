@@ -1,0 +1,103 @@
+# LSP Server Registry
+# This file defines available LSP servers and their download locations
+
+[lsp.rust-analyzer]
+languages = ["rust"]
+command = "rust-analyzer"
+test_args = ["--version"]
+
+[[lsp.rust-analyzer.platform]]
+os = "linux"
+arch = "x86_64"
+url = "https://github.com/rust-lang/rust-analyzer/releases/download/2024-10-21/rust-analyzer-x86_64-unknown-linux-gnu.gz"
+sha256 = "placeholder_update_with_real_checksum"
+compressed = "gzip"
+
+[[lsp.rust-analyzer.platform]]
+os = "linux"
+arch = "aarch64"
+url = "https://github.com/rust-lang/rust-analyzer/releases/download/2024-10-21/rust-analyzer-aarch64-unknown-linux-gnu.gz"
+sha256 = "placeholder_update_with_real_checksum"
+compressed = "gzip"
+
+[[lsp.rust-analyzer.platform]]
+os = "macos"
+arch = "x86_64"
+url = "https://github.com/rust-lang/rust-analyzer/releases/download/2024-10-21/rust-analyzer-x86_64-apple-darwin.gz"
+sha256 = "placeholder_update_with_real_checksum"
+compressed = "gzip"
+
+[[lsp.rust-analyzer.platform]]
+os = "macos"
+arch = "aarch64"
+url = "https://github.com/rust-lang/rust-analyzer/releases/download/2024-10-21/rust-analyzer-aarch64-apple-darwin.gz"
+sha256 = "placeholder_update_with_real_checksum"
+compressed = "gzip"
+
+[lsp.typescript-language-server]
+languages = ["typescript", "javascript"]
+command = "typescript-language-server"
+runtime_required = "node"
+test_args = ["--version"]
+
+[[lsp.typescript-language-server.platform]]
+os = "linux"
+arch = "x86_64"
+url = "https://registry.npmjs.org/typescript-language-server/-/typescript-language-server-4.3.3.tgz"
+sha256 = "placeholder_update_with_real_checksum"
+compressed = "tar.gz"
+
+[[lsp.typescript-language-server.platform]]
+os = "linux"
+arch = "aarch64"
+url = "https://registry.npmjs.org/typescript-language-server/-/typescript-language-server-4.3.3.tgz"
+sha256 = "placeholder_update_with_real_checksum"
+compressed = "tar.gz"
+
+[[lsp.typescript-language-server.platform]]
+os = "macos"
+arch = "x86_64"
+url = "https://registry.npmjs.org/typescript-language-server/-/typescript-language-server-4.3.3.tgz"
+sha256 = "placeholder_update_with_real_checksum"
+compressed = "tar.gz"
+
+[[lsp.typescript-language-server.platform]]
+os = "macos"
+arch = "aarch64"
+url = "https://registry.npmjs.org/typescript-language-server/-/typescript-language-server-4.3.3.tgz"
+sha256 = "placeholder_update_with_real_checksum"
+compressed = "tar.gz"
+
+[lsp.pylsp]
+languages = ["python"]
+command = "pylsp"
+runtime_required = "python3"
+test_args = ["--version"]
+
+[[lsp.pylsp.platform]]
+os = "linux"
+arch = "x86_64"
+url = "https://files.pythonhosted.org/packages/source/p/python-lsp-server/python-lsp-server-1.9.0.tar.gz"
+sha256 = "placeholder_update_with_real_checksum"
+compressed = "tar.gz"
+
+[[lsp.pylsp.platform]]
+os = "linux"
+arch = "aarch64"
+url = "https://files.pythonhosted.org/packages/source/p/python-lsp-server/python-lsp-server-1.9.0.tar.gz"
+sha256 = "placeholder_update_with_real_checksum"
+compressed = "tar.gz"
+
+[[lsp.pylsp.platform]]
+os = "macos"
+arch = "x86_64"
+url = "https://files.pythonhosted.org/packages/source/p/python-lsp-server/python-lsp-server-1.9.0.tar.gz"
+sha256 = "placeholder_update_with_real_checksum"
+compressed = "tar.gz"
+
+[[lsp.pylsp.platform]]
+os = "macos"
+arch = "aarch64"
+url = "https://files.pythonhosted.org/packages/source/p/python-lsp-server/python-lsp-server-1.9.0.tar.gz"
+sha256 = "placeholder_update_with_real_checksum"
+compressed = "tar.gz"

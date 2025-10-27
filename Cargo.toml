@@ -3,6 +3,7 @@ members = [
     "crates/mill-plugin-api",
     "crates/mill-plugin-system",
     "crates/mill-lsp",
+    "crates/mill-lsp-manager",
     "crates/mill-services",
     "crates/mill-server",
     "crates/mill-transport",
