@@ -96,23 +96,65 @@ impl LspClient {
         // Build augmented PATH with common LSP locations
         let mut path_additions = vec![];
 
-        // Add pipx bin directory (Linux/macOS)
-        if let Ok(home) = std::env::var("HOME") {
+        // Get home directory (cross-platform: $HOME on Unix, %USERPROFILE% on Windows)
+        let home_dir = std::env::var("HOME")
+            .or_else(|_| std::env::var("USERPROFILE"))
+            .ok();
+
+        // Unix/macOS-specific paths
+        #[cfg(unix)]
+        if let Some(ref home) = home_dir {
+            // Add pipx bin directory (Linux/macOS)
             path_additions.push(format!("{}/.local/bin", home));
         }
 
-        // Add npm global bin directory
+        // Windows-specific paths
+        #[cfg(windows)]
+        if let Some(ref home) = home_dir {
+            // Add local bin directory (for pipx, scoop, etc.)
+            path_additions.push(format!("{}/.local/bin", home));
+            path_additions.push(format!("{}\\.local\\bin", home));
+
+            // Add npm global directory (Windows default)
+            path_additions.push(format!("{}\\AppData\\Roaming\\npm", home));
+
+            // Add cargo bin directory (Windows)
+            path_additions.push(format!("{}\\.cargo\\bin", home));
+        }
+
+        // Add npm global bin directory (cross-platform)
         if let Ok(npm_bin) = std::env::var("NPM_CONFIG_PREFIX") {
+            #[cfg(unix)]
             path_additions.push(format!("{}/bin", npm_bin));
-        } else if let Ok(home) = std::env::var("HOME") {
+            #[cfg(windows)]
+            path_additions.push(format!("{}\\bin", npm_bin));
+        } else if let Some(ref home) = home_dir {
+            #[cfg(unix)]
             path_additions.push(format!("{}/.npm-global/bin", home));
         }
 
-        // Add cargo bin directory
+        // Add cargo bin directory (cross-platform)
         if let Ok(cargo_home) = std::env::var("CARGO_HOME") {
+            #[cfg(unix)]
             path_additions.push(format!("{}/bin", cargo_home));
-        } else if let Ok(home) = std::env::var("HOME") {
+            #[cfg(windows)]
+            path_additions.push(format!("{}\\bin", cargo_home));
+        } else if let Some(ref home) = home_dir {
+            #[cfg(unix)]
             path_additions.push(format!("{}/.cargo/bin", home));
+        }
+
+        // Windows: Add common program install locations
+        #[cfg(windows)]
+        {
+            // Node.js default install location
+            if let Ok(program_files) = std::env::var("ProgramFiles") {
+                path_additions.push(format!("{}\\nodejs", program_files));
+            }
+            // Also check ProgramFiles(x86) for 32-bit Node.js
+            if let Ok(program_files_x86) = std::env::var("ProgramFiles(x86)") {
+                path_additions.push(format!("{}\\nodejs", program_files_x86));
+            }
         }
 
         // Add NVM node bin directory (critical for typescript-language-server)
@@ -150,7 +192,7 @@ impl LspClient {
                     path_additions.push(version_path);
                 }
             }
-        } else if let Ok(home) = std::env::var("HOME") {
+        } else if let Some(ref home) = home_dir {
             // Fallback: try common NVM location with default version
             let nvm_default_path = format!("{}/.nvm/alias/default", home);
             if let Ok(default_version) = std::fs::read_to_string(&nvm_default_path) {
@@ -164,11 +206,21 @@ impl LspClient {
             }
         }
 
-        // Construct augmented PATH
+        // Construct augmented PATH with platform-specific separator
+        #[cfg(unix)]
+        const PATH_SEP: &str = ":";
+        #[cfg(windows)]
+        const PATH_SEP: &str = ";";
+
         let augmented_path = if path_additions.is_empty() {
             current_path
         } else {
-            format!("{}:{}", path_additions.join(":"), current_path)
+            format!(
+                "{}{}{}",
+                path_additions.join(PATH_SEP),
+                PATH_SEP,
+                current_path
+            )
         };
 
         tracing::debug!(
