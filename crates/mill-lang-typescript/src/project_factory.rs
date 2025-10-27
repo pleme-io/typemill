@@ -2,10 +2,14 @@
 //!
 //! Handles creation of new TypeScript/JavaScript packages with proper workspace integration.
 
+use mill_lang_common::project_factory::{
+    derive_package_name, resolve_package_path, update_workspace_manifest,
+    validate_package_path_not_exists, write_project_file, WorkspaceManifestDetector,
+};
 use mill_plugin_api::project_factory::{
     CreatePackageConfig, CreatePackageResult, PackageInfo, PackageType, ProjectFactory, Template,
 };
-use mill_plugin_api::{PluginError, PluginResult};
+use mill_plugin_api::{PluginError, PluginResult, WorkspaceSupport};
 use std::fs;
 use std::path::{Path, PathBuf};
 use tracing::{debug, error};
@@ -23,29 +27,13 @@ impl ProjectFactory for TypeScriptProjectFactory {
             "Creating TypeScript package"
         );
 
-        // Resolve paths
+        // Resolve and validate paths
         let workspace_root = Path::new(&config.workspace_root);
         let package_path = resolve_package_path(workspace_root, &config.package_path)?;
-
-        // Validate package path doesn't exist
-        if package_path.exists() {
-            return Err(PluginError::invalid_input(format!(
-                "Package already exists at {}",
-                package_path.display()
-            )));
-        }
+        validate_package_path_not_exists(&package_path)?;
 
         // Derive package name
-        let package_name = package_path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .ok_or_else(|| {
-                PluginError::invalid_input(format!(
-                    "Invalid package path: {}",
-                    package_path.display()
-                ))
-            })?
-            .to_string();
+        let package_name = derive_package_name(&package_path)?;
 
         debug!(package_name = %package_name, "Derived package name");
 
@@ -58,19 +46,19 @@ impl ProjectFactory for TypeScriptProjectFactory {
         // Write package.json
         let package_json_path = package_path.join("package.json");
         let package_json_content = generate_package_json(&package_name, config.package_type);
-        write_file(&package_json_path, &package_json_content)?;
+        write_project_file(&package_json_path, &package_json_content)?;
         created_files.push(package_json_path.display().to_string());
 
         // Write tsconfig.json
         let tsconfig_path = package_path.join("tsconfig.json");
         let tsconfig_content = generate_tsconfig();
-        write_file(&tsconfig_path, &tsconfig_content)?;
+        write_project_file(&tsconfig_path, &tsconfig_content)?;
         created_files.push(tsconfig_path.display().to_string());
 
         // Write entry file
         let entry_file_path = package_path.join(entry_file(config.package_type));
         let entry_content = generate_entry_content(&package_name, config.package_type);
-        write_file(&entry_file_path, &entry_content)?;
+        write_project_file(&entry_file_path, &entry_content)?;
         created_files.push(entry_file_path.display().to_string());
 
         // Create baseline files (README, .gitignore, tests) for minimal template
@@ -85,7 +73,14 @@ impl ProjectFactory for TypeScriptProjectFactory {
 
         // Update workspace if requested
         let workspace_updated = if config.add_to_workspace {
-            update_workspace_members(workspace_root, &package_path)?
+            let workspace_support = crate::workspace_support::TypeScriptWorkspaceSupport;
+            update_workspace_manifest(
+                workspace_root,
+                &package_path,
+                "package.json",
+                &TypeScriptManifestDetector,
+                |content, member| workspace_support.add_workspace_member(content, member),
+            )?
         } else {
             false
         };
