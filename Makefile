@@ -1,7 +1,7 @@
 # TypeMill Makefile
 # Simple build automation for common development tasks
 
-.PHONY: build release test test-fast test-full test-lsp install uninstall clean clean-cache first-time-setup install-lsp-servers dev-extras validate-setup help clippy fmt audit deny deny-update check check-duplicates dev watch ci build-parsers check-parser-deps check-analysis test-analysis check-handlers test-handlers check-core test-core check-lang test-lang dev-handlers dev-analysis dev-core dev-lang check-handlers-nav test-handlers-nav test-integration-refactor test-integration-analysis test-integration-nav
+.PHONY: build release test test-fast test-full test-lsp install uninstall clean clean-cache first-time-setup install-lsp-servers dev-extras validate-setup help clippy fmt audit deny deny-update check check-duplicates dev watch ci ci-local build-parsers check-parser-deps check-analysis test-analysis check-handlers test-handlers check-core test-core check-lang test-lang dev-handlers dev-analysis dev-core dev-lang check-handlers-nav test-handlers-nav test-integration-refactor test-integration-analysis test-integration-nav
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -302,6 +302,32 @@ dev-lang:
 ci: test-full check
 	@echo "✅ All CI checks passed"
 
+# Test CI checks locally - matches GitHub Actions exactly
+ci-local:
+	@echo "🧪 Running GitHub Actions CI checks locally..."
+	@echo ""
+	@echo "1️⃣  Format check (rustfmt)"
+	@cargo fmt --all -- --check || { echo "❌ Format check failed"; exit 1; }
+	@echo "✅ Format check passed\n"
+	@echo "2️⃣  Lint check (clippy --all-targets --all-features)"
+	@cargo clippy --all-targets --all-features -- -D warnings || { echo "❌ Clippy failed"; exit 1; }
+	@echo "✅ Clippy passed\n"
+	@echo "3️⃣  Build check"
+	@cargo build --verbose || { echo "❌ Build failed"; exit 1; }
+	@echo "✅ Build passed\n"
+	@echo "4️⃣  Test suite"
+	@if command -v cargo-nextest >/dev/null 2>&1; then \
+		cargo nextest run --workspace || { echo "❌ Tests failed"; exit 1; }; \
+	else \
+		cargo test --workspace || { echo "❌ Tests failed"; exit 1; }; \
+	fi
+	@echo "✅ Tests passed\n"
+	@echo "5️⃣  Doc tests"
+	@cargo test --doc || { echo "❌ Doc tests failed"; exit 1; }
+	@echo "✅ Doc tests passed\n"
+	@echo ""
+	@echo "✅ All CI checks passed! Safe to push to GitHub."
+
 # Build all external language parsers that require a separate build step
 # Language plugins are optional - this target detects and builds only what's available
 build-parsers:
@@ -595,6 +621,7 @@ help:
 	@echo "  make check-duplicates  - Detect duplicate code & complexity"
 	@echo "  make validate-setup    - Check if your dev environment is set up correctly"
 	@echo "  make ci                - Run all CI checks (for CI/CD)"
+	@echo "  make ci-local          - Test GitHub Actions CI locally before pushing"
 	@echo ""
 	@echo "🔧 Language Parsers:"
 	@echo "  make build-parsers     - Build all external language parsers"
