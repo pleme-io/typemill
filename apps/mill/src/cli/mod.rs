@@ -63,6 +63,11 @@ pub enum Commands {
     Unlink,
     /// Check client configuration and diagnose potential problems
     Doctor,
+    /// Install LSP server for a specific language
+    InstallLsp {
+        /// Language name (e.g., "rust", "typescript", "python")
+        language: String,
+    },
     /// Call an MCP tool directly (without WebSocket server)
     ///
     /// Common tools:
@@ -303,6 +308,9 @@ pub async fn run() {
         }
         Commands::Doctor => {
             handle_doctor().await;
+        }
+        Commands::InstallLsp { language } => {
+            handle_install_lsp(&language).await;
         }
         Commands::Tool {
             tool_name,
@@ -574,6 +582,107 @@ async fn handle_setup() {
             process::exit(1);
         }
     }
+
+    // Auto-detect and offer to install LSPs
+    println!();
+    println!("🔍 Detecting project languages...");
+
+    let manager = match mill_lsp_manager::LspManager::new() {
+        Ok(m) => m,
+        Err(e) => {
+            error!(error = %e, "Failed to create LSP manager");
+            eprintln!("⚠️  Warning: Could not detect languages ({})", e);
+            return;
+        }
+    };
+
+    let needed_lsps = match manager.detect_needed_lsps(std::path::Path::new(".")) {
+        Ok(lsps) => lsps,
+        Err(e) => {
+            error!(error = %e, "Failed to detect needed LSPs");
+            eprintln!("⚠️  Warning: Could not detect languages ({})", e);
+            return;
+        }
+    };
+
+    if needed_lsps.is_empty() {
+        println!("   No project languages detected in current directory");
+        return;
+    }
+
+    println!(
+        "   Detected: {}",
+        needed_lsps.join(", ")
+    );
+    println!();
+
+    // Check which LSPs are already installed
+    let mut missing_lsps = Vec::new();
+    for lsp_name in &needed_lsps {
+        match manager.check_status(lsp_name) {
+            Ok(mill_lsp_manager::InstallStatus::Installed { .. }) => {
+                println!("   ✅ {} - already installed", lsp_name);
+            }
+            Ok(mill_lsp_manager::InstallStatus::NeedsRuntime { runtime }) => {
+                println!("   ⚠️  {} - needs runtime: {}", lsp_name, runtime);
+            }
+            Ok(mill_lsp_manager::InstallStatus::NotInstalled) => {
+                println!("   📥 {} - not installed", lsp_name);
+                missing_lsps.push(lsp_name.clone());
+            }
+            Err(e) => {
+                error!(error = %e, lsp_name, "Failed to check LSP status");
+            }
+        }
+    }
+
+    if missing_lsps.is_empty() {
+        println!();
+        println!("✅ All required LSP servers are already installed!");
+        return;
+    }
+
+    // Offer to install missing LSPs
+    println!();
+    println!(
+        "📥 Would you like to install {} missing LSP server(s)? [Y/n]",
+        missing_lsps.len()
+    );
+
+    use std::io::{self, BufRead};
+    let stdin = io::stdin();
+    let mut response = String::new();
+    let _ = stdin.lock().read_line(&mut response);
+    let response = response.trim().to_lowercase();
+
+    if response.is_empty() || response == "y" || response == "yes" {
+        println!();
+        println!("📦 Installing LSP servers...");
+
+        for lsp_name in &missing_lsps {
+            print!("   Installing {}... ", lsp_name);
+            match manager.ensure_installed(lsp_name).await {
+                Ok(path) => {
+                    println!("✅ {}", path.display());
+                }
+                Err(e) => {
+                    println!("❌");
+                    error!(error = %e, lsp_name, "Failed to install LSP");
+                    eprintln!("      Error: {}", e);
+                }
+            }
+        }
+
+        println!();
+        println!("✅ LSP installation complete!");
+    } else {
+        println!();
+        println!("⏭️  Skipped LSP installation");
+        println!("   You can install them later with:");
+        for lsp_name in &missing_lsps {
+            println!("   mill install-lsp {}", lsp_name);
+        }
+    }
 }
 
 /// Handle the status command
@@ -726,6 +835,83 @@ async fn handle_doctor() {
 
     println!();
     println!("✨ Doctor's checkup complete.");
+}
+
+/// Handle the install-lsp command
+async fn handle_install_lsp(language: &str) {
+    println!("📥 Installing LSP server for {}...", language);
+
+    // Create LSP manager
+    let manager = match mill_lsp_manager::LspManager::new() {
+        Ok(m) => m,
+        Err(e) => {
+            error!(error = %e, "Failed to create LSP manager");
+            eprintln!("❌ Error: Failed to initialize LSP manager: {}", e);
+            process::exit(1);
+        }
+    };
+
+    // Map common language names to LSP server names
+    let lang_lower = language.to_lowercase();
+    let lsp_name = match lang_lower.as_str() {
+        "rust" => "rust-analyzer",
+        "typescript" | "ts" | "javascript" | "js" => "typescript-language-server",
+        "python" | "py" => "pylsp",
+        _ => language, // Try exact match with original case
+    };
+
+    // Check if LSP exists in registry
+    let available = manager.list_available();
+    if !available.iter().any(|n| n.as_str() == lsp_name) {
+        eprintln!("❌ No LSP server found for language: {}", language);
+        eprintln!("   Supported languages:");
+        eprintln!("   • rust (rust-analyzer)");
+        eprintln!("   • typescript/javascript (typescript-language-server)");
+        eprintln!("   • python (pylsp)");
+        eprintln!();
+        let available_str: Vec<&str> = available.iter().map(|s| s.as_str()).collect();
+        eprintln!("   Or use exact LSP name: {}", available_str.join(", "));
+        process::exit(1);
+    }
+
+    println!("   Found: {}", lsp_name);
+
+    // Check current status
+    match manager.check_status(lsp_name) {
+        Ok(mill_lsp_manager::InstallStatus::Installed { path }) => {
+            println!("✅ {} is already installed at: {}", lsp_name, path.display());
+            return;
+        }
+        Ok(mill_lsp_manager::InstallStatus::NeedsRuntime { runtime }) => {
+            eprintln!("❌ {} requires runtime: {}", lsp_name, runtime);
+            eprintln!(
+                "   Please install {} first before installing this LSP server",
+                runtime
+            );
+            process::exit(1);
+        }
+        Ok(mill_lsp_manager::InstallStatus::NotInstalled) => {
+            // Continue with installation
+        }
+        Err(e) => {
+            error!(error = %e, "Failed to check LSP status");
+            eprintln!("❌ Error checking status: {}", e);
+            process::exit(1);
+        }
+    }
+
+    // Install LSP
+    match manager.ensure_installed(lsp_name).await {
+        Ok(path) => {
+            println!("✅ Successfully installed {} to:", lsp_name);
+            println!("   {}", path.display());
+        }
+        Err(e) => {
+            error!(error = %e, lsp_name, "Failed to install LSP");
+            eprintln!("❌ Installation failed: {}", e);
+            process::exit(1);
+        }
+    }
 }
 
 /// Handle the stop command
