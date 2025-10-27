@@ -84,9 +84,14 @@ function main() {
         .expect("Refactor call should succeed");
 
     // Verify the operation succeeded
+    let apply_result = apply_response
+        .get("result")
+        .and_then(|r| r.get("content"))
+        .expect("Apply result should exist");
+
     assert_eq!(
-        apply_response.get("success"),
-        Some(&json!(true)),
+        apply_result.get("success").and_then(|v| v.as_bool()),
+        Some(true),
         "Refactor operation should succeed"
     );
 
