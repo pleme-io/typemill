@@ -11,7 +11,7 @@ use mill_plugin_api::project_factory::{
 };
 use mill_plugin_api::{PluginError, PluginResult, WorkspaceSupport};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tracing::{debug, error};
 
 /// TypeScript project factory implementation
@@ -99,57 +99,13 @@ impl ProjectFactory for TypeScriptProjectFactory {
 
 // Helper functions
 
-fn resolve_package_path(workspace_root: &Path, package_path: &str) -> PluginResult<PathBuf> {
-    let path = Path::new(package_path);
+/// Workspace manifest detector for TypeScript projects
+struct TypeScriptManifestDetector;
 
-    // Reject paths with parent directory components to prevent traversal
-    use std::path::Component;
-    for component in path.components() {
-        if matches!(component, Component::ParentDir) {
-            return Err(PluginError::invalid_input(format!(
-                "Package path cannot contain '..' components: {}",
-                package_path
-            )));
-        }
+impl WorkspaceManifestDetector for TypeScriptManifestDetector {
+    fn is_workspace_manifest(&self, content: &str) -> bool {
+        crate::workspace_support::TypeScriptWorkspaceSupport.is_workspace_manifest(content)
     }
-
-    let resolved = if path.is_absolute() {
-        path.to_path_buf()
-    } else {
-        workspace_root.join(path)
-    };
-
-    // Canonicalize both paths for comparison (handles symlinks, . and .. after join)
-    let canonical_root = workspace_root.canonicalize().map_err(|e| {
-        PluginError::internal(format!("Failed to canonicalize workspace root: {}", e))
-    })?;
-
-    // For the resolved path, we need to canonicalize the parent since the target doesn't exist yet
-    let canonical_resolved = if let Some(parent) = resolved.parent() {
-        if parent.exists() {
-            let canonical_parent = parent.canonicalize().map_err(|e| {
-                PluginError::internal(format!("Failed to canonicalize parent directory: {}", e))
-            })?;
-            resolved
-                .file_name()
-                .map(|name| canonical_parent.join(name))
-                .ok_or_else(|| PluginError::invalid_input("Invalid package path"))?
-        } else {
-            // Parent doesn't exist yet, we'll create it - just verify it would be within workspace
-            resolved.clone()
-        }
-    } else {
-        resolved.clone()
-    };
-
-    if !canonical_resolved.starts_with(&canonical_root) {
-        return Err(PluginError::invalid_input(format!(
-            "Package path {} is outside workspace",
-            package_path
-        )));
-    }
-
-    Ok(resolved)
 }
 
 fn create_directory_structure(package_path: &Path) -> PluginResult<()> {
@@ -278,14 +234,6 @@ main();
     }
 }
 
-fn write_file(path: &Path, content: &str) -> PluginResult<()> {
-    debug!(path = %path.display(), "Writing file");
-    fs::write(path, content).map_err(|e| {
-        error!(error = %e, path = %path.display(), "Failed to write file");
-        PluginError::internal(format!("Failed to write file: {}", e))
-    })
-}
-
 fn create_baseline_files(package_path: &Path, package_name: &str) -> PluginResult<Vec<String>> {
     let mut created = Vec::new();
 
@@ -295,7 +243,7 @@ fn create_baseline_files(package_path: &Path, package_name: &str) -> PluginResul
         "# {}\n\nTODO: Add project description\n\n## Installation\n\n```bash\nnpm install {}\n```\n\n## Usage\n\nTODO: Add usage examples\n",
         package_name, package_name
     );
-    write_file(&readme_path, &readme_content)?;
+    write_project_file(&readme_path, &readme_content)?;
     created.push(readme_path.display().to_string());
 
     // .gitignore
@@ -324,7 +272,7 @@ yarn-error.log*
 .env
 .env.local
 "#;
-    write_file(&gitignore_path, gitignore_content)?;
+    write_project_file(&gitignore_path, gitignore_content)?;
     created.push(gitignore_path.display().to_string());
 
     // tests/index.test.ts
@@ -347,7 +295,7 @@ describe("{}", () => {{
 "#,
         package_name, package_name
     );
-    write_file(&test_path, &test_content)?;
+    write_project_file(&test_path, &test_content)?;
     created.push(test_path.display().to_string());
 
     Ok(created)
@@ -371,114 +319,10 @@ fn create_full_template_extras(package_path: &Path) -> PluginResult<Vec<String>>
   "rules": {}
 }
 "#;
-    write_file(&eslintrc_path, eslintrc_content)?;
+    write_project_file(&eslintrc_path, eslintrc_content)?;
     created.push(eslintrc_path.display().to_string());
 
     Ok(created)
-}
-
-fn update_workspace_members(workspace_root: &Path, package_path: &Path) -> PluginResult<bool> {
-    // Find workspace manifest (package.json or pnpm-workspace.yaml)
-    let workspace_manifest = find_workspace_manifest(workspace_root)?;
-
-    debug!(
-        workspace_manifest = %workspace_manifest.display(),
-        "Found workspace manifest"
-    );
-
-    // Read manifest
-    let content = fs::read_to_string(&workspace_manifest).map_err(|e| {
-        error!(
-            error = %e,
-            workspace_manifest = %workspace_manifest.display(),
-            "Failed to read workspace manifest"
-        );
-        PluginError::internal(format!("Failed to read workspace manifest: {}", e))
-    })?;
-
-    // Calculate relative path
-    let workspace_dir = workspace_manifest
-        .parent()
-        .ok_or_else(|| PluginError::internal("Invalid workspace manifest path"))?;
-
-    let relative_path = pathdiff::diff_paths(package_path, workspace_dir)
-        .ok_or_else(|| PluginError::internal("Failed to calculate relative path"))?;
-
-    // Normalize to forward slashes for cross-platform compatibility
-    // npm/yarn/pnpm expect forward slashes even on Windows
-    let member_str = relative_path.to_string_lossy().replace('\\', "/");
-
-    debug!(member = %member_str, "Adding workspace member");
-
-    // Use workspace support to add member
-    use mill_plugin_api::WorkspaceSupport;
-    let workspace_support = crate::workspace_support::TypeScriptWorkspaceSupport;
-    let updated_content = workspace_support.add_workspace_member(&content, &member_str);
-
-    if updated_content != content {
-        // Write updated manifest (package.json or pnpm-workspace.yaml)
-        fs::write(&workspace_manifest, &updated_content).map_err(|e| {
-            error!(
-                error = %e,
-                workspace_manifest = %workspace_manifest.display(),
-                "Failed to write workspace manifest"
-            );
-            PluginError::internal(format!("Failed to write workspace manifest: {}", e))
-        })?;
-
-        Ok(true)
-    } else {
-        Ok(false)
-    }
-}
-
-fn find_workspace_manifest(workspace_root: &Path) -> PluginResult<PathBuf> {
-    use mill_plugin_api::WorkspaceSupport;
-    let workspace_support = crate::workspace_support::TypeScriptWorkspaceSupport;
-    let mut current = workspace_root.to_path_buf();
-
-    loop {
-        // Check for pnpm-workspace.yaml first (pnpm reads this file, not package.json)
-        let pnpm_manifest = current.join("pnpm-workspace.yaml");
-        if pnpm_manifest.exists() {
-            let content = fs::read_to_string(&pnpm_manifest).map_err(|e| {
-                PluginError::internal(format!("Failed to read pnpm-workspace.yaml: {}", e))
-            })?;
-
-            if workspace_support.is_workspace_manifest(&content) {
-                // Return pnpm-workspace.yaml path so updates are written to the correct file
-                return Ok(pnpm_manifest);
-            }
-        }
-
-        // Check for package.json with workspaces
-        let manifest = current.join("package.json");
-        if manifest.exists() {
-            let content = fs::read_to_string(&manifest).map_err(|e| {
-                PluginError::internal(format!("Failed to read package.json: {}", e))
-            })?;
-
-            // Check if it's a workspace manifest using workspace_support
-            if workspace_support.is_workspace_manifest(&content) {
-                return Ok(manifest);
-            }
-        }
-
-        // Move up
-        current = current
-            .parent()
-            .ok_or_else(|| PluginError::invalid_input("No workspace manifest found in hierarchy"))?
-            .to_path_buf();
-
-        // Stop at root
-        if current == current.parent().unwrap_or(&current) {
-            break;
-        }
-    }
-
-    Err(PluginError::invalid_input(
-        "No workspace manifest found (package.json or pnpm-workspace.yaml)",
-    ))
 }
 
 #[cfg(test)]

@@ -340,7 +340,10 @@ where
             workspace_manifest = %workspace_manifest.display(),
             "Failed to read workspace manifest"
         );
-        PluginError::internal(format!("Failed to read workspace {}: {}", manifest_filename, e))
+        PluginError::internal(format!(
+            "Failed to read workspace {}: {}",
+            manifest_filename, e
+        ))
     })?;
 
     // Calculate relative path from manifest directory to package
@@ -367,7 +370,10 @@ where
                 workspace_manifest = %workspace_manifest.display(),
                 "Failed to write workspace manifest"
             );
-            PluginError::internal(format!("Failed to write workspace {}: {}", manifest_filename, e))
+            PluginError::internal(format!(
+                "Failed to write workspace {}: {}",
+                manifest_filename, e
+            ))
         })?;
 
         Ok(true)

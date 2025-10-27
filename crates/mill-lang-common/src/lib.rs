@@ -138,9 +138,8 @@ pub use io::{file_path_to_module, find_source_files, read_manifest, read_source}
 
 // Re-export project factory utilities
 pub use project_factory::{
-    derive_package_name, find_workspace_manifest, resolve_package_path,
-    update_workspace_manifest, validate_package_path_not_exists, write_project_file,
-    WorkspaceManifestDetector,
+    derive_package_name, find_workspace_manifest, resolve_package_path, update_workspace_manifest,
+    validate_package_path_not_exists, write_project_file, WorkspaceManifestDetector,
 };
 
 // Re-export macros
