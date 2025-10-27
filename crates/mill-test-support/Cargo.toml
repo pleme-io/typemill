@@ -5,10 +5,6 @@ edition = "2021"
 license.workspace = true
 publish = false
 
-[features]
-# Feature flag for outdated benchmarks that need migration
-legacy-benchmarks = []
-
 [dependencies]
 tokio = { workspace = true }
 serde = { workspace = true }
@@ -40,22 +36,7 @@ criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
 # Linked via extern crate declaration in test modules
 mill-plugin-bundle = { path = "../mill-plugin-bundle", features = ["lang-rust", "lang-typescript", "lang-markdown", "lang-toml", "lang-yaml"] }
 
-# Benchmarks (merged from cb-bench)
-[[bench]]
-name = "dispatch_benchmark"
-harness = false
-required-features = ["legacy-benchmarks"]
-
+# Benchmarks
 [[bench]]
 name = "serialization_benchmark"
 harness = false
-
-[[bench]]
-name = "forwarding_benchmark"
-harness = false
-required-features = ["legacy-benchmarks"]
-
-[[bench]]
-name = "optimization_benchmark"
-harness = false
-required-features = ["legacy-benchmarks"]
