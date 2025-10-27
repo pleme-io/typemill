@@ -137,6 +137,8 @@ pub struct TransformPlan {
 #[serde(rename_all = "camelCase")]
 pub struct DeletePlan {
     pub deletions: Vec<DeletionTarget>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub edits: Option<WorkspaceEdit>,  // For symbol deletion within files
     pub summary: PlanSummary,
     pub warnings: Vec<PlanWarning>,
     pub metadata: PlanMetadata,
@@ -286,13 +288,17 @@ impl RefactorPlanExt for DeletePlan {
         &self.file_checksums
     }
     fn workspace_edit(&self) -> &WorkspaceEdit {
-        // Return empty edit - DeletePlan uses deletions field instead
-        static EMPTY: WorkspaceEdit = WorkspaceEdit {
-            changes: None,
-            document_changes: None,
-            change_annotations: None,
-        };
-        &EMPTY
+        // Return edits if present (for symbol deletion), otherwise empty
+        if let Some(ref edits) = self.edits {
+            edits
+        } else {
+            static EMPTY: WorkspaceEdit = WorkspaceEdit {
+                changes: None,
+                document_changes: None,
+                change_annotations: None,
+            };
+            &EMPTY
+        }
     }
     fn warnings(&self) -> &[PlanWarning] {
         &self.warnings

@@ -88,7 +88,7 @@ function main() {
         .as_ref()
         .unwrap();
     assert_eq!(
-        refactor_call.arguments["target"]["filePath"]
+        refactor_call.arguments["target"]["path"]
             .as_str()
             .unwrap(),
         test_file.to_string_lossy()

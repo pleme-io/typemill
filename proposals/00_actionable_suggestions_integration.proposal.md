@@ -1,10 +1,11 @@
 # Proposal 00: Actionable Suggestions - Analysis Integration
 
-**Status**: ✅ **Code Complete** | ✅ **6/7 Tests Passing** | ⚠️ **1 Test Blocked by Unimplemented Feature**
+**Status**: ✅ **COMPLETE** | ✅ **ALL 13 Tests Passing** | ✅ **Full Closed-Loop Workflow Working**
 **Author**: Project Team
 **Date**: 2025-10-13 (Split from 01c)
 **Implementation Date**: 2025-10-26 (All Categories)
-**Verification Date**: 2025-10-27 (Build Fixed & Tests Verified)
+**Verification Date**: 2025-10-27 (Build Fixed, Tests Verified, Delete Handler Implemented)
+**Completion Date**: 2025-10-27 (Symbol Deletion Implementation Complete)
 **Parent Proposal**: [01b_unified_analysis_api.md](01b_unified_analysis_api.md)
 **Dependencies**: ✅ 01a, ✅ 01b, ✅ 01c1 (Core Infrastructure - MERGED)
 **Branch**: ✅ `feat-00` (MERGED to main @ f9b42fcc)
@@ -51,15 +52,21 @@
 - ✅ Tests analysis - COMPLETE (SuggestionGenerator integrated)
 - ✅ Closed-loop workflow test - COMPLETE
 
-**Test Results**: ✅ **6/7 Tests Passing** | ⚠️ **1/7 Workflow Verified (Execution Blocked)**
+**Test Results**: ✅ **ALL 13 Tests Passing** | ✅ **Full Closed-Loop Workflow Working**
   - ✅ test_suggestions_quality - PASSES
   - ✅ test_suggestions_dependencies - PASSES
   - ✅ test_suggestions_structure - PASSES
   - ✅ test_suggestions_documentation - PASSES
   - ✅ test_suggestions_tests - PASSES
-  - ✅ test_suggestions_dead_code (6 tests) - PASSES
+  - ✅ test_suggestions_dead_code (6 tests) - ALL PASSING
+    - ✅ unused_imports
+    - ✅ unused_function
+    - ✅ unreachable_code
+    - ✅ unused_parameter
+    - ✅ unused_type
+    - ✅ unused_variable
   - ✅ test_analyze_quality_complexity_basic - PASSES (fixed with relaxed assertion)
-  - ⚠️ test_closed_loop_workflow_dead_code_removal - Workflow structure verified, execution blocked by unimplemented `plan_dead_code_delete` (returns empty plan)
+  - ✅ test_closed_loop_workflow_dead_code_removal - **PASSES** (symbol deletion implemented with smart import removal)
 
 **Build Status**: ✅ Clean build achieved with serial compilation (`cargo build -j 1`)
 
@@ -625,4 +632,61 @@ Merged from `feat-00` branch (commit f9b42fcc):
 
 ---
 
-**Status**: ✅ **Code Complete & Verified** (2025-10-27) | ⚠️ **1 Test Requires Feature Implementation**
+### Phase 3: Symbol Deletion Implementation (2025-10-27) ✅ COMPLETE
+
+**Full Closed-Loop Workflow Implementation**
+
+Implemented complete symbol deletion to make `test_closed_loop_workflow_dead_code_removal` pass:
+
+**Implementation Details:**
+
+1. ✅ **Modified DeletePlan Structure**
+   - Added `edits: Option<WorkspaceEdit>` field to support in-file symbol deletion
+   - Updated `RefactorPlanExt::workspace_edit()` to return edits when present
+   - Location: `crates/mill-foundation/src/protocol/refactor_plan.rs:136-146, 286-302`
+
+2. ✅ **Implemented Smart Symbol Deletion**
+   - Created `DeleteHandler::plan_symbol_delete()` to generate proper deletion plans
+   - Added `remove_import_identifier()` helper for intelligent import removal
+   - For multi-import statements: Removes only the unused identifier
+   - For single imports: Deletes entire line
+   - Location: `crates/mill-handlers/src/handlers/delete_handler.rs:188-359`
+
+3. ✅ **Fixed Line Numbering**
+   - Changed `detect_unused_imports` from 1-indexed to 0-indexed for LSP compliance
+   - Fixed: `let mut line_num = 1` → `let mut line_num = 0`
+   - Location: `crates/mill-handlers/src/handlers/tools/analysis/dead_code.rs:76`
+
+4. ✅ **Added Missing 'kind' Field**
+   - Added top-level `"kind"` field to refactor_call_args for all dead code suggestions
+   - Ensures test compatibility: `refactor_call.arguments["kind"]` now returns correct value
+   - Location: `crates/mill-handlers/src/handlers/tools/analysis/dead_code.rs:1483-1497`
+
+5. ✅ **Fixed Test Parameters**
+   - Updated test to use `"path"` instead of `"filePath"` to match protocol
+   - Location: `tests/e2e/src/test_suggestions_dead_code.rs:91`
+
+**Test Results:**
+- ✅ `test_closed_loop_workflow_dead_code_removal` - **NOW PASSING**
+- ✅ All 6 dead code suggestion tests - **ALL PASSING**
+- ✅ All 13 suggestion + workflow tests - **100% PASSING**
+
+**Smart Import Removal Example:**
+```typescript
+// Before:
+import { unusedFunction, usedFunction } from './anotherFile';
+
+// After deletion of unusedFunction:
+import { usedFunction } from './anotherFile';
+
+// (Not the entire line deleted!)
+```
+
+**Commits:**
+- TBD - feat: Implement symbol deletion with smart import removal
+- TBD - fix: Add top-level kind field to refactor_call_args
+- TBD - fix: Use 0-indexed line numbers for LSP compliance
+
+---
+
+**Status**: ✅ **COMPLETE** (2025-10-27) | ✅ **ALL TESTS PASSING** | ✅ **READY FOR ARCHIVE**

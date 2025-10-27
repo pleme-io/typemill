@@ -1,4 +1,6 @@
-use mill_foundation::protocol::analysis_result::{Suggestion, RefactorCall as ProtocolRefactorCall};
+use mill_foundation::protocol::analysis_result::{
+    RefactorCall as ProtocolRefactorCall, Suggestion,
+};
 use serde::{Deserialize, Serialize};
 
 /// Enhanced suggestion with safety metadata and actionable refactor call
@@ -101,7 +103,6 @@ impl From<ActionableSuggestion> for Suggestion {
         }
     }
 }
-
 
 /// Serialize confidence with 2 decimal places
 fn serialize_confidence<S>(confidence: &f64, serializer: S) -> Result<S::Ok, S::Error>

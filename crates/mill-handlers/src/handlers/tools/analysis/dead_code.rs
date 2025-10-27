@@ -73,7 +73,7 @@ pub fn detect_unused_imports(
         return findings; // Language not supported
     }
 
-    let mut line_num = 1;
+    let mut line_num = 0;  // LSP uses 0-indexed line numbers
     let lines: Vec<&str> = content.lines().collect();
 
     for line in &lines {
@@ -1481,6 +1481,7 @@ fn generate_dead_code_refactoring_candidates(
                 character: range.start.character as usize,
             },
             refactor_call_args: json!({
+                "kind": json_kind,
                 "target": {
                     "kind": "symbol",
                     "path": finding.location.file_path,

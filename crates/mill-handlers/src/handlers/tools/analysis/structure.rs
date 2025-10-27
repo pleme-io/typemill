@@ -13,15 +13,11 @@
 //! detection logic.
 
 use super::super::{ToolHandler, ToolHandlerContext};
-use super::suggestions::{
-    AnalysisContext, RefactoringCandidate, SuggestionGenerator,
-};
+use super::suggestions::{AnalysisContext, RefactoringCandidate, SuggestionGenerator};
 use anyhow::Result;
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
-use mill_foundation::protocol::analysis_result::{
-    Finding, FindingLocation, Severity, Suggestion,
-};
+use mill_foundation::protocol::analysis_result::{Finding, FindingLocation, Severity, Suggestion};
 use mill_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use mill_plugin_api::{Symbol, SymbolKind};
 use regex::Regex;
@@ -263,9 +259,7 @@ pub fn detect_hierarchy(
             ast_parse_errors: 0,
         };
 
-        if let Ok(candidates) =
-            generate_structure_refactoring_candidates(&finding)
-        {
+        if let Ok(candidates) = generate_structure_refactoring_candidates(&finding) {
             let suggestions = suggestion_generator.generate_multiple(candidates, &context);
             finding.suggestions = suggestions
                 .into_iter()
@@ -418,9 +412,7 @@ pub fn detect_interfaces(
             ast_parse_errors: 0,
         };
 
-        if let Ok(candidates) =
-            generate_structure_refactoring_candidates(&finding)
-        {
+        if let Ok(candidates) = generate_structure_refactoring_candidates(&finding) {
             let suggestions = suggestion_generator.generate_multiple(candidates, &context);
             finding.suggestions = suggestions
                 .into_iter()
@@ -566,9 +558,7 @@ pub fn detect_inheritance(
             ast_parse_errors: 0,
         };
 
-        if let Ok(candidates) =
-            generate_structure_refactoring_candidates(&finding)
-        {
+        if let Ok(candidates) = generate_structure_refactoring_candidates(&finding) {
             let suggestions = suggestion_generator.generate_multiple(candidates, &context);
             finding.suggestions = suggestions
                 .into_iter()
@@ -719,9 +709,7 @@ pub fn detect_modules(
             ast_parse_errors: 0,
         };
 
-        if let Ok(candidates) =
-            generate_structure_refactoring_candidates(&finding)
-        {
+        if let Ok(candidates) = generate_structure_refactoring_candidates(&finding) {
             let suggestions = suggestion_generator.generate_multiple(candidates, &context);
             finding.suggestions = suggestions
                 .into_iter()
@@ -1174,7 +1162,6 @@ fn generate_structure_refactoring_candidates(
 
     Ok(candidates)
 }
-
 
 // ============================================================================
 // Handler Implementation

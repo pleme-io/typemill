@@ -14,9 +14,7 @@
 //! detection logic.
 
 use super::super::{ToolHandler, ToolHandlerContext};
-use super::suggestions::{
-    AnalysisContext, RefactoringCandidate, SuggestionGenerator,
-};
+use super::suggestions::{AnalysisContext, RefactoringCandidate, SuggestionGenerator};
 use anyhow::Result;
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
@@ -362,7 +360,10 @@ pub fn detect_circular(
                     symbol_kind: Some("import".to_string()),
                 },
                 metrics: Some(metrics),
-                message: format!("Circular dependency detected: module imports itself via '{}'", import),
+                message: format!(
+                    "Circular dependency detected: module imports itself via '{}'",
+                    import
+                ),
                 suggestions: vec![],
             };
 
@@ -374,9 +375,7 @@ pub fn detect_circular(
                 ast_parse_errors: 0,
             };
 
-            if let Ok(candidates) =
-                generate_dependency_refactoring_candidates(&finding)
-            {
+            if let Ok(candidates) = generate_dependency_refactoring_candidates(&finding) {
                 let suggestions = suggestion_generator.generate_multiple(candidates, &context);
                 finding.suggestions = suggestions
                     .into_iter()
@@ -506,9 +505,7 @@ pub fn detect_coupling(
             ast_parse_errors: 0,
         };
 
-        if let Ok(candidates) =
-            generate_dependency_refactoring_candidates(&finding)
-        {
+        if let Ok(candidates) = generate_dependency_refactoring_candidates(&finding) {
             let suggestions = suggestion_generator.generate_multiple(candidates, &context);
             finding.suggestions = suggestions
                 .into_iter()
@@ -636,9 +633,7 @@ pub fn detect_cohesion(
             ast_parse_errors: 0,
         };
 
-        if let Ok(candidates) =
-            generate_dependency_refactoring_candidates(&finding)
-        {
+        if let Ok(candidates) = generate_dependency_refactoring_candidates(&finding) {
             let suggestions = suggestion_generator.generate_multiple(candidates, &context);
             finding.suggestions = suggestions
                 .into_iter()
@@ -764,9 +759,7 @@ pub fn detect_depth(
             ast_parse_errors: 0,
         };
 
-        if let Ok(candidates) =
-            generate_dependency_refactoring_candidates(&finding)
-        {
+        if let Ok(candidates) = generate_dependency_refactoring_candidates(&finding) {
             let suggestions = suggestion_generator.generate_multiple(candidates, &context);
             finding.suggestions = suggestions
                 .into_iter()

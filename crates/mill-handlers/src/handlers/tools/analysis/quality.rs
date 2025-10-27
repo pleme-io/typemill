@@ -2,15 +2,15 @@
 
 use super::super::{ToolHandler, ToolHandlerContext};
 use super::suggestions::{
-    AnalysisContext, EvidenceStrength, Location, RefactoringCandidate,
-    Scope, SuggestionGenerator, RefactorType,
+    AnalysisContext, EvidenceStrength, Location, RefactorType, RefactoringCandidate, Scope,
+    SuggestionGenerator,
 };
 use anyhow::Result;
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::protocol::analysis_result::{
-    AnalysisResult, AnalysisScope, Finding, FindingLocation, Position, Range,
-    SafetyLevel, Severity, Suggestion,
+    AnalysisResult, AnalysisScope, Finding, FindingLocation, Position, Range, SafetyLevel,
+    Severity, Suggestion,
 };
 use mill_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use regex::Regex;
@@ -425,14 +425,24 @@ impl QualityHandler {
 
                 match generate_quality_refactoring_candidates(&finding, &report.file_path) {
                     Ok(candidates) => {
-                        debug!(candidates_count = candidates.len(), "Got candidates, generating suggestions");
-                        let suggestions = suggestion_generator.generate_multiple(candidates, &context);
-                        debug!(suggestions_count = suggestions.len(), "Generated suggestions");
+                        debug!(
+                            candidates_count = candidates.len(),
+                            "Got candidates, generating suggestions"
+                        );
+                        let suggestions =
+                            suggestion_generator.generate_multiple(candidates, &context);
+                        debug!(
+                            suggestions_count = suggestions.len(),
+                            "Generated suggestions"
+                        );
                         finding.suggestions = suggestions
                             .into_iter()
                             .map(|s| s.into())
                             .collect::<Vec<Suggestion>>();
-                        debug!(final_suggestions_count = finding.suggestions.len(), "Final suggestions count after mapping");
+                        debug!(
+                            final_suggestions_count = finding.suggestions.len(),
+                            "Final suggestions count after mapping"
+                        );
                     }
                     Err(e) => {
                         debug!(error = %e, "Failed to generate quality refactoring candidates");
@@ -512,9 +522,7 @@ pub fn detect_smells(
                 ast_parse_errors: 0,
             };
 
-            if let Ok(candidates) =
-                generate_quality_refactoring_candidates(&finding, file_path)
-            {
+            if let Ok(candidates) = generate_quality_refactoring_candidates(&finding, file_path) {
                 let suggestions = suggestion_generator.generate_multiple(candidates, &context);
                 finding.suggestions = suggestions
                     .into_iter()
@@ -577,9 +585,7 @@ pub fn detect_smells(
                 ast_parse_errors: 0,
             };
 
-            if let Ok(candidates) =
-                generate_quality_refactoring_candidates(&finding, file_path)
-            {
+            if let Ok(candidates) = generate_quality_refactoring_candidates(&finding, file_path) {
                 let suggestions = suggestion_generator.generate_multiple(candidates, &context);
                 finding.suggestions = suggestions
                     .into_iter()
@@ -682,8 +688,7 @@ fn detect_magic_numbers_for_smells(content: &str, file_path: &str, language: &st
                     ast_parse_errors: 0,
                 };
 
-                if let Ok(candidates) =
-                    generate_quality_refactoring_candidates(&finding, file_path)
+                if let Ok(candidates) = generate_quality_refactoring_candidates(&finding, file_path)
                 {
                     let suggestions = suggestion_generator.generate_multiple(candidates, &context);
                     finding.suggestions = suggestions
@@ -758,9 +763,7 @@ pub fn analyze_readability(
                 ast_parse_errors: 0,
             };
 
-            if let Ok(candidates) =
-                generate_quality_refactoring_candidates(&finding, file_path)
-            {
+            if let Ok(candidates) = generate_quality_refactoring_candidates(&finding, file_path) {
                 let suggestions = suggestion_generator.generate_multiple(candidates, &context);
                 finding.suggestions = suggestions
                     .into_iter()
@@ -817,9 +820,7 @@ pub fn analyze_readability(
                 ast_parse_errors: 0,
             };
 
-            if let Ok(candidates) =
-                generate_quality_refactoring_candidates(&finding, file_path)
-            {
+            if let Ok(candidates) = generate_quality_refactoring_candidates(&finding, file_path) {
                 let suggestions = suggestion_generator.generate_multiple(candidates, &context);
                 finding.suggestions = suggestions
                     .into_iter()
@@ -873,9 +874,7 @@ pub fn analyze_readability(
                 ast_parse_errors: 0,
             };
 
-            if let Ok(candidates) =
-                generate_quality_refactoring_candidates(&finding, file_path)
-            {
+            if let Ok(candidates) = generate_quality_refactoring_candidates(&finding, file_path) {
                 let suggestions = suggestion_generator.generate_multiple(candidates, &context);
                 finding.suggestions = suggestions
                     .into_iter()
@@ -931,9 +930,7 @@ pub fn analyze_readability(
                 ast_parse_errors: 0,
             };
 
-            if let Ok(candidates) =
-                generate_quality_refactoring_candidates(&finding, file_path)
-            {
+            if let Ok(candidates) = generate_quality_refactoring_candidates(&finding, file_path) {
                 let suggestions = suggestion_generator.generate_multiple(candidates, &context);
                 finding.suggestions = suggestions
                     .into_iter()
@@ -1196,9 +1193,7 @@ pub fn analyze_maintainability(
         ast_parse_errors: 0,
     };
 
-    if let Ok(candidates) =
-        generate_quality_refactoring_candidates(&finding, file_path)
-    {
+    if let Ok(candidates) = generate_quality_refactoring_candidates(&finding, file_path) {
         let suggestions = suggestion_generator.generate_multiple(candidates, &context);
         finding.suggestions = suggestions
             .into_iter()

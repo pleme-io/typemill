@@ -185,18 +185,59 @@ impl ToolHandler for DeleteHandler {
 }
 
 impl DeleteHandler {
-    /// Generate plan for symbol deletion using AST (placeholder)
+    /// Helper to remove a specific identifier from an import statement
+    /// Returns Some(new_line) if we can keep the import with other identifiers
+    /// Returns None if the entire line should be deleted
+    fn remove_import_identifier(&self, line: &str, identifier: &str) -> Option<String> {
+        // Check if this is an import statement with curly braces
+        if !line.trim_start().starts_with("import") || !line.contains('{') || !line.contains('}') {
+            return None; // Not a destructured import, delete entire line
+        }
+
+        // Extract the part between curly braces
+        let start_brace = line.find('{')?;
+        let end_brace = line.find('}')?;
+        let imports_section = &line[start_brace + 1..end_brace];
+
+        // Split by comma and filter out the identifier to remove
+        let identifiers: Vec<&str> = imports_section
+            .split(',')
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty() && *s != identifier)
+            .collect();
+
+        if identifiers.is_empty() {
+            // No identifiers left, delete entire line
+            None
+        } else if identifiers.len() == imports_section.split(',').filter(|s| !s.trim().is_empty()).count() {
+            // Identifier wasn't found, delete entire line
+            None
+        } else {
+            // Reconstruct the import with remaining identifiers
+            let prefix = &line[..start_brace + 1];
+            let suffix = &line[end_brace..];
+            let new_imports = identifiers.join(", ");
+            Some(format!("{} {} {}", prefix, new_imports, suffix))
+        }
+    }
+
+    /// Generate plan for symbol deletion using text edits
     async fn plan_symbol_delete(
         &self,
         params: &DeletePlanParams,
         context: &ToolHandlerContext,
     ) -> ServerResult<DeletePlan> {
-        debug!(path = %params.target.path, "Planning symbol delete (placeholder)");
+        use lsp_types::{
+            DocumentChangeOperation, DocumentChanges, OptionalVersionedTextDocumentIdentifier,
+            Position, Range, TextDocumentEdit, TextEdit, Uri, WorkspaceEdit,
+        };
+
+        debug!(path = %params.target.path, "Planning symbol delete");
 
         let file_path = Path::new(&params.target.path);
 
         // Validate selector is provided
-        let _selector = params.target.selector.as_ref().ok_or_else(|| {
+        let selector = params.target.selector.as_ref().ok_or_else(|| {
             ServerError::InvalidRequest(
                 "Symbol delete requires selector with line/character".into(),
             )
@@ -220,8 +261,81 @@ impl DeleteHandler {
             calculate_checksum(&content),
         );
 
-        // Create empty deletions list (placeholder - AST-based symbol deletion not implemented)
-        let deletions = Vec::new();
+        // Find the line to delete
+        let lines: Vec<&str> = content.lines().collect();
+        let line_index = selector.line as usize;
+
+        if line_index >= lines.len() {
+            return Err(ServerError::InvalidRequest(format!(
+                "Line {} is out of bounds (file has {} lines)",
+                selector.line,
+                lines.len()
+            )));
+        }
+
+        let current_line = lines[line_index];
+        let symbol_name = selector.symbol_name.as_deref().unwrap_or("");
+
+        // Determine the edit based on the line content
+        let (start_pos, end_pos, new_text) = if let Some(new_line) =
+            self.remove_import_identifier(current_line, symbol_name) {
+            // Partial import removal - replace the line
+            (
+                Position {
+                    line: selector.line,
+                    character: 0,
+                },
+                Position {
+                    line: selector.line,
+                    character: current_line.len() as u32,
+                },
+                new_line,
+            )
+        } else {
+            // Full line deletion
+            (
+                Position {
+                    line: selector.line,
+                    character: 0,
+                },
+                Position {
+                    line: selector.line + 1,
+                    character: 0,
+                },
+                String::new(),
+            )
+        };
+
+        // Convert file path to file:// URI
+        let canonical_path = file_path.canonicalize()
+            .map_err(|e| ServerError::Internal(format!("Failed to canonicalize path: {}", e)))?;
+        let uri_string = format!("file://{}", canonical_path.display());
+        let uri: Uri = uri_string.parse()
+            .map_err(|e| ServerError::Internal(format!("Invalid URI: {}", e)))?;
+
+        let text_edit = TextEdit {
+            range: Range {
+                start: start_pos,
+                end: end_pos,
+            },
+            new_text,
+        };
+
+        let text_document_edit = TextDocumentEdit {
+            text_document: OptionalVersionedTextDocumentIdentifier {
+                uri,
+                version: None,
+            },
+            edits: vec![lsp_types::OneOf::Left(text_edit)],
+        };
+
+        let workspace_edit = WorkspaceEdit {
+            changes: None,
+            document_changes: Some(DocumentChanges::Operations(vec![
+                DocumentChangeOperation::Edit(text_document_edit),
+            ])),
+            change_annotations: None,
+        };
 
         // Build summary
         let summary = PlanSummary {
@@ -229,14 +343,6 @@ impl DeleteHandler {
             created_files: 0,
             deleted_files: 0,
         };
-
-        // Add placeholder warning
-        let warnings = vec![PlanWarning {
-            code: "SYMBOL_DELETE_NOT_IMPLEMENTED".to_string(),
-            message: "Symbol deletion requires AST-based implementation (not yet available)"
-                .to_string(),
-            candidates: None,
-        }];
 
         // Determine language from extension
         let language = self.detect_language(file_path);
@@ -250,10 +356,17 @@ impl DeleteHandler {
             created_at: chrono::Utc::now().to_rfc3339(),
         };
 
+        info!(
+            file_path = %params.target.path,
+            line = selector.line,
+            "Created delete plan for symbol"
+        );
+
         Ok(DeletePlan {
-            deletions,
+            deletions: Vec::new(), // No file deletions, using edits instead
+            edits: Some(workspace_edit),
             summary,
-            warnings,
+            warnings: Vec::new(),
             metadata,
             file_checksums,
         })
@@ -355,6 +468,7 @@ impl DeleteHandler {
 
         Ok(DeletePlan {
             deletions,
+            edits: None,  // Symbol deletion will use this field
             summary,
             warnings,
             metadata,
@@ -456,6 +570,7 @@ impl DeleteHandler {
 
         Ok(DeletePlan {
             deletions,
+            edits: None,  // Symbol deletion will use this field
             summary,
             warnings,
             metadata,
@@ -502,6 +617,7 @@ impl DeleteHandler {
 
         Ok(DeletePlan {
             deletions,
+            edits: None,  // Symbol deletion will use this field
             summary,
             warnings,
             metadata,

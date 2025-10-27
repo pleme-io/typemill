@@ -13,9 +13,7 @@
 //! detection logic.
 
 use super::super::{ToolHandler, ToolHandlerContext};
-use super::suggestions::{
-    AnalysisContext, RefactoringCandidate, SuggestionGenerator,
-};
+use super::suggestions::{AnalysisContext, RefactoringCandidate, SuggestionGenerator};
 use anyhow::Result;
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
@@ -179,9 +177,7 @@ pub fn detect_coverage(
             ast_parse_errors: 0,
         };
 
-        if let Ok(candidates) =
-            generate_documentation_refactoring_candidates(&finding)
-        {
+        if let Ok(candidates) = generate_documentation_refactoring_candidates(&finding) {
             let suggestions = suggestion_generator.generate_multiple(candidates, &context);
             finding.suggestions = suggestions
                 .into_iter()
@@ -369,9 +365,7 @@ pub fn detect_quality(
                 ast_parse_errors: 0,
             };
 
-            if let Ok(candidates) =
-                generate_documentation_refactoring_candidates(&finding)
-            {
+            if let Ok(candidates) = generate_documentation_refactoring_candidates(&finding) {
                 let suggestions = suggestion_generator.generate_multiple(candidates, &context);
                 finding.suggestions = suggestions
                     .into_iter()
@@ -571,9 +565,7 @@ pub fn detect_style(
         ast_parse_errors: 0,
     };
 
-    if let Ok(candidates) =
-        generate_documentation_refactoring_candidates(&finding)
-    {
+    if let Ok(candidates) = generate_documentation_refactoring_candidates(&finding) {
         let suggestions = suggestion_generator.generate_multiple(candidates, &context);
         finding.suggestions = suggestions
             .into_iter()
@@ -746,9 +738,7 @@ pub fn detect_examples(
             ast_parse_errors: 0,
         };
 
-        if let Ok(candidates) =
-            generate_documentation_refactoring_candidates(&finding)
-        {
+        if let Ok(candidates) = generate_documentation_refactoring_candidates(&finding) {
             let suggestions = suggestion_generator.generate_multiple(candidates, &context);
             finding.suggestions = suggestions
                 .into_iter()
@@ -1000,9 +990,7 @@ pub fn detect_todos(
         ast_parse_errors: 0,
     };
 
-    if let Ok(candidates) =
-        generate_documentation_refactoring_candidates(&finding)
-    {
+    if let Ok(candidates) = generate_documentation_refactoring_candidates(&finding) {
         let suggestions = suggestion_generator.generate_multiple(candidates, &context);
         finding.suggestions = suggestions
             .into_iter()

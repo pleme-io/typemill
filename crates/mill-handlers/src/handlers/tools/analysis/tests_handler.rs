@@ -12,9 +12,7 @@
 //! detection logic.
 
 use super::super::{ToolHandler, ToolHandlerContext};
-use super::suggestions::{
-    RefactoringCandidate,
-};
+use super::suggestions::RefactoringCandidate;
 use anyhow::Result;
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
@@ -155,9 +153,7 @@ pub fn detect_coverage(
     findings
 }
 
-fn generate_test_refactoring_candidates(
-    finding: &Finding,
-) -> Result<Vec<RefactoringCandidate>> {
+fn generate_test_refactoring_candidates(finding: &Finding) -> Result<Vec<RefactoringCandidate>> {
     let candidates = Vec::new();
     let location = finding.location.clone();
     let line = location.range.as_ref().map(|r| r.start.line).unwrap_or(0) as usize;

@@ -120,7 +120,8 @@ function main() {
 
     // Issue should be fixed - either no findings or fewer findings
     assert!(
-        reanalysis_result.findings.is_empty() || reanalysis_result.findings.len() < analysis_result.findings.len(),
+        reanalysis_result.findings.is_empty()
+            || reanalysis_result.findings.len() < analysis_result.findings.len(),
         "Issue should be fixed after applying suggestion"
     );
 }
