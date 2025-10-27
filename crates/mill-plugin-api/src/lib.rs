@@ -27,6 +27,7 @@ use std::path::Path;
 pub mod capabilities;
 pub mod import_support;
 pub mod language;
+pub mod lsp_installer;
 pub mod metadata;
 pub mod plugin_registry;
 pub mod project_factory;
@@ -44,6 +45,7 @@ pub use import_support::{
     ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportParser,
     ImportRenameSupport,
 };
+pub use lsp_installer::LspInstaller;
 pub use metadata::LanguageMetadata;
 pub use plugin_registry::{iter_plugins, PluginDescriptor};
 pub use project_factory::{
@@ -493,6 +495,11 @@ pub trait LanguagePlugin: Send + Sync {
 
     /// Get project factory if available
     fn project_factory(&self) -> Option<&dyn ProjectFactory> {
+        None
+    }
+
+    /// Get LSP installer if available
+    fn lsp_installer(&self) -> Option<&dyn LspInstaller> {
         None
     }
 

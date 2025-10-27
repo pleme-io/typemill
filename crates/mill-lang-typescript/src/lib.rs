@@ -1,6 +1,7 @@
 //! TypeScript/JavaScript Language Plugin for TypeMill
 pub mod import_support;
 pub mod imports;
+pub mod lsp_installer;
 mod manifest;
 pub mod parser;
 mod project_factory;
@@ -30,6 +31,7 @@ define_language_plugin! {
         import_support: import_support::TypeScriptImportSupport,
         workspace_support: workspace_support::TypeScriptWorkspaceSupport,
         project_factory: project_factory::TypeScriptProjectFactory,
+        lsp_installer: lsp_installer::TypeScriptLspInstaller,
     },
     doc: "TypeScript/JavaScript language plugin implementation"
 }
@@ -80,6 +82,9 @@ impl LanguagePlugin for TypeScriptPlugin {
         },
         project_factory => {
             project_factory: ProjectFactory,
+        },
+        lsp_installer => {
+            lsp_installer: LspInstaller,
         },
     }
 

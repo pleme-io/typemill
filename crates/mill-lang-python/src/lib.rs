@@ -11,6 +11,7 @@
 //! - Refactoring operations (extract function, inline variable, extract variable)
 
 pub mod import_support;
+pub mod lsp_installer;
 pub mod manifest;
 pub mod parser;
 pub mod project_factory;
@@ -42,6 +43,7 @@ define_language_plugin! {
         import_support: import_support::PythonImportSupport,
         workspace_support: workspace_support::PythonWorkspaceSupport,
         project_factory: project_factory::PythonProjectFactory,
+        lsp_installer: lsp_installer::PythonLspInstaller,
     },
     doc: "Python language plugin implementation providing comprehensive Python language support"
 }
@@ -161,6 +163,9 @@ impl LanguagePlugin for PythonPlugin {
         },
         project_factory => {
             project_factory: ProjectFactory,
+        },
+        lsp_installer => {
+            lsp_installer: LspInstaller,
         },
     }
 }

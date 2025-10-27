@@ -111,6 +111,9 @@ pub mod testing;
 pub mod import_graph;
 pub mod parsing;
 
+// LSP installation utilities (for plugin-based LSP installation)
+pub mod lsp;
+
 // Re-export commonly used types for convenience
 pub use ast_deserialization::{parse_ast_output, AstSymbol, AstToolOutput};
 pub use error_helpers::ErrorBuilder;

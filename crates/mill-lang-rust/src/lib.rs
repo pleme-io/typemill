@@ -11,6 +11,7 @@ pub mod workspace;
 
 // Capability trait implementations
 pub mod import_support;
+pub mod lsp_installer;
 pub mod project_factory;
 pub mod workspace_support;
 
@@ -57,6 +58,7 @@ define_language_plugin! {
         workspace_support: workspace_support::RustWorkspaceSupport,
         reference_detector: reference_detector::RustReferenceDetector,
         project_factory: project_factory::RustProjectFactory,
+        lsp_installer: lsp_installer::RustLspInstaller,
     },
     doc: "Rust language plugin implementation"
 }
@@ -137,6 +139,9 @@ impl LanguagePlugin for RustPlugin {
         },
         project_factory => {
             project_factory: ProjectFactory,
+        },
+        lsp_installer => {
+            lsp_installer: LspInstaller,
         },
     }
 
