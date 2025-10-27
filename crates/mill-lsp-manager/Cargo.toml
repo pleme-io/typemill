@@ -12,7 +12,7 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 anyhow = { workspace = true }
 reqwest = { version = "0.12", features = ["stream", "rustls-tls"], default-features = false }
-tokio = { workspace = true, features = ["fs", "io-util"] }
+tokio = { workspace = true, features = ["fs", "io-util", "process"] }
 toml = "0.9"
 sha2 = "0.10"
 flate2 = "1.0"

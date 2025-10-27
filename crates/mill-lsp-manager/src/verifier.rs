@@ -3,7 +3,7 @@
 use crate::error::{LspError, Result};
 use sha2::{Digest, Sha256};
 use std::path::Path;
-use tracing::{debug, info};
+use tracing::debug;
 
 /// Maximum download size (200MB)
 pub const MAX_DOWNLOAD_SIZE: u64 = 200 * 1024 * 1024;
@@ -12,14 +12,34 @@ pub const MAX_DOWNLOAD_SIZE: u64 = 200 * 1024 * 1024;
 pub fn verify_checksum(file_path: &Path, expected_checksum: &str) -> Result<()> {
     debug!("Verifying checksum for {}", file_path.display());
 
+    // Check if checksum verification is disabled via environment variable
+    if std::env::var("TYPEMILL_SKIP_CHECKSUM_VERIFICATION")
+        .map(|v| v == "1" || v.to_lowercase() == "true")
+        .unwrap_or(false)
+    {
+        tracing::warn!(
+            "⚠️  CHECKSUM VERIFICATION DISABLED via TYPEMILL_SKIP_CHECKSUM_VERIFICATION"
+        );
+        tracing::warn!(
+            "   This should ONLY be used for development/testing, never in production!"
+        );
+        return Ok(());
+    }
+
     let contents = std::fs::read(file_path)?;
     let mut hasher = Sha256::new();
     hasher.update(&contents);
     let actual = format!("{:x}", hasher.finalize());
 
-    // Skip verification if checksum is placeholder
+    // Skip verification if checksum is placeholder (development mode)
     if expected_checksum.starts_with("placeholder") {
-        info!("Skipping checksum verification (placeholder checksum)");
+        tracing::warn!(
+            "⚠️  Using placeholder checksum for {}",
+            file_path.display()
+        );
+        tracing::warn!(
+            "   This file is NOT verified for integrity! Update lsp-registry.toml with real checksums."
+        );
         return Ok(());
     }
 
@@ -30,7 +50,7 @@ pub fn verify_checksum(file_path: &Path, expected_checksum: &str) -> Result<()> 
         });
     }
 
-    debug!("Checksum verification passed");
+    debug!("✅ Checksum verification passed");
     Ok(())
 }
 

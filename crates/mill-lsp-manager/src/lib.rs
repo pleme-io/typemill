@@ -29,6 +29,7 @@ mod cache;
 mod detector;
 mod downloader;
 mod error;
+mod installer;
 mod registry;
 mod types;
 mod verifier;
@@ -70,15 +71,35 @@ impl LspManager {
             return Ok(PathBuf::from(&config.command));
         }
 
-        // Check cache
+        // Check cache (for direct downloads)
         let cache_path = cache::lsp_binary_path(lsp_name)?;
         if cache_path.exists() {
             info!("{} found in cache", lsp_name);
             return Ok(cache_path);
         }
 
-        // Download and install
-        info!("{} not found, downloading...", lsp_name);
+        // Install based on runtime requirements
+        info!("{} not found, installing...", lsp_name);
+
+        // Use package managers for Node.js and Python LSPs
+        if let Some(runtime) = &config.runtime_required {
+            match runtime.as_str() {
+                "node" => {
+                    let package_name = installer::get_npm_package_name(&config.command);
+                    return installer::install_npm_package(package_name, &config.command).await;
+                }
+                "python3" | "python" => {
+                    let package_name = installer::get_pip_package_name(&config.command);
+                    return installer::install_pip_package(package_name, &config.command).await;
+                }
+                _ => {
+                    // Unknown runtime, try direct download
+                    info!("Unknown runtime '{}', attempting direct download", runtime);
+                }
+            }
+        }
+
+        // Direct download for native binaries (rust-analyzer, etc.)
         self.download_and_install(lsp_name).await
     }
 

@@ -27,7 +27,8 @@ pub struct LspConfig {
     #[serde(default)]
     pub runtime_required: Option<String>,
 
-    /// Platform-specific download information
+    /// Platform-specific download information (empty for package-manager installs)
+    #[serde(default)]
     pub platform: Vec<PlatformConfig>,
 }
 
