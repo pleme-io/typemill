@@ -1,29 +1,43 @@
-//! LSP server auto-download and management for TypeMill
+//! # ⚠️ DEPRECATED - Use Plugin-Based LSP Installation Instead
 //!
-//! This crate provides automatic LSP server installation with:
-//! - Zero-configuration setup
-//! - Automatic language detection
-//! - Secure downloads with checksum verification
-//! - Cross-platform support
+//! This crate is **deprecated** as of 2025-10-27. LSP installation is now handled
+//! by individual language plugins via the `LspInstaller` trait.
 //!
-//! # Example
+//! ## Migration Guide
 //!
-//! ```no_run
+//! **Old (Centralized):**
+//! ```ignore
 //! use mill_lsp_manager::LspManager;
-//! use std::path::Path;
-//!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let manager = LspManager::new()?;
-//!
-//! // Auto-detect and ensure LSPs are installed
-//! let needed = manager.detect_needed_lsps(Path::new("."))?;
-//! for lsp in needed {
-//!     let path = manager.ensure_installed(&lsp).await?;
-//!     println!("✅ {} installed at {}", lsp, path.display());
-//! }
-//! # Ok(())
-//! # }
+//! let path = manager.ensure_installed("rust").await?;
 //! ```
+//!
+//! **New (Plugin-Based):**
+//! ```ignore
+//! use mill_plugin_api::{iter_plugins, LspInstaller};
+//! use mill_lang_common::lsp::get_cache_dir;
+//!
+//! // Find plugin for language
+//! let plugin = iter_plugins()
+//!     .find(|p| p.extensions.contains(&"rs"))
+//!     .map(|desc| (desc.factory)())
+//!     .unwrap();
+//!
+//! // Get LSP installer capability
+//! if let Some(installer) = plugin.lsp_installer() {
+//!     let cache_dir = get_cache_dir();
+//!     let path = installer.ensure_installed(&cache_dir).await?;
+//! }
+//! ```
+//!
+//! ## Benefits of New System
+//!
+//! - **Zero language coupling** - No central registry needed
+//! - **Plugin autonomy** - Each plugin manages its own LSP
+//! - **Shared utilities** - Common code in `mill-lang-common`
+//! - **Consistent pattern** - Same trait-based approach as other capabilities
+//!
+//! See `.debug/PLUGIN_BASED_LSP_REFACTOR.md` for complete migration details.
 
 mod cache;
 mod detector;
@@ -42,6 +56,17 @@ use std::path::{Path, PathBuf};
 use tracing::info;
 
 /// LSP manager for auto-downloading and managing LSP servers
+///
+/// # Deprecated
+///
+/// This type is deprecated. Use the plugin-based LSP installation instead:
+/// - Language plugins implement `LspInstaller` trait
+/// - Shared utilities in `mill-lang-common::lsp`
+/// - CLI commands use plugin discovery via `mill::cli::lsp_helpers`
+#[deprecated(
+    since = "0.8.0",
+    note = "Use plugin-based LSP installation. See .debug/PLUGIN_BASED_LSP_REFACTOR.md"
+)]
 pub struct LspManager {
     registry: LspRegistry,
 }
