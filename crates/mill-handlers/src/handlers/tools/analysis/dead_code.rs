@@ -1481,10 +1481,17 @@ fn generate_dead_code_refactoring_candidates(
                 character: range.start.character as usize,
             },
             refactor_call_args: json!({
-                "kind": json_kind,
                 "target": {
-                    "filePath": finding.location.file_path,
-                    "range": range
+                    "kind": "symbol",
+                    "path": finding.location.file_path,
+                    "selector": {
+                        "line": range.start.line,
+                        "character": range.start.character,
+                        "symbol_name": finding.location.symbol
+                    }
+                },
+                "options": {
+                    "dryRun": false
                 }
             }),
         });
