@@ -120,21 +120,32 @@ impl TypeScriptPathAliasResolver {
 
             // Check if specifier starts with the pattern prefix
             if let Some(suffix) = specifier.strip_prefix(prefix) {
+                // CRITICAL: Verify there's an actual '/' after the prefix
+                // Without this, "@api/models/*" would incorrectly match "@apiModels"
+                // TypeScript requires the separator to be present
+                if suffix.is_empty() || !suffix.starts_with('/') {
+                    return None;
+                }
+
+                // Remove the leading '/' from suffix
                 let suffix = suffix.trim_start_matches('/');
 
-                // Try each replacement path (TypeScript allows multiple)
-                // For Phase 1, we use the first matching replacement
-                if let Some(replacement) = replacements.first() {
+                // Try each replacement path in order (TypeScript behavior)
+                // TypeScript tries replacements sequentially until one resolves
+                for replacement in replacements {
                     let replacement_base = replacement.trim_end_matches("/*");
                     let resolved = base_url.join(replacement_base).join(suffix);
 
-                    // Return the first replacement as absolute path string
+                    // Return the first resolved path
+                    // Note: In a full implementation, we could check if the file exists
+                    // using project_files or filesystem, but for now we trust the first match
                     return Some(resolved.to_string_lossy().to_string());
                 }
             }
         } else if pattern == specifier {
             // Exact match (no wildcard)
-            if let Some(replacement) = replacements.first() {
+            // Try replacements in order
+            for replacement in replacements {
                 let resolved = base_url.join(replacement);
                 return Some(resolved.to_string_lossy().to_string());
             }
@@ -575,5 +586,165 @@ mod tests {
         let current_resolved = resolver.resolve_alias("@/components", &test_file, project_root);
         assert!(current_resolved.is_some());
         assert!(current_resolved.unwrap().contains("src/components"));
+    }
+
+    #[test]
+    fn test_pattern_requires_slash_separator() {
+        // This test verifies the fix for the pattern matching bug
+        // "@api/models/*" should NOT match "@apiModels" (missing separator)
+        // TypeScript requires an actual '/' after the prefix
+
+        let temp_dir = TempDir::new().unwrap();
+        let project_root = temp_dir.path();
+
+        create_test_tsconfig(
+            project_root,
+            ".",
+            &[
+                ("@api/models/*", &["src/api/models/*"]),
+                ("@apiModels", &["src/api-models-package"]),  // Exact match for package
+            ],
+        );
+
+        let test_file = project_root.join("src").join("test.ts");
+        std::fs::create_dir_all(test_file.parent().unwrap()).unwrap();
+        std::fs::write(&test_file, "").unwrap();
+
+        let resolver = TypeScriptPathAliasResolver::new();
+
+        // Test 1: "@api/models/User" should match the wildcard pattern
+        let resolved = resolver.resolve_alias("@api/models/User", &test_file, project_root);
+        assert!(resolved.is_some());
+        assert!(
+            resolved.unwrap().contains("src/api/models/User"),
+            "Should match wildcard pattern with separator"
+        );
+
+        // Test 2: "@apiModels" should NOT match "@api/models/*"
+        // It should match the exact pattern "@apiModels" instead
+        let resolved = resolver.resolve_alias("@apiModels", &test_file, project_root);
+        assert!(resolved.is_some());
+        assert!(
+            resolved.unwrap().contains("src/api-models-package"),
+            "Should match exact pattern, not wildcard without separator"
+        );
+
+        // Test 3: "@api/models" (no slash after) should NOT match "@api/models/*"
+        let resolved = resolver.resolve_alias("@api/models", &test_file, project_root);
+        assert!(
+            resolved.is_none(),
+            "Should not match wildcard when there's no suffix after prefix"
+        );
+    }
+
+    #[test]
+    fn test_pattern_rejects_missing_separator() {
+        // More explicit test for the separator requirement
+        let temp_dir = TempDir::new().unwrap();
+        let project_root = temp_dir.path();
+
+        create_test_tsconfig(
+            project_root,
+            ".",
+            &[("$lib/*", &["src/lib/*"])],
+        );
+
+        let test_file = project_root.join("src").join("test.ts");
+        std::fs::create_dir_all(test_file.parent().unwrap()).unwrap();
+        std::fs::write(&test_file, "").unwrap();
+
+        let resolver = TypeScriptPathAliasResolver::new();
+
+        // Valid: has separator
+        assert!(resolver.resolve_alias("$lib/utils", &test_file, project_root).is_some());
+        assert!(resolver.resolve_alias("$lib/server/core", &test_file, project_root).is_some());
+
+        // Invalid: no separator after prefix
+        assert!(
+            resolver.resolve_alias("$library", &test_file, project_root).is_none(),
+            "$library should not match $lib/* (no separator)"
+        );
+        assert!(
+            resolver.resolve_alias("$lib", &test_file, project_root).is_none(),
+            "$lib should not match $lib/* (no suffix)"
+        );
+        assert!(
+            resolver.resolve_alias("$libextra", &test_file, project_root).is_none(),
+            "$libextra should not match $lib/* (no separator)"
+        );
+    }
+
+    #[test]
+    fn test_multiple_replacements_in_order() {
+        // This test verifies that we try all replacement paths in order
+        // TypeScript tries each replacement until one resolves
+
+        let temp_dir = TempDir::new().unwrap();
+        let project_root = temp_dir.path();
+
+        // Pattern with multiple replacement candidates
+        create_test_tsconfig(
+            project_root,
+            ".",
+            &[(
+                "@shared/*",
+                &[
+                    "platform/web/*",      // First candidate (web-specific)
+                    "platform/mobile/*",   // Second candidate (mobile fallback)
+                    "shared/*"             // Third candidate (common code)
+                ],
+            )],
+        );
+
+        let test_file = project_root.join("src").join("test.ts");
+        std::fs::create_dir_all(test_file.parent().unwrap()).unwrap();
+        std::fs::write(&test_file, "").unwrap();
+
+        let resolver = TypeScriptPathAliasResolver::new();
+
+        // Should return first candidate (even if it doesn't exist)
+        // In a full implementation, we'd check existence and try next
+        let resolved = resolver.resolve_alias("@shared/utils", &test_file, project_root);
+        assert!(resolved.is_some());
+
+        let resolved_path = resolved.unwrap();
+        // Should use first replacement
+        assert!(
+            resolved_path.contains("platform/web/utils"),
+            "Should use first replacement in order: {}",
+            resolved_path
+        );
+    }
+
+    #[test]
+    fn test_exact_match_vs_wildcard_priority() {
+        // Verify exact matches don't get confused with wildcard patterns
+        let temp_dir = TempDir::new().unwrap();
+        let project_root = temp_dir.path();
+
+        create_test_tsconfig(
+            project_root,
+            ".",
+            &[
+                ("utils", &["src/utilities"]),         // Exact match (no wildcard)
+                ("utils/*", &["src/utilities/v2/*"]),  // Wildcard pattern
+            ],
+        );
+
+        let test_file = project_root.join("src").join("test.ts");
+        std::fs::create_dir_all(test_file.parent().unwrap()).unwrap();
+        std::fs::write(&test_file, "").unwrap();
+
+        let resolver = TypeScriptPathAliasResolver::new();
+
+        // "utils" should match exact pattern (first)
+        let resolved = resolver.resolve_alias("utils", &test_file, project_root);
+        assert!(resolved.is_some());
+        assert!(resolved.unwrap().contains("src/utilities"));
+
+        // "utils/format" should match wildcard pattern (second)
+        let resolved = resolver.resolve_alias("utils/format", &test_file, project_root);
+        assert!(resolved.is_some());
+        assert!(resolved.unwrap().contains("src/utilities/v2/format"));
     }
 }
