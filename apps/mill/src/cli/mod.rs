@@ -567,7 +567,7 @@ async fn handle_cycles_command(command: Cycles) {
 
     use mill_foundation::core::model::mcp::{McpMessage, McpRequest};
     let params = serde_json::json!({
-        "name": "analyze.circular_dependencies",
+        "name": "analyze.cycles",
         "arguments": args,
     });
     let request = McpRequest {

@@ -26,7 +26,7 @@ impl CircularDependenciesHandler {
 #[async_trait]
 impl ToolHandler for CircularDependenciesHandler {
     fn tool_names(&self) -> &[&str] {
-        &["analyze.circular_dependencies"]
+        &["analyze.cycles"]
     }
 
     fn is_internal(&self) -> bool {
@@ -40,7 +40,7 @@ impl ToolHandler for CircularDependenciesHandler {
     ) -> ServerResult<Value> {
         let args = tool_call.arguments.clone().unwrap_or(json!({}));
 
-        debug!("Handling analyze.circular_dependencies request");
+        debug!("Handling analyze.cycles request");
 
         #[cfg(feature = "analysis-circular-deps")]
         {
@@ -144,7 +144,7 @@ impl ToolHandler for CircularDependenciesHandler {
         {
             let _ = (context, args);
             Err(ServerError::Unsupported(
-                "The 'analyze.circular_dependencies' tool requires the 'analysis-circular-deps' feature.".to_string()
+                "The 'analyze.cycles' tool requires the 'analysis-circular-deps' feature.".to_string()
             ))
         }
     }

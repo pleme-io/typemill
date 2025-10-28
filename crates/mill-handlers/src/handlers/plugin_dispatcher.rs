@@ -204,7 +204,7 @@ impl PluginDispatcher {
                     SystemToolsHandler, WorkspaceToolsHandler, WorkspaceCreateHandler, WorkspaceExtractDepsHandler,
                     WorkspaceUpdateMembersHandler,
                 };
-                use super::tools::analysis::{BatchAnalysisHandler, DeadCodeHandler, DependenciesHandler, DocumentationHandler, ModuleDependenciesHandler, QualityHandler, StructureHandler, TestsHandler};
+                use super::tools::analysis::{BatchAnalysisHandler, CircularDependenciesHandler, DeadCodeHandler, DependenciesHandler, DocumentationHandler, ModuleDependenciesHandler, QualityHandler, StructureHandler, TestsHandler};
                 use super::workspace::FindReplaceHandler;
                 use super::FileOperationHandler;
 
@@ -222,6 +222,7 @@ impl PluginDispatcher {
                     DocumentationHandler => "DocumentationHandler with 1 tool (analyze.documentation)",
                     TestsHandler => "TestsHandler with 1 tool (analyze.tests)",
                     BatchAnalysisHandler => "BatchAnalysisHandler with 1 tool (analyze.batch)",
+                    CircularDependenciesHandler => "CircularDependenciesHandler with 1 tool (analyze.cycles)",
                     InternalNavigationHandler => "InternalNavigationHandler with 1 INTERNAL tool (get_document_symbols)",
                     LifecycleHandler => "LifecycleHandler with 3 INTERNAL tools (notify_file_opened, notify_file_saved, notify_file_closed)",
                     InternalEditingToolsHandler => "InternalEditingToolsHandler with 1 INTERNAL tool (rename_symbol_with_imports)",
