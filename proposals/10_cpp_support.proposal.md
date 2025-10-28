@@ -27,8 +27,8 @@ Implement full C++ support with `clangd` LSP integration and `mill-lang-cpp` plu
 - [ ] Test with real C++ projects (multiple build systems)
 
 ### Language Plugin (`crates/mill-lang-cpp`)
-- [ ] Create crate structure following `mill-lang-*` pattern
-- [ ] Add to `languages.toml` registry:
+- [x] Create crate structure following `mill-lang-*` pattern
+- [x] Add to `languages.toml` registry:
   ```toml
   [languages.cpp]
   path = "crates/mill-lang-cpp"
@@ -36,22 +36,22 @@ Implement full C++ support with `clangd` LSP integration and `mill-lang-cpp` plu
   category = "full"
   default = false
   ```
-- [ ] Run `cargo xtask sync-languages` to generate feature flags
-- [ ] Implement `LanguagePlugin` trait with `define_language_plugin!` macro
-- [ ] Set metadata (name: "C++", extensions: `["cpp", "cc", "cxx", "h", "hpp"]`)
-- [ ] Configure LSP: `LspConfig::new("clangd", &["clangd"])`
+- [x] Run `cargo xtask sync-languages` to generate feature flags
+- [x] Implement `LanguagePlugin` trait with `define_language_plugin!` macro
+- [x] Set metadata (name: "C++", extensions: `["cpp", "cc", "cxx", "h", "hpp"]`)
+- [x] Configure LSP: `LspConfig::new("clangd", &["clangd"])`
 
 ### AST Parsing
-- [ ] Integrate `tree-sitter-cpp` dependency
+- [x] Integrate `tree-sitter-cpp` dependency
 - [ ] Implement `parse()` method for symbol extraction
 - [ ] Parse classes, functions, methods, namespaces
 - [ ] Handle C++ templates and macros (fallback to clangd LSP)
 - [ ] Extract symbol hierarchy (class members, nested namespaces)
 
 ### Import Support (5 Traits)
-- [ ] Implement `ImportParser` trait
-  - [ ] Parse `#include <system>` headers
-  - [ ] Parse `#include "local"` headers
+- [x] Implement `ImportParser` trait
+  - [x] Parse `#include <system>` headers
+  - [x] Parse `#include "local"` headers
   - [ ] Parse C++20 `import` statements
 - [ ] Implement `ImportRenameSupport` trait
 - [ ] Implement `ImportMoveSupport` trait
@@ -81,7 +81,8 @@ Implement full C++ support with `clangd` LSP integration and `mill-lang-cpp` plu
 
 ### Testing
 - [ ] Unit tests for AST parsing (classes, templates, namespaces)
-- [ ] Unit tests for `#include` and `import` parsing
+- [x] Unit tests for `#include` parsing (basic test passing)
+- [ ] Unit tests for C++20 `import` parsing
 - [ ] Integration tests with CMake projects
 - [ ] Integration tests with Makefile projects
 - [ ] Manifest parsing tests (CMake, Conan, vcpkg)
@@ -98,11 +99,11 @@ Implement full C++ support with `clangd` LSP integration and `mill-lang-cpp` plu
 
 ## Success Criteria
 
-- [ ] `cargo check -p mill-lang-cpp` compiles without errors
-- [ ] `cargo check --workspace --features lang-cpp` compiles
+- [x] `cargo check -p mill-lang-cpp` compiles without errors
+- [x] `cargo check --workspace --features lang-cpp` compiles
 - [ ] All unit tests pass for AST and manifest parsing
 - [ ] Integration tests pass with real C++ projects
-- [ ] Plugin loads via `define_language_plugin!` macro
+- [x] Plugin loads via `define_language_plugin!` macro
 - [ ] LSP integration works with `clangd`
 - [ ] Can navigate C++ codebases (find definition, references)
 - [ ] Can parse CMake and Conan manifests
