@@ -1,11 +1,17 @@
 //! CPP language plugin for TypeMill
 
+mod ast_parser;
+mod cmake_parser;
 mod import_support;
 
 use async_trait::async_trait;
 use mill_plugin_api::{
-    import_support::ImportParser, mill_plugin, LanguageMetadata, LanguagePlugin, LspConfig,
-    ManifestData, ParsedSource, PluginCapabilities, PluginResult,
+    import_support::{
+        ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportParser,
+        ImportRenameSupport,
+    },
+    mill_plugin, LanguagePlugin, LanguageMetadata, LspConfig, ManifestData, ParsedSource,
+    PluginCapabilities, PluginResult, Symbol, SymbolKind,
 };
 use std::path::Path;
 
@@ -34,17 +40,18 @@ impl LanguagePlugin for CppPlugin {
         &self.metadata
     }
 
-    async fn parse(&self, _source: &str) -> PluginResult<ParsedSource> {
-        Ok(ParsedSource {
-            data: serde_json::Value::Null,
-            symbols: vec![],
-        })
+    async fn parse(&self, source: &str) -> PluginResult<ParsedSource> {
+        Ok(ast_parser::parse_source(source))
     }
 
-    async fn analyze_manifest(&self, _path: &Path) -> PluginResult<ManifestData> {
-        Err(mill_plugin_api::PluginError::not_supported(
-            "Manifest analysis for C++",
-        ))
+    async fn analyze_manifest(&self, path: &Path) -> PluginResult<ManifestData> {
+        if path.file_name().unwrap_or_default().to_str().unwrap_or_default().starts_with("CMakeLists") {
+            cmake_parser::analyze_cmake_manifest(path)
+        } else {
+            Err(mill_plugin_api::PluginError::not_supported(
+                "Manifest analysis for this file type",
+            ))
+        }
     }
 
     fn capabilities(&self) -> PluginCapabilities {
@@ -52,6 +59,22 @@ impl LanguagePlugin for CppPlugin {
     }
 
     fn import_parser(&self) -> Option<&dyn ImportParser> {
+        Some(&import_support::CppImportSupport)
+    }
+
+    fn import_rename_support(&self) -> Option<&dyn ImportRenameSupport> {
+        Some(&import_support::CppImportSupport)
+    }
+
+    fn import_move_support(&self) -> Option<&dyn ImportMoveSupport> {
+        Some(&import_support::CppImportSupport)
+    }
+
+    fn import_mutation_support(&self) -> Option<&dyn ImportMutationSupport> {
+        Some(&import_support::CppImportSupport)
+    }
+
+    fn import_advanced_support(&self) -> Option<&dyn ImportAdvancedSupport> {
         Some(&import_support::CppImportSupport)
     }
 
