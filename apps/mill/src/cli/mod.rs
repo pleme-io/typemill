@@ -713,16 +713,14 @@ async fn handle_setup() {
         Ok(()) => {
             println!("✅ Configuration saved to: {}", config_path.display());
             println!();
-            println!("📝 Default LSP servers configured:");
-            println!("   • TypeScript/JavaScript: typescript-language-server");
-            println!("   • Rust: rust-analyzer");
-            println!();
-            println!("ℹ️  Note: Language support temporarily reduced to TypeScript + Rust");
-            println!("   during unified API refactoring. Python/Go/Java support available");
-            println!("   in git tag 'pre-language-reduction'");
+            println!("📝 Supported languages:");
+            println!("   • TypeScript/JavaScript (LSP: typescript-language-server)");
+            println!("   • Rust (LSP: rust-analyzer)");
+            println!("   • Python (LSP: python-lsp-server)");
+            println!("   • Markdown, TOML, YAML, Gitignore");
             println!();
             println!(
-                "💡 You can edit {} to customize LSP servers and other settings.",
+                "💡 Edit {} to customize LSP servers and settings.",
                 config_path.display()
             );
         }

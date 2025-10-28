@@ -85,10 +85,15 @@ pub fn detect_needed_lsps(project_root: &Path) -> Result<Vec<String>, String> {
 
     // Scan project for file extensions
     for entry in WalkDir::new(project_root)
-        .max_depth(3) // Don't go too deep
+        .max_depth(5) // Scan deep enough for nested project structures (e.g., workspace/crates/*/src/*.rs)
         .follow_links(false)
         .into_iter()
         .filter_entry(|e| {
+            // Allow root directory
+            if e.depth() == 0 {
+                return true;
+            }
+
             // Skip hidden directories and common build/dependency directories
             let name = e.file_name().to_string_lossy();
             !name.starts_with('.')
