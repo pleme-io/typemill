@@ -40,7 +40,7 @@ mill-lsp-manager = { path = "../../crates/mill-lsp-manager" }
 mill-lang-common = { path = "../../crates/mill-lang-common" }
 walkdir = "2.5"
 include_dir = "0.7"
-colored = "2.1"
+termimad = "0.31"
 
 [build-dependencies]
 walkdir = "2.5"

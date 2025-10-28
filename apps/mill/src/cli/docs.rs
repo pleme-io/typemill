@@ -1,7 +1,7 @@
 //! Embedded documentation viewer
 
-use colored::Colorize;
 use include_dir::{include_dir, Dir};
+use termimad::MadSkin;
 
 // Embed the docs directory at compile time
 static DOCS_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/../../docs");
@@ -130,81 +130,15 @@ fn show_topic(topic: &str, raw: bool) {
 /// Render markdown content with nice formatting
 fn render_markdown(content: &str, title: &str) {
     // Print title bar
-    println!("\n{}", "═".repeat(80).bright_blue());
-    println!("📄 {}", title.bright_cyan().bold());
-    println!("{}\n", "═".repeat(80).bright_blue());
+    println!("\n{}", "═".repeat(80));
+    println!("📄 {}", title);
+    println!("{}\n", "═".repeat(80));
 
-    // Simple markdown rendering with colors
-    let mut in_code_block = false;
-    let mut code_lang = String::new();
+    // Create termimad skin with default colors
+    let skin = MadSkin::default();
 
-    for line in content.lines() {
-        // Code blocks
-        if line.starts_with("```") {
-            in_code_block = !in_code_block;
-            if in_code_block {
-                code_lang = line.trim_start_matches("```").trim().to_string();
-                println!("{}", format!("┌─ {} ─", code_lang).bright_black());
-            } else {
-                println!("{}", "└─────".bright_black());
-                code_lang.clear();
-            }
-            continue;
-        }
-
-        if in_code_block {
-            println!("│ {}", line.bright_green());
-            continue;
-        }
-
-        // Headers
-        if line.starts_with("# ") {
-            println!("\n{}\n", line.trim_start_matches("# ").bright_cyan().bold());
-        } else if line.starts_with("## ") {
-            println!("\n{}\n", line.trim_start_matches("## ").bright_blue().bold());
-        } else if line.starts_with("### ") {
-            println!("{}", line.trim_start_matches("### ").blue().bold());
-        } else if line.starts_with("#### ") {
-            println!("{}", line.trim_start_matches("#### ").blue());
-        } else if line.starts_with("- ") || line.starts_with("* ") {
-            // Bullet lists
-            let content = line.trim_start_matches("- ").trim_start_matches("* ");
-            println!("  • {}", content);
-        } else if line.trim().is_empty() {
-            println!();
-        } else {
-            // Regular text - simple inline code highlighting
-            let mut result = String::new();
-            let mut in_inline_code = false;
-            let mut current = String::new();
-
-            for ch in line.chars() {
-                if ch == '`' {
-                    if in_inline_code {
-                        // End of inline code
-                        result.push_str(&format!("{}", current.green()));
-                        current.clear();
-                    } else {
-                        // Regular text before code
-                        result.push_str(&current);
-                        current.clear();
-                    }
-                    in_inline_code = !in_inline_code;
-                } else {
-                    current.push(ch);
-                }
-            }
-
-            // Remaining text
-            if in_inline_code {
-                result.push_str(&format!("{}", current.green()));
-            } else {
-                result.push_str(&current);
-            }
-
-            println!("{}", result);
-        }
-    }
+    // Render the markdown
+    skin.print_text(content);
 
     println!();
 }
