@@ -216,6 +216,11 @@ See real test implementations in the codebase:
 ## Key References
 
 - [Test Pyramid Pattern](https://martinfowler.com/articles/practical-test-pyramid.html)
-- [contributing.md](../contributing.md) - Development setup
+- [contributing.md](../../contributing.md) - Development setup
 - [tests/e2e/](../../tests/e2e/) - Integration test suite
 - [docs/archive/testing_guide-verbose.md](archive/testing_guide-verbose.md) - Full guide with explanations
+
+## Related Documentation
+
+- **[Contributor Overview](overview.md)** - Quick start guide for contributors
+- **[CI/CD Integration](../operations/cicd.md)** - Running tests in CI pipelines

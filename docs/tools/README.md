@@ -268,6 +268,20 @@ Common error codes:
 - **[CLAUDE.md](../../CLAUDE.md)** - Main project documentation and AI agent instructions
 - **[contributing.md](../../contributing.md)** - How to add new tools and contribute
 
+### Tool Categories
+
+- **[Navigation Tools](navigation.md)** - Code navigation and intelligence
+- **[Refactoring Tools](refactoring.md)** - Editing and refactoring operations
+- **[Analysis Tools](analysis.md)** - Code analysis and quality checks
+- **[Workspace Tools](workspace.md)** - Workspace operations
+- **[System Tools](system.md)** - Health checks and server status
+
+### Language-Specific Workspace Tools
+
+- **[TypeScript Workspace Tools](workspace-typescript.md)** - TypeScript project operations
+- **[Rust Workspace Tools](workspace-rust.md)** - Rust/Cargo workspace operations
+- **[Python Workspace Tools](workspace-python.md)** - Python project operations
+
 ---
 
 ## Links

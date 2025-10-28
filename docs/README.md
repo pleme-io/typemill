@@ -101,7 +101,8 @@
 - **[tools/system.md](tools/system.md)** - System tools (1 tool)
 
 ### Development
-- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Complete development guide (plugin development, workflows)
+- **[development/overview.md](development/overview.md)** - Complete contributor quickstart
+- **[development/plugin-development.md](development/plugin-development.md)** - Plugin development guide
 - **[development/testing.md](development/testing.md)** - Testing architecture & workflow
 - **[development/logging_guidelines.md](development/logging_guidelines.md)** - Structured logging standards
 

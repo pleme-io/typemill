@@ -242,6 +242,7 @@ A: No. `is_internal()` applies to all tools in a handler. If you need mixed visi
 
 ## See Also
 
+- **[Tools Visibility Specification](tools_visibility_spec.md)** - Detailed specification for tool visibility rules
 - [`ToolHandler` trait documentation](../../../../crates/mill-handlers/src/handlers/tools/mod.rs)
 - [`ToolRegistry` implementation](../../../../crates/mill-handlers/src/handlers/tool_registry.rs)
 - [Tool registration tests](../../../../crates/mill-server/tests/tool_registration_test.rs)

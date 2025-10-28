@@ -916,5 +916,11 @@ This section defines the external and internal contracts for the MCP server impl
 
 ## See Also
 
+### Architecture Documentation
+- **[Code Primitives](primitives.md)** - The foundation of TypeMill's tool design
+- **[Architectural Layers](layers.md)** - Layer architecture and separation of concerns
+- **[Language Plugin Common API](lang_common_api.md)** - Language abstraction interfaces
+
+### Project Documentation
 - **[CLAUDE.md](../../CLAUDE.md)** - Complete project documentation including MCP tools overview
 - **[contributing.md](../../contributing.md)** - Contributor guide and development workflow

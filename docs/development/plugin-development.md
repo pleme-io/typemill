@@ -716,10 +716,11 @@ All tools support the same `options.dryRun` parameter:
 
 ## Documentation
 
-- [Testing Guide](development/testing.md) - Comprehensive testing patterns
-- [Logging Guidelines](development/logging_guidelines.md) - Structured logging standards
-- [Architecture Overview](architecture/overview.md) - System architecture
-- [Tools API Reference](tools/README.md) - Complete tool documentation
+- [Testing Guide](testing.md) - Comprehensive testing patterns
+- [Logging Guidelines](logging_guidelines.md) - Structured logging standards
+- [Architecture Overview](../architecture/overview.md) - System architecture
+- [Tools API Reference](../tools/README.md) - Complete tool documentation
+- **[Plugin Migration Guide](../guides/plugin-migration.md)** - Refactoring guide for plugin system changes
 
 ## Reference Implementations
 
