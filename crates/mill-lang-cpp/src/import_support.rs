@@ -1,5 +1,9 @@
-use mill_plugin_api::import_support::ImportParser;
+use mill_plugin_api::import_support::{
+    ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportParser,
+    ImportRenameSupport,
+};
 use tree_sitter::{Parser, Query, QueryCursor};
+use std::path::Path;
 
 fn get_cpp_imports_query() -> &'static str {
     r#"
@@ -40,3 +44,37 @@ impl ImportParser for CppImportSupport {
         self.parse_imports(content).contains(&module.to_string())
     }
 }
+
+impl ImportRenameSupport for CppImportSupport {
+    fn rewrite_imports_for_rename(
+        &self,
+        source: &str,
+        _old_path: &str,
+        _new_path: &str,
+    ) -> (String, usize) {
+        (source.to_string(), 0)
+    }
+}
+
+impl ImportMoveSupport for CppImportSupport {
+    fn rewrite_imports_for_move(
+        &self,
+        source: &str,
+        _moved_path: &Path,
+        _new_path: &Path,
+    ) -> (String, usize) {
+        (source.to_string(), 0)
+    }
+}
+
+impl ImportMutationSupport for CppImportSupport {
+    fn add_import(&self, source: &str, _module_to_add: &str) -> String {
+        source.to_string()
+    }
+
+    fn remove_import(&self, source: &str, _module_to_remove: &str) -> String {
+        source.to_string()
+    }
+}
+
+impl ImportAdvancedSupport for CppImportSupport {}

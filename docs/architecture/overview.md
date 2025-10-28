@@ -447,20 +447,20 @@ pub struct AppState {
 
 All three languages implement the complete set of capability traits:
 
-| Capability Trait | Rust | TypeScript | Python | Description |
-|-----------------|:----:|:----------:|:------:|-------------|
-| **Core LanguagePlugin** ||||
-| `metadata()` | ✅ | ✅ | ✅ | Language metadata (name, extensions, manifest) |
-| `parse()` | ✅ | ✅ | ✅ | AST parsing and symbol extraction |
-| `analyze_manifest()` | ✅ | ✅ | ✅ | Parse manifest files (Cargo.toml, package.json, pyproject.toml) |
-| `list_functions()` | ✅ | ✅ | ✅ | Extract function definitions |
-| `analyze_detailed_imports()` | ✅ | ✅ | ✅ | Full ImportGraph with metadata |
-| **Import Support (5 traits)** ||||
-| `ImportParser` | ✅ | ✅ | ✅ | Parse import statements |
-| `ImportRenameSupport` | ✅ | ✅ | ✅ | Rewrite imports for symbol renames |
-| `ImportMoveSupport` | ✅ | ✅ | ✅ | Rewrite imports for file moves |
-| `ImportMutationSupport` | ✅ | ✅ | ✅ | Add/remove imports programmatically |
-| `ImportAdvancedSupport` | ✅ | ✅ | ✅ | AST-based import transformations |
+| Capability Trait | Rust | TypeScript | Python | C++ | Description |
+|-----------------|:----:|:----------:|:------:|:---:|-------------|
+| **Core LanguagePlugin** |||||
+| `metadata()` | ✅ | ✅ | ✅ | ✅ | Language metadata (name, extensions, manifest) |
+| `parse()` | ✅ | ✅ | ✅ | ✅ | AST parsing and symbol extraction |
+| `analyze_manifest()` | ✅ | ✅ | ✅ | ✅ | Parse manifest files (Cargo.toml, package.json, pyproject.toml) |
+| `list_functions()` | ✅ | ✅ | ✅ | ✅ | Extract function definitions |
+| `analyze_detailed_imports()` | ✅ | ✅ | ✅ | ⚠️ | Full ImportGraph with metadata |
+| **Import Support (5 traits)** |||||
+| `ImportParser` | ✅ | ✅ | ✅ | ✅ | Parse import statements |
+| `ImportRenameSupport` | ✅ | ✅ | ✅ | ⚠️ | Rewrite imports for symbol renames |
+| `ImportMoveSupport` | ✅ | ✅ | ✅ | ⚠️ | Rewrite imports for file moves |
+| `ImportMutationSupport` | ✅ | ✅ | ✅ | ⚠️ | Add/remove imports programmatically |
+| `ImportAdvancedSupport` | ✅ | ✅ | ✅ | ⚠️ | AST-based import transformations |
 | **Workspace & Manifest** ||||
 | `WorkspaceSupport` | ✅ | ✅ | ✅ | Multi-package workspace operations |
 | `ManifestUpdater` | ✅ | ✅ | ✅ | Update dependencies, generate manifests |
@@ -481,6 +481,10 @@ All three languages implement the complete set of capability traits:
 
 **Total Common Capabilities**: 15/15 (100% parity)
 **Rust-Specific Capabilities**: 3 additional traits (not applicable to other languages)
+
+**C++ Support Notes**:
+- The C++ plugin is currently under development.
+- C++20 module parsing (`import my_module;`) is temporarily disabled due to a build issue with the `tree-sitter-cpp` grammar. The plugin currently only supports `#include` directives.
 
 #### Detailed Capability Breakdown
 
