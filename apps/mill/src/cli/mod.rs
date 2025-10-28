@@ -1,6 +1,7 @@
 //! CLI command handling for the mill server
 
 mod conventions;
+mod docs;
 mod flag_parser;
 mod lsp_helpers;
 
@@ -154,6 +155,25 @@ pub enum Commands {
         /// Output format (table, json, or names-only)
         #[arg(long, default_value = "table", value_parser = ["table", "json", "names"])]
         format: String,
+    },
+    /// View embedded documentation
+    ///
+    /// Examples:
+    ///   mill docs                  # List all available docs
+    ///   mill docs setup            # Show setup guide
+    ///   mill docs tools            # Show tools documentation
+    ///   mill docs architecture     # Show architecture overview
+    Docs {
+        /// Specific document to view (optional - shows list if omitted)
+        topic: Option<String>,
+
+        /// Show raw markdown instead of rendered output
+        #[arg(long)]
+        raw: bool,
+
+        /// Search docs for a keyword
+        #[arg(long)]
+        search: Option<String>,
     },
     /// Manage MCP server presets
     #[cfg(feature = "mcp-proxy")]
@@ -355,6 +375,9 @@ pub async fn run() {
         }
         Commands::Tools { format } => {
             handle_tools_command(&format).await;
+        }
+        Commands::Docs { topic, raw, search } => {
+            docs::show_docs(topic, raw, search);
         }
         #[cfg(feature = "mcp-proxy")]
         Commands::Mcp(mcp_command) => {
