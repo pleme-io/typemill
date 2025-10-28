@@ -45,105 +45,27 @@ TypeMill supports multiple languages via LSP integration and language plugins. T
 
 **Note:** Kotlin (Rank 9 alongside Swift) was deprioritized in favor of other languages.
 
-## Remaining Work Checklist
+## Individual Language Proposals
 
-### [ ] C++ Support (`crates/mill-lang-cpp`)
+**New Implementations:**
+- **[10_cpp_support.proposal.md](10_cpp_support.proposal.md)** - C++ language support (foundational skeleton complete)
+- **[11_c_support.proposal.md](11_c_support.proposal.md)** - C language support
+- **[12_php_support.proposal.md](12_php_support.proposal.md)** - PHP language support
 
-**Goal:** Enable full LSP and plugin support for C++ projects
+**Language Restorations (from `pre-language-reduction` tag):**
+- **[05_restore_swift.proposal.md](05_restore_swift.proposal.md)** - Swift language restoration
+- **[06_restore_csharp.proposal.md](06_restore_csharp.proposal.md)** - C# language restoration
+- **[09_restore_go.proposal.md](09_restore_go.proposal.md)** - Go language restoration
+- **[13_restore_java.proposal.md](13_restore_java.proposal.md)** - Java language restoration
 
-- [ ] **LSP Integration**
-  - [ ] Add `clangd` to default LSP server configurations
-  - [ ] Document installation instructions (`apt install clangd` / LLVM)
-  - [ ] Test initialization and basic navigation (find definition, references)
-  - [ ] Verify diagnostics and code actions work
-
-- [ ] **Language Plugin (`mill-lang-cpp`)**
-  - [ ] Create crate structure (`crates/mill-lang-cpp/`)
-  - [ ] Implement `LanguagePlugin` trait
-  - [ ] Integrate `tree-sitter-cpp` for AST parsing
-  - [ ] Implement `ImportSupport` trait (C++ includes: `#include`, `import`)
-  - [ ] Parse build manifests:
-    - [ ] CMakeLists.txt parsing
-    - [ ] Makefile parsing (basic)
-    - [ ] Bazel BUILD files (optional)
-  - [ ] Package manager support:
-    - [ ] Conan integration (`conanfile.txt`, `conanfile.py`)
-    - [ ] vcpkg integration (`vcpkg.json`)
-
-- [ ] **Testing**
-  - [ ] Unit tests for AST parsing
-  - [ ] Integration tests with real C++ projects
-  - [ ] Manifest parsing tests (CMake, Conan, vcpkg)
-  - [ ] LSP integration tests with `clangd`
-
-- [ ] **Documentation**
-  - [ ] Update API_REFERENCE.md language support matrix
-  - [ ] Add C++ examples to tool documentation
-  - [ ] Create C++ plugin development guide
-
-### [ ] C Support (`crates/mill-lang-c`)
-
-**Goal:** Enable full LSP and plugin support for C projects
-
-- [ ] **LSP Integration**
-  - [ ] Add `clangd` to LSP configurations (shared with C++)
-  - [ ] Configure C-specific file extensions (`.c`, `.h`)
-  - [ ] Test with pure C projects (no C++ features)
-  - [ ] Verify standard library navigation works
-
-- [ ] **Language Plugin (`mill-lang-c`)**
-  - [ ] Create crate structure (`crates/mill-lang-c/`)
-  - [ ] Implement `LanguagePlugin` trait
-  - [ ] Integrate `tree-sitter-c` for AST parsing
-  - [ ] Implement `ImportSupport` trait (C includes: `#include`)
-  - [ ] Parse build manifests:
-    - [ ] Makefile parsing
-    - [ ] CMakeLists.txt parsing (C projects)
-
-- [ ] **Testing**
-  - [ ] Unit tests for C AST parsing (no C++ constructs)
-  - [ ] Integration tests with C projects (Linux kernel style, embedded)
-  - [ ] Manifest parsing tests (Makefile, CMake)
-  - [ ] LSP integration tests
-
-- [ ] **Documentation**
-  - [ ] Update API_REFERENCE.md language support matrix
-  - [ ] Add C examples to tool documentation
-  - [ ] Note C vs C++ differences in plugin guides
-
-### [ ] PHP Support (`crates/mill-lang-php`)
-
-**Goal:** Enable full LSP and plugin support for PHP projects
-
-- [ ] **LSP Integration**
-  - [ ] Add `intelephense` to LSP configurations (recommended)
-  - [ ] Alternative: `phpactor` configuration
-  - [ ] Document installation (`npm install -g intelephense`)
-  - [ ] Test with Laravel/Symfony projects
-  - [ ] Verify namespace navigation and autocompletion
-
-- [ ] **Language Plugin (`mill-lang-php`)**
-  - [ ] Create crate structure (`crates/mill-lang-php/`)
-  - [ ] Implement `LanguagePlugin` trait
-  - [ ] Integrate `tree-sitter-php` for AST parsing
-  - [ ] Implement `ImportSupport` trait (PHP: `use`, `require`, `include`)
-  - [ ] Parse `composer.json` manifests:
-    - [ ] Parse dependencies (`require`, `require-dev`)
-    - [ ] Parse autoload configuration (PSR-4, classmap)
-  - [ ] Update manifest support (`composer.json` modifications)
-
-- [ ] **Testing**
-  - [ ] Unit tests for PHP AST parsing
-  - [ ] Integration tests with Composer projects
-  - [ ] Manifest parsing tests (`composer.json`)
-  - [ ] LSP integration tests with `intelephense`
-  - [ ] Test Laravel/Symfony framework navigation
-
-- [ ] **Documentation**
-  - [ ] Update API_REFERENCE.md language support matrix
-  - [ ] Add PHP examples to tool documentation
-  - [ ] Document Composer integration
-  - [ ] Note framework-specific considerations (Laravel, Symfony)
+**Status:**
+- C++ (10): 🚧 Foundational skeleton complete (~10% done)
+- C (11): 📋 Not started
+- PHP (12): 📋 Not started
+- Swift (05): 📋 Awaiting restoration
+- C# (06): 📋 Awaiting restoration
+- Go (09): 📋 Awaiting restoration
+- Java (13): 📋 Awaiting restoration
 
 ## Technical Reference
 
@@ -213,10 +135,6 @@ All language plugins implement the `LanguagePlugin` trait with capability-based 
 | AST parser maintenance burden | Low | Use battle-tested tree-sitter parsers, minimal custom logic | ✅ Validated |
 | Parsing C++ templates/macros | High | Use clangd LSP as primary, AST as fallback | Planned |
 
-## Next Steps
+## Implementation Scope
 
-1. **Start with C++** - Highest user demand (game developers, systems programmers)
-2. **Then C** - Shares `clangd` LSP with C++, simpler grammar
-3. **Finally PHP** - Web legacy support, separate LSP server
-
-**Implementation Scope:** Each language requires LSP integration, plugin development, testing, and documentation
+Each language requires LSP integration, plugin development, testing, and documentation. See individual language proposals for detailed checklists and requirements.
