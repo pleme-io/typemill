@@ -21,7 +21,7 @@ regex = "1.10"
 syn = { version = "2.0", features = ["full", "extra-traits", "visit"] }
 quote = "1.0"
 # Additional utilities
-petgraph = "0.6" # For dependency graph analysis
+petgraph = "0.8" # For dependency graph analysis
 pathdiff = "0.2" # For calculating relative paths
 tokio = { workspace = true } # For async file operations in import_updater
 tracing = { workspace = true } # For logging in import_updater

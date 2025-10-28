@@ -6,7 +6,7 @@
 use crate::call::{CallSite, FunctionId};
 use crate::dependency::{Dependency, DependencyGraph, ModuleNode, NodeId};
 use petgraph::algo::{all_simple_paths, tarjan_scc};
-use std::collections::HashSet;
+use std::collections::{hash_map::RandomState, HashSet};
 
 /// A trait for querying analysis graphs.
 pub trait GraphQuery {
@@ -51,7 +51,7 @@ impl GraphQuery for DependencyGraph {
     type Edge = Dependency;
 
     fn find_all_simple_paths(&self, from: NodeId, to: NodeId) -> Vec<Vec<NodeId>> {
-        all_simple_paths(&self.graph, from, to, 0, None).collect()
+        all_simple_paths::<Vec<NodeId>, _, RandomState>(&self.graph, from, to, 0, None).collect()
     }
 
     fn strongly_connected_components(&self) -> Vec<Vec<NodeId>> {

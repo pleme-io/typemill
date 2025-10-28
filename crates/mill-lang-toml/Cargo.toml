@@ -7,7 +7,7 @@ license.workspace = true
 [dependencies]
 mill-plugin-api = { path = "../mill-plugin-api" }
 async-trait = "0.1"
-toml_edit = "0.22"
+toml_edit = "0.23"
 tracing = "0.1"
 serde_json = "1.0"
 # fancy-regex for comment updates (supports lookahead/lookbehind)

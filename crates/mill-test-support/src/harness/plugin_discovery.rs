@@ -7,12 +7,11 @@
 
 use mill_plugin_api::{LanguagePlugin, LanguageTestFixtures, PluginRegistry};
 use mill_services::services::registry_builder::build_language_plugin_registry;
-use once_cell::sync::OnceCell;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 // Create a single, static instance of the plugin registry.
 // This is initialized once and lives for the entire test run.
-static REGISTRY: OnceCell<Arc<PluginRegistry>> = OnceCell::new();
+static REGISTRY: OnceLock<Arc<PluginRegistry>> = OnceLock::new();
 
 fn get_or_init_registry() -> &'static Arc<PluginRegistry> {
     REGISTRY.get_or_init(|| {

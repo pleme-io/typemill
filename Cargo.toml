@@ -81,7 +81,7 @@ mill-config = { path = "crates/mill-config" }
 mill-plugin-api = { path = "crates/mill-plugin-api" }
 
 # Graph analysis
-petgraph = { version = "0.6", features = ["serde-1"] }
+petgraph = { version = "0.8", features = ["serde-1"] }
 rustc-hash = "2.0"
 proc-macro2 = { version = "1.0.101", features = ["span-locations"] }
 syn = { version = "2.0.106", features = ["full"] }

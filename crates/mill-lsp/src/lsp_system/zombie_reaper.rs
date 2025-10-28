@@ -4,10 +4,9 @@
 //! processes that may have been missed by explicit cleanup. This serves as a
 //! safety net to prevent zombie process accumulation.
 
-use once_cell::sync::Lazy;
 use std::collections::HashSet;
 use std::sync::mpsc::{channel, Sender};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, LazyLock, Mutex};
 use std::thread;
 use std::time::Duration;
 
@@ -21,7 +20,7 @@ enum ReaperMessage {
 /// This reaper runs in a background thread and periodically checks for zombie
 /// processes among registered PIDs. It automatically cleans them up using
 /// `waitpid(WNOHANG)` to prevent accumulation.
-pub static ZOMBIE_REAPER: Lazy<ZombieReaper> = Lazy::new(|| {
+pub static ZOMBIE_REAPER: LazyLock<ZombieReaper> = LazyLock::new(|| {
     let (tx, rx) = channel();
     let pids = Arc::new(Mutex::new(HashSet::new()));
     let pids_clone = Arc::clone(&pids);

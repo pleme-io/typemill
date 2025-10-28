@@ -542,4 +542,147 @@ impl AppConfig {
 
         Ok(())
     }
+
+    /// Find or create LSP server config for given extensions
+    /// Returns mutable reference to the server config
+    pub fn find_or_create_server_mut(
+        &mut self,
+        extensions: &[String]
+    ) -> &mut LspServerConfig {
+        // Look for existing server that handles ANY of these extensions
+        // Find the index first to avoid borrow checker issues
+        let existing_index = self.lsp.servers.iter().position(|server| {
+            extensions.iter().any(|ext| server.extensions.contains(ext))
+        });
+
+        if let Some(index) = existing_index {
+            return &mut self.lsp.servers[index];
+        }
+
+        // Not found - create new server config
+        let new_server = LspServerConfig {
+            extensions: extensions.to_vec(),
+            command: vec![],
+            root_dir: None,
+            restart_interval: Some(10),
+            initialization_options: None,
+        };
+        self.lsp.servers.push(new_server);
+
+        // Return reference to the newly added server
+        self.lsp.servers.last_mut().unwrap()
+    }
+
+    /// Update LSP server command and rootDir for given language
+    /// Language can be extension like "ts" or name like "typescript"
+    pub fn update_lsp_command(
+        &mut self,
+        language: &str,
+        command: Vec<String>,
+        root_dir: Option<std::path::PathBuf>,
+    ) -> CoreResult<()> {
+        // Map common language names to extensions
+        let extension = match language {
+            "rust" | "rs" => "rs",
+            "typescript" | "ts" => "ts",
+            "javascript" | "js" => "js",
+            "python" | "py" => "py",
+            _ => language,
+        };
+
+        // Find server that handles this extension
+        let server = self.lsp.servers.iter_mut()
+            .find(|s| s.extensions.contains(&extension.to_string()))
+            .ok_or_else(|| CoreError::config(format!(
+                "No LSP server configured for language: {}",
+                language
+            )))?;
+
+        server.command = command;
+        if let Some(dir) = root_dir {
+            server.root_dir = Some(dir);
+        }
+
+        Ok(())
+    }
+
+    /// Get the LSP server config for a given extension
+    pub fn get_server_for_extension(&self, extension: &str) -> Option<&LspServerConfig> {
+        self.lsp.servers.iter()
+            .find(|s| s.extensions.contains(&extension.to_string()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_find_or_create_server_mut_existing() {
+        let mut config = AppConfig::default();
+
+        // Default config has TypeScript server
+        let server = config.find_or_create_server_mut(&vec!["ts".to_string()]);
+        assert!(server.extensions.contains(&"ts".to_string()));
+
+        // Should return same server
+        let initial_count = config.lsp.servers.len();
+        let _server2 = config.find_or_create_server_mut(&vec!["ts".to_string()]);
+        assert_eq!(config.lsp.servers.len(), initial_count, "Should not create duplicate");
+    }
+
+    #[test]
+    fn test_find_or_create_server_mut_new() {
+        let mut config = AppConfig::default();
+        let initial_count = config.lsp.servers.len();
+
+        // Create new server for a language not in defaults (C++)
+        {
+            let server = config.find_or_create_server_mut(&vec!["cpp".to_string()]);
+            server.command = vec!["clangd".to_string()];
+            assert!(server.extensions.contains(&"cpp".to_string()));
+        }
+
+        assert_eq!(config.lsp.servers.len(), initial_count + 1);
+    }
+
+    #[test]
+    fn test_update_lsp_command() {
+        let mut config = AppConfig::default();
+
+        // Update TypeScript server
+        let result = config.update_lsp_command(
+            "typescript",
+            vec!["/usr/local/bin/typescript-language-server".to_string()],
+            Some(std::path::PathBuf::from("web")),
+        );
+
+        assert!(result.is_ok());
+
+        let server = config.get_server_for_extension("ts").unwrap();
+        assert_eq!(server.command[0], "/usr/local/bin/typescript-language-server");
+        assert_eq!(server.root_dir, Some(std::path::PathBuf::from("web")));
+    }
+
+    #[test]
+    fn test_update_lsp_command_not_found() {
+        let mut config = AppConfig::default();
+
+        let result = config.update_lsp_command(
+            "nonexistent",
+            vec!["test".to_string()],
+            None,
+        );
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_server_for_extension() {
+        let config = AppConfig::default();
+
+        assert!(config.get_server_for_extension("ts").is_some());
+        assert!(config.get_server_for_extension("rs").is_some());
+        assert!(config.get_server_for_extension("nonexistent").is_none());
+    }
 }

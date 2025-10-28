@@ -21,7 +21,7 @@ dirs = "6.0"
 indicatif = "0.17"
 futures-util = "0.3"
 url = "2.5"
-which = "6.0"
+which = "8.0"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
