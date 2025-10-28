@@ -28,6 +28,12 @@ Add markdown-specific sync detection functions for structure and formatting anal
 - Images without alt text
 - Table column consistency
 - Duplicate headings
+- Multiple top-level headings (H1)
+- Malformed headings (no space after `#`)
+- Bare URLs (unformatted links)
+- Empty or malformed links
+- Reversed link syntax (`(text)[url]`)
+- Unclosed code fences
 
 ### What Cannot Be Analyzed (Needs Async)
 - Broken file links (requires file_service.exists())
@@ -37,8 +43,8 @@ Add markdown-specific sync detection functions for structure and formatting anal
 ### New Analysis Kinds
 
 **`analyze.quality`:**
-- `kind: "markdown_structure"` - Heading hierarchy, duplicate headings, empty sections
-- `kind: "markdown_formatting"` - Code block language tags, image alt text, table consistency
+- `kind: "markdown_structure"` - Heading hierarchy, duplicate headings, empty sections, multiple H1s, malformed headings
+- `kind: "markdown_formatting"` - Code block language tags, image alt text, table consistency, bare URLs, malformed links, unclosed code fences
 
 ## Checklists
 
