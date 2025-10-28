@@ -251,7 +251,7 @@ curl -I https://github.com/rust-lang/rust-analyzer/releases
 - Check system resources (LSP servers can be memory-intensive)
 
 ## 📖 Documentation
-- **[Tool Reference](docs/tools/)** - Complete API for all 36 tools
+- **[Tool Reference](docs/tools/)** - Complete API for all 28 tools
 - **[Architecture Overview](docs/architecture/overview.md)** - System design and components
 - **[Contributing Guide](contributing.md)** - Development setup and workflow
 - **[Docker Deployment](docs/operations/docker_deployment.md)** - Production deployment
