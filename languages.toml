@@ -50,6 +50,12 @@ plugin_struct = "YamlLanguagePlugin"
 category = "config"
 default = true
 
+[languages.cpp]
+path = "crates/mill-lang-cpp"
+plugin_struct = "CppPlugin"
+category = "full"
+default = false
+
 [languages.gitignore]
 path = "crates/mill-lang-gitignore"
 plugin_struct = "GitignoreLanguagePlugin"

@@ -13,6 +13,8 @@ use std::sync::Arc;
 // Force linker to include language plugins by actively using them.
 // This prevents linker dead code elimination from stripping the inventory submissions.
 // We reference each plugin's public type to ensure the crate is linked.
+#[cfg(feature = "lang-cpp")]
+use mill_lang_cpp::CppPlugin;
 #[cfg(feature = "lang-gitignore")]
 use mill_lang_gitignore::GitignoreLanguagePlugin;
 #[cfg(feature = "lang-markdown")]
@@ -33,6 +35,8 @@ use mill_lang_yaml::YamlLanguagePlugin;
 fn _force_plugin_linkage() {
     // These type references ensure the plugin crates are linked
     // The actual plugin instances will be discovered via inventory
+    #[cfg(feature = "lang-cpp")]
+    let _: Option<CppPlugin> = None;
     #[cfg(feature = "lang-gitignore")]
     let _: Option<GitignoreLanguagePlugin> = None;
     #[cfg(feature = "lang-markdown")]
@@ -83,6 +87,8 @@ mod tests {
     use super::*;
 
     // Force linker to include language plugins for inventory collection in tests
+    #[cfg(all(test, feature = "lang-cpp"))]
+    extern crate mill_lang_cpp;
     #[cfg(all(test, feature = "lang-gitignore"))]
     extern crate mill_lang_gitignore;
     #[cfg(all(test, feature = "lang-markdown"))]

@@ -18,6 +18,7 @@ mill-lang-yaml = { path = "../mill-lang-yaml", optional = true, default-features
 mill-lang-rust = { path = "../mill-lang-rust", optional = true, default-features = false }
 mill-lang-python = { path = "../mill-lang-python", optional = true, default-features = false }
 mill-lang-gitignore = { path = "../mill-lang-gitignore", optional = true, default-features = false }
+mill-lang-cpp = { path = "../mill-lang-cpp", optional = true, default-features = false }
 
 [features]
 default = ["lang-gitignore", "lang-markdown", "lang-python", "lang-rust", "lang-toml", "lang-typescript", "lang-yaml"]
@@ -28,3 +29,4 @@ lang-toml = ["dep:mill-lang-toml"]
 lang-yaml = ["dep:mill-lang-yaml"]
 lang-python = ["dep:mill-lang-python"]
 lang-gitignore = ["dep:mill-lang-gitignore"]
+lang-cpp = ["dep:mill-lang-cpp"]

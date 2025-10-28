@@ -55,6 +55,7 @@ mcp-proxy = ["mill-foundation/mcp-proxy", "mill-config/mcp-proxy", "mill-service
 test-helpers = []
 lang-python = ["mill-services/lang-python", "mill-ast/lang-python", "mill-plugin-bundle/lang-python", "mill-plugin-system/lang-python", "mill-transport/lang-python"]
 lang-gitignore = ["mill-plugin-bundle/lang-gitignore"]
+lang-cpp = ["mill-services/lang-cpp", "mill-ast/lang-cpp", "mill-plugin-bundle/lang-cpp", "mill-plugin-system/lang-cpp", "mill-transport/lang-cpp"]
 
 [dev-dependencies]
 tempfile = "3.0"

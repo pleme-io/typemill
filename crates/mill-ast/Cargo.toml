@@ -37,6 +37,7 @@ lang-rust = []
 lang-typescript = []
 lang-markdown = []
 lang-python = []
+lang-cpp = []
 
 [dev-dependencies]
 tempfile = "3.0"

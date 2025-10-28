@@ -1,0 +1,3 @@
+[submodule "crates/mill-lang-cpp/tree-sitter-cpp"]
+	path = crates/mill-lang-cpp/tree-sitter-cpp
+	url = https://github.com/tree-sitter/tree-sitter-cpp

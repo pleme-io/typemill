@@ -1,0 +1,29 @@
+[package]
+name = "mill-lang-cpp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[build-dependencies]
+cc = "1.0"
+
+[dependencies]
+mill-plugin-api = { path = "../mill-plugin-api" }
+mill-lang-common = { path = "../mill-lang-common" }
+mill-foundation = { path = "../mill-foundation" }
+inventory = "0.3"
+
+async-trait = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+
+tree-sitter = "0.20"
+tree-sitter-cpp = "0.20"
+
+[dev-dependencies]
+tokio-test = "0.4"

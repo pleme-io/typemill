@@ -26,6 +26,7 @@ members = [
     "crates/mill-workspaces",
     "crates/mill-auth",
     "crates/xtask", "crates/mill-ast", "crates/mill-client", "crates/mill-test-support", "crates/mill-handlers", "crates/mill-config", "crates/mill-foundation",
+    "crates/mill-lang-cpp",
 ]
 resolver = "2"
 
@@ -101,6 +102,7 @@ mill-lang-typescript = { path = "crates/mill-lang-typescript", default-features 
 mill-lang-markdown = { path = "crates/mill-lang-markdown", default-features = false }
 mill-lang-rust = { path = "crates/mill-lang-rust", default-features = false }
 mill-lang-python = { path = "crates/mill-lang-python", default-features = false }
+mill-lang-cpp = { path = "crates/mill-lang-cpp", default-features = false }
 mill-analysis-dead-code = { path = "analysis/mill-analysis-dead-code" }
 mill-analysis-graph = { path = "analysis/mill-analysis-graph" }
 
