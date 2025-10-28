@@ -1,0 +1,69 @@
+# .NET Core build output
+[Bb]in/
+[Oo]bj/
+
+# Rider - https://www.jetbrains.com/help/rider/Sharing_Configuration_Options.html
+.idea/
+*.sln.iml
+
+# User-specific files
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+build/
+bld/
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio 2015 cache/options directory
+.vs/
+
+# MSTest test Results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+
+# NUnit
+*.VisualState.xml
+TestResult.xml
+
+# Build Results of an ATL Project
+[Dd]ebugPS/
+[Rr]eleasePS/
+dlldata.c
+
+# Benchmark Results
+BenchmarkDotNet.Artifacts/
+
+# Folders containing restored packages
+packages/
+
+# Unused packages from packages.config
+*.nupkg
+
+# Cache files
+*.cache
+
+# Log files
+*.log
+
+# Diagnostic files
+*.diagsession
+*.etl
+
+# F#
+*.fsx
+*.fsi
+*.fs
+
+# Paket
+.paket/paket.exe
+paket-files/
