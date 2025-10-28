@@ -1206,6 +1206,494 @@ pub fn analyze_maintainability(
     findings
 }
 
+/// Detect markdown structure issues
+///
+/// Checks for:
+/// - Heading hierarchy violations (skipped levels)
+/// - Duplicate headings at the same level
+/// - Empty sections
+/// - Multiple H1 headings
+/// - Malformed headings (no space after #)
+fn detect_markdown_structure(
+    content: &str,
+    symbols: &[mill_plugin_api::Symbol],
+    _language: &str,
+    file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
+) -> Vec<Finding> {
+    let mut findings = Vec::new();
+    let lines: Vec<&str> = content.lines().collect();
+
+    // Extract headings from symbols (markdown plugin maps # → Module, ## → Class, ### → Function, ####+ → Other)
+    let headings: Vec<_> = symbols
+        .iter()
+        .filter(|s| matches!(
+            s.kind,
+            mill_plugin_api::SymbolKind::Module
+            | mill_plugin_api::SymbolKind::Class
+            | mill_plugin_api::SymbolKind::Function
+            | mill_plugin_api::SymbolKind::Other  // Include level 4+ headings
+        ))
+        .collect();
+
+    // Track heading levels for hierarchy checking
+    let mut last_level = 0;
+    let mut h1_count = 0;
+    let mut heading_map: HashMap<(usize, String), Vec<usize>> = HashMap::new();
+
+    for (idx, symbol) in headings.iter().enumerate() {
+        // Symbol line numbers are 1-based, convert to 0-based for array indexing
+        let line_num = symbol.location.line.saturating_sub(1);
+        let line = lines.get(line_num).unwrap_or(&"");
+
+        // Determine level based on SymbolKind mapping or by counting # characters for Other
+        let level = match symbol.kind {
+            mill_plugin_api::SymbolKind::Module => 1,  // # → Module
+            mill_plugin_api::SymbolKind::Class => 2,   // ## → Class
+            mill_plugin_api::SymbolKind::Function => 3, // ### → Function
+            mill_plugin_api::SymbolKind::Other => {
+                // Level 4+ headings - count # characters in the line
+                line.chars().take_while(|&c| c == '#').count()
+            }
+            _ => continue,
+        };
+
+        // Count H1s
+        if level == 1 {
+            h1_count += 1;
+        }
+
+        // Check for malformed headings (no space after #)
+        let heading_marker = "#".repeat(level);
+        if line.starts_with(&heading_marker) && !line.starts_with(&format!("{} ", heading_marker)) {
+            findings.push(Finding {
+                id: format!("malformed-heading-{}-{}", file_path, line_num),
+                kind: "malformed_heading".to_string(),
+                severity: Severity::Medium,
+                message: format!("Heading should have space after '#': {}", symbol.name),
+                location: FindingLocation {
+                    file_path: file_path.to_string(),
+                    range: Some(Range {
+                        start: Position { line: line_num as u32, character: 0 },
+                        end: Position { line: line_num as u32, character: line.len() as u32 },
+                    }),
+                    symbol: Some(symbol.name.clone()),
+                    symbol_kind: Some("heading".to_string()),
+                },
+                metrics: None,
+                suggestions: vec![],
+            });
+        }
+
+        // Check for heading level skips
+        if last_level > 0 && level > last_level + 1 {
+            findings.push(Finding {
+                id: format!("heading-level-skip-{}-{}", file_path, line_num),
+                kind: "heading_level_skip".to_string(),
+                severity: Severity::Medium,
+                message: format!(
+                    "Heading level skipped from {} to {} (missing level {})",
+                    last_level,
+                    level,
+                    last_level + 1
+                ),
+                location: FindingLocation {
+                    file_path: file_path.to_string(),
+                    range: Some(Range {
+                        start: Position { line: line_num as u32, character: 0 },
+                        end: Position { line: line_num as u32, character: line.len() as u32 },
+                    }),
+                    symbol: Some(symbol.name.clone()),
+                    symbol_kind: Some("heading".to_string()),
+                },
+                metrics: None,
+                suggestions: vec![],
+            });
+        }
+
+        last_level = level;
+
+        // Track duplicates
+        heading_map
+            .entry((level, symbol.name.clone()))
+            .or_insert_with(Vec::new)
+            .push(line_num);
+
+        // Check for empty sections
+        if idx + 1 < headings.len() {
+            let next_heading = headings[idx + 1];
+            let next_line = next_heading.location.line.saturating_sub(1);
+
+            // If next heading is immediately after (only whitespace between)
+            let between_lines = &lines[line_num + 1..next_line];
+            if between_lines.iter().all(|l| l.trim().is_empty()) {
+                findings.push(Finding {
+                    id: format!("empty-section-{}-{}", file_path, line_num),
+                    kind: "empty_section".to_string(),
+                    severity: Severity::Low,
+                    message: format!("Section '{}' has no content", symbol.name),
+                    location: FindingLocation {
+                        file_path: file_path.to_string(),
+                        range: Some(Range {
+                            start: Position { line: line_num as u32, character: 0 },
+                            end: Position { line: line_num as u32, character: line.len() as u32 },
+                        }),
+                        symbol: Some(symbol.name.clone()),
+                        symbol_kind: Some("heading".to_string()),
+                    },
+                    metrics: None,
+                    suggestions: vec![],
+                });
+            }
+        }
+    }
+
+    // Check for multiple H1s
+    if h1_count > 1 {
+        findings.push(Finding {
+            id: format!("multiple-h1-{}", file_path),
+            kind: "multiple_h1_headings".to_string(),
+            severity: Severity::Medium,
+            message: format!("Document has {} top-level headings (H1), should have only one", h1_count),
+            location: FindingLocation {
+                file_path: file_path.to_string(),
+                range: None,
+                symbol: None,
+                symbol_kind: None,
+            },
+            metrics: None,
+            suggestions: vec![],
+        });
+    }
+
+    // Check for duplicate headings
+    for ((level, name), line_nums) in heading_map {
+        if line_nums.len() > 1 {
+            findings.push(Finding {
+                id: format!("duplicate-heading-{}-{}-{}", file_path, level, line_nums[1]),
+                kind: "duplicate_heading".to_string(),
+                severity: Severity::Low,
+                message: format!("Duplicate heading '{}' at level {} appears {} times", name, level, line_nums.len()),
+                location: FindingLocation {
+                    file_path: file_path.to_string(),
+                    range: Some(Range {
+                        start: Position { line: line_nums[1] as u32, character: 0 },
+                        end: Position { line: line_nums[1] as u32, character: lines[line_nums[1]].len() as u32 },
+                    }),
+                    symbol: Some(name),
+                    symbol_kind: Some("heading".to_string()),
+                },
+                metrics: None,
+                suggestions: vec![],
+            });
+        }
+    }
+
+    // Check for malformed headings (no space after #) by scanning raw content
+    // These won't be in symbols because the markdown plugin requires a space
+    let malformed_heading_re = Regex::new(r"^(#{1,6})([^\s#])").unwrap();
+    for (line_num, line) in lines.iter().enumerate() {
+        if let Some(captures) = malformed_heading_re.captures(line) {
+            let hashes = captures.get(1).unwrap().as_str();
+            let next_char = captures.get(2).unwrap().as_str();
+            findings.push(Finding {
+                id: format!("malformed-heading-raw-{}-{}", file_path, line_num),
+                kind: "malformed_heading".to_string(),
+                severity: Severity::Medium,
+                message: format!("Heading should have space after '#': {}{}", hashes, next_char),
+                location: FindingLocation {
+                    file_path: file_path.to_string(),
+                    range: Some(Range {
+                        start: Position { line: line_num as u32, character: 0 },
+                        end: Position { line: line_num as u32, character: line.len() as u32 },
+                    }),
+                    symbol: None,
+                    symbol_kind: Some("heading".to_string()),
+                },
+                metrics: None,
+                suggestions: vec![],
+            });
+        }
+    }
+
+    findings
+}
+
+/// Detect markdown formatting issues
+///
+/// Checks for:
+/// - Missing image alt text
+/// - Bare URLs
+/// - Table column inconsistencies
+/// - Missing code block language tags
+/// - Trailing whitespace
+/// - Malformed links
+/// - Unclosed code fences
+/// - Reversed link syntax
+fn detect_markdown_formatting(
+    content: &str,
+    _symbols: &[mill_plugin_api::Symbol],
+    _language: &str,
+    file_path: &str,
+    _registry: &crate::LanguagePluginRegistry,
+) -> Vec<Finding> {
+    let mut findings = Vec::new();
+    let lines: Vec<&str> = content.lines().collect();
+
+    // Regex patterns
+    let bare_url_re = Regex::new(r"(?:^|[^\(<])https?://[^\s)>]+").unwrap();
+    let img_no_alt_re = Regex::new(r"!\[\]\([^)]+\)").unwrap();
+    let malformed_link_re = Regex::new(r"\[[^\]]+\]\(\s*\)").unwrap();
+    let reversed_link_re = Regex::new(r"\([^\)]+\)\[[^\]]+\]").unwrap();
+    let trailing_ws_re = Regex::new(r"[ \t]+$").unwrap();
+
+    let mut in_code_fence = false;
+    let mut code_fence_start = None;
+
+    for (line_num, line) in lines.iter().enumerate() {
+        // Check for trailing whitespace
+        if trailing_ws_re.is_match(line) {
+            findings.push(Finding {
+                id: format!("trailing-ws-{}-{}", file_path, line_num),
+                kind: "trailing_whitespace".to_string(),
+                severity: Severity::Low,
+                message: "Line has trailing whitespace".to_string(),
+                location: FindingLocation {
+                    file_path: file_path.to_string(),
+                    range: Some(Range {
+                        start: Position { line: line_num as u32, character: 0 },
+                        end: Position { line: line_num as u32, character: line.len() as u32 },
+                    }),
+                    symbol: None,
+                    symbol_kind: None,
+                },
+                metrics: None,
+                suggestions: vec![],
+            });
+        }
+
+        // Track code fences
+        if line.trim().starts_with("```") {
+            if !in_code_fence {
+                // Opening fence
+                in_code_fence = true;
+                code_fence_start = Some(line_num);
+
+                // Check for missing language tag
+                let fence_content = line.trim().trim_start_matches('`');
+                if fence_content.is_empty() {
+                    findings.push(Finding {
+                        id: format!("missing-lang-tag-{}-{}", file_path, line_num),
+                        kind: "missing_code_language_tag".to_string(),
+                        severity: Severity::Low,
+                        message: "Code block is missing language tag for syntax highlighting".to_string(),
+                        location: FindingLocation {
+                            file_path: file_path.to_string(),
+                            range: Some(Range {
+                                start: Position { line: line_num as u32, character: 0 },
+                                end: Position { line: line_num as u32, character: line.len() as u32 },
+                            }),
+                            symbol: None,
+                            symbol_kind: None,
+                        },
+                        metrics: None,
+                        suggestions: vec![],
+                    });
+                }
+            } else {
+                // Closing fence
+                in_code_fence = false;
+                code_fence_start = None;
+            }
+            continue;
+        }
+
+        // Skip content inside code blocks
+        if in_code_fence {
+            continue;
+        }
+
+        // Check for bare URLs
+        if bare_url_re.is_match(line) {
+            findings.push(Finding {
+                id: format!("bare-url-{}-{}", file_path, line_num),
+                kind: "bare_url".to_string(),
+                severity: Severity::Low,
+                message: "Bare URL should be wrapped in <> or use link syntax [text](url)".to_string(),
+                location: FindingLocation {
+                    file_path: file_path.to_string(),
+                    range: Some(Range {
+                        start: Position { line: line_num as u32, character: 0 },
+                        end: Position { line: line_num as u32, character: line.len() as u32 },
+                    }),
+                    symbol: None,
+                    symbol_kind: None,
+                },
+                metrics: None,
+                suggestions: vec![],
+            });
+        }
+
+        // Check for images without alt text
+        if img_no_alt_re.is_match(line) {
+            findings.push(Finding {
+                id: format!("missing-alt-{}-{}", file_path, line_num),
+                kind: "missing_image_alt_text".to_string(),
+                severity: Severity::Medium,
+                message: "Image is missing alt text for accessibility".to_string(),
+                location: FindingLocation {
+                    file_path: file_path.to_string(),
+                    range: Some(Range {
+                        start: Position { line: line_num as u32, character: 0 },
+                        end: Position { line: line_num as u32, character: line.len() as u32 },
+                    }),
+                    symbol: None,
+                    symbol_kind: None,
+                },
+                metrics: None,
+                suggestions: vec![],
+            });
+        }
+
+        // Check for malformed links
+        if malformed_link_re.is_match(line) {
+            findings.push(Finding {
+                id: format!("malformed-link-{}-{}", file_path, line_num),
+                kind: "malformed_link".to_string(),
+                severity: Severity::Medium,
+                message: "Link has empty URL".to_string(),
+                location: FindingLocation {
+                    file_path: file_path.to_string(),
+                    range: Some(Range {
+                        start: Position { line: line_num as u32, character: 0 },
+                        end: Position { line: line_num as u32, character: line.len() as u32 },
+                    }),
+                    symbol: None,
+                    symbol_kind: None,
+                },
+                metrics: None,
+                suggestions: vec![],
+            });
+        }
+
+        // Check for reversed link syntax
+        if reversed_link_re.is_match(line) {
+            findings.push(Finding {
+                id: format!("reversed-link-{}-{}", file_path, line_num),
+                kind: "reversed_link_syntax".to_string(),
+                severity: Severity::High,
+                message: "Link syntax is reversed, should be [text](url) not (text)[url]".to_string(),
+                location: FindingLocation {
+                    file_path: file_path.to_string(),
+                    range: Some(Range {
+                        start: Position { line: line_num as u32, character: 0 },
+                        end: Position { line: line_num as u32, character: line.len() as u32 },
+                    }),
+                    symbol: None,
+                    symbol_kind: None,
+                },
+                metrics: None,
+                suggestions: vec![],
+            });
+        }
+
+        // Check table rows for column consistency
+        if line.trim().starts_with('|') && line.trim().ends_with('|') {
+            // Simple column count check
+            let col_count = line.matches('|').count();
+            // Store for comparison (simplified - would need more sophisticated tracking)
+            if col_count > 0 {
+                // Just flag inconsistent tables for now
+                // A full implementation would track column counts across rows
+            }
+        }
+    }
+
+    // Check for unclosed code fence
+    if in_code_fence {
+        if let Some(start_line) = code_fence_start {
+            findings.push(Finding {
+                id: format!("unclosed-fence-{}-{}", file_path, start_line),
+                kind: "unclosed_code_fence".to_string(),
+                severity: Severity::High,
+                message: "Code fence opened but never closed".to_string(),
+                location: FindingLocation {
+                    file_path: file_path.to_string(),
+                    range: Some(Range {
+                        start: Position { line: start_line as u32, character: 0 },
+                        end: Position { line: start_line as u32, character: lines[start_line].len() as u32 },
+                    }),
+                    symbol: None,
+                    symbol_kind: None,
+                },
+                metrics: None,
+                suggestions: vec![],
+            });
+        }
+    }
+
+    // More sophisticated table column checking
+    let mut table_ranges: Vec<(usize, usize)> = Vec::new();
+    let mut table_start = None;
+
+    for (line_num, line) in lines.iter().enumerate() {
+        let is_table_row = line.trim().starts_with('|');
+
+        if is_table_row {
+            if table_start.is_none() {
+                table_start = Some(line_num);
+            }
+        } else if let Some(start) = table_start {
+            table_ranges.push((start, line_num - 1));
+            table_start = None;
+        }
+    }
+
+    // Don't forget last table
+    if let Some(start) = table_start {
+        table_ranges.push((start, lines.len() - 1));
+    }
+
+    // Check each table for column consistency
+    for (start, end) in table_ranges {
+        let mut col_counts = Vec::new();
+        for line_num in start..=end {
+            if let Some(line) = lines.get(line_num) {
+                if line.trim().starts_with('|') {
+                    let count = line.matches('|').count();
+                    col_counts.push((line_num, count));
+                }
+            }
+        }
+
+        if let Some(&(_, first_count)) = col_counts.first() {
+            for &(line_num, count) in &col_counts[1..] {
+                if count != first_count {
+                    findings.push(Finding {
+                        id: format!("table-inconsistency-{}-{}", file_path, line_num),
+                        kind: "table_column_inconsistency".to_string(),
+                        severity: Severity::Medium,
+                        message: format!("Table row has {} columns but header has {}", count, first_count),
+                        location: FindingLocation {
+                            file_path: file_path.to_string(),
+                            range: Some(Range {
+                                start: Position { line: line_num as u32, character: 0 },
+                                end: Position { line: line_num as u32, character: lines[line_num].len() as u32 },
+                            }),
+                            symbol: None,
+                            symbol_kind: None,
+                        },
+                        metrics: None,
+                        suggestions: vec![],
+                    });
+                }
+            }
+        }
+    }
+
+    findings
+}
+
 #[async_trait]
 impl ToolHandler for QualityHandler {
     fn tool_names(&self) -> &[&str] {
@@ -1232,10 +1720,10 @@ impl ToolHandler for QualityHandler {
         // Validate kind
         if !matches!(
             kind,
-            "complexity" | "smells" | "maintainability" | "readability"
+            "complexity" | "smells" | "maintainability" | "readability" | "markdown_structure" | "markdown_formatting"
         ) {
             return Err(ServerError::InvalidRequest(format!(
-                "Unsupported kind '{}'. Supported: 'complexity', 'smells', 'maintainability', 'readability'",
+                "Unsupported kind '{}'. Supported: 'complexity', 'smells', 'maintainability', 'readability', 'markdown_structure', 'markdown_formatting'",
                 kind
             )));
         }
@@ -1386,6 +1874,26 @@ impl ToolHandler for QualityHandler {
                     "quality",
                     kind,
                     analyze_readability,
+                )
+                .await
+            }
+            "markdown_structure" => {
+                super::engine::run_markdown_analysis(
+                    context,
+                    tool_call,
+                    "quality",
+                    kind,
+                    detect_markdown_structure,
+                )
+                .await
+            }
+            "markdown_formatting" => {
+                super::engine::run_markdown_analysis(
+                    context,
+                    tool_call,
+                    "quality",
+                    kind,
+                    detect_markdown_formatting,
                 )
                 .await
             }
