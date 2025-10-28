@@ -2,7 +2,9 @@
 
 mod ast_parser;
 mod cmake_parser;
+mod conan_parser;
 mod import_support;
+mod project_factory;
 
 use async_trait::async_trait;
 use mill_plugin_api::{
@@ -45,8 +47,11 @@ impl LanguagePlugin for CppPlugin {
     }
 
     async fn analyze_manifest(&self, path: &Path) -> PluginResult<ManifestData> {
-        if path.file_name().unwrap_or_default().to_str().unwrap_or_default().starts_with("CMakeLists") {
+        let filename = path.file_name().and_then(|s| s.to_str()).unwrap_or_default();
+        if filename.starts_with("CMakeLists") {
             cmake_parser::analyze_cmake_manifest(path)
+        } else if filename == "conanfile.txt" {
+            conan_parser::analyze_conan_manifest(path)
         } else {
             Err(mill_plugin_api::PluginError::not_supported(
                 "Manifest analysis for this file type",
@@ -80,6 +85,10 @@ impl LanguagePlugin for CppPlugin {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+
+    fn project_factory(&self) -> Option<&dyn mill_plugin_api::ProjectFactory> {
+        Some(&project_factory::CppProjectFactory)
     }
 }
 
