@@ -42,31 +42,28 @@ Add markdown-specific sync detection functions for structure and formatting anal
 
 ## Checklists
 
-### Phase 1: Structure Validation
+### Implementation
 - [ ] Add `detect_markdown_structure()` function in `crates/mill-handlers/src/handlers/tools/analysis/quality.rs`
 - [ ] Implement heading hierarchy validation (no skipped levels: # → ### without ##)
 - [ ] Use pre-parsed symbols (headers already parsed by engine)
 - [ ] Implement duplicate heading detection (same title at same level)
 - [ ] Implement empty section detection (headers with no content before next header)
-- [ ] Add `markdown_structure` to quality handler kind validation and dispatcher
-- [ ] Test with heading hierarchy violations, duplicates, empty sections
-- [ ] Document `markdown_structure` kind in `docs/tools/analysis.md`
-
-### Phase 2: Formatting Checks
 - [ ] Add `detect_markdown_formatting()` function in quality.rs
 - [ ] Implement code block language tag checking (```rust vs bare ```)
 - [ ] Implement image alt text checking (![](path) vs ![alt](path))
 - [ ] Implement table column consistency checking (same number of | per row)
 - [ ] Implement trailing whitespace detection
-- [ ] Add `markdown_formatting` to quality handler dispatcher
-- [ ] Test with missing language tags, missing alt text, malformed tables
-- [ ] Document `markdown_formatting` kind in docs
+- [ ] Add `markdown_structure` and `markdown_formatting` to quality handler kind validation
+- [ ] Add both kinds to quality handler dispatcher
 
-### Integration
-- [ ] Update `docs/tools/analysis.md` with markdown structure and formatting kinds
-- [ ] Add markdown analysis examples to `docs/user-guide/cheatsheet.md`
+### Testing & Documentation
+- [ ] Test structure validation with heading hierarchy violations, duplicates, empty sections
+- [ ] Test formatting validation with missing language tags, missing alt text, malformed tables
 - [ ] Add integration tests in `tests/e2e/src/test_analysis.rs`
-- [ ] Update CLAUDE.md with markdown analysis capabilities
+- [ ] Document `markdown_structure` kind in `docs/tools/analysis.md`
+- [ ] Document `markdown_formatting` kind in `docs/tools/analysis.md`
+- [ ] Add markdown analysis examples to `docs/user-guide/cheatsheet.md`
+- [ ] Update AGENTS.md with markdown analysis capabilities
 
 ## Success Criteria
 
