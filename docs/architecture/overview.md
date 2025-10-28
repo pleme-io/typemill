@@ -448,37 +448,37 @@ pub struct AppState {
 
 All supported languages implement the complete set of capability traits:
 
-| Capability Trait | Rust | TypeScript | Python | C++ | Swift | Description |
-|-----------------|:----:|:----------:|:------:|:---:|:-----:|-------------|
-| **Core LanguagePlugin** ||||||
-| `metadata()` | ✅ | ✅ | ✅ | ✅ | ✅ | Language metadata (name, extensions, manifest) |
-| `parse()` | ✅ | ✅ | ✅ | ✅ | ✅ | AST parsing and symbol extraction |
-| `analyze_manifest()` | ✅ | ✅ | ✅ | ✅ | ✅ | Parse manifest files (Cargo.toml, package.json, pyproject.toml) |
-| `list_functions()` | ✅ | ✅ | ✅ | ✅ | ✅ | Extract function definitions |
-| `analyze_detailed_imports()` | ✅ | ✅ | ✅ | ⚠️ | ✅ | Full ImportGraph with metadata |
-| **Import Support (5 traits)** ||||||
-| `ImportParser` | ✅ | ✅ | ✅ | ✅ | ✅ | Parse import statements |
-| `ImportRenameSupport` | ✅ | ✅ | ✅ | ⚠️ | ✅ | Rewrite imports for symbol renames |
-| `ImportMoveSupport` | ✅ | ✅ | ✅ | ⚠️ | ✅ | Rewrite imports for file moves |
-| `ImportMutationSupport` | ✅ | ✅ | ✅ | ⚠️ | ✅ | Add/remove imports programmatically |
-| `ImportAdvancedSupport` | ✅ | ✅ | ✅ | ⚠️ | ✅ | AST-based import transformations |
-| **Workspace & Manifest** ||||||
-| `WorkspaceSupport` | ✅ | ✅ | ✅ | ⚠️ | ✅ | Multi-package workspace operations |
-| `ManifestUpdater` | ✅ | ✅ | ✅ | ⚠️ | ✅ | Update dependencies, generate manifests |
-| **Refactoring (3 operations)** ||||||
-| `RefactoringProvider` | ✅ | ✅ | ✅ | ⚠️ | ✅ | Code transformation operations |
-| - Extract Function | ✅ | ✅ | ✅ | ⚠️ | ✅ | Extract code block into new function |
-| - Inline Variable | ✅ | ✅ | ✅ | ⚠️ | ✅ | Replace variable usages with initializer |
-| - Extract Variable | ✅ | ✅ | ✅ | ⚠️ | ✅ | Extract expression into named variable |
-| **Analysis & Scanning** ||||||
-| `ModuleReferenceScanner` | ✅ | ✅ | ✅ | ⚠️ | ✅ | Find all references to a module |
-| `ImportAnalyzer` | ✅ | ✅ | ✅ | ⚠️ | ✅ | Build import graphs, analyze dependencies |
-| **Project Creation** ||||||
-| `ProjectFactory` | ✅ | ✅ | ✅ | ⚠️ | ✅ | Create new packages/projects |
-| **Rust-Specific Features** ||||||
-| `ReferenceDetector` | ✅ | ❌ | ❌ | ❌ | ❌ | Rust module system tracking |
-| `ModuleDeclarationSupport` | ✅ | ❌ | ❌ | ❌ | ❌ | Manage `pub mod` declarations |
-| `ModuleLocator` | ✅ | ❌ | ❌ | ❌ | ❌ | Navigate Rust module file structure |
+| Capability Trait | Rust | TypeScript | Python | C++ | C# | Swift | Description |
+|-----------------|:----:|:----------:|:------:|:---:|:--:|:-----:|-------------|
+| **Core LanguagePlugin** |||||||
+| `metadata()` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Language metadata (name, extensions, manifest) |
+| `parse()` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | AST parsing and symbol extraction |
+| `analyze_manifest()` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Parse manifest files (Cargo.toml, package.json, pyproject.toml) |
+| `list_functions()` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Extract function definitions |
+| `analyze_detailed_imports()` | ✅ | ✅ | ✅ | ⚠️ | ⚠️ | ✅ | Full ImportGraph with metadata |
+| **Import Support (5 traits)** |||||||
+| `ImportParser` | ✅ | ✅ | ✅ | ✅ | ⚠️ | ✅ | Parse import statements |
+| `ImportRenameSupport` | ✅ | ✅ | ✅ | ⚠️ | ⚠️ | ✅ | Rewrite imports for symbol renames |
+| `ImportMoveSupport` | ✅ | ✅ | ✅ | ⚠️ | ⚠️ | ✅ | Rewrite imports for file moves |
+| `ImportMutationSupport` | ✅ | ✅ | ✅ | ⚠️ | ⚠️ | ✅ | Add/remove imports programmatically |
+| `ImportAdvancedSupport` | ✅ | ✅ | ✅ | ⚠️ | ⚠️ | ✅ | AST-based import transformations |
+| **Workspace & Manifest** |||||||
+| `WorkspaceSupport` | ✅ | ✅ | ✅ | ⚠️ | ⚠️ | ✅ | Multi-package workspace operations |
+| `ManifestUpdater` | ✅ | ✅ | ✅ | ⚠️ | ⚠️ | ✅ | Update dependencies, generate manifests |
+| **Refactoring (3 operations)** |||||||
+| `RefactoringProvider` | ✅ | ✅ | ✅ | ⚠️ | ✅ | ✅ | Code transformation operations |
+| - Extract Function | ✅ | ✅ | ✅ | ⚠️ | ✅ | ✅ | Extract code block into new function |
+| - Inline Variable | ✅ | ✅ | ✅ | ⚠️ | ✅ | ✅ | Replace variable usages with initializer |
+| - Extract Variable | ✅ | ✅ | ✅ | ⚠️ | ✅ | ✅ | Extract expression into named variable |
+| **Analysis & Scanning** |||||||
+| `ModuleReferenceScanner` | ✅ | ✅ | ✅ | ⚠️ | ⚠️ | ✅ | Find all references to a module |
+| `ImportAnalyzer` | ✅ | ✅ | ✅ | ⚠️ | ⚠️ | ✅ | Build import graphs, analyze dependencies |
+| **Project Creation** |||||||
+| `ProjectFactory` | ✅ | ✅ | ✅ | ⚠️ | ✅ | ✅ | Create new packages/projects |
+| **Rust-Specific Features** |||||||
+| `ReferenceDetector` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | Rust module system tracking |
+| `ModuleDeclarationSupport` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | Manage `pub mod` declarations |
+| `ModuleLocator` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | Navigate Rust module file structure |
 
 **Total Common Capabilities**: 15/15 (100% parity for TypeScript, Python, Swift)
 **Rust-Specific Capabilities**: 3 additional traits (not applicable to other languages)

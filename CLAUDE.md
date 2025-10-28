@@ -536,7 +536,7 @@ cargo nextest run --workspace --features heavy-tests
 - `e2e-tests`: End-to-end workflow tests
 - `heavy-tests`: Performance benchmarks and property-based testing
 
-**Note:** Language support: TypeScript, Rust, Python, and Swift (100% parity). Additional languages (Go, Java, C#) preserved in git tag `pre-language-reduction` and can be restored using documented migration process (see `.debug/language-plugin-migration/`).
+**Note:** Language support: TypeScript, Rust, Python, C#, and Swift (100% parity). Additional languages (Go, Java) preserved in git tag `pre-language-reduction` and can be restored using documented migration process (see `.debug/language-plugin-migration/`).
 
 ## Architecture & Configuration
 
@@ -612,8 +612,9 @@ Supported language servers (configurable):
 - Rust: `rust-analyzer`
 - Python: `pylsp`
 - Swift: `sourcekit-lsp`
+- C#: `omnisharp`
 
-**Note:** Additional language servers (Go/gopls, Java/jdtls, C#/omnisharp) can be configured but require language plugins from git tag `pre-language-reduction` and documented migration process (see `.debug/language-plugin-migration/`).
+**Note:** Additional language servers (Go/gopls, Java/jdtls) can be configured but require language plugins from git tag `pre-language-reduction` and documented migration process (see `.debug/language-plugin-migration/`).
 
 
 ### Language Plugin Parity Status

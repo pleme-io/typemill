@@ -70,6 +70,12 @@ default = true
 # category = "full"
 # default = false
 #
+[languages.csharp]
+path = "crates/mill-lang-csharp"
+plugin_struct = "CsharpPlugin"
+category = "full"
+default = false
+
 # [languages.java]
 # path = "crates/mill-lang-java"
 # plugin_struct = "JavaPlugin"

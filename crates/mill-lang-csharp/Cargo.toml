@@ -1,0 +1,42 @@
+[package]
+name = "mill-lang-csharp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[dependencies]
+# Mill workspace dependencies
+mill-plugin-api = { path = "../mill-plugin-api" }
+mill-foundation = { path = "../mill-foundation" }
+mill-lang-common = { path = "../mill-lang-common" }
+
+# Async operations
+async-trait = { workspace = true }
+tokio = { workspace = true }
+
+# Serialization/Deserialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+
+# LSP
+lsp-types = { workspace = true, features = ["proposed"] }
+
+# Parsing
+tree-sitter = "0.20"
+tree-sitter-c-sharp = "0.20"
+
+# Utilities
+chrono = { version = "0.4", features = ["serde"] }
+regex = "1.10"
+quick-xml = { version = "0.31", features = ["serialize"] }
+
+[dev-dependencies]
+tempfile = { workspace = true }

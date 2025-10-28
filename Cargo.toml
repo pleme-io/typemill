@@ -27,6 +27,7 @@ members = [
     "crates/mill-auth",
     "crates/xtask", "crates/mill-ast", "crates/mill-client", "crates/mill-test-support", "crates/mill-handlers", "crates/mill-config", "crates/mill-foundation",
     "crates/mill-lang-cpp",
+    "crates/mill-lang-csharp",
     "crates/mill-lang-swift",
 ]
 resolver = "2"
@@ -76,6 +77,7 @@ uuid = { version = "1.0", features = ["v4"] }
 dashmap = "5.5"
 futures = "0.3"
 regex = "1.10"
+lsp-types = { version = "0.97.0", features = ["proposed"] }
 
 # Core API crates
 mill-foundation = { path = "crates/mill-foundation" }
