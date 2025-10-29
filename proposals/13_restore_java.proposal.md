@@ -1,8 +1,9 @@
 # Restore Java Language Plugin
 
 **Status**: ✅ Complete (100%) - Full plugin restoration with all 15 common capabilities plus ProjectFactory
+⚠️ **Build Requirements**: Requires Maven and Java runtime to build parser JAR. Excluded from default build. Use `--features lang-java` to enable.
 
-**Last Updated**: 2025-10-29 (after merging `feat/restore-java-plugin` branch)
+**Last Updated**: 2025-10-29 (after merging `feat/restore-java-plugin` branch and identifying build dependencies)
 
 > **Note on Naming**: This proposal references legacy `cb-*` crate names in migration steps. These are the **old names** being migrated **from** (in git tag `pre-language-reduction`) to the current `mill-*` naming convention. Current crate names follow the `mill-*` pattern.
 

@@ -1,8 +1,9 @@
 # C Language Support
 
 **Status**: ✅ Complete (100%) - Full plugin implementation with AST parsing, CMake/Makefile support, all import traits, and refactoring stubs
+✅ **Note**: Uses workspace tree-sitter 0.25.4 (correct version). Builds successfully when other 0.20 plugins are excluded.
 
-**Last Updated**: 2025-10-29 (feature completion with detailed import analysis and refactoring infrastructure)
+**Last Updated**: 2025-10-29 (feature completion and tree-sitter version verification)
 
 ## Problem
 

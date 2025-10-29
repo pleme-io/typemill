@@ -1,8 +1,9 @@
 # C++ Language Support
 
 **Status**: 🚧 In Progress (75% complete) - Core refactoring operations implemented (Phase 1 Complete)
+⚠️ **Blocker**: Uses tree-sitter 0.20 which conflicts with workspace tree-sitter 0.25. Requires API migration to tree-sitter 0.23+ for compatibility. Excluded from default build.
 
-**Last Updated**: 2025-10-29 (after implementing core refactoring: extract function, extract variable, inline variable)
+**Last Updated**: 2025-10-29 (after implementing core refactoring and identifying tree-sitter version conflict)
 
 ## Problem
 
