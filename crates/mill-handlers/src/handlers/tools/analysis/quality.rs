@@ -498,6 +498,17 @@ impl QualityHandler {
             "Markdown analysis complete"
         );
 
+        // Initialize fix_actions with defaults (defensive - always set for markdown analysis)
+        use mill_foundation::protocol::analysis_result::FixActions;
+        let mut fix_actions = FixActions {
+            preview_only: true,
+            applied: false,
+            previews: 0,
+            files_modified: 0,
+            total_edits: Some(0),
+            diffs: None,
+        };
+
         // Auto-fix phase (if requested)
         let mut fix_metadata = json!({});
         let mut fix_previews = Vec::new();
@@ -643,18 +654,20 @@ impl QualityHandler {
                 "previews": fix_previews,
             });
 
-            // Wire fix_actions into result.summary (Bug 1 fix)
-            use mill_foundation::protocol::analysis_result::FixActions;
+            // Update fix_actions with actual results
             let total_edits: usize = fixes_by_kind.values().sum();
-            result.summary.fix_actions = Some(FixActions {
+            fix_actions = FixActions {
                 preview_only: !options.apply,
                 applied: options.apply,
                 previews: fix_previews.len(),
                 files_modified: if options.apply { files_fixed } else { 0 },
                 total_edits: Some(total_edits),
                 diffs: None, // Could populate from fix_previews if needed
-            });
+            };
         }
+
+        // Always set fix_actions for markdown analysis (defensive)
+        result.summary.fix_actions = Some(fix_actions);
 
         // Serialize to JSON
         let mut value = serde_json::to_value(result)
