@@ -519,7 +519,7 @@ cargo nextest run --workspace --features heavy-tests
 - `e2e-tests`: End-to-end workflow tests
 - `heavy-tests`: Performance benchmarks and property-based testing
 
-**Note:** Language support: TypeScript, Rust, Python, C#, and Swift (100% parity). Additional languages (Go, Java) preserved in git tag `pre-language-reduction` and can be restored using documented migration process (see `.debug/language-plugin-migration/`).
+**Note:** Language support: TypeScript, Rust, Python, C#, Swift, and Go (100% parity). Additional languages (Java) preserved in git tag `pre-language-reduction` and can be restored using documented migration process (see `.debug/language-plugin-migration/`).
 
 ## Architecture & Configuration
 
@@ -601,17 +601,17 @@ Supported language servers (configurable):
 
 ### Language Plugin Parity Status
 
-TypeMill now has **100% feature parity** across TypeScript, Rust, Python, and Swift for all common capabilities:
+TypeMill now has **100% feature parity** across TypeScript, Rust, Python, Swift, and Go for all common capabilities:
 
-| Capability | TypeScript | Rust | Python | Swift |
-|-----------|-----------|------|--------|-------|
-| Core LanguagePlugin | ✅ | ✅ | ✅ | ✅ |
-| Import Support (5 traits) | ✅ | ✅ | ✅ | ✅ |
-| Workspace Operations | ✅ | ✅ | ✅ | ✅ |
-| Refactoring (3 operations) | ✅ | ✅ | ✅ | ✅ |
-| Analysis (2 traits) | ✅ | ✅ | ✅ | ✅ |
-| Manifest Management | ✅ | ✅ | ✅ | ✅ |
-| **Project Creation** | ✅ | ✅ | ✅ | ✅ |
+| Capability | TypeScript | Rust | Python | Swift | Go |
+|-----------|-----------|------|--------|-------|----|
+| Core LanguagePlugin | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Import Support (5 traits) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Workspace Operations | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Refactoring (3 operations) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Analysis (2 traits) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Manifest Management | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Project Creation** | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 **Rust-specific features** (not applicable to other languages):
 - ReferenceDetector
