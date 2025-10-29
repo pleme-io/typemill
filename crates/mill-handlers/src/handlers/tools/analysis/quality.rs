@@ -20,14 +20,13 @@ use std::collections::HashMap;
 
 #[path = "markdown_fixers/mod.rs"]
 mod markdown_fixers;
+use super::config::AnalysisConfig;
 use std::path::Path;
 use std::time::Instant;
 use tracing::{debug, info};
 
 #[derive(Deserialize, Debug)]
 struct QualityOptions {
-    #[serde(default)]
-    thresholds: Option<QualityThresholds>,
     #[serde(default)]
     severity_filter: Option<String>,
     #[serde(default = "default_limit")]
@@ -59,48 +58,6 @@ fn default_format() -> String {
 
 fn default_include_suggestions() -> bool {
     true
-}
-
-#[derive(Deserialize, Debug)]
-struct QualityThresholds {
-    #[serde(default = "default_cyclomatic")]
-    cyclomatic_complexity: u32,
-    #[serde(default = "default_cognitive")]
-    cognitive_complexity: u32,
-    #[serde(default = "default_nesting")]
-    nesting_depth: u32,
-    #[serde(default = "default_params")]
-    parameter_count: u32,
-    #[serde(default = "default_function_length")]
-    function_length: u32,
-}
-
-fn default_cyclomatic() -> u32 {
-    15
-}
-fn default_cognitive() -> u32 {
-    10
-}
-fn default_nesting() -> u32 {
-    4
-}
-fn default_params() -> u32 {
-    5
-}
-fn default_function_length() -> u32 {
-    50
-}
-
-impl Default for QualityThresholds {
-    fn default() -> Self {
-        Self {
-            cyclomatic_complexity: default_cyclomatic(),
-            cognitive_complexity: default_cognitive(),
-            nesting_depth: default_nesting(),
-            parameter_count: default_params(),
-            function_length: default_function_length(),
-        }
-    }
 }
 
 /// Get all available markdown fixers
@@ -675,12 +632,13 @@ impl QualityHandler {
     fn transform_complexity_report(
         &self,
         report: mill_ast::complexity::ComplexityReport,
-        thresholds: &QualityThresholds,
+        config: &AnalysisConfig,
         include_suggestions: bool,
         scope: AnalysisScope,
         analysis_time_ms: u64,
     ) -> AnalysisResult {
         let mut result = AnalysisResult::new("quality", "complexity", scope);
+        let thresholds = &config.thresholds;
 
         // Set language if available
         result.metadata.language = Some("unknown".to_string());
@@ -689,28 +647,28 @@ impl QualityHandler {
         let mut threshold_map = HashMap::new();
         threshold_map.insert(
             "cyclomatic_complexity".to_string(),
-            json!(thresholds.cyclomatic_complexity),
+            json!(thresholds.max_complexity),
         );
         threshold_map.insert(
             "cognitive_complexity".to_string(),
-            json!(thresholds.cognitive_complexity),
+            json!(thresholds.max_complexity),
         );
-        threshold_map.insert("nesting_depth".to_string(), json!(thresholds.nesting_depth));
+        threshold_map.insert("nesting_depth".to_string(), json!(thresholds.max_nesting_depth));
         threshold_map.insert(
             "parameter_count".to_string(),
-            json!(thresholds.parameter_count),
+            json!(thresholds.max_parameters),
         );
         threshold_map.insert(
             "function_length".to_string(),
-            json!(thresholds.function_length),
+            json!(thresholds.max_function_lines),
         );
         result.metadata.thresholds = Some(threshold_map);
 
         // Transform each function into a finding
         for func in &report.functions {
             // Only include functions that exceed thresholds
-            if func.complexity.cognitive < thresholds.cognitive_complexity
-                && func.complexity.cyclomatic < thresholds.cyclomatic_complexity
+            if func.complexity.cognitive < thresholds.max_complexity
+                && func.complexity.cyclomatic < thresholds.max_complexity
             {
                 continue;
             }
@@ -838,13 +796,15 @@ pub fn detect_smells(
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
+    let thresholds = &config.thresholds;
 
     // 1. Long methods (from functions in complexity_report)
     for func in &complexity_report.functions {
-        if func.metrics.sloc > 50 {
-            let severity = if func.metrics.sloc > 100 {
+        if func.metrics.sloc > thresholds.max_function_lines as u32 {
+            let severity = if func.metrics.sloc > (thresholds.max_function_lines * 2) as u32 {
                 Severity::High
             } else {
                 Severity::Medium
@@ -874,8 +834,8 @@ pub fn detect_smells(
                 },
                 metrics: Some(metrics),
                 message: format!(
-                    "Function '{}' is too long ({} SLOC, >50 recommended)",
-                    func.name, func.metrics.sloc
+                    "Function '{}' is too long ({} SLOC, >{} recommended)",
+                    func.name, func.metrics.sloc, thresholds.max_function_lines
                 ),
                 suggestions: vec![],
             };
@@ -1078,12 +1038,14 @@ pub fn analyze_readability(
     _language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
+    let thresholds = &config.thresholds;
 
     for func in &complexity_report.functions {
-        // 1. Deep nesting (>4 levels)
-        if func.complexity.max_nesting_depth > 4 {
+        // 1. Deep nesting
+        if func.complexity.max_nesting_depth > thresholds.max_nesting_depth as u32 {
             let mut metrics = HashMap::new();
             metrics.insert(
                 "nesting_depth".to_string(),
@@ -1093,7 +1055,8 @@ pub fn analyze_readability(
             let mut finding = Finding {
                 id: format!("deep-nesting-{}-{}", file_path, func.line),
                 kind: "deep_nesting".to_string(),
-                severity: if func.complexity.max_nesting_depth > 6 {
+                severity: if func.complexity.max_nesting_depth > (thresholds.max_nesting_depth + 2) as u32
+                {
                     Severity::High
                 } else {
                     Severity::Medium
@@ -1115,8 +1078,10 @@ pub fn analyze_readability(
                 },
                 metrics: Some(metrics),
                 message: format!(
-                    "Function '{}' has deep nesting ({} levels, >4 recommended)",
-                    func.name, func.complexity.max_nesting_depth
+                    "Function '{}' has deep nesting ({} levels, >{} recommended)",
+                    func.name,
+                    func.complexity.max_nesting_depth,
+                    thresholds.max_nesting_depth
                 ),
                 suggestions: vec![],
             };
@@ -1139,8 +1104,8 @@ pub fn analyze_readability(
             findings.push(finding);
         }
 
-        // 2. Too many parameters (>5)
-        if func.metrics.parameters > 5 {
+        // 2. Too many parameters
+        if func.metrics.parameters > thresholds.max_parameters as u32 {
             let mut metrics = HashMap::new();
             metrics.insert(
                 "parameter_count".to_string(),
@@ -1150,7 +1115,7 @@ pub fn analyze_readability(
             let mut finding = Finding {
                 id: format!("too-many-params-{}-{}", file_path, func.line),
                 kind: "too_many_parameters".to_string(),
-                severity: if func.metrics.parameters > 7 {
+                severity: if func.metrics.parameters > (thresholds.max_parameters + 2) as u32 {
                     Severity::High
                 } else {
                     Severity::Medium
@@ -1172,8 +1137,8 @@ pub fn analyze_readability(
                 },
                 metrics: Some(metrics),
                 message: format!(
-                    "Function '{}' has too many parameters ({} params, >5 recommended)",
-                    func.name, func.metrics.parameters
+                    "Function '{}' has too many parameters ({} params, >{} recommended)",
+                    func.name, func.metrics.parameters, thresholds.max_parameters
                 ),
                 suggestions: vec![],
             };
@@ -1196,15 +1161,15 @@ pub fn analyze_readability(
             findings.push(finding);
         }
 
-        // 3. Long functions (>50 SLOC) - readability perspective
-        if func.metrics.sloc > 50 {
+        // 3. Long functions - readability perspective
+        if func.metrics.sloc > thresholds.max_function_lines as u32 {
             let mut metrics = HashMap::new();
             metrics.insert("sloc".to_string(), json!(func.metrics.sloc));
 
             let mut finding = Finding {
                 id: format!("long-function-{}-{}", file_path, func.line),
                 kind: "long_function".to_string(),
-                severity: if func.metrics.sloc > 100 {
+                severity: if func.metrics.sloc > (thresholds.max_function_lines * 2) as u32 {
                     Severity::High
                 } else {
                     Severity::Medium
@@ -1226,8 +1191,8 @@ pub fn analyze_readability(
                 },
                 metrics: Some(metrics),
                 message: format!(
-                    "Function '{}' is difficult to read due to length ({} SLOC, >50 recommended)",
-                    func.name, func.metrics.sloc
+                    "Function '{}' is difficult to read due to length ({} SLOC, >{} recommended)",
+                    func.name, func.metrics.sloc, thresholds.max_function_lines
                 ),
                 suggestions: vec![],
             };
@@ -1377,6 +1342,7 @@ pub fn analyze_maintainability(
     _language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -2171,14 +2137,13 @@ impl ToolHandler for QualityHandler {
                 let file_path = super::engine::extract_file_path(&args, &scope_param)?;
                 let scope_type = scope_param.scope_type.unwrap_or_else(|| "file".to_string());
 
-                // Parse options for thresholds and include_suggestions
+                // Parse options for include_suggestions
                 let options: QualityOptions = args
                     .get("options")
                     .map(|v| serde_json::from_value(v.clone()))
                     .transpose()
                     .map_err(|e| ServerError::InvalidRequest(format!("Invalid options: {}", e)))?
                     .unwrap_or_else(|| QualityOptions {
-                        thresholds: None,
                         severity_filter: None,
                         limit: default_limit(),
                         offset: 0,
@@ -2189,7 +2154,6 @@ impl ToolHandler for QualityHandler {
                         fix_options: HashMap::new(),
                     });
 
-                let thresholds = options.thresholds.unwrap_or_default();
                 let include_suggestions = options.include_suggestions;
 
                 info!(
@@ -2254,7 +2218,7 @@ impl ToolHandler for QualityHandler {
                 // Transform to AnalysisResult
                 let mut result = self.transform_complexity_report(
                     complexity_report,
-                    &thresholds,
+                    &context.analysis_config,
                     include_suggestions,
                     scope,
                     start_time.elapsed().as_millis() as u64,
@@ -2322,7 +2286,6 @@ impl ToolHandler for QualityHandler {
                     .transpose()
                     .map_err(|e| ServerError::InvalidRequest(format!("Invalid options: {}", e)))?
                     .unwrap_or_else(|| QualityOptions {
-                        thresholds: None,
                         severity_filter: None,
                         limit: default_limit(),
                         offset: 0,
@@ -2355,7 +2318,6 @@ impl ToolHandler for QualityHandler {
                     .transpose()
                     .map_err(|e| ServerError::InvalidRequest(format!("Invalid options: {}", e)))?
                     .unwrap_or_else(|| QualityOptions {
-                        thresholds: None,
                         severity_filter: None,
                         limit: default_limit(),
                         offset: 0,

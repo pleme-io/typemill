@@ -1,0 +1,19 @@
+preset = "strict"
+
+[suggestions]
+min_confidence = 0.85
+include_safety_levels = ["safe"]
+max_per_finding = 5
+generate_refactor_calls = true
+
+[thresholds]
+max_complexity = 8
+max_nesting_depth = 3
+max_function_lines = 50
+max_parameters = 4
+
+[analysis]
+enable_dead_code = true
+enable_code_smells = true
+enable_complexity = true
+enable_maintainability = true

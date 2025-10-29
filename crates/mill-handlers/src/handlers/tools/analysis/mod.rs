@@ -16,7 +16,7 @@ pub mod tests_handler;
 pub use batch::{BatchAnalysisRequest, BatchAnalysisResult, BatchError};
 pub use batch_handler::BatchAnalysisHandler;
 pub use circular_dependencies::CircularDependenciesHandler;
-pub use config::{AnalysisConfig, CategoryConfig, ConfigError};
+pub use config::{AnalysisConfig, ConfigError};
 pub use dead_code::DeadCodeHandler;
 pub use dependencies::DependenciesHandler;
 pub use documentation::DocumentationHandler;

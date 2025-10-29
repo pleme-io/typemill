@@ -223,6 +223,31 @@ pub enum Commands {
         #[arg(long, default_value = "pretty", value_parser = ["pretty", "compact"])]
         format: String,
     },
+    /// Manage analysis configuration
+    Config(Config),
+}
+
+/// The config command.
+#[derive(Parser)]
+pub struct Config {
+    /// The config subcommand to run.
+    #[command(subcommand)]
+    pub command: ConfigCommands,
+}
+
+/// The available config subcommands.
+#[derive(Subcommand)]
+pub enum ConfigCommands {
+    /// Show the current analysis configuration
+    Show,
+    /// Create a new analysis configuration file
+    Init {
+        /// The preset to use for the new configuration
+        #[arg(long, default_value = "default")]
+        preset: String,
+    },
+    /// Validate the current analysis configuration
+    Validate,
 }
 
 /// The analyze command.
@@ -407,6 +432,58 @@ pub async fn run() {
             format,
         } => {
             handle_convert_naming(&from, &to, &glob, &target, dry_run, &format).await;
+        }
+        Commands::Config(config_command) => {
+            handle_config_command(config_command).await;
+        }
+    }
+}
+
+use mill_server::handlers::tools::analysis::AnalysisConfig;
+
+async fn handle_config_command(command: Config) {
+    match command.command {
+        ConfigCommands::Show => {
+            let config = match AnalysisConfig::load(PathBuf::from(".").as_path()) {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!("❌ Error loading configuration: {}", e);
+                    process::exit(1);
+                }
+            };
+            let config_toml = toml::to_string_pretty(&config).unwrap();
+            println!("{}", config_toml);
+        }
+        ConfigCommands::Init { preset } => {
+            let config = match AnalysisConfig::from_preset(&preset) {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!("❌ Error creating configuration from preset: {}", e);
+                    process::exit(1);
+                }
+            };
+            let config_toml = toml::to_string_pretty(&config).unwrap();
+            let config_path = PathBuf::from(".typemill/analysis.toml");
+            if let Some(parent) = config_path.parent() {
+                if let Err(e) = std::fs::create_dir_all(parent) {
+                    eprintln!("❌ Error creating directory: {}", e);
+                    process::exit(1);
+                }
+            }
+            if let Err(e) = std::fs::write(&config_path, config_toml) {
+                eprintln!("❌ Error writing configuration file: {}", e);
+                process::exit(1);
+            }
+            println!("✅ Analysis configuration file created at .typemill/analysis.toml");
+        }
+        ConfigCommands::Validate => {
+            match AnalysisConfig::load(PathBuf::from(".").as_path()) {
+                Ok(_) => println!("✅ Analysis configuration is valid."),
+                Err(e) => {
+                    eprintln!("❌ Analysis configuration is invalid: {}", e);
+                    process::exit(1);
+                }
+            };
         }
     }
 }

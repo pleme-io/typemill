@@ -378,11 +378,16 @@ impl PluginDispatcher {
             .map_err(|e| ServerError::InvalidRequest(format!("Invalid tool call: {}", e)))?;
 
         let tool_name = tool_call.name.clone();
+        let analysis_config = Arc::new(
+            crate::handlers::tools::analysis::AnalysisConfig::load(&self.app_state.project_root)
+                .map_err(|e| ServerError::Internal(format!("Failed to load analysis config: {}", e)))?,
+        );
         let context = super::tools::ToolHandlerContext {
             user_id: session_info.user_id.clone(),
             app_state: self.app_state.clone(),
             plugin_manager: self.plugin_manager.clone(),
             lsp_adapter: self.lsp_adapter.clone(),
+            analysis_config,
         };
 
         let result = self

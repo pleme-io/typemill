@@ -71,6 +71,7 @@ use mill_foundation::protocol::analysis_result::AnalysisResult;
 /// - Location with line number from AST
 /// - Metrics including source_module, imported_symbols, import_category, import_type
 /// - Low severity (informational only)
+use super::config::AnalysisConfig;
 pub fn detect_imports(
     _complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
@@ -78,6 +79,7 @@ pub fn detect_imports(
     language: &str,
     file_path: &str,
     registry: &crate::LanguagePluginRegistry,
+    _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     if language == "rust" {
         let mut findings = Vec::new();
@@ -224,6 +226,7 @@ pub fn detect_graph(
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -320,6 +323,7 @@ pub fn detect_circular(
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -436,6 +440,7 @@ pub fn detect_coupling(
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -561,6 +566,7 @@ pub fn detect_cohesion(
     _language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -689,6 +695,7 @@ pub fn detect_depth(
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 

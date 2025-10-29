@@ -64,6 +64,7 @@ use tracing::debug;
 /// - Metrics including total_symbols, documented_symbols, coverage_percentage, undocumented_public
 /// - Severity: High if coverage < 50%, Medium if < 70%, Low otherwise
 /// - Suggestions to add documentation to undocumented public symbols
+use super::config::AnalysisConfig;
 pub fn detect_coverage(
     _complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
@@ -71,6 +72,7 @@ pub fn detect_coverage(
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -238,6 +240,7 @@ pub fn detect_quality(
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -466,6 +469,7 @@ pub fn detect_style(
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -622,6 +626,7 @@ pub fn detect_examples(
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -825,6 +830,7 @@ pub fn detect_todos(
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 

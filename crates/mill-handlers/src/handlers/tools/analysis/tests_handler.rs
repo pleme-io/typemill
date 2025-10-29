@@ -65,6 +65,7 @@ use tracing::debug;
 /// - Metrics including total_tests, total_functions, coverage_ratio, untested_functions
 /// - Severity: High if ratio < 0.5, Medium if < 0.8, Low otherwise
 /// - Suggestions to add tests for untested functions
+use super::config::AnalysisConfig;
 pub fn detect_coverage(
     complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
@@ -72,6 +73,7 @@ pub fn detect_coverage(
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -223,6 +225,7 @@ pub fn detect_quality(
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -405,6 +408,7 @@ pub fn detect_assertions(
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -603,6 +607,7 @@ pub fn detect_organization(
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 

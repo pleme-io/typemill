@@ -173,12 +173,13 @@ pub async fn run_batch_analysis(
 
         for file_path in &files_for_query {
             if let Some(cached_ast) = ast_cache.get(file_path) {
+                let config = request.config.as_ref().unwrap_or(&context.analysis_config);
                 match analyze_file_with_cached_ast(
                     file_path,
                     cached_ast,
                     &category,
                     &query.kind,
-                    request.config.as_ref(),
+                    config,
                     &suggestion_generator,
                     context,
                 )
@@ -385,7 +386,7 @@ async fn analyze_file_with_cached_ast(
     cached_ast: &CachedAst,
     category: &str,
     kind: &str,
-    _config: Option<&AnalysisConfig>,
+    config: &AnalysisConfig,
     _suggestion_generator: &SuggestionGenerator,
     context: &ToolHandlerContext,
 ) -> Result<AnalysisResult, BatchError> {
@@ -455,6 +456,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             "maintainability" => quality_handler::analyze_maintainability(
                 &cached_ast.complexity_report,
@@ -463,6 +465,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             "readability" => quality_handler::analyze_readability(
                 &cached_ast.complexity_report,
@@ -471,6 +474,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             _ => {
                 return Err(BatchError::AnalysisFailed(format!(
@@ -487,6 +491,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             "unused_symbols" => dead_code_handler::detect_unused_symbols(
                 &cached_ast.complexity_report,
@@ -495,6 +500,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             "unreachable_code" => dead_code_handler::detect_unreachable_code(
                 &cached_ast.complexity_report,
@@ -503,6 +509,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             "unused_parameters" => dead_code_handler::detect_unused_parameters(
                 &cached_ast.complexity_report,
@@ -511,6 +518,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             "unused_types" => dead_code_handler::detect_unused_types(
                 &cached_ast.complexity_report,
@@ -519,6 +527,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             "unused_variables" => dead_code_handler::detect_unused_variables(
                 &cached_ast.complexity_report,
@@ -527,6 +536,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             _ => {
                 return Err(BatchError::AnalysisFailed(format!(
@@ -543,6 +553,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             "graph" => dependencies_handler::detect_graph(
                 &cached_ast.complexity_report,
@@ -551,6 +562,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             "circular" => dependencies_handler::detect_circular(
                 &cached_ast.complexity_report,
@@ -559,6 +571,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             "coupling" => dependencies_handler::detect_coupling(
                 &cached_ast.complexity_report,
@@ -567,6 +580,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             "cohesion" => dependencies_handler::detect_cohesion(
                 &cached_ast.complexity_report,
@@ -575,6 +589,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             "depth" => dependencies_handler::detect_depth(
                 &cached_ast.complexity_report,
@@ -583,6 +598,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             _ => {
                 return Err(BatchError::AnalysisFailed(format!(
@@ -599,6 +615,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             "hierarchy" => structure_handler::detect_hierarchy(
                 &cached_ast.complexity_report,
@@ -607,6 +624,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             "interfaces" => structure_handler::detect_interfaces(
                 &cached_ast.complexity_report,
@@ -615,6 +633,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             "inheritance" => structure_handler::detect_inheritance(
                 &cached_ast.complexity_report,
@@ -623,6 +642,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             "modules" => structure_handler::detect_modules(
                 &cached_ast.complexity_report,
@@ -631,6 +651,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             _ => {
                 return Err(BatchError::AnalysisFailed(format!(
@@ -647,6 +668,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             "quality" => documentation_handler::detect_quality(
                 &cached_ast.complexity_report,
@@ -655,6 +677,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             "style" => documentation_handler::detect_style(
                 &cached_ast.complexity_report,
@@ -663,6 +686,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             "examples" => documentation_handler::detect_examples(
                 &cached_ast.complexity_report,
@@ -671,6 +695,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             "todos" => documentation_handler::detect_todos(
                 &cached_ast.complexity_report,
@@ -679,6 +704,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             _ => {
                 return Err(BatchError::AnalysisFailed(format!(
@@ -695,6 +721,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             "quality" => tests_handler::detect_quality(
                 &cached_ast.complexity_report,
@@ -703,6 +730,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             "assertions" => tests_handler::detect_assertions(
                 &cached_ast.complexity_report,
@@ -711,6 +739,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             "organization" => tests_handler::detect_organization(
                 &cached_ast.complexity_report,
@@ -719,6 +748,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.language,
                 &file_path_str,
                 &context.app_state.language_plugins,
+                config,
             ),
             _ => {
                 return Err(BatchError::AnalysisFailed(format!(

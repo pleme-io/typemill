@@ -1,7 +1,23 @@
-//! Configuration system for analysis customization
+//! Configuration system for analysis customization.
 //!
 //! This module provides a flexible configuration system that allows users to customize
-//! analysis behavior through TOML configuration files, presets, and per-category overrides.
+//! analysis behavior through a TOML configuration file, environment variables, and
+//! built-in presets.
+//!
+//! # Configuration Hierarchy
+//!
+//! Settings are resolved in the following order of precedence (highest to lowest):
+//! 1. **Environment Variables**: `TYPEMILL_ANALYSIS_*` (e.g., `TYPEMILL_ANALYSIS_THRESHOLDS__MAX_COMPLEXITY=10`)
+//! 2. **Local Configuration**: `.typemill/analysis.toml` file in the workspace root.
+//! 3. **Preset**: A built-in configuration (`default`, `strict`, `relaxed`, `ci`).
+//! 4. **Default Values**: Hardcoded defaults in the configuration structs.
+//!
+//! # Presets
+//!
+//! - **default**: A balanced set of rules for everyday development.
+//! - **strict**: A more stringent ruleset for projects that require high code quality.
+//! - **relaxed**: A lenient ruleset for projects that are in early development or have a lot of legacy code.
+//! - **ci**: A ruleset optimized for CI/CD environments, with more comprehensive checks.
 //!
 //! # Configuration File Example
 //!
@@ -9,32 +25,39 @@
 //!
 //! ```toml
 //! # .typemill/analysis.toml
-//! preset = "default"
+//! preset = "strict" # Optional: Start with a preset
 //!
-//! [overrides.quality]
-//! enabled = ["complexity", "smells", "maintainability"]
-//! [overrides.quality.thresholds]
-//! complexity_threshold = 15
-//! maintainability_threshold = 70
+//! [suggestions]
+//! min_confidence = 0.8
+//! include_safety_levels = ["safe", "requires_review"]
+//! max_per_finding = 5
+//! generate_refactor_calls = true
 //!
-//! [overrides.dead_code]
-//! enabled = ["unused_imports", "unused_symbols", "unreachable_code"]
+//! [thresholds]
+//! max_complexity = 12
+//! max_nesting_depth = 3
+//! max_function_lines = 80
+//! max_parameters = 4
 //!
-//! [overrides.documentation]
-//! [overrides.documentation.thresholds]
-//! coverage_threshold = 80
-//!
-//! [overrides.tests]
-//! [overrides.tests.thresholds]
-//! coverage_ratio_threshold = 0.9
+//! [analysis]
+//! enable_dead_code = true
+//! enable_code_smells = true
+//! enable_complexity = true
+//! enable_maintainability = false
 //! ```
 //!
-//! # Presets
+//! # Environment Variables
 //!
-//! Three presets are available out of the box:
-//! - **"strict"**: Aggressive thresholds for high-quality codebases
-//! - **"default"**: Balanced thresholds for most projects
-//! - **"relaxed"**: Lenient thresholds for prototypes or legacy code
+//! Override any setting using environment variables with the prefix `TYPEMILL_ANALYSIS_`.
+//! Use `__` as a separator for nested keys.
+//!
+//! ```bash
+//! # Overrides [thresholds].max_complexity
+//! export TYPEMILL_ANALYSIS_THRESHOLDS__MAX_COMPLEXITY=10
+//!
+//! # Overrides [suggestions].min_confidence
+//! export TYPEMILL_ANALYSIS_SUGGESTIONS__MIN_CONFIDENCE=0.9
+//! ```
 //!
 //! # Usage
 //!
@@ -42,795 +65,414 @@
 //! use mill_handlers::handlers::tools::analysis::config::AnalysisConfig;
 //! use std::path::Path;
 //!
-//! // Load from file
-//! let config = AnalysisConfig::load(Path::new("/workspace")).unwrap_or_else(|_| {
-//!     AnalysisConfig::default()
-//! });
+//! // Load from workspace, environment, and defaults
+//! let config = AnalysisConfig::load(Path::new("/workspace"));
 //!
-//! // Check if a kind is enabled
-//! if config.is_kind_enabled("quality", "complexity") {
-//!     // Run complexity analysis
-//! }
-//!
-//! // Get a threshold
-//! if let Some(threshold) = config.get_threshold("quality", "complexity_threshold") {
-//!     println!("Complexity threshold: {}", threshold);
-//! }
+//! // Access a value
+//! println!("Max complexity: {}", config.thresholds.max_complexity);
 //! ```
 
+use figment::{
+    providers::{Env, Format, Toml},
+    Figment,
+};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::path::Path;
 use thiserror::Error;
 
-/// Analysis configuration loaded from .typemill/analysis.toml
-///
-/// This is the root configuration structure that defines how analysis tools
-/// should behave. It supports preset-based configuration and per-category overrides.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+/// Root configuration for all analysis tools.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[serde(default)]
 pub struct AnalysisConfig {
-    /// Preset name (e.g., "strict", "relaxed", "default")
-    ///
-    /// Presets provide a starting point for configuration with sensible defaults
-    /// for different use cases. Can be overridden by category-specific settings.
-    #[serde(default)]
+    /// Optional preset to use as a base configuration.
     pub preset: Option<String>,
-
-    /// Category-specific overrides
-    ///
-    /// Each key is a category name (e.g., "quality", "dead_code", "dependencies")
-    /// and the value defines which detection kinds are enabled and what thresholds to use.
-    #[serde(default)]
-    pub overrides: HashMap<String, CategoryConfig>,
+    /// Configuration for suggestion generation.
+    pub suggestions: SuggestionConfig,
+    /// Thresholds for various code quality metrics.
+    pub thresholds: ThresholdConfig,
+    /// Toggles for enabling/disabling major analysis categories.
+    pub analysis: AnalysisSwitches,
 }
 
-/// Configuration for a specific analysis category
-///
-/// Allows fine-grained control over which detection kinds run and what
-/// thresholds they use within a category.
-#[derive(Debug, Clone, Deserialize, Serialize, Default)]
-pub struct CategoryConfig {
-    /// Enabled detection kinds for this category
-    ///
-    /// If specified, only these kinds will run. If not specified, all kinds
-    /// for the category are enabled by default.
-    ///
-    /// Example: `["complexity", "smells", "maintainability"]`
-    #[serde(default)]
-    pub enabled: Option<Vec<String>>,
-
-    /// Thresholds for this category
-    ///
-    /// Maps threshold names to their numeric values. The specific thresholds
-    /// available depend on the category and detection kind.
-    ///
-    /// Example: `{"complexity_threshold": 15.0, "maintainability_threshold": 70.0}`
-    #[serde(default)]
-    pub thresholds: Option<HashMap<String, f64>>,
-
-    /// Additional options
-    ///
-    /// Extensibility point for category-specific configuration that doesn't fit
-    /// into enabled/thresholds. Currently unused but reserved for future enhancements.
-    #[serde(default)]
-    pub options: Option<HashMap<String, serde_json::Value>>,
+/// Configuration for suggestion generation.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[serde(default)]
+pub struct SuggestionConfig {
+    /// Minimum confidence level (0.0-1.0) for a suggestion to be shown.
+    pub min_confidence: f64,
+    /// List of safety levels to include in the output.
+    pub include_safety_levels: Vec<String>,
+    /// Maximum number of suggestions to generate per finding.
+    pub max_per_finding: usize,
+    /// Whether to generate actionable `refactor_call` objects.
+    pub generate_refactor_calls: bool,
 }
 
-impl AnalysisConfig {
-    /// Load configuration from .typemill/analysis.toml
-    ///
-    /// Attempts to load and parse the configuration file from the workspace root.
-    /// If the file doesn't exist or can't be parsed, returns an error.
-    ///
-    /// # Arguments
-    /// - `workspace_root`: The root directory of the workspace
-    ///
-    /// # Returns
-    /// - `Ok(AnalysisConfig)`: Successfully loaded configuration
-    /// - `Err(ConfigError)`: File not found, parse error, or IO error
-    ///
-    /// # Example
-    /// ```no_run
-    /// use mill_handlers::handlers::tools::analysis::config::AnalysisConfig;
-    /// use std::path::Path;
-    ///
-    /// let config = AnalysisConfig::load(Path::new("/workspace"))
-    ///     .unwrap_or_else(|_| AnalysisConfig::default());
-    /// ```
-    pub fn load(workspace_root: &Path) -> Result<Self, ConfigError> {
-        let config_path = workspace_root.join(".typemill").join("analysis.toml");
+/// Thresholds for code quality and complexity metrics.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[serde(default)]
+pub struct ThresholdConfig {
+    /// Maximum cyclomatic complexity allowed for a function.
+    pub max_complexity: u32,
+    /// Maximum nesting depth within a function.
+    pub max_nesting_depth: u32,
+    /// Maximum lines of code for a single function.
+    pub max_function_lines: u32,
+    /// Maximum number of parameters for a function.
+    pub max_parameters: u32,
+}
 
-        // If file doesn't exist, return default config
-        if !config_path.exists() {
-            return Ok(Self::default());
-        }
-
-        // Read and parse TOML file
-        let contents = std::fs::read_to_string(&config_path)?;
-        let mut config: AnalysisConfig = toml::from_str(&contents)?;
-
-        // Apply preset if specified
-        if let Some(preset) = config.preset.clone() {
-            config.apply_preset(&preset)?;
-        }
-
-        Ok(config)
-    }
-
-    /// Get default configuration
-    ///
-    /// Returns a configuration with the "default" preset applied and no overrides.
-    /// This is the fallback when no configuration file is found.
-    ///
-    /// # Returns
-    /// A new `AnalysisConfig` with default preset settings
-    #[allow(clippy::should_implement_trait)]
-    pub fn default() -> Self {
-        let mut config = Self {
-            preset: Some("default".to_string()),
-            overrides: HashMap::new(),
-        };
-
-        // Apply default preset thresholds
-        // This ensures we have sensible defaults even without a config file
-        let _ = config.apply_preset("default");
-
-        config
-    }
-
-    /// Apply preset (strict, relaxed, default)
-    ///
-    /// Loads predefined threshold values for all analysis categories based on
-    /// the specified preset. Existing overrides are preserved and take precedence
-    /// over preset values.
-    ///
-    /// # Arguments
-    /// - `preset`: The preset name ("strict", "default", or "relaxed")
-    ///
-    /// # Returns
-    /// - `Ok(())`: Preset successfully applied
-    /// - `Err(ConfigError::InvalidPreset)`: Unknown preset name
-    ///
-    /// # Preset Descriptions
-    ///
-    /// ## "strict" - For high-quality, production codebases
-    /// - Aggressive complexity limits (threshold=5)
-    /// - High maintainability requirements (80%)
-    /// - Low coupling tolerance (0.5)
-    /// - Deep documentation requirements (90%)
-    /// - Full test coverage expectations (100%)
-    ///
-    /// ## "default" - Balanced for most projects
-    /// - Moderate complexity limits (threshold=10)
-    /// - Standard maintainability (65%)
-    /// - Normal coupling tolerance (0.7)
-    /// - Standard documentation (70%)
-    /// - Good test coverage (80%)
-    ///
-    /// ## "relaxed" - For prototypes and legacy code
-    /// - Lenient complexity limits (threshold=20)
-    /// - Lower maintainability bar (50%)
-    /// - High coupling tolerance (0.9)
-    /// - Minimal documentation (50%)
-    /// - Basic test coverage (50%)
-    pub fn apply_preset(&mut self, preset: &str) -> Result<(), ConfigError> {
-        let thresholds = match preset {
-            "strict" => get_strict_preset(),
-            "default" => get_default_preset(),
-            "relaxed" => get_relaxed_preset(),
-            _ => {
-                return Err(ConfigError::InvalidPreset(format!(
-                    "Unknown preset '{}'. Available presets: strict, default, relaxed",
-                    preset
-                )))
-            }
-        };
-
-        // Merge preset thresholds with existing config
-        // Existing overrides take precedence over preset values
-        for (category, preset_config) in thresholds {
-            self.overrides
-                .entry(category)
-                .or_insert_with(|| preset_config.clone());
-        }
-
-        self.preset = Some(preset.to_string());
-        Ok(())
-    }
-
-    /// Get threshold for a specific metric in a category
-    ///
-    /// Looks up a threshold value, first checking category overrides,
-    /// then falling back to preset defaults if available.
-    ///
-    /// # Arguments
-    /// - `category`: The analysis category (e.g., "quality", "dependencies")
-    /// - `metric`: The threshold name (e.g., "complexity_threshold")
-    ///
-    /// # Returns
-    /// - `Some(f64)`: The threshold value if found
-    /// - `None`: Threshold not configured
-    ///
-    /// # Example
-    /// ```no_run
-    /// # use mill_handlers::handlers::tools::analysis::config::AnalysisConfig;
-    /// let config = AnalysisConfig::default();
-    /// if let Some(threshold) = config.get_threshold("quality", "complexity_threshold") {
-    ///     println!("Complexity threshold: {}", threshold);
-    /// }
-    /// ```
-    pub fn get_threshold(&self, category: &str, metric: &str) -> Option<f64> {
-        self.overrides
-            .get(category)
-            .and_then(|cat_config| cat_config.thresholds.as_ref())
-            .and_then(|thresholds| thresholds.get(metric))
-            .copied()
-    }
-
-    /// Check if a detection kind is enabled
-    ///
-    /// Determines whether a specific detection kind should run based on the
-    /// configuration. If no enabled list is specified for the category, all
-    /// kinds are considered enabled by default.
-    ///
-    /// # Arguments
-    /// - `category`: The analysis category (e.g., "quality")
-    /// - `kind`: The detection kind (e.g., "complexity", "smells")
-    ///
-    /// # Returns
-    /// - `true`: The kind should run
-    /// - `false`: The kind is explicitly disabled
-    ///
-    /// # Example
-    /// ```no_run
-    /// # use mill_handlers::handlers::tools::analysis::config::AnalysisConfig;
-    /// let config = AnalysisConfig::default();
-    /// if config.is_kind_enabled("quality", "complexity") {
-    ///     // Run complexity analysis
-    /// }
-    /// ```
-    pub fn is_kind_enabled(&self, category: &str, kind: &str) -> bool {
-        if let Some(cat_config) = self.overrides.get(category) {
-            if let Some(enabled) = &cat_config.enabled {
-                // If enabled list is specified, check if kind is in it
-                return enabled.contains(&kind.to_string());
-            }
-        }
-        // If no enabled list, all kinds are enabled by default
-        true
-    }
+/// Toggles for enabling or disabling major analysis categories.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[serde(default)]
+pub struct AnalysisSwitches {
+    pub enable_dead_code: bool,
+    pub enable_code_smells: bool,
+    pub enable_complexity: bool,
+    pub enable_maintainability: bool,
 }
 
 impl Default for AnalysisConfig {
     fn default() -> Self {
-        Self::default()
+        get_default_preset()
     }
 }
 
-/// Configuration errors
+impl Default for SuggestionConfig {
+    fn default() -> Self {
+        Self {
+            min_confidence: 0.7,
+            include_safety_levels: vec!["safe".to_string(), "requires_review".to_string()],
+            max_per_finding: 3,
+            generate_refactor_calls: true,
+        }
+    }
+}
+
+impl Default for ThresholdConfig {
+    fn default() -> Self {
+        Self {
+            max_complexity: 15,
+            max_nesting_depth: 4,
+            max_function_lines: 100,
+            max_parameters: 5,
+        }
+    }
+}
+
+impl Default for AnalysisSwitches {
+    fn default() -> Self {
+        Self {
+            enable_dead_code: true,
+            enable_code_smells: true,
+            enable_complexity: true,
+            enable_maintainability: true,
+        }
+    }
+}
+
+impl AnalysisConfig {
+    /// Loads configuration from files, environment, and presets.
+    ///
+    /// The final configuration is determined by merging sources in this order:
+    /// 1. Preset values (lowest precedence).
+    /// 2. `.typemill/analysis.toml` file.
+    /// 3. Environment variables (highest precedence).
+    ///
+    /// # Arguments
+    /// - `workspace_root`: The root directory of the workspace to search for the config file.
+    pub fn load(workspace_root: &Path) -> Result<Self, ConfigError> {
+        let config_path = workspace_root.join(".typemill").join("analysis.toml");
+
+        // We need to determine the preset first, as it forms the base layer.
+        // We do this by reading *only* the `preset` key from the config file.
+        #[derive(Deserialize, Default)]
+        struct PresetOnly {
+            preset: Option<String>,
+        }
+
+        // If the file doesn't exist or is malformed, `extract` will fail.
+        // `unwrap_or_default` handles this, giving us a default `PresetOnly` instance.
+        let preset_name = Figment::new()
+            .merge(Toml::file(&config_path))
+            .extract::<PresetOnly>()
+            .unwrap_or_default()
+            .preset
+            .unwrap_or_else(|| "default".to_string());
+
+        // Get the configuration for the chosen preset.
+        let preset_config = Self::from_preset(&preset_name)?;
+        let preset_toml = toml::to_string(&preset_config)?;
+
+        // Now, build the final configuration by layering sources.
+        // 1. Base: Preset configuration.
+        // 2. Override: .typemill/analysis.toml file.
+        // 3. Override: Environment variables.
+        Figment::new()
+            .merge(Toml::string(&preset_toml))
+            .merge(Toml::file(config_path))
+            .merge(Env::prefixed("TYPEMILL_ANALYSIS_").split("__"))
+            .extract()
+            .map_err(ConfigError::from)
+    }
+
+    /// Checks if a specific analysis kind is enabled in the configuration.
+    pub fn is_kind_enabled(&self, category: &str, kind: &str) -> bool {
+        match category {
+            "dead_code" => self.analysis.enable_dead_code,
+            "quality" => match kind {
+                "complexity" | "readability" => self.analysis.enable_complexity,
+                "smells" => self.analysis.enable_code_smells,
+                "maintainability" => self.analysis.enable_maintainability,
+                // Markdown analysis is not controlled by these switches yet.
+                "markdown_structure" | "markdown_formatting" => true,
+                _ => true, // Default to enabled for unknown kinds within quality
+            },
+            // Enable other categories by default.
+            _ => true,
+        }
+    }
+
+    /// Creates a configuration from a named preset.
+    pub fn from_preset(preset: &str) -> Result<Self, ConfigError> {
+        match preset {
+            "default" => Ok(get_default_preset()),
+            "strict" => Ok(get_strict_preset()),
+            "relaxed" => Ok(get_relaxed_preset()),
+            "ci" => Ok(get_ci_preset()),
+            _ => Err(ConfigError::InvalidPreset(preset.to_string())),
+        }
+    }
+}
+
+/// Configuration errors.
 #[derive(Debug, Error)]
 pub enum ConfigError {
-    /// IO error reading configuration file
-    #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
+    #[error("Figment error: {0}")]
+    Figment(#[from] figment::Error),
 
-    /// TOML parse error
-    #[error("TOML parse error: {0}")]
-    TomlParse(#[from] toml::de::Error),
+    #[error("TOML serialization error: {0}")]
+    Toml(#[from] toml::ser::Error),
 
-    /// Invalid preset name
-    #[error("Invalid preset: {0}")]
+    #[error("Invalid preset '{0}'. Available presets: default, strict, relaxed, ci")]
     InvalidPreset(String),
-
-    /// Feature not yet implemented (MVP stub)
-    #[error("Not implemented: {0}")]
-    NotImplemented(String),
 }
 
-// ============================================================================
-// Preset Definitions
-// ============================================================================
-
-/// Get strict preset thresholds
-///
-/// Aggressive thresholds for high-quality, production codebases where
-/// code quality is critical.
-fn get_strict_preset() -> HashMap<String, CategoryConfig> {
-    let mut presets = HashMap::new();
-
-    // Quality - Aggressive complexity and maintainability requirements
-    presets.insert(
-        "quality".to_string(),
-        CategoryConfig {
-            enabled: None, // All kinds enabled by default
-            thresholds: Some(HashMap::from([
-                ("complexity_threshold".to_string(), 5.0),
-                ("maintainability_threshold".to_string(), 80.0),
-                ("readability_threshold".to_string(), 80.0),
-            ])),
-            options: None,
-        },
-    );
-
-    // Dead Code - Flag all unused code immediately
-    presets.insert(
-        "dead_code".to_string(),
-        CategoryConfig {
-            enabled: None,
-            thresholds: Some(HashMap::from([
-                ("coverage_threshold".to_string(), 0.0), // Flag all unused
-            ])),
-            options: None,
-        },
-    );
-
-    // Dependencies - Low coupling tolerance, require high cohesion
-    presets.insert(
-        "dependencies".to_string(),
-        CategoryConfig {
-            enabled: None,
-            thresholds: Some(HashMap::from([
-                ("coupling_threshold".to_string(), 0.5),
-                ("cohesion_threshold".to_string(), 0.3),
-                ("depth_threshold".to_string(), 3.0),
-            ])),
-            options: None,
-        },
-    );
-
-    // Structure - Shallow hierarchies, small modules
-    presets.insert(
-        "structure".to_string(),
-        CategoryConfig {
-            enabled: None,
-            thresholds: Some(HashMap::from([
-                ("hierarchy_depth_threshold".to_string(), 3.0),
-                ("inheritance_depth_threshold".to_string(), 2.0),
-                ("module_size_threshold".to_string(), 30.0),
-            ])),
-            options: None,
-        },
-    );
-
-    // Documentation - Comprehensive documentation required
-    presets.insert(
-        "documentation".to_string(),
-        CategoryConfig {
-            enabled: None,
-            thresholds: Some(HashMap::from([
-                ("coverage_threshold".to_string(), 90.0),
-                ("quality_threshold".to_string(), 0.9),
-            ])),
-            options: None,
-        },
-    );
-
-    // Tests - Full test coverage expected
-    presets.insert(
-        "tests".to_string(),
-        CategoryConfig {
-            enabled: None,
-            thresholds: Some(HashMap::from([
-                ("coverage_ratio_threshold".to_string(), 1.0),
-                ("assertions_per_test_min".to_string(), 2.0),
-            ])),
-            options: None,
-        },
-    );
-
-    presets
+impl From<ConfigError> for figment::Error {
+    fn from(err: ConfigError) -> figment::Error {
+        use figment::error::Kind;
+        figment::Error::from(Kind::Message(err.to_string()))
+    }
 }
 
-/// Get default preset thresholds
-///
-/// Balanced thresholds suitable for most production projects.
-fn get_default_preset() -> HashMap<String, CategoryConfig> {
-    let mut presets = HashMap::new();
+// --- Preset Definitions ---
 
-    // Quality - Moderate complexity and maintainability standards
-    presets.insert(
-        "quality".to_string(),
-        CategoryConfig {
-            enabled: None,
-            thresholds: Some(HashMap::from([
-                ("complexity_threshold".to_string(), 10.0),
-                ("maintainability_threshold".to_string(), 65.0),
-                ("readability_threshold".to_string(), 65.0),
-            ])),
-            options: None,
+pub fn get_default_preset() -> AnalysisConfig {
+    AnalysisConfig {
+        preset: Some("default".to_string()),
+        suggestions: SuggestionConfig {
+            min_confidence: 0.7,
+            include_safety_levels: vec!["safe".to_string(), "requires_review".to_string()],
+            max_per_finding: 3,
+            generate_refactor_calls: true,
         },
-    );
-
-    // Dead Code - Standard unused code detection
-    presets.insert(
-        "dead_code".to_string(),
-        CategoryConfig {
-            enabled: None,
-            thresholds: None, // Use detection defaults
-            options: None,
+        thresholds: ThresholdConfig {
+            max_complexity: 15,
+            max_nesting_depth: 4,
+            max_function_lines: 100,
+            max_parameters: 5,
         },
-    );
-
-    // Dependencies - Standard coupling and cohesion expectations
-    presets.insert(
-        "dependencies".to_string(),
-        CategoryConfig {
-            enabled: None,
-            thresholds: Some(HashMap::from([
-                ("coupling_threshold".to_string(), 0.7),
-                ("cohesion_threshold".to_string(), 0.5),
-                ("depth_threshold".to_string(), 5.0),
-            ])),
-            options: None,
+        analysis: AnalysisSwitches {
+            enable_dead_code: true,
+            enable_code_smells: true,
+            enable_complexity: true,
+            enable_maintainability: true,
         },
-    );
-
-    // Structure - Reasonable hierarchy limits
-    presets.insert(
-        "structure".to_string(),
-        CategoryConfig {
-            enabled: None,
-            thresholds: Some(HashMap::from([
-                ("hierarchy_depth_threshold".to_string(), 5.0),
-                ("inheritance_depth_threshold".to_string(), 4.0),
-                ("module_size_threshold".to_string(), 50.0),
-            ])),
-            options: None,
-        },
-    );
-
-    // Documentation - Good documentation coverage
-    presets.insert(
-        "documentation".to_string(),
-        CategoryConfig {
-            enabled: None,
-            thresholds: Some(HashMap::from([
-                ("coverage_threshold".to_string(), 70.0),
-                ("quality_threshold".to_string(), 0.7),
-            ])),
-            options: None,
-        },
-    );
-
-    // Tests - Good test coverage
-    presets.insert(
-        "tests".to_string(),
-        CategoryConfig {
-            enabled: None,
-            thresholds: Some(HashMap::from([
-                ("coverage_ratio_threshold".to_string(), 0.8),
-                ("assertions_per_test_min".to_string(), 1.0),
-            ])),
-            options: None,
-        },
-    );
-
-    presets
+    }
 }
 
-/// Get relaxed preset thresholds
-///
-/// Lenient thresholds for prototypes, legacy code, or early-stage projects.
-fn get_relaxed_preset() -> HashMap<String, CategoryConfig> {
-    let mut presets = HashMap::new();
-
-    // Quality - Lenient complexity and maintainability
-    presets.insert(
-        "quality".to_string(),
-        CategoryConfig {
-            enabled: None,
-            thresholds: Some(HashMap::from([
-                ("complexity_threshold".to_string(), 20.0),
-                ("maintainability_threshold".to_string(), 50.0),
-                ("readability_threshold".to_string(), 50.0),
-            ])),
-            options: None,
+pub fn get_strict_preset() -> AnalysisConfig {
+    AnalysisConfig {
+        preset: Some("strict".to_string()),
+        suggestions: SuggestionConfig {
+            min_confidence: 0.85,
+            include_safety_levels: vec!["safe".to_string()],
+            max_per_finding: 5,
+            generate_refactor_calls: true,
         },
-    );
-
-    // Dead Code - Relaxed unused code detection
-    presets.insert(
-        "dead_code".to_string(),
-        CategoryConfig {
-            enabled: None,
-            thresholds: None,
-            options: None,
+        thresholds: ThresholdConfig {
+            max_complexity: 8,
+            max_nesting_depth: 3,
+            max_function_lines: 50,
+            max_parameters: 4,
         },
-    );
-
-    // Dependencies - High tolerance for coupling
-    presets.insert(
-        "dependencies".to_string(),
-        CategoryConfig {
-            enabled: None,
-            thresholds: Some(HashMap::from([
-                ("coupling_threshold".to_string(), 0.9),
-                ("cohesion_threshold".to_string(), 0.7),
-                ("depth_threshold".to_string(), 8.0),
-            ])),
-            options: None,
+        analysis: AnalysisSwitches {
+            enable_dead_code: true,
+            enable_code_smells: true,
+            enable_complexity: true,
+            enable_maintainability: true,
         },
-    );
+    }
+}
 
-    // Structure - Deep hierarchies allowed
-    presets.insert(
-        "structure".to_string(),
-        CategoryConfig {
-            enabled: None,
-            thresholds: Some(HashMap::from([
-                ("hierarchy_depth_threshold".to_string(), 8.0),
-                ("inheritance_depth_threshold".to_string(), 6.0),
-                ("module_size_threshold".to_string(), 100.0),
-            ])),
-            options: None,
+pub fn get_relaxed_preset() -> AnalysisConfig {
+    AnalysisConfig {
+        preset: Some("relaxed".to_string()),
+        suggestions: SuggestionConfig {
+            min_confidence: 0.5,
+            include_safety_levels: vec!["safe".to_string(), "requires_review".to_string(), "unsafe".to_string()],
+            max_per_finding: 10,
+            generate_refactor_calls: false,
         },
-    );
-
-    // Documentation - Minimal documentation requirements
-    presets.insert(
-        "documentation".to_string(),
-        CategoryConfig {
-            enabled: None,
-            thresholds: Some(HashMap::from([
-                ("coverage_threshold".to_string(), 50.0),
-                ("quality_threshold".to_string(), 0.5),
-            ])),
-            options: None,
+        thresholds: ThresholdConfig {
+            max_complexity: 25,
+            max_nesting_depth: 6,
+            max_function_lines: 200,
+            max_parameters: 7,
         },
-    );
-
-    // Tests - Basic test coverage
-    presets.insert(
-        "tests".to_string(),
-        CategoryConfig {
-            enabled: None,
-            thresholds: Some(HashMap::from([
-                ("coverage_ratio_threshold".to_string(), 0.5),
-                ("assertions_per_test_min".to_string(), 1.0),
-            ])),
-            options: None,
+        analysis: AnalysisSwitches {
+            enable_dead_code: true,
+            enable_code_smells: true,
+            enable_complexity: true,
+            enable_maintainability: true,
         },
-    );
+    }
+}
 
-    presets
+pub fn get_ci_preset() -> AnalysisConfig {
+    AnalysisConfig {
+        preset: Some("ci".to_string()),
+        suggestions: SuggestionConfig {
+            min_confidence: 0.8,
+            include_safety_levels: vec!["safe".to_string(), "requires_review".to_string()],
+            max_per_finding: 100, // Report more issues in CI
+            generate_refactor_calls: false, // Not needed for CI reports
+        },
+        thresholds: ThresholdConfig {
+            max_complexity: 10,
+            max_nesting_depth: 4,
+            max_function_lines: 75,
+            max_parameters: 5,
+        },
+        analysis: AnalysisSwitches {
+            enable_dead_code: true,
+            enable_code_smells: true,
+            enable_complexity: true,
+            enable_maintainability: true,
+        },
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use figment::Jail;
 
     #[test]
-    fn test_default_config_has_default_preset() {
+    fn test_default_config() {
         let config = AnalysisConfig::default();
-        assert_eq!(config.preset, Some("default".to_string()));
-        assert!(!config.overrides.is_empty());
+        assert_eq!(config.thresholds.max_complexity, 15);
+        assert_eq!(config.suggestions.min_confidence, 0.7);
+        assert!(config.analysis.enable_dead_code);
     }
 
     #[test]
-    fn test_apply_strict_preset() {
-        let mut config = AnalysisConfig {
-            preset: None,
-            overrides: HashMap::new(),
-        };
+    fn test_load_from_preset() {
+        let strict_config = AnalysisConfig::from_preset("strict").unwrap();
+        assert_eq!(strict_config.thresholds.max_complexity, 8);
+        assert_eq!(strict_config.suggestions.min_confidence, 0.85);
 
-        config.apply_preset("strict").unwrap();
-        assert_eq!(config.preset, Some("strict".to_string()));
-
-        // Check quality thresholds
-        let quality_threshold = config.get_threshold("quality", "complexity_threshold");
-        assert_eq!(quality_threshold, Some(5.0));
-
-        let maintainability = config.get_threshold("quality", "maintainability_threshold");
-        assert_eq!(maintainability, Some(80.0));
+        let relaxed_config = AnalysisConfig::from_preset("relaxed").unwrap();
+        assert_eq!(relaxed_config.thresholds.max_complexity, 25);
     }
 
     #[test]
-    fn test_apply_default_preset() {
-        let mut config = AnalysisConfig {
-            preset: None,
-            overrides: HashMap::new(),
-        };
+    fn test_load_from_file() {
+        Jail::expect_with(|jail| {
+            jail.create_dir(".typemill")?;
+            jail.create_file(
+                ".typemill/analysis.toml",
+                r#"
+                [thresholds]
+                max_complexity = 20
+                "#,
+            )?;
 
-        config.apply_preset("default").unwrap();
-        assert_eq!(config.preset, Some("default".to_string()));
-
-        let complexity_threshold = config.get_threshold("quality", "complexity_threshold");
-        assert_eq!(complexity_threshold, Some(10.0));
+            let config = AnalysisConfig::load(jail.directory())?;
+            assert_eq!(config.thresholds.max_complexity, 20);
+            // Default value should still be present
+            assert_eq!(config.thresholds.max_nesting_depth, 4);
+            Ok(())
+        });
     }
 
     #[test]
-    fn test_apply_relaxed_preset() {
-        let mut config = AnalysisConfig {
-            preset: None,
-            overrides: HashMap::new(),
-        };
+    fn test_file_overrides_preset() {
+        Jail::expect_with(|jail| {
+            jail.create_dir(".typemill")?;
+            jail.create_file(
+                ".typemill/analysis.toml",
+                r#"
+                preset = "strict"
+                [thresholds]
+                max_complexity = 22
+                "#,
+            )?;
 
-        config.apply_preset("relaxed").unwrap();
-        assert_eq!(config.preset, Some("relaxed".to_string()));
-
-        let complexity_threshold = config.get_threshold("quality", "complexity_threshold");
-        assert_eq!(complexity_threshold, Some(20.0));
+            let config = AnalysisConfig::load(jail.directory())?;
+            // The file's value of 22 should override the strict preset's value of 8.
+            assert_eq!(config.thresholds.max_complexity, 22);
+            // Other strict preset values should still apply.
+            assert_eq!(config.suggestions.min_confidence, 0.85);
+            Ok(())
+        });
     }
 
     #[test]
-    fn test_apply_invalid_preset() {
-        let mut config = AnalysisConfig {
-            preset: None,
-            overrides: HashMap::new(),
-        };
+    fn test_env_var_overrides_file_and_preset() {
+        Jail::expect_with(|jail| {
+            jail.create_dir(".typemill")?;
+            jail.create_file(
+                ".typemill/analysis.toml",
+                r#"
+                preset = "strict"
+                [thresholds]
+                max_complexity = 22
+                [suggestions]
+                min_confidence = 0.9
+                "#,
+            )?;
 
-        let result = config.apply_preset("invalid");
-        assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), ConfigError::InvalidPreset(_)));
+            // Set environment variables
+            jail.set_env("TYPEMILL_ANALYSIS_THRESHOLDS__MAX_COMPLEXITY", "30");
+            jail.set_env("TYPEMILL_ANALYSIS_ANALYSIS__ENABLE_DEAD_CODE", "false");
+
+            let config = AnalysisConfig::load(jail.directory())?;
+
+            // Env var overrides file
+            assert_eq!(config.thresholds.max_complexity, 30);
+            // File value is used when no env var
+            assert_eq!(config.suggestions.min_confidence, 0.9);
+            // Env var overrides preset/default
+            assert!(!config.analysis.enable_dead_code);
+
+            Ok(())
+        });
     }
 
     #[test]
-    fn test_get_threshold_from_override() {
-        let mut config = AnalysisConfig::default();
-
-        // Add custom override
-        config.overrides.insert(
-            "quality".to_string(),
-            CategoryConfig {
-                enabled: None,
-                thresholds: Some(HashMap::from([("complexity_threshold".to_string(), 15.0)])),
-                options: None,
-            },
-        );
-
-        let threshold = config.get_threshold("quality", "complexity_threshold");
-        assert_eq!(threshold, Some(15.0));
+    fn test_load_no_file_uses_defaults() {
+        Jail::expect_with(|jail| {
+            // No config file created
+            let config = AnalysisConfig::load(jail.directory())?;
+            assert_eq!(config, AnalysisConfig::default());
+            Ok(())
+        });
     }
 
     #[test]
-    fn test_get_threshold_missing() {
-        let config = AnalysisConfig::default();
-        let threshold = config.get_threshold("nonexistent", "some_threshold");
-        assert_eq!(threshold, None);
-    }
-
-    #[test]
-    fn test_is_kind_enabled_default() {
-        let config = AnalysisConfig::default();
-
-        // No enabled list means all kinds are enabled
-        assert!(config.is_kind_enabled("quality", "complexity"));
-        assert!(config.is_kind_enabled("quality", "smells"));
-        assert!(config.is_kind_enabled("dead_code", "unused_imports"));
-    }
-
-    #[test]
-    fn test_is_kind_enabled_with_filter() {
-        let mut config = AnalysisConfig::default();
-
-        // Add enabled filter for quality category
-        config.overrides.insert(
-            "quality".to_string(),
-            CategoryConfig {
-                enabled: Some(vec!["complexity".to_string(), "smells".to_string()]),
-                thresholds: None,
-                options: None,
-            },
-        );
-
-        assert!(config.is_kind_enabled("quality", "complexity"));
-        assert!(config.is_kind_enabled("quality", "smells"));
-        assert!(!config.is_kind_enabled("quality", "maintainability"));
-    }
-
-    #[test]
-    fn test_preset_preserves_existing_overrides() {
-        let mut config = AnalysisConfig {
-            preset: None,
-            overrides: HashMap::new(),
-        };
-
-        // Add custom override before applying preset
-        config.overrides.insert(
-            "quality".to_string(),
-            CategoryConfig {
-                enabled: Some(vec!["complexity".to_string()]),
-                thresholds: Some(HashMap::from([("complexity_threshold".to_string(), 99.0)])),
-                options: None,
-            },
-        );
-
-        // Apply preset
-        config.apply_preset("default").unwrap();
-
-        // Custom override should be preserved (not overwritten by preset)
-        let threshold = config.get_threshold("quality", "complexity_threshold");
-        assert_eq!(threshold, Some(99.0));
-
-        let enabled = &config.overrides.get("quality").unwrap().enabled;
-        assert_eq!(enabled.as_ref().unwrap(), &vec!["complexity".to_string()]);
-    }
-
-    #[test]
-    fn test_all_presets_have_all_categories() {
-        let strict = get_strict_preset();
-        let default = get_default_preset();
-        let relaxed = get_relaxed_preset();
-
-        let categories = vec![
-            "quality",
-            "dead_code",
-            "dependencies",
-            "structure",
-            "documentation",
-            "tests",
-        ];
-
-        for category in categories {
-            assert!(
-                strict.contains_key(category),
-                "strict preset missing {}",
-                category
-            );
-            assert!(
-                default.contains_key(category),
-                "default preset missing {}",
-                category
-            );
-            assert!(
-                relaxed.contains_key(category),
-                "relaxed preset missing {}",
-                category
-            );
-        }
-    }
-
-    #[test]
-    fn test_load_from_toml_file() {
-        use std::io::Write;
-        use tempfile::TempDir;
-
-        let temp_dir = TempDir::new().unwrap();
-        let workspace_root = temp_dir.path();
-
-        // Create .typemill directory
-        let config_dir = workspace_root.join(".typemill");
-        std::fs::create_dir_all(&config_dir).unwrap();
-
-        // Write test config
-        let config_path = config_dir.join("analysis.toml");
-        let mut file = std::fs::File::create(&config_path).unwrap();
-        writeln!(file, "preset = \"strict\"").unwrap();
-        writeln!(file).unwrap();
-        writeln!(file, "[overrides.quality]").unwrap();
-        writeln!(file, "enabled = [\"complexity\"]").unwrap();
-        writeln!(file).unwrap();
-        writeln!(file, "[overrides.quality.thresholds]").unwrap();
-        writeln!(file, "complexity_threshold = 25.0").unwrap();
-
-        // Load config
-        let config = AnalysisConfig::load(workspace_root).unwrap();
-
-        // Verify loaded correctly
-        assert_eq!(config.preset, Some("strict".to_string()));
-        assert!(config.overrides.contains_key("quality"));
-
-        let quality_config = config.overrides.get("quality").unwrap();
-        assert_eq!(
-            quality_config.enabled.as_ref().unwrap(),
-            &vec!["complexity".to_string()]
-        );
-
-        let threshold = config.get_threshold("quality", "complexity_threshold");
-        assert_eq!(threshold, Some(25.0));
-    }
-
-    #[test]
-    fn test_load_missing_file_returns_default() {
-        use tempfile::TempDir;
-
-        let temp_dir = TempDir::new().unwrap();
-        let workspace_root = temp_dir.path();
-
-        // Don't create config file
-        let config = AnalysisConfig::load(workspace_root).unwrap();
-
-        // Should return default config
-        assert_eq!(config.preset, Some("default".to_string()));
+    fn test_invalid_preset_name() {
+        let result = AnalysisConfig::from_preset("nonexistent");
+        assert!(matches!(result, Err(ConfigError::InvalidPreset(_))));
     }
 }

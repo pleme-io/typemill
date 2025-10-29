@@ -55,6 +55,7 @@ use tracing::debug;
 /// - Location with line number
 /// - Metrics including imported symbols
 /// - Suggestion to remove the import
+use super::config::AnalysisConfig;
 pub fn detect_unused_imports(
     _complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
@@ -62,6 +63,7 @@ pub fn detect_unused_imports(
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -281,6 +283,7 @@ pub fn detect_unused_symbols(
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -419,6 +422,7 @@ pub fn detect_unreachable_code(
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -602,6 +606,7 @@ pub fn detect_unused_parameters(
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
     let lines: Vec<&str> = content.lines().collect();
@@ -782,6 +787,7 @@ pub fn detect_unused_types(
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -907,6 +913,7 @@ pub fn detect_unused_variables(
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
     let lines: Vec<&str> = content.lines().collect();
@@ -2053,6 +2060,7 @@ impl ToolHandler for DeadCodeHandler {
                         language,
                         &file_path,
                         &context.app_state.language_plugins,
+                        &context.analysis_config,
                     );
 
                     // NEW: Initialize suggestion generator
@@ -2193,6 +2201,7 @@ impl ToolHandler for DeadCodeHandler {
                         language,
                         &file_path,
                         &context.app_state.language_plugins,
+                        &context.analysis_config,
                     );
 
                     // Initialize suggestion generator

@@ -61,6 +61,7 @@ use tracing::debug;
 /// - Metrics including total_symbols, symbols_by_kind, visibility_breakdown
 /// - Low severity (informational)
 /// - No suggestions (structural information only)
+use super::config::AnalysisConfig;
 pub fn detect_symbols(
     _complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
@@ -68,6 +69,7 @@ pub fn detect_symbols(
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -163,6 +165,7 @@ pub fn detect_hierarchy(
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -316,6 +319,7 @@ pub fn detect_interfaces(
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -469,6 +473,7 @@ pub fn detect_inheritance(
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
@@ -615,6 +620,7 @@ pub fn detect_modules(
     language: &str,
     file_path: &str,
     _registry: &crate::LanguagePluginRegistry,
+    _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 

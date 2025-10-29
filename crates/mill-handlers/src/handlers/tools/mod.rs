@@ -135,6 +135,8 @@ mod dispatch {
     }
 }
 
+use crate::handlers::tools::analysis::AnalysisConfig;
+
 /// Context provided to tool handlers
 pub struct ToolHandlerContext {
     /// The ID of the user making the request, for multi-tenancy.
@@ -145,6 +147,8 @@ pub struct ToolHandlerContext {
     pub plugin_manager: Arc<PluginManager>,
     /// Direct LSP adapter for refactoring operations
     pub lsp_adapter: Arc<Mutex<Option<Arc<DirectLspAdapter>>>>,
+    /// Loaded analysis configuration
+    pub analysis_config: Arc<AnalysisConfig>,
 }
 
 // Type alias for convenience
