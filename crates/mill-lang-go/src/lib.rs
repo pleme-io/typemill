@@ -141,6 +141,7 @@ mill_plugin! {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use mill_plugin_api::Template;
     use tempfile::tempdir;
 
     #[test]
