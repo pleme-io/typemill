@@ -29,6 +29,7 @@ members = [
     "crates/mill-lang-cpp",
     "crates/mill-lang-csharp",
     "crates/mill-lang-swift",
+    "crates/mill-lang-c",
 ]
 resolver = "2"
 
@@ -78,6 +79,8 @@ dashmap = "5.5"
 futures = "0.3"
 regex = "1.10"
 lsp-types = { version = "0.97.0", features = ["proposed"] }
+tree-sitter = "0.25.4"
+cc = "1.0"
 
 # Core API crates
 mill-foundation = { path = "crates/mill-foundation" }
@@ -109,6 +112,7 @@ mill-lang-python = { path = "crates/mill-lang-python", default-features = false 
 mill-lang-cpp = { path = "crates/mill-lang-cpp", default-features = false }
 mill-lang-swift = { path = "crates/mill-lang-swift", default-features = false }
 mill-lang-csharp = { path = "crates/mill-lang-csharp", default-features = false }
+mill-lang-c = { path = "crates/mill-lang-c", default-features = false }
 mill-analysis-dead-code = { path = "analysis/mill-analysis-dead-code" }
 mill-analysis-graph = { path = "analysis/mill-analysis-graph" }
 

@@ -82,6 +82,12 @@ plugin_struct = "CsharpPlugin"
 category = "full"
 default = false
 
+[languages.c]
+path = "crates/mill-lang-c"
+plugin_struct = "CPlugin"
+category = "full"
+default = false
+
 # [languages.java]
 # path = "crates/mill-lang-java"
 # plugin_struct = "JavaPlugin"

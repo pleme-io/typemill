@@ -92,6 +92,7 @@ lang-gitignore = ["mill-server/lang-gitignore", "mill-plugin-bundle/lang-gitigno
 lang-cpp = ["mill-server/lang-cpp", "mill-plugin-bundle/lang-cpp", "mill-ast/lang-cpp", "mill-plugin-system/lang-cpp", "mill-transport/lang-cpp"]
 lang-swift = ["mill-server/lang-swift", "mill-plugin-bundle/lang-swift", "mill-ast/lang-swift", "mill-plugin-system/lang-swift", "mill-transport/lang-swift"]
 lang-csharp = ["mill-server/lang-csharp", "mill-plugin-bundle/lang-csharp", "mill-ast/lang-csharp", "mill-plugin-system/lang-csharp", "mill-transport/lang-csharp"]
+lang-c = ["mill-server/lang-c", "mill-plugin-bundle/lang-c", "mill-ast/lang-c", "mill-plugin-system/lang-c", "mill-transport/lang-c"]
 
 # Platform-specific dependencies for process management
 [target.'cfg(unix)'.dependencies]

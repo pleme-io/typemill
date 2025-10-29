@@ -13,6 +13,8 @@ use std::sync::Arc;
 // Force linker to include language plugins by actively using them.
 // This prevents linker dead code elimination from stripping the inventory submissions.
 // We reference each plugin's public type to ensure the crate is linked.
+#[cfg(feature = "lang-c")]
+use mill_lang_c::CPlugin;
 #[cfg(feature = "lang-cpp")]
 use mill_lang_cpp::CppPlugin;
 #[cfg(feature = "lang-csharp")]
@@ -39,6 +41,8 @@ use mill_lang_yaml::YamlLanguagePlugin;
 fn _force_plugin_linkage() {
     // These type references ensure the plugin crates are linked
     // The actual plugin instances will be discovered via inventory
+    #[cfg(feature = "lang-c")]
+    let _: Option<CPlugin> = None;
     #[cfg(feature = "lang-cpp")]
     let _: Option<CppPlugin> = None;
     #[cfg(feature = "lang-csharp")]
@@ -95,6 +99,8 @@ mod tests {
     use super::*;
 
     // Force linker to include language plugins for inventory collection in tests
+    #[cfg(all(test, feature = "lang-c"))]
+    extern crate mill_lang_c;
     #[cfg(all(test, feature = "lang-cpp"))]
     extern crate mill_lang_cpp;
     #[cfg(all(test, feature = "lang-csharp"))]

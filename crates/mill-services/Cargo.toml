@@ -35,6 +35,7 @@ mill-lang-markdown = { workspace = true , optional = true }
 mill-lang-cpp = { workspace = true, optional = true }
 mill-lang-swift = { workspace = true, optional = true }
 mill-lang-csharp = { workspace = true, optional = true }
+mill-lang-c = { workspace = true, optional = true }
 
 [features]
 default = ["lang-markdown", "lang-python", "lang-rust", "lang-typescript"]
@@ -46,6 +47,7 @@ lang-python = ["dep:mill-lang-python", "mill-ast/lang-python", "mill-plugin-syst
 lang-cpp = ["dep:mill-lang-cpp", "mill-ast/lang-cpp", "mill-plugin-system/lang-cpp"]
 lang-swift = ["dep:mill-lang-swift", "mill-ast/lang-swift", "mill-plugin-system/lang-swift"]
 lang-csharp = ["dep:mill-lang-csharp", "mill-ast/lang-csharp", "mill-plugin-system/lang-csharp"]
+lang-c = ["dep:mill-lang-c", "mill-ast/lang-c", "mill-plugin-system/lang-c"]
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
