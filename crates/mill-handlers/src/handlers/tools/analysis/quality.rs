@@ -17,6 +17,9 @@ use regex::Regex;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;
+
+#[path = "markdown_fixers/mod.rs"]
+mod markdown_fixers;
 use std::path::Path;
 use std::time::Instant;
 use tracing::{debug, info};
@@ -41,6 +44,9 @@ struct QualityOptions {
     /// Apply fixes (false = dry run preview, true = write files)
     #[serde(default)]
     apply: bool,
+    /// Per-fixer configuration options (fix_id -> config)
+    #[serde(default)]
+    fix_options: HashMap<String, Value>,
 }
 
 fn default_limit() -> usize {
@@ -97,72 +103,15 @@ impl Default for QualityThresholds {
     }
 }
 
-/// Markdown auto-fixer for safe, deterministic fixes
-struct MarkdownFixer {
-    fixes_to_apply: std::collections::HashSet<String>,
-}
-
-impl MarkdownFixer {
-    fn new(fix_kinds: Vec<String>) -> Self {
-        Self {
-            fixes_to_apply: fix_kinds.into_iter().collect(),
-        }
-    }
-
-    /// Check if a specific fix kind should be applied
-    fn should_fix(&self, kind: &str) -> bool {
-        self.fixes_to_apply.contains(kind)
-    }
-
-    /// Fix trailing whitespace (remove spaces/tabs at end of lines)
-    fn fix_trailing_whitespace(content: &str) -> String {
-        content
-            .lines()
-            .map(|line| line.trim_end())
-            .collect::<Vec<_>>()
-            .join("\n")
-    }
-
-    /// Fix missing code language tags (add "text" as default)
-    fn fix_missing_code_lang(content: &str) -> String {
-        use regex::Regex;
-        let re = Regex::new(r"(?m)^```\s*$").unwrap();
-        re.replace_all(content, "```text").to_string()
-    }
-
-    /// Fix malformed headings (add space after #)
-    fn fix_malformed_heading(content: &str) -> String {
-        use regex::Regex;
-        let re = Regex::new(r"(?m)^(#{1,6})([^\s#])").unwrap();
-        re.replace_all(content, "$1 $2").to_string()
-    }
-
-    /// Fix reversed link syntax: (text)[url] → [text](url)
-    fn fix_reversed_link(content: &str) -> String {
-        use regex::Regex;
-        let re = Regex::new(r"\(([^)]+)\)\[([^\]]+)\]").unwrap();
-        re.replace_all(content, "[$2]($1)").to_string()
-    }
-
-    /// Apply all enabled fixes to content
-    fn apply_fixes(&self, content: &str) -> String {
-        let mut result = content.to_string();
-
-        if self.should_fix("trailing_whitespace") {
-            result = Self::fix_trailing_whitespace(&result);
-        }
-        if self.should_fix("missing_code_language_tag") {
-            result = Self::fix_missing_code_lang(&result);
-        }
-        if self.should_fix("malformed_heading") {
-            result = Self::fix_malformed_heading(&result);
-        }
-        if self.should_fix("reversed_link_syntax") {
-            result = Self::fix_reversed_link(&result);
-        }
-
-        result
-    }
+/// Get all available markdown fixers
+fn get_markdown_fixers() -> Vec<Box<dyn markdown_fixers::MarkdownFixer>> {
+    vec![
+        Box::new(markdown_fixers::TrailingWhitespaceFixer),
+        Box::new(markdown_fixers::MissingCodeLangFixer),
+        Box::new(markdown_fixers::MalformedHeadingFixer),
+        Box::new(markdown_fixers::ReversedLinkFixer),
+        Box::new(markdown_fixers::AutoTocFixer),
+    ]
 }
 
 pub struct QualityHandler;
@@ -537,8 +486,10 @@ impl QualityHandler {
 
         // Auto-fix phase (if requested)
         let mut fix_metadata = json!({});
+        let mut fix_previews = Vec::new();
+
         if !options.fix.is_empty() {
-            let fixer = MarkdownFixer::new(options.fix.clone());
+            let all_fixers = get_markdown_fixers();
             let mut files_fixed = 0;
             let mut fixes_by_kind: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
             let mut files_affected = Vec::new();
@@ -563,29 +514,87 @@ impl QualityHandler {
                     }
                 };
 
-                // Apply fixes
-                let fixed_content = fixer.apply_fixes(&content);
+                // Create context with SHA-256 hash
+                let ctx = markdown_fixers::MarkdownContext::new(
+                    content.clone(),
+                    file_path.clone(),
+                );
 
-                // Check if content changed
-                if fixed_content != content {
+                let mut file_has_changes = false;
+                let mut combined_content = content.clone();
+
+                // Apply each requested fixer
+                for fix_kind in &options.fix {
+                    // Find matching fixer
+                    if let Some(fixer) = all_fixers.iter().find(|f| f.id() == fix_kind.as_str()) {
+                        // Get fixer-specific config
+                        let fixer_config = options.fix_options
+                            .get(fix_kind)
+                            .cloned()
+                            .unwrap_or(Value::Null);
+
+                        // Apply fixer to current content
+                        let temp_ctx = markdown_fixers::MarkdownContext::new(
+                            combined_content.clone(),
+                            file_path.clone(),
+                        );
+
+                        let outcome = fixer.apply(&temp_ctx, &fixer_config);
+
+                        if !outcome.edits.is_empty() {
+                            file_has_changes = true;
+
+                            // Count fixes by kind
+                            *fixes_by_kind.entry(fix_kind.clone()).or_insert(0) += outcome.edits.len();
+
+                            // Apply edits to get new content
+                            combined_content = markdown_fixers::apply_edits(&combined_content, &outcome.edits);
+
+                            // Store preview for this fix
+                            if let Some(preview) = outcome.preview {
+                                fix_previews.push(json!({
+                                    "file": file_path.to_string_lossy(),
+                                    "fix_kind": fix_kind,
+                                    "preview": preview,
+                                    "edits_count": outcome.edits.len(),
+                                }));
+                            }
+                        }
+                    }
+                }
+
+                // If any changes were made to this file
+                if file_has_changes {
                     files_fixed += 1;
                     files_affected.push(file_path.to_string_lossy().to_string());
 
-                    // Count fixes by kind (check which findings would be resolved)
-                    for finding in &all_findings {
-                        if finding.location.file_path == file_path.to_string_lossy()
-                            && fixer.should_fix(&finding.kind)
-                        {
-                            *fixes_by_kind.entry(finding.kind.clone()).or_insert(0) += 1;
-                        }
-                    }
-
                     // Write fixed content if apply=true
                     if options.apply {
+                        // Verify hash hasn't changed (optimistic locking)
+                        let current_content = match context.app_state.file_service.read_file(file_path).await {
+                            Ok(c) => c,
+                            Err(e) => {
+                                all_errors.push(json!({
+                                    "file": file_path.display().to_string(),
+                                    "error": format!("Re-read error before write: {}", e)
+                                }));
+                                continue;
+                            }
+                        };
+
+                        if !ctx.verify_hash(&current_content) {
+                            all_errors.push(json!({
+                                "file": file_path.display().to_string(),
+                                "error": "File was modified during analysis (hash mismatch)"
+                            }));
+                            continue;
+                        }
+
+                        // Write the file
                         match context
                             .app_state
                             .file_service
-                            .write_file(file_path, &fixed_content, false) // dry_run=false to actually write
+                            .write_file(file_path, &combined_content, false) // dry_run=false to actually write
                             .await
                         {
                             Ok(_) => {
@@ -617,6 +626,7 @@ impl QualityHandler {
                 "files_affected": files_affected,
                 "applied": options.apply,
                 "files_modified": if options.apply { files_fixed } else { 0 },
+                "previews": fix_previews,
             });
         }
 
@@ -1596,7 +1606,7 @@ fn detect_markdown_structure(
         // Check for malformed headings (no space after #)
         let heading_marker = "#".repeat(level);
         if line.starts_with(&heading_marker) && !line.starts_with(&format!("{} ", heading_marker)) {
-            findings.push(Finding {
+            let finding = Finding {
                 id: format!("malformed-heading-{}-{}", file_path, line_num),
                 kind: "malformed_heading".to_string(),
                 severity: Severity::Medium,
@@ -1610,9 +1620,14 @@ fn detect_markdown_structure(
                     symbol: Some(symbol.name.clone()),
                     symbol_kind: Some("heading".to_string()),
                 },
-                metrics: None,
+                metrics: Some({
+                    let mut m = HashMap::new();
+                    m.insert("fix_id".to_string(), json!("malformed_heading"));
+                    m
+                }),
                 suggestions: vec![],
-            });
+            };
+            findings.push(finding);
         }
 
         // Check for heading level skips
@@ -1740,9 +1755,56 @@ fn detect_markdown_structure(
                     symbol: None,
                     symbol_kind: Some("heading".to_string()),
                 },
-                metrics: None,
+                metrics: Some({
+                    let mut m = HashMap::new();
+                    m.insert("fix_id".to_string(), json!("malformed_heading"));
+                    m
+                }),
                 suggestions: vec![],
             });
+        }
+    }
+
+    // Check for out-of-sync Table of Contents
+    // Look for common TOC markers
+    let toc_markers = ["## Table of Contents", "## Contents", "## TOC"];
+    for marker in &toc_markers {
+        if content.contains(marker) {
+            // Use the auto_toc fixer to check if TOC needs update
+            use markdown_fixers::{AutoTocFixer, MarkdownContext, MarkdownFixer};
+            use std::path::PathBuf;
+
+            let ctx = MarkdownContext::new(content.to_string(), PathBuf::from(file_path));
+            let config = serde_json::json!({"marker": marker});
+            let fixer = AutoTocFixer;
+            let outcome = fixer.apply(&ctx, &config);
+
+            // If there are edits, TOC is out of sync
+            if !outcome.edits.is_empty() {
+                let marker_line = lines.iter().position(|line| line.trim() == *marker).unwrap_or(0);
+                findings.push(Finding {
+                    id: format!("toc-out-of-sync-{}", file_path),
+                    kind: "toc_out_of_sync".to_string(),
+                    severity: Severity::Low,
+                    message: "Table of Contents is out of sync with document headings".to_string(),
+                    location: FindingLocation {
+                        file_path: file_path.to_string(),
+                        range: Some(Range {
+                            start: Position { line: marker_line as u32, character: 0 },
+                            end: Position { line: marker_line as u32, character: marker.len() as u32 },
+                        }),
+                        symbol: Some(marker.to_string()),
+                        symbol_kind: Some("toc".to_string()),
+                    },
+                    metrics: Some({
+                        let mut m = HashMap::new();
+                        m.insert("fix_id".to_string(), json!("auto_toc"));
+                        m
+                    }),
+                    suggestions: vec![],
+                });
+                break; // Only report once
+            }
         }
     }
 
@@ -1797,7 +1859,11 @@ fn detect_markdown_formatting(
                     symbol: None,
                     symbol_kind: None,
                 },
-                metrics: None,
+                metrics: Some({
+                    let mut m = HashMap::new();
+                    m.insert("fix_id".to_string(), json!("trailing_whitespace"));
+                    m
+                }),
                 suggestions: vec![],
             });
         }
@@ -1826,7 +1892,11 @@ fn detect_markdown_formatting(
                             symbol: None,
                             symbol_kind: None,
                         },
-                        metrics: None,
+                        metrics: Some({
+                            let mut m = HashMap::new();
+                            m.insert("fix_id".to_string(), json!("missing_code_language_tag"));
+                            m
+                        }),
                         suggestions: vec![],
                     });
                 }
@@ -1922,7 +1992,11 @@ fn detect_markdown_formatting(
                     symbol: None,
                     symbol_kind: None,
                 },
-                metrics: None,
+                metrics: Some({
+                    let mut m = HashMap::new();
+                    m.insert("fix_id".to_string(), json!("reversed_link_syntax"));
+                    m
+                }),
                 suggestions: vec![],
             });
         }
@@ -2086,6 +2160,7 @@ impl ToolHandler for QualityHandler {
                         include_suggestions: default_include_suggestions(),
                         fix: vec![],
                         apply: false,
+                        fix_options: HashMap::new(),
                     });
 
                 let thresholds = options.thresholds.unwrap_or_default();
@@ -2230,6 +2305,7 @@ impl ToolHandler for QualityHandler {
                             include_suggestions: default_include_suggestions(),
                             fix: vec![],
                             apply: false,
+                            fix_options: HashMap::new(),
                         });
 
                     // Use workspace analysis
@@ -2275,6 +2351,7 @@ impl ToolHandler for QualityHandler {
                             include_suggestions: default_include_suggestions(),
                             fix: vec![],
                             apply: false,
+                            fix_options: HashMap::new(),
                         });
 
                     // Use workspace analysis

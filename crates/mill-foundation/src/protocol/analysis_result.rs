@@ -158,6 +158,29 @@ pub struct AnalysisSummary {
     pub symbols_analyzed: Option<usize>,
     /// Analysis execution time in milliseconds
     pub analysis_time_ms: u64,
+    /// Auto-fix actions summary (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fix_actions: Option<FixActions>,
+}
+
+/// Summary of auto-fix actions applied or previewed
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FixActions {
+    /// Whether this was a preview (dry-run) only
+    pub preview_only: bool,
+    /// Whether fixes were actually applied
+    pub applied: bool,
+    /// Number of preview diffs generated
+    pub previews: usize,
+    /// Number of files modified (when applied)
+    pub files_modified: usize,
+    /// Total number of edits made (when applied)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_edits: Option<usize>,
+    /// Preview diffs by file path (when preview_only = true)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub diffs: Option<HashMap<String, String>>,
 }
 
 /// Breakdown of findings by severity
@@ -223,6 +246,7 @@ impl AnalysisResult {
                 files_analyzed: 0,
                 symbols_analyzed: None,
                 analysis_time_ms: 0,
+                fix_actions: None,
             },
             metadata: AnalysisMetadata {
                 category: category.to_string(),

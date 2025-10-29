@@ -122,6 +122,7 @@ impl ToolHandler for CircularDependenciesHandler {
                     files_analyzed: result.summary.files_analyzed,
                     symbols_analyzed: Some(result.summary.total_modules_in_cycles),
                     analysis_time_ms: result.summary.analysis_time_ms,
+                    fix_actions: None,
                 },
                 metadata: mill_foundation::protocol::analysis_result::AnalysisMetadata {
                     category: "dependencies".to_string(),

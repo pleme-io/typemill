@@ -67,6 +67,9 @@ All analysis tools follow a consistent `analyze.<category>(kind, scope, options)
 | options.severity_filter | string | No | Filter by severity: `"high"` \| `"medium"` \| `"low"` \| `null` (default: null = all) |
 | options.limit | number | No | Maximum number of findings to return (default: 1000) |
 | options.include_suggestions | boolean | No | Include actionable refactoring suggestions (default: true) |
+| options.fix | array | No | List of fixers to apply (e.g., `["auto_toc", "trailing_whitespace"]`) |
+| options.apply | boolean | No | Apply fixes (false = preview with diffs, true = write files) (default: false) |
+| options.fix_options | object | No | Per-fixer configuration options (key = fixer_id, value = config object) |
 
 **Supported Kinds:**
 - `"complexity"` - Cyclomatic and cognitive complexity analysis (MVP available)
@@ -218,6 +221,128 @@ mill analyze complexity --path src/handlers.rs --threshold 20
 - All findings link to refactoring commands for closed-loop workflow
 - Default thresholds: cyclomatic=15, cognitive=10, nesting=4, params=5, length=50
 - Language support: Rust, TypeScript/JavaScript (AST-based)
+
+**Markdown Auto-Fixes:**
+
+For `markdown_structure` and `markdown_formatting` kinds, auto-fix capabilities are available:
+
+**Available Fixers:**
+- `auto_toc` - Generate/update table of contents (for `markdown_structure`)
+- `trailing_whitespace` - Remove trailing spaces/tabs (for `markdown_formatting`)
+- `missing_code_language_tag` - Add language tags to code blocks (for `markdown_formatting`)
+- `malformed_heading` - Fix missing space after # (for `markdown_structure`)
+- `reversed_link_syntax` - Fix `(url)[text]` → `[text](url)` (for `markdown_formatting`)
+
+**Auto-Fix Options:**
+
+```json
+{
+  "kind": "markdown_structure",
+  "scope": {"type": "file", "path": "README.md"},
+  "options": {
+    "fix": ["auto_toc"],           // List of fixers to run
+    "apply": false,                 // false = preview (default), true = write files
+    "fix_options": {                // Per-fixer configuration
+      "auto_toc": {
+        "marker": "## Table of Contents",  // TOC marker to search for
+        "max_depth": 3,                     // Max heading level (1-6)
+        "include_h1": false,                // Include H1 headings
+        "exclude_patterns": ["^TOC$", "^Contents$"]  // Regex patterns to exclude
+      }
+    }
+  }
+}
+```
+
+**Auto-Fix Workflow:**
+
+1. **Preview mode** (`apply: false`): Returns diffs without modifying files
+   - Response includes `fix_actions.previews` with unified diff format
+   - Files remain unchanged
+   - Use for validation before applying
+
+2. **Execute mode** (`apply: true`): Applies fixes with conflict detection
+   - Response includes `fix_actions.files_modified` count
+   - SHA-256 optimistic locking prevents concurrent edit conflicts
+   - All fixes applied atomically (all succeed or all rollback)
+
+**Example - Preview TOC Updates:**
+
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "analyze.quality",
+    "arguments": {
+      "kind": "markdown_structure",
+      "scope": {"type": "file", "path": "README.md"},
+      "options": {
+        "fix": ["auto_toc"],
+        "apply": false  // Preview only
+      }
+    }
+  }
+}
+
+// Response includes:
+{
+  "result": {
+    "summary": {
+      "fix_actions": {
+        "preview_only": true,
+        "applied": false,
+        "previews": 1,
+        "files_modified": 0,
+        "diffs": {
+          "README.md": "--- a/README.md\n+++ b/README.md\n@@ -3,7 +3,8 @@\n ## Table of Contents\n \n-Old content\n+- [Section 1](#section-1)\n+- [Section 2](#section-2)"
+        }
+      }
+    }
+  }
+}
+```
+
+**Example - Apply All Markdown Fixes:**
+
+```json
+{
+  "kind": "markdown_formatting",
+  "scope": {"type": "directory", "path": "docs"},
+  "options": {
+    "fix": ["trailing_whitespace", "missing_code_language_tag", "reversed_link_syntax"],
+    "apply": true  // Execute fixes
+  }
+}
+
+// Response includes:
+{
+  "result": {
+    "summary": {
+      "fix_actions": {
+        "preview_only": false,
+        "applied": true,
+        "files_modified": 15,
+        "total_edits": 47
+      }
+    }
+  }
+}
+```
+
+**CLI Examples:**
+
+```bash
+# Preview TOC update
+mill tool analyze.quality '{"kind": "markdown_structure", "scope": {"type": "file", "path": "README.md"}, "options": {"fix": ["auto_toc"], "apply": false}}'
+
+# Apply TOC update
+mill tool analyze.quality '{"kind": "markdown_structure", "scope": {"type": "file", "path": "README.md"}, "options": {"fix": ["auto_toc"], "apply": true}}'
+
+# Fix all formatting issues in directory
+mill tool analyze.quality '{"kind": "markdown_formatting", "scope": {"type": "directory", "path": "docs"}, "options": {"fix": ["trailing_whitespace", "missing_code_language_tag"], "apply": true}}'
+```
+
+See [Markdown Auto-Fixes](../features/markdown-auto-fixes.md) for complete fixer documentation.
 
 ---
 

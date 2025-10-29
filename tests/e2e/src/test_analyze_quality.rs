@@ -544,3 +544,364 @@ export function wellDocumented() {
     .await
     .unwrap();
 }
+
+// ======================================
+// Markdown Auto-Fix Tests
+// ======================================
+
+#[tokio::test]
+async fn test_markdown_autofix_auto_toc_preview_mode() {
+    let markdown_with_toc = r#"# My Document
+
+## Table of Contents
+
+Old TOC content here
+- Old link 1
+
+## Section 1
+
+Some content.
+
+## Section 2
+
+More content.
+"#;
+
+    let workspace = TestWorkspace::new();
+    workspace.create_file("test.md", markdown_with_toc);
+    let mut client = TestClient::new(workspace.path());
+    let test_file = workspace.absolute_path("test.md");
+
+    let response = client
+        .call_tool(
+            "analyze.quality",
+            json!({
+                "kind": "markdown_structure",
+                "scope": {
+                    "type": "file",
+                    "path": test_file.to_string_lossy()
+                },
+                "options": {
+                    "fix": ["auto_toc"],
+                    "apply": false  // Preview mode
+                }
+            }),
+        )
+        .await
+        .expect("analyze.quality call should succeed");
+
+    let result: AnalysisResult = serde_json::from_value(
+        response
+            .get("result")
+            .expect("Response should have result field")
+            .clone(),
+    )
+    .expect("Should parse as AnalysisResult");
+
+    // Should have fix_actions in summary
+    assert!(result.summary.fix_actions.is_some());
+    let fix_actions = result.summary.fix_actions.unwrap();
+    assert!(fix_actions.preview_only);
+    assert!(!fix_actions.applied);
+    assert!(fix_actions.previews > 0);
+
+    // File should not be modified (preview mode)
+    let content_after = workspace.read_file("test.md");
+    assert_eq!(content_after, markdown_with_toc);
+}
+
+#[tokio::test]
+async fn test_markdown_autofix_auto_toc_apply_mode() {
+    let markdown_with_toc = r#"# My Document
+
+## Table of Contents
+
+Old TOC content here
+
+## Section 1
+
+Some content.
+
+## Section 2
+
+More content.
+"#;
+
+    let workspace = TestWorkspace::new();
+    workspace.create_file("test.md", markdown_with_toc);
+    let mut client = TestClient::new(workspace.path());
+    let test_file = workspace.absolute_path("test.md");
+
+    let response = client
+        .call_tool(
+            "analyze.quality",
+            json!({
+                "kind": "markdown_structure",
+                "scope": {
+                    "type": "file",
+                    "path": test_file.to_string_lossy()
+                },
+                "options": {
+                    "fix": ["auto_toc"],
+                    "apply": true  // Execute mode
+                }
+            }),
+        )
+        .await
+        .expect("analyze.quality call should succeed");
+
+    let result: AnalysisResult = serde_json::from_value(
+        response
+            .get("result")
+            .expect("Response should have result field")
+            .clone(),
+    )
+    .expect("Should parse as AnalysisResult");
+
+    // Should have fix_actions with applied=true
+    assert!(result.summary.fix_actions.is_some());
+    let fix_actions = result.summary.fix_actions.unwrap();
+    assert!(!fix_actions.preview_only);
+    assert!(fix_actions.applied);
+    assert_eq!(fix_actions.files_modified, 1);
+
+    // File should be modified
+    let content_after = workspace.read_file("test.md");
+    assert!(content_after.contains("## Table of Contents"));
+    assert!(content_after.contains("- [Section 1](#section-1)"));
+    assert!(content_after.contains("- [Section 2](#section-2)"));
+    assert!(!content_after.contains("Old TOC content here"));
+}
+
+#[tokio::test]
+async fn test_markdown_autofix_toc_detection() {
+    let markdown_with_outdated_toc = r#"# Title
+
+## Table of Contents
+
+- Old Section
+
+## New Section
+"#;
+
+    run_analysis_test(
+        "test.md",
+        markdown_with_outdated_toc,
+        "markdown_structure",
+        None,
+        |result| {
+            let kinds: Vec<_> = result.findings.iter().map(|f| f.kind.as_str()).collect();
+            assert!(kinds.contains(&"toc_out_of_sync"));
+
+            // Check that finding has fix_id metadata
+            let toc_finding = result
+                .findings
+                .iter()
+                .find(|f| f.kind == "toc_out_of_sync")
+                .expect("Should have toc_out_of_sync finding");
+
+            assert!(toc_finding.metrics.is_some());
+            let metrics = toc_finding.metrics.as_ref().unwrap();
+            assert_eq!(
+                metrics.get("fix_id").and_then(|v| v.as_str()),
+                Some("auto_toc")
+            );
+
+            Ok(())
+        },
+    )
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn test_markdown_autofix_multiple_fixers() {
+    let markdown_with_issues = r#"# Title
+
+## Table of Contents
+
+Old TOC
+
+## Section 1
+Some content.
+
+##MalformedHeading
+
+More content.
+"#;
+
+    let workspace = TestWorkspace::new();
+    workspace.create_file("test.md", markdown_with_issues);
+    let mut client = TestClient::new(workspace.path());
+    let test_file = workspace.absolute_path("test.md");
+
+    let response = client
+        .call_tool(
+            "analyze.quality",
+            json!({
+                "kind": "markdown_structure",
+                "scope": {
+                    "type": "file",
+                    "path": test_file.to_string_lossy()
+                },
+                "options": {
+                    "fix": ["auto_toc", "trailing_whitespace", "malformed_heading"],
+                    "apply": true
+                }
+            }),
+        )
+        .await
+        .expect("analyze.quality call should succeed");
+
+    let result: AnalysisResult = serde_json::from_value(
+        response
+            .get("result")
+            .expect("Response should have result field")
+            .clone(),
+    )
+    .expect("Should parse as AnalysisResult");
+
+    // Should apply all fixers
+    assert!(result.summary.fix_actions.is_some());
+
+    let content_after = workspace.read_file("test.md");
+
+    // TOC should be updated
+    assert!(content_after.contains("- [Section 1](#section-1)"));
+
+    // Trailing whitespace should be removed
+    assert!(!content_after.contains("Section 1  "));
+
+    // Malformed heading should be fixed
+    assert!(content_after.contains("## MalformedHeading"));
+}
+
+#[tokio::test]
+async fn test_markdown_autofix_regression_all_fixers() {
+    // Test that all migrated fixers still work
+    let markdown_with_all_issues = r#"# Document
+
+## Table of Contents
+
+Old TOC
+
+## Section 1
+
+```
+code without language tag
+```
+
+(https://example.com)[Wrong Link]
+
+More content.
+"#;
+
+    let workspace = TestWorkspace::new();
+    workspace.create_file("test.md", markdown_with_all_issues);
+    let mut client = TestClient::new(workspace.path());
+    let test_file = workspace.absolute_path("test.md");
+
+    // Test each fixer individually
+    let fixers = vec![
+        "auto_toc",
+        "trailing_whitespace",
+        "missing_code_language_tag",
+        "reversed_link_syntax",
+    ];
+
+    for fixer in fixers {
+        // Reset file
+        workspace.create_file("test.md", markdown_with_all_issues);
+
+        let response = client
+            .call_tool(
+                "analyze.quality",
+                json!({
+                    "kind": if fixer == "auto_toc" { "markdown_structure" } else { "markdown_formatting" },
+                    "scope": {
+                        "type": "file",
+                        "path": test_file.to_string_lossy()
+                    },
+                    "options": {
+                        "fix": [fixer],
+                        "apply": true
+                    }
+                }),
+            )
+            .await
+            .expect(&format!("analyze.quality call should succeed for {}", fixer));
+
+        let result: AnalysisResult = serde_json::from_value(
+            response
+                .get("result")
+                .expect("Response should have result field")
+                .clone(),
+        )
+        .expect("Should parse as AnalysisResult");
+
+        // Each fixer should report success
+        assert!(
+            result.summary.fix_actions.is_some(),
+            "Fixer {} should have fix_actions",
+            fixer
+        );
+    }
+}
+
+#[tokio::test]
+async fn test_markdown_autofix_custom_options() {
+    let markdown = r#"# Title
+
+## TOC
+
+Old content
+
+# H1 Heading
+
+## H2 Heading
+
+### H3 Heading
+
+#### H4 Heading
+"#;
+
+    let workspace = TestWorkspace::new();
+    workspace.create_file("test.md", markdown);
+    let mut client = TestClient::new(workspace.path());
+    let test_file = workspace.absolute_path("test.md");
+
+    let response = client
+        .call_tool(
+            "analyze.quality",
+            json!({
+                "kind": "markdown_structure",
+                "scope": {
+                    "type": "file",
+                    "path": test_file.to_string_lossy()
+                },
+                "options": {
+                    "fix": ["auto_toc"],
+                    "apply": true,
+                    "fix_options": {
+                        "auto_toc": {
+                            "marker": "## TOC",
+                            "max_depth": 4,
+                            "include_h1": true
+                        }
+                    }
+                }
+            }),
+        )
+        .await
+        .expect("analyze.quality call should succeed");
+
+    let content_after = workspace.read_file("test.md");
+
+    // Should include H1 (since include_h1 = true)
+    assert!(content_after.contains("- [H1 Heading](#h1-heading)"));
+
+    // Should include H2, H3, H4 (max_depth = 4)
+    assert!(content_after.contains("- [H2 Heading](#h2-heading)"));
+    assert!(content_after.contains("  - [H3 Heading](#h3-heading)"));
+    assert!(content_after.contains("    - [H4 Heading](#h4-heading)"));
+}
