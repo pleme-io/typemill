@@ -980,6 +980,8 @@ mill tool analyze.tests '{
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | queries | array | **Yes** | Array of analysis query objects (see structure below) |
+| noSuggestions | boolean | No | Disable suggestion generation (default: false) |
+| maxSuggestions | number | No | Maximum number of suggestions to return |
 
 **Query Object Structure:**
 
@@ -1074,8 +1076,26 @@ Each query in the array must have:
       "successful_queries": 6,
       "failed_queries": 0,
       "total_findings": 15,
+      "total_suggestions": 8,
       "total_analysis_time_ms": 456
     },
+    "suggestions": [
+        {
+            "message": "Extract helper methods to reduce complexity",
+            "safety": "requires_review",
+            "confidence": 0.85,
+            "reversible": true,
+            "estimated_impact": "High",
+            "refactor_call": {
+                "tool": "extract",
+                "arguments": {
+                    "file_path": "src/main.rs",
+                    "start_line": 4,
+                    "end_line": 64
+                }
+            }
+        }
+    ],
     "metadata": {
       "batch_id": "batch-1234",
       "timestamp": "2025-10-22T12:00:00Z",

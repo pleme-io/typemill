@@ -19,8 +19,11 @@ impl BatchAnalysisHandler {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct BatchAnalysisArgs {
     queries: Vec<AnalysisQuery>,
+    no_suggestions: Option<bool>,
+    max_suggestions: Option<usize>,
 }
 
 #[async_trait]
@@ -48,6 +51,8 @@ impl ToolHandler for BatchAnalysisHandler {
         let request = BatchAnalysisRequest {
             queries: args.queries,
             config: None, // Config support can be added later
+            no_suggestions: args.no_suggestions.unwrap_or(false),
+            max_suggestions: args.max_suggestions,
         };
 
         let result = run_batch_analysis(request, context)

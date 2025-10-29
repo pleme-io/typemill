@@ -4,7 +4,10 @@ use super::{
     dead_code as dead_code_handler, dependencies as dependencies_handler,
     documentation as documentation_handler, quality as quality_handler,
     structure as structure_handler,
-    suggestions::{SuggestionConfig, SuggestionGenerator},
+    suggestions::{
+        ActionableSuggestion, AnalysisContext, EvidenceStrength, Location, RefactoringCandidate,
+        RefactorType, Scope, SuggestionConfig, SuggestionGenerator,
+    },
     tests_handler, AnalysisConfig,
 };
 use ignore::WalkBuilder;
@@ -48,6 +51,8 @@ pub struct QueryScope {
 pub struct BatchAnalysisRequest {
     pub queries: Vec<AnalysisQuery>,
     pub config: Option<AnalysisConfig>,
+    pub no_suggestions: bool,
+    pub max_suggestions: Option<usize>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -62,6 +67,14 @@ pub struct BatchAnalysisResult {
     pub results: Vec<SingleQueryResult>,
     pub summary: BatchSummary,
     pub metadata: BatchMetadata,
+    pub suggestions: Vec<ActionableSuggestion>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FileAnalysisResult {
+    pub file_path: PathBuf,
+    pub findings: Vec<Finding>,
+    pub suggestions: Vec<ActionableSuggestion>,
 }
 
 // --- Shared Data Structures (mostly unchanged) ---
@@ -74,7 +87,9 @@ pub struct BatchSummary {
     pub files_analyzed: usize,
     pub files_failed: usize,
     pub total_findings: usize,
+    pub total_suggestions: usize,
     pub findings_by_severity: HashMap<String, usize>,
+    pub suggestions_by_safety: HashMap<String, usize>,
     pub execution_time_ms: u64,
 }
 
@@ -152,6 +167,7 @@ pub async fn run_batch_analysis(
     let mut query_results = Vec::new();
     let mut failed_files_map = HashMap::new();
     let mut all_categories = HashSet::new();
+    let mut all_file_results = HashMap::new();
 
     for query in &request.queries {
         let category = query
@@ -167,35 +183,30 @@ pub async fn run_batch_analysis(
         all_categories.insert(category.clone());
 
         let files_for_query = resolve_scope_to_files(&query.scope).await?;
-        let mut all_findings_for_query: Vec<Finding> = Vec::new();
-        let mut symbols_analyzed_for_query = 0;
-        let mut files_analyzed_in_query = 0;
-
         for file_path in &files_for_query {
             if let Some(cached_ast) = ast_cache.get(file_path) {
-                match analyze_file_with_cached_ast(
-                    file_path,
-                    cached_ast,
-                    &category,
-                    &query.kind,
-                    request.config.as_ref(),
-                    &suggestion_generator,
-                    context,
-                )
-                .await
-                {
-                    Ok(result_for_file) => {
-                        all_findings_for_query.extend(result_for_file.findings);
-                        symbols_analyzed_for_query +=
-                            result_for_file.summary.symbols_analyzed.unwrap_or(0);
-                    }
-                    Err(e) => {
-                        let file_path_str = file_path.display().to_string();
-                        warn!(file_path=%file_path_str, error=%e, "Analysis failed for file in query");
-                        failed_files_map.insert(file_path_str, e.to_string());
+                if !all_file_results.contains_key(file_path) {
+                    match analyze_file_with_cached_ast(
+                        file_path,
+                        cached_ast,
+                        &category,
+                        &query.kind,
+                        request.config.as_ref(),
+                        &suggestion_generator,
+                        context,
+                    )
+                    .await
+                    {
+                        Ok(result_for_file) => {
+                            all_file_results.insert(file_path.clone(), result_for_file);
+                        }
+                        Err(e) => {
+                            let file_path_str = file_path.display().to_string();
+                            warn!(file_path=%file_path_str, error=%e, "Analysis failed for file in query");
+                            failed_files_map.insert(file_path_str, e.to_string());
+                        }
                     }
                 }
-                files_analyzed_in_query += 1;
             } else {
                 let file_path_str = file_path.display().to_string();
                 failed_files_map
@@ -203,6 +214,20 @@ pub async fn run_batch_analysis(
                     .or_insert_with(|| "File failed to parse".to_string());
             }
         }
+
+        let files_for_query_set: HashSet<_> = files_for_query.iter().collect();
+        let all_findings_for_query: Vec<Finding> = all_file_results
+            .values()
+            .filter(|r| files_for_query_set.contains(&r.file_path))
+            .flat_map(|r| r.findings.clone())
+            .collect();
+
+        let symbols_analyzed_for_query: usize = all_file_results
+            .values()
+            .filter(|r| files_for_query_set.contains(&r.file_path))
+            .filter_map(|r| ast_cache.get(&r.file_path))
+            .map(|ast| ast.symbols.len())
+            .sum();
 
         let scope_path = query.scope.path.clone().unwrap_or_default();
         let scope = AnalysisScope {
@@ -214,7 +239,7 @@ pub async fn run_batch_analysis(
 
         let mut query_analysis_result = AnalysisResult::new(&category, &query.kind, scope);
         query_analysis_result.findings = all_findings_for_query;
-        query_analysis_result.summary.files_analyzed = files_analyzed_in_query;
+        query_analysis_result.summary.files_analyzed = files_for_query.len();
         query_analysis_result.summary.symbols_analyzed = Some(symbols_analyzed_for_query);
         query_analysis_result.finalize(0); // Timings are for the whole batch
 
@@ -225,19 +250,52 @@ pub async fn run_batch_analysis(
         });
     }
 
-    // 4. Build final summary and metadata
+    let mut all_suggestions: Vec<ActionableSuggestion> = all_file_results
+        .values()
+        .flat_map(|r| r.suggestions.clone())
+        .collect();
+
+    if !request.no_suggestions {
+        // 4. Generate workspace-level suggestions
+        let all_findings: Vec<Finding> = all_file_results
+            .values()
+            .flat_map(|r| r.findings.clone())
+            .collect();
+        let workspace_suggestions = generate_workspace_suggestions(&all_findings, context);
+        all_suggestions.extend(workspace_suggestions);
+
+        // 5. Deduplicate and rank suggestions
+        deduplicate_suggestions(&mut all_suggestions);
+        rank_suggestions(&mut all_suggestions);
+
+        if let Some(max) = request.max_suggestions {
+            all_suggestions.truncate(max);
+        }
+    }
+
+    // 6. Build final summary and metadata
     let execution_time_ms = batch_start.elapsed().as_millis() as u64;
     let completed_at = chrono::Utc::now().to_rfc3339();
 
     let mut total_findings = 0;
     let mut findings_by_severity = HashMap::new();
     for res in &query_results {
-        total_findings += res.result.summary.total_findings;
-        findings_by_severity.entry("high".to_string()).or_insert(0);
-        findings_by_severity
-            .entry("medium".to_string())
-            .or_insert(0);
-        findings_by_severity.entry("low".to_string()).or_insert(0);
+        total_findings += res.result.findings.len();
+        for finding in &res.result.findings {
+            let severity_str = serde_json::to_string(&finding.severity)
+                .unwrap_or_else(|_| "unknown".to_string())
+                .replace('"', "");
+            *findings_by_severity.entry(severity_str).or_insert(0) += 1;
+        }
+    }
+
+    let total_suggestions = all_suggestions.len();
+    let mut suggestions_by_safety = HashMap::new();
+    for suggestion in &all_suggestions {
+        let safety_str = serde_json::to_string(&suggestion.safety)
+            .unwrap_or_else(|_| "unknown".to_string())
+            .replace('"', "");
+        *suggestions_by_safety.entry(safety_str).or_insert(0) += 1;
     }
 
     Ok(BatchAnalysisResult {
@@ -248,7 +306,9 @@ pub async fn run_batch_analysis(
             files_analyzed: ast_cache_hits,
             files_failed: all_files_vec.len() - ast_cache_hits,
             total_findings,
+            total_suggestions,
             findings_by_severity,
+            suggestions_by_safety,
             execution_time_ms,
         },
         metadata: BatchMetadata {
@@ -259,6 +319,7 @@ pub async fn run_batch_analysis(
             ast_cache_misses,
             failed_files: failed_files_map,
         },
+        suggestions: all_suggestions,
     })
 }
 
@@ -388,16 +449,8 @@ async fn analyze_file_with_cached_ast(
     _config: Option<&AnalysisConfig>,
     _suggestion_generator: &SuggestionGenerator,
     context: &ToolHandlerContext,
-) -> Result<AnalysisResult, BatchError> {
+) -> Result<FileAnalysisResult, BatchError> {
     let file_path_str = file_path.display().to_string();
-    let start_time = Instant::now();
-
-    let scope = AnalysisScope {
-        scope_type: "file".to_string(),
-        path: file_path_str.clone(),
-        include: vec![],
-        exclude: vec![],
-    };
 
     let findings: Vec<Finding> = match category {
         "quality" => match kind {
@@ -735,14 +788,90 @@ async fn analyze_file_with_cached_ast(
         }
     };
 
-    let mut result = AnalysisResult::new(category, kind, scope);
-    result.metadata.language = Some(cached_ast.language.clone());
-    for finding in findings {
-        result.add_finding(finding);
-    }
-    result.summary.files_analyzed = 1;
-    result.summary.symbols_analyzed = Some(cached_ast.complexity_report.total_functions);
-    result.finalize(start_time.elapsed().as_millis() as u64);
+    let context = AnalysisContext {
+        file_path: file_path_str.clone(),
+        has_full_type_info: false, // Assume no type info for now
+        has_partial_type_info: false,
+        ast_parse_errors: 0,
+    };
+
+    let candidates = findings
+        .iter()
+        .flat_map(finding_to_candidate)
+        .collect::<Vec<_>>();
+    let suggestions = _suggestion_generator.generate_multiple(candidates, &context);
+
+    let result = FileAnalysisResult {
+        file_path: file_path.to_path_buf(),
+        findings,
+        suggestions,
+    };
 
     Ok(result)
+}
+
+fn finding_to_candidate(finding: &Finding) -> Option<RefactoringCandidate> {
+    let (refactor_type, scope) = match finding.kind.as_str() {
+        "long_method" => (RefactorType::ExtractMethod, Scope::Function),
+        "complexity_hotspot" => (RefactorType::ExtractMethod, Scope::Function),
+        "unused_imports" => (RefactorType::RemoveUnusedImport, Scope::File),
+        "unused_symbols" => (RefactorType::RemoveDeadCode, Scope::File),
+        _ => return None,
+    };
+
+    let location = finding.location.range.as_ref().map(|r| Location {
+        file: finding.location.file_path.clone(),
+        line: r.start.line as usize,
+        character: r.start.character as usize,
+    });
+
+    if location.is_none() {
+        return None;
+    }
+
+    let candidate = RefactoringCandidate {
+        refactor_type,
+        message: finding.message.clone(),
+        scope,
+        has_side_effects: false,
+        reference_count: None,
+        is_unreachable: false,
+        is_recursive: false,
+        involves_generics: false,
+        involves_macros: false,
+        evidence_strength: EvidenceStrength::Medium,
+        location: location.unwrap(),
+        refactor_call_args: json!({
+            "file_path": finding.location.file_path,
+            "range": finding.location.range,
+        }),
+    };
+
+    Some(candidate)
+}
+
+fn deduplicate_suggestions(suggestions: &mut Vec<ActionableSuggestion>) {
+    let mut seen = HashSet::new();
+    suggestions.retain(|s| {
+        let key = (
+            s.message.clone(),
+            s.refactor_call
+                .as_ref()
+                .map(|rc| rc.tool.clone())
+                .unwrap_or_default(),
+        );
+        seen.insert(key)
+    });
+}
+
+fn rank_suggestions(suggestions: &mut Vec<ActionableSuggestion>) {
+    suggestions.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap());
+}
+
+fn generate_workspace_suggestions(
+    _all_findings: &[Finding],
+    _context: &ToolHandlerContext,
+) -> Vec<ActionableSuggestion> {
+    // TODO: Implement workspace-level suggestion generation
+    vec![]
 }
