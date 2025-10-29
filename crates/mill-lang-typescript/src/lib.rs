@@ -282,15 +282,17 @@ impl TypeScriptPlugin {
         old_path: &Path,
         new_path: &Path,
         importing_file: &Path,
-        _project_root: &Path,
+        project_root: &Path,
         _rename_info: Option<&serde_json::Value>,
     ) -> PluginResult<(String, usize)> {
-        // Use the standalone function with full context
+        // Use the standalone function with full context and path alias resolver
         Ok(import_support::rewrite_imports_for_move_with_context(
             content,
             old_path,
             new_path,
             importing_file,
+            Some(&self.path_alias_resolver),
+            Some(project_root),
         ))
     }
 }

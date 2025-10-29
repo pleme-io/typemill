@@ -312,6 +312,166 @@ impl Default for TypeScriptPathAliasResolver {
     }
 }
 
+impl TypeScriptPathAliasResolver {
+    /// Convert an absolute file path back to its alias form (reverse resolution)
+    ///
+    /// This method attempts to convert a file path like `/workspace/web/src/lib/utils.ts`
+    /// back to its alias form like `$lib/utils` based on tsconfig.json path mappings.
+    ///
+    /// # Arguments
+    ///
+    /// * `absolute_path` - The absolute file path to convert
+    /// * `importing_file` - The file that would contain the import
+    /// * `project_root` - The project root directory
+    ///
+    /// # Returns
+    ///
+    /// * `Some(alias)` if the path can be represented as an alias
+    /// * `None` if no alias mapping matches this path
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// // Given tsconfig.json: { "paths": { "$lib/*": ["src/lib/*"] } }
+    /// let resolver = TypeScriptPathAliasResolver::new();
+    /// let alias = resolver.path_to_alias(
+    ///     Path::new("/workspace/web/src/lib/utils.ts"),
+    ///     Path::new("/workspace/web/src/routes/page.ts"),
+    ///     Path::new("/workspace/web")
+    /// );
+    /// assert_eq!(alias, Some("$lib/utils".to_string()));
+    /// ```
+    pub fn path_to_alias(
+        &self,
+        absolute_path: &Path,
+        importing_file: &Path,
+        project_root: &Path,
+    ) -> Option<String> {
+        // 1. Find nearest tsconfig.json
+        let tsconfig_path = self.find_nearest_tsconfig(importing_file)?;
+
+        // 2. Load and parse tsconfig
+        let config = self.load_tsconfig(&tsconfig_path)?;
+
+        // 3. Extract compiler options
+        let compiler_options = config.compiler_options.as_ref()?;
+        let paths = compiler_options.paths.as_ref()?;
+
+        // 4. Determine base URL (relative to tsconfig.json directory)
+        let tsconfig_dir = tsconfig_path.parent()?;
+        let base_url = config.get_base_url(tsconfig_dir);
+
+        // 5. Try each alias pattern in order (IndexMap preserves order)
+        for (pattern, replacements) in paths {
+            // Try each replacement path for this pattern
+            for replacement in replacements {
+                if let Some(alias) = self.try_convert_path_to_alias(
+                    absolute_path,
+                    pattern,
+                    replacement,
+                    &base_url,
+                    project_root,
+                ) {
+                    return Some(alias);
+                }
+            }
+        }
+
+        None
+    }
+
+    /// Try to convert a path to an alias using a specific pattern and replacement
+    ///
+    /// # Arguments
+    ///
+    /// * `absolute_path` - The file path to convert (e.g., "/workspace/web/src/lib/utils.ts")
+    /// * `pattern` - The alias pattern (e.g., "$lib/*")
+    /// * `replacement` - The replacement path (e.g., "src/lib/*")
+    /// * `base_url` - The base URL from tsconfig (relative to tsconfig.json)
+    /// * `project_root` - The project root directory
+    ///
+    /// # Returns
+    ///
+    /// * `Some(alias)` if the path matches this replacement pattern
+    /// * `None` if the path doesn't match
+    fn try_convert_path_to_alias(
+        &self,
+        absolute_path: &Path,
+        pattern: &str,
+        replacement: &str,
+        base_url: &Path,
+        _project_root: &Path,
+    ) -> Option<String> {
+        // Normalize the absolute path for comparison
+        // Strip extension (TypeScript allows importing without extension)
+        let mut path_to_check = absolute_path.to_path_buf();
+
+        // Try stripping common extensions
+        if path_to_check.extension().is_some() {
+            let ext = path_to_check.extension().unwrap().to_string_lossy();
+            if ext == "ts" || ext == "tsx" || ext == "js" || ext == "jsx" {
+                path_to_check = path_to_check.with_extension("");
+            }
+        }
+
+        // Check if pattern contains a wildcard
+        if let Some(star_idx) = pattern.find('*') {
+            // Pattern has wildcard: extract prefix and suffix
+            let pattern_prefix = &pattern[..star_idx];
+            let pattern_suffix = &pattern[star_idx + 1..];
+
+            // Check if replacement contains a wildcard
+            if let Some(replacement_star_idx) = replacement.find('*') {
+                // Build the expected path prefix from replacement
+                let replacement_prefix = &replacement[..replacement_star_idx];
+                let replacement_suffix = &replacement[replacement_star_idx + 1..];
+
+                let expected_prefix_path = base_url.join(replacement_prefix);
+
+                // Try to get relative path from expected_prefix to path_to_check
+                // This tells us if path_to_check is under expected_prefix_path
+                if let Ok(relative) = path_to_check.strip_prefix(&expected_prefix_path) {
+                    // Convert to string and check suffix
+                    let relative_str = relative.to_string_lossy();
+                    let captured = if !replacement_suffix.is_empty() {
+                        relative_str.strip_suffix(replacement_suffix)?
+                    } else {
+                        &relative_str
+                    };
+
+                    // Build the alias by substituting into the pattern
+                    let alias = if captured.is_empty() {
+                        // Edge case: exact match with just the prefix
+                        format!("{}{}", pattern_prefix.trim_end_matches('/'), pattern_suffix)
+                    } else {
+                        format!("{}{}{}", pattern_prefix, captured, pattern_suffix)
+                    };
+                    return Some(alias);
+                }
+            } else {
+                // Replacement has no wildcard (unusual but valid)
+                // Example: pattern "$foo/*" → replacement "src/bar"
+                let expected_path = base_url.join(replacement);
+                if let Ok(relative) = path_to_check.strip_prefix(&expected_path) {
+                    let relative_str = relative.to_string_lossy();
+                    let alias = format!("{}{}{}", pattern_prefix, relative_str, pattern_suffix);
+                    return Some(alias);
+                }
+            }
+        } else {
+            // Pattern has no wildcard - exact match
+            // Example: pattern "utils" → replacement "src/utilities"
+            let expected_path = base_url.join(replacement).with_extension("");
+
+            if path_to_check == expected_path {
+                return Some(pattern.to_string());
+            }
+        }
+
+        None
+    }
+}
+
 impl PathAliasResolver for TypeScriptPathAliasResolver {
     fn resolve_alias(
         &self,
@@ -1205,5 +1365,167 @@ mod tests {
         let resolved = resolver.resolve_alias("packages/ui/index", &test_file, project_root);
         assert!(resolved.is_some(), "Should resolve packages/ui/index");
         assert!(resolved.unwrap().contains("packages/ui/index"));
+    }
+
+    #[test]
+    fn test_path_to_alias_sveltekit() {
+        // Test reverse resolution: absolute path → $lib alias
+        let temp_dir = TempDir::new().unwrap();
+        let project_root = temp_dir.path();
+
+        // Create tsconfig.json with SvelteKit $lib mapping
+        create_test_tsconfig(project_root, ".", &[("$lib/*", &["src/lib/*"])]);
+
+        // Create file structure
+        std::fs::create_dir_all(project_root.join("src/lib/server/core")).unwrap();
+        std::fs::write(
+            project_root.join("src/lib/server/core/orchestrator.ts"),
+            "export {}",
+        )
+        .unwrap();
+
+        let test_file = project_root.join("src/routes/page.ts");
+        std::fs::create_dir_all(test_file.parent().unwrap()).unwrap();
+        std::fs::write(&test_file, "").unwrap();
+
+        let resolver = TypeScriptPathAliasResolver::new();
+
+        // Convert absolute path back to alias
+        let absolute_path = project_root.join("src/lib/server/core/orchestrator.ts");
+        let alias = resolver.path_to_alias(&absolute_path, &test_file, project_root);
+
+        assert!(alias.is_some(), "Should convert path to alias");
+        let alias_str = alias.unwrap();
+        assert_eq!(
+            alias_str, "$lib/server/core/orchestrator",
+            "Should produce correct $lib alias"
+        );
+    }
+
+    #[test]
+    fn test_path_to_alias_nextjs() {
+        // Test reverse resolution with Next.js @ alias
+        let temp_dir = TempDir::new().unwrap();
+        let project_root = temp_dir.path();
+
+        create_test_tsconfig(project_root, ".", &[("@/*", &["src/*"])]);
+
+        std::fs::create_dir_all(project_root.join("src/components")).unwrap();
+        std::fs::write(project_root.join("src/components/Button.tsx"), "export {}").unwrap();
+
+        let test_file = project_root.join("src/app/page.tsx");
+        std::fs::create_dir_all(test_file.parent().unwrap()).unwrap();
+        std::fs::write(&test_file, "").unwrap();
+
+        let resolver = TypeScriptPathAliasResolver::new();
+
+        let absolute_path = project_root.join("src/components/Button.tsx");
+        let alias = resolver.path_to_alias(&absolute_path, &test_file, project_root);
+
+        assert!(alias.is_some());
+        assert_eq!(alias.unwrap(), "@/components/Button");
+    }
+
+    #[test]
+    fn test_path_to_alias_without_extension() {
+        // Test that paths without extensions are handled correctly
+        let temp_dir = TempDir::new().unwrap();
+        let project_root = temp_dir.path();
+
+        create_test_tsconfig(project_root, ".", &[("$lib/*", &["src/lib/*"])]);
+
+        std::fs::create_dir_all(project_root.join("src/lib")).unwrap();
+        std::fs::write(project_root.join("src/lib/utils.ts"), "export {}").unwrap();
+
+        let test_file = project_root.join("src/routes/page.ts");
+        std::fs::create_dir_all(test_file.parent().unwrap()).unwrap();
+        std::fs::write(&test_file, "").unwrap();
+
+        let resolver = TypeScriptPathAliasResolver::new();
+
+        // Test both with and without extension
+        let with_ext = project_root.join("src/lib/utils.ts");
+        let alias_with_ext = resolver.path_to_alias(&with_ext, &test_file, project_root);
+        assert_eq!(alias_with_ext, Some("$lib/utils".to_string()));
+
+        // Path without extension (file doesn't exist, but should still convert)
+        let without_ext = project_root.join("src/lib/utils");
+        let alias_without_ext = resolver.path_to_alias(&without_ext, &test_file, project_root);
+        assert_eq!(alias_without_ext, Some("$lib/utils".to_string()));
+    }
+
+    #[test]
+    fn test_path_to_alias_no_match() {
+        // Test that paths outside alias mappings return None
+        let temp_dir = TempDir::new().unwrap();
+        let project_root = temp_dir.path();
+
+        create_test_tsconfig(project_root, ".", &[("$lib/*", &["src/lib/*"])]);
+
+        let test_file = project_root.join("src/routes/page.ts");
+        std::fs::create_dir_all(test_file.parent().unwrap()).unwrap();
+        std::fs::write(&test_file, "").unwrap();
+
+        let resolver = TypeScriptPathAliasResolver::new();
+
+        // Path that doesn't match any alias pattern
+        let non_lib_path = project_root.join("src/routes/other.ts");
+        let alias = resolver.path_to_alias(&non_lib_path, &test_file, project_root);
+
+        assert!(alias.is_none(), "Should return None for paths that don't match any alias");
+    }
+
+    #[test]
+    fn test_path_to_alias_with_custom_base_url() {
+        // Test reverse resolution with custom baseUrl
+        let temp_dir = TempDir::new().unwrap();
+        let project_root = temp_dir.path();
+
+        create_test_tsconfig(project_root, "src", &[("@lib/*", &["lib/*"])]);
+
+        std::fs::create_dir_all(project_root.join("src/lib/helpers")).unwrap();
+        std::fs::write(project_root.join("src/lib/helpers/format.ts"), "export {}").unwrap();
+
+        let test_file = project_root.join("src/app.ts");
+        std::fs::write(&test_file, "").unwrap();
+
+        let resolver = TypeScriptPathAliasResolver::new();
+
+        let absolute_path = project_root.join("src/lib/helpers/format.ts");
+        let alias = resolver.path_to_alias(&absolute_path, &test_file, project_root);
+
+        assert!(alias.is_some());
+        assert_eq!(alias.unwrap(), "@lib/helpers/format");
+    }
+
+    #[test]
+    fn test_path_to_alias_prioritizes_first_match() {
+        // Test that when multiple patterns could match, first one wins
+        let temp_dir = TempDir::new().unwrap();
+        let project_root = temp_dir.path();
+
+        create_test_tsconfig(
+            project_root,
+            ".",
+            &[
+                ("@api/models/*", &["src/api/models/*"]),
+                ("@api/*", &["src/api/*"]),
+            ],
+        );
+
+        std::fs::create_dir_all(project_root.join("src/api/models")).unwrap();
+        std::fs::write(project_root.join("src/api/models/User.ts"), "export {}").unwrap();
+
+        let test_file = project_root.join("src/app.ts");
+        std::fs::write(&test_file, "").unwrap();
+
+        let resolver = TypeScriptPathAliasResolver::new();
+
+        let absolute_path = project_root.join("src/api/models/User.ts");
+        let alias = resolver.path_to_alias(&absolute_path, &test_file, project_root);
+
+        assert!(alias.is_some());
+        // Should match more specific pattern first
+        assert_eq!(alias.unwrap(), "@api/models/User");
     }
 }
