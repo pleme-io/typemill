@@ -31,6 +31,7 @@ members = [
     "crates/mill-lang-swift",
     "crates/mill-lang-c",
     "crates/mill-lang-java",
+    "crates/mill-lang-go",
 ]
 resolver = "2"
 
