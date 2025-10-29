@@ -594,24 +594,24 @@ Supported language servers (configurable):
 - Rust: `rust-analyzer`
 - Python: `pylsp`
 - Swift: `sourcekit-lsp`
-- C#: `omnisharp`
+- C#: `csharp-ls`
 
 **Note:** Additional language servers (Go/gopls, Java/jdtls) can be configured but require language plugins from git tag `pre-language-reduction` and documented migration process (see `.debug/language-plugin-migration/`).
 
 
 ### Language Plugin Parity Status
 
-TypeMill now has **100% feature parity** across TypeScript, Rust, Python, and Swift for all common capabilities:
+TypeMill now has **100% feature parity** across TypeScript, Rust, Python, Swift, and C# for all common capabilities:
 
-| Capability | TypeScript | Rust | Python | Swift |
-|-----------|-----------|------|--------|-------|
-| Core LanguagePlugin | ✅ | ✅ | ✅ | ✅ |
-| Import Support (5 traits) | ✅ | ✅ | ✅ | ✅ |
-| Workspace Operations | ✅ | ✅ | ✅ | ✅ |
-| Refactoring (3 operations) | ✅ | ✅ | ✅ | ✅ |
-| Analysis (2 traits) | ✅ | ✅ | ✅ | ✅ |
-| Manifest Management | ✅ | ✅ | ✅ | ✅ |
-| **Project Creation** | ✅ | ✅ | ✅ | ✅ |
+| Capability | TypeScript | Rust | Python | Swift | C# |
+|-----------|-----------|------|--------|-------|-----|
+| Core LanguagePlugin | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Import Support (5 traits) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Workspace Operations | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Refactoring (3 operations) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Analysis (2 traits) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Manifest Management | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Project Creation** | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 **Rust-specific features** (not applicable to other languages):
 - ReferenceDetector
@@ -620,6 +620,7 @@ TypeMill now has **100% feature parity** across TypeScript, Rust, Python, and Sw
 
 **Python restored**: 2025-10-25 with full parity implementation.
 **Swift restored**: 2025-10-28 with full parity implementation.
+**C# restored**: 2025-10-28 with full parity implementation.
 
 See `.debug/language-plugin-migration/COMPLETE_PARITY_ANALYSIS.md` for detailed comparison.
 
@@ -846,7 +847,7 @@ cargo build -p mill
 # With optional language
 cargo build -p mill --features lang-python
 ```text
-**Note:** Additional language plugin implementations (Go, Java, Swift, C#) available in git tag `pre-language-reduction`. Python was successfully restored (2025-10-25) using the migration guide in `.debug/language-plugin-migration/PYTHON_MIGRATION_GUIDE.md`.
+**Note:** Additional language plugin implementations (Go, Java) available in git tag `pre-language-reduction`. Python, Swift, and C# were successfully restored (2025-10-25, 2025-10-28) using the migration guide in `.debug/language-plugin-migration/`.
 
 ### Capability Trait Pattern
 

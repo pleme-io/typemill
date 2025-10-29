@@ -52,6 +52,7 @@ Completed proposals moved to `archived/` for reference:
 - `02a_extract_rust_imports_module.md` ✅
 - `02b_split_reference_updater.md` ✅
 - `06_auto_download_lsp.md` ✅
+- `06_restore_csharp.proposal.md` ✅
 - `09a_refactor_plan_trait.md` ✅
 - `09b_segregate_import_trait.md` ✅
 
