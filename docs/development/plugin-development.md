@@ -58,7 +58,7 @@ define_language_plugin! {
     doc: "MyLanguage plugin implementation"
 }
 
-#[async_trait]
+# [async_trait]
 impl LanguagePlugin for MyLanguagePlugin {
     impl_language_plugin_basics!();  // Generates metadata(), capabilities(), as_any()
 
@@ -82,8 +82,7 @@ impl LanguagePlugin for MyLanguagePlugin {
         },
     }
 }
-```
-
+```text
 **What the macro generates:**
 - Plugin struct definition with fields
 - `METADATA` constant (name, extensions, manifest filename, etc.)
@@ -109,7 +108,7 @@ impl LanguagePlugin for MyLanguagePlugin {
 
 All language plugins are independent crates in the `crates/` directory:
 
-```
+```text
 crates/
 └── mill-lang-{language}/
     ├── Cargo.toml              # Dependencies and metadata
@@ -119,8 +118,7 @@ crates/
         ├── manifest.rs         # Optional: Manifest parsing logic
         ├── import_support.rs   # Optional: Import capability traits
         └── workspace_support.rs # Optional: Workspace capability trait
-```
-
+```text
 ## Core Trait: LanguagePlugin
 
 | Method | Purpose | Required |
@@ -199,8 +197,7 @@ mill_plugin! {
     factory: PythonPlugin::new,
     lsp: Some(LspConfig::new("pylsp", &[]))
 }
-```
-
+```text
 ### Step 2: Add to Plugin Bundle
 
 Edit `crates/mill-plugin-bundle/Cargo.toml`:
@@ -208,8 +205,7 @@ Edit `crates/mill-plugin-bundle/Cargo.toml`:
 ```toml
 [dependencies]
 mill-lang-python = { path = "../mill-lang-python" }
-```
-
+```text
 Edit `crates/mill-plugin-bundle/src/lib.rs`:
 
 ```rust
@@ -219,8 +215,7 @@ fn _force_plugin_linkage() {
     let _: Option<PythonPlugin> = None;
     // ... existing plugins
 }
-```
-
+```text
 **That's it!** The plugin is now automatically discovered and loaded.
 
 ## Parser Patterns
@@ -360,8 +355,7 @@ let manifest_updater = plugin
 let updated_content = manifest_updater
     .update_dependency(path, old_dep, new_dep, new_path)
     .await?;
-```
-
+```text
 **Benefits:**
 - ✅ Zero downcasting or cfg guards needed
 - ✅ Plugins self-advertise capabilities
@@ -400,15 +394,13 @@ match plugin.metadata().name {
     }
     _ => Err(...)
 }
-```
-
+```text
 **New pattern (capability-based):**
 ```rust
 let capability = plugin.capability_trait()
     .ok_or_else(|| ApiError::Unsupported(...))?;
 capability.method().await?
-```
-
+```text
 **Results:** 12 cfg guards removed, 2 downcasts eliminated, -48 net lines while adding MORE functionality.
 
 ---
@@ -447,8 +439,7 @@ let tool = SubprocessAstTool::new("node")
     .with_arg("analyze-imports");
 
 let result: Vec<MyImport> = run_ast_tool(tool, source)?;
-```
-
+```text
 **Builder methods:**
 - `new(runtime: &str)` - Runtime command (e.g., "python3", "node", "go")
 - `with_embedded_str(source: &str)` - Embed tool source code
@@ -469,8 +460,7 @@ let graph = ImportGraphBuilder::new("python")
     .extract_external_dependencies(is_external_dependency)
     .with_parser_version("1.0.0")
     .build();
-```
-
+```text
 ### refactoring
 
 Extract code ranges and detect indentation.
@@ -483,8 +473,7 @@ let code = extract_lines(source, 10, 15)?;
 
 // Get indentation
 let indent = LineExtractor::get_indentation_str(source, line_num);
-```
-
+```text
 ### parsing
 
 Resilient parsing with fallback strategy.
@@ -498,8 +487,7 @@ let imports = parse_with_fallback(
     |src| parse_with_regex(src),         // Fall back to regex
     "import parsing"
 )?;
-```
-
+```text
 ## File Operations
 
 ### io
@@ -514,8 +502,7 @@ let content = read_manifest(path).await?;
 
 // Read source file
 let source = read_source_file(path).await?;
-```
-
+```text
 ## Error Handling
 
 ### error_helpers
@@ -530,8 +517,7 @@ return Err(rich_error(
     "Failed to parse AST",
     &[("file", path), ("parser", "babel"), ("line", &line.to_string())]
 ));
-```
-
+```text
 ## Import Utilities
 
 ### import_parsing
@@ -546,8 +532,7 @@ let (name, alias) = parse_import_alias("numpy as np");
 
 // Parse "a.b.c" -> vec!["a", "b", "c"]
 let path = parse_module_path("package.module.Class");
-```
-
+```text
 ## Usage Statistics
 
 Current adoption across 4 plugins (Go, Python, Rust, TypeScript):
@@ -584,8 +569,7 @@ let output = Command::new("node")
     .spawn()
     .map_err(|e| PluginError::external_tool(format!("Failed to spawn node: {}", e)))?;
 // ... 25 more lines of error handling ...
-```
-
+```text
 ### After (10 lines)
 ```rust
 use mill_lang_common::{SubprocessAstTool, run_ast_tool};
@@ -596,8 +580,7 @@ let tool = SubprocessAstTool::new("node")
     .with_arg("analyze-imports");
 
 let ts_imports: Vec<TsImportInfo> = run_ast_tool(tool, source)?;
-```
-
+```text
 **Savings**: 30 lines removed, cleaner code, better error handling
 
 ---
@@ -687,8 +670,7 @@ All tools support the same `options.dryRun` parameter:
   "applied_files": ["src/api.ts", "src/client.ts", "src/index.ts"],
   "warnings": []
 }
-```
-
+```text
 ## Best Practices
 
 ### For Refactoring

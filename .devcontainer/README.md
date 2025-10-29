@@ -77,8 +77,7 @@ Edit `.devcontainer/devcontainer.json`:
     ]
   }
 }
-```
-
+```text
 ### Skip Initial Build
 
 Edit `post-create.sh` and comment out the build steps.

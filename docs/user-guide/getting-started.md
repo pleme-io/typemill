@@ -31,16 +31,14 @@
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/goobits/mill/main/install.sh | bash
-```
-
+```text
 This installs Mill to `~/.local/bin/mill` and adds it to your PATH.
 
 ### Option 2: Cargo Install
 
 ```bash
 cargo install mill --locked
-```
-
+```text
 ### Option 3: Build from Source
 
 ```bash
@@ -48,13 +46,11 @@ git clone https://github.com/goobits/typemill
 cd typemill
 cargo build --release
 sudo cp target/release/mill /usr/local/bin/
-```
-
+```text
 **Verify installation:**
 ```bash
 mill --version
-```
-
+```text
 ---
 
 ## Quick Setup
@@ -64,8 +60,7 @@ Navigate to your project and run the interactive setup:
 ```bash
 cd /path/to/your/project
 mill setup
-```
-
+```text
 **What happens:**
 1. 🔍 Scans project and detects languages (TypeScript, Rust, Python)
 2. 📋 Creates `.typemill/config.json` with LSP server configurations
@@ -74,7 +69,7 @@ mill setup
 5. 💾 Caches LSPs in `~/.mill/lsp/` for reuse across projects
 
 **Example output:**
-```
+```text
 🔍 Scanning project...
 ✅ Detected: TypeScript project (45 .ts files, 12 .tsx files)
 📦 Required LSP: typescript-language-server
@@ -85,14 +80,12 @@ mill setup
 📝 Created config at .typemill/config.json
 
 ✨ Setup complete!
-```
-
+```text
 **Updating existing config:**
 ```bash
 mill setup --update           # Re-run setup
 mill setup --update --interactive  # Interactive mode
-```
-
+```text
 ---
 
 ## Starting the Server
@@ -101,25 +94,21 @@ Start Mill in MCP (Model Context Protocol) mode:
 
 ```bash
 mill start
-```
-
+```text
 **Check status:**
 ```bash
 mill status
-```
-
+```text
 You should see:
-```
+```text
 ✅ Mill is running (PID: 12345)
 ✅ LSP servers configured: typescript-language-server, rust-analyzer
 📁 Config: .typemill/config.json
-```
-
+```text
 **Stop the server:**
 ```bash
 mill stop
-```
-
+```text
 ---
 
 ## Connecting to AI Assistants
@@ -142,8 +131,7 @@ Add Mill to your Claude Desktop MCP configuration:
     }
   }
 }
-```
-
+```text
 **Restart Claude Desktop** to load the configuration.
 
 ### Other MCP Clients
@@ -157,34 +145,30 @@ Mill works with any MCP-compatible client. See [MCP documentation](https://model
 Once connected, try these commands with your AI assistant:
 
 ### 1. Find a Definition
-```
+```text
 "Find the definition of the App component in src/App.tsx"
-```
-
+```text
 Mill uses the `find_definition` tool to show the exact location.
 
 ### 2. Show All References
-```
+```text
 "Show me everywhere the Config type is used"
-```
-
+```text
 Mill uses the `find_references` tool to list all usages.
 
 ### 3. Rename Safely
-```
+```text
 "Rename the function fetchData to loadData and update all references"
-```
-
+```text
 Mill will:
 1. Show a preview plan (dry run mode - safe default)
 2. Ask for confirmation
 3. Execute the rename and update all imports/references
 
 ### 4. Analyze Code Quality
-```
+```text
 "Check for code quality issues in src/services/"
-```
-
+```text
 Mill runs quality analysis and provides actionable suggestions.
 
 ---
@@ -228,8 +212,7 @@ Mill runs quality analysis and provides actionable suggestions.
     ]
   }
 }
-```
-
+```text
 **Document in your project README:**
 ```markdown
 ## Development Setup
@@ -245,8 +228,7 @@ Then run:
 mill setup
 mill start
 \`\`\`
-```
-
+```text
 #### Local Configuration (Single Developer)
 
 **Best for:** Personal projects, local experimentation
@@ -269,8 +251,7 @@ mill start
     ]
   }
 }
-```
-
+```text
 ### Adding LSP Binaries to PATH
 
 **macOS / Linux:**
@@ -281,14 +262,12 @@ export PATH="$HOME/.cargo/bin:$PATH"
 
 # Reload
 source ~/.bashrc  # or source ~/.zshrc
-```
-
+```text
 **Windows PowerShell:**
 ```powershell
 # Add to $PROFILE
 $env:PATH += ";C:\Users\YourName\AppData\Roaming\npm"
-```
-
+```text
 ### Verifying Team Setup
 
 ```bash
@@ -303,8 +282,7 @@ mill status
 
 # Test with a tool call
 mill tool health_check '{}'
-```
-
+```text
 ---
 
 ## Troubleshooting
@@ -316,45 +294,38 @@ If setup couldn't find an LSP server, install it manually:
 **TypeScript:**
 ```bash
 npm install -g typescript-language-server typescript
-```
-
+```text
 **Rust:**
 ```bash
 rustup component add rust-analyzer
-```
-
+```text
 **Python:**
 ```bash
 pipx install python-lsp-server  # Recommended (PEP 668 compliant)
 # OR
 pip install --user python-lsp-server
-```
-
+```text
 Then re-run setup:
 ```bash
 mill setup --update
-```
-
+```text
 ### Server Won't Start
 
 Run diagnostics:
 ```bash
 mill doctor
-```
-
+```text
 ### Configuration Issues
 
 View configuration:
 ```bash
 cat .typemill/config.json
-```
-
+```text
 Reset configuration:
 ```bash
 rm -rf .typemill
 mill setup
-```
-
+```text
 **For detailed troubleshooting,** see **[troubleshooting.md](troubleshooting.md)**
 
 ---
@@ -366,8 +337,7 @@ mill setup
 ```bash
 mill tools              # List all 29 tools
 mill docs tools         # View tool documentation
-```
-
+```text
 ### Learn Common Workflows
 
 - **[cheatsheet.md](cheatsheet.md)** - Quick command reference
@@ -396,8 +366,7 @@ mill tool rename --target file:src/old.ts --new-name src/new.ts --dry-run false
 
 # Analyze code quality
 mill tool analyze.quality '{"kind": "complexity", "scope": {"kind": "workspace"}}'
-```
-
+```text
 ---
 
 ## Need Help?

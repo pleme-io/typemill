@@ -57,8 +57,7 @@ Array of definition locations with URI and range information. Each location incl
   "processing_time_ms": 45,
   "cached": false
 }
-```
-
+```text
 **Notes:**
 - LSP-based, accuracy depends on language server capabilities
 - Returns all matching definitions if symbol_name is ambiguous
@@ -125,8 +124,7 @@ Array of reference locations with URI and range. Includes total count of referen
   "processing_time_ms": 120,
   "cached": false
 }
-```
-
+```text
 **Notes:**
 - Set `include_declaration: false` to exclude definition location
 - Searches entire workspace, not just current file
@@ -195,8 +193,7 @@ Array of matching symbols with name, kind, location, and optional container name
   "processing_time_ms": 250,
   "cached": false
 }
-```
-
+```text
 **Notes:**
 - Queries ALL registered language servers (TypeScript, Rust, etc.)
 - Fast for specific queries, slower for broad searches (single letters)
@@ -261,8 +258,7 @@ Array of implementation locations with URI and range for each implementing class
   "processing_time_ms": 85,
   "cached": false
 }
-```
-
+```text
 **Notes:**
 - Language-specific behavior: TypeScript interfaces, Rust traits, etc.
 - Returns all classes that implement the specified interface
@@ -319,8 +315,7 @@ Array of type definition locations with URI and range. For variables, returns th
   "processing_time_ms": 50,
   "cached": false
 }
-```
-
+```text
 **Notes:**
 - Different from `find_definition` - finds type, not variable location
 - For `const user: User = ...`, finds `interface User {}` definition
@@ -377,8 +372,7 @@ Hover information with markdown-formatted content including type signatures and 
   "processing_time_ms": 35,
   "cached": false
 }
-```
-
+```text
 **Notes:**
 - Internally maps to LSP `get_hover` request
 - Returns rich documentation from JSDoc/TSDoc comments
@@ -447,8 +441,7 @@ Array of diagnostics with range, severity, message, code, and source. Includes t
   "processing_time_ms": 60,
   "cached": false
 }
-```
-
+```text
 **Notes:**
 - Uses LSP `textDocument/diagnostic` for real-time diagnostics
 - Severity levels: Error, Warning, Information, Hint
@@ -514,8 +507,7 @@ For outgoing: Array of calls to other functions.
   "processing_time_ms": 40,
   "cached": false
 }
-```
-
+```text
 **Example (Incoming Calls):**
 
 ```json
@@ -569,8 +561,7 @@ For outgoing: Array of calls to other functions.
   "processing_time_ms": 95,
   "cached": false
 }
-```
-
+```text
 **Example (Outgoing Calls):**
 
 ```json
@@ -624,8 +615,7 @@ For outgoing: Array of calls to other functions.
   "processing_time_ms": 105,
   "cached": false
 }
-```
-
+```text
 **Notes:**
 - Three-step workflow: prepare (no type), then incoming or outgoing
 - Internally maps to LSP call hierarchy methods based on `type` parameter
@@ -673,8 +663,7 @@ Quick symbol lookup across entire codebase:
 }
 
 // Returns matches from all language servers (TypeScript + Rust + others)
-```
-
+```text
 ### Implementation Discovery
 
 Find all implementations of an interface:
@@ -698,8 +687,7 @@ Navigate type hierarchies:
 
 // 3. Find all User implementations/usages
 {"name": "find_references", "arguments": {"symbol_name": "User"}}
-```
-
+```text
 ### Error Resolution Workflow
 
 Fix errors systematically:
@@ -725,8 +713,7 @@ Navigate across language boundaries in polyglot codebases:
 // Returns results from:
 // - TypeScript: class HttpClient (from typescript-language-server)
 // - Rust: struct HttpClient (from rust-analyzer)
-```
-
+```text
 ---
 
 ## Error Handling
@@ -752,8 +739,7 @@ Navigate across language boundaries in polyglot codebases:
     }
   }
 }
-```
-
+```text
 ---
 
 ## LSP Server Requirements
@@ -773,8 +759,7 @@ All navigation tools require configured LSP servers in `.typemill/config.json`:
     }
   ]
 }
-```
-
+```text
 Run `mill setup` for automatic language server detection and configuration.
 
 ---

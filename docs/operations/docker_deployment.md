@@ -104,8 +104,7 @@ Key settings:
     "go": { "version": "1.21" }
   }
 }
-```
-
+```text
 ### Post-Create Setup
 
 The container runs `.devcontainer/post-create.sh` after creation:
@@ -127,8 +126,7 @@ cargo build --release
 
 # Check without building
 cargo check
-```
-
+```text
 ### Testing
 
 ```bash
@@ -143,8 +141,7 @@ make test-lsp
 
 # Watch mode (auto-run on changes)
 make dev-handlers
-```
-
+```text
 ### Code Quality
 
 ```bash
@@ -156,8 +153,7 @@ cargo clippy
 
 # All checks
 make check
-```
-
+```text
 ### Web Documentation
 
 ```bash
@@ -167,8 +163,7 @@ npm install  # First time only
 npm run dev
 
 # Access at http://localhost:3040
-```
-
+```text
 ## Troubleshooting
 
 ### Container Won't Build
@@ -180,8 +175,7 @@ npm run dev
 # Rebuild without cache
 docker system prune -a
 # Then reopen in container
-```
-
+```text
 ### Extensions Not Loading
 
 **Problem:** VS Code extensions missing after reopen
@@ -190,8 +184,7 @@ docker system prune -a
 ```bash
 # Rebuild container
 F1 → "Dev Containers: Rebuild Container"
-```
-
+```text
 ### Slow Performance
 
 **Problem:** Container feels sluggish
@@ -210,8 +203,7 @@ F1 → "Dev Containers: Rebuild Container"
 # Check VS Code port forwarding
 View → Ports (or F1 → "Forward a Port")
 # Manually forward 3040 and 3000
-```
-
+```text
 ## Advanced Usage
 
 ### Multiple Workspaces
@@ -223,8 +215,7 @@ code typemill/
 
 # Terminal 2: Experimental branch
 code typemill-feature/
-```
-
+```text
 Each gets its own container instance.
 
 ### Attach Additional Terminal
@@ -248,8 +239,7 @@ Edit `.devcontainer/devcontainer.json`:
     "source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,readonly,type=bind"
   ]
 }
-```
-
+```text
 ### Debugging
 
 Launch configurations in `.vscode/launch.json`:
@@ -263,13 +253,12 @@ Launch configurations in `.vscode/launch.json`:
     "args": ["build", "--bin=mill"]
   }
 }
-```
-
+```text
 Press `F5` to start debugging.
 
 ## Architecture
 
-```
+```text
 Host Machine
     ↓
 VS Code (local)
@@ -280,8 +269,7 @@ Docker Container (devcontainer)
     ├── Language servers
     ├── /workspace (mounted from host)
     └── VS Code Server (remote)
-```
-
+```text
 **Key benefits:**
 - Source code stays on host (fast file I/O)
 - Build artifacts in container (consistent environment)
@@ -298,8 +286,7 @@ For production deployments, TypeMill is typically installed via:
 cargo install mill --locked
 mill setup
 mill start
-```
-
+```text
 ### From Source
 
 ```bash
@@ -308,8 +295,7 @@ cd typemill
 cargo build --release
 ./target/release/mill setup
 ./target/release/mill start
-```
-
+```text
 ### Docker Production (Future)
 
 Production Docker images are not currently provided but may be added in the future. For now, use cargo installation on your server.

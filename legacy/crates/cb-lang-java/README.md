@@ -44,21 +44,19 @@ cargo test -p cb-lang-java
 
 # Run with output
 cargo test -p cb-lang-java -- --nocapture
-```
-
+```text
 ## Registration
 
 The plugin is registered in `crates/cb-services/src/services/registry_builder.rs` under the `lang-java` feature flag.
 
 ```rust
 // Register Java plugin
-#[cfg(feature = "lang-java")]
+# [cfg(feature = "lang-java")]
 {
     registry.register(Arc::new(cb_lang_java::JavaPlugin::new()));
     plugin_count += 1;
 }
-```
-
+```text
 ## References
 
 - [Language Plugin Guide](../README.md)

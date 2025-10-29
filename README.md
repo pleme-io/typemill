@@ -32,8 +32,7 @@ mill start
 
 # Verify it's running
 mill status
-```
-
+```text
 **What `mill setup` does:**
 - 🔍 Scans your project to detect languages (TypeScript, Rust, Python)
 - 📋 Creates `.typemill/config.json` with LSP server configurations
@@ -52,16 +51,14 @@ Add to your MCP configuration (e.g., Claude Desktop):
     }
   }
 }
-```
-
+```text
 ### First Commands
 Ask your AI assistant:
 ```text
 "Find the definition of main in src/main.rs"
 "Show me all references to the Config type"
 "Rename the function oldName to newName"
-```
-
+```text
 ## 🛠️ CLI Usage
 ```bash
 # File operations (no position needed)
@@ -78,8 +75,7 @@ mill tool analyze.dead_code --kind unused_imports --scope file:src/app.rs
 
 # Workspace operations
 mill tool workspace.find_replace --pattern "oldName" --replacement "newName"
-```
-
+```text
 **Key Distinction:**
 - Use `rename` for file/directory operations
 - Use `move` for code symbol operations (requires source position)
@@ -126,8 +122,7 @@ mill stop && mill start
 
 # Enable caching (disabled by default for development)
 export TYPEMILL_DISABLE_CACHE=0
-```
-
+```text
 ### Example Configuration
 ```json
 {
@@ -144,8 +139,7 @@ export TYPEMILL_DISABLE_CACHE=0
     }
   ]
 }
-```
-
+```text
 ### Environment Variable Overrides
 
 Override any configuration value using `TYPEMILL__` prefix (double underscores):
@@ -164,8 +158,7 @@ export TYPEMILL__CACHE__TTL_SECONDS=3600
 
 # Or use a .env file (gitignored)
 echo 'TYPEMILL__SERVER__AUTH__JWT_SECRET=dev-secret' > .env
-```
-
+```text
 **Security Best Practices**:
 - ✅ Never commit secrets to config files - use environment variables
 - ✅ Keep server on `127.0.0.1` for local development (not `0.0.0.0`)
@@ -189,8 +182,7 @@ mill status  # Shows LSP server status
 
 # LSPs are cached in ~/.mill/lsp/ for reuse across projects
 ls ~/.mill/lsp/
-```
-
+```text
 **How it works:**
 - **TypeScript**: Installs `typescript-language-server` via npm (requires Node.js)
 - **Rust**: Downloads `rust-analyzer` binary from GitHub releases
@@ -209,8 +201,7 @@ cargo install rust-analyzer
 pipx install python-lsp-server  # Recommended (PEP 668 compliant)
 # OR
 pip install --user python-lsp-server
-```
-
+```text
 ## 🔧 Troubleshooting
 
 **Server won't start:**
@@ -224,8 +215,7 @@ which rust-analyzer
 
 # Review config file
 cat .typemill/config.json
-```
-
+```text
 **LSP installation fails:**
 ```bash
 # TypeScript: Ensure Node.js/npm is installed
@@ -238,8 +228,7 @@ pipx --version
 
 # Rust: Downloads from GitHub - check network/firewall
 curl -I https://github.com/rust-lang/rust-analyzer/releases
-```
-
+```text
 **Tools not working:**
 - Ensure file extensions match config (`.rs` → `rust-analyzer`)
 - Check MCP connection with AI assistant
@@ -276,8 +265,7 @@ cargo nextest run --workspace --features lsp-tests
 
 # Code quality checks
 cargo fmt && cargo clippy && cargo nextest run
-```
-
+```text
 See [contributing.md](contributing.md) for detailed development guide.
 
 ## 📝 License

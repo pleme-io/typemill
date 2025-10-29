@@ -57,8 +57,7 @@ cargo test -p cb-lang-swift -- --nocapture
 
 # Test specific module
 cargo test -p cb-lang-swift parser::tests
-```
-
+```text
 ## Integration
 
 This plugin has been automatically registered in:

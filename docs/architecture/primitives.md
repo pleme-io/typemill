@@ -444,8 +444,7 @@ mill tool rename '{
 }'
 
 # Output: ExecutionResult with success, applied_files, warnings
-```
-
+```text
 ### Benefits Over Legacy Tools
 
 **Before (Legacy tools, now removed)**:

@@ -14,7 +14,7 @@ This document outlines proposed major version updates for external dependencies 
 
 The following minor/patch updates were automatically applied via `cargo update`:
 
-```
+```text
 icu_collections: 2.0.0 → 2.1.1
 icu_locale_core: 2.0.0 → 2.1.1
 icu_normalizer: 2.0.0 → 2.1.1
@@ -32,8 +32,7 @@ yoke-derive: 0.8.0 → 0.8.1
 zerotrie: 0.2.2 → 0.2.3
 zerovec: 0.11.4 → 0.11.5
 zerovec-derive: 0.11.1 → 0.11.2
-```
-
+```text
 **Verification:** ✅ All updates verified with `cargo check --workspace` (successful build)
 
 ---
@@ -57,8 +56,7 @@ These dependencies have multiple version specifications in the codebase. Consoli
 **Files to Update:**
 ```bash
 grep -r "toml.*0\.8" --include="Cargo.toml" .
-```
-
+```text
 ### 1.2 thiserror: Consolidate to 2.0
 
 **Current:** `^1.0` and `^2.0` (mixed usage)
@@ -373,8 +371,7 @@ git revert <commit-hash>
 cargo update
 cargo build --workspace
 cargo nextest run --workspace
-```
-
+```text
 **Critical:** Always commit working state before major updates.
 
 ---

@@ -85,8 +85,7 @@ TypeMill provides comprehensive MCP tools for code intelligence and refactoring.
     }
   }
 }
-```
-
+```text
 ### Refactoring Pattern: Unified API with dryRun
 
 All refactoring tools support a unified `dryRun` option for preview vs execution:
@@ -101,8 +100,7 @@ All refactoring tools support a unified `dryRun` option for preview vs execution
     // options.dryRun defaults to true - preview only
   }
 }
-```
-
+```text
 **Execution Mode (Explicit Opt-in):**
 ```json
 {
@@ -115,8 +113,7 @@ All refactoring tools support a unified `dryRun` option for preview vs execution
     }
   }
 }
-```
-
+```text
 **Key Features:**
 - **Safe default**: `dryRun: true` requires explicit opt-in for execution
 - **Preview mode** (`dryRun: true`): Returns plan, never modifies files
@@ -155,8 +152,7 @@ The `rename` command supports a special **consolidation mode** for merging Rust 
     }
   }
 }
-```
-
+```text
 **Auto-Detection:** When `consolidate` is not specified, the command automatically detects consolidation moves by checking if:
 - Source path is a Cargo package (has `Cargo.toml`)
 - Target path is inside another crate's `src/` directory
@@ -168,8 +164,7 @@ Example auto-detected consolidation (no `consolidate: true` needed):
   "target": {"kind": "directory", "path": "crates/mill-types"},
   "newName": "crates/mill-core/src/types"
 }
-```
-
+```text
 **What consolidation does:**
 1. Moves `source-crate/src/*` into `target-crate/src/module/*`
 2. Merges dependencies from source `Cargo.toml` into target `Cargo.toml`
@@ -180,8 +175,7 @@ Example auto-detected consolidation (no `consolidate: true` needed):
 **Important:** After consolidation, manually add to `target-crate/src/lib.rs`:
 ```rust
 pub mod module;  // Exposes the consolidated code
-```
-
+```text
 **Use cases:**
 - Simplifying workspace structure by reducing number of crates
 - Merging experimental features back into main crate
@@ -202,8 +196,7 @@ pub mod utils;
 
 // After renaming src/utils.rs → src/helpers.rs
 pub mod helpers;
-```
-
+```text
 **2. Use Statements** - Import statements are updated:
 ```rust
 // Before
@@ -213,8 +206,7 @@ use utils::another;
 // After
 use helpers::helper;
 use helpers::another;
-```
-
+```text
 **3. Qualified Paths** - Inline qualified paths in code:
 ```rust
 // Before
@@ -228,8 +220,7 @@ pub fn lib_fn() {
     helpers::helper();
     helpers::another();
 }
-```
-
+```text
 **What gets updated:**
 - ✅ `pub mod utils;` → `pub mod helpers;` (mod declarations)
 - ✅ `use utils::*` → `use helpers::*` (use statements)
@@ -271,8 +262,7 @@ pub fn lib_fn() {
     }
   }
 }
-```
-
+```text
 **Coverage:** Handles 80% of common rename scenarios. Complex cases involving non-parent file updates with nested module paths may require manual verification.
 
 ### Comprehensive Rename Coverage
@@ -356,8 +346,7 @@ Use the `options.scope` parameter to control what gets updated:
     "scope": "everything"
   }
 }
-```
-
+```text
 **Coverage Example:**
 
 See `tests/e2e/src/test_comprehensive_rename_coverage.rs` for validated test cases covering:
@@ -390,8 +379,7 @@ TypeMill supports renaming **multiple files and/or directories** in a single ato
   "target": {"kind": "directory", "path": "old-dir"},
   "newName": "new-dir"
 }
-```
-
+```text
 **Batch rename (multiple items):**
 ```json
 {
@@ -401,8 +389,7 @@ TypeMill supports renaming **multiple files and/or directories** in a single ato
     {"kind": "file", "path": "src/old.rs", "newName": "src/new.rs"}
   ]
 }
-```
-
+```text
 **Key differences:**
 - **Single mode**: `target` + `new_name` (separate parameters)
 - **Batch mode**: `targets` array where each target includes its own `new_name`
@@ -434,8 +421,7 @@ mill tool rename '{
   ],
   "options": {"dryRun": false}
 }'
-```
-
+```text
 **Use cases:**
 - Renaming multiple files to match naming conventions (snake_case → kebab-case)
 - Reorganizing project structure in one operation
@@ -453,8 +439,7 @@ min_confidence = 0.7  # Minimum confidence threshold
 include_safety_levels = ["safe", "requires_review"]
 max_per_finding = 3
 generate_refactor_calls = true
-```
-
+```text
 **Presets**:
 - `strict` - Only safe suggestions, high confidence
 - `default` - Safe + requires_review, medium confidence
@@ -509,8 +494,7 @@ cargo xtask check-duplicates  # Check for duplicate code
 cargo xtask check-features    # Validate cargo features
 cargo xtask new-lang python   # Scaffold new language plugin
 cargo xtask --help            # Show all available tasks
-```
-
+```text
 ## Testing Workflow
 
 The test suite is organized into categories for fast iteration:
@@ -528,8 +512,7 @@ cargo nextest run --workspace --all-features --status-level skip
 
 # Performance benchmarks
 cargo nextest run --workspace --features heavy-tests
-```
-
+```text
 **Test Categories:**
 - `fast-tests` (default): Mock-based unit and integration tests
 - `lsp-tests`: Tests requiring real LSP servers (TypeScript, Rust, Python)
@@ -551,8 +534,7 @@ Handler (mill-handlers)
 │        │          │          │
 MCP   CLI-JSON  CLI-Flags  CLI-Helpers
 (WS)                      (convert-naming)
-```
-
+```text
 - **MCP Protocol**: JSON-RPC over stdio/WebSocket
 - **CLI JSON**: `mill tool <name> '{"target": ...}'`
 - **CLI Flags**: `mill tool <name> --target file:path`
@@ -680,8 +662,7 @@ Each server config requires:
     }
   ]
 }
-```
-
+```text
 ## Code Quality & Testing
 
 The project uses Rust's built-in tooling for code quality:
@@ -699,8 +680,7 @@ cargo fmt && cargo clippy && cargo nextest run
 # Or use Makefile targets
 make check                # Run fmt + clippy + test
 make check-duplicates     # Detect duplicate code & complexity
-```
-
+```text
 ## Structured Logging Standards
 
 All logging uses structured tracing with key-value pairs for machine-readable logs. See **[docs/development/logging_guidelines.md](docs/development/logging_guidelines.md)** for complete standards including field naming conventions, log levels, and production configuration.
@@ -727,14 +707,12 @@ cargo build --release
 
 # The resulting binary is self-contained and ready for deployment
 ./target/release/mill serve
-```
-
+```text
 ### WebSocket Server Configuration
 ```bash
 # Start WebSocket server (default port 3000)
 ./target/release/mill serve
-```
-
+```text
 ### Environment Variables
 
 TypeMill supports environment variable overrides for **all configuration values** using the `TYPEMILL__` prefix (note: double underscores as separators).
@@ -763,8 +741,7 @@ export TYPEMILL__CACHE__MAX_SIZE_BYTES=104857600
 # Logging
 export TYPEMILL__LOGGING__LEVEL="info"
 export TYPEMILL__LOGGING__FORMAT="json"
-```
-
+```text
 **Secrets Management Best Practices:**
 
 - ✅ **Use environment variables for secrets** (JWT_SECRET, API keys, database credentials)
@@ -781,8 +758,7 @@ export TYPEMILL__LOGGING__FORMAT="json"
 TYPEMILL__SERVER__AUTH__JWT_SECRET=dev-secret-change-in-production
 TYPEMILL__SERVER__PORT=3000
 TYPEMILL__CACHE__ENABLED=true
-```
-
+```text
 **Configuration Priority (highest to lowest):**
 
 1. Environment variables (`TYPEMILL__*`)
@@ -869,8 +845,7 @@ cargo build -p mill
 
 # With optional language
 cargo build -p mill --features lang-python
-```
-
+```text
 **Note:** Additional language plugin implementations (Go, Java, Swift, C#) available in git tag `pre-language-reduction`. Python was successfully restored (2025-10-25) using the migration guide in `.debug/language-plugin-migration/PYTHON_MIGRATION_GUIDE.md`.
 
 ### Capability Trait Pattern

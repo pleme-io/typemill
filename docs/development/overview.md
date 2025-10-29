@@ -17,15 +17,14 @@ git clone https://github.com/goobits/typemill
 cd typemill
 cargo build
 cargo nextest run  # Run fast tests
-```
-
+```text
 That's it! You're ready to contribute.
 
 ---
 
 ## 📁 Project Structure
 
-```
+```text
 typemill/
 ├── apps/
 │   └── mill/              # Main CLI binary
@@ -42,8 +41,7 @@ typemill/
 ├── tests/e2e/             # End-to-end tests
 ├── docs/                  # Documentation (you are here!)
 └── xtask/                 # Build automation tasks
-```
-
+```text
 ---
 
 ## 🛠️ Common Development Tasks
@@ -61,8 +59,7 @@ cargo nextest run --all-features
 
 # Specific package
 cargo nextest run -p mill-handlers
-```
-
+```text
 ### Code Quality
 ```bash
 cargo fmt                  # Format code
@@ -71,14 +68,12 @@ cargo check                # Type check without building
 
 # Run all checks
 cargo xtask check-all
-```
-
+```text
 ### Building
 ```bash
 cargo build                # Debug build
 cargo build --release      # Optimized build
-```
-
+```text
 ### Running Mill Locally
 ```bash
 # Run from source
@@ -89,8 +84,7 @@ cargo run -- start
 # Or use built binary
 ./target/debug/mill --help
 ./target/release/mill setup
-```
-
+```text
 ---
 
 ## 📖 Key Documentation
@@ -134,8 +128,7 @@ cargo xtask new-lang python
 # Edit crates/mill-lang-python/src/lib.rs
 cargo build -p mill-lang-python
 cargo nextest run -p mill-lang-python
-```
-
+```text
 ### Path 3: Add a New MCP Tool
 1. Read **[contributing.md](https://github.com/goobits/typemill/blob/main/contributing.md)** (section on adding tools)
 2. Add handler to `crates/mill-handlers/src/`
@@ -177,8 +170,7 @@ cargo nextest run -E 'test(rename)'
 
 # Run with output
 cargo nextest run --no-capture
-```
-
+```text
 ---
 
 ## 📦 Package Overview
@@ -224,8 +216,7 @@ cargo xtask check-duplicates  # Check for duplicate code
 cargo xtask new-lang <name>   # Scaffold new language plugin
 cargo xtask sync-languages    # Sync language registry
 cargo xtask --help            # Show all tasks
-```
-
+```text
 **Why xtask?**
 - Cross-platform (works on Windows, Mac, Linux)
 - Written in Rust (no shell script dependencies)
@@ -239,14 +230,12 @@ cargo xtask --help            # Show all tasks
 ```rust
 tracing::debug!("Value: {:?}", value);
 tracing::info!("Processing file: {}", path);
-```
-
+```text
 ### Running with Logs
 ```bash
 RUST_LOG=debug cargo run -- start
 RUST_LOG=mill_handlers=trace cargo run -- tool find_definition '{...}'
-```
-
+```text
 ### Test Debugging
 ```bash
 # Run single test with output
@@ -254,14 +243,12 @@ cargo nextest run test_name --no-capture
 
 # Run with backtrace
 RUST_BACKTRACE=1 cargo nextest run test_name
-```
-
+```text
 ### LSP Debugging
 ```bash
 # Enable LSP client logs
 RUST_LOG=mill_lsp=trace cargo run -- start
-```
-
+```text
 ---
 
 ## 📝 Code Style

@@ -40,8 +40,7 @@ Every analysis finding includes:
     }]
   }]
 }
-```
-
+```text
 ## Workflow
 
 1. **Analyze** - `mill analyze quality src/app.rs`
@@ -59,8 +58,7 @@ min_confidence = 0.7
 include_safety_levels = ["safe", "requires_review"]
 max_per_finding = 3
 generate_refactor_calls = true
-```
-
+```text
 ## Which Tools Generate Suggestions?
 
 All analysis tools:

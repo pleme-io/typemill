@@ -19,7 +19,7 @@ The plugin refactoring (2025-10) introduced two major improvements:
 ### Before (Old Pattern)
 ```rust
 // In your plugin's lib.rs or refactoring.rs
-#[derive(Debug, Clone, Serialize, Deserialize)]
+# [derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CodeRange {
     pub start_line: u32,
     pub start_col: u32,
@@ -27,7 +27,7 @@ pub struct CodeRange {
     pub end_col: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+# [derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct VariableUsage {
     pub name: String,
     pub declaration_location: Option<CodeRange>,
@@ -35,8 +35,7 @@ pub struct VariableUsage {
 }
 
 // Similar duplicates for ExtractableFunction, InlineVariableAnalysis, etc.
-```
-
+```text
 ### After (New Pattern)
 ```rust
 // In your plugin's refactoring.rs
@@ -49,8 +48,7 @@ use mill_lang_common::{
 pub use mill_lang_common::CodeRange;
 
 // Your refactoring logic using the imported types
-```
-
+```text
 ### Migration Steps
 1. **Remove local definitions** of `CodeRange`, `VariableUsage`, `ExtractableFunction`, `InlineVariableAnalysis`, `ExtractVariableAnalysis`
 2. **Add imports** from `mill_lang_common`
@@ -76,7 +74,7 @@ mill_plugin! {
     lsp: Some(LspConfig::new("mylang-lsp", &["mylang-lsp", "--stdio"]))
 }
 
-#[derive(Default)]
+# [derive(Default)]
 pub struct MyLanguagePlugin {
     import_support: import_support::MyLanguageImportSupport,
     workspace_support: workspace_support::MyLanguageWorkspaceSupport,
@@ -102,7 +100,7 @@ impl MyLanguagePlugin {
     }
 }
 
-#[async_trait]
+# [async_trait]
 impl LanguagePlugin for MyLanguagePlugin {
     fn metadata(&self) -> &LanguageMetadata {
         &Self::METADATA
@@ -128,8 +126,7 @@ impl LanguagePlugin for MyLanguagePlugin {
 
     // ... more delegation methods ...
 }
-```
-
+```text
 ### After (New Pattern - ~20 lines)
 ```rust
 use mill_lang_common::{
@@ -156,7 +153,7 @@ define_language_plugin! {
     doc: "MyLanguage plugin implementation"
 }
 
-#[async_trait]
+# [async_trait]
 impl LanguagePlugin for MyLanguagePlugin {
     impl_language_plugin_basics!();
 
@@ -174,8 +171,7 @@ impl LanguagePlugin for MyLanguagePlugin {
         },
     }
 }
-```
-
+```text
 ### Migration Steps
 
 1. **Update imports:**

@@ -39,8 +39,7 @@ enable_dead_code = true
 enable_code_smells = true
 enable_complexity = true
 enable_maintainability = true
-```
-
+```text
 ### 2. Configuration Loading
 
 Add configuration layer in `mill-services`:
@@ -59,8 +58,7 @@ impl AnalysisConfig {
         // 3. Apply defaults
     }
 }
-```
-
+```text
 ### 3. Preset Configurations
 
 Built-in presets for common scenarios:
@@ -77,8 +75,7 @@ Support `TYPEMILL_ANALYSIS_*` environment variables:
 ```bash
 TYPEMILL_ANALYSIS_MIN_CONFIDENCE=0.8
 TYPEMILL_ANALYSIS_MAX_COMPLEXITY=10
-```
-
+```text
 ## Checklists
 
 ### Configuration Schema

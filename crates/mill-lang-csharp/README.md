@@ -15,8 +15,7 @@ This plugin relies on an external parser utility written in C#. To build this ut
 You can check for all required parser dependencies by running:
 ```bash
 make check-parser-deps
-```
-
+```text
 ## Build Process
 
 1.  **Build the external parser:**
@@ -38,8 +37,7 @@ To run the tests specifically for this plugin, use the following command:
 
 ```bash
 cargo test -p cb-lang-csharp
-```
-
+```text
 ## Supported Operations
 
 - ✅ Parse C# source code using Roslyn (via external utility).

@@ -87,8 +87,7 @@ JSON object with server health information:
     }
   }
 }
-```
-
+```text
 **Notes:**
 
 - **No LSP dependency**: Works independently of language servers
@@ -122,8 +121,7 @@ curl -X POST http://localhost:3000/rpc \
   }'
 
 # Check if response contains "healthy" status
-```
-
+```text
 ### Debugging Server State
 
 Check server state during troubleshooting:
@@ -142,8 +140,7 @@ async function monitorServerHealth() {
     console.warn("Too many paused workflows - investigate");
   }
 }
-```
-
+```text
 ### Uptime Tracking
 
 Track server availability over time:
@@ -165,8 +162,7 @@ setInterval(async () => {
     paused_workflows: response.workflows.paused
   });
 }, 60000); // Check every minute
-```
-
+```text
 ### Plugin Verification
 
 Verify expected plugins are loaded:
@@ -180,8 +176,7 @@ if (health.plugins.loaded < expectedPlugins) {
   console.error(`Expected ${expectedPlugins} plugins, only ${health.plugins.loaded} loaded`);
   // Investigation needed - check LSP server configuration
 }
-```
-
+```text
 ---
 
 **Last Updated:** 2025-10-22

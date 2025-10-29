@@ -26,8 +26,7 @@ TypeMill uses multiple caching layers to improve performance. This document desc
     "persistent": false
   }
 }
-```
-
+```text
 **Defaults:**
 - Max size: 256 MB (268435456 bytes)
 - Max entries: 10,000
@@ -67,14 +66,12 @@ Disable **all** caches at once:
 
 ```bash
 TYPEMILL_DISABLE_CACHE=1 mill serve
-```
-
+```text
 or
 
 ```bash
 TYPEMILL_DISABLE_CACHE=true mill serve
-```
-
+```text
 ### Individual Cache Controls
 
 Disable specific caches while keeping others enabled:
@@ -88,25 +85,22 @@ TYPEMILL_DISABLE_IMPORT_CACHE=1 mill serve
 
 # Disable only LSP method translation cache
 TYPEMILL_DISABLE_LSP_METHOD_CACHE=1 mill serve
-```
-
+```text
 ### Priority Order
 
 Environment variables take precedence over configuration file settings:
 
-```
+```text
 1. TYPEMILL_DISABLE_CACHE (master switch)
 2. TYPEMILL_DISABLE_*_CACHE (individual switches)
 3. Configuration file (cache.enabled)
 4. Default (enabled)
-```
-
+```text
 **Example:**
 ```bash
 # Even if config.json has "enabled": true, this will disable AST cache
 TYPEMILL_DISABLE_AST_CACHE=1 mill serve
-```
-
+```text
 ## Configuration File
 
 Configure caching in `.typemill/config.json`:
@@ -121,8 +115,7 @@ Configure caching in `.typemill/config.json`:
     "cacheDir": null
   }
 }
-```
-
+```text
 ### Configuration Options
 
 | Option | Type | Default | Description |
@@ -156,8 +149,7 @@ Statistics are available via the health check endpoint (planned feature):
 
 ```bash
 curl http://localhost:3040/health
-```
-
+```text
 ## Cache Behavior
 
 ### Cache Invalidation
@@ -221,8 +213,7 @@ Cache warming (pre-populating caches on startup) is a planned feature.
 **Solution:** Disable import cache to force fresh scans:
 ```bash
 TYPEMILL_DISABLE_IMPORT_CACHE=1 ./target/release/mill tool rename ...
-```
-
+```text
 ## Best Practices
 
 ### Development
@@ -233,8 +224,7 @@ During active development, consider disabling caches:
 # Development mode - disable all caches
 export TYPEMILL_DISABLE_CACHE=1
 mill serve
-```
-
+```text
 ### Production
 
 In production, keep caches enabled with appropriate sizing:
@@ -247,8 +237,7 @@ In production, keep caches enabled with appropriate sizing:
     "ttlSeconds": 7200
   }
 }
-```
-
+```text
 ### CI/CD
 
 In CI/CD pipelines, disable caches to ensure fresh results:
@@ -256,8 +245,7 @@ In CI/CD pipelines, disable caches to ensure fresh results:
 ```bash
 # CI/CD mode
 TYPEMILL_DISABLE_CACHE=1 cargo test
-```
-
+```text
 ### Testing
 
 When testing cache behavior, use individual controls:
@@ -268,8 +256,7 @@ TYPEMILL_DISABLE_AST_CACHE=1 cargo test ast_cache
 
 # Test import cache specifically
 TYPEMILL_DISABLE_IMPORT_CACHE=1 cargo test import_updates
-```
-
+```text
 ## Future Enhancements
 
 Planned cache features:

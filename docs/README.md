@@ -143,8 +143,7 @@ mill docs tools/refactoring            # View refactoring tools
 mill docs README                       # View this file
 mill docs --search "setup"             # Search all documentation
 mill docs <topic> --raw                # View raw markdown
-```
-
+```text
 **All documentation paths work as-is in the CLI!**
 - `mill docs tools/navigation` ✅
 - `mill docs architecture/overview` ✅

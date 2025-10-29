@@ -92,10 +92,9 @@ Best for: Deep dives, documentation updates, understanding implementation
 4. Dispatch to appropriate handler
 
 ### Error Format:
-```
+```text
 ServerError::InvalidRequest("Clear message describing what's wrong and what's expected")
-```
-
+```text
 ### Analysis Tools:
 - Use shared `ScopeParam` structure (file, directory, workspace scope)
 - Support optional `options` for configuration
@@ -135,7 +134,7 @@ Create guide for adding new tools:
 ## Source Code References
 
 ### Handler Implementations
-```
+```text
 /workspace/crates/mill-handlers/src/handlers/tools/analysis/
   ├── structure.rs (analyze.structure)
   ├── dependencies.rs (analyze.dependencies)
@@ -144,15 +143,13 @@ Create guide for adding new tools:
 
 /workspace/crates/mill-handlers/src/handlers/rename_handler/
   └── mod.rs (rename handler)
-```
-
+```text
 ### Documentation Files
-```
+```text
 /workspace/docs/tools/
   ├── analysis.md (analyze.structure, analyze.dependencies)
   └── refactoring.md (rename)
-```
-
+```text
 ## Quick Parameter Lookup
 
 ### analyze.structure
@@ -162,8 +159,7 @@ Create guide for adding new tools:
   "scope": {"type": "file|directory|workspace", "path": "..."},
   "options": {}
 }
-```
-
+```text
 ### analyze.dependencies
 ```json
 {
@@ -171,8 +167,7 @@ Create guide for adding new tools:
   "scope": {"type": "file|directory|workspace", "path": "..."},
   "options": {}
 }
-```
-
+```text
 ### rename (single target)
 ```json
 {
@@ -187,8 +182,7 @@ Create guide for adding new tools:
     "scope": "standard"
   }
 }
-```
-
+```text
 ### rename (batch)
 ```json
 {
@@ -204,8 +198,7 @@ Create guide for adding new tools:
     "scope": "standard"
   }
 }
-```
-
+```text
 ## Testing Parameters
 
 The most common validation test cases:
@@ -234,7 +227,7 @@ The most common validation test cases:
 
 ---
 
-**Generated:** 2025-10-28  
-**Codebase:** Mill (TypeMill project)  
-**Coverage:** All public analysis and refactoring tools  
+**Generated:** 2025-10-28
+**Codebase:** Mill (TypeMill project)
+**Coverage:** All public analysis and refactoring tools
 **Status:** Complete analysis with recommendations for improvements

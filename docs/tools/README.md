@@ -95,8 +95,7 @@ Check server status, LSP server health, memory usage, and active connections. Es
 ---
 
 ## Tools
-```
-
+```text
 ### Tool Entry Structure
 ```markdown
 ### tool_name
@@ -133,8 +132,7 @@ Check server status, LSP server health, memory usage, and active connections. Es
     "field": "value"
   }
 }
-```
-
+```text
 **Notes:**
 - Edge case handling
 - Language-specific behavior
@@ -142,8 +140,7 @@ Check server status, LSP server health, memory usage, and active connections. Es
 - Common errors and solutions
 
 ---
-```
-
+```text
 ---
 
 ## Writing Guidelines
@@ -191,8 +188,7 @@ All tools are called via MCP JSON-RPC protocol:
     }
   }
 }
-```
-
+```text
 ### Dry-Run Pattern
 
 All refactoring tools use a unified `options.dryRun` parameter:
@@ -207,8 +203,7 @@ All refactoring tools use a unified `options.dryRun` parameter:
     // options.dryRun defaults to true - preview only
   }
 }
-```
-
+```text
 **Execution mode (explicit opt-in):**
 ```json
 {
@@ -221,8 +216,7 @@ All refactoring tools use a unified `options.dryRun` parameter:
     }
   }
 }
-```
-
+```text
 **Safe default:** `dryRun: true` requires explicit `dryRun: false` for execution.
 
 ### Error Handling
@@ -239,8 +233,7 @@ All tools return standard error format:
     }
   }
 }
-```
-
+```text
 Common error codes:
 - `-32602` - Invalid parameters
 - `-32603` - Internal error

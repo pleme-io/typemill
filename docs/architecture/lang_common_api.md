@@ -8,19 +8,17 @@
 ## Module Structure
 
 **Current (preserved):**
-```
+```text
 mill-lang-common/src/
 ├── import_parsing.rs
 ├── import_graph.rs
 └── lib.rs
-```
-
+```text
 **Addition:**
-```
+```text
 mill-lang-common/src/
 └── import_helpers.rs     # 4 functions, ~100 lines
-```
-
+```text
 ---
 
 ## API Contracts
@@ -30,8 +28,7 @@ mill-lang-common/src/
 ```rust
 pub fn find_last_matching_line<F>(content: &str, predicate: F) -> Option<usize>
 where F: Fn(&str) -> bool
-```
-
+```text
 **Contract:**
 - **Input**: UTF-8 string content, predicate function
 - **Output**: `Some(index)` for last matching line (0-based), `None` if no match
@@ -50,16 +47,14 @@ where F: Fn(&str) -> bool
 find_last_matching_line("", |_| true)           // → None
 find_last_matching_line("a\nb", |l| l == "b")  // → Some(1)
 find_last_matching_line("a\na", |l| l == "a")  // → Some(1) (last occurrence)
-```
-
+```text
 ---
 
 ### `insert_line_at`
 
 ```rust
 pub fn insert_line_at(content: &str, position: usize, new_line: &str) -> String
-```
-
+```text
 **Contract:**
 - **Input**: UTF-8 content, 0-based position, UTF-8 line to insert
 - **Output**: New string with line inserted
@@ -84,8 +79,7 @@ insert_line_at("", 0, "x")              // → "x"
 insert_line_at("", 999, "x")            // → "x"
 insert_line_at("a\nb", 1, "x")          // → "a\nx\nb"
 insert_line_at("a\nb", 999, "x")        // → "a\nb\nx"
-```
-
+```text
 ---
 
 ### `remove_lines_matching`
@@ -93,8 +87,7 @@ insert_line_at("a\nb", 999, "x")        // → "a\nb\nx"
 ```rust
 pub fn remove_lines_matching<F>(content: &str, predicate: F) -> String
 where F: Fn(&str) -> bool
-```
-
+```text
 **Contract:**
 - **Input**: UTF-8 content, predicate function
 - **Output**: New string with matching lines removed
@@ -119,8 +112,7 @@ remove_lines_matching("", |_| true)                 // → ""
 remove_lines_matching("a\nb\nc", |_| false)        // → "a\nb\nc"
 remove_lines_matching("a\nb\nc", |_| true)         // → ""
 remove_lines_matching("a\nb", |l| l == "b")        // → "a"
-```
-
+```text
 ---
 
 ### `find_first_non_matching_line`
@@ -128,8 +120,7 @@ remove_lines_matching("a\nb", |l| l == "b")        // → "a"
 ```rust
 pub fn find_first_non_matching_line<F>(content: &str, predicate: F) -> Option<usize>
 where F: Fn(&str) -> bool
-```
-
+```text
 **Contract:**
 - **Input**: UTF-8 content, predicate function
 - **Output**: `Some(index)` for first non-matching line (0-based), `None` if all match
@@ -149,8 +140,7 @@ find_first_non_matching_line("", |_| true)              // → None
 find_first_non_matching_line("a\nb", |_| true)         // → None (all match)
 find_first_non_matching_line("a\nb", |l| l == "a")     // → Some(1)
 find_first_non_matching_line("x\ny", |l| l == "a")     // → Some(0) (first non-match)
-```
-
+```text
 ---
 
 ## Modifications to `import_parsing.rs`
@@ -189,13 +179,12 @@ All functions: max 5% overhead vs hand-written loops (fail if > 5%)
 
 // Gate 3: Scaling
 100K line files: max 10x of 10K baseline (fail if > 10x)
-```
-
+```text
 **Failure action:** Block merge until optimized
 
 **Benchmark suite (required):**
 ```rust
-#[bench]
+# [bench]
 fn bench_find_last_import_10k_lines(b: &mut Bencher) {
     let content = generate_test_file(10_000);
     b.iter(|| {
@@ -203,7 +192,7 @@ fn bench_find_last_import_10k_lines(b: &mut Bencher) {
     });
 }
 
-#[bench]
+# [bench]
 fn bench_insert_line_at_middle(b: &mut Bencher) {
     let content = generate_test_file(10_000);
     b.iter(|| {
@@ -211,15 +200,14 @@ fn bench_insert_line_at_middle(b: &mut Bencher) {
     });
 }
 
-#[bench]
+# [bench]
 fn bench_remove_lines_matching(b: &mut Bencher) {
     let content = generate_test_file_with_imports(10_000, 50);
     b.iter(|| {
         remove_lines_matching(&content, |l| l.trim().starts_with("import "))
     });
 }
-```
-
+```text
 ---
 
 ## Testing Requirements
@@ -253,35 +241,31 @@ fn bench_remove_lines_matching(b: &mut Bencher) {
 
 **`find_last_matching_line`:**
 ```rust
-#[test] fn returns_none_for_empty_content()
-#[test] fn returns_none_when_no_match()
-#[test] fn returns_last_match_when_multiple()
-#[test] fn returns_only_match_when_single()
-```
-
+# [test] fn returns_none_for_empty_content()
+# [test] fn returns_none_when_no_match()
+# [test] fn returns_last_match_when_multiple()
+# [test] fn returns_only_match_when_single()
+```text
 **`insert_line_at`:**
 ```rust
-#[test] fn inserts_at_beginning()
-#[test] fn inserts_in_middle()
-#[test] fn appends_when_position_beyond_end()
-#[test] fn handles_empty_content()
-```
-
+# [test] fn inserts_at_beginning()
+# [test] fn inserts_in_middle()
+# [test] fn appends_when_position_beyond_end()
+# [test] fn handles_empty_content()
+```text
 **`remove_lines_matching`:**
 ```rust
-#[test] fn removes_all_matching_lines()
-#[test] fn preserves_non_matching_lines()
-#[test] fn returns_empty_when_all_match()
-#[test] fn returns_unchanged_when_none_match()
-```
-
+# [test] fn removes_all_matching_lines()
+# [test] fn preserves_non_matching_lines()
+# [test] fn returns_empty_when_all_match()
+# [test] fn returns_unchanged_when_none_match()
+```text
 **`find_first_non_matching_line`:**
 ```rust
-#[test] fn returns_first_non_match()
-#[test] fn returns_none_when_all_match()
-#[test] fn returns_zero_when_first_non_match()
-```
-
+# [test] fn returns_first_non_match()
+# [test] fn returns_none_when_all_match()
+# [test] fn returns_zero_when_first_non_match()
+```text
 ---
 
 ## Error Handling
@@ -328,8 +312,7 @@ if let Some(idx) = last_import_idx {
 } else {
     format!("{}\n{}", new_import_line, content)
 }
-```
-
+```text
 **After:**
 ```rust
 use cb_lang_common::import_helpers::{find_last_matching_line, insert_line_at};
@@ -339,8 +322,7 @@ match last_idx {
     Some(idx) => insert_line_at(content, idx + 1, &new_import_line),
     None => insert_line_at(content, 0, &new_import_line),
 }
-```
-
+```text
 **Benefits:** 15 lines → 6 lines, no manual index tracking, guaranteed correctness
 
 ---

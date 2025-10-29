@@ -137,8 +137,7 @@ All refactoring operations support checksum validation, rollback on error, and p
     }
   }
 }
-```
-
+```text
 **Example - Execution mode (explicit opt-in):**
 
 ```json
@@ -174,8 +173,7 @@ All refactoring operations support checksum validation, rollback on error, and p
     }
   }
 }
-```
-
+```text
 **Parameter Details:**
 
 **Target Types (`target.kind`):**
@@ -214,8 +212,7 @@ All refactoring operations support checksum validation, rollback on error, and p
   "newName": "src/new.ts",
   "options": {"dryRun": false}  // Don't forget this!
 }
-```
-
+```text
 **Options - scope (Update Coverage):**
 
 | Scope | Code | Docs | Configs | Comments | Prose | Use Case |
@@ -243,8 +240,7 @@ All refactoring operations support checksum validation, rollback on error, and p
     "dryRun": false
   }
 }
-```
-
+```text
 **Batch Rename:**
 ```json
 {
@@ -254,8 +250,7 @@ All refactoring operations support checksum validation, rollback on error, and p
   ],
   "options": {"dryRun": false}
 }
-```
-
+```text
 **Notes:**
 - **Rust file renames** automatically update module declarations (`pub mod utils;` → `pub mod helpers;`), import statements (`use utils::*`), and qualified paths (`utils::helper()`)
 - **Directory renames** update all string literal paths, markdown links, config file paths, and Cargo.toml entries (100% coverage with `scope: "standard"`)
@@ -371,8 +366,7 @@ All refactoring operations support checksum validation, rollback on error, and p
     }
   }
 }
-```
-
+```text
 **Notes:**
 - Uses AST-based refactoring (no LSP required)
 - Automatically infers parameters and return types
@@ -477,8 +471,7 @@ All refactoring operations support checksum validation, rollback on error, and p
     }
   }
 }
-```
-
+```text
 **Notes:**
 - Uses AST-based refactoring
 - Removes definition after inlining
@@ -546,8 +539,7 @@ All refactoring operations support checksum validation, rollback on error, and p
     }
   }
 }
-```
-
+```text
 **Notes:**
 - Automatically updates imports and references
 - Handles cross-file symbol moves
@@ -589,8 +581,7 @@ All refactoring operations support checksum validation, rollback on error, and p
 {
   "new_order": ["endpoint", "method", "headers", "body"]
 }
-```
-
+```text
 **Error Messages:**
 - Missing `new_order`: "Invalid request: Missing 'new_order' parameter"
 - Invalid `target.kind`: "Unsupported kind 'invalid'. Valid: parameters, fields, imports, statements"
@@ -622,8 +613,7 @@ All refactoring operations support checksum validation, rollback on error, and p
     }
   }
 }
-```
-
+```text
 **Notes:**
 - Parameter reordering updates all call sites across the codebase
 - Requires LSP server support for best results
@@ -697,8 +687,7 @@ All refactoring operations support checksum validation, rollback on error, and p
     }
   }
 }
-```
-
+```text
 **Notes:**
 - Uses LSP code actions when available
 - Falls back to AST-based transformations
@@ -813,8 +802,7 @@ All refactoring operations support checksum validation, rollback on error, and p
     }
   }
 }
-```
-
+```text
 **Notes:**
 - File/directory deletes are fully implemented
 - Symbol/dead_code deletes are placeholders (require AST support)
@@ -846,14 +834,12 @@ mill tool extract '{
     "name": "compute_sum"
   }
 }'
-```
-
+```text
 **Via CLI flags** (limited operations):
 ```bash
 # Not available for most refactoring operations
 # Use MCP tool interface instead
-```
-
+```text
 **Why MCP tool interface?**
 - Refactoring requires complex structured data (ranges, positions, options)
 - JSON format prevents ambiguity and parsing errors
@@ -891,8 +877,7 @@ The safest refactoring approach uses the default `dryRun: true` behavior:
     }
   }
 }
-```
-
+```text
 **Benefits:**
 - Default behavior prevents accidental execution
 - Preview all changes before applying
@@ -915,8 +900,7 @@ For small, trusted operations, you can execute directly:
     }
   }
 }
-```
-
+```text
 **Use cases:**
 - Small, low-risk refactorings
 - Operations you've previewed before
@@ -953,8 +937,7 @@ Checksums prevent applying stale operations after file modifications:
   }
 }
 // Error: "Checksum mismatch for /workspace/src/file.rs - file modified since plan generation"
-```
-
+```text
 **How it works:**
 1. Preview mode captures SHA-256 checksums of all affected files
 2. Execution mode validates checksums before applying
@@ -979,8 +962,7 @@ Run tests or checks after applying changes with automatic rollback on failure:
     }
   }
 }
-```
-
+```text
 **Behavior:**
 1. Applies changes to filesystem
 2. Runs validation command (`cargo test --workspace`)
@@ -1006,8 +988,7 @@ await call("rename", {
   newName: "src/new2.rs",
   options: {dryRun: false}
 });
-```
-
+```text
 **Note:** Each operation is atomic, but multiple calls are not. For dependent refactorings, preview all operations first to ensure they won't conflict.
 
 **Alternative - Batch rename:**
@@ -1024,8 +1005,7 @@ await call("rename", {
     }
   }
 }
-```
-
+```text
 ### Rust-Specific: Crate Consolidation
 
 Merge a Rust crate into another crate's module:
@@ -1045,8 +1025,7 @@ Merge a Rust crate into another crate's module:
     }
   }
 }
-```
-
+```text
 **Consolidation automatically:**
 1. Moves `source-crate/src/*` into `target-crate/src/module/*`
 2. Merges dependencies from `source-crate/Cargo.toml`
@@ -1070,8 +1049,7 @@ utils::another();
 pub mod helpers;
 use helpers::helper;
 helpers::another();
-```
-
+```text
 **Coverage:**
 - ✅ Module declarations in parent files (`pub mod`)
 - ✅ Use statements (`use utils::*`)
@@ -1106,8 +1084,7 @@ When `scope: "standard"` (default), directory/file renames update:
     }
   }
 }
-```
-
+```text
 **Available scopes:**
 - `"code"`: Code only (imports, module declarations, string literal paths)
 - `"standard"` (default): Code + docs + configs (recommended for most renames)

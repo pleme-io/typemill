@@ -35,6 +35,12 @@ struct QualityOptions {
     format: String,
     #[serde(default = "default_include_suggestions")]
     include_suggestions: bool,
+    /// List of issue kinds to auto-fix (e.g., ["trailing_whitespace", "malformed_heading"])
+    #[serde(default)]
+    fix: Vec<String>,
+    /// Apply fixes (false = dry run preview, true = write files)
+    #[serde(default)]
+    apply: bool,
 }
 
 fn default_limit() -> usize {
@@ -88,6 +94,74 @@ impl Default for QualityThresholds {
             parameter_count: default_params(),
             function_length: default_function_length(),
         }
+    }
+}
+
+/// Markdown auto-fixer for safe, deterministic fixes
+struct MarkdownFixer {
+    fixes_to_apply: std::collections::HashSet<String>,
+}
+
+impl MarkdownFixer {
+    fn new(fix_kinds: Vec<String>) -> Self {
+        Self {
+            fixes_to_apply: fix_kinds.into_iter().collect(),
+        }
+    }
+
+    /// Check if a specific fix kind should be applied
+    fn should_fix(&self, kind: &str) -> bool {
+        self.fixes_to_apply.contains(kind)
+    }
+
+    /// Fix trailing whitespace (remove spaces/tabs at end of lines)
+    fn fix_trailing_whitespace(content: &str) -> String {
+        content
+            .lines()
+            .map(|line| line.trim_end())
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    /// Fix missing code language tags (add "text" as default)
+    fn fix_missing_code_lang(content: &str) -> String {
+        use regex::Regex;
+        let re = Regex::new(r"(?m)^```\s*$").unwrap();
+        re.replace_all(content, "```text").to_string()
+    }
+
+    /// Fix malformed headings (add space after #)
+    fn fix_malformed_heading(content: &str) -> String {
+        use regex::Regex;
+        let re = Regex::new(r"(?m)^(#{1,6})([^\s#])").unwrap();
+        re.replace_all(content, "$1 $2").to_string()
+    }
+
+    /// Fix reversed link syntax: (text)[url] → [text](url)
+    fn fix_reversed_link(content: &str) -> String {
+        use regex::Regex;
+        let re = Regex::new(r"\(([^)]+)\)\[([^\]]+)\]").unwrap();
+        re.replace_all(content, "[$2]($1)").to_string()
+    }
+
+    /// Apply all enabled fixes to content
+    fn apply_fixes(&self, content: &str) -> String {
+        let mut result = content.to_string();
+
+        if self.should_fix("trailing_whitespace") {
+            result = Self::fix_trailing_whitespace(&result);
+        }
+        if self.should_fix("missing_code_language_tag") {
+            result = Self::fix_missing_code_lang(&result);
+        }
+        if self.should_fix("malformed_heading") {
+            result = Self::fix_malformed_heading(&result);
+        }
+        if self.should_fix("reversed_link_syntax") {
+            result = Self::fix_reversed_link(&result);
+        }
+
+        result
     }
 }
 
@@ -313,6 +387,7 @@ impl QualityHandler {
         category: &str,
         kind: &str,
         analysis_fn: super::engine::MarkdownAnalysisFn,
+        options: &QualityOptions,
     ) -> ServerResult<Value> {
         let start_time = Instant::now();
 
@@ -444,8 +519,8 @@ impl QualityHandler {
         result.metadata.language = Some("Markdown".to_string());
 
         // Add all findings
-        for finding in all_findings {
-            result.add_finding(finding);
+        for finding in &all_findings {
+            result.add_finding(finding.clone());
         }
 
         // Update summary
@@ -460,12 +535,101 @@ impl QualityHandler {
             "Workspace markdown analysis complete"
         );
 
+        // Auto-fix phase (if requested)
+        let mut fix_metadata = json!({});
+        if !options.fix.is_empty() {
+            let fixer = MarkdownFixer::new(options.fix.clone());
+            let mut files_fixed = 0;
+            let mut fixes_by_kind: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+            let mut files_affected = Vec::new();
+
+            info!(
+                fix_kinds = ?options.fix,
+                apply = options.apply,
+                "Starting auto-fix phase"
+            );
+
+            for file_path in &md_files {
+                // Read original content
+                let content = match context.app_state.file_service.read_file(file_path).await {
+                    Ok(c) => c,
+                    Err(e) => {
+                        debug!(
+                            file_path = %file_path.display(),
+                            error = %e,
+                            "Failed to read file for fixing"
+                        );
+                        continue;
+                    }
+                };
+
+                // Apply fixes
+                let fixed_content = fixer.apply_fixes(&content);
+
+                // Check if content changed
+                if fixed_content != content {
+                    files_fixed += 1;
+                    files_affected.push(file_path.to_string_lossy().to_string());
+
+                    // Count fixes by kind (check which findings would be resolved)
+                    for finding in &all_findings {
+                        if finding.location.file_path == file_path.to_string_lossy()
+                            && fixer.should_fix(&finding.kind)
+                        {
+                            *fixes_by_kind.entry(finding.kind.clone()).or_insert(0) += 1;
+                        }
+                    }
+
+                    // Write fixed content if apply=true
+                    if options.apply {
+                        match context
+                            .app_state
+                            .file_service
+                            .write_file(file_path, &fixed_content, false) // dry_run=false to actually write
+                            .await
+                        {
+                            Ok(_) => {
+                                debug!(
+                                    file_path = %file_path.display(),
+                                    "Applied fixes to file"
+                                );
+                            }
+                            Err(e) => {
+                                all_errors.push(json!({
+                                    "file": file_path.display().to_string(),
+                                    "error": format!("Write error: {}", e)
+                                }));
+                            }
+                        }
+                    }
+                }
+            }
+
+            info!(
+                files_fixed = files_fixed,
+                applied = options.apply,
+                "Auto-fix phase complete"
+            );
+
+            fix_metadata = json!({
+                "would_fix": files_fixed,
+                "by_kind": fixes_by_kind,
+                "files_affected": files_affected,
+                "applied": options.apply,
+                "files_modified": if options.apply { files_fixed } else { 0 },
+            });
+        }
+
         // Serialize to JSON
         let mut value = serde_json::to_value(result)
             .map_err(|e| ServerError::Internal(format!("Failed to serialize result: {}", e)))?;
 
         if !all_errors.is_empty() {
             value["errors"] = json!(all_errors);
+        }
+
+        if !options.fix.is_empty() {
+            value["fixes"] = fix_metadata;
         }
 
         Ok(value)
@@ -1920,6 +2084,8 @@ impl ToolHandler for QualityHandler {
                         offset: 0,
                         format: default_format(),
                         include_suggestions: default_include_suggestions(),
+                        fix: vec![],
+                        apply: false,
                     });
 
                 let thresholds = options.thresholds.unwrap_or_default();
@@ -2049,6 +2215,23 @@ impl ToolHandler for QualityHandler {
                 let scope_type = scope_param.scope_type.as_deref().unwrap_or("file");
 
                 if scope_type == "workspace" || scope_type == "directory" {
+                    // Parse options for workspace analysis (includes fix parameters)
+                    let options: QualityOptions = args
+                        .get("options")
+                        .map(|v| serde_json::from_value(v.clone()))
+                        .transpose()
+                        .map_err(|e| ServerError::InvalidRequest(format!("Invalid options: {}", e)))?
+                        .unwrap_or_else(|| QualityOptions {
+                            thresholds: None,
+                            severity_filter: None,
+                            limit: default_limit(),
+                            offset: 0,
+                            format: default_format(),
+                            include_suggestions: default_include_suggestions(),
+                            fix: vec![],
+                            apply: false,
+                        });
+
                     // Use workspace analysis
                     self.analyze_workspace_markdown(
                         context,
@@ -2056,6 +2239,7 @@ impl ToolHandler for QualityHandler {
                         "quality",
                         kind,
                         detect_markdown_structure,
+                        &options,
                     )
                     .await
                 } else {
@@ -2076,6 +2260,23 @@ impl ToolHandler for QualityHandler {
                 let scope_type = scope_param.scope_type.as_deref().unwrap_or("file");
 
                 if scope_type == "workspace" || scope_type == "directory" {
+                    // Parse options for workspace analysis (includes fix parameters)
+                    let options: QualityOptions = args
+                        .get("options")
+                        .map(|v| serde_json::from_value(v.clone()))
+                        .transpose()
+                        .map_err(|e| ServerError::InvalidRequest(format!("Invalid options: {}", e)))?
+                        .unwrap_or_else(|| QualityOptions {
+                            thresholds: None,
+                            severity_filter: None,
+                            limit: default_limit(),
+                            offset: 0,
+                            format: default_format(),
+                            include_suggestions: default_include_suggestions(),
+                            fix: vec![],
+                            apply: false,
+                        });
+
                     // Use workspace analysis
                     self.analyze_workspace_markdown(
                         context,
@@ -2083,6 +2284,7 @@ impl ToolHandler for QualityHandler {
                         "quality",
                         kind,
                         detect_markdown_formatting,
+                        &options,
                     )
                     .await
                 } else {

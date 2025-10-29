@@ -37,8 +37,7 @@ mill setup --update
 
 # Interactive setup
 mill setup --interactive
-```
-
+```text
 ---
 
 ## Configuration File Structure
@@ -55,8 +54,7 @@ mill setup --interactive
     ]
   }
 }
-```
-
+```text
 **Complete configuration with all options:**
 ```json
 {
@@ -88,8 +86,7 @@ mill setup --interactive
     }
   }
 }
-```
-
+```text
 ---
 
 ## LSP Server Configuration
@@ -138,8 +135,7 @@ You can configure multiple instances of the same LSP for different directories:
     ]
   }
 }
-```
-
+```text
 ---
 
 ## Environment Variables
@@ -156,8 +152,7 @@ export TYPEMILL__SERVER__PORT=3000
 # Authentication
 export TYPEMILL__SERVER__AUTH__ENABLED=true
 export TYPEMILL__SERVER__AUTH__JWT_SECRET="your-secret-key"
-```
-
+```text
 ### Cache Configuration
 
 ```bash
@@ -173,8 +168,7 @@ export TYPEMILL_DISABLE_LSP_METHOD_CACHE=1
 export TYPEMILL__CACHE__ENABLED=true
 export TYPEMILL__CACHE__TTL_SECONDS=3600
 export TYPEMILL__CACHE__MAX_SIZE_BYTES=268435456
-```
-
+```text
 ### Logging Configuration
 
 ```bash
@@ -183,18 +177,16 @@ export TYPEMILL__LOGGING__LEVEL="info"
 
 # Logging format (pretty, json)
 export TYPEMILL__LOGGING__FORMAT="pretty"
-```
-
+```text
 ### Priority Order
 
 Environment variables override configuration file values:
 
-```
+```text
 1. Environment variables (TYPEMILL__*)
 2. Configuration file (.typemill/config.json)
 3. Default values
-```
-
+```text
 ### Using .env Files
 
 Create a `.env` file in your project root (gitignored by default):
@@ -204,8 +196,7 @@ Create a `.env` file in your project root (gitignored by default):
 TYPEMILL__SERVER__AUTH__JWT_SECRET=dev-secret-key
 TYPEMILL__LOGGING__LEVEL=debug
 TYPEMILL_DISABLE_CACHE=0
-```
-
+```text
 Mill will automatically load `.env` files when present.
 
 ---
@@ -232,8 +223,7 @@ Mill uses multiple caching layers for performance optimization.
     "cacheDir": null
   }
 }
-```
-
+```text
 | Option | Default | Description |
 |--------|---------|-------------|
 | `enabled` | `true` | Enable/disable AST cache |
@@ -251,28 +241,24 @@ TYPEMILL_DISABLE_CACHE=1 mill serve
 # Disable specific caches
 TYPEMILL_DISABLE_AST_CACHE=1 mill serve
 TYPEMILL_DISABLE_IMPORT_CACHE=1 mill serve
-```
-
+```text
 ### When to Disable Caches
 
 **Development:**
 ```bash
 # Force fresh data during development
 export TYPEMILL_DISABLE_CACHE=1
-```
-
+```text
 **CI/CD:**
 ```bash
 # Ensure fresh results in pipelines
 TYPEMILL_DISABLE_CACHE=1 cargo test
-```
-
+```text
 **Debugging:**
 ```bash
 # Isolate cache-related issues
 TYPEMILL_DISABLE_AST_CACHE=1 mill tool rename ...
-```
-
+```text
 ---
 
 ## Logging Configuration
@@ -297,14 +283,12 @@ TYPEMILL_DISABLE_AST_CACHE=1 mill tool rename ...
     "format": "pretty"
   }
 }
-```
-
+```text
 **Via environment variable:**
 ```bash
 export TYPEMILL__LOGGING__LEVEL=debug
 mill start
-```
-
+```text
 ### Capturing Logs
 
 ```bash
@@ -313,8 +297,7 @@ mill start 2> logs.txt
 
 # Follow in real-time
 mill start 2>&1 | tee logs.txt
-```
-
+```text
 ---
 
 ## Security & Authentication
@@ -334,8 +317,7 @@ mill start 2>&1 | tee logs.txt
     }
   }
 }
-```
-
+```text
 **⚠️ Security Best Practices:**
 - ✅ **Never commit secrets to config files** - use environment variables
 - ✅ Use `TYPEMILL__SERVER__AUTH__JWT_SECRET` environment variable
@@ -348,8 +330,7 @@ mill start 2>&1 | tee logs.txt
 # Store secrets in environment, not config files
 export TYPEMILL__SERVER__AUTH__JWT_SECRET="$(openssl rand -hex 32)"
 mill serve
-```
-
+```text
 ### Network Binding
 
 **Local development (default):**
@@ -360,8 +341,7 @@ mill serve
     "port": 3000
   }
 }
-```
-
+```text
 **Production (bind to all interfaces):**
 ```json
 {
@@ -373,8 +353,7 @@ mill serve
     }
   }
 }
-```
-
+```text
 ---
 
 ## Configuration Strategies
@@ -402,8 +381,7 @@ mill serve
     ]
   }
 }
-```
-
+```text
 **Team README should include:**
 ```markdown
 ## LSP Requirements
@@ -411,8 +389,7 @@ mill serve
 Ensure these are installed and in PATH:
 - `typescript-language-server` - `npm install -g typescript-language-server`
 - `rust-analyzer` - `rustup component add rust-analyzer`
-```
-
+```text
 ### Local Configuration (Single Developer)
 
 **Best for:** Personal projects, local experimentation
@@ -435,8 +412,7 @@ Ensure these are installed and in PATH:
     ]
   }
 }
-```
-
+```text
 ---
 
 ## Common Configuration Examples
@@ -455,8 +431,7 @@ Ensure these are installed and in PATH:
     ]
   }
 }
-```
-
+```text
 ### Rust Workspace
 
 ```json
@@ -472,8 +447,7 @@ Ensure these are installed and in PATH:
     ]
   }
 }
-```
-
+```text
 ### Full-Stack (TypeScript + Rust + Python)
 
 ```json
@@ -498,8 +472,7 @@ Ensure these are installed and in PATH:
     ]
   }
 }
-```
-
+```text
 ### Development Mode (Verbose Logging + No Cache)
 
 ```json
@@ -521,15 +494,13 @@ Ensure these are installed and in PATH:
     "format": "pretty"
   }
 }
-```
-
+```text
 Or via environment:
 ```bash
 export TYPEMILL_DISABLE_CACHE=1
 export TYPEMILL__LOGGING__LEVEL=debug
 mill serve
-```
-
+```text
 ### Production (Optimized)
 
 ```json
@@ -560,8 +531,7 @@ mill serve
     }
   }
 }
-```
-
+```text
 ---
 
 ## Language-Specific Configuration
@@ -574,8 +544,7 @@ TypeScript LSP needs to find `node_modules/typescript` and `tsconfig.json`.
 **Auto-detection:**
 ```bash
 mill setup --update  # Automatically detects TS projects
-```
-
+```text
 **Manual configuration:**
 ```json
 {
@@ -583,8 +552,7 @@ mill setup --update  # Automatically detects TS projects
   "command": ["typescript-language-server", "--stdio"],
   "rootDir": "web"
 }
-```
-
+```text
 **Monorepos with multiple TS projects:**
 ```json
 {
@@ -603,8 +571,7 @@ mill setup --update  # Automatically detects TS projects
     ]
   }
 }
-```
-
+```text
 ### Rust
 
 **Simple projects:**
@@ -614,8 +581,7 @@ mill setup --update  # Automatically detects TS projects
   "command": ["rust-analyzer"],
   "rootDir": "."
 }
-```
-
+```text
 **Large workspaces (increase restart interval):**
 ```json
 {
@@ -624,8 +590,7 @@ mill setup --update  # Automatically detects TS projects
   "rootDir": ".",
   "restartInterval": 20
 }
-```
-
+```text
 Rust Analyzer automatically discovers workspace members from `Cargo.toml`.
 
 ### Python
@@ -637,15 +602,13 @@ Rust Analyzer automatically discovers workspace members from `Cargo.toml`.
   "command": ["pylsp"],
   "rootDir": "."
 }
-```
-
+```text
 **With virtual environment:**
 Ensure `pylsp` is installed in the activated virtual environment:
 ```bash
 source venv/bin/activate
 pip install python-lsp-server
-```
-
+```text
 ---
 
 ## Verifying Configuration
@@ -662,8 +625,7 @@ mill status
 
 # Test with a tool call
 mill tool health_check '{}'
-```
-
+```text
 ---
 
 ## Troubleshooting Configuration
@@ -674,15 +636,13 @@ mill tool health_check '{}'
 ```bash
 $ mill doctor
 Checking for 'typescript-language-server'... [✗] Not found in PATH.
-```
-
+```text
 **Solutions:**
 
 1. **Install the LSP:**
 ```bash
 npm install -g typescript-language-server typescript
-```
-
+```text
 2. **Add to PATH:**
 ```bash
 # Find installation location
@@ -692,15 +652,13 @@ npm list -g | grep typescript-language-server
 # Add to shell profile (~/.bashrc or ~/.zshrc)
 export PATH="$HOME/.nvm/versions/node/v20.0.0/bin:$PATH"
 source ~/.bashrc
-```
-
+```text
 3. **Use absolute path in config:**
 ```json
 {
   "command": ["/full/path/to/typescript-language-server", "--stdio"]
 }
-```
-
+```text
 ### Invalid `rootDir`
 
 **Problem:** Tools not working, "Cannot find module" errors
@@ -712,8 +670,7 @@ find . -name "tsconfig.json" -o -name "Cargo.toml"
 
 # Update config
 mill setup --update  # Auto-detects correct rootDir
-```
-
+```text
 ### Configuration Not Loading
 
 **Problem:** Changes to config.json not taking effect
@@ -722,8 +679,7 @@ mill setup --update  # Auto-detects correct rootDir
 ```bash
 mill stop
 mill start
-```
-
+```text
 ---
 
 ## See Also

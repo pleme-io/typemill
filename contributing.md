@@ -30,8 +30,7 @@ cargo nextest run --workspace
 
 # 4. Configure LSP servers (optional)
 ./target/debug/mill setup
-```
-
+```text
 That's it! You're ready to contribute.
 
 **For detailed setup including parser builds and development tools:**
@@ -57,8 +56,7 @@ cargo nextest run --workspace --all-features
 
 # Specific package
 cargo nextest run -p mill-handlers
-```
-
+```text
 ### Makefile Shortcuts
 
 ```bash
@@ -66,8 +64,7 @@ make test           # Run fast tests
 make test-full      # Run all tests including skipped
 make test-lsp       # Run tests requiring LSP servers
 make check          # Run fmt + clippy + test + audit
-```
-
+```text
 **For detailed testing workflows, watch mode, and focused development:**
 - See **[docs/development/testing.md](docs/development/testing.md)** - Complete testing guide
 - See **[docs/development/overview.md](docs/development/overview.md#running-tests)** - Quick test reference
@@ -89,8 +86,7 @@ cargo clippy --all-targets -- -D warnings
 
 # Run all checks
 make check  # Runs fmt + clippy + test + audit + deny
-```
-
+```text
 ### Quality Checks
 
 ```bash
@@ -102,8 +98,7 @@ cargo xtask check-features
 
 # Security audit
 cargo audit
-```
-
+```text
 **Structured Logging:**
 Always use structured key-value logging:
 
@@ -114,8 +109,7 @@ error!(error = %e, tool = "get_diagnostics", "Tool execution failed");
 
 // ❌ Bad - string interpolation
 debug!("Processing tool call {} for file {}", tool_call.name, path);
-```
-
+```text
 See **[docs/development/logging_guidelines.md](docs/development/logging_guidelines.md)** for complete logging standards.
 
 ---
@@ -133,8 +127,7 @@ cargo xtask check-duplicates     # Check for duplicate code
 cargo xtask check-features       # Validate cargo features
 cargo xtask new-lang <language>  # Create new language plugin
 cargo xtask --help               # Show all available commands
-```
-
+```text
 ### Why xtask?
 
 - ✅ **Cross-platform**: Works on Windows, Linux, and macOS
@@ -180,8 +173,7 @@ cargo deny check bans
 
 # Update advisory database
 cargo deny fetch
-```
-
+```text
 ### Handling cargo-deny Failures
 
 If `cargo deny check` fails:
@@ -222,8 +214,7 @@ dashmap = "6.0"  # Workspace uses 5.5
 
 # Bad - git dependency without justification
 my-crate = { git = "https://github.com/..." }
-```
-
+```text
 ---
 
 ## 🔄 Pull Request Process
@@ -288,8 +279,7 @@ cargo xtask new-lang <language>
 # Build and test
 cargo build -p mill-lang-<language>
 cargo nextest run -p mill-lang-<language>
-```
-
+```text
 ### Adding New MCP Tools
 
 To add new tools and handlers to the system:
@@ -335,8 +325,7 @@ sccache --show-stats
 sccache --zero-stats
 rm -rf target/
 cargo build
-```
-
+```text
 ### Build Times Reference
 
 With sccache and mold installed:
@@ -373,8 +362,7 @@ mill docs                          # List all topics
 mill docs development/overview     # View contributor guide
 mill docs tools/refactoring        # View refactoring tools
 mill docs --search "plugin"        # Search all documentation
-```
-
+```text
 ### Getting Help
 
 **Stuck? Need guidance?**

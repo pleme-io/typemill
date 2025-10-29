@@ -84,8 +84,7 @@ Object with creation details:
 }
 
 // Creates manifest, entry file, README, .gitignore, tests
-```
-
+```text
 **Example - Create binary:**
 
 ```json
@@ -104,8 +103,7 @@ Object with creation details:
 }
 
 // Creates minimal files + language-specific extras
-```
-
+```text
 **Notes:**
 - Language auto-detected from workspace structure
 - Package name derived from final path component
@@ -186,8 +184,7 @@ Object with extraction results:
     "warnings": []
   }
 }
-```
-
+```text
 **Example - Extract dev-dependencies:**
 
 ```json
@@ -207,8 +204,7 @@ Object with extraction results:
 }
 
 // Extracts from [dev-dependencies] section
-```
-
+```text
 **Example - Conflict detection:**
 
 ```json
@@ -232,8 +228,7 @@ Object with extraction results:
     ]
   }
 }
-```
-
+```text
 **Example - Dry-run preview:**
 
 ```json
@@ -253,8 +248,7 @@ Object with extraction results:
 }
 
 // Result shows what would be extracted, but target file is NOT modified
-```
-
+```text
 **Notes:**
 - Preserves dependency metadata: versions, features, optional flag, workspace references
 - Supports workspace dependencies (`{ workspace = true }`)
@@ -328,8 +322,7 @@ Object with update results:
     "dryRun": false
   }
 }
-```
-
+```text
 **Example - Remove member:**
 
 ```json
@@ -359,8 +352,7 @@ Object with update results:
     "dryRun": false
   }
 }
-```
-
+```text
 **Example - List members:**
 
 ```json
@@ -386,8 +378,7 @@ Object with update results:
     "dryRun": false
   }
 }
-```
-
+```text
 **Example - Create workspace section:**
 
 ```json
@@ -408,8 +399,7 @@ Object with update results:
 }
 
 // Creates [workspace] section with members array
-```
-
+```text
 **Example - Dry-run preview:**
 
 ```json
@@ -436,8 +426,7 @@ Object with update results:
     "dryRun": true
   }
 }
-```
-
+```text
 **Notes:**
 - Idempotent operations: Adding existing member or removing non-existent member is no-op
 - Automatically normalizes paths to forward slashes (even on Windows)
@@ -524,8 +513,7 @@ When `dryRun: false`, returns ApplyResult:
     }
   }
 }
-```
-
+```text
 **Example - Whole word matching:**
 
 ```json
@@ -543,8 +531,7 @@ When `dryRun: false`, returns ApplyResult:
 }
 
 // Matches "user" but NOT "username" or "userInfo"
-```
-
+```text
 **Example - Regex with capture groups:**
 
 ```json
@@ -563,8 +550,7 @@ When `dryRun: false`, returns ApplyResult:
 // Converts:
 // TYPEMILL_ENABLE_LOGS → TYPEMILL_ENABLE_LOGS
 // TYPEMILL_DEBUG_MODE → TYPEMILL_DEBUG_MODE
-```
-
+```text
 **Example - Case-preserving replacement:**
 
 ```json
@@ -586,8 +572,7 @@ When `dryRun: false`, returns ApplyResult:
 // userName → accountId (camelCase)
 // UserName → AccountId (PascalCase)
 // USER_NAME → ACCOUNT_ID (SCREAMING_SNAKE)
-```
-
+```text
 **Example - Scoped replacement (Rust files only):**
 
 ```json
@@ -607,8 +592,7 @@ When `dryRun: false`, returns ApplyResult:
 }
 
 // Only searches .rs files, excluding target/ and tests/
-```
-
+```text
 **Example - Named capture groups:**
 
 ```json
@@ -625,8 +609,7 @@ When `dryRun: false`, returns ApplyResult:
 }
 
 // Converts: utils::format → format_from_utils
-```
-
+```text
 **Example - Execute replacement (dryRun: false):**
 
 ```json
@@ -654,8 +637,7 @@ When `dryRun: false`, returns ApplyResult:
     "matches_replaced": 5
   }
 }
-```
-
+```text
 **Error Cases:**
 
 | Error | Cause | Solution |
@@ -742,8 +724,7 @@ mill tool rename '{
   "newName": "crates/mill-analysis/src",
   "options": { "dryRun": false }
 }'
-```
-
+```text
 ### Package Creation with Dependencies
 
 Create a new package and set up dependencies in one workflow:
@@ -761,8 +742,7 @@ mill tool workspace.extract_dependencies '{
   "target_manifest": "crates/new-service/Cargo.toml",
   "dependencies": ["tokio", "tracing", "serde"]
 }'
-```
-
+```text
 ### Workspace Reorganization
 
 Remove deprecated crates from workspace:
@@ -786,8 +766,7 @@ mill tool workspace.update_members '{
   "workspace_manifest": "Cargo.toml",
   "action": "list"
 }'
-```
-
+```text
 ### Dependency Audit Before Extraction
 
 Preview dependencies before extracting a module:
@@ -814,8 +793,7 @@ mill tool workspace.extract_dependencies '{
     "dryRun": false
   }
 }'
-```
-
+```text
 ### Project-Wide Text Replacement
 
 Safe workflow for replacing text across the workspace:
@@ -843,8 +821,7 @@ mill tool workspace.find_replace '{
   },
   "dryRun": false
 }'
-```
-
+```text
 **Common use cases:**
 - Environment variable prefix changes (TYPEMILL_* → TYPEMILL_*)
 - Configuration path updates (.typemill → .typemill)
@@ -874,8 +851,7 @@ mill tool rename '{
 # - Merges dependencies (uses workspace.extract_dependencies internally)
 # - Removes from workspace members (uses workspace.update_members)
 # - Updates imports across workspace
-```
-
+```text
 ### With analyze.module_dependencies
 
 Use dependency analysis before extraction:
@@ -894,8 +870,7 @@ mill tool workspace.extract_dependencies '{
   "target_manifest": "crates/new-crate/Cargo.toml",
   "dependencies": ["<deps from analysis>"]
 }'
-```
-
+```text
 ---
 
 **Related Documentation:**

@@ -52,8 +52,7 @@ use cb_ast::build_import_graph;
 
 // Parse source and build import graph
 let graph = build_import_graph(source, path)?;
-```
-
+```text
 ### Dependency Graphs
 
 ```rust
@@ -64,8 +63,7 @@ let dep_graph = build_dependency_graph(&import_graphs);
 
 // Detect circular dependencies
 if dep_graph.has_cycles() { /* ... */ }
-```
-
+```text
 ### Complexity Analysis
 
 ```rust
@@ -78,8 +76,7 @@ for func in metrics.functions {
     println!("{}: cyclomatic={}, cognitive={}",
         func.name, func.cyclomatic_complexity, func.cognitive_complexity);
 }
-```
-
+```text
 ### Refactoring
 
 ```rust
@@ -87,8 +84,7 @@ use cb_ast::plan_refactor;
 
 // Generate edit plan for refactoring
 let plan = plan_refactor(&intent_spec, file_path)?;
-```
-
+```text
 ## Implementation
 
 - **parser.rs**: Import graph building with SWC
@@ -102,8 +98,7 @@ Parser version: `0.3.0-swc`
 
 ```bash
 cargo test -p cb-ast
-```
-
+```text
 ## Documentation
 
 For complete architecture details, see [docs/architecture/overview.md](../../docs/architecture/overview.md).

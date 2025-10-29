@@ -54,10 +54,9 @@ The plugin uses a **dual-mode approach** for parsing:
 Embeds `../mill-lang-typescript/resources/ast_tool.js` and spawns it as a subprocess to leverage Node.js with Babel parser (`@babel/parser`) for accurate parsing of both TypeScript and JavaScript. Supports JSX/TSX through Babel plugins.
 
 **Subprocess Communication:**
-```
+```text
 Rust Plugin → Node.js subprocess (ast_tool.js) → @babel/parser → JSON AST → Rust
-```
-
+```text
 ### 2. Regex Mode (Fallback)
 
 When Node.js is unavailable, falls back to regex-based parsing for basic import detection. Symbol extraction returns empty list in fallback mode.
@@ -77,8 +76,7 @@ The plugin is automatically included when the `lang-typescript` feature is enabl
 [features]
 default = ["lang-typescript"]
 lang-typescript = ["dep:mill-lang-typescript"]
-```
-
+```text
 ## Usage
 
 ```rust
@@ -108,8 +106,7 @@ assert!(!parsed.symbols.is_empty());
 // Analyze package.json manifest
 let manifest = plugin.analyze_manifest(Path::new("package.json")).await?;
 println!("Package: {}", manifest.name);
-```
-
+```text
 ## Testing
 
 ```bash
@@ -122,8 +119,7 @@ cargo test -p mill-lang-typescript -- --nocapture
 # Test with real TypeScript project
 cd /path/to/typescript/project
 cargo test -p mill-lang-typescript test_typescript_integration -- --nocapture
-```
-
+```text
 ## Implementation Details
 
 ### Parser Module (`../mill-lang-typescript/src/parser.rs`)

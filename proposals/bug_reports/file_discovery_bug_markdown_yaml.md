@@ -23,10 +23,9 @@ When renaming a crate or directory, the file discovery mechanism fails to find m
 **For markdown/YAML specifically:**
 
 Log evidence:
-```
+```text
 Found files for extension, extension: "markdown", files_found: 0
-```
-
+```text
 But `docs/guide.md` exists in the workspace and contains references.
 
 ## Root Cause
@@ -42,8 +41,7 @@ INFO Found files for extension, extension: "toml", files_found: 3  ✅
 INFO Found files for extension, extension: "yaml", files_found: 0
 INFO Found files for extension, extension: "yml", files_found: 0
 INFO No documentation or config file updates needed  ❌ WRONG!
-```
-
+```text
 The scanner:
 - ✅ Finds `.rs` files correctly
 - ✅ Finds `.toml` files correctly
@@ -56,26 +54,23 @@ The scanner:
 
 ```bash
 cargo nextest run -p e2e test_file_discovery_in_non_standard_locations
-```
-
+```text
 **Test creates:**
-```
+```text
 /tmp/test-workspace/
   crates/my-crate/           # Source crate
   docs/guide.md              # Contains: "use my_crate::helper;"
   proposals/01_feature.md    # Contains: "uses my_crate"
-```
-
+```text
 **Expected behavior:**
 - Both markdown files should be in the rename plan
 - Markdown links/references should be updated
 
 **Actual behavior:**
-```
+```text
 Found files for extension, extension: "markdown", files_found: 0
 ❌ BUG: docs/guide.md not in plan
-```
-
+```text
 **Files found**: Only 5 files (3 Cargo.toml, 2 .rs files)
 **Files missing**: 2 markdown files
 
@@ -86,8 +81,7 @@ Found files for extension, extension: "markdown", files_found: 0
   "target": {"kind": "directory", "path": "../../crates/mill-test-support"},
   "newName": "crates/mill-test-support"
 }'
-```
-
+```text
 **Missing files include:**
 - `docs/architecture/layers.md`
 - `proposals/00_rename_to_typemill.proposal.md`
@@ -215,10 +209,9 @@ The bug was only caught when testing with markdown files in docs/ and proposals/
 **Location**: `tests/e2e/src/test_file_discovery_bug.rs`
 
 ```rust
-#[tokio::test]
+# [tokio::test]
 async fn test_file_discovery_in_non_standard_locations()
-```
-
+```text
 **Status**: ❌ **FAILS** - This is expected and proves the bug exists
 
 **Verifies**:
@@ -231,10 +224,9 @@ async fn test_file_discovery_in_non_standard_locations()
 **Location**: `tests/e2e/src/test_cross_workspace_import_updates.rs`
 
 ```rust
-#[tokio::test]
+# [tokio::test]
 async fn test_rename_crate_updates_all_workspace_imports()
-```
-
+```text
 **Status**: ✅ PASSES - But doesn't test markdown/YAML
 
 **Covers**: Rust file imports only

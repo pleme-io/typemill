@@ -49,8 +49,7 @@ swc_ecma_ast = "17"
 swc_ecma_codegen = "19"
 swc_ecma_parser = "26"
 swc_ecma_visit = "17"
-```
-
+```text
 **Note:** `Cargo.lock` will also update automatically with new resolved dependency versions.
 
 ### 2. Add Wildcard Arms to Pattern Matches
@@ -68,8 +67,7 @@ let imported_name =
         swc_ecma_ast::ModuleExportName::Str(s) => s.value.as_ref(),
 +       _ => local_name,  // Handle future variants
     });
-```
-
+```text
 **Location 2 (Line 52-69):** ImportSpecifier enum match
 
 ```diff
@@ -87,8 +85,7 @@ import_decl.specifiers.retain(|spec| {
 +       _ => true,  // Keep unknown variants
     }
 });
-```
-
+```text
 **Rationale for wildcard logic:**
 - ModuleExportName fallback: Returns `local_name` (safe default preserving existing identifier)
 - ImportSpecifier fallback: Returns `true` (conservative - keeps unknown import types rather than removing them)
@@ -167,8 +164,7 @@ cargo check --workspace
 cargo clippy --workspace
 cargo nextest run --workspace
 cargo build --release
-```
-
+```text
 ## Benefits
 
 1. **Security**: Access to security patches from 10 major releases (potential CVE fixes)

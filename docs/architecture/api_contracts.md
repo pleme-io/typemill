@@ -20,19 +20,19 @@
 ### `Position`
 ```json
 { "line": 0, "character": 0 }
-```
+```text
 Zero-based indices aligned with LSP.
 
 ### `Range`
 ```json
 { "start": { "line": 0, "character": 0 }, "end": { "line": 0, "character": 0 } }
-```
+```text
 End is exclusive. Required for regions.
 
 ### `Location`
 ```json
 { "file_path": "src/lib.rs", "range": { ... } }
-```
+```text
 `file_path` is workspace-relative POSIX path.
 
 ### `SymbolIdentifier`
@@ -42,7 +42,7 @@ End is exclusive. Required for regions.
   "symbol_kind": "function",
   "language": "rust"
 }
-```
+```text
 `symbol_kind` matches LSP `SymbolKind` enums (lowercase strings).
 
 ### `Severity`
@@ -60,7 +60,7 @@ Enumerated string: `"high" | "medium" | "low"`.
   "scope": { ... },
   "options": { ... }
 }
-```
+```text
 - `category`: `"quality" | "dead_code" | "dependencies" | "structure" | "documentation" | "tests"`.
 - `kind`: category-specific enumerations (see below).
 - `scope`: filters target files.
@@ -75,7 +75,7 @@ Enumerated string: `"high" | "medium" | "low"`.
   "include": ["*.rs"],
   "exclude": ["tests/"]
 }
-```
+```text
 - `type` required.
 - `path` required for `directory` and `file`.
 - `symbol_name` required when `type="symbol"`.
@@ -88,7 +88,7 @@ Available for all categories. Clients may omit `options` entirely or send `{}` t
   "limit": 1000,
   "offset": 0
 }
-```
+```text
 - `limit`: integer 1–5000 (default 1000).
 - `offset`: integer ≥0 (default 0).
 - Pagination parameters live inside `options`.
@@ -115,7 +115,7 @@ Available for all categories. Clients may omit `options` entirely or send `{}` t
     "thresholds": { "cyclomatic_complexity": 15 }
   }
 }
-```
+```text
 - `findings`: array length ≤ `limit`.
 - `summary.has_more` true when additional findings exist beyond `offset + return_count`.
 - `summary.by_severity` must include keys for all Severity values (0 allowed); omission implies 0.
@@ -134,7 +134,7 @@ Available for all categories. Clients may omit `options` entirely or send `{}` t
   "message": "Function has high cyclomatic complexity (25)",
   "suggestions": [ { ... } ]
 }
-```
+```text
 - `id`: stable identifier within result set.
 - `kind`: category-specific enumeration (snake case).
 - `symbol`: optional `SymbolIdentifier`.
@@ -153,7 +153,7 @@ Available for all categories. Clients may omit `options` entirely or send `{}` t
     "arguments": { ... }
   }
 }
-```
+```text
 - `refactor_call` is required when actionable.
 - `command` references unified refactor API commands.
 - `arguments` must conform to target plan schema.
@@ -237,7 +237,7 @@ Available for all categories. Clients may omit `options` entirely or send `{}` t
     "details": { "field": "scope.path" }
   }
 }
-```
+```text
 - `code`: uppercase snake case stable identifiers.
 - `message`: human-readable English sentence.
 - `details`: optional object; may include `field`, `expected`, `actual`.
@@ -255,7 +255,7 @@ Available for all categories. Clients may omit `options` entirely or send `{}` t
   "arguments": { ... },
   "options": { ... }
 }
-```
+```text
 - `operation`: `"rename" | "extract" | "inline" | "move" | "reorder" | "transform" | "delete"`.
 - `kind`: operation-specific enumeration.
 - Command name mapping: `rename`, `extract`, etc.
@@ -282,7 +282,7 @@ Available for all categories. Clients may omit `options` entirely or send `{}` t
     "src/lib.rs": "sha256:abc123"
   }
 }
-```
+```text
 - `plan_type`: `"RenamePlan" | "ExtractPlan" | "InlinePlan" | "MovePlan" | "ReorderPlan" | "TransformPlan" | "DeletePlan"`.
 - `plan_version`: string, default `"1.0"`. Increment when breaking plan schema.
 - `edits`: conforms to LSP `WorkspaceEdit` (no filesystem side effects beyond edits).
@@ -385,8 +385,7 @@ All refactoring tools (`rename`, `extract`, `inline`, `move`, `reorder`, `transf
     "force": false
   }
 }
-```
-
+```text
 **Options:**
 - `dryRun`: when `true` (default), preview changes without modifying files; when `false`, execute changes
 - `validateChecksums`: compares file hashes before applying; failure returns error code `STALE_PLAN`
@@ -407,7 +406,7 @@ All refactoring tools (`rename`, `extract`, `inline`, `move`, `reorder`, `transf
   "rollback_available": true,
   "snapshot_id": "rollback-123"
 }
-```
+```text
 - `success`: boolean.
 - `applied_files`: list of file paths touched (empty on dry run).
 - `created_files`/`deleted_files`: unique sets.
@@ -424,7 +423,7 @@ All refactoring tools (`rename`, `extract`, `inline`, `move`, `reorder`, `transf
     "details": { "file_path": "src/app.rs" }
   }
 }
-```
+```text
 - Additional apply errors:
   - `INVALID_PLAN_TYPE`: plan_type unrecognized.
   - `CHECKSUM_MISMATCH`: specific file mismatch.

@@ -6,7 +6,7 @@ This document defines the layered dependency model for the TypeMill/TypeMill wor
 
 Layers are organized from foundational (bottom) to application (top). Each layer can only depend on layers below it, never above.
 
-```
+```text
 ┌─────────────────────────────────────────┐
 │  Layer 7: Application                   │  ← Entry points, CLI, servers
 ├─────────────────────────────────────────┤
@@ -22,8 +22,7 @@ Layers are organized from foundational (bottom) to application (top). Each layer
 ├─────────────────────────────────────────┤
 │  Layer 1: Support (special)             │  ← Testing, tooling (can access any layer)
 └─────────────────────────────────────────┘
-```
-
+```text
 ## Layer Definitions
 
 ### Layer 1: Support (Special Status)
@@ -207,8 +206,7 @@ cargo deny check
 
 # Visualize dependency graph
 cargo depgraph --workspace-only | dot -Tpng > deps.png
-```
-
+```text
 ### What's Enforced
 
 **✅ Active Enforcement:**

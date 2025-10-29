@@ -26,21 +26,19 @@ During the consolidation of `mill-core` into `mill-foundation/src/core`, multipl
 **Description**:
 The consolidation tool moved `language.rs` into `mill-foundation/src/core/`, but this module depends on `mill-plugin-api::iter_plugins()`. This creates a circular dependency:
 
-```
+```text
 mill-plugin-api → mill-foundation → (language.rs) → mill-plugin-api
-```
-
+```text
 **Root Cause**:
 The consolidation tool doesn't detect or prevent circular dependencies when moving modules that import crates which themselves depend on the target crate.
 
 **Error Message**:
-```
+```text
 error: cyclic package dependency: package `mill-plugin-api v0.0.0` depends on itself. Cycle:
 package `mill-plugin-api`
     ... which satisfies path dependency `mill-plugin-api` of package `mill-foundation`
     ... which satisfies path dependency `mill-foundation` of package `mill-plugin-api`
-```
-
+```text
 **Workaround Applied**:
 - Removed `language.rs` from consolidation target
 - Moved `language.rs` to `mill-plugin-api` crate instead
@@ -63,27 +61,24 @@ package `mill-plugin-api`
 **Description**:
 Similar to Bug #1, `logging.rs` was moved into `mill-foundation/src/core/`, but it depends on `mill-config::{AppConfig, LogFormat}`. This creates another circular dependency:
 
-```
+```text
 mill-plugin-api → mill-foundation → mill-config → mill-plugin-api
-```
-
+```text
 Additionally, `mill-config` directly depends on `mill-foundation`, so:
-```
+```text
 mill-foundation → (logging.rs) → mill-config → mill-foundation
-```
-
+```text
 **Root Cause**:
 Same as Bug #1 - the consolidation tool doesn't analyze transitive dependencies to detect circular dependency chains.
 
 **Error Message**:
-```
+```text
 error: cyclic package dependency: package `mill-plugin-api v0.0.0` depends on itself. Cycle:
 package `mill-plugin-api`
     ... which satisfies path dependency `mill-plugin-api` of package `mill-config`
     ... which satisfies path dependency `mill-config` of package `mill-foundation`
     ... which satisfies path dependency `mill-foundation` of package `mill-plugin-api`
-```
-
+```text
 **Workaround Applied**:
 - Removed `logging.rs` from consolidation target
 - Moved `logging.rs` to `mill-config` crate (since it depends on config types)
@@ -112,14 +107,13 @@ After consolidation, all imports referencing `mill_core::` were not automaticall
 The consolidation tool's post-processing step `update_imports_for_consolidation()` did not properly update all import statements to reflect the new module path.
 
 **Error Messages**:
-```
+```text
 error[E0433]: failed to resolve: use of unresolved module or unlinked crate `mill_core`
   --> ../../crates/mill-client/src/commands/doctor.rs:72:9
    |
 72 |         mill_core::utils::system::command_exists(cmd)
    |         ^^^^^^^^^^^^^^ use of unresolved module or unlinked crate `mill_core`
-```
-
+```text
 **Manual Fix Required**:
 ```bash
 find /workspace -type f \( -name "*.rs" -o -name "*.toml" \) ! -path "*/target/*" \
@@ -127,8 +121,7 @@ find /workspace -type f \( -name "*.rs" -o -name "*.toml" \) ! -path "*/target/*
 
 find /workspace -type f \( -name "*.rs" -o -name "*.toml" \) ! -path "*/target/*" \
   -exec sed -i 's/use mill_core\b/use mill_foundation::core/g' {} +
-```
-
+```text
 **Files Affected**: 19 files
 - `/workspace/crates/mill-services/src/services/workflow_executor.rs`
 - `/workspace/crates/cb-handlers/src/handlers/workflow_handler.rs`
@@ -168,8 +161,7 @@ use cb_plugin_api::iter_plugins;  // ✗ circular self-import
 
 // Should be:
 use crate::iter_plugins;  // ✓ correct
-```
-
+```text
 **Root Cause**:
 The consolidation tool doesn't analyze whether moved modules are importing their new parent crate and convert those to relative paths.
 
@@ -180,8 +172,7 @@ sed -i 's/use cb_plugin_api::iter_plugins;/use crate::iter_plugins;/g' \
 
 sed -i 's/use mill_config::/use crate::/g' \
   /workspace/crates/mill-config/src/logging.rs
-```
-
+```text
 ---
 
 ### Bug #5: Cargo.toml Duplicate Entry Generation
@@ -198,8 +189,7 @@ When updating dependencies from `mill-core` to `mill-foundation`, duplicate entr
 mill-foundation = { path = "../mill-foundation" }  # line 8 - original
 # ... other deps ...
 mill-foundation = { path = "../mill-foundation" }  # line 32 - duplicate
-```
-
+```text
 **Root Cause**:
 The automated sed replacements added new entries without checking for existing ones, or failed to remove old entries first.
 
@@ -214,8 +204,7 @@ The automated sed replacements added new entries without checking for existing o
 sed -i '19d' /workspace/crates/mill-lsp/Cargo.toml
 sed -i '34d' /workspace/crates/mill-services/Cargo.toml
 # ... (repeated for all affected files)
-```
-
+```text
 ---
 
 ### Bug #6: Workspace Member and Dependency Not Removed from Root Cargo.toml
@@ -238,8 +227,7 @@ members = [
 
 [workspace.dependencies]
 mill-core = { path = "crates/mill-core" }  # ✗ Should be removed
-```
-
+```text
 **Root Cause**:
 The consolidation tool removes the source directory but doesn't update the workspace manifest to remove references to the consolidated crate.
 
@@ -248,8 +236,7 @@ The consolidation tool removes the source directory but doesn't update the works
 // Edit /workspace/Cargo.toml
 // Remove: "crates/mill-core" from members array
 // Remove: mill-core = { path = "crates/mill-core" } from dependencies
-```
-
+```text
 ---
 
 ## Consolidated Modules Successfully Moved
@@ -266,8 +253,7 @@ Despite the issues above, the following modules from `mill-core` were successful
 ```rust
 pub use crate::error::{ApiError, CoreError};  // ✓ correct self-reference
 pub use crate::model;  // ✓ correct self-reference
-```
-
+```text
 ---
 
 ## Proposed Fixes
@@ -290,8 +276,7 @@ async fn validate_consolidation_dependencies(
     // 4. Check for cycles if consolidation proceeds
     // 5. Return warnings/errors for problematic modules
 }
-```
-
+```text
 **Implementation Strategy**:
 - Parse both source and target Cargo.toml files
 - Extract all dependencies (including transitive via workspace resolution)
@@ -348,8 +333,7 @@ async fn fix_self_imports_after_move(
 
     Ok(())
 }
-```
-
+```text
 ---
 
 ### Fix #3: Automatic Cargo.toml Cleanup
@@ -370,8 +354,7 @@ async fn cleanup_cargo_manifests_after_consolidation(
     // 4. Scan all workspace Cargo.toml files for duplicate entries
     // 5. Remove duplicates while preserving features/options
 }
-```
-
+```text
 **Duplicate Detection Algorithm**:
 ```rust
 fn remove_duplicate_dependencies(toml_content: &str) -> Result<String> {
@@ -396,8 +379,7 @@ fn remove_duplicate_dependencies(toml_content: &str) -> Result<String> {
 
     Ok(doc.to_string())
 }
-```
-
+```text
 ---
 
 ### Fix #4: Module Exclusion API
@@ -415,8 +397,7 @@ Allow users to exclude specific modules from consolidation:
     "exclude_modules": ["language.rs", "logging.rs"]
   }
 }
-```
-
+```text
 This would:
 - Skip moving excluded files
 - Update imports as if the module still exists in original location

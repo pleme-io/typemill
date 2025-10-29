@@ -113,7 +113,7 @@ Fast reference for test organization, execution, and best practices.
 
 ## Test Organization
 
-```
+```text
 workspace/
 ├── crates/*/src/           # Unit tests (inline #[test])
 ├── tests/
@@ -127,8 +127,7 @@ workspace/
 └── ../../apps/mill/tests/   # E2E and smoke tests
     ├── e2e_*.rs            # E2E workflows
     └── smoke/              # Protocol tests (#[ignore])
-```
-
+```text
 ## Best Practices
 
 ### ✅ DO

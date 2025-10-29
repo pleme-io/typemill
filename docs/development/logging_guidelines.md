@@ -19,15 +19,13 @@ All logging in this codebase uses **structured tracing** with key-value pairs to
 error!(error = %e, file_path = %path, operation = "read", "Failed to read file");
 info!(user_id = %user.id, action = "login", duration_ms = elapsed, "User authenticated");
 debug!(request_id = %req_id, tool_name = %tool, "Processing tool request");
-```
-
+```text
 **❌ INCORRECT:**
 ```rust
 error!("Failed to read file {}: {}", path, e);
 info!("User {} authenticated in {}ms", user.id, elapsed);
 debug!("Processing tool request {} with {}", req_id, tool);
-```
-
+```text
 ### 2. Consistent Field Naming
 
 Use these standardized field names across the codebase:
@@ -46,20 +44,17 @@ Use these standardized field names across the codebase:
 ```rust
 error!(error = %e, file_path = %path.display(), "Failed to read file");
 info!(url = %url, port = %port, "Server started");
-```
-
+```text
 #### Use `?` for Debug formatting:
 ```rust
 debug!(result = ?result, params = ?params, "Function completed");
 warn!(extensions = ?server_config.extensions, "No extensions configured");
-```
-
+```text
 #### Use bare values for simple types:
 ```rust
 info!(count = files.len(), success = true, "Files processed");
 debug!(timeout_seconds = 30, retry_attempts = 3, "Configuration loaded");
-```
-
+```text
 ## Log Levels
 
 ### `error!` - Critical Issues
@@ -69,8 +64,7 @@ Use for runtime errors, failed operations, and system failures that require imme
 error!(error = %e, plugin_name = %name, "Failed to register plugin");
 error!(file_path = %path, error = %e, "Failed to write file");
 error!(bind_addr = %addr, error = %e, "Failed to bind to address");
-```
-
+```text
 ### `warn!` - Recoverable Issues
 Use for issues that don't break functionality but need attention:
 
@@ -78,8 +72,7 @@ Use for issues that don't break functionality but need attention:
 warn!(extension = %ext, "No LSP server configured for extension");
 warn!(file_path = %path, error = %e, "Could not read file for dependency update");
 warn!(operation_id = %id, wait_time = ?time, "Operation timed out");
-```
-
+```text
 ### `info!` - Important Events
 Use for significant business events, service lifecycle, and user actions:
 
@@ -87,8 +80,7 @@ Use for significant business events, service lifecycle, and user actions:
 info!(addr = %addr, "Server listening");
 info!(plugin_name = %name, "Plugin registered successfully");
 info!(files_count = count, "Files processed successfully");
-```
-
+```text
 ### `debug!` - Detailed Flow
 Use for detailed execution flow and internal state (disabled in production by default):
 
@@ -96,8 +88,7 @@ Use for detailed execution flow and internal state (disabled in production by de
 debug!(method = %method, "LSP request received");
 debug!(file_path = %path, "Invalidated AST cache");
 debug!(lock_type = ?lock_type, file_path = %path, "Acquiring lock");
-```
-
+```text
 ## Context Patterns
 
 ### Error Context
@@ -118,8 +109,7 @@ error!(
     error = %e,
     "Tool execution failed"
 );
-```
-
+```text
 ### Request Tracing
 Use request IDs for tracing requests across components:
 
@@ -135,8 +125,7 @@ error!(
     error = %e,
     "Failed to handle message"
 );
-```
-
+```text
 ### Performance Context
 Include timing information for performance analysis:
 
@@ -152,36 +141,31 @@ info!(
     files_modified = count,
     "Batch operation completed"
 );
-```
-
+```text
 ## Anti-Patterns
 
 ### ❌ String Interpolation
 ```rust
 // Wrong - not machine readable
 error!("Failed to process {} files in {}ms", count, elapsed);
-```
-
+```text
 ### ❌ Mixing Structured and Unstructured
 ```rust
 // Wrong - inconsistent format
 error!(error = %e, "Failed to read file: {}", path);
-```
-
+```text
 ### ❌ Redundant Information in Message
 ```rust
 // Wrong - data duplicated in message and fields
 error!(error = %e, "Error occurred: {}", e);
-```
-
+```text
 ### ❌ Non-Standard Field Names
 ```rust
 // Wrong - use standard field names
 error!(err = %e, filepath = %path, "Failed to read file");
 // Correct
 error!(error = %e, file_path = %path, "Failed to read file");
-```
-
+```text
 ## Testing Considerations
 
 ### Test Code Logging
@@ -191,7 +175,7 @@ error!(error = %e, file_path = %path, "Failed to read file");
 
 ### Log Level Testing
 ```rust
-#[cfg(test)]
+# [cfg(test)]
 mod tests {
     use tracing_test::traced_test;
 
@@ -201,8 +185,7 @@ mod tests {
         // Assertions can verify log content
     }
 }
-```
-
+```text
 ## Production Configuration
 
 ### Environment Variables
@@ -215,8 +198,7 @@ export LOG_FORMAT=json
 
 # Enable debug logging for specific modules
 export RUST_LOG=mill_server::handlers=debug,mill_plugins=info
-```
-
+```text
 ### Configuration Example
 ```json
 {
@@ -225,8 +207,7 @@ export RUST_LOG=mill_server::handlers=debug,mill_plugins=info
     "format": "json"
   }
 }
-```
-
+```text
 ### Centralized Initialization
 
 All logging is initialized through `mill_core::logging::initialize()` which provides:
@@ -252,8 +233,7 @@ LOG_LEVEL=info LOG_FORMAT=json ./mill serve
 
 # Module-specific filtering (most control)
 RUST_LOG=mill_handlers=debug,mill_lsp=info cargo run
-```
-
+```text
 ### Request Context Propagation (via Spans)
 
 Use `mill_core::logging::request_span()` at transport layer to create spans with request context:
@@ -269,8 +249,7 @@ let _enter = span.enter();
 // - transport: "websocket" or "stdio"
 
 handle_request().await;
-```
-
+```text
 **Benefits**:
 - Automatic context inheritance for all nested operations
 - No manual field addition in every log statement
@@ -294,8 +273,7 @@ To save logs to a file, use your shell's redirection capabilities:
 
 # To redirect both stdout and stderr (useful for development)
 ./mill serve &> app.log
-```
-
+```text
 ## Migration Guidelines
 
 When updating existing code:
@@ -323,8 +301,7 @@ RUST_LOG=info LOG_FORMAT=json cargo run
 
 # Filter by module
 RUST_LOG=mill_server::handlers=debug cargo run
-```
-
+```text
 This structured approach ensures consistent, queryable, and maintainable logging across the entire TypeMill codebase.
 
 ---

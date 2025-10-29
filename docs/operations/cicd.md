@@ -81,8 +81,7 @@ jobs:
           echo "Running get_diagnostics..."
           # This command will test if the LSP server is working via mill
           mill tool get_diagnostics --file-path "src/main.ts"
-```
-
+```text
 ### Workflow Breakdown
 
 1.  **Checkout Code**: The workflow begins by checking out your repository's code.

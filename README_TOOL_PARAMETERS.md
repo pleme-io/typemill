@@ -21,7 +21,7 @@ Choose your document based on your needs:
    - Required parameter: `kind` (one of 5 values)
    - Handler: `structure.rs` (lines 1170-1251)
 
-2. **analyze.dependencies** - Dependency analysis  
+2. **analyze.dependencies** - Dependency analysis
    - Analyzes imports, graphs, circular dependencies, coupling, cohesion, depth
    - Required parameter: `kind` (one of 6 values)
    - Handler: `dependencies.rs` (lines 1167-1356)
@@ -68,7 +68,7 @@ All tools follow a consistent pattern:
 
 ## File Organization
 
-```
+```text
 /workspace/
 ├── TOOL_PARAMETERS_INDEX.md       (Navigation guide)
 ├── TOOL_PARAMETERS_ANALYSIS.md    (Detailed implementation)
@@ -87,8 +87,7 @@ All tools follow a consistent pattern:
 └── docs/tools/
     ├── analysis.md                (User documentation)
     └── refactoring.md             (User documentation)
-```
-
+```text
 ## Common Tasks
 
 ### I need to know required parameters for a tool
@@ -120,8 +119,7 @@ All documents include absolute file paths and line numbers. Use **TOOL_PARAMETER
   },
   "options": {}
 }
-```
-
+```text
 ### Refactoring Tools Pattern
 ```json
 {
@@ -132,8 +130,7 @@ All documents include absolute file paths and line numbers. Use **TOOL_PARAMETER
     ...
   }
 }
-```
-
+```text
 ## Validation Checklist
 
 Before calling a tool, verify:

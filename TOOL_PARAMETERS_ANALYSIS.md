@@ -66,17 +66,15 @@ The `kind` parameter dispatches to different analysis functions:
 ### Current Error Messages
 
 **Missing `kind` parameter (lines 1196-1199):**
-```
+```text
 ServerError::InvalidRequest("Missing 'kind' parameter")
-```
-
+```text
 **Unsupported `kind` value (lines 1206-1210):**
-```
+```text
 ServerError::InvalidRequest(
     "Unsupported kind '{}'. Supported: 'symbols', 'hierarchy', 'interfaces', 'inheritance', 'modules'"
 )
-```
-
+```text
 ### Current Documentation
 
 - **Location:** `/workspace/docs/tools/analysis.md` (lines 435-535)
@@ -162,17 +160,15 @@ ServerError::InvalidRequest(
 ### Current Error Messages
 
 **Missing `kind` parameter (lines 1193-1196):**
-```
+```text
 ServerError::InvalidRequest("Missing 'kind' parameter")
-```
-
+```text
 **Unsupported `kind` value (lines 1203-1207):**
-```
+```text
 ServerError::InvalidRequest(
     "Unsupported kind '{}'. Supported: 'imports', 'graph', 'circular', 'coupling', 'cohesion', 'depth'"
 )
-```
-
+```text
 ### Current Documentation
 
 - **Location:** `/workspace/docs/tools/analysis.md` (lines 313-432)
@@ -243,60 +239,51 @@ For symbol renaming, additional selector parameter is optional:
     "position": {"line": 10, "character": 5}
   }
 }
-```
-
+```text
 ### Current Error Messages
 
 **Missing arguments (lines 158-161):**
-```
+```text
 ServerError::InvalidRequest("Missing arguments for rename")
-```
-
+```text
 **Invalid parameters (lines 163-165):**
-```
+```text
 ServerError::InvalidRequest("Invalid rename parameters: {error}")
-```
-
+```text
 **Missing new_name in single mode (lines 171-175):**
-```
+```text
 ServerError::InvalidRequest("new_name is required for single target mode")
-```
-
+```text
 **Both target and targets specified (lines 215-218):**
-```
+```text
 ServerError::InvalidRequest(
     "Cannot specify both 'target' and 'targets'. Use 'target' for single rename or 'targets' for batch."
 )
-```
-
+```text
 **Neither target nor targets specified (lines 220-224):**
-```
+```text
 ServerError::InvalidRequest(
     "Must specify either 'target' (for single rename) or 'targets' (for batch)."
 )
-```
-
+```text
 **Unsupported kind (lines 197-201):**
-```
+```text
 ServerError::InvalidRequest(
     "Unsupported rename kind: {}. Must be one of: symbol, file, directory"
 )
-```
-
+```text
 **Missing new_name in batch mode (lines 474-479):**
-```
+```text
 ServerError::InvalidRequest(
     "Target {} (path: {}) missing new_name field (required for batch mode)"
 )
-```
-
+```text
 **Batch rename conflicts (lines 509-516):**
-```
+```text
 ServerError::InvalidRequest(
     "Batch rename has naming conflicts: {}"
 )
-```
-
+```text
 ### Return Values
 
 #### Preview Mode (dryRun: true, default)
@@ -312,8 +299,7 @@ Returns `RenamePlan` object:
   "file_checksums": {...},
   "is_consolidation": false
 }
-```
-
+```text
 #### Execution Mode (dryRun: false)
 
 Returns `ExecutionResult` object:
@@ -327,8 +313,7 @@ Returns `ExecutionResult` object:
   "validation": null,
   "rollback_available": false
 }
-```
-
+```text
 ### Current Documentation
 
 - **Location:** `/workspace/docs/tools/refactoring.md` (lines 38-180)
@@ -407,8 +392,7 @@ For each detected cycle:
   "message": "Circular dependency detected: X modules form a cycle",
   "suggestions": [...]
 }
-```
-
+```text
 ### Actionable Suggestions Generated
 
 The handler generates context-aware suggestions (lines 781-845):
@@ -489,6 +473,6 @@ Document the validation flow and error messages for tool authors adding new tool
 
 ---
 
-**Generated:** 2025-10-28  
-**Scope:** Mill version indicated by git commits  
-**Tool Coverage:** 3 tools + circular dependency analysis  
+**Generated:** 2025-10-28
+**Scope:** Mill version indicated by git commits
+**Tool Coverage:** 3 tools + circular dependency analysis

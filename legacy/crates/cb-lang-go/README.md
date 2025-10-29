@@ -66,7 +66,7 @@ This ensures the plugin **works everywhere** while providing full features when 
 
 ## Project Structure
 
-```
+```text
 crates/languages/cb-lang-go/
 ├── Cargo.toml              # Dependencies and package metadata
 ├── README.md               # This file
@@ -76,8 +76,7 @@ crates/languages/cb-lang-go/
     ├── lib.rs              # Main plugin implementation (280 lines)
     ├── manifest.rs         # go.mod parsing and manipulation (657 lines)
     └── parser.rs           # Import and symbol extraction (357 lines)
-```
-
+```text
 **Total: A comprehensive implementation (including tests and docs)**
 
 ## Implementation Status
@@ -103,7 +102,7 @@ crates/languages/cb-lang-go/
 use cb_lang_go::GoPlugin;
 use cb_plugin_api::LanguagePlugin;
 
-#[tokio::main]
+# [tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let plugin = GoPlugin::new();
 
@@ -139,8 +138,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-```
-
+```text
 ### Analyzing go.mod
 
 ```rust
@@ -148,7 +146,7 @@ use cb_lang_go::GoPlugin;
 use cb_plugin_api::LanguagePlugin;
 use std::path::Path;
 
-#[tokio::main]
+# [tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let plugin = GoPlugin::new();
 
@@ -163,8 +161,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-```
-
+```text
 ### Updating Dependencies
 
 ```rust
@@ -172,7 +169,7 @@ use cb_lang_go::GoPlugin;
 use cb_plugin_api::LanguagePlugin;
 use std::path::Path;
 
-#[tokio::main]
+# [tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let plugin = GoPlugin::new();
 
@@ -189,24 +186,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-```
-
+```text
 ## Testing
 
 ### Run Unit Tests
 
 ```bash
 cargo test -p cb-lang-go
-```
-
+```text
 The plugin includes a comprehensive suite of unit tests.
 
 ### Run Clippy
 
 ```bash
 cargo clippy -p cb-lang-go
-```
-
+```text
 Note: There's a pending clippy warning in `cb-plugin-api` (unused `Arc` import) that's outside the scope of this crate.
 
 ## Structured Logging
@@ -218,8 +212,7 @@ All logging follows the structured key-value format per `docs/development/LOGGIN
 debug!(module = %go_mod.module, dependencies_count = dependencies.len(), "Parsed go.mod successfully");
 warn!(dependency = %dep_name, "Dependency not found in go.mod");
 debug!(error = %e, "Go AST parsing failed, falling back to regex");
-```
-
+```text
 **Compliance: 100%** - All 6 log statements use structured format ✅
 
 ## Dependencies
@@ -248,8 +241,7 @@ thiserror = { workspace = true }
 
 # Logging
 tracing = { workspace = true }
-```
-
+```text
 ## Plugin Registration
 
 The plugin is automatically registered in:
@@ -258,8 +250,7 @@ The plugin is automatically registered in:
 
 ```rust
 registry.register(Arc::new(cb_lang_go::GoPlugin::new()));
-```
-
+```text
 ## Comparison with Rust Plugin
 
 | Metric | Rust Plugin | Go Plugin | Status |

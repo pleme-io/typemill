@@ -521,4 +521,3 @@ The project was originally implemented in TypeScript/Node.js from September 2024
 - v0.2.x - v0.1.0 (Jun 2024) - Initial MCP server implementation
 
 For complete TypeScript implementation history, see git tags v0.1.0 through v1.3.0.
-

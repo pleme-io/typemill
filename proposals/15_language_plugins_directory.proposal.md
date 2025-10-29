@@ -5,7 +5,7 @@
 Language plugin crates are currently mixed with infrastructure crates in `crates/`, making the workspace structure harder to navigate:
 
 **Current structure:**
-```
+```text
 crates/
 ├── mill-lang-common        # Language plugin infrastructure
 ├── mill-lang-rust          # Language plugin
@@ -20,8 +20,7 @@ crates/
 ├── mill-handlers           # Infrastructure crate
 ├── mill-ast                # Infrastructure crate
 └── ... (20+ other infrastructure crates)
-```
-
+```text
 **Issues:**
 - Language plugins are scattered among 20+ infrastructure crates
 - Hard to quickly identify which crates are language plugins vs core infrastructure
@@ -33,7 +32,7 @@ crates/
 Create a dedicated `languages/` directory at the workspace root to house all language plugin crates:
 
 **Proposed structure:**
-```
+```text
 languages/                  # NEW: All language plugins
 ├── mill-lang-common        # Language plugin infrastructure
 ├── mill-lang-rust
@@ -51,8 +50,7 @@ crates/                     # Infrastructure only
 ├── mill-ast
 ├── mill-server
 └── ... (infrastructure crates)
-```
-
+```text
 ## Implementation Strategy
 
 ### Use `mill rename` Batch Mode (Atomic Operation)
@@ -97,8 +95,7 @@ mill tool rename '{
 
 # Step 4: Verify everything compiles
 cargo check --workspace
-```
-
+```text
 ### What Gets Updated Automatically
 
 The batch rename will handle:
