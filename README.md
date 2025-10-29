@@ -56,7 +56,7 @@ Add to your MCP configuration (e.g., Claude Desktop):
 
 ### First Commands
 Ask your AI assistant:
-```
+```text
 "Find the definition of main in src/main.rs"
 "Show me all references to the Config type"
 "Rename the function oldName to newName"

@@ -305,6 +305,172 @@ impl QualityHandler {
         Ok(value)
     }
 
+    /// Analyze markdown across entire workspace
+    async fn analyze_workspace_markdown(
+        &self,
+        context: &ToolHandlerContext,
+        scope_param: &super::engine::ScopeParam,
+        category: &str,
+        kind: &str,
+        analysis_fn: super::engine::MarkdownAnalysisFn,
+    ) -> ServerResult<Value> {
+        let start_time = Instant::now();
+
+        // Extract directory path from scope.path
+        let directory_path = scope_param.path.as_ref().ok_or_else(|| {
+            ServerError::InvalidRequest(
+                "Missing path for workspace scope. Specify scope.path with directory".into(),
+            )
+        })?;
+
+        let dir_path = std::path::Path::new(directory_path);
+
+        info!(
+            directory_path = %directory_path,
+            kind = %kind,
+            "Starting workspace markdown analysis"
+        );
+
+        // List all files in directory
+        let files = context
+            .app_state
+            .file_service
+            .list_files(dir_path, true)
+            .await?;
+
+        // Filter to markdown files only
+        let md_files: Vec<_> = files
+            .iter()
+            .filter_map(|file| {
+                let path = if file.starts_with('/') {
+                    std::path::PathBuf::from(file)
+                } else {
+                    dir_path.join(file)
+                };
+
+                if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                    if ext == "md" || ext == "markdown" {
+                        return Some(path);
+                    }
+                }
+                None
+            })
+            .collect();
+
+        info!(
+            md_files_count = md_files.len(),
+            "Filtered to markdown files"
+        );
+
+        // Collect all findings from all files
+        let mut all_findings = Vec::new();
+        let mut files_analyzed = 0;
+        let mut all_errors = Vec::new();
+
+        for file_path in &md_files {
+            // Get markdown plugin
+            let plugin = match context.app_state.language_plugins.get_plugin("md") {
+                Some(p) => p,
+                None => {
+                    all_errors.push(json!({
+                        "file": file_path.display().to_string(),
+                        "error": "No markdown plugin found"
+                    }));
+                    continue;
+                }
+            };
+
+            // Read file
+            let content = match context.app_state.file_service.read_file(file_path).await {
+                Ok(c) => c,
+                Err(e) => {
+                    all_errors.push(json!({
+                        "file": file_path.display().to_string(),
+                        "error": format!("Read error: {}", e)
+                    }));
+                    continue;
+                }
+            };
+
+            // Parse file
+            let parsed = match plugin.parse(&content).await {
+                Ok(p) => p,
+                Err(e) => {
+                    all_errors.push(json!({
+                        "file": file_path.display().to_string(),
+                        "error": format!("Parse error: {}", e)
+                    }));
+                    continue;
+                }
+            };
+
+            // Run analysis function on this file
+            let language = plugin.metadata().name;
+            let file_path_str = file_path.to_string_lossy().to_string();
+            let findings = analysis_fn(
+                &content,
+                &parsed.symbols,
+                language,
+                &file_path_str,
+                &context.app_state.language_plugins,
+            );
+
+            debug!(
+                file_path = %file_path_str,
+                findings_count = findings.len(),
+                "Analyzed markdown file"
+            );
+
+            all_findings.extend(findings);
+            files_analyzed += 1;
+        }
+
+        info!(
+            files_analyzed = files_analyzed,
+            total_findings = all_findings.len(),
+            "Workspace markdown analysis complete"
+        );
+
+        // Build scope for result
+        let scope = AnalysisScope {
+            scope_type: "workspace".to_string(),
+            path: directory_path.clone(),
+            include: scope_param.include.clone(),
+            exclude: scope_param.exclude.clone(),
+        };
+
+        // Build AnalysisResult
+        let mut result = AnalysisResult::new(category, kind, scope);
+        result.metadata.language = Some("Markdown".to_string());
+
+        // Add all findings
+        for finding in all_findings {
+            result.add_finding(finding);
+        }
+
+        // Update summary
+        result.summary.files_analyzed = files_analyzed;
+        result.finalize(start_time.elapsed().as_millis() as u64);
+
+        info!(
+            directory_path = %directory_path,
+            files_analyzed = files_analyzed,
+            total_findings = result.summary.total_findings,
+            analysis_time_ms = result.summary.analysis_time_ms,
+            "Workspace markdown analysis complete"
+        );
+
+        // Serialize to JSON
+        let mut value = serde_json::to_value(result)
+            .map_err(|e| ServerError::Internal(format!("Failed to serialize result: {}", e)))?;
+
+        if !all_errors.is_empty() {
+            value["errors"] = json!(all_errors);
+        }
+
+        Ok(value)
+    }
+
     /// Transform ComplexityReport into AnalysisResult
     fn transform_complexity_report(
         &self,
@@ -1878,24 +2044,58 @@ impl ToolHandler for QualityHandler {
                 .await
             }
             "markdown_structure" => {
-                super::engine::run_markdown_analysis(
-                    context,
-                    tool_call,
-                    "quality",
-                    kind,
-                    detect_markdown_structure,
-                )
-                .await
+                // Check if workspace scope is requested
+                let scope_param = super::engine::parse_scope_param(&args)?;
+                let scope_type = scope_param.scope_type.as_deref().unwrap_or("file");
+
+                if scope_type == "workspace" || scope_type == "directory" {
+                    // Use workspace analysis
+                    self.analyze_workspace_markdown(
+                        context,
+                        &scope_param,
+                        "quality",
+                        kind,
+                        detect_markdown_structure,
+                    )
+                    .await
+                } else {
+                    // Use standard file analysis
+                    super::engine::run_markdown_analysis(
+                        context,
+                        tool_call,
+                        "quality",
+                        kind,
+                        detect_markdown_structure,
+                    )
+                    .await
+                }
             }
             "markdown_formatting" => {
-                super::engine::run_markdown_analysis(
-                    context,
-                    tool_call,
-                    "quality",
-                    kind,
-                    detect_markdown_formatting,
-                )
-                .await
+                // Check if workspace scope is requested
+                let scope_param = super::engine::parse_scope_param(&args)?;
+                let scope_type = scope_param.scope_type.as_deref().unwrap_or("file");
+
+                if scope_type == "workspace" || scope_type == "directory" {
+                    // Use workspace analysis
+                    self.analyze_workspace_markdown(
+                        context,
+                        &scope_param,
+                        "quality",
+                        kind,
+                        detect_markdown_formatting,
+                    )
+                    .await
+                } else {
+                    // Use standard file analysis
+                    super::engine::run_markdown_analysis(
+                        context,
+                        tool_call,
+                        "quality",
+                        kind,
+                        detect_markdown_formatting,
+                    )
+                    .await
+                }
             }
             _ => unreachable!("Kind validated earlier"),
         }

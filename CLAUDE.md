@@ -544,7 +544,7 @@ cargo nextest run --workspace --features heavy-tests
 
 All tool functionality is implemented ONCE in `mill-handlers` and accessed via multiple interfaces:
 
-```
+```text
 Handler (mill-handlers)
     ↓
 ┌───┴────┬──────────┬──────────┐
