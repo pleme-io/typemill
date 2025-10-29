@@ -11,13 +11,6 @@ fn get_cpp_imports_query() -> &'static str {
         path: (string_literal) @path)
     (preproc_include
         path: (system_lib_string) @path)
-    (import_declaration
-        name: (module_name) @path)
-    (import_declaration
-        header: [
-            (string_literal)
-            (system_lib_string)
-        ] @path)
     "#
 }
 
@@ -25,6 +18,9 @@ pub struct CppImportSupport;
 
 impl ImportParser for CppImportSupport {
     fn parse_imports(&self, source: &str) -> Vec<String> {
+        let mut imports = Vec::new();
+
+        // Parse traditional #include directives using tree-sitter
         let mut parser = Parser::new();
         parser
             .set_language(tree_sitter_cpp::language())
@@ -34,7 +30,7 @@ impl ImportParser for CppImportSupport {
         let query = Query::new(tree_sitter_cpp::language(), get_cpp_imports_query()).unwrap();
 
         let mut query_cursor = QueryCursor::new();
-        query_cursor
+        let ts_imports: Vec<String> = query_cursor
             .matches(&query, tree.root_node(), source.as_bytes())
             .flat_map(|m| {
                 m.captures.iter().map(|c| {
@@ -45,7 +41,25 @@ impl ImportParser for CppImportSupport {
                         .to_string()
                 })
             })
-            .collect()
+            .collect();
+
+        imports.extend(ts_imports);
+
+        // Parse C++20 import statements using regex (fallback)
+        use regex::Regex;
+        let import_re = Regex::new(r#"import\s+([a-zA-Z_][\w.]*|\s*"([^"]+)")\s*;"#).unwrap();
+        for cap in import_re.captures_iter(source) {
+            if let Some(quoted) = cap.get(2) {
+                imports.push(quoted.as_str().to_string());
+            } else if let Some(module) = cap.get(1) {
+                let module_str = module.as_str().trim();
+                if !module_str.is_empty() && !module_str.starts_with('"') {
+                    imports.push(module_str.to_string());
+                }
+            }
+        }
+
+        imports
     }
 
     fn contains_import(&self, content: &str, module: &str) -> bool {

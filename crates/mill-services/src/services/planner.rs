@@ -468,6 +468,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Legacy test for removed refactor.renameSymbolWithImports workflow"]
     fn test_plan_rename_symbol_with_imports() {
         // Determine workflow file path relative to workspace root
         let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
