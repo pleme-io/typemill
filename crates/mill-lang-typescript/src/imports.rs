@@ -58,7 +58,9 @@ pub fn remove_named_import_from_line(line: &str, import_name: &str) -> PluginRes
                                     swc_ecma_ast::ModuleExportName::Ident(ident) => {
                                         ident.sym.as_ref()
                                     }
-                                    swc_ecma_ast::ModuleExportName::Str(s) => s.value.as_ref(),
+                                    swc_ecma_ast::ModuleExportName::Str(s) => {
+                                        s.value.as_str().unwrap_or(local_name)
+                                    }
                                 });
                             local_name != import_name && imported_name != import_name
                         }
@@ -175,7 +177,7 @@ pub fn update_import_reference_ast(
         .into_iter()
         .map(|item| {
             if let ModuleItem::ModuleDecl(ModuleDecl::Import(import_decl)) = &item {
-                if import_decl.src.value.as_ref() == update.old_reference {
+                if &*import_decl.src.value == update.old_reference.as_str() {
                     updated = true;
                     let mut new_import = import_decl.clone();
                     new_import.src = Box::new(swc_ecma_ast::Str {
