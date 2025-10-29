@@ -7,6 +7,7 @@ pub mod parser;
 mod path_alias_resolver;
 mod project_factory;
 pub mod refactoring;
+mod regex_patterns;
 mod tsconfig;
 pub mod workspace_support;
 

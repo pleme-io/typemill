@@ -55,20 +55,13 @@ impl ImportParser for TypeScriptImportSupport {
     }
 
     fn contains_import(&self, content: &str, module: &str) -> bool {
-        // Check for various import patterns
-        let patterns = [
-            format!(r#"from\s+['"]{module}['"]"#, module = regex::escape(module)),
-            format!(
-                r#"require\s*\(\s*['"]{module}['"]\s*\)"#,
-                module = regex::escape(module)
-            ),
-            format!(
-                r#"import\s*\(\s*['"]{module}['"]\s*\)"#,
-                module = regex::escape(module)
-            ),
-        ];
+        use crate::regex_patterns::module_import_patterns;
 
-        for pattern in &patterns {
+        // Get precomputed pattern strings
+        let (es6_pattern, require_pattern, dynamic_pattern) = module_import_patterns(module);
+
+        // Check for various import patterns
+        for pattern in [&es6_pattern, &require_pattern, &dynamic_pattern] {
             if let Ok(re) = regex::Regex::new(pattern) {
                 if re.is_match(content) {
                     return true;
@@ -211,32 +204,28 @@ impl ImportAdvancedSupport for TypeScriptImportSupport {
 
 /// Simple regex-based import parsing (fallback)
 fn parse_imports_simple(content: &str) -> Vec<String> {
+    use crate::regex_patterns::{DYNAMIC_IMPORT_RE, ES6_IMPORT_RE, REQUIRE_RE};
+
     let mut imports = Vec::new();
 
     // ES6 import pattern
-    if let Ok(es6_re) = regex::Regex::new(r#"import\s+.*?from\s+['"]([^'"]+)['"]"#) {
-        for caps in es6_re.captures_iter(content) {
-            if let Some(module) = caps.get(1) {
-                imports.push(module.as_str().to_string());
-            }
+    for caps in ES6_IMPORT_RE.captures_iter(content) {
+        if let Some(module) = caps.get(1) {
+            imports.push(module.as_str().to_string());
         }
     }
 
     // CommonJS require pattern
-    if let Ok(require_re) = regex::Regex::new(r#"require\s*\(\s*['"]([^'"]+)['"]\s*\)"#) {
-        for caps in require_re.captures_iter(content) {
-            if let Some(module) = caps.get(1) {
-                imports.push(module.as_str().to_string());
-            }
+    for caps in REQUIRE_RE.captures_iter(content) {
+        if let Some(module) = caps.get(1) {
+            imports.push(module.as_str().to_string());
         }
     }
 
     // Dynamic import pattern
-    if let Ok(dynamic_re) = regex::Regex::new(r#"import\s*\(\s*['"]([^'"]+)['"]\s*\)"#) {
-        for caps in dynamic_re.captures_iter(content) {
-            if let Some(module) = caps.get(1) {
-                imports.push(module.as_str().to_string());
-            }
+    for caps in DYNAMIC_IMPORT_RE.captures_iter(content) {
+        if let Some(module) = caps.get(1) {
+            imports.push(module.as_str().to_string());
         }
     }
 

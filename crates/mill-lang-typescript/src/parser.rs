@@ -84,14 +84,13 @@ fn parse_imports_ast(source: &str) -> Result<Vec<ImportInfo>, PluginError> {
 }
 /// Parse TypeScript/JavaScript imports using regex (fallback implementation)
 fn parse_imports_regex(source: &str) -> PluginResult<Vec<ImportInfo>> {
+    use crate::regex_patterns::{DYNAMIC_IMPORT_RE, ES6_IMPORT_LINE_RE, REQUIRE_RE};
+
     let mut imports = Vec::new();
     let lines: Vec<&str> = source.lines().collect();
-    let es6_import_re = regex::Regex::new(r#"^import\s+.*?from\s+['"]([^'"]+)['"]"#).unwrap();
-    let require_re = regex::Regex::new(r#"require\s*\(\s*['"]([^'"]+)['"]\s*\)"#).unwrap();
-    let dynamic_import_re = regex::Regex::new(r#"import\s*\(\s*['"]([^'"]+)['"]\s*\)"#).unwrap();
     for (line_idx, line) in lines.iter().enumerate() {
         let line_num = (line_idx + 1) as u32;
-        if let Some(caps) = es6_import_re.captures(line) {
+        if let Some(caps) = ES6_IMPORT_LINE_RE.captures(line) {
             let module_path = caps.get(1).unwrap().as_str().to_string();
             imports.push(ImportInfo {
                 module_path,
@@ -108,7 +107,7 @@ fn parse_imports_regex(source: &str) -> PluginResult<Vec<ImportInfo>> {
                 },
             });
         }
-        if let Some(caps) = require_re.captures(line) {
+        if let Some(caps) = REQUIRE_RE.captures(line) {
             let module_path = caps.get(1).unwrap().as_str().to_string();
             let start_col = line.find("require").unwrap_or(0) as u32;
             imports.push(ImportInfo {
@@ -126,7 +125,7 @@ fn parse_imports_regex(source: &str) -> PluginResult<Vec<ImportInfo>> {
                 },
             });
         }
-        if let Some(caps) = dynamic_import_re.captures(line) {
+        if let Some(caps) = DYNAMIC_IMPORT_RE.captures(line) {
             let module_path = caps.get(1).unwrap().as_str().to_string();
             let start_col = line.find("import(").unwrap_or(0) as u32;
             imports.push(ImportInfo {
