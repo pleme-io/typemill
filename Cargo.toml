@@ -108,6 +108,7 @@ mill-lang-rust = { path = "crates/mill-lang-rust", default-features = false }
 mill-lang-python = { path = "crates/mill-lang-python", default-features = false }
 mill-lang-cpp = { path = "crates/mill-lang-cpp", default-features = false }
 mill-lang-swift = { path = "crates/mill-lang-swift", default-features = false }
+mill-lang-csharp = { path = "crates/mill-lang-csharp", default-features = false }
 mill-analysis-dead-code = { path = "analysis/mill-analysis-dead-code" }
 mill-analysis-graph = { path = "analysis/mill-analysis-graph" }
 
