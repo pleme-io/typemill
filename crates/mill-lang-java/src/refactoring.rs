@@ -13,6 +13,13 @@ use serde::{Deserialize, Serialize};
 use tree_sitter::{Node, Parser, Point, Query, QueryCursor};
 use std::collections::HashMap;
 
+fn get_language() -> tree_sitter::Language {
+    extern "C" {
+        fn tree_sitter_java() -> tree_sitter::Language;
+    }
+    unsafe { tree_sitter_java() }
+}
+
 /// Code range for refactoring operations
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CodeRange {
@@ -44,7 +51,7 @@ pub fn plan_extract_function(
 ) -> RefactoringResult<EditPlan> {
     let mut parser = Parser::new();
     parser
-        .set_language(tree_sitter_java::language())
+        .set_language(&get_language())
         .map_err(|e| RefactoringError::Parse(format!("Failed to load Java grammar: {}", e)))?;
     let tree = parser.parse(source, None).ok_or_else(|| RefactoringError::Parse("Failed to parse Java source".to_string()))?;
     let root = tree.root_node();
@@ -117,7 +124,7 @@ pub fn plan_extract_variable(
 ) -> RefactoringResult<EditPlan> {
     let mut parser = Parser::new();
     parser
-        .set_language(tree_sitter_java::language())
+        .set_language(&get_language())
         .map_err(|e| RefactoringError::Parse(format!("Failed to load Java grammar: {}", e)))?;
     let tree = parser.parse(source, None).ok_or_else(|| RefactoringError::Parse("Failed to parse Java source".to_string()))?;
     let root = tree.root_node();
@@ -199,7 +206,7 @@ pub fn plan_inline_variable(
 ) -> RefactoringResult<EditPlan> {
     let mut parser = Parser::new();
     parser
-        .set_language(tree_sitter_java::language())
+        .set_language(&get_language())
         .map_err(|e| RefactoringError::Parse(format!("Failed to load Java grammar: {}", e)))?;
     let tree = parser.parse(source, None).ok_or_else(|| RefactoringError::Parse("Failed to parse Java source".to_string()))?;
     let root = tree.root_node();
@@ -215,7 +222,7 @@ pub fn plan_inline_variable(
 
     let mut edits = Vec::new();
     let query_str = format!(r#"((identifier) @ref (#eq? @ref "{}"))"#, var_name);
-    let query = Query::new(tree_sitter_java::language(), &query_str).map_err(|e| RefactoringError::Query(e.to_string()))?;
+    let query = Query::new(&get_language(), &query_str).map_err(|e| RefactoringError::Query(e.to_string()))?;
     let mut cursor = QueryCursor::new();
 
     for match_ in cursor.matches(&query, scope_node, source.as_bytes()) {

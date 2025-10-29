@@ -41,6 +41,8 @@ lang-cpp = []
 lang-swift = []
 lang-csharp = []
 lang-c = []
+lang-go = []
+lang-java = []
 
 [dev-dependencies]
 tempfile = "3.0"

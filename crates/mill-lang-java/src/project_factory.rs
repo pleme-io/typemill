@@ -34,11 +34,6 @@ impl ProjectFactory for JavaProjectFactory {
                 manifest_filename = "build.gradle";
                 manifest_content = generate_build_gradle();
             }
-            _ => {
-                // Default to a library (Maven) project
-                manifest_filename = "pom.xml";
-                manifest_content = generate_pom_xml(package_name);
-            }
         }
 
         let manifest_path = package_dir.join(manifest_filename);

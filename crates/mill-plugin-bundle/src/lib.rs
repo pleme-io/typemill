@@ -21,6 +21,10 @@ use mill_lang_cpp::CppPlugin;
 use mill_lang_csharp::CsharpPlugin;
 #[cfg(feature = "lang-gitignore")]
 use mill_lang_gitignore::GitignoreLanguagePlugin;
+#[cfg(feature = "lang-go")]
+use mill_lang_go::GoPlugin;
+#[cfg(feature = "lang-java")]
+use mill_lang_java::JavaPlugin;
 #[cfg(feature = "lang-markdown")]
 use mill_lang_markdown::MarkdownPlugin;
 #[cfg(feature = "lang-python")]
@@ -49,6 +53,10 @@ fn _force_plugin_linkage() {
     let _: Option<CsharpPlugin> = None;
     #[cfg(feature = "lang-gitignore")]
     let _: Option<GitignoreLanguagePlugin> = None;
+    #[cfg(feature = "lang-go")]
+    let _: Option<GoPlugin> = None;
+    #[cfg(feature = "lang-java")]
+    let _: Option<JavaPlugin> = None;
     #[cfg(feature = "lang-markdown")]
     let _: Option<MarkdownPlugin> = None;
     #[cfg(feature = "lang-python")]
@@ -107,6 +115,10 @@ mod tests {
     extern crate mill_lang_csharp;
     #[cfg(all(test, feature = "lang-gitignore"))]
     extern crate mill_lang_gitignore;
+    #[cfg(all(test, feature = "lang-go"))]
+    extern crate mill_lang_go;
+    #[cfg(all(test, feature = "lang-java"))]
+    extern crate mill_lang_java;
     #[cfg(all(test, feature = "lang-markdown"))]
     extern crate mill_lang_markdown;
     #[cfg(all(test, feature = "lang-python"))]

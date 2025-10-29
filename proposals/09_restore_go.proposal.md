@@ -1,5 +1,9 @@
 # Restore Go Language Plugin
 
+**Status**: ✅ Complete (100%) - Full plugin restoration with all 15 common capabilities plus ProjectFactory
+
+**Last Updated**: 2025-10-29 (after merging `feat/restore-go-plugin-2` branch)
+
 > **Note on Naming**: This proposal references legacy `cb-*` crate names in migration steps. These are the **old names** being migrated **from** (in git tag `pre-language-reduction`) to the current `mill-*` naming convention. Current crate names follow the `mill-*` pattern.
 
 ## Problem
@@ -27,12 +31,25 @@ Restore Go plugin from `pre-language-reduction` tag following validated Python m
 - **Source Directory**: varies (typically root)
 - **Parser**: Native Go parser (from pre-reduction) or `tree-sitter-go`
 
+## Implementation Summary
+
+**Completed Features:**
+- ✅ Complete plugin structure (`crates/mill-lang-go`)
+- ✅ Go parser with AST support (via Go ast_tool.go)
+- ✅ All 5 import support traits
+- ✅ Manifest parsing (go.mod)
+- ✅ Workspace support
+- ✅ Refactoring operations (extract function, inline variable, extract variable)
+- ✅ ProjectFactory for Go module creation
+- ✅ LSP configuration with `gopls`
+- ✅ Integrated into workspace build system
+
 ## Checklists
 
 ### Extract and Rename
-- [ ] Extract `crates/cb-lang-go/` from `pre-language-reduction` tag
-- [ ] Rename to `crates/mill-lang-go/`
-- [ ] Add to workspace members in root `Cargo.toml`
+- [x] Extract `crates/cb-lang-go/` from `pre-language-reduction` tag
+- [x] Rename to `crates/mill-lang-go/`
+- [x] Add to workspace members in root `Cargo.toml`
 
 ### Update Dependencies
 - [ ] Update `Cargo.toml` package name to `mill-lang-go`

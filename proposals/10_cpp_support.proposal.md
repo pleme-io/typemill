@@ -1,8 +1,8 @@
 # C++ Language Support
 
-**Status**: 🚧 In Progress (40% complete) - Basic plugin structure, import parsing, and ProjectFactory implemented, advanced features pending
+**Status**: 🚧 In Progress (50% complete) - Basic plugin structure, import parsing, ProjectFactory, vcpkg support, and C++20 imports implemented
 
-**Last Updated**: 2025-10-28 (after merging `feat/cpp-language-support-features` branch)
+**Last Updated**: 2025-10-29 (after merging `feat/cpp-manifest-parsing` branch)
 
 ## Problem
 
@@ -20,14 +20,16 @@ Implement full C++ support with `clangd` LSP integration and `mill-lang-cpp` plu
 - ✅ tree-sitter-cpp integration
 - ✅ Basic AST parsing (classes, functions, namespaces)
 - ✅ Basic `#include` import parsing
+- ✅ C++20 `import` statement parsing
 - ✅ Basic CMakeLists.txt parsing (project name only)
 - ✅ Advanced CMakeLists.txt parsing (add_executable, variables, dependencies)
 - ✅ Basic Conan manifest parsing (conanfile.txt)
+- ✅ vcpkg manifest parsing (vcpkg.json)
 - ✅ ProjectFactory for creating new C++ projects (with CMake)
 - ✅ Import rewriting for rename operations
 - ✅ Import rewriting for move operations
 - ✅ Import mutation support (add/remove imports)
-- ✅ All 16 unit tests passing
+- ✅ All unit tests passing (20+ tests)
 - ✅ Compiles without errors
 
 **Partially Implemented:**
@@ -36,9 +38,7 @@ Implement full C++ support with `clangd` LSP integration and `mill-lang-cpp` plu
 - ⚠️ Conan support (basic parsing only, no vcpkg yet)
 
 **Not Yet Implemented:**
-- ❌ C++20 module syntax (`import my_module;`)
-- ❌ Complete Conan conanfile.py parsing
-- ❌ vcpkg package manager integration
+- ❌ Complete Conan conanfile.py parsing (Python DSL)
 - ❌ Workspace operations (multi-package)
 - ❌ Refactoring operations (extract function, inline variable)
 - ❌ Analysis capabilities (dependency graph, complexity)
@@ -88,8 +88,8 @@ Implement full C++ support with `clangd` LSP integration and `mill-lang-cpp` plu
 - [x] Implement `ImportParser` trait
   - [x] Parse `#include <system>` headers
   - [x] Parse `#include "local"` headers
-  - [x] Basic test coverage (`test_parse_imports`)
-  - [ ] Parse C++20 `import` statements
+  - [x] Parse C++20 `import` statements
+  - [x] Basic test coverage (`test_parse_imports`, `test_parse_cpp20_imports`)
 - [x] Implement `ImportRenameSupport` trait (functional)
 - [x] Implement `ImportMoveSupport` trait (functional)
 - [x] Implement `ImportMutationSupport` trait (functional)
@@ -120,9 +120,9 @@ Implement full C++ support with `clangd` LSP integration and `mill-lang-cpp` plu
   - [x] Parse `conanfile.txt` dependencies
   - [ ] Parse `conanfile.py` Python DSL
   - [x] Extract package requirements
-- [ ] Implement vcpkg support
-  - [ ] Parse `vcpkg.json` manifest
-  - [ ] Extract dependency list
+- [x] Implement vcpkg support
+  - [x] Parse `vcpkg.json` manifest
+  - [x] Extract dependency list
 - [ ] Implement manifest update capabilities
 
 ### Advanced Features
@@ -147,8 +147,8 @@ Implement full C++ support with `clangd` LSP integration and `mill-lang-cpp` plu
 - [x] Unit tests for import rewriting (move) - `test_rewrite_imports_for_move`, `test_rewrite_imports_for_move_to_root`, `test_rewrite_imports_for_move_sibling_dirs`
 - [x] Unit tests for import mutation - 5 tests in `import_mutation_tests` module
 - [x] Unit tests for ProjectFactory - `test_project_factory`
-- [x] All 16 unit tests passing
-- [ ] Unit tests for C++20 `import` parsing
+- [x] Unit tests for C++20 `import` parsing - `test_parse_cpp20_imports`
+- [x] All 20+ unit tests passing
 - [ ] Integration tests with CMake projects
 - [ ] Integration tests with Makefile projects
 - [ ] LSP integration tests with `clangd`
@@ -175,12 +175,14 @@ Implement full C++ support with `clangd` LSP integration and `mill-lang-cpp` plu
 - [x] Plugin structure follows TypeMill conventions
 - [x] `define_language_plugin!` macro registration works
 
-### Phase 2: Core Features (Current State - 60% Complete)
+### Phase 2: Core Features (Current State - 70% Complete)
 - [x] Import rewriting actually modifies source (functional)
 - [x] Advanced CMakeLists.txt parsing (dependencies, targets, variables)
 - [x] All 5 import support traits implemented (basic functionality)
 - [x] ProjectFactory for creating new C++ projects
 - [x] Conan package manager support (basic parsing)
+- [x] vcpkg package manager support (vcpkg.json parsing)
+- [x] C++20 import statement parsing
 - [ ] LSP integration works with `clangd`
 - [ ] Can navigate C++ codebases (find definition, references)
 

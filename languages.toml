@@ -88,8 +88,14 @@ plugin_struct = "CPlugin"
 category = "full"
 default = false
 
-# [languages.java]
-# path = "crates/mill-lang-java"
-# plugin_struct = "JavaPlugin"
-# category = "full"
-# default = false
+[languages.go]
+path = "crates/mill-lang-go"
+plugin_struct = "GoPlugin"
+category = "full"
+default = false
+
+[languages.java]
+path = "crates/mill-lang-java"
+plugin_struct = "JavaPlugin"
+category = "full"
+default = false

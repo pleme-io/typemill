@@ -97,9 +97,7 @@ syn = { version = "2.0.106", features = ["full"] }
 id-arena = "2.2"
 bincode = "1.3"
 walkdir = "2.5"
-tree-sitter = "0.20"
 tree-sitter-java = "0.20"
-lsp-types = { version = "0.97", features = ["proposed"] }
 
 # Analysis crates
 mill-analysis-common = { path = "analysis/mill-analysis-common" }
@@ -118,6 +116,8 @@ mill-lang-cpp = { path = "crates/mill-lang-cpp", default-features = false }
 mill-lang-swift = { path = "crates/mill-lang-swift", default-features = false }
 mill-lang-csharp = { path = "crates/mill-lang-csharp", default-features = false }
 mill-lang-c = { path = "crates/mill-lang-c", default-features = false }
+mill-lang-go = { path = "crates/mill-lang-go", default-features = false }
+mill-lang-java = { path = "crates/mill-lang-java", default-features = false }
 mill-analysis-dead-code = { path = "analysis/mill-analysis-dead-code" }
 mill-analysis-graph = { path = "analysis/mill-analysis-graph" }
 
