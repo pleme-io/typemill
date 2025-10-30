@@ -27,8 +27,7 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 
 # Parsing
-tree-sitter = "0.20"
-tree-sitter-java = "0.20"
+tree-sitter = { workspace = true }
 lsp-types = { workspace = true }
 
 # Utilities (uncomment as needed)
@@ -36,5 +35,8 @@ lsp-types = { workspace = true }
 chrono = { version = "0.4", features = ["serde"] }
 quick-xml = { version = "0.31", features = ["serialize"] }
 tempfile = { workspace = true }
+
+[build-dependencies]
+cc = { workspace = true }
 
 [dev-dependencies]
