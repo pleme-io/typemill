@@ -16,3 +16,8 @@
 *.gif binary
 *.ico binary
 *.pdf binary
+
+# Tree-sitter generated parsers (large, treat as binary, no diffs)
+**/tree-sitter*/src/parser.c binary linguist-generated=true
+**/tree-sitter*/src/grammar.json linguist-generated=true
+**/tree-sitter*/src/node-types.json linguist-generated=true
