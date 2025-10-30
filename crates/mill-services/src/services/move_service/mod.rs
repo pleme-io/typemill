@@ -298,6 +298,53 @@ impl<'a> MoveService<'a> {
         Ok(edit_plan)
     }
 
+    /// Plan workspace manifest updates for batch directory operations
+    ///
+    /// Finds the appropriate workspace plugin and generates manifest edits for
+    /// all moves atomically (e.g., Cargo.toml workspace.members array updates).
+    ///
+    /// # Arguments
+    /// * `moves` - List of (old_path, new_path) pairs for directories being moved
+    ///
+    /// # Returns
+    /// List of (manifest_path, old_content, new_content) tuples for workspace manifests
+    pub async fn plan_batch_workspace_updates(
+        &self,
+        moves: &[(PathBuf, PathBuf)],
+    ) -> ServerResult<Vec<(PathBuf, String, String)>> {
+        use tracing::debug;
+
+        if moves.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        debug!(
+            moves_count = moves.len(),
+            "Planning batch workspace manifest updates via MoveService"
+        );
+
+        // Iterate through plugins to find one with workspace support
+        for plugin in self.plugin_registry.all() {
+            if let Some(workspace_support) = plugin.workspace_support() {
+                let updates = workspace_support
+                    .plan_batch_workspace_updates(moves, self.project_root)
+                    .await;
+
+                if !updates.is_empty() {
+                    debug!(
+                        plugin = plugin.metadata().name,
+                        updates_count = updates.len(),
+                        "Found workspace plugin for batch updates"
+                    );
+                    return Ok(updates);
+                }
+            }
+        }
+
+        debug!("No workspace plugin found for batch updates");
+        Ok(Vec::new())
+    }
+
     /// Convert relative path to absolute path
     ///
     /// # ⚠️ DEPRECATED (for tests only)

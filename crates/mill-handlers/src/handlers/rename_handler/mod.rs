@@ -527,21 +527,88 @@ impl RenameHandler {
         }
 
         // TWO-PHASE BATCH: Collect dir moves, generate workspace updates once
-        let dir_moves: Vec<(std::path::PathBuf, std::path::PathBuf)> = targets.iter().filter(|t| t.kind == "directory").map(|t| (std::path::PathBuf::from(&t.path), std::path::PathBuf::from(t.new_name.as_ref().unwrap()))).collect();
+        let dir_moves: Vec<(std::path::PathBuf, std::path::PathBuf)> = targets
+            .iter()
+            .filter(|t| t.kind == "directory")
+            .map(|t| {
+                (
+                    std::path::PathBuf::from(&t.path),
+                    std::path::PathBuf::from(t.new_name.as_ref().unwrap()),
+                )
+            })
+            .collect();
 
         let mut all_document_changes = Vec::new();
         let mut all_file_checksums = HashMap::new();
         let mut total_affected_files = HashSet::new();
 
-        // TODO: Batch workspace manifest updates should be handled by MoveService via PluginRegistry
-        // Current implementation has bugs:
-        // - mill-lang-rust not in dependencies
-        // - Direct language-specific calls break handler abstraction
-        // - Workspace updates already handled by individual directory_rename calls
-        //
-        // For now, workspace manifest updates happen per-target in plan_directory_rename
-        // which calls MoveService. This works but may create duplicate edits that get filtered.
-        let _dir_moves_unused = dir_moves; // Silence unused warning
+        // PHASE 1: Plan batch workspace manifest updates (e.g., Cargo.toml workspace.members)
+        // This generates a single atomic update for all moves, preventing conflicting edits
+        if !dir_moves.is_empty() {
+            debug!(
+                dir_moves_count = dir_moves.len(),
+                "Planning batch workspace manifest updates"
+            );
+
+            match context
+                .app_state
+                .move_service()
+                .plan_batch_workspace_updates(&dir_moves)
+                .await
+            {
+                Ok(updates) if !updates.is_empty() => {
+                    debug!(
+                        updates_count = updates.len(),
+                        "Batch workspace updates planned, converting to LSP edits"
+                    );
+
+                    // Convert (path, old_content, new_content) to LSP edits
+                    for (manifest_path, old_content, new_content) in updates {
+                        let uri = url::Url::from_file_path(&manifest_path).map_err(|_| {
+                            ServerError::Internal(format!(
+                                "Invalid manifest path: {}",
+                                manifest_path.display()
+                            ))
+                        })?;
+
+                        // Full-file replacement edit
+                        let edit = lsp_types::TextEdit {
+                            range: lsp_types::Range {
+                                start: lsp_types::Position {
+                                    line: 0,
+                                    character: 0,
+                                },
+                                end: lsp_types::Position {
+                                    line: old_content.lines().count() as u32,
+                                    character: 0,
+                                },
+                            },
+                            new_text: new_content,
+                        };
+
+                        all_document_changes.push(lsp_types::DocumentChangeOperation::Edit(
+                            lsp_types::TextDocumentEdit {
+                                text_document: lsp_types::OptionalVersionedTextDocumentIdentifier {
+                                    uri: uri.as_str().parse().map_err(|e| {
+                                        ServerError::Internal(format!("Failed to parse URI: {}", e))
+                                    })?,
+                                    version: None,
+                                },
+                                edits: vec![lsp_types::OneOf::Left(edit)],
+                            },
+                        ));
+                    }
+                }
+                Ok(_) => {
+                    debug!("No batch workspace updates needed");
+                }
+                Err(e) => {
+                    debug!(error = %e, "Failed to plan batch workspace updates");
+                }
+            }
+        }
+
+        // PHASE 2: Plan individual target renames (may include duplicate workspace edits)
 
         for target in targets {
             let new_name = target.new_name.as_ref().unwrap();

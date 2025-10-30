@@ -132,6 +132,49 @@ pub trait WorkspaceSupport: Send + Sync {
         None
     }
 
+    /// Plan workspace manifest updates for batch operations
+    ///
+    /// This method generates workspace manifest updates (e.g., Cargo.toml workspace.members)
+    /// when multiple directories are being moved/renamed in a single operation.
+    ///
+    /// Unlike `plan_directory_move()` which returns per-package manifest updates,
+    /// this method returns ONLY the root workspace manifest changes needed to update
+    /// workspace member lists for all moves atomically.
+    ///
+    /// # Arguments
+    /// * `moves` - List of (old_path, new_path) pairs for directories being moved
+    /// * `project_root` - Workspace/project root directory
+    ///
+    /// # Returns
+    /// List of (manifest_path, old_content, new_content) tuples for workspace manifests
+    ///
+    /// # Default Implementation
+    /// Returns empty vec (no batch workspace updates). Languages with workspace support may override.
+    ///
+    /// # Example
+    /// ```ignore
+    /// // Moving two crates: crates/a → languages/a, crates/b → languages/b
+    /// let moves = vec![
+    ///     (PathBuf::from("crates/a"), PathBuf::from("languages/a")),
+    ///     (PathBuf::from("crates/b"), PathBuf::from("languages/b")),
+    /// ];
+    ///
+    /// let updates = workspace_support.plan_batch_workspace_updates(&moves, project_root).await;
+    /// // Returns: [(
+    /// //   "/workspace/Cargo.toml",
+    /// //   "members = [\"crates/a\", \"crates/b\"]",
+    /// //   "members = [\"languages/a\", \"languages/b\"]"
+    /// // )]
+    /// ```
+    async fn plan_batch_workspace_updates(
+        &self,
+        _moves: &[(std::path::PathBuf, std::path::PathBuf)],
+        _project_root: &Path,
+    ) -> Vec<(std::path::PathBuf, String, String)> {
+        // Default: no batch workspace updates
+        Vec::new()
+    }
+
     /// Generate a workspace manifest file
     ///
     /// This method generates a workspace manifest file (e.g., Cargo.toml with [workspace])

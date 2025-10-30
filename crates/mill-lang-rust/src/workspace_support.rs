@@ -274,6 +274,36 @@ impl WorkspaceSupport for RustWorkspaceSupport {
             .await
             .map_err(|e| e.to_string())
     }
+
+    async fn plan_batch_workspace_updates(
+        &self,
+        moves: &[(std::path::PathBuf, std::path::PathBuf)],
+        project_root: &Path,
+    ) -> Vec<(std::path::PathBuf, String, String)> {
+        use tracing::debug;
+
+        debug!(
+            moves_count = moves.len(),
+            project_root = %project_root.display(),
+            "Planning batch workspace manifest updates"
+        );
+
+        match crate::workspace::cargo_util::plan_workspace_manifest_updates_for_batch(
+            moves,
+            project_root,
+        )
+        .await
+        {
+            Ok(updates) => {
+                debug!(updates_count = updates.len(), "Batch workspace updates planned");
+                updates
+            }
+            Err(e) => {
+                debug!(error = %e, "Failed to plan batch workspace updates");
+                Vec::new()
+            }
+        }
+    }
 }
 
 // Implementation functions that return Results for error handling
