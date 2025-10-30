@@ -12,7 +12,7 @@ members = [
     "crates/mill-lang-typescript",
     "crates/mill-lang-python",
     "languages/mill-lang-markdown",
-    "crates/mill-lang-toml",
+    "languages/mill-lang-toml",
     "crates/mill-lang-yaml",
     "crates/mill-lang-gitignore",
     "crates/mill-plugin-bundle",

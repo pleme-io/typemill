@@ -61,7 +61,7 @@ futures-util = "0.3"
 chrono = "0.4"
 tokio = { workspace = true }
 mill-lang-typescript = { workspace = true }
-mill-lang-toml = { path = "../mill-lang-toml" }
 mill-lang-yaml = { path = "../mill-lang-yaml" }
 mill-lang-rust = { workspace = true }
 mill-lang-markdown = { workspace = true }
+mill-lang-toml = { path = "../../languages/mill-lang-toml" }

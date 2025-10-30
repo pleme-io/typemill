@@ -5,7 +5,7 @@ edition = "2021"
 license.workspace = true
 
 [dependencies]
-mill-plugin-api = { path = "../mill-plugin-api" }
+mill-plugin-api = { path = "../../crates/mill-plugin-api" }
 async-trait = "0.1"
 toml_edit = "0.23"
 tracing = "0.1"

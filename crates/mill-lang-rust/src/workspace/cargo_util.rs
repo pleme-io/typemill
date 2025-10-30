@@ -511,6 +511,118 @@ pub async fn plan_dependent_crate_path_updates(
     Ok(planned_updates)
 }
 
+/// Plan updates for the moved crate's own path dependencies
+///
+/// When a crate moves, its path dependencies need to be recalculated relative to the new location.
+/// For example, moving from `crates/mill-lang-markdown` to `languages/mill-lang-markdown`
+/// changes `{ path = "../mill-plugin-api" }` to `{ path = "../../crates/mill-plugin-api" }`.
+///
+/// Returns (file_path, old_content, new_content) if updates are needed, or None if no path deps exist.
+pub async fn plan_moved_crate_own_path_dependencies(
+    old_crate_path: &Path,
+    new_crate_path: &Path,
+) -> ServerResult<Option<(PathBuf, String, String)>> {
+    let cargo_toml = old_crate_path.join("Cargo.toml");
+
+    // Read current Cargo.toml content
+    let content = fs::read_to_string(&cargo_toml)
+        .await
+        .map_err(|e| ServerError::Internal(format!("Failed to read Cargo.toml: {}", e)))?;
+
+    let mut doc = content
+        .parse::<toml_edit::DocumentMut>()
+        .map_err(|e| ServerError::Internal(format!("Failed to parse Cargo.toml: {}", e)))?;
+
+    let mut updated = false;
+
+    // Helper to update path dependencies in a dependency table
+    let update_paths_in_table = |table: &mut dyn toml_edit::TableLike,
+                                   old_dir: &Path,
+                                   new_dir: &Path,
+                                   updated: &mut bool| -> ServerResult<()> {
+        for (_dep_name, dep_value) in table.iter_mut() {
+            // Handle inline table: { path = "...", version = "..." }
+            if let Some(dep_table) = dep_value.as_inline_table_mut() {
+                if let Some(path_value) = dep_table.get("path") {
+                    if let Some(old_rel_path_str) = path_value.as_str() {
+                        // Resolve the old relative path to an absolute path and normalize it
+                        let abs_dep_path = old_dir.join(old_rel_path_str);
+                        // Canonicalize to normalize the path (resolve ..)
+                        let abs_dep_path = match abs_dep_path.canonicalize() {
+                            Ok(p) => p,
+                            Err(_) => abs_dep_path, // Fallback to unnormalized if canonicalize fails
+                        };
+
+                        // Calculate new relative path from new location
+                        if let Some(new_rel_path) = pathdiff::diff_paths(&abs_dep_path, new_dir) {
+                            let new_rel_path_str = new_rel_path.to_string_lossy().to_string();
+                            if new_rel_path_str != old_rel_path_str {
+                                dep_table.insert(
+                                    "path",
+                                    toml_edit::Value::from(new_rel_path_str)
+                                );
+                                *updated = true;
+                            }
+                        }
+                    }
+                }
+            }
+            // Handle regular table: [dependencies.foo] / path = "..."
+            else if let Some(dep_table) = dep_value.as_table_mut() {
+                if let Some(path_value) = dep_table.get("path") {
+                    if let Some(old_rel_path_str) = path_value.as_str() {
+                        // Resolve the old relative path to an absolute path and normalize it
+                        let abs_dep_path = old_dir.join(old_rel_path_str);
+                        // Canonicalize to normalize the path (resolve ..)
+                        let abs_dep_path = match abs_dep_path.canonicalize() {
+                            Ok(p) => p,
+                            Err(_) => abs_dep_path, // Fallback to unnormalized if canonicalize fails
+                        };
+
+                        // Calculate new relative path from new location
+                        if let Some(new_rel_path) = pathdiff::diff_paths(&abs_dep_path, new_dir) {
+                            let new_rel_path_str = new_rel_path.to_string_lossy().to_string();
+                            if new_rel_path_str != old_rel_path_str {
+                                dep_table.insert(
+                                    "path",
+                                    toml_edit::value(new_rel_path_str)
+                                );
+                                *updated = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    };
+
+    // Update path dependencies in [dependencies]
+    if let Some(deps) = doc.get_mut("dependencies").and_then(|d| d.as_table_mut()) {
+        update_paths_in_table(deps, old_crate_path, new_crate_path, &mut updated)?;
+    }
+
+    // Update path dependencies in [dev-dependencies]
+    if let Some(dev_deps) = doc.get_mut("dev-dependencies").and_then(|d| d.as_table_mut()) {
+        update_paths_in_table(dev_deps, old_crate_path, new_crate_path, &mut updated)?;
+    }
+
+    // Update path dependencies in [build-dependencies]
+    if let Some(build_deps) = doc.get_mut("build-dependencies").and_then(|d| d.as_table_mut()) {
+        update_paths_in_table(build_deps, old_crate_path, new_crate_path, &mut updated)?;
+    }
+
+    if updated {
+        Ok(Some((
+            cargo_toml.to_path_buf(),
+            content,
+            doc.to_string(),
+        )))
+    } else {
+        Ok(None)
+    }
+}
+
 /// Plan a single Cargo.toml dependency update
 ///
 /// Updates the dependency name and path if the old crate name is found.

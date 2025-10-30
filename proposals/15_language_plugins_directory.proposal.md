@@ -66,7 +66,7 @@ mill tool rename '{
     {"kind": "directory", "path": "crates/mill-lang-typescript", "newName": "languages/mill-lang-typescript"},
     {"kind": "directory", "path": "crates/mill-lang-python", "newName": "languages/mill-lang-python"},
     {"kind": "directory", "path": "../languages/mill-lang-markdown", "newName": "languages/mill-lang-markdown"},
-    {"kind": "directory", "path": "crates/mill-lang-toml", "newName": "languages/mill-lang-toml"},
+    {"kind": "directory", "path": "../languages/mill-lang-toml", "newName": "languages/mill-lang-toml"},
     {"kind": "directory", "path": "crates/mill-lang-yaml", "newName": "languages/mill-lang-yaml"},
     {"kind": "directory", "path": "crates/mill-lang-gitignore", "newName": "languages/mill-lang-gitignore"},
     {"kind": "directory", "path": "crates/mill-lang-cpp", "newName": "languages/mill-lang-cpp"}
@@ -83,7 +83,7 @@ mill tool rename '{
     {"kind": "directory", "path": "crates/mill-lang-typescript", "newName": "languages/mill-lang-typescript"},
     {"kind": "directory", "path": "crates/mill-lang-python", "newName": "languages/mill-lang-python"},
     {"kind": "directory", "path": "../languages/mill-lang-markdown", "newName": "languages/mill-lang-markdown"},
-    {"kind": "directory", "path": "crates/mill-lang-toml", "newName": "languages/mill-lang-toml"},
+    {"kind": "directory", "path": "../languages/mill-lang-toml", "newName": "languages/mill-lang-toml"},
     {"kind": "directory", "path": "crates/mill-lang-yaml", "newName": "languages/mill-lang-yaml"},
     {"kind": "directory", "path": "crates/mill-lang-gitignore", "newName": "languages/mill-lang-gitignore"},
     {"kind": "directory", "path": "crates/mill-lang-cpp", "newName": "languages/mill-lang-cpp"}

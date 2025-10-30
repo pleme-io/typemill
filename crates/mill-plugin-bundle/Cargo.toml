@@ -9,7 +9,6 @@ description = "Plugin bundle containing all language plugins for mill"
 # Core plugin API
 mill-plugin-api = { path = "../mill-plugin-api" }
 mill-lang-typescript = { path = "../mill-lang-typescript", optional = true, default-features = false }
-mill-lang-toml = { path = "../mill-lang-toml", optional = true, default-features = false }
 
 # Logging
 tracing = { workspace = true }
@@ -24,6 +23,7 @@ mill-lang-c = { path = "../mill-lang-c", optional = true, default-features = fal
 mill-lang-go = { path = "../mill-lang-go", optional = true, default-features = false }
 mill-lang-java = { path = "../mill-lang-java", optional = true, default-features = false }
 mill-lang-markdown = { path = "../../languages/mill-lang-markdown", optional = true, default-features = false }
+mill-lang-toml = { path = "../../languages/mill-lang-toml", optional = true, default-features = false }
 
 [features]
 default = ["lang-gitignore", "lang-markdown", "lang-python", "lang-rust", "lang-toml", "lang-typescript", "lang-yaml"]

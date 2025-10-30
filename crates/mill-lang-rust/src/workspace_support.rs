@@ -198,6 +198,31 @@ impl WorkspaceSupport for RustWorkspaceSupport {
             }
         }
 
+        // Plan updates for the moved crate's own path dependencies
+        match cargo_util::plan_moved_crate_own_path_dependencies(old_path, new_path).await {
+            Ok(Some(update)) => {
+                info!("Planning moved crate's own path dependency updates");
+
+                // Convert to TextEdits
+                let own_deps_edits = cargo_util::convert_manifest_updates_to_edits(
+                    vec![update],
+                    old_path,
+                    new_path,
+                );
+
+                all_edits.extend(own_deps_edits);
+            }
+            Ok(None) => {
+                info!("No path dependency updates needed for moved crate");
+            }
+            Err(e) => {
+                warn!(
+                    error = %e,
+                    "Failed to plan moved crate's path dependencies, continuing without them"
+                );
+            }
+        }
+
         info!(
             manifest_edits = all_edits.len(),
             "Cargo manifest planning complete"
