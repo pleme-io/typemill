@@ -2,8 +2,9 @@ use mill_plugin_api::import_support::{
     ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportParser,
     ImportRenameSupport,
 };
-use tree_sitter::{Parser, Query, QueryCursor};
+use tree_sitter::{Parser, Query, QueryCursor, StreamingIterator};
 use std::path::Path;
+use crate::ast_parser::get_cpp_language;
 
 fn get_cpp_imports_query() -> &'static str {
     r#"
@@ -23,25 +24,26 @@ impl ImportParser for CppImportSupport {
         // Parse traditional #include directives using tree-sitter
         let mut parser = Parser::new();
         parser
-            .set_language(tree_sitter_cpp::language())
+            .set_language(&get_cpp_language())
             .expect("Error loading C++ grammar");
 
         let tree = parser.parse(source, None).unwrap();
-        let query = Query::new(tree_sitter_cpp::language(), get_cpp_imports_query()).unwrap();
+        let query = Query::new(&get_cpp_language(),get_cpp_imports_query()).unwrap();
 
         let mut query_cursor = QueryCursor::new();
-        let ts_imports: Vec<String> = query_cursor
+        let mut ts_imports: Vec<String> = Vec::new();
+        query_cursor
             .matches(&query, tree.root_node(), source.as_bytes())
-            .flat_map(|m| {
-                m.captures.iter().map(|c| {
+            .for_each(|m| {
+                for c in m.captures.iter() {
                     let range = c.node.range();
                     let text = source[range.start_byte..range.end_byte].to_string();
                     // Trim quotes and angle brackets
-                    text.trim_matches(|c| c == '"' || c == '<' || c == '>')
-                        .to_string()
-                })
-            })
-            .collect();
+                    let trimmed = text.trim_matches(|c| c == '"' || c == '<' || c == '>')
+                        .to_string();
+                    ts_imports.push(trimmed);
+                }
+            });
 
         imports.extend(ts_imports);
 
@@ -82,35 +84,36 @@ impl ImportRenameSupport for CppImportSupport {
 
         let mut parser = Parser::new();
         parser
-            .set_language(tree_sitter_cpp::language())
+            .set_language(&get_cpp_language())
             .expect("Error loading C++ grammar");
 
         let tree = parser.parse(source, None).unwrap();
         let query_text = get_cpp_imports_query();
-        let query = Query::new(tree_sitter_cpp::language(), query_text).unwrap();
+        let query = Query::new(&get_cpp_language(),query_text).unwrap();
         let path_capture_index = query.capture_index_for_name("path").unwrap();
 
         let mut query_cursor = QueryCursor::new();
         let mut edits = vec![];
 
-        for match_ in query_cursor.matches(&query, tree.root_node(), source.as_bytes()) {
-            let path_node = match_
-                .nodes_for_capture_index(path_capture_index)
-                .next()
-                .unwrap();
-            let import_path_text = path_node
-                .utf8_text(source.as_bytes())
-                .unwrap()
-                .trim_matches(|c| c == '"' || c == '<' || c == '>');
+        query_cursor.matches(&query, tree.root_node(), source.as_bytes())
+            .for_each(|match_| {
+                let path_node = match_
+                    .nodes_for_capture_index(path_capture_index)
+                    .next()
+                    .unwrap();
+                let import_path_text = path_node
+                    .utf8_text(source.as_bytes())
+                    .unwrap()
+                    .trim_matches(|c| c == '"' || c == '<' || c == '>');
 
-            if import_path_text == old_path {
-                let replacement = format!("\"{}\"", new_path);
-                edits.push(Edit {
-                    range_to_replace: path_node.range(),
-                    replacement,
-                });
-            }
-        }
+                if import_path_text == old_path {
+                    let replacement = format!("\"{}\"", new_path);
+                    edits.push(Edit {
+                        range_to_replace: path_node.range(),
+                        replacement,
+                    });
+                }
+            });
 
         if !edits.is_empty() {
             let changes = edits.len();
@@ -147,12 +150,12 @@ impl ImportMoveSupport for CppImportSupport {
 
         let mut parser = Parser::new();
         parser
-            .set_language(tree_sitter_cpp::language())
+            .set_language(&get_cpp_language())
             .expect("Error loading C++ grammar");
 
         let tree = parser.parse(source, None).unwrap();
         let query_text = get_cpp_imports_query();
-        let query = Query::new(tree_sitter_cpp::language(), query_text).unwrap();
+        let query = Query::new(&get_cpp_language(),query_text).unwrap();
         let path_capture_index = query.capture_index_for_name("path").unwrap();
 
         let mut query_cursor = QueryCursor::new();
@@ -168,31 +171,32 @@ impl ImportMoveSupport for CppImportSupport {
             None => return (source.to_string(), 0), // Should not happen if from_dir exists.
         };
 
-        for match_ in query_cursor.matches(&query, tree.root_node(), source.as_bytes()) {
-            let path_node = match_
-                .nodes_for_capture_index(path_capture_index)
-                .next()
-                .unwrap();
-            let import_path_text = path_node
-                .utf8_text(source.as_bytes())
-                .unwrap()
-                .trim_matches(|c| c == '"' || c == '<' || c == '>');
+        query_cursor.matches(&query, tree.root_node(), source.as_bytes())
+            .for_each(|match_| {
+                let path_node = match_
+                    .nodes_for_capture_index(path_capture_index)
+                    .next()
+                    .unwrap();
+                let import_path_text = path_node
+                    .utf8_text(source.as_bytes())
+                    .unwrap()
+                    .trim_matches(|c| c == '"' || c == '<' || c == '>');
 
-            let import_path = Path::new(import_path_text);
+                let import_path = Path::new(import_path_text);
 
-            if import_path.is_relative() {
-                let absolute_import_path = moved_from_dir.join(import_path).clean();
-                if let Some(new_relative_path) =
-                    pathdiff::diff_paths(&absolute_import_path, moved_to_dir)
-                {
-                    let replacement = format!("\"{}\"", new_relative_path.to_string_lossy());
-                    edits.push(Edit {
-                        range_to_replace: path_node.range(),
-                        replacement,
-                    });
+                if import_path.is_relative() {
+                    let absolute_import_path = moved_from_dir.join(import_path).clean();
+                    if let Some(new_relative_path) =
+                        pathdiff::diff_paths(&absolute_import_path, moved_to_dir)
+                    {
+                        let replacement = format!("\"{}\"", new_relative_path.to_string_lossy());
+                        edits.push(Edit {
+                            range_to_replace: path_node.range(),
+                            replacement,
+                        });
+                    }
                 }
-            }
-        }
+            });
 
         if !edits.is_empty() {
             let changes = edits.len();
@@ -220,7 +224,7 @@ impl ImportMutationSupport for CppImportSupport {
 
         let mut parser = Parser::new();
         parser
-            .set_language(tree_sitter_cpp::language())
+            .set_language(&get_cpp_language())
             .expect("Error loading C++ grammar");
         let tree = parser.parse(source, None).unwrap();
         let root_node = tree.root_node();
@@ -246,36 +250,47 @@ impl ImportMutationSupport for CppImportSupport {
     fn remove_import(&self, source: &str, module_to_remove: &str) -> String {
         let mut parser = Parser::new();
         parser
-            .set_language(tree_sitter_cpp::language())
+            .set_language(&get_cpp_language())
             .expect("Error loading C++ grammar");
 
         let tree = parser.parse(source, None).unwrap();
         let query_text = get_cpp_imports_query();
-        let query = Query::new(tree_sitter_cpp::language(), query_text).unwrap();
+        let query = Query::new(&get_cpp_language(),query_text).unwrap();
         let path_capture_index = query.capture_index_for_name("path").unwrap();
 
         let mut query_cursor = QueryCursor::new();
 
-        let node_to_remove_range = query_cursor
+        let mut node_to_remove_range: Option<tree_sitter::Range> = None;
+        query_cursor
             .matches(&query, tree.root_node(), source.as_bytes())
-            .find_map(|match_| {
-                let path_node = match_
-                    .nodes_for_capture_index(path_capture_index)
-                    .next()?;
+            .for_each(|match_| {
+                if node_to_remove_range.is_some() {
+                    return; // Already found, skip remaining matches
+                }
 
-                let import_path = path_node
+                let path_node = match match_
+                    .nodes_for_capture_index(path_capture_index)
+                    .next() {
+                    Some(n) => n,
+                    None => return,
+                };
+
+                let import_path = match path_node
                     .utf8_text(source.as_bytes())
-                    .ok()?
-                    .trim_matches(|c| c == '"' || c == '<' || c == '>');
+                    .ok()
+                    .map(|s| s.trim_matches(|c| c == '"' || c == '<' || c == '>')) {
+                    Some(p) => p,
+                    None => return,
+                };
 
                 if import_path == module_to_remove {
                     // The parent of the path node is the preproc_include node
-                    let include_node = path_node.parent()?;
-                    if include_node.kind() == "preproc_include" {
-                        return Some(include_node.range());
+                    if let Some(include_node) = path_node.parent() {
+                        if include_node.kind() == "preproc_include" {
+                            node_to_remove_range = Some(include_node.range());
+                        }
                     }
                 }
-                None
             });
 
         if let Some(range) = node_to_remove_range {

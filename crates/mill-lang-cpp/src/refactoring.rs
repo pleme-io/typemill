@@ -17,12 +17,9 @@ use mill_lang_common::refactoring::CodeRange as CommonCodeRange;
 use mill_plugin_api::{PluginError, PluginResult, RefactoringProvider};
 use std::collections::HashMap;
 use tree_sitter::{Node, Parser, Point};
+use crate::ast_parser::get_cpp_language;
 
 pub struct CppRefactoringProvider;
-
-fn get_cpp_language() -> tree_sitter::Language {
-    tree_sitter_cpp::language()
-}
 
 #[async_trait]
 impl RefactoringProvider for CppRefactoringProvider {
@@ -108,7 +105,7 @@ fn plan_extract_function_impl(
 ) -> Result<EditPlan, String> {
     let mut parser = Parser::new();
     parser
-        .set_language(get_cpp_language())
+        .set_language(&get_cpp_language())
         .map_err(|e| format!("Failed to load C++ grammar: {}", e))?;
 
     let tree = parser
@@ -208,7 +205,7 @@ fn plan_extract_variable_impl(
 ) -> Result<EditPlan, String> {
     let mut parser = Parser::new();
     parser
-        .set_language(get_cpp_language())
+        .set_language(&get_cpp_language())
         .map_err(|e| format!("Failed to load C++ grammar: {}", e))?;
 
     let tree = parser
@@ -296,7 +293,7 @@ fn plan_inline_variable_impl(
 ) -> Result<EditPlan, String> {
     let mut parser = Parser::new();
     parser
-        .set_language(get_cpp_language())
+        .set_language(&get_cpp_language())
         .map_err(|e| format!("Failed to load C++ grammar: {}", e))?;
 
     let tree = parser
