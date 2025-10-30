@@ -201,4 +201,88 @@ fn untested_function() {
     assert_eq!(first_finding["kind"], "long_method");
     assert!(first_finding["metrics"]["sloc"].as_u64().unwrap() > 50);
     assert_eq!(first_finding["severity"], "medium");
+
+    // Verify suggestions are present
+    let suggestions = result
+        .get("suggestions")
+        .and_then(|s| s.as_array())
+        .expect("Should have suggestions array");
+    assert!(!suggestions.is_empty(), "Should have suggestions");
+
+    let long_method_suggestion = suggestions
+        .iter()
+        .find(|s| s["message"].as_str().unwrap().contains("long_function"))
+        .expect("Should have a suggestion for the long function");
+    assert_eq!(long_method_suggestion["refactor_call"]["tool"], "extract");
+}
+
+#[tokio::test]
+async fn test_analyze_batch_no_suggestions() {
+    let workspace = TestWorkspace::new();
+    let mut client = TestClient::new(workspace.path());
+
+    workspace.create_file("src/main.rs", "use std::collections::HashMap;");
+
+    let response = client
+        .call_tool(
+            "analyze.batch",
+            json!({
+                "queries": [
+                    {
+                        "command": "analyze.dead_code",
+                        "kind": "unused_imports",
+                        "scope": { "type": "file", "path": "src/main.rs" }
+                    }
+                ],
+                "noSuggestions": true
+            }),
+        )
+        .await
+        .expect("analyze.batch call should succeed");
+
+    let result = response
+        .get("result")
+        .and_then(|r| r.as_object())
+        .expect("Response should have a result object");
+
+    let suggestions = result
+        .get("suggestions")
+        .and_then(|s| s.as_array())
+        .expect("Should have suggestions array");
+    assert!(suggestions.is_empty(), "Should have no suggestions");
+}
+
+#[tokio::test]
+async fn test_analyze_batch_max_suggestions() {
+    let workspace = TestWorkspace::new();
+    let mut client = TestClient::new(workspace.path());
+
+    workspace.create_file("src/main.rs", "use std::collections::HashMap;");
+
+    let response = client
+        .call_tool(
+            "analyze.batch",
+            json!({
+                "queries": [
+                    {
+                        "command": "analyze.dead_code",
+                        "kind": "unused_imports",
+                        "scope": { "type": "file", "path": "src/main.rs" }
+                    }
+                ]
+            }),
+        )
+        .await
+        .expect("analyze.batch call should succeed");
+
+    let result = response
+        .get("result")
+        .and_then(|r| r.as_object())
+        .expect("Response should have a result object");
+
+    let suggestions = result
+        .get("suggestions")
+        .and_then(|s| s.as_array())
+        .expect("Should have suggestions array");
+    assert!(!suggestions.is_empty(), "Should have at least one suggestion");
 }

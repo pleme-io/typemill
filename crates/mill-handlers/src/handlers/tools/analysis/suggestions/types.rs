@@ -4,6 +4,8 @@ use mill_foundation::protocol::analysis_result::{
 use serde::{Deserialize, Serialize};
 
 /// Enhanced suggestion with safety metadata and actionable refactor call
+use std::hash::{Hash, Hasher};
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActionableSuggestion {
     /// Human-readable suggestion message
@@ -31,6 +33,21 @@ pub struct ActionableSuggestion {
     pub metadata: Option<SuggestionMetadata>,
 }
 
+impl PartialEq for ActionableSuggestion {
+    fn eq(&self, other: &Self) -> bool {
+        self.message == other.message && self.refactor_call == other.refactor_call
+    }
+}
+
+impl Eq for ActionableSuggestion {}
+
+impl Hash for ActionableSuggestion {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.message.hash(state);
+        self.refactor_call.hash(state);
+    }
+}
+
 /// Safety level classification
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -54,7 +71,7 @@ pub enum ImpactLevel {
 }
 
 /// Refactoring command reference
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct RefactorCall {
     /// Tool name (e.g., "extract", "inline")
     pub tool: String,
@@ -64,7 +81,7 @@ pub struct RefactorCall {
 }
 
 /// Additional metadata for suggestion evaluation
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SuggestionMetadata {
     /// Why this suggestion was made
     pub rationale: String,
