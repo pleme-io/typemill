@@ -26,7 +26,7 @@ members = [
     "crates/mill-workspaces",
     "crates/mill-auth",
     "crates/xtask", "crates/mill-ast", "crates/mill-client", "crates/mill-test-support", "crates/mill-handlers", "crates/mill-config", "crates/mill-foundation",
-    "crates/mill-lang-cpp",
+    "languages/mill-lang-cpp",
     "crates/mill-lang-csharp",
     "crates/mill-lang-swift",
     "crates/mill-lang-c",
@@ -112,7 +112,6 @@ mill-lang-common = { path = "crates/mill-lang-common", default-features = false 
 mill-lang-typescript = { path = "crates/mill-lang-typescript", default-features = false }
 mill-lang-rust = { path = "crates/mill-lang-rust", default-features = false }
 mill-lang-python = { path = "crates/mill-lang-python", default-features = false }
-mill-lang-cpp = { path = "crates/mill-lang-cpp", default-features = false }
 mill-lang-swift = { path = "crates/mill-lang-swift", default-features = false }
 mill-lang-csharp = { path = "crates/mill-lang-csharp", default-features = false }
 mill-lang-c = { path = "crates/mill-lang-c", default-features = false }
@@ -121,6 +120,7 @@ mill-lang-java = { path = "crates/mill-lang-java", default-features = false }
 mill-analysis-dead-code = { path = "analysis/mill-analysis-dead-code" }
 mill-analysis-graph = { path = "analysis/mill-analysis-graph" }
 mill-lang-markdown = { path = "languages/mill-lang-markdown", default-features = false }
+mill-lang-cpp = { path = "languages/mill-lang-cpp", default-features = false }
 
 # Optimize build times for dev dependencies
 [profile.dev.build-override]

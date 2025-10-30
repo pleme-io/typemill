@@ -740,6 +740,81 @@ async fn plan_single_cargo_toml_dependency_update(
     }
 }
 
+/// Plan workspace manifest updates for batch rename operations
+pub async fn plan_workspace_manifest_updates_for_batch(
+    moves: &[(PathBuf, PathBuf)],
+    project_root: &Path,
+) -> ServerResult<Vec<(PathBuf, String, String)>> {
+    if moves.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut planned_updates = Vec::new();
+    let mut current_path = moves[0].0.parent();
+
+    while let Some(path) = current_path {
+        let workspace_toml_path = path.join("Cargo.toml");
+        if workspace_toml_path.exists() {
+            let content = fs::read_to_string(&workspace_toml_path).await.map_err(|e| {
+                ServerError::Internal(format!("Failed to read workspace Cargo.toml: {}", e))
+            })?;
+
+            if content.contains("[workspace]") {
+                let mut doc = content.parse::<toml_edit::DocumentMut>().map_err(|e| {
+                    ServerError::Internal(format!("Failed to parse workspace Cargo.toml: {}", e))
+                })?;
+
+                for (old_package_path, new_package_path) in moves {
+                    let old_rel_path = old_package_path.strip_prefix(path).map_err(|_| {
+                        ServerError::Internal("Failed to calculate old relative path".to_string())
+                    })?;
+                    let new_rel_path = new_package_path.strip_prefix(path).map_err(|_| {
+                        ServerError::Internal("Failed to calculate new relative path".to_string())
+                    })?;
+
+                    let old_path_str = old_rel_path.to_string_lossy().to_string();
+                    let new_path_str = new_rel_path.to_string_lossy().to_string();
+
+                    // Update members array
+                    if let Some(members) = doc["workspace"]["members"].as_array_mut() {
+                        let index_opt = members.iter().position(|m| m.as_str().map(|s| s.trim()) == Some(old_path_str.trim()));
+                        if let Some(index) = index_opt {
+                            members.replace(index, new_path_str.as_str());
+                        }
+                    }
+
+                    // Update workspace dependencies (separate borrow)
+                    let old_crate_name = old_package_path.file_name().and_then(|n| n.to_str()).map(|s| s.replace('_', "-")).unwrap_or_default();
+                    let new_crate_name = new_package_path.file_name().and_then(|n| n.to_str()).map(|s| s.replace('_', "-")).unwrap_or_default();
+
+                    if let Some(deps) = doc.get_mut("workspace").and_then(|w| w.get_mut("dependencies")).and_then(|d| d.as_table_mut()) {
+                        if let Some(dep_value) = deps.remove(&old_crate_name) {
+                            let mut updated_dep = dep_value;
+                            if let Some(dep_table) = updated_dep.as_inline_table_mut() {
+                                if let Some(path_entry) = dep_table.get_mut("path") {
+                                    *path_entry = toml_edit::Value::from(new_path_str.as_str());
+                                }
+                            }
+                            deps.insert(&new_crate_name, updated_dep);
+                        }
+                    }
+                }
+
+                let new_content = doc.to_string();
+                planned_updates.push((workspace_toml_path.clone(), content.clone(), new_content));
+                break;
+            }
+        }
+
+        if path == project_root {
+            break;
+        }
+        current_path = path.parent();
+    }
+
+    Ok(planned_updates)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

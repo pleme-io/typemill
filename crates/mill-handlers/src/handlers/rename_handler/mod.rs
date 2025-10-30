@@ -319,8 +319,18 @@ impl RenameHandler {
         // Rebuild document changes with merged edits
         let mut result = Vec::new();
 
-        // Add merged text edits
-        for (uri, edits) in edits_by_uri {
+        // Add merged text edits (SORTED in reverse order for LSP compliance)
+        for (uri, mut edits) in edits_by_uri {
+            // Sort edits in reverse order (bottom to top) to prevent position shifts
+            edits.sort_by(|a, b| {
+                match b.range.start.line.cmp(&a.range.start.line) {
+                    std::cmp::Ordering::Equal => {
+                        b.range.start.character.cmp(&a.range.start.character)
+                    }
+                    other => other,
+                }
+            });
+
             result.push(DocumentChangeOperation::Edit(TextDocumentEdit {
                 text_document: OptionalVersionedTextDocumentIdentifier { uri, version: None },
                 edits: edits.into_iter().map(lsp_types::OneOf::Left).collect(),
@@ -516,10 +526,28 @@ impl RenameHandler {
             )));
         }
 
-        // Plan each rename individually
+        // TWO-PHASE BATCH: Collect dir moves, generate workspace updates once
+        let dir_moves: Vec<(std::path::PathBuf, std::path::PathBuf)> = targets.iter().filter(|t| t.kind == "directory").map(|t| (std::path::PathBuf::from(&t.path), std::path::PathBuf::from(t.new_name.as_ref().unwrap()))).collect();
+
         let mut all_document_changes = Vec::new();
         let mut all_file_checksums = HashMap::new();
         let mut total_affected_files = HashSet::new();
+
+        if !dir_moves.is_empty() {
+            use mill_lang_rust::workspace::cargo_util;
+            if let Ok(updates) = cargo_util::plan_workspace_manifest_updates_for_batch(&dir_moves, std::path::Path::new(&context.project_root)).await {
+                if !updates.is_empty() {
+                    let edits = cargo_util::convert_manifest_updates_to_edits(updates, &dir_moves[0].0, &dir_moves[0].1);
+                    for text_edit in edits {
+                        if let Some(file_path) = &text_edit.file_path {
+                            let uri = lsp_types::Url::from_file_path(file_path).map_err(|_| ServerError::Internal(format!("Invalid file path: {}", file_path)))?;
+                            let lsp_edit = lsp_types::TextEdit { range: lsp_types::Range { start: lsp_types::Position { line: text_edit.location.start_line, character: text_edit.location.start_column }, end: lsp_types::Position { line: text_edit.location.end_line, character: text_edit.location.end_column } }, new_text: text_edit.new_text.clone() };
+                            all_document_changes.push(lsp_types::DocumentChangeOperation::Edit(lsp_types::TextDocumentEdit { text_document: lsp_types::OptionalVersionedTextDocumentIdentifier { uri, version: None }, edits: vec![lsp_types::OneOf::Left(lsp_edit)] }));
+                        }
+                    }
+                }
+            }
+        }
 
         for target in targets {
             let new_name = target.new_name.as_ref().unwrap();
@@ -593,9 +621,25 @@ impl RenameHandler {
             total_affected_files.insert(std::path::PathBuf::from(&target.path));
         }
 
+        // Filter duplicate full-file edits (keep first=batch version)
+        let mut seen_full_file_edits: HashSet<lsp_types::Uri> = HashSet::new();
+        let filtered_changes: Vec<_> = all_document_changes.into_iter().filter(|change| {
+            if let lsp_types::DocumentChangeOperation::Edit(edit) = change {
+                let is_full_file = edit.edits.iter().any(|e| {
+                    let text_edit = match e { lsp_types::OneOf::Left(te) => te, lsp_types::OneOf::Right(ae) => &ae.text_edit };
+                    text_edit.range.start.line == 0 && text_edit.range.start.character == 0
+                });
+                if is_full_file {
+                    let uri = &edit.text_document.uri;
+                    if seen_full_file_edits.contains(uri) { return false; } else { seen_full_file_edits.insert(uri.clone()); return true; }
+                }
+            }
+            true
+        }).collect();
+
         // Deduplicate and merge text edits for the same file
         // This prevents "last edit wins" when multiple targets modify the same config file
-        let deduped_document_changes = Self::dedupe_document_changes(all_document_changes);
+        let deduped_document_changes = Self::dedupe_document_changes(filtered_changes);
 
         // Build merged WorkspaceEdit with documentChanges
         let merged_workspace_edit = WorkspaceEdit {

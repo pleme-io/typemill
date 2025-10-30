@@ -15,7 +15,6 @@ tracing = { workspace = true }
 mill-lang-rust = { path = "../mill-lang-rust", optional = true, default-features = false }
 mill-lang-python = { path = "../mill-lang-python", optional = true, default-features = false }
 mill-lang-gitignore = { path = "../mill-lang-gitignore", optional = true, default-features = false }
-mill-lang-cpp = { path = "../mill-lang-cpp", optional = true, default-features = false }
 mill-lang-swift = { path = "../mill-lang-swift", optional = true, default-features = false }
 mill-lang-csharp = { path = "../mill-lang-csharp", optional = true, default-features = false }
 mill-lang-c = { path = "../mill-lang-c", optional = true, default-features = false }
@@ -24,6 +23,7 @@ mill-lang-java = { path = "../mill-lang-java", optional = true, default-features
 mill-lang-markdown = { path = "../../languages/mill-lang-markdown", optional = true, default-features = false }
 mill-lang-toml = { path = "../../languages/mill-lang-toml", optional = true, default-features = false }
 mill-lang-yaml = { path = "../../languages/mill-lang-yaml", optional = true, default-features = false }
+mill-lang-cpp = { path = "../../languages/mill-lang-cpp", optional = true, default-features = false }
 
 [features]
 default = ["lang-gitignore", "lang-markdown", "lang-python", "lang-rust", "lang-toml", "lang-typescript", "lang-yaml"]

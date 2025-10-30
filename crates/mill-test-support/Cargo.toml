@@ -39,13 +39,13 @@ mill-plugin-bundle = { path = "../mill-plugin-bundle", features = ["lang-rust", 
 # Individual language plugins as dev-dependencies for extern crate declarations
 # These must match the features enabled in mill-plugin-bundle above
 mill-lang-c = { path = "../mill-lang-c" }
-mill-lang-cpp = { path = "../mill-lang-cpp" }
 mill-lang-go = { path = "../mill-lang-go" }
 mill-lang-java = { path = "../mill-lang-java" }
 mill-lang-python = { path = "../mill-lang-python" }
 mill-lang-rust = { path = "../mill-lang-rust" }
 mill-lang-swift = { path = "../mill-lang-swift" }
 mill-lang-typescript = { path = "../mill-lang-typescript" }
+mill-lang-cpp = { path = "../../languages/mill-lang-cpp" }
 
 # Benchmarks
 [[bench]]

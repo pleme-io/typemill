@@ -10,9 +10,9 @@ homepage.workspace = true
 cc = "1.0"
 
 [dependencies]
-mill-plugin-api = { path = "../mill-plugin-api" }
-mill-lang-common = { path = "../mill-lang-common" }
-mill-foundation = { path = "../mill-foundation" }
+mill-plugin-api = { path = "../../crates/mill-plugin-api" }
+mill-lang-common = { path = "../../crates/mill-lang-common" }
+mill-foundation = { path = "../../crates/mill-foundation" }
 inventory = "0.3"
 
 async-trait = { workspace = true }
