@@ -29,9 +29,10 @@ impl MissingCodeLangFixer {
         // Find the language with highest score
         let max_score = rust_score.max(js_score).max(python_score).max(json_score).max(bash_score).max(toml_score);
 
-        // Only suggest if confidence is high enough (score >= 2)
-        // Score of 2 means at least one strong language-specific pattern
-        if max_score < 2 {
+        // Only suggest if confidence is high enough (score >= 3)
+        // Score of 3 means multiple strong signals, reducing false positives
+        // Err on the side of caution - only tag when very confident
+        if max_score < 3 {
             return None;
         }
 
@@ -53,9 +54,42 @@ impl MissingCodeLangFixer {
         }
     }
 
-    /// Check if content is a non-code pattern (directory tree, ASCII art, CLI output, quoted strings)
+    /// Check if content is a non-code pattern (directory tree, ASCII art, CLI output, quoted strings, etc.)
     fn is_non_code_pattern(content: &str) -> bool {
         let trimmed = content.trim();
+
+        // Numbered lists like [0], [1], [2] (not TOML sections)
+        let lines: Vec<&str> = trimmed.lines().collect();
+        if lines.len() >= 2 {
+            let has_numbered_brackets = lines.iter().filter(|l| {
+                let t = l.trim();
+                // Match [0], [1], [2] etc. at start of line
+                t.starts_with('[') && t.len() >= 3 && t.chars().nth(1).map_or(false, |c| c.is_ascii_digit())
+            }).count() >= 2;
+            if has_numbered_brackets {
+                return true;
+            }
+        }
+
+        // Error messages (often contain keywords but aren't code)
+        // Common patterns: "error:", "Error:", "ERROR:", "failed to"
+        if trimmed.starts_with("error:") || trimmed.starts_with("Error:") || trimmed.starts_with("ERROR:")
+            || trimmed.contains("failed to") || trimmed.contains("Failed to")
+            || trimmed.contains("error[E") { // Rust error codes
+            return true;
+        }
+
+        // Numbered prose (1., 2., 3. or 1), 2), 3))
+        let has_numbered_prose = lines.iter().filter(|l| {
+            let t = l.trim();
+            // Match "1. ", "2. ", or "1) ", "2) "
+            (t.starts_with("1.") || t.starts_with("2.") || t.starts_with("3.") ||
+             t.starts_with("1)") || t.starts_with("2)") || t.starts_with("3)")) &&
+            t.len() > 2 && t.chars().nth(2) == Some(' ')
+        }).count() >= 2;
+        if has_numbered_prose {
+            return true;
+        }
 
         // Quoted strings (user instructions, not code)
         // Check if all non-empty lines start and end with quotes
@@ -131,11 +165,14 @@ impl MissingCodeLangFixer {
         let mut score = 0;
         if content.contains("def ") { score += 2; }
         if content.contains("class ") { score += 1; }
-        if content.contains("import ") { score += 1; }
-        if content.contains("from ") && content.contains(" import ") { score += 2; }
+        // Be conservative with "import" and "from" - common in prose
+        // Only count if followed by actual module patterns
+        if content.contains("import ") && (content.contains(".") || content.contains(" as ")) { score += 1; }
+        if content.contains("from ") && content.contains(" import ") && content.contains(".") { score += 2; }
         if content.contains("    ") { score += 1; } // Indentation
         if content.contains("self.") { score += 1; }
         if content.contains("print(") { score += 1; }
+        if content.contains("__init__") { score += 2; }
         score
     }
 
@@ -174,9 +211,18 @@ impl MissingCodeLangFixer {
     /// Score content for TOML patterns
     fn toml_score(content: &str) -> usize {
         let mut score = 0;
-        if content.contains("[") && content.contains("]") { score += 1; }
-        if content.contains(" = ") { score += 2; }
-        if Regex::new(r"^\[[\w\.-]+\]").unwrap().is_match(content) { score += 2; }
+        // TOML sections: [section.name] or [dependencies]
+        // Exclude numbered lists [0], [1]
+        let section_re = Regex::new(r"^\[[\w\.-]+\]").unwrap();
+        if section_re.is_match(content) {
+            // Check it's not a numbered list like [0], [1]
+            let first_line = content.lines().next().unwrap_or("");
+            if !Regex::new(r"^\[\d+\]").unwrap().is_match(first_line) {
+                score += 2;
+            }
+        }
+        // TOML key-value: key = value
+        if content.contains(" = ") && !content.contains("==") { score += 2; }
         score
     }
 
@@ -274,7 +320,7 @@ mod tests {
 
     #[test]
     fn test_missing_code_lang_fixer_detects_rust() {
-        let content = "```\nfn main() {\n    println!(\"hello\");\n}\n```".to_string();
+        let content = "```\npub fn main() {\n    let x = 42;\n    println!(\"hello\");\n}\n```".to_string();
         let ctx = MarkdownContext::new(content, PathBuf::from("test.md"));
         let fixer = MissingCodeLangFixer;
 
@@ -335,7 +381,7 @@ mod tests {
 
     #[test]
     fn test_missing_code_lang_fixer_handles_multiple_blocks() {
-        let content = "```\nfn test1() {}\n```\n\nSome text\n\n```javascript\nblock2\n```\n\n```\nfn test3() {}\n```".to_string();
+        let content = "```\npub fn test1() {\n    let x = 1;\n}\n```\n\nSome text\n\n```javascript\nblock2\n```\n\n```\nimpl MyStruct {\n    pub fn test3() {}\n}\n```".to_string();
         let ctx = MarkdownContext::new(content, PathBuf::from("test.md"));
         let fixer = MissingCodeLangFixer;
 
@@ -349,7 +395,7 @@ mod tests {
 
     #[test]
     fn test_missing_code_lang_fixer_preview_mode() {
-        let content = "```\nfn example() {}\n```".to_string();
+        let content = "```\nuse std::io;\npub fn example() {\n    let x = 1;\n}\n```".to_string();
         let ctx = MarkdownContext::new(content, PathBuf::from("test.md"));
         let fixer = MissingCodeLangFixer;
 
@@ -427,14 +473,18 @@ mod tests {
     fn test_missing_code_lang_fixer_mixed_blocks() {
         let content = concat!(
             "```\n",
-            "fn rust_code() {}\n",
+            "pub fn rust_code() {\n",
+            "    let x: i32 = 42;\n",
+            "}\n",
             "```\n\n",
             "```\n",
             "├── src/\n",
             "└── test/\n",
             "```\n\n",
             "```\n",
-            "console.log(\"js code\");\n",
+            "function jsCode() {\n",
+            "  console.log(\"hello\");\n",
+            "}\n",
             "```"
         ).to_string();
         let ctx = MarkdownContext::new(content, PathBuf::from("test.md"));
