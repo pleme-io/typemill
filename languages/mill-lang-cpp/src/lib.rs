@@ -9,20 +9,25 @@ mod project_factory;
 mod refactoring;
 mod vcpkg_parser;
 mod workspace_support;
+mod manifest_updater;
+mod lsp_installer;
 
 use async_trait::async_trait;
+use crate::lsp_installer::CppLspInstaller;
 use mill_plugin_api::{
     import_support::{
         ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportParser,
         ImportRenameSupport,
     },
-    mill_plugin, LanguagePlugin, LanguageMetadata, LspConfig, ManifestData, ParsedSource,
-    PluginCapabilities, PluginResult,
+    lsp_installer::LspInstaller,
+    mill_plugin, LanguagePlugin, LanguageMetadata, LspConfig, ManifestData, ManifestUpdater,
+    ParsedSource, PluginCapabilities, PluginResult,
 };
 use std::path::Path;
 
 pub struct CppPlugin {
     metadata: LanguageMetadata,
+    lsp_installer: CppLspInstaller,
 }
 
 impl Default for CppPlugin {
@@ -36,6 +41,7 @@ impl Default for CppPlugin {
                 entry_point: "main.cpp",
                 module_separator: "::",
             },
+            lsp_installer: CppLspInstaller,
         }
     }
 }
@@ -116,6 +122,14 @@ impl LanguagePlugin for CppPlugin {
     fn import_analyzer(&self) -> Option<&dyn mill_plugin_api::ImportAnalyzer> {
         Some(&analysis::CppAnalysisProvider)
     }
+
+    fn manifest_updater(&self) -> Option<&dyn ManifestUpdater> {
+        Some(&manifest_updater::CppManifestUpdater)
+    }
+
+    fn lsp_installer(&self) -> Option<&dyn LspInstaller> {
+        Some(&self.lsp_installer)
+    }
 }
 
 mill_plugin! {
@@ -125,4 +139,15 @@ mill_plugin! {
     capabilities: PluginCapabilities::none().with_imports(),
     factory: || Box::new(CppPlugin::default()),
     lsp: Some(LspConfig::new("clangd", &["clangd"]))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cpp_plugin_creation() {
+        let plugin = CppPlugin::default();
+        assert_eq!(plugin.metadata().name, "C++");
+    }
 }

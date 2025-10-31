@@ -27,7 +27,9 @@ regex = { workspace = true }
 path-clean = "1.0"
 pathdiff = "0.2"
 chrono = { workspace = true }
+which = "6.0"
 
 [dev-dependencies]
-tokio-test = "0.4"
+mill-test-support = { path = "../../crates/mill-test-support" }
+tokio = { workspace = true, features = ["full"] }
 tempfile = { workspace = true }
