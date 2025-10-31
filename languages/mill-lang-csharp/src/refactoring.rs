@@ -87,7 +87,7 @@ pub fn plan_extract_function(
     let replace_edit = TextEdit {
         file_path: Some(file_path.to_string()),
         edit_type: EditType::Replace,
-        location: range.clone().into(),
+        location: (*range).into(),
         original_text: selected_text.to_string(),
         new_text: format!("{}();", function_name),
         priority: 90,

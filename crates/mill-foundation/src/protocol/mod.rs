@@ -94,6 +94,8 @@ pub enum ImportType {
     PythonFromImport,
     /// C/C++ #include directive
     CInclude,
+    /// C# using directive / Java import / Go import (namespace-based imports)
+    Namespace,
 }
 
 /// Source location information

@@ -219,6 +219,9 @@ impl ModuleReferenceScanner for CsharpPlugin {
 use chrono::Utc;
 use mill_foundation::protocol::{ImportGraphMetadata, ImportInfo, ImportType};
 
+/// tree-sitter-c-sharp parser version
+const CSHARP_PARSER_VERSION: &str = "0.20.0";
+
 impl ImportAnalyzer for CsharpPlugin {
     fn build_import_graph(
         &self,
@@ -241,7 +244,7 @@ impl ImportAnalyzer for CsharpPlugin {
                 };
                 ImportInfo {
                     module_path: s.name,
-                    import_type: ImportType::EsModule,
+                    import_type: ImportType::Namespace,
                     named_imports: vec![],
                     default_import: None,
                     namespace_import: None,
@@ -263,7 +266,7 @@ impl ImportAnalyzer for CsharpPlugin {
             metadata: ImportGraphMetadata {
                 language: self.metadata().name.to_string(),
                 parsed_at: Utc::now(),
-                parser_version: "0.20.0".to_string(), // tree-sitter-c-sharp version
+                parser_version: CSHARP_PARSER_VERSION.to_string(),
                 circular_dependencies: vec![],
                 external_dependencies: vec![],
             },

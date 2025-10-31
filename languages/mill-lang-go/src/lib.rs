@@ -39,6 +39,9 @@ pub const CAPABILITIES: PluginCapabilities = PluginCapabilities {
     path_alias_resolver: false,
 };
 
+/// Default Go version for generated go.mod files
+const DEFAULT_GO_VERSION: &str = "1.21";
+
 /// Go language plugin implementation.
 #[derive(Default)]
 pub struct GoPlugin {
@@ -142,7 +145,7 @@ impl ManifestUpdater for GoPlugin {
     }
 
     fn generate_manifest(&self, package_name: &str, _dependencies: &[String]) -> String {
-        manifest::generate_manifest(package_name, "1.21")
+        manifest::generate_manifest(package_name, DEFAULT_GO_VERSION)
     }
 }
 
@@ -167,10 +170,12 @@ impl ModuleReferenceScanner for GoPlugin {
             .map_err(|e| PluginError::internal(format!("Invalid regex: {}", e)))?;
 
         for (i, line) in content.lines().enumerate() {
+            let line_num = i + 1; // Convert to 1-indexed line numbering
+
             if line.trim().starts_with("import") || line.trim().starts_with('"') {
                 for mat in import_re.find_iter(line) {
                     references.push(ModuleReference {
-                        line: i,
+                        line: line_num,
                         column: mat.start(),
                         length: mat.len(),
                         text: mat.as_str().to_string(),
@@ -185,7 +190,7 @@ impl ModuleReferenceScanner for GoPlugin {
                     .map_err(|e| PluginError::internal(format!("Invalid regex: {}", e)))?;
                 for mat in qualified_re.find_iter(line) {
                     references.push(ModuleReference {
-                        line: i,
+                        line: line_num,
                         column: mat.start(),
                         length: mat.len(),
                         text: mat.as_str().to_string(),
@@ -266,7 +271,7 @@ impl ProjectFactory for GoPlugin {
         std::fs::create_dir_all(&absolute_package_path).map_err(|e| PluginError::internal(e.to_string()))?;
 
         let module_name = package_path.to_string_lossy();
-        let go_mod_content = manifest::generate_manifest(&module_name, "1.21");
+        let go_mod_content = manifest::generate_manifest(&module_name, DEFAULT_GO_VERSION);
         let go_mod_path = absolute_package_path.join("go.mod");
         std::fs::write(&go_mod_path, go_mod_content).map_err(|e| PluginError::internal(e.to_string()))?;
 
@@ -389,7 +394,7 @@ mod tests {
 
     #[test]
     fn test_workspace_support_add_and_list_members() {
-        let support = workspace_support::GoWorkspaceSupport::default();
+        let support = workspace_support::GoWorkspaceSupport;
         let initial_content = "go 1.21\n";
         let with_member = support.add_workspace_member(initial_content, "my-go-app");
         assert!(with_member.contains("use ./my-go-app"));
@@ -406,7 +411,7 @@ mod tests {
             .scan_references(content, "fmt", ScanScope::All)
             .unwrap();
         assert_eq!(refs.len(), 1);
-        assert_eq!(refs[0].line, 2);
+        assert_eq!(refs[0].line, 3); // Line 3 (1-indexed): import "fmt"
     }
 
     #[test]
@@ -443,7 +448,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_lsp_installer() {
-        let installer = lsp_installer::GoLspInstaller::default();
+        let installer = lsp_installer::GoLspInstaller;
         // This test can't easily install the real gopls in a hermetic way.
         // We'll just check that the name is correct. In a real CI environment,
         // we would mock the `go install` command.

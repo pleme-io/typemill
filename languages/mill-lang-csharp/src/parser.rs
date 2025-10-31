@@ -43,7 +43,7 @@ impl From<JsonSymbol> for Symbol {
 
         Symbol {
             name: json_symbol.name,
-            kind: kind,
+            kind,
             location: SourceLocation {
                 line: json_symbol.location.start_line.saturating_sub(1) as usize,
                 column: json_symbol.location.start_column.saturating_sub(1) as usize,

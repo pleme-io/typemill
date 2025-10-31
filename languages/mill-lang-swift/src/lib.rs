@@ -111,7 +111,7 @@ impl LanguagePlugin for SwiftPlugin {
             .captures_iter(&content)
             .map(|caps| mill_plugin_api::Dependency {
                 name: caps[1].to_string(),
-                source: mill_plugin_api::DependencySource::Version("".to_string()),
+                source: mill_plugin_api::DependencySource::Version("1.0.0".to_string()),
             })
             .collect();
 
@@ -227,7 +227,7 @@ impl ModuleReferenceScanner for SwiftPlugin {
         for (line_idx, line) in content.lines().enumerate() {
             let line_num = line_idx + 1;
 
-            if scope == ScanScope::All || scope == ScanScope::TopLevelOnly || scope == ScanScope::AllUseStatements {
+            if scope == ScanScope::TopLevelOnly || scope == ScanScope::AllUseStatements || scope == ScanScope::All {
                 for mat in import_re.find_iter(line) {
                     references.push(ModuleReference {
                         line: line_num,
