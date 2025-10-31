@@ -4,13 +4,16 @@
 
 use mill_lang_common::import_helpers::{insert_line_at, remove_lines_matching, replace_in_lines};
 use mill_plugin_api::{
-    ImportParser, ImportMoveSupport, ImportMutationSupport, ImportRenameSupport,
+    ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportParser,
+    ImportRenameSupport,
 };
 use std::path::Path;
 
 /// Go-specific import support implementation
 #[derive(Default)]
 pub struct GoImportSupport;
+
+impl ImportAdvancedSupport for GoImportSupport {}
 
 impl ImportParser for GoImportSupport {
     fn parse_imports(&self, content: &str) -> Vec<String> {

@@ -138,7 +138,7 @@ pub fn plan_extract_variable(
     let indent = LineExtractor::get_indentation_str(source, start_line);
 
     // Generate variable declaration (Go short declaration)
-    let declaration = format!("{}{} := {}\n", indent, var_name, expression.trim());
+    let declaration = format!("{}{} := {};\n", indent, var_name, expression.trim());
 
     let mut edits = Vec::new();
 

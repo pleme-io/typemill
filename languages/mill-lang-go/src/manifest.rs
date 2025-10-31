@@ -324,6 +324,26 @@ pub async fn load_go_mod(path: &Path) -> PluginResult<ManifestData> {
     parse_go_mod(&content)
 }
 
+/// Update a dependency in a go.mod file
+pub fn update_dependency(
+    content: &str,
+    old_name: &str,
+    new_name: &str,
+    new_version: Option<&str>,
+) -> PluginResult<String> {
+    let pattern = format!(r"({})\s+v?[\d\.]+", regex::escape(old_name));
+    let re = regex::Regex::new(&pattern).map_err(|e| PluginError::internal(e.to_string()))?;
+
+    let replacement = if let Some(version) = new_version {
+        format!("{} {}", new_name, version)
+    } else {
+        new_name.to_string()
+    };
+
+    let result = re.replace(content, &replacement);
+    Ok(result.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
