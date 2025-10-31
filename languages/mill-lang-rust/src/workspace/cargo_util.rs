@@ -950,7 +950,7 @@ async fn plan_dependent_crate_path_updates_for_batch(
 
         // Update dependencies in [dependencies], [dev-dependencies], [build-dependencies]
         for section_name in &["dependencies", "dev-dependencies", "build-dependencies"] {
-            if let Some(deps_table) = doc.get_mut(*section_name).and_then(|s| s.as_table_mut()) {
+            if let Some(deps_table) = doc.get_mut(section_name).and_then(|s| s.as_table_mut()) {
                 for (dep_name_key, dep_value) in deps_table.iter_mut() {
                     let dep_name = dep_name_key.get();
                     if let Some((_new_name, new_abs_path)) = move_map.get(dep_name) {

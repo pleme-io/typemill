@@ -1,7 +1,8 @@
 use mill_foundation::protocol::{
     EditPlan, EditPlanMetadata, EditType, TextEdit, ValidationRule, ValidationType,
 };
-use mill_plugin_api::{PluginResult, PluginError};
+use lazy_static::lazy_static;
+use mill_plugin_api::{PluginError, PluginResult};
 use regex::Regex;
 
 pub fn plan_extract_function(
@@ -84,6 +85,12 @@ pub fn plan_extract_function(
     })
 }
 
+lazy_static! {
+    static ref VAR_DECL_REGEX: Regex =
+        Regex::new(r"^\s*(?:let|var)\s+([a-zA-Z0-9_]+)\s*=\s*(.*)")
+            .expect("Invalid regex for Swift variable declaration");
+}
+
 pub fn plan_inline_variable(
     source: &str,
     variable_line: u32,
@@ -96,14 +103,16 @@ pub fn plan_inline_variable(
     }
 
     let line_content = lines[variable_line as usize];
-    let re = Regex::new(r"^\s*(?:let|var)\s+([a-zA-Z0-9_]+)\s*=\s*(.*)").unwrap();
-    let caps = re.captures(line_content).ok_or_else(|| PluginError::invalid_input("Line is not a variable declaration"))?;
+    let caps = VAR_DECL_REGEX
+        .captures(line_content)
+        .ok_or_else(|| PluginError::invalid_input("Line is not a variable declaration"))?;
     let var_name = &caps[1];
     let var_value = caps[2].trim().trim_end_matches(';').to_string();
 
     let mut edits = Vec::new();
     let search_pattern = format!(r"\b{}\b", var_name);
-    let search_re = Regex::new(&search_pattern).unwrap();
+    let search_re = Regex::new(&search_pattern)
+        .map_err(|e| PluginError::internal(format!("Invalid regex: {}", e)))?;
 
     for (i, line) in lines.iter().enumerate() {
         if i as u32 != variable_line {
@@ -181,8 +190,8 @@ pub fn plan_extract_variable(
         // A rough approximation for multi-line expressions
         let mut text = String::new();
         text.push_str(&lines[start_line as usize][start_col as usize..]);
-        for i in (start_line + 1) as usize..end_line as usize {
-            text.push_str(lines[i]);
+        for line in lines.iter().take(end_line as usize).skip((start_line + 1) as usize) {
+            text.push_str(line);
         }
         text.push_str(&lines[end_line as usize][..end_col as usize]);
         text

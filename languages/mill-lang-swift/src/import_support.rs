@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use lazy_static::lazy_static;
 use mill_plugin_api::{
     ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportParser,
     ImportRenameSupport,
@@ -9,18 +10,26 @@ use std::path::Path;
 #[derive(Default)]
 pub struct SwiftImportSupport;
 
+lazy_static! {
+    static ref IMPORT_REGEX: Regex =
+        Regex::new(r"(?m)^\s*import\s+([a-zA-Z0-9_]+)").expect("Invalid regex for Swift import parsing");
+}
+
 #[async_trait]
 impl ImportParser for SwiftImportSupport {
     fn parse_imports(&self, source: &str) -> Vec<String> {
-        let re = Regex::new(r"(?m)^\s*import\s+([a-zA-Z0-9_]+)").unwrap();
-        re.captures_iter(source)
+        IMPORT_REGEX
+            .captures_iter(source)
             .map(|cap| cap[1].to_string())
             .collect()
     }
 
     fn contains_import(&self, source: &str, module: &str) -> bool {
-        let re = Regex::new(&format!(r"^\s*import\s+{}\b", module)).unwrap();
-        re.is_match(source)
+        if let Ok(re) = Regex::new(&format!(r"^\s*import\s+{}\b", module)) {
+            re.is_match(source)
+        } else {
+            false
+        }
     }
 }
 
@@ -32,13 +41,16 @@ impl ImportRenameSupport for SwiftImportSupport {
         old_module: &str,
         new_module: &str,
     ) -> (String, usize) {
-        let re = Regex::new(&format!(r"\bimport\s+{}\b", old_module)).unwrap();
-        let mut changes = 0;
-        let result = re.replace_all(source, |_caps: &regex::Captures| {
-            changes += 1;
-            format!("import {}", new_module)
-        });
-        (result.to_string(), changes)
+        if let Ok(re) = Regex::new(&format!(r"\bimport\s+{}\b", old_module)) {
+            let mut changes = 0;
+            let result = re.replace_all(source, |_caps: &regex::Captures| {
+                changes += 1;
+                format!("import {}", new_module)
+            });
+            (result.to_string(), changes)
+        } else {
+            (source.to_string(), 0)
+        }
     }
 }
 
@@ -60,7 +72,7 @@ impl ImportMoveSupport for SwiftImportSupport {
             .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or("");
-        return self.rewrite_imports_for_rename(source, old_module, &new_module);
+        self.rewrite_imports_for_rename(source, old_module, &new_module)
     }
 }
 
@@ -72,8 +84,11 @@ impl ImportMutationSupport for SwiftImportSupport {
     }
 
     fn remove_import(&self, source: &str, module: &str) -> String {
-        let re = Regex::new(&format!(r"(?m)^\s*import\s+{}\s*\n?", module)).unwrap();
-        re.replace_all(source, "").to_string()
+        if let Ok(re) = Regex::new(&format!(r"(?m)^\s*import\s+{}\s*\n?", module)) {
+            re.replace_all(source, "").to_string()
+        } else {
+            source.to_string()
+        }
     }
 }
 

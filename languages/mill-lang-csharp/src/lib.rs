@@ -17,7 +17,7 @@ use mill_lang_common::{
 };
 use mill_plugin_api::{
     ImportAnalyzer, LanguagePlugin, ManifestData, ManifestUpdater, ModuleReferenceScanner,
-    ParsedSource, PluginResult, RefactoringProvider,
+    ParsedSource, PluginError, PluginResult, RefactoringProvider,
 };
 use std::path::Path;
 
@@ -97,14 +97,19 @@ impl RefactoringProvider for CsharpPlugin {
     ) -> PluginResult<EditPlan> {
         // The original implementation used a CodeRange. We will create one here
         // to pass to the existing logic, assuming column 0 to end-of-line.
+        let end_col = source
+            .lines()
+            .nth(end_line as usize)
+            .map(|l| l.len() as u32)
+            .ok_or_else(|| {
+                PluginError::invalid_input(format!("Line {} exceeds source length", end_line))
+            })?;
+
         let range = CodeRange {
             start_line,
             start_col: 0,
             end_line,
-            end_col: source
-                .lines()
-                .nth(end_line as usize)
-                .map_or(0, |l| l.len() as u32),
+            end_col,
         };
         self::refactoring::plan_extract_function(source, &range, function_name, file_path)
             .map_err(|e| mill_plugin_api::PluginError::internal(e.to_string()))
@@ -247,7 +252,12 @@ impl ImportAnalyzer for CsharpPlugin {
             .collect();
 
         Ok(mill_foundation::protocol::ImportGraph {
-            source_file: file_path.to_str().unwrap_or("").to_string(),
+            source_file: file_path
+                .to_str()
+                .ok_or_else(|| {
+                    PluginError::internal(format!("Invalid file path: {:?}", file_path))
+                })?
+                .to_string(),
             imports,
             importers: vec![], // This would be populated by a workspace-wide analysis
             metadata: ImportGraphMetadata {

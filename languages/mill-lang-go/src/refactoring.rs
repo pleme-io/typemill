@@ -6,6 +6,7 @@ use mill_lang_common::LineExtractor;
 use mill_foundation::protocol::{
     EditLocation, EditPlan, EditPlanMetadata, EditType, TextEdit, ValidationRule, ValidationType,
 };
+use lazy_static::lazy_static;
 use mill_plugin_api::{PluginError, PluginResult};
 use std::collections::HashMap;
 
@@ -132,7 +133,7 @@ pub fn plan_extract_variable(
         expr_lines.join("\n")
     };
 
-    let var_name = variable_name.unwrap_or_else(|| "extracted".to_string());
+    let var_name = variable_name.unwrap_or_default();
 
     // Get indentation
     let indent = LineExtractor::get_indentation_str(source, start_line);
@@ -197,6 +198,12 @@ pub fn plan_extract_variable(
     })
 }
 
+lazy_static! {
+    static ref VAR_PATTERN: regex::Regex =
+        regex::Regex::new(r"(?:var\s+)?(\w+)\s*:?=\s*(.+?)(?:$)")
+            .expect("Invalid regex for Go variable parsing");
+}
+
 /// Plan inline variable refactoring for Go
 pub fn plan_inline_variable(
     source: &str,
@@ -212,14 +219,15 @@ pub fn plan_inline_variable(
 
     let line_text = lines[variable_line as usize];
 
-    // Simple pattern matching for variable declarations
-    // Supports: var x = ..., x := ...
-    let var_pattern = regex::Regex::new(r"(?:var\s+)?(\w+)\s*:?=\s*(.+?)(?:$)")
-        .map_err(|e| PluginError::internal(e.to_string()))?;
+    if let Some(captures) = VAR_PATTERN.captures(line_text) {
+        let var_name = captures.get(1).map_or("", |m| m.as_str());
+        let initializer = captures.get(2).map_or("", |m| m.as_str()).trim();
 
-    if let Some(captures) = var_pattern.captures(line_text) {
-        let var_name = captures.get(1).unwrap().as_str();
-        let initializer = captures.get(2).unwrap().as_str().trim();
+        if var_name.is_empty() {
+            return Err(PluginError::internal(
+                "Could not extract variable name".to_string(),
+            ));
+        }
 
         // Find all usages of this variable in the rest of the source
         let mut edits = Vec::new();

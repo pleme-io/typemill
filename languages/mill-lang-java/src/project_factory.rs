@@ -18,12 +18,16 @@ impl ProjectFactory for JavaProjectFactory {
         config: &CreatePackageConfig,
     ) -> PluginResult<CreatePackageResult> {
         let package_dir = Path::new(&config.package_path);
-        fs::create_dir_all(&package_dir)
+        fs::create_dir_all(package_dir)
             .map_err(|e| PluginError::internal(format!("Failed to create package directory: {}", e)))?;
 
         let manifest_content;
         let manifest_filename;
-        let package_name = package_dir.file_name().unwrap().to_str().unwrap();
+        let package_name = package_dir
+            .file_name()
+            .ok_or_else(|| PluginError::invalid_input("Invalid package path"))?
+            .to_str()
+            .ok_or_else(|| PluginError::invalid_input("Invalid package path"))?;
 
         match config.package_type {
             PackageType::Library => {
@@ -49,12 +53,12 @@ impl ProjectFactory for JavaProjectFactory {
         fs::create_dir_all(&src_test_java).map_err(|e| PluginError::internal(format!("Failed to create src/test/java: {}", e)))?;
 
         Ok(CreatePackageResult {
-            created_files: vec![manifest_path.to_str().unwrap().to_string()],
+            created_files: vec![manifest_path.to_string_lossy().into_owned()],
             workspace_updated: false,
             package_info: PackageInfo {
                 name: package_name.to_string(),
                 version: "1.0-SNAPSHOT".to_string(),
-                manifest_path: manifest_path.to_str().unwrap().to_string(),
+                manifest_path: manifest_path.to_string_lossy().into_owned(),
             },
         })
     }

@@ -1,27 +1,37 @@
+use lazy_static::lazy_static;
 use mill_plugin_api::WorkspaceSupport;
 use regex::Regex;
 
 #[derive(Default, Clone)]
 pub struct SwiftWorkspaceSupport;
 
+lazy_static! {
+    static ref DEPS_ARRAY_REGEX: Regex =
+        Regex::new(r"(?s)dependencies:\s*\[(.*?)\]").expect("Invalid regex for deps array");
+    static ref WORKSPACE_MANIFEST_REGEX: Regex =
+        Regex::new(r#"\.package\s*\(\s*path:"#).expect("Invalid regex for workspace manifest");
+    static ref PKG_NAME_REGEX: Regex =
+        Regex::new(r#"(name:\s*")([^"]+)""#).expect("Invalid regex for package name");
+    static ref LIST_MEMBERS_REGEX: Regex =
+        Regex::new(r#"\.package\s*\(\s*path:\s*"([^"]+)"\s*\)"#)
+            .expect("Invalid regex for list members");
+}
+
 impl SwiftWorkspaceSupport {
     fn find_dependencies_array<'a>(&self, content: &'a str) -> Option<regex::Match<'a>> {
-        let re = Regex::new(r"(?s)dependencies:\s*\[(.*?)\]").unwrap();
-        re.find(content)
+        DEPS_ARRAY_REGEX.find(content)
     }
 }
 
 impl WorkspaceSupport for SwiftWorkspaceSupport {
     fn is_workspace_manifest(&self, content: &str) -> bool {
-        // A Package.swift is a "workspace" if it contains local package dependencies.
-        // We can check for the presence of `.package(path: ...)`
-        let re = Regex::new(r#"\.package\s*\(\s*path:"#).unwrap();
-        re.is_match(content)
+        WORKSPACE_MANIFEST_REGEX.is_match(content)
     }
 
     fn update_package_name(&self, content: &str, new_name: &str) -> String {
-        let re = Regex::new(r#"(name:\s*")([^"]+)""#).unwrap();
-        re.replace(content, format!(r#"$1{}"#, new_name)).to_string()
+        PKG_NAME_REGEX
+            .replace(content, format!(r#"$1{}"#, new_name))
+            .to_string()
     }
 
     fn add_workspace_member(&self, content: &str, member_path: &str) -> String {
@@ -39,14 +49,20 @@ impl WorkspaceSupport for SwiftWorkspaceSupport {
     }
 
     fn remove_workspace_member(&self, content: &str, member_path: &str) -> String {
-        let pattern = format!(r#"(?m)^\s*\.package\s*\(\s*path:\s*"{}"\s*\),?\s*[\r\n]?"#, regex::escape(member_path));
-        let re = Regex::new(&pattern).unwrap();
-        re.replace_all(content, "").to_string()
+        let pattern = format!(
+            r#"(?m)^\s*\.package\s*\(\s*path:\s*"{}"\s*\),?\s*[\r\n]?"#,
+            regex::escape(member_path)
+        );
+        if let Ok(re) = Regex::new(&pattern) {
+            re.replace_all(content, "").to_string()
+        } else {
+            content.to_string()
+        }
     }
 
     fn list_workspace_members(&self, content: &str) -> Vec<String> {
-        let re = Regex::new(r#"\.package\s*\(\s*path:\s*"([^"]+)"\s*\)"#).unwrap();
-        re.captures_iter(content)
+        LIST_MEMBERS_REGEX
+            .captures_iter(content)
             .map(|cap| cap[1].to_string())
             .collect()
     }

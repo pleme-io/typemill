@@ -12,9 +12,11 @@ use mill_lang_common::{
 };
 use mill_plugin_api::{
     ImportAnalyzer, LanguagePlugin, ManifestData, ManifestUpdater, ModuleReference,
-    ModuleReferenceScanner, ParsedSource, PluginResult, RefactoringProvider, ScanScope,
+    ModuleReferenceScanner, ParsedSource, PluginError, PluginResult, RefactoringProvider,
+    ScanScope,
 };
 use std::path::Path;
+use lazy_static::lazy_static;
 
 define_language_plugin! {
     struct: SwiftPlugin,
@@ -36,13 +38,28 @@ define_language_plugin! {
     doc: "Swift language plugin implementation"
 }
 
+lazy_static! {
+    static ref SYMBOL_REGEX: Regex =
+        Regex::new(r"(?m)^\s*(func|class|struct|enum|protocol|extension)\s+([a-zA-Z0-9_]+)")
+            .expect("Invalid regex for Swift symbol parsing");
+    static ref MANIFEST_NAME_REGEX: Regex =
+        Regex::new(r#"name:\s*"([^"]+)""#).expect("Invalid regex for Swift manifest name");
+    static ref MANIFEST_VERSION_REGEX: Regex =
+        Regex::new(r#"swift-tools-version:([0-9.]+)"#)
+            .expect("Invalid regex for Swift manifest version");
+    static ref MANIFEST_DEP_REGEX: Regex =
+        Regex::new(r#"\.package\(\s*name:\s*"([^"]+)"[^)]+\)"#)
+            .expect("Invalid regex for Swift manifest dependency");
+    static ref IMPORT_REGEX: Regex =
+        Regex::new(r"^\s*import\s+([a-zA-Z0-9_]+)").expect("Invalid regex for Swift import parsing");
+}
+
 #[async_trait]
 impl LanguagePlugin for SwiftPlugin {
     impl_language_plugin_basics!();
 
     async fn parse(&self, source: &str) -> PluginResult<ParsedSource> {
-        let re = regex::Regex::new(r"(?m)^\s*(func|class|struct|enum|protocol|extension)\s+([a-zA-Z0-9_]+)").unwrap();
-        let symbols = re
+        let symbols = SYMBOL_REGEX
             .captures_iter(source)
             .map(|cap| {
                 let kind_str = &cap[1];
@@ -56,17 +73,14 @@ impl LanguagePlugin for SwiftPlugin {
                     "extension" => mill_plugin_api::SymbolKind::Module,
                     _ => mill_plugin_api::SymbolKind::Function,
                 };
-                let start = cap.get(0).unwrap().start();
+                let start = cap.get(0).map_or(0, |m| m.start());
                 let line = source[..start].lines().count();
                 let column = source[..start].lines().last().map_or(0, |l| l.len());
 
                 mill_plugin_api::Symbol {
                     name: name.to_string(),
                     kind,
-                    location: mill_plugin_api::SourceLocation {
-                        line,
-                        column,
-                    },
+                    location: mill_plugin_api::SourceLocation { line, column },
                     documentation: None,
                 }
             })
@@ -80,23 +94,20 @@ impl LanguagePlugin for SwiftPlugin {
     async fn analyze_manifest(&self, path: &Path) -> PluginResult<ManifestData> {
         let content = std::fs::read_to_string(path)
             .map_err(|e| mill_plugin_api::PluginError::internal(e.to_string()))?;
-        let name_re = regex::Regex::new(r#"name:\s*"([^"]+)""#).unwrap();
-        let version_re = regex::Regex::new(r#"swift-tools-version:([0-9.]+)"#).unwrap();
-        let dep_re = regex::Regex::new(r#"\.package\(\s*name:\s*"([^"]+)"[^)]+\)"#).unwrap();
 
-        let name = name_re
+        let name = MANIFEST_NAME_REGEX
             .captures(&content)
             .and_then(|caps| caps.get(1))
             .map(|m| m.as_str().to_string())
             .unwrap_or_default();
 
-        let version = version_re
+        let version = MANIFEST_VERSION_REGEX
             .captures(&content)
             .and_then(|caps| caps.get(1))
             .map(|m| m.as_str().to_string())
             .unwrap_or_default();
 
-        let dependencies = dep_re
+        let dependencies = MANIFEST_DEP_REGEX
             .captures_iter(&content)
             .map(|caps| mill_plugin_api::Dependency {
                 name: caps[1].to_string(),
@@ -207,9 +218,11 @@ impl ModuleReferenceScanner for SwiftPlugin {
     ) -> PluginResult<Vec<ModuleReference>> {
         let mut references = Vec::new();
         let import_pattern = format!(r"\bimport\s+{}\b", module_name);
-        let import_re = Regex::new(&import_pattern).unwrap();
+        let import_re = Regex::new(&import_pattern)
+            .map_err(|e| PluginError::internal(format!("Invalid regex: {}", e)))?;
         let qualified_pattern = format!(r"{}\.", module_name);
-        let qualified_re = Regex::new(&qualified_pattern).unwrap();
+        let qualified_re = Regex::new(&qualified_pattern)
+            .map_err(|e| PluginError::internal(format!("Invalid regex: {}", e)))?;
 
         for (line_idx, line) in content.lines().enumerate() {
             let line_num = line_idx + 1;
@@ -250,11 +263,12 @@ impl ImportAnalyzer for SwiftPlugin {
         let content = std::fs::read_to_string(file_path)
             .map_err(|e| mill_plugin_api::PluginError::internal(e.to_string()))?;
 
-        let re = Regex::new(r"^\s*import\s+([a-zA-Z0-9_]+)").unwrap();
-        let imports = re
+        let imports = IMPORT_REGEX
             .captures_iter(&content)
             .map(|cap| {
-                let line_number = content[..cap.get(0).unwrap().start()].lines().count() as u32;
+                let line_number = content[..cap.get(0).map_or(0, |m| m.start())]
+                    .lines()
+                    .count() as u32;
                 ImportInfo {
                     module_path: cap[1].to_string(),
                     import_type: ImportType::CInclude, // Using CInclude as a stand-in for Swift
@@ -300,7 +314,8 @@ impl ManifestUpdater for SwiftPlugin {
             .map_err(|e| mill_plugin_api::PluginError::internal(e.to_string()))?;
 
         let pattern = format!(r#"(\.package\(\s*name:\s*"{}"[^)]*\))"#, old_name);
-        let re = Regex::new(&pattern).unwrap();
+        let re = Regex::new(&pattern)
+            .map_err(|e| PluginError::internal(format!("Invalid regex: {}", e)))?;
 
         if !re.is_match(&content) {
             return Ok(content);
@@ -319,8 +334,10 @@ impl ManifestUpdater for SwiftPlugin {
                          new_package_line.push(')');
                      } else {
                         // In a real scenario, you'd parse this part. For now, we just copy it.
-                        let rest = &existing.as_str()[caps.get(1).unwrap().end()..];
-                        new_package_line.push_str(rest);
+                        if let Some(match_group) = caps.get(1) {
+                            let rest = &existing.as_str()[match_group.end()..];
+                            new_package_line.push_str(rest);
+                        }
                      }
                 } else {
                     new_package_line.push(')');
@@ -389,7 +406,10 @@ mod tests {
     #[tokio::test]
     async fn test_parse_imports() {
         let plugin = SwiftPlugin::new();
-        let swift_plugin = plugin.as_any().downcast_ref::<SwiftPlugin>().unwrap();
+        let swift_plugin = plugin
+            .as_any()
+            .downcast_ref::<SwiftPlugin>()
+            .expect("Plugin should be SwiftPlugin");
         let source = r#"
 import Foundation
 import UIKit
@@ -401,11 +421,14 @@ import UIKit
     #[tokio::test]
     async fn test_create_package() {
         let plugin = SwiftPlugin::new();
-        let swift_plugin = plugin.as_any().downcast_ref::<SwiftPlugin>().unwrap();
-        let temp_dir = tempfile::tempdir().unwrap();
+        let swift_plugin = plugin
+            .as_any()
+            .downcast_ref::<SwiftPlugin>()
+            .expect("Plugin should be SwiftPlugin");
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
         let path = temp_dir.path().to_path_buf();
         let config = mill_plugin_api::CreatePackageConfig {
-            package_path: path.to_str().unwrap().to_string(),
+            package_path: path.to_str().expect("Path should be valid UTF-8").to_string(),
             package_type: mill_plugin_api::PackageType::Library,
             template: mill_plugin_api::Template::Minimal,
             add_to_workspace: false,
@@ -414,7 +437,7 @@ import UIKit
         swift_plugin
             .project_factory
             .create_package(&config)
-            .unwrap();
+            .expect("create_package should succeed");
 
         assert!(path.join("Package.swift").exists());
         assert!(path.join("Sources").exists());
@@ -424,7 +447,9 @@ import UIKit
     #[test]
     fn test_workspace_support_add_remove() {
         let plugin = SwiftPlugin::new();
-        let support = plugin.workspace_support().unwrap();
+        let support = plugin
+            .workspace_support()
+            .expect("Plugin should have workspace support");
         let manifest_content = r#"
 let package = Package(
     dependencies: [
@@ -442,36 +467,48 @@ let package = Package(
     #[tokio::test]
     async fn test_refactoring_operations() {
         let plugin = SwiftPlugin::new();
-        let provider = plugin.refactoring_provider().unwrap();
+        let provider = plugin
+            .refactoring_provider()
+            .expect("Plugin should have refactoring provider");
 
         // Test extract function
         let source = "func myFunc() {\n    print(\"hello\")\n}";
-        let result = provider.plan_extract_function(source, 1, 1, "newFunc", "test.swift").await;
+        let result = provider
+            .plan_extract_function(source, 1, 1, "newFunc", "test.swift")
+            .await;
         assert!(result.is_ok());
-        let plan = result.unwrap();
+        let plan = result.expect("plan_extract_function should succeed");
         assert_eq!(plan.edits.len(), 2);
 
         // Test inline variable
         let source = "func myFunc() {\n    let x = 10\n    print(x)\n}";
-        let result = provider.plan_inline_variable(source, 1, 0, "test.swift").await;
+        let result = provider
+            .plan_inline_variable(source, 1, 0, "test.swift")
+            .await;
         assert!(result.is_ok());
-        let plan = result.unwrap();
+        let plan = result.expect("plan_inline_variable should succeed");
         assert_eq!(plan.edits.len(), 2);
 
         // Test extract variable
         let source = "func myFunc() {\n    print(10 + 20)\n}";
-        let result = provider.plan_extract_variable(source, 1, 10, 1, 17, Some("myVar".to_string()), "test.swift").await;
+        let result = provider
+            .plan_extract_variable(source, 1, 10, 1, 17, Some("myVar".to_string()), "test.swift")
+            .await;
         assert!(result.is_ok());
-        let plan = result.unwrap();
+        let plan = result.expect("plan_extract_variable should succeed");
         assert_eq!(plan.edits.len(), 2);
     }
 
     #[test]
     fn test_module_reference_scanner() {
         let plugin = SwiftPlugin::new();
-        let scanner = plugin.module_reference_scanner().unwrap();
+        let scanner = plugin
+            .module_reference_scanner()
+            .expect("Plugin should have module reference scanner");
         let content = "import Foundation\nimport UIKit";
-        let refs = scanner.scan_references(content, "Foundation", ScanScope::All).unwrap();
+        let refs = scanner
+            .scan_references(content, "Foundation", ScanScope::All)
+            .expect("scan_references should succeed");
         assert_eq!(refs.len(), 1);
         assert_eq!(refs[0].text, "Foundation");
     }
@@ -479,11 +516,15 @@ let package = Package(
     #[test]
     fn test_import_analyzer() {
         let plugin = SwiftPlugin::new();
-        let analyzer = plugin.import_analyzer().unwrap();
-        let temp_dir = tempfile::tempdir().unwrap();
+        let analyzer = plugin
+            .import_analyzer()
+            .expect("Plugin should have import analyzer");
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
         let file_path = temp_dir.path().join("MyFile.swift");
-        std::fs::write(&file_path, "import Foundation").unwrap();
-        let graph = analyzer.build_import_graph(&file_path).unwrap();
+        std::fs::write(&file_path, "import Foundation").expect("Failed to write to file");
+        let graph = analyzer
+            .build_import_graph(&file_path)
+            .expect("build_import_graph should succeed");
         assert_eq!(graph.imports.len(), 1);
         assert_eq!(graph.imports[0].module_path, "Foundation");
     }
@@ -491,8 +532,11 @@ let package = Package(
     #[test]
     fn test_manifest_updater_generate() {
         let plugin = SwiftPlugin::new();
-        let updater = plugin.manifest_updater().unwrap();
-        let manifest = updater.generate_manifest("MyPackage", &["https://github.com/a/b".to_string()]);
+        let updater = plugin
+            .manifest_updater()
+            .expect("Plugin should have manifest updater");
+        let manifest =
+            updater.generate_manifest("MyPackage", &["https://github.com/a/b".to_string()]);
         assert!(manifest.contains(r#"name: "MyPackage""#));
         assert!(manifest.contains(r#".package(url: "https://github.com/a/b", from: "1.0.0")"#));
     }
@@ -500,7 +544,9 @@ let package = Package(
     #[test]
     fn test_lsp_installer_check() {
         let plugin = SwiftPlugin::new();
-        let installer = plugin.lsp_installer().unwrap();
+        let installer = plugin
+            .lsp_installer()
+            .expect("Plugin should have LSP installer");
         // This test is tricky as it depends on the test environment.
         // We'll just call the function to make sure it doesn't panic.
         let _ = installer.check_installed();

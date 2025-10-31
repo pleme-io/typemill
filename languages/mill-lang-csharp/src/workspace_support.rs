@@ -30,7 +30,8 @@ impl WorkspaceSupport for CsharpWorkspaceSupport {
         let project_name = std::path::Path::new(member_path)
             .file_stem()
             .and_then(|s| s.to_str())
-            .unwrap_or("NewProject");
+            .unwrap_or("NewProject")
+            .to_string();
 
         let project_type_guid = "FAE04EC0-301F-11D3-BF4B-00C04F79EFBC"; // C# Project Type GUID
         let project_guid = Uuid::new_v4().to_string().to_uppercase();
@@ -92,11 +93,13 @@ impl WorkspaceSupport for CsharpWorkspaceSupport {
             }
         }
 
-        if project_guid_to_remove.is_none() {
-            warn!(member = %member_path, "Project not found in solution.");
-            return content.to_string();
-        }
-        let project_guid = project_guid_to_remove.unwrap();
+        let project_guid = match project_guid_to_remove {
+            Some(guid) => guid,
+            None => {
+                warn!(member = %member_path, "Project not found in solution.");
+                return content.to_string();
+            }
+        };
 
         let mut lines: Vec<String> = content.lines().map(String::from).collect();
 

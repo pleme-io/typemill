@@ -64,19 +64,21 @@ pub async fn analyze_manifest(path: &Path) -> PluginResult<ManifestData> {
         .iter()
         .find_map(|p| p.assembly_name.as_ref())
         .cloned()
-        .unwrap_or_else(|| {
+        .or_else(|| {
             path.file_stem()
                 .and_then(|s| s.to_str())
-                .unwrap_or("unknown")
-                .to_string()
-        });
+                .map(|s| s.to_string())
+        })
+        .ok_or_else(|| {
+            PluginError::invalid_input("Could not determine project name from manifest or file path")
+        })?;
 
     let version = project
         .property_groups
         .iter()
         .find_map(|p| p.version.as_ref())
         .cloned()
-        .unwrap_or_default();
+        .unwrap_or_else(|| "".to_string());
 
     let mut dependencies = vec![];
     for item_group in &project.item_groups {

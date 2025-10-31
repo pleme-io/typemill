@@ -1,6 +1,7 @@
 //! Csharp source code parsing and symbol extraction
 use mill_lang_common::parse_with_fallback;
 use mill_plugin_api::{ParsedSource, PluginError, PluginResult, SourceLocation, Symbol, SymbolKind};
+use lazy_static::lazy_static;
 use regex::Regex;
 use serde::Deserialize;
 use std::io::Write;
@@ -101,12 +102,17 @@ fn parse_with_ast(source: &str) -> PluginResult<Vec<Symbol>> {
 }
 
 
+lazy_static! {
+    static ref SYMBOL_REGEX: Regex = Regex::new(
+        r"(?m)^\s*(public|private|internal)?\s*(class|interface|struct|enum|using)\s+([\w\.]+)"
+    )
+    .expect("Invalid regex for C# symbol parsing");
+}
+
 /// Fallback parser using regex to extract basic symbols.
 fn parse_with_regex(source: &str) -> PluginResult<Vec<Symbol>> {
     let mut symbols = Vec::new();
-    let re = Regex::new(r"(?m)^\s*(public|private|internal)?\s*(class|interface|struct|enum|using)\s+([\w\.]+)")
-        .unwrap();
-    for cap in re.captures_iter(source) {
+    for cap in SYMBOL_REGEX.captures_iter(source) {
         let kind_str = &cap[2];
         let name = &cap[3];
         let kind = match kind_str {
@@ -117,17 +123,19 @@ fn parse_with_regex(source: &str) -> PluginResult<Vec<Symbol>> {
             "using" => SymbolKind::Module,
             _ => continue,
         };
-        let start = cap.get(0).unwrap().start();
-        let (line, col) = offset_to_line_col(source, start);
-        symbols.push(Symbol {
-            name: name.to_string(),
-            kind: kind,
-            location: SourceLocation {
-                line: line.saturating_sub(1),
-                column: col.saturating_sub(1),
-            },
-            documentation: None,
-        });
+        if let Some(match_group) = cap.get(0) {
+            let start = match_group.start();
+            let (line, col) = offset_to_line_col(source, start);
+            symbols.push(Symbol {
+                name: name.to_string(),
+                kind,
+                location: SourceLocation {
+                    line: line.saturating_sub(1),
+                    column: col.saturating_sub(1),
+                },
+                documentation: None,
+            });
+        }
     }
     Ok(symbols)
 }

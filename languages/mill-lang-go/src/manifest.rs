@@ -70,10 +70,7 @@ pub fn parse_go_mod(content: &str) -> PluginResult<ManifestData> {
     );
     Ok(ManifestData {
         name: go_mod.module.clone(),
-        version: go_mod
-            .go_version
-            .clone()
-            .unwrap_or_else(|| "1.0.0".to_string()),
+        version: go_mod.go_version.clone().unwrap_or_default(),
         dependencies,
         dev_dependencies,
         raw_data: serde_json::to_value(&go_mod)?,
@@ -467,6 +464,6 @@ exclude example.com/dependency v1.2.0
         let manifest = parse_go_mod(content).unwrap();
         assert_eq!(manifest.dependencies.len(), 1);
         let raw = &manifest.raw_data;
-        assert!(raw["excludes"].as_array().unwrap().len() == 1);
+        assert_eq!(raw["excludes"].as_array().map(|a| a.len()), Some(1));
     }
 }

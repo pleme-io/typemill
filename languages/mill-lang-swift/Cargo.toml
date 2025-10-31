@@ -33,6 +33,7 @@ chrono = { workspace = true, features = ["serde"] }
 
 # System utilities
 which = { workspace = true }
+lazy_static = "1.5.0"
 
 [dev-dependencies]
 tempfile = { workspace = true }

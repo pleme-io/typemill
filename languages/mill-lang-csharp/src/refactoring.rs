@@ -143,7 +143,7 @@ pub fn plan_extract_variable(
 
     let expression_text = selected_node
         .utf8_text(source.as_bytes())
-        .unwrap()
+        .map_err(|e| RefactoringError::Parse(format!("Invalid UTF-8 in source: {}", e)))?
         .to_string();
 
     let insertion_statement = find_ancestor_of_kind(selected_node, "local_declaration_statement")
@@ -267,7 +267,7 @@ pub fn plan_inline_variable(
         location: node_to_location(declaration_node).into(),
         original_text: declaration_node
             .utf8_text(source.as_bytes())
-            .unwrap()
+            .map_err(|e| RefactoringError::Parse(format!("Invalid UTF-8 in source: {}", e)))?
             .to_string(),
         new_text: String::new(),
         priority: 100,
@@ -418,8 +418,14 @@ fn extract_csharp_var_info<'a>(
             RefactoringError::Analysis("Could not find variable initializer value".to_string())
         })?;
 
-    let name = name_node.utf8_text(source.as_bytes()).unwrap().to_string();
-    let value = value_node.utf8_text(source.as_bytes()).unwrap().to_string();
+    let name = name_node
+        .utf8_text(source.as_bytes())
+        .map_err(|e| RefactoringError::Parse(format!("Invalid UTF-8 in source: {}", e)))?
+        .to_string();
+    let value = value_node
+        .utf8_text(source.as_bytes())
+        .map_err(|e| RefactoringError::Parse(format!("Invalid UTF-8 in source: {}", e)))?
+        .to_string();
 
     Ok((name, value, declaration_statement))
 }

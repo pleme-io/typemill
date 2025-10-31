@@ -55,7 +55,7 @@ let package = Package(
             .map_err(|e| mill_plugin_api::PluginError::internal(e.to_string()))?;
 
         // Create Sources directory and a file inside
-        let sources_dir = path.join("Sources").join(&package_name);
+        let sources_dir = path.join("Sources").join(package_name);
         fs::create_dir_all(&sources_dir)
             .map_err(|e| mill_plugin_api::PluginError::internal(e.to_string()))?;
         let entry_point = sources_dir.join(format!("{}.swift", package_name));
@@ -86,14 +86,14 @@ final class MyLibraryTests: XCTestCase {
 
         Ok(CreatePackageResult {
             created_files: vec![
-                entry_point.to_str().unwrap().to_string(),
-                manifest_path.to_str().unwrap().to_string(),
+                entry_point.to_string_lossy().into_owned(),
+                manifest_path.to_string_lossy().into_owned(),
             ],
             workspace_updated: false,
             package_info: PackageInfo {
                 name: package_name.to_string(),
                 version: "0.1.0".to_string(),
-                manifest_path: manifest_path.to_str().unwrap().to_string(),
+                manifest_path: manifest_path.to_string_lossy().into_owned(),
             },
         })
     }

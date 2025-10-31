@@ -163,7 +163,8 @@ impl ModuleReferenceScanner for GoPlugin {
     ) -> PluginResult<Vec<ModuleReference>> {
         let mut references = Vec::new();
         let import_pattern = format!("\"([^\"]*?{})\"", regex::escape(module_name));
-        let import_re = regex::Regex::new(&import_pattern).unwrap();
+        let import_re = regex::Regex::new(&import_pattern)
+            .map_err(|e| PluginError::internal(format!("Invalid regex: {}", e)))?;
 
         for (i, line) in content.lines().enumerate() {
             if line.trim().starts_with("import") || line.trim().starts_with('"') {
@@ -180,7 +181,8 @@ impl ModuleReferenceScanner for GoPlugin {
 
             if scope == ScanScope::All || scope == ScanScope::QualifiedPaths {
                 let qualified_pattern = format!(r"\b{}\.", regex::escape(module_name));
-                let qualified_re = regex::Regex::new(&qualified_pattern).unwrap();
+                let qualified_re = regex::Regex::new(&qualified_pattern)
+                    .map_err(|e| PluginError::internal(format!("Invalid regex: {}", e)))?;
                 for mat in qualified_re.find_iter(line) {
                     references.push(ModuleReference {
                         line: i,

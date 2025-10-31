@@ -39,7 +39,7 @@ pub fn test_command_with_version(cmd: &str, args: &[&str]) -> (bool, String) {
     match Command::new(cmd).args(&full_args).output() {
         Ok(output) if output.status.success() => {
             let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            return (true, version);
+            (true, version)
         }
         Ok(output) => {
             // Try with -v instead
@@ -48,11 +48,11 @@ pub fn test_command_with_version(cmd: &str, args: &[&str]) -> (bool, String) {
             match Command::new(cmd).args(&args_v).output() {
                 Ok(out2) if out2.status.success() => {
                     let version = String::from_utf8_lossy(&out2.stdout).trim().to_string();
-                    return (true, version);
+                    (true, version)
                 }
                 _ => {
                     let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
-                    return (false, err);
+                    (false, err)
                 }
             }
         }

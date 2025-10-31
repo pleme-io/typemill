@@ -113,7 +113,7 @@ pub async fn download_file(url: &str, dest: &Path) -> LspResult<()> {
         .and_then(|s| s.split('/').next())
         .ok_or_else(|| LspError::DownloadFailed("Invalid URL".to_string()))?;
 
-    if !allowed_hosts.iter().any(|&h| host == h) {
+    if !allowed_hosts.contains(&host) {
         return Err(LspError::DownloadFailed(format!(
             "Host {} not in whitelist",
             host
@@ -266,7 +266,7 @@ pub async fn install_npm_package(package_name: &str, binary_name: &str) -> LspRe
 
     // Run npm install -g
     let status = tokio::process::Command::new("npm")
-        .args(&["install", "-g", package_name])
+        .args(["install", "-g", package_name])
         .status()
         .await
         .map_err(|e| LspError::DownloadFailed(format!("Failed to run npm: {}", e)))?;
@@ -300,7 +300,7 @@ pub async fn install_pip_package(package_name: &str, binary_name: &str) -> LspRe
     if which::which("pipx").is_ok() {
         debug!("Using pipx for installation (PEP 668 compliant)");
         let status = tokio::process::Command::new("pipx")
-            .args(&["install", package_name])
+            .args(["install", package_name])
             .status()
             .await
             .map_err(|e| LspError::DownloadFailed(format!("Failed to run pipx: {}", e)))?;
@@ -327,7 +327,7 @@ pub async fn install_pip_package(package_name: &str, binary_name: &str) -> LspRe
 
         // Try --user first, then with --break-system-packages if that fails (PEP 668)
         let mut status = tokio::process::Command::new(pip_cmd)
-            .args(&["install", "--user", package_name])
+            .args(["install", "--user", package_name])
             .status()
             .await
             .map_err(|e| LspError::DownloadFailed(format!("Failed to run {}: {}", pip_cmd, e)))?;
@@ -335,7 +335,7 @@ pub async fn install_pip_package(package_name: &str, binary_name: &str) -> LspRe
         if !status.success() {
             warn!("pip install --user failed, trying with --break-system-packages");
             status = tokio::process::Command::new(pip_cmd)
-                .args(&["install", "--user", "--break-system-packages", package_name])
+                .args(["install", "--user", "--break-system-packages", package_name])
                 .status()
                 .await
                 .map_err(|e| {
