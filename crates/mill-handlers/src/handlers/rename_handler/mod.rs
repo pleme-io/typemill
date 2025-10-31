@@ -526,15 +526,28 @@ impl RenameHandler {
             )));
         }
 
-        // TWO-PHASE BATCH: Collect dir moves, generate workspace updates once
+        // TWO-PHASE BATCH: Collect dir moves, normalize to absolute paths
+        let project_root = &context.app_state.project_root;
         let dir_moves: Vec<(std::path::PathBuf, std::path::PathBuf)> = targets
             .iter()
             .filter(|t| t.kind == "directory")
             .map(|t| {
-                (
-                    std::path::PathBuf::from(&t.path),
-                    std::path::PathBuf::from(t.new_name.as_ref().unwrap()),
-                )
+                let old_path = std::path::PathBuf::from(&t.path);
+                let new_path = std::path::PathBuf::from(t.new_name.as_ref().unwrap());
+
+                // Normalize to absolute paths for workspace planning
+                let abs_old = if old_path.is_absolute() {
+                    old_path
+                } else {
+                    project_root.join(old_path)
+                };
+                let abs_new = if new_path.is_absolute() {
+                    new_path
+                } else {
+                    project_root.join(new_path)
+                };
+
+                (abs_old, abs_new)
             })
             .collect();
 

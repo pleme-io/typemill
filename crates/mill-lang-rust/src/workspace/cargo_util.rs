@@ -825,6 +825,203 @@ pub async fn plan_workspace_manifest_updates_for_batch(
         current_path = path.parent();
     }
 
+    // Also plan dependent crate path updates (once per dependent Cargo.toml, aggregating all moves)
+    debug!("Calling plan_dependent_crate_path_updates_for_batch");
+    let mut dependent_updates = plan_dependent_crate_path_updates_for_batch(moves, project_root).await?;
+    debug!(dependent_updates_count = dependent_updates.len(), "Received dependent crate updates");
+    planned_updates.append(&mut dependent_updates);
+
+    Ok(planned_updates)
+}
+
+/// Plan dependent crate path updates for batch operations
+///
+/// Scans all Cargo.toml files in the workspace and updates path dependencies
+/// for ALL moved crates in a single pass. This prevents conflicting full-file
+/// edits when multiple crates are renamed in batch.
+async fn plan_dependent_crate_path_updates_for_batch(
+    moves: &[(PathBuf, PathBuf)],
+    project_root: &Path,
+) -> ServerResult<Vec<(PathBuf, String, String)>> {
+    use std::collections::HashMap;
+    use tokio::fs;
+
+    debug!(moves_count = moves.len(), project_root = ?project_root, "Entering plan_dependent_crate_path_updates_for_batch");
+
+    let mut planned_updates = Vec::new();
+
+    // Normalize project_root to absolute
+    let abs_project_root = if project_root.is_absolute() {
+        project_root.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .map_err(|e| ServerError::Internal(format!("Failed to get current directory: {}", e)))?
+            .join(project_root)
+    };
+
+    // Normalize all move paths to absolute upfront to avoid pathdiff::diff_paths returning None
+    let normalized_moves: Vec<(PathBuf, PathBuf)> = moves
+        .iter()
+        .map(|(old_path, new_path)| {
+            let abs_old = if old_path.is_absolute() {
+                old_path.clone()
+            } else {
+                abs_project_root.join(old_path)
+            };
+            let abs_new = if new_path.is_absolute() {
+                new_path.clone()
+            } else {
+                abs_project_root.join(new_path)
+            };
+            debug!(old_path = ?old_path, abs_old = ?abs_old, new_path = ?new_path, abs_new = ?abs_new, "Normalized move paths");
+            (abs_old, abs_new)
+        })
+        .collect();
+
+    // Build lookup map: old_crate_name → (new_crate_name, new_crate_absolute_path)
+    let mut move_map: HashMap<String, (String, PathBuf)> = HashMap::new();
+    for (old_path, new_path) in &normalized_moves {
+        let old_name = old_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .map(|s| s.replace('_', "-"))
+            .unwrap_or_default();
+        let new_name = new_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .map(|s| s.replace('_', "-"))
+            .unwrap_or_default();
+
+        debug!(old_name = %old_name, new_name = %new_name, old_path = ?old_path, new_path = ?new_path, "Added to move_map");
+        move_map.insert(old_name, (new_name, new_path.clone()));
+    }
+
+    // Walk workspace and find all Cargo.toml files
+    let walker = ignore::WalkBuilder::new(&abs_project_root).hidden(false).build();
+
+    for entry in walker.flatten() {
+        let path = entry.path();
+        if path.file_name() != Some(std::ffi::OsStr::new("Cargo.toml")) {
+            continue;
+        }
+
+        // Skip the moved crates' own Cargo.toml files
+        // Belt-and-suspenders: check both old (during planning) and new (if retried after partial move)
+        let parent = match path.parent() {
+            Some(p) => p,
+            None => continue,
+        };
+
+        let is_moved_crate = normalized_moves.iter().any(|(old, new)| {
+            parent == old.as_path() || parent == new.as_path()
+        });
+        if is_moved_crate {
+            debug!(cargo_toml = ?path, "Skipping moved crate's own Cargo.toml");
+            continue;
+        }
+
+        // Read Cargo.toml
+        let content = match fs::read_to_string(path).await {
+            Ok(c) => c,
+            Err(e) => {
+                debug!(cargo_toml = ?path, error = ?e, "Failed to read Cargo.toml");
+                continue;
+            }
+        };
+
+        // Check if this Cargo.toml depends on any of the moved crates
+        let depends_on_moved = move_map.keys().any(|old_name| content.contains(old_name));
+        if !depends_on_moved {
+            continue;
+        }
+
+        debug!(cargo_toml = ?path, "Found Cargo.toml that depends on moved crates");
+
+        // Parse and update all relevant dependencies
+        let mut doc = match content.parse::<toml_edit::DocumentMut>() {
+            Ok(d) => d,
+            Err(e) => {
+                debug!(cargo_toml = ?path, error = ?e, "Failed to parse Cargo.toml");
+                continue;
+            }
+        };
+
+        let mut updated = false;
+
+        // Update dependencies in [dependencies], [dev-dependencies], [build-dependencies]
+        for section_name in &["dependencies", "dev-dependencies", "build-dependencies"] {
+            if let Some(deps_table) = doc.get_mut(*section_name).and_then(|s| s.as_table_mut()) {
+                for (dep_name_key, dep_value) in deps_table.iter_mut() {
+                    let dep_name = dep_name_key.get();
+                    if let Some((_new_name, new_abs_path)) = move_map.get(dep_name) {
+                        // Update path dependency
+                        if let Some(dep_table) = dep_value.as_inline_table_mut() {
+                            if let Some(old_path_value) = dep_table.get("path") {
+                                // Calculate new relative path from this Cargo.toml to new location
+                                // parent is absolute, new_abs_path is absolute, so diff_paths should succeed
+                                if let Some(new_rel_path) = pathdiff::diff_paths(new_abs_path, parent) {
+                                    let new_rel_path_str = new_rel_path.to_string_lossy().to_string();
+                                    debug!(
+                                        dep_name = %dep_name,
+                                        old_path = %old_path_value,
+                                        new_path = %new_rel_path_str,
+                                        section = %section_name,
+                                        "Updating inline table path dependency"
+                                    );
+                                    dep_table.insert("path", toml_edit::Value::from(new_rel_path_str));
+                                    updated = true;
+                                } else {
+                                    debug!(
+                                        dep_name = %dep_name,
+                                        new_abs_path = ?new_abs_path,
+                                        parent = ?parent,
+                                        "pathdiff::diff_paths returned None for inline table"
+                                    );
+                                }
+                            }
+                        } else if let Some(dep_table) = dep_value.as_table_mut() {
+                            if let Some(old_path_value) = dep_table.get("path") {
+                                // Calculate new relative path
+                                if let Some(new_rel_path) = pathdiff::diff_paths(new_abs_path, parent) {
+                                    let new_rel_path_str = new_rel_path.to_string_lossy().to_string();
+                                    debug!(
+                                        dep_name = %dep_name,
+                                        old_path = %old_path_value,
+                                        new_path = %new_rel_path_str,
+                                        section = %section_name,
+                                        "Updating table path dependency"
+                                    );
+                                    dep_table.insert("path", toml_edit::Item::Value(toml_edit::Value::from(new_rel_path_str)));
+                                    updated = true;
+                                } else {
+                                    debug!(
+                                        dep_name = %dep_name,
+                                        new_abs_path = ?new_abs_path,
+                                        parent = ?parent,
+                                        "pathdiff::diff_paths returned None for table"
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if updated {
+            let new_content = doc.to_string();
+            // Ensure path is absolute
+            let abs_path = if path.is_absolute() {
+                path.to_path_buf()
+            } else {
+                abs_project_root.join(path)
+            };
+            debug!(cargo_toml = ?abs_path, "Adding to planned_updates");
+            planned_updates.push((abs_path, content, new_content));
+        }
+    }
+
+    debug!(planned_updates_count = planned_updates.len(), "Exiting plan_dependent_crate_path_updates_for_batch");
     Ok(planned_updates)
 }
 
