@@ -1,313 +1,138 @@
 # Proposal 16b: Swift Language Plugin Parity Completion
 
-**Status**: Pending
-**Language**: Swift (mill-lang-swift)
-**Current Completion**: ~42% (5/12 traits)
-**Test Coverage**: 3 tests in lib.rs
+## Problem
 
-## Current State
+The Swift language plugin (`mill-lang-swift`) is currently **42% complete (5/12 traits)**, missing critical capabilities including refactoring operations, workspace management, and dependency analysis. This incomplete implementation blocks Swift developers from using TypeMill for iOS/macOS projects and Swift Package Manager workspaces.
 
-### ✅ Implemented (5/12 traits)
-- ImportParser (via import_support)
-- ImportRenameSupport (via import_support)
-- ImportMoveSupport (via import_support)
-- ImportMutationSupport (via import_support)
-- ImportAdvancedSupport (via import_support)
+**Missing capabilities:**
+1. **WorkspaceSupport** - Cannot manage Package.swift workspace members
+2. **RefactoringProvider** - No extract function/variable or inline variable operations
+3. **ModuleReferenceScanner** - Cannot track `import` statement references during renames
+4. **ImportAnalyzer** - Cannot build import dependency graphs
+5. **ManifestUpdater** - Cannot update Package.swift dependency entries
+6. **LspInstaller** - Cannot auto-install sourcekit-lsp for new users
+7. **ProjectFactory** - Exists but minimal test coverage (only 3 tests)
 
-### ❌ Missing (7/12 traits)
-1. **WorkspaceSupport** - NO workspace_support module or field
-2. **RefactoringProvider** - NO refactoring module or impl block
-3. **ModuleReferenceScanner** - Not delegated
-4. **ImportAnalyzer** - Not delegated
-5. **ManifestUpdater** - Not delegated
-6. **LspInstaller** - Not in fields
-7. **ProjectFactory** - EXISTS but minimal (only 3 tests)
-
-## Code Evidence
-
-**File**: `languages/mill-lang-swift/src/lib.rs`
-
+**Code Evidence** (`languages/mill-lang-swift/src/lib.rs`):
 ```rust
-// Line 13: Missing with_workspace in capabilities!
-define_language_plugin! {
-    capabilities: [with_imports, with_project_factory],  // NO with_workspace!
-    fields: {
-        import_support: import_support::SwiftImportSupport,
-        project_factory: project_factory::SwiftProjectFactory,
-        // NO workspace_support field
-        // NO refactoring module
-        // NO lsp_installer field
-    },
-}
-```
+// Line 13: Missing with_workspace capability
+capabilities: [with_imports, with_project_factory],  // NO with_workspace!
 
-```rust
 // Line 108: Only delegates import traits
 impl_capability_delegations! {
     import_support => {
         import_parser: ImportParser,
-        // ... other import traits
+        // Missing: refactoring_provider, module_reference_scanner, import_analyzer, manifest_updater
     },
-    // Missing: refactoring_provider, module_reference_scanner, import_analyzer, manifest_updater
 }
 ```
 
-## Implementation Plan
+## Solution
 
-### Phase 1: WorkspaceSupport (Priority: HIGH)
-**Why**: Required for Swift Package Manager multi-package workspaces
+Complete the remaining 7 traits by implementing refactoring operations, workspace support, analysis capabilities, and LSP installation following the established patterns from Python, Java, and Rust plugins. This brings Swift to **100% parity** and enables full Swift Package Manager support.
 
-1. Create `workspace_support.rs` module:
-   ```rust
-   pub struct SwiftWorkspaceSupport;
+**All tasks should be completed in one implementation session** to ensure consistency and avoid partial states.
 
-   #[async_trait]
-   impl WorkspaceSupport for SwiftWorkspaceSupport {
-       async fn add_workspace_member(&self, workspace_manifest: &str, member_path: &str)
-           -> PluginResult<String>
-       {
-           // Parse Package.swift
-           // Add to dependencies: .package(path: "...")
-       }
+## Checklists
 
-       async fn remove_workspace_member(&self, workspace_manifest: &str, member_path: &str)
-           -> PluginResult<String>
-       {
-           // Remove .package(...) entry
-       }
+### WorkspaceSupport Implementation
+- [ ] Create `languages/mill-lang-swift/src/workspace_support.rs`
+- [ ] Implement `SwiftWorkspaceSupport` struct
+- [ ] Implement `WorkspaceSupport::add_workspace_member()` to add `.package(path: "...")` to Package.swift
+- [ ] Implement `WorkspaceSupport::remove_workspace_member()` to remove package entries
+- [ ] Implement `WorkspaceSupport::list_workspace_members()` to parse Package.swift for local dependencies
+- [ ] Update `lib.rs` to include `with_workspace` capability
+- [ ] Add `workspace_support` field to plugin struct
+- [ ] Add delegation in `impl_capability_delegations!`
+- [ ] Reference Java `workspace_support.rs` and Python implementation
 
-       async fn list_workspace_members(&self, workspace_manifest: &str)
-           -> PluginResult<Vec<String>>
-       {
-           // Parse all .package(path: "...") entries
-           // Return list of local dependencies
-       }
-   }
-   ```
+### RefactoringProvider Implementation
+- [ ] Create `languages/mill-lang-swift/src/refactoring.rs` module
+- [ ] Implement `plan_extract_function()` - extract selected lines into new func
+- [ ] Implement `plan_inline_variable()` - replace variable references with value
+- [ ] Implement `plan_extract_variable()` - extract expression into new variable
+- [ ] Add `impl RefactoringProvider for SwiftPlugin` in `lib.rs`
+- [ ] Implement `supports_extract_function()` returning true
+- [ ] Implement async `plan_extract_function()` method
+- [ ] Implement `supports_inline_variable()` returning true
+- [ ] Implement async `plan_inline_variable()` method
+- [ ] Implement `supports_extract_variable()` returning true
+- [ ] Implement async `plan_extract_variable()` method
+- [ ] Add `refactoring_provider: RefactoringProvider` to delegations
+- [ ] Reference C# `refactoring.rs` (similar syntax) and Java implementation
 
-2. Update lib.rs:
-   ```rust
-   pub mod workspace_support;
+### ModuleReferenceScanner Implementation
+- [ ] Create `impl ModuleReferenceScanner for SwiftPlugin` in `lib.rs`
+- [ ] Scan for `import module_name` statements
+- [ ] Scan for qualified paths: `module_name.Type`
+- [ ] Scan string literals: `"module_name/*.swift"`
+- [ ] Support all three `ScanScope` variants (All, Code, Comments)
+- [ ] Reference Python `lib.rs:305-388` and TypeScript `lib.rs:123-132`
 
-   define_language_plugin! {
-       capabilities: [with_imports, with_workspace, with_project_factory],
-       fields: {
-           workspace_support: workspace_support::SwiftWorkspaceSupport,
-       }
-   }
+### ImportAnalyzer Implementation
+- [ ] Add `import_analyzer: ImportAnalyzer` to `impl_capability_delegations!`
+- [ ] Create `impl ImportAnalyzer for SwiftPlugin`
+- [ ] Implement `build_import_graph()` to parse import statements
+- [ ] Build dependency graph of import relationships
+- [ ] Reference Python `lib.rs:288-303` and Rust `lib.rs:336-351`
 
-   impl_capability_delegations! {
-       workspace_support => {
-           workspace_support: WorkspaceSupport,
-       },
-   }
-   ```
+### ManifestUpdater Implementation
+- [ ] Add `manifest_updater: ManifestUpdater` to delegations
+- [ ] Create `impl ManifestUpdater for SwiftPlugin`
+- [ ] Implement `update_dependency()` to modify `.package(name: "...")` in Package.swift
+- [ ] Implement `generate_manifest()` to generate Package.swift file
+- [ ] Handle version updates for Swift packages
+- [ ] Reference Python `lib.rs:174-211` and Rust `lib.rs:358-392`
 
-**Reference**: Java workspace_support.rs, Python workspace_support.rs
+### LspInstaller Implementation
+- [ ] Create `languages/mill-lang-swift/src/lsp_installer.rs`
+- [ ] Implement `SwiftLspInstaller` struct
+- [ ] Implement `is_installed()` to check for sourcekit-lsp in PATH
+- [ ] Implement `install()` for macOS (included with Xcode)
+- [ ] Implement `install()` for Linux (via apt-get/package manager)
+- [ ] Add `lsp_installer` field to plugin struct
+- [ ] Reference Python `lsp_installer.rs` and TypeScript implementation
 
-### Phase 2: RefactoringProvider (Priority: HIGH)
-**Why**: Core feature for code manipulation
+### Test Coverage
+- [ ] Add `test_workspace_support()` to verify workspace_support field
+- [ ] Add `test_refactoring_extract_function()` with sample Swift code
+- [ ] Add `test_refactoring_inline_variable()` with let binding example
+- [ ] Add `test_refactoring_extract_variable()` with expression extraction
+- [ ] Add `test_module_reference_scanner()` to test import detection
+- [ ] Add `test_import_analyzer()` to verify import graph building
+- [ ] Add `test_manifest_updater()` to test Package.swift updates
+- [ ] Add `test_lsp_installer()` to verify sourcekit-lsp detection
+- [ ] Increase test count from 3 to 15+ total tests
+- [ ] Verify all tests pass: `cargo nextest run -p mill-lang-swift`
+- [ ] Reference Python `lib.rs:390-505` (16 tests) and Java `lib.rs:134-182` (6 tests)
 
-1. Create `refactoring.rs` module:
-   ```rust
-   use mill_lang_common::CodeRange;
-
-   pub fn plan_extract_function(
-       source: &str,
-       range: &CodeRange,
-       function_name: &str,
-       file_path: &str,
-   ) -> Result<EditPlan, String> {
-       // Extract selected lines into a new func
-       // Handle parameter detection (no complex scope analysis needed)
-   }
-
-   pub fn plan_inline_variable(
-       source: &str,
-       variable_line: u32,
-       variable_col: u32,
-       file_path: &str,
-   ) -> Result<EditPlan, String> {
-       // Find: let varName = <value>
-       // Replace all references with <value>
-   }
-
-   pub fn plan_extract_variable(
-       source: &str,
-       start_line: u32,
-       start_col: u32,
-       end_line: u32,
-       end_col: u32,
-       variable_name: Option<String>,
-       file_path: &str,
-   ) -> Result<EditPlan, String> {
-       // Extract expression into: let varName = <expression>
-   }
-   ```
-
-2. Add impl block in lib.rs:
-   ```rust
-   #[async_trait]
-   impl RefactoringProvider for SwiftPlugin {
-       fn supports_extract_function(&self) -> bool { true }
-
-       async fn plan_extract_function(&self, ...) -> PluginResult<EditPlan> {
-           refactoring::plan_extract_function(source, &range, function_name, file_path)
-               .map_err(|e| PluginError::internal(e))
-       }
-
-       fn supports_inline_variable(&self) -> bool { true }
-
-       async fn plan_inline_variable(&self, ...) -> PluginResult<EditPlan> {
-           refactoring::plan_inline_variable(source, variable_line, variable_col, file_path)
-               .map_err(|e| PluginError::internal(e))
-       }
-
-       fn supports_extract_variable(&self) -> bool { true }
-
-       async fn plan_extract_variable(&self, ...) -> PluginResult<EditPlan> {
-           refactoring::plan_extract_variable(...)
-               .map_err(|e| PluginError::internal(e))
-       }
-   }
-
-   impl_capability_delegations! {
-       this => {
-           refactoring_provider: RefactoringProvider,
-       },
-   }
-   ```
-
-**Reference**: C# refactoring.rs (similar syntax), Java refactoring.rs
-
-### Phase 3: Analysis Traits (Priority: MEDIUM)
-
-#### 3a. ModuleReferenceScanner
-Add impl block in lib.rs:
-```rust
-impl ModuleReferenceScanner for SwiftPlugin {
-    fn scan_references(&self, content: &str, module_name: &str, scope: ScanScope)
-        -> PluginResult<Vec<ModuleReference>>
-    {
-        // Scan for: import module_name
-        // Qualified paths: module_name.Type
-        // String literals: "module_name/*.swift"
-    }
-}
-```
-
-#### 3b. ImportAnalyzer
-```rust
-impl ImportAnalyzer for SwiftPlugin {
-    fn build_import_graph(&self, file_path: &Path)
-        -> PluginResult<ImportGraph>
-    {
-        let content = std::fs::read_to_string(file_path)?;
-        // Parse import statements
-        // Build dependency graph
-    }
-}
-```
-
-#### 3c. ManifestUpdater
-```rust
-#[async_trait]
-impl ManifestUpdater for SwiftPlugin {
-    async fn update_dependency(&self, manifest_path: &Path,
-        old_name: &str, new_name: &str, new_version: Option<&str>)
-        -> PluginResult<String>
-    {
-        // Update .package(name: "...", ...) in Package.swift
-    }
-
-    fn generate_manifest(&self, package_name: &str, dependencies: &[String])
-        -> String
-    {
-        // Generate Package.swift
-    }
-}
-```
-
-### Phase 4: LspInstaller (Priority: LOW)
-**Why**: sourcekit-lsp comes with Xcode, usually pre-installed
-
-1. Create `lsp_installer.rs` module:
-   ```rust
-   pub struct SwiftLspInstaller;
-
-   #[async_trait]
-   impl LspInstaller for SwiftLspInstaller {
-       async fn is_installed(&self) -> bool {
-           // Check for sourcekit-lsp in PATH
-           Command::new("sourcekit-lsp").arg("--version").status().is_ok()
-       }
-
-       async fn install(&self) -> PluginResult<()> {
-           // On macOS: Comes with Xcode
-           // On Linux: apt-get install swift sourcekit-lsp
-       }
-   }
-   ```
-
-### Phase 5: Test Coverage (Priority: HIGH)
-**Current**: 3 basic tests
-**Target**: 15+ tests covering all capabilities
-
-Add to lib.rs #[cfg(test)]:
-```rust
-#[tokio::test]
-async fn test_workspace_support() {
-    let plugin = SwiftPlugin::new();
-    assert!(plugin.workspace_support().is_some());
-}
-
-#[tokio::test]
-async fn test_refactoring_extract_function() {
-    let plugin = SwiftPlugin::new();
-    let source = r#"
-func main() {
-    let x = 5
-    let y = x * 2
-    print(y)
-}
-"#;
-    let result = plugin.plan_extract_function(source, 2, 4, "calculate", "test.swift").await;
-    assert!(result.is_ok());
-}
-
-#[test]
-fn test_module_reference_scanner() {
-    let plugin = SwiftPlugin::new();
-    let source = "import Foundation\nlet x = Foundation.Date()";
-    let refs = plugin.scan_references(source, "Foundation", ScanScope::All).unwrap();
-    assert_eq!(refs.len(), 2); // import + qualified path
-}
-```
+### Documentation Updates
+- [ ] Update CLAUDE.md parity table to show Swift as 100% (currently shows ✅ incorrectly at 42%)
+- [ ] Document Package.swift workspace file format handling
+- [ ] Document Swift Package Manager manifest update capabilities
+- [ ] Add Swift examples to tool documentation
 
 ## Success Criteria
 
-- [ ] WorkspaceSupport implemented with Package.swift management
-- [ ] RefactoringProvider implements 3 operations (extract function/variable, inline variable)
-- [ ] ModuleReferenceScanner finds import statements and qualified paths
-- [ ] ImportAnalyzer builds import dependency graph
-- [ ] ManifestUpdater handles Package.swift updates
-- [ ] LspInstaller can detect/install sourcekit-lsp
+- [ ] All 12 capability traits implemented (7 new + 5 existing)
+- [ ] RefactoringProvider supports 3 operations (extract function/variable, inline variable)
+- [ ] WorkspaceSupport manages Package.swift workspace members
 - [ ] Test count increased from 3 to 15+
-- [ ] All tests pass: `cargo nextest run -p mill-lang-swift`
-- [ ] CLAUDE.md parity table shows Swift as 100% (currently shows ✅ incorrectly)
+- [ ] All tests pass: `cargo nextest run -p mill-lang-swift --all-features`
+- [ ] `cargo check -p mill-lang-swift` compiles without errors
+- [ ] CLAUDE.md parity table accurately reflects 100% completion
+- [ ] Swift plugin matches Python/Java/Rust parity levels
 
-## Effort Estimate
+## Benefits
 
-- Phase 1 (WorkspaceSupport): 5-7 hours
-- Phase 2 (RefactoringProvider): 8-10 hours
-- Phase 3 (Analysis traits): 6-8 hours
-- Phase 4 (LspInstaller): 2-3 hours
-- Phase 5 (Tests): 4-5 hours
-- **Total**: 25-33 hours
-
-## Dependencies
-
-- None (can proceed independently)
+- **Swift developers** gain full TypeMill support for iOS/macOS projects and SPM workspaces
+- **Package.swift workspace management** enables multi-package refactoring
+- **Refactoring operations** enable extract function/variable and inline variable transformations
+- **Dependency tracking** via ManifestUpdater enables dependency-aware renames
+- **Import graph analysis** enables smarter refactoring decisions
+- **Auto-installer** reduces setup friction for new Swift users
+- **Market coverage** increases from partial to full Apple ecosystem support
+- **Consistency** with other first-class language plugins (Python, Rust, TypeScript)
 
 ## References
 
