@@ -896,6 +896,11 @@ async fn plan_dependent_crate_path_updates_for_batch(
         move_map.insert(old_name, (new_name, new_path.clone()));
     }
 
+    eprintln!("[TRACE] move_map contents:");
+    for (old_name, (new_name, new_path)) in &move_map {
+        eprintln!("[TRACE]   {} -> {} ({})", old_name, new_name, new_path.display());
+    }
+
     // Walk workspace and find all Cargo.toml files
     let walker = ignore::WalkBuilder::new(&abs_project_root).hidden(false).build();
 
@@ -904,6 +909,8 @@ async fn plan_dependent_crate_path_updates_for_batch(
         if path.file_name() != Some(std::ffi::OsStr::new("Cargo.toml")) {
             continue;
         }
+
+        eprintln!("[TRACE] Found Cargo.toml: {}", path.display());
 
         // Skip the moved crates' own Cargo.toml files
         // Belt-and-suspenders: check both old (during planning) and new (if retried after partial move)
@@ -916,6 +923,7 @@ async fn plan_dependent_crate_path_updates_for_batch(
             parent == old.as_path() || parent == new.as_path()
         });
         if is_moved_crate {
+            eprintln!("[TRACE] Skipping moved crate's own Cargo.toml: {}", path.display());
             debug!(cargo_toml = ?path, "Skipping moved crate's own Cargo.toml");
             continue;
         }
@@ -931,10 +939,12 @@ async fn plan_dependent_crate_path_updates_for_batch(
 
         // Check if this Cargo.toml depends on any of the moved crates
         let depends_on_moved = move_map.keys().any(|old_name| content.contains(old_name));
+        eprintln!("[TRACE] Cargo.toml {} depends_on_moved: {}", path.display(), depends_on_moved);
         if !depends_on_moved {
             continue;
         }
 
+        eprintln!("[TRACE] Processing Cargo.toml with dependencies: {}", path.display());
         debug!(cargo_toml = ?path, "Found Cargo.toml that depends on moved crates");
 
         // Parse and update all relevant dependencies
@@ -951,16 +961,22 @@ async fn plan_dependent_crate_path_updates_for_batch(
         // Update dependencies in [dependencies], [dev-dependencies], [build-dependencies]
         for section_name in &["dependencies", "dev-dependencies", "build-dependencies"] {
             if let Some(deps_table) = doc.get_mut(*section_name).and_then(|s| s.as_table_mut()) {
+                eprintln!("[TRACE] Checking section [{}] in {}", section_name, path.display());
                 for (dep_name_key, dep_value) in deps_table.iter_mut() {
                     let dep_name = dep_name_key.get();
+                    eprintln!("[TRACE]   Dependency: {}", dep_name);
                     if let Some((_new_name, new_abs_path)) = move_map.get(dep_name) {
+                        eprintln!("[TRACE]   Found in move_map: {} -> {}", dep_name, new_abs_path.display());
                         // Update path dependency
                         if let Some(dep_table) = dep_value.as_inline_table_mut() {
+                            eprintln!("[TRACE]   Inline table format");
                             if let Some(old_path_value) = dep_table.get("path") {
+                                eprintln!("[TRACE]   Has path field: {}", old_path_value);
                                 // Calculate new relative path from this Cargo.toml to new location
                                 // parent is absolute, new_abs_path is absolute, so diff_paths should succeed
                                 if let Some(new_rel_path) = pathdiff::diff_paths(new_abs_path, parent) {
                                     let new_rel_path_str = new_rel_path.to_string_lossy().to_string();
+                                    eprintln!("[TRACE]   pathdiff succeeded: {} -> {}", old_path_value, new_rel_path_str);
                                     debug!(
                                         dep_name = %dep_name,
                                         old_path = %old_path_value,
@@ -971,6 +987,7 @@ async fn plan_dependent_crate_path_updates_for_batch(
                                     dep_table.insert("path", toml_edit::Value::from(new_rel_path_str));
                                     updated = true;
                                 } else {
+                                    eprintln!("[TRACE]   pathdiff FAILED: new_abs={:?}, parent={:?}", new_abs_path, parent);
                                     debug!(
                                         dep_name = %dep_name,
                                         new_abs_path = ?new_abs_path,
@@ -978,12 +995,17 @@ async fn plan_dependent_crate_path_updates_for_batch(
                                         "pathdiff::diff_paths returned None for inline table"
                                     );
                                 }
+                            } else {
+                                eprintln!("[TRACE]   No path field in inline table");
                             }
                         } else if let Some(dep_table) = dep_value.as_table_mut() {
+                            eprintln!("[TRACE]   Regular table format");
                             if let Some(old_path_value) = dep_table.get("path") {
+                                eprintln!("[TRACE]   Has path field: {:?}", old_path_value);
                                 // Calculate new relative path
                                 if let Some(new_rel_path) = pathdiff::diff_paths(new_abs_path, parent) {
                                     let new_rel_path_str = new_rel_path.to_string_lossy().to_string();
+                                    eprintln!("[TRACE]   pathdiff succeeded: {:?} -> {}", old_path_value, new_rel_path_str);
                                     debug!(
                                         dep_name = %dep_name,
                                         old_path = %old_path_value,
@@ -994,6 +1016,7 @@ async fn plan_dependent_crate_path_updates_for_batch(
                                     dep_table.insert("path", toml_edit::Item::Value(toml_edit::Value::from(new_rel_path_str)));
                                     updated = true;
                                 } else {
+                                    eprintln!("[TRACE]   pathdiff FAILED: new_abs={:?}, parent={:?}", new_abs_path, parent);
                                     debug!(
                                         dep_name = %dep_name,
                                         new_abs_path = ?new_abs_path,
@@ -1001,7 +1024,11 @@ async fn plan_dependent_crate_path_updates_for_batch(
                                         "pathdiff::diff_paths returned None for table"
                                     );
                                 }
+                            } else {
+                                eprintln!("[TRACE]   No path field in regular table");
                             }
+                        } else {
+                            eprintln!("[TRACE]   Neither inline nor regular table");
                         }
                     }
                 }
@@ -1009,6 +1036,7 @@ async fn plan_dependent_crate_path_updates_for_batch(
         }
 
         if updated {
+            eprintln!("[TRACE] File {} has updates, adding to planned_updates", path.display());
             let new_content = doc.to_string();
             // Ensure path is absolute
             let abs_path = if path.is_absolute() {
@@ -1018,6 +1046,8 @@ async fn plan_dependent_crate_path_updates_for_batch(
             };
             debug!(cargo_toml = ?abs_path, "Adding to planned_updates");
             planned_updates.push((abs_path, content, new_content));
+        } else {
+            eprintln!("[TRACE] File {} has NO updates", path.display());
         }
     }
 
