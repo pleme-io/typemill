@@ -1,8 +1,31 @@
 # Language Plugin Feature Parity
 
+**Status**: Superseded by language-specific proposals (see below)
+
+## ✅ Split into Language-Specific Proposals
+
+This proposal has been split into detailed, language-specific proposals based on comprehensive code audit:
+
+- **[16a: C# Parity Completion](16a_csharp_parity_completion.md)** - Missing 5/12 traits (58% → 100%)
+- **[16b: Swift Parity Completion](16b_swift_parity_completion.md)** - Missing 7/12 traits (42% → 100%)
+- **[16c: Go Parity Completion](16c_go_parity_completion.md)** - Missing 7/12 traits + critical bugs (42% → 100%)
+- **[16d: C Parity Completion](16d_c_parity_completion.md)** - Missing 6/12 traits + stubs (42% → 60% experimental)
+- **[16e: C++ Parity Completion](16e_cpp_parity_completion.md)** - Missing 2/12 traits + zero tests (83% → 100%)
+
 ## Problem
 
 Language plugins have significant feature gaps preventing unified testing and consistent user experience across languages. Current parity status shows Rust (17/17 traits), TypeScript (15/15), and Python (14/15) as complete, while Java (11/15), C# (10/15), Swift (8/15), and Go (7/15) have missing core functionality.
+
+**Update (2025-10-30)**: Comprehensive code audit revealed actual state differs from claimed state:
+- Python: **100%** (12/12 traits) ✅
+- Java: **100%** (12/12 traits) ✅
+- Rust: **100%** (12/12 traits + 3 Rust-specific) ✅
+- TypeScript: **100%** (12/12 traits + 1 TS-specific) ✅
+- C#: **58%** (7/12 traits) ⚠️
+- Swift: **42%** (5/12 traits) ⚠️
+- Go: **42%** (5/12 traits + critical bugs) ⚠️
+- C++: **83%** (10/12 traits claimed, zero tests) ⚠️
+- C: **42%** (5/12 traits + stub refactoring) ⚠️
 
 **Critical Gaps:**
 - Java/Go/Swift/C# lack ManifestUpdater (cannot update dependencies programmatically)
