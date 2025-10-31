@@ -27,7 +27,7 @@ impl TypeScriptSymbolExtractor {
         let source_code = fs::read_to_string(file_path)?;
 
         const AST_TOOL_JS: &str =
-            include_str!("../../../../crates/mill-lang-typescript/resources/ast_tool.js");
+            include_str!("../../../../languages/mill-lang-typescript/resources/ast_tool.js");
 
         let tool = SubprocessAstTool::new("node")
             .with_embedded_str(AST_TOOL_JS)

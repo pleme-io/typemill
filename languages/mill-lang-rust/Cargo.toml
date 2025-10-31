@@ -8,9 +8,9 @@ homepage.workspace = true
 
 [dependencies]
 # Our core plugin API
-mill-plugin-api = { path = "../mill-plugin-api" }
-mill-foundation = { path = "../mill-foundation" }
-mill-lang-common = { path = "../mill-lang-common" }
+mill-plugin-api = { path = "../../crates/mill-plugin-api" }
+mill-foundation = { path = "../../crates/mill-foundation" }
+mill-lang-common = { path = "../../crates/mill-lang-common" }
 
 # For parsing Rust code
 syn = { version = "2.0", features = ["full", "visit", "extra-traits"] }

@@ -1,5 +1,5 @@
 [package]
-name = "mill-lang-swift"
+name = "mill-lang-go"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,19 +7,20 @@ repository.workspace = true
 homepage.workspace = true
 
 [dependencies]
-# Core plugin API
-mill-plugin-api = { path = "../mill-plugin-api" }
-mill-foundation = { path = "../mill-foundation" }
-mill-lang-common = { path = "../mill-lang-common" }
+# Mill workspace dependencies
+mill-plugin-api = { path = "../../crates/mill-plugin-api" }
+mill-foundation = { path = "../../crates/mill-foundation" }
+mill-lang-common = { path = "../../crates/mill-lang-common" }
 
 # Async operations
 async-trait = { workspace = true }
 tokio = { workspace = true }
 
 # Serialization/Deserialization & Other Utilities
-serde = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-regex = "1.10"
+regex = { workspace = true }
+chrono = { version = "0.4", features = ["serde"] }
 
 # Error handling
 thiserror = { workspace = true }
@@ -28,5 +29,4 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
-tempfile = { workspace = true }
-pretty_assertions = { workspace = true }
+tempfile = "3.10"

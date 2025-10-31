@@ -1,5 +1,5 @@
 [package]
-name = "mill-lang-java"
+name = "mill-lang-csharp"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,9 +8,9 @@ homepage.workspace = true
 
 [dependencies]
 # Mill workspace dependencies
-mill-plugin-api = { path = "../mill-plugin-api" }
-mill-foundation = { path = "../mill-foundation" }
-mill-lang-common = { path = "../mill-lang-common" }
+mill-plugin-api = { path = "../../crates/mill-plugin-api" }
+mill-foundation = { path = "../../crates/mill-foundation" }
+mill-lang-common = { path = "../../crates/mill-lang-common" }
 
 # Async operations
 async-trait = { workspace = true }
@@ -26,17 +26,17 @@ thiserror = { workspace = true }
 # Logging
 tracing = { workspace = true }
 
+# LSP
+lsp-types = { workspace = true, features = ["proposed"] }
+
 # Parsing
-tree-sitter = { workspace = true }
-lsp-types = { workspace = true }
+tree-sitter = "0.20"
+tree-sitter-c-sharp = "0.20"
 
-# Utilities (uncomment as needed)
-# regex = "1.10"
+# Utilities
 chrono = { version = "0.4", features = ["serde"] }
+regex = "1.10"
 quick-xml = { version = "0.31", features = ["serialize"] }
-tempfile = { workspace = true }
-
-[build-dependencies]
-cc = { workspace = true }
 
 [dev-dependencies]
+tempfile = { workspace = true }

@@ -8,9 +8,9 @@ members = [
     "crates/mill-server",
     "crates/mill-transport",
     "crates/mill-lang-common",
-    "crates/mill-lang-rust",
-    "crates/mill-lang-typescript",
-    "crates/mill-lang-python",
+    "languages/mill-lang-rust",
+    "languages/mill-lang-typescript",
+    "languages/mill-lang-python",
     "languages/mill-lang-markdown",
     "languages/mill-lang-toml",
     "languages/mill-lang-yaml",
@@ -27,11 +27,11 @@ members = [
     "crates/mill-auth",
     "crates/xtask", "crates/mill-ast", "crates/mill-client", "crates/mill-test-support", "crates/mill-handlers", "crates/mill-config", "crates/mill-foundation",
     "languages/mill-lang-cpp",
-    "crates/mill-lang-csharp",
-    "crates/mill-lang-swift",
-    "crates/mill-lang-c",
-    "crates/mill-lang-java",
-    "crates/mill-lang-go",
+    "languages/mill-lang-csharp",
+    "languages/mill-lang-swift",
+    "languages/mill-lang-c",
+    "languages/mill-lang-java",
+    "languages/mill-lang-go",
 ]
 resolver = "2"
 
@@ -109,14 +109,14 @@ mill-analysis-common = { path = "analysis/mill-analysis-common" }
 
 # Language plugins (temporarily reduced to TS + Rust during unified API refactoring)
 mill-lang-common = { path = "crates/mill-lang-common", default-features = false }
-mill-lang-typescript = { path = "crates/mill-lang-typescript", default-features = false }
-mill-lang-rust = { path = "crates/mill-lang-rust", default-features = false }
-mill-lang-python = { path = "crates/mill-lang-python", default-features = false }
-mill-lang-swift = { path = "crates/mill-lang-swift", default-features = false }
-mill-lang-csharp = { path = "crates/mill-lang-csharp", default-features = false }
-mill-lang-c = { path = "crates/mill-lang-c", default-features = false }
-mill-lang-go = { path = "crates/mill-lang-go", default-features = false }
-mill-lang-java = { path = "crates/mill-lang-java", default-features = false }
+mill-lang-typescript = { path = "languages/mill-lang-typescript", default-features = false }
+mill-lang-rust = { path = "languages/mill-lang-rust", default-features = false }
+mill-lang-python = { path = "languages/mill-lang-python", default-features = false }
+mill-lang-swift = { path = "languages/mill-lang-swift", default-features = false }
+mill-lang-csharp = { path = "languages/mill-lang-csharp", default-features = false }
+mill-lang-c = { path = "languages/mill-lang-c", default-features = false }
+mill-lang-go = { path = "languages/mill-lang-go", default-features = false }
+mill-lang-java = { path = "languages/mill-lang-java", default-features = false }
 mill-analysis-dead-code = { path = "analysis/mill-analysis-dead-code" }
 mill-analysis-graph = { path = "analysis/mill-analysis-graph" }
 mill-lang-markdown = { path = "languages/mill-lang-markdown", default-features = false }
