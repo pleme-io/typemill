@@ -40,24 +40,12 @@ All can run simultaneously:
 - `05_rename_to_typemill.md` - Rename project mill → typemill
   - ⚠️ **DISRUPTIVE** - Requires team consensus
 
-## Archived Proposals
+## Completed Proposals
 
-Completed proposals moved to `archived/` for reference:
-- `00_rust_move_test_coverage.md` ✅
-- `01_fix_same_crate_moves.md` ✅
-- `01_plugin_refactoring.md` ✅
-- `01a_rust_directory_structure.md` ✅
-- `01b_cargo_deny_integration.md` ✅
-- `02_plugin_helpers_consolidation.md` ✅
-- `02a_extract_rust_imports_module.md` ✅
-- `02b_split_reference_updater.md` ✅
-- `06_auto_download_lsp.md` ✅
-- `06_restore_csharp.proposal.md` ✅
-- `09a_refactor_plan_trait.md` ✅
-- `09b_segregate_import_trait.md` ✅
-- `15_language_plugins_directory.proposal.md` ✅
-- `17_batch_rename_fix.proposal.md` ✅
-- `18_comprehensive_path_dependency_updates.proposal.md` ✅
+Recent completions:
+- `15_language_plugins_directory.proposal.md` ✅ (2025-10-30)
+- `17_batch_rename_fix.proposal.md` ✅ (2025-10-30)
+- `18_comprehensive_path_dependency_updates.proposal.md` ✅ (2025-10-30)
 
 ## Execution Guide
 
