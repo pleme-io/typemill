@@ -1,5 +1,5 @@
 use mill_lang_cpp::CppPlugin;
-use mill_plugin_api::{LanguagePlugin, import_support::{ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportRenameSupport}};
+use mill_plugin_api::{capabilities::{ImportAnalyzer, ModuleReferenceScanner, RefactoringProvider}, import_support::{ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportRenameSupport}, LanguagePlugin, ManifestUpdater, WorkspaceSupport, ScanScope};
 use tempfile::Builder;
 use std::io::Write;
 use std::path::Path;
@@ -263,6 +263,103 @@ async fn test_analyze_conan_manifest() {
         .dependencies
         .iter()
         .any(|d| d.name == "gtest"));
+}
+
+#[tokio::test]
+async fn test_manifest_updater() {
+    let plugin = CppPlugin::default();
+    let updater = plugin.manifest_updater().unwrap();
+
+    let initial_content = "project(TestProject)\nadd_executable(app main.cpp)";
+
+    // Add a dependency
+    let updated_content = updater.update_dependency(Path::new(""), initial_content, "fmt", Some("10.2.1")).await.unwrap();
+    assert!(updated_content.contains("target_link_libraries(app PRIVATE fmt)"));
+
+    // Generate a manifest
+    let generated_content = updater.generate_manifest("new_project", &[]);
+    assert!(generated_content.contains("project(new_project VERSION 1.0)"));
+}
+
+#[test]
+fn test_lsp_installer() {
+    let plugin = CppPlugin::default();
+    let installer = plugin.lsp_installer().unwrap();
+    assert_eq!(installer.lsp_name(), "clangd");
+    let result = installer.check_installed();
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_workspace_support() {
+    let plugin = CppPlugin::default();
+    let workspace_support = plugin.workspace_support().unwrap();
+    let initial_content = "project(MyProject)\n";
+
+    // Add a workspace member
+    let content_after_add = workspace_support.add_workspace_member(initial_content, "my_lib");
+    println!("Content after add: {}", content_after_add);
+    assert!(content_after_add.contains("add_subdirectory(my_lib)"));
+
+    // Remove a workspace member
+    let content_after_remove = workspace_support.remove_workspace_member(&content_after_add, "my_lib");
+    assert!(!content_after_remove.contains("add_subdirectory(my_lib)"));
+}
+
+#[tokio::test]
+async fn test_refactoring_extract_function() {
+    let plugin = CppPlugin::default();
+    let refactoring_provider = plugin.refactoring_provider().unwrap();
+    let source = "void foo() {\n  int x = 1;\n  int y = 2;\n}";
+    let plan = refactoring_provider.plan_extract_function(source, 1, 2, "new_function", "dummy.cpp").await;
+    assert!(plan.is_ok());
+    assert!(!plan.unwrap().edits.is_empty());
+}
+
+#[tokio::test]
+async fn test_refactoring_inline_variable() {
+    let plugin = CppPlugin::default();
+    let refactoring_provider = plugin.refactoring_provider().unwrap();
+    let source = "void foo() {\n  int x = 1;\n  int y = x;\n}";
+    let plan = refactoring_provider.plan_inline_variable(source, 2, 10, "dummy.cpp").await;
+    assert!(plan.is_ok());
+    assert!(!plan.unwrap().edits.is_empty());
+}
+
+#[tokio::test]
+async fn test_refactoring_extract_variable() {
+    let plugin = CppPlugin::default();
+    let refactoring_provider = plugin.refactoring_provider().unwrap();
+    let source = "int main() {\n  int x = 1 + 2;\n  return x;\n}";
+    let plan = refactoring_provider.plan_extract_variable(source, 1, 10, 1, 15, Some("y".to_string()), "dummy.cpp").await;
+    assert!(plan.is_ok());
+    let unwrapped_plan = plan.unwrap();
+    assert!(!unwrapped_plan.edits.is_empty());
+    assert!(unwrapped_plan.edits.iter().any(|e| e.new_text.contains("auto y = 1 + 2;")));
+}
+
+#[test]
+fn test_module_reference_scanner() {
+    let plugin = CppPlugin::default();
+    let scanner = plugin.module_reference_scanner().unwrap();
+    let source = "#include <iostream>\n#include \"my_header.h\"";
+    let references = scanner.scan_references(source, "my_header.h", ScanScope::All).unwrap();
+    assert_eq!(references.len(), 1);
+    assert_eq!(references[0].text, "my_header.h");
+}
+
+#[tokio::test]
+async fn test_import_analyzer() {
+    let plugin = CppPlugin::default();
+    let analyzer = plugin.import_analyzer().unwrap();
+    let temp_dir = tempfile::tempdir().unwrap();
+    let file_path = temp_dir.path().join("test.cpp");
+    let source = "#include <iostream>\n#include \"my_header.h\"";
+    std::fs::write(&file_path, source).unwrap();
+    let graph = analyzer.build_import_graph(&file_path).unwrap();
+    assert_eq!(graph.imports.len(), 2);
+    assert!(graph.imports.iter().any(|i| i.module_path == "iostream"));
+    assert!(graph.imports.iter().any(|i| i.module_path == "my_header.h"));
 }
 
 #[tokio::test]

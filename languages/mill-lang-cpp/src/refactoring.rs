@@ -117,7 +117,7 @@ fn plan_extract_function_impl(
     let start_point = Point::new(range.start_line as usize - 1, range.start_col as usize);
     let end_point = Point::new(range.end_line as usize - 1, range.end_col as usize);
 
-    let selected_node = find_smallest_node_containing_range(root, start_point, end_point)
+    let selected_node = root.named_descendant_for_point_range(start_point, end_point)
         .ok_or_else(|| "Could not find a node for the selection".to_string())?;
 
     let selected_text = selected_node
@@ -213,10 +213,10 @@ fn plan_extract_variable_impl(
         .ok_or_else(|| "Failed to parse C++ source".to_string())?;
     let root = tree.root_node();
 
-    let start_point = Point::new(start_line as usize - 1, start_col as usize);
-    let end_point = Point::new(end_line as usize - 1, end_col as usize);
+    let start_byte = source.lines().take(start_line as usize - 1).map(|l| l.len() + 1).sum::<usize>() + start_col as usize;
+    let end_byte = source.lines().take(end_line as usize - 1).map(|l| l.len() + 1).sum::<usize>() + end_col as usize;
 
-    let selected_node = find_smallest_node_containing_range(root, start_point, end_point)
+    let selected_node = root.descendant_for_byte_range(start_byte, end_byte)
         .ok_or_else(|| "Could not find a node for the selection".to_string())?;
 
     let expression_text = selected_node
@@ -357,26 +357,6 @@ fn plan_inline_variable_impl(
 }
 
 // Helper functions
-
-fn find_smallest_node_containing_range<'a>(
-    node: Node<'a>,
-    start_point: Point,
-    end_point: Point,
-) -> Option<Node<'a>> {
-    if node.start_position() > start_point || node.end_position() < end_point {
-        return None;
-    }
-
-    for child in node.children(&mut node.walk()) {
-        if let Some(containing_child) =
-            find_smallest_node_containing_range(child, start_point, end_point)
-        {
-            return Some(containing_child);
-        }
-    }
-
-    Some(node)
-}
 
 fn find_node_at_point<'a>(node: Node<'a>, point: Point) -> Option<Node<'a>> {
     node.named_descendant_for_point_range(point, point)

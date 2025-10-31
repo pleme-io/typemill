@@ -12,16 +12,13 @@ pub struct CppWorkspaceSupport;
 
 #[async_trait]
 impl WorkspaceSupport for CppWorkspaceSupport {
-    fn add_workspace_member(&self, content: &str, _member: &str) -> String {
-        // C++ doesn't have a standard workspace concept
-        // Return content unchanged
-        content.to_string()
+    fn add_workspace_member(&self, content: &str, member: &str) -> String {
+        format!("{}\nadd_subdirectory({})", content, member)
     }
 
-    fn remove_workspace_member(&self, content: &str, _member: &str) -> String {
-        // C++ doesn't have a standard workspace concept
-        // Return content unchanged
-        content.to_string()
+    fn remove_workspace_member(&self, content: &str, member: &str) -> String {
+        let re = regex::Regex::new(&format!(r"\n?add_subdirectory\({}\)", regex::escape(member))).unwrap();
+        re.replace_all(content, "").to_string()
     }
 
     fn is_workspace_manifest(&self, _content: &str) -> bool {
