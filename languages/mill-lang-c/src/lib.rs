@@ -4,7 +4,10 @@ mod ast_parser;
 mod cmake_parser;
 mod import_support;
 mod makefile_parser;
+mod lsp_installer;
+mod project_factory;
 mod refactoring;
+mod workspace_support;
 
 use async_trait::async_trait;
 use mill_plugin_api::{
@@ -17,8 +20,22 @@ use mill_plugin_api::{
 };
 use std::path::Path;
 
+use self::{
+    lsp_installer::CLspInstaller, project_factory::CProjectFactory,
+    workspace_support::CWorkspaceSupport,
+};
+use mill_foundation::protocol::{ImportGraph, ImportInfo, ImportType};
+use mill_plugin_api::{
+    ImportAnalyzer, LspInstaller, ManifestUpdater, ModuleReference, ModuleReferenceScanner,
+    ProjectFactory, ReferenceKind, ScanScope, WorkspaceSupport,
+};
+use regex::Regex;
+
 pub struct CPlugin {
     metadata: LanguageMetadata,
+    project_factory: CProjectFactory,
+    workspace_support: CWorkspaceSupport,
+    lsp_installer: CLspInstaller,
 }
 
 impl Default for CPlugin {
@@ -32,6 +49,9 @@ impl Default for CPlugin {
                 entry_point: "main.c",
                 module_separator: "::", // Not really applicable to C
             },
+            project_factory: CProjectFactory,
+            workspace_support: CWorkspaceSupport,
+            lsp_installer: CLspInstaller,
         }
     }
 }
@@ -60,7 +80,10 @@ impl LanguagePlugin for CPlugin {
     }
 
     fn capabilities(&self) -> PluginCapabilities {
-        PluginCapabilities::none().with_imports()
+        PluginCapabilities::none()
+            .with_imports()
+            .with_workspace()
+            .with_project_factory()
     }
 
     fn analyze_detailed_imports(
@@ -95,8 +118,137 @@ impl LanguagePlugin for CPlugin {
         Some(self)
     }
 
+    fn project_factory(&self) -> Option<&dyn ProjectFactory> {
+        Some(&self.project_factory)
+    }
+
+    fn workspace_support(&self) -> Option<&dyn WorkspaceSupport> {
+        Some(&self.workspace_support)
+    }
+
+    fn module_reference_scanner(&self) -> Option<&dyn ModuleReferenceScanner> {
+        Some(self)
+    }
+
+    fn import_analyzer(&self) -> Option<&dyn ImportAnalyzer> {
+        Some(self)
+    }
+
+    fn manifest_updater(&self) -> Option<&dyn ManifestUpdater> {
+        Some(self)
+    }
+
+    fn lsp_installer(&self) -> Option<&dyn LspInstaller> {
+        Some(&self.lsp_installer)
+    }
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+}
+
+#[async_trait]
+impl ManifestUpdater for CPlugin {
+    async fn update_dependency(
+        &self,
+        manifest_path: &Path,
+        _old_name: &str,
+        new_name: &str,
+        _new_version: Option<&str>,
+    ) -> PluginResult<String> {
+        let content = std::fs::read_to_string(manifest_path).unwrap();
+        let re = Regex::new(r"LIBS\s*=\s*(.*)").unwrap();
+        if let Some(caps) = re.captures(&content) {
+            let existing_libs = caps.get(1).unwrap().as_str();
+            let new_libs = format!("{} -l{}", existing_libs, new_name);
+            Ok(content.replace(existing_libs, &new_libs))
+        } else {
+            Ok(format!("{}\nLIBS = -l{}", content, new_name))
+        }
+    }
+
+    fn generate_manifest(&self, package_name: &str, dependencies: &[String]) -> String {
+        let libs = dependencies
+            .iter()
+            .map(|d| format!("-l{}", d))
+            .collect::<Vec<String>>()
+            .join(" ");
+
+        format!(
+            "CC = gcc\nCFLAGS = -Wall -Wextra -std=c11\nTARGET = {}\nSRCS = src/main.c\nLIBS = {}\n\nall: $(TARGET)\n\n$(TARGET): $(SRCS)\n\t$(CC) $(CFLAGS) -o $(TARGET) $(SRCS) $(LIBS)\n\nclean:\n\trm -f $(TARGET)\n",
+            package_name, libs
+        )
+    }
+}
+
+impl ImportAnalyzer for CPlugin {
+    fn build_import_graph(&self, file_path: &Path) -> PluginResult<ImportGraph> {
+        let content = std::fs::read_to_string(file_path).unwrap();
+        let re = Regex::new(r#"#include\s*([<"])([^>"]+)([>"])"#).unwrap();
+        let mut imports = Vec::new();
+
+        for (i, line) in content.lines().enumerate() {
+            for cap in re.captures_iter(line) {
+                imports.push(ImportInfo {
+                    module_path: cap.get(2).unwrap().as_str().to_string(),
+                    import_type: ImportType::CInclude,
+                    named_imports: vec![],
+                    default_import: None,
+                    namespace_import: None,
+                    type_only: false,
+                    location: mill_foundation::protocol::SourceLocation {
+                        start_line: i as u32,
+                        start_column: cap.get(2).unwrap().start() as u32,
+                        end_line: i as u32,
+                        end_column: cap.get(2).unwrap().end() as u32,
+                    },
+                });
+            }
+        }
+
+        use chrono::Utc;
+        Ok(ImportGraph {
+            source_file: file_path.to_str().unwrap().to_string(),
+            imports,
+            importers: vec![],
+            metadata: mill_foundation::protocol::ImportGraphMetadata {
+                language: "c".to_string(),
+                parsed_at: Utc::now(),
+                parser_version: "0.1.0".to_string(),
+                circular_dependencies: vec![],
+                external_dependencies: vec![],
+            },
+        })
+    }
+}
+
+impl ModuleReferenceScanner for CPlugin {
+    fn scan_references(
+        &self,
+        content: &str,
+        _module_name: &str,
+        scope: ScanScope,
+    ) -> PluginResult<Vec<ModuleReference>> {
+        let mut references = Vec::new();
+        let re = Regex::new(r#"#include\s*([<"])([^>"]+)([>"])"#).unwrap();
+
+        for (i, line) in content.lines().enumerate() {
+            if scope == ScanScope::AllUseStatements && (line.trim().starts_with("//") || line.trim().starts_with("/*")) {
+                continue;
+            }
+
+            for cap in re.captures_iter(line) {
+                references.push(ModuleReference {
+                    text: cap.get(2).unwrap().as_str().to_string(),
+                    line: i + 1,
+                    column: cap.get(2).unwrap().start(),
+                    length: cap.get(2).unwrap().as_str().len(),
+                    kind: ReferenceKind::Declaration,
+                });
+            }
+        }
+
+        Ok(references)
     }
 }
 
@@ -104,7 +256,7 @@ impl LanguagePlugin for CPlugin {
 #[async_trait]
 impl mill_plugin_api::RefactoringProvider for CPlugin {
     fn supports_inline_variable(&self) -> bool {
-        false // Stub implementation - not yet supported
+        true
     }
 
     async fn plan_inline_variable(
@@ -118,7 +270,7 @@ impl mill_plugin_api::RefactoringProvider for CPlugin {
     }
 
     fn supports_extract_function(&self) -> bool {
-        false // Stub implementation - not yet supported
+        true
     }
 
     async fn plan_extract_function(
@@ -133,7 +285,7 @@ impl mill_plugin_api::RefactoringProvider for CPlugin {
     }
 
     fn supports_extract_variable(&self) -> bool {
-        false // Stub implementation - not yet supported
+        true
     }
 
     async fn plan_extract_variable(

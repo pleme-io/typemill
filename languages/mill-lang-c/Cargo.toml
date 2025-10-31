@@ -21,6 +21,7 @@ chrono = "0.4"
 
 tree-sitter = { workspace = true }
 regex = { workspace = true }
+which = { workspace = true }
 
 [build-dependencies]
 cc = { workspace = true }
