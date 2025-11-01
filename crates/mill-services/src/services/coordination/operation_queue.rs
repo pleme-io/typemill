@@ -428,7 +428,7 @@ impl OperationQueue {
 }
 
 /// Transaction support for grouped operations
-pub struct OperationTransaction {
+pub(crate) struct OperationTransaction {
     operations: Vec<FileOperation>,
     queue: Arc<OperationQueue>,
 }

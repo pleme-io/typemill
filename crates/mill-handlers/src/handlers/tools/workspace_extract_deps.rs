@@ -52,7 +52,7 @@ impl ToolHandler for WorkspaceExtractDepsHandler {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ExtractDependenciesParams {
+pub(crate) struct ExtractDependenciesParams {
     pub source_manifest: String,
     pub target_manifest: String,
     pub dependencies: Vec<String>,
@@ -62,7 +62,7 @@ pub struct ExtractDependenciesParams {
 
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct ExtractDependenciesOptions {
+pub(crate) struct ExtractDependenciesOptions {
     #[serde(default)]
     pub dry_run: bool,
     #[serde(default = "default_true")]
@@ -79,7 +79,7 @@ fn default_true() -> bool {
 
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "kebab-case")]
-pub enum DependencySection {
+pub(crate) enum DependencySection {
     #[default]
     Dependencies,
     DevDependencies,
@@ -100,7 +100,7 @@ impl DependencySection {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ExtractDependenciesResult {
+pub(crate) struct ExtractDependenciesResult {
     pub dependencies_extracted: usize,
     pub dependencies_added: Vec<DependencyInfo>,
     pub target_manifest_updated: bool,
@@ -110,7 +110,7 @@ pub struct ExtractDependenciesResult {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DependencyInfo {
+pub(crate) struct DependencyInfo {
     pub name: String,
     pub version: String,
     #[serde(skip_serializing_if = "Option::is_none")]

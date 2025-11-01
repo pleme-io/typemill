@@ -47,7 +47,7 @@ impl ToolHandler for WorkspaceCreateHandler {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CreatePackageParams {
+pub(crate) struct CreatePackageParams {
     pub package_path: String,
     #[serde(default = "default_lib")]
     pub package_type: PackageType,
@@ -61,7 +61,7 @@ fn default_lib() -> PackageType {
 
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct CreatePackageOptions {
+pub(crate) struct CreatePackageOptions {
     #[serde(default)]
     pub dry_run: bool,
     #[serde(default = "default_true")]
@@ -78,7 +78,7 @@ fn default_true() -> bool {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CreatePackageResult {
+pub(crate) struct CreatePackageResult {
     pub created_files: Vec<String>,
     pub workspace_updated: bool,
     pub package_info: PackageInfo,
@@ -86,7 +86,7 @@ pub struct CreatePackageResult {
 }
 
 #[derive(Debug, Serialize)]
-pub struct PackageInfo {
+pub(crate) struct PackageInfo {
     pub name: String,
     pub version: String,
     pub manifest_path: String,

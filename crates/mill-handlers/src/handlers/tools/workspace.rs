@@ -13,7 +13,7 @@ use serde_json::Value;
 
 /// Controls how aggressively imports are updated during rename operations
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum UpdateMode {
+pub(crate) enum UpdateMode {
     /// Only update top-level import/use statements (current default behavior)
     Conservative,
     /// Update all import/use statements including function-scoped ones

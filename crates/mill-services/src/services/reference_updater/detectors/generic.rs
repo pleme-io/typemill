@@ -18,7 +18,7 @@ use std::path::{Path, PathBuf};
 ///
 /// * `rename_info` - Optional JSON containing scope flags (update_exact_matches, etc.)
 ///   and cargo package info. Passed to plugins to control rewriting behavior.
-pub fn find_generic_affected_files(
+pub(crate) fn find_generic_affected_files(
     old_path: &Path,
     new_path: &Path,
     project_root: &Path,
@@ -117,7 +117,7 @@ pub fn find_generic_affected_files(
 /// Get all files imported by the given file content
 ///
 /// Uses plugin import support if available, falls back to regex-based extraction.
-pub fn get_all_imported_files(
+pub(crate) fn get_all_imported_files(
     content: &str,
     current_file: &Path,
     plugins: &[std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
@@ -187,7 +187,7 @@ fn resolve_import_to_file(
 /// - `require("path")` or `require('path')`
 ///
 /// Returns the extracted path if found.
-pub fn extract_import_path(line: &str) -> Option<String> {
+pub(crate) fn extract_import_path(line: &str) -> Option<String> {
     if line.contains("from") {
         if let Some(start) = line.find(['\'', '"']) {
             let quote_char = &line[start..=start];

@@ -273,7 +273,7 @@ impl ImportPathResolver {
 }
 
 /// Extract import path from an import/require statement
-pub fn extract_import_path(line: &str) -> Option<String> {
+pub(crate) fn extract_import_path(line: &str) -> Option<String> {
     // Handle ES6 imports: import ... from 'path'
     if line.contains("from") {
         if let Some(start) = line.find(['\'', '"']) {

@@ -50,7 +50,7 @@ impl ToolHandler for WorkspaceUpdateMembersHandler {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct UpdateMembersParams {
+pub(crate) struct UpdateMembersParams {
     pub workspace_manifest: String,
     pub action: MemberAction,
     #[serde(default)]
@@ -61,7 +61,7 @@ pub struct UpdateMembersParams {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum MemberAction {
+pub(crate) enum MemberAction {
     Add,
     Remove,
     List,
@@ -69,7 +69,7 @@ pub enum MemberAction {
 
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct UpdateMembersOptions {
+pub(crate) struct UpdateMembersOptions {
     #[serde(default)]
     pub dry_run: bool,
     #[serde(default)]
@@ -80,7 +80,7 @@ pub struct UpdateMembersOptions {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct UpdateMembersResult {
+pub(crate) struct UpdateMembersResult {
     pub action: String,
     pub members_before: Vec<String>,
     pub members_after: Vec<String>,
