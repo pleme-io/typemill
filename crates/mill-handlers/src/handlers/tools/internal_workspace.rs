@@ -98,12 +98,12 @@ impl InternalWorkspaceHandler {
         }
 
         // Create EditPlan
-        let plan = mill_foundation::protocol::EditPlan {
+        let plan = mill_foundation::planning::EditPlan {
             source_file: String::new(), // Multi-file workspace edit
             edits: all_edits,
             dependency_updates: Vec::new(),
             validations: Vec::new(),
-            metadata: mill_foundation::protocol::EditPlanMetadata {
+            metadata: mill_foundation::planning::EditPlanMetadata {
                 intent_name: "apply_workspace_edit".to_string(),
                 intent_arguments: serde_json::Value::Object(args.clone()),
                 created_at: chrono::Utc::now(),

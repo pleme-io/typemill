@@ -160,7 +160,7 @@ impl WorkflowHandler {
             .ok_or_else(|| ServerError::InvalidRequest("Missing 'edit_plan' parameter".into()))?;
 
         // Parse the EditPlan from the JSON value
-        let edit_plan: mill_foundation::protocol::EditPlan =
+        let edit_plan: mill_foundation::planning::EditPlan =
             serde_json::from_value(edit_plan_value.clone()).map_err(|e| {
                 ServerError::InvalidRequest(format!("Invalid edit_plan format: {}", e))
             })?;
