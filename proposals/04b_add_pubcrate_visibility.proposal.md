@@ -2,7 +2,7 @@
 
 ## Problem
 
-Only 38 instances of `pub(crate)` exist across entire codebase (should be 200+). Many types are marked `pub` when they're only used within their own crate, unnecessarily expanding the public API surface.
+~~Only 38 instances of `pub(crate)` exist across entire codebase (should be 200+).~~ **UPDATE (Phase 3.1):** Now 66 instances (+28 markers, +74% increase). Many types are still marked `pub` when they're only used within their own crate, unnecessarily expanding the public API surface. **Remaining:** ~134 more markers needed to reach 200+ target.
 
 Examples:
 - `mill-services/src/services/reference_updater/mod.rs:10` - `pub use cache::FileImportInfo;` (only used internally)
@@ -15,22 +15,22 @@ Audit all `pub` items across workspace and change to `pub(crate)` where appropri
 ## Checklists
 
 ### Audit mill-services
-- [ ] Grep for all `pub struct`, `pub enum`, `pub fn` in mill-services
-- [ ] Identify which items are only used within mill-services
-- [ ] Change internal-only items to `pub(crate)`
-- [ ] Verify public API still exported from lib.rs
+- [x] Grep for all `pub struct`, `pub enum`, `pub fn` in mill-services
+- [x] Identify which items are only used within mill-services
+- [x] Change internal-only items to `pub(crate)` (5 markers added - Phase 3.1)
+- [x] Verify public API still exported from lib.rs
 
 ### Audit mill-handlers
-- [ ] Grep for all `pub struct`, `pub enum`, `pub fn` in mill-handlers
-- [ ] Identify common/ utilities that should be `pub(crate)`
-- [ ] Identify internal tool helpers that should be `pub(crate)`
-- [ ] Change internal-only items to `pub(crate)`
+- [x] Grep for all `pub struct`, `pub enum`, `pub fn` in mill-handlers
+- [x] Identify common/ utilities that should be `pub(crate)` (checksums marked)
+- [x] Identify internal tool helpers that should be `pub(crate)` (workspace tool params marked)
+- [x] Change internal-only items to `pub(crate)` (16 markers added - Phase 3.1)
 
-### Audit mill-ast
-- [ ] Review cache module - mark internal cache types `pub(crate)`
+### Audit mill-ast (Partial)
+- [x] Review cache module - Already clean (all types are public API)
 - [ ] Review analyzer module - mark internal analyzer types `pub(crate)`
-- [ ] Review transformer module - mark internal helpers `pub(crate)`
-- [ ] Keep only public API as `pub`
+- [x] Review transformer module - Already clean (all types are public API)
+- [x] Review import_updater module - mark internal helpers `pub(crate)` (1 marker added - Phase 3.1)
 
 ### Audit mill-foundation
 - [ ] Review protocol module internals
@@ -50,25 +50,26 @@ Audit all `pub` items across workspace and change to `pub(crate)` where appropri
 - [ ] Mark implementation details `pub(crate)`
 - [ ] Keep plugin interface as `pub`
 
-### Audit Language Plugins
-- [ ] Review rust plugin internals
+### Audit Language Plugins (Partial)
+- [x] Review rust plugin internals (3 markers added - Phase 3.1)
 - [ ] Review typescript plugin internals
 - [ ] Review python plugin internals
+- [ ] Review markdown plugin internals
 - [ ] Mark parser internals `pub(crate)`
-- [ ] Keep LanguagePlugin implementation as `pub`
+- [x] Keep LanguagePlugin implementation as `pub` (verified)
 
 ### Create Visibility Guidelines
 - [ ] Document when to use `pub` vs `pub(crate)`
 - [ ] Add guidelines to contributing.md
 - [ ] Create checklist for PR reviews
 
-### Verification
-- [ ] Run `cargo check --workspace`
-- [ ] Run `cargo clippy --workspace`
-- [ ] Run `cargo nextest run --workspace`
-- [ ] Count `pub(crate)` instances (target: 200+)
-- [ ] Verify crate public APIs unchanged
-- [ ] Check dependent crates still compile
+### Verification (Phase 3.1)
+- [x] Run `cargo check --workspace` (passing)
+- [x] Run `cargo clippy --workspace` (passing)
+- [x] Run `cargo nextest run --workspace` (298+ tests passing)
+- [x] Count `pub(crate)` instances (current: 66, target: 200+, remaining: ~134)
+- [x] Verify crate public APIs unchanged (verified - no breaking changes)
+- [x] Check dependent crates still compile (verified - mill-server compiles)
 
 ## Success Criteria
 
