@@ -66,6 +66,10 @@ impl LanguagePlugin for GoPlugin {
         manifest::load_go_mod(path).await
     }
 
+    async fn list_functions(&self, source: &str) -> PluginResult<Vec<String>> {
+        parser::list_functions(source)
+    }
+
     // Use macro to generate capability delegation methods
     impl_capability_delegations! {
         this => {

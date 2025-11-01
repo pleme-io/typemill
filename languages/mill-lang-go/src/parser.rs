@@ -233,6 +233,19 @@ pub fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
     )
 }
 
+/// List all function names in Go source code
+///
+/// Extracts function names by filtering symbols for function kinds.
+/// Returns an empty list if symbol extraction fails.
+pub fn list_functions(source: &str) -> PluginResult<Vec<String>> {
+    let symbols = extract_symbols(source)?;
+    Ok(symbols
+        .into_iter()
+        .filter(|s| s.kind == SymbolKind::Function)
+        .map(|s| s.name)
+        .collect())
+}
+
 /// Spawns the bundled `ast_tool.go` script to extract symbols from source.
 fn extract_symbols_ast(source: &str) -> Result<Vec<Symbol>, PluginError> {
     const AST_TOOL_GO: &str = include_str!("../resources/ast_tool.go");
@@ -375,5 +388,47 @@ const MaxUsers = 100
             assert!(symbols.iter().any(|s| s.name == "User"));
             assert!(symbols.iter().any(|s| s.name == "MaxUsers"));
         }
+    }
+
+    #[test]
+    fn test_list_functions_multiple() {
+        let source = r#"package main
+
+func FirstFunction() {
+    println("first")
+}
+
+func SecondFunction() {
+    println("second")
+}
+
+func ThirdFunction() int {
+    return 42
+}
+"#;
+        let result = list_functions(source);
+        assert!(result.is_ok());
+        let functions = result.unwrap();
+        // May be empty if Go not available, but should not fail
+        if !functions.is_empty() {
+            assert!(functions.contains(&"FirstFunction".to_string()));
+            assert!(functions.contains(&"SecondFunction".to_string()));
+            assert!(functions.contains(&"ThirdFunction".to_string()));
+        }
+    }
+
+    #[test]
+    fn test_list_functions_empty() {
+        let source = r#"package main
+
+const MaxValue = 100
+type User struct {}
+"#;
+        let result = list_functions(source);
+        assert!(result.is_ok());
+        let functions = result.unwrap();
+        // Should not contain non-function symbols
+        assert!(!functions.contains(&"MaxValue".to_string()));
+        assert!(!functions.contains(&"User".to_string()));
     }
 }

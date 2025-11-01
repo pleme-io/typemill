@@ -66,3 +66,54 @@ pub fn parse_source(source: &str) -> ParsedSource {
         symbols,
     }
 }
+
+/// List all function names in C++ source code
+///
+/// Extracts function names using tree-sitter AST parsing.
+pub fn list_functions(source: &str) -> Vec<String> {
+    let parsed = parse_source(source);
+    parsed.symbols
+        .into_iter()
+        .filter(|s| s.kind == mill_plugin_api::SymbolKind::Function)
+        .map(|s| s.name)
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_list_functions_multiple() {
+        let source = r#"
+void firstFunction() {
+    std::cout << "first";
+}
+
+int secondFunction(int x) {
+    return x * 2;
+}
+
+class MyClass {
+public:
+    void methodFunction() {}
+};
+"#;
+        let functions = list_functions(source);
+        assert_eq!(functions.len(), 3);
+        assert!(functions.contains(&"firstFunction".to_string()));
+        assert!(functions.contains(&"secondFunction".to_string()));
+        assert!(functions.contains(&"methodFunction".to_string()));
+    }
+
+    #[test]
+    fn test_list_functions_empty() {
+        let source = r#"
+int myGlobal = 42;
+class MyClass {};
+namespace MyNamespace {}
+"#;
+        let functions = list_functions(source);
+        assert_eq!(functions.len(), 0);
+    }
+}

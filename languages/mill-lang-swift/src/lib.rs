@@ -44,36 +44,15 @@ impl LanguagePlugin for SwiftPlugin {
     impl_language_plugin_basics!();
 
     async fn parse(&self, source: &str) -> PluginResult<ParsedSource> {
-        let symbols = constants::SYMBOL_REGEX
-            .captures_iter(source)
-            .map(|cap| {
-                let kind_str = &cap[1];
-                let name = &cap[2];
-                let kind = match kind_str {
-                    "func" => mill_plugin_api::SymbolKind::Function,
-                    "class" => mill_plugin_api::SymbolKind::Class,
-                    "struct" => mill_plugin_api::SymbolKind::Struct,
-                    "enum" => mill_plugin_api::SymbolKind::Enum,
-                    "protocol" => mill_plugin_api::SymbolKind::Interface,
-                    "extension" => mill_plugin_api::SymbolKind::Module,
-                    _ => mill_plugin_api::SymbolKind::Function,
-                };
-                let start = cap.get(0).map_or(0, |m| m.start());
-                let line = source[..start].lines().count();
-                let column = source[..start].lines().last().map_or(0, |l| l.len());
-
-                mill_plugin_api::Symbol {
-                    name: name.to_string(),
-                    kind,
-                    location: mill_plugin_api::SourceLocation { line, column },
-                    documentation: None,
-                }
-            })
-            .collect();
+        let symbols = extract_symbols(source);
         Ok(ParsedSource {
             data: serde_json::Value::Null,
             symbols,
         })
+    }
+
+    async fn list_functions(&self, source: &str) -> PluginResult<Vec<String>> {
+        Ok(list_functions(source))
     }
 
     async fn analyze_manifest(&self, path: &Path) -> PluginResult<ManifestData> {
@@ -419,6 +398,51 @@ impl mill_plugin_api::AnalysisMetadata for SwiftPlugin {
     fn nesting_penalty(&self) -> f32 {
         1.4
     }
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/// Extract symbols from Swift source code using regex
+fn extract_symbols(source: &str) -> Vec<mill_plugin_api::Symbol> {
+    constants::SYMBOL_REGEX
+        .captures_iter(source)
+        .map(|cap| {
+            let kind_str = &cap[1];
+            let name = &cap[2];
+            let kind = match kind_str {
+                "func" => mill_plugin_api::SymbolKind::Function,
+                "class" => mill_plugin_api::SymbolKind::Class,
+                "struct" => mill_plugin_api::SymbolKind::Struct,
+                "enum" => mill_plugin_api::SymbolKind::Enum,
+                "protocol" => mill_plugin_api::SymbolKind::Interface,
+                "extension" => mill_plugin_api::SymbolKind::Module,
+                _ => mill_plugin_api::SymbolKind::Function,
+            };
+            let start = cap.get(0).map_or(0, |m| m.start());
+            let line = source[..start].lines().count();
+            let column = source[..start].lines().last().map_or(0, |l| l.len());
+
+            mill_plugin_api::Symbol {
+                name: name.to_string(),
+                kind,
+                location: mill_plugin_api::SourceLocation { line, column },
+                documentation: None,
+            }
+        })
+        .collect()
+}
+
+/// List all function names in Swift source code
+///
+/// Extracts function names using regex pattern matching.
+fn list_functions(source: &str) -> Vec<String> {
+    extract_symbols(source)
+        .into_iter()
+        .filter(|s| s.kind == mill_plugin_api::SymbolKind::Function)
+        .map(|s| s.name)
+        .collect()
 }
 
 #[cfg(test)]
@@ -1583,5 +1607,36 @@ protocol DataSource {
 
         // Check nesting penalty
         assert_eq!(plugin.nesting_penalty(), 1.4);
+    }
+
+    #[test]
+    fn test_list_functions_multiple() {
+        let source = r#"
+func firstFunction() {
+    print("first")
+}
+
+func secondFunction() -> Int {
+    return 42
+}
+
+func thirdFunction() {}
+"#;
+        let result = list_functions(source);
+        assert_eq!(result.len(), 3);
+        assert!(result.contains(&"firstFunction".to_string()));
+        assert!(result.contains(&"secondFunction".to_string()));
+        assert!(result.contains(&"thirdFunction".to_string()));
+    }
+
+    #[test]
+    fn test_list_functions_empty() {
+        let source = r#"
+struct MyStruct {}
+class MyClass {}
+enum Status { case active }
+"#;
+        let result = list_functions(source);
+        assert_eq!(result.len(), 0);
     }
 }

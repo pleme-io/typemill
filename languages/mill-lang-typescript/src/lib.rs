@@ -71,6 +71,10 @@ impl LanguagePlugin for TypeScriptPlugin {
         parser::analyze_imports(source, file_path)
     }
 
+    async fn list_functions(&self, source: &str) -> PluginResult<Vec<String>> {
+        parser::list_functions(source)
+    }
+
     // Use macro to generate capability delegation methods
     impl_capability_delegations! {
         this => {

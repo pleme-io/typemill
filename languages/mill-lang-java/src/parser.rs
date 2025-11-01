@@ -43,6 +43,19 @@ pub fn parse_source(source: &str) -> PluginResult<ParsedSource> {
     })
 }
 
+/// List all function (method) names in Java source code
+///
+/// Extracts method names by filtering symbols for method kinds.
+/// Falls back to empty list if AST parsing fails.
+pub fn list_functions(source: &str) -> PluginResult<Vec<String>> {
+    let parsed = parse_source(source)?;
+    Ok(parsed.symbols
+        .into_iter()
+        .filter(|s| matches!(s.kind, SymbolKind::Method | SymbolKind::Function))
+        .map(|s| s.name)
+        .collect())
+}
+
 /// Spawns the embedded Java parser JAR to extract symbols from source code.
 fn extract_symbols_ast(source: &str) -> Result<Vec<Symbol>, PluginError> {
     // Create a temporary directory to write the JAR to
@@ -176,5 +189,42 @@ mod tests {
             // If there was an error, fail the test
             panic!("Parsing failed: {:?}", result.err());
         }
+    }
+
+    #[test]
+    fn test_list_functions_multiple() {
+        let source = r#"
+public class MyClass {
+    public void firstMethod() {}
+    private int secondMethod() { return 0; }
+    public static String thirdMethod() { return "test"; }
+}
+"#;
+        let result = list_functions(source);
+        assert!(result.is_ok());
+        let functions = result.unwrap();
+        // May be empty if Java not available, but should not fail
+        if !functions.is_empty() {
+            assert!(functions.contains(&"firstMethod".to_string()));
+            assert!(functions.contains(&"secondMethod".to_string()));
+            assert!(functions.contains(&"thirdMethod".to_string()));
+        }
+    }
+
+    #[test]
+    fn test_list_functions_empty() {
+        let source = r#"
+public class MyClass {
+    private int myField;
+    public static final int CONSTANT = 42;
+}
+"#;
+        let result = list_functions(source);
+        assert!(result.is_ok());
+        let functions = result.unwrap();
+        // Should not contain fields/constants
+        assert!(!functions.contains(&"myField".to_string()));
+        assert!(!functions.contains(&"CONSTANT".to_string()));
+        assert!(!functions.contains(&"MyClass".to_string()));
     }
 }

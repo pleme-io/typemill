@@ -60,6 +60,10 @@ impl LanguagePlugin for JavaPlugin {
         manifest::analyze_manifest(path).await
     }
 
+    async fn list_functions(&self, source: &str) -> PluginResult<Vec<String>> {
+        parser::list_functions(source)
+    }
+
     impl_capability_delegations! {
         import_support => {
             import_parser: ImportParser,

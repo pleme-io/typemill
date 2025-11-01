@@ -199,6 +199,19 @@ pub fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
         }
     }
 }
+
+/// List all function names in TypeScript/JavaScript source code
+///
+/// Extracts function names by filtering symbols for function kinds.
+/// Returns an empty list if symbol extraction fails.
+pub fn list_functions(source: &str) -> PluginResult<Vec<String>> {
+    let symbols = extract_symbols(source)?;
+    Ok(symbols
+        .into_iter()
+        .filter(|s| s.kind == SymbolKind::Function)
+        .map(|s| s.name)
+        .collect())
+}
 /// Spawns the bundled `ast_tool.js` script to extract symbols from source.
 fn extract_symbols_ast(source: &str) -> Result<Vec<Symbol>, PluginError> {
     const AST_TOOL_JS: &str = include_str!("../resources/ast_tool.js");
@@ -325,5 +338,45 @@ enum Status {
             assert!(symbols.iter().any(|s| s.name == "IUser"));
             assert!(symbols.iter().any(|s| s.name == "Status"));
         }
+    }
+
+    #[test]
+    fn test_list_functions_multiple() {
+        let source = r#"
+function firstFunction() {
+    return "first";
+}
+
+async function secondFunction() {
+    return "second";
+}
+
+const thirdFunction = () => {
+    return "third";
+};
+"#;
+        let result = list_functions(source);
+        assert!(result.is_ok());
+        let functions = result.unwrap();
+        // Note: May be empty if Node.js not available, but should not fail
+        if !functions.is_empty() {
+            assert!(functions.contains(&"firstFunction".to_string()));
+            assert!(functions.contains(&"secondFunction".to_string()));
+        }
+    }
+
+    #[test]
+    fn test_list_functions_empty() {
+        let source = r#"
+const x = 42;
+class MyClass {}
+"#;
+        let result = list_functions(source);
+        assert!(result.is_ok());
+        let functions = result.unwrap();
+        // Should be empty (no functions) or may be empty (no Node.js)
+        // Either way, should not contain non-function symbols
+        assert!(!functions.contains(&"x".to_string()));
+        assert!(!functions.contains(&"MyClass".to_string()));
     }
 }

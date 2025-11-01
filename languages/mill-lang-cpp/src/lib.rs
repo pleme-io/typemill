@@ -59,6 +59,10 @@ impl LanguagePlugin for CppPlugin {
         Ok(ast_parser::parse_source(source))
     }
 
+    async fn list_functions(&self, source: &str) -> PluginResult<Vec<String>> {
+        Ok(ast_parser::list_functions(source))
+    }
+
     async fn analyze_manifest(&self, path: &Path) -> PluginResult<ManifestData> {
         let filename = path.file_name().and_then(|s| s.to_str()).unwrap_or_default();
         if filename.starts_with("CMakeLists") {

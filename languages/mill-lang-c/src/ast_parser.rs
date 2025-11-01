@@ -23,6 +23,18 @@ pub fn parse_source(source: &str) -> ParsedSource {
     }
 }
 
+/// List all function names in C source code
+///
+/// Extracts function names using tree-sitter AST parsing.
+pub fn list_functions(source: &str) -> Vec<String> {
+    let parsed = parse_source(source);
+    parsed.symbols
+        .into_iter()
+        .filter(|s| s.kind == mill_plugin_api::SymbolKind::Function)
+        .map(|s| s.name)
+        .collect()
+}
+
 fn traverse_tree(tree: &Tree, symbols: &mut Vec<Symbol>, source: &str) {
     visit_node(&tree.root_node(), symbols, source);
 }
@@ -65,4 +77,41 @@ fn extract_function_symbol(node: &Node, source: &str) -> Option<Symbol> {
     }
 
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_list_functions_multiple() {
+        let source = r#"
+void firstFunction() {
+    printf("first");
+}
+
+int secondFunction(int x) {
+    return x * 2;
+}
+
+static void thirdFunction() {
+    // helper
+}
+"#;
+        let functions = list_functions(source);
+        assert_eq!(functions.len(), 3);
+        assert!(functions.contains(&"firstFunction".to_string()));
+        assert!(functions.contains(&"secondFunction".to_string()));
+        assert!(functions.contains(&"thirdFunction".to_string()));
+    }
+
+    #[test]
+    fn test_list_functions_empty() {
+        let source = r#"
+int myGlobal = 42;
+struct Point { int x; int y; };
+"#;
+        let functions = list_functions(source);
+        assert_eq!(functions.len(), 0);
+    }
 }
