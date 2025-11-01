@@ -15,10 +15,23 @@ pub mod parser;
 pub mod refactoring;
 pub mod transformer;
 
-pub use analyzer::*;
-pub use cache::*;
+// Analyzer
+pub use analyzer::plan_refactor;
+
+// Cache
+pub use cache::{AstCache, CacheKey, CacheSettings, CachedEntry};
+
+// Error types
 pub use error::{AstError, AstResult};
+
+// Import utilities
 pub use import_updater::{find_project_files, update_imports_for_rename, ImportPathResolver};
-pub use parser::*;
+
+// Parser
+pub use parser::{build_dependency_graph, build_import_graph, DependencyGraph};
+
+// Refactoring (keep comprehensive for now - large surface)
 pub use refactoring::*;
+
+// Transformer (keep comprehensive for now - large surface)
 pub use transformer::*;

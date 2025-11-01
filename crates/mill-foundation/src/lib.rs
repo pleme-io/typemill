@@ -21,5 +21,8 @@ pub mod protocol;
 pub mod validation;
 
 // Re-export commonly used types for convenience
+// Error types - keep wildcard for now (many types)
 pub use error::*;
+
+// Model types - keep wildcard for now (complex hierarchy)
 pub use model::*;
