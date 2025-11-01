@@ -12,7 +12,7 @@ use mill_client::format_plan;
 use mill_config::config::AppConfig;
 use mill_foundation::core::utils::system::command_exists;
 use mill_foundation::protocol::analysis_result::AnalysisResult;
-use mill_foundation::protocol::refactor_plan::RefactorPlan;
+use mill_foundation::planning::RefactorPlan;
 use mill_transport::SessionInfo;
 use std::fs::{File, OpenOptions};
 use std::path::PathBuf;

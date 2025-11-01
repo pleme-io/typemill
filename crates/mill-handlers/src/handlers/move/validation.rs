@@ -4,10 +4,8 @@
 //! for file, directory, and symbol moves.
 
 use lsp_types::{Uri, WorkspaceEdit};
-use mill_foundation::protocol::{
-    refactor_plan::{PlanSummary, PlanWarning},
-    ApiError as ServerError, ApiResult as ServerResult,
-};
+use mill_foundation::planning::{PlanSummary, PlanWarning};
+use mill_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;

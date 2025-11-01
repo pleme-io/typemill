@@ -9,10 +9,10 @@
 use crate::handlers::tools::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
-use mill_foundation::protocol::{
-    refactor_plan::{DeletePlan, DeletionTarget, PlanMetadata, PlanSummary, PlanWarning},
-    ApiError as ServerError, ApiResult as ServerResult, RefactorPlan,
+use mill_foundation::planning::{
+    DeletePlan, DeletionTarget, PlanMetadata, PlanSummary, PlanWarning, RefactorPlan,
 };
+use mill_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde::Deserialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};

@@ -4,10 +4,8 @@
 //! Falls back to AST-based approach when LSP is unavailable.
 
 use lsp_types::Position;
-use mill_foundation::protocol::{
-    refactor_plan::{MovePlan, PlanMetadata},
-    ApiError as ServerError, ApiResult as ServerResult,
-};
+use mill_foundation::planning::{MovePlan, PlanMetadata};
+use mill_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde_json::{json, Value};
 use std::path::Path;
 use tracing::{debug, error, info, warn};

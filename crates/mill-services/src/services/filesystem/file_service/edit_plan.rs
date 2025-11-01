@@ -1,7 +1,7 @@
 use super::FileService;
 use mill_foundation::protocol::{
     ApiError as ServerError, ApiResult as ServerResult, DependencyUpdate, EditPlan,
-    EditPlanMetadata, TextEdit,
+    EditPlanMetadata, EditPlanResult, TextEdit,
 };
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -11,18 +11,6 @@ use tracing::{debug, error, info, warn};
 // Import the transformer for delegating text edit application
 use mill_ast::transformer;
 
-/// Result of applying an edit plan
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct EditPlanResult {
-    /// Whether all edits were applied successfully
-    pub success: bool,
-    /// List of files that were modified
-    pub modified_files: Vec<String>,
-    /// Error messages if any edits failed
-    pub errors: Option<Vec<String>>,
-    /// Original plan metadata
-    pub plan_metadata: EditPlanMetadata,
-}
 
 impl FileService {
     /// Apply an edit plan to the filesystem atomically

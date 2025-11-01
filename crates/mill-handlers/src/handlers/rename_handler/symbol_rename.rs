@@ -1,10 +1,8 @@
 use super::{RenameHandler, RenameOptions, RenameTarget};
 use crate::handlers::tools::ToolHandlerContext;
 use lsp_types::WorkspaceEdit;
-use mill_foundation::protocol::{
-    refactor_plan::{PlanMetadata, RenamePlan},
-    ApiError as ServerError, ApiResult as ServerResult,
-};
+use mill_foundation::planning::{PlanMetadata, RenamePlan};
+use mill_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde_json::json;
 use std::path::Path;
 use tracing::{debug, error};

@@ -38,9 +38,8 @@ use crate::handlers::tools::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use lsp_types::Position;
 use mill_foundation::core::model::mcp::ToolCall;
-use mill_foundation::protocol::{
-    refactor_plan::MovePlan, ApiError as ServerError, ApiResult as ServerResult, RefactorPlan,
-};
+use mill_foundation::planning::{MovePlan, RefactorPlan};
+use mill_foundation::protocol::{ApiError as ServerError, ApiResult as ServerResult};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::path::Path;
