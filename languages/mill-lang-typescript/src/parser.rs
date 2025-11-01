@@ -21,7 +21,7 @@ pub fn analyze_imports(source: &str, file_path: Option<&Path>) -> PluginResult<I
 }
 /// TypeScript import information from AST tool
 #[derive(Debug, Deserialize)]
-struct TsImportInfo {
+pub(crate) struct TsImportInfo {
     module_path: String,
     import_type: String,
     named_imports: Vec<TsNamedImport>,
@@ -31,13 +31,13 @@ struct TsImportInfo {
     location: TsLocation,
 }
 #[derive(Debug, Deserialize)]
-struct TsNamedImport {
+pub(crate) struct TsNamedImport {
     name: String,
     alias: Option<String>,
     type_only: bool,
 }
 #[derive(Debug, Deserialize)]
-struct TsLocation {
+pub(crate) struct TsLocation {
     start_line: usize,
     start_column: usize,
     end_line: usize,
@@ -180,7 +180,7 @@ fn is_external_dependency(module_path: &str) -> bool {
 }
 /// TypeScript symbol information from AST tool
 #[derive(Debug, Deserialize)]
-struct TsSymbolInfo {
+pub(crate) struct TsSymbolInfo {
     name: String,
     kind: String,
     location: TsLocation,

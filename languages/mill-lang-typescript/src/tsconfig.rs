@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 
 /// Represents a parsed tsconfig.json file
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct TsConfig {
+pub(crate) struct TsConfig {
     /// Compiler options including path mappings
     #[serde(rename = "compilerOptions")]
     pub compiler_options: Option<CompilerOptions>,
@@ -18,7 +18,7 @@ pub struct TsConfig {
 
 /// TypeScript compiler options
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct CompilerOptions {
+pub(crate) struct CompilerOptions {
     /// Base URL for resolving non-relative module names
     #[serde(rename = "baseUrl")]
     pub base_url: Option<String>,
@@ -127,7 +127,7 @@ impl TsConfig {
 /// - Block comments: `/* comment */`
 /// - Multi-line block comments
 /// - Comments inside strings (preserved)
-fn strip_json_comments(content: &str) -> String {
+pub(crate) fn strip_json_comments(content: &str) -> String {
     let mut result = String::with_capacity(content.len());
     let mut chars = content.chars().peekable();
     let mut in_string = false;

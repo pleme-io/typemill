@@ -160,7 +160,7 @@ pub fn extract_python_functions(source: &str) -> PluginResult<Vec<PythonFunction
 }
 /// Python function representation
 #[derive(Debug, Clone)]
-pub struct PythonFunction {
+pub(crate) struct PythonFunction {
     pub name: String,
     pub start_line: u32,
     pub end_line: u32,
@@ -198,14 +198,14 @@ pub fn extract_python_variables(source: &str) -> PluginResult<Vec<PythonVariable
 }
 /// Python variable representation
 #[derive(Debug, Clone)]
-pub struct PythonVariable {
+pub(crate) struct PythonVariable {
     pub name: String,
     pub line: u32,
     pub value_type: PythonValueType,
     pub is_constant: bool,
 }
 #[derive(Debug, Clone, PartialEq)]
-pub enum PythonValueType {
+pub(crate) enum PythonValueType {
     String,
     Number,
     Boolean,
