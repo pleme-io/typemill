@@ -39,15 +39,19 @@ impl ModuleReferenceScanner for JavaModuleReferenceScanner {
             // Remove string literals to avoid false matches
             let line_no_strings = remove_string_literals(line);
 
+            // Track if this is an import line to avoid double-counting
+            let is_import_line = line_no_strings.trim().starts_with("import ");
+
             // Look for import statements
-            if line_no_strings.trim().starts_with("import ") {
+            if is_import_line {
                 if let Some(module_ref) = scan_import_statement(&line_no_strings, module_name, line_number) {
                     references.push(module_ref);
                 }
             }
 
             // Look for qualified paths in code (if scope allows)
-            if matches!(scope, ScanScope::QualifiedPaths | ScanScope::All) {
+            // Skip qualified path scanning for import lines to avoid duplicates
+            if !is_import_line && matches!(scope, ScanScope::QualifiedPaths | ScanScope::All) {
                 references.extend(scan_qualified_paths(&line_no_strings, module_name, line_number));
             }
         }
