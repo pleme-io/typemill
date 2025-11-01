@@ -4,6 +4,7 @@
 //! without actually modifying any files.
 
 use mill_foundation::protocol::{EditPlan, EditType};
+use mill_foundation::validation::ValidationResult;
 use serde::Serialize;
 use std::collections::HashSet;
 
@@ -99,17 +100,6 @@ pub struct DryRunResult {
     pub validation: Option<ValidationResult>,
     /// Whether rollback would be available (always false for dry runs)
     pub rollback_available: bool,
-}
-
-/// Placeholder for validation result (not used in dry runs)
-#[derive(Debug, Serialize)]
-pub struct ValidationResult {
-    pub passed: bool,
-    pub command: String,
-    pub exit_code: i32,
-    pub stdout: String,
-    pub stderr: String,
-    pub duration_ms: u64,
 }
 
 #[cfg(test)]

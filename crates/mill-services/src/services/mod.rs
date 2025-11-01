@@ -35,5 +35,5 @@ pub use move_service::MoveService;
 pub use operation_queue::{FileOperation, OperationQueue, OperationType, QueueStats};
 pub use plan_converter::PlanConverter;
 pub use plan_executor::{ExecutionOptions, ExecutionResult, PlanExecutor};
-pub use post_apply_validator::{PostApplyValidator, ValidationConfig, ValidationResult};
+pub use post_apply_validator::PostApplyValidator;
 pub use registry_builder::build_language_plugin_registry;

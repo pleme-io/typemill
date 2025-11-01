@@ -23,6 +23,7 @@ use crate::services::operation_queue::OperationQueue;
 use crate::services::reference_updater::ReferenceUpdater;
 use mill_ast::AstCache;
 use mill_config::config::AppConfig;
+use mill_foundation::validation::ValidationConfig;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tracing::debug;
@@ -49,7 +50,7 @@ pub struct FileService {
     /// Whether to use git for file operations
     pub(super) use_git: bool,
     /// Validation configuration
-    pub(super) validation_config: mill_config::config::ValidationConfig,
+    pub(super) validation_config: ValidationConfig,
 }
 
 impl FileService {

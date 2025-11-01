@@ -17,6 +17,7 @@ pub mod core;
 pub mod error;
 pub mod model;
 pub mod protocol;
+pub mod validation;
 
 // Re-export commonly used types for convenience
 pub use error::*;

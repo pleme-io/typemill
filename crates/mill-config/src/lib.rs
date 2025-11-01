@@ -12,6 +12,6 @@ pub use config::{
     AppConfig, AuthConfig, CacheConfig, ExternalMcpConfig, ExternalMcpServerConfig,
     ExternalPluginConfig, FileLoggingConfig, FuseConfig, GitConfig, LanguagePluginsConfig,
     LogFormat, LoggingConfig, LspConfig, LspServerConfig, PluginSelectionConfig, ServerConfig,
-    TlsConfig, ValidationConfig, ValidationFailureAction,
+    TlsConfig,
 };
 pub use refactor_config::{RefactorConfig, RefactorDefaults, RefactorPreset};

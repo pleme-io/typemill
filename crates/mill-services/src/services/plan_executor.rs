@@ -4,12 +4,11 @@
 //! for all refactoring handlers (rename, extract, inline, move, etc.)
 
 use crate::services::file_service::EditPlanResult;
-use crate::{
-    ChecksumValidator, PlanConverter, PostApplyValidator, ValidationConfig, ValidationResult,
-};
+use crate::{ChecksumValidator, PlanConverter, PostApplyValidator};
 use mill_foundation::protocol::{
     ApiError, ApiResult as ServerResult, EditPlan, EditType, RefactorPlan, RefactorPlanExt,
 };
+use mill_foundation::validation::{ValidationConfig, ValidationResult};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::{debug, error, info};

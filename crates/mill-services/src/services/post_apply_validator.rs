@@ -4,7 +4,7 @@
 //! a refactoring plan to verify the changes didn't break the codebase.
 
 use mill_foundation::protocol::{ApiError, ApiResult as ServerResult};
-use serde::{Deserialize, Serialize};
+use mill_foundation::validation::{ValidationConfig, ValidationResult};
 use std::time::Instant;
 use tokio::process::Command;
 use tracing::debug;
@@ -110,43 +110,6 @@ impl Default for PostApplyValidator {
     }
 }
 
-/// Configuration for post-apply validation
-#[derive(Debug, Clone, Deserialize)]
-pub struct ValidationConfig {
-    /// Command to run for validation (e.g., "cargo check --workspace")
-    pub command: String,
-    /// Timeout in seconds (default: 60)
-    #[serde(default = "default_timeout")]
-    pub timeout_seconds: u64,
-    /// Working directory for command execution (default: project root)
-    #[serde(default)]
-    pub working_dir: Option<String>,
-    /// Fail validation if stderr is non-empty (default: false, since many tools write warnings to stderr)
-    #[serde(default)]
-    pub fail_on_stderr: bool,
-}
-
-fn default_timeout() -> u64 {
-    60
-}
-
-/// Result of running a validation command
-#[derive(Debug, Clone, Serialize)]
-pub struct ValidationResult {
-    /// Whether validation passed
-    pub passed: bool,
-    /// Command that was executed
-    pub command: String,
-    /// Exit code from command
-    pub exit_code: i32,
-    /// Standard output from command
-    pub stdout: String,
-    /// Standard error from command
-    pub stderr: String,
-    /// Duration in milliseconds
-    pub duration_ms: u64,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -160,6 +123,7 @@ mod tests {
             timeout_seconds: 5,
             working_dir: None,
             fail_on_stderr: false,
+            ..Default::default()
         };
 
         let result = validator.run_validation(&config).await.unwrap();
@@ -183,6 +147,7 @@ mod tests {
             timeout_seconds: 5,
             working_dir: None,
             fail_on_stderr: false,
+            ..Default::default()
         };
 
         let result = validator.run_validation(&config).await.unwrap();
@@ -201,6 +166,7 @@ mod tests {
             timeout_seconds: 5,
             working_dir: None,
             fail_on_stderr: false,
+            ..Default::default()
         };
 
         let result = validator.run_validation(&config).await.unwrap();
@@ -212,6 +178,7 @@ mod tests {
             timeout_seconds: 5,
             working_dir: None,
             fail_on_stderr: true,
+            ..Default::default()
         };
 
         let result_strict = validator.run_validation(&config_strict).await.unwrap();
@@ -228,6 +195,7 @@ mod tests {
             timeout_seconds: 1, // Very short timeout
             working_dir: None,
             fail_on_stderr: false,
+            ..Default::default()
         };
 
         let result = validator.run_validation(&config).await;
@@ -246,6 +214,7 @@ mod tests {
             timeout_seconds: 5,
             working_dir: None,
             fail_on_stderr: false,
+            ..Default::default()
         };
 
         let result = validator.run_validation(&config).await.unwrap();
@@ -265,6 +234,7 @@ mod tests {
             timeout_seconds: 5,
             working_dir: None,
             fail_on_stderr: false,
+            ..Default::default()
         };
 
         let result = validator.run_validation(&config).await.unwrap();

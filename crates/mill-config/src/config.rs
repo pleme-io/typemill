@@ -1,6 +1,7 @@
 //! Configuration management for Codeflow Buddy
 
 use mill_foundation::error::{CoreError, CoreResult};
+use mill_foundation::validation::ValidationConfig;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -258,31 +259,6 @@ pub struct GitConfig {
     pub operations: Vec<String>,
 }
 
-/// Validation configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ValidationConfig {
-    /// Enable post-operation validation
-    pub enabled: bool,
-    /// Command to run for validation
-    pub command: String,
-    /// Action on failure
-    pub on_failure: ValidationFailureAction,
-}
-
-/// Action to take when validation fails
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
-#[serde(rename_all = "PascalCase")]
-pub enum ValidationFailureAction {
-    /// Just report the error
-    #[default]
-    Report,
-    /// Rollback the operation using git
-    Rollback,
-    /// Ask the user what to do
-    Interactive,
-}
-
 impl Default for ServerConfig {
     fn default() -> Self {
         Self {
@@ -371,16 +347,6 @@ impl Default for GitConfig {
             enabled: true,
             require: false,
             operations: vec!["mv".to_string(), "rm".to_string()],
-        }
-    }
-}
-
-impl Default for ValidationConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            command: "cargo check".to_string(),
-            on_failure: ValidationFailureAction::Report,
         }
     }
 }
