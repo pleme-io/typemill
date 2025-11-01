@@ -222,7 +222,7 @@ impl ModuleReferenceScanner for CPlugin {
     fn scan_references(
         &self,
         content: &str,
-        _module_name: &str,
+        module_name: &str,
         scope: ScanScope,
     ) -> PluginResult<Vec<ModuleReference>> {
         let mut references = Vec::new();
@@ -233,13 +233,18 @@ impl ModuleReferenceScanner for CPlugin {
             }
 
             for cap in INCLUDE_PATTERN.captures_iter(line) {
-                references.push(ModuleReference {
-                    text: cap.get(2).unwrap().as_str().to_string(),
-                    line: i + 1,
-                    column: cap.get(2).unwrap().start(),
-                    length: cap.get(2).unwrap().as_str().len(),
-                    kind: ReferenceKind::Declaration,
-                });
+                let header_name = cap.get(2).unwrap().as_str();
+
+                // Filter by module_name if provided
+                if module_name.is_empty() || header_name.contains(module_name) {
+                    references.push(ModuleReference {
+                        text: header_name.to_string(),
+                        line: i + 1,
+                        column: cap.get(2).unwrap().start(),
+                        length: header_name.len(),
+                        kind: ReferenceKind::Declaration,
+                    });
+                }
             }
         }
 

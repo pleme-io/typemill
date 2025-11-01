@@ -349,6 +349,18 @@ public class Main {
         let scanner = plugin.module_reference_scanner().expect("Should have scanner");
         let content = "import java.util.List;\r\nimport java.util.Map;\nimport java.io.File;";
         let refs = scanner.scan_references(content, "java.util", ScanScope::All).expect("Should scan");
+
+        // Debug output
+        eprintln!("\n=== DEBUG: Java mixed line endings test ===");
+        eprintln!("Content bytes: {:?}", content.as_bytes());
+        eprintln!("Searching for: 'java.util'");
+        eprintln!("Number of references found: {}", refs.len());
+        for (i, r) in refs.iter().enumerate() {
+            eprintln!("  Ref {}: text={:?}, line={}, column={}, length={}, kind={:?}",
+                i, r.text, r.line, r.column, r.length, r.kind);
+        }
+        eprintln!("=== END DEBUG ===\n");
+
         assert_eq!(refs.len(), 2);
     }
 

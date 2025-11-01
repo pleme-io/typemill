@@ -109,6 +109,17 @@ void тестфункция() {
         let scanner = plugin.module_reference_scanner().expect("Should have scanner");
         let content = "#include <stdio.h>\r\n#include <stdlib.h>\n#include <string.h>";
         let refs = scanner.scan_references(content, "stdio", ScanScope::All).expect("Should scan");
+
+        // Debug output
+        eprintln!("\n=== DEBUG: Mixed line endings test ===");
+        eprintln!("Content bytes: {:?}", content.as_bytes());
+        eprintln!("Number of references found: {}", refs.len());
+        for (i, r) in refs.iter().enumerate() {
+            eprintln!("  Ref {}: text={:?}, line={}, column={}, length={}",
+                i, r.text, r.line, r.column, r.length);
+        }
+        eprintln!("=== END DEBUG ===\n");
+
         assert_eq!(refs.len(), 1);
     }
 
