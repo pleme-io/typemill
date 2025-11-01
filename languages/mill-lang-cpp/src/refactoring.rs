@@ -227,6 +227,7 @@ fn plan_extract_variable_impl(
     // Find a statement to insert before
     let insertion_node = find_ancestor_of_kind(selected_node, "expression_statement")
         .or_else(|| find_ancestor_of_kind(selected_node, "declaration"))
+        .or_else(|| find_ancestor_of_kind(selected_node, "return_statement"))
         .ok_or_else(|| "Could not find statement to insert before".to_string())?;
 
     let indent = get_indentation(source, insertion_node.start_position().row);
@@ -477,8 +478,10 @@ fn find_variable_references(
 mod tests {
     use super::*;
 
+    // ========== Extract Function Tests (5 tests) ==========
+
     #[test]
-    fn test_extract_cpp_function() {
+    fn test_extract_cpp_function_simple_statement() {
         let source = r#"
 void main() {
     int x = 10;
@@ -502,7 +505,90 @@ void main() {
     }
 
     #[test]
-    fn test_extract_cpp_variable() {
+    fn test_extract_cpp_function_multiple_statements() {
+        let source = r#"
+int calculate() {
+    int a = 5;
+    int b = 10;
+    int sum = a + b;
+    return sum;
+}
+"#;
+        let range = CodeRange {
+            start_line: 3,
+            start_col: 4,
+            end_line: 5,
+            end_col: 19,
+        };
+        let plan = plan_extract_function_impl(source, &range, "compute_sum", "calc.cpp").unwrap();
+        assert_eq!(plan.edits.len(), 2);
+        assert!(plan.edits[0].new_text.contains("void compute_sum()"));
+        assert_eq!(plan.edits[1].new_text, "compute_sum();");
+    }
+
+    #[test]
+    fn test_extract_cpp_function_with_return() {
+        let source = r#"
+int getValue() {
+    int x = 42;
+    return x;
+}
+"#;
+        let range = CodeRange {
+            start_line: 3,
+            start_col: 4,
+            end_line: 4,
+            end_col: 13,
+        };
+        let plan = plan_extract_function_impl(source, &range, "helper", "test.cpp").unwrap();
+        assert_eq!(plan.edits.len(), 2);
+        assert!(plan.edits[0].new_text.contains("void helper()"));
+    }
+
+    #[test]
+    fn test_extract_cpp_function_single_expression() {
+        let source = r#"
+void process() {
+    std::cout << "Processing" << std::endl;
+}
+"#;
+        let range = CodeRange {
+            start_line: 3,
+            start_col: 4,
+            end_line: 3,
+            end_col: 44,
+        };
+        let plan = plan_extract_function_impl(source, &range, "log_message", "process.cpp").unwrap();
+        assert_eq!(plan.edits.len(), 2);
+        assert!(plan.edits[0].new_text.contains("void log_message()"));
+        assert_eq!(plan.edits[1].new_text, "log_message();");
+    }
+
+    #[test]
+    fn test_extract_cpp_function_nested_scope() {
+        let source = r#"
+void outer() {
+    if (true) {
+        int x = 1;
+        std::cout << x;
+    }
+}
+"#;
+        let range = CodeRange {
+            start_line: 4,
+            start_col: 8,
+            end_line: 5,
+            end_col: 23,
+        };
+        let plan = plan_extract_function_impl(source, &range, "inner_logic", "nested.cpp").unwrap();
+        assert_eq!(plan.edits.len(), 2);
+        assert!(plan.edits[0].new_text.contains("void inner_logic()"));
+    }
+
+    // ========== Extract Variable Tests (5 tests) ==========
+
+    #[test]
+    fn test_extract_cpp_variable_arithmetic() {
         let source = r#"
 int main() {
     int x = 10 + 20;
@@ -522,7 +608,68 @@ int main() {
     }
 
     #[test]
-    fn test_inline_cpp_variable() {
+    fn test_extract_cpp_variable_function_call() {
+        let source = r#"
+int calculate() {
+    return getValue() + 10;
+}
+"#;
+        let plan =
+            plan_extract_variable_impl(source, 3, 11, 3, 21, Some("val".to_string()), "calc.cpp")
+                .unwrap();
+        assert_eq!(plan.edits.len(), 2);
+        assert!(plan.edits[0].new_text.contains("auto val = getValue();"));
+        assert_eq!(plan.edits[1].new_text, "val");
+    }
+
+    #[test]
+    fn test_extract_cpp_variable_auto_type() {
+        let source = r#"
+void process() {
+    std::cout << std::string("hello");
+}
+"#;
+        let plan =
+            plan_extract_variable_impl(source, 3, 17, 3, 36, Some("msg".to_string()), "proc.cpp")
+                .unwrap();
+        assert_eq!(plan.edits.len(), 2);
+        assert!(plan.edits[0].new_text.contains("auto msg = std::string(\"hello\");"));
+    }
+
+    #[test]
+    fn test_extract_cpp_variable_complex_expression() {
+        let source = r#"
+int compute() {
+    int result = (x * 2) + (y * 3);
+    return result;
+}
+"#;
+        let plan =
+            plan_extract_variable_impl(source, 3, 18, 3, 31, Some("doubled".to_string()), "comp.cpp")
+                .unwrap();
+        assert_eq!(plan.edits.len(), 2);
+        assert!(plan.edits[0].new_text.contains("auto doubled = (x * 2) + (y * 3);"));
+    }
+
+    #[test]
+    fn test_extract_cpp_variable_default_name() {
+        let source = r#"
+int main() {
+    int x = 5 * 3;
+    return x;
+}
+"#;
+        let plan =
+            plan_extract_variable_impl(source, 3, 12, 3, 17, None, "main.cpp")
+                .unwrap();
+        assert_eq!(plan.edits.len(), 2);
+        assert!(plan.edits[0].new_text.contains("auto extracted = 5 * 3;"));
+    }
+
+    // ========== Inline Variable Tests (5 tests) ==========
+
+    #[test]
+    fn test_inline_cpp_variable_simple() {
         let source = r#"
 int main() {
     int greeting = 42;
@@ -550,5 +697,123 @@ int main() {
             .find(|e| e.edit_type == EditType::Delete)
             .unwrap();
         assert!(delete_edit.original_text.contains("int greeting"));
+    }
+
+    #[test]
+    fn test_inline_cpp_variable_single_usage() {
+        let source = r#"
+int calculate() {
+    int temp = 100;
+    return temp;
+}
+"#;
+        let plan = plan_inline_variable_impl(source, 3, 8, "calc.cpp").unwrap();
+        assert!(plan.edits.len() >= 1);
+
+        // Should have delete edit for declaration
+        let delete_edit = plan.edits.iter().find(|e| e.edit_type == EditType::Delete);
+        assert!(delete_edit.is_some());
+    }
+
+    #[test]
+    fn test_inline_cpp_variable_const() {
+        let source = r#"
+void process() {
+    const int MAX = 100;
+    if (value < MAX) {
+        std::cout << MAX;
+    }
+}
+"#;
+        let plan = plan_inline_variable_impl(source, 3, 14, "proc.cpp").unwrap();
+        assert!(plan.edits.len() >= 2);
+
+        // Check for replacement edits
+        let replace_edits: Vec<_> = plan.edits.iter()
+            .filter(|e| e.edit_type == EditType::Replace)
+            .collect();
+        assert!(!replace_edits.is_empty());
+    }
+
+    #[test]
+    fn test_inline_cpp_variable_expression() {
+        let source = r#"
+int compute() {
+    int doubled = x * 2;
+    int result = doubled + 10;
+    return result;
+}
+"#;
+        let plan = plan_inline_variable_impl(source, 3, 8, "comp.cpp").unwrap();
+        assert!(plan.edits.len() >= 1);
+
+        // Verify declaration is removed
+        let delete_edit = plan.edits.iter()
+            .find(|e| e.edit_type == EditType::Delete);
+        assert!(delete_edit.is_some());
+    }
+
+    #[test]
+    fn test_inline_cpp_variable_multiple_refs() {
+        let source = r#"
+void display() {
+    int count = 5;
+    std::cout << count;
+    std::cout << count;
+    std::cout << count;
+}
+"#;
+        let plan = plan_inline_variable_impl(source, 3, 8, "display.cpp").unwrap();
+
+        // Should have 3 replace edits + 1 delete edit = 4 total
+        assert!(plan.edits.len() >= 3);
+
+        let replace_edits: Vec<_> = plan.edits.iter()
+            .filter(|e| e.edit_type == EditType::Replace)
+            .collect();
+        assert!(replace_edits.len() >= 2);
+    }
+
+    // ========== Error Handling Tests (3 tests) ==========
+
+    #[test]
+    fn test_extract_function_invalid_range() {
+        let source = r#"
+int main() {
+    return 0;
+}
+"#;
+        let range = CodeRange {
+            start_line: 10,  // Invalid line number
+            start_col: 0,
+            end_line: 15,
+            end_col: 0,
+        };
+        let result = plan_extract_function_impl(source, &range, "invalid", "test.cpp");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_extract_variable_no_expression() {
+        let source = r#"
+int main() {
+    return 0;
+}
+"#;
+        // Try to extract from whitespace
+        let result = plan_extract_variable_impl(source, 2, 0, 2, 3, Some("var".to_string()), "test.cpp");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_inline_variable_not_found() {
+        let source = r#"
+int main() {
+    return 0;
+}
+"#;
+        // Try to inline non-existent variable
+        let result = plan_inline_variable_impl(source, 3, 5, "test.cpp");
+        assert!(result.is_err());
     }
 }

@@ -331,8 +331,9 @@ async fn test_refactoring_extract_variable() {
     let plugin = CppPlugin::default();
     let refactoring_provider = plugin.refactoring_provider().unwrap();
     let source = "int main() {\n  int x = 1 + 2;\n  return x;\n}";
-    let plan = refactoring_provider.plan_extract_variable(source, 1, 10, 1, 15, Some("y".to_string()), "dummy.cpp").await;
-    assert!(plan.is_ok());
+    // Extract "1 + 2" from line 2, columns 10-15 (1-indexed)
+    let plan = refactoring_provider.plan_extract_variable(source, 2, 10, 2, 15, Some("y".to_string()), "dummy.cpp").await;
+    assert!(plan.is_ok(), "Failed to create extract variable plan");
     let unwrapped_plan = plan.unwrap();
     assert!(!unwrapped_plan.edits.is_empty());
     assert!(unwrapped_plan.edits.iter().any(|e| e.new_text.contains("auto y = 1 + 2;")));

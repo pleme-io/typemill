@@ -1,4 +1,4 @@
-use mill_plugin_api::{capabilities::ManifestUpdater, Dependency, PluginResult};
+use mill_plugin_api::{capabilities::ManifestUpdater, PluginResult};
 use async_trait::async_trait;
 use std::path::Path;
 use regex::Regex;
