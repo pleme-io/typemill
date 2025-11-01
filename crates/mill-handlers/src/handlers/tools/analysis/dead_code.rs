@@ -56,7 +56,7 @@ use tracing::debug;
 /// - Metrics including imported symbols
 /// - Suggestion to remove the import
 use super::config::AnalysisConfig;
-pub fn detect_unused_imports(
+pub(crate) fn detect_unused_imports(
     _complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
     _symbols: &[mill_plugin_api::Symbol],
@@ -276,7 +276,7 @@ pub fn detect_unused_imports(
 /// - Location with function name and range
 /// - Metrics including symbol type
 /// - Suggestions to remove or make private
-pub fn detect_unused_symbols(
+pub(crate) fn detect_unused_symbols(
     complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
     _symbols: &[mill_plugin_api::Symbol],
@@ -415,7 +415,7 @@ pub fn detect_unused_symbols(
 /// - Location with line number and range
 /// - Metrics including lines unreachable and terminator statement
 /// - Suggestion to remove the unreachable code
-pub fn detect_unreachable_code(
+pub(crate) fn detect_unreachable_code(
     _complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
     _symbols: &[mill_plugin_api::Symbol],
@@ -599,7 +599,7 @@ pub fn detect_unreachable_code(
 /// - Location with function line and range
 /// - Metrics including parameter name and function name
 /// - Suggestion to remove the parameter (requires review)
-pub fn detect_unused_parameters(
+pub(crate) fn detect_unused_parameters(
     complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
     _symbols: &[mill_plugin_api::Symbol],
@@ -780,7 +780,7 @@ pub fn detect_unused_parameters(
 /// - Location with type line
 /// - Metrics including type name and kind
 /// - Suggestion to remove the type (requires review)
-pub fn detect_unused_types(
+pub(crate) fn detect_unused_types(
     _complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
     symbols: &[mill_plugin_api::Symbol],
@@ -906,7 +906,7 @@ pub fn detect_unused_types(
 /// - Location with variable declaration line
 /// - Metrics including variable name and scope
 /// - Suggestion to remove the variable
-pub fn detect_unused_variables(
+pub(crate) fn detect_unused_variables(
     complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
     _symbols: &[mill_plugin_api::Symbol],

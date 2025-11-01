@@ -267,7 +267,7 @@ impl From<ConfigError> for figment::Error {
 
 // --- Preset Definitions ---
 
-pub fn get_default_preset() -> AnalysisConfig {
+pub(crate) fn get_default_preset() -> AnalysisConfig {
     AnalysisConfig {
         preset: Some("default".to_string()),
         suggestions: SuggestionConfig {
@@ -291,7 +291,7 @@ pub fn get_default_preset() -> AnalysisConfig {
     }
 }
 
-pub fn get_strict_preset() -> AnalysisConfig {
+pub(crate) fn get_strict_preset() -> AnalysisConfig {
     AnalysisConfig {
         preset: Some("strict".to_string()),
         suggestions: SuggestionConfig {
@@ -315,7 +315,7 @@ pub fn get_strict_preset() -> AnalysisConfig {
     }
 }
 
-pub fn get_relaxed_preset() -> AnalysisConfig {
+pub(crate) fn get_relaxed_preset() -> AnalysisConfig {
     AnalysisConfig {
         preset: Some("relaxed".to_string()),
         suggestions: SuggestionConfig {
@@ -339,7 +339,7 @@ pub fn get_relaxed_preset() -> AnalysisConfig {
     }
 }
 
-pub fn get_ci_preset() -> AnalysisConfig {
+pub(crate) fn get_ci_preset() -> AnalysisConfig {
     AnalysisConfig {
         preset: Some("ci".to_string()),
         suggestions: SuggestionConfig {

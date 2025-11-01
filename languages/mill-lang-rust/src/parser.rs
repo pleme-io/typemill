@@ -453,7 +453,7 @@ fn build_new_use_tree(segments: &[&str], remainder: &UseTree) -> Option<UseTree>
 }
 /// Analyzes Rust source code to produce an import graph.
 /// Uses native syn AST parsing (no subprocess required).
-pub fn analyze_imports(
+pub(crate) fn analyze_imports(
     source: &str,
     file_path: Option<&std::path::Path>,
 ) -> PluginResult<ImportGraph> {

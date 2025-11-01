@@ -8,7 +8,7 @@ use std::path::Path;
 
 /// Analyzes Go source code to produce an import graph.
 /// It attempts to use an AST-based approach first, falling back to regex on failure.
-pub fn analyze_imports(source: &str, file_path: Option<&Path>) -> PluginResult<ImportGraph> {
+pub(crate) fn analyze_imports(source: &str, file_path: Option<&Path>) -> PluginResult<ImportGraph> {
     let imports = parse_with_fallback(
         || parse_go_imports_ast(source),
         || parse_go_imports_regex(source),
@@ -225,7 +225,7 @@ struct GoLocation {
 
 /// Extract symbols from Go source code using AST-based parsing.
 /// Falls back to empty list if Go is not available.
-pub fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
+pub(crate) fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
     parse_with_fallback(
         || extract_symbols_ast(source),
         || Ok(Vec::new()),
@@ -237,7 +237,7 @@ pub fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
 ///
 /// Extracts function names by filtering symbols for function kinds.
 /// Returns an empty list if symbol extraction fails.
-pub fn list_functions(source: &str) -> PluginResult<Vec<String>> {
+pub(crate) fn list_functions(source: &str) -> PluginResult<Vec<String>> {
     let symbols = extract_symbols(source)?;
     Ok(symbols
         .into_iter()

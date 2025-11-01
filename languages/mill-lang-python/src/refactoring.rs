@@ -37,7 +37,7 @@ impl From<mill_plugin_api::PluginError> for RefactoringError {
     }
 }
 /// Analyze code selection for function extraction (Python)
-pub fn analyze_extract_function(
+pub(crate) fn analyze_extract_function(
     source: &str,
     range: &CodeRange,
     _file_path: &str,
@@ -90,7 +90,7 @@ pub fn analyze_extract_function(
     })
 }
 /// Analyze variable declaration for inlining (Python)
-pub fn analyze_inline_variable(
+pub(crate) fn analyze_inline_variable(
     source: &str,
     variable_line: u32,
     variable_col: u32,
@@ -143,7 +143,7 @@ pub fn analyze_inline_variable(
     }
 }
 /// Analyze a selected expression for extraction into a variable (Python)
-pub fn analyze_extract_variable(
+pub(crate) fn analyze_extract_variable(
     source: &str,
     start_line: u32,
     start_col: u32,
@@ -191,7 +191,7 @@ pub fn analyze_extract_variable(
     })
 }
 /// Generate edit plan for extract function refactoring (Python)
-pub fn plan_extract_function(
+pub(crate) fn plan_extract_function(
     source: &str,
     range: &CodeRange,
     new_function_name: &str,
@@ -241,7 +241,7 @@ pub fn plan_extract_function(
     })
 }
 /// Generate edit plan for inline variable refactoring (Python)
-pub fn plan_inline_variable(
+pub(crate) fn plan_inline_variable(
     source: &str,
     variable_line: u32,
     variable_col: u32,
@@ -312,7 +312,7 @@ pub fn plan_inline_variable(
     })
 }
 /// Generate edit plan for extract variable refactoring (Python)
-pub fn plan_extract_variable(
+pub(crate) fn plan_extract_variable(
     source: &str,
     start_line: u32,
     start_col: u32,

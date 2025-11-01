@@ -267,7 +267,7 @@ fn parse_imports_simple(content: &str) -> Vec<String> {
 /// # Returns
 ///
 /// A tuple of (updated_content, number_of_changes)
-pub fn rewrite_imports_for_move_with_context(
+pub(crate) fn rewrite_imports_for_move_with_context(
     content: &str,
     old_path: &Path,
     new_path: &Path,

@@ -62,7 +62,7 @@ use tracing::debug;
 /// - Low severity (informational)
 /// - No suggestions (structural information only)
 use super::config::AnalysisConfig;
-pub fn detect_symbols(
+pub(crate) fn detect_symbols(
     _complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
     symbols: &[Symbol],
@@ -158,7 +158,7 @@ pub fn detect_symbols(
 /// - Metrics including max_depth, total_classes, hierarchy_tree
 /// - Medium severity if depth > 5
 /// - Suggestions to flatten hierarchy if too deep
-pub fn detect_hierarchy(
+pub(crate) fn detect_hierarchy(
     _complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
     symbols: &[Symbol],
@@ -312,7 +312,7 @@ pub fn detect_hierarchy(
 /// - Metrics including interface_count, methods_per_interface, fat_interfaces
 /// - Medium severity if fat interfaces found
 /// - Suggestions to split fat interfaces (ISP)
-pub fn detect_interfaces(
+pub(crate) fn detect_interfaces(
     _complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
     symbols: &[Symbol],
@@ -466,7 +466,7 @@ pub fn detect_interfaces(
 /// - Metrics including max_inheritance_depth, classes_by_depth, inheritance_chains
 /// - High severity if depth > 4 (fragile base class)
 /// - Suggestions to prefer composition over deep inheritance
-pub fn detect_inheritance(
+pub(crate) fn detect_inheritance(
     _complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
     symbols: &[Symbol],
@@ -613,7 +613,7 @@ pub fn detect_inheritance(
 /// - Metrics including module_count, items_per_module, god_modules, orphaned_items
 /// - Medium severity if god modules or many orphaned items
 /// - Suggestions to split large modules or organize orphaned items
-pub fn detect_modules(
+pub(crate) fn detect_modules(
     complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
     symbols: &[Symbol],

@@ -88,7 +88,7 @@ pub trait MarkdownFixer: Send + Sync {
 /// -old line
 /// +new line
 /// ```
-pub fn generate_unified_diff(
+pub(crate) fn generate_unified_diff(
     file_path: &str,
     old_content: &str,
     new_content: &str,
@@ -189,7 +189,7 @@ pub fn generate_unified_diff(
 /// Apply edits to content
 /// Bug 3 fix: Apply edits to progressively updated buffer to avoid losing edits
 /// Uses byte offsets to preserve trailing newlines and blank lines
-pub fn apply_edits(content: &str, edits: &[TextEdit]) -> String {
+pub(crate) fn apply_edits(content: &str, edits: &[TextEdit]) -> String {
     if edits.is_empty() {
         return content.to_string();
     }

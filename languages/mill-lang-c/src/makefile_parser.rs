@@ -3,7 +3,7 @@ use regex::Regex;
 use std::fs;
 use std::path::Path;
 
-pub fn analyze_makefile_manifest(path: &Path) -> PluginResult<ManifestData> {
+pub(crate) fn analyze_makefile_manifest(path: &Path) -> PluginResult<ManifestData> {
     let content = fs::read_to_string(path).unwrap_or_default();
 
     let name = extract_var(&content, "TARGET").unwrap_or_default();

@@ -232,7 +232,7 @@ fn update_dependency_in_pom(
 }
 
 /// Add a dependency to pom.xml content
-pub fn add_dependency_to_pom(
+pub(crate) fn add_dependency_to_pom(
     content: &str,
     group_id: &str,
     artifact_id: &str,

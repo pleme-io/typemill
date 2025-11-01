@@ -802,7 +802,7 @@ impl QualityHandler {
 }
 
 /// Detect code smells in a file
-pub fn detect_smells(
+pub(crate) fn detect_smells(
     complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
     _symbols: &[mill_plugin_api::Symbol],
@@ -1044,7 +1044,7 @@ fn detect_magic_numbers_for_smells(content: &str, file_path: &str, language: &st
 }
 
 /// Analyze readability issues in functions
-pub fn analyze_readability(
+pub(crate) fn analyze_readability(
     complexity_report: &mill_ast::complexity::ComplexityReport,
     _content: &str,
     _symbols: &[mill_plugin_api::Symbol],
@@ -1348,7 +1348,7 @@ fn generate_quality_refactoring_candidates(
 }
 
 /// Analyze overall maintainability metrics for a file or workspace
-pub fn analyze_maintainability(
+pub(crate) fn analyze_maintainability(
     complexity_report: &mill_ast::complexity::ComplexityReport,
     _content: &str,
     _symbols: &[mill_plugin_api::Symbol],

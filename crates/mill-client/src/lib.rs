@@ -534,7 +534,7 @@ pub async fn run_cli() -> ClientResult<()> {
 }
 
 /// Convenience function to create a client config from args
-pub fn create_client_config_from_args(
+pub(crate) fn create_client_config_from_args(
     url: Option<String>,
     token: Option<String>,
     timeout: Option<u64>,
@@ -556,7 +556,7 @@ pub fn create_client_config_from_args(
 }
 
 /// Get version information
-pub fn version_info() -> String {
+pub(crate) fn version_info() -> String {
     format!(
         "{} {} ({})",
         env!("CARGO_PKG_NAME"),
@@ -566,7 +566,7 @@ pub fn version_info() -> String {
 }
 
 /// Check if running in a terminal (for color/emoji detection)
-pub fn is_terminal() -> bool {
+pub(crate) fn is_terminal() -> bool {
     use std::io::IsTerminal;
     std::io::stdout().is_terminal()
 }

@@ -72,7 +72,7 @@ use mill_foundation::protocol::analysis_result::AnalysisResult;
 /// - Metrics including source_module, imported_symbols, import_category, import_type
 /// - Low severity (informational only)
 use super::config::AnalysisConfig;
-pub fn detect_imports(
+pub(crate) fn detect_imports(
     _complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
     _symbols: &[mill_plugin_api::Symbol],
@@ -219,7 +219,7 @@ pub fn detect_imports(
 /// - Graph structure metrics (direct/indirect dependencies, fan-in/out)
 /// - Info severity (architectural information)
 /// - No suggestions (informational only)
-pub fn detect_graph(
+pub(crate) fn detect_graph(
     _complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
     _symbols: &[mill_plugin_api::Symbol],
@@ -316,7 +316,7 @@ pub fn detect_graph(
 /// - Metrics including cycle_length and cycle_path array
 /// - High severity (architectural smell)
 /// - Suggestion to refactor and break cycle
-pub fn detect_circular(
+pub(crate) fn detect_circular(
     _complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
     _symbols: &[mill_plugin_api::Symbol],
@@ -433,7 +433,7 @@ pub fn detect_circular(
 /// - Metrics including afferent_coupling, efferent_coupling, instability
 /// - Medium severity if high coupling detected
 /// - Suggestion to reduce coupling via interfaces or dependency injection
-pub fn detect_coupling(
+pub(crate) fn detect_coupling(
     _complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
     _symbols: &[mill_plugin_api::Symbol],
@@ -559,7 +559,7 @@ pub fn detect_coupling(
 /// - Metrics including lcom_score, functions_analyzed, shared_data_ratio
 /// - Medium severity if low cohesion detected
 /// - Suggestion to split module or refactor for better cohesion
-pub fn detect_cohesion(
+pub(crate) fn detect_cohesion(
     complexity_report: &mill_ast::complexity::ComplexityReport,
     _content: &str,
     _symbols: &[mill_plugin_api::Symbol],
@@ -688,7 +688,7 @@ pub fn detect_cohesion(
 /// - Metrics including max_depth and dependency_chain array
 /// - Medium severity if depth excessive (> 5)
 /// - Suggestion to flatten dependency tree or refactor architecture
-pub fn detect_depth(
+pub(crate) fn detect_depth(
     _complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
     _symbols: &[mill_plugin_api::Symbol],

@@ -357,22 +357,22 @@ impl Interactive {
 }
 
 /// Create a default interactive instance
-pub fn interactive() -> Interactive {
+pub(crate) fn interactive() -> Interactive {
     Interactive::new()
 }
 
 /// Convenience function to get user confirmation
-pub fn confirm(prompt: &str) -> ClientResult<bool> {
+pub(crate) fn confirm(prompt: &str) -> ClientResult<bool> {
     interactive().confirm(prompt, None)
 }
 
 /// Convenience function to get user input
-pub fn input(prompt: &str) -> ClientResult<String> {
+pub(crate) fn input(prompt: &str) -> ClientResult<String> {
     interactive().required_input(prompt, None)
 }
 
 /// Convenience function to get user selection
-pub fn select(prompt: &str, options: &[&str]) -> ClientResult<usize> {
+pub(crate) fn select(prompt: &str, options: &[&str]) -> ClientResult<usize> {
     interactive().select(prompt, options, None)
 }
 

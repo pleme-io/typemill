@@ -66,7 +66,7 @@ use tracing::debug;
 /// - Severity: High if ratio < 0.5, Medium if < 0.8, Low otherwise
 /// - Suggestions to add tests for untested functions
 use super::config::AnalysisConfig;
-pub fn detect_coverage(
+pub(crate) fn detect_coverage(
     complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
     symbols: &[Symbol],
@@ -218,7 +218,7 @@ fn generate_test_refactoring_candidates(finding: &Finding) -> Result<Vec<Refacto
 /// - Metrics including test_smells_count, naming_violations, slow_tests_estimated
 /// - Severity: Medium if test smells found
 /// - Suggestions to refactor test smells, improve test naming
-pub fn detect_quality(
+pub(crate) fn detect_quality(
     complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
     symbols: &[Symbol],
@@ -401,7 +401,7 @@ pub fn detect_quality(
 /// - Metrics including avg_assertions_per_test, tests_without_assertions, assertion_types
 /// - Severity: Medium if tests lack assertions or have too many
 /// - Suggestions to add assertions, split complex tests
-pub fn detect_assertions(
+pub(crate) fn detect_assertions(
     _complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
     symbols: &[Symbol],
@@ -600,7 +600,7 @@ pub fn detect_assertions(
 /// - Metrics including test_files_count, orphaned_tests, missing_test_files, organization_score
 /// - Severity: Medium if poor organization
 /// - Suggestions to organize tests, add missing test files
-pub fn detect_organization(
+pub(crate) fn detect_organization(
     complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
     symbols: &[Symbol],

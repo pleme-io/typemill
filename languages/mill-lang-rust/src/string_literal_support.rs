@@ -54,7 +54,7 @@ fn is_path_like(s: &str) -> bool {
 /// assert_eq!(count, 1);
 /// assert!(result.contains("\"tests/fixtures/test.rs\""));
 /// ```
-pub fn rewrite_string_literals(
+pub(crate) fn rewrite_string_literals(
     source: &str,
     old_path: &Path,
     new_path: &Path,

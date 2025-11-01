@@ -6,7 +6,7 @@ use serde_json::Value;
 /// Represents a high-level user or AI goal.
 /// This is the primary input to the workflow engine.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct Intent {
+pub struct Intent {
     /// The unique name of the intent, e.g., "refactor.renameSymbol".
     pub name: String,
     /// A flexible JSON object containing the parameters for the intent.
@@ -15,7 +15,7 @@ pub(crate) struct Intent {
 
 /// Metadata about a workflow's characteristics and complexity.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct WorkflowMetadata {
+pub struct WorkflowMetadata {
     /// Complexity score based on the number of steps.
     pub complexity: usize,
 }
@@ -23,7 +23,7 @@ pub(crate) struct WorkflowMetadata {
 /// Represents a concrete, multi-step plan to fulfill an Intent.
 /// This is the primary output of the Planner service.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct Workflow {
+pub struct Workflow {
     /// A descriptive name for the workflow, derived from the intent.
     pub name: String,
     /// The ordered sequence of steps to be executed.
@@ -35,7 +35,7 @@ pub(crate) struct Workflow {
 /// Represents a single, atomic action within a Workflow.
 /// Each step corresponds to a call to a specific tool.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct Step {
+pub struct Step {
     /// The name of the tool to be called for this step (e.g., "find_references").
     pub tool: String,
     /// The JSON parameters to be passed to the tool.

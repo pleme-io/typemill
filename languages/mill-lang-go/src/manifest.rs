@@ -44,7 +44,7 @@ struct GoExclude {
 }
 
 /// Parse a go.mod file and extract manifest information
-pub fn parse_go_mod(content: &str) -> PluginResult<ManifestData> {
+pub(crate) fn parse_go_mod(content: &str) -> PluginResult<ManifestData> {
     debug!("Parsing go.mod content");
     let go_mod = parse_go_mod_internal(content)?;
     let mut dependencies = Vec::new();
@@ -311,7 +311,7 @@ fn apply_replacement(dependencies: &mut [Dependency], replace: &GoReplace) {
 }
 
 /// Generate a new go.mod file
-pub fn generate_manifest(module_name: &str, go_version: &str) -> String {
+pub(crate) fn generate_manifest(module_name: &str, go_version: &str) -> String {
     format!("module {}\n\ngo {}\n", module_name, go_version)
 }
 
@@ -322,7 +322,7 @@ pub async fn load_go_mod(path: &Path) -> PluginResult<ManifestData> {
 }
 
 /// Update a dependency in a go.mod file
-pub fn update_dependency(
+pub(crate) fn update_dependency(
     content: &str,
     old_name: &str,
     new_name: &str,

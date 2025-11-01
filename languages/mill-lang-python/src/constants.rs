@@ -76,7 +76,7 @@ pub static VARIABLE_PATTERN: Lazy<Regex> = Lazy::new(|| {
 ///
 /// # Returns
 /// Regex pattern matching qualified references to the module
-pub fn qualified_path_pattern(module_name: &str) -> Regex {
+pub(crate) fn qualified_path_pattern(module_name: &str) -> Regex {
     let pattern = format!(r"\b{}\.[\w.]+", regex::escape(module_name));
     Regex::new(&pattern).unwrap_or_else(|_| {
         // Fallback for invalid regex

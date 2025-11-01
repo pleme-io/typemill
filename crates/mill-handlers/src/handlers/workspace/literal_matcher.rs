@@ -104,7 +104,7 @@ fn byte_offset_to_line_column(content: &str, byte_offset: usize) -> (u32, u32) {
 /// assert_eq!(matches[0].line, 1);
 /// assert_eq!(matches[0].column, 1);
 /// ```
-pub(crate) fn find_literal_matches(content: &str, pattern: &str, whole_word: bool) -> Vec<Match> {
+pub fn find_literal_matches(content: &str, pattern: &str, whole_word: bool) -> Vec<Match> {
     // Empty pattern returns no matches
     if pattern.is_empty() {
         return Vec::new();

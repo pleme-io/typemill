@@ -27,7 +27,7 @@ use tracing::debug;
 /// # Returns
 ///
 /// LSP WorkspaceEdit ready for execution
-pub fn editplan_to_workspace_edit(
+pub(crate) fn editplan_to_workspace_edit(
     edit_plan: &EditPlan,
     old_abs: &Path,
     new_abs: &Path,

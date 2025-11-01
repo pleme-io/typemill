@@ -32,7 +32,7 @@ fn get_language() -> tree_sitter::Language {
 /// # Panics
 ///
 /// Panics if the tree-sitter C grammar fails to load or parsing fails
-pub fn parse_source(source: &str) -> ParsedSource {
+pub(crate) fn parse_source(source: &str) -> ParsedSource {
     let mut parser = Parser::new();
     parser
         .set_language(&get_language())
@@ -50,7 +50,7 @@ pub fn parse_source(source: &str) -> ParsedSource {
 /// List all function names in C source code
 ///
 /// Extracts function names using tree-sitter AST parsing.
-pub fn list_functions(source: &str) -> Vec<String> {
+pub(crate) fn list_functions(source: &str) -> Vec<String> {
     let parsed = parse_source(source);
     parsed.symbols
         .into_iter()

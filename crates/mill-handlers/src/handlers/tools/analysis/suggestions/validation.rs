@@ -3,7 +3,7 @@ use mill_foundation::protocol::analysis_result::{RefactorCall, SafetyLevel, Sugg
 use serde_json::Value;
 
 /// Validates that a suggestion has all required metadata
-pub fn validate_suggestion(suggestion: &Suggestion) -> Result<()> {
+pub(crate) fn validate_suggestion(suggestion: &Suggestion) -> Result<()> {
     // Check required fields
     if suggestion.description.is_empty() {
         bail!("Suggestion missing description");

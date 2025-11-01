@@ -142,7 +142,7 @@ pub struct RefactorCall {
 /// Summary statistics for an analysis
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct AnalysisSummary {
+pub struct AnalysisSummary {
     /// Total findings available (may be more than returned)
     pub total_findings: usize,
     /// Number of findings returned in this response
@@ -166,7 +166,7 @@ pub(crate) struct AnalysisSummary {
 /// Summary of auto-fix actions applied or previewed
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct FixActions {
+pub struct FixActions {
     /// Whether this was a preview (dry-run) only
     pub preview_only: bool,
     /// Whether fixes were actually applied
@@ -186,7 +186,7 @@ pub(crate) struct FixActions {
 /// Breakdown of findings by severity
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct SeverityBreakdown {
+pub struct SeverityBreakdown {
     pub high: usize,
     pub medium: usize,
     pub low: usize,
@@ -195,7 +195,7 @@ pub(crate) struct SeverityBreakdown {
 /// Metadata about the analysis execution
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct AnalysisMetadata {
+pub struct AnalysisMetadata {
     /// Analysis category (e.g., "quality", "dead_code")
     pub category: String,
     /// Analysis kind (e.g., "complexity", "smells")
@@ -215,7 +215,7 @@ pub(crate) struct AnalysisMetadata {
 /// Scope specification for analysis
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct AnalysisScope {
+pub struct AnalysisScope {
     /// Scope type (workspace, directory, file, symbol)
     #[serde(rename = "type")]
     pub scope_type: String,

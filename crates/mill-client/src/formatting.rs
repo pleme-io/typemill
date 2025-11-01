@@ -617,31 +617,31 @@ pub fn format_plan(plan: &RefactorPlan) -> String {
 }
 
 /// Convenience functions for common formatting
-pub fn format_success(message: &str) -> String {
+pub(crate) fn format_success(message: &str) -> String {
     Formatter::default().success(message)
 }
 
-pub fn format_error(message: &str) -> String {
+pub(crate) fn format_error(message: &str) -> String {
     Formatter::default().error(message)
 }
 
-pub fn format_warning(message: &str) -> String {
+pub(crate) fn format_warning(message: &str) -> String {
     Formatter::default().warning(message)
 }
 
-pub fn format_info(message: &str) -> String {
+pub(crate) fn format_info(message: &str) -> String {
     Formatter::default().info(message)
 }
 
-pub fn format_json(value: &Value) -> Result<String, ClientError> {
+pub(crate) fn format_json(value: &Value) -> Result<String, ClientError> {
     Formatter::default().json(value)
 }
 
-pub fn format_mcp_response(response: &MCPResponse) -> Result<String, ClientError> {
+pub(crate) fn format_mcp_response(response: &MCPResponse) -> Result<String, ClientError> {
     Formatter::default().mcp_response(response)
 }
 
-pub fn format_client_error(error: &ClientError) -> String {
+pub(crate) fn format_client_error(error: &ClientError) -> String {
     Formatter::default().client_error(error)
 }
 

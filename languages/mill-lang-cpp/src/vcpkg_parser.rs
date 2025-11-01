@@ -1,7 +1,7 @@
 use mill_plugin_api::{Dependency, DependencySource, ManifestData, PluginResult};
 use serde_json::Value;
 
-pub fn analyze_vcpkg_manifest(content: &str) -> PluginResult<ManifestData> {
+pub(crate) fn analyze_vcpkg_manifest(content: &str) -> PluginResult<ManifestData> {
     let v: Value = serde_json::from_str(content)
         .map_err(|e| mill_plugin_api::PluginError::manifest(format!("Failed to parse vcpkg.json: {}", e)))?;
 

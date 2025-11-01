@@ -20,7 +20,7 @@ use std::path::Path;
 use tracing::debug;
 /// List all function names in Python source code using Python's native AST parser.
 /// This function spawns a Python subprocess to perform the parsing.
-pub fn list_functions(source: &str) -> PluginResult<Vec<String>> {
+pub(crate) fn list_functions(source: &str) -> PluginResult<Vec<String>> {
     const AST_TOOL_PY: &str = include_str!("../resources/ast_tool.py");
     let tool = SubprocessAstTool::new("python3")
         .with_embedded_str(AST_TOOL_PY)
@@ -30,7 +30,7 @@ pub fn list_functions(source: &str) -> PluginResult<Vec<String>> {
 }
 /// Analyze Python imports and produce an import graph.
 /// Uses dual-mode parsing: Python AST parser with regex fallback.
-pub fn analyze_imports(source: &str, file_path: Option<&Path>) -> PluginResult<ImportGraph> {
+pub(crate) fn analyze_imports(source: &str, file_path: Option<&Path>) -> PluginResult<ImportGraph> {
     let imports = parse_with_fallback(
         || parse_python_imports(source),
         || Ok(Vec::new()),
@@ -47,7 +47,7 @@ pub fn analyze_imports(source: &str, file_path: Option<&Path>) -> PluginResult<I
 ///
 /// Supports both `import` and `from...import` statements with aliases.
 /// This is a fast, reliable parser for common import patterns.
-pub fn parse_python_imports(source: &str) -> PluginResult<Vec<ImportInfo>> {
+pub(crate) fn parse_python_imports(source: &str) -> PluginResult<Vec<ImportInfo>> {
     let mut imports = Vec::new();
     for (line_num, line) in source.lines().enumerate() {
         let line = line.trim();
@@ -117,7 +117,7 @@ fn parse_import_names(imports_str: &str) -> Vec<NamedImport> {
         .collect()
 }
 /// Extract Python function definitions with metadata
-pub fn extract_python_functions(source: &str) -> PluginResult<Vec<PythonFunction>> {
+pub(crate) fn extract_python_functions(source: &str) -> PluginResult<Vec<PythonFunction>> {
     let mut functions = Vec::new();
     let func_re = Regex::new(r"^(\s*)(async\s+)?def\s+(\w+)\s*\(([^)]*)\)\s*:")
         .expect("Python function regex pattern should be valid");
@@ -170,7 +170,7 @@ pub(crate) struct PythonFunction {
     pub decorators: Vec<String>,
 }
 /// Extract Python variable assignments
-pub fn extract_python_variables(source: &str) -> PluginResult<Vec<PythonVariable>> {
+pub(crate) fn extract_python_variables(source: &str) -> PluginResult<Vec<PythonVariable>> {
     let mut variables = Vec::new();
     let assign_re = Regex::new(r"^(\s*)(\w+)\s*=\s*(.+)")
         .expect("Python variable assignment regex pattern should be valid");
@@ -244,7 +244,7 @@ fn infer_python_value_type(value: &str) -> PythonValueType {
     }
 }
 /// Extract symbols from Python source code for code intelligence
-pub fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
+pub(crate) fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
     let mut symbols = Vec::new();
     let functions = extract_python_functions(source)?;
     for func in functions {
@@ -296,7 +296,7 @@ pub fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
     Ok(symbols)
 }
 /// Find the end line of a Python function
-pub fn find_python_function_end(source: &str, function_start_line: u32) -> PluginResult<u32> {
+pub(crate) fn find_python_function_end(source: &str, function_start_line: u32) -> PluginResult<u32> {
     let lines: Vec<&str> = source.lines().collect();
     let start_line = function_start_line as usize;
     if start_line >= lines.len() {
@@ -323,7 +323,7 @@ pub fn find_python_function_end(source: &str, function_start_line: u32) -> Plugi
     Ok(lines.len() as u32 - 1)
 }
 /// Get indentation level at specific line
-pub fn get_python_indentation_at_line(source: &str, line: u32) -> u32 {
+pub(crate) fn get_python_indentation_at_line(source: &str, line: u32) -> u32 {
     let lines: Vec<&str> = source.lines().collect();
     if let Some(line_text) = lines.get(line as usize) {
         line_text.chars().take_while(|c| c.is_whitespace()).count() as u32
@@ -332,7 +332,7 @@ pub fn get_python_indentation_at_line(source: &str, line: u32) -> u32 {
     }
 }
 /// Analyze a selected Python expression range
-pub fn analyze_python_expression_range(
+pub(crate) fn analyze_python_expression_range(
     source: &str,
     start_line: u32,
     start_col: u32,
@@ -364,7 +364,7 @@ pub fn analyze_python_expression_range(
     }
 }
 /// Find variable declaration at specific position
-pub fn find_variable_at_position(
+pub(crate) fn find_variable_at_position(
     source: &str,
     line: u32,
     col: u32,
@@ -387,7 +387,7 @@ pub fn find_variable_at_position(
     Ok(None)
 }
 /// Get all usages of a variable within scope
-pub fn get_variable_usages_in_scope(
+pub(crate) fn get_variable_usages_in_scope(
     source: &str,
     variable_name: &str,
     from_line: u32,
@@ -427,7 +427,7 @@ pub fn get_variable_usages_in_scope(
     Ok(usages)
 }
 /// Find variables in scope for a given line
-pub fn find_python_scope_variables(
+pub(crate) fn find_python_scope_variables(
     source: &str,
     target_line: u32,
 ) -> PluginResult<Vec<PythonVariable>> {

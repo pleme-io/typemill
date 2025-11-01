@@ -185,7 +185,7 @@ pub static QUALIFIED_NAME_PATTERN: Lazy<Regex> = Lazy::new(|| {
 /// Get all test annotation patterns
 ///
 /// Returns a vector of regex patterns for identifying test methods
-pub fn test_patterns() -> Vec<Regex> {
+pub(crate) fn test_patterns() -> Vec<Regex> {
     vec![
         TEST_ANNOTATION.clone(),
         PARAMETERIZED_TEST_ANNOTATION.clone(),
@@ -196,7 +196,7 @@ pub fn test_patterns() -> Vec<Regex> {
 /// Get all assertion patterns
 ///
 /// Returns a vector of regex patterns for identifying assertions
-pub fn assertion_patterns() -> Vec<Regex> {
+pub(crate) fn assertion_patterns() -> Vec<Regex> {
     vec![
         ASSERT_KEYWORD.clone(),
         ASSERT_EQUALS.clone(),

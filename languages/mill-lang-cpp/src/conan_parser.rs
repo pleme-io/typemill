@@ -3,7 +3,7 @@ use regex::Regex;
 use serde_json::json;
 use std::path::Path;
 
-pub fn analyze_conan_manifest(path: &Path) -> PluginResult<ManifestData> {
+pub(crate) fn analyze_conan_manifest(path: &Path) -> PluginResult<ManifestData> {
     let content = std::fs::read_to_string(path)
         .map_err(|e| mill_plugin_api::PluginError::manifest(format!("Failed to read manifest: {}", e)))?;
 

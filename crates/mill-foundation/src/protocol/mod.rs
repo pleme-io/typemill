@@ -20,7 +20,7 @@ use std::path::Path;
 /// Generic message type for protocol communication
 /// This will be mapped to specific protocol types (MCP, LSP) in other crates
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct Message {
+pub struct Message {
     pub id: Option<String>,
     pub method: String,
     pub params: serde_json::Value,
@@ -214,7 +214,7 @@ pub trait MessageDispatcher: Send + Sync {
 
 /// Parameters for rename_directory operation
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct RenameDirectoryParams {
+pub struct RenameDirectoryParams {
     /// Old directory path
     pub old_path: std::path::PathBuf,
     /// New directory path

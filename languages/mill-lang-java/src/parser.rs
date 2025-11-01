@@ -24,7 +24,7 @@ struct JavaSymbolInfo {
 }
 
 /// Parse Java source code and extract symbols using the subprocess-based AST parser.
-pub fn parse_source(source: &str) -> PluginResult<ParsedSource> {
+pub(crate) fn parse_source(source: &str) -> PluginResult<ParsedSource> {
     // Attempt to extract symbols using the AST-based tool.
     // If it fails (e.g., Java runtime not found), gracefully fall back to an empty list.
     let symbols = match extract_symbols_ast(source) {
@@ -47,7 +47,7 @@ pub fn parse_source(source: &str) -> PluginResult<ParsedSource> {
 ///
 /// Extracts method names by filtering symbols for method kinds.
 /// Falls back to empty list if AST parsing fails.
-pub fn list_functions(source: &str) -> PluginResult<Vec<String>> {
+pub(crate) fn list_functions(source: &str) -> PluginResult<Vec<String>> {
     let parsed = parse_source(source)?;
     Ok(parsed.symbols
         .into_iter()

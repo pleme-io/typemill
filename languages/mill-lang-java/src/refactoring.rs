@@ -46,7 +46,7 @@ pub enum RefactoringError {
 pub type RefactoringResult<T> = Result<T, RefactoringError>;
 
 /// Generate edit plan for extract function refactoring
-pub fn plan_extract_function(
+pub(crate) fn plan_extract_function(
     source: &str,
     range: &CodeRange,
     function_name: &str,
@@ -116,7 +116,7 @@ pub fn plan_extract_function(
 }
 
 /// Generate edit plan for extract variable refactoring
-pub fn plan_extract_variable(
+pub(crate) fn plan_extract_variable(
     source: &str,
     start_line: u32,
     start_col: u32,
@@ -201,7 +201,7 @@ pub fn plan_extract_variable(
 }
 
 /// Generate edit plan for inline variable refactoring
-pub fn plan_inline_variable(
+pub(crate) fn plan_inline_variable(
     source: &str,
     variable_line: u32,
     variable_col: u32,

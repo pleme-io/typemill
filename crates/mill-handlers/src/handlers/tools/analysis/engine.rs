@@ -91,7 +91,7 @@ pub struct ScopeParam {
 ///
 /// # Returns
 /// A `ServerResult` containing the parsed `ScopeParam` or an error
-pub fn parse_scope_param(args: &Value) -> ServerResult<ScopeParam> {
+pub(crate) fn parse_scope_param(args: &Value) -> ServerResult<ScopeParam> {
     if let Some(scope_value) = args.get("scope") {
         serde_json::from_value(scope_value.clone())
             .map_err(|e| ServerError::InvalidRequest(format!("Invalid scope: {}", e)))
@@ -117,7 +117,7 @@ pub fn parse_scope_param(args: &Value) -> ServerResult<ScopeParam> {
 ///
 /// # Returns
 /// A `ServerResult` containing the file path string or an error if no path found
-pub fn extract_file_path(args: &Value, scope_param: &ScopeParam) -> ServerResult<String> {
+pub(crate) fn extract_file_path(args: &Value, scope_param: &ScopeParam) -> ServerResult<String> {
     scope_param
         .path
         .clone()
