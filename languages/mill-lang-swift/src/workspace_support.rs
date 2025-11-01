@@ -30,7 +30,9 @@ impl WorkspaceSupport for SwiftWorkspaceSupport {
 
     fn update_package_name(&self, content: &str, new_name: &str) -> String {
         PKG_NAME_REGEX
-            .replace(content, format!(r#"$1{}"#, new_name))
+            .replace_all(content, |caps: &regex::Captures| {
+                format!(r#"{}{}""#, &caps[1], new_name)
+            })
             .to_string()
     }
 
