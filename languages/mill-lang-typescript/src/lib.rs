@@ -319,26 +319,55 @@ impl TypeScriptPlugin {
         manifest::generate_manifest(package_name, dependencies)
     }
 
-    /// Find module references (minimal implementation for compatibility)
+    /// Find module references (supports both import statements and qualified paths)
     pub fn find_module_references(
         &self,
         content: &str,
         module_to_find: &str,
-        _scope: mill_plugin_api::ScanScope,
+        scope: mill_plugin_api::ScanScope,
     ) -> Vec<mill_plugin_api::ModuleReference> {
-        use mill_plugin_api::{ModuleReference, ReferenceKind};
+        use mill_plugin_api::{ModuleReference, ReferenceKind, ScanScope};
         let mut references = Vec::new();
+
         for (line_num, line) in content.lines().enumerate() {
-            if (line.contains("import") || line.contains("from")) && line.contains(module_to_find) {
-                references.push(ModuleReference {
-                    line: line_num + 1,
-                    column: 0,
-                    length: line.len(),
-                    text: line.to_string(),
-                    kind: ReferenceKind::Declaration,
-                });
+            let line_idx = line_num + 1;
+
+            // Find import statements: "import ... from 'module'" or "import module"
+            if scope != ScanScope::QualifiedPaths {
+                if (line.contains("import") || line.contains("from")) && line.contains(module_to_find) {
+                    references.push(ModuleReference {
+                        line: line_idx,
+                        column: 0,
+                        length: line.len(),
+                        text: line.to_string(),
+                        kind: ReferenceKind::Declaration,
+                    });
+                }
+            }
+
+            // Find qualified paths: "module.function()"
+            if scope == ScanScope::QualifiedPaths || scope == ScanScope::All {
+                let pattern = format!("{}.", module_to_find);
+                for (idx, _) in line.match_indices(&pattern) {
+                    // Skip if this is inside a string (simple heuristic)
+                    let before = &line[..idx];
+                    let in_single_quote = before.matches('\'').count() % 2 == 1;
+                    let in_double_quote = before.matches('"').count() % 2 == 1;
+                    let in_template = before.matches('`').count() % 2 == 1;
+
+                    if !in_single_quote && !in_double_quote && !in_template {
+                        references.push(ModuleReference {
+                            line: line_idx,
+                            column: idx,
+                            length: module_to_find.len(),
+                            text: module_to_find.to_string(),
+                            kind: ReferenceKind::QualifiedPath,
+                        });
+                    }
+                }
             }
         }
+
         references
     }
 
