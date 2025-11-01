@@ -126,7 +126,7 @@ pub fn find_circular_dependencies(
 }
 
 /// Constructs the chain of imports that form a cycle.
-fn build_import_chain(
+pub(crate) fn build_import_chain(
     dep_graph: &DependencyGraph,
     scc: &[NodeId],
     cycle_nodes: &HashSet<NodeId>,

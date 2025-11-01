@@ -2,7 +2,7 @@ use super::{CodeRange, ExtractableFunction};
 use crate::error::{AstError, AstResult};
 
 /// Detect file language from file path
-pub fn detect_language(file_path: &str) -> &str {
+pub(crate) fn detect_language(file_path: &str) -> &str {
     if file_path.ends_with(".ts") || file_path.ends_with(".tsx") {
         "typescript"
     } else if file_path.ends_with(".js") || file_path.ends_with(".jsx") {
@@ -25,7 +25,7 @@ pub fn detect_language(file_path: &str) -> &str {
 }
 
 /// Helper functions
-pub fn extract_range_text(source: &str, range: &CodeRange) -> AstResult<String> {
+pub(crate) fn extract_range_text(source: &str, range: &CodeRange) -> AstResult<String> {
     let lines: Vec<&str> = source.lines().collect();
 
     if range.start_line == range.end_line {

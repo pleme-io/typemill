@@ -10,7 +10,7 @@
 use std::path::{Path, PathBuf};
 
 /// Filter files by supported language extensions
-pub fn filter_analyzable_files(
+pub(crate) fn filter_analyzable_files(
     files: &[String],
     base_path: &Path,
     supported_extensions: &[String],
@@ -48,7 +48,7 @@ pub fn filter_analyzable_files(
 /// let avg = weighted_average(values.into_iter());
 /// assert!(avg > 0.0);
 /// ```
-pub fn weighted_average<I>(values: I) -> f64
+pub(crate) fn weighted_average<I>(values: I) -> f64
 where
     I: Iterator<Item = (f64, usize)>,
 {
@@ -69,7 +69,7 @@ where
 
 /// Aggregate statistics helper
 #[derive(Debug, Clone, Default)]
-pub struct AggregateStats {
+pub(crate) struct AggregateStats {
     pub count: usize,
     pub sum: f64,
     pub min: Option<f64>,

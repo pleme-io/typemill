@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use std::path::Path;
 use tracing::info;
 
-pub struct DeadCodeFinder<'a> {
+pub(crate) struct DeadCodeFinder<'a> {
     graph: &'a DependencyGraph,
 }
 

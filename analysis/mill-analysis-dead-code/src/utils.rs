@@ -1,7 +1,7 @@
 // analysis/mill-analysis-dead-code/src/utils.rs
 
 /// Convert LSP SymbolKind number to human-readable string
-pub fn lsp_kind_to_string(kind: u64) -> String {
+pub(crate) fn lsp_kind_to_string(kind: u64) -> String {
     match kind {
         1 => "file",
         2 => "module",
@@ -35,7 +35,7 @@ pub fn lsp_kind_to_string(kind: u64) -> String {
 }
 
 /// Convert string symbol kind name to LSP SymbolKind number
-pub fn parse_symbol_kind(kind_str: &str) -> Option<u64> {
+pub(crate) fn parse_symbol_kind(kind_str: &str) -> Option<u64> {
     match kind_str.to_lowercase().as_str() {
         "file" | "files" => Some(1),
         "module" | "modules" => Some(2),
@@ -68,7 +68,7 @@ pub fn parse_symbol_kind(kind_str: &str) -> Option<u64> {
 }
 
 /// Check if a symbol appears to be exported based on heuristic analysis.
-pub fn is_symbol_exported(file_path: &str, line: u32) -> bool {
+pub(crate) fn is_symbol_exported(file_path: &str, line: u32) -> bool {
     use std::fs::File;
     use std::io::{BufRead, BufReader};
 

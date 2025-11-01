@@ -62,7 +62,7 @@ impl std::error::Error for RegexError {}
 ///
 /// Returns `RegexError::InvalidPattern` if the regex syntax is invalid.
 /// Returns `RegexError::InvalidReplacement` if the replacement template is malformed.
-pub fn find_regex_matches(
+pub(crate) fn find_regex_matches(
     content: &str,
     pattern: &str,
     replacement_template: &str,

@@ -10,7 +10,7 @@ use std::path::Path;
 use tracing::{debug, warn};
 
 /// Extracts symbols from a given TypeScript/JavaScript source file using an AST parser.
-pub struct TypeScriptSymbolExtractor;
+pub(crate) struct TypeScriptSymbolExtractor;
 
 impl TypeScriptSymbolExtractor {
     /// Creates a new `TypeScriptSymbolExtractor`.

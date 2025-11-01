@@ -17,7 +17,7 @@ use tracing::{debug, info, warn};
 /// Analyze workspace for dead code using a reference counting approach.
 ///
 /// This is the main entry point for the dead code analysis engine.
-pub async fn run_analysis(
+pub(crate) async fn run_analysis(
     lsp: Arc<dyn LspProvider>,
     workspace_path: &Path,
     config: &DeadCodeConfig,

@@ -14,7 +14,7 @@ use syn::{File, Item, Visibility};
 use tracing::{debug, warn};
 
 /// Extracts symbols from a given Rust source file using an AST parser.
-pub struct RustSymbolExtractor;
+pub(crate) struct RustSymbolExtractor;
 
 impl RustSymbolExtractor {
     /// Creates a new `SymbolExtractor`.

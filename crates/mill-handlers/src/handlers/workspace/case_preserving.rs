@@ -99,7 +99,7 @@ fn case_style_cache() -> &'static DashMap<String, CaseStyle> {
 /// assert_eq!(detect_case_style("user-name"), CaseStyle::Kebab);
 /// assert_eq!(detect_case_style("XMLHttpRequest"), CaseStyle::Mixed);
 /// ```
-pub fn detect_case_style(text: &str) -> CaseStyle {
+pub(crate) fn detect_case_style(text: &str) -> CaseStyle {
     // Check cache first
     if let Some(cached) = case_style_cache().get(text) {
         return *cached;
@@ -256,7 +256,7 @@ fn split_on_uppercase_boundaries(text: &str) -> Vec<String> {
 /// assert_eq!(apply_case_style("account_id", CaseStyle::ScreamingSnake), "ACCOUNT_ID");
 /// assert_eq!(apply_case_style("account_id", CaseStyle::Kebab), "account-id");
 /// ```
-pub fn apply_case_style(text: &str, style: CaseStyle) -> String {
+pub(crate) fn apply_case_style(text: &str, style: CaseStyle) -> String {
     if text.is_empty() {
         return String::new();
     }
@@ -306,7 +306,7 @@ pub fn apply_case_style(text: &str, style: CaseStyle) -> String {
 /// assert_eq!(split_into_words("user-name"), vec!["user", "name"]);
 /// assert_eq!(split_into_words("user2Name"), vec!["user2", "name"]);
 /// ```
-pub fn split_into_words(text: &str) -> Vec<String> {
+pub(crate) fn split_into_words(text: &str) -> Vec<String> {
     if text.is_empty() {
         return vec![];
     }
@@ -450,7 +450,7 @@ fn capitalize_first(s: &str) -> String {
 /// assert_eq!(replace_preserving_case("UserName", "AccountId"), "AccountId");
 /// assert_eq!(replace_preserving_case("USER_NAME", "ACCOUNT_ID"), "ACCOUNT_ID");
 /// ```
-pub fn replace_preserving_case(matched: &str, replacement: &str) -> String {
+pub(crate) fn replace_preserving_case(matched: &str, replacement: &str) -> String {
     let style = detect_case_style(matched);
     apply_case_style(replacement, style)
 }

@@ -132,7 +132,7 @@ pub struct PluginSelectionConfig {
     pub error_on_ambiguity: bool,
 }
 
-fn default_error_on_ambiguity() -> bool {
+pub(crate) fn default_error_on_ambiguity() -> bool {
     false
 }
 

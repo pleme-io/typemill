@@ -13,7 +13,7 @@ use std::sync::Arc;
 use tracing::{debug, info, warn};
 use walkdir::WalkDir;
 
-pub struct GraphBuilder {
+pub(crate) struct GraphBuilder {
     lsp: Arc<dyn LspProvider>,
     workspace_path: PathBuf,
     rust_symbol_extractor: RustSymbolExtractor,
