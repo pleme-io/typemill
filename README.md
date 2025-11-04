@@ -105,12 +105,19 @@ mill tool workspace.find_replace --pattern "oldName" --replacement "newName"
 
 ## 🌐 Language Support
 
-| Language | Extensions | LSP Server | Refactoring |
-|----------|-----------|------------|-------------|
-| TypeScript/JavaScript | ts, tsx, js, jsx | typescript-language-server | Full ✅ |
-| Rust | rs | rust-analyzer | Full ✅ |
+| Language | Extensions | LSP Server | Refactoring | Runtime Required |
+|----------|-----------|------------|-------------|------------------|
+| TypeScript/JavaScript | ts, tsx, js, jsx | typescript-language-server | Full ✅ | Node.js |
+| Rust | rs | rust-analyzer | Full ✅ | - |
+| Python | py | python-lsp-server (pylsp) | Full ✅ | Python 3 |
+| Java | java | jdtls (Eclipse JDT LS) | Full ✅ | **Java 11+** |
+| Go | go | gopls | Full ✅ | - |
+| Swift | swift | sourcekit-lsp | Full ✅ | - |
+| C# | cs | csharp-ls | Full ✅ | .NET SDK (optional) |
+| C/C++ | c, cpp, h, hpp | clangd | Basic | - |
+| Markdown | md | - | N/A | - |
 
-*Additional languages (Python, Go, Java, Swift, C#) available in git tag `pre-language-reduction`*
+**Note**: All languages except TypeScript and Rust restored from `pre-language-reduction` tag with 100% feature parity.
 
 ## ⚙️ Configuration
 ```bash
@@ -187,6 +194,20 @@ ls ~/.mill/lsp/
 - **TypeScript**: Installs `typescript-language-server` via npm (requires Node.js)
 - **Rust**: Downloads `rust-analyzer` binary from GitHub releases
 - **Python**: Installs `python-lsp-server` via pip/pipx (requires Python)
+- **Java**: Provides installation instructions for jdtls (requires **Java 11+ runtime**)
+
+**Java Requirements:**
+TypeMill's Java parser requires a Java runtime (JRE/JDK 11+) to be installed:
+```bash
+# Ubuntu/Debian
+sudo apt-get install openjdk-17-jre-headless
+
+# macOS (Homebrew)
+brew install openjdk@17
+
+# Verify installation
+java --version
+```
 
 **Manual installation:**
 If you prefer to install LSP servers yourself:
@@ -196,6 +217,9 @@ npm install -g typescript-language-server typescript
 
 # Rust
 cargo install rust-analyzer
+
+# Java (jdtls) - see mill install-lsp java for instructions
+# Requires Java runtime (see above)
 
 # Python
 pipx install python-lsp-server  # Recommended (PEP 668 compliant)
