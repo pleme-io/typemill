@@ -428,8 +428,8 @@ impl OperationQueue {
 }
 
 /// Transaction support for grouped operations
-/// Transaction for batch operations (internal to mill-services)
-pub(crate) struct OperationTransaction {
+/// Transaction for batch operations
+pub struct OperationTransaction {
     operations: Vec<FileOperation>,
     queue: Arc<OperationQueue>,
 }
