@@ -11,7 +11,7 @@ mod plan_converter;
 mod symbol_rename;
 mod utils;
 
-use crate::handlers::tools::{ToolHandler, ToolHandlerContext};
+use crate::handlers::tools::{extensions::get_concrete_app_state, ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use lsp_types::{Position, WorkspaceEdit};
 use mill_foundation::core::model::mcp::ToolCall;
@@ -147,7 +147,7 @@ impl ToolHandler for RenameHandler {
 
     async fn handle_tool_call(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         info!(tool_name = %tool_call.name, "Handling rename");
@@ -250,8 +250,11 @@ impl ToolHandler for RenameHandler {
             );
 
             use mill_services::services::{ExecutionOptions, PlanExecutor};
+            use crate::handlers::tools::extensions::get_concrete_app_state;
 
-            let executor = PlanExecutor::new(context.app_state.file_service.clone());
+            // Get concrete AppState to access concrete FileService
+            let concrete_state = get_concrete_app_state(&context.app_state)?;
+            let executor = PlanExecutor::new(concrete_state.file_service.clone());
             let result = executor
                 .execute_plan(refactor_plan, ExecutionOptions::default())
                 .await?;
@@ -340,7 +343,7 @@ impl RenameHandler {
     pub(crate) async fn analyze_workspace_edit(
         &self,
         edit: &WorkspaceEdit,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<(HashMap<String, String>, PlanSummary, Vec<PlanWarning>)> {
         let mut file_checksums = HashMap::new();
         let mut affected_files: HashSet<std::path::PathBuf> = HashSet::new();
@@ -466,7 +469,7 @@ impl RenameHandler {
         &self,
         targets: &[RenameTarget],
         options: &RenameOptions,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<RenamePlan> {
         use mill_foundation::planning::{PlanMetadata, RenamePlan};
 
@@ -556,8 +559,10 @@ impl RenameHandler {
                 "Planning batch workspace manifest updates"
             );
 
-            match context
-                .app_state
+            // Get concrete AppState to access move_service()
+            let concrete_state = get_concrete_app_state(&context.app_state)?;
+
+            match concrete_state
                 .move_service()
                 .plan_batch_workspace_updates(&dir_moves)
                 .await

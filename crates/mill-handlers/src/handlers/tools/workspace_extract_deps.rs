@@ -33,7 +33,7 @@ impl ToolHandler for WorkspaceExtractDepsHandler {
 
     async fn handle_tool_call(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         match tool_call.name.as_str() {
@@ -124,7 +124,7 @@ pub(crate) struct DependencyInfo {
 // Handler implementation
 
 async fn handle_extract_dependencies(
-    context: &ToolHandlerContext,
+    context: &mill_handler_api::ToolHandlerContext,
     tool_call: &ToolCall,
 ) -> ServerResult<Value> {
     debug!("Handling workspace.extract_dependencies");

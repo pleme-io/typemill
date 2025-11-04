@@ -90,7 +90,7 @@ impl ToolHandler for WorkspaceToolsHandler {
 
     async fn handle_tool_call(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         // Route to appropriate handler
@@ -125,7 +125,7 @@ impl WorkspaceToolsHandler {
     /// FileService for all file operations (respecting caching, locking, and
     /// virtual workspaces).
     async fn update_manifest_dependency(
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         manifest_path: &str,
         old_dep_name: &str,
         new_dep_name: &str,
@@ -147,7 +147,7 @@ impl WorkspaceToolsHandler {
         let plugin = context
             .app_state
             .language_plugins
-            .get_plugin_for_manifest(filename)
+            .get_plugin_for_manifest(std::path::Path::new(manifest_path))
             .ok_or_else(|| {
                 ServerError::not_supported(format!(
                     "No language plugin found for manifest file: {}",
@@ -198,7 +198,7 @@ impl WorkspaceToolsHandler {
     /// This is language-agnostic and works across all supported package managers.
     async fn handle_update_dependency(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         use serde_json::json;

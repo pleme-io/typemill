@@ -101,7 +101,7 @@ impl ToolHandler for DeleteHandler {
 
     async fn handle_tool_call(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         info!(tool_name = %tool_call.name, "Handling delete");
@@ -162,8 +162,11 @@ impl ToolHandler for DeleteHandler {
             );
 
             use mill_services::services::{ExecutionOptions, PlanExecutor};
+            use crate::handlers::tools::extensions::get_concrete_app_state;
 
-            let executor = PlanExecutor::new(context.app_state.file_service.clone());
+            // Get concrete AppState to access concrete FileService
+            let concrete_state = get_concrete_app_state(&context.app_state)?;
+            let executor = PlanExecutor::new(concrete_state.file_service.clone());
             let result = executor
                 .execute_plan(refactor_plan, ExecutionOptions::default())
                 .await?;
@@ -230,7 +233,7 @@ impl DeleteHandler {
     async fn plan_symbol_delete(
         &self,
         params: &DeletePlanParams,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<DeletePlan> {
         use lsp_types::{
             DocumentChangeOperation, DocumentChanges, OptionalVersionedTextDocumentIdentifier,
@@ -380,7 +383,7 @@ impl DeleteHandler {
     async fn plan_file_delete(
         &self,
         params: &DeletePlanParams,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<DeletePlan> {
         debug!(
             path = %params.target.path,
@@ -396,6 +399,9 @@ impl DeleteHandler {
             .file_service
             .delete_file(file_path, force, true)
             .await?;
+
+        // Extract the inner value from DryRunnable
+        let result_value = dry_run_result.result;
 
         // Read file content for checksum before deletion
         let content = context
@@ -434,8 +440,7 @@ impl DeleteHandler {
 
         // Check if there are affected files (imports to clean up)
         let mut warnings = Vec::new();
-        let affected_files_count = dry_run_result
-            .result
+        let affected_files_count = result_value
             .get("affected_files")
             .and_then(|v| v.as_u64())
             .unwrap_or(0);
@@ -484,7 +489,7 @@ impl DeleteHandler {
     async fn plan_directory_delete(
         &self,
         params: &DeletePlanParams,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<DeletePlan> {
         debug!(
             path = %params.target.path,
@@ -586,7 +591,7 @@ impl DeleteHandler {
     async fn plan_dead_code_delete(
         &self,
         params: &DeletePlanParams,
-        _context: &ToolHandlerContext,
+        _context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<DeletePlan> {
         debug!(
             path = %params.target.path,

@@ -2,9 +2,10 @@
 //!
 //! Central registry for all tool handlers with automatic routing based on tool names.
 
-use super::tools::{ToolHandler, ToolHandlerContext};
+use super::tools::ToolHandler;
 use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
+use mill_handler_api::ToolHandlerContext;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -100,7 +101,7 @@ impl ToolRegistry {
     pub async fn handle_tool(
         &self,
         tool_call: ToolCall,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<Value> {
         // Block internal tools from external calls (CLI/MCP)
         if self.internal_tools.contains(&tool_call.name) {
@@ -252,7 +253,7 @@ impl Default for ToolRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::handlers::tools::{ToolHandler, ToolHandlerContext};
+    use crate::handlers::tools::ToolHandler;
     use async_trait::async_trait;
     use serde_json::json;
 
@@ -268,7 +269,7 @@ mod tests {
 
         async fn handle_tool_call(
             &self,
-            _context: &ToolHandlerContext,
+            _context: &mill_handler_api::ToolHandlerContext,
             tool_call: &ToolCall,
         ) -> ServerResult<Value> {
             Ok(json!({
@@ -325,7 +326,7 @@ mod tests {
             }
             async fn handle_tool_call(
                 &self,
-                _context: &ToolHandlerContext,
+                _context: &mill_handler_api::ToolHandlerContext,
                 _tool_call: &ToolCall,
             ) -> ServerResult<Value> {
                 Ok(json!({}))
@@ -344,7 +345,7 @@ mod tests {
             }
             async fn handle_tool_call(
                 &self,
-                _context: &ToolHandlerContext,
+                _context: &mill_handler_api::ToolHandlerContext,
                 _tool_call: &ToolCall,
             ) -> ServerResult<Value> {
                 Ok(json!({}))

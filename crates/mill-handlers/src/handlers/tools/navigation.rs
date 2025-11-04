@@ -25,7 +25,7 @@ impl NavigationHandler {
     /// Handle workspace symbol search across all plugins
     async fn handle_search_symbols(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         use std::time::Instant;
@@ -211,7 +211,7 @@ impl ToolHandler for NavigationHandler {
 
     async fn handle_tool_call(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         use tracing::debug;
@@ -305,7 +305,7 @@ impl ToolHandler for InternalNavigationHandler {
 
     async fn handle_tool_call(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         let plugin_request = self.convert_tool_call_to_plugin_request(tool_call)?;

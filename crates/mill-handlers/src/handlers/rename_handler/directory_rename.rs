@@ -1,6 +1,7 @@
 use super::{RenameHandler, RenameOptions, RenameTarget};
 use crate::handlers::common::calculate_checksums_for_directory_rename;
 use crate::handlers::tools::ToolHandlerContext;
+use crate::handlers::tools::extensions::get_concrete_app_state;
 use mill_foundation::planning::{PlanMetadata, PlanSummary, PlanWarning, RenamePlan};
 use mill_foundation::errors::MillResult as ServerResult;
 use std::path::Path;
@@ -41,7 +42,7 @@ impl RenameHandler {
         target: &RenameTarget,
         new_name: &str,
         options: &RenameOptions,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<RenamePlan> {
         debug!(
             old_path = %target.path,
@@ -87,9 +88,11 @@ impl RenameHandler {
                 .push("**/Cargo.toml".to_string());
         }
 
+        // Get concrete AppState to access move_service()
+        let concrete_state = get_concrete_app_state(&context.app_state)?;
+
         // Get the EditPlan with import updates (call MoveService directly)
-        let edit_plan = context
-            .app_state
+        let edit_plan = concrete_state
             .move_service()
             .plan_directory_move_with_scope(&old_path, &new_path, Some(&rename_scope))
             .await?;

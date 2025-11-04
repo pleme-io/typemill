@@ -9,8 +9,8 @@
 //! Uses the shared analysis engine for orchestration and focuses only on
 //! detection logic.
 
-use super::super::{ToolHandler, ToolHandlerContext};
-use crate::handlers::tools::analysis::suggestions::{
+use crate::{ToolHandler, ToolHandlerContext, AnalysisConfig};
+use crate::suggestions::{
     self, AnalysisContext, EvidenceStrength, Location, RefactorType, RefactoringCandidate, Scope,
     SuggestionGenerator,
 };
@@ -25,6 +25,14 @@ use regex::Regex;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use tracing::debug;
+
+/// Helper to downcast AnalysisConfigTrait to concrete AnalysisConfig
+fn get_analysis_config(context: &ToolHandlerContext) -> ServerResult<&AnalysisConfig> {
+    context.analysis_config
+        .as_any()
+        .downcast_ref::<AnalysisConfig>()
+        .ok_or_else(|| ServerError::internal("Failed to downcast AnalysisConfigTrait to AnalysisConfig"))
+}
 
 /// Detect unused imports in a file
 ///
@@ -55,14 +63,13 @@ use tracing::debug;
 /// - Location with line number
 /// - Metrics including imported symbols
 /// - Suggestion to remove the import
-use super::config::AnalysisConfig;
 pub(crate) fn detect_unused_imports(
     _complexity_report: &mill_ast::complexity::ComplexityReport,
     content: &str,
     _symbols: &[mill_plugin_api::Symbol],
     language: &str,
     file_path: &str,
-    _registry: &crate::LanguagePluginRegistry,
+    _registry: &dyn mill_handler_api::LanguagePluginRegistry,
     _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
@@ -282,7 +289,7 @@ pub(crate) fn detect_unused_symbols(
     _symbols: &[mill_plugin_api::Symbol],
     language: &str,
     file_path: &str,
-    _registry: &crate::LanguagePluginRegistry,
+    _registry: &dyn mill_handler_api::LanguagePluginRegistry,
     _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
@@ -421,7 +428,7 @@ pub(crate) fn detect_unreachable_code(
     _symbols: &[mill_plugin_api::Symbol],
     language: &str,
     file_path: &str,
-    _registry: &crate::LanguagePluginRegistry,
+    _registry: &dyn mill_handler_api::LanguagePluginRegistry,
     _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
@@ -605,7 +612,7 @@ pub(crate) fn detect_unused_parameters(
     _symbols: &[mill_plugin_api::Symbol],
     language: &str,
     file_path: &str,
-    _registry: &crate::LanguagePluginRegistry,
+    _registry: &dyn mill_handler_api::LanguagePluginRegistry,
     _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
@@ -786,7 +793,7 @@ pub(crate) fn detect_unused_types(
     symbols: &[mill_plugin_api::Symbol],
     language: &str,
     file_path: &str,
-    _registry: &crate::LanguagePluginRegistry,
+    _registry: &dyn mill_handler_api::LanguagePluginRegistry,
     _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
@@ -912,7 +919,7 @@ pub(crate) fn detect_unused_variables(
     _symbols: &[mill_plugin_api::Symbol],
     language: &str,
     file_path: &str,
-    _registry: &crate::LanguagePluginRegistry,
+    _registry: &dyn mill_handler_api::LanguagePluginRegistry,
     _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
@@ -1529,7 +1536,7 @@ impl DeadCodeHandler {
         scope_param: &super::engine::ScopeParam,
         kind: &str,
     ) -> ServerResult<Value> {
-        use crate::handlers::lsp_adapter::DirectLspAdapter;
+        use crate::DirectLspAdapter;
         use mill_analysis_common::{AnalysisEngine, LspProvider};
         use mill_analysis_dead_code::{DeadCodeAnalyzer, DeadCodeConfig};
         use mill_foundation::protocol::analysis_result::{AnalysisResult, AnalysisScope};
@@ -1776,7 +1783,7 @@ impl DeadCodeHandler {
         scope_param: &super::engine::ScopeParam,
         kind: &str,
     ) -> ServerResult<Value> {
-        use crate::handlers::lsp_adapter::DirectLspAdapter;
+        use crate::DirectLspAdapter;
         use mill_analysis_common::{AnalysisEngine, LspProvider};
         use mill_analysis_deep_dead_code::{DeepDeadCodeAnalyzer, DeepDeadCodeConfig};
         use mill_foundation::protocol::analysis_result::{AnalysisResult, AnalysisScope};
@@ -2059,8 +2066,8 @@ impl ToolHandler for DeadCodeHandler {
                         &parsed_source.symbols,
                         language,
                         &file_path,
-                        &context.app_state.language_plugins,
-                        &context.analysis_config,
+                        context.app_state.language_plugins.as_ref(),
+                        get_analysis_config(context)?,
                     );
 
                     // NEW: Initialize suggestion generator
@@ -2200,8 +2207,8 @@ impl ToolHandler for DeadCodeHandler {
                         &parsed_source.symbols,
                         language,
                         &file_path,
-                        &context.app_state.language_plugins,
-                        &context.analysis_config,
+                        context.app_state.language_plugins.as_ref(),
+                        get_analysis_config(context)?,
                     );
 
                     // Initialize suggestion generator

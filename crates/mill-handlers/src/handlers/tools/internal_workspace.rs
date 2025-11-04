@@ -22,7 +22,7 @@ impl InternalWorkspaceHandler {
     /// Applies LSP workspace edits (multi-file refactoring operations) through the MCP protocol
     async fn handle_apply_workspace_edit(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         use serde_json::json;
@@ -159,7 +159,7 @@ impl ToolHandler for InternalWorkspaceHandler {
 
     async fn handle_tool_call(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         match tool_call.name.as_str() {

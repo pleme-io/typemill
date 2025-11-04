@@ -38,7 +38,7 @@ impl ExtractHandler {
     /// Handle extract() tool call
     async fn handle_extract_plan(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         let args = tool_call.arguments.clone().unwrap_or(json!({}));
@@ -113,8 +113,11 @@ impl ExtractHandler {
             );
 
             use mill_services::services::{ExecutionOptions, PlanExecutor};
+            use crate::handlers::tools::extensions::get_concrete_app_state;
 
-            let executor = PlanExecutor::new(context.app_state.file_service.clone());
+            // Get concrete AppState to access concrete FileService
+            let concrete_state = get_concrete_app_state(&context.app_state)?;
+            let executor = PlanExecutor::new(concrete_state.file_service.clone());
             let result = executor
                 .execute_plan(refactor_plan, ExecutionOptions::default())
                 .await?;
@@ -139,7 +142,7 @@ impl ExtractHandler {
     /// Plan extract function operation
     async fn plan_extract_function(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         source: &SourceRange,
         options: &ExtractOptions,
     ) -> ServerResult<ExtractPlan> {
@@ -162,13 +165,19 @@ impl ExtractHandler {
 
         // Call AST refactoring function directly without LSP service
         // Note: LSP integration removed as DirectLspAdapter doesn't implement LspRefactoringService
+
+        // Get PluginDiscovery from language_plugins by downcasting
+        let plugin_discovery = context.app_state.language_plugins.inner()
+            .downcast_ref::<mill_plugin_api::PluginDiscovery>()
+            .ok_or_else(|| ServerError::internal("Failed to downcast to PluginDiscovery"))?;
+
         let edit_plan = mill_ast::refactoring::extract_function::plan_extract_function(
             &file_content,
             &code_range,
             &source.name,
             &source.file_path,
             None, // No LSP service - use AST-only approach
-            Some(&context.app_state.language_plugins.inner), // Pass plugin registry
+            Some(plugin_discovery), // Pass plugin registry
         )
         .await
         .map_err(|e| ServerError::internal(format!("Extract function failed: {}", e)))?;
@@ -187,7 +196,7 @@ impl ExtractHandler {
     /// Plan extract variable operation
     async fn plan_extract_variable(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         source: &SourceRange,
         options: &ExtractOptions,
     ) -> ServerResult<ExtractPlan> {
@@ -210,13 +219,19 @@ impl ExtractHandler {
 
         // Try to use extract_variable if available, otherwise fall back to extract_function
         // and adapt the result (AST-only approach, no LSP service)
+
+        // Get PluginDiscovery from language_plugins by downcasting
+        let plugin_discovery = context.app_state.language_plugins.inner()
+            .downcast_ref::<mill_plugin_api::PluginDiscovery>()
+            .ok_or_else(|| ServerError::internal("Failed to downcast to PluginDiscovery"))?;
+
         let edit_plan = mill_ast::refactoring::extract_function::plan_extract_function(
             &file_content,
             &code_range,
             &source.name,
             &source.file_path,
             None, // No LSP service - use AST-only approach
-            Some(&context.app_state.language_plugins.inner), // Pass plugin registry
+            Some(plugin_discovery), // Pass plugin registry
         )
         .await
         .map_err(|e| ServerError::internal(format!("Extract variable failed: {}", e)))?;
@@ -234,7 +249,7 @@ impl ExtractHandler {
     /// Plan extract constant operation
     async fn plan_extract_constant(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         source: &SourceRange,
         options: &ExtractOptions,
     ) -> ServerResult<ExtractPlan> {
@@ -255,13 +270,19 @@ impl ExtractHandler {
             .map_err(|e| ServerError::internal(format!("Failed to read file: {}", e)))?;
 
         // Use AST-only approach for extracting constants
+
+        // Get PluginDiscovery from language_plugins by downcasting
+        let plugin_discovery = context.app_state.language_plugins.inner()
+            .downcast_ref::<mill_plugin_api::PluginDiscovery>()
+            .ok_or_else(|| ServerError::internal("Failed to downcast to PluginDiscovery"))?;
+
         let edit_plan = mill_ast::refactoring::extract_function::plan_extract_function(
             &file_content,
             &code_range,
             &source.name,
             &source.file_path,
             None, // No LSP service - use AST-only approach
-            Some(&context.app_state.language_plugins.inner), // Pass plugin registry
+            Some(plugin_discovery), // Pass plugin registry
         )
         .await
         .map_err(|e| ServerError::internal(format!("Extract constant failed: {}", e)))?;
@@ -279,7 +300,7 @@ impl ExtractHandler {
     /// Plan extract module operation
     async fn plan_extract_module(
         &self,
-        _context: &ToolHandlerContext,
+        _context: &mill_handler_api::ToolHandlerContext,
         source: &SourceRange,
         _options: &ExtractOptions,
     ) -> ServerResult<ExtractPlan> {
@@ -297,7 +318,7 @@ impl ExtractHandler {
         edit_plan: EditPlan,
         file_path: &str,
         kind: &str,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         _options: &ExtractOptions,
     ) -> ServerResult<ExtractPlan> {
         // Convert EditPlan edits to LSP WorkspaceEdit
@@ -419,7 +440,7 @@ impl ExtractHandler {
     /// Generate SHA-256 checksums for all affected files
     async fn generate_file_checksums(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         file_paths: &std::collections::HashSet<String>,
     ) -> ServerResult<HashMap<String, String>> {
         use sha2::{Digest, Sha256};
@@ -470,7 +491,7 @@ impl ToolHandler for ExtractHandler {
 
     async fn handle_tool_call(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         match tool_call.name.as_str() {

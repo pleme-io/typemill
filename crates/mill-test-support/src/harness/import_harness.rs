@@ -342,7 +342,7 @@ impl ImportScenarios {
                 ),
                 Language::Rust => (
                     "use std::collections::HashMap;\nuse serde::Serialize;\n",
-                    "serde", // Single segment matches both "serde" and "serde :: Serialize" in quote! output
+                    "serde", // Single segment matches both "serde" and "serde:: Serialize" in quote! output
                 ),
                 Language::Python => ("import os\nfrom typing import List\n", "os"),
                 Language::Java => (

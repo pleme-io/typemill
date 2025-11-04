@@ -2,7 +2,7 @@
 //!
 //! Handles: achieve_intent, apply_edits
 
-use super::tools::{ToolHandler, ToolHandlerContext};
+use super::tools::{extensions::get_concrete_app_state, ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
@@ -31,7 +31,7 @@ impl ToolHandler for WorkflowHandler {
 
     async fn handle_tool_call(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         debug!(tool_name = %tool_call.name, "Handling workflow operation");
@@ -51,7 +51,7 @@ impl WorkflowHandler {
     async fn handle_achieve_intent(
         &self,
         tool_call: ToolCall,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<Value> {
         debug!(tool_name = %tool_call.name, "Planning or resuming workflow");
 
@@ -59,14 +59,16 @@ impl WorkflowHandler {
             ServerError::invalid_request("Missing arguments for achieve_intent")
         })?;
 
+        // Get concrete state for workflow operations
+        let concrete_state = get_concrete_app_state(&context.app_state)?;
+
         // Check if this is a workflow resume request
         if let Some(workflow_id) = args.get("workflow_id").and_then(|v| v.as_str()) {
             info!(workflow_id = %workflow_id, "Resuming paused workflow");
 
             let resume_data = args.get("resume_data").cloned();
 
-            return context
-                .app_state
+            return concrete_state
                 .workflow_executor
                 .resume_workflow(workflow_id, resume_data)
                 .await
@@ -95,7 +97,7 @@ impl WorkflowHandler {
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
 
-        match context.app_state.planner.plan_for_intent(&intent) {
+        match concrete_state.planner.plan_for_intent(&intent) {
             Ok(workflow) => {
                 info!(
                     intent = %intent.name,
@@ -110,8 +112,7 @@ impl WorkflowHandler {
                 // If execute is true, run the workflow
                 if execute {
                     debug!(dry_run = dry_run, "Executing workflow");
-                    match context
-                        .app_state
+                    match concrete_state
                         .workflow_executor
                         .execute_workflow(&workflow, dry_run)
                         .await
@@ -151,7 +152,7 @@ impl WorkflowHandler {
     async fn handle_apply_edits(
         &self,
         tool_call: ToolCall,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<Value> {
         debug!(tool_name = %tool_call.name, "Handling apply_edits");
 

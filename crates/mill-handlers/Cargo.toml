@@ -30,6 +30,8 @@ mill-foundation = { path = "../mill-foundation" }
 mill-services = { path = "../mill-services", default-features = false }
 mill-plugin-api = { path = "../mill-plugin-api" }
 mill-lsp = { path = "../mill-lsp" }
+mill-handler-api = { path = "../mill-handler-api" }
+mill-handlers-analysis = { path = "../mill-handlers-analysis" }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }

@@ -1,5 +1,6 @@
 use super::{RenameHandler, RenameOptions, RenameTarget};
 use crate::handlers::tools::ToolHandlerContext;
+use crate::handlers::tools::extensions::get_concrete_app_state;
 use mill_foundation::planning::{PlanMetadata, PlanSummary, RenamePlan};
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
 use std::collections::HashMap;
@@ -13,7 +14,7 @@ impl RenameHandler {
         target: &RenameTarget,
         new_name: &str,
         options: &RenameOptions,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<RenamePlan> {
         debug!(
             old_path = %target.path,
@@ -36,9 +37,11 @@ impl RenameHandler {
         // Get scope configuration from options
         let rename_scope = options.to_rename_scope();
 
+        // Get concrete AppState to access move_service()
+        let concrete_state = get_concrete_app_state(&context.app_state)?;
+
         // Call MoveService directly to get the EditPlan (using absolute paths)
-        let edit_plan = context
-            .app_state
+        let edit_plan = concrete_state
             .move_service()
             .plan_file_move_with_scope(&abs_old, &abs_new, Some(&rename_scope))
             .await?;

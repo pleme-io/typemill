@@ -25,7 +25,7 @@ pub(crate) fn calculate_checksum(content: &str) -> String {
 pub async fn calculate_checksums_for_edits(
     edits: &[ProtocolTextEdit],
     additional_paths: &[PathBuf],
-    context: &ToolHandlerContext,
+    context: &mill_handler_api::ToolHandlerContext,
 ) -> ServerResult<HashMap<String, String>> {
     let mut file_checksums = HashMap::new();
     let mut affected_files = HashSet::new();
@@ -70,7 +70,7 @@ pub async fn calculate_checksums_for_edits(
 pub async fn calculate_checksums_for_directory_rename(
     directory_path: &Path,
     edits: &[ProtocolTextEdit],
-    context: &ToolHandlerContext,
+    context: &mill_handler_api::ToolHandlerContext,
 ) -> ServerResult<HashMap<String, String>> {
     let mut file_checksums = HashMap::new();
 

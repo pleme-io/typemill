@@ -37,7 +37,7 @@ impl InlineHandler {
     /// Handle inline() tool call
     async fn handle_inline_plan(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         let args = tool_call.arguments.clone().unwrap_or(json!({}));
@@ -108,8 +108,11 @@ impl InlineHandler {
             );
 
             use mill_services::services::{ExecutionOptions, PlanExecutor};
+            use crate::handlers::tools::extensions::get_concrete_app_state;
 
-            let executor = PlanExecutor::new(context.app_state.file_service.clone());
+            // Get concrete AppState to access concrete FileService
+            let concrete_state = get_concrete_app_state(&context.app_state)?;
+            let executor = PlanExecutor::new(concrete_state.file_service.clone());
             let result = executor
                 .execute_plan(refactor_plan, ExecutionOptions::default())
                 .await?;
@@ -132,7 +135,7 @@ impl InlineHandler {
     /// Plan inline variable operation
     async fn plan_inline_variable(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         target: &InlineTarget,
         options: &InlineOptions,
     ) -> ServerResult<InlinePlan> {
@@ -147,13 +150,19 @@ impl InlineHandler {
 
         // Call AST refactoring function directly without LSP service
         // Note: LSP integration removed as DirectLspAdapter doesn't implement LspRefactoringService
+
+        // Get PluginDiscovery from language_plugins by downcasting
+        let plugin_discovery = context.app_state.language_plugins.inner()
+            .downcast_ref::<mill_plugin_api::PluginDiscovery>()
+            .ok_or_else(|| ServerError::internal("Failed to downcast to PluginDiscovery"))?;
+
         let edit_plan = mill_ast::refactoring::inline_variable::plan_inline_variable(
             &file_content,
             target.position.line,
             target.position.character,
             &target.file_path,
             None, // No LSP service - use AST-only approach
-            Some(&context.app_state.language_plugins.inner), // Pass plugin registry
+            Some(plugin_discovery), // Pass plugin registry
         )
         .await
         .map_err(|e| ServerError::internal(format!("Inline variable failed: {}", e)))?;
@@ -172,7 +181,7 @@ impl InlineHandler {
     /// Plan inline function operation
     async fn plan_inline_function(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         target: &InlineTarget,
         options: &InlineOptions,
     ) -> ServerResult<InlinePlan> {
@@ -187,13 +196,19 @@ impl InlineHandler {
             .map_err(|e| ServerError::internal(format!("Failed to read file: {}", e)))?;
 
         // Try AST-based inline for functions
+
+        // Get PluginDiscovery from language_plugins by downcasting
+        let plugin_discovery = context.app_state.language_plugins.inner()
+            .downcast_ref::<mill_plugin_api::PluginDiscovery>()
+            .ok_or_else(|| ServerError::internal("Failed to downcast to PluginDiscovery"))?;
+
         let edit_plan = mill_ast::refactoring::inline_variable::plan_inline_variable(
             &file_content,
             target.position.line,
             target.position.character,
             &target.file_path,
             None, // No LSP service - use AST-only approach
-            Some(&context.app_state.language_plugins.inner), // Pass plugin registry
+            Some(plugin_discovery), // Pass plugin registry
         )
         .await
         .map_err(|e| ServerError::internal(format!("Inline function failed: {}", e)))?;
@@ -211,7 +226,7 @@ impl InlineHandler {
     /// Plan inline constant operation
     async fn plan_inline_constant(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         target: &InlineTarget,
         options: &InlineOptions,
     ) -> ServerResult<InlinePlan> {
@@ -225,13 +240,19 @@ impl InlineHandler {
             .map_err(|e| ServerError::internal(format!("Failed to read file: {}", e)))?;
 
         // Use AST-only approach for inlining constants
+
+        // Get PluginDiscovery from language_plugins by downcasting
+        let plugin_discovery = context.app_state.language_plugins.inner()
+            .downcast_ref::<mill_plugin_api::PluginDiscovery>()
+            .ok_or_else(|| ServerError::internal("Failed to downcast to PluginDiscovery"))?;
+
         let edit_plan = mill_ast::refactoring::inline_variable::plan_inline_variable(
             &file_content,
             target.position.line,
             target.position.character,
             &target.file_path,
             None, // No LSP service - use AST-only approach
-            Some(&context.app_state.language_plugins.inner), // Pass plugin registry
+            Some(plugin_discovery), // Pass plugin registry
         )
         .await
         .map_err(|e| ServerError::internal(format!("Inline constant failed: {}", e)))?;
@@ -252,7 +273,7 @@ impl InlineHandler {
         edit_plan: EditPlan,
         file_path: &str,
         kind: &str,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         _options: &InlineOptions,
     ) -> ServerResult<InlinePlan> {
         // Convert EditPlan edits to LSP WorkspaceEdit
@@ -369,7 +390,7 @@ impl InlineHandler {
     /// Generate SHA-256 checksums for all affected files
     async fn generate_file_checksums(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         file_paths: &std::collections::HashSet<String>,
     ) -> ServerResult<HashMap<String, String>> {
         use sha2::{Digest, Sha256};
@@ -420,7 +441,7 @@ impl ToolHandler for InlineHandler {
 
     async fn handle_tool_call(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         match tool_call.name.as_str() {

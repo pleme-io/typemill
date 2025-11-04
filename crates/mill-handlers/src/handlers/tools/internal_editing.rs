@@ -38,7 +38,7 @@ impl ToolHandler for InternalEditingToolsHandler {
 
     async fn handle_tool_call(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         // RefactoringHandler now uses the new trait, so delegate directly

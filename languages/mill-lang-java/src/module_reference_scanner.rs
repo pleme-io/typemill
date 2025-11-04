@@ -177,7 +177,7 @@ fn scan_qualified_paths(line: &str, module_name: &str, line_number: usize) -> Ve
     while let Some(pos) = line[search_pos..].find(module_name) {
         let absolute_pos = search_pos + pos;
 
-        // Check if this is a qualified path (followed by . or ::)
+        // Check if this is a qualified path (followed by . or::)
         let next_pos = absolute_pos + module_name.len();
         if next_pos < line.len() {
             let next_char = line.chars().nth(next_pos);

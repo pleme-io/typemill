@@ -2,7 +2,7 @@
 //!
 //! Handles: apply_edits, achieve_intent, batch_execute
 
-use super::{ToolHandler, ToolHandlerContext};
+use super::{extensions::get_concrete_app_state, ToolHandler, ToolHandlerContext};
 use crate::handlers::workflow_handler::WorkflowHandler;
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
@@ -36,7 +36,7 @@ impl ToolHandler for AdvancedToolsHandler {
 
     async fn handle_tool_call(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         let tool_name = &tool_call.name;
@@ -111,7 +111,8 @@ impl ToolHandler for AdvancedToolsHandler {
                     })?;
 
                 // 2. Get the operation queue from the context
-                let operation_queue = &context.app_state.operation_queue;
+                let concrete_state = get_concrete_app_state(&context.app_state)?;
+                let operation_queue = &concrete_state.operation_queue;
 
                 let batch_id = Uuid::new_v4().to_string(); // A single ID for the entire batch
                 let mut queued_count = 0;

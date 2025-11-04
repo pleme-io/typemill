@@ -231,7 +231,7 @@ impl ToolHandler for DependencyHandler {
 
     async fn handle_tool_call(
         &self,
-        _context: &ToolHandlerContext,
+        _context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         let args: UpdateDependenciesArgs =

@@ -122,7 +122,7 @@ impl ToolHandler for MoveHandler {
 
     async fn handle_tool_call(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         // Generate unique operation ID for tracing this entire operation
@@ -221,8 +221,11 @@ impl ToolHandler for MoveHandler {
             );
 
             use mill_services::services::{ExecutionOptions, PlanExecutor};
+            use crate::handlers::tools::extensions::get_concrete_app_state;
 
-            let executor = PlanExecutor::new(context.app_state.file_service.clone());
+            // Get concrete AppState to access concrete FileService
+            let concrete_state = get_concrete_app_state(&context.app_state)?;
+            let executor = PlanExecutor::new(concrete_state.file_service.clone());
             let result = executor
                 .execute_plan(refactor_plan, ExecutionOptions::default())
                 .await?;
@@ -254,7 +257,7 @@ impl MoveHandler {
     async fn dispatch_move_plan(
         &self,
         params: &MovePlanParams,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         operation_id: &str,
     ) -> ServerResult<MovePlan> {
         debug!(
@@ -299,7 +302,7 @@ impl MoveHandler {
     async fn handle_symbol_move(
         &self,
         params: &MovePlanParams,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         operation_id: &str,
     ) -> ServerResult<MovePlan> {
         // Extract position from selector
@@ -340,7 +343,7 @@ impl MoveHandler {
     async fn handle_file_move(
         &self,
         params: &MovePlanParams,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         operation_id: &str,
     ) -> ServerResult<MovePlan> {
         let old_path = Path::new(&params.target.path);
@@ -360,7 +363,7 @@ impl MoveHandler {
     async fn handle_directory_move(
         &self,
         params: &MovePlanParams,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         operation_id: &str,
     ) -> ServerResult<MovePlan> {
         let old_path = Path::new(&params.target.path);
@@ -380,7 +383,7 @@ impl MoveHandler {
     async fn handle_module_move(
         &self,
         _params: &MovePlanParams,
-        _context: &ToolHandlerContext,
+        _context: &mill_handler_api::ToolHandlerContext,
         operation_id: &str,
     ) -> ServerResult<MovePlan> {
         warn!(

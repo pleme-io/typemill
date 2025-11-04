@@ -9,6 +9,7 @@ use std::path::Path;
 use tracing::{debug, error, info};
 
 use crate::handlers::tools::ToolHandlerContext;
+use crate::handlers::tools::extensions::get_concrete_app_state;
 
 use super::converter::editplan_to_moveplan;
 
@@ -21,7 +22,7 @@ use super::converter::editplan_to_moveplan;
 pub async fn plan_directory_move(
     old_path: &Path,
     new_path: &Path,
-    context: &ToolHandlerContext,
+    context: &mill_handler_api::ToolHandlerContext,
     operation_id: &str,
 ) -> ServerResult<MovePlan> {
     info!(
@@ -31,12 +32,15 @@ pub async fn plan_directory_move(
         "Starting directory move planning"
     );
 
+    // Get concrete AppState to access FileService.move_service()
+    let concrete_state = get_concrete_app_state(&context.app_state)?;
+
     // Create MoveService from FileService
     debug!(
         operation_id = %operation_id,
         "Creating MoveService from FileService"
     );
-    let move_service = context.app_state.file_service.move_service();
+    let move_service = concrete_state.file_service.move_service();
 
     // Plan the directory move (returns EditPlan with Cargo support)
     debug!(

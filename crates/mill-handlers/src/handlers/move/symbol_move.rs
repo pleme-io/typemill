@@ -19,7 +19,7 @@ pub async fn plan_symbol_move(
     target_path: &str,
     destination: &str,
     position: Position,
-    context: &ToolHandlerContext,
+    context: &mill_handler_api::ToolHandlerContext,
     operation_id: &str,
 ) -> ServerResult<MovePlan> {
     info!(
@@ -90,7 +90,7 @@ async fn try_lsp_symbol_move(
     destination: &str,
     extension: &str,
     position: Position,
-    context: &ToolHandlerContext,
+    context: &mill_handler_api::ToolHandlerContext,
     operation_id: &str,
 ) -> ServerResult<MovePlan> {
     debug!(
@@ -419,7 +419,7 @@ async fn try_lsp_symbol_move(
 async fn ast_symbol_move_fallback(
     _target_path: &str,
     _destination: &str,
-    _context: &ToolHandlerContext,
+    _context: &mill_handler_api::ToolHandlerContext,
     operation_id: &str,
 ) -> ServerResult<MovePlan> {
     // For now, return unsupported error

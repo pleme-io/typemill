@@ -37,7 +37,7 @@ pub(crate) fn calculate_checksum(content: &str) -> String {
 /// Analyze WorkspaceEdit to calculate checksums and summary
 pub async fn analyze_workspace_edit(
     edit: &WorkspaceEdit,
-    context: &ToolHandlerContext,
+    context: &mill_handler_api::ToolHandlerContext,
 ) -> ServerResult<(HashMap<String, String>, PlanSummary, Vec<PlanWarning>)> {
     let mut file_checksums = HashMap::new();
     let mut affected_path_strings: HashSet<String> = HashSet::new();

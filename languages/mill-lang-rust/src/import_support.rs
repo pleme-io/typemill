@@ -427,7 +427,7 @@ impl RustImportSupport {
     ) -> (String, String) {
         let (prefix_type, prefix_count) = Self::count_relative_prefix(tree);
 
-        // Extract the suffix after the first "::" (or use the whole name if no ::)
+        // Extract the suffix after the first "::" (or use the whole name if no::)
         // This preserves multi-segment renames like "parent::helpers::experimental"
         let old_suffix = old_name
             .split_once("::")
@@ -588,7 +588,7 @@ impl RustImportSupport {
                     crate::parser::rewrite_use_tree(&item_use.tree, &effective_old, &effective_new)
                 {
                     let formatted = format!("use {};", quote::quote!(#new_tree));
-                    // Normalize spacing: remove extra spaces around ::, {, }, and commas
+                    // Normalize spacing: remove extra spaces around::, {, }, and commas
                     let normalized = formatted
                         .replace(" :: ", "::")
                         .replace("{ ", "{")

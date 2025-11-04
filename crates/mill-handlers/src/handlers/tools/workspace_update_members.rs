@@ -33,7 +33,7 @@ impl ToolHandler for WorkspaceUpdateMembersHandler {
 
     async fn handle_tool_call(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         match tool_call.name.as_str() {
@@ -92,7 +92,7 @@ pub(crate) struct UpdateMembersResult {
 // Handler implementation
 
 async fn handle_update_members(
-    context: &ToolHandlerContext,
+    context: &mill_handler_api::ToolHandlerContext,
     tool_call: &ToolCall,
 ) -> ServerResult<Value> {
     debug!("Handling workspace.update_members");

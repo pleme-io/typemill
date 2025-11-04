@@ -1,8 +1,6 @@
 //! Tool handler for the `analyze.batch` command
-use super::super::{ToolHandler, ToolHandlerContext};
-use crate::handlers::tools::analysis::batch::{
-    run_batch_analysis, AnalysisQuery, BatchAnalysisRequest,
-};
+use crate::{ToolHandler, ToolHandlerContext};
+use crate::batch::{run_batch_analysis, AnalysisQuery, BatchAnalysisRequest};
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};

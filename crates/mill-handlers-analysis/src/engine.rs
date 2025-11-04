@@ -9,7 +9,7 @@
 //! 5. Execute custom analysis function
 //! 6. Build and return AnalysisResult
 
-use super::super::ToolHandlerContext;
+use crate::ToolHandlerContext;
 use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::protocol::analysis_result::{AnalysisResult, AnalysisScope, Finding};
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
@@ -18,6 +18,14 @@ use serde_json::Value;
 use std::path::Path;
 use std::time::Instant;
 use tracing::{debug, info};
+
+/// Helper to downcast AnalysisConfigTrait to concrete AnalysisConfig
+fn get_analysis_config(context: &ToolHandlerContext) -> ServerResult<&super::config::AnalysisConfig> {
+    context.analysis_config
+        .as_any()
+        .downcast_ref::<super::config::AnalysisConfig>()
+        .ok_or_else(|| ServerError::internal("Failed to downcast AnalysisConfigTrait to AnalysisConfig"))
+}
 
 /// Analysis function signature - takes parsed data and returns findings
 ///
@@ -42,7 +50,7 @@ pub type AnalysisFn = fn(
     &[mill_plugin_api::Symbol],
     &str,
     &str,
-    &crate::LanguagePluginRegistry,
+    &dyn mill_handler_api::LanguagePluginRegistry,
     &AnalysisConfig,
 ) -> Vec<Finding>;
 
@@ -55,7 +63,7 @@ pub type MarkdownAnalysisFn = fn(
     &[mill_plugin_api::Symbol],
     &str,
     &str,
-    &crate::LanguagePluginRegistry,
+    &dyn mill_handler_api::LanguagePluginRegistry,
 ) -> Vec<Finding>;
 
 /// Scope parameter structure for analysis requests
@@ -186,13 +194,14 @@ pub async fn run_analysis(
     kind: &str,
     analysis_fn: AnalysisFn,
 ) -> ServerResult<Value> {
+    let config = get_analysis_config(context)?;
     run_analysis_with_config(
         context,
         tool_call,
         category,
         kind,
         analysis_fn,
-        &context.analysis_config,
+        config,
     )
     .await
 }
@@ -371,7 +380,7 @@ pub async fn run_analysis_with_config(
         &parsed.symbols,
         language,
         &file_path,
-        &context.app_state.language_plugins,
+        context.app_state.language_plugins.as_ref(),
         config,
     );
 
@@ -496,7 +505,7 @@ pub async fn run_markdown_analysis(
         &parsed.symbols,
         language,
         &file_path,
-        &context.app_state.language_plugins,
+        context.app_state.language_plugins.as_ref(),
     );
 
     // Step 5: Build AnalysisResult

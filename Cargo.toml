@@ -25,7 +25,7 @@ members = [
     "tests/e2e",
     "crates/mill-workspaces",
     "crates/mill-auth",
-    "crates/xtask", "crates/mill-ast", "crates/mill-client", "crates/mill-test-support", "crates/mill-handlers", "crates/mill-config", "crates/mill-foundation",
+    "crates/xtask", "crates/mill-ast", "crates/mill-client", "crates/mill-test-support", "crates/mill-handlers", "crates/mill-handlers-analysis", "crates/mill-handler-api", "crates/mill-config", "crates/mill-foundation",
     "languages/mill-lang-cpp",
     "languages/mill-lang-csharp",
     "languages/mill-lang-swift",

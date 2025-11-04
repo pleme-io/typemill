@@ -71,6 +71,129 @@ impl AppState {
             &self.project_root,
         )
     }
+
+    /// Convert to mill_handler_api::AppState for use with trait-based handlers
+    pub fn to_api_app_state(&self) -> Arc<mill_handler_api::AppState> {
+        Arc::new(mill_handler_api::AppState {
+            file_service: Arc::new(FileServiceWrapper(self.file_service.clone())) as Arc<dyn mill_handler_api::FileService>,
+            language_plugins: Arc::new(LanguagePluginRegistryWrapper(self.language_plugins.clone())) as Arc<dyn mill_handler_api::LanguagePluginRegistry>,
+            project_root: self.project_root.clone(),
+            extensions: None,  // Will be set by caller if needed
+        })
+    }
+}
+
+// Newtype wrappers to satisfy the orphan rule (external trait + external type)
+
+/// Wrapper for FileService to implement mill_handler_api::FileService
+pub struct FileServiceWrapper(pub Arc<mill_services::services::FileService>);
+
+#[async_trait]
+impl mill_handler_api::FileService for FileServiceWrapper {
+    async fn read_file(&self, path: &std::path::Path) -> Result<String, mill_foundation::errors::MillError> {
+        self.0.read_file(path).await
+    }
+
+    async fn list_files(&self, path: &std::path::Path, recursive: bool) -> Result<Vec<String>, mill_foundation::errors::MillError> {
+        self.0.list_files(path, recursive).await
+    }
+
+    async fn write_file(&self, path: &std::path::Path, content: &str, dry_run: bool) -> Result<mill_foundation::core::dry_run::DryRunnable<serde_json::Value>, mill_foundation::errors::MillError> {
+        self.0.write_file(path, content, dry_run).await
+    }
+
+    async fn delete_file(&self, path: &std::path::Path, force: bool, dry_run: bool) -> Result<mill_foundation::core::dry_run::DryRunnable<serde_json::Value>, mill_foundation::errors::MillError> {
+        self.0.delete_file(path, force, dry_run).await
+    }
+
+    async fn create_file(&self, path: &std::path::Path, content: Option<&str>, overwrite: bool, dry_run: bool) -> Result<mill_foundation::core::dry_run::DryRunnable<serde_json::Value>, mill_foundation::errors::MillError> {
+        self.0.create_file(path, content, overwrite, dry_run).await
+    }
+
+    async fn rename_file_with_imports(
+        &self,
+        old_path: &std::path::Path,
+        new_path: &std::path::Path,
+        dry_run: bool,
+        scan_scope: Option<mill_plugin_api::ScanScope>,
+    ) -> Result<mill_foundation::core::dry_run::DryRunnable<serde_json::Value>, mill_foundation::errors::MillError> {
+        self.0.rename_file_with_imports(old_path, new_path, dry_run, scan_scope).await
+    }
+
+    async fn rename_directory_with_imports(
+        &self,
+        old_path: &std::path::Path,
+        new_path: &std::path::Path,
+        dry_run: bool,
+        scan_scope: Option<mill_plugin_api::ScanScope>,
+        details: bool,
+    ) -> Result<mill_foundation::core::dry_run::DryRunnable<serde_json::Value>, mill_foundation::errors::MillError> {
+        self.0.rename_directory_with_imports(old_path, new_path, dry_run, scan_scope, details).await
+    }
+
+    async fn list_files_with_pattern(
+        &self,
+        path: &std::path::Path,
+        recursive: bool,
+        pattern: Option<&str>,
+    ) -> Result<Vec<String>, mill_foundation::errors::MillError> {
+        self.0.list_files_with_pattern(path, recursive, pattern).await
+    }
+
+    fn to_absolute_path_checked(&self, path: &std::path::Path) -> Result<std::path::PathBuf, mill_foundation::errors::MillError> {
+        self.0.to_absolute_path_checked(path)
+    }
+
+    async fn apply_edit_plan(&self, plan: &mill_foundation::protocol::EditPlan) -> Result<mill_foundation::protocol::EditPlanResult, mill_foundation::errors::MillError> {
+        self.0.apply_edit_plan(plan).await
+    }
+}
+
+/// Wrapper for LanguagePluginRegistry to implement mill_handler_api::LanguagePluginRegistry
+pub struct LanguagePluginRegistryWrapper(pub crate::LanguagePluginRegistry);
+
+impl mill_handler_api::LanguagePluginRegistry for LanguagePluginRegistryWrapper {
+    fn get_plugin(&self, extension: &str) -> Option<&dyn mill_plugin_api::LanguagePlugin> {
+        self.0.get_plugin(extension)
+    }
+
+    fn supported_extensions(&self) -> Vec<String> {
+        self.0.supported_extensions()
+    }
+
+    fn get_plugin_for_manifest(&self, file_path: &std::path::Path) -> Option<&dyn mill_plugin_api::LanguagePlugin> {
+        // Extract filename from path
+        let filename = file_path.file_name()?.to_str()?;
+        self.0.get_plugin_for_manifest(filename)
+    }
+
+    fn inner(&self) -> &dyn std::any::Any {
+        &self.0.inner as &dyn std::any::Any
+    }
+}
+
+/// Wrapper for AnalysisConfig to implement mill_handler_api::AnalysisConfigTrait
+pub struct AnalysisConfigWrapper(pub mill_handlers_analysis::config::AnalysisConfig);
+
+impl mill_handler_api::AnalysisConfigTrait for AnalysisConfigWrapper {
+    fn as_any(&self) -> &dyn std::any::Any {
+        &self.0
+    }
+}
+
+/// Wrapper for DirectLspAdapter to implement mill_handler_api::LspAdapter
+pub struct LspAdapterWrapper(pub DirectLspAdapter);
+
+#[async_trait]
+impl mill_handler_api::LspAdapter for LspAdapterWrapper {
+    async fn get_or_create_client(&self, file_extension: &str) -> Result<std::sync::Arc<mill_lsp::lsp_system::client::LspClient>, mill_foundation::errors::MillError> {
+        self.0.get_or_create_client(file_extension).await
+            .map_err(|e| mill_foundation::errors::MillError::internal(e))
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        &self.0
+    }
 }
 
 /// Plugin-based MCP dispatcher
@@ -370,12 +493,14 @@ impl PluginDispatcher {
 
         let tool_name = tool_call.name.clone();
         let analysis_config = Arc::new(
-            crate::handlers::tools::analysis::AnalysisConfig::load(&self.app_state.project_root)
+            mill_handlers_analysis::config::AnalysisConfig::load(&self.app_state.project_root)
                 .map_err(|e| {
                     ServerError::internal(format!("Failed to load analysis config: {}", e))
                 })?,
         );
-        let context = super::tools::ToolHandlerContext {
+
+        // Create concrete context first
+        let concrete_context = super::tools::ToolHandlerContext {
             user_id: session_info.user_id.clone(),
             app_state: self.app_state.clone(),
             plugin_manager: self.plugin_manager.clone(),
@@ -383,11 +508,14 @@ impl PluginDispatcher {
             analysis_config,
         };
 
+        // Convert to trait-based context for handler compatibility
+        let api_context = concrete_context.to_api_context();
+
         let result = self
             .tool_registry
             .lock()
             .await
-            .handle_tool(tool_call, &context)
+            .handle_tool(tool_call, &api_context)
             .await;
 
         let duration = start_time.elapsed();

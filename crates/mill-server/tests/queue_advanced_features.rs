@@ -3,7 +3,7 @@
 
 mod common;
 
-use mill_foundation::protocol::ApiError;
+use mill_foundation::errors::MillError;
 use mill_server::services::{FileOperation, OperationType};
 use serde_json::json;
 use std::path::PathBuf;
@@ -100,7 +100,7 @@ async fn test_operation_batching() {
                     stats_guard.completed_operations += 1;
                     drop(stats_guard);
 
-                    Ok::<_, ApiError>(json!({"processed": op.id}))
+                    Ok::<_, MillError>(json!({"processed": op.id}))
                 }
             })
             .await;

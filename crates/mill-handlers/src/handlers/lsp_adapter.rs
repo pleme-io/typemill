@@ -12,6 +12,7 @@ use tokio::sync::Mutex;
 use tracing::{debug, warn};
 
 /// Direct LSP adapter that bypasses the old LSP manager and its hard-coded mappings
+#[derive(Clone)]
 pub struct DirectLspAdapter {
     /// LSP clients by extension
     lsp_clients: Arc<Mutex<HashMap<String, Arc<mill_lsp::lsp_system::LspClient>>>>,

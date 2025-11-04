@@ -29,7 +29,7 @@ impl ToolHandler for RefactoringHandler {
 
     async fn handle_tool_call(
         &self,
-        _context: &ToolHandlerContext,
+        _context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         Err(ServerError::invalid_request(format!(

@@ -1,4 +1,4 @@
-use super::super::{ToolHandler, ToolHandlerContext};
+use crate::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 #[cfg(feature = "analysis-circular-deps")]
 use mill_analysis_circular_deps::{

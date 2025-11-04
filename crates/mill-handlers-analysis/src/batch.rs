@@ -1,6 +1,6 @@
 //! Batch analysis infrastructure for workspace-wide analysis
-use super::super::ToolHandlerContext;
-use super::{
+use crate::ToolHandlerContext;
+use crate::{
     dead_code as dead_code_handler, dependencies as dependencies_handler,
     documentation as documentation_handler, quality as quality_handler,
     structure as structure_handler,
@@ -14,6 +14,7 @@ use ignore::WalkBuilder;
 use mill_foundation::protocol::analysis_result::{
     AnalysisResult, AnalysisScope, Finding, FindingLocation, Position, Range, Severity,
 };
+use mill_foundation::errors::MillError;
 use mill_plugin_api::Symbol;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -22,6 +23,14 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 use thiserror::Error;
 use tracing::{error, info, warn};
+
+/// Helper to downcast AnalysisConfigTrait to concrete AnalysisConfig
+fn get_analysis_config(context: &ToolHandlerContext) -> Result<&AnalysisConfig, MillError> {
+    context.analysis_config
+        .as_any()
+        .downcast_ref::<AnalysisConfig>()
+        .ok_or_else(|| MillError::internal("Failed to downcast AnalysisConfigTrait to AnalysisConfig"))
+}
 
 // --- New Data Structures for Multi-Query Batching ---
 
@@ -197,7 +206,9 @@ pub async fn run_batch_analysis(
             if let Some(cached_ast) = ast_cache.get(file_path) {
                 let cache_key = (file_path.clone(), category.clone(), query.kind.clone());
                 if !all_file_results.contains_key(&cache_key) {
-                    let config = request.config.as_ref().unwrap_or(&context.analysis_config);
+                    let default_config = get_analysis_config(context)
+                        .map_err(|e| BatchError::AnalysisFailed(e.to_string()))?;
+                    let config = request.config.as_ref().unwrap_or(default_config);
                     match analyze_file_with_cached_ast(
                         file_path,
                         cached_ast,
@@ -527,7 +538,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             "maintainability" => quality_handler::analyze_maintainability(
@@ -536,7 +547,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             "readability" => quality_handler::analyze_readability(
@@ -545,7 +556,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             _ => {
@@ -562,7 +573,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             "unused_symbols" => dead_code_handler::detect_unused_symbols(
@@ -571,7 +582,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             "unreachable_code" => dead_code_handler::detect_unreachable_code(
@@ -580,7 +591,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             "unused_parameters" => dead_code_handler::detect_unused_parameters(
@@ -589,7 +600,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             "unused_types" => dead_code_handler::detect_unused_types(
@@ -598,7 +609,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             "unused_variables" => dead_code_handler::detect_unused_variables(
@@ -607,7 +618,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             _ => {
@@ -624,7 +635,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             "graph" => dependencies_handler::detect_graph(
@@ -633,7 +644,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             "circular" => dependencies_handler::detect_circular(
@@ -642,7 +653,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             "coupling" => dependencies_handler::detect_coupling(
@@ -651,7 +662,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             "cohesion" => dependencies_handler::detect_cohesion(
@@ -660,7 +671,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             "depth" => dependencies_handler::detect_depth(
@@ -669,7 +680,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             _ => {
@@ -686,7 +697,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             "hierarchy" => structure_handler::detect_hierarchy(
@@ -695,7 +706,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             "interfaces" => structure_handler::detect_interfaces(
@@ -704,7 +715,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             "inheritance" => structure_handler::detect_inheritance(
@@ -713,7 +724,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             "modules" => structure_handler::detect_modules(
@@ -722,7 +733,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             _ => {
@@ -739,7 +750,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             "quality" => documentation_handler::detect_quality(
@@ -748,7 +759,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             "style" => documentation_handler::detect_style(
@@ -757,7 +768,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             "examples" => documentation_handler::detect_examples(
@@ -766,7 +777,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             "todos" => documentation_handler::detect_todos(
@@ -775,7 +786,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             _ => {
@@ -792,7 +803,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             "quality" => tests_handler::detect_quality(
@@ -801,7 +812,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             "assertions" => tests_handler::detect_assertions(
@@ -810,7 +821,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             "organization" => tests_handler::detect_organization(
@@ -819,7 +830,7 @@ async fn analyze_file_with_cached_ast(
                 &cached_ast.symbols,
                 &cached_ast.language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
                 config,
             ),
             _ => {

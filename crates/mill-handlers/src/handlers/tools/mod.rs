@@ -3,10 +3,8 @@
 //! This module contains specialized tool handlers for different categories of MCP tools.
 //! Each handler is responsible for a specific domain of functionality.
 
-use async_trait::async_trait;
-use mill_foundation::core::model::mcp::ToolCall;
-use mill_foundation::errors::MillResult as ServerResult;
-use serde_json::Value;
+// Re-export core trait from mill-handler-api
+pub use mill_handler_api::ToolHandler;
 
 use super::lsp_adapter::DirectLspAdapter;
 use super::plugin_dispatcher::AppState;
@@ -16,7 +14,8 @@ use tokio::sync::Mutex;
 
 // Tool handler modules
 pub mod advanced;
-pub mod analysis;
+// Analysis handlers moved to mill-handlers-analysis crate
+pub use mill_handlers_analysis as analysis;
 // pub mod editing;  // TODO: Create editing module
 pub mod file_ops;
 pub mod internal_editing;
@@ -80,7 +79,7 @@ mod dispatch {
     /// ).await?;
     /// ```
     pub async fn dispatch_to_language_plugin<F, Fut, T>(
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         file_path: &str,
         operation: F,
     ) -> MillResult<T>
@@ -141,9 +140,13 @@ mod dispatch {
     }
 }
 
-use crate::handlers::tools::analysis::AnalysisConfig;
+use mill_handlers_analysis::config::AnalysisConfig;
 
-/// Context provided to tool handlers
+/// Context provided to tool handlers in mill-handlers
+///
+/// This is the concrete context used within mill-handlers, which has access
+/// to the full AppState with all services. mill-handlers-analysis uses a
+/// trait-based context from mill-handler-api.
 pub struct ToolHandlerContext {
     /// The ID of the user making the request, for multi-tenancy.
     pub user_id: Option<String>,
@@ -160,87 +163,52 @@ pub struct ToolHandlerContext {
 // Type alias for convenience
 pub type ToolContext = ToolHandlerContext;
 
-/// Unified trait for all tool handlers
-///
-/// This is the single, canonical trait that all handlers must implement.
-/// It provides direct access to the shared context and handles tool calls uniformly.
-///
-/// # Tool Visibility
-///
-/// Tools can be marked as "internal" to hide them from MCP tool listings while keeping
-/// them available for internal system use. Internal tools are:
-/// - Not listed in `tools/list` MCP requests
-/// - Still callable via direct tool invocation
-/// - Used for backend plumbing (lifecycle hooks, LSP interop, etc.)
-///
-/// # Example
-///
-/// ```text
-/// use mill_server::handlers::tools::{ToolHandler, ToolHandlerContext};
-/// use mill_foundation::core::model::mcp::ToolCall;
-/// use async_trait::async_trait;
-///
-/// struct MyHandler;
-///
-/// #[async_trait]
-/// impl ToolHandler for MyHandler {
-///     fn tool_names(&self) -> &[&str] {
-///         &["my_tool"]
-///     }
-///
-///     fn is_internal(&self) -> bool {
-///         false  // Public tool, visible to AI agents
-///     }
-///
-///     async fn handle_tool_call(
-///         &self,
-///         context: &ToolHandlerContext,
-///         tool_call: &ToolCall,
-///     ) -> ServerResult<Value> {
-///         // Implementation
-///         Ok(json!({"success": true}))
-///     }
-/// }
-/// ```
-#[async_trait]
-pub trait ToolHandler: Send + Sync {
-    /// Returns a slice of tool names this handler is responsible for.
+impl ToolHandlerContext {
+    /// Convert to mill_handler_api::ToolHandlerContext for handler compatibility
     ///
-    /// Tool names must be unique across all handlers in the system.
-    fn tool_names(&self) -> &[&str];
+    /// This creates a trait-based context that:
+    /// - Works with both mill-handlers and mill-handlers-analysis handlers
+    /// - Provides access to the full concrete AppState via the extensions field
+    /// - Allows handlers to downcast to access concrete types when needed
+    pub fn to_api_context(&self) -> mill_handler_api::ToolHandlerContext {
+        use super::plugin_dispatcher::{FileServiceWrapper, LanguagePluginRegistryWrapper, AnalysisConfigWrapper, LspAdapterWrapper};
 
-    /// Indicates whether this handler's tools are internal (backend-only).
-    ///
-    /// Internal tools are:
-    /// - Hidden from MCP `tools/list` requests
-    /// - Still callable by the system internally
-    /// - Not intended for direct use by AI agents
-    ///
-    /// Examples of internal tools:
-    /// - Lifecycle hooks (`notify_file_opened`, etc.)
-    /// - LSP protocol interop tools (`apply_workspace_edit`)
-    /// - Backend coordination tools
-    ///
-    /// # Returns
-    ///
-    /// `true` if all tools in this handler are internal, `false` if public (default).
-    fn is_internal(&self) -> bool {
-        false // Default: tools are public/visible
+        mill_handler_api::ToolHandlerContext {
+            user_id: self.user_id.clone(),
+            app_state: Arc::new(mill_handler_api::AppState {
+                file_service: Arc::new(FileServiceWrapper(self.app_state.file_service.clone())) as Arc<dyn mill_handler_api::FileService>,
+                language_plugins: Arc::new(LanguagePluginRegistryWrapper(self.app_state.language_plugins.clone())) as Arc<dyn mill_handler_api::LanguagePluginRegistry>,
+                project_root: self.app_state.project_root.clone(),
+                extensions: Some(self.app_state.clone() as Arc<dyn std::any::Any + Send + Sync>),
+            }),
+            plugin_manager: self.plugin_manager.clone(),
+            lsp_adapter: Arc::new(Mutex::new(
+                // Convert Option<Arc<DirectLspAdapter>> to Option<Arc<dyn LspAdapter>>
+                self.lsp_adapter.blocking_lock()
+                    .as_ref()
+                    .map(|adapter| Arc::new(LspAdapterWrapper((**adapter).clone())) as Arc<dyn mill_handler_api::LspAdapter>)
+            )),
+            analysis_config: Arc::new(AnalysisConfigWrapper((*self.analysis_config).clone())) as Arc<dyn mill_handler_api::AnalysisConfigTrait>,
+        }
     }
+}
 
-    /// Handles an incoming tool call.
-    ///
-    /// # Arguments
-    ///
-    /// * `context` - The execution context providing access to all services
-    /// * `tool_call` - The MCP tool call containing name and arguments
-    ///
-    /// # Returns
-    ///
-    /// The result of the tool execution as a JSON value, or a ServerError on failure.
-    async fn handle_tool_call(
-        &self,
-        context: &ToolHandlerContext,
-        tool_call: &ToolCall,
-    ) -> ServerResult<Value>;
+/// Helper functions to extract concrete types from trait-based AppState
+pub mod extensions {
+    use super::AppState;
+    use mill_foundation::errors::{MillError, MillResult};
+    use std::sync::Arc;
+
+    /// Extract the concrete AppState from the extensions field
+    pub fn get_concrete_app_state(
+        api_state: &mill_handler_api::AppState,
+    ) -> MillResult<Arc<AppState>> {
+        api_state
+            .extensions
+            .as_ref()
+            .ok_or_else(|| MillError::internal("AppState extensions not set"))?
+            .clone()
+            .downcast::<AppState>()
+            .map_err(|_| MillError::internal("Failed to downcast AppState from extensions"))
+    }
 }

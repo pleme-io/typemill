@@ -2,7 +2,7 @@
 //!
 //! Handles: health_check
 
-use super::{ToolHandler, ToolHandlerContext};
+use super::{extensions::get_concrete_app_state, ToolHandler, ToolHandlerContext};
 use crate::handlers::system_handler::SystemHandler;
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
@@ -29,7 +29,7 @@ impl ToolHandler for SystemToolsHandler {
 
     async fn handle_tool_call(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         if tool_call.name == "health_check" {
@@ -41,11 +41,12 @@ impl ToolHandler for SystemToolsHandler {
                 .await?;
 
             if let Some(obj) = health_report.as_object_mut() {
+                let concrete_state = get_concrete_app_state(&context.app_state)?;
                 obj.insert(
                     "system_status".to_string(),
                     json!({
                         "status": "ok",
-                        "uptime_seconds": context.app_state.start_time.elapsed().as_secs(),
+                        "uptime_seconds": concrete_state.start_time.elapsed().as_secs(),
                         "message": "System is operational"
                     }),
                 );

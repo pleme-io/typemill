@@ -656,8 +656,9 @@ mod move_tests {
         assert!(result.is_err());
         if let Err(ref err) = result {
             // The error message contains "Resource already exists" and the path
-            assert!(err.message.contains("Resource already exists"));
-            assert!(err.message.contains(dest_path.to_str().unwrap()));
+            let err_msg = err.to_string();
+            assert!(err_msg.contains("Resource already exists"));
+            assert!(err_msg.contains(dest_path.to_str().unwrap()));
         } else {
             panic!("Expected AlreadyExists error, got {:?}", result);
         }
@@ -778,8 +779,9 @@ mod move_tests {
         assert!(result.is_err());
         if let Err(ref err) = result {
             // The error message contains "Resource already exists" and the path
-            assert!(err.message.contains("Resource already exists"));
-            assert!(err.message.contains(dest_dir.to_str().unwrap()));
+            let err_msg = err.to_string();
+            assert!(err_msg.contains("Resource already exists"));
+            assert!(err_msg.contains(dest_dir.to_str().unwrap()));
         } else {
             panic!("Expected AlreadyExists error, got {:?}", result);
         }

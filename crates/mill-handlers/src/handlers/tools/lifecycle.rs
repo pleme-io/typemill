@@ -40,7 +40,7 @@ impl ToolHandler for LifecycleHandler {
 
     async fn handle_tool_call(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         // Delegate directly to SystemHandler (which now implements the new trait)

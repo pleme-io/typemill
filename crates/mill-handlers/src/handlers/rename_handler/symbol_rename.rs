@@ -14,7 +14,7 @@ impl RenameHandler {
         target: &RenameTarget,
         new_name: &str,
         _options: &RenameOptions,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<RenamePlan> {
         debug!(path = %target.path, new_name = %new_name, "Planning symbol rename via LSP");
 

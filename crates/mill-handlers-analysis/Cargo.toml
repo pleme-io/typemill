@@ -1,0 +1,54 @@
+[package]
+name = "mill-handlers-analysis"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+
+[features]
+default = []
+analysis-dead-code = ["dep:mill-analysis-dead-code", "dep:mill-analysis-common"]
+analysis-circular-deps = ["dep:mill-analysis-circular-deps", "dep:mill-analysis-graph"]
+analysis-deep-dead-code = ["dep:mill-analysis-deep-dead-code", "dep:mill-analysis-common"]
+
+[dependencies]
+mill-foundation = { path = "../mill-foundation" }
+mill-services = { path = "../mill-services", default-features = false }
+mill-plugin-api = { path = "../mill-plugin-api" }
+mill-lsp = { path = "../mill-lsp" }
+mill-handler-api = { path = "../mill-handler-api" }
+
+# Analysis-specific dependencies
+mill-analysis-common = { path = "../../analysis/mill-analysis-common", optional = true }
+mill-analysis-dead-code = { path = "../../analysis/mill-analysis-dead-code", optional = true }
+mill-analysis-circular-deps = { path = "../../analysis/mill-analysis-circular-deps", optional = true }
+mill-analysis-graph = { path = "../../analysis/mill-analysis-graph", optional = true }
+mill-analysis-deep-dead-code = { path = "../../analysis/mill-analysis-deep-dead-code", optional = true }
+
+# Core dependencies
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+dashmap = { workspace = true }
+uuid = { workspace = true }
+lsp-types = "0.97"
+toml = "0.9"
+toml_edit = "0.23"
+walkdir = "2.5"
+regex = "1.10"
+rayon = "1.8"
+figment = { version = "0.10", features = ["toml", "env", "test"] }
+ignore = "0.4"
+globset = "0.4"
+sha2 = "0.10"
+chrono = { workspace = true }
+mill-plugin-system = { path = "../mill-plugin-system", default-features = false, features = ["runtime"] }
+mill-config = { path = "../mill-config" }
+mill-workspaces = { path = "../mill-workspaces" }
+mill-ast = { path = "../mill-ast", default-features = false }
+
+[dev-dependencies]
+tempfile = "3.0"

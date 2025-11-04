@@ -1,7 +1,7 @@
 #![allow(dead_code, unused_variables)]
 
-use super::super::{ToolHandler, ToolHandlerContext};
-use super::suggestions::{
+use crate::{ToolHandler, ToolHandlerContext};
+use crate::suggestions::{
     AnalysisContext, EvidenceStrength, Location, RefactorType, RefactoringCandidate, Scope,
     SuggestionGenerator,
 };
@@ -24,6 +24,14 @@ use super::config::AnalysisConfig;
 use std::path::Path;
 use std::time::Instant;
 use tracing::{debug, info};
+
+/// Helper to downcast AnalysisConfigTrait to concrete AnalysisConfig
+fn get_analysis_config(context: &ToolHandlerContext) -> ServerResult<&AnalysisConfig> {
+    context.analysis_config
+        .as_any()
+        .downcast_ref::<AnalysisConfig>()
+        .ok_or_else(|| ServerError::internal("Failed to downcast AnalysisConfigTrait to AnalysisConfig"))
+}
 
 #[derive(Deserialize, Debug)]
 struct QualityOptions {
@@ -410,7 +418,7 @@ impl QualityHandler {
                 &parsed.symbols,
                 language,
                 &file_path_str,
-                &context.app_state.language_plugins,
+                context.app_state.language_plugins.as_ref(),
             );
 
             debug!(
@@ -817,7 +825,7 @@ pub(crate) fn detect_smells(
     _symbols: &[mill_plugin_api::Symbol],
     language: &str,
     file_path: &str,
-    _registry: &crate::LanguagePluginRegistry,
+    _registry: &dyn mill_handler_api::LanguagePluginRegistry,
     config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
@@ -1059,7 +1067,7 @@ pub(crate) fn analyze_readability(
     _symbols: &[mill_plugin_api::Symbol],
     _language: &str,
     file_path: &str,
-    _registry: &crate::LanguagePluginRegistry,
+    _registry: &dyn mill_handler_api::LanguagePluginRegistry,
     config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
@@ -1362,7 +1370,7 @@ pub(crate) fn analyze_maintainability(
     _symbols: &[mill_plugin_api::Symbol],
     _language: &str,
     file_path: &str,
-    _registry: &crate::LanguagePluginRegistry,
+    _registry: &dyn mill_handler_api::LanguagePluginRegistry,
     _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
@@ -1572,7 +1580,7 @@ fn detect_markdown_structure(
     symbols: &[mill_plugin_api::Symbol],
     _language: &str,
     file_path: &str,
-    _registry: &crate::LanguagePluginRegistry,
+    _registry: &dyn mill_handler_api::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
     let lines: Vec<&str> = content.lines().collect();
@@ -1892,7 +1900,7 @@ fn detect_markdown_formatting(
     _symbols: &[mill_plugin_api::Symbol],
     _language: &str,
     file_path: &str,
-    _registry: &crate::LanguagePluginRegistry,
+    _registry: &dyn mill_handler_api::LanguagePluginRegistry,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
     let lines: Vec<&str> = content.lines().collect();
@@ -2348,9 +2356,10 @@ impl ToolHandler for QualityHandler {
                 };
 
                 // Transform to AnalysisResult
+                let config = get_analysis_config(context)?;
                 let mut result = self.transform_complexity_report(
                     complexity_report,
-                    &context.analysis_config,
+                    config,
                     include_suggestions,
                     scope,
                     start_time.elapsed().as_millis() as u64,

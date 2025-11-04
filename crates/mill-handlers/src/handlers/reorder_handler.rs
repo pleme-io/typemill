@@ -89,7 +89,7 @@ impl ToolHandler for ReorderHandler {
 
     async fn handle_tool_call(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         info!(tool_name = %tool_call.name, "Handling reorder");
@@ -150,8 +150,11 @@ impl ToolHandler for ReorderHandler {
             );
 
             use mill_services::services::{ExecutionOptions, PlanExecutor};
+            use crate::handlers::tools::extensions::get_concrete_app_state;
 
-            let executor = PlanExecutor::new(context.app_state.file_service.clone());
+            // Get concrete AppState to access concrete FileService
+            let concrete_state = get_concrete_app_state(&context.app_state)?;
+            let executor = PlanExecutor::new(concrete_state.file_service.clone());
             let result = executor
                 .execute_plan(refactor_plan, ExecutionOptions::default())
                 .await?;
@@ -177,7 +180,7 @@ impl ReorderHandler {
     async fn plan_reorder_parameters(
         &self,
         params: &ReorderPlanParams,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<ReorderPlan> {
         debug!(file_path = %params.target.file_path, "Planning parameter reorder");
 
@@ -202,7 +205,7 @@ impl ReorderHandler {
     async fn plan_reorder_fields(
         &self,
         params: &ReorderPlanParams,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<ReorderPlan> {
         debug!(file_path = %params.target.file_path, "Planning field reorder");
 
@@ -227,7 +230,7 @@ impl ReorderHandler {
     async fn plan_reorder_imports(
         &self,
         params: &ReorderPlanParams,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<ReorderPlan> {
         debug!(file_path = %params.target.file_path, "Planning import reorder");
 
@@ -346,7 +349,7 @@ impl ReorderHandler {
     async fn plan_reorder_statements(
         &self,
         params: &ReorderPlanParams,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<ReorderPlan> {
         debug!(file_path = %params.target.file_path, "Planning statement reorder");
 
@@ -371,7 +374,7 @@ impl ReorderHandler {
     async fn try_lsp_reorder(
         &self,
         params: &ReorderPlanParams,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         code_action_kind: &str,
     ) -> ServerResult<ReorderPlan> {
         // Get file extension to determine LSP client

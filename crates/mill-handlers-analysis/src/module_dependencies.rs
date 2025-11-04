@@ -21,7 +21,7 @@
 //! - Audit module coupling and dependency usage
 //! - Detect missing or unused dependencies
 
-use super::super::{ToolHandler, ToolHandlerContext};
+use crate::{ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};

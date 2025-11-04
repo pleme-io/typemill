@@ -32,7 +32,7 @@ pub async fn editplan_to_moveplan(
     edit_plan: EditPlan,
     old_path: &Path,
     new_path: &Path,
-    context: &ToolHandlerContext,
+    context: &mill_handler_api::ToolHandlerContext,
     operation_id: &str,
 ) -> ServerResult<MovePlan> {
     info!(
@@ -104,7 +104,7 @@ pub async fn editplan_to_moveplan(
 async fn calculate_file_checksums(
     edits: &[ProtocolTextEdit],
     source_path: &Path,
-    context: &ToolHandlerContext,
+    context: &mill_handler_api::ToolHandlerContext,
 ) -> ServerResult<HashMap<String, String>> {
     // Use shared utility for checksum calculation
     calculate_checksums_for_edits(edits, &[source_path.to_path_buf()], context).await

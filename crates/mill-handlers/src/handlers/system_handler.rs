@@ -7,7 +7,7 @@
 //! Note: Import optimization available via optimize_imports
 
 use super::lsp_adapter::DirectLspAdapter;
-use super::tools::{ToolHandler, ToolHandlerContext};
+use super::tools::{extensions::get_concrete_app_state, ToolHandler, ToolHandlerContext};
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
@@ -51,7 +51,7 @@ impl ToolHandler for SystemHandler {
 
     async fn handle_tool_call(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         debug!(tool_name = %tool_call.name, "Handling system operation");
@@ -90,11 +90,12 @@ impl SystemHandler {
     async fn handle_health_check(
         &self,
         _tool_call: ToolCall,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<Value> {
         info!("Handling health check request");
 
-        let uptime_secs = context.app_state.start_time.elapsed().as_secs();
+        let concrete_state = get_concrete_app_state(&context.app_state)?;
+        let uptime_secs = concrete_state.start_time.elapsed().as_secs();
         let uptime_mins = uptime_secs / 60;
         let uptime_hours = uptime_mins / 60;
 
@@ -106,8 +107,7 @@ impl SystemHandler {
             .len();
 
         // Get paused workflow count from executor
-        let paused_workflows = context
-            .app_state
+        let paused_workflows = concrete_state
             .workflow_executor
             .get_paused_workflow_count();
 
@@ -131,7 +131,7 @@ impl SystemHandler {
     async fn handle_notify_file_opened(
         &self,
         tool_call: ToolCall,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<Value> {
         debug!(tool_name = %tool_call.name, "Handling notify_file_opened");
 
@@ -220,7 +220,7 @@ impl SystemHandler {
     async fn handle_notify_file_saved(
         &self,
         tool_call: ToolCall,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<Value> {
         debug!(tool_name = %tool_call.name, "Handling notify_file_saved");
 
@@ -259,7 +259,7 @@ impl SystemHandler {
     async fn handle_notify_file_closed(
         &self,
         tool_call: ToolCall,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<Value> {
         debug!(tool_name = %tool_call.name, "Handling notify_file_closed");
 

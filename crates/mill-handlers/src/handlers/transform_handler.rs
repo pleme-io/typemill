@@ -88,7 +88,7 @@ impl ToolHandler for TransformHandler {
 
     async fn handle_tool_call(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         info!(tool_name = %tool_call.name, "Handling transform");
@@ -151,8 +151,11 @@ impl ToolHandler for TransformHandler {
             );
 
             use mill_services::services::{ExecutionOptions, PlanExecutor};
+            use crate::handlers::tools::extensions::get_concrete_app_state;
 
-            let executor = PlanExecutor::new(context.app_state.file_service.clone());
+            // Get concrete AppState to access concrete FileService
+            let concrete_state = get_concrete_app_state(&context.app_state)?;
+            let executor = PlanExecutor::new(concrete_state.file_service.clone());
             let result = executor
                 .execute_plan(refactor_plan, ExecutionOptions::default())
                 .await?;
@@ -178,7 +181,7 @@ impl TransformHandler {
     async fn plan_if_to_match(
         &self,
         params: &TransformPlanParams,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<TransformPlan> {
         debug!(file_path = %params.transformation.file_path, "Planning if-to-match transform");
 
@@ -191,7 +194,7 @@ impl TransformHandler {
     async fn plan_match_to_if(
         &self,
         params: &TransformPlanParams,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<TransformPlan> {
         debug!(file_path = %params.transformation.file_path, "Planning match-to-if transform");
 
@@ -204,7 +207,7 @@ impl TransformHandler {
     async fn plan_add_async(
         &self,
         params: &TransformPlanParams,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<TransformPlan> {
         debug!(file_path = %params.transformation.file_path, "Planning add-async transform");
 
@@ -217,7 +220,7 @@ impl TransformHandler {
     async fn plan_remove_async(
         &self,
         params: &TransformPlanParams,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<TransformPlan> {
         debug!(file_path = %params.transformation.file_path, "Planning remove-async transform");
 
@@ -230,7 +233,7 @@ impl TransformHandler {
     async fn plan_fn_to_closure(
         &self,
         params: &TransformPlanParams,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<TransformPlan> {
         debug!(file_path = %params.transformation.file_path, "Planning fn-to-closure transform");
 
@@ -243,7 +246,7 @@ impl TransformHandler {
     async fn plan_closure_to_fn(
         &self,
         params: &TransformPlanParams,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<TransformPlan> {
         debug!(file_path = %params.transformation.file_path, "Planning closure-to-fn transform");
 
@@ -256,7 +259,7 @@ impl TransformHandler {
     async fn try_lsp_transform(
         &self,
         params: &TransformPlanParams,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         code_action_kind: &str,
     ) -> ServerResult<TransformPlan> {
         // Get file extension to determine LSP client

@@ -32,7 +32,7 @@ impl ToolHandler for AnalysisHandler {
 
     async fn handle_tool_call(
         &self,
-        _context: &ToolHandlerContext,
+        _context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         debug!(tool_name = %tool_call.name, "Handling code analysis operation");

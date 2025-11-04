@@ -2,7 +2,7 @@
 //!
 //! Handles: rename_file, create_file, delete_file, read_file, write_file, list_files
 
-use super::tools::{ToolHandler, ToolHandlerContext};
+use super::tools::{extensions::get_concrete_app_state, ToolHandler, ToolHandlerContext};
 use crate::utils::{dry_run::wrap_dry_run_result, remote_exec};
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
@@ -52,7 +52,7 @@ impl ToolHandler for FileOperationHandler {
 
     async fn handle_tool_call(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         debug!(tool_name = %tool_call.name, "Handling file operation");
@@ -80,7 +80,7 @@ impl FileOperationHandler {
     async fn handle_rename_file(
         &self,
         tool_call: ToolCall,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<Value> {
         let args = tool_call.arguments.ok_or_else(|| {
             ServerError::invalid_request("Missing arguments for rename_file")
@@ -111,7 +111,7 @@ impl FileOperationHandler {
     async fn handle_rename_directory(
         &self,
         tool_call: ToolCall,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<Value> {
         let args = tool_call.arguments.ok_or_else(|| {
             ServerError::invalid_request("Missing arguments for rename_directory")
@@ -178,7 +178,7 @@ impl FileOperationHandler {
     async fn handle_create_file(
         &self,
         tool_call: ToolCall,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<Value> {
         let args = tool_call.arguments.ok_or_else(|| {
             ServerError::invalid_request("Missing arguments for create_file")
@@ -210,7 +210,7 @@ impl FileOperationHandler {
     async fn handle_delete_file(
         &self,
         tool_call: ToolCall,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<Value> {
         let args = tool_call.arguments.ok_or_else(|| {
             ServerError::invalid_request("Missing arguments for delete_file")
@@ -238,7 +238,7 @@ impl FileOperationHandler {
     async fn handle_read_file(
         &self,
         tool_call: ToolCall,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<Value> {
         let args = tool_call
             .arguments
@@ -259,8 +259,9 @@ impl FileOperationHandler {
             })?;
             // Execute in remote workspace
             let command = format!("cat '{}'", Self::escape_shell_arg(file_path));
+            let concrete_state = get_concrete_app_state(&context.app_state)?;
             remote_exec::execute_in_workspace(
-                &context.app_state.workspace_manager,
+                &concrete_state.workspace_manager,
                 user_id,
                 workspace_id,
                 &command,
@@ -285,7 +286,7 @@ impl FileOperationHandler {
     async fn handle_write_file(
         &self,
         tool_call: ToolCall,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<Value> {
         let args = tool_call.arguments.ok_or_else(|| {
             ServerError::invalid_request("Missing arguments for write_file")
@@ -326,8 +327,9 @@ impl FileOperationHandler {
                 Self::escape_shell_arg(content),
                 Self::escape_shell_arg(file_path)
             );
+            let concrete_state = get_concrete_app_state(&context.app_state)?;
             remote_exec::execute_in_workspace(
-                &context.app_state.workspace_manager,
+                &concrete_state.workspace_manager,
                 user_id,
                 workspace_id,
                 &command,
@@ -354,7 +356,7 @@ impl FileOperationHandler {
     async fn handle_list_files(
         &self,
         tool_call: ToolCall,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<Value> {
         let args = tool_call.arguments.unwrap_or_else(|| json!({}));
 

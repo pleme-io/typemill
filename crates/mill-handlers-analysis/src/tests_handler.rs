@@ -11,8 +11,8 @@
 //! Uses the shared analysis engine for orchestration and focuses only on
 //! detection logic.
 
-use super::super::{ToolHandler, ToolHandlerContext};
-use super::suggestions::RefactoringCandidate;
+use crate::{ToolHandler, ToolHandlerContext};
+use crate::suggestions::RefactoringCandidate;
 use anyhow::Result;
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
@@ -72,7 +72,7 @@ pub(crate) fn detect_coverage(
     symbols: &[Symbol],
     language: &str,
     file_path: &str,
-    _registry: &crate::LanguagePluginRegistry,
+    _registry: &dyn mill_handler_api::LanguagePluginRegistry,
     _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
@@ -224,7 +224,7 @@ pub(crate) fn detect_quality(
     symbols: &[Symbol],
     language: &str,
     file_path: &str,
-    _registry: &crate::LanguagePluginRegistry,
+    _registry: &dyn mill_handler_api::LanguagePluginRegistry,
     _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
@@ -407,7 +407,7 @@ pub(crate) fn detect_assertions(
     symbols: &[Symbol],
     language: &str,
     file_path: &str,
-    _registry: &crate::LanguagePluginRegistry,
+    _registry: &dyn mill_handler_api::LanguagePluginRegistry,
     _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
@@ -606,7 +606,7 @@ pub(crate) fn detect_organization(
     symbols: &[Symbol],
     language: &str,
     file_path: &str,
-    _registry: &crate::LanguagePluginRegistry,
+    _registry: &dyn mill_handler_api::LanguagePluginRegistry,
     _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();

@@ -134,7 +134,7 @@ impl ToolHandler for FindReplaceHandler {
 
     async fn handle_tool_call(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         let args = tool_call.arguments.clone().unwrap_or_default();
@@ -308,7 +308,7 @@ async fn discover_files(
 async fn process_file(
     file_path: &Path,
     params: &FindReplaceParams,
-    context: &ToolHandlerContext,
+    context: &mill_handler_api::ToolHandlerContext,
 ) -> Result<FileEdits, ServerError> {
     // Read file content
     let content = context
@@ -444,7 +444,7 @@ fn create_edit_plan(all_edits: Vec<FileEdits>, params: &FindReplaceParams) -> Ed
 /// Apply an EditPlan using the file service
 async fn apply_plan(
     plan: &EditPlan,
-    context: &ToolHandlerContext,
+    context: &mill_handler_api::ToolHandlerContext,
 ) -> Result<Vec<String>, ServerError> {
     // Group edits by file
     let mut edits_by_file: HashMap<String, Vec<TextEdit>> = HashMap::new();

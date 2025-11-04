@@ -30,7 +30,7 @@ impl ToolHandler for WorkspaceCreateHandler {
 
     async fn handle_tool_call(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         match tool_call.name.as_str() {
@@ -95,7 +95,7 @@ pub(crate) struct PackageInfo {
 // Handler implementation
 
 async fn handle_create_package(
-    context: &ToolHandlerContext,
+    context: &mill_handler_api::ToolHandlerContext,
     tool_call: &ToolCall,
 ) -> ServerResult<Value> {
     debug!("Handling workspace.create_package");

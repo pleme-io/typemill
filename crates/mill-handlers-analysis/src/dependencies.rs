@@ -13,8 +13,8 @@
 //! Uses the shared analysis engine for orchestration and focuses only on
 //! detection logic.
 
-use super::super::{ToolHandler, ToolHandlerContext};
-use super::suggestions::{AnalysisContext, RefactoringCandidate, SuggestionGenerator};
+use crate::{ToolHandler, ToolHandlerContext};
+use crate::suggestions::{AnalysisContext, RefactoringCandidate, SuggestionGenerator};
 use anyhow::Result;
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
@@ -78,7 +78,7 @@ pub(crate) fn detect_imports(
     _symbols: &[mill_plugin_api::Symbol],
     language: &str,
     file_path: &str,
-    registry: &crate::LanguagePluginRegistry,
+    registry: &dyn mill_handler_api::LanguagePluginRegistry,
     _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     if language == "rust" {
@@ -225,7 +225,7 @@ pub(crate) fn detect_graph(
     _symbols: &[mill_plugin_api::Symbol],
     language: &str,
     file_path: &str,
-    _registry: &crate::LanguagePluginRegistry,
+    _registry: &dyn mill_handler_api::LanguagePluginRegistry,
     _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
@@ -322,7 +322,7 @@ pub(crate) fn detect_circular(
     _symbols: &[mill_plugin_api::Symbol],
     language: &str,
     file_path: &str,
-    _registry: &crate::LanguagePluginRegistry,
+    _registry: &dyn mill_handler_api::LanguagePluginRegistry,
     _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
@@ -439,7 +439,7 @@ pub(crate) fn detect_coupling(
     _symbols: &[mill_plugin_api::Symbol],
     language: &str,
     file_path: &str,
-    _registry: &crate::LanguagePluginRegistry,
+    _registry: &dyn mill_handler_api::LanguagePluginRegistry,
     _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
@@ -565,7 +565,7 @@ pub(crate) fn detect_cohesion(
     _symbols: &[mill_plugin_api::Symbol],
     _language: &str,
     file_path: &str,
-    _registry: &crate::LanguagePluginRegistry,
+    _registry: &dyn mill_handler_api::LanguagePluginRegistry,
     _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
@@ -694,7 +694,7 @@ pub(crate) fn detect_depth(
     _symbols: &[mill_plugin_api::Symbol],
     language: &str,
     file_path: &str,
-    _registry: &crate::LanguagePluginRegistry,
+    _registry: &dyn mill_handler_api::LanguagePluginRegistry,
     _config: &AnalysisConfig,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
@@ -1107,7 +1107,7 @@ fn parse_imports_with_plugin(
     content: &str,
     language: &str,
     file_path: &str,
-    registry: &crate::LanguagePluginRegistry,
+    registry: &dyn mill_handler_api::LanguagePluginRegistry,
 ) -> Result<Vec<mill_foundation::protocol::ImportInfo>, String> {
     use std::path::Path;
 

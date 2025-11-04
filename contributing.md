@@ -333,7 +333,7 @@ To add new tools and handlers to the system:
 
 **Handler organization:**
 - Navigation tools → `crates/mill-handlers/src/handlers/tools/navigation.rs`
-- Analysis tools → `crates/mill-handlers/src/handlers/tools/analysis/*.rs`
+- Analysis tools → `crates/mill-handlers-analysis/src/*.rs`
 - Refactoring tools → `crates/mill-handlers/src/handlers/<operation>_handler.rs`
 - System tools → `crates/mill-handlers/src/handlers/tools/system.rs`
 

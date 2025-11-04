@@ -72,7 +72,7 @@ impl ToolHandler for InternalIntelligenceHandler {
 
     async fn handle_tool_call(
         &self,
-        context: &ToolHandlerContext,
+        context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         let plugin_request = self.convert_tool_call_to_plugin_request(tool_call)?;

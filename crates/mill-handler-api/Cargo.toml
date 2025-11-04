@@ -1,0 +1,19 @@
+[package]
+name = "mill-handler-api"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+
+[dependencies]
+mill-foundation = { path = "../mill-foundation" }
+mill-plugin-api = { path = "../mill-plugin-api" }
+mill-plugin-system = { path = "../mill-plugin-system", default-features = false, features = ["runtime"] }
+mill-services = { path = "../mill-services" }
+mill-lsp = { path = "../mill-lsp" }
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+
+[features]
+default = []
