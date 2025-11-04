@@ -13,6 +13,8 @@ First off, thank you for considering contributing! It's people like you that mak
 
 - **Rust Toolchain:** Get it from [rustup.rs](https://rustup.rs/)
 - **Git:** For cloning the repository
+- **Java Runtime (JRE/JDK 11+):** Required for full test suite (Java parser tests)
+  - See [README.md](README.md#-lsp-server-management) for platform-specific installation
 - **Node.js & npm:** For TypeScript LSP (optional, can be auto-installed by `mill setup`)
 
 ### Setup Workflow

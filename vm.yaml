@@ -15,6 +15,10 @@ vm:
   swappiness: 60
   timezone: auto
   user: developer
+  # Use snapshot's native UID/GID (1000:1000) to avoid conflicts
+  # This enables sharing snapshots across multiple machines
+  uid: 1000
+  gid: 1000
 versions:
   node: '22'
   python: '3.11'
@@ -25,6 +29,7 @@ apt_packages:
   - ripgrep
   - unzip
   - htop
+  - openjdk-17-jre-headless  # Required for Java parser tests
 npm_packages:
   - '@anthropic-ai/claude-code'
   - '@google/gemini-cli'
