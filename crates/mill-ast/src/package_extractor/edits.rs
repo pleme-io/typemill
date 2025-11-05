@@ -271,54 +271,109 @@ pub(crate) async fn add_import_update_edits(
                     .any(|pattern| import_path.starts_with(pattern));
 
                 if is_match {
-                    // Find the line containing this import for location info
-                    if let Some((line_num, line)) = content
-                        .lines()
-                        .enumerate()
-                        .find(|(_, line)| line.contains(&import_path))
-                    {
-                        let old_use_statement = format!("use {};", import_path);
-                        // TODO: Rewrite using ImportRenameSupport capability instead of hardcoded logic
-                        let new_use_statement = format!(
-                            "use {}::{};",
+                    // Use ImportAdvancedSupport if available, otherwise fall back to hardcoded logic
+                    if let Some(advanced_support) = plugin.import_advanced_support() {
+                        use mill_foundation::planning::DependencyUpdate;
+                        use mill_foundation::planning::DependencyUpdateType;
+
+                        let old_reference = import_path.clone();
+                        let new_reference = format!(
+                            "{}::{}",
                             params.target_package_name,
                             &import_path[6..]
                         );
 
-                        // Find column position of "use" keyword
-                        let start_column = line.find("use").unwrap_or(0);
-                        let end_column = line.find(';').map(|pos| pos + 1).unwrap_or(line.len());
+                        let update = DependencyUpdate {
+                            target_file: file_path.to_string_lossy().to_string(),
+                            update_type: DependencyUpdateType::ImportPath,
+                            old_reference: old_reference.clone(),
+                            new_reference: new_reference.clone(),
+                        };
 
-                        edits.push(TextEdit {
-                            file_path: Some(file_path.to_string_lossy().to_string()),
-                            edit_type: EditType::Replace,
-                            location: EditLocation {
-                                start_line: (line_num + 1) as u32, // Convert to 1-indexed
-                                start_column: start_column as u32,
-                                end_line: (line_num + 1) as u32,
-                                end_column: end_column as u32,
-                            },
-                            original_text: old_use_statement.clone(),
-                            new_text: new_use_statement.clone(),
-                            priority: 40,
-                            description: format!(
-                                "Update import to use new package {}",
-                                params.target_package_name
-                            ),
-                        });
+                        match advanced_support.update_import_reference(&file_path, &content, &update) {
+                            Ok(updated_content) if updated_content != content => {
+                                // Find what changed to create accurate TextEdit
+                                edits.push(TextEdit {
+                                    file_path: Some(file_path.to_string_lossy().to_string()),
+                                    edit_type: EditType::Replace,
+                                    location: EditLocation {
+                                        start_line: 1,
+                                        start_column: 0,
+                                        end_line: content.lines().count() as u32,
+                                        end_column: 0,
+                                    },
+                                    original_text: content.clone(),
+                                    new_text: updated_content,
+                                    priority: 40,
+                                    description: format!(
+                                        "Update import from {} to {}",
+                                        old_reference, new_reference
+                                    ),
+                                });
 
-                        debug!(
-                            file = %file_path.display(),
-                            old_import = %old_use_statement,
-                            new_import = %new_use_statement,
-                            "Created use statement update TextEdit"
-                        );
+                                debug!(
+                                    file = %file_path.display(),
+                                    old_ref = %old_reference,
+                                    new_ref = %new_reference,
+                                    "Used ImportAdvancedSupport to update import"
+                                );
+                            }
+                            Ok(_) => {
+                                debug!(
+                                    file = %file_path.display(),
+                                    "ImportAdvancedSupport returned no changes"
+                                );
+                            }
+                            Err(e) => {
+                                debug!(
+                                    file = %file_path.display(),
+                                    error = %e,
+                                    "ImportAdvancedSupport failed, skipping"
+                                );
+                            }
+                        }
                     } else {
-                        debug!(
-                            file = %file_path.display(),
-                            import_path = %import_path,
-                            "Could not find line containing import"
-                        );
+                        // Fallback: Use basic line-based replacement
+                        if let Some((line_num, line)) = content
+                            .lines()
+                            .enumerate()
+                            .find(|(_, line)| line.contains(&import_path))
+                        {
+                            let old_use_statement = format!("use {};", import_path);
+                            let new_use_statement = format!(
+                                "use {}::{};",
+                                params.target_package_name,
+                                &import_path[6..]
+                            );
+
+                            let start_column = line.find("use").unwrap_or(0);
+                            let end_column = line.find(';').map(|pos| pos + 1).unwrap_or(line.len());
+
+                            edits.push(TextEdit {
+                                file_path: Some(file_path.to_string_lossy().to_string()),
+                                edit_type: EditType::Replace,
+                                location: EditLocation {
+                                    start_line: (line_num + 1) as u32,
+                                    start_column: start_column as u32,
+                                    end_line: (line_num + 1) as u32,
+                                    end_column: end_column as u32,
+                                },
+                                original_text: old_use_statement.clone(),
+                                new_text: new_use_statement.clone(),
+                                priority: 40,
+                                description: format!(
+                                    "Update import to use new package {}",
+                                    params.target_package_name
+                                ),
+                            });
+
+                            debug!(
+                                file = %file_path.display(),
+                                old_import = %old_use_statement,
+                                new_import = %new_use_statement,
+                                "Used fallback line-based replacement for import"
+                            );
+                        }
                     }
                 }
             }
