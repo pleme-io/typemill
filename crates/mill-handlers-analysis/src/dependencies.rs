@@ -21,6 +21,7 @@ use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::protocol::analysis_result::{
     Finding, FindingLocation, Position, Range, Severity, Suggestion,
 };
+use mill_foundation::protocol::SafetyLevel;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
 use regex::Regex;
 use serde_json::{json, Value};
@@ -34,6 +35,9 @@ use mill_analysis_circular_deps::{
 
 #[cfg(feature = "analysis-circular-deps")]
 use mill_foundation::protocol::analysis_result::AnalysisResult;
+
+#[cfg(feature = "analysis-circular-deps")]
+use mill_plugin_api::PluginDiscovery;
 
 /// Detect and analyze import/export statements using plugin-based AST parsing
 ///
@@ -1220,8 +1224,10 @@ impl ToolHandler for DependenciesHandler {
             #[cfg(feature = "analysis-circular-deps")]
             {
                 let project_root = &context.app_state.project_root;
-                let builder =
-                    DependencyGraphBuilder::new(&context.app_state.language_plugins.inner);
+                let plugin_discovery = context.app_state.language_plugins.inner()
+                    .downcast_ref::<PluginDiscovery>()
+                    .ok_or_else(|| ServerError::internal("Failed to downcast to PluginDiscovery".to_string()))?;
+                let builder = DependencyGraphBuilder::new(plugin_discovery);
                 let graph = builder.build(project_root).map_err(|e| ServerError::internal(e.to_string()))?;
                 let result = find_circular_dependencies(&graph, None)
                     .map_err(|e| ServerError::internal(e.to_string()))?;

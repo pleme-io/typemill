@@ -1536,7 +1536,6 @@ impl DeadCodeHandler {
         scope_param: &super::engine::ScopeParam,
         kind: &str,
     ) -> ServerResult<Value> {
-        use crate::DirectLspAdapter;
         use mill_analysis_common::{AnalysisEngine, LspProvider};
         use mill_analysis_dead_code::{DeadCodeAnalyzer, DeadCodeConfig};
         use mill_foundation::protocol::analysis_result::{AnalysisResult, AnalysisScope};
@@ -1545,219 +1544,13 @@ impl DeadCodeHandler {
         use std::time::Instant;
         use tracing::info;
 
-        /// Adapter to make DirectLspAdapter compatible with LspProvider trait
-        struct DirectLspProviderAdapter {
-            adapter: Arc<DirectLspAdapter>,
-        }
+        // Note: LSP-based dead code analysis temporarily disabled
+        // This requires DirectLspAdapter which is in mill-handlers
+        // TODO: Refactor to use LspAdapter trait from mill-handler-api
+        return Err(ServerError::not_supported(
+            "workspace-scoped dead code analysis".to_string(),
+        ));
 
-        impl DirectLspProviderAdapter {
-            fn new(adapter: Arc<DirectLspAdapter>) -> Self {
-                Self { adapter }
-            }
-        }
-
-        #[async_trait::async_trait]
-        impl LspProvider for DirectLspProviderAdapter {
-            async fn workspace_symbols(
-                &self,
-                query: &str,
-            ) -> Result<Vec<Value>, mill_analysis_common::AnalysisError> {
-                use mill_plugin_system::LspService;
-                self.adapter
-                    .request("workspace/symbol", json!({ "query": query }))
-                    .await
-                    .map(|v| v.as_array().cloned().unwrap_or_default())
-                    .map_err(|e| mill_analysis_common::AnalysisError::LspError(e.to_string()))
-            }
-
-            async fn find_references(
-                &self,
-                uri: &str,
-                line: u32,
-                character: u32,
-            ) -> Result<Vec<Value>, mill_analysis_common::AnalysisError> {
-                use mill_plugin_system::LspService;
-                let params = json!({
-                    "textDocument": { "uri": uri },
-                    "position": { "line": line, "character": character },
-                    "context": { "includeDeclaration": true }
-                });
-
-                self.adapter
-                    .request("textDocument/references", params)
-                    .await
-                    .map(|v| v.as_array().cloned().unwrap_or_default())
-                    .map_err(|e| mill_analysis_common::AnalysisError::LspError(e.to_string()))
-            }
-
-            async fn document_symbols(
-                &self,
-                uri: &str,
-            ) -> Result<Vec<Value>, mill_analysis_common::AnalysisError> {
-                use mill_plugin_system::LspService;
-                self.adapter
-                    .request(
-                        "textDocument/documentSymbol",
-                        json!({ "textDocument": { "uri": uri } }),
-                    )
-                    .await
-                    .map(|v| v.as_array().cloned().unwrap_or_default())
-                    .map_err(|e| mill_analysis_common::AnalysisError::LspError(e.to_string()))
-            }
-        }
-
-        let start_time = Instant::now();
-
-        // Extract workspace path from scope
-        let workspace_path_str = scope_param.path.as_ref().ok_or_else(|| {
-            ServerError::invalid_request(
-                "Missing path for workspace scope. Specify scope.path with workspace directory"
-                    .into(),
-            )
-        })?;
-
-        let workspace_path = Path::new(workspace_path_str);
-
-        info!(
-            workspace_path = %workspace_path_str,
-            kind = %kind,
-            "Starting workspace dead code analysis with LSP"
-        );
-
-        // Parse configuration from arguments
-        let mut config = DeadCodeConfig::default();
-
-        if let Some(file_types) = args.get("file_types").and_then(|v| v.as_array()) {
-            let types: Vec<String> = file_types
-                .iter()
-                .filter_map(|v| v.as_str().map(String::from))
-                .collect();
-            if !types.is_empty() {
-                config.file_types = Some(types);
-            }
-        }
-
-        if let Some(include_exported) = args.get("include_exported").and_then(|v| v.as_bool()) {
-            config.include_exported = include_exported;
-        }
-
-        if let Some(max_results) = args.get("max_results").and_then(|v| v.as_u64()) {
-            config.max_results = Some(max_results as usize);
-        }
-
-        if let Some(min_refs) = args.get("min_reference_threshold").and_then(|v| v.as_u64()) {
-            config.min_reference_threshold = min_refs as usize;
-        }
-
-        if let Some(timeout_secs) = args.get("timeout_seconds").and_then(|v| v.as_u64()) {
-            config.timeout = Some(std::time::Duration::from_secs(timeout_secs));
-        }
-
-        debug!(config = ?config, "LSP dead code config prepared");
-
-        // Get LSP adapter from context
-        let lsp_adapter_lock = context.lsp_adapter.lock().await;
-        let lsp_adapter = lsp_adapter_lock
-            .as_ref()
-            .ok_or_else(|| {
-                ServerError::internal(
-                    "LSP adapter not initialized. Workspace scope requires LSP integration."
-                        .to_string(),
-                )
-            })?
-            .clone();
-        drop(lsp_adapter_lock);
-
-        // Create LSP provider adapter
-        let lsp_provider = Arc::new(DirectLspProviderAdapter::new(lsp_adapter));
-
-        // Use analyzer with LSP provider
-        let analyzer = DeadCodeAnalyzer;
-        let report = analyzer
-            .analyze(lsp_provider, workspace_path, config)
-            .await
-            .map_err(|e| ServerError::internal(format!("LSP analysis failed: {}", e)))?;
-
-        info!(
-            workspace_path = %workspace_path_str,
-            dead_symbols_count = report.dead_symbols.len(),
-            "LSP dead code analysis complete"
-        );
-
-        // Transform DeadCodeReport to unified Finding format
-        let scope = AnalysisScope {
-            scope_type: "workspace".to_string(),
-            path: workspace_path_str.clone(),
-            include: scope_param.include.clone(),
-            exclude: scope_param.exclude.clone(),
-        };
-
-        let mut result = AnalysisResult::new("dead_code", kind, scope);
-
-        // Convert dead symbols to findings
-        for dead_symbol in report.dead_symbols {
-            let mut metrics = HashMap::new();
-            metrics.insert("symbol_name".to_string(), json!(dead_symbol.name));
-            metrics.insert("symbol_kind".to_string(), json!(dead_symbol.kind));
-
-            let finding = Finding {
-                id: format!(
-                    "dead-symbol-{}-{}-{}",
-                    dead_symbol.file_path, dead_symbol.line, dead_symbol.name
-                ),
-                kind: "unused_symbol".to_string(),
-                severity: Severity::Medium,
-                location: FindingLocation {
-                    file_path: dead_symbol.file_path.clone(),
-                    range: Some(Range {
-                        start: Position {
-                            line: dead_symbol.line,
-                            character: dead_symbol.column,
-                        },
-                        end: Position {
-                            line: dead_symbol.line,
-                            character: dead_symbol.column + dead_symbol.name.len() as u32,
-                        },
-                    }),
-                    symbol: Some(dead_symbol.name.clone()),
-                    symbol_kind: Some(dead_symbol.kind),
-                },
-                metrics: Some(metrics),
-                message: format!(
-                    "Symbol '{}' is defined but never used in the workspace",
-                    dead_symbol.name
-                ),
-                suggestions: vec![Suggestion {
-                    action: "remove_symbol".to_string(),
-                    description: format!("Remove unused symbol '{}'", dead_symbol.name),
-                    target: None,
-                    estimated_impact: "Reduces code complexity and improves maintainability"
-                        .to_string(),
-                    safety: SafetyLevel::RequiresReview,
-                    confidence: 0.85,
-                    reversible: true,
-                    refactor_call: None,
-                }],
-            };
-
-            result.add_finding(finding);
-        }
-
-        // Add analysis stats to summary from the report stats structure
-        result.summary.files_analyzed = report.stats.files_analyzed;
-        result.summary.symbols_analyzed = Some(report.stats.symbols_analyzed);
-
-        result.finalize(start_time.elapsed().as_millis() as u64);
-
-        info!(
-            workspace_path = %workspace_path_str,
-            findings_count = result.summary.total_findings,
-            analysis_time_ms = result.summary.analysis_time_ms,
-            "Workspace dead code analysis complete"
-        );
-
-        serde_json::to_value(result)
-            .map_err(|e| ServerError::internal(format!("Failed to serialize result: {}", e)))
     }
 
     /// Fallback handler for when LSP feature is not enabled
@@ -1783,7 +1576,6 @@ impl DeadCodeHandler {
         scope_param: &super::engine::ScopeParam,
         kind: &str,
     ) -> ServerResult<Value> {
-        use crate::DirectLspAdapter;
         use mill_analysis_common::{AnalysisEngine, LspProvider};
         use mill_analysis_deep_dead_code::{DeepDeadCodeAnalyzer, DeepDeadCodeConfig};
         use mill_foundation::protocol::analysis_result::{AnalysisResult, AnalysisScope};
@@ -1792,150 +1584,13 @@ impl DeadCodeHandler {
         use std::time::Instant;
         use tracing::info;
 
-        /// Adapter to make DirectLspAdapter compatible with LspProvider trait
-        struct DirectLspProviderAdapter {
-            adapter: Arc<DirectLspAdapter>,
-        }
+        // Note: LSP-based dead code analysis temporarily disabled
+        // This requires DirectLspAdapter which is in mill-handlers
+        // TODO: Refactor to use LspAdapter trait from mill-handler-api
+        return Err(ServerError::not_supported(
+            "workspace-scoped dead code analysis".to_string(),
+        ));
 
-        impl DirectLspProviderAdapter {
-            fn new(adapter: Arc<DirectLspAdapter>) -> Self {
-                Self { adapter }
-            }
-        }
-
-        #[async_trait::async_trait]
-        impl LspProvider for DirectLspProviderAdapter {
-            async fn workspace_symbols(
-                &self,
-                query: &str,
-            ) -> Result<Vec<Value>, mill_analysis_common::AnalysisError> {
-                use mill_plugin_system::LspService;
-                self.adapter
-                    .request("workspace/symbol", json!({ "query": query }))
-                    .await
-                    .map(|v| v.as_array().cloned().unwrap_or_default())
-                    .map_err(|e| mill_analysis_common::AnalysisError::LspError(e.to_string()))
-            }
-
-            async fn find_references(
-                &self,
-                uri: &str,
-                line: u32,
-                character: u32,
-            ) -> Result<Vec<Value>, mill_analysis_common::AnalysisError> {
-                use mill_plugin_system::LspService;
-                let params = json!({
-                    "textDocument": { "uri": uri },
-                    "position": { "line": line, "character": character },
-                    "context": { "includeDeclaration": true }
-                });
-
-                self.adapter
-                    .request("textDocument/references", params)
-                    .await
-                    .map(|v| v.as_array().cloned().unwrap_or_default())
-                    .map_err(|e| mill_analysis_common::AnalysisError::LspError(e.to_string()))
-            }
-
-            async fn document_symbols(
-                &self,
-                uri: &str,
-            ) -> Result<Vec<Value>, mill_analysis_common::AnalysisError> {
-                use mill_plugin_system::LspService;
-                self.adapter
-                    .request(
-                        "textDocument/documentSymbol",
-                        json!({ "textDocument": { "uri": uri } }),
-                    )
-                    .await
-                    .map(|v| v.as_array().cloned().unwrap_or_default())
-                    .map_err(|e| mill_analysis_common::AnalysisError::LspError(e.to_string()))
-            }
-        }
-
-        let start_time = Instant::now();
-
-        let workspace_path_str = scope_param.path.as_ref().ok_or_else(|| {
-            ServerError::invalid_request("Missing path for workspace scope.")
-        })?;
-
-        let workspace_path = Path::new(workspace_path_str);
-
-        info!(
-            workspace_path = %workspace_path_str,
-            kind = %kind,
-            "Starting workspace deep dead code analysis with LSP"
-        );
-
-        let mut config = DeepDeadCodeConfig::default();
-        if let Some(check_exports) = args.get("check_public_exports").and_then(|v| v.as_bool()) {
-            config.check_public_exports = check_exports;
-        }
-
-        let lsp_adapter_lock = context.lsp_adapter.lock().await;
-        let lsp_adapter = lsp_adapter_lock.as_ref().unwrap().clone();
-        drop(lsp_adapter_lock);
-
-        let lsp_provider = Arc::new(DirectLspProviderAdapter::new(lsp_adapter));
-
-        let analyzer = DeepDeadCodeAnalyzer;
-        let report = analyzer
-            .analyze(lsp_provider, workspace_path, config)
-            .await
-            .map_err(|e| ServerError::internal(format!("LSP analysis failed: {}", e)))?;
-
-        let scope = AnalysisScope {
-            scope_type: "workspace".to_string(),
-            path: workspace_path_str.clone(),
-            include: scope_param.include.clone(),
-            exclude: scope_param.exclude.clone(),
-        };
-
-        let mut result = AnalysisResult::new("dead_code", kind, scope);
-
-        for dead_symbol in report.dead_symbols {
-            let mut metrics = HashMap::new();
-            metrics.insert("symbol_name".to_string(), json!(dead_symbol.name));
-            metrics.insert("symbol_kind".to_string(), json!(dead_symbol.kind));
-
-            let finding = Finding {
-                id: format!(
-                    "dead-symbol-{}-{}-{:?}",
-                    dead_symbol.file_path, dead_symbol.name, dead_symbol.kind
-                ),
-                kind: format!("unused_{:?}", dead_symbol.kind).to_lowercase(),
-                severity: Severity::Medium,
-                location: FindingLocation {
-                    file_path: dead_symbol.file_path.clone(),
-                    range: None, // Deep analysis doesn't provide a range yet
-                    symbol: Some(dead_symbol.name.clone()),
-                    symbol_kind: Some(format!("{:?}", dead_symbol.kind).to_lowercase()),
-                },
-                metrics: Some(metrics),
-                message: format!(
-                    "Symbol '{}' is defined but never used in the workspace",
-                    dead_symbol.name
-                ),
-                suggestions: vec![Suggestion {
-                    action: "remove_symbol".to_string(),
-                    description: format!("Remove unused symbol '{}'", dead_symbol.name),
-                    target: None,
-                    estimated_impact: "Reduces code complexity and improves maintainability"
-                        .to_string(),
-                    safety: SafetyLevel::RequiresReview,
-                    confidence: 0.85,
-                    reversible: true,
-                    refactor_call: None,
-                }],
-            };
-
-            result.add_finding(finding);
-        }
-
-        result.finalize(start_time.elapsed().as_millis() as u64);
-
-        serde_json::to_value(result)
-            .map_err(|e| ServerError::internal(format!("Failed to serialize result: {}", e)))
     }
 }
 

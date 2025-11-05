@@ -8,7 +8,7 @@ use std::path::Path;
 use mill_plugin_system::mcp::presets;
 
 /// List available MCP presets
-pub(crate) fn list_presets() -> Result<()> {
+pub fn list_presets() -> Result<()> {
     #[cfg(not(feature = "mcp-proxy"))]
     {
         bail!("MCP proxy feature not enabled. Rebuild with --features mcp-proxy");
@@ -29,7 +29,7 @@ pub(crate) fn list_presets() -> Result<()> {
 }
 
 /// Add an MCP preset to config
-pub(crate) fn add_preset(preset_id: &str) -> Result<()> {
+pub fn add_preset(preset_id: &str) -> Result<()> {
     #[cfg(not(feature = "mcp-proxy"))]
     {
         bail!("MCP proxy feature not enabled. Rebuild with --features mcp-proxy");
@@ -86,7 +86,7 @@ pub(crate) fn add_preset(preset_id: &str) -> Result<()> {
 }
 
 /// Remove an MCP preset from config
-pub(crate) fn remove_preset(preset_id: &str) -> Result<()> {
+pub fn remove_preset(preset_id: &str) -> Result<()> {
     #[cfg(not(feature = "mcp-proxy"))]
     {
         bail!("MCP proxy feature not enabled. Rebuild with --features mcp-proxy");
@@ -129,7 +129,7 @@ pub(crate) fn remove_preset(preset_id: &str) -> Result<()> {
 }
 
 /// Show detailed information about an MCP preset
-pub(crate) fn info_preset(preset_id: &str) -> Result<()> {
+pub fn info_preset(preset_id: &str) -> Result<()> {
     #[cfg(not(feature = "mcp-proxy"))]
     {
         bail!("MCP proxy feature not enabled. Rebuild with --features mcp-proxy");
