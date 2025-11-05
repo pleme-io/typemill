@@ -153,6 +153,50 @@ impl LspProvider for LspProviderAdapter {
 
         Ok(symbols)
     }
+
+    async fn open_document(&self, uri: &str, content: &str) -> Result<(), AnalysisError> {
+        debug!(
+            uri = %uri,
+            content_length = content.len(),
+            "LspProviderAdapter::open_document"
+        );
+
+        let client = self.get_client().await?;
+
+        // Determine language ID from file extension
+        let language_id = if uri.ends_with(".rs") {
+            "rust"
+        } else if uri.ends_with(".ts") || uri.ends_with(".tsx") {
+            "typescript"
+        } else if uri.ends_with(".js") || uri.ends_with(".jsx") {
+            "javascript"
+        } else {
+            "plaintext"
+        };
+
+        let params = json!({
+            "textDocument": {
+                "uri": uri,
+                "languageId": language_id,
+                "version": 1,
+                "text": content
+            }
+        });
+
+        client
+            .send_notification("textDocument/didOpen", params)
+            .await
+            .map_err(|e| {
+                AnalysisError::LspError(format!("textDocument/didOpen failed: {}", e))
+            })?;
+
+        debug!(
+            uri = %uri,
+            "Successfully sent didOpen notification"
+        );
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]

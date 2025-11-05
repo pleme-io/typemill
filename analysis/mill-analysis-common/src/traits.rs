@@ -23,6 +23,12 @@ pub trait LspProvider: Send + Sync {
 
     /// Query LSP textDocument/documentSymbol
     async fn document_symbols(&self, uri: &str) -> Result<Vec<Value>, AnalysisError>;
+
+    /// Open a document in the LSP server (textDocument/didOpen)
+    /// This is optional - default implementation does nothing
+    async fn open_document(&self, _uri: &str, _content: &str) -> Result<(), AnalysisError> {
+        Ok(()) // Default: no-op
+    }
 }
 
 /// Core analysis engine trait

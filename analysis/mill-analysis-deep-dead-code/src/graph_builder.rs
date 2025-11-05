@@ -7,7 +7,7 @@ use mill_analysis_common::{
     AnalysisError, LspProvider,
 };
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::{debug, info, warn};
@@ -87,8 +87,34 @@ impl GraphBuilder {
             file_symbol_map.entry(uri).or_default().push(symbol);
         }
 
-        // Step 3: Find references to build the edges of the graph.
-        info!("Populated graph with nodes. Now finding references to build edges...");
+        // Step 3: Explicitly open all source files in the LSP server
+        // This ensures rust-analyzer knows about all files before we query references
+        info!("Opening all source files in LSP server...");
+        let mut opened_files = std::collections::HashSet::new();
+        for symbol in &all_symbols {
+            let absolute_path = self.workspace_path.join(&symbol.file_path);
+            let uri = format!("file://{}", absolute_path.to_str().unwrap());
+
+            if !opened_files.contains(&uri) {
+                // Read file content
+                if let Ok(content) = std::fs::read_to_string(&absolute_path) {
+                    // Send didOpen notification
+                    if let Err(e) = self.lsp.open_document(&uri, &content).await {
+                        warn!("Failed to open document {}: {}", uri, e);
+                    } else {
+                        opened_files.insert(uri);
+                    }
+                }
+            }
+        }
+
+        // Step 4: Wait for rust-analyzer to index the workspace and build cross-file reference graph
+        // This can take several seconds for even small projects
+        info!("Waiting for LSP to index workspace and build reference graph...");
+        tokio::time::sleep(tokio::time::Duration::from_millis(10000)).await;
+
+        // Step 5: Find references to build the edges of the graph.
+        info!("Finding references to build dependency edges...");
         for source_symbol in &all_symbols {
             let absolute_path = self.workspace_path.join(&source_symbol.file_path);
             let uri_str = format!("file://{}", absolute_path.to_str().unwrap());
