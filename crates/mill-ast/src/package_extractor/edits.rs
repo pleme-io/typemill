@@ -239,13 +239,26 @@ pub(crate) async fn add_import_update_edits(
             continue;
         }
 
-        if let Ok(_content) = tokio::fs::read_to_string(&file_path).await {
-            // TODO: This import scanning logic is currently incomplete (empty imports vec)
-            // and needs to be refactored to use ImportParser capability trait.
-            // For now, this is a placeholder that will be completed in a future PR.
-            let imports: Vec<mill_foundation::protocol::ImportInfo> = vec![];
+        if let Ok(content) = tokio::fs::read_to_string(&file_path).await {
+            // Use ImportParser capability to detect imports
+            let import_paths = if let Some(import_parser) = plugin.import_parser() {
+                import_parser.parse_imports(&content)
+            } else {
+                // Fallback: no import parsing available for this language
+                debug!(
+                    plugin_name = ?plugin.metadata().name,
+                    "ImportParser not available for this language, skipping import updates"
+                );
+                continue;
+            };
 
-            for import in imports {
+            debug!(
+                file = %file_path.display(),
+                import_count = import_paths.len(),
+                "Parsed imports from file"
+            );
+
+            for import_path in import_paths {
                 let module_path_normalized = params.module_path.replace('.', "::");
                 let patterns_to_match = [
                     format!("crate::{}", module_path_normalized),
@@ -255,41 +268,58 @@ pub(crate) async fn add_import_update_edits(
 
                 let is_match = patterns_to_match
                     .iter()
-                    .any(|pattern| import.module_path.starts_with(pattern));
+                    .any(|pattern| import_path.starts_with(pattern));
 
                 if is_match {
-                    let old_use_statement = format!("use {};", import.module_path);
-                    // TODO: Rewrite using ImportRenameSupport capability instead of hardcoded logic
-                    let new_use_statement = format!(
-                        "use {}::{};",
-                        params.target_package_name,
-                        &import.module_path[6..]
-                    );
+                    // Find the line containing this import for location info
+                    if let Some((line_num, line)) = content
+                        .lines()
+                        .enumerate()
+                        .find(|(_, line)| line.contains(&import_path))
+                    {
+                        let old_use_statement = format!("use {};", import_path);
+                        // TODO: Rewrite using ImportRenameSupport capability instead of hardcoded logic
+                        let new_use_statement = format!(
+                            "use {}::{};",
+                            params.target_package_name,
+                            &import_path[6..]
+                        );
 
-                    edits.push(TextEdit {
-                        file_path: Some(file_path.to_string_lossy().to_string()),
-                        edit_type: EditType::Replace,
-                        location: EditLocation {
-                            start_line: import.location.start_line,
-                            start_column: import.location.start_column,
-                            end_line: import.location.end_line,
-                            end_column: import.location.end_column,
-                        },
-                        original_text: old_use_statement.clone(),
-                        new_text: new_use_statement.clone(),
-                        priority: 40,
-                        description: format!(
-                            "Update import to use new package {}",
-                            params.target_package_name
-                        ),
-                    });
+                        // Find column position of "use" keyword
+                        let start_column = line.find("use").unwrap_or(0);
+                        let end_column = line.find(';').map(|pos| pos + 1).unwrap_or(line.len());
 
-                    debug!(
-                        file = %file_path.display(),
-                        old_import = %old_use_statement,
-                        new_import = %new_use_statement,
-                        "Created use statement update TextEdit"
-                    );
+                        edits.push(TextEdit {
+                            file_path: Some(file_path.to_string_lossy().to_string()),
+                            edit_type: EditType::Replace,
+                            location: EditLocation {
+                                start_line: (line_num + 1) as u32, // Convert to 1-indexed
+                                start_column: start_column as u32,
+                                end_line: (line_num + 1) as u32,
+                                end_column: end_column as u32,
+                            },
+                            original_text: old_use_statement.clone(),
+                            new_text: new_use_statement.clone(),
+                            priority: 40,
+                            description: format!(
+                                "Update import to use new package {}",
+                                params.target_package_name
+                            ),
+                        });
+
+                        debug!(
+                            file = %file_path.display(),
+                            old_import = %old_use_statement,
+                            new_import = %new_use_statement,
+                            "Created use statement update TextEdit"
+                        );
+                    } else {
+                        debug!(
+                            file = %file_path.display(),
+                            import_path = %import_path,
+                            "Could not find line containing import"
+                        );
+                    }
                 }
             }
         }
