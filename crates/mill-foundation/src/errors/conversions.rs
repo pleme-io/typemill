@@ -1,6 +1,7 @@
 //! From implementations for standard library types
 
 use super::MillError;
+#[allow(deprecated)]
 use crate::protocol::error::ApiError;
 
 impl From<std::io::Error> for MillError {
@@ -22,6 +23,7 @@ impl From<serde_json::Error> for MillError {
     }
 }
 
+#[allow(deprecated)]
 impl From<ApiError> for MillError {
     fn from(err: ApiError) -> Self {
         match err {

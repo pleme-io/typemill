@@ -21,6 +21,7 @@ use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::protocol::analysis_result::{
     Finding, FindingLocation, Position, Range, Severity, Suggestion,
 };
+#[cfg(feature = "analysis-circular-deps")]
 use mill_foundation::protocol::SafetyLevel;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
 use regex::Regex;

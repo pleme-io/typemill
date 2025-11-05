@@ -37,6 +37,7 @@ pub enum CoreError {
     Internal { message: String },
 }
 
+#[allow(deprecated)]
 impl CoreError {
     /// Create a new configuration error
     pub fn config(message: impl Into<String>) -> Self {
@@ -89,6 +90,7 @@ impl CoreError {
 }
 
 /// Result type alias for convenience
+#[allow(deprecated)]
 #[deprecated(since = "0.3.0", note = "Use MillResult instead")]
 pub type CoreResult<T> = Result<T, CoreError>;
 
@@ -222,6 +224,7 @@ impl std::fmt::Display for ApiError {
 impl std::error::Error for ApiError {}
 
 /// Convert CoreError to ApiError
+#[allow(deprecated)]
 impl From<CoreError> for ApiError {
     fn from(err: CoreError) -> Self {
         use error_codes::*;

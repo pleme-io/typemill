@@ -1,4 +1,5 @@
 //! API error types for the mill system
+#![allow(deprecated)]
 
 use crate::error::{error_codes, ApiError as CoreApiError};
 use serde::Serialize;

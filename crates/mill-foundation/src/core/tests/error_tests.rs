@@ -1,4 +1,5 @@
 //! Tests for error handling
+#![allow(deprecated)]
 
 use mill_foundation::error::CoreError;
 use mill_foundation::error::CoreResult;

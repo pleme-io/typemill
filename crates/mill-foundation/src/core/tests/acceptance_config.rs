@@ -1,5 +1,6 @@
 //! Acceptance tests for configuration management
 //! These tests verify the public API contract for configuration loading
+#![allow(deprecated)]
 
 use mill_config::{ AppConfig , LogFormat };
 use mill_foundation::core::CoreError;

@@ -1,4 +1,6 @@
 //! Contains all edit plan types.
+#![allow(deprecated)]
+
 use crate::protocol::ApiResult;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
