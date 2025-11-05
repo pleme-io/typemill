@@ -154,3 +154,59 @@ impl LspProvider for LspProviderAdapter {
         Ok(symbols)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+
+    #[tokio::test]
+    async fn test_adapter_creation() {
+        // Test that adapter can be created with None LSP adapter
+        let lsp_adapter: Arc<Mutex<Option<Arc<dyn LspAdapter>>>> = Arc::new(Mutex::new(None));
+        let adapter = LspProviderAdapter::new(lsp_adapter, "rs".to_string());
+
+        // Should fail to get client when no adapter is available
+        let result = adapter.get_client().await;
+        assert!(result.is_err());
+
+        if let Err(e) = result {
+            assert!(e.to_string().contains("No LSP adapter available"));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_adapter_with_missing_client() {
+        // Test that adapter properly handles missing LSP adapter
+        let lsp_adapter: Arc<Mutex<Option<Arc<dyn LspAdapter>>>> = Arc::new(Mutex::new(None));
+        let adapter = LspProviderAdapter::new(lsp_adapter, "rs".to_string());
+
+        // workspace_symbols should fail gracefully
+        let result = adapter.workspace_symbols("test").await;
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), mill_analysis_common::AnalysisError::LspError(_)));
+    }
+
+    #[tokio::test]
+    async fn test_adapter_with_missing_client_find_references() {
+        // Test find_references with missing adapter
+        let lsp_adapter: Arc<Mutex<Option<Arc<dyn LspAdapter>>>> = Arc::new(Mutex::new(None));
+        let adapter = LspProviderAdapter::new(lsp_adapter, "rs".to_string());
+
+        let result = adapter.find_references("file:///test.rs", 0, 0).await;
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), mill_analysis_common::AnalysisError::LspError(_)));
+    }
+
+    #[tokio::test]
+    async fn test_adapter_with_missing_client_document_symbols() {
+        // Test document_symbols with missing adapter
+        let lsp_adapter: Arc<Mutex<Option<Arc<dyn LspAdapter>>>> = Arc::new(Mutex::new(None));
+        let adapter = LspProviderAdapter::new(lsp_adapter, "rs".to_string());
+
+        let result = adapter.document_symbols("file:///test.rs").await;
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), mill_analysis_common::AnalysisError::LspError(_)));
+    }
+}
