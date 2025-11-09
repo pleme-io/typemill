@@ -34,6 +34,9 @@ fn test_all_plugins_conform_to_contract() {
 
         // Test 3: Parsing must not panic on empty or simple input.
         rt.block_on(test_parsing_contract(plugin.as_ref()));
+
+        // Test 4: Analysis metadata must be provided.
+        test_analysis_metadata_contract(plugin.as_ref());
     }
 }
 
@@ -130,4 +133,45 @@ async fn test_parsing_contract(plugin: &dyn LanguagePlugin) {
         manifest_result.is_err(),
         "Analyzing a non-existent manifest should fail."
     );
+}
+
+/// Ensures that the plugin provides analysis metadata for code quality tools.
+///
+/// This tests that plugins implement the required metadata methods for:
+/// - Test pattern recognition (e.g., "test_*", "it(", etc.)
+/// - Assertion pattern recognition (e.g., "assert!", "expect(", etc.)
+/// - Complexity keywords (e.g., "if", "for", "while", etc.)
+///
+/// These are used by analysis tools like analyze.quality and analyze.tests.
+#[allow(dead_code)]
+fn test_analysis_metadata_contract(plugin: &dyn LanguagePlugin) {
+    let meta = plugin.metadata();
+
+    if let Some(analysis_meta) = plugin.analysis_metadata() {
+        // Test 1: test_patterns() must return non-empty patterns
+        let test_patterns = analysis_meta.test_patterns();
+        assert!(
+            !test_patterns.is_empty(),
+            "Plugin '{}' must provide test patterns for test detection",
+            meta.name
+        );
+
+        // Test 2: assertion_patterns() must return non-empty patterns
+        let assertion_patterns = analysis_meta.assertion_patterns();
+        assert!(
+            !assertion_patterns.is_empty(),
+            "Plugin '{}' must provide assertion patterns for test quality analysis",
+            meta.name
+        );
+
+        // Test 3: complexity_keywords() must return non-empty keywords
+        let complexity_keywords = analysis_meta.complexity_keywords();
+        assert!(
+            !complexity_keywords.is_empty(),
+            "Plugin '{}' must provide complexity keywords for cyclomatic complexity calculation",
+            meta.name
+        );
+    } else {
+        println!("  Plugin '{}' has no analysis metadata (config-only language)", meta.name);
+    }
 }
