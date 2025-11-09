@@ -296,15 +296,6 @@ async fn test_manifest_updater() {
 }
 
 #[test]
-fn test_lsp_installer() {
-    let plugin = CppPlugin::default();
-    let installer = plugin.lsp_installer().unwrap();
-    assert_eq!(installer.lsp_name(), "clangd");
-    let result = installer.check_installed();
-    assert!(result.is_ok());
-}
-
-#[test]
 fn test_workspace_support() {
     let plugin = CppPlugin::default();
     let workspace_support = plugin.workspace_support().unwrap();

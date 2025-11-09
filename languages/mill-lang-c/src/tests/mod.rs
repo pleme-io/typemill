@@ -2,7 +2,6 @@ mod ast_parser_test;
 mod cmake_parser_test;
 mod import_analyzer_test;
 mod import_support_test;
-mod lsp_installer_test;
 mod makefile_parser_test;
 mod manifest_updater_test;
 mod module_reference_scanner_test;

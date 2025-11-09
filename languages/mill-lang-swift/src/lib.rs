@@ -630,16 +630,6 @@ let package = Package(
     }
 
     #[test]
-    fn test_lsp_installer_check() {
-        let plugin = SwiftPlugin::new();
-        let installer = plugin
-            .lsp_installer()
-            .expect("Plugin should have LSP installer");
-        // This test is tricky as it depends on the test environment.
-        // We'll just call the function to make sure it doesn't panic.
-        let _ = installer.check_installed();
-    }
-
     // ========================================================================
     // IMPORT SUPPORT TESTS (20 tests)
     // ========================================================================

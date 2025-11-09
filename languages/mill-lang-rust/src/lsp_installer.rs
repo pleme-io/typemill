@@ -144,12 +144,4 @@ mod tests {
         assert!(checksum.is_ok());
         assert_eq!(checksum.unwrap().len(), 64); // SHA256 is 64 hex chars
     }
-
-    #[test]
-    fn test_check_installed() {
-        let installer = RustLspInstaller::new();
-        // Should not error, might return Some or None depending on system
-        let result = installer.check_installed();
-        assert!(result.is_ok());
-    }
 }

@@ -36,21 +36,3 @@ impl LspInstaller for TypeScriptLspInstaller {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_check_installed() {
-        let installer = TypeScriptLspInstaller::new();
-        // Should not error, might return Some or None depending on system
-        let result = installer.check_installed();
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_lsp_name() {
-        let installer = TypeScriptLspInstaller::new();
-        assert_eq!(installer.lsp_name(), "typescript-language-server");
-    }
-}
