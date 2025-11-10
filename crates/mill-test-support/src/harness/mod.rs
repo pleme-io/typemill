@@ -1,6 +1,7 @@
 pub mod client;
 pub mod complexity_harness;
 pub mod contract_tests;
+pub mod edge_case_tests;
 pub mod fixtures;
 pub mod import_harness;
 pub mod lsp_setup;
