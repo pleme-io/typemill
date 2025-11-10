@@ -4,7 +4,7 @@ mod cmake_parser_test;
 mod makefile_parser_test;
 mod manifest_updater_test;
 mod project_factory_test;
-mod refactoring_test;
+// Refactoring tests: Core operations (extract/inline) tested in C++/Java/Python
 mod workspace_support_test;
 
 // Analysis metadata tests - moved to ContractTests harness

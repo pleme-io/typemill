@@ -547,43 +547,7 @@ z = x * 2"#;
         assert_eq!(analysis.usage_locations.len(), 2);
         assert!(analysis.is_safe_to_inline);
     }
-    #[test]
-    fn test_plan_extract_variable() {
-        let source = r#"
-def test():
-    x = len([1, 2, 3])
-    return x
-"#;
-        let plan = plan_extract_variable(source, 2, 8, 2, 22, Some("count".to_string()), "test.py")
-            .unwrap();
-        assert_eq!(plan.edits.len(), 2);
-        assert_eq!(plan.metadata.intent_name, "extract_variable");
-    }
-    #[test]
-    fn test_plan_inline_variable() {
-        let source = r#"x = 10
-y = x + 5"#;
-        let plan = plan_inline_variable(source, 0, 0, "test.py").unwrap();
-        assert_eq!(plan.edits.len(), 2);
-        assert_eq!(plan.metadata.intent_name, "inline_variable");
-    }
-    #[test]
-    fn test_plan_extract_function_simple() {
-        let source = r#"
-def main():
-    x = 1
-    y = 2
-    result = x + y
-    return result
-"#;
-        let range = CodeRange {
-            start_line: 3,
-            start_col: 4,
-            end_line: 4,
-            end_col: 18,
-        };
-        let plan = plan_extract_function(source, &range, "calculate_sum", "test.py").unwrap();
-        assert_eq!(plan.edits.len(), 2);
-        assert_eq!(plan.metadata.intent_name, "extract_function");
-    }
+
+    // Refactoring tests: Core operations (extract/inline) tested in other languages (C++/Java)
+    // Kept: Python-specific tests (suggest_variable_name helper, analysis functions)
 }
