@@ -32,7 +32,11 @@ mod import_harness_tests {
         let registry = get_test_registry();
         let scenario = ImportScenarios::parse_simple_imports();
 
+        eprintln!("\n=== Testing {} languages ===", scenario.fixtures.len());
         for fixture in scenario.fixtures {
+            eprintln!("\n--- Testing {:?} ---", fixture.language);
+            eprintln!("Source: {:?}", fixture.source_code);
+
             let plugin = registry
                 .find_by_extension(fixture.language.file_extension())
                 .expect(&format!("Plugin not found for {:?}", fixture.language));
@@ -42,6 +46,8 @@ mod import_harness_tests {
                 .expect(&format!("{:?} should have import parser", fixture.language));
 
             let imports = parser.parse_imports(fixture.source_code);
+            eprintln!("Expected: {:?}", fixture.expected);
+            eprintln!("Got: {:?}", imports);
 
             match &fixture.expected {
                 ImportExpectedBehavior::ParsedImports(expected) => {

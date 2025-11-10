@@ -240,65 +240,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_import_parsing_basic() {
-        let support = SwiftImportSupport;
-        let source = "import Foundation\nimport UIKit\nimport MyModule\n";
-
-        let imports = support.parse_imports(source);
-        assert_eq!(imports.len(), 3);
-        assert!(imports.contains(&"Foundation".to_string()));
-        assert!(imports.contains(&"UIKit".to_string()));
-        assert!(imports.contains(&"MyModule".to_string()));
-    }
-
-    #[test]
-    fn test_contains_import() {
-        let support = SwiftImportSupport;
-        let source = "import Foundation\nimport UIKit\n";
-
-        assert!(support.contains_import(source, "Foundation"));
-        assert!(support.contains_import(source, "UIKit"));
-        assert!(!support.contains_import(source, "MyModule"));
-    }
-
-    #[test]
-    fn test_rewrite_imports() {
-        let support = SwiftImportSupport;
-        let source = "import Foundation\nimport MyModule\nimport UIKit\n";
-
-        let (result, changes) = support.rewrite_imports_for_rename(source, "MyModule", "NewModule");
-
-        assert_eq!(changes, 1);
-        assert!(result.contains("import NewModule"));
-        assert!(!result.contains("import MyModule"));
-        assert!(result.contains("import Foundation"));
-        assert!(result.contains("import UIKit"));
-    }
-
-    #[test]
-    fn test_remove_import() {
-        let support = SwiftImportSupport;
-        let source = "import Foundation\nimport MyModule\nimport UIKit\n";
-
-        let result = support.remove_import(source, "MyModule");
-
-        assert!(!result.contains("import MyModule"));
-        assert!(result.contains("import Foundation"));
-        assert!(result.contains("import UIKit"));
-    }
-
-    #[test]
-    fn test_add_import() {
-        let support = SwiftImportSupport;
-        let source = "import Foundation\nimport UIKit\n";
-
-        let result = support.add_import(source, "MyModule");
-
-        assert!(result.contains("import MyModule"));
-        assert!(result.contains("import Foundation"));
-        assert!(result.contains("import UIKit"));
-        // Should be added at the beginning
-        assert!(result.starts_with("import MyModule"));
-    }
+    // Import tests moved to mill-test-support/tests/import_harness_integration.rs
+    // Kept: Caching benchmark tests (Swift-specific performance tests)
 }

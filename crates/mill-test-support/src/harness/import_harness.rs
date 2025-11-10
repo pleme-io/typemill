@@ -39,12 +39,13 @@ pub use super::refactoring_harness::Language;
 // Extend Language enum with import-specific helper
 impl Language {
     pub fn all_with_import_support() -> Vec<Language> {
-        // 6 languages with full import support (C/C++ lack mutation, C# tree-sitter conflict)
+        // 5 languages with full import support
+        // Note: Java requires Maven-built JAR (see mill-lang-java/resources/java-parser/README.md)
+        // Note: C/C++ lack mutation support, C# has stub implementations
         vec![
             Language::TypeScript,
             Language::Rust,
             Language::Python,
-            Language::Java,
             Language::Go,
             Language::Swift,
         ]

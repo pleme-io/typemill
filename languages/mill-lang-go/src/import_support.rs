@@ -181,43 +181,8 @@ impl ImportMutationSupport for GoImportSupport {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_parse_imports() {
-        let support = GoImportSupport;
-        let content = r#"package main
-
-import "fmt"
-import (
-    "os"
-    "github.com/user/repo"
-)
-"#;
-        let imports = support.parse_imports(content);
-        assert!(imports.contains(&"fmt".to_string()));
-        assert!(imports.contains(&"os".to_string()));
-        assert!(imports.contains(&"github.com/user/repo".to_string()));
-    }
-
-    #[test]
-    fn test_contains_import() {
-        let support = GoImportSupport;
-        let content = r#"package main
-import "fmt"
-"#;
-        assert!(support.contains_import(content, "fmt"));
-        assert!(!support.contains_import(content, "os"));
-    }
-
-    #[test]
-    fn test_add_import() {
-        let support = GoImportSupport;
-        let content = r#"package main
-
-func main() {}
-"#;
-        let result = support.add_import(content, "fmt");
-        assert!(result.contains("import \"fmt\""));
-    }
+    // Basic import tests moved to mill-test-support/tests/import_harness_integration.rs
+    // Kept: Go-specific import block behavior tests
 
     #[test]
     fn test_add_import_to_existing_block() {
@@ -232,30 +197,6 @@ func main() {}
 "#;
         let result = support.add_import(content, "os");
         assert!(result.contains("\"os\""));
-    }
-
-    #[test]
-    fn test_remove_import() {
-        let support = GoImportSupport;
-        let content = r#"package main
-import "fmt"
-import "os"
-"#;
-        let result = support.remove_import(content, "fmt");
-        assert!(!result.contains("import \"fmt\""));
-        assert!(result.contains("import \"os\""));
-    }
-
-    #[test]
-    fn test_rewrite_imports_for_rename() {
-        let support = GoImportSupport;
-        let content = r#"package main
-import "oldpkg"
-"#;
-        let (result, changes) = support.rewrite_imports_for_rename(content, "oldpkg", "newpkg");
-        assert!(result.contains("\"newpkg\""));
-        assert!(!result.contains("\"oldpkg\""));
-        assert!(changes > 0);
     }
 
     #[test]
