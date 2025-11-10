@@ -13,6 +13,33 @@ The project underwent a complete architectural transformation from TypeScript/No
 
 ### [Unreleased]
 
+### [0.8.3] - 2025-11-10
+
+🧪 **Version 0.8.3** - List functions test consolidation (Phase 12 completion)
+
+#### Added
+
+- **List Functions Test Harness** - Centralized function listing tests for all language plugins
+  - Created `list_functions_harness.rs` with 2 comprehensive test functions
+  - Tests extraction of function names from source code
+  - Tests empty results (source with no functions, only fields/constants)
+  - Integration tests run automatically against ALL discovered language plugins
+  - Eliminates 14 duplicate tests across 7 languages (~165 LOC saved)
+
+#### Fixed
+
+- **Edge Case Test Harness** - Fixed plugin discovery API calls
+  - Updated `edge_case_tests.rs` to use `plugin_discovery::get_test_registry().all()`
+  - Removed unstable `as_str()` calls in favor of `as_ref()`
+  - Fixed async/await calls for `list_functions()` method
+
+#### Changed
+
+- **Test Consolidation Progress** - Phase 12 of test infrastructure consolidation
+  - Deleted `test_list_functions_multiple` and `test_list_functions_empty` from 7 language plugins
+  - Languages consolidated: TypeScript, Go, Java, C#, Swift, C, C++
+  - **Total consolidation to date:** ~1,347 LOC saved, 112 tests eliminated
+
 ### [0.8.2] - 2025-11-10
 
 🧪 **Version 0.8.2** - Edge case test consolidation (Phase 7 completion)

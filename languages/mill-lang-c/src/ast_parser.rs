@@ -117,35 +117,5 @@ fn extract_function_symbol(node: &Node, source: &str) -> Option<Symbol> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_list_functions_multiple() {
-        let source = r#"
-void firstFunction() {
-    printf("first");
-}
-
-int secondFunction(int x) {
-    return x * 2;
-}
-
-static void thirdFunction() {
-    // helper
-}
-"#;
-        let functions = list_functions(source);
-        assert_eq!(functions.len(), 3);
-        assert!(functions.contains(&"firstFunction".to_string()));
-        assert!(functions.contains(&"secondFunction".to_string()));
-        assert!(functions.contains(&"thirdFunction".to_string()));
-    }
-
-    #[test]
-    fn test_list_functions_empty() {
-        let source = r#"
-int myGlobal = 42;
-struct Point { int x; int y; };
-"#;
-        let functions = list_functions(source);
-        assert_eq!(functions.len(), 0);
-    }
+    // List functions tests moved to mill-test-support/tests/list_functions_harness_integration.rs
 }

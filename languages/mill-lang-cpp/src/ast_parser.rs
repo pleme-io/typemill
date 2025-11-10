@@ -121,37 +121,5 @@ pub fn list_functions(source: &str) -> Vec<String> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_list_functions_multiple() {
-        let source = r#"
-void firstFunction() {
-    std::cout << "first";
-}
-
-int secondFunction(int x) {
-    return x * 2;
-}
-
-class MyClass {
-public:
-    void methodFunction() {}
-};
-"#;
-        let functions = list_functions(source);
-        assert_eq!(functions.len(), 3);
-        assert!(functions.contains(&"firstFunction".to_string()));
-        assert!(functions.contains(&"secondFunction".to_string()));
-        assert!(functions.contains(&"methodFunction".to_string()));
-    }
-
-    #[test]
-    fn test_list_functions_empty() {
-        let source = r#"
-int myGlobal = 42;
-class MyClass {};
-namespace MyNamespace {}
-"#;
-        let functions = list_functions(source);
-        assert_eq!(functions.len(), 0);
-    }
+    // List functions tests moved to mill-test-support/tests/list_functions_harness_integration.rs
 }

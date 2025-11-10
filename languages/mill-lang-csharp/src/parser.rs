@@ -248,40 +248,5 @@ namespace MyNamespace
         assert_eq!(parsed.symbols.len(), 0);
     }
 
-    #[test]
-    fn test_list_functions_multiple() {
-        let source = r#"
-public class MyClass {
-    public void FirstMethod() {}
-    private int SecondMethod() { return 0; }
-    public async Task ThirdMethod() {}
-}
-"#;
-        let result = list_functions(source);
-        assert!(result.is_ok());
-        let functions = result.unwrap();
-        // May be empty if C# parser not available, but should not fail
-        if !functions.is_empty() {
-            assert!(functions.contains(&"FirstMethod".to_string()));
-            assert!(functions.contains(&"SecondMethod".to_string()));
-            assert!(functions.contains(&"ThirdMethod".to_string()));
-        }
-    }
-
-    #[test]
-    fn test_list_functions_empty() {
-        let source = r#"
-public class MyClass {
-    private int myField;
-    public string MyProperty { get; set; }
-}
-"#;
-        let result = list_functions(source);
-        assert!(result.is_ok());
-        let functions = result.unwrap();
-        // Should not contain fields/properties
-        assert!(!functions.contains(&"myField".to_string()));
-        assert!(!functions.contains(&"MyProperty".to_string()));
-        assert!(!functions.contains(&"MyClass".to_string()));
-    }
+    // List functions tests moved to mill-test-support/tests/list_functions_harness_integration.rs
 }

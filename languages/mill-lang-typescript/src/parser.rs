@@ -340,43 +340,5 @@ enum Status {
         }
     }
 
-    #[test]
-    fn test_list_functions_multiple() {
-        let source = r#"
-function firstFunction() {
-    return "first";
-}
-
-async function secondFunction() {
-    return "second";
-}
-
-const thirdFunction = () => {
-    return "third";
-};
-"#;
-        let result = list_functions(source);
-        assert!(result.is_ok());
-        let functions = result.unwrap();
-        // Note: May be empty if Node.js not available, but should not fail
-        if !functions.is_empty() {
-            assert!(functions.contains(&"firstFunction".to_string()));
-            assert!(functions.contains(&"secondFunction".to_string()));
-        }
-    }
-
-    #[test]
-    fn test_list_functions_empty() {
-        let source = r#"
-const x = 42;
-class MyClass {}
-"#;
-        let result = list_functions(source);
-        assert!(result.is_ok());
-        let functions = result.unwrap();
-        // Should be empty (no functions) or may be empty (no Node.js)
-        // Either way, should not contain non-function symbols
-        assert!(!functions.contains(&"x".to_string()));
-        assert!(!functions.contains(&"MyClass".to_string()));
-    }
+    // List functions tests moved to mill-test-support/tests/list_functions_harness_integration.rs
 }

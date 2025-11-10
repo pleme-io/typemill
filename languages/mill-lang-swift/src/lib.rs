@@ -1743,34 +1743,5 @@ protocol DataSource {
         assert_eq!(plugin.nesting_penalty(), 1.4);
     }
 
-    #[test]
-    fn test_list_functions_multiple() {
-        let source = r#"
-func firstFunction() {
-    print("first")
-}
-
-func secondFunction() -> Int {
-    return 42
-}
-
-func thirdFunction() {}
-"#;
-        let result = list_functions(source);
-        assert_eq!(result.len(), 3);
-        assert!(result.contains(&"firstFunction".to_string()));
-        assert!(result.contains(&"secondFunction".to_string()));
-        assert!(result.contains(&"thirdFunction".to_string()));
-    }
-
-    #[test]
-    fn test_list_functions_empty() {
-        let source = r#"
-struct MyStruct {}
-class MyClass {}
-enum Status { case active }
-"#;
-        let result = list_functions(source);
-        assert_eq!(result.len(), 0);
-    }
+    // List functions tests moved to mill-test-support/tests/list_functions_harness_integration.rs
 }

@@ -195,40 +195,5 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_list_functions_multiple() {
-        let source = r#"
-public class MyClass {
-    public void firstMethod() {}
-    private int secondMethod() { return 0; }
-    public static String thirdMethod() { return "test"; }
-}
-"#;
-        let result = list_functions(source);
-        assert!(result.is_ok());
-        let functions = result.unwrap();
-        // May be empty if Java not available, but should not fail
-        if !functions.is_empty() {
-            assert!(functions.contains(&"firstMethod".to_string()));
-            assert!(functions.contains(&"secondMethod".to_string()));
-            assert!(functions.contains(&"thirdMethod".to_string()));
-        }
-    }
-
-    #[test]
-    fn test_list_functions_empty() {
-        let source = r#"
-public class MyClass {
-    private int myField;
-    public static final int CONSTANT = 42;
-}
-"#;
-        let result = list_functions(source);
-        assert!(result.is_ok());
-        let functions = result.unwrap();
-        // Should not contain fields/constants
-        assert!(!functions.contains(&"myField".to_string()));
-        assert!(!functions.contains(&"CONSTANT".to_string()));
-        assert!(!functions.contains(&"MyClass".to_string()));
-    }
+    // List functions tests moved to mill-test-support/tests/list_functions_harness_integration.rs
 }

@@ -26,14 +26,13 @@
 //! ```
 
 use crate::harness::plugin_discovery;
-use mill_plugin_api::LanguagePlugin;
 
 /// Tests all discovered plugins for Unicode identifier handling.
 ///
 /// Ensures plugins can parse code with international character identifiers
 /// (Russian, Arabic, etc.) without panicking.
 pub async fn test_all_plugins_parse_unicode_identifiers() {
-    let plugins = plugin_discovery::all_plugins();
+    let plugins = plugin_discovery::get_test_registry().all();
 
     for plugin in plugins {
         let meta = plugin.metadata();
@@ -58,7 +57,7 @@ def тестфункция():
 /// Ensures plugins can parse lines with 15,000+ characters without panicking
 /// or exceeding resource limits.
 pub async fn test_all_plugins_parse_extremely_long_line() {
-    let plugins = plugin_discovery::all_plugins();
+    let plugins = plugin_discovery::get_test_registry().all();
 
     for plugin in plugins {
         let meta = plugin.metadata();
@@ -80,7 +79,7 @@ pub async fn test_all_plugins_parse_extremely_long_line() {
 /// Ensures plugins can parse single-line files (no \n terminators)
 /// without buffer overflow or parsing errors.
 pub async fn test_all_plugins_parse_no_newlines() {
-    let plugins = plugin_discovery::all_plugins();
+    let plugins = plugin_discovery::get_test_registry().all();
 
     for plugin in plugins {
         let meta = plugin.metadata();
@@ -101,7 +100,7 @@ pub async fn test_all_plugins_parse_no_newlines() {
 /// Ensures plugins can parse files with \n, \r\n, and \r line endings
 /// mixed together (common in cross-platform development).
 pub async fn test_all_plugins_scan_mixed_line_endings() {
-    let plugins = plugin_discovery::all_plugins();
+    let plugins = plugin_discovery::get_test_registry().all();
 
     for plugin in plugins {
         let meta = plugin.metadata();
@@ -122,7 +121,7 @@ pub async fn test_all_plugins_scan_mixed_line_endings() {
 /// Ensures plugins gracefully handle zero-byte files without
 /// null pointer dereferences or buffer underflows.
 pub async fn test_all_plugins_parse_empty_file() {
-    let plugins = plugin_discovery::all_plugins();
+    let plugins = plugin_discovery::get_test_registry().all();
 
     for plugin in plugins {
         let meta = plugin.metadata();
@@ -143,7 +142,7 @@ pub async fn test_all_plugins_parse_empty_file() {
 /// Ensures plugins handle files containing only spaces, tabs, and newlines
 /// without producing spurious symbols or parsing errors.
 pub async fn test_all_plugins_parse_whitespace_only() {
-    let plugins = plugin_discovery::all_plugins();
+    let plugins = plugin_discovery::get_test_registry().all();
 
     for plugin in plugins {
         let meta = plugin.metadata();
@@ -164,7 +163,7 @@ pub async fn test_all_plugins_parse_whitespace_only() {
 /// Ensures plugins can handle identifiers/paths with regex metacharacters
 /// (*, ?, [, ], {, }, etc.) without regex compilation errors.
 pub async fn test_all_plugins_scan_special_regex_chars() {
-    let plugins = plugin_discovery::all_plugins();
+    let plugins = plugin_discovery::get_test_registry().all();
 
     for plugin in plugins {
         let meta = plugin.metadata();
@@ -185,7 +184,7 @@ pub async fn test_all_plugins_scan_special_regex_chars() {
 /// Ensures plugins gracefully reject or handle files with embedded null bytes
 /// (security vulnerability if not properly handled).
 pub async fn test_all_plugins_handle_null_bytes() {
-    let plugins = plugin_discovery::all_plugins();
+    let plugins = plugin_discovery::get_test_registry().all();
 
     for plugin in plugins {
         let meta = plugin.metadata();

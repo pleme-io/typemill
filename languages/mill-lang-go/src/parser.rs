@@ -390,45 +390,5 @@ const MaxUsers = 100
         }
     }
 
-    #[test]
-    fn test_list_functions_multiple() {
-        let source = r#"package main
-
-func FirstFunction() {
-    println("first")
-}
-
-func SecondFunction() {
-    println("second")
-}
-
-func ThirdFunction() int {
-    return 42
-}
-"#;
-        let result = list_functions(source);
-        assert!(result.is_ok());
-        let functions = result.unwrap();
-        // May be empty if Go not available, but should not fail
-        if !functions.is_empty() {
-            assert!(functions.contains(&"FirstFunction".to_string()));
-            assert!(functions.contains(&"SecondFunction".to_string()));
-            assert!(functions.contains(&"ThirdFunction".to_string()));
-        }
-    }
-
-    #[test]
-    fn test_list_functions_empty() {
-        let source = r#"package main
-
-const MaxValue = 100
-type User struct {}
-"#;
-        let result = list_functions(source);
-        assert!(result.is_ok());
-        let functions = result.unwrap();
-        // Should not contain non-function symbols
-        assert!(!functions.contains(&"MaxValue".to_string()));
-        assert!(!functions.contains(&"User".to_string()));
-    }
+    // List functions tests moved to mill-test-support/tests/list_functions_harness_integration.rs
 }
