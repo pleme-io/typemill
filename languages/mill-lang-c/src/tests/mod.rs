@@ -5,7 +5,7 @@ mod makefile_parser_test;
 mod manifest_updater_test;
 mod project_factory_test;
 // Refactoring tests: Core operations (extract/inline) tested in C++/Java/Python
-mod workspace_support_test;
+// Workspace tests: Basic operations tested in mill-test-support/tests/workspace_harness_integration.rs
 
 // Analysis metadata tests - moved to ContractTests harness
 #[cfg(test)]
