@@ -55,12 +55,16 @@ mill --version
 
 ## Quick Setup
 
+> [!TIP] First Time Setup
+> The setup process takes 2-3 minutes and only needs to be run once per project. LSP servers are cached globally and reused across all your projects.
+
 Navigate to your project and run the interactive setup:
 
 ```bash
 cd /path/to/your/project
 mill setup
 ```
+
 **What happens:**
 1. 🔍 Scans project and detects languages (TypeScript, Rust, Python)
 2. 📋 Creates `.typemill/config.json` with LSP server configurations
@@ -81,6 +85,9 @@ mill setup
 
 ✨ Setup complete!
 ```
+
+> [!SUCCESS] Verification
+> You should see `✨ Setup complete!` with no errors. If you encounter issues, see the [troubleshooting guide](./troubleshooting.md).
 **Updating existing config:**
 ```bash
 mill setup --update           # Re-run setup
@@ -114,6 +121,9 @@ mill stop
 ## Connecting to AI Assistants
 
 ### Claude Desktop
+
+> [!IMPORTANT] Configuration Required
+> Mill requires configuration in Claude Desktop to enable the MCP connection. Make sure to restart Claude Desktop after adding the configuration.
 
 Add Mill to your Claude Desktop MCP configuration:
 

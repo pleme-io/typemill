@@ -304,24 +304,61 @@ TypeMill follows a **strict layered architecture** with enforced dependencies to
 
 ### Layer Hierarchy
 
-Layers are organized from foundational (bottom) to application (top). **Each layer can only depend on layers below it, never above.**
+> [!NOTE] Dependency Rule
+> Each layer can only depend on layers below it, never above. This prevents "spider web" complexity and makes the system easier to understand and maintain.
 
-```
-┌─────────────────────────────────────────┐
-│  Layer 7: Application                   │  ← Entry points, CLI, servers
-├─────────────────────────────────────────┤
-│  Layer 6: Handlers                      │  ← MCP tool handlers
-├─────────────────────────────────────────┤
-│  Layer 5: Services                      │  ← Business logic, LSP integration
-├─────────────────────────────────────────┤
-│  Layer 4: Language Plugins              │  ← Language-specific implementations
-├─────────────────────────────────────────┤
-│  Layer 3: Plugin API                    │  ← Plugin trait definitions
-├─────────────────────────────────────────┤
-│  Layer 2: Foundation                    │  ← Core types, protocol, config
-├─────────────────────────────────────────┤
-│  Layer 1: Support (special)             │  ← Testing, tooling (can access any)
-└─────────────────────────────────────────┘
+Layers are organized from foundational (bottom) to application (top):
+
+```mermaid
+graph TB
+    subgraph "Layer 7: Application"
+        CLI[CLI Entry Point<br/>apps/mill]
+        Server[MCP Server<br/>mill-server]
+    end
+
+    subgraph "Layer 6: Handlers"
+        Handlers[Tool Handlers<br/>mill-handlers<br/>29 public tools]
+    end
+
+    subgraph "Layer 5: Services"
+        Services[Business Logic<br/>mill-services<br/>mill-lsp<br/>mill-ast]
+    end
+
+    subgraph "Layer 4: Language Plugins"
+        Plugins[Language Plugins<br/>mill-lang-rust<br/>mill-lang-typescript<br/>mill-lang-python]
+    end
+
+    subgraph "Layer 3: Plugin API"
+        API[Plugin Traits<br/>mill-plugin-api]
+    end
+
+    subgraph "Layer 2: Foundation"
+        Foundation[Core Types<br/>mill-types<br/>mill-protocol<br/>mill-config]
+    end
+
+    subgraph "Layer 1: Support special"
+        Support[Testing & Tooling<br/>mill-test-support<br/>Can access any layer]
+    end
+
+    CLI --> Server
+    Server --> Handlers
+    Handlers --> Services
+    Services --> Plugins
+    Plugins --> API
+    API --> Foundation
+
+    Support -.testing.-> CLI
+    Support -.testing.-> Server
+    Support -.testing.-> Handlers
+
+    style CLI fill:#FFD700
+    style Server fill:#FFD700
+    style Handlers fill:#87CEEB
+    style Services fill:#90EE90
+    style Plugins fill:#FFA07A
+    style API fill:#DDA0DD
+    style Foundation fill:#B0C4DE
+    style Support fill:#F0E68C
 ```
 
 ### Layer Definitions

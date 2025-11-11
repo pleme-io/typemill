@@ -1,6 +1,7 @@
 <script lang="ts">
 	import '../app.css';
 	import { generateNavigation } from '$lib/navigation';
+	import { MermaidHydrator, CodeCopyHydrator } from '@goobits/docs-engine/components';
 
 	let { children } = $props();
 
@@ -11,6 +12,10 @@
 		navOpen = !navOpen;
 	}
 </script>
+
+<!-- Hydrators for interactive documentation features -->
+<MermaidHydrator />
+<CodeCopyHydrator />
 
 <svelte:head>
 	<title>TypeMill - Rust MCP Server for AI Coding Assistants</title>
