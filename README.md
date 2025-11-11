@@ -74,7 +74,7 @@ mill tool analyze.quality --kind complexity --scope workspace
 mill tool analyze.dead_code --kind unused_imports --scope file:src/app.rs
 
 # Workspace operations
-mill tool workspace.find_replace --pattern "oldName" --replacement "newName"
+mill tool workspace.find_replace '{"pattern": "oldName", "replacement": "newName", "scope": "workspace"}'
 ```
 **Key Distinction:**
 - Use `rename` for file/directory operations
