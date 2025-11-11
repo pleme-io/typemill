@@ -376,11 +376,11 @@ graph TB
     end
 
     subgraph "Layer 6: Handlers"
-        Handlers[Tool Handlers<br/>mill-handlers<br/>29 public tools]
+        Handlers[Tool Handlers<br/>mill-handlers<br/>mill-handlers-analysis<br/>mill-handler-api]
     end
 
     subgraph "Layer 5: Services"
-        Services[Business Logic<br/>mill-services<br/>mill-lsp<br/>mill-ast]
+        Services[Business Logic<br/>mill-services<br/>mill-lsp<br/>mill-lsp-manager<br/>mill-ast]
     end
 
     subgraph "Layer 4: Language Plugins"
@@ -392,7 +392,7 @@ graph TB
     end
 
     subgraph "Layer 2: Foundation"
-        Foundation[Core Types<br/>mill-types<br/>mill-protocol<br/>mill-config]
+        Foundation[Core Types<br/>mill-foundation<br/>mill-config]
     end
 
     subgraph "Layer 1: Support special"
@@ -436,7 +436,7 @@ graph TB
 #### Layer 2: Foundation
 **Purpose**: Core data structures, protocol definitions, configuration
 
-**Crates**: `mill-types`, `mill-protocol`, `mill-config`, `mill-core`
+**Crates**: `mill-foundation`, `mill-config`
 
 **Dependencies**: External crates only (serde, tokio, etc.) - **No workspace dependencies**
 
@@ -478,7 +478,7 @@ graph TB
 #### Layer 5: Services
 **Purpose**: Core business logic, file operations, AST processing, LSP integration
 
-**Crates**: `mill-ast`, `mill-services`, `mill-lsp`, `mill-plugin-bundle`, `mill-plugin-system`
+**Crates**: `mill-ast`, `mill-services`, `mill-lsp`, `mill-lsp-manager`, `mill-plugin-bundle`, `mill-plugin-system`
 
 **Dependencies**: Layer 4 (Plugins), Layer 3 (Plugin API), Layer 2 (Foundation)
 
@@ -492,7 +492,7 @@ graph TB
 #### Layer 6: Handlers
 **Purpose**: MCP tool implementations that delegate to services
 
-**Crates**: `mill-handlers`
+**Crates**: `mill-handlers`, `mill-handlers-analysis`, `mill-handler-api`
 
 **Dependencies**: Layer 5 (Services), Layer 4 (Plugins - for delegation), Layer 3 (Plugin API), Layer 2 (Foundation)
 
