@@ -1,7 +1,8 @@
 # TypeMill AI Agent Guide
 
-> **Quick Reference for AI Coding Assistants**
-> Complete documentation: [docs/](docs/)
+> **📍 You are here:** AI agent quick reference (tool catalog, MCP patterns, common workflows)
+> - 👤 **Human users**: See [README.md](README.md) for project overview & getting started
+> - 📚 **Full docs**: See [docs/](docs/) for complete documentation
 
 TypeMill is a Pure Rust MCP server that bridges Language Server Protocol (LSP) functionality to AI coding assistants, providing 29 public tools for code navigation, refactoring, analysis, and workspace operations.
 

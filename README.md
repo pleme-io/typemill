@@ -4,6 +4,10 @@
 ![Version](https://img.shields.io/crates/v/typemill)
 ![License](https://img.shields.io/crates/l/typemill)
 
+> **📍 You are here:** Project overview & quick start for new users
+> - 🤖 **AI agents**: See [CLAUDE.md](CLAUDE.md) for tool quick reference
+> - 📚 **Full docs**: See [docs/](docs/) for complete documentation
+
 Pure Rust MCP server bridging Language Server Protocol (LSP) to AI coding assistants
 
 Provides 29 MCP tools for code navigation, refactoring, analysis, and batch operations across TypeScript and Rust projects.

@@ -4,6 +4,79 @@
 
 ---
 
+## ⚡ Quick FAQ
+
+> **Fast answers to the most common issues** - Jump to [detailed solutions](#🛠️-setup-issues) below
+
+### Setup & Installation
+
+**Q: Configuration file already exists, what do I do?**
+A: Run `mill setup --update` to update existing config, or `rm -rf .typemill && mill setup` to start fresh.
+
+**Q: LSP server not found in PATH?**
+A: Install it: `mill install-lsp <language>` or `npm install -g typescript-language-server` (TypeScript).
+
+**Q: How do I verify LSP servers are working?**
+A: Run `mill status` to see all configured LSP servers and their status.
+
+**Q: Mill setup doesn't detect my language?**
+A: Ensure your project has recognizable files (package.json for TypeScript, Cargo.toml for Rust). Run `mill setup --force`.
+
+### Server Issues
+
+**Q: Server won't start?**
+A: Check `mill doctor` for diagnostics. Ensure LSP servers are installed (`which typescript-language-server`).
+
+**Q: How do I restart the server?**
+A: Run `mill stop && mill start` or just `mill start` (it will restart if already running).
+
+**Q: Where are server logs?**
+A: Run `mill start` in foreground to see output, or check `~/.mill/logs/mill.log` if running as daemon.
+
+**Q: Port 3040 already in use?**
+A: Set a different port: `export TYPEMILL__SERVER__PORT=3050` then `mill serve`.
+
+### Tool Issues
+
+**Q: Tool returns "file not found"?**
+A: Use absolute paths or paths relative to workspace root. Check current directory with `pwd`.
+
+**Q: Rename didn't update all imports?**
+A: Ensure LSP server is running (`mill status`). Check file extensions match LSP config (`.typemill/config.json`).
+
+**Q: dryRun mode - how do I actually execute changes?**
+A: All refactoring tools default to `dryRun: true`. Set `"options": {"dryRun": false}` to execute.
+
+**Q: Tool call failed with JSON parse error?**
+A: Ensure JSON is valid. Use single quotes around JSON, double quotes inside: `'{"key": "value"}'`.
+
+### LSP & Language Support
+
+**Q: TypeScript LSP can't find node_modules?**
+A: Set `rootDir` in `.typemill/config.json` or ensure `tsconfig.json` exists in project root.
+
+**Q: Rust Analyzer takes forever to start?**
+A: Large projects need time to index. Wait 30-60s. Check `mill status` to see if it's initializing.
+
+**Q: Python LSP not working?**
+A: Install pylsp: `pipx install python-lsp-server` or `pip install --user python-lsp-server`.
+
+**Q: Multiple language support in one project?**
+A: Yes! `mill setup` detects all languages. Each gets its own LSP server configuration.
+
+### Performance
+
+**Q: Mill is slow?**
+A: Enable caching: `unset TYPEMILL_DISABLE_CACHE`. Adjust `restartInterval` in config (increase to 30-60 minutes).
+
+**Q: High memory usage?**
+A: LSP servers (especially rust-analyzer) can use 1-2GB. Close unused editors/IDEs to free memory.
+
+**Q: Can I use caching in production?**
+A: Yes. Set `TYPEMILL__CACHE__ENABLED=true` and `TYPEMILL__CACHE__TTL_SECONDS=3600` for 1-hour cache.
+
+---
+
 ## 🛠️ Setup Issues
 
 ### "Configuration file already exists"

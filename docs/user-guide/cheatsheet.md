@@ -314,10 +314,121 @@ mill docs --search "dry run"
 
 ---
 
+## Tool Parameter Quick Reference
+
+> **Quick lookup for tool parameters** - See [tools/](../tools/) for complete documentation
+
+### Navigation Tools
+
+| Tool | Required Parameters | Optional Parameters | Returns |
+|------|-------------------|-------------------|---------|
+| `find_definition` | `file_path`, `line`, `character` | - | Location |
+| `find_references` | `file_path`, `line`, `character` | `include_declaration` | Location[] |
+| `find_implementations` | `file_path`, `line`, `character` | - | Location[] |
+| `find_type_definition` | `file_path`, `line`, `character` | - | Location |
+| `search_symbols` | `query` | `scope`, `kind` | SymbolInfo[] |
+| `get_symbol_info` | `file_path`, `line`, `character` | - | SymbolInfo |
+| `get_diagnostics` | `file_path` | `severity` | Diagnostic[] |
+| `get_call_hierarchy` | `file_path`, `line`, `character` | `direction` | CallHierarchy |
+
+**Example:**
+```bash
+mill tool find_definition '{"file_path": "src/app.ts", "line": 10, "character": 5}'
+```
+
+---
+
+### Refactoring Tools
+
+All refactoring tools support `options.dryRun` (default: `true`)
+
+| Tool | Required Parameters | Optional Parameters | Returns |
+|------|-------------------|-------------------|---------|
+| `rename` | `target`, `newName` | `options` (dryRun, scope) | EditPlan/ApplyResult |
+| `extract` | `kind`, `source`, `name` | `options` (dryRun) | EditPlan/ApplyResult |
+| `inline` | `target` | `options` (dryRun) | EditPlan/ApplyResult |
+| `move` | `source`, `destination` | `options` (dryRun) | EditPlan/ApplyResult |
+| `reorder` | `target`, `newOrder` | `options` (dryRun) | EditPlan/ApplyResult |
+| `transform` | `kind`, `target` | `options` (dryRun) | EditPlan/ApplyResult |
+| `delete` | `target` | `options` (dryRun) | EditPlan/ApplyResult |
+
+**Target formats:**
+- File: `{"kind": "file", "path": "src/app.ts"}`
+- Directory: `{"kind": "directory", "path": "src/utils"}`
+- Symbol: `{"file": "src/app.ts", "line": 10, "character": 5}`
+
+**Example:**
+```bash
+mill tool rename '{"target": {"kind": "file", "path": "old.ts"}, "newName": "new.ts", "options": {"dryRun": false}}'
+```
+
+---
+
+### Analysis Tools
+
+| Tool | Required Parameters | Optional Parameters | Returns |
+|------|-------------------|-------------------|---------|
+| `analyze.quality` | `kind`, `scope` | - | AnalysisResult |
+| `analyze.dead_code` | `kind`, `scope` | - | AnalysisResult |
+| `analyze.dependencies` | `kind`, `scope` | - | DependencyGraph |
+| `analyze.cycles` | `scope` | `max_depth` | CircularDependency[] |
+| `analyze.structure` | `scope` | `depth` | StructureInfo |
+| `analyze.documentation` | `scope` | `check_coverage` | DocAnalysis |
+| `analyze.tests` | `scope` | `check_coverage` | TestAnalysis |
+| `analyze.batch` | `scope`, `analyzers` | `parallel` | BatchResult |
+| `analyze.module_dependencies` | `crate_path`, `module_path` | - | ModuleDependencies |
+
+**Scope formats:**
+- Workspace: `{"kind": "workspace"}`
+- File: `{"kind": "file", "path": "src/app.ts"}`
+- Directory: `{"kind": "directory", "path": "src/utils"}`
+
+**Example:**
+```bash
+mill tool analyze.quality '{"kind": "complexity", "scope": {"kind": "workspace"}}'
+```
+
+---
+
+### Workspace Tools
+
+| Tool | Required Parameters | Optional Parameters | Returns |
+|------|-------------------|-------------------|---------|
+| `workspace.create_package` | `name`, `packageType`, `path` | `options` (dryRun) | CreateResult |
+| `workspace.extract_dependencies` | `source_crate`, `target_crate`, `module_path` | `options` (dryRun) | ExtractResult |
+| `workspace.update_members` | `operation`, `members` | `options` (dryRun) | UpdateResult |
+| `workspace.find_replace` | `pattern`, `replacement` | `mode`, `scope`, `dryRun` | ReplaceResult |
+
+**Package types:**
+- Rust: `"rust_library"`, `"rust_binary"`
+- TypeScript: `"typescript_package"`, `"typescript_library"`
+- Python: `"python_package"`
+
+**Example:**
+```bash
+mill tool workspace.create_package '{"name": "my-crate", "packageType": "rust_library", "path": "crates/my-crate", "options": {"dryRun": false}}'
+```
+
+---
+
+### System Tools
+
+| Tool | Required Parameters | Optional Parameters | Returns |
+|------|-------------------|-------------------|---------|
+| `health_check` | - | - | HealthStatus |
+
+**Example:**
+```bash
+mill tool health_check '{}'
+```
+
+---
+
 ## More Help
 
 - **Full Documentation**: `mill docs`
 - **Tool Reference**: `mill docs tools`
+- **Workflow Recipes**: `mill docs cookbook`
 - **Quick Start**: `mill docs quickstart`
 - **GitHub Issues**: https://github.com/goobits/typemill/issues
 - **Search Docs**: `mill docs --search <keyword>`

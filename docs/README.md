@@ -1,5 +1,10 @@
 # TypeMill Documentation
 
+> **📍 You are here:** Documentation hub (organized by role: users, contributors, operators)
+> - 👤 **New to TypeMill?** See [../README.md](../README.md) for project overview & quick start
+> - 🤖 **AI agents**: See [../CLAUDE.md](../CLAUDE.md) for tool quick reference
+> - 📖 **Practical workflows**: See [cookbook.md](cookbook.md) for step-by-step recipes
+
 **Complete documentation for TypeMill - Pure Rust MCP server for AI-powered code intelligence**
 
 > **💡 Viewing from CLI?** All links work with `mill docs <topic>`. For example: `mill docs quickstart` or `mill docs tools/refactoring`
