@@ -32,6 +32,65 @@ Intelligence operations that measure code health, structure, and relationships, 
 
 **Philosophy**: Analysis informs refactoring, refactoring builds on analysis.
 
+```mermaid
+graph TB
+    subgraph "Pillar 2: Analysis Primitives"
+        Lint[Linting<br/>Style & Errors]
+        Complex[Complexity<br/>Metrics]
+        Dead[Dead Code<br/>Detection]
+        Smell[Code Smells<br/>Patterns]
+        Deps[Dependencies<br/>Graph Analysis]
+    end
+
+    subgraph "Pillar 1: Refactoring Primitives"
+        Rename[Rename<br/>Symbols/Files]
+        Extract[Extract<br/>Functions/Modules]
+        Move[Move<br/>Code Between Files]
+        Inline[Inline<br/>Variables/Functions]
+        Reorder[Reorder<br/>Parameters/Imports]
+        Transform[Transform<br/>Patterns]
+        Delete[Delete<br/>Dead Code]
+    end
+
+    subgraph "Unified dryRun Safety"
+        Preview[Preview Mode<br/>dryRun: true]
+        Execute[Execute Mode<br/>dryRun: false]
+    end
+
+    Complex -.informs.-> Extract
+    Complex -.informs.-> Inline
+    Dead -.informs.-> Delete
+    Smell -.informs.-> Extract
+    Smell -.informs.-> Transform
+    Deps -.informs.-> Move
+    Deps -.informs.-> Extract
+
+    Rename --> Preview
+    Extract --> Preview
+    Move --> Preview
+    Inline --> Preview
+    Reorder --> Preview
+    Transform --> Preview
+    Delete --> Preview
+
+    Preview --> Execute
+
+    style Complex fill:#87CEEB
+    style Dead fill:#87CEEB
+    style Smell fill:#87CEEB
+    style Deps fill:#87CEEB
+    style Lint fill:#87CEEB
+    style Rename fill:#FFB6C1
+    style Extract fill:#FFB6C1
+    style Move fill:#FFB6C1
+    style Inline fill:#FFB6C1
+    style Reorder fill:#FFB6C1
+    style Transform fill:#FFB6C1
+    style Delete fill:#FFB6C1
+    style Preview fill:#90EE90
+    style Execute fill:#FF6B6B
+```
+
 ---
 
 ### Refactoring Primitives
@@ -520,6 +579,30 @@ apps/mill                    → CLI entry point
 ### Request Lifecycle
 
 **Modern Request Flow** (plugin-based dispatch):
+
+```mermaid
+sequenceDiagram
+    participant Client as MCP Client
+    participant Transport as Transport Layer
+    participant Dispatcher as Plugin Dispatcher
+    participant Handler as Tool Handler
+    participant Service as Service Layer
+    participant LSP as LSP Server
+
+    Client->>Transport: JSON-RPC Request
+    Transport->>Dispatcher: Parse McpMessage
+    Dispatcher->>Handler: dispatch(tool_name, args)
+    Handler->>Service: Execute via AppState
+    Service->>LSP: LSP request (if needed)
+    LSP-->>Service: LSP response
+    Service-->>Handler: Service result
+    Handler-->>Dispatcher: Tool result
+    Dispatcher-->>Transport: MCP response
+    Transport-->>Client: JSON serialization
+
+    Note over Handler,Service: Shared AppState services
+    Note over Service,LSP: Cached connections
+```
 
 1. **Request Reception**
    Transport Layer (stdio/WebSocket) → JSON parsing → McpMessage

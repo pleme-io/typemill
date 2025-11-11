@@ -27,6 +27,18 @@ This cookbook provides step-by-step recipes for real-world TypeMill usage. Each 
 
 ### Steps
 
+```mermaid
+flowchart LR
+    Preview[1. Preview<br/>dryRun: true] --> Review[2. Review<br/>EditPlan]
+    Review --> Execute[3. Execute<br/>dryRun: false]
+    Execute --> Verify[4. Verify<br/>Tests & Grep]
+
+    style Preview fill:#90EE90
+    style Review fill:#FFD700
+    style Execute fill:#FFB6C1
+    style Verify fill:#87CEEB
+```
+
 1. **Preview the changes** (dry run mode - default):
    ```bash
    mill tool rename --target directory:src/old-utils --new-name src/helpers
@@ -80,6 +92,26 @@ git checkout -- .  # Revert if needed
 **Tools Used**: `analyze.module_dependencies`, `workspace.extract_dependencies`, `rename`, `workspace.update_members`
 
 ### Steps
+
+```mermaid
+flowchart TD
+    Analyze[1. Analyze Dependencies<br/>module_dependencies] --> Create[2. Create Package<br/>create_package]
+    Create --> Extract[3. Extract Dependencies<br/>extract_dependencies]
+    Extract --> Move[4. Move Module<br/>rename directory]
+    Move --> UpdateWS[5. Update Workspace<br/>update_members]
+    UpdateWS --> Manual1[6. Manual: Remove old<br/>mod declaration]
+    Manual1 --> Manual2[7. Manual: Add new<br/>lib.rs modules]
+    Manual2 --> Verify[8. Verify<br/>cargo build + test]
+
+    style Analyze fill:#87CEEB
+    style Create fill:#90EE90
+    style Extract fill:#DDA0DD
+    style Move fill:#FFD700
+    style UpdateWS fill:#FFA07A
+    style Manual1 fill:#FFB6C1
+    style Manual2 fill:#FFB6C1
+    style Verify fill:#4ECDC4
+```
 
 1. **Analyze module dependencies**:
    ```bash
@@ -176,6 +208,24 @@ git checkout -- .  # Revert if needed
 
 ### Steps
 
+```mermaid
+flowchart TD
+    FindImports[1. Find Unused<br/>Imports] --> FindSymbols[2. Find Unused<br/>Symbols]
+    FindSymbols --> Review[3. Review<br/>Findings]
+    Review --> DryRun[4. Delete Preview<br/>dryRun: true]
+    DryRun --> Imports[5. Delete Imports<br/>dryRun: false]
+    Imports --> Symbols[6. Delete Symbols<br/>one by one]
+    Symbols --> Verify[7. Verify<br/>cargo check + test]
+
+    style FindImports fill:#87CEEB
+    style FindSymbols fill:#87CEEB
+    style Review fill:#FFD700
+    style DryRun fill:#90EE90
+    style Imports fill:#FFB6C1
+    style Symbols fill:#FFB6C1
+    style Verify fill:#4ECDC4
+```
+
 1. **Find unused imports**:
    ```bash
    mill tool analyze.dead_code '{
@@ -254,6 +304,27 @@ git checkout -- .  # Revert if needed
 **Tools Used**: `analyze.quality`, `extract`
 
 ### Steps
+
+```mermaid
+flowchart TD
+    Analyze[1. Analyze<br/>Complexity] --> Identify[2. Identify<br/>Logical Blocks]
+    Identify --> ExtractDry[3. Extract Preview<br/>dryRun: true]
+    ExtractDry --> ReviewPlan[4. Review<br/>Parameters & Returns]
+    ReviewPlan --> Execute[5. Execute Extract<br/>dryRun: false]
+    Execute --> Repeat{6. More<br/>Blocks?}
+    Repeat -->|Yes| Identify
+    Repeat -->|No| ReAnalyze[7. Re-analyze<br/>Complexity Score]
+    ReAnalyze --> Test[8. Run Tests<br/>Verify Behavior]
+
+    style Analyze fill:#87CEEB
+    style Identify fill:#FFD700
+    style ExtractDry fill:#90EE90
+    style ReviewPlan fill:#FFD700
+    style Execute fill:#FFB6C1
+    style Repeat fill:#DDA0DD
+    style ReAnalyze fill:#87CEEB
+    style Test fill:#4ECDC4
+```
 
 1. **Analyze function complexity**:
    ```bash
@@ -344,6 +415,26 @@ git checkout -- .  # Revert if needed
 **Tools Used**: `workspace.create_package`, `setup`
 
 ### Steps
+
+```mermaid
+flowchart LR
+    Init[1. Initialize<br/>mill setup] --> Backend[2. Create Backend<br/>rust_binary]
+    Backend --> Frontend[3. Create Frontend<br/>typescript_package]
+    Frontend --> Shared[4. Create Shared<br/>rust_library]
+    Shared --> WSRoot[5. Setup Workspace<br/>Cargo.toml]
+    WSRoot --> InstallLSP[6. Install LSPs<br/>rust + typescript]
+    InstallLSP --> Verify[7. Verify<br/>mill status]
+    Verify --> Test[8. Test Refactoring<br/>Cross-language]
+
+    style Init fill:#90EE90
+    style Backend fill:#FFA07A
+    style Frontend fill:#87CEEB
+    style Shared fill:#FFA07A
+    style WSRoot fill:#FFD700
+    style InstallLSP fill:#DDA0DD
+    style Verify fill:#4ECDC4
+    style Test fill:#4ECDC4
+```
 
 1. **Initialize TypeMill**:
    ```bash
@@ -445,6 +536,33 @@ my-project/
 **Tools Used**: `analyze.quality`, `extract`, `inline`, `transform`
 
 ### Steps
+
+```mermaid
+flowchart TD
+    Scan[1. Scan Workspace<br/>analyze.quality] --> Review[2. Review Findings<br/>Complexity > 10]
+    Review --> Prioritize[3. Prioritize<br/>High-traffic Code]
+    Prioritize --> Strategy{4. Choose Strategy}
+
+    Strategy -->|A| ExtractA[Extract Nested<br/>Logic]
+    Strategy -->|B| EarlyB[Early Returns<br/>Reduce Nesting]
+    Strategy -->|C| AsyncC[Transform to<br/>Async/Await]
+
+    ExtractA --> ReAnalyze[5. Re-analyze<br/>Complexity]
+    EarlyB --> ReAnalyze
+    AsyncC --> ReAnalyze
+
+    ReAnalyze --> Tests[6. Add Tests<br/>Coverage Check]
+
+    style Scan fill:#87CEEB
+    style Review fill:#FFD700
+    style Prioritize fill:#DDA0DD
+    style Strategy fill:#FFD700
+    style ExtractA fill:#90EE90
+    style EarlyB fill:#90EE90
+    style AsyncC fill:#90EE90
+    style ReAnalyze fill:#87CEEB
+    style Tests fill:#4ECDC4
+```
 
 1. **Scan for complexity across workspace**:
    ```bash

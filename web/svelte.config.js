@@ -8,7 +8,9 @@ import {
 	calloutsPlugin,
 	mermaidPlugin,
 	linksPlugin,
-	codeHighlightPlugin
+	codeHighlightPlugin,
+	tabsPlugin,
+	filetreePlugin
 } from '@goobits/docs-engine/plugins';
 
 /** @type {import('@sveltejs/kit').Config} */
@@ -25,6 +27,8 @@ const config = {
 				remarkGfm,
 				calloutsPlugin(), // NOTE, TIP, WARNING, etc.
 				mermaidPlugin(), // Architecture diagrams
+				tabsPlugin(), // Tabbed code examples
+				filetreePlugin(), // Interactive file trees
 				linksPlugin({
 					// Automatic .md link handling
 					topLevelFiles: ['README', 'CLAUDE', 'LICENSE', 'contributing']

@@ -213,7 +213,8 @@ All refactoring operations support checksum validation, rollback on error, and p
   "options": {"dryRun": false}  // Don't forget this!
 }
 ```
-**Options - scope (Update Coverage):**
+<details>
+<summary><strong>Options - scope (Update Coverage)</strong></summary>
 
 | Scope | Code | Docs | Configs | Comments | Prose | Use Case |
 |-------|------|------|---------|----------|-------|----------|
@@ -230,6 +231,8 @@ All refactoring operations support checksum validation, rollback on error, and p
 - **Comments**: Code comments mentioning the old name
 - **Prose**: Natural language text in markdown files
 
+</details>
+
 **Example - Scope control:**
 ```json
 {
@@ -241,7 +244,9 @@ All refactoring operations support checksum validation, rollback on error, and p
   }
 }
 ```
-**Batch Rename:**
+<details>
+<summary><strong>Batch Rename</strong></summary>
+
 ```json
 {
   "targets": [
@@ -251,12 +256,18 @@ All refactoring operations support checksum validation, rollback on error, and p
   "options": {"dryRun": false}
 }
 ```
-**Notes:**
+
+</details>
+<details>
+<summary><strong>Advanced Notes</strong></summary>
+
 - **Rust file renames** automatically update module declarations (`pub mod utils;` → `pub mod helpers;`), import statements (`use utils::*`), and qualified paths (`utils::helper()`)
 - **Directory renames** update all string literal paths, markdown links, config file paths, and Cargo.toml entries (100% coverage with `scope: "standard"`)
 - **Crate consolidation mode** merges dependencies and removes source crate from workspace when renaming into another crate's `src/` directory
 - **Checksum validation** prevents applying stale operations after file modifications
 - **Safe default:** `dryRun: true` requires explicit `dryRun: false` for execution
+
+</details>
 
 ---
 
@@ -853,6 +864,32 @@ mill tool extract '{
 ### Safe Preview Pattern (Recommended)
 
 The safest refactoring approach uses the default `dryRun: true` behavior:
+
+```mermaid
+flowchart TD
+    Start([Request Refactoring]) --> Preview[Generate Plan<br/>dryRun: true default]
+    Preview --> ShowPlan[Review EditPlan:<br/>- Affected files<br/>- Line changes<br/>- Warnings]
+    ShowPlan --> Decide{Approve?}
+    Decide -->|Yes| Execute[Execute with<br/>dryRun: false]
+    Decide -->|No| Cancel([Cancel])
+
+    Execute --> Validate[Validate Checksums]
+    Validate --> Changed{Files<br/>Changed?}
+    Changed -->|Yes| Error([Error: Stale])
+    Changed -->|No| Apply[Apply Edits]
+
+    Apply --> Verify[Post-Apply Validation]
+    Verify --> Success{Pass?}
+    Success -->|Yes| Complete([Success])
+    Success -->|No| Rollback[Auto Rollback]
+    Rollback --> Error
+
+    style Preview fill:#90EE90
+    style Apply fill:#FFB6C1
+    style Complete fill:#4ECDC4
+    style Error fill:#FF6B6B
+    style Cancel fill:#DDA0DD
+```
 
 ```json
 // Step 1: Preview changes (dryRun defaults to true)

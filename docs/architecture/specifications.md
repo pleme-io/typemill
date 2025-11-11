@@ -19,6 +19,76 @@ This document provides authoritative specifications for TypeMill's public and in
 
 **Purpose**: Definitive reference for which tools are public vs internal.
 
+```mermaid
+graph TB
+    subgraph "Public API - 29 Tools"
+        Nav[Navigation 8<br/>Point Queries]
+        Ref[Refactoring 7<br/>dryRun API]
+        Ana[Analysis 9<br/>Unified API]
+        Work[Workspace 4<br/>Operations]
+        Sys[System 1<br/>Health]
+    end
+
+    subgraph "Internal API - 20 Tools"
+        Life[Lifecycle 3<br/>Event Hooks]
+        IntEdit[Internal Edit 1<br/>Backend]
+        IntWS[Internal WS 1<br/>Backend]
+        IntInt[Intelligence 2<br/>LSP]
+        Legacy[Legacy 13<br/>Compatibility]
+    end
+
+    subgraph "Clients"
+        MCP[MCP Clients<br/>AI Agents]
+        CLI[CLI<br/>mill tool]
+    end
+
+    subgraph "Backend"
+        Handler[Tool Handlers<br/>mill-handlers]
+        Service[Services<br/>mill-services]
+        Plugin[Language Plugins<br/>mill-lang-*]
+    end
+
+    MCP --> Nav
+    MCP --> Ref
+    MCP --> Ana
+    MCP --> Work
+    MCP --> Sys
+
+    CLI --> Nav
+    CLI --> Ref
+    CLI --> Ana
+    CLI --> Work
+    CLI --> Sys
+
+    Handler --> Life
+    Handler --> IntEdit
+    Handler --> IntWS
+    Handler --> IntInt
+    Service --> Legacy
+
+    Nav --> Handler
+    Ref --> Handler
+    Ana --> Handler
+    Work --> Handler
+    Sys --> Handler
+
+    Handler --> Service
+    Service --> Plugin
+
+    style Nav fill:#87CEEB
+    style Ref fill:#FFB6C1
+    style Ana fill:#90EE90
+    style Work fill:#FFD700
+    style Sys fill:#DDA0DD
+    style Life fill:#D3D3D3
+    style IntEdit fill:#D3D3D3
+    style IntWS fill:#D3D3D3
+    style IntInt fill:#D3D3D3
+    style Legacy fill:#D3D3D3
+    style MCP fill:#4ECDC4
+    style CLI fill:#4ECDC4
+```
+
 ### Public Tools (29 total)
 
 #### Navigation (8) - Point Queries for IDE Workflows
