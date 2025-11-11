@@ -9,12 +9,12 @@ Pure Rust MCP server bridging Language Server Protocol (LSP) to AI coding assist
 Provides 29 MCP tools for code navigation, refactoring, analysis, and batch operations across TypeScript and Rust projects.
 
 ## ✨ Key Features
-- **🎯 Safe Refactoring** - Unified dryRun API (default: preview, explicit opt-in to execute) with automatic rollback on failure
-- **🔍 LSP Integration** - Native language server support for precise code intelligence
-- **⚡ Rust Performance** - Zero-cost abstractions, memory safety, async I/O
-- **🔄 Comprehensive Updates** - Automatic import updates, cross-file reference tracking
-- **🐳 Production Ready** - WebSocket server, JWT auth, multi-tenant isolation, Docker support
-- **🛠️ 49 Tools** - 29 public MCP tools + 20 internal tools for navigation, refactoring, analysis, workspace operations
+- **Safe Refactoring** - Unified dryRun API (default: preview, explicit opt-in to execute) with automatic rollback on failure
+- **LSP Integration** - Native language server support for precise code intelligence
+- **Rust Performance** - Zero-cost abstractions, memory safety, async I/O
+- **Comprehensive Updates** - Automatic import updates, cross-file reference tracking
+- **Production Ready** - WebSocket server, JWT auth, multi-tenant isolation, Docker support
+- **49 Tools** - 29 public MCP tools + 20 internal tools for navigation, refactoring, analysis, workspace operations
 
 ## 🚀 Quick Start
 ```bash
@@ -34,11 +34,11 @@ mill start
 mill status
 ```
 **What `mill setup` does:**
-- 🔍 Scans your project to detect languages (TypeScript, Rust, Python)
-- 📋 Creates `.typemill/config.json` with LSP server configurations
-- 📥 **Auto-downloads missing LSP servers** (with your permission)
-- ✅ Verifies LSP servers are working
-- 💾 Caches LSPs in `~/.mill/lsp/` for reuse across projects
+- Scans your project to detect languages (TypeScript, Rust, Python)
+- Creates `.typemill/config.json` with LSP server configurations
+- **Auto-downloads missing LSP servers** (with your permission)
+- Verifies LSP servers are working
+- Caches LSPs in `~/.mill/lsp/` for reuse across projects
 
 ### Connect Your AI Assistant
 Add to your MCP configuration (e.g., Claude Desktop):
@@ -82,25 +82,25 @@ mill tool workspace.find_replace '{"pattern": "oldName", "replacement": "newName
 
 ## 📚 Available Tools (29 total)
 
-**🔍 Navigation & Intelligence (8 tools)**
+**Navigation & Intelligence (8 tools)**
 - `find_definition`, `find_references`, `search_symbols`
 - `find_implementations`, `find_type_definition`, `get_symbol_info`
 - `get_diagnostics`, `get_call_hierarchy`
 
-**✂️ Editing & Refactoring (7 tools with dryRun API)**
+**Editing & Refactoring (7 tools with dryRun API)**
 - `rename`, `extract`, `inline`, `move`, `reorder`, `transform`, `delete`
 - Each tool supports `options.dryRun` (default: true for safety, false to execute)
 
-**📊 Analysis (8 tools)**
+**Analysis (8 tools)**
 - `analyze.quality`, `analyze.dead_code`, `analyze.dependencies`
 - `analyze.structure`, `analyze.documentation`, `analyze.tests`
 - `analyze.batch`, `analyze.module_dependencies`
 
-**📦 Workspace (4 tools)**
+**Workspace (4 tools)**
 - `workspace.create_package`, `workspace.extract_dependencies`
 - `workspace.update_members`, `workspace.find_replace`
 
-**💚 System (1 tool)**
+**System (1 tool)**
 - `health_check`
 
 ## 🌐 Language Support

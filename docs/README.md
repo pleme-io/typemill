@@ -12,10 +12,10 @@
 
 | I want to... | Read this | CLI Command |
 |--------------|-----------|-------------|
-| 🎯 Get started from scratch | [user-guide/getting-started](user-guide/getting-started.md) | `mill docs user-guide/getting-started` |
-| 📋 See common commands | [user-guide/cheatsheet](user-guide/cheatsheet.md) | `mill docs user-guide/cheatsheet` |
-| 🛠️ Browse all 29 tools | [tools/](tools/) | `mill docs tools` |
-| 🔍 Search documentation | - | `mill docs --search "keyword"` |
+| Get started from scratch | [user-guide/getting-started](user-guide/getting-started.md) | `mill docs user-guide/getting-started` |
+| See common commands | [user-guide/cheatsheet](user-guide/cheatsheet.md) | `mill docs user-guide/cheatsheet` |
+| Browse all 29 tools | [tools/](tools/) | `mill docs tools` |
+| Search documentation | - | `mill docs --search "keyword"` |
 
 **For GitHub users:** See [../README.md](https://github.com/goobits/typemill#readme) for project overview
 
@@ -23,7 +23,7 @@
 
 ## 📚 Documentation by Role
 
-### 👤 End Users
+### End Users
 
 **Getting started:**
 1. **[user-guide/getting-started.md](user-guide/getting-started.md)** - Complete setup guide (installation → team setup)
@@ -46,7 +46,7 @@
 
 ---
 
-### 💻 Contributors
+### Contributors
 
 **Getting started with development:**
 1. **[DEVELOPMENT.md](DEVELOPMENT.md)** - Complete development guide
@@ -62,7 +62,7 @@
 
 ---
 
-### 🔧 Operators
+### Operators
 
 **Deployment & operations:**
 1. **[operations/docker_deployment.md](operations/docker_deployment.md)** - Docker deployment guide
