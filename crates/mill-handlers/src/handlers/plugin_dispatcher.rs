@@ -301,7 +301,7 @@ impl PluginDispatcher {
                     InternalEditingToolsHandler, InternalIntelligenceHandler, InternalNavigationHandler,
                     InternalWorkspaceHandler, LifecycleHandler, NavigationHandler,
                     SystemToolsHandler, WorkspaceToolsHandler, WorkspaceCreateHandler, WorkspaceExtractDepsHandler,
-                    WorkspaceUpdateMembersHandler,
+                    WorkspaceUpdateMembersHandler, WorkspaceAddJavaDependencyHandler,
                 };
                 use super::tools::analysis::{BatchAnalysisHandler, CircularDependenciesHandler, DeadCodeHandler, DependenciesHandler, DocumentationHandler, ModuleDependenciesHandler, QualityHandler, StructureHandler, TestsHandler};
                 use super::workspace::FindReplaceHandler;
@@ -331,6 +331,7 @@ impl PluginDispatcher {
                     WorkspaceCreateHandler => "WorkspaceCreateHandler with 1 tool (workspace.create_package)",
                     WorkspaceExtractDepsHandler => "WorkspaceExtractDepsHandler with 1 tool (workspace.extract_dependencies)",
                     WorkspaceUpdateMembersHandler => "WorkspaceUpdateMembersHandler with 1 tool (workspace.update_members)",
+                    WorkspaceAddJavaDependencyHandler => "WorkspaceAddJavaDependencyHandler with 1 tool (workspace.add_java_dependency)",
                     FindReplaceHandler => "FindReplaceHandler with 1 tool (workspace.find_replace)",
                     ModuleDependenciesHandler => "ModuleDependenciesHandler with 1 tool (analyze.module_dependencies)"
                 });

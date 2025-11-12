@@ -1,0 +1,375 @@
+{
+  "workflows": {
+    "refactor.renameSymbol": {
+      "name": "Rename symbol '{oldName}' to '{newName}'",
+      "metadata": {
+        "complexity": 2,
+        "category": "refactoring",
+        "description": "Rename a symbol and update all references across the project"
+      },
+      "steps": [
+        {
+          "tool": "rename",
+          "params": {
+            "target": {
+              "kind": "symbol",
+              "path": "{filePath}",
+              "line": "{line}",
+              "character": "{character}"
+            },
+            "newName": "{newName}",
+            "options": {
+              "dryRun": "{dryRun}",
+              "scope": "standard"
+            }
+          },
+          "description": "Rename symbol and update all references",
+          "requires_confirmation": true
+        }
+      ],
+      "required_params": ["filePath", "line", "character", "oldName", "newName"],
+      "optional_params": ["dryRun"]
+    },
+    "refactor.renameFile": {
+      "name": "Rename file '{oldPath}' to '{newPath}'",
+      "metadata": {
+        "complexity": 2,
+        "category": "refactoring",
+        "description": "Rename a file and update all import statements"
+      },
+      "steps": [
+        {
+          "tool": "rename",
+          "params": {
+            "target": {
+              "kind": "file",
+              "path": "{oldPath}"
+            },
+            "newName": "{newPath}",
+            "options": {
+              "dryRun": "{dryRun}",
+              "scope": "standard"
+            }
+          },
+          "description": "Rename file and update imports",
+          "requires_confirmation": true
+        }
+      ],
+      "required_params": ["oldPath", "newPath"],
+      "optional_params": ["dryRun"]
+    },
+    "refactor.extractFunction": {
+      "name": "Extract function '{functionName}' from selection",
+      "metadata": {
+        "complexity": 3,
+        "category": "refactoring",
+        "description": "Extract selected code into a new function"
+      },
+      "steps": [
+        {
+          "tool": "extract",
+          "params": {
+            "kind": "function",
+            "source": {
+              "file": "{filePath}",
+              "line": "{startLine}",
+              "character": "{startChar}"
+            },
+            "name": "{functionName}",
+            "options": {
+              "dryRun": "{dryRun}"
+            }
+          },
+          "description": "Extract selected code into new function",
+          "requires_confirmation": true
+        }
+      ],
+      "required_params": ["filePath", "startLine", "startChar", "functionName"],
+      "optional_params": ["dryRun"]
+    },
+    "refactor.inlineVariable": {
+      "name": "Inline variable '{variableName}'",
+      "metadata": {
+        "complexity": 2,
+        "category": "refactoring",
+        "description": "Inline a variable by replacing all usages with its value"
+      },
+      "steps": [
+        {
+          "tool": "inline",
+          "params": {
+            "kind": "variable",
+            "source": {
+              "file": "{filePath}",
+              "line": "{line}",
+              "character": "{character}"
+            },
+            "options": {
+              "dryRun": "{dryRun}"
+            }
+          },
+          "description": "Inline variable and remove declaration",
+          "requires_confirmation": true
+        }
+      ],
+      "required_params": ["filePath", "line", "character", "variableName"],
+      "optional_params": ["dryRun"]
+    },
+    "refactor.moveSymbol": {
+      "name": "Move symbol from '{sourceFile}' to '{destinationFile}'",
+      "metadata": {
+        "complexity": 3,
+        "category": "refactoring",
+        "description": "Move a symbol to a different file and update imports"
+      },
+      "steps": [
+        {
+          "tool": "move",
+          "params": {
+            "source": {
+              "file": "{sourceFile}",
+              "line": "{line}",
+              "character": "{character}"
+            },
+            "destination": "{destinationFile}",
+            "options": {
+              "dryRun": "{dryRun}"
+            }
+          },
+          "description": "Move symbol and update all imports",
+          "requires_confirmation": true
+        }
+      ],
+      "required_params": ["sourceFile", "line", "character", "destinationFile"],
+      "optional_params": ["dryRun"]
+    },
+    "codebase.analyzeQuality": {
+      "name": "Comprehensive code quality analysis",
+      "metadata": {
+        "complexity": 2,
+        "category": "analysis",
+        "description": "Run multiple quality analysis tools on the workspace"
+      },
+      "steps": [
+        {
+          "tool": "analyze.quality",
+          "params": {
+            "kind": "complexity",
+            "scope": {
+              "kind": "workspace"
+            }
+          },
+          "description": "Analyze code complexity metrics"
+        },
+        {
+          "tool": "analyze.quality",
+          "params": {
+            "kind": "maintainability",
+            "scope": {
+              "kind": "workspace"
+            }
+          },
+          "description": "Check maintainability indicators"
+        },
+        {
+          "tool": "analyze.dead_code",
+          "params": {
+            "scope": {
+              "kind": "workspace"
+            }
+          },
+          "description": "Find unused code"
+        },
+        {
+          "tool": "analyze.dependencies",
+          "params": {
+            "scope": {
+              "kind": "workspace"
+            }
+          },
+          "description": "Analyze dependency structure"
+        }
+      ],
+      "required_params": [],
+      "optional_params": []
+    },
+    "codebase.findIssues": {
+      "name": "Find potential issues in '{directory}'",
+      "metadata": {
+        "complexity": 2,
+        "category": "analysis",
+        "description": "Scan for code smells and potential problems"
+      },
+      "steps": [
+        {
+          "tool": "analyze.quality",
+          "params": {
+            "kind": "smells",
+            "scope": {
+              "kind": "directory",
+              "path": "{directory}"
+            }
+          },
+          "description": "Detect code smells"
+        },
+        {
+          "tool": "analyze.dead_code",
+          "params": {
+            "scope": {
+              "kind": "directory",
+              "path": "{directory}"
+            }
+          },
+          "description": "Find dead code"
+        },
+        {
+          "tool": "analyze.cycles",
+          "params": {
+            "scope": {
+              "kind": "directory",
+              "path": "{directory}"
+            }
+          },
+          "description": "Detect circular dependencies"
+        }
+      ],
+      "required_params": ["directory"],
+      "optional_params": []
+    },
+    "docs.generateAll": {
+      "name": "Generate documentation for workspace",
+      "metadata": {
+        "complexity": 2,
+        "category": "documentation",
+        "description": "Analyze documentation coverage and structure"
+      },
+      "steps": [
+        {
+          "tool": "analyze.documentation",
+          "params": {
+            "scope": {
+              "kind": "workspace"
+            }
+          },
+          "description": "Analyze documentation coverage"
+        },
+        {
+          "tool": "analyze.structure",
+          "params": {
+            "scope": {
+              "kind": "workspace"
+            }
+          },
+          "description": "Extract code structure for documentation"
+        }
+      ],
+      "required_params": [],
+      "optional_params": []
+    },
+    "docs.checkCoverage": {
+      "name": "Check documentation coverage for '{filePath}'",
+      "metadata": {
+        "complexity": 1,
+        "category": "documentation",
+        "description": "Check documentation completeness for a file"
+      },
+      "steps": [
+        {
+          "tool": "analyze.documentation",
+          "params": {
+            "scope": {
+              "kind": "file",
+              "path": "{filePath}"
+            }
+          },
+          "description": "Analyze file documentation"
+        }
+      ],
+      "required_params": ["filePath"],
+      "optional_params": []
+    },
+    "workspace.prepareForExtraction": {
+      "name": "Prepare '{crateName}' for extraction",
+      "metadata": {
+        "complexity": 3,
+        "category": "workspace",
+        "description": "Analyze module dependencies before extracting a crate"
+      },
+      "steps": [
+        {
+          "tool": "analyze.module_dependencies",
+          "params": {
+            "crate_name": "{crateName}"
+          },
+          "description": "Analyze module dependencies"
+        },
+        {
+          "tool": "analyze.dependencies",
+          "params": {
+            "scope": {
+              "kind": "directory",
+              "path": "{cratePath}"
+            }
+          },
+          "description": "Analyze external dependencies"
+        }
+      ],
+      "required_params": ["crateName", "cratePath"],
+      "optional_params": []
+    },
+    "test.analyzeCoverage": {
+      "name": "Analyze test coverage for '{directory}'",
+      "metadata": {
+        "complexity": 2,
+        "category": "testing",
+        "description": "Check test coverage and quality"
+      },
+      "steps": [
+        {
+          "tool": "analyze.tests",
+          "params": {
+            "scope": {
+              "kind": "directory",
+              "path": "{directory}"
+            }
+          },
+          "description": "Analyze test coverage and quality"
+        },
+        {
+          "tool": "analyze.structure",
+          "params": {
+            "scope": {
+              "kind": "directory",
+              "path": "{directory}"
+            }
+          },
+          "description": "Analyze code structure for untested areas"
+        }
+      ],
+      "required_params": ["directory"],
+      "optional_params": []
+    },
+    "cleanup.removeDeadCode": {
+      "name": "Find and suggest dead code removal in '{scope}'",
+      "metadata": {
+        "complexity": 2,
+        "category": "cleanup",
+        "description": "Find unused code and suggest removal"
+      },
+      "steps": [
+        {
+          "tool": "analyze.dead_code",
+          "params": {
+            "scope": {
+              "kind": "{scopeKind}",
+              "path": "{scope}"
+            }
+          },
+          "description": "Find all dead code"
+        }
+      ],
+      "required_params": ["scope", "scopeKind"],
+      "optional_params": []
+    }
+  }
+}

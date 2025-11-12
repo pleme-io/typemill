@@ -19,14 +19,18 @@ use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::protocol::analysis_result::{
     Finding, FindingLocation, Position, Range, SafetyLevel, Severity, Suggestion,
 };
-use mill_foundation::protocol::{AnalysisMetadata, AnalysisSummary};
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
 use mill_plugin_api::ParsedSource;
 use regex::Regex;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use tracing::debug;
+
+// Conditional imports for feature-gated analysis
+#[cfg(any(feature = "analysis-dead-code", feature = "analysis-deep-dead-code"))]
 use uuid::Uuid;
+#[cfg(any(feature = "analysis-dead-code", feature = "analysis-deep-dead-code"))]
+use mill_foundation::protocol::{AnalysisMetadata, AnalysisSummary};
 
 /// Helper to downcast AnalysisConfigTrait to concrete AnalysisConfig
 fn get_analysis_config(context: &ToolHandlerContext) -> ServerResult<&AnalysisConfig> {

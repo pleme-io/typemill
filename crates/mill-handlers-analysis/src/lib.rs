@@ -19,6 +19,7 @@ pub mod dependencies;
 pub mod documentation;
 pub mod engine;
 pub mod helpers;
+#[cfg(any(feature = "analysis-dead-code", feature = "analysis-deep-dead-code"))]
 pub mod lsp_provider_adapter;
 pub mod markdown_fixers;
 pub mod module_dependencies;

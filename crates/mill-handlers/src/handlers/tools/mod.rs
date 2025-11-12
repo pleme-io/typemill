@@ -28,6 +28,7 @@ pub mod workspace;
 pub mod workspace_create;
 pub mod workspace_extract_deps;
 pub mod workspace_update_members;
+pub mod workspace_add_java_dependency;
 
 // Re-export handlers
 pub use advanced::AdvancedToolsHandler;
@@ -43,6 +44,7 @@ pub use workspace::WorkspaceToolsHandler;
 pub use workspace_create::WorkspaceCreateHandler;
 pub use workspace_extract_deps::WorkspaceExtractDepsHandler;
 pub use workspace_update_members::WorkspaceUpdateMembersHandler;
+pub use workspace_add_java_dependency::WorkspaceAddJavaDependencyHandler;
 
 // Re-export dispatch helpers
 pub use dispatch::dispatch_to_language_plugin;

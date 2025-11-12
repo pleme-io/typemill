@@ -4,12 +4,14 @@ edition = "2021"
 license.workspace = true
 
 [features]
-default = ["refactor-all"]
+default = ["refactor-all", "lang-java"]
 # NOTE: Language features removed - handlers use dependency injection via PluginRegistry.
 # Language plugins are registered at the binary level (apps/mill/src/main.rs),
 # not at the handler layer. This eliminates compile-time coupling.
 # Exception: lang-rust is optional for consolidation validation (Rust-specific operation)
 lang-rust = ["dep:mill-lang-rust"]
+# Exception: lang-java is optional for Java workspace operations (pom.xml manipulation)
+lang-java = ["dep:mill-lang-java"]
 analysis-dead-code = ["mill-handlers-analysis/analysis-dead-code"]
 analysis-circular-deps = ["mill-handlers-analysis/analysis-circular-deps"]
 analysis-deep-dead-code = ["mill-handlers-analysis/analysis-deep-dead-code"]
@@ -66,6 +68,7 @@ mill-config = { path = "../mill-config" }
 mill-workspaces = { path = "../mill-workspaces" }
 mill-ast = { path = "../mill-ast", default-features = false }
 mill-lang-rust = { path = "../../languages/mill-lang-rust", optional = true }
+mill-lang-java = { path = "../../languages/mill-lang-java", optional = true }
 
 [dev-dependencies]
 mill-test-support = { path = "../mill-test-support" }

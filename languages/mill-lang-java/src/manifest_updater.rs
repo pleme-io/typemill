@@ -243,8 +243,7 @@ fn update_dependency_in_pom(
 }
 
 /// Add a dependency to pom.xml content
-#[allow(dead_code)] // Future enhancement: Dependency management
-pub(crate) fn add_dependency_to_pom(
+pub fn add_dependency_to_pom(
     content: &str,
     group_id: &str,
     artifact_id: &str,
@@ -309,7 +308,6 @@ pub(crate) fn add_dependency_to_pom(
 }
 
 /// Write a dependency element to XML writer
-#[allow(dead_code)] // Future enhancement: Dependency management
 fn write_dependency<W: std::io::Write>(
     writer: &mut Writer<W>,
     group_id: &str,
