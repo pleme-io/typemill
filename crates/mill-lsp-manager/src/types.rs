@@ -88,6 +88,7 @@ impl Platform {
 
 /// Download progress information
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // Deprecated crate - keeping for backwards compatibility
 pub struct DownloadProgress {
     pub downloaded: u64,
     pub total: Option<u64>,

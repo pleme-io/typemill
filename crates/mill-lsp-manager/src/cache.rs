@@ -47,6 +47,7 @@ pub async fn init_cache() -> Result<()> {
 }
 
 /// Clean up old or unused LSP binaries
+#[allow(dead_code)] // Deprecated crate - keeping for backwards compatibility
 pub async fn cleanup_cache() -> Result<Vec<PathBuf>> {
     let dir = cache_dir()?;
     let removed = Vec::new();

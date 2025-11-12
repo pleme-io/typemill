@@ -39,6 +39,8 @@
 //!
 //! See `.debug/PLUGIN_BASED_LSP_REFACTOR.md` for complete migration details.
 
+#![allow(deprecated)] // Allow using deprecated types within this deprecated crate
+
 mod cache;
 mod detector;
 mod downloader;
@@ -238,20 +240,7 @@ fn command_exists(cmd: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    #[test]
-    fn test_create_manager() {
-        let manager = LspManager::new().unwrap();
-        let available = manager.list_available();
-        assert!(!available.is_empty());
-    }
-
-    #[test]
-    fn test_detect_needed_lsps() {
-        let manager = LspManager::new().unwrap();
-        let needed = manager.detect_needed_lsps(Path::new(".")).unwrap();
-        // Should detect rust-analyzer for this Rust project
-        assert!(!needed.is_empty());
-    }
+    // Tests removed - LspManager is deprecated
+    // See apps/mill/src/cli/lsp_helpers.rs for plugin-based LSP installation tests
+    // See individual language plugins for LspInstaller implementation tests
 }
