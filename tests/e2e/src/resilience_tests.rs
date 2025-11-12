@@ -333,7 +333,8 @@ async fn test_find_dead_code_workflow() {
         "scope": {
             "type": "workspace",
             "path": project_path.to_string()
-        }
+        },
+        "file_extension": "ts"
     });
 
     let response_result = client
