@@ -207,22 +207,6 @@ impl ImportService {
     }
 }
 
-/// Report of import update operations (internal to mill-services)
-#[derive(Debug, Clone, serde::Serialize)]
-#[allow(dead_code)] // Future enhancement: Import update reporting
-pub(crate) struct ImportUpdateReport {
-    /// Number of files that were updated
-    pub files_updated: usize,
-    /// Total number of import statements updated
-    pub imports_updated: usize,
-    /// Number of files that failed to update
-    pub failed_files: usize,
-    /// Paths of successfully updated files
-    pub updated_paths: Vec<String>,
-    /// Error messages for failed updates
-    pub errors: Vec<String>,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -120,6 +120,29 @@ impl LanguagePlugin for CPlugin {
         }
     }
 
+    /// Analyze detailed imports from C source code, returning full ImportGraph
+    ///
+    /// Provides enhanced import analysis with full metadata including:
+    /// - System headers vs local headers
+    /// - Source locations for each import
+    /// - External dependencies tracking
+    ///
+    /// # Arguments
+    ///
+    /// * `source` - The C source code to analyze
+    /// * `file_path` - Optional path to the source file for context
+    ///
+    /// # Returns
+    ///
+    /// A complete `ImportGraph` with detailed import information
+    fn analyze_detailed_imports(
+        &self,
+        source: &str,
+        file_path: Option<&Path>,
+    ) -> PluginResult<mill_foundation::protocol::ImportGraph> {
+        self.import_support.analyze_detailed_imports(source, file_path)
+    }
+
     // Use macro to generate capability delegation methods
     impl_capability_delegations! {
         this => {

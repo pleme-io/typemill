@@ -45,7 +45,6 @@ impl ImportParser for CImportSupport {
 
 impl CImportSupport {
     /// Analyze detailed imports from C source code, returning full ImportGraph
-    #[allow(dead_code)] // Future enhancement: Detailed dependency analysis
     pub fn analyze_detailed_imports(
         &self,
         source: &str,

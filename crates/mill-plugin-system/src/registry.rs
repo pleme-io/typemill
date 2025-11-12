@@ -494,16 +494,12 @@ impl Default for RuntimePluginManager {
 #[derive(Debug, Clone)]
 pub struct RegistryStatistics {
     /// Total number of registered plugins
-    #[allow(dead_code)] // Future enhancement: Registry monitoring
     pub total_plugins: usize,
     /// Number of supported file extensions
-    #[allow(dead_code)] // Future enhancement: Registry monitoring
     pub supported_extensions: usize,
     /// Number of supported methods
-    #[allow(dead_code)] // Future enhancement: Registry monitoring
     pub supported_methods: usize,
     /// Average number of methods supported per plugin
-    #[allow(dead_code)] // Future enhancement: Registry monitoring
     pub average_methods_per_plugin: f64,
 }
 

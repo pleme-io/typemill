@@ -106,10 +106,21 @@ impl SystemHandler {
             .await
             .len();
 
+        // Get detailed metrics and statistics
+        let metrics = context.plugin_manager.get_metrics().await;
+        let stats = context.plugin_manager.get_registry_statistics().await;
+
         // Get paused workflow count from executor
         let paused_workflows = concrete_state
             .workflow_executor
             .get_paused_workflow_count();
+
+        // Calculate success rate
+        let success_rate = if metrics.total_requests > 0 {
+            (metrics.successful_requests as f64 / metrics.total_requests as f64) * 100.0
+        } else {
+            0.0
+        };
 
         Ok(json!({
             "status": "healthy",
@@ -120,7 +131,20 @@ impl SystemHandler {
                 "formatted": format!("{}h {}m {}s", uptime_hours, uptime_mins % 60, uptime_secs % 60)
             },
             "plugins": {
-                "loaded": plugin_count
+                "loaded": plugin_count,
+                "total_plugins": stats.total_plugins,
+                "supported_extensions": stats.supported_extensions,
+                "supported_methods": stats.supported_methods,
+                "average_methods_per_plugin": stats.average_methods_per_plugin
+            },
+            "metrics": {
+                "total_requests": metrics.total_requests,
+                "successful_requests": metrics.successful_requests,
+                "failed_requests": metrics.failed_requests,
+                "success_rate": format!("{:.2}%", success_rate),
+                "average_processing_time_ms": metrics.average_processing_time_ms,
+                "requests_per_plugin": metrics.requests_per_plugin,
+                "processing_time_per_plugin": metrics.processing_time_per_plugin
             },
             "workflows": {
                 "paused": paused_workflows
