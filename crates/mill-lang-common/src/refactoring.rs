@@ -3,6 +3,8 @@
 //! This module provides shared data structures and helper functions for
 //! implementing refactoring operations across different language plugins.
 
+pub mod extract_constant_builder;
+
 use mill_foundation::protocol::EditLocation;
 use serde::{Deserialize, Serialize};
 

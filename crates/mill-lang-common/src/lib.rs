@@ -129,9 +129,9 @@ pub use location::{
 pub use manifest_common::{JsonWorkspace, TomlWorkspace};
 pub use parsing::{parse_with_fallback, parse_with_optional_fallback, try_parsers};
 pub use refactoring::{
-    find_literal_occurrences, CodeRange, ExtractConstantAnalysis, ExtractVariableAnalysis,
-    ExtractableFunction, IndentationDetector, InlineVariableAnalysis, LineExtractor,
-    VariableUsage,
+    extract_constant_builder::ExtractConstantEditPlanBuilder, find_literal_occurrences, CodeRange,
+    ExtractConstantAnalysis, ExtractVariableAnalysis, ExtractableFunction, IndentationDetector,
+    InlineVariableAnalysis, LineExtractor, VariableUsage,
 };
 pub use subprocess::{run_ast_tool, run_ast_tool_raw, SubprocessAstTool};
 pub use validation::{

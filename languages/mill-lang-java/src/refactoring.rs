@@ -10,7 +10,6 @@ use mill_foundation::protocol::{
 };
 use mill_lang_common::find_literal_occurrences;
 use mill_lang_common::is_escaped;
-use mill_lang_common::is_screaming_snake_case;
 use mill_lang_common::is_valid_code_literal_location;
 use mill_lang_common::refactoring::CodeRange as CommonCodeRange;
 use mill_lang_common::ExtractConstantAnalysis;
@@ -517,91 +516,20 @@ pub(crate) fn plan_extract_constant(
         )));
     }
 
-    // Validate that the name is in SCREAMING_SNAKE_CASE format
-    if !is_screaming_snake_case(name) {
-        return Err(RefactoringError::Analysis(format!(
-            "Constant name '{}' must be in SCREAMING_SNAKE_CASE format. Valid examples: TAX_RATE, MAX_VALUE, API_KEY, DB_TIMEOUT_MS. Requirements: only uppercase letters (A-Z), digits (0-9), and underscores; must contain at least one uppercase letter; cannot start or end with underscore.",
-            name
-        )));
-    }
+    use mill_lang_common::ExtractConstantEditPlanBuilder;
 
-    let mut edits = Vec::new();
-
-    // Determine constant type based on literal value
+    // Capture Java-specific information for the declaration
     let java_type = infer_java_type(&analysis.literal_value);
-
-    // Generate the constant declaration (Java style: private static final)
     let indent = get_indentation(source, analysis.insertion_point.start_line as usize);
-    let declaration = format!(
-        "{}private static final {} {} = {};\n",
-        indent, java_type, name, analysis.literal_value
-    );
 
-    edits.push(TextEdit {
-        file_path: None,
-        edit_type: EditType::Insert,
-        location: CommonCodeRange::new(
-            analysis.insertion_point.start_line + 1,
-            analysis.insertion_point.start_col,
-            analysis.insertion_point.end_line + 1,
-            analysis.insertion_point.end_col,
-        )
-        .into(),
-        original_text: String::new(),
-        new_text: declaration,
-        priority: 100,
-        description: format!(
-            "Extract '{}' into constant '{}'",
-            analysis.literal_value, name
-        ),
-    });
-
-    // Replace all occurrences of the literal with the constant name
-    for (idx, occurrence_range) in analysis.occurrence_ranges.iter().enumerate() {
-        let priority = 90_u32.saturating_sub(idx as u32);
-        edits.push(TextEdit {
-            file_path: None,
-            edit_type: EditType::Replace,
-            location: CommonCodeRange::new(
-                occurrence_range.start_line + 1,
-                occurrence_range.start_col,
-                occurrence_range.end_line + 1,
-                occurrence_range.end_col,
+    ExtractConstantEditPlanBuilder::new(analysis, name.to_string(), file_path.to_string())
+        .with_declaration_format(|name, value| {
+            format!(
+                "{}private static final {} {} = {};\n",
+                indent, java_type, name, value
             )
-            .into(),
-            original_text: analysis.literal_value.clone(),
-            new_text: name.to_string(),
-            priority,
-            description: format!(
-                "Replace occurrence {} of literal with constant '{}'",
-                idx + 1,
-                name
-            ),
-        });
-    }
-
-    Ok(EditPlan {
-        source_file: file_path.to_string(),
-        edits,
-        dependency_updates: Vec::new(),
-        validations: vec![ValidationRule {
-            rule_type: ValidationType::SyntaxCheck,
-            description: "Verify Java syntax is valid after constant extraction".to_string(),
-            parameters: HashMap::new(),
-        }],
-        metadata: EditPlanMetadata {
-            intent_name: "extract_constant".to_string(),
-            intent_arguments: serde_json::json!({
-                "literal": analysis.literal_value,
-                "constantName": name,
-                "occurrences": analysis.occurrence_ranges.len(),
-            }),
-            created_at: chrono::Utc::now(),
-            complexity: (analysis.occurrence_ranges.len().min(10)) as u8,
-            impact_areas: vec!["constant_extraction".to_string()],
-            consolidation: None,
-        },
-    })
+        })
+        .map_err(|e| RefactoringError::Analysis(e))
 }
 
 /// Finds a Java literal at a given position in a line of code
@@ -886,6 +814,7 @@ fn infer_java_type(literal_value: &str) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use mill_lang_common::is_screaming_snake_case;
 
     #[test]
     fn test_is_screaming_snake_case() {
