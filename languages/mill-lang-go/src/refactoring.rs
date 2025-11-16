@@ -509,6 +509,9 @@ fn find_numeric_literal(line_text: &str, line: u32, character: u32) -> Option<(S
 }
 
 /// Find string literal at cursor position
+///
+/// Handles escaped quotes properly for double-quoted strings.
+/// In Go, backticks are raw strings and don't support escaping.
 fn find_string_literal(line_text: &str, line: u32, character: u32) -> Option<(String, CodeRange)> {
     let col = character as usize;
 
@@ -516,28 +519,81 @@ fn find_string_literal(line_text: &str, line: u32, character: u32) -> Option<(St
         return None;
     }
 
-    // Look for opening quote before cursor
-    for (i, ch) in line_text[..=col].char_indices().rev() {
-        if ch == '"' || ch == '\'' || ch == '`' {
-            // Find closing quote after cursor
-            let quote = ch;
-            for (j, ch2) in line_text[col..].char_indices() {
-                if ch2 == quote && col + j > i {
-                    let literal = &line_text[i..=col + j];
+    let chars: Vec<char> = line_text.chars().collect();
+
+    // Look for opening quote before or at cursor
+    let mut open_quote_idx = None;
+    let mut open_quote_char = None;
+
+    for i in (0..=col.min(chars.len() - 1)).rev() {
+        if chars[i] == '"' || chars[i] == '\'' || chars[i] == '`' {
+            // Check if this quote is escaped (only relevant for double quotes)
+            if chars[i] == '"' {
+                let mut backslash_count = 0;
+                let mut check = i;
+                while check > 0 && chars[check - 1] == '\\' {
+                    backslash_count += 1;
+                    check -= 1;
+                }
+                // If even number of backslashes, this quote is not escaped
+                if backslash_count % 2 == 0 {
+                    open_quote_idx = Some(i);
+                    open_quote_char = Some(chars[i]);
+                    break;
+                }
+            } else {
+                // Single quotes and backticks don't support escaping
+                open_quote_idx = Some(i);
+                open_quote_char = Some(chars[i]);
+                break;
+            }
+        }
+    }
+
+    if let (Some(start_idx), Some(quote_char)) = (open_quote_idx, open_quote_char) {
+        // Find the closing quote
+        let mut i = start_idx + 1;
+        while i < chars.len() {
+            if chars[i] == quote_char {
+                // Check if this quote is escaped (only for double quotes)
+                if quote_char == '"' {
+                    let mut backslash_count = 0;
+                    let mut check = i;
+                    while check > 0 && chars[check - 1] == '\\' {
+                        backslash_count += 1;
+                        check -= 1;
+                    }
+                    // If even number of backslashes, this quote is not escaped - it's the closing quote
+                    if backslash_count % 2 == 0 {
+                        let literal: String = chars[start_idx..=i].iter().collect();
+                        return Some((
+                            literal,
+                            CodeRange {
+                                start_line: line,
+                                start_col: start_idx as u32,
+                                end_line: line,
+                                end_col: (i + 1) as u32,
+                            },
+                        ));
+                    }
+                } else {
+                    // Found closing quote for single quote or backtick
+                    let literal: String = chars[start_idx..=i].iter().collect();
                     return Some((
-                        literal.to_string(),
+                        literal,
                         CodeRange {
                             start_line: line,
-                            start_col: i as u32,
+                            start_col: start_idx as u32,
                             end_line: line,
-                            end_col: (col + j + 1) as u32,
+                            end_col: (i + 1) as u32,
                         },
                     ));
                 }
             }
-            break;
+            i += 1;
         }
     }
+
     None
 }
 
@@ -633,22 +689,96 @@ fn find_literal_occurrences(source: &str, literal_value: &str) -> Vec<CodeRange>
     occurrences
 }
 
+/// Counts unescaped quotes of a specific type before a position
+///
+/// This function correctly handles escaped quotes (e.g., `\"`) in Go string literals.
+/// In Go, backslash escapes are only valid in interpreted string literals (double quotes),
+/// not in raw string literals (backticks).
+fn count_unescaped_quotes(text: &str, quote_char: char) -> usize {
+    let mut count = 0;
+    let mut chars = text.chars().peekable();
+    let mut escaped = false;
+
+    while let Some(ch) = chars.next() {
+        if escaped {
+            // This character is escaped, skip it
+            escaped = false;
+        } else if ch == '\\' && quote_char == '"' {
+            // Backslash only escapes in double-quoted strings, not backticks or single quotes
+            escaped = true;
+        } else if ch == quote_char {
+            count += 1;
+        }
+    }
+
+    count
+}
+
 /// Validates whether a position in source code is a valid location for a literal
+///
+/// This function checks if a position is inside a string literal or comment.
+///
+/// # Important limitations
+/// - Multi-line raw strings (backticks) are not fully supported. This function only
+///   checks the current line, so it may incorrectly identify positions inside multi-line
+///   raw strings as valid. Full support would require parsing the entire file.
+/// - Block comments (`/* */`) spanning multiple lines are only detected on the current line.
+///
+/// # Arguments
+/// * `line` - The line of text to check
+/// * `pos` - The position within the line to validate
+/// * `_len` - The length of the literal (currently unused)
 fn is_valid_literal_location(line: &str, pos: usize, _len: usize) -> bool {
     let before = &line[..pos];
-    let single_quotes = before.matches('\'').count();
-    let double_quotes = before.matches('"').count();
-    let backticks = before.matches('`').count();
+
+    // Count unescaped quotes before the position
+    let single_quotes = count_unescaped_quotes(before, '\'');
+    let double_quotes = count_unescaped_quotes(before, '"');
+    let backticks = count_unescaped_quotes(before, '`');
 
     // If an odd number of quotes appear before the position, we're inside a string
+    // Note: This doesn't handle multi-line raw strings (backticks) correctly
     if single_quotes % 2 == 1 || double_quotes % 2 == 1 || backticks % 2 == 1 {
         return false;
     }
 
     // Check for single-line comment marker
     if let Some(comment_pos) = line.find("//") {
-        if pos > comment_pos {
+        // Make sure the // is not inside a string
+        let before_comment = &line[..comment_pos];
+        let sq = count_unescaped_quotes(before_comment, '\'');
+        let dq = count_unescaped_quotes(before_comment, '"');
+        let bt = count_unescaped_quotes(before_comment, '`');
+
+        // Only treat as comment if not inside a string
+        if sq % 2 == 0 && dq % 2 == 0 && bt % 2 == 0 && pos > comment_pos {
             return false;
+        }
+    }
+
+    // Check for block comment markers /* */
+    // Note: This only handles block comments on a single line, not multi-line block comments
+    if let Some(open_pos) = line.find("/*") {
+        // Make sure the /* is not inside a string
+        let before_open = &line[..open_pos];
+        let sq = count_unescaped_quotes(before_open, '\'');
+        let dq = count_unescaped_quotes(before_open, '"');
+        let bt = count_unescaped_quotes(before_open, '`');
+
+        if sq % 2 == 0 && dq % 2 == 0 && bt % 2 == 0 {
+            // We found a block comment start
+            if let Some(close_pos) = line[open_pos..].find("*/") {
+                let close_abs = open_pos + close_pos + 2;
+                if pos >= open_pos && pos < close_abs {
+                    return false;
+                }
+            } else {
+                // Block comment starts but doesn't close on this line
+                // Position is in comment if it's after the open
+                if pos > open_pos {
+                    return false;
+                }
+            }
         }
     }
 
@@ -948,5 +1078,193 @@ func main() {
         let insertion = find_insertion_point(source);
         // Should insert after package, before func
         assert_eq!(insertion.start_line, 2);
+    }
+
+    #[test]
+    fn test_count_unescaped_quotes_no_escapes() {
+        assert_eq!(count_unescaped_quotes(r#"hello "world""#, '"'), 2);
+        assert_eq!(count_unescaped_quotes("hello 'world'", '\''), 2);
+        assert_eq!(count_unescaped_quotes("hello `world`", '`'), 2);
+    }
+
+    #[test]
+    fn test_count_unescaped_quotes_with_escapes() {
+        // Double quotes support escaping
+        // In the string r#"hello \"world\""#:
+        // The actual characters are: h e l l o   \ " w o r l d \ "
+        // The backslashes escape the quotes, so there are 0 unescaped quotes
+        assert_eq!(count_unescaped_quotes(r#"hello \"world\""#, '"'), 0);
+
+        // In r#"say "hello \"world\"""#:
+        // Actual chars: s a y   " h e l l o   \ " w o r l d \ " "
+        // First " is unescaped, middle \" is escaped, last \" is escaped, final " is unescaped
+        // So 2 unescaped quotes
+        assert_eq!(count_unescaped_quotes(r#"say "hello \"world\"""#, '"'), 2);
+
+        // In r#"\"quote\" in middle "real""#:
+        // Actual chars: \ " q u o t e \ "   i n   m i d d l e   " r e a l "
+        // First \" is escaped, second \" is escaped, third and fourth " are unescaped
+        // So 2 unescaped quotes
+        assert_eq!(count_unescaped_quotes(r#"\"quote\" in middle "real""#, '"'), 2);
+
+        // Backticks don't support escaping (raw strings in Go)
+        // The backslashes are literal characters, not escape sequences
+        assert_eq!(count_unescaped_quotes(r#"hello \`world\`"#, '`'), 2);
+
+        // Single quotes don't support escaping in Go (rune literals are different)
+        assert_eq!(count_unescaped_quotes(r#"hello \'world\'"#, '\''), 2);
+    }
+
+    #[test]
+    fn test_find_literal_occurrences_excludes_escaped_strings() {
+        let source = r#"package main
+
+func main() {
+    x := 42
+    msg := "The answer is \"42\" not 42"
+}
+"#;
+        let occurrences = find_literal_occurrences(source, "42");
+        // Should find the literal 42 on line 3 (x := 42)
+        // Should NOT find the ones inside the string, even though one is in escaped quotes
+        // Both "42" instances in the string are inside the outer quotes
+        assert_eq!(occurrences.len(), 1);
+        assert_eq!(occurrences[0].start_line, 3);
+    }
+
+    #[test]
+    fn test_find_literal_occurrences_excludes_block_comments() {
+        let source = r#"package main
+
+func main() {
+    x := 42
+    /* Block comment with 42 inside */
+    y := 42
+}
+"#;
+        let occurrences = find_literal_occurrences(source, "42");
+        // Should find 42 on lines 3 and 5, but not in the block comment on line 4
+        assert_eq!(occurrences.len(), 2);
+        assert_eq!(occurrences[0].start_line, 3);
+        assert_eq!(occurrences[1].start_line, 5);
+    }
+
+    #[test]
+    fn test_find_literal_occurrences_inline_block_comment() {
+        let source = r#"package main
+
+func main() {
+    x := /* 42 */ 42
+}
+"#;
+        let occurrences = find_literal_occurrences(source, "42");
+        // Should find only the real 42, not the one in the inline block comment
+        assert_eq!(occurrences.len(), 1);
+        assert_eq!(occurrences[0].start_line, 3);
+        assert_eq!(occurrences[0].start_col, 18);
+    }
+
+    #[test]
+    fn test_find_literal_occurrences_raw_strings() {
+        let source = r#"package main
+
+func main() {
+    x := 42
+    msg := `Raw string with 42 inside`
+}
+"#;
+        let occurrences = find_literal_occurrences(source, "42");
+        // Should only find the first occurrence, not the one inside the raw string
+        assert_eq!(occurrences.len(), 1);
+        assert_eq!(occurrences[0].start_line, 3);
+    }
+
+    #[test]
+    fn test_is_valid_literal_location_string_with_comment_chars() {
+        // "//" inside a string should not be treated as a comment
+        let line = r#"    msg := "http://example.com" and 42"#;
+        assert!(is_valid_literal_location(line, 36, 2)); // 42 at end
+        assert!(!is_valid_literal_location(line, 15, 2)); // Inside the string
+    }
+
+    #[test]
+    fn test_is_valid_literal_location_block_comment_chars_in_string() {
+        // "/*" inside a string should not be treated as a comment
+        let line = r#"    msg := "/* not a comment */" and 42"#;
+        assert!(is_valid_literal_location(line, 38, 2)); // 42 at end
+        assert!(!is_valid_literal_location(line, 15, 2)); // Inside the string
+    }
+
+    #[test]
+    fn test_negative_numbers() {
+        let source = r#"package main
+
+func main() {
+    x := -42
+    y := -42
+}
+"#;
+        // Test extracting negative number - cursor on the '4' (position 10)
+        // Line 3 is "    x := -42", so position 10 is the '4'
+        let result = plan_extract_constant(source, 3, 10, "NEGATIVE_ANSWER", "test.go");
+        assert!(result.is_ok(), "Should extract negative number literal");
+
+        let plan = result.unwrap();
+        // Should find both occurrences
+        assert_eq!(plan.edits.len(), 3); // 1 declaration + 2 replacements
+        assert!(plan.edits[0].new_text.contains("const NEGATIVE_ANSWER = -42"));
+    }
+
+    #[test]
+    fn test_decimal_numbers() {
+        let source = r#"package main
+
+func main() {
+    x := 3.14159
+    y := 3.14159
+}
+"#;
+        let result = plan_extract_constant(source, 3, 9, "PI", "test.go");
+        assert!(result.is_ok(), "Should extract decimal literal");
+
+        let plan = result.unwrap();
+        assert_eq!(plan.edits.len(), 3); // 1 declaration + 2 replacements
+        assert!(plan.edits[0].new_text.contains("const PI = 3.14159"));
+    }
+
+    #[test]
+    fn test_extract_constant_with_escaped_quotes() {
+        let source = r#"package main
+
+func main() {
+    msg1 := "Say \"hello\""
+    msg2 := "Say \"hello\""
+}
+"#;
+        // Try to extract the string literal
+        let result = plan_extract_constant(source, 3, 12, "GREETING_MESSAGE", "test.go");
+        assert!(result.is_ok(), "Should extract string with escaped quotes");
+
+        let plan = result.unwrap();
+        // Should find both occurrences
+        assert_eq!(plan.edits.len(), 3); // 1 declaration + 2 replacements
+        assert!(plan.edits[0].new_text.contains(r#"const GREETING_MESSAGE = "Say \"hello\"""#));
+    }
+
+    #[test]
+    fn test_extract_constant_raw_string_backticks() {
+        let source = r#"package main
+
+func main() {
+    msg1 := `Raw string literal`
+    msg2 := `Raw string literal`
+}
+"#;
+        let result = plan_extract_constant(source, 3, 12, "RAW_MESSAGE", "test.go");
+        assert!(result.is_ok(), "Should extract raw string literal");
+
+        let plan = result.unwrap();
+        assert_eq!(plan.edits.len(), 3); // 1 declaration + 2 replacements
+        assert!(plan.edits[0].new_text.contains("const RAW_MESSAGE = `Raw string literal`"));
     }
 }
