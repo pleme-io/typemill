@@ -18,7 +18,7 @@ use mill_foundation::protocol::{
 use mill_lang_common::is_valid_code_literal_location;
 use mill_lang_common::refactoring::CodeRange as CommonCodeRange;
 use mill_lang_common::refactoring::find_literal_occurrences;
-use mill_lang_common::ExtractConstantEditPlanBuilder;
+use mill_lang_common::{ExtractConstantEditPlanBuilder, LineExtractor};
 #[cfg(test)]
 use mill_lang_common::{is_escaped, is_screaming_snake_case};
 use mill_plugin_api::{PluginApiError, PluginResult, RefactoringProvider};
@@ -153,7 +153,7 @@ fn plan_extract_function_impl(
         .ok_or_else(|| "Selection is not inside a function".to_string())?;
 
     // Get indentation
-    let indent = get_indentation(source, enclosing_function.start_position().row);
+    let indent = LineExtractor::get_indentation_str(source, enclosing_function.start_position().row as u32);
     let function_indent = format!("{}    ", indent);
 
     // Create the new function text
@@ -264,7 +264,7 @@ fn plan_extract_variable_impl(
         .or_else(|| find_ancestor_of_kind(selected_node, "return_statement"))
         .ok_or_else(|| "Could not find statement to insert before".to_string())?;
 
-    let indent = get_indentation(source, insertion_node.start_position().row);
+    let indent = LineExtractor::get_indentation_str(source, insertion_node.start_position().row as u32);
     let var_name = variable_name.unwrap_or_else(|| "extracted".to_string());
 
     // Use 'auto' for type deduction in C++
@@ -391,14 +391,24 @@ fn plan_inline_variable_impl(
     })
 }
 
-/// Generate edit plan for C++ extract constant refactoring
-fn plan_extract_constant_impl(
+/// Analyzes source code to extract information about a literal value at a cursor position.
+///
+/// # Arguments
+/// * `source` - The C++ source code
+/// * `line` - Zero-based line number where the cursor is positioned
+/// * `character` - Zero-based character offset within the line
+/// * `_file_path` - Path to the file (for future use)
+///
+/// # Returns
+/// * `Ok(ExtractConstantAnalysis)` - Analysis result with literal value, occurrence ranges,
+///                                     validation status, and insertion point
+/// * `Err(String)` - If no literal is found at the cursor position
+pub(crate) fn analyze_extract_constant(
     source: &str,
     line: u32,
     character: u32,
-    name: &str,
-    file_path: &str,
-) -> Result<EditPlan, String> {
+    _file_path: &str,
+) -> Result<mill_lang_common::ExtractConstantAnalysis, String> {
     let mut parser = Parser::new();
     parser
         .set_language(&get_cpp_language())
@@ -432,21 +442,28 @@ fn plan_extract_constant_impl(
     // Find all occurrences of this literal
     let occurrence_ranges = find_literal_occurrences(source, &literal_value, is_valid_literal_location);
 
-    if occurrence_ranges.is_empty() {
-        return Err("No occurrences of literal found".to_string());
-    }
-
     // Find the best insertion point (top of file or after includes)
     let insertion_point = find_constant_insertion_point(root, source);
 
-    // Build analysis result for the builder
-    let analysis = mill_lang_common::ExtractConstantAnalysis {
+    Ok(mill_lang_common::ExtractConstantAnalysis {
         literal_value,
         occurrence_ranges,
         is_valid_literal: true,
         blocking_reasons: vec![],
         insertion_point,
-    };
+    })
+}
+
+/// Generate edit plan for C++ extract constant refactoring
+fn plan_extract_constant_impl(
+    source: &str,
+    line: u32,
+    character: u32,
+    name: &str,
+    file_path: &str,
+) -> Result<EditPlan, String> {
+    let analysis = analyze_extract_constant(source, line, character, file_path)
+        .map_err(|e| format!("Extract constant analysis failed: {}", e))?;
 
     // Determine the type for the constant declaration
     let const_type = infer_cpp_constant_type(&analysis.literal_value);
@@ -568,13 +585,6 @@ fn find_ancestor_of_kind<'a>(node: Node<'a>, kind: &str) -> Option<Node<'a>> {
     None
 }
 
-fn get_indentation(source: &str, line: usize) -> String {
-    source
-        .lines()
-        .nth(line)
-        .map(|l| l.chars().take_while(|c| c.is_whitespace()).collect())
-        .unwrap_or_default()
-}
 
 fn node_to_location(node: Node) -> CommonCodeRange {
     let range = node.range();

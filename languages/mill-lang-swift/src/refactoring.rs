@@ -4,7 +4,7 @@ use mill_foundation::protocol::{
 };
 use mill_lang_common::{
     find_literal_occurrences, is_escaped, is_valid_code_literal_location,
-    ExtractConstantEditPlanBuilder,
+    ExtractConstantEditPlanBuilder, LineExtractor,
 };
 use mill_plugin_api::{PluginApiError, PluginResult};
 use regex::Regex;
@@ -208,10 +208,7 @@ pub fn plan_extract_variable(
     let declaration_text = format!("let {} = {}", var_name, expression_text);
 
     // Find indentation
-    let indent = lines[start_line as usize]
-        .chars()
-        .take_while(|c| c.is_whitespace())
-        .collect::<String>();
+    let indent = LineExtractor::get_indentation_str(source, start_line);
 
     let insert_edit = TextEdit {
         file_path: Some(file_path.to_string()),
@@ -270,6 +267,55 @@ pub fn plan_extract_variable(
 // Extract Constant Support
 // ============================================================================
 
+/// Analyzes source code to extract information about a literal value at a cursor position.
+///
+/// # Arguments
+/// * `source` - The Swift source code
+/// * `line` - Zero-based line number where the cursor is positioned
+/// * `character` - Zero-based character offset within the line
+/// * `_file_path` - Path to the file (for future use)
+///
+/// # Returns
+/// * `Ok(ExtractConstantAnalysis)` - Analysis result with literal value, occurrence ranges,
+///                                     validation status, and insertion point
+/// * `Err(PluginApiError)` - If no literal is found at the cursor position
+pub(crate) fn analyze_extract_constant(
+    source: &str,
+    line: u32,
+    character: u32,
+    _file_path: &str,
+) -> PluginResult<mill_lang_common::ExtractConstantAnalysis> {
+    let lines: Vec<&str> = source.lines().collect();
+
+    // Get the line at cursor position
+    let line_text = lines
+        .get(line as usize)
+        .ok_or_else(|| PluginApiError::invalid_input("Invalid line number"))?;
+
+    // Find the literal at the cursor position
+    let (literal_value, _literal_range) = find_swift_literal_at_position(line_text, character as usize)
+        .ok_or_else(|| {
+            PluginApiError::invalid_input(
+                "Cursor is not positioned on a literal value. Extract constant only works on numbers, strings, and booleans.",
+            )
+        })?;
+
+    // Find all occurrences of this literal value in the source
+    let occurrence_ranges =
+        find_literal_occurrences(source, &literal_value, is_valid_swift_literal_location);
+
+    // For Swift, constants are typically declared at the top of the file or class
+    let insertion_point = mill_lang_common::CodeRange::new(0, 0, 0, 0);
+
+    Ok(mill_lang_common::ExtractConstantAnalysis {
+        literal_value,
+        occurrence_ranges,
+        is_valid_literal: true,
+        blocking_reasons: vec![],
+        insertion_point,
+    })
+}
+
 /// Extracts a literal value to a named constant in Swift code.
 ///
 /// This refactoring operation replaces all occurrences of a literal (number, string, or boolean)
@@ -293,39 +339,7 @@ pub fn plan_extract_constant(
     name: &str,
     file_path: &str,
 ) -> PluginResult<EditPlan> {
-    let lines: Vec<&str> = source.lines().collect();
-
-    // Get the line at cursor position
-    let line_text = lines
-        .get(line as usize)
-        .ok_or_else(|| PluginApiError::invalid_input("Invalid line number"))?;
-
-    // Find the literal at the cursor position
-    let (literal_value, _literal_range) = find_swift_literal_at_position(line_text, character as usize)
-        .ok_or_else(|| {
-            PluginApiError::invalid_input(
-                "Cursor is not positioned on a literal value. Extract constant only works on numbers, strings, and booleans.",
-            )
-        })?;
-
-    // Find all occurrences of this literal value in the source
-    let occurrence_ranges =
-        find_literal_occurrences(source, &literal_value, is_valid_swift_literal_location);
-
-    if occurrence_ranges.is_empty() {
-        return Err(PluginApiError::invalid_input(
-            "No occurrences of the literal found",
-        ));
-    }
-
-    // Build analysis result for the builder
-    let analysis = mill_lang_common::ExtractConstantAnalysis {
-        literal_value,
-        occurrence_ranges,
-        is_valid_literal: true,
-        blocking_reasons: vec![],
-        insertion_point: mill_lang_common::CodeRange::new(0, 0, 0, 0),
-    };
+    let analysis = analyze_extract_constant(source, line, character, file_path)?;
 
     ExtractConstantEditPlanBuilder::new(analysis, name.to_string(), file_path.to_string())
         .with_declaration_format(|name, value| {
