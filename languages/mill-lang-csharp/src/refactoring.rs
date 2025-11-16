@@ -11,7 +11,7 @@ use mill_foundation::protocol::{
 use mill_lang_common::{
     count_unescaped_quotes, is_escaped, is_screaming_snake_case, is_valid_code_literal_location,
     refactoring::find_literal_occurrences, CodeRange, ExtractConstantAnalysis,
-    ExtractConstantEditPlanBuilder,
+    ExtractConstantEditPlanBuilder, LineExtractor,
 };
 use mill_plugin_api::{PluginApiError, PluginResult};
 use tree_sitter::{Node, Parser, Point, Query, QueryCursor, StreamingIterator};
@@ -56,7 +56,7 @@ pub fn plan_extract_function(
             PluginApiError::invalid_input("Selection is not inside a method.".to_string())
         })?;
 
-    let indent = get_indentation(source, enclosing_method.start_position().row);
+    let indent = LineExtractor::get_indentation_str(source, enclosing_method.start_position().row as u32);
     let method_indent = format!("{}    ", indent);
 
     let new_method_text = format!(
@@ -159,7 +159,7 @@ pub fn plan_extract_variable(
             )
         })?;
 
-    let indent = get_indentation(source, insertion_statement.start_position().row);
+    let indent = LineExtractor::get_indentation_str(source, insertion_statement.start_position().row as u32);
     let var_name = variable_name.unwrap_or_else(|| "extracted".to_string());
 
     let declaration_text = format!("var {} = {};", var_name, expression_text);
@@ -344,13 +344,6 @@ fn find_ancestor_of_kind<'a>(node: Node<'a>, kind: &str) -> Option<Node<'a>> {
     None
 }
 
-fn get_indentation(source: &str, line: usize) -> String {
-    source
-        .lines()
-        .nth(line)
-        .map(|l| l.chars().take_while(|c| c.is_whitespace()).collect())
-        .unwrap_or_default()
-}
 
 fn node_to_location(node: Node) -> CodeRange {
     let range = node.range();
@@ -453,7 +446,7 @@ fn extract_csharp_var_info<'a>(
 /// * `Ok(ExtractConstantAnalysis)` - Analysis result with literal value, occurrence ranges,
 ///                                     validation status, and insertion point
 /// * `Err(RefactoringError)` - If no literal is found at the cursor position
-pub fn analyze_extract_constant(
+pub(crate) fn analyze_extract_constant(
     source: &str,
     line: u32,
     character: u32,
@@ -569,7 +562,7 @@ pub fn plan_extract_constant(
 
     // C# needs type inference and indentation
     let csharp_type = infer_csharp_type(&analysis.literal_value);
-    let indent = get_indentation(source, analysis.insertion_point.start_line as usize);
+    let indent = LineExtractor::get_indentation_str(source, analysis.insertion_point.start_line);
     let const_indent = format!("{}    ", indent); // Add one level of indentation
 
     ExtractConstantEditPlanBuilder::new(analysis, name.to_string(), file_path.to_string())

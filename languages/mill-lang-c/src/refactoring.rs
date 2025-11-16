@@ -313,7 +313,7 @@ pub fn plan_extract_variable(
 /// * `Ok(ExtractConstantAnalysis)` - Analysis result with literal value, occurrence ranges,
 ///                                     validation status, and insertion point
 /// * `Err(PluginApiError)` - If no literal is found at the cursor position
-pub fn analyze_extract_constant(
+pub(crate) fn analyze_extract_constant(
     source: &str,
     line: u32,
     character: u32,

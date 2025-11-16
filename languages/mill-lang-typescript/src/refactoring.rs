@@ -5,6 +5,7 @@ use mill_foundation::protocol::{
 use mill_lang_common::{
     find_literal_occurrences, is_escaped, is_valid_code_literal_location, CodeRange,
     ExtractConstantAnalysis, ExtractVariableAnalysis, ExtractableFunction, InlineVariableAnalysis,
+    LineExtractor,
 };
 use mill_plugin_api::{PluginApiError, PluginResult};
 use std::collections::HashMap;
@@ -283,14 +284,7 @@ fn ast_extract_variable_ts_js(
 
     let var_name = variable_name.unwrap_or_else(|| analysis.suggested_name.clone());
 
-    let lines: Vec<&str> = source.lines().collect();
-    let current_line = lines
-        .get((analysis.insertion_point.start_line) as usize)
-        .unwrap_or(&"");
-    let indent = current_line
-        .chars()
-        .take_while(|c| c.is_whitespace())
-        .collect::<String>();
+    let indent = LineExtractor::get_indentation_str(source, analysis.insertion_point.start_line);
 
     let mut edits = Vec::new();
 
@@ -455,7 +449,7 @@ pub fn analyze_extract_variable(
 /// - `plan_extract_constant()` - Main entry point for constant extraction
 /// - Used internally by the refactoring pipeline
 #[allow(dead_code)]
-pub fn analyze_extract_constant(
+pub(crate) fn analyze_extract_constant(
     source: &str,
     line: u32,
     character: u32,

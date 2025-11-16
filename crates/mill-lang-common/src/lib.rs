@@ -129,6 +129,7 @@ pub use location::{
 pub use manifest_common::{JsonWorkspace, TomlWorkspace};
 pub use parsing::{parse_with_fallback, parse_with_optional_fallback, try_parsers};
 pub use refactoring::{
+    edit_plan_builder::EditPlanBuilder,
     extract_constant_builder::ExtractConstantEditPlanBuilder, find_literal_occurrences, CodeRange,
     ExtractConstantAnalysis, ExtractVariableAnalysis, ExtractableFunction, IndentationDetector,
     InlineVariableAnalysis, LineExtractor, VariableUsage,

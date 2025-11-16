@@ -3,6 +3,7 @@
 //! This module provides shared data structures and helper functions for
 //! implementing refactoring operations across different language plugins.
 
+pub mod edit_plan_builder;
 pub mod extract_constant_builder;
 
 use mill_foundation::protocol::EditLocation;
@@ -80,6 +81,55 @@ impl CodeRange {
     /// Get the number of lines spanned by this range
     pub fn line_count(&self) -> u32 {
         self.end_line - self.start_line + 1
+    }
+
+    /// Extracts the text content within this range from the source code.
+    ///
+    /// # Arguments
+    /// * `source` - The source code string
+    ///
+    /// # Returns
+    /// * `Ok(String)` - The extracted text
+    /// * `Err(String)` - If the range is invalid
+    pub fn extract_text(&self, source: &str) -> Result<String, String> {
+        let lines: Vec<&str> = source.lines().collect();
+
+        if self.start_line as usize >= lines.len() {
+            return Err(format!("Start line {} out of bounds", self.start_line));
+        }
+
+        if self.start_line == self.end_line {
+            // Single line extraction
+            let line = lines[self.start_line as usize];
+            if self.end_col as usize > line.len() {
+                return Err(format!("End column {} out of bounds on line {}", self.end_col, self.start_line));
+            }
+            Ok(line[self.start_col as usize..self.end_col as usize].to_string())
+        } else {
+            // Multi-line extraction
+            let mut result = String::new();
+
+            // First line
+            if let Some(first_line) = lines.get(self.start_line as usize) {
+                result.push_str(&first_line[self.start_col as usize..]);
+                result.push('\n');
+            }
+
+            // Middle lines
+            for line_idx in (self.start_line + 1)..(self.end_line) {
+                if let Some(line) = lines.get(line_idx as usize) {
+                    result.push_str(line);
+                    result.push('\n');
+                }
+            }
+
+            // Last line
+            if let Some(last_line) = lines.get(self.end_line as usize) {
+                result.push_str(&last_line[..self.end_col as usize]);
+            }
+
+            Ok(result)
+        }
     }
 }
 
@@ -646,5 +696,27 @@ mod tests {
         assert_eq!(occurrences.len(), 2);
         assert_eq!(occurrences[0].start_col, 10);
         assert_eq!(occurrences[1].start_col, 29);
+    }
+
+    #[test]
+    fn test_extract_text_single_line() {
+        let source = "let x = 42;";
+        let range = CodeRange::new(0, 8, 0, 10);
+        assert_eq!(range.extract_text(source).unwrap(), "42");
+    }
+
+    #[test]
+    fn test_extract_text_multi_line() {
+        let source = "fn main() {\n    println!(\"hello\");\n}";
+        let range = CodeRange::new(0, 11, 2, 1);
+        let extracted = range.extract_text(source).unwrap();
+        assert!(extracted.contains("println!"));
+    }
+
+    #[test]
+    fn test_extract_text_out_of_bounds() {
+        let source = "short";
+        let range = CodeRange::new(10, 0, 10, 5);
+        assert!(range.extract_text(source).is_err());
     }
 }

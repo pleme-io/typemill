@@ -411,7 +411,7 @@ pub fn plan_extract_constant(
 }
 
 /// Analyzes source code to extract information about a literal value at a cursor position
-fn analyze_extract_constant(
+pub(crate) fn analyze_extract_constant(
     source: &str,
     line: u32,
     character: u32,

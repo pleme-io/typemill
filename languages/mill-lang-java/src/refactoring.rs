@@ -12,7 +12,7 @@ use mill_lang_common::find_literal_occurrences;
 use mill_lang_common::is_escaped;
 use mill_lang_common::is_valid_code_literal_location;
 use mill_lang_common::refactoring::CodeRange as CommonCodeRange;
-use mill_lang_common::ExtractConstantAnalysis;
+use mill_lang_common::{ExtractConstantAnalysis, LineExtractor};
 use mill_plugin_api::{PluginApiError, PluginResult};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -71,7 +71,7 @@ pub(crate) fn plan_extract_function(
             PluginApiError::invalid_input("Selection is not inside a method.".to_string())
         })?;
 
-    let indent = get_indentation(source, enclosing_method.start_position().row);
+    let indent = LineExtractor::get_indentation_str(source, enclosing_method.start_position().row as u32);
     let method_indent = format!("{}    ", indent);
 
     let new_method_text = format!(
@@ -167,7 +167,7 @@ pub(crate) fn plan_extract_variable(
             PluginApiError::invalid_input("Could not find statement to insert before.".to_string())
         })?;
 
-    let indent = get_indentation(source, insertion_node.start_position().row);
+    let indent = LineExtractor::get_indentation_str(source, insertion_node.start_position().row as u32);
     let var_name = variable_name.unwrap_or_else(|| "extracted".to_string());
 
     let var_type = if expression_text.starts_with('"') {
@@ -351,13 +351,6 @@ fn find_ancestor_of_kind<'a>(node: Node<'a>, kind: &str) -> Option<Node<'a>> {
     None
 }
 
-fn get_indentation(source: &str, line: usize) -> String {
-    source
-        .lines()
-        .nth(line)
-        .map(|l| l.chars().take_while(|c| c.is_whitespace()).collect())
-        .unwrap_or_default()
-}
 
 fn node_to_location(node: Node) -> CommonCodeRange {
     let range = node.range();
@@ -508,7 +501,7 @@ pub(crate) fn plan_extract_constant(
 
     // Capture Java-specific information for the declaration
     let java_type = infer_java_type(&analysis.literal_value);
-    let indent = get_indentation(source, analysis.insertion_point.start_line as usize);
+    let indent = LineExtractor::get_indentation_str(source, analysis.insertion_point.start_line);
 
     ExtractConstantEditPlanBuilder::new(analysis, name.to_string(), file_path.to_string())
         .with_declaration_format(|name, value| {

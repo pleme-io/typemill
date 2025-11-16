@@ -576,7 +576,7 @@ fn find_rust_insertion_point_for_constant(source: &str) -> PluginResult<CodeRang
 }
 
 /// Analyze source code to extract information about a literal value at a cursor position
-pub fn analyze_extract_constant(
+pub(crate) fn analyze_extract_constant(
     source: &str,
     line: u32,
     character: u32,
