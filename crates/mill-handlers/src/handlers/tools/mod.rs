@@ -51,7 +51,7 @@ pub use dispatch::dispatch_to_language_plugin;
 
 /// Dispatch helpers for language plugin operations
 mod dispatch {
-    use super::ToolHandlerContext;
+    
     use mill_foundation::errors::{MillError, MillResult};
     use std::path::Path;
 

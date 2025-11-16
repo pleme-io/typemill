@@ -11,7 +11,6 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use tracing::debug;
 
-use crate::handlers::tools::ToolHandlerContext;
 
 /// Convert LSP URI to native file path string
 ///

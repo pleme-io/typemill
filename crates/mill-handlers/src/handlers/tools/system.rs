@@ -2,7 +2,7 @@
 //!
 //! Handles: health_check
 
-use super::{extensions::get_concrete_app_state, ToolHandler, ToolHandlerContext};
+use super::{extensions::get_concrete_app_state, ToolHandler};
 use crate::handlers::system_handler::SystemHandler;
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;

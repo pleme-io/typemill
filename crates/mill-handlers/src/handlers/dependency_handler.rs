@@ -1,6 +1,6 @@
 //! Tool handler for fine-grained dependency management.
 
-use super::tools::{ToolHandler, ToolHandlerContext};
+use super::tools::ToolHandler;
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};

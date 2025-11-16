@@ -6,7 +6,7 @@
 //! - Converting function to closure
 //! - Other syntax transformations
 
-use crate::handlers::tools::{ToolHandler, ToolHandlerContext};
+use crate::handlers::tools::ToolHandler;
 use async_trait::async_trait;
 use lsp_types::{Range, WorkspaceEdit};
 use mill_foundation::core::model::mcp::ToolCall;

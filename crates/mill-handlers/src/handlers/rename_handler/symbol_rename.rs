@@ -1,5 +1,4 @@
 use super::{RenameHandler, RenameOptions, RenameTarget};
-use crate::handlers::tools::ToolHandlerContext;
 use lsp_types::WorkspaceEdit;
 use mill_foundation::planning::{PlanMetadata, RenamePlan};
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};

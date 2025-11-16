@@ -12,7 +12,7 @@
 //! Supports extracting code elements into new functions, variables, constants, or modules.
 //! This handler reuses existing AST refactoring logic from mill-ast and language plugins.
 
-use crate::handlers::tools::{ToolHandler, ToolHandlerContext};
+use crate::handlers::tools::ToolHandler;
 use async_trait::async_trait;
 use lsp_types::{Position, Range, WorkspaceEdit};
 use mill_ast::refactoring::CodeRange;

@@ -5,7 +5,7 @@
 //!
 //! Tools: rename_symbol_with_imports
 
-use super::{ToolHandler, ToolHandlerContext};
+use super::ToolHandler;
 use crate::handlers::refactoring_handler::RefactoringHandler;
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;

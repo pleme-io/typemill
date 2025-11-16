@@ -34,7 +34,7 @@ mod file_move;
 mod symbol_move;
 mod validation;
 
-use crate::handlers::tools::{ToolHandler, ToolHandlerContext};
+use crate::handlers::tools::ToolHandler;
 use async_trait::async_trait;
 use lsp_types::Position;
 use mill_foundation::core::model::mcp::ToolCall;

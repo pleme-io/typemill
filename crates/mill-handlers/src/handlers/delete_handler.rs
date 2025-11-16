@@ -6,7 +6,7 @@
 //! - Directory deletion (via FileService)
 //! - Dead code deletion (batch operation - placeholder)
 
-use crate::handlers::tools::{ToolHandler, ToolHandlerContext};
+use crate::handlers::tools::ToolHandler;
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::planning::{

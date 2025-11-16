@@ -11,7 +11,7 @@ mod plan_converter;
 mod symbol_rename;
 mod utils;
 
-use crate::handlers::tools::{extensions::get_concrete_app_state, ToolHandler, ToolHandlerContext};
+use crate::handlers::tools::{extensions::get_concrete_app_state, ToolHandler};
 use async_trait::async_trait;
 use lsp_types::{Position, WorkspaceEdit};
 use mill_foundation::core::model::mcp::ToolCall;

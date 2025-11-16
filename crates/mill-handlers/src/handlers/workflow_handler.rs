@@ -2,7 +2,7 @@
 //!
 //! Handles: achieve_intent, apply_edits
 
-use super::tools::{extensions::get_concrete_app_state, ToolHandler, ToolHandlerContext};
+use super::tools::{extensions::get_concrete_app_state, ToolHandler};
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};

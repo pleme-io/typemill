@@ -8,7 +8,7 @@
 //! - Use `move` with options.dryRun: false for file moves
 //! - File creation is typically part of extract/move operations
 
-use super::{ToolHandler, ToolHandlerContext};
+use super::ToolHandler;
 use crate::handlers::file_operation_handler::FileOperationHandler;
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;

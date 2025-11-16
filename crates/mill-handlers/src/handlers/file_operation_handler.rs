@@ -2,7 +2,7 @@
 //!
 //! Handles: rename_file, create_file, delete_file, read_file, write_file, list_files
 
-use super::tools::{extensions::get_concrete_app_state, ToolHandler, ToolHandlerContext};
+use super::tools::{extensions::get_concrete_app_state, ToolHandler};
 use crate::utils::{dry_run::wrap_dry_run_result, remote_exec};
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;

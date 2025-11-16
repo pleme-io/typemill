@@ -5,7 +5,7 @@
 //!
 //! Tools: apply_workspace_edit
 
-use super::{ToolHandler, ToolHandlerContext};
+use super::ToolHandler;
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};

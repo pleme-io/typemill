@@ -6,5 +6,5 @@
 pub mod checksums;
 
 pub(crate) use checksums::{
-    calculate_checksum, calculate_checksums_for_directory_rename, calculate_checksums_for_edits,
+    calculate_checksums_for_directory_rename, calculate_checksums_for_edits,
 };

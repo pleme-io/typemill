@@ -19,7 +19,6 @@ use tracing::{debug, info};
 
 use super::validation::estimate_impact;
 use crate::handlers::common::calculate_checksums_for_edits;
-use crate::handlers::tools::ToolHandlerContext;
 
 /// Convert EditPlan to MovePlan for MCP protocol
 ///

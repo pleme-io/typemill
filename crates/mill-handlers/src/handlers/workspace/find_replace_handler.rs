@@ -7,7 +7,7 @@
 //! - Configurable file scope (include/exclude patterns)
 //! - Dry-run mode for safe previewing
 
-use crate::handlers::tools::{ToolHandler, ToolHandlerContext};
+use crate::handlers::tools::ToolHandler;
 use crate::handlers::workspace::{case_preserving, literal_matcher, regex_matcher};
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;

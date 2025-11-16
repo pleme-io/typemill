@@ -2,7 +2,7 @@
 //!
 //! Handles: rename_directory, update_dependencies, update_dependency
 
-use super::{ToolHandler, ToolHandlerContext};
+use super::ToolHandler;
 use crate::handlers::file_operation_handler::FileOperationHandler;
 use crate::handlers::refactoring_handler::RefactoringHandler;
 use crate::handlers::system_handler::SystemHandler;

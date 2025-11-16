@@ -8,7 +8,6 @@ use mill_foundation::errors::MillResult as ServerResult;
 use std::path::Path;
 use tracing::{debug, error, info};
 
-use crate::handlers::tools::ToolHandlerContext;
 use crate::handlers::tools::extensions::get_concrete_app_state;
 
 use super::converter::editplan_to_moveplan;

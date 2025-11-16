@@ -2,7 +2,7 @@
 //!
 //! Handles: notify_file_opened, notify_file_saved, notify_file_closed
 
-use super::{ToolHandler, ToolHandlerContext};
+use super::ToolHandler;
 use crate::handlers::system_handler::SystemHandler;
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;

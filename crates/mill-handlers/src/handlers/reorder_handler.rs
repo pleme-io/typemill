@@ -6,7 +6,7 @@
 //! - Reordering imports
 //! - Reordering statements
 
-use crate::handlers::tools::{ToolHandler, ToolHandlerContext};
+use crate::handlers::tools::ToolHandler;
 use async_trait::async_trait;
 use lsp_types::{Position, WorkspaceEdit};
 use mill_foundation::core::model::mcp::ToolCall;

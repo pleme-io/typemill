@@ -3,7 +3,7 @@
 //! This module is reserved for deep static analysis tools.
 //! This module provides deep static analysis tools via the unified analysis API.
 
-use super::tools::{ToolHandler, ToolHandlerContext};
+use super::tools::ToolHandler;
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};

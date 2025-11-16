@@ -3,7 +3,7 @@
 //! This is a temporary stub to satisfy compilation requirements.
 //! Individual refactoring operations are handled by specific tool handlers.
 
-use crate::handlers::tools::{ToolHandler, ToolHandlerContext};
+use crate::handlers::tools::ToolHandler;
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};

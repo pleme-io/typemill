@@ -5,7 +5,6 @@
 use super::tools::ToolHandler;
 use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
-use mill_handler_api::ToolHandlerContext;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;

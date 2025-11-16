@@ -10,7 +10,6 @@ use serde_json::{json, Value};
 use std::path::Path;
 use tracing::{debug, error, info, warn};
 
-use crate::handlers::tools::ToolHandlerContext;
 
 use super::validation::{analyze_workspace_edit, estimate_impact};
 
