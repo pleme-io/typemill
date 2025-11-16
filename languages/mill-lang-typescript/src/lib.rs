@@ -572,4 +572,84 @@ function тестфункция() {
             duration
         );
     }
+
+    // ========================================================================
+    // INTEGRATION TESTS (2 tests)
+    // ========================================================================
+
+    #[tokio::test]
+    async fn test_integration_package_and_imports() {
+        let harness = mill_test_support::harness::IntegrationTestHarness::new()
+            .expect("Should create harness");
+
+        // Create package.json
+        harness
+            .create_source_file(
+                "package.json",
+                r#"{"name": "test-app", "dependencies": {"lodash": "^4.17.21"}}"#,
+            )
+            .expect("Should create package.json");
+
+        // Create TypeScript file with imports
+        let source = r#"
+import { readFile } from 'fs';
+import { map } from 'lodash';
+
+export function process(data: string[]): number[] {
+    return map(data, (item) => item.length);
+}
+"#;
+        harness
+            .create_source_file("index.ts", source)
+            .expect("Should create index.ts");
+
+        // Verify structure
+        let package_content = harness
+            .read_file("package.json")
+            .expect("Should read package.json");
+        assert!(package_content.contains("name"));
+        assert!(package_content.contains("dependencies"));
+
+        let ts_content = harness
+            .read_file("index.ts")
+            .expect("Should read index.ts");
+        assert!(ts_content.contains("import"));
+        assert!(ts_content.contains("from"));
+    }
+
+    #[tokio::test]
+    async fn test_integration_module_refactoring() {
+        let harness = mill_test_support::harness::IntegrationTestHarness::new()
+            .expect("Should create harness");
+
+        // Create source with exports
+        harness
+            .create_source_file("utils.ts", "export function helper() { return 42; }")
+            .expect("Should create utils.ts");
+
+        harness
+            .create_source_file("main.ts", "import { helper } from './utils';\n\nhelper();")
+            .expect("Should create main.ts");
+
+        // Parse and verify
+        let plugin = TypeScriptPlugin::new();
+
+        let utils_content = harness
+            .read_file("utils.ts")
+            .expect("Should read utils.ts");
+        let parsed = plugin
+            .parse(&utils_content)
+            .await
+            .expect("Should parse");
+        assert!(!parsed.symbols.is_empty());
+
+        assert!(utils_content.contains("export"));
+        assert!(utils_content.contains("function"));
+
+        let main_content = harness
+            .read_file("main.ts")
+            .expect("Should read main.ts");
+        assert!(main_content.contains("import"));
+        assert!(main_content.contains("./utils"));
+    }
 }

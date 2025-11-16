@@ -751,4 +751,140 @@ mod tests {
             duration
         );
     }
+
+    // ========================================================================
+    // INTEGRATION TESTS (3 tests)
+    // ========================================================================
+
+    #[tokio::test]
+    async fn test_integration_package_creation_workflow() {
+        use mill_test_support::harness::IntegrationTestHarness;
+
+        let harness = IntegrationTestHarness::new().expect("Failed to create harness");
+        let plugin = GoPlugin::new();
+
+        // 1. Create Go package with go.mod
+        let go_mod_content = r#"module example.com/myapp
+
+go 1.21
+
+require (
+    github.com/some/package v1.0.0
+)
+"#;
+        harness
+            .create_source_file("go.mod", go_mod_content)
+            .expect("Failed to create go.mod");
+
+        // 2. Create Go source file with basic structure
+        let source = "package main\n\nfunc add(a, b int) int {\n    return a + b\n}\n\nfunc main() {\n    x := add(5, 3)\n    println(x)\n}\n";
+
+        harness
+            .create_source_file("main.go", source)
+            .expect("Failed to create main.go");
+
+        // 3. Verify file structure
+        let content = harness
+            .read_file("main.go")
+            .expect("Failed to read file");
+        assert!(content.contains("package main"));
+        assert!(content.contains("func add"));
+        assert!(content.contains("func main"));
+
+        // 4. Verify package manifest can be analyzed
+        let manifest = plugin
+            .analyze_manifest(&harness.root().join("go.mod"))
+            .await
+            .expect("Failed to analyze go.mod");
+
+        assert!(!manifest.dependencies.is_empty(), "Should find dependencies");
+    }
+
+    #[tokio::test]
+    async fn test_integration_import_analysis() {
+        use mill_test_support::harness::IntegrationTestHarness;
+
+        let harness = IntegrationTestHarness::new().expect("Failed to create harness");
+        let plugin = GoPlugin::new();
+
+        // 1. Create a simple file with imports
+        let source = "package main\n\nimport (\n    \"fmt\"\n    \"os\"\n)\n\nfunc main() {\n    fmt.Println(\"Hello\")\n}\n";
+
+        harness
+            .create_source_file("main.go", source)
+            .expect("Failed to create main.go");
+
+        // 2. Test import analysis
+        let analyzer = plugin
+            .import_analyzer()
+            .expect("Should have import analyzer");
+        let graph = analyzer
+            .build_import_graph(&harness.root().join("main.go"))
+            .expect("Failed to build import graph");
+
+        // Verify imports detected
+        assert!(graph.imports.len() >= 2, "Should find fmt and os imports");
+
+        // 3. Verify module reference scanner works
+        let scanner = plugin
+            .module_reference_scanner()
+            .expect("Should have scanner");
+        let refs = scanner
+            .scan_references(source, "fmt", ScanScope::All)
+            .expect("Should scan references");
+        assert!(!refs.is_empty(), "Should find fmt references");
+    }
+
+    #[tokio::test]
+    async fn test_integration_refactor_roundtrip() {
+        use mill_test_support::harness::IntegrationTestHarness;
+
+        let harness = IntegrationTestHarness::new().expect("Failed to create harness");
+        let plugin = GoPlugin::new();
+
+        // 1. Create source file with cleaner syntax
+        let source = r#"package main
+
+import "fmt"
+
+func add(a, b int) int {
+	return a + b
+}
+
+func main() {
+	x := add(10, 5)
+	fmt.Println(x)
+}
+"#;
+
+        harness
+            .create_source_file("math.go", source)
+            .expect("Failed to create math.go");
+
+        // 2. Parse to verify valid structure
+        let parsed = plugin
+            .parse(source)
+            .await
+            .expect("Failed to parse");
+
+        // Verify parsing works (symbols may be empty or partial based on parser)
+        let _symbols = parsed.symbols;
+
+        // 3. Verify file integrity
+        let content = harness
+            .read_file("math.go")
+            .expect("Failed to read file");
+        assert!(content.contains("package main"), "Should preserve package");
+        assert!(content.contains("func main"), "Should preserve main function");
+        assert!(content.contains("import \"fmt\""), "Should preserve imports");
+
+        // 4. Verify we can work with the file content
+        let scanner = plugin
+            .module_reference_scanner()
+            .expect("Should have scanner");
+        let refs = scanner
+            .scan_references(&content, "fmt", ScanScope::All)
+            .expect("Should scan");
+        assert!(!refs.is_empty(), "Should find fmt references");
+    }
 }

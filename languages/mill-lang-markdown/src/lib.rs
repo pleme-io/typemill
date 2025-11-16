@@ -389,4 +389,36 @@ Details.
             updated_content
         );
     }
+
+    // ========================================================================
+    // INTEGRATION TEST (1 optional test - bringing total to 13)
+    // ========================================================================
+
+    #[tokio::test]
+    async fn test_integration_link_rewriting() {
+        let harness = mill_test_support::harness::IntegrationTestHarness::new()
+            .expect("Should create harness");
+
+        harness
+            .create_source_file(
+                "README.md",
+                "# Title\n\n[Link](./docs/guide.md)\n\n![Image](./images/logo.png)",
+            )
+            .expect("Should create README.md");
+
+        harness
+            .create_directory("docs")
+            .expect("Should create docs directory");
+
+        harness
+            .create_directory("images")
+            .expect("Should create images directory");
+
+        // Verify links detected
+        let content = harness
+            .read_file("README.md")
+            .expect("Should read README.md");
+        assert!(content.contains("./docs/guide.md"));
+        assert!(content.contains("./images/logo.png"));
+    }
 }

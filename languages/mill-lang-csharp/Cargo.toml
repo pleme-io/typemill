@@ -46,4 +46,5 @@ which = { workspace = true }
 lazy_static = "1.5.0"
 
 [dev-dependencies]
+mill-test-support = { path = "../../crates/mill-test-support" }
 tempfile = { workspace = true }

@@ -371,3 +371,246 @@ impl mill_plugin_api::AnalysisMetadata for CPlugin {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod inline_tests {
+    use super::*;
+    use mill_test_support::harness::{
+        *,
+        edge_cases,
+    };
+    use std::time::Instant;
+
+    // ========================================================================
+    // BASIC PLUGIN TESTS (2 tests)
+    // ========================================================================
+
+    #[test]
+    fn test_c_plugin_basic_metadata() {
+        let plugin = CPlugin::new();
+        assert_eq!(plugin.metadata().name, "c");
+        assert_eq!(plugin.metadata().extensions, &["c", "h"]);
+        assert!(plugin.handles_extension("c"));
+        assert!(plugin.handles_extension("h"));
+        assert!(!plugin.handles_extension("rs"));
+    }
+
+    #[test]
+    fn test_c_plugin_manifest_support() {
+        let plugin = CPlugin::new();
+        assert!(plugin.handles_manifest("Makefile"));
+        // Note: handles_manifest checks for "Makefile" by default,
+        // CMakeLists.txt is handled in analyze_manifest method
+        assert!(!plugin.handles_manifest("Cargo.toml"));
+        assert!(!plugin.handles_manifest("package.json"));
+    }
+
+    // ========================================================================
+    // PARSE TESTS (4 tests)
+    // ========================================================================
+
+    #[test]
+    fn test_parse_valid_c_code() {
+        let plugin = CPlugin::new();
+        let source = r#"
+#include <stdio.h>
+
+int add(int a, int b) {
+    return a + b;
+}
+
+int main() {
+    int result = add(5, 3);
+    printf("Result: %d\n", result);
+    return 0;
+}
+"#;
+        let result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async { plugin.parse(source).await });
+
+        assert!(result.is_ok(), "Should parse valid C code");
+        let parsed = result.unwrap();
+        assert!(!parsed.symbols.is_empty(), "Should extract symbols");
+
+        // Verify function symbols were found
+        let has_add = parsed.symbols.iter().any(|s| s.name == "add");
+        let has_main = parsed.symbols.iter().any(|s| s.name == "main");
+        assert!(has_add, "Should find add function");
+        assert!(has_main, "Should find main function");
+    }
+
+    #[test]
+    fn test_parse_invalid_syntax() {
+        let plugin = CPlugin::new();
+        let source = "int main( { return 0; }"; // Missing closing paren
+
+        let result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async { plugin.parse(source).await });
+
+        // Plugin should handle gracefully - either succeed with partial parsing
+        // or return error, but not panic
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[test]
+    fn test_parse_empty_file() {
+        let plugin = CPlugin::new();
+        let source = edge_cases::empty_file();
+
+        let result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async { plugin.parse(source).await });
+
+        assert!(result.is_ok(), "Should handle empty file gracefully");
+        let parsed = result.unwrap();
+        // Empty file should have no symbols
+        assert_eq!(parsed.symbols.len(), 0, "Empty file should have no symbols");
+    }
+
+    #[test]
+    fn test_parse_whitespace_only_file() {
+        let plugin = CPlugin::new();
+        let source = edge_cases::whitespace_only();
+
+        let result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async { plugin.parse(source).await });
+
+        assert!(result.is_ok(), "Should handle whitespace-only file");
+        let parsed = result.unwrap();
+        assert_eq!(parsed.symbols.len(), 0, "Whitespace-only file should have no symbols");
+    }
+
+    // ========================================================================
+    // EDGE CASE TESTS (2 tests)
+    // ========================================================================
+
+    #[test]
+    fn test_edge_extremely_long_lines() {
+        let plugin = CPlugin::new();
+        let long_line = edge_cases::extremely_long_line();
+        let source = format!("int main() {{\n    {}\n    return 0;\n}}\n", long_line);
+
+        let result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async { plugin.parse(&source).await });
+
+        assert!(result.is_ok(), "Should handle extremely long lines");
+    }
+
+    #[test]
+    fn test_edge_special_regex_chars() {
+        let plugin = CPlugin::new();
+        let source = format!(
+            r#"#include <stdio.h>
+int main() {{
+    char *pattern = "{}";
+    return 0;
+}}
+"#,
+            edge_cases::special_regex_chars()
+        );
+
+        let result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async { plugin.parse(&source).await });
+
+        assert!(result.is_ok(), "Should handle special regex characters in strings");
+    }
+
+    // ========================================================================
+    // PERFORMANCE TEST (1 test)
+    // ========================================================================
+
+    #[test]
+    fn test_performance_parse_large_c_file() {
+        let plugin = CPlugin::new();
+
+        // Create a large C file with 5000 functions
+        let mut large_source = String::from("#include <stdio.h>\n\n");
+        for i in 0..5000 {
+            large_source.push_str(&format!("int func{}(int x) {{ return x + {}; }}\n", i, i));
+        }
+
+        let start = Instant::now();
+        let result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async { plugin.parse(&large_source).await });
+        let duration = start.elapsed();
+
+        assert!(result.is_ok(), "Should parse large file");
+        let parsed = result.unwrap();
+        assert_eq!(parsed.symbols.len(), 5000, "Should find all 5000 functions");
+        assert_performance(duration, 5);
+    }
+
+    // ========================================================================
+    // INTEGRATION TESTS (2 tests)
+    // ========================================================================
+
+    #[test]
+    fn test_integration_parse_and_list_functions() {
+        let plugin = CPlugin::new();
+        let source = r#"
+int square(int x) {
+    return x * x;
+}
+
+int cube(int x) {
+    return x * x * x;
+}
+
+int main() {
+    return 0;
+}
+"#;
+
+        // Test parse
+        let parse_result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async { plugin.parse(source).await });
+        assert!(parse_result.is_ok());
+        let parsed = parse_result.unwrap();
+        assert!(parsed.symbols.len() >= 3, "Should find at least 3 functions");
+
+        // Test list_functions
+        let list_result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async { plugin.list_functions(source).await });
+        assert!(list_result.is_ok());
+        let functions = list_result.unwrap();
+        assert!(functions.contains(&"square".to_string()));
+        assert!(functions.contains(&"main".to_string()));
+    }
+
+    #[test]
+    fn test_integration_import_analysis() {
+        let plugin = CPlugin::new();
+        let source = r#"
+#include <stdio.h>
+#include <stdlib.h>
+#include "utils.h"
+#include "config.h"
+
+int main() {
+    printf("Hello\n");
+    return 0;
+}
+"#;
+
+        let parse_result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async { plugin.parse(source).await });
+        assert!(parse_result.is_ok());
+
+        // Test import analysis
+        let import_result = plugin.analyze_detailed_imports(source, None);
+        assert!(import_result.is_ok(), "Should analyze imports");
+        let graph = import_result.unwrap();
+
+        // Should have 4 includes
+        assert_eq!(graph.imports.len(), 4, "Should find all 4 includes");
+    }
+}

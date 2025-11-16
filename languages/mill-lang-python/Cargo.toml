@@ -33,4 +33,5 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
+mill-test-support = { path = "../../crates/mill-test-support" }
 tempfile = { workspace = true }

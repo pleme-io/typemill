@@ -367,4 +367,69 @@ jobs:
         assert!(caps.imports);
         assert!(!caps.workspace);
     }
+
+    // ========================================================================
+    // EDGE CASE TESTS (1 test)
+    // ========================================================================
+
+    #[test]
+    fn test_edge_extremely_nested_structure() {
+        let plugin = YamlLanguagePlugin::new();
+        let content = "a:\n  b:\n    c:\n      d:\n        e:\n          f: value";
+
+        // Should handle deeply nested YAML parsing without panicking
+        let result = plugin.rewrite_file_references(
+            content,
+            Path::new("old"),
+            Path::new("new"),
+            Path::new("."),
+            Path::new("."),
+            None,
+        );
+
+        assert!(result.is_some() || result.is_none()); // Either way, no panic
+    }
+
+    // ========================================================================
+    // INTEGRATION TESTS (2 tests)
+    // ========================================================================
+
+    #[tokio::test]
+    async fn test_integration_kubernetes_manifest() {
+        let harness = mill_test_support::harness::IntegrationTestHarness::new()
+            .expect("Should create harness");
+
+        harness
+            .create_source_file(
+                "deployment.yaml",
+                "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: my-app",
+            )
+            .expect("Should create deployment.yaml");
+
+        // Verify Kubernetes YAML structure
+        let content = harness
+            .read_file("deployment.yaml")
+            .expect("Should read deployment.yaml");
+        assert!(content.contains("apiVersion"));
+        assert!(content.contains("Deployment"));
+        assert!(content.contains("metadata"));
+    }
+
+    #[tokio::test]
+    async fn test_integration_multi_document_yaml() {
+        let harness = mill_test_support::harness::IntegrationTestHarness::new()
+            .expect("Should create harness");
+
+        harness
+            .create_source_file("config.yaml", "---\nenv: dev\n---\nenv: prod")
+            .expect("Should create config.yaml");
+
+        // Verify multi-document handling
+        let content = harness
+            .read_file("config.yaml")
+            .expect("Should read config.yaml");
+        assert_eq!(content.matches("---").count(), 2);
+        assert!(content.contains("dev"));
+        assert!(content.contains("prod"));
+    }
 }

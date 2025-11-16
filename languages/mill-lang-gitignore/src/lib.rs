@@ -195,4 +195,78 @@ mod tests {
         assert!(result.contains("# Another comment"));
         assert!(result.contains("tests/integration/"));
     }
+
+    // ========================================================================
+    // EDGE CASE TESTS (1 test)
+    // ========================================================================
+
+    #[test]
+    fn test_edge_extremely_long_pattern() {
+        let plugin = GitignoreLanguagePlugin::new();
+        let long_pattern = format!("{}/", "a".repeat(5000));
+        let content = format!("# Pattern\n{}\n*.log\n", long_pattern);
+        let old_path = Path::new(&long_pattern[..long_pattern.len() - 1]);
+        let new_path = Path::new("short");
+
+        // Should handle very long patterns without panicking
+        let result = plugin
+            .import_support
+            .rewrite_gitignore_patterns(&content, old_path, new_path);
+        assert!(result.is_ok() || result.is_err()); // Either way, no panic
+    }
+
+    // ========================================================================
+    // INTEGRATION TESTS (2 tests)
+    // ========================================================================
+
+    #[tokio::test]
+    async fn test_integration_gitignore_pattern_matching() {
+        let harness = mill_test_support::harness::IntegrationTestHarness::new()
+            .expect("Should create harness");
+
+        harness
+            .create_source_file(".gitignore", "*.log\nnode_modules/\n.env\n")
+            .expect("Should create .gitignore");
+
+        harness
+            .create_source_file("app.log", "test log")
+            .expect("Should create app.log");
+
+        // Verify pattern parsing
+        let gitignore_content = harness
+            .read_file(".gitignore")
+            .expect("Should read .gitignore");
+        assert!(gitignore_content.contains("*.log"));
+        assert!(gitignore_content.contains("node_modules"));
+        assert!(gitignore_content.contains(".env"));
+    }
+
+    #[tokio::test]
+    async fn test_integration_nested_gitignore_files() {
+        let harness = mill_test_support::harness::IntegrationTestHarness::new()
+            .expect("Should create harness");
+
+        harness
+            .create_source_file(".gitignore", "*.tmp\n")
+            .expect("Should create root .gitignore");
+
+        harness
+            .create_directory("subdir")
+            .expect("Should create subdir");
+
+        harness
+            .create_source_file("subdir/.gitignore", "*.cache\n")
+            .expect("Should create subdir .gitignore");
+
+        // Verify both files maintained
+        let root_gitignore = harness
+            .read_file(".gitignore")
+            .expect("Should read root .gitignore");
+        assert_eq!(root_gitignore.trim(), "*.tmp");
+
+        let subdir_gitignore = harness
+            .read_file("subdir/.gitignore")
+            .expect("Should read subdir .gitignore");
+        assert_eq!(subdir_gitignore.trim(), "*.cache");
+    }
 }

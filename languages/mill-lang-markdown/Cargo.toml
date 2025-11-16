@@ -31,3 +31,6 @@ tokio = { workspace = true }
 
 # Error handling
 thiserror = { workspace = true }
+
+[dev-dependencies]
+mill-test-support = { path = "../../crates/mill-test-support" }

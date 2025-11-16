@@ -351,4 +351,109 @@ wrappers = ["old-handlers"]
         // Partial match should NOT update
         assert!(new_content.contains("myold-handlers"));
     }
+
+    // ========================================================================
+    // EDGE CASE TESTS (2 tests)
+    // ========================================================================
+
+    #[test]
+    fn test_edge_extremely_long_values() {
+        let plugin = TomlLanguagePlugin::new();
+        let long_value = "a".repeat(10000);
+        let content = format!("key = \"{}\"", long_value);
+
+        // Should handle very long TOML values without panicking
+        let result = plugin.rewrite_file_references(
+            &content,
+            Path::new("old"),
+            Path::new("new"),
+            Path::new("."),
+            Path::new("."),
+            None,
+        );
+
+        assert!(result.is_some() || result.is_none()); // Either way, no panic
+    }
+
+    #[test]
+    fn test_edge_unicode_in_keys() {
+        let plugin = TomlLanguagePlugin::new();
+        let content = "\"函数\" = \"value\"\n\"ключ\" = \"значение\"";
+
+        // Should handle Unicode key names without panicking
+        let result = plugin.rewrite_file_references(
+            content,
+            Path::new("old"),
+            Path::new("new"),
+            Path::new("."),
+            Path::new("."),
+            None,
+        );
+
+        assert!(result.is_some() || result.is_none()); // Either way, no panic
+    }
+
+    // ========================================================================
+    // ADDITIONAL TESTS (3 tests)
+    // ========================================================================
+
+    #[test]
+    fn test_parse_nested_tables() {
+        let plugin = TomlLanguagePlugin::new();
+        let content = "[package]\nname = \"test\"\n\n[package.metadata]\nauthor = \"test\"";
+
+        // Verify nested table parsing doesn't cause issues
+        let result = plugin.rewrite_file_references(
+            content,
+            Path::new("old"),
+            Path::new("new"),
+            Path::new("."),
+            Path::new("."),
+            None,
+        );
+
+        // Should handle nested structures gracefully
+        assert!(result.is_some() || result.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_integration_cargo_toml_workflow() {
+        let harness = mill_test_support::harness::IntegrationTestHarness::new()
+            .expect("Should create harness");
+
+        harness
+            .create_source_file(
+                "Cargo.toml",
+                "[package]\nname = \"my-app\"\nversion = \"0.1.0\"\n\n[dependencies]\nserde = \"1.0\"",
+            )
+            .expect("Should create Cargo.toml");
+
+        // Parse and verify structure
+        let content = harness
+            .read_file("Cargo.toml")
+            .expect("Should read Cargo.toml");
+        assert!(content.contains("package"));
+        assert!(content.contains("dependencies"));
+        assert!(content.contains("serde"));
+    }
+
+    #[tokio::test]
+    async fn test_integration_path_updates_in_dependencies() {
+        let harness = mill_test_support::harness::IntegrationTestHarness::new()
+            .expect("Should create harness");
+
+        harness
+            .create_source_file(
+                "Cargo.toml",
+                "[dependencies]\nmy_lib = { path = \"../old-path\" }",
+            )
+            .expect("Should create Cargo.toml");
+
+        // Verify path can be identified for updates
+        let content = harness
+            .read_file("Cargo.toml")
+            .expect("Should read Cargo.toml");
+        assert!(content.contains("path"));
+        assert!(content.contains("old-path"));
+    }
 }

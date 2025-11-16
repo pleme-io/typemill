@@ -42,3 +42,4 @@ swc_ecma_codegen = "19"
 
 [dev-dependencies]
 tokio-test = "0.4"
+mill-test-support = { path = "../../crates/mill-test-support" }

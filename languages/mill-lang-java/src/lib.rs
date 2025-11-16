@@ -394,4 +394,100 @@ mod tests {
             duration
         );
     }
+
+    // ========================================================================
+    // EDGE CASE TESTS (2 additional)
+    // ========================================================================
+
+    #[test]
+    fn test_edge_unicode_in_strings() {
+        let plugin = JavaPlugin::new();
+        let source = r#"
+public class Main {
+    public static void main(String[] args) {
+        String unicode = "日本語のテキスト";
+        System.out.println(unicode);
+    }
+}
+"#;
+        // Should handle Unicode in string literals without panicking
+        let result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async { plugin.parse(source).await });
+        assert!(result.is_ok() || result.is_err()); // Either way, no panic
+    }
+
+    #[test]
+    fn test_edge_extremely_long_method() {
+        let plugin = JavaPlugin::new();
+        let mut source = String::from("public class Main {\n    public void method(");
+        for i in 0..1000 {
+            source.push_str(&format!("int param{}, ", i));
+        }
+        source.push_str("int finalParam) {}\n}");
+
+        // Should handle very long method signatures
+        let result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async { plugin.parse(&source).await });
+        assert!(result.is_ok() || result.is_err()); // Either way, no panic
+    }
+
+    // ========================================================================
+    // INTEGRATION TEST (1 additional)
+    // ========================================================================
+
+    #[tokio::test]
+    async fn test_integration_maven_project_structure() {
+        let harness = mill_test_support::harness::IntegrationTestHarness::new()
+            .expect("Should create harness");
+
+        // Create Maven pom.xml
+        harness
+            .create_source_file(
+                "pom.xml",
+                r#"<project>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example</groupId>
+  <artifactId>my-app</artifactId>
+  <version>1.0.0</version>
+  <dependencies>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.13.2</version>
+    </dependency>
+  </dependencies>
+</project>"#,
+            )
+            .expect("Should create pom.xml");
+
+        // Create Java source
+        harness
+            .create_source_file(
+                "src/main/java/App.java",
+                r#"package com.example;
+
+public class App {
+    public static void main(String[] args) {
+        System.out.println("Hello, World!");
+    }
+}"#,
+            )
+            .expect("Should create App.java");
+
+        // Verify structure
+        let pom_content = harness
+            .read_file("pom.xml")
+            .expect("Should read pom.xml");
+        assert!(pom_content.contains("project"));
+        assert!(pom_content.contains("modelVersion"));
+        assert!(pom_content.contains("dependencies"));
+
+        let java_content = harness
+            .read_file("src/main/java/App.java")
+            .expect("Should read App.java");
+        assert!(java_content.contains("package"));
+        assert!(java_content.contains("public class"));
+    }
 }

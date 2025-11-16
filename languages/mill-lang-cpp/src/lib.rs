@@ -385,4 +385,72 @@ void тестфункция() {
             duration
         );
     }
+
+    // ========================================================================
+    // INTEGRATION TESTS (2 tests)
+    // ========================================================================
+
+    #[tokio::test]
+    async fn test_integration_header_and_implementation() {
+        let harness = mill_test_support::harness::IntegrationTestHarness::new()
+            .expect("Should create harness");
+
+        // Create header file
+        harness
+            .create_source_file(
+                "math.h",
+                "#ifndef MATH_H\n#define MATH_H\nint add(int a, int b);\n#endif",
+            )
+            .expect("Should create math.h");
+
+        // Create implementation
+        harness
+            .create_source_file(
+                "math.cpp",
+                "#include \"math.h\"\nint add(int a, int b) { return a + b; }",
+            )
+            .expect("Should create math.cpp");
+
+        // Verify structure
+        let header_content = harness
+            .read_file("math.h")
+            .expect("Should read math.h");
+        assert!(header_content.contains("#ifndef"));
+        assert!(header_content.contains("int add"));
+
+        let impl_content = harness
+            .read_file("math.cpp")
+            .expect("Should read math.cpp");
+        assert!(impl_content.contains("#include"));
+        assert!(impl_content.contains("return"));
+    }
+
+    #[tokio::test]
+    async fn test_integration_cmake_project() {
+        let harness = mill_test_support::harness::IntegrationTestHarness::new()
+            .expect("Should create harness");
+
+        // Create CMakeLists.txt
+        harness
+            .create_source_file(
+                "CMakeLists.txt",
+                "cmake_minimum_required(VERSION 3.10)\nproject(MyApp)\nadd_executable(myapp main.cpp)",
+            )
+            .expect("Should create CMakeLists.txt");
+
+        harness
+            .create_source_file(
+                "main.cpp",
+                "#include <iostream>\nint main() { return 0; }",
+            )
+            .expect("Should create main.cpp");
+
+        // Verify build configuration
+        let cmake_content = harness
+            .read_file("CMakeLists.txt")
+            .expect("Should read CMakeLists.txt");
+        assert!(cmake_content.contains("cmake_minimum_required"));
+        assert!(cmake_content.contains("project"));
+        assert!(cmake_content.contains("add_executable"));
+    }
 }

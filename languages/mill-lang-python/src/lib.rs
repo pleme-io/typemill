@@ -669,4 +669,201 @@ class MyClass:
             duration
         );
     }
+
+    // ========================================================================
+    // INTEGRATION TESTS (3 tests)
+    // ========================================================================
+
+    #[tokio::test]
+    async fn test_integration_create_parse_refactor() {
+        use mill_test_support::harness::IntegrationTestHarness;
+
+        let harness = IntegrationTestHarness::new().expect("Failed to create harness");
+        let plugin = PythonPlugin::new();
+
+        // 1. Create Python source file
+        let source = r#"
+def add(x, y):
+    """Add two numbers."""
+    return x + y
+
+def multiply(x, y):
+    """Multiply two numbers."""
+    return x * y
+
+def main():
+    result1 = add(5, 3)
+    result2 = multiply(4, 2)
+    print(f"Add: {result1}, Multiply: {result2}")
+"#;
+
+        let _file_path = harness
+            .create_source_file("test.py", source)
+            .expect("Failed to create file");
+
+        // 2. Parse and extract symbols
+        let parsed = plugin
+            .parse(source)
+            .await
+            .expect("Failed to parse");
+
+        assert!(!parsed.symbols.is_empty(), "Should find symbols");
+        let has_add = parsed.symbols.iter().any(|s| s.name == "add");
+        let has_multiply = parsed.symbols.iter().any(|s| s.name == "multiply");
+        assert!(has_add, "Should find add function");
+        assert!(has_multiply, "Should find multiply function");
+
+        // 3. Verify refactoring capability
+        let functions = plugin
+            .list_functions(source)
+            .await
+            .expect("Failed to list functions");
+        assert!(functions.contains(&"add".to_string()));
+        assert!(functions.contains(&"multiply".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_integration_import_dependency_workflow() {
+        use mill_test_support::harness::IntegrationTestHarness;
+
+        let harness = IntegrationTestHarness::new().expect("Failed to create harness");
+        let plugin = PythonPlugin::new();
+
+        // 1. Create package with requirements.txt
+        let _req_file = harness
+            .create_source_file("requirements.txt", "requests==2.28.0\nclick>=8.0.0\n")
+            .expect("Failed to create requirements.txt");
+
+        // 2. Create Python file with imports
+        let source = r#"
+import requests
+from click import command, option
+
+@command()
+@option('--name', default='World')
+def hello(name):
+    """Greet someone."""
+    response = requests.get('https://api.example.com/greet')
+    print(f'Hello {name}!')
+"#;
+
+        let _py_file = harness
+            .create_source_file("main.py", source)
+            .expect("Failed to create main.py");
+
+        // 3. Analyze imports
+        let parsed = plugin
+            .parse(source)
+            .await
+            .expect("Failed to parse");
+
+        assert!(!parsed.symbols.is_empty(), "Should parse imports and symbols");
+
+        // 4. Verify import analysis
+        let imports = plugin
+            .analyze_detailed_imports(source, None)
+            .expect("Failed to analyze imports");
+
+        assert!(!imports.imports.is_empty(), "Should find imports");
+        let has_requests = imports
+            .imports
+            .iter()
+            .any(|imp| imp.module_path.contains("requests"));
+        let has_click = imports
+            .imports
+            .iter()
+            .any(|imp| imp.module_path.contains("click"));
+        assert!(has_requests, "Should find requests import");
+        assert!(has_click, "Should find click import");
+    }
+
+    #[tokio::test]
+    async fn test_integration_module_structure_analysis() {
+        use mill_test_support::harness::IntegrationTestHarness;
+
+        let harness = IntegrationTestHarness::new().expect("Failed to create harness");
+        let plugin = PythonPlugin::new();
+
+        // 1. Create module structure
+        harness
+            .create_directory("mypackage")
+            .expect("Failed to create directory");
+
+        let init_source = r#"
+"""Initialize mypackage."""
+from .utils import helper_function
+from .models import User, Post
+
+__all__ = ['helper_function', 'User', 'Post']
+"#;
+
+        harness
+            .create_source_file("mypackage/__init__.py", init_source)
+            .expect("Failed to create __init__.py");
+
+        let utils_source = r#"
+def helper_function(x):
+    """Help with something."""
+    return x * 2
+
+class HelperClass:
+    """A helper class."""
+    pass
+"#;
+
+        harness
+            .create_source_file("mypackage/utils.py", utils_source)
+            .expect("Failed to create utils.py");
+
+        // 2. Parse module structure
+        let init_parsed = plugin
+            .parse(init_source)
+            .await
+            .expect("Failed to parse __init__.py");
+
+        assert!(!init_parsed.symbols.is_empty(), "Should find symbols in __init__");
+
+        let utils_parsed = plugin
+            .parse(utils_source)
+            .await
+            .expect("Failed to parse utils.py");
+
+        assert!(!utils_parsed.symbols.is_empty(), "Should find symbols in utils");
+
+        // Verify specific symbols
+        let has_helper_func = utils_parsed
+            .symbols
+            .iter()
+            .any(|s| s.name == "helper_function");
+        let has_helper_class = utils_parsed
+            .symbols
+            .iter()
+            .any(|s| s.name == "HelperClass");
+        assert!(has_helper_func, "Should find helper_function");
+        assert!(has_helper_class, "Should find HelperClass");
+
+        // 3. Test manifest analysis
+        let manifest_source = r#"[build-system]
+requires = ["setuptools>=45", "wheel"]
+
+[project]
+name = "mypackage"
+version = "1.0.0"
+description = "My awesome package"
+dependencies = [
+    "requests>=2.0.0",
+]
+"#;
+
+        let manifest_file = harness
+            .create_source_file("pyproject.toml", manifest_source)
+            .expect("Failed to create pyproject.toml");
+
+        let manifest = plugin
+            .analyze_manifest(&manifest_file)
+            .await
+            .expect("Failed to analyze manifest");
+
+        assert!(!manifest.dependencies.is_empty(), "Should find dependencies");
+    }
 }

@@ -41,3 +41,4 @@ tempfile = { workspace = true }
 cc = { workspace = true }
 
 [dev-dependencies]
+mill-test-support = { path = "../../crates/mill-test-support" }

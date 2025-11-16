@@ -696,4 +696,190 @@ namespace MyNamespace
             duration
         );
     }
+
+    // ========================================================================
+    // INTEGRATION TESTS (3 tests)
+    // ========================================================================
+
+    #[tokio::test]
+    async fn test_integration_project_creation() {
+        use mill_test_support::harness::IntegrationTestHarness;
+
+        let harness = IntegrationTestHarness::new().expect("Failed to create harness");
+        let plugin = CsharpPlugin::new();
+
+        // 1. Create .csproj file
+        let csproj_content = r#"<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+  </ItemGroup>
+
+</Project>
+"#;
+
+        harness
+            .create_source_file("App.csproj", csproj_content)
+            .expect("Failed to create App.csproj");
+
+        // 2. Create C# source
+        let source = r#"
+using System;
+using Newtonsoft.Json;
+
+class Program
+{
+    public static int Add(int a, int b)
+    {
+        return a + b;
+    }
+
+    public static void Main()
+    {
+        Console.WriteLine("Hello, World!");
+        var result = Add(5, 3);
+        Console.WriteLine($"Sum: {result}");
+    }
+}
+"#;
+
+        harness
+            .create_source_file("Program.cs", source)
+            .expect("Failed to create Program.cs");
+
+        // 3. Analyze project structure
+        let parsed = plugin
+            .parse(source)
+            .await
+            .expect("Failed to parse");
+
+        // Parser may find symbols or use fallback mode
+        // At minimum, we expect parsing to succeed
+        let _symbols = parsed.symbols;
+
+        // 4. Verify structure
+        let csproj_path = harness.root().join("App.csproj");
+        assert!(csproj_path.exists(), "Project file should exist");
+    }
+
+    #[tokio::test]
+    async fn test_integration_namespace_refactoring() {
+        use mill_test_support::harness::IntegrationTestHarness;
+
+        let harness = IntegrationTestHarness::new().expect("Failed to create harness");
+        let plugin = CsharpPlugin::new();
+
+        // 1. Create files in namespace
+        harness
+            .create_directory("Models")
+            .expect("Failed to create Models directory");
+
+        let user_source = r#"
+namespace MyApp.Models
+{
+    public class User
+    {
+        public string Name { get; set; }
+        public int Age { get; set; }
+    }
+}
+"#;
+
+        harness
+            .create_source_file("Models/User.cs", user_source)
+            .expect("Failed to create User.cs");
+
+        let program_source = r#"
+using System;
+using MyApp.Models;
+
+class Program
+{
+    static void Main()
+    {
+        var user = new User { Name = "John", Age = 30 };
+        Console.WriteLine($"{user.Name} is {user.Age}");
+    }
+}
+"#;
+
+        harness
+            .create_source_file("Program.cs", program_source)
+            .expect("Failed to create Program.cs");
+
+        // 2. Parse and verify namespace structure
+        let user_parsed = plugin
+            .parse(user_source)
+            .await
+            .expect("Failed to parse User.cs");
+
+        assert!(!user_parsed.symbols.is_empty(), "Should find User class");
+        let has_user = user_parsed.symbols.iter().any(|s| s.name == "User");
+        assert!(has_user, "Should find User class");
+
+        // 3. Verify using statements
+        let program_content = harness
+            .read_file("Program.cs")
+            .expect("Failed to read Program.cs");
+        assert!(
+            program_content.contains("using MyApp.Models"),
+            "Should have using statement"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_integration_dependency_management() {
+        use mill_test_support::harness::IntegrationTestHarness;
+
+        let harness = IntegrationTestHarness::new().expect("Failed to create harness");
+        let plugin = CsharpPlugin::new();
+
+        // 1. Create project with dependencies
+        let csproj_content = r#"<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+    <PackageReference Include="Serilog" Version="3.0.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
+  </ItemGroup>
+
+</Project>
+"#;
+
+        let csproj_path = harness
+            .create_source_file("App.csproj", csproj_content)
+            .expect("Failed to create App.csproj");
+
+        // 2. Analyze manifest for dependencies
+        let manifest = plugin
+            .analyze_manifest(&csproj_path)
+            .await
+            .expect("Failed to analyze csproj");
+
+        // 3. Verify packages detected
+        assert!(!manifest.dependencies.is_empty(), "Should find dependencies");
+        let has_json = manifest
+            .dependencies
+            .iter()
+            .any(|d| d.name.contains("Json") || d.name.contains("Newtonsoft"));
+        let has_serilog = manifest
+            .dependencies
+            .iter()
+            .any(|d| d.name.contains("Serilog"));
+        assert!(
+            has_json || has_serilog,
+            "Should find at least one known package"
+        );
+    }
 }

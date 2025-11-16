@@ -16,3 +16,4 @@ fancy-regex = "0.13"
 [dev-dependencies]
 tempfile = "3.8"
 tokio = { version = "1.0", features = ["full"] }
+mill-test-support = { path = "../../crates/mill-test-support" }
