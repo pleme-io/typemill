@@ -1,6 +1,16 @@
 use mill_plugin_api::{Dependency, DependencySource, ManifestData, PluginResult};
 use serde_json::Value;
 
+/// Analyzes a vcpkg.json manifest file and extracts project metadata.
+///
+/// Parses JSON-formatted vcpkg manifests to extract package name, version,
+/// and dependency information.
+///
+/// # Arguments
+/// * `content` - Raw JSON content of the vcpkg.json file
+///
+/// # Returns
+/// Manifest data containing name, version, and dependencies
 pub(crate) fn analyze_vcpkg_manifest(content: &str) -> PluginResult<ManifestData> {
     let v: Value = serde_json::from_str(content).map_err(|e| {
         mill_plugin_api::PluginApiError::manifest(format!("Failed to parse vcpkg.json: {}", e))

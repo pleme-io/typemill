@@ -301,10 +301,30 @@ fn find_smallest_node_containing_range<'a>(
     Some(node)
 }
 
+/// Finds the AST node at a specific point in Java source code.
+///
+/// # Arguments
+/// * `node` - The root node to search within
+/// * `point` - The source code position (line, column) to search for
+///
+/// # Returns
+/// * `Some(Node)` - The smallest named node containing the point
+/// * `None` - If no node exists at the specified point
 fn find_node_at_point<'a>(node: Node<'a>, point: Point) -> Option<Node<'a>> {
     node.named_descendant_for_point_range(point, point)
 }
 
+/// Finds the nearest ancestor node of a specific kind in the Java AST.
+///
+/// Traverses up the AST tree to find the first ancestor matching the specified node kind.
+///
+/// # Arguments
+/// * `node` - The starting node to search from
+/// * `kind` - The AST node kind to search for (e.g., "method_declaration", "class_declaration")
+///
+/// # Returns
+/// * `Some(Node)` - The first ancestor matching the specified kind
+/// * `None` - If no matching ancestor is found
 fn find_ancestor_of_kind<'a>(node: Node<'a>, kind: &str) -> Option<Node<'a>> {
     let mut current = Some(node);
     while let Some(current_node) = current {
@@ -478,7 +498,21 @@ pub(crate) fn plan_extract_constant(
         .map_err(|e| PluginApiError::invalid_input(e))
 }
 
-/// Finds a Java literal at a given position in a line of code
+/// Finds a Java literal at a given position in a line of code.
+///
+/// This function attempts to identify any Java literal (numeric, string, boolean, or null)
+/// at the cursor position by trying each literal type in sequence.
+///
+/// # Arguments
+/// * `line_text` - The complete line of code
+/// * `col` - Zero-based character position within the line
+///
+/// # Returns
+/// * `Some((literal, range))` - The literal string and its position range
+/// * `None` - If no literal is found at the cursor position
+///
+/// # Supported Literals
+/// Tries in order: numeric → string → keyword (boolean/null)
 fn find_java_literal_at_position(line_text: &str, col: usize) -> Option<(String, CodeRange)> {
     // Try numeric literal first
     if let Some((literal, range)) = find_java_numeric_literal(line_text, col) {
@@ -498,7 +532,25 @@ fn find_java_literal_at_position(line_text: &str, col: usize) -> Option<(String,
     None
 }
 
-/// Finds a numeric literal at a cursor position in Java code
+/// Finds a numeric literal at a cursor position in Java code.
+///
+/// This function identifies Java numeric literals including integers, floats, hexadecimal
+/// numbers, and numbers with type suffixes (L, f, F, d, D). Handles negative numbers and
+/// underscores in numeric literals (Java 7+).
+///
+/// # Arguments
+/// * `line_text` - The complete line of code
+/// * `col` - Zero-based character position within the line
+///
+/// # Returns
+/// * `Some((literal, range))` - The numeric literal string and its position range
+/// * `None` - If no valid numeric literal is found at the cursor position
+///
+/// # Supported Formats
+/// - Decimal: `42`, `-100`, `123_456`
+/// - Hexadecimal: `0xFF`, `0x1A2B`
+/// - Float/Double: `3.14`, `2.5f`, `1.0d`
+/// - With suffixes: `100L`, `2.5f`, `1.0d`
 fn find_java_numeric_literal(line_text: &str, col: usize) -> Option<(String, CodeRange)> {
     if col >= line_text.len() {
         return None;
@@ -614,7 +666,25 @@ fn find_java_numeric_literal(line_text: &str, col: usize) -> Option<(String, Cod
     None
 }
 
-/// Finds a string literal at a cursor position in Java code
+/// Finds a string literal at a cursor position in Java code.
+///
+/// This function identifies string literals in Java, handling escaped characters properly.
+/// Searches backwards for an opening quote and forwards for the closing quote, accounting
+/// for escaped quotes within the string.
+///
+/// # Arguments
+/// * `line_text` - The complete line of code
+/// * `col` - Zero-based character position within the line
+///
+/// # Returns
+/// * `Some((literal, range))` - The complete string literal (with quotes) and its range
+/// * `None` - If no valid string literal is found at the cursor position
+///
+/// # Example
+/// ```rust
+/// let result = find_java_string_literal("String s = \"Hello\";", 11);
+/// assert_eq!(result.unwrap().0, "\"Hello\"");
+/// ```
 fn find_java_string_literal(line_text: &str, col: usize) -> Option<(String, CodeRange)> {
     if col >= line_text.len() {
         return None;
@@ -729,7 +799,32 @@ fn find_java_insertion_point_for_constant(source: &str) -> PluginResult<CodeRang
     })
 }
 
-/// Infer Java type from literal value
+/// Infers the appropriate Java type for a constant based on its literal value.
+///
+/// This function analyzes a literal string and determines the most appropriate Java type
+/// for declaring a constant, considering literal format, prefixes, and suffixes.
+///
+/// # Arguments
+/// * `literal_value` - The string representation of the literal value
+///
+/// # Returns
+/// A static string representing the inferred Java type:
+/// - `"boolean"` - for true/false
+/// - `"String"` - for quoted strings
+/// - `"int"` - for plain integers or hex without suffix
+/// - `"long"` - for literals with L/l suffix
+/// - `"float"` - for literals with f/F suffix
+/// - `"double"` - for decimals with d/D suffix or decimal point
+///
+/// # Examples
+/// ```rust
+/// assert_eq!(infer_java_type("42"), "int");
+/// assert_eq!(infer_java_type("100L"), "long");
+/// assert_eq!(infer_java_type("3.14"), "double");
+/// assert_eq!(infer_java_type("2.5f"), "float");
+/// assert_eq!(infer_java_type("\"Hello\""), "String");
+/// assert_eq!(infer_java_type("true"), "boolean");
+/// ```
 fn infer_java_type(literal_value: &str) -> &'static str {
     if literal_value.starts_with('"') {
         "String"

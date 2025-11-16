@@ -118,7 +118,35 @@ struct CodeRange {
     end_col: u32,
 }
 
-/// Generate edit plan for C++ extract function refactoring
+/// Extracts selected code into a new C++ function.
+///
+/// This refactoring operation takes a range of code and creates a new void function
+/// containing that code, replacing the original selection with a call to the new function.
+/// The new function is inserted immediately after the enclosing function. Note: This is a
+/// simple implementation that doesn't handle parameters or return types automatically.
+///
+/// # Arguments
+/// * `source` - The complete C++ source code
+/// * `range` - The code range specifying the selection to extract
+/// * `function_name` - The name for the new function
+/// * `file_path` - Path to the file being refactored
+///
+/// # Returns
+/// * `Ok(EditPlan)` - The refactoring plan with two edits: function creation and call replacement
+/// * `Err(String)` - If the selection is invalid or not inside a function
+///
+/// # Examples
+/// ```rust
+/// let source = r#"
+/// void main() {
+///     int x = 10;
+///     std::cout << "Hello, World!" << std::endl;
+/// }
+/// "#;
+/// let range = CodeRange { start_line: 4, start_col: 4, end_line: 4, end_col: 45 };
+/// let plan = plan_extract_function_impl(source, &range, "greet", "main.cpp")?;
+/// assert_eq!(plan.edits.len(), 2);
+/// ```
 fn plan_extract_function_impl(
     source: &str,
     range: &CodeRange,
@@ -205,7 +233,37 @@ fn plan_extract_function_impl(
         .build())
 }
 
-/// Generate edit plan for C++ extract variable refactoring
+/// Extracts an expression into a new C++ variable.
+///
+/// This refactoring operation identifies an expression in C++ code and extracts it into
+/// a new variable declaration using `auto` for type deduction, replacing the original
+/// expression with the variable name. The variable is declared before the statement
+/// containing the expression.
+///
+/// # Arguments
+/// * `source` - The complete C++ source code
+/// * `start_line` - Zero-based starting line of the expression (1-based in practice)
+/// * `start_col` - Zero-based starting column of the expression
+/// * `end_line` - Zero-based ending line of the expression (1-based in practice)
+/// * `end_col` - Zero-based ending column of the expression
+/// * `variable_name` - Optional name for the variable (defaults to "extracted")
+/// * `file_path` - Path to the file being refactored
+///
+/// # Returns
+/// * `Ok(EditPlan)` - The refactoring plan with two edits: variable declaration and replacement
+/// * `Err(String)` - If the selection is invalid or cannot be extracted
+///
+/// # Examples
+/// ```rust
+/// let source = r#"
+/// int main() {
+///     int x = 10 + 20;
+///     return x;
+/// }
+/// "#;
+/// let plan = plan_extract_variable_impl(source, 3, 12, 3, 19, Some("sum".to_string()), "main.cpp")?;
+/// assert_eq!(plan.edits.len(), 2);
+/// ```
 fn plan_extract_variable_impl(
     source: &str,
     start_line: u32,
@@ -297,7 +355,34 @@ fn plan_extract_variable_impl(
         .build())
 }
 
-/// Generate edit plan for C++ inline variable refactoring
+/// Inlines a C++ variable by replacing all references with its initializer value.
+///
+/// This refactoring operation finds a variable declaration, replaces all references to that
+/// variable with its initializer expression, and removes the variable declaration. The operation
+/// scopes the search to the enclosing function or block to avoid unintended replacements.
+///
+/// # Arguments
+/// * `source` - The complete C++ source code
+/// * `variable_line` - Zero-based line number where the variable is declared (1-based in practice)
+/// * `variable_col` - Zero-based column offset within the line
+/// * `file_path` - Path to the file being refactored
+///
+/// # Returns
+/// * `Ok(EditPlan)` - The edit plan with edits to replace references and delete the declaration
+/// * `Err(String)` - If the variable is not found or not inside a function
+///
+/// # Examples
+/// ```rust
+/// let source = r#"
+/// int main() {
+///     int greeting = 42;
+///     std::cout << greeting << std::endl;
+///     return greeting;
+/// }
+/// "#;
+/// let plan = plan_inline_variable_impl(source, 3, 8, "main.cpp")?;
+/// assert!(plan.edits.len() >= 2);
+/// ```
 fn plan_inline_variable_impl(
     source: &str,
     variable_line: u32,
@@ -443,8 +528,29 @@ fn plan_extract_constant_impl(
 
 // Helper functions
 
-/// Checks if a position in the line is a valid literal location
-/// C++ version includes additional word boundary checks for numeric literals
+/// Validates if a position in a line of code is a valid literal location for C++.
+///
+/// This function performs context-aware validation to ensure the literal is not part of
+/// a string, comment, or identifier. For numeric literals, it additionally checks word
+/// boundaries to prevent false positives (e.g., matching "2" in "var2").
+///
+/// # Arguments
+/// * `line` - The complete line of source code
+/// * `pos` - The starting position of the potential literal
+/// * `len` - The length of the potential literal
+///
+/// # Returns
+/// * `true` - If the position contains a valid standalone literal
+/// * `false` - If the literal is inside a string, comment, or part of an identifier
+///
+/// # Example
+/// ```rust
+/// // Returns true for standalone literal
+/// assert!(is_valid_literal_location("int x = 42;", 8, 2));
+///
+/// // Returns false for digit in identifier
+/// assert!(!is_valid_literal_location("int var42;", 7, 2));
+/// ```
 fn is_valid_literal_location(line: &str, pos: usize, len: usize) -> bool {
     // Use shared validation for strings and comments
     if !is_valid_code_literal_location(line, pos, len) {
@@ -477,7 +583,30 @@ fn is_valid_literal_location(line: &str, pos: usize, len: usize) -> bool {
     true
 }
 
-/// Finds the best insertion point for a constant declaration
+/// Finds the best insertion point for a constant declaration in C++ source code.
+///
+/// This function analyzes the AST to find the optimal location for inserting a new
+/// constant declaration. It looks for the last preprocessor include or using declaration
+/// and places the constant immediately after, ensuring proper code organization.
+///
+/// # Arguments
+/// * `root` - The root node of the parsed C++ AST
+/// * `_source` - The source code (reserved for future use)
+///
+/// # Returns
+/// A `CommonCodeRange` indicating where to insert the constant declaration.
+/// The range is positioned either:
+/// - Two lines after the last #include or using directive
+/// - At the beginning of the file if no includes/using found
+///
+/// # Example
+/// ```cpp
+/// // Input:
+/// #include <iostream>
+/// using namespace std;
+/// // <- Insertion point here (line 2)
+/// int main() { ... }
+/// ```
 fn find_constant_insertion_point(root: Node, _source: &str) -> CommonCodeRange {
     let mut cursor = root.walk();
     let mut last_include_line = 0u32;
@@ -499,7 +628,35 @@ fn find_constant_insertion_point(root: Node, _source: &str) -> CommonCodeRange {
     CommonCodeRange::new(insertion_line, 0, insertion_line, 0)
 }
 
-/// Infers the C++ type for a constant based on its literal value
+/// Infers the appropriate C++ type for a constant based on its literal value.
+///
+/// This function analyzes a literal string and determines the most appropriate C++ type
+/// for declaring a constant. It handles various numeric formats including integers,
+/// floating-point, hexadecimal, binary, and octal literals, as well as boolean values.
+/// Type inference considers literal suffixes (L, UL, f, F, etc.) and format indicators.
+///
+/// # Arguments
+/// * `literal_value` - The string representation of the literal value
+///
+/// # Returns
+/// A static string representing the inferred C++ type:
+/// - `"bool"` - for true/false
+/// - `"int"` - for decimal/hex/binary/octal integers without suffix
+/// - `"long"` - for literals with L suffix
+/// - `"unsigned long"` - for literals with UL suffix
+/// - `"unsigned int"` - for literals with U suffix
+/// - `"float"` - for floating-point with f/F suffix
+/// - `"double"` - for floating-point without suffix or with decimal point
+///
+/// # Examples
+/// ```rust
+/// assert_eq!(infer_cpp_constant_type("42"), "int");
+/// assert_eq!(infer_cpp_constant_type("0xFF"), "int");
+/// assert_eq!(infer_cpp_constant_type("3.14"), "double");
+/// assert_eq!(infer_cpp_constant_type("2.5f"), "float");
+/// assert_eq!(infer_cpp_constant_type("100L"), "long");
+/// assert_eq!(infer_cpp_constant_type("true"), "bool");
+/// ```
 fn infer_cpp_constant_type(literal_value: &str) -> &'static str {
     if literal_value == "true" || literal_value == "false" {
         "bool"
@@ -537,10 +694,41 @@ fn infer_cpp_constant_type(literal_value: &str) -> &'static str {
     }
 }
 
+/// Finds the AST node at a specific point in the source code.
+///
+/// This helper function locates the smallest named AST node that contains a given
+/// point (line and column position) in the source code.
+///
+/// # Arguments
+/// * `node` - The root node to search within
+/// * `point` - The source code position (line, column) to search for
+///
+/// # Returns
+/// * `Some(Node)` - The smallest named node containing the point
+/// * `None` - If no node exists at the specified point
 fn find_node_at_point<'a>(node: Node<'a>, point: Point) -> Option<Node<'a>> {
     node.named_descendant_for_point_range(point, point)
 }
 
+/// Finds the nearest ancestor node of a specific kind in the AST.
+///
+/// This function traverses up the AST tree from a given node, searching for the
+/// first ancestor that matches the specified node kind. Useful for finding
+/// enclosing scope nodes like functions, classes, or namespaces.
+///
+/// # Arguments
+/// * `node` - The starting node to search from
+/// * `kind` - The AST node kind to search for (e.g., "function_definition", "class_specifier")
+///
+/// # Returns
+/// * `Some(Node)` - The first ancestor matching the specified kind
+/// * `None` - If no matching ancestor is found (reached root without match)
+///
+/// # Example
+/// ```rust
+/// // Find the enclosing function for an identifier node
+/// let function_node = find_ancestor_of_kind(identifier_node, "function_definition");
+/// ```
 fn find_ancestor_of_kind<'a>(node: Node<'a>, kind: &str) -> Option<Node<'a>> {
     let mut current = Some(node);
     while let Some(current_node) = current {
@@ -616,6 +804,22 @@ fn extract_cpp_var_info(declaration_node: Node, source: &str) -> Result<(String,
     Ok((name, value))
 }
 
+/// Finds and replaces all references to a variable within a given scope.
+///
+/// This function recursively traverses an AST scope to find all identifier nodes that
+/// match the specified variable name and generates text edits to replace them with
+/// a new value. Used in refactoring operations like inline variable.
+///
+/// # Arguments
+/// * `scope` - The AST node representing the scope to search within
+/// * `var_name` - The variable name to search for
+/// * `source` - The source code text
+/// * `edits` - Mutable vector to accumulate the replacement edits
+/// * `replacement_value` - The value to replace the variable references with
+///
+/// # Note
+/// This function modifies the `edits` vector in place, adding a `TextEdit` for each
+/// occurrence of the variable within the scope.
 fn find_variable_references(
     scope: Node,
     var_name: &str,

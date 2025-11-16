@@ -12,6 +12,7 @@ use tracing::{debug, warn};
 pub struct JavaWorkspaceSupport;
 
 impl JavaWorkspaceSupport {
+    /// Creates a new Java workspace support instance for Maven projects.
     pub fn new() -> Self {
         Self
     }

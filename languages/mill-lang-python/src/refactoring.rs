@@ -487,6 +487,20 @@ fn suggest_variable_name(expression: &str) -> String {
 /// 5. Sets insertion point using `find_python_insertion_point_for_constant()` which respects
 ///    module-level structure: placed after imports and module docstring
 ///
+/// Analyzes a Python literal at a cursor position for extract constant refactoring.
+///
+/// Examines the literal at the specified position, finds all occurrences throughout
+/// the source, and determines the appropriate insertion point for the constant declaration.
+///
+/// # Arguments
+/// * `source` - The Python source code
+/// * `line` - Zero-based line number where the cursor is positioned
+/// * `character` - Zero-based character offset within the line
+/// * `_file_path` - Path to the file (reserved for future use)
+///
+/// # Returns
+/// Analysis result containing literal value, occurrences, validation status, and insertion point
+///
 /// # Called By
 /// - `plan_extract_constant()` - Main entry point for constant extraction
 /// - Used internally by the refactoring pipeline
@@ -593,6 +607,21 @@ pub(crate) fn analyze_extract_constant(
 /// - Excludes matches inside string literals
 /// - Excludes matches inside comments
 /// - Respects quote boundaries (single, double, triple)
+///
+/// Plans an extract constant refactoring for Python code.
+///
+/// Creates an edit plan that extracts a literal value to a module-level constant,
+/// inserting the constant declaration after imports and replacing all occurrences.
+///
+/// # Arguments
+/// * `source` - The Python source code
+/// * `line` - Zero-based line number where the cursor is positioned on the literal
+/// * `character` - Zero-based character offset within the line
+/// * `name` - The constant name (must be SCREAMING_SNAKE_CASE)
+/// * `file_path` - Path to the file being refactored
+///
+/// # Returns
+/// Edit plan with constant declaration and all literal replacements
 ///
 /// # Called By
 /// This function is invoked by the extract_handler via dynamic dispatch when a user

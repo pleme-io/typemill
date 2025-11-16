@@ -10,6 +10,7 @@ use tracing::{error, info};
 pub struct CsharpLspInstaller;
 
 impl CsharpLspInstaller {
+    /// Creates a new C# LSP installer instance.
     pub fn new() -> Self {
         Self
     }

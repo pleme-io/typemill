@@ -346,6 +346,16 @@ impl TypeScriptPlugin {
         manifest::update_dependency(&content, new_name, version)
     }
 
+    /// Generates a new package.json manifest file with the given name and dependencies.
+    ///
+    /// Creates a basic package.json with the specified package name and dependency list.
+    ///
+    /// # Arguments
+    /// * `package_name` - The name field for package.json
+    /// * `dependencies` - List of npm package names to include as dependencies
+    ///
+    /// # Returns
+    /// Complete package.json content as a JSON string
     pub fn generate_manifest(&self, package_name: &str, dependencies: &[String]) -> String {
         manifest::generate_manifest(package_name, dependencies)
     }

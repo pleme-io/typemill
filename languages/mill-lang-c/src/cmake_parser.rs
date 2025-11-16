@@ -3,6 +3,16 @@ use regex::Regex;
 use std::fs;
 use std::path::Path;
 
+/// Analyzes a CMakeLists.txt file and extracts project metadata.
+///
+/// Parses CMake project files to extract the project name, executable targets,
+/// and library targets using regex-based pattern matching.
+///
+/// # Arguments
+/// * `path` - Path to the CMakeLists.txt file
+///
+/// # Returns
+/// Manifest data containing project name, executables, and libraries
 pub(crate) fn analyze_cmake_manifest(path: &Path) -> PluginResult<ManifestData> {
     let content = fs::read_to_string(path).unwrap_or_default();
 

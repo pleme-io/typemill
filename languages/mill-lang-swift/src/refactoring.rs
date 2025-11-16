@@ -7,6 +7,32 @@ use mill_lang_common::{
 use mill_plugin_api::{PluginApiError, PluginResult};
 use regex::Regex;
 
+/// Extracts selected code into a new Swift function.
+///
+/// This refactoring operation takes a range of lines and creates a new private function
+/// containing that code, replacing the original selection with a call to the new function.
+///
+/// # Arguments
+/// * `source` - The complete Swift source code
+/// * `start_line` - Zero-based starting line number of the selection
+/// * `end_line` - Zero-based ending line number of the selection (inclusive)
+/// * `function_name` - The name for the new function
+/// * `file_path` - Path to the file being refactored
+///
+/// # Returns
+/// * `Ok(EditPlan)` - The refactoring plan with two edits: function creation and call replacement
+/// * `Err(PluginApiError)` - If the line range is invalid
+///
+/// # Examples
+/// ```rust
+/// let source = r#"func main() {
+///     let x = 10
+///     let y = 20
+///     print(x + y)
+/// }"#;
+/// let plan = plan_extract_function(source, 1, 2, "calculateSum", "main.swift")?;
+/// assert_eq!(plan.edits.len(), 2); // insert new function + replace with call
+/// ```
 pub fn plan_extract_function(
     source: &str,
     start_line: u32,
@@ -81,6 +107,31 @@ lazy_static! {
         .expect("Invalid regex for Swift variable declaration");
 }
 
+/// Inlines a Swift variable by replacing all usages with its initializer value.
+///
+/// This refactoring operation finds a `let` or `var` declaration, extracts its value,
+/// replaces all references with that value, and removes the declaration.
+///
+/// # Arguments
+/// * `source` - The complete Swift source code
+/// * `variable_line` - Zero-based line number of the variable declaration
+/// * `_variable_col` - Zero-based column (currently unused)
+/// * `file_path` - Path to the file being refactored
+///
+/// # Returns
+/// * `Ok(EditPlan)` - The refactoring plan with replacement edits for each usage plus declaration removal
+/// * `Err(PluginApiError)` - If the line is not a variable declaration or line number is invalid
+///
+/// # Examples
+/// ```rust
+/// let source = r#"
+/// let rate = 0.08
+/// let tax = price * rate
+/// let total = base * rate
+/// "#;
+/// let plan = plan_inline_variable(source, 1, 0, "test.swift")?;
+/// assert!(plan.edits.len() >= 2); // replacements + declaration removal
+/// ```
 pub fn plan_inline_variable(
     source: &str,
     variable_line: u32,
@@ -149,6 +200,33 @@ pub fn plan_inline_variable(
         .build())
 }
 
+/// Extracts a Swift expression into a named variable.
+///
+/// This refactoring operation takes an expression (single-line or multi-line) and extracts
+/// it into a `let` variable declaration, replacing the original expression with the variable name.
+///
+/// # Arguments
+/// * `source` - The complete Swift source code
+/// * `start_line` - Zero-based starting line of the expression
+/// * `start_col` - Zero-based starting column of the expression
+/// * `end_line` - Zero-based ending line of the expression
+/// * `end_col` - Zero-based ending column of the expression (exclusive)
+/// * `variable_name` - Optional name for the variable (defaults to "extractedVar")
+/// * `file_path` - Path to the file being refactored
+///
+/// # Returns
+/// * `Ok(EditPlan)` - The refactoring plan with variable declaration insertion and expression replacement
+/// * `Err(PluginApiError)` - If the line range is invalid
+///
+/// # Examples
+/// ```rust
+/// let source = r#"func calculate() {
+///     let total = 100 * 1.08
+///     return total
+/// }"#;
+/// let plan = plan_extract_variable(source, 1, 16, 1, 26, Some("taxRate".to_string()), "test.swift")?;
+/// assert_eq!(plan.edits.len(), 2); // declaration + replacement
+/// ```
 pub fn plan_extract_variable(
     source: &str,
     start_line: u32,
@@ -312,6 +390,20 @@ pub fn plan_extract_constant(
 }
 
 /// Finds a Swift literal at a given position in a line of code.
+///
+/// This function attempts to identify any Swift literal (numeric, string, or boolean)
+/// at the cursor position by trying each literal type in sequence.
+///
+/// # Arguments
+/// * `line_text` - The complete line of code
+/// * `col` - Zero-based character position within the line
+///
+/// # Returns
+/// * `Some((literal, (start, end)))` - The literal string and its start/end column positions
+/// * `None` - If no literal is found at the cursor position
+///
+/// # Supported Literals
+/// Tries in order: numeric → string → boolean
 fn find_swift_literal_at_position(line_text: &str, col: usize) -> Option<(String, (u32, u32))> {
     // Check for numeric literal
     if let Some((literal, start, end)) = find_swift_numeric_literal(line_text, col) {
@@ -431,7 +523,14 @@ fn find_swift_numeric_literal(line_text: &str, col: usize) -> Option<(String, u3
     None
 }
 
-/// Helper to check if a character is part of a numeric literal
+/// Checks if a character is part of a numeric literal in Swift.
+///
+/// # Arguments
+/// * `ch` - Optional character to check
+///
+/// # Returns
+/// * `true` - If the character is a digit, decimal point, or underscore
+/// * `false` - Otherwise or if None
 fn is_numeric_char(ch: Option<char>) -> bool {
     match ch {
         Some(c) => c.is_ascii_digit() || c == '.' || c == '_',
@@ -439,8 +538,24 @@ fn is_numeric_char(ch: Option<char>) -> bool {
     }
 }
 
-/// Scans forward from a position to find the end of a regular number (not hex/binary/octal)
-/// Handles: integers, floats, scientific notation (e.g., 1.5e-10, 2E+5)
+/// Scans forward from a position to find the end of a regular number (not hex/binary/octal).
+///
+/// This function identifies the boundaries of standard numeric literals including
+/// integers, floating-point numbers, and scientific notation.
+///
+/// # Arguments
+/// * `line_text` - The complete line of code
+/// * `start` - Starting position to scan from
+///
+/// # Returns
+/// * `Some(end_position)` - The position after the last character of the number
+/// * `None` - If no valid number is found at the start position
+///
+/// # Supported Formats
+/// - Integers: `42`, `-100`
+/// - Floats: `3.14`, `-2.5`
+/// - Scientific notation: `1.5e-10`, `2E+5`
+/// - With underscores: `1_000_000`
 fn scan_regular_number(line_text: &str, start: usize) -> Option<usize> {
     let chars: Vec<char> = line_text.chars().collect();
     let mut pos = start;
@@ -494,7 +609,24 @@ fn scan_regular_number(line_text: &str, start: usize) -> Option<usize> {
     Some(pos)
 }
 
-/// Validates that a string represents a valid Swift number
+/// Validates if a string represents a valid Swift number.
+///
+/// This function performs comprehensive validation of Swift numeric formats including
+/// special prefixes (0x, 0b, 0o) and scientific notation.
+///
+/// # Arguments
+/// * `text` - The string to validate as a number
+///
+/// # Returns
+/// * `true` - If the text is a valid Swift numeric literal
+/// * `false` - If the text is not a valid number format
+///
+/// # Supported Formats
+/// - Hexadecimal: `0xFF`, `0x1A2B`
+/// - Binary: `0b1010`, `0b1111_0000`
+/// - Octal: `0o77`, `0o755`
+/// - Decimal: `42`, `-100`, `123_456`
+/// - Floating-point: `3.14`, `-2.5`, `1.5e-10`
 fn is_valid_number(text: &str) -> bool {
     if text.is_empty() {
         return false;

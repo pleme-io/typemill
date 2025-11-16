@@ -20,6 +20,7 @@ static PROJECT_REGEX: Lazy<Regex> = Lazy::new(|| {
 pub struct CsharpWorkspaceSupport;
 
 impl CsharpWorkspaceSupport {
+    /// Creates a new C# workspace support instance.
     pub fn new() -> Self {
         Self
     }

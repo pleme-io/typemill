@@ -19,7 +19,34 @@ fn get_language() -> tree_sitter::Language {
     tree_sitter_c_sharp::LANGUAGE.into()
 }
 
-/// Generate edit plan for extract method refactoring
+/// Extracts selected code into a new C# method.
+///
+/// This refactoring operation takes a range of code and creates a new private method
+/// containing that code, replacing the original selection with a call to the new method.
+/// The new method is inserted immediately after the enclosing method.
+///
+/// # Arguments
+/// * `source` - The complete C# source code
+/// * `range` - The code range specifying the selection to extract
+/// * `function_name` - The name for the new method (called function_name for consistency)
+/// * `file_path` - Path to the file being refactored
+///
+/// # Returns
+/// * `Ok(EditPlan)` - The refactoring plan with two edits: method creation and call replacement
+/// * `Err(PluginApiError)` - If the selection is invalid or not inside a method
+///
+/// # Examples
+/// ```rust
+/// let source = r#"
+/// class Program {
+///     static void Main(string[] args) {
+///         Console.WriteLine("Hello");
+///     }
+/// }"#;
+/// let range = CodeRange { start_line: 5, start_col: 8, end_line: 5, end_col: 41 };
+/// let plan = plan_extract_function(source, &range, "Greet", "Program.cs")?;
+/// assert_eq!(plan.edits.len(), 2); // insert new method + replace with call
+/// ```
 pub fn plan_extract_function(
     source: &str,
     range: &CodeRange,
@@ -105,7 +132,36 @@ pub fn plan_extract_function(
         .build())
 }
 
-/// Generate edit plan for extract variable refactoring
+/// Extracts an expression into a new C# variable.
+///
+/// This refactoring operation identifies an expression in C# code and extracts it into
+/// a new variable declaration using `var`, replacing the original expression with the
+/// variable name. The variable is declared before the statement containing the expression.
+///
+/// # Arguments
+/// * `source` - The complete C# source code
+/// * `start_line` - Zero-based starting line of the expression
+/// * `start_col` - Zero-based starting column of the expression
+/// * `end_line` - Zero-based ending line of the expression
+/// * `end_col` - Zero-based ending column of the expression
+/// * `variable_name` - Optional name for the variable (defaults to "extracted")
+/// * `file_path` - Path to the file being refactored
+///
+/// # Returns
+/// * `Ok(EditPlan)` - The refactoring plan with two edits: variable declaration and replacement
+/// * `Err(PluginApiError)` - If the selection is invalid or cannot be extracted
+///
+/// # Examples
+/// ```rust
+/// let source = r#"
+/// class Program {
+///     static void Main(string[] args) {
+///         var x = 10 + 20;
+///     }
+/// }"#;
+/// let plan = plan_extract_variable(source, 5, 16, 5, 23, Some("sum".to_string()), "Program.cs")?;
+/// assert_eq!(plan.edits.len(), 2); // variable declaration + replacement
+/// ```
 pub fn plan_extract_variable(
     source: &str,
     start_line: u32,
@@ -193,7 +249,34 @@ pub fn plan_extract_variable(
         .build())
 }
 
-/// Generate edit plan for inline variable refactoring
+/// Inlines a C# variable by replacing all references with its initializer value.
+///
+/// This refactoring operation finds a variable declaration, replaces all references to that
+/// variable with its initializer expression, and removes the variable declaration. The operation
+/// scopes the search to the enclosing method to avoid unintended replacements.
+///
+/// # Arguments
+/// * `source` - The complete C# source code
+/// * `variable_line` - Zero-based line number where the variable is declared
+/// * `variable_col` - Zero-based column offset within the line
+/// * `file_path` - Path to the file being refactored
+///
+/// # Returns
+/// * `Ok(EditPlan)` - The edit plan with edits to replace references and delete the declaration
+/// * `Err(PluginApiError)` - If the variable is not found or not inside a method
+///
+/// # Examples
+/// ```rust
+/// let source = r#"
+/// class Program {
+///     static void Main(string[] args) {
+///         var greeting = "Hello";
+///         Console.WriteLine(greeting);
+///     }
+/// }"#;
+/// let plan = plan_inline_variable(source, 5, 12, "Program.cs")?;
+/// assert!(plan.edits.len() >= 2); // replacements + declaration removal
+/// ```
 pub fn plan_inline_variable(
     source: &str,
     variable_line: u32,
@@ -298,10 +381,30 @@ fn find_smallest_node_containing_range<'a>(
     }
 }
 
+/// Finds the AST node at a specific point in C# source code.
+///
+/// # Arguments
+/// * `node` - The root node to search within
+/// * `point` - The source code position (line, column) to search for
+///
+/// # Returns
+/// * `Some(Node)` - The smallest named node containing the point
+/// * `None` - If no node exists at the specified point
 fn find_node_at_point<'a>(node: Node<'a>, point: Point) -> Option<Node<'a>> {
     find_smallest_node_containing_range(node, point, point)
 }
 
+/// Finds the nearest ancestor node of a specific kind in the C# AST.
+///
+/// Traverses up the AST tree to find the first ancestor matching the specified node kind.
+///
+/// # Arguments
+/// * `node` - The starting node to search from
+/// * `kind` - The AST node kind to search for (e.g., "method_declaration", "class_declaration")
+///
+/// # Returns
+/// * `Some(Node)` - The first ancestor matching the specified kind
+/// * `None` - If no matching ancestor is found
 fn find_ancestor_of_kind<'a>(node: Node<'a>, kind: &str) -> Option<Node<'a>> {
     let mut current = node;
     while let Some(parent) = current.parent() {
@@ -545,6 +648,20 @@ pub fn plan_extract_constant(
 }
 
 /// Finds a C# literal at a given position in a line of code.
+///
+/// This function attempts to identify any C# literal (numeric, string, or keyword)
+/// at the cursor position by trying each literal type in sequence.
+///
+/// # Arguments
+/// * `line_text` - The complete line of code
+/// * `col` - Zero-based character position within the line
+///
+/// # Returns
+/// * `Some((literal, range))` - The literal string and its position range
+/// * `None` - If no literal is found at the cursor position
+///
+/// # Supported Literals
+/// Tries in order: numeric → string → keyword (boolean/null)
 fn find_csharp_literal_at_position(line_text: &str, col: usize) -> Option<(String, CodeRange)> {
     // Try to find different kinds of literals at the cursor position
 
@@ -566,7 +683,27 @@ fn find_csharp_literal_at_position(line_text: &str, col: usize) -> Option<(Strin
     None
 }
 
-/// Finds a numeric literal at a cursor position.
+/// Finds a numeric literal at a cursor position in C# code.
+///
+/// This function identifies C# numeric literals including integers, floats, hexadecimal
+/// numbers, and numbers with type suffixes (L, f, F, d, D, m, M). Handles negative numbers
+/// and underscores in numeric literals (C# 7.0+).
+///
+/// # Arguments
+/// * `line_text` - The complete line of code
+/// * `col` - Zero-based character position within the line
+///
+/// # Returns
+/// * `Some((literal, range))` - The numeric literal string and its position range
+/// * `None` - If no valid numeric literal is found at the cursor position
+///
+/// # Supported Formats
+/// - Decimal: `42`, `-100`, `123_456`
+/// - Hexadecimal: `0xFF`, `0x1A2B`
+/// - Float: `3.14f`, `2.5F`
+/// - Double: `1.0`, `2.5d`, `3.14D`
+/// - Decimal (C#): `100.0m`, `99.99M`
+/// - Long: `100L`, `1000l`
 fn find_csharp_numeric_literal(line_text: &str, col: usize) -> Option<(String, CodeRange)> {
     if col >= line_text.len() {
         return None;

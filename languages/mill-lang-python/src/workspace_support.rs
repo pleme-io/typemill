@@ -10,6 +10,7 @@ use tracing::{debug, warn};
 pub struct PythonWorkspaceSupport;
 
 impl PythonWorkspaceSupport {
+    /// Creates a new Python workspace support instance for Poetry/PDM/Hatch monorepos.
     pub fn new() -> Self {
         Self
     }

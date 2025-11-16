@@ -14,6 +14,7 @@ use crate::imports::{compute_module_path_from_file, find_crate_name_from_cargo_t
 pub struct RustReferenceDetector;
 
 impl RustReferenceDetector {
+    /// Creates a new Rust reference detector instance.
     pub fn new() -> Self {
         Self
     }

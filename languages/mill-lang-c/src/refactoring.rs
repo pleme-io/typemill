@@ -515,7 +515,32 @@ fn find_c_numeric_literal_at_position(line_text: &str, col: usize) -> Option<(St
     None
 }
 
-/// Validates if a string is a valid C number
+/// Validates if a string represents a valid C numeric literal.
+///
+/// This function checks if a text string is a properly formatted C number,
+/// supporting hexadecimal (0x prefix), octal (leading 0), and decimal/floating-point
+/// formats.
+///
+/// # Arguments
+/// * `text` - The string to validate as a C number
+///
+/// # Returns
+/// * `true` - If the text is a valid C numeric literal
+/// * `false` - If the text is not a valid number format
+///
+/// # Supported Formats
+/// - Hexadecimal: `0xFF`, `0x1A2B` (must have digits after 0x)
+/// - Octal: `0777`, `0123` (only digits 0-7)
+/// - Decimal/Float: Any valid f64 parseable number
+///
+/// # Examples
+/// ```rust
+/// assert!(is_valid_c_number("42"));
+/// assert!(is_valid_c_number("3.14"));
+/// assert!(is_valid_c_number("0xFF"));
+/// assert!(is_valid_c_number("0777"));
+/// assert!(!is_valid_c_number("abc"));
+/// ```
 fn is_valid_c_number(text: &str) -> bool {
     // Must contain at least one digit
     if !text.chars().any(|c| c.is_ascii_digit()) {
@@ -536,18 +561,20 @@ fn is_valid_c_number(text: &str) -> bool {
 }
 
 
-/// Validates whether a position in source code is a valid location for a literal.
+/// Validates if a position in a line of code is a valid literal location for C.
 ///
-/// A position is considered valid if it's not inside a string literal or comment.
+/// This function checks if a literal at a given position is in valid code context
+/// (not inside a string or comment). Uses the shared validation logic from
+/// mill_lang_common.
 ///
 /// # Arguments
-/// * `line` - The current line of code
-/// * `pos` - Character position within the line where the potential literal is located
-/// * `_len` - Length of the literal
+/// * `line` - The complete line of source code
+/// * `pos` - The starting position of the potential literal
+/// * `len` - The length of the potential literal
 ///
 /// # Returns
-/// `true` if the position is a valid literal location, `false` otherwise.
-// is_valid_c_literal_location is now provided by mill_lang_common::is_valid_code_literal_location
+/// * `true` - If the position contains a valid standalone literal
+/// * `false` - If the literal is inside a string or comment
 fn is_valid_c_literal_location(line: &str, pos: usize, len: usize) -> bool {
     is_valid_code_literal_location(line, pos, len)
 }

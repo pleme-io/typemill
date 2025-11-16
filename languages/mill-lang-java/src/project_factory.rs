@@ -10,6 +10,7 @@ use std::path::Path;
 pub struct JavaProjectFactory;
 
 impl JavaProjectFactory {
+    /// Creates a new Java project factory instance.
     pub fn new() -> Self {
         Self
     }

@@ -10,6 +10,7 @@ use tracing::{debug, warn};
 pub struct TypeScriptWorkspaceSupport;
 
 impl TypeScriptWorkspaceSupport {
+    /// Creates a new TypeScript workspace support instance for npm/yarn/pnpm monorepos.
     pub fn new() -> Self {
         Self
     }

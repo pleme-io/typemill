@@ -3,6 +3,16 @@ use regex::Regex;
 use std::fs;
 use std::path::Path;
 
+/// Analyzes a Makefile and extracts project metadata.
+///
+/// Parses Makefiles to extract the TARGET variable (project name), SRCS variable
+/// (source files), and CFLAGS variable (compiler flags) using regex-based pattern matching.
+///
+/// # Arguments
+/// * `path` - Path to the Makefile
+///
+/// # Returns
+/// Manifest data containing target name, source files, and compiler flags
 pub(crate) fn analyze_makefile_manifest(path: &Path) -> PluginResult<ManifestData> {
     let content = fs::read_to_string(path).unwrap_or_default();
 

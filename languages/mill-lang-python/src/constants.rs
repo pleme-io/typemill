@@ -69,13 +69,16 @@ pub static VARIABLE_PATTERN: Lazy<Regex> = Lazy::new(|| {
 
 // === Helper Functions ===
 
-/// Generate pattern for qualified path matching
+/// Generates a regex pattern for matching qualified path references to a module.
+///
+/// Creates a pattern that matches references like `module.attribute` or `module.submodule.function`.
+/// Used for advanced import analysis and reference tracking.
 ///
 /// # Arguments
-/// * `module_name` - Module name to match
+/// * `module_name` - The module name to create a pattern for
 ///
 /// # Returns
-/// Regex pattern matching qualified references to the module
+/// Regex pattern that matches qualified references to the module (e.g., `os.path`, `json.loads`)
 #[allow(dead_code)] // Future enhancement: Advanced import analysis
 pub(crate) fn qualified_path_pattern(module_name: &str) -> Regex {
     let pattern = format!(r"\b{}\.[\w.]+", regex::escape(module_name));

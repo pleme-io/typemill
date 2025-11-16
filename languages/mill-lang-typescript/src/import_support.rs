@@ -23,6 +23,7 @@ use tracing::{debug, warn};
 pub struct TypeScriptImportSupport;
 
 impl TypeScriptImportSupport {
+    /// Creates a new TypeScript/JavaScript import support instance.
     pub fn new() -> Self {
         Self
     }

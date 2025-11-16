@@ -22,6 +22,7 @@ const JAVA_PARSER_JAR: &[u8] = &[];
 pub struct JavaImportSupport;
 
 impl JavaImportSupport {
+    /// Creates a new Java import support instance.
     pub fn new() -> Self {
         Self
     }

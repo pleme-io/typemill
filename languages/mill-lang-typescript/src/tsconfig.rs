@@ -62,8 +62,18 @@ impl TsConfig {
     ///
     /// Path to nearest tsconfig.json, or None if not found
     ///
-    /// # Note
+    /// Finds the nearest tsconfig.json file by walking up the directory tree.
     ///
+    /// Searches parent directories starting from the given path until a tsconfig.json
+    /// file is found or the root is reached.
+    ///
+    /// # Arguments
+    /// * `start_path` - The starting path to search from
+    ///
+    /// # Returns
+    /// Path to the nearest tsconfig.json, or None if not found
+    ///
+    /// # Note
     /// This is a public API method. Internally, TypeScriptPathAliasResolver uses
     /// a cached version (find_nearest_tsconfig) for better performance.
     #[allow(dead_code)]

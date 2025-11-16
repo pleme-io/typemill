@@ -5,6 +5,20 @@ use std::path::Path;
 use crate::constants::{CMAKE_LINK_PATTERN, CMAKE_PROJECT_PATTERN, CMAKE_TARGET_PATTERN};
 use mill_plugin_api::{Dependency, DependencySource};
 
+/// Analyzes a CMakeLists.txt file and extracts project metadata for C++ projects.
+///
+/// Parses CMake project files to extract the project name, library targets, executable targets,
+/// linked libraries, and source files using regex-based pattern matching.
+///
+/// # Arguments
+/// * `path` - Path to the CMakeLists.txt file
+///
+/// # Returns
+/// Manifest data containing project name, targets, dependencies, and source files
+///
+/// # Note
+/// This is a best-effort regex-based parser. It does not handle complex CMake syntax
+/// like variables, generator expressions, or multi-line commands.
 pub fn analyze_cmake_manifest(path: &Path) -> PluginResult<ManifestData> {
     let content = std::fs::read_to_string(path).map_err(|e| {
         mill_plugin_api::PluginApiError::manifest(format!("Failed to read manifest: {}", e))

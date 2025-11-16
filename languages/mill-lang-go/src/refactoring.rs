@@ -364,7 +364,39 @@ pub fn plan_extract_constant(
     }
 }
 
-/// Analyzes source code to extract information about a literal value at a cursor position
+/// Analyzes Go source code to extract information about a literal value at a cursor position.
+///
+/// This function identifies the literal at the specified cursor position and gathers
+/// comprehensive information needed for the extract constant refactoring, including
+/// finding all occurrences and determining the best insertion point.
+///
+/// # Arguments
+/// * `source` - The complete Go source code
+/// * `line` - Zero-based line number where the cursor is positioned
+/// * `character` - Zero-based character offset within the line
+///
+/// # Returns
+/// * `Ok(ExtractConstantAnalysis)` - Contains:
+///   - `literal_value`: The extracted literal string
+///   - `occurrence_ranges`: All locations where this literal appears
+///   - `is_valid_literal`: Always true if successfully extracted
+///   - `blocking_reasons`: Empty if valid, error messages otherwise
+///   - `insertion_point`: Optimal location for constant declaration (after package/imports)
+/// * `Err(PluginApiError)` - If cursor is not on a supported literal type
+///
+/// # Supported Literals
+/// - **Numeric**: integers, floats, hex (0xFF), scientific notation (1e-5)
+/// - **String**: double-quoted ("..."), single-quoted ('...'), raw strings (`...`)
+/// - **Boolean**: true, false keywords
+///
+/// # Example
+/// ```go
+/// // Source: const x = 42
+/// // Cursor at column 11 (on "42")
+/// let analysis = analyze_extract_constant(source, 0, 11)?;
+/// assert_eq!(analysis.literal_value, "42");
+/// assert_eq!(analysis.occurrence_ranges.len(), 1);
+/// ```
 pub(crate) fn analyze_extract_constant(
     source: &str,
     line: u32,
@@ -417,7 +449,31 @@ pub(crate) fn analyze_extract_constant(
     ))
 }
 
-/// Find numeric literal at cursor position
+/// Finds a numeric literal at the cursor position in Go code.
+///
+/// This function identifies numeric literals (integers, floats, scientific notation)
+/// by scanning backwards and forwards from the cursor position to determine the
+/// literal boundaries. Handles negative numbers and decimal points.
+///
+/// # Arguments
+/// * `line_text` - The complete line of code
+/// * `line` - Line number (for CodeRange result)
+/// * `character` - Zero-based character position within the line
+///
+/// # Returns
+/// * `Some((literal, range))` - The numeric literal string and its position range
+/// * `None` - If no valid numeric literal is found at the cursor position
+///
+/// # Supported Formats
+/// - Integers: `42`, `-100`
+/// - Floats: `3.14`, `-2.5`
+/// - Scientific: `1e-5`, `2.3e10`
+///
+/// # Example
+/// ```rust
+/// let result = find_numeric_literal("x := 3.14", 0, 5);
+/// assert_eq!(result.unwrap().0, "3.14");
+/// ```
 fn find_numeric_literal(line_text: &str, line: u32, character: u32) -> Option<(String, CodeRange)> {
     let col = character as usize;
 
@@ -542,7 +598,26 @@ fn find_string_literal(line_text: &str, line: u32, character: u32) -> Option<(St
     None
 }
 
-/// Find keyword literal (true, false) at cursor position
+/// Finds a keyword literal (true, false) at the cursor position in Go code.
+///
+/// This function searches for boolean keyword literals near the cursor position,
+/// ensuring they are complete words with proper word boundaries (not part of
+/// identifiers like "falsehood" or "truely").
+///
+/// # Arguments
+/// * `line_text` - The complete line of code
+/// * `line` - Line number (for CodeRange result)
+/// * `character` - Zero-based character position within the line
+///
+/// # Returns
+/// * `Some((literal, range))` - The keyword literal ("true" or "false") and its range
+/// * `None` - If no keyword literal is found at or near the cursor position
+///
+/// # Example
+/// ```rust
+/// let result = find_keyword_literal("x := true", 0, 5);
+/// assert_eq!(result.unwrap().0, "true");
+/// ```
 fn find_keyword_literal(line_text: &str, line: u32, character: u32) -> Option<(String, CodeRange)> {
     let col = character as usize;
     let keywords = ["true", "false"];
@@ -575,7 +650,34 @@ fn find_keyword_literal(line_text: &str, line: u32, character: u32) -> Option<(S
     None
 }
 
-/// Find insertion point for constant declaration (after package declaration)
+/// Finds the optimal insertion point for a constant declaration in Go source code.
+///
+/// This function analyzes the source code structure to determine the best location
+/// for inserting a new constant declaration, following Go conventions by placing it
+/// after package and import declarations but before other code.
+///
+/// # Arguments
+/// * `source` - The complete Go source code
+///
+/// # Returns
+/// A `CodeRange` indicating where to insert the constant declaration. The insertion
+/// point is positioned at the first line that is not:
+/// - A package declaration
+/// - An import statement
+/// - A comment line (// or /*)
+/// - An empty line
+///
+/// If no suitable location is found, returns the beginning of the file (line 0).
+///
+/// # Example
+/// ```go
+/// // Input:
+/// package main
+///
+/// import "fmt"
+/// // <- Insertion point here
+/// func main() { ... }
+/// ```
 fn find_insertion_point(source: &str) -> CodeRange {
     let lines: Vec<&str> = source.lines().collect();
 
@@ -608,9 +710,20 @@ fn find_insertion_point(source: &str) -> CodeRange {
 }
 
 
-// count_unescaped_quotes is now provided by mill_lang_common
-// is_valid_literal_location is now provided by mill_lang_common::is_valid_code_literal_location
-// We keep the same name via a simple alias to minimize code changes
+/// Validates if a position in a line of code is a valid literal location for Go.
+///
+/// This function delegates to the common validation logic that checks if a literal
+/// is not inside a string or comment. This is an alias wrapper to maintain
+/// consistent naming across the codebase.
+///
+/// # Arguments
+/// * `line` - The complete line of source code
+/// * `pos` - The starting position of the potential literal
+/// * `len` - The length of the potential literal
+///
+/// # Returns
+/// * `true` - If the position contains a valid standalone literal (not in string/comment)
+/// * `false` - If the literal is inside a string or comment
 fn is_valid_literal_location(line: &str, pos: usize, len: usize) -> bool {
     is_valid_code_literal_location(line, pos, len)
 }

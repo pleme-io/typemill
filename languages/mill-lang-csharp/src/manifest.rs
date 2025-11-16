@@ -111,6 +111,18 @@ pub async fn analyze_manifest(path: &Path) -> PluginResult<ManifestData> {
     })
 }
 
+/// Updates a package reference in a .csproj file content.
+///
+/// Replaces an existing package reference with a new name and optionally a new version.
+///
+/// # Arguments
+/// * `content` - The .csproj file content
+/// * `old_name` - The current package name to replace
+/// * `new_name` - The new package name
+/// * `new_version` - Optional new version (defaults to "*" if None)
+///
+/// # Returns
+/// Updated .csproj content with the package reference replaced
 pub fn update_package_reference(
     content: &str,
     old_name: &str,
@@ -129,6 +141,17 @@ pub fn update_package_reference(
     Ok(content.replace(&old_line, &new_line))
 }
 
+/// Generates a new .csproj file with the given package name and dependencies.
+///
+/// Creates a .NET 8.0 SDK-style project file with the specified assembly name
+/// and package references.
+///
+/// # Arguments
+/// * `package_name` - The assembly name for the project
+/// * `dependencies` - List of NuGet package names to include as dependencies
+///
+/// # Returns
+/// Complete .csproj XML content as a string
 pub fn generate_csproj(package_name: &str, dependencies: &[String]) -> String {
     let deps = dependencies
         .iter()

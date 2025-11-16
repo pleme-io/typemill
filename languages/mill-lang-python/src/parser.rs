@@ -225,7 +225,23 @@ pub(crate) enum PythonValueType {
     Class,
     Unknown,
 }
-/// Infer Python value type from source text
+/// Infers the Python value type from source text.
+///
+/// This function analyzes a string representation of a Python value and determines
+/// its type by examining syntax patterns like quotes, brackets, keywords, etc.
+///
+/// # Arguments
+/// * `value` - The string representation of the Python value
+///
+/// # Returns
+/// A `PythonValueType` enum variant representing the inferred type
+///
+/// # Examples
+/// ```rust
+/// assert_eq!(infer_python_value_type("\"hello\""), PythonValueType::String);
+/// assert_eq!(infer_python_value_type("[1, 2, 3]"), PythonValueType::List);
+/// assert_eq!(infer_python_value_type("42"), PythonValueType::Number);
+/// ```
 fn infer_python_value_type(value: &str) -> PythonValueType {
     let value = value.trim();
     if value.starts_with('"') || value.starts_with('\'') {
@@ -302,7 +318,17 @@ pub(crate) fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
     debug!(symbols_count = symbols.len(), "Extracted Python symbols");
     Ok(symbols)
 }
-/// Find the end line of a Python function
+/// Finds the end line of a Python function by analyzing indentation levels.
+///
+/// Scans forward from the function start line to find where the function body ends
+/// by detecting decreased indentation or the start of a new top-level construct.
+///
+/// # Arguments
+/// * `source` - The complete Python source code
+/// * `function_start_line` - Zero-based line number where the function definition starts
+///
+/// # Returns
+/// Zero-based line number where the function ends, or an error if the start line is invalid
 #[allow(dead_code)] // Future enhancement: Precise function boundary detection
 pub(crate) fn find_python_function_end(
     source: &str,
@@ -333,7 +359,14 @@ pub(crate) fn find_python_function_end(
     }
     Ok(lines.len() as u32 - 1)
 }
-/// Get indentation level at specific line
+/// Gets the indentation level (number of leading whitespace characters) at a specific line.
+///
+/// # Arguments
+/// * `source` - The Python source code
+/// * `line` - Zero-based line number to check
+///
+/// # Returns
+/// Number of leading whitespace characters, or 0 if the line doesn't exist
 #[allow(dead_code)] // Future enhancement: Indentation-aware refactoring
 pub(crate) fn get_python_indentation_at_line(source: &str, line: u32) -> u32 {
     let lines: Vec<&str> = source.lines().collect();
@@ -343,7 +376,25 @@ pub(crate) fn get_python_indentation_at_line(source: &str, line: u32) -> u32 {
         0
     }
 }
-/// Analyze a selected Python expression range
+/// Analyzes and extracts a Python expression from a selected range.
+///
+/// This function extracts the text content from a specified range in Python source code,
+/// handling both single-line and multi-line selections.
+///
+/// # Arguments
+/// * `source` - The complete Python source code
+/// * `start_line` - Zero-based starting line number
+/// * `start_col` - Zero-based starting column offset
+/// * `end_line` - Zero-based ending line number
+/// * `end_col` - Zero-based ending column offset
+///
+/// # Returns
+/// * `Ok(String)` - The extracted expression text
+/// * `Err(PluginApiError)` - If the line numbers are invalid
+///
+/// # Note
+/// For single-line selections, returns the substring from start_col to end_col.
+/// For multi-line selections, concatenates the full text including newlines.
 pub(crate) fn analyze_python_expression_range(
     source: &str,
     start_line: u32,
@@ -375,7 +426,20 @@ pub(crate) fn analyze_python_expression_range(
         Ok(result)
     }
 }
-/// Find variable declaration at specific position
+/// Finds a Python variable declaration at a specific cursor position.
+///
+/// This function searches for a variable declaration on the specified line and checks
+/// if the cursor position falls within the variable name.
+///
+/// # Arguments
+/// * `source` - The complete Python source code
+/// * `line` - Zero-based line number
+/// * `col` - Zero-based column offset
+///
+/// # Returns
+/// * `Ok(Some(PythonVariable))` - If a variable is found at the cursor position
+/// * `Ok(None)` - If no variable is found at the cursor position
+/// * `Err(PluginApiError)` - If the line number is invalid
 pub(crate) fn find_variable_at_position(
     source: &str,
     line: u32,
@@ -438,7 +502,17 @@ pub(crate) fn get_variable_usages_in_scope(
     }
     Ok(usages)
 }
-/// Find variables in scope for a given line
+/// Finds all variables that are in scope at a given line based on Python indentation rules.
+///
+/// Returns variables declared before the target line that are visible based on
+/// indentation level (variables at equal or lower indentation are in scope).
+///
+/// # Arguments
+/// * `source` - The Python source code
+/// * `target_line` - Zero-based line number to find variables for
+///
+/// # Returns
+/// Vector of variables that are in scope at the target line
 #[allow(dead_code)] // Future enhancement: Scope-aware variable analysis
 pub(crate) fn find_python_scope_variables(
     source: &str,

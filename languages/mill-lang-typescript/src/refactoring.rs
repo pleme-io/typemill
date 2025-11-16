@@ -13,7 +13,20 @@ use swc_ecma_ast::*;
 use swc_ecma_parser::{lexer::Lexer, Parser, StringInput, Syntax, TsSyntax};
 use swc_ecma_visit::{Visit, VisitWith};
 
-// Moved from mill-ast/src/refactoring.rs
+/// Plans an extract function refactoring for TypeScript/JavaScript code.
+///
+/// Creates an edit plan that extracts selected lines into a new function,
+/// replacing the original code with a function call.
+///
+/// # Arguments
+/// * `source` - The TypeScript/JavaScript source code
+/// * `start_line` - Zero-based starting line of the selection
+/// * `end_line` - Zero-based ending line of the selection
+/// * `new_function_name` - Name for the extracted function
+/// * `file_path` - Path to the file being refactored
+///
+/// # Returns
+/// Edit plan with function creation and call site replacement
 pub fn plan_extract_function(
     source: &str,
     start_line: u32,
@@ -30,6 +43,19 @@ pub fn plan_extract_function(
     ast_extract_function_ts_js(source, &range, new_function_name, file_path)
 }
 
+/// Plans an inline variable refactoring for TypeScript/JavaScript code.
+///
+/// Creates an edit plan that replaces all usages of a variable with its initializer value,
+/// then removes the variable declaration.
+///
+/// # Arguments
+/// * `source` - The TypeScript/JavaScript source code
+/// * `variable_line` - Zero-based line number where the variable is declared
+/// * `variable_col` - Zero-based character offset of the variable name
+/// * `file_path` - Path to the file being refactored
+///
+/// # Returns
+/// Edit plan with variable replacements and declaration removal
 pub fn plan_inline_variable(
     source: &str,
     variable_line: u32,
@@ -40,6 +66,22 @@ pub fn plan_inline_variable(
     ast_inline_variable_ts_js(source, &analysis)
 }
 
+/// Plans an extract variable refactoring for TypeScript/JavaScript code.
+///
+/// Creates an edit plan that extracts a selected expression into a const variable,
+/// replacing the original expression with the variable name.
+///
+/// # Arguments
+/// * `source` - The TypeScript/JavaScript source code
+/// * `start_line` - Zero-based starting line of the expression
+/// * `start_col` - Zero-based starting column of the expression
+/// * `end_line` - Zero-based ending line of the expression
+/// * `end_col` - Zero-based ending column of the expression
+/// * `variable_name` - Optional name for the variable (auto-generated if None)
+/// * `file_path` - Path to the file being refactored
+///
+/// # Returns
+/// Edit plan with variable declaration and expression replacement
 pub fn plan_extract_variable(
     source: &str,
     start_line: u32,
@@ -296,6 +338,17 @@ fn ast_extract_variable_ts_js(
 
 // --- Analysis Functions (moved from mill-ast) ---
 
+/// Analyzes a code range for extract function refactoring feasibility.
+///
+/// Examines the selected code to determine parameters, return values, and complexity.
+///
+/// # Arguments
+/// * `source` - The TypeScript/JavaScript source code
+/// * `range` - The code range to analyze for extraction
+/// * `file_path` - Path to the file being analyzed
+///
+/// # Returns
+/// Analysis result containing extractable function metadata
 pub fn analyze_extract_function(
     source: &str,
     range: &CodeRange,
@@ -307,6 +360,18 @@ pub fn analyze_extract_function(
     analyzer.finalize()
 }
 
+/// Analyzes a variable declaration for inline refactoring feasibility.
+///
+/// Examines the variable to find its initializer value and all usage locations.
+///
+/// # Arguments
+/// * `source` - The TypeScript/JavaScript source code
+/// * `variable_line` - Zero-based line number of the variable declaration
+/// * `variable_col` - Zero-based column offset of the variable name
+/// * `file_path` - Path to the file being analyzed
+///
+/// # Returns
+/// Analysis result containing variable name, initializer, and usage locations
 pub fn analyze_inline_variable(
     source: &str,
     variable_line: u32,
@@ -320,6 +385,20 @@ pub fn analyze_inline_variable(
     analyzer.finalize()
 }
 
+/// Analyzes an expression range for extract variable refactoring feasibility.
+///
+/// Examines the selected expression to validate extractability and suggest a variable name.
+///
+/// # Arguments
+/// * `source` - The TypeScript/JavaScript source code
+/// * `start_line` - Zero-based starting line of the expression
+/// * `start_col` - Zero-based starting column of the expression
+/// * `end_line` - Zero-based ending line of the expression
+/// * `end_col` - Zero-based ending column of the expression
+/// * `file_path` - Path to the file being analyzed
+///
+/// # Returns
+/// Analysis result containing expression text, suggested name, and validation status
 pub fn analyze_extract_variable(
     source: &str,
     start_line: u32,
@@ -403,6 +482,20 @@ pub fn analyze_extract_variable(
 /// 3. Calls `find_literal_occurrences()` to identify all matching literals
 /// 4. Validates that the found literal is not empty
 /// 5. Sets insertion point to line 0 (top of file) for constant declarations
+///
+/// Analyzes a literal at a cursor position for extract constant refactoring.
+///
+/// Examines the literal at the specified position, finds all occurrences,
+/// and determines the insertion point for the constant declaration.
+///
+/// # Arguments
+/// * `source` - The TypeScript/JavaScript source code
+/// * `line` - Zero-based line number where the cursor is positioned
+/// * `character` - Zero-based character offset within the line
+/// * `file_path` - Path to the file being analyzed
+///
+/// # Returns
+/// Analysis result containing literal value, occurrences, and insertion point
 ///
 /// # Called By
 /// - `plan_extract_constant()` - Main entry point for constant extraction
