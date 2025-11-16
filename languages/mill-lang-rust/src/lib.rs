@@ -1574,7 +1574,7 @@ fn тестфункция() {
         let result = plugin.parse(source).await;
         // Should not panic with Unicode identifiers
         // Parser should handle Unicode function and variable names
-        assert!(result.is_ok() || result.is_err()); // Either way, no panic
+        assert!(result.is_ok(), "Should parse Unicode identifiers successfully: {:?}", result.err());
     }
 
     #[tokio::test]
@@ -1584,7 +1584,7 @@ fn тестфункция() {
         let source = format!("fn main() {{ let x = \"{}\"; }}\n", long_string);
         let result = plugin.parse(&source).await;
         // Should not panic with extremely long lines
-        assert!(result.is_ok() || result.is_err());
+        assert!(result.is_ok(), "Should parse extremely long lines successfully: {:?}", result.err());
     }
 
     #[tokio::test]
@@ -1593,7 +1593,7 @@ fn тестфункция() {
         let source = "fn main() { println!(\"hello\"); }";
         let result = plugin.parse(source).await;
         // Should not panic with single-line code
-        assert!(result.is_ok() || result.is_err());
+        assert!(result.is_ok(), "Should parse single-line code successfully: {:?}", result.err());
     }
 
     #[test]

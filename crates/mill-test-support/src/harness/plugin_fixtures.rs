@@ -33,7 +33,7 @@ pub mod edge_cases {
     /// Tests that plugins can handle very long lines (15,000+ characters)
     /// without performance degradation or errors.
     pub fn extremely_long_line() -> String {
-        "let x = ".to_string() + &"a".repeat(15000) + ";"
+        format!("let x = {};", "a".repeat(15000))
     }
 
     /// Source code without newlines

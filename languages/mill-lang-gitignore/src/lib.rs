@@ -212,7 +212,7 @@ mod tests {
         let result = plugin
             .import_support
             .rewrite_gitignore_patterns(&content, old_path, new_path);
-        assert!(result.is_ok() || result.is_err()); // Either way, no panic
+        assert!(result.is_ok(), "Should handle long patterns successfully: {:?}", result.err());
     }
 
     // ========================================================================

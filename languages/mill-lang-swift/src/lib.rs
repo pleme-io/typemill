@@ -612,7 +612,6 @@ import UIKit
         assert!(manifest.contains(r#".package(url: "https://github.com/a/b", from: "1.0.0")"#));
     }
 
-    #[test]
     // ========================================================================
     // IMPORT SUPPORT TESTS (20 tests)
     // ========================================================================
@@ -1054,7 +1053,9 @@ import SwiftUI
                 .await
         });
         // Current implementation will inline it anyway - in production, should check for reassignments
-        assert!(result.is_ok() || result.is_err());
+        // TODO: This should ideally return an error for multiple assignments
+        // For now, verify it doesn't panic
+        let _ = result;
     }
 
     #[test]

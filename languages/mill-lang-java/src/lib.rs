@@ -414,7 +414,7 @@ public class Main {
         let result = tokio::runtime::Runtime::new()
             .unwrap()
             .block_on(async { plugin.parse(source).await });
-        assert!(result.is_ok() || result.is_err()); // Either way, no panic
+        assert!(result.is_ok(), "Should parse Unicode strings successfully: {:?}", result.err());
     }
 
     #[test]
@@ -430,7 +430,7 @@ public class Main {
         let result = tokio::runtime::Runtime::new()
             .unwrap()
             .block_on(async { plugin.parse(&source).await });
-        assert!(result.is_ok() || result.is_err()); // Either way, no panic
+        assert!(result.is_ok(), "Should parse long method signatures successfully: {:?}", result.err());
     }
 
     // ========================================================================

@@ -387,7 +387,8 @@ jobs:
             None,
         );
 
-        assert!(result.is_some() || result.is_none()); // Either way, no panic
+        // Should not panic - either returns modified content or None if no changes needed
+        let _ = result;
     }
 
     // ========================================================================

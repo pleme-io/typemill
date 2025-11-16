@@ -372,7 +372,8 @@ wrappers = ["old-handlers"]
             None,
         );
 
-        assert!(result.is_some() || result.is_none()); // Either way, no panic
+        // Should not panic - either returns modified content or None if no changes needed
+        let _ = result;
     }
 
     #[test]
@@ -390,7 +391,8 @@ wrappers = ["old-handlers"]
             None,
         );
 
-        assert!(result.is_some() || result.is_none()); // Either way, no panic
+        // Should not panic - either returns modified content or None if no changes needed
+        let _ = result;
     }
 
     // ========================================================================
@@ -412,8 +414,8 @@ wrappers = ["old-handlers"]
             None,
         );
 
-        // Should handle nested structures gracefully
-        assert!(result.is_some() || result.is_none());
+        // Should handle nested structures gracefully without panicking
+        let _ = result;
     }
 
     #[tokio::test]

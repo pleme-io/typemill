@@ -251,7 +251,7 @@ void тестфункция() {
 "#;
         let result = plugin.parse(source).await;
         // Should not panic with Unicode identifiers
-        assert!(result.is_ok() || result.is_err()); // Either way, no panic
+        assert!(result.is_ok(), "Should parse Unicode identifiers successfully: {:?}", result.err());
     }
 
     #[tokio::test]
