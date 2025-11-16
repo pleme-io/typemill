@@ -603,3 +603,521 @@ fn find_swift_boolean_literal(line_text: &str, col: usize) -> Option<(String, u3
 fn is_valid_swift_literal_location(line: &str, pos: usize, len: usize) -> bool {
     is_valid_code_literal_location(line, pos, len)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ========================================================================
+    // Extract Function Tests
+    // ========================================================================
+
+    #[test]
+    fn test_extract_function_valid_single_line() {
+        let source = r#"
+func calculateTotal() {
+    let price = 100
+    let tax = price * 0.08
+    return price + tax
+}
+"#;
+        let result = plan_extract_function(source, 3, 3, "calculateTax", "test.swift");
+        assert!(result.is_ok(), "Should extract single line successfully");
+        let plan = result.unwrap();
+        assert_eq!(plan.edits.len(), 2, "Should have insert and replace edits");
+        assert!(plan.edits[0].new_text.contains("calculateTax"));
+        assert!(plan.edits[0].new_text.contains("private func"));
+    }
+
+    #[test]
+    fn test_extract_function_valid_multiline() {
+        let source = r#"
+func processData() {
+    let input = getData()
+    let normalized = normalize(input)
+    let validated = validate(normalized)
+    return validated
+}
+"#;
+        let result = plan_extract_function(source, 2, 3, "processInput", "test.swift");
+        assert!(result.is_ok(), "Should extract multiple lines");
+        let plan = result.unwrap();
+        assert_eq!(plan.edits.len(), 2);
+        assert!(plan.edits[0].new_text.contains("processInput()"));
+    }
+
+    #[test]
+    fn test_extract_function_invalid_range_start_after_end() {
+        let source = "func test() { let x = 1 }";
+        let result = plan_extract_function(source, 5, 2, "extracted", "test.swift");
+        assert!(result.is_err(), "Should reject invalid range (start > end)");
+    }
+
+    #[test]
+    fn test_extract_function_invalid_range_out_of_bounds() {
+        let source = "func test() { let x = 1 }";
+        let result = plan_extract_function(source, 0, 100, "extracted", "test.swift");
+        assert!(result.is_err(), "Should reject out of bounds range");
+    }
+
+    #[test]
+    fn test_extract_function_preserves_indentation() {
+        let source = r#"
+class Calculator {
+    func compute() {
+        let a = 10
+        let b = 20
+        return a + b
+    }
+}
+"#;
+        let result = plan_extract_function(source, 3, 4, "sum", "test.swift");
+        assert!(result.is_ok());
+        let plan = result.unwrap();
+        // Check that indentation is preserved
+        let insert_edit = &plan.edits[0];
+        assert!(insert_edit.new_text.contains("    private func"), "Should preserve class indentation");
+    }
+
+    #[test]
+    fn test_extract_function_edit_plan_structure() {
+        let source = r#"
+func example() {
+    let x = 42
+    print(x)
+}
+"#;
+        let result = plan_extract_function(source, 2, 2, "initializeX", "test.swift");
+        assert!(result.is_ok());
+        let plan = result.unwrap();
+
+        // Verify EditPlan structure
+        assert_eq!(plan.metadata.intent_name, "extract_function");
+        assert!(plan.edits.len() == 2);
+
+        // First edit should be Insert (new function)
+        assert_eq!(plan.edits[0].edit_type, EditType::Insert);
+        assert_eq!(plan.edits[0].priority, 100);
+
+        // Second edit should be Replace (call site)
+        assert_eq!(plan.edits[1].edit_type, EditType::Replace);
+        assert_eq!(plan.edits[1].priority, 90);
+    }
+
+    // ========================================================================
+    // Extract Variable Tests
+    // ========================================================================
+
+    #[test]
+    fn test_extract_variable_valid_simple_expression() {
+        let source = r#"func calculate() {
+    let total = 100 * 1.08
+    return total
+}"#;
+        let result = plan_extract_variable(source, 1, 16, 1, 26, Some("taxRate".to_string()), "test.swift");
+        assert!(result.is_ok(), "Should extract simple expression");
+        let plan = result.unwrap();
+        assert_eq!(plan.edits.len(), 2);
+        assert!(plan.edits[0].new_text.contains("let taxRate = 100 * 1.08"));
+        assert_eq!(plan.edits[1].new_text, "taxRate");
+    }
+
+    #[test]
+    fn test_extract_variable_with_default_name() {
+        let source = r#"
+func test() {
+    print(5 + 10)
+}
+"#;
+        let result = plan_extract_variable(source, 2, 10, 2, 16, None, "test.swift");
+        assert!(result.is_ok());
+        let plan = result.unwrap();
+        assert!(plan.edits[0].new_text.contains("let extractedVar"));
+    }
+
+    #[test]
+    fn test_extract_variable_multiline_expression() {
+        let source = r#"
+func compute() {
+    let result = calculateValue(
+        param1: 10,
+        param2: 20
+    )
+}
+"#;
+        let result = plan_extract_variable(source, 2, 17, 4, 5, Some("value".to_string()), "test.swift");
+        assert!(result.is_ok(), "Should handle multiline expressions");
+    }
+
+    #[test]
+    fn test_extract_variable_invalid_range() {
+        let source = "let x = 5";
+        // Out of bounds end column
+        let result = plan_extract_variable(source, 0, 8, 0, 9, None, "test.swift");
+        assert!(result.is_ok(), "Should handle valid range");
+
+        // Test truly invalid range (end_line > lines.len())
+        let result2 = plan_extract_variable(source, 0, 8, 100, 5, None, "test.swift");
+        assert!(result2.is_err(), "Should reject out of bounds line");
+    }
+
+    #[test]
+    fn test_extract_variable_empty_range() {
+        let source = "let x = 42";
+        let result = plan_extract_variable(source, 0, 5, 0, 5, None, "test.swift");
+        assert!(result.is_ok(), "Should handle empty range");
+        let plan = result.unwrap();
+        assert_eq!(plan.edits[0].new_text.trim(), "let extractedVar =");
+    }
+
+    #[test]
+    fn test_extract_variable_with_indentation() {
+        let source = r#"
+class Test {
+    func method() {
+        let x = 10 + 20
+    }
+}
+"#;
+        let result = plan_extract_variable(source, 3, 16, 3, 23, Some("sum".to_string()), "test.swift");
+        assert!(result.is_ok());
+        let plan = result.unwrap();
+        // Should preserve indentation
+        assert!(plan.edits[0].new_text.starts_with("        let sum"));
+    }
+
+    // ========================================================================
+    // Inline Variable Tests
+    // ========================================================================
+
+    #[test]
+    fn test_inline_variable_valid_let_declaration() {
+        let source = r#"
+let rate = 0.08
+let tax = price * rate
+let total = base * rate
+"#;
+        let result = plan_inline_variable(source, 1, 0, "test.swift");
+        assert!(result.is_ok(), "Should inline variable successfully");
+        let plan = result.unwrap();
+
+        // Should have 2 replacements (for rate usages) + 1 delete (declaration)
+        assert!(plan.edits.len() >= 2, "Should have at least 2 edits");
+
+        // Check that we're replacing with the value
+        let replace_edits: Vec<_> = plan.edits.iter()
+            .filter(|e| e.edit_type == EditType::Replace)
+            .collect();
+        assert!(replace_edits.iter().any(|e| e.new_text.contains("0.08")));
+    }
+
+    #[test]
+    fn test_inline_variable_var_declaration() {
+        let source = r#"
+var count = 5
+let doubled = count * 2
+"#;
+        let result = plan_inline_variable(source, 1, 0, "test.swift");
+        assert!(result.is_ok(), "Should handle var declarations");
+    }
+
+    #[test]
+    fn test_inline_variable_single_usage() {
+        let source = r#"
+let temp = 42
+print(temp)
+"#;
+        let result = plan_inline_variable(source, 1, 0, "test.swift");
+        assert!(result.is_ok());
+        let plan = result.unwrap();
+        // Should have 1 replace + 1 delete
+        assert!(plan.edits.len() >= 2);
+    }
+
+    #[test]
+    fn test_inline_variable_no_usages() {
+        let source = r#"
+let unused = 100
+let x = 50
+"#;
+        let result = plan_inline_variable(source, 1, 0, "test.swift");
+        assert!(result.is_ok(), "Should handle unused variables");
+        let plan = result.unwrap();
+        // Should at least delete the declaration
+        let delete_edits: Vec<_> = plan.edits.iter()
+            .filter(|e| e.edit_type == EditType::Delete)
+            .collect();
+        assert_eq!(delete_edits.len(), 1);
+    }
+
+    #[test]
+    fn test_inline_variable_invalid_line_number() {
+        let source = "let x = 5";
+        let result = plan_inline_variable(source, 100, 0, "test.swift");
+        assert!(result.is_err(), "Should reject invalid line number");
+    }
+
+    #[test]
+    fn test_inline_variable_not_a_declaration() {
+        let source = r#"
+func test() {
+    print("hello")
+}
+"#;
+        let result = plan_inline_variable(source, 2, 0, "test.swift");
+        assert!(result.is_err(), "Should reject non-variable line");
+    }
+
+    // ========================================================================
+    // Extract Constant Tests
+    // ========================================================================
+
+    #[test]
+    fn test_extract_constant_numeric_literal() {
+        let source = r#"
+let price = 100
+let tax = price * 0.08
+let total = price + (price * 0.08)
+"#;
+        let result = plan_extract_constant(source, 2, 18, "TAX_RATE", "test.swift");
+        assert!(result.is_ok(), "Should extract numeric constant");
+        let plan = result.unwrap();
+
+        // Should have 1 insert + 2 replacements (for two 0.08 occurrences)
+        assert_eq!(plan.edits.len(), 3);
+        assert!(plan.edits[0].new_text.contains("let TAX_RATE = 0.08"));
+    }
+
+    #[test]
+    fn test_extract_constant_string_literal() {
+        let source = r#"
+let greeting = "Hello"
+let message = "Hello"
+"#;
+        let result = plan_extract_constant(source, 1, 16, "GREETING", "test.swift");
+        assert!(result.is_ok(), "Should extract string constant");
+        let plan = result.unwrap();
+        assert!(plan.edits[0].new_text.contains("let GREETING = \"Hello\""));
+    }
+
+    #[test]
+    fn test_extract_constant_boolean_true() {
+        let source = r#"
+let debug = true
+let verbose = true
+"#;
+        let result = plan_extract_constant(source, 1, 12, "DEBUG_MODE", "test.swift");
+        assert!(result.is_ok(), "Should extract boolean constant");
+        let plan = result.unwrap();
+        assert!(plan.edits[0].new_text.contains("let DEBUG_MODE = true"));
+    }
+
+    #[test]
+    fn test_extract_constant_boolean_false() {
+        let source = r#"
+let enabled = false
+if enabled == false {
+    print("disabled")
+}
+"#;
+        let result = plan_extract_constant(source, 1, 14, "DISABLED", "test.swift");
+        assert!(result.is_ok(), "Should extract false constant");
+    }
+
+    #[test]
+    fn test_extract_constant_negative_number() {
+        let source = r#"let offset = -10
+let adjustment = -10"#;
+        // Cursor on the digit part of the negative number (position 14 is on '1')
+        let result = plan_extract_constant(source, 0, 14, "OFFSET_VALUE", "test.swift");
+        assert!(result.is_ok(), "Should handle negative numbers: {:?}", result.err());
+
+        let plan = result.unwrap();
+        // Should find both -10 occurrences
+        assert_eq!(plan.edits.len(), 3, "Should have 1 insert + 2 replace edits");
+    }
+
+    #[test]
+    fn test_extract_constant_float_number() {
+        let source = r#"
+let pi = 3.14159
+let circumference = diameter * 3.14159
+"#;
+        let result = plan_extract_constant(source, 1, 9, "PI", "test.swift");
+        assert!(result.is_ok(), "Should handle float literals");
+    }
+
+    #[test]
+    fn test_extract_constant_hex_literal() {
+        let source = r#"
+let color = 0xFF5733
+let accent = 0xFF5733
+"#;
+        let result = plan_extract_constant(source, 1, 12, "BRAND_COLOR", "test.swift");
+        assert!(result.is_ok(), "Should handle hex literals");
+    }
+
+    #[test]
+    fn test_extract_constant_binary_literal() {
+        let source = r#"
+let mask = 0b1111
+let flags = 0b1111
+"#;
+        let result = plan_extract_constant(source, 1, 11, "FULL_MASK", "test.swift");
+        assert!(result.is_ok(), "Should handle binary literals");
+    }
+
+    #[test]
+    fn test_extract_constant_octal_literal() {
+        let source = r#"
+let permissions = 0o755
+let mode = 0o755
+"#;
+        let result = plan_extract_constant(source, 1, 18, "DEFAULT_PERMISSIONS", "test.swift");
+        assert!(result.is_ok(), "Should handle octal literals");
+    }
+
+    #[test]
+    fn test_extract_constant_scientific_notation() {
+        let source = r#"
+let small = 1.5e-10
+let tiny = 1.5e-10
+"#;
+        let result = plan_extract_constant(source, 1, 12, "EPSILON", "test.swift");
+        assert!(result.is_ok(), "Should handle scientific notation");
+    }
+
+    #[test]
+    fn test_extract_constant_invalid_name_lowercase() {
+        let source = "let x = 42";
+        let result = plan_extract_constant(source, 0, 8, "badname", "test.swift");
+        assert!(result.is_err(), "Should reject lowercase constant name");
+    }
+
+    #[test]
+    fn test_extract_constant_invalid_name_mixed_case() {
+        let source = "let x = 42";
+        let result = plan_extract_constant(source, 0, 8, "BadName", "test.swift");
+        assert!(result.is_err(), "Should reject mixed case constant name");
+    }
+
+    #[test]
+    fn test_extract_constant_cursor_not_on_literal() {
+        let source = "let myVariable = 42";
+        let result = plan_extract_constant(source, 0, 4, "CONSTANT", "test.swift");
+        assert!(result.is_err(), "Should fail when cursor not on literal");
+    }
+
+    #[test]
+    fn test_extract_constant_skip_string_content() {
+        let source = r#"
+let rate = 0.08
+let msg = "Rate is 0.08"
+let tax = 0.08
+"#;
+        let result = plan_extract_constant(source, 1, 11, "TAX_RATE", "test.swift");
+        assert!(result.is_ok());
+        let plan = result.unwrap();
+        // Should find 2 occurrences (lines 1 and 3), not the one inside the string
+        assert_eq!(plan.edits.len(), 3, "Should have 1 insert + 2 replace edits (not the string content)");
+    }
+
+    #[test]
+    fn test_extract_constant_skip_comment_content() {
+        let source = r#"
+let value = 42
+// The answer is 42
+let answer = 42
+"#;
+        let result = plan_extract_constant(source, 1, 12, "ANSWER", "test.swift");
+        assert!(result.is_ok());
+        let plan = result.unwrap();
+        // Should find 2 occurrences (lines 1 and 3), not the one in comment
+        assert_eq!(plan.edits.len(), 3, "Should have 1 insert + 2 replace edits (not the comment)");
+    }
+
+    #[test]
+    fn test_extract_constant_escaped_quotes_in_string() {
+        let source = r#"
+let msg = "He said \"hello\""
+let greeting = "hello"
+"#;
+        let result = plan_extract_constant(source, 2, 16, "GREETING_TEXT", "test.swift");
+        assert!(result.is_ok(), "Should handle escaped quotes in strings");
+    }
+
+    // ========================================================================
+    // Helper Function Tests
+    // ========================================================================
+
+    #[test]
+    fn test_find_swift_numeric_literal_integer() {
+        let line = "let x = 42";
+        let result = find_swift_numeric_literal(line, 8);
+        assert!(result.is_some());
+        let (literal, start, end) = result.unwrap();
+        assert_eq!(literal, "42");
+        assert_eq!(start, 8);
+        assert_eq!(end, 10);
+    }
+
+    #[test]
+    fn test_find_swift_numeric_literal_negative() {
+        let line = "let x = -100";
+        let result = find_swift_numeric_literal(line, 9);
+        assert!(result.is_some());
+        let (literal, _start, _end) = result.unwrap();
+        assert_eq!(literal, "-100");
+    }
+
+    #[test]
+    fn test_find_swift_numeric_literal_float() {
+        let line = "let pi = 3.14159";
+        let result = find_swift_numeric_literal(line, 10);
+        assert!(result.is_some());
+        let (literal, _start, _end) = result.unwrap();
+        assert_eq!(literal, "3.14159");
+    }
+
+    #[test]
+    fn test_find_swift_string_literal_double_quotes() {
+        let line = r#"let msg = "hello""#;
+        let result = find_swift_string_literal(line, 11);
+        assert!(result.is_some());
+        let (literal, _start, _end) = result.unwrap();
+        assert_eq!(literal, r#""hello""#);
+    }
+
+    #[test]
+    fn test_find_swift_boolean_literal_true() {
+        let line = "let flag = true";
+        let result = find_swift_boolean_literal(line, 11);
+        assert!(result.is_some());
+        let (literal, _start, _end) = result.unwrap();
+        assert_eq!(literal, "true");
+    }
+
+    #[test]
+    fn test_find_swift_boolean_literal_false() {
+        let line = "let disabled = false";
+        let result = find_swift_boolean_literal(line, 15);
+        assert!(result.is_some());
+        let (literal, _start, _end) = result.unwrap();
+        assert_eq!(literal, "false");
+    }
+
+    #[test]
+    fn test_is_valid_number() {
+        assert!(is_valid_number("42"));
+        assert!(is_valid_number("-42"));
+        assert!(is_valid_number("3.14"));
+        assert!(is_valid_number("1e-5"));
+        assert!(is_valid_number("2.5E10"));
+        assert!(is_valid_number("0xFF"));
+        assert!(is_valid_number("0b1010"));
+        assert!(is_valid_number("0o777"));
+        assert!(!is_valid_number(""));
+        assert!(!is_valid_number("abc"));
+        assert!(!is_valid_number("0x"));
+    }
+}
