@@ -178,6 +178,21 @@ impl RefactoringProvider for SwiftPlugin {
             file_path,
         )
     }
+
+    fn supports_extract_constant(&self) -> bool {
+        true
+    }
+
+    async fn plan_extract_constant(
+        &self,
+        source: &str,
+        line: u32,
+        character: u32,
+        constant_name: &str,
+        file_path: &str,
+    ) -> PluginResult<mill_foundation::protocol::EditPlan> {
+        refactoring::plan_extract_constant(source, line, character, constant_name, file_path)
+    }
 }
 
 impl ModuleReferenceScanner for SwiftPlugin {
@@ -1163,6 +1178,70 @@ import SwiftUI
                 .await
         });
         assert!(result.is_ok());
+    }
+
+    // Extract Constant Tests (4 tests)
+    #[tokio::test]
+    async fn test_plan_extract_constant_valid_number() {
+        let plugin = SwiftPlugin::new();
+        let provider = plugin
+            .refactoring_provider()
+            .expect("Should have refactoring");
+        let source = "let x = 42\nlet y = 42\n";
+        let result = provider
+            .plan_extract_constant(source, 0, 8, "ANSWER", "test.swift")
+            .await;
+        assert!(result.is_ok(), "Should extract numeric literal successfully");
+        let plan = result.unwrap();
+        assert_eq!(plan.edits.len(), 3); // 1 declaration + 2 replacements
+        assert!(plan.edits[0].new_text.contains("let ANSWER = 42"));
+    }
+
+    #[tokio::test]
+    async fn test_plan_extract_constant_string() {
+        let plugin = SwiftPlugin::new();
+        let provider = plugin
+            .refactoring_provider()
+            .expect("Should have refactoring");
+        let source = r#"let greeting = "Hello"\nlet msg = "Hello"\n"#;
+        let result = provider
+            .plan_extract_constant(source, 0, 15, "GREETING_TEXT", "test.swift")
+            .await;
+        assert!(result.is_ok(), "Should extract string literal successfully");
+        let plan = result.unwrap();
+        assert!(plan.edits.len() >= 2); // 1 declaration + at least 1 replacement
+    }
+
+    #[tokio::test]
+    async fn test_plan_extract_constant_boolean() {
+        let plugin = SwiftPlugin::new();
+        let provider = plugin
+            .refactoring_provider()
+            .expect("Should have refactoring");
+        let source = "let flag = true\nlet enabled = true\n";
+        let result = provider
+            .plan_extract_constant(source, 0, 11, "DEFAULT_ENABLED", "test.swift")
+            .await;
+        assert!(result.is_ok(), "Should extract boolean literal successfully");
+        let plan = result.unwrap();
+        assert!(plan.edits.len() >= 2); // 1 declaration + at least 1 replacement
+        assert!(plan.edits[0].new_text.contains("DEFAULT_ENABLED"));
+    }
+
+    #[tokio::test]
+    async fn test_plan_extract_constant_invalid_name() {
+        let plugin = SwiftPlugin::new();
+        let provider = plugin
+            .refactoring_provider()
+            .expect("Should have refactoring");
+        let source = "let x = 42\n";
+        let result = provider
+            .plan_extract_constant(source, 0, 8, "invalidName", "test.swift")
+            .await;
+        assert!(result.is_err(), "Should reject non-SCREAMING_SNAKE_CASE name");
+        let err = result.unwrap_err();
+        let err_msg = err.to_string();
+        assert!(err_msg.contains("SCREAMING_SNAKE_CASE"));
     }
 
     // ========================================================================
