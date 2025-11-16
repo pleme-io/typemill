@@ -257,9 +257,70 @@ fn is_screaming_snake_case(name: &str) -> bool {
     name.chars().any(|c| c.is_ascii_uppercase())
 }
 
+/// Infer the explicit type from a literal value
+fn infer_literal_type(literal: &str) -> &'static str {
+    // Check for boolean
+    if literal == "true" || literal == "false" {
+        return "bool";
+    }
+
+    // Check for string literals (regular or raw)
+    if literal.starts_with('"') || literal.starts_with("r\"") || literal.starts_with("r#") {
+        return "&str";
+    }
+
+    // Check for numeric literals with type suffixes
+    // Extract suffix by finding where digits end
+    let trimmed = literal.trim_start_matches('-'); // Handle negative numbers
+    let mut digit_end = 0;
+
+    for (i, ch) in trimmed.chars().enumerate() {
+        if ch.is_ascii_digit() || ch == '.' || ch == '_' {
+            digit_end = i + 1;
+        } else {
+            break;
+        }
+    }
+
+    // Check if there's a suffix after the digits
+    if digit_end < trimmed.len() {
+        let suffix = &trimmed[digit_end..];
+        match suffix {
+            "i8" => return "i8",
+            "i16" => return "i16",
+            "i32" => return "i32",
+            "i64" => return "i64",
+            "i128" => return "i128",
+            "isize" => return "isize",
+            "u8" => return "u8",
+            "u16" => return "u16",
+            "u32" => return "u32",
+            "u64" => return "u64",
+            "u128" => return "u128",
+            "usize" => return "usize",
+            "f32" => return "f32",
+            "f64" => return "f64",
+            _ => {}
+        }
+    }
+
+    // Check for float (contains '.')
+    if literal.contains('.') {
+        return "f64";
+    }
+
+    // Default to i32 for integers
+    "i32"
+}
+
 /// Find a Rust literal at a given position in a line of code
 fn find_rust_literal_at_position(line_text: &str, col: usize) -> Option<(String, CodeRange)> {
     // Try to find different kinds of literals at the cursor position
+
+    // Check for string literal (including raw strings)
+    if let Some((literal, range)) = find_rust_string_literal(line_text, col) {
+        return Some((literal, range));
+    }
 
     // Check for numeric literal (including negative numbers)
     if let Some((literal, range)) = find_rust_numeric_literal(line_text, col) {
@@ -274,44 +335,208 @@ fn find_rust_literal_at_position(line_text: &str, col: usize) -> Option<(String,
     None
 }
 
+/// Find a string literal (regular or raw) at a cursor position
+/// Supports:
+/// - Regular strings: "hello"
+/// - Raw strings: r"hello", r#"hello"#, r##"hello"##
+/// - Escaped quotes: "He said \"hi\""
+fn find_rust_string_literal(line_text: &str, col: usize) -> Option<(String, CodeRange)> {
+    if col >= line_text.len() {
+        return None;
+    }
+
+    let bytes = line_text.as_bytes();
+
+    // Try to detect raw string first (r"..." or r#"..."#)
+    // Scan backwards from cursor+1 to include current position
+    let mut pos = col + 1;
+    while pos > 0 {
+        pos -= 1;
+
+        // Check if this position starts with 'r' followed by optional hashes and a quote
+        if bytes[pos] == b'r' {
+            let mut hash_count = 0;
+            let mut check_pos = pos + 1;
+
+            // Count hashes after 'r'
+            while check_pos < bytes.len() && bytes[check_pos] == b'#' {
+                hash_count += 1;
+                check_pos += 1;
+            }
+
+            // Check if there's an opening quote after the hashes
+            if check_pos < bytes.len() && bytes[check_pos] == b'"' {
+                let quote_pos = check_pos;
+
+                // Build closing delimiter
+                let mut closing = String::from("\"");
+                for _ in 0..hash_count {
+                    closing.push('#');
+                }
+
+                // Find the closing delimiter
+                if let Some(end_offset) = line_text[quote_pos + 1..].find(&closing) {
+                    let end = quote_pos + 1 + end_offset + closing.len();
+
+                    // Check if cursor is within this raw string
+                    if col >= pos && col < end {
+                        return Some((
+                            line_text[pos..end].to_string(),
+                            CodeRange {
+                                start_line: 0,
+                                start_col: pos as u32,
+                                end_line: 0,
+                                end_col: end as u32,
+                            },
+                        ));
+                    }
+                }
+
+                // Even if not found or cursor not in range, we found an 'r' prefix
+                // so don't continue looking for other raw strings
+                break;
+            }
+        }
+    }
+
+    // Try regular string literal
+    // Scan backwards to find opening quote (including current position)
+    let mut pos = col + 1; // Start one position ahead so we check col itself
+    loop {
+        if pos == 0 {
+            break;
+        }
+        pos -= 1;
+
+        if bytes[pos] == b'"' {
+            // Check if it's escaped by counting backslashes before it
+            let mut backslash_count = 0;
+            let mut check_pos = pos;
+            while check_pos > 0 && bytes[check_pos - 1] == b'\\' {
+                backslash_count += 1;
+                check_pos -= 1;
+            }
+
+            // If even number of backslashes (or zero), this quote is not escaped
+            if backslash_count % 2 == 0 {
+                // Found the opening quote, now find the closing quote
+                let mut end = pos + 1;
+                while end < bytes.len() {
+                    if bytes[end] == b'"' {
+                        // Check if this closing quote is escaped
+                        let mut bs_count = 0;
+                        let mut check = end;
+                        while check > 0 && bytes[check - 1] == b'\\' {
+                            bs_count += 1;
+                            check -= 1;
+                        }
+
+                        // If even number of backslashes, this is the closing quote
+                        if bs_count % 2 == 0 {
+                            // Verify cursor is within this string
+                            if col >= pos && col <= end {
+                                return Some((
+                                    line_text[pos..=end].to_string(),
+                                    CodeRange {
+                                        start_line: 0,
+                                        start_col: pos as u32,
+                                        end_line: 0,
+                                        end_col: (end + 1) as u32,
+                                    },
+                                ));
+                            }
+                            break;
+                        }
+                    }
+                    end += 1;
+                }
+                break;
+            }
+        }
+    }
+
+    None
+}
+
 /// Find a numeric literal (integer, float, or negative number) at a cursor position
 fn find_rust_numeric_literal(line_text: &str, col: usize) -> Option<(String, CodeRange)> {
     if col >= line_text.len() {
         return None;
     }
 
-    // Find the start of the number (handle negative sign)
-    let start = if col > 0 && line_text.chars().nth(col - 1) == Some('-') {
-        col.saturating_sub(1)
+    let bytes = line_text.as_bytes();
+
+    // Determine where to start scanning for the number
+    // If cursor is on a minus sign, start there
+    let scan_start = if bytes[col] == b'-' && col + 1 < bytes.len() && bytes[col + 1].is_ascii_digit() {
+        col
+    } else if bytes[col].is_ascii_digit() || bytes[col] == b'.' {
+        col
     } else {
-        line_text[..col]
-            .rfind(|c: char| !c.is_ascii_digit() && c != '.' && c != '_')
-            .map(|p| p + 1)
-            .unwrap_or(0)
+        // Cursor not on a number
+        return None;
     };
 
-    // Adjust start if we found a leading minus sign (handle negative numbers)
-    let actual_start = if start > 0 && line_text.chars().nth(start - 1) == Some('-') {
-        start - 1
-    } else {
-        start
-    };
+    // Find the start of the number by scanning backwards
+    let mut start = scan_start;
+    while start > 0 {
+        let prev = bytes[start - 1];
+        if prev.is_ascii_digit() || prev == b'.' || prev == b'_' {
+            start -= 1;
+        } else if prev == b'-' && start == scan_start {
+            // Include leading minus for negative numbers
+            start -= 1;
+            break;
+        } else {
+            break;
+        }
+    }
 
-    // Find the end of the number by scanning right from cursor
-    let end = col
-        + line_text[col..]
-            .find(|c: char| !c.is_ascii_digit() && c != '.' && c != '_')
-            .unwrap_or(line_text.len() - col);
+    // Find the end of the number by scanning forwards
+    let mut end = scan_start + 1;
+    while end < bytes.len() {
+        let ch = bytes[end];
+        if ch.is_ascii_digit() || ch == b'.' || ch == b'_' {
+            end += 1;
+        } else {
+            break;
+        }
+    }
 
-    if actual_start < end && end <= line_text.len() {
-        let text = &line_text[actual_start..end];
-        // Validate: must contain at least one digit and be parseable as a number
-        if text.chars().any(|c| c.is_ascii_digit()) && text.parse::<f64>().is_ok() {
+    // Check for type suffix (i32, u64, f32, etc.)
+    if end < bytes.len() && bytes[end].is_ascii_alphabetic() {
+        let suffix_start = end;
+        while end < bytes.len() && bytes[end].is_ascii_alphanumeric() {
+            end += 1;
+        }
+
+        // Validate it's a known numeric type suffix
+        let suffix = &line_text[suffix_start..end];
+        let valid_suffixes = [
+            "i8", "i16", "i32", "i64", "i128", "isize",
+            "u8", "u16", "u32", "u64", "u128", "usize",
+            "f32", "f64"
+        ];
+
+        if !valid_suffixes.contains(&suffix) {
+            // Not a valid suffix, backtrack
+            end = suffix_start;
+        }
+    }
+
+    if start < end && end <= line_text.len() {
+        let text = &line_text[start..end];
+        // Validate: must contain at least one digit
+        // For validation, strip the type suffix if present
+        let num_part = text.trim_start_matches('-');
+        let has_digit = num_part.chars().any(|c| c.is_ascii_digit());
+
+        if has_digit {
             return Some((
                 text.to_string(),
                 CodeRange {
                     start_line: 0,
-                    start_col: actual_start as u32,
+                    start_col: start as u32,
                     end_line: 0,
                     end_col: end as u32,
                 },
@@ -361,21 +586,60 @@ fn find_rust_keyword_literal(line_text: &str, col: usize) -> Option<(String, Cod
 }
 
 /// Validate whether a position in source code is a valid location for a literal
+/// Handles escaped quotes properly by counting backslashes
 fn is_valid_literal_location(line: &str, pos: usize, _len: usize) -> bool {
-    // Count quotes before position to determine if we're inside a string literal
-    let before = &line[..pos];
-    let double_quotes = before.matches('"').count();
+    let bytes = line.as_bytes();
 
-    // If an odd number of quotes appear before the position, we're inside a string literal
-    if double_quotes % 2 == 1 {
+    // Count non-escaped quotes before position to determine if we're inside a string literal
+    let mut quote_count = 0;
+    let mut i = 0;
+
+    while i < pos && i < bytes.len() {
+        if bytes[i] == b'"' {
+            // Count backslashes before this quote
+            let mut backslash_count = 0;
+            let mut check = i;
+            while check > 0 && bytes[check - 1] == b'\\' {
+                backslash_count += 1;
+                check -= 1;
+            }
+
+            // If even number of backslashes (or zero), this quote is not escaped
+            if backslash_count % 2 == 0 {
+                quote_count += 1;
+            }
+        }
+        i += 1;
+    }
+
+    // If odd number of non-escaped quotes, we're inside a string literal
+    if quote_count % 2 == 1 {
         return false;
     }
 
     // Check for single-line comment marker. Anything after "//" is a comment.
-    if let Some(comment_pos) = line.find("//") {
-        if pos > comment_pos {
-            return false;
+    // But make sure the "//" itself is not in a string
+    let mut i = 0;
+    let mut in_string = false;
+    while i < bytes.len() {
+        if bytes[i] == b'"' {
+            let mut backslash_count = 0;
+            let mut check = i;
+            while check > 0 && bytes[check - 1] == b'\\' {
+                backslash_count += 1;
+                check -= 1;
+            }
+            if backslash_count % 2 == 0 {
+                in_string = !in_string;
+            }
+        } else if !in_string && i + 1 < bytes.len() && bytes[i] == b'/' && bytes[i + 1] == b'/' {
+            // Found comment marker outside of string
+            if pos > i {
+                return false;
+            }
+            break;
         }
+        i += 1;
     }
 
     true
@@ -516,7 +780,8 @@ pub fn plan_extract_constant(
     let mut edits = Vec::new();
 
     // Generate the constant declaration (Rust style: const NAME: type = value;)
-    let declaration = format!("const {}: _ = {};\n", name, analysis.literal_value);
+    let inferred_type = infer_literal_type(&analysis.literal_value);
+    let declaration = format!("const {}: {} = {};\n", name, inferred_type, analysis.literal_value);
     edits.push(TextEdit {
         file_path: None,
         edit_type: EditType::Insert,
@@ -845,5 +1110,145 @@ fn main() {
         let line = "let x = 42;";
         // Position 8 is the '4' in the actual literal
         assert!(is_valid_literal_location(line, 8, 2));
+    }
+
+    // New comprehensive tests for string literal support
+
+    #[test]
+    fn test_find_rust_string_literal_regular() {
+        let line = r#"let msg = "hello";"#;
+        let result = find_rust_literal_at_position(line, 10);
+        assert!(result.is_some());
+        let (literal, range) = result.unwrap();
+        assert_eq!(literal, r#""hello""#);
+        assert_eq!(range.start_col, 10);
+        assert_eq!(range.end_col, 17);
+    }
+
+    #[test]
+    fn test_find_rust_string_literal_with_escaped_quotes() {
+        let line = r#"let msg = "He said \"hi\"";"#;
+        let result = find_rust_literal_at_position(line, 10);
+        assert!(result.is_some());
+        let (literal, _range) = result.unwrap();
+        assert_eq!(literal, r#""He said \"hi\"""#);
+    }
+
+    #[test]
+    fn test_find_rust_string_literal_raw() {
+        let line = r#"let path = r"C:\Users\file";"#;
+        let result = find_rust_literal_at_position(line, 11);
+        assert!(result.is_some());
+        let (literal, range) = result.unwrap();
+        assert_eq!(literal, r#"r"C:\Users\file""#);
+        assert_eq!(range.start_col, 11);
+    }
+
+    #[test]
+    fn test_find_rust_string_literal_raw_with_hashes() {
+        let line = r##"let text = r#"raw "string" with quotes"#;"##;
+        let result = find_rust_literal_at_position(line, 11);
+        assert!(result.is_some());
+        let (literal, _range) = result.unwrap();
+        assert_eq!(literal, r##"r#"raw "string" with quotes"#"##);
+    }
+
+    #[test]
+    fn test_find_rust_string_literal_raw_with_multiple_hashes() {
+        let line = r###"let text = r##"raw "string" with "quotes"##;"###;
+        let result = find_rust_literal_at_position(line, 11);
+        assert!(result.is_some());
+        let (literal, _range) = result.unwrap();
+        assert_eq!(literal, r###"r##"raw "string" with "quotes"##"###);
+    }
+
+    #[test]
+    fn test_plan_extract_constant_string_literal() {
+        let source = r#"let api = "https://api.example.com";
+let backup = "https://api.example.com";
+"#;
+        let result = plan_extract_constant(source, 0, 10, "API_URL", "test.rs");
+        assert!(result.is_ok(), "Should extract string literal successfully");
+
+        let plan = result.unwrap();
+        assert_eq!(plan.edits.len(), 3); // 1 declaration + 2 replacements
+
+        // Check that the declaration has the correct type
+        assert!(plan.edits[0].new_text.contains("const API_URL: &str"));
+        assert!(plan.edits[0].new_text.contains(r#""https://api.example.com""#));
+    }
+
+    #[test]
+    fn test_infer_literal_type_bool() {
+        assert_eq!(infer_literal_type("true"), "bool");
+        assert_eq!(infer_literal_type("false"), "bool");
+    }
+
+    #[test]
+    fn test_infer_literal_type_integers() {
+        assert_eq!(infer_literal_type("42"), "i32");
+        assert_eq!(infer_literal_type("100"), "i32");
+        assert_eq!(infer_literal_type("42u64"), "u64");
+        assert_eq!(infer_literal_type("100i64"), "i64");
+        assert_eq!(infer_literal_type("255u8"), "u8");
+    }
+
+    #[test]
+    fn test_infer_literal_type_floats() {
+        assert_eq!(infer_literal_type("3.14"), "f64");
+        assert_eq!(infer_literal_type("2.5"), "f64");
+        assert_eq!(infer_literal_type("1.0f32"), "f32");
+    }
+
+    #[test]
+    fn test_infer_literal_type_strings() {
+        assert_eq!(infer_literal_type(r#""hello""#), "&str");
+        assert_eq!(infer_literal_type(r#"r"raw""#), "&str");
+        assert_eq!(infer_literal_type(r##"r#"raw"#"##), "&str");
+    }
+
+    #[test]
+    fn test_is_valid_literal_location_with_escaped_quotes() {
+        let line = r#"let s = "escaped \"quote\" here"; let x = 42;"#;
+        // Position 44 is the '4' in the literal 42 (outside the string)
+        assert!(is_valid_literal_location(line, 44, 2));
+        // Position 15 is inside the string
+        assert!(!is_valid_literal_location(line, 15, 1));
+    }
+
+    #[test]
+    fn test_is_valid_literal_location_comment_after_string() {
+        let line = r#"let s = "text"; // comment with "quotes""#;
+        // Position 38 is inside the comment
+        assert!(!is_valid_literal_location(line, 38, 1));
+    }
+
+    #[test]
+    fn test_find_rust_numeric_literal_negative() {
+        let line = "let x = -42;";
+        let result = find_rust_literal_at_position(line, 8);
+        assert!(result.is_some());
+        let (literal, _range) = result.unwrap();
+        assert_eq!(literal, "-42");
+    }
+
+    #[test]
+    fn test_find_rust_numeric_literal_float() {
+        let line = "let pi = 3.14159;";
+        let result = find_rust_literal_at_position(line, 9);
+        assert!(result.is_some());
+        let (literal, _range) = result.unwrap();
+        assert_eq!(literal, "3.14159");
+    }
+
+    #[test]
+    fn test_plan_extract_constant_with_type_suffix() {
+        let source = "let timeout = 5000u64;\nlet delay = 5000u64;\n";
+        let result = plan_extract_constant(source, 0, 14, "TIMEOUT_MS", "test.rs");
+        assert!(result.is_ok());
+
+        let plan = result.unwrap();
+        // Check that the inferred type matches the suffix
+        assert!(plan.edits[0].new_text.contains("const TIMEOUT_MS: u64"));
     }
 }
