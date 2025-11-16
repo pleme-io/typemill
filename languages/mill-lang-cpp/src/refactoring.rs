@@ -4,6 +4,7 @@
 //! - Extract function (simple cases - no templates, no complex captures)
 //! - Extract variable
 //! - Inline variable
+//! - Extract constant (literals to constexpr declarations)
 //!
 //! Note: This implementation handles common C++ refactoring scenarios.
 //! Complex cases involving templates, macros, or advanced C++ features
@@ -84,6 +85,22 @@ impl RefactoringProvider for CppRefactoringProvider {
             file_path,
         )
         .map_err(|e| PluginApiError::invalid_input(format!("Extract variable failed: {}", e)))
+    }
+
+    fn supports_extract_constant(&self) -> bool {
+        true
+    }
+
+    async fn plan_extract_constant(
+        &self,
+        source: &str,
+        line: u32,
+        character: u32,
+        name: &str,
+        file_path: &str,
+    ) -> PluginResult<EditPlan> {
+        plan_extract_constant_impl(source, line, character, name, file_path)
+            .map_err(|e| PluginApiError::invalid_input(format!("Extract constant failed: {}", e)))
     }
 }
 
@@ -369,7 +386,255 @@ fn plan_inline_variable_impl(
     })
 }
 
+/// Generate edit plan for C++ extract constant refactoring
+fn plan_extract_constant_impl(
+    source: &str,
+    line: u32,
+    character: u32,
+    name: &str,
+    file_path: &str,
+) -> Result<EditPlan, String> {
+    // Validate constant name is SCREAMING_SNAKE_CASE
+    if !is_screaming_snake_case(name) {
+        return Err(format!(
+            "Constant name '{}' must be in SCREAMING_SNAKE_CASE format. Valid examples: TAX_RATE, MAX_VALUE, API_KEY. \
+            Requirements: only uppercase letters (A-Z), digits (0-9), and underscores; must contain at least one uppercase letter; \
+            cannot start or end with underscore.",
+            name
+        ));
+    }
+
+    let mut parser = Parser::new();
+    parser
+        .set_language(&get_cpp_language())
+        .map_err(|e| format!("Failed to load C++ grammar: {}", e))?;
+
+    let tree = parser
+        .parse(source, None)
+        .ok_or_else(|| "Failed to parse C++ source".to_string())?;
+    let root = tree.root_node();
+
+    // Find the literal at the cursor position
+    let point = Point::new(line as usize, character as usize);
+    let target_node = root
+        .named_descendant_for_point_range(point, point)
+        .ok_or_else(|| "Could not find node at cursor position".to_string())?;
+
+    // Check if this is a literal node
+    let literal_value = match target_node.kind() {
+        "number_literal" | "true" | "false" => target_node
+            .utf8_text(source.as_bytes())
+            .map_err(|e| format!("Failed to get literal text: {}", e))?
+            .to_string(),
+        _ => {
+            return Err(format!(
+                "Cursor is not on a literal value. Extract constant only works on numbers and booleans. Found: {}",
+                target_node.kind()
+            ));
+        }
+    };
+
+    // Find all occurrences of this literal
+    let occurrence_ranges = find_literal_occurrences(source, &literal_value);
+
+    if occurrence_ranges.is_empty() {
+        return Err("No occurrences of literal found".to_string());
+    }
+
+    // Find the best insertion point (top of file or after includes)
+    let insertion_point = find_constant_insertion_point(root, source);
+
+    let mut edits = Vec::new();
+
+    // Determine the type for the constant declaration
+    let const_type = infer_cpp_constant_type(&literal_value);
+
+    // Create the constant declaration
+    let declaration = format!("constexpr {} {} = {};\n", const_type, name, literal_value);
+    edits.push(TextEdit {
+        file_path: None,
+        edit_type: EditType::Insert,
+        location: insertion_point.into(),
+        original_text: String::new(),
+        new_text: declaration,
+        priority: 100,
+        description: format!(
+            "Extract '{}' into constant '{}'",
+            literal_value, name
+        ),
+    });
+
+    // Replace all occurrences with the constant name
+    for (idx, occurrence_range) in occurrence_ranges.iter().enumerate() {
+        let priority = 90_u32.saturating_sub(idx as u32);
+        edits.push(TextEdit {
+            file_path: None,
+            edit_type: EditType::Replace,
+            location: (*occurrence_range).into(),
+            original_text: literal_value.clone(),
+            new_text: name.to_string(),
+            priority,
+            description: format!(
+                "Replace occurrence {} of literal with constant '{}'",
+                idx + 1,
+                name
+            ),
+        });
+    }
+
+    Ok(EditPlan {
+        source_file: file_path.to_string(),
+        edits,
+        dependency_updates: vec![],
+        validations: vec![ValidationRule {
+            rule_type: ValidationType::SyntaxCheck,
+            description: "Verify syntax after constant extraction".to_string(),
+            parameters: HashMap::new(),
+        }],
+        metadata: EditPlanMetadata {
+            intent_name: "extract_constant".to_string(),
+            intent_arguments: serde_json::json!({
+                "literal": literal_value,
+                "constantName": name,
+                "occurrences": occurrence_ranges.len(),
+            }),
+            created_at: chrono::Utc::now(),
+            complexity: (occurrence_ranges.len().min(10)) as u8,
+            impact_areas: vec!["constant_extraction".to_string()],
+            consolidation: None,
+        },
+    })
+}
+
 // Helper functions
+
+/// Validates that a constant name follows SCREAMING_SNAKE_CASE convention
+fn is_screaming_snake_case(name: &str) -> bool {
+    if name.is_empty() {
+        return false;
+    }
+
+    // Must not start or end with underscore
+    if name.starts_with('_') || name.ends_with('_') {
+        return false;
+    }
+
+    // Check each character - only uppercase, digits, and underscores allowed
+    for ch in name.chars() {
+        match ch {
+            'A'..='Z' | '0'..='9' | '_' => continue,
+            _ => return false,
+        }
+    }
+
+    // Must have at least one uppercase letter
+    name.chars().any(|c| c.is_ascii_uppercase())
+}
+
+/// Finds all occurrences of a literal value in the source code
+fn find_literal_occurrences(source: &str, literal_value: &str) -> Vec<CommonCodeRange> {
+    let mut occurrences = Vec::new();
+    let lines: Vec<&str> = source.lines().collect();
+
+    for (line_idx, line_text) in lines.iter().enumerate() {
+        let mut start_pos = 0;
+        while let Some(pos) = line_text[start_pos..].find(literal_value) {
+            let col = start_pos + pos;
+
+            // Validate that this is a valid literal location (not in string or comment)
+            if is_valid_literal_location(line_text, col, literal_value.len()) {
+                occurrences.push(CommonCodeRange::new(
+                    line_idx as u32 + 1,
+                    col as u32,
+                    line_idx as u32 + 1,
+                    (col + literal_value.len()) as u32,
+                ));
+            }
+
+            start_pos = col + 1;
+        }
+    }
+
+    occurrences
+}
+
+/// Checks if a position in the line is a valid literal location
+fn is_valid_literal_location(line: &str, pos: usize, len: usize) -> bool {
+    let before = &line[..pos];
+
+    // Count quotes to determine if we're inside a string
+    let single_quotes = before.matches('\'').count();
+    let double_quotes = before.matches('"').count();
+
+    // If odd number of quotes, we're inside a string
+    if single_quotes % 2 == 1 || double_quotes % 2 == 1 {
+        return false;
+    }
+
+    // Check if we're in a comment
+    if let Some(comment_pos) = line.find("//") {
+        if pos > comment_pos {
+            return false;
+        }
+    }
+
+    // For numeric literals, check word boundaries
+    if let Some(ch) = line[pos..].chars().next() {
+        if ch.is_ascii_digit() {
+            // Check character before
+            if pos > 0 {
+                if let Some(prev_ch) = before.chars().last() {
+                    if prev_ch.is_alphanumeric() || prev_ch == '_' {
+                        return false;
+                    }
+                }
+            }
+            // Check character after
+            if pos + len < line.len() {
+                if let Some(next_ch) = line[pos + len..].chars().next() {
+                    if next_ch.is_alphanumeric() || next_ch == '_' {
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+
+    true
+}
+
+/// Finds the best insertion point for a constant declaration
+fn find_constant_insertion_point(root: Node, _source: &str) -> CommonCodeRange {
+    let mut cursor = root.walk();
+    let mut last_include_line = 0u32;
+
+    // Find the last #include or using directive
+    for node in root.children(&mut cursor) {
+        if node.kind() == "preproc_include" || node.kind() == "using_declaration" {
+            last_include_line = node.end_position().row as u32 + 1;
+        }
+    }
+
+    // Insert after includes or at the top
+    let insertion_line = if last_include_line > 0 {
+        last_include_line + 1
+    } else {
+        0
+    };
+
+    CommonCodeRange::new(insertion_line, 0, insertion_line, 0)
+}
+
+/// Infers the C++ type for a constant based on its literal value
+fn infer_cpp_constant_type(literal_value: &str) -> &'static str {
+    if literal_value == "true" || literal_value == "false" {
+        "bool"
+    } else if literal_value.contains('.') || literal_value.contains('e') || literal_value.contains('E') {
+        "double"
+    } else {
+        "int"
+    }
+}
 
 fn find_node_at_point<'a>(node: Node<'a>, point: Point) -> Option<Node<'a>> {
     node.named_descendant_for_point_range(point, point)
@@ -841,5 +1106,126 @@ int main() {
         // Try to inline non-existent variable
         let result = plan_inline_variable_impl(source, 3, 5, "test.cpp");
         assert!(result.is_err());
+    }
+
+    // ========== Extract Constant Tests (4 tests) ==========
+
+    #[test]
+    fn test_plan_extract_constant_valid_number() {
+        let source = r#"
+int calculate() {
+    int x = 42;
+    int y = 42;
+    return x + y;
+}
+"#;
+        let plan = plan_extract_constant_impl(source, 2, 12, "MAGIC_NUMBER", "test.cpp").unwrap();
+
+        // Should have 1 insert edit + 2 replace edits
+        assert_eq!(plan.edits.len(), 3);
+
+        // Check the declaration edit
+        let insert_edit = &plan.edits[0];
+        assert_eq!(insert_edit.edit_type, EditType::Insert);
+        assert!(insert_edit.new_text.contains("constexpr int MAGIC_NUMBER = 42;"));
+
+        // Check replace edits
+        let replace_edits: Vec<_> = plan
+            .edits
+            .iter()
+            .filter(|e| e.edit_type == EditType::Replace)
+            .collect();
+        assert_eq!(replace_edits.len(), 2);
+        assert_eq!(replace_edits[0].new_text, "MAGIC_NUMBER");
+
+        // Verify metadata
+        assert_eq!(plan.metadata.intent_name, "extract_constant");
+    }
+
+    #[test]
+    fn test_plan_extract_constant_boolean() {
+        let source = r#"
+void process() {
+    bool flag1 = true;
+    bool flag2 = true;
+    if (true) {
+        return;
+    }
+}
+"#;
+        let plan = plan_extract_constant_impl(source, 2, 17, "DEFAULT_FLAG", "test.cpp").unwrap();
+
+        assert_eq!(plan.edits.len(), 4); // 1 insert + 3 replace
+
+        let insert_edit = &plan.edits[0];
+        assert!(insert_edit.new_text.contains("constexpr bool DEFAULT_FLAG = true;"));
+    }
+
+    #[test]
+    fn test_plan_extract_constant_double() {
+        let source = r#"
+double compute() {
+    return 3.14 * 2.0;
+}
+"#;
+        let plan = plan_extract_constant_impl(source, 2, 11, "PI", "test.cpp").unwrap();
+
+        assert_eq!(plan.edits.len(), 2); // 1 insert + 1 replace
+
+        let insert_edit = &plan.edits[0];
+        assert!(insert_edit.new_text.contains("constexpr double PI = 3.14;"));
+    }
+
+    #[test]
+    fn test_plan_extract_constant_invalid_name() {
+        let source = r#"
+int x = 42;
+"#;
+        // Try with lowercase name
+        let result = plan_extract_constant_impl(source, 1, 8, "magic_number", "test.cpp");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("SCREAMING_SNAKE_CASE"));
+
+        // Try with name starting with underscore
+        let result2 = plan_extract_constant_impl(source, 1, 8, "_MAGIC", "test.cpp");
+        assert!(result2.is_err());
+
+        // Try with name ending with underscore
+        let result3 = plan_extract_constant_impl(source, 1, 8, "MAGIC_", "test.cpp");
+        assert!(result3.is_err());
+    }
+
+    // ========== Helper Function Tests (3 tests) ==========
+
+    #[test]
+    fn test_is_screaming_snake_case_valid() {
+        assert!(is_screaming_snake_case("TAX_RATE"));
+        assert!(is_screaming_snake_case("MAX_VALUE"));
+        assert!(is_screaming_snake_case("A"));
+        assert!(is_screaming_snake_case("PI"));
+        assert!(is_screaming_snake_case("DB_TIMEOUT_MS"));
+        assert!(is_screaming_snake_case("API_KEY_V2"));
+    }
+
+    #[test]
+    fn test_is_screaming_snake_case_invalid() {
+        assert!(!is_screaming_snake_case(""));
+        assert!(!is_screaming_snake_case("_TAX_RATE"));
+        assert!(!is_screaming_snake_case("TAX_RATE_"));
+        assert!(!is_screaming_snake_case("tax_rate"));
+        assert!(!is_screaming_snake_case("TaxRate"));
+        assert!(!is_screaming_snake_case("tax-rate"));
+        assert!(!is_screaming_snake_case("123"));
+    }
+
+    #[test]
+    fn test_find_literal_occurrences() {
+        let source = r#"int x = 42;
+int y = 42;
+int z = 100;"#;
+        let occurrences = find_literal_occurrences(source, "42");
+        assert_eq!(occurrences.len(), 2);
+        assert_eq!(occurrences[0].start_line, 1);
+        assert_eq!(occurrences[1].start_line, 2);
     }
 }
