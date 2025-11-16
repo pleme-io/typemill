@@ -250,6 +250,22 @@ impl RefactoringProvider for GoPlugin {
             file_path,
         )
     }
+
+    // extract_constant
+    fn supports_extract_constant(&self) -> bool {
+        true
+    }
+
+    async fn plan_extract_constant(
+        &self,
+        source: &str,
+        line: u32,
+        character: u32,
+        constant_name: &str,
+        file_path: &str,
+    ) -> PluginResult<EditPlan> {
+        refactoring::plan_extract_constant(source, line, character, constant_name, file_path)
+    }
 }
 
 impl mill_plugin_api::AnalysisMetadata for GoPlugin {
