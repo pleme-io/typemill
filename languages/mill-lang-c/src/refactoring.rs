@@ -20,26 +20,14 @@ use mill_plugin_api::PluginResult;
 use mill_foundation::protocol::{
     EditLocation, EditPlan, EditPlanMetadata, EditType, TextEdit, ValidationRule, ValidationType,
 };
-use mill_lang_common::{find_literal_occurrences, is_escaped, is_screaming_snake_case, CodeRange};
+use mill_lang_common::{
+    find_literal_occurrences, is_escaped, is_screaming_snake_case, CodeRange,
+    ExtractConstantAnalysis,
+};
 use serde_json::json;
 use std::collections::HashMap;
 
 use crate::constants::INT_VAR_DECL_PATTERN;
-
-/// Analysis result for extract constant refactoring (C)
-#[derive(Debug, Clone)]
-pub struct ExtractConstantAnalysis {
-    /// The literal value to extract
-    pub literal_value: String,
-    /// All locations where this same literal value appears
-    pub occurrence_ranges: Vec<CodeRange>,
-    /// Whether this is a valid literal to extract
-    pub is_valid_literal: bool,
-    /// Blocking reasons if extraction is not valid
-    pub blocking_reasons: Vec<String>,
-    /// Where to insert the constant declaration
-    pub insertion_point: CodeRange,
-}
 
 /// Analyze code selection for function extraction (C)
 pub fn plan_extract_function(

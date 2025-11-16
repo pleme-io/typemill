@@ -11,7 +11,7 @@ use mill_foundation::protocol::{
 use mill_lang_common::{
     refactoring::find_literal_occurrences,
     validation::{count_unescaped_quotes, is_escaped, is_screaming_snake_case},
-    CodeRange,
+    CodeRange, ExtractConstantAnalysis,
 };
 use tree_sitter::{Node, Parser, Point, Query, QueryCursor, StreamingIterator};
 
@@ -445,21 +445,6 @@ fn extract_csharp_var_info<'a>(
 // ============================================================================
 // Extract Constant Refactoring
 // ============================================================================
-
-/// Analysis result for extract constant refactoring (C#)
-#[derive(Debug, Clone)]
-pub struct ExtractConstantAnalysis {
-    /// The literal value to extract
-    pub literal_value: String,
-    /// All locations where this same literal value appears
-    pub occurrence_ranges: Vec<CodeRange>,
-    /// Whether this is a valid literal to extract
-    pub is_valid_literal: bool,
-    /// Blocking reasons if extraction is not valid
-    pub blocking_reasons: Vec<String>,
-    /// Where to insert the constant declaration
-    pub insertion_point: CodeRange,
-}
 
 /// Analyzes source code to extract information about a literal value at a cursor position.
 ///

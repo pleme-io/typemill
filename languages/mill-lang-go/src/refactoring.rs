@@ -6,7 +6,10 @@ use lazy_static::lazy_static;
 use mill_foundation::protocol::{
     EditLocation, EditPlan, EditPlanMetadata, EditType, TextEdit, ValidationRule, ValidationType,
 };
-use mill_lang_common::{find_literal_occurrences, is_screaming_snake_case, CodeRange, LineExtractor};
+use mill_lang_common::{
+    find_literal_occurrences, is_screaming_snake_case, CodeRange, ExtractConstantAnalysis,
+    LineExtractor,
+};
 use mill_plugin_api::{PluginApiError, PluginResult};
 use std::collections::HashMap;
 
@@ -202,21 +205,6 @@ lazy_static! {
     static ref VAR_PATTERN: regex::Regex =
         regex::Regex::new(r"(?:var\s+)?(\w+)\s*:?=\s*(.+?)(?:$)")
             .expect("Invalid regex for Go variable parsing");
-}
-
-/// Analysis result for extract constant refactoring
-#[derive(Debug, Clone)]
-pub struct ExtractConstantAnalysis {
-    /// The literal value to extract
-    pub literal_value: String,
-    /// All locations where this same literal value appears
-    pub occurrence_ranges: Vec<CodeRange>,
-    /// Whether this is a valid literal to extract
-    pub is_valid_literal: bool,
-    /// Blocking reasons if extraction is not valid
-    pub blocking_reasons: Vec<String>,
-    /// Where to insert the constant declaration
-    pub insertion_point: CodeRange,
 }
 
 /// Plan inline variable refactoring for Go

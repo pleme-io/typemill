@@ -150,6 +150,56 @@ pub struct ExtractVariableAnalysis {
     pub scope_type: String,
 }
 
+/// Analysis result for extract constant refactoring
+///
+/// This struct represents the analysis outcome when attempting to extract a literal value
+/// into a named constant. It is used across all language plugins to provide consistent
+/// analysis for the extract constant refactoring operation.
+///
+/// The analysis identifies:
+/// - The literal value to be extracted (e.g., `42`, `"hello"`, `true`)
+/// - All locations where this literal appears in the code
+/// - Whether extraction is valid (considering context like strings, comments, etc.)
+/// - Where the constant declaration should be inserted
+/// - Any blocking issues that prevent extraction
+///
+/// # Example
+/// ```rust,ignore
+/// // For source code:
+/// // let x = 42;
+/// // let y = 42;
+/// // let msg = "The answer is 42";
+///
+/// ExtractConstantAnalysis {
+///     literal_value: "42".to_string(),
+///     occurrence_ranges: vec![
+///         CodeRange::new(0, 8, 0, 10),  // First 42
+///         CodeRange::new(1, 8, 1, 10),  // Second 42
+///         // Note: Third 42 in string is not included
+///     ],
+///     is_valid_literal: true,
+///     blocking_reasons: vec![],
+///     insertion_point: CodeRange::new(0, 0, 0, 0),
+/// }
+/// ```
+#[derive(Debug, Clone)]
+pub struct ExtractConstantAnalysis {
+    /// The literal value to extract (e.g., `42`, `"hello"`, `true`)
+    pub literal_value: String,
+    /// All locations where this same literal value appears in valid contexts
+    /// (excludes occurrences in strings, comments, or other invalid locations)
+    pub occurrence_ranges: Vec<CodeRange>,
+    /// Whether this is a valid literal to extract
+    /// (false if it's in a string, comment, or other invalid context)
+    pub is_valid_literal: bool,
+    /// Blocking reasons if extraction is not valid
+    /// (e.g., "Literal is inside a string", "No valid occurrences found")
+    pub blocking_reasons: Vec<String>,
+    /// Where to insert the constant declaration
+    /// (typically at the top of the current scope or file)
+    pub insertion_point: CodeRange,
+}
+
 /// Helper utilities for working with source code lines
 pub struct LineExtractor;
 

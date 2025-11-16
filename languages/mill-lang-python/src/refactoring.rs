@@ -16,7 +16,8 @@ use mill_foundation::protocol::{
 };
 use mill_lang_common::{
     count_unescaped_quotes, find_literal_occurrences, is_screaming_snake_case,
-    ExtractVariableAnalysis, ExtractableFunction, InlineVariableAnalysis, LineExtractor,
+    ExtractConstantAnalysis, ExtractVariableAnalysis, ExtractableFunction,
+    InlineVariableAnalysis, LineExtractor,
 };
 use std::collections::HashMap;
 
@@ -497,21 +498,6 @@ fn suggest_variable_name(expression: &str) -> String {
         return "result".to_string();
     }
     "extracted".to_string()
-}
-
-/// Analysis result for extract constant refactoring (Python)
-#[derive(Debug, Clone)]
-pub struct ExtractConstantAnalysis {
-    /// The literal value to extract
-    pub literal_value: String,
-    /// All locations where this same literal value appears
-    pub occurrence_ranges: Vec<CodeRange>,
-    /// Whether this is a valid literal to extract
-    pub is_valid_literal: bool,
-    /// Blocking reasons if extraction is not valid
-    pub blocking_reasons: Vec<String>,
-    /// Where to insert the constant declaration
-    pub insertion_point: CodeRange,
 }
 
 /// Analyzes source code to extract information about a literal value at a cursor position.

@@ -12,6 +12,7 @@ use mill_lang_common::find_literal_occurrences;
 use mill_lang_common::is_escaped;
 use mill_lang_common::is_screaming_snake_case;
 use mill_lang_common::refactoring::CodeRange as CommonCodeRange;
+use mill_lang_common::ExtractConstantAnalysis;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tree_sitter::{Node, Parser, Point, Query, QueryCursor, StreamingIterator};
@@ -412,21 +413,6 @@ fn extract_java_var_info<'a>(
     Ok((name, value, declaration_node))
 }
 
-/// Analysis result for extract constant refactoring (Java)
-#[derive(Debug, Clone)]
-pub struct ExtractConstantAnalysis {
-    /// The literal value to extract
-    pub literal_value: String,
-    /// All locations where this same literal value appears
-    pub occurrence_ranges: Vec<CodeRange>,
-    /// Whether this is a valid literal to extract
-    pub is_valid_literal: bool,
-    /// Blocking reasons if extraction is not valid
-    pub blocking_reasons: Vec<String>,
-    /// Where to insert the constant declaration
-    pub insertion_point: CodeRange,
-}
-
 /// Analyzes source code to extract information about a literal value at a cursor position.
 ///
 /// This analysis function identifies literals in Java source code and gathers information for
@@ -474,15 +460,7 @@ pub(crate) fn analyze_extract_constant(
     };
 
     // Find all occurrences of this literal value in the source
-    let occurrence_ranges = find_literal_occurrences(source, &literal_value, is_valid_java_literal_location)
-        .into_iter()
-        .map(|r| CodeRange {
-            start_line: r.start_line,
-            start_col: r.start_col,
-            end_line: r.end_line,
-            end_col: r.end_col,
-        })
-        .collect();
+    let occurrence_ranges = find_literal_occurrences(source, &literal_value, is_valid_java_literal_location);
 
     // Insertion point: after class declaration, at class level
     let insertion_point = find_java_insertion_point_for_constant(source)?;
@@ -492,7 +470,12 @@ pub(crate) fn analyze_extract_constant(
         occurrence_ranges,
         is_valid_literal,
         blocking_reasons,
-        insertion_point,
+        insertion_point: CommonCodeRange {
+            start_line: insertion_point.start_line,
+            start_col: insertion_point.start_col,
+            end_line: insertion_point.end_line,
+            end_col: insertion_point.end_col,
+        },
     })
 }
 
