@@ -2,6 +2,7 @@ use lazy_static::lazy_static;
 use mill_foundation::protocol::{
     EditPlan, EditPlanMetadata, EditType, TextEdit, ValidationRule, ValidationType,
 };
+use mill_lang_common::{count_unescaped_quotes, is_escaped, is_screaming_snake_case};
 use mill_plugin_api::{PluginApiError, PluginResult};
 use regex::Regex;
 
@@ -387,29 +388,6 @@ pub fn plan_extract_constant(
     })
 }
 
-/// Validates that a constant name follows the SCREAMING_SNAKE_CASE convention.
-fn is_screaming_snake_case(name: &str) -> bool {
-    if name.is_empty() {
-        return false;
-    }
-
-    // Must not start or end with underscore
-    if name.starts_with('_') || name.ends_with('_') {
-        return false;
-    }
-
-    // Check each character - only uppercase, digits, and underscores allowed
-    for ch in name.chars() {
-        match ch {
-            'A'..='Z' | '0'..='9' | '_' => continue,
-            _ => return false,
-        }
-    }
-
-    // Must have at least one uppercase letter
-    name.chars().any(|c| c.is_ascii_uppercase())
-}
-
 /// Finds a Swift literal at a given position in a line of code.
 fn find_swift_literal_at_position(line_text: &str, col: usize) -> Option<(String, (u32, u32))> {
     // Check for numeric literal
@@ -431,36 +409,91 @@ fn find_swift_literal_at_position(line_text: &str, col: usize) -> Option<(String
 }
 
 /// Find numeric literal at cursor position
+/// Handles: integers, floats, negative numbers, hex (0xFF), binary (0b101), octal (0o77)
 fn find_swift_numeric_literal(line_text: &str, col: usize) -> Option<(String, u32, u32)> {
     if col >= line_text.len() {
         return None;
     }
 
-    // Find the start of the number (including negative sign)
+    let chars: Vec<char> = line_text.chars().collect();
+
+    // Handle the case where cursor is right after a number or on a hex digit
     let mut start = col;
+    if col > 0 {
+        if let Some(&ch) = chars.get(col) {
+            // If not on a numeric or hex char, try the previous position
+            if !is_numeric_char(Some(ch)) && !ch.is_ascii_hexdigit() {
+                start = col.saturating_sub(1);
+            }
+        }
+    }
+
+    // Scan backwards to find the start of the number
     while start > 0 {
-        let ch = line_text.chars().nth(start - 1)?;
-        if ch.is_ascii_digit() || ch == '.' || (start == col && ch == '-') {
-            start -= 1;
+        let prev_char = chars.get(start.saturating_sub(1));
+        if let Some(&ch) = prev_char {
+            if is_numeric_char(Some(ch)) || ch.is_ascii_hexdigit() {
+                start -= 1;
+            } else if ch == 'x' || ch == 'X' || ch == 'b' || ch == 'B' || ch == 'o' || ch == 'O' {
+                // Might be part of 0x, 0b, 0o prefix - keep going
+                start -= 1;
+            } else if ch == '-' || ch == '+' {
+                // Check if this is a sign (not an operator)
+                if start == 1 {
+                    start -= 1;
+                    break;
+                } else if let Some(&before_sign) = chars.get(start.saturating_sub(2)) {
+                    if !before_sign.is_alphanumeric() && before_sign != '_' && before_sign != ')' && before_sign != ']' {
+                        start -= 1;
+                        break;
+                    }
+                }
+                break;
+            } else {
+                break;
+            }
         } else {
             break;
         }
     }
 
-    // Find the end of the number
-    let mut end = col;
-    while end < line_text.len() {
-        let ch = line_text.chars().nth(end)?;
-        if ch.is_ascii_digit() || ch == '.' {
-            end += 1;
+    // Scan forward to find the end
+    let mut end = start;
+
+    // Check for hex (0x), binary (0b), or octal (0o) prefix
+    if end < chars.len() && chars[end] == '0' && end + 1 < chars.len() {
+        let next = chars[end + 1].to_ascii_lowercase();
+        if next == 'x' {
+            // Hexadecimal: 0xFF, 0x1A2B
+            end += 2;
+            while end < chars.len() && (chars[end].is_ascii_hexdigit() || chars[end] == '_') {
+                end += 1;
+            }
+        } else if next == 'b' {
+            // Binary: 0b1010, 0b1111_0000
+            end += 2;
+            while end < chars.len() && (chars[end] == '0' || chars[end] == '1' || chars[end] == '_') {
+                end += 1;
+            }
+        } else if next == 'o' {
+            // Octal: 0o77, 0o755
+            end += 2;
+            while end < chars.len() && ((chars[end] >= '0' && chars[end] <= '7') || chars[end] == '_') {
+                end += 1;
+            }
         } else {
-            break;
+            // Regular number
+            end = scan_regular_number(line_text, start)?;
         }
+    } else {
+        // Regular number (including negative, floats, scientific notation)
+        end = scan_regular_number(line_text, start)?;
     }
 
     if start < end && end <= line_text.len() {
         let text = &line_text[start..end];
-        if text.chars().any(|c| c.is_ascii_digit()) && !text.starts_with('.') && !text.ends_with('.') {
+        // Validate that this is actually a valid number
+        if is_valid_number(text) {
             return Some((text.to_string(), start as u32, end as u32));
         }
     }
@@ -468,23 +501,122 @@ fn find_swift_numeric_literal(line_text: &str, col: usize) -> Option<(String, u3
     None
 }
 
-/// Find string literal at cursor position
-fn find_swift_string_literal(line_text: &str, col: usize) -> Option<(String, u32, u32)> {
-    if col >= line_text.len() {
+/// Helper to check if a character is part of a numeric literal
+fn is_numeric_char(ch: Option<char>) -> bool {
+    match ch {
+        Some(c) => c.is_ascii_digit() || c == '.' || c == '_',
+        None => false,
+    }
+}
+
+/// Scans forward from a position to find the end of a regular number (not hex/binary/octal)
+/// Handles: integers, floats, scientific notation (e.g., 1.5e-10, 2E+5)
+fn scan_regular_number(line_text: &str, start: usize) -> Option<usize> {
+    let chars: Vec<char> = line_text.chars().collect();
+    let mut pos = start;
+
+    // Skip optional sign
+    if pos < chars.len() && (chars[pos] == '-' || chars[pos] == '+') {
+        pos += 1;
+    }
+
+    // Scan digits before decimal point
+    let digit_start = pos;
+    while pos < chars.len() && (chars[pos].is_ascii_digit() || chars[pos] == '_') {
+        pos += 1;
+    }
+
+    // Handle decimal point
+    if pos < chars.len() && chars[pos] == '.' {
+        pos += 1;
+        // Scan digits after decimal point
+        while pos < chars.len() && (chars[pos].is_ascii_digit() || chars[pos] == '_') {
+            pos += 1;
+        }
+    }
+
+    // Must have at least one digit
+    if pos == digit_start || (pos == digit_start + 1 && chars.get(digit_start) == Some(&'.')) {
         return None;
     }
 
-    // Look for opening quote before or at cursor
-    for (i, ch) in line_text[..=col].char_indices().rev() {
-        if ch == '"' {
-            // Find closing quote after cursor
-            for (j, ch2) in line_text[col..].char_indices() {
-                if ch2 == '"' && col + j > i {
-                    let end = col + j + 1;
-                    return Some((line_text[i..end].to_string(), i as u32, end as u32));
-                }
+    // Handle scientific notation (e or E)
+    if pos < chars.len() {
+        let ch = chars[pos].to_ascii_lowercase();
+        if ch == 'e' {
+            pos += 1;
+            // Optional sign after 'e'
+            if pos < chars.len() && (chars[pos] == '+' || chars[pos] == '-') {
+                pos += 1;
             }
+            // Must have digits in exponent
+            let exp_start = pos;
+            while pos < chars.len() && (chars[pos].is_ascii_digit() || chars[pos] == '_') {
+                pos += 1;
+            }
+            if pos == exp_start {
+                // Invalid: 'e' without exponent
+                return None;
+            }
+        }
+    }
+
+    Some(pos)
+}
+
+/// Validates that a string represents a valid Swift number
+fn is_valid_number(text: &str) -> bool {
+    if text.is_empty() {
+        return false;
+    }
+
+    // Remove underscores (numeric separators)
+    let cleaned = text.replace('_', "");
+
+    // Check for hex, binary, octal
+    if cleaned.starts_with("0x") || cleaned.starts_with("0X") {
+        return cleaned.len() > 2 && cleaned[2..].chars().all(|c| c.is_ascii_hexdigit());
+    }
+    if cleaned.starts_with("0b") || cleaned.starts_with("0B") {
+        return cleaned.len() > 2 && cleaned[2..].chars().all(|c| c == '0' || c == '1');
+    }
+    if cleaned.starts_with("0o") || cleaned.starts_with("0O") {
+        return cleaned.len() > 2 && cleaned[2..].chars().all(|c| c >= '0' && c <= '7');
+    }
+
+    // For regular numbers, try parsing as f64
+    // This handles integers, floats, scientific notation, and negative numbers
+    cleaned.parse::<f64>().is_ok()
+}
+
+/// Find string literal at cursor position
+/// Properly handles escaped quotes (e.g., "He said \"hi\"")
+fn find_swift_string_literal(line_text: &str, col: usize) -> Option<(String, u32, u32)> {
+    if col > line_text.len() {
+        return None;
+    }
+
+    // Look for opening quote before cursor - must be unescaped
+    let mut opening_quote_pos: Option<usize> = None;
+
+    for (i, ch) in line_text[..=col.min(line_text.len().saturating_sub(1))].char_indices().rev() {
+        if ch == '"' && !is_escaped(line_text, i) {
+            opening_quote_pos = Some(i);
             break;
+        }
+    }
+
+    if let Some(start_pos) = opening_quote_pos {
+        // Find the matching closing quote after cursor, skipping escaped quotes
+        let mut pos = col;
+        let chars: Vec<char> = line_text.chars().collect();
+
+        while pos < chars.len() {
+            if chars[pos] == '"' && !is_escaped(line_text, pos) {
+                // Found unescaped closing quote
+                return Some((line_text[start_pos..pos + 1].to_string(), start_pos as u32, (pos + 1) as u32));
+            }
+            pos += 1;
         }
     }
 
@@ -556,20 +688,57 @@ fn find_swift_literal_occurrences(source: &str, literal_value: &str) -> Vec<(u32
 }
 
 /// Validates whether a position in source code is a valid location for a literal.
+/// A position is considered valid if it's not inside a string literal or comment.
+///
+/// # Algorithm
+/// 1. Count unescaped quotes before the position to determine if we're inside a string
+/// 2. If an odd number of unescaped quotes appear before the position, we're inside a string literal
+/// 3. Check for `//` single-line comments; any position after the comment marker is invalid
+/// 4. Check for `/* */` block comments; any position inside a block comment is invalid
+/// 5. Return true only if outside both strings and comments
 fn is_valid_swift_literal_location(line: &str, pos: usize, _len: usize) -> bool {
-    // Count quotes before position to determine if we're inside a string literal
-    let before = &line[..pos];
-    let double_quotes = before.matches('"').count();
+    if pos > line.len() {
+        return false;
+    }
 
-    // If odd number of quotes, we're inside a string
+    // Count unescaped quotes before position to determine if we're inside a string literal.
+    // Each unescaped quote toggles the "inside string" state. Odd count = inside string, even = outside.
+    let before = &line[..pos];
+    let double_quotes = count_unescaped_quotes(before, '"');
+
+    // If odd number of unescaped quotes appear before the position, we're inside a string literal
     if double_quotes % 2 == 1 {
         return false;
     }
 
-    // Check for single-line comment marker
+    // Check for single-line comment marker (//)
     if let Some(comment_pos) = line.find("//") {
-        if pos > comment_pos {
+        // Make sure the // is not inside a string
+        let quotes_before_comment = count_unescaped_quotes(&line[..comment_pos], '"');
+        if quotes_before_comment % 2 == 0 && pos > comment_pos {
             return false;
+        }
+    }
+
+    // Check for block comment markers (/* */)
+    // Look for opening /* before position
+    if let Some(block_start) = line.find("/*") {
+        let quotes_before_block_start = count_unescaped_quotes(&line[..block_start], '"');
+        // Only consider it a comment if not inside a string
+        if quotes_before_block_start % 2 == 0 {
+            // Check if there's a closing */ after the opening /*
+            if let Some(block_end_relative) = line[block_start + 2..].find("*/") {
+                let block_end = block_start + 2 + block_end_relative + 2;
+                // If position is between /* and */, it's inside a block comment
+                if pos > block_start && pos < block_end {
+                    return false;
+                }
+            } else {
+                // No closing */ found, so everything after /* is a comment
+                if pos > block_start {
+                    return false;
+                }
+            }
         }
     }
 

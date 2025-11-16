@@ -1244,6 +1244,153 @@ import SwiftUI
         assert!(err_msg.contains("SCREAMING_SNAKE_CASE"));
     }
 
+    // Edge Case Tests for Extract Constant (10+ new tests)
+
+    #[tokio::test]
+    async fn test_extract_constant_negative_number() {
+        let plugin = SwiftPlugin::new();
+        let provider = plugin.refactoring_provider().expect("Should have refactoring");
+        let source = "let x = -42\n";
+        let result = provider.plan_extract_constant(source, 0, 9, "NEGATIVE_VALUE", "test.swift").await;
+        assert!(result.is_ok(), "Should extract negative number: {:?}", result);
+        let plan = result.unwrap();
+        assert!(plan.edits[0].new_text.contains("-42"));
+    }
+
+    #[tokio::test]
+    async fn test_extract_constant_hex_literal() {
+        let plugin = SwiftPlugin::new();
+        let provider = plugin.refactoring_provider().expect("Should have refactoring");
+        let source = "let color = 0xFF00FF\n";
+        let result = provider.plan_extract_constant(source, 0, 15, "MAGENTA_COLOR", "test.swift").await;
+        assert!(result.is_ok(), "Should extract hex literal: {:?}", result);
+        let plan = result.unwrap();
+        assert!(plan.edits[0].new_text.contains("0xFF00FF"));
+    }
+
+    #[tokio::test]
+    async fn test_extract_constant_binary_literal() {
+        let plugin = SwiftPlugin::new();
+        let provider = plugin.refactoring_provider().expect("Should have refactoring");
+        let source = "let flags = 0b1010\n";
+        let result = provider.plan_extract_constant(source, 0, 14, "FLAG_MASK", "test.swift").await;
+        assert!(result.is_ok(), "Should extract binary literal: {:?}", result);
+        let plan = result.unwrap();
+        assert!(plan.edits[0].new_text.contains("0b1010"));
+    }
+
+    #[tokio::test]
+    async fn test_extract_constant_octal_literal() {
+        let plugin = SwiftPlugin::new();
+        let provider = plugin.refactoring_provider().expect("Should have refactoring");
+        let source = "let permissions = 0o755\n";
+        let result = provider.plan_extract_constant(source, 0, 20, "FILE_PERMISSIONS", "test.swift").await;
+        assert!(result.is_ok(), "Should extract octal literal: {:?}", result);
+        let plan = result.unwrap();
+        assert!(plan.edits[0].new_text.contains("0o755"));
+    }
+
+    #[tokio::test]
+    async fn test_extract_constant_scientific_notation() {
+        let plugin = SwiftPlugin::new();
+        let provider = plugin.refactoring_provider().expect("Should have refactoring");
+        let source = "let small = 1e-5\n";
+        let result = provider.plan_extract_constant(source, 0, 13, "EPSILON", "test.swift").await;
+        assert!(result.is_ok(), "Should extract scientific notation: {:?}", result);
+        let plan = result.unwrap();
+        assert!(plan.edits[0].new_text.contains("1e-5") || plan.edits[0].new_text.contains("EPSILON"));
+    }
+
+    #[tokio::test]
+    async fn test_extract_constant_escaped_quotes() {
+        let plugin = SwiftPlugin::new();
+        let provider = plugin.refactoring_provider().expect("Should have refactoring");
+        let source = r#"let msg = "He said \"hello\""
+let greeting = "He said \"hello\""
+"#;
+        let result = provider.plan_extract_constant(source, 0, 15, "GREETING", "test.swift").await;
+        assert!(result.is_ok(), "Should extract string with escaped quotes: {:?}", result);
+        let plan = result.unwrap();
+        // Should find 2 occurrences
+        assert_eq!(plan.edits.len(), 3, "Should have 1 insert + 2 replace edits");
+    }
+
+    #[tokio::test]
+    async fn test_extract_constant_skip_string_content() {
+        let plugin = SwiftPlugin::new();
+        let provider = plugin.refactoring_provider().expect("Should have refactoring");
+        let source = r#"let rate = 0.08
+let description = "Rate is 0.08"
+let tax = 0.08
+"#;
+        let result = provider.plan_extract_constant(source, 0, 11, "TAX_RATE", "test.swift").await;
+        assert!(result.is_ok());
+        let plan = result.unwrap();
+        // Should find 2 occurrences (lines 0 and 2), not the one inside the string
+        assert_eq!(plan.edits.len(), 3, "Should have 1 insert + 2 replace edits (skip string content)");
+    }
+
+    #[tokio::test]
+    async fn test_extract_constant_skip_single_line_comment() {
+        let plugin = SwiftPlugin::new();
+        let provider = plugin.refactoring_provider().expect("Should have refactoring");
+        let source = "let x = 42\n// value is 42\nlet y = 42\n";
+        let result = provider.plan_extract_constant(source, 0, 8, "ANSWER", "test.swift").await;
+        assert!(result.is_ok());
+        let plan = result.unwrap();
+        // Should find 2 occurrences (lines 0 and 2), not the one in the comment
+        assert_eq!(plan.edits.len(), 3, "Should skip literal in comment");
+    }
+
+    #[tokio::test]
+    async fn test_extract_constant_skip_block_comment() {
+        let plugin = SwiftPlugin::new();
+        let provider = plugin.refactoring_provider().expect("Should have refactoring");
+        let source = "let x = 42\n/* comment with 42 */\nlet y = 42\n";
+        let result = provider.plan_extract_constant(source, 0, 8, "VALUE", "test.swift").await;
+        assert!(result.is_ok());
+        let plan = result.unwrap();
+        // Should find 2 occurrences (lines 0 and 2), not the one in the block comment
+        assert_eq!(plan.edits.len(), 3, "Should skip literal in block comment");
+    }
+
+    #[tokio::test]
+    async fn test_extract_constant_inline_block_comment() {
+        let plugin = SwiftPlugin::new();
+        let provider = plugin.refactoring_provider().expect("Should have refactoring");
+        let source = "let x = 42 /* inline comment with 42 */ + 42\n";
+        let result = provider.plan_extract_constant(source, 0, 8, "NUMBER", "test.swift").await;
+        assert!(result.is_ok());
+        let plan = result.unwrap();
+        // Should find 2 occurrences (before and after comment), not the one inside
+        assert_eq!(plan.edits.len(), 3, "Should skip literal in inline block comment");
+    }
+
+    #[tokio::test]
+    async fn test_extract_constant_float_with_exponent() {
+        let plugin = SwiftPlugin::new();
+        let provider = plugin.refactoring_provider().expect("Should have refactoring");
+        let source = "let big = 2.5E10\n";
+        let result = provider.plan_extract_constant(source, 0, 12, "BIG_VALUE", "test.swift").await;
+        assert!(result.is_ok(), "Should extract float with uppercase E exponent: {:?}", result);
+    }
+
+    #[tokio::test]
+    async fn test_is_valid_literal_location_escaped_quotes() {
+        // This test verifies the is_escaped helper works correctly
+        // Even though it's internal, we test it via the public API
+        let plugin = SwiftPlugin::new();
+        let provider = plugin.refactoring_provider().expect("Should have refactoring");
+        let source = r#"let s = "He said \"42\""
+let x = 42
+"#;
+        let result = provider.plan_extract_constant(source, 1, 8, "VALUE", "test.swift").await;
+        assert!(result.is_ok());
+        let plan = result.unwrap();
+        // Should only find the 42 on line 1, not inside the escaped string on line 0
+        assert_eq!(plan.edits.len(), 2, "Should find only valid occurrences");
+    }
+
     // ========================================================================
     // WORKSPACE SUPPORT TESTS (10 tests)
     // ========================================================================
