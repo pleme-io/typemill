@@ -74,6 +74,90 @@ pub fn extract_package_name(path: &str) -> String {
     path.split('/').next().unwrap_or(path).to_string()
 }
 
+/// Split a qualified name and take the first N segments
+///
+/// This utility helps extract prefixes from qualified names using
+/// language-specific delimiters:
+/// - Java: `org.junit.jupiter.api.Test` with `.` delimiter
+/// - Rust: `std::collections::HashMap` with `::` delimiter
+/// - Go: `github.com/user/repo/pkg` with `/` delimiter
+///
+/// # Arguments
+/// * `name` - The qualified name to split
+/// * `delimiter` - The delimiter character(s) to split on
+/// * `segments` - Number of segments to take from the beginning
+///
+/// # Returns
+/// `Some(String)` with the prefix if enough segments exist, `None` otherwise
+///
+/// # Example
+///
+/// ```rust
+/// use mill_lang_common::import_parsing::split_qualified_name_prefix;
+///
+/// // Java: Extract top-level package
+/// assert_eq!(
+///     split_qualified_name_prefix("org.junit.api.Test", ".", 2),
+///     Some("org.junit".to_string())
+/// );
+///
+/// // Rust: Extract root module
+/// assert_eq!(
+///     split_qualified_name_prefix("std::collections::HashMap", "::", 1),
+///     Some("std".to_string())
+/// );
+///
+/// // Go: Extract domain + org
+/// assert_eq!(
+///     split_qualified_name_prefix("github.com/user/repo", "/", 2),
+///     Some("github.com/user".to_string())
+/// );
+///
+/// // Not enough segments
+/// assert_eq!(
+///     split_qualified_name_prefix("foo", ".", 2),
+///     None
+/// );
+/// ```
+pub fn split_qualified_name_prefix(
+    name: &str,
+    delimiter: &str,
+    segments: usize,
+) -> Option<String> {
+    let parts: Vec<&str> = name.split(delimiter).collect();
+    if parts.len() >= segments {
+        Some(parts[..segments].join(delimiter))
+    } else {
+        None
+    }
+}
+
+/// Get the last segment of a qualified name
+///
+/// Extracts the final component from a qualified name, useful for
+/// getting the simple name from a fully-qualified name.
+///
+/// # Arguments
+/// * `name` - The qualified name to split
+/// * `delimiter` - The delimiter character(s) to split on
+///
+/// # Returns
+/// The last segment of the qualified name, or the entire name if no delimiter found
+///
+/// # Example
+///
+/// ```rust
+/// use mill_lang_common::import_parsing::get_qualified_name_suffix;
+///
+/// assert_eq!(get_qualified_name_suffix("org.junit.Test", "."), "Test");
+/// assert_eq!(get_qualified_name_suffix("std::HashMap", "::"), "HashMap");
+/// assert_eq!(get_qualified_name_suffix("github.com/user/repo", "/"), "repo");
+/// assert_eq!(get_qualified_name_suffix("SimpleType", "."), "SimpleType");
+/// ```
+pub fn get_qualified_name_suffix<'a>(name: &'a str, delimiter: &str) -> &'a str {
+    name.rsplit(delimiter).next().unwrap_or(name)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -91,6 +175,75 @@ mod tests {
         let (name, alias) = parse_import_alias("  foo  as  bar  ");
         assert_eq!(name, "foo");
         assert_eq!(alias, Some("bar".to_string()));
+    }
+
+    #[test]
+    fn test_split_qualified_name_prefix() {
+        // Java package names
+        assert_eq!(
+            split_qualified_name_prefix("org.junit.jupiter.api.Test", ".", 2),
+            Some("org.junit".to_string())
+        );
+        assert_eq!(
+            split_qualified_name_prefix("org.junit.Test", ".", 1),
+            Some("org".to_string())
+        );
+
+        // Rust module paths
+        assert_eq!(
+            split_qualified_name_prefix("std::collections::HashMap", "::", 1),
+            Some("std".to_string())
+        );
+        assert_eq!(
+            split_qualified_name_prefix("std::collections::HashMap", "::", 2),
+            Some("std::collections".to_string())
+        );
+
+        // Go import paths
+        assert_eq!(
+            split_qualified_name_prefix("github.com/user/repo/pkg", "/", 3),
+            Some("github.com/user/repo".to_string())
+        );
+
+        // Not enough segments
+        assert_eq!(split_qualified_name_prefix("foo", ".", 2), None);
+        assert_eq!(split_qualified_name_prefix("foo.bar", ".", 3), None);
+
+        // Edge cases
+        assert_eq!(
+            split_qualified_name_prefix("single", ".", 1),
+            Some("single".to_string())
+        );
+    }
+
+    #[test]
+    fn test_get_qualified_name_suffix() {
+        // Java class names
+        assert_eq!(get_qualified_name_suffix("org.junit.Test", "."), "Test");
+        assert_eq!(
+            get_qualified_name_suffix("java.util.List", "."),
+            "List"
+        );
+
+        // Rust types
+        assert_eq!(
+            get_qualified_name_suffix("std::collections::HashMap", "::"),
+            "HashMap"
+        );
+        assert_eq!(get_qualified_name_suffix("std::Vec", "::"), "Vec");
+
+        // Go packages
+        assert_eq!(
+            get_qualified_name_suffix("github.com/user/repo", "/"),
+            "repo"
+        );
+
+        // Simple names (no delimiter)
+        assert_eq!(get_qualified_name_suffix("SimpleType", "."), "SimpleType");
+        assert_eq!(get_qualified_name_suffix("MyStruct", "::"), "MyStruct");
+
+        // Single segment
+        assert_eq!(get_qualified_name_suffix("foo", "."), "foo");
     }
 
     #[test]
