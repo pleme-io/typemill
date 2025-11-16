@@ -6,7 +6,7 @@ project:
   name: typemill
   workspace_path: /workspace
 vm:
-  box: '@vibe-base'
+  box: '@vibe-box'
   cpus: 6
   gui: false
   memory: 8192
