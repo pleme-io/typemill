@@ -25,7 +25,6 @@ use mill_test_support::harness::{ TestClient , TestWorkspace };
 use serde_json::json;
 
 #[tokio::test]
-#[ignore] // Requires MCP server to be running
 async fn test_mcp_protocol_layer() {
     println!("🔍 MCP Protocol Smoke Test");
     println!("   Testing: Server connection, JSON-RPC, tool routing, serialization");
@@ -215,7 +214,6 @@ async fn test_mcp_protocol_layer() {
 }
 
 #[tokio::test]
-#[ignore] // Requires MCP server to be running
 async fn test_mcp_stdio_mode() {
     println!("🔍 MCP STDIO Mode Test");
     println!("   Testing: stdio transport with JSON-RPC");
@@ -235,7 +233,6 @@ async fn test_mcp_stdio_mode() {
 }
 
 #[tokio::test]
-#[ignore] // Requires MCP server to be running
 async fn test_mcp_message_format() {
     println!("🔍 MCP Message Format Test");
     println!("   Testing: JSON-RPC 2.0 compliance");
