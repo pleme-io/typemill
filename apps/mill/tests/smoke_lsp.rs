@@ -70,8 +70,11 @@ const goodbye = farewell("World");
     )
     .unwrap();
 
-    // Give LSP server time to initialize
-    tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
+    // Wait for LSP to index the file (polling is faster and more reliable than fixed sleep)
+    client
+        .wait_for_lsp_ready(&ts_file, 10000)
+        .await
+        .expect("LSP should index TypeScript file within 10s");
 
     // Test 1: find_definition (tests LSP textDocument/definition)
     let response = client
@@ -194,8 +197,11 @@ edition = "2021"
     )
     .unwrap();
 
-    // Give LSP servers time to initialize
-    tokio::time::sleep(tokio::time::Duration::from_millis(3000)).await;
+    // Wait for LSP servers to index files (polling is faster and more reliable than fixed sleep)
+    client
+        .wait_for_lsp_ready(&ts_file, 10000)
+        .await
+        .expect("LSP should index TypeScript file within 10s");
 
     // Test TypeScript LSP
     let ts_response = client

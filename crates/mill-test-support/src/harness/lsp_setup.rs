@@ -252,8 +252,11 @@ export function testFunction(param: string): string {
         )
         .map_err(|e| format!("Failed to create test file: {}", e))?;
 
-        // Give LSP time to process the file
-        tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
+        // Wait for LSP to index the file (polling is faster and more reliable than fixed sleep)
+        client
+            .wait_for_lsp_ready(&test_file, 10000)
+            .await
+            .map_err(|e| format!("LSP did not become ready: {}", e))?;
 
         // Test get_document_symbols to verify LSP is working
         let response = client

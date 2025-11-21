@@ -44,12 +44,16 @@ async fn test_concurrent_reads() {
         results.push(handle.await.unwrap());
     }
 
-    // If they ran concurrently, the maximum time should be around 50ms
-    // If they ran sequentially, it would be around 250ms
+    // If they ran concurrently, the maximum time should be around 50-70ms
+    // If they ran sequentially, it would be around 250ms (5 * 50ms)
+    // Use a relative comparison that's robust on slow CI systems
     let max_time = results.iter().max().unwrap();
+    let sequential_time_ms: u128 = 5 * 50; // Expected sequential execution time
     assert!(
-        max_time.as_millis() < 100,
-        "Reads should execute concurrently"
+        max_time.as_millis() < sequential_time_ms / 2,
+        "Concurrent reads should complete in under half the sequential time (got {:?}, expected < {}ms)",
+        max_time,
+        sequential_time_ms / 2
     );
 }
 
