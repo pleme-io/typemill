@@ -77,7 +77,7 @@ pub(crate) struct SymbolSelector {
 #[allow(dead_code)] // Reserved for future configuration
 pub(crate) struct RenameOptions {
     /// Preview mode - don't actually apply changes (default: true for safety)
-    #[serde(default = "default_true")]
+    #[serde(default = "crate::default_true")]
     pub dry_run: bool,
 
     #[serde(default)]
@@ -100,10 +100,6 @@ pub(crate) struct RenameOptions {
     /// When None, auto-detects based on path patterns (moving crate into another crate's src/).
     #[serde(default)]
     pub consolidate: Option<bool>,
-}
-
-fn default_true() -> bool {
-    true
 }
 
 impl RenameOptions {

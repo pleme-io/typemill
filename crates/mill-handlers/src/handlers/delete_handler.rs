@@ -15,7 +15,7 @@ use mill_foundation::planning::{
 };
 use serde::Deserialize;
 use serde_json::Value;
-use sha2::{Digest, Sha256};
+use crate::handlers::common::calculate_checksum;
 use std::collections::HashMap;
 use std::path::Path;
 use tracing::{debug, error, info};
@@ -63,7 +63,7 @@ struct DeleteSelector {
 #[serde(rename_all = "camelCase")]
 struct DeleteOptions {
     /// Preview mode - don't actually apply changes (default: true for safety)
-    #[serde(default = "default_true")]
+    #[serde(default = "crate::default_true")]
     dry_run: bool,
     #[serde(default)]
     cleanup_imports: Option<bool>,
@@ -83,10 +83,6 @@ impl Default for DeleteOptions {
             force: None,
         }
     }
-}
-
-fn default_true() -> bool {
-    true
 }
 
 #[async_trait]
@@ -350,7 +346,7 @@ impl DeleteHandler {
         };
 
         // Determine language from extension
-        let language = self.detect_language(file_path);
+        let language = crate::handlers::common::detect_language(&params.target.path).to_string();
 
         // Build metadata
         let metadata = PlanMetadata {
@@ -455,7 +451,7 @@ impl DeleteHandler {
         }
 
         // Determine language from extension
-        let language = self.detect_language(file_path);
+        let language = crate::handlers::common::detect_language(&params.target.path).to_string();
 
         // Build metadata
         let metadata = PlanMetadata {
@@ -632,26 +628,5 @@ impl DeleteHandler {
         })
     }
 
-    /// Detect language from file extension
-    fn detect_language(&self, path: &Path) -> String {
-        match path.extension().and_then(|ext| ext.to_str()) {
-            Some("rs") => "rust",
-            Some("ts") | Some("tsx") => "typescript",
-            Some("js") | Some("jsx") => "javascript",
-            Some("py") | Some("pyi") => "python",
-            Some("go") => "go",
-            Some("java") => "java",
-            Some("swift") => "swift",
-            Some("cs") => "csharp",
-            _ => "unknown",
-        }
-        .to_string()
-    }
 }
 
-/// Calculate SHA-256 checksum of file content
-fn calculate_checksum(content: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(content.as_bytes());
-    format!("{:x}", hasher.finalize())
-}

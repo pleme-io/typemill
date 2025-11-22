@@ -10,7 +10,8 @@ use serde_json::{json, Value};
 use std::path::Path;
 use tracing::{debug, error, info, warn};
 
-use super::validation::{analyze_workspace_edit, estimate_impact};
+use super::validation::analyze_workspace_edit;
+use crate::handlers::common::estimate_impact;
 
 /// Generate plan for symbol move using LSP or AST fallback
 pub async fn plan_symbol_move(

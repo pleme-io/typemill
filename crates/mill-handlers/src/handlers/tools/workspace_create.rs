@@ -64,14 +64,10 @@ fn default_lib() -> PackageType {
 pub(crate) struct CreatePackageOptions {
     #[serde(default)]
     pub dry_run: bool,
-    #[serde(default = "default_true")]
+    #[serde(default = "crate::default_true")]
     pub add_to_workspace: bool,
     #[serde(default)]
     pub template: Template,
-}
-
-fn default_true() -> bool {
-    true
 }
 
 // Result type for MCP interface

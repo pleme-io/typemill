@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use tracing::debug;
 
 /// Calculate SHA-256 checksum of file content
-pub(crate) fn calculate_checksum(content: &str) -> String {
+pub fn calculate_checksum(content: &str) -> String {
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(content.as_bytes());

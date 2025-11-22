@@ -365,7 +365,7 @@ impl ExtractHandler {
         let warnings = Vec::new();
 
         // Generate metadata
-        let language = self.detect_language(file_path);
+        let language = crate::handlers::common::detect_language(file_path);
         let estimated_impact = if affected_files.len() <= 1 {
             "low"
         } else if affected_files.len() <= 3 {
@@ -439,27 +439,13 @@ impl ExtractHandler {
         })
     }
 
-    /// Detect language from file extension
-    fn detect_language(&self, file_path: &str) -> &str {
-        let path = Path::new(file_path);
-        match path.extension().and_then(|e| e.to_str()) {
-            Some("rs") => "rust",
-            Some("ts") | Some("tsx") => "typescript",
-            Some("js") | Some("jsx") => "javascript",
-            Some("py") => "python",
-            Some("go") => "go",
-            Some("java") => "java",
-            _ => "unknown",
-        }
-    }
-
     /// Generate SHA-256 checksums for all affected files
     async fn generate_file_checksums(
         &self,
         context: &mill_handler_api::ToolHandlerContext,
         file_paths: &std::collections::HashSet<String>,
     ) -> ServerResult<HashMap<String, String>> {
-        use sha2::{Digest, Sha256};
+        use crate::handlers::common::calculate_checksum;
 
         let mut checksums = HashMap::new();
 
@@ -467,12 +453,7 @@ impl ExtractHandler {
             let path = Path::new(file_path);
             match context.app_state.file_service.read_file(path).await {
                 Ok(content) => {
-                    let mut hasher = Sha256::new();
-                    hasher.update(content.as_bytes());
-                    let hash = hasher.finalize();
-                    // Use bare hex format (no prefix) to match rename_handler and workspace_apply_handler
-                    let hash_str = format!("{:x}", hash);
-                    checksums.insert(file_path.clone(), hash_str);
+                    checksums.insert(file_path.clone(), calculate_checksum(&content));
                 }
                 Err(e) => {
                     error!(
@@ -545,14 +526,10 @@ struct SourceRange {
 #[serde(rename_all = "camelCase")]
 struct ExtractOptions {
     /// Preview mode - don't actually apply changes (default: true for safety)
-    #[serde(default = "default_true")]
+    #[serde(default = "crate::default_true")]
     dry_run: bool,
     #[serde(default)]
     visibility: Option<String>, // "public" | "private"
     #[serde(default)]
     destination_path: Option<String>,
-}
-
-fn default_true() -> bool {
-    true
 }

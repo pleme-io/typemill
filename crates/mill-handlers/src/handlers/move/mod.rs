@@ -88,7 +88,7 @@ struct SymbolSelector {
 #[allow(dead_code)] // Reserved for future configuration
 struct MoveOptions {
     /// Preview mode - don't actually apply changes (default: true for safety)
-    #[serde(default = "default_true")]
+    #[serde(default = "crate::default_true")]
     dry_run: bool,
     #[serde(default)]
     update_imports: Option<bool>,
@@ -104,10 +104,6 @@ impl Default for MoveOptions {
             preserve_formatting: None,
         }
     }
-}
-
-fn default_true() -> bool {
-    true
 }
 
 #[async_trait]

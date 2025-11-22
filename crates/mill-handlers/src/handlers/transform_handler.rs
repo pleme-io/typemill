@@ -14,7 +14,7 @@ use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResu
 use mill_foundation::planning::{PlanMetadata, PlanSummary, RefactorPlan, TransformPlan};
 use serde::Deserialize;
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
+use crate::handlers::common::calculate_checksum;
 use std::collections::HashMap;
 use std::path::Path;
 use tracing::{debug, error, info};
@@ -54,7 +54,7 @@ struct Transformation {
 #[allow(dead_code)] // Reserved for future configuration
 struct TransformOptions {
     /// Preview mode - don't actually apply changes (default: true for safety)
-    #[serde(default = "default_true")]
+    #[serde(default = "crate::default_true")]
     dry_run: bool,
     #[serde(default)]
     preserve_formatting: Option<bool>,
@@ -70,10 +70,6 @@ impl Default for TransformOptions {
             preserve_comments: None,
         }
     }
-}
-
-fn default_true() -> bool {
-    true
 }
 
 #[async_trait]
@@ -408,9 +404,3 @@ impl TransformHandler {
     // context.app_state.language_plugins.get_plugin(ext)?.metadata().name
 }
 
-/// Calculate SHA-256 checksum of file content
-fn calculate_checksum(content: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(content.as_bytes());
-    format!("{:x}", hasher.finalize())
-}

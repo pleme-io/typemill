@@ -3,10 +3,10 @@
 //! Provides checksum calculation, conflict detection, and warning generation
 //! for file, directory, and symbol moves.
 
+use crate::handlers::common::calculate_checksum;
 use lsp_types::{Uri, WorkspaceEdit};
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
 use mill_foundation::planning::{PlanSummary, PlanWarning};
-use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use tracing::debug;
@@ -25,12 +25,6 @@ fn uri_to_path_string(uri: &Uri) -> Result<String, ServerError> {
         .map(|decoded| decoded.into_owned())
 }
 
-/// Calculate SHA-256 checksum of file content
-pub(crate) fn calculate_checksum(content: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(content.as_bytes());
-    format!("{:x}", hasher.finalize())
-}
 
 /// Analyze WorkspaceEdit to calculate checksums and summary
 pub async fn analyze_workspace_edit(
@@ -115,15 +109,3 @@ pub async fn analyze_workspace_edit(
 
 // Removed extension_to_language() - use plugin registry instead:
 // context.app_state.language_plugins.get_plugin(ext)?.metadata().name
-
-/// Estimate impact based on number of affected files
-pub(crate) fn estimate_impact(affected_files: usize) -> String {
-    if affected_files <= 3 {
-        "low"
-    } else if affected_files <= 10 {
-        "medium"
-    } else {
-        "high"
-    }
-    .to_string()
-}

@@ -65,18 +65,14 @@ pub(crate) struct ExtractDependenciesParams {
 pub(crate) struct ExtractDependenciesOptions {
     #[serde(default)]
     pub dry_run: bool,
-    #[serde(default = "default_true")]
+    #[serde(default = "crate::default_true")]
     #[allow(dead_code)]
     pub preserve_versions: bool,
-    #[serde(default = "default_true")]
+    #[serde(default = "crate::default_true")]
     #[allow(dead_code)]
     pub preserve_features: bool,
     #[serde(default)]
     pub section: DependencySection,
-}
-
-fn default_true() -> bool {
-    true
 }
 
 #[derive(Debug, Deserialize, Default)]
