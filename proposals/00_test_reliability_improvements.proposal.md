@@ -35,9 +35,9 @@ Use table-driven tests instead of duplicate test functions.
 - [x] `e2e_performance.rs:812` - Replace 8000ms with `wait_for_lsp_ready`
 
 ### Test Helper Error Handling
-- [ ] Audit `mill-test-support/src/harness/test_helpers.rs` for unwrap calls
-- [ ] Convert `TestWorkspace::new()` to return `Result<Self>`
-- [ ] Add context to `TestClient` setup errors
+- [x] Audit `mill-test-support/src/harness/test_helpers.rs` for unwrap calls (clean - no issues)
+- [x] Improve `TestWorkspace` error messages with file paths and context
+- [x] Add context to `TestClient` setup errors (already has good messages)
 - [ ] Review `fixtures.rs` for panic-prone patterns
 
 ### Debug Output Cleanup

@@ -26,21 +26,25 @@ impl TestWorkspace {
     pub fn create_file(&self, rel_path: &str, content: &str) {
         let file_path = self.path().join(rel_path);
         if let Some(parent) = file_path.parent() {
-            fs::create_dir_all(parent).expect("Failed to create parent dirs");
+            fs::create_dir_all(parent)
+                .unwrap_or_else(|e| panic!("Failed to create parent dirs for '{}': {}", rel_path, e));
         }
-        fs::write(file_path, content).expect("Failed to write file");
+        fs::write(&file_path, content)
+            .unwrap_or_else(|e| panic!("Failed to write file '{}': {}", file_path.display(), e));
     }
 
     /// Creates a directory within the workspace.
     pub fn create_directory(&self, rel_path: &str) {
         let dir_path = self.path().join(rel_path);
-        fs::create_dir_all(dir_path).expect("Failed to create directory");
+        fs::create_dir_all(&dir_path)
+            .unwrap_or_else(|e| panic!("Failed to create directory '{}': {}", dir_path.display(), e));
     }
 
     /// Reads a file from the workspace.
     pub fn read_file(&self, rel_path: &str) -> String {
         let file_path = self.path().join(rel_path);
-        fs::read_to_string(file_path).expect("Failed to read file")
+        fs::read_to_string(&file_path)
+            .unwrap_or_else(|e| panic!("Failed to read file '{}': {}", file_path.display(), e))
     }
 
     /// Check if a file exists in the workspace.
