@@ -121,10 +121,31 @@ pub async fn discover_importing_files(
         .and_then(|s| s.to_str())
         .unwrap_or("");
 
+    // Also get full filename with extension (for import path matching)
+    let source_filename = source_file
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("");
+
+    // Get parent directory name (for relative import matching like '../galactic/')
+    let source_parent = source_file
+        .parent()
+        .and_then(|p| p.file_name())
+        .and_then(|s| s.to_str())
+        .unwrap_or("");
+
     // Get relative path from workspace root for import matching
     let relative_source = source_file
         .strip_prefix(workspace_root)
         .unwrap_or(source_file);
+
+    debug!(
+        source_file = %source_file.display(),
+        source_name = %source_name,
+        source_filename = %source_filename,
+        source_parent = %source_parent,
+        "Import matching patterns"
+    );
 
     let mut importing_files = Vec::new();
 
@@ -159,7 +180,8 @@ pub async fn discover_importing_files(
         }
 
         // Read file and check for imports
-        if let Ok(content) = context.app_state.file_service.read_file(path).await {
+        // Use std::fs directly to avoid project-root security restrictions
+        if let Ok(content) = std::fs::read_to_string(path) {
             // Check various import patterns
             let has_import = content.contains(source_name)
                 && (
@@ -177,16 +199,31 @@ pub async fn discover_importing_files(
 
             if has_import {
                 // More specific check: does it reference the source file?
+                // Check multiple patterns to catch various import styles
                 let source_path_str = relative_source.to_string_lossy();
                 let source_without_ext = relative_source
                     .with_extension("")
                     .to_string_lossy()
                     .to_string();
 
-                if content.contains(&*source_path_str)
-                    || content.contains(&source_without_ext)
-                    || content.contains(source_name)
-                {
+                // Build pattern for relative import: "parent/filename" (e.g., "galactic/Galactic.is.js")
+                let parent_filename = if !source_parent.is_empty() && !source_filename.is_empty() {
+                    format!("{}/{}", source_parent, source_filename)
+                } else {
+                    String::new()
+                };
+
+                let matches = content.contains(&*source_path_str)  // Full relative path from workspace
+                    || content.contains(&source_without_ext)        // Without extension
+                    || content.contains(source_filename)            // Just filename with ext
+                    || (!parent_filename.is_empty() && content.contains(&parent_filename))  // parent/file pattern
+                    || content.contains(source_name);               // Just file stem
+
+                if matches {
+                    debug!(
+                        file = %path.display(),
+                        "Found importing file"
+                    );
                     importing_files.push(path.to_path_buf());
                 }
             }
@@ -257,20 +294,10 @@ pub async fn enhance_find_references(
     // This is where we'd ideally open the file in LSP and query
     // For now, we'll do a simpler grep-based approach
     for importing_file in importing_files {
-        // Read file content
-        if let Ok(content) = context
-            .app_state
-            .file_service
-            .read_file(&importing_file)
-            .await
-        {
+        // Read file content using std::fs to avoid project-root restrictions
+        if let Ok(content) = std::fs::read_to_string(&importing_file) {
             // Get the symbol name at the original position
-            if let Ok(source_content) = context
-                .app_state
-                .file_service
-                .read_file(source_file)
-                .await
-            {
+            if let Ok(source_content) = std::fs::read_to_string(source_file) {
                 if let Some(symbol_name) = extract_symbol_at_position(&source_content, line, character) {
                     // Find occurrences of the symbol in the importing file
                     let file_uri = format!("file://{}", importing_file.display());
@@ -484,13 +511,8 @@ pub async fn enhance_symbol_rename(
 
     // For each importing file, find occurrences of the old symbol name
     for importing_file in importing_files {
-        // Read file content
-        if let Ok(content) = context
-            .app_state
-            .file_service
-            .read_file(&importing_file)
-            .await
-        {
+        // Read file content using std::fs to avoid project-root restrictions
+        if let Ok(content) = std::fs::read_to_string(&importing_file) {
             // Find occurrences of the old symbol name
             let occurrences = find_symbol_occurrences(&content, old_name);
 

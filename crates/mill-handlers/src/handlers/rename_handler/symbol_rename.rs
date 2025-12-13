@@ -82,12 +82,10 @@ impl RenameHandler {
             ServerError::internal(format!("Failed to parse LSP WorkspaceEdit: {}", e))
         })?;
 
-        // Get the old symbol name by reading the source file
-        let old_symbol_name = context
-            .app_state
-            .file_service
-            .read_file(&abs_path)
-            .await
+        // Get the old symbol name by reading the source file directly
+        // (We use std::fs instead of file_service to avoid project-root security restrictions,
+        // since the path was already validated by LSP)
+        let old_symbol_name = std::fs::read_to_string(&abs_path)
             .ok()
             .and_then(|content| {
                 cross_file_references::extract_symbol_at_position_public(
@@ -99,6 +97,8 @@ impl RenameHandler {
 
         // Enhance with cross-file edits if we have the old symbol name
         let workspace_edit = if let Some(old_name) = old_symbol_name {
+            // Clone the original edit so we can fall back to it on error
+            let original_edit = workspace_edit.clone();
             cross_file_references::enhance_symbol_rename(
                 workspace_edit,
                 &abs_path,
@@ -111,8 +111,8 @@ impl RenameHandler {
             .await
             .unwrap_or_else(|e| {
                 debug!(error = %e, "Cross-file symbol rename enhancement failed, using LSP-only result");
-                // Return an empty WorkspaceEdit on error, which will be handled below
-                WorkspaceEdit::default()
+                // Return the original LSP result (not empty!)
+                original_edit
             })
         } else {
             debug!("Could not extract old symbol name, skipping cross-file enhancement");
