@@ -1,4 +1,5 @@
 use super::{RenameHandler, RenameOptions, RenameTarget};
+use crate::handlers::tools::cross_file_references;
 use lsp_types::WorkspaceEdit;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
 use mill_foundation::planning::{PlanMetadata, RenamePlan};
@@ -80,6 +81,43 @@ impl RenameHandler {
         let workspace_edit: WorkspaceEdit = serde_json::from_value(lsp_result).map_err(|e| {
             ServerError::internal(format!("Failed to parse LSP WorkspaceEdit: {}", e))
         })?;
+
+        // Get the old symbol name by reading the source file
+        let old_symbol_name = context
+            .app_state
+            .file_service
+            .read_file(&abs_path)
+            .await
+            .ok()
+            .and_then(|content| {
+                cross_file_references::extract_symbol_at_position_public(
+                    &content,
+                    position.line,
+                    position.character,
+                )
+            });
+
+        // Enhance with cross-file edits if we have the old symbol name
+        let workspace_edit = if let Some(old_name) = old_symbol_name {
+            cross_file_references::enhance_symbol_rename(
+                workspace_edit,
+                &abs_path,
+                position.line,
+                position.character,
+                &old_name,
+                new_name,
+                context,
+            )
+            .await
+            .unwrap_or_else(|e| {
+                debug!(error = %e, "Cross-file symbol rename enhancement failed, using LSP-only result");
+                // Return an empty WorkspaceEdit on error, which will be handled below
+                WorkspaceEdit::default()
+            })
+        } else {
+            debug!("Could not extract old symbol name, skipping cross-file enhancement");
+            workspace_edit
+        };
 
         // Calculate file checksums and summary
         let (file_checksums, summary, warnings) = self

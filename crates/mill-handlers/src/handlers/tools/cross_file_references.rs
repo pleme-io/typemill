@@ -338,6 +338,11 @@ fn find_workspace_root(start: &Path) -> Option<PathBuf> {
     None
 }
 
+/// Extract the symbol name at a given position in source code (public wrapper)
+pub fn extract_symbol_at_position_public(content: &str, line: u32, character: u32) -> Option<String> {
+    extract_symbol_at_position(content, line, character)
+}
+
 /// Extract the symbol name at a given position in source code
 fn extract_symbol_at_position(content: &str, line: u32, character: u32) -> Option<String> {
     let lines: Vec<&str> = content.lines().collect();
@@ -416,6 +421,124 @@ fn find_symbol_occurrences(content: &str, symbol: &str) -> Vec<(u32, u32, u32)> 
     }
 
     occurrences
+}
+
+/// Enhance a symbol rename WorkspaceEdit with cross-file edits
+///
+/// The LSP's textDocument/rename only returns edits for opened files.
+/// This function discovers additional files that use the symbol and adds
+/// edits for those files to the WorkspaceEdit.
+pub async fn enhance_symbol_rename(
+    mut workspace_edit: lsp_types::WorkspaceEdit,
+    source_file: &Path,
+    line: u32,
+    character: u32,
+    old_name: &str,
+    new_name: &str,
+    context: &mill_handler_api::ToolHandlerContext,
+) -> ServerResult<lsp_types::WorkspaceEdit> {
+    use lsp_types::{TextEdit, Uri};
+
+    let source_uri = format!("file://{}", source_file.display());
+
+    // Check if we already have cross-file edits
+    let has_cross_file = workspace_edit
+        .changes
+        .as_ref()
+        .map(|changes| changes.keys().any(|uri| uri.as_str() != source_uri))
+        .unwrap_or(false);
+
+    if has_cross_file {
+        debug!("LSP already returned cross-file rename edits, no enhancement needed");
+        return Ok(workspace_edit);
+    }
+
+    debug!(
+        source = %source_file.display(),
+        old_name = %old_name,
+        new_name = %new_name,
+        "Enhancing symbol rename with cross-file discovery"
+    );
+
+    // Find workspace root
+    let workspace_root = find_workspace_root(source_file).unwrap_or_else(|| {
+        source_file
+            .parent()
+            .unwrap_or(source_file)
+            .to_path_buf()
+    });
+
+    // Discover importing files
+    let importing_files = discover_importing_files(&workspace_root, source_file, context).await?;
+
+    if importing_files.is_empty() {
+        debug!("No importing files found");
+        return Ok(workspace_edit);
+    }
+
+    // Ensure changes map exists
+    let changes = workspace_edit.changes.get_or_insert_with(Default::default);
+
+    let mut added_files = 0;
+    let mut added_edits = 0;
+
+    // For each importing file, find occurrences of the old symbol name
+    for importing_file in importing_files {
+        // Read file content
+        if let Ok(content) = context
+            .app_state
+            .file_service
+            .read_file(&importing_file)
+            .await
+        {
+            // Find occurrences of the old symbol name
+            let occurrences = find_symbol_occurrences(&content, old_name);
+
+            if !occurrences.is_empty() {
+                // Create file URI
+                let file_uri_str = format!("file://{}", importing_file.display());
+                let file_uri: Uri = match file_uri_str.parse() {
+                    Ok(uri) => uri,
+                    Err(_) => continue,
+                };
+
+                // Skip if we already have edits for this file (from LSP)
+                if changes.contains_key(&file_uri) {
+                    continue;
+                }
+
+                // Create text edits for each occurrence
+                let edits: Vec<TextEdit> = occurrences
+                    .into_iter()
+                    .map(|(line, char, len)| TextEdit {
+                        range: lsp_types::Range {
+                            start: lsp_types::Position {
+                                line,
+                                character: char,
+                            },
+                            end: lsp_types::Position {
+                                line,
+                                character: char + len,
+                            },
+                        },
+                        new_text: new_name.to_string(),
+                    })
+                    .collect();
+
+                added_edits += edits.len();
+                added_files += 1;
+                changes.insert(file_uri, edits);
+            }
+        }
+    }
+
+    debug!(
+        added_files = added_files,
+        added_edits = added_edits,
+        "Cross-file symbol rename enhancement complete"
+    );
+
+    Ok(workspace_edit)
 }
 
 #[cfg(test)]
