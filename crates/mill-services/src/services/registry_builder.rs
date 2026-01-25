@@ -78,7 +78,9 @@ mod tests {
     fn test_registry_builder_creates_non_empty_registry() {
         // In the new architecture, we test that the registry builder correctly registers
         // the plugins we pass to it.
-        use mill_plugin_api::{LanguagePlugin, PluginCapabilities, ManifestData, ParsedSource, PluginResult};
+        use mill_plugin_api::{
+            LanguagePlugin, ManifestData, ParsedSource, PluginCapabilities, PluginResult,
+        };
         use mill_plugin_system::PluginMetadata;
         use std::any::Any;
 
@@ -87,21 +89,27 @@ mod tests {
         #[async_trait::async_trait]
         impl LanguagePlugin for MockPlugin {
             fn metadata(&self) -> &mill_plugin_api::LanguageMetadata {
-                static METADATA: mill_plugin_api::LanguageMetadata = mill_plugin_api::LanguageMetadata {
-                    name: "mock",
-                    extensions: &["mock"],
-                    manifest_filename: "Mockfile",
-                    source_dir: "src",
-                    entry_point: "lib.rs",
-                    module_separator: "::",
-                };
+                static METADATA: mill_plugin_api::LanguageMetadata =
+                    mill_plugin_api::LanguageMetadata {
+                        name: "mock",
+                        extensions: &["mock"],
+                        manifest_filename: "Mockfile",
+                        source_dir: "src",
+                        entry_point: "lib.rs",
+                        module_separator: "::",
+                    };
                 &METADATA
             }
-            fn as_any(&self) -> &dyn Any { self }
+            fn as_any(&self) -> &dyn Any {
+                self
+            }
 
             async fn parse(&self, _: &str) -> PluginResult<ParsedSource> {
                 // Manually construct ParsedSource since it doesn't impl Default
-                Ok(ParsedSource { data: serde_json::Value::Null, symbols: vec![] })
+                Ok(ParsedSource {
+                    data: serde_json::Value::Null,
+                    symbols: vec![],
+                })
             }
 
             async fn analyze_manifest(&self, _: &std::path::Path) -> PluginResult<ManifestData> {
@@ -111,7 +119,7 @@ mod tests {
                     version: "0.0.1".to_string(),
                     dependencies: vec![],
                     dev_dependencies: vec![],
-                    raw_data: serde_json::Value::Null
+                    raw_data: serde_json::Value::Null,
                 })
             }
 

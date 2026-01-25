@@ -1191,9 +1191,7 @@ async fn handle_doctor() {
                     println!("    {}", fmt.success(&format!("Installed: {}", version)));
 
                     // Additional checks for TypeScript
-                    if server.extensions.contains(&"ts".to_string())
-                        && server.root_dir.is_none()
-                    {
+                    if server.extensions.contains(&"ts".to_string()) && server.root_dir.is_none() {
                         println!("    {}", fmt.warning("rootDir not set"));
                         println!(
                             "      {}",
@@ -1766,17 +1764,21 @@ async fn handle_tool_command(
         if is_daemon_running(&socket_path).await {
             // Use daemon for faster execution (LSP servers already running)
             match UnixSocketClient::connect(&socket_path).await {
-                Ok(mut client) => {
-                    match client.call(message.clone()).await {
-                        Ok(resp) => Some(resp),
-                        Err(e) => {
-                            eprintln!("⚠️  Daemon connection error, falling back to in-process: {}", e);
-                            None
-                        }
+                Ok(mut client) => match client.call(message.clone()).await {
+                    Ok(resp) => Some(resp),
+                    Err(e) => {
+                        eprintln!(
+                            "⚠️  Daemon connection error, falling back to in-process: {}",
+                            e
+                        );
+                        None
                     }
-                }
+                },
                 Err(e) => {
-                    eprintln!("⚠️  Could not connect to daemon, falling back to in-process: {}", e);
+                    eprintln!(
+                        "⚠️  Could not connect to daemon, falling back to in-process: {}",
+                        e
+                    );
                     None
                 }
             }
@@ -2250,10 +2252,7 @@ fn to_junit_xml(result: &AnalysisResult) -> String {
     > = std::collections::HashMap::new();
     for finding in &result.findings {
         let file = finding.location.file_path.clone();
-        findings_by_file
-            .entry(file)
-            .or_default()
-            .push(finding);
+        findings_by_file.entry(file).or_default().push(finding);
     }
 
     // If no findings, create a passing testcase

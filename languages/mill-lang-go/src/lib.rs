@@ -310,9 +310,7 @@ impl mill_plugin_api::AnalysisMetadata for GoPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mill_plugin_api::{
-        CreatePackageConfig, LanguagePlugin, ScanScope, Template,
-    };
+    use mill_plugin_api::{CreatePackageConfig, LanguagePlugin, ScanScope, Template};
     use tempfile::tempdir;
 
     #[test]

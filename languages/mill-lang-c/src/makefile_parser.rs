@@ -4,12 +4,9 @@ use regex::Regex;
 use std::fs;
 use std::path::Path;
 
-static TARGET_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"TARGET\s*=\s*(.*)"#).unwrap());
-static SRCS_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"SRCS\s*=\s*(.*)"#).unwrap());
-static CFLAGS_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"CFLAGS\s*=\s*(.*)"#).unwrap());
+static TARGET_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"TARGET\s*=\s*(.*)"#).unwrap());
+static SRCS_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"SRCS\s*=\s*(.*)"#).unwrap());
+static CFLAGS_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"CFLAGS\s*=\s*(.*)"#).unwrap());
 
 /// Analyzes a Makefile and extracts project metadata.
 ///

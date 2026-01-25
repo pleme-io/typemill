@@ -602,12 +602,7 @@ fn find_java_numeric_literal(line_text: &str, col: usize) -> Option<(String, Cod
             if ch == 'x' || ch == 'X' {
                 found_x = true;
                 end = i + 1;
-            } else if found_x
-                && (ch.is_ascii_hexdigit()
-                    || ch == '_'
-                    || ch == 'L'
-                    || ch == 'l')
-            {
+            } else if found_x && (ch.is_ascii_hexdigit() || ch == '_' || ch == 'L' || ch == 'l') {
                 end = i + 1;
             } else if found_x {
                 break;

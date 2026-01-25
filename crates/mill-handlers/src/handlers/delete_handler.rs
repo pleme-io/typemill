@@ -6,6 +6,7 @@
 //! - Directory deletion (via FileService)
 //! - Dead code deletion (batch operation - placeholder)
 
+use crate::handlers::common::calculate_checksum;
 use crate::handlers::tools::ToolHandler;
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
@@ -15,7 +16,6 @@ use mill_foundation::planning::{
 };
 use serde::Deserialize;
 use serde_json::Value;
-use crate::handlers::common::calculate_checksum;
 use std::collections::HashMap;
 use std::path::Path;
 use tracing::{debug, error, info};
@@ -627,6 +627,4 @@ impl DeleteHandler {
             file_checksums: HashMap::new(),
         })
     }
-
 }
-

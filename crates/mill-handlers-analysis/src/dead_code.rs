@@ -935,7 +935,7 @@ pub(crate) fn detect_unused_variables(
     let lines: Vec<&str> = content.lines().collect();
 
     // Language-specific variable declaration patterns
-    let var_patterns = match language.to_lowercase().as_str() {
+    let var_patterns: Vec<Regex> = match language.to_lowercase().as_str() {
         "rust" => vec![
             r"let\s+mut\s+(\w+)\s*[=:]", // let mut x =
             r"let\s+(\w+)\s*[=:]",       // let x =
@@ -953,7 +953,10 @@ pub(crate) fn detect_unused_variables(
             r"var\s+(\w+)\s+", // var x Type
         ],
         _ => vec![r"let\s+(\w+)\s*="],
-    };
+    }
+    .into_iter()
+    .filter_map(|p| Regex::new(p).ok())
+    .collect();
 
     // Analyze within each function scope
     for func in &complexity_report.functions {
@@ -972,85 +975,75 @@ pub(crate) fn detect_unused_variables(
 
             let line = lines[i];
 
-            for pattern_str in &var_patterns {
-                if let Ok(pattern) = Regex::new(pattern_str) {
-                    if let Some(captures) = pattern.captures(line) {
-                        if let Some(var_match) = captures.get(1) {
-                            let var_name = var_match.as_str();
+            for pattern in &var_patterns {
+                if let Some(captures) = pattern.captures(line) {
+                    if let Some(var_match) = captures.get(1) {
+                        let var_name = var_match.as_str();
 
-                            // Skip special variable names
-                            if var_name == "_" || var_name.starts_with('_') {
-                                continue;
+                        // Skip special variable names
+                        if var_name == "_" || var_name.starts_with('_') {
+                            continue;
+                        }
+
+                        // Skip if it's a parameter (already covered by unused_parameters)
+                        // This is a simple heuristic - full AST would be more accurate
+                        if line.contains("fn ")
+                            || line.contains("function ")
+                            || line.contains("def ")
+                        {
+                            continue;
+                        }
+
+                        // Get the rest of the function after this declaration
+                        let mut remaining_code = String::new();
+                        for j in (i + 1)..func_end {
+                            if j < lines.len() {
+                                remaining_code.push_str(lines[j]);
+                                remaining_code.push('\n');
                             }
+                        }
 
-                            // Skip if it's a parameter (already covered by unused_parameters)
-                            // This is a simple heuristic - full AST would be more accurate
-                            if line.contains("fn ")
-                                || line.contains("function ")
-                                || line.contains("def ")
-                            {
-                                continue;
-                            }
+                        // Check if variable is used after declaration
+                        if !is_symbol_used_in_code(&remaining_code, var_name) {
+                            let mut metrics = HashMap::new();
+                            metrics.insert("variable_name".to_string(), json!(var_name));
+                            metrics.insert("scope".to_string(), json!(func.name));
 
-                            // Get the rest of the function after this declaration
-                            let mut remaining_code = String::new();
-                            for j in (i + 1)..func_end {
-                                if j < lines.len() {
-                                    remaining_code.push_str(lines[j]);
-                                    remaining_code.push('\n');
-                                }
-                            }
-
-                            // Check if variable is used after declaration
-                            if !is_symbol_used_in_code(&remaining_code, var_name) {
-                                let mut metrics = HashMap::new();
-                                metrics.insert("variable_name".to_string(), json!(var_name));
-                                metrics.insert("scope".to_string(), json!(func.name));
-
-                                findings.push(Finding {
-                                    id: format!(
-                                        "unused-variable-{}-{}-{}",
-                                        file_path,
-                                        i + 1,
-                                        var_name
-                                    ),
-                                    kind: "unused_variable".to_string(),
-                                    severity: Severity::Low,
-                                    location: FindingLocation {
-                                        file_path: file_path.to_string(),
-                                        range: Some(Range {
-                                            start: Position {
-                                                line: (i + 1) as u32,
-                                                character: 0,
-                                            },
-                                            end: Position {
-                                                line: (i + 1) as u32,
-                                                character: line.len() as u32,
-                                            },
-                                        }),
-                                        symbol: Some(var_name.to_string()),
-                                        symbol_kind: Some("variable".to_string()),
-                                    },
-                                    metrics: Some(metrics),
-                                    message: format!(
-                                        "Variable '{}' in function '{}' is declared but never used",
-                                        var_name, func.name
-                                    ),
-                                    suggestions: vec![Suggestion {
-                                        action: "remove_variable".to_string(),
-                                        description: format!(
-                                            "Remove unused variable '{}'",
-                                            var_name
-                                        ),
-                                        target: None,
-                                        estimated_impact: "Reduces code clutter".to_string(),
-                                        safety: SafetyLevel::Safe,
-                                        confidence: 0.80,
-                                        reversible: true,
-                                        refactor_call: None,
-                                    }],
-                                });
-                            }
+                            findings.push(Finding {
+                                id: format!("unused-variable-{}-{}-{}", file_path, i + 1, var_name),
+                                kind: "unused_variable".to_string(),
+                                severity: Severity::Low,
+                                location: FindingLocation {
+                                    file_path: file_path.to_string(),
+                                    range: Some(Range {
+                                        start: Position {
+                                            line: (i + 1) as u32,
+                                            character: 0,
+                                        },
+                                        end: Position {
+                                            line: (i + 1) as u32,
+                                            character: line.len() as u32,
+                                        },
+                                    }),
+                                    symbol: Some(var_name.to_string()),
+                                    symbol_kind: Some("variable".to_string()),
+                                },
+                                metrics: Some(metrics),
+                                message: format!(
+                                    "Variable '{}' in function '{}' is declared but never used",
+                                    var_name, func.name
+                                ),
+                                suggestions: vec![Suggestion {
+                                    action: "remove_variable".to_string(),
+                                    description: format!("Remove unused variable '{}'", var_name),
+                                    target: None,
+                                    estimated_impact: "Reduces code clutter".to_string(),
+                                    safety: SafetyLevel::Safe,
+                                    confidence: 0.80,
+                                    reversible: true,
+                                    refactor_call: None,
+                                }],
+                            });
                         }
                     }
                 }

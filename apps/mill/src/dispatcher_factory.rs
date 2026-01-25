@@ -24,7 +24,8 @@ pub async fn create_initialized_dispatcher_with_workspace(
     // We now pass the plugin instances to the service layer for registration
     let plugins = mill_plugin_bundle::all_plugins();
     // Use mill_server re-export to access services since mill-services is not a direct dep of apps/mill
-    let plugin_registry = mill_server::services::registry_builder::build_language_plugin_registry(plugins);
+    let plugin_registry =
+        mill_server::services::registry_builder::build_language_plugin_registry(plugins);
 
     // Create dispatcher using shared library function (reduces duplication)
     let dispatcher = mill_server::create_dispatcher_with_workspace(

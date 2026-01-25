@@ -21,7 +21,7 @@
 //!
 //! This keeps tests fast and avoids redundancy.
 
-use mill_test_support::harness::{ TestClient , TestWorkspace };
+use mill_test_support::harness::{TestClient, TestWorkspace};
 use serde_json::json;
 
 #[tokio::test]
@@ -265,9 +265,7 @@ async fn test_mcp_message_format() {
     println!();
 
     println!("📋 Test: Error response format");
-    let error_response = client
-        .call_tool("invalid_tool", json!({}))
-        .await;
+    let error_response = client.call_tool("invalid_tool", json!({})).await;
 
     match error_response {
         Err(_) => {

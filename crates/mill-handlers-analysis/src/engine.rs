@@ -324,7 +324,8 @@ pub async fn run_analysis_with_config(
         })?;
 
     let content = context
-        .app_state.file_service
+        .app_state
+        .file_service
         .read_file(file_path_obj)
         .await
         .map_err(|e| ServerError::internal(format!("Failed to read file: {}", e)))?;
