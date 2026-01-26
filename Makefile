@@ -172,7 +172,7 @@ install-lsp-servers:
 	fi
 	@echo ""
 	@# TypeScript/JavaScript (if plugin present or Node.js available)
-	@if [ -d "crates/mill-lang-typescript" ] || command -v npm >/dev/null 2>&1; then \
+	@if [ -d "languages/mill-lang-typescript" ] || command -v npm >/dev/null 2>&1; then \
 		if command -v npm >/dev/null 2>&1; then \
 			if command -v typescript-language-server >/dev/null 2>&1; then \
 				echo "  ✅ typescript-language-server already installed"; \
@@ -189,7 +189,7 @@ install-lsp-servers:
 	fi
 	@echo ""
 	@# Python (if plugin present or Python available)
-	@if [ -d "crates/mill-lang-python" ] || command -v python3 >/dev/null 2>&1; then \
+	@if [ -d "languages/mill-lang-python" ] || command -v python3 >/dev/null 2>&1; then \
 		if command -v python3 >/dev/null 2>&1; then \
 			if command -v pylsp >/dev/null 2>&1; then \
 				echo "  ✅ pylsp (Python LSP) already installed"; \
@@ -205,7 +205,7 @@ install-lsp-servers:
 	fi
 	@echo ""
 	@# Go (if plugin present or Go available)
-	@if [ -d "crates/mill-lang-go" ] || command -v go >/dev/null 2>&1; then \
+	@if [ -d "languages/mill-lang-go" ] || command -v go >/dev/null 2>&1; then \
 		if command -v go >/dev/null 2>&1; then \
 			if command -v gopls >/dev/null 2>&1; then \
 				echo "  ✅ gopls (Go LSP) already installed"; \
@@ -356,14 +356,14 @@ ci-local:
 # Language plugins are optional - this target detects and builds only what's available
 build-parsers:
 	@echo "🔨 Building available language parsers..."
-	@echo "💡 Language plugins are optional - only building what's present in crates/"
+	@echo "💡 Language plugins are optional - only building what's present in languages/"
 	@echo ""
 	@# Java parser (requires Maven + Java)
-	@if [ -d "crates/mill-lang-java" ]; then \
-		if [ -f "crates/mill-lang-java/resources/java-parser/pom.xml" ]; then \
+	@if [ -d "languages/mill-lang-java" ]; then \
+		if [ -f "languages/mill-lang-java/resources/java-parser/pom.xml" ]; then \
 			if command -v mvn >/dev/null 2>&1; then \
 				echo "  → Building Java parser..."; \
-				(cd crates/mill-lang-java/resources/java-parser && mvn -q package) && echo "  ✅ Java parser built." || echo "  ⚠️  Java parser build failed."; \
+				(cd languages/mill-lang-java/resources/java-parser && mvn -q package) && echo "  ✅ Java parser built." || echo "  ⚠️  Java parser build failed."; \
 			else \
 				echo "  ⚠️  Maven not found - skipping Java parser (install: apt-get install maven)"; \
 			fi; \
@@ -371,16 +371,16 @@ build-parsers:
 			echo "  ⚠️  Java parser source not found (missing pom.xml)"; \
 		fi; \
 	else \
-		echo "  ⏭  Java plugin not present (crates/mill-lang-java)"; \
+		echo "  ⏭  Java plugin not present (languages/mill-lang-java)"; \
 	fi
 	@echo ""
 	@# C# parser (requires .NET SDK)
-	@if [ -d "crates/mill-lang-csharp" ]; then \
-		if [ -d "crates/mill-lang-csharp/resources/csharp-parser" ]; then \
+	@if [ -d "languages/mill-lang-csharp" ]; then \
+		if [ -d "languages/mill-lang-csharp/resources/csharp-parser" ]; then \
 			if command -v dotnet >/dev/null 2>&1; then \
 				echo "  → Building C# parser..."; \
-				(cd crates/mill-lang-csharp/resources/csharp-parser && dotnet publish -c Release -r linux-x64 --self-contained > /dev/null) && \
-				cp crates/mill-lang-csharp/resources/csharp-parser/bin/Release/net8.0/linux-x64/publish/csharp-parser crates/mill-lang-csharp/csharp-parser && \
+				(cd languages/mill-lang-csharp/resources/csharp-parser && dotnet publish -c Release -r linux-x64 --self-contained > /dev/null) && \
+				cp languages/mill-lang-csharp/resources/csharp-parser/bin/Release/net8.0/linux-x64/publish/csharp-parser languages/mill-lang-csharp/csharp-parser && \
 				echo "  ✅ C# parser built." || echo "  ⚠️  C# parser build failed."; \
 			else \
 				echo "  ⚠️  .NET SDK not found - skipping C# parser (install: https://dotnet.microsoft.com/)"; \
@@ -389,15 +389,15 @@ build-parsers:
 			echo "  ⚠️  C# parser source not found"; \
 		fi; \
 	else \
-		echo "  ⏭  C# plugin not present (crates/mill-lang-csharp)"; \
+		echo "  ⏭  C# plugin not present (languages/mill-lang-csharp)"; \
 	fi
 	@echo ""
 	@# TypeScript parser (requires Node.js)
-	@if [ -d "crates/mill-lang-typescript" ]; then \
-		if [ -f "crates/mill-lang-typescript/resources/package.json" ]; then \
+	@if [ -d "languages/mill-lang-typescript" ]; then \
+		if [ -f "languages/mill-lang-typescript/resources/package.json" ]; then \
 			if command -v npm >/dev/null 2>&1; then \
 				echo "  → Installing TypeScript parser dependencies..."; \
-				(cd crates/mill-lang-typescript/resources && npm install > /dev/null 2>&1) && echo "  ✅ TypeScript dependencies installed." || echo "  ⚠️  TypeScript dependencies installation failed."; \
+				(cd languages/mill-lang-typescript/resources && npm install > /dev/null 2>&1) && echo "  ✅ TypeScript dependencies installed." || echo "  ⚠️  TypeScript dependencies installation failed."; \
 			else \
 				echo "  ⚠️  npm not found - skipping TypeScript parser (install: https://nodejs.org/)"; \
 			fi; \
@@ -409,17 +409,17 @@ build-parsers:
 	fi
 	@echo ""
 	@# Python plugin (no external parser needed)
-	@if [ -d "crates/mill-lang-python" ]; then \
+	@if [ -d "languages/mill-lang-python" ]; then \
 		echo "  ✅ Python plugin present (no external build needed)"; \
 	else \
-		echo "  ⏭  Python plugin not present (crates/mill-lang-python)"; \
+		echo "  ⏭  Python plugin not present (languages/mill-lang-python)"; \
 	fi
 	@echo ""
 	@# Go plugin (no external parser needed)
-	@if [ -d "crates/mill-lang-go" ]; then \
+	@if [ -d "languages/mill-lang-go" ]; then \
 		echo "  ✅ Go plugin present (no external build needed)"; \
 	else \
-		echo "  ⏭  Go plugin not present (crates/mill-lang-go)"; \
+		echo "  ⏭  Go plugin not present (languages/mill-lang-go)"; \
 	fi
 	@echo ""
 	@echo "✨ Parser build complete."

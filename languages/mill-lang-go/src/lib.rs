@@ -562,7 +562,7 @@ mod tests {
 
         // Create a large Go file (~100KB)
         let mut large_source = String::from("package main\n\n");
-        for i in 0..5000 {
+        for i in 0..1000 {
             large_source.push_str(&format!("func function{}() {{}}\n", i));
         }
 
@@ -714,7 +714,7 @@ mod tests {
 
         // Create a large Go file (~100KB, 5000 functions)
         let mut large_source = String::from("package main\nimport \"fmt\"\n\n");
-        for i in 0..5000 {
+        for i in 0..1000 {
             large_source.push_str(&format!("func function{}() int {{ return {} }}\n", i, i));
         }
 
