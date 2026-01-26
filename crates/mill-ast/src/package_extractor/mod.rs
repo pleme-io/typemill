@@ -10,6 +10,8 @@ pub mod workspace;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod perf_benchmark;
 
 use crate::error::AstResult;
 use mill_foundation::protocol::EditPlan;

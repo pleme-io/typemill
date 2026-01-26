@@ -1,3 +1,4 @@
+use futures::stream::StreamExt;
 use mill_plugin_api::LanguagePlugin;
 use std::path::PathBuf;
 use tracing::debug;
@@ -17,26 +18,40 @@ pub(crate) async fn extract_dependencies(
         }
     };
 
-    for file_path in located_files {
-        debug!(
-            file_path = %file_path.display(),
-            "Parsing dependencies from file"
-        );
+    let results = futures::stream::iter(located_files)
+        .map(|file_path| {
+            let file_path = file_path.clone();
+            async move {
+                debug!(
+                    file_path = %file_path.display(),
+                    "Parsing dependencies from file"
+                );
 
-        // Read file and parse imports using ImportParser capability
-        match tokio::fs::read_to_string(file_path).await {
-            Ok(content) => {
-                let deps = import_parser.parse_imports(&content);
-                for dep in deps {
-                    all_dependencies.insert(dep);
+                // Read file and parse imports using ImportParser capability
+                match tokio::fs::read_to_string(&file_path).await {
+                    Ok(content) => {
+                        let deps = import_parser.parse_imports(&content);
+                        Some(deps)
+                    }
+                    Err(e) => {
+                        debug!(
+                            error = %e,
+                            file_path = %file_path.display(),
+                            "Failed to read file"
+                        );
+                        None
+                    }
                 }
             }
-            Err(e) => {
-                debug!(
-                    error = %e,
-                    file_path = %file_path.display(),
-                    "Failed to read file"
-                );
+        })
+        .buffer_unordered(50) // Process up to 50 files concurrently
+        .collect::<Vec<_>>()
+        .await;
+
+    for deps_opt in results {
+        if let Some(deps) = deps_opt {
+            for dep in deps {
+                all_dependencies.insert(dep);
             }
         }
     }

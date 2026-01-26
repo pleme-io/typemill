@@ -24,6 +24,7 @@ quote = "1.0"
 petgraph = "0.8" # For dependency graph analysis
 pathdiff = "0.2" # For calculating relative paths
 tokio = { workspace = true } # For async file operations in import_updater
+futures = { workspace = true }
 tracing = { workspace = true } # For logging in import_updater
 dashmap = { workspace = true } # For thread-safe concurrent caching
 toml_edit = "0.23" # For parsing and modifying Cargo.toml files
