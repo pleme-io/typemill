@@ -338,26 +338,48 @@ pub async fn enhance_find_references(
 
     // Read source content once
     let source_content = tokio::fs::read_to_string(source_file).await.ok();
-    let symbol_name = source_content.as_deref().and_then(|c| extract_symbol_at_position(c, line, character));
+    let symbol_name = source_content
+        .as_deref()
+        .and_then(|c| extract_symbol_at_position(c, line, character));
 
     if let Some(symbol_name) = symbol_name {
-        for importing_file in importing_files {
-            // Read file content using tokio::fs to avoid blocking
-            if let Ok(content) = tokio::fs::read_to_string(&importing_file).await {
-                // Find occurrences of the symbol in the importing file
-                let file_uri = format!("file://{}", importing_file.display());
-                let matches = find_symbol_occurrences(&content, &symbol_name);
+        let symbol_name = Arc::new(symbol_name);
 
-                for (match_line, match_char, match_len) in matches {
-                    locations.insert(Location {
-                        uri: file_uri.clone(),
-                        start_line: match_line,
-                        start_character: match_char,
-                        end_line: match_line,
-                        end_character: match_char + match_len,
-                    });
+        // Process files in parallel
+        let results = stream::iter(importing_files)
+            .map(|importing_file| {
+                let symbol_name = symbol_name.clone();
+                async move {
+                    // Read file content using tokio::fs to avoid blocking
+                    if let Ok(content) = tokio::fs::read_to_string(&importing_file).await {
+                        // Find occurrences of the symbol in the importing file
+                        let file_uri = format!("file://{}", importing_file.display());
+                        let matches = find_symbol_occurrences(&content, &symbol_name);
+
+                        if !matches.is_empty() {
+                            let locs: Vec<Location> = matches
+                                .into_iter()
+                                .map(|(match_line, match_char, match_len)| Location {
+                                    uri: file_uri.clone(),
+                                    start_line: match_line,
+                                    start_character: match_char,
+                                    end_line: match_line,
+                                    end_character: match_char + match_len,
+                                })
+                                .collect();
+                            return Some(locs);
+                        }
+                    }
+                    None
                 }
-            }
+            })
+            .buffer_unordered(50) // Process up to 50 files concurrently
+            .filter_map(|opt| async { opt })
+            .collect::<Vec<Vec<Location>>>()
+            .await;
+
+        for locs in results {
+            locations.extend(locs);
         }
     }
 
@@ -615,47 +637,58 @@ pub async fn enhance_symbol_rename(
     let mut added_edits = 0;
 
     // For each importing file, find occurrences of the old symbol name
-    for importing_file in importing_files {
-        // Read file content using tokio::fs to avoid blocking
-        if let Ok(content) = tokio::fs::read_to_string(&importing_file).await {
-            // Find occurrences of the old symbol name
-            let occurrences = find_symbol_occurrences(&content, old_name);
+    let old_name = Arc::new(old_name.to_string());
+    let new_name = Arc::new(new_name.to_string());
 
-            if !occurrences.is_empty() {
-                // Create file URI
-                let file_uri_str = format!("file://{}", importing_file.display());
-                let file_uri: Uri = match file_uri_str.parse() {
-                    Ok(uri) => uri,
-                    Err(_) => continue,
-                };
+    let results = stream::iter(importing_files)
+        .map(|importing_file| {
+            let old_name = old_name.clone();
+            let new_name = new_name.clone();
+            async move {
+                // Read file content using tokio::fs to avoid blocking
+                if let Ok(content) = tokio::fs::read_to_string(&importing_file).await {
+                    // Find occurrences of the old symbol name
+                    let occurrences = find_symbol_occurrences(&content, &old_name);
 
-                // Skip if we already have edits for this file (from LSP)
-                if changes.contains_key(&file_uri) {
-                    continue;
+                    if !occurrences.is_empty() {
+                        // Create file URI
+                        let file_uri_str = format!("file://{}", importing_file.display());
+                        if let Ok(file_uri) = file_uri_str.parse::<Uri>() {
+                            // Create text edits for each occurrence
+                            let edits: Vec<TextEdit> = occurrences
+                                .into_iter()
+                                .map(|(line, char, len)| TextEdit {
+                                    range: lsp_types::Range {
+                                        start: lsp_types::Position {
+                                            line,
+                                            character: char,
+                                        },
+                                        end: lsp_types::Position {
+                                            line,
+                                            character: char + len,
+                                        },
+                                    },
+                                    new_text: new_name.to_string(),
+                                })
+                                .collect();
+                            return Some((file_uri, edits));
+                        }
+                    }
                 }
-
-                // Create text edits for each occurrence
-                let edits: Vec<TextEdit> = occurrences
-                    .into_iter()
-                    .map(|(line, char, len)| TextEdit {
-                        range: lsp_types::Range {
-                            start: lsp_types::Position {
-                                line,
-                                character: char,
-                            },
-                            end: lsp_types::Position {
-                                line,
-                                character: char + len,
-                            },
-                        },
-                        new_text: new_name.to_string(),
-                    })
-                    .collect();
-
-                added_edits += edits.len();
-                added_files += 1;
-                changes.insert(file_uri, edits);
+                None
             }
+        })
+        .buffer_unordered(50)
+        .filter_map(|opt| async { opt })
+        .collect::<Vec<(Uri, Vec<TextEdit>)>>()
+        .await;
+
+    for (file_uri, edits) in results {
+        // Skip if we already have edits for this file (from LSP)
+        if !changes.contains_key(&file_uri) {
+            added_edits += edits.len();
+            added_files += 1;
+            changes.insert(file_uri, edits);
         }
     }
 

@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use crate::handlers::tools::cross_file_references::discover_importing_files;
+    use crate::handlers::tools::cross_file_references::{
+        discover_importing_files, enhance_find_references,
+    };
     use async_trait::async_trait;
     use chrono::Utc;
     use mill_foundation::core::dry_run::DryRunnable;
@@ -195,5 +197,57 @@ mod tests {
         // We expect at least the importers to be found
         // Note: The logic might match heuristicly on filenames too, but we just want to measure performance.
         assert!(result.len() >= num_importers);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn benchmark_enhance_find_references() {
+        // Create a temporary directory
+        let temp_dir = tempfile::tempdir().unwrap();
+        let root = temp_dir.path();
+
+        // Create a source file
+        let source_file = root.join("source.ts");
+        {
+            let mut f = File::create(&source_file).unwrap();
+            f.write_all(b"export const myVar = 42;").unwrap();
+        }
+
+        // Create 200 files that import the source
+        let num_files = 200;
+
+        for i in 0..num_files {
+            let p = root.join(format!("file_{}.ts", i));
+            let mut f = File::create(&p).unwrap();
+            let content = "import { myVar } from './source';\nconst x = myVar + 1;";
+            f.write_all(content.as_bytes()).unwrap();
+        }
+
+        let context = create_dummy_context();
+        let original_response = serde_json::json!({
+            "content": {
+                "locations": []
+            }
+        });
+
+        println!("Starting enhance_find_references benchmark with {} files...", num_files);
+        let start = Instant::now();
+
+        let result = enhance_find_references(
+            original_response,
+            &source_file,
+            0,  // line
+            13, // char (start of myVar)
+            &context,
+        )
+        .await
+        .expect("Enhancement failed");
+
+        let duration = start.elapsed();
+        println!("Time taken: {:.2?}", duration);
+
+        // Verify we found references
+        let locations = result["content"]["locations"].as_array().expect("Should be array");
+        println!("Found {} references", locations.len());
+        assert!(locations.len() >= num_files);
     }
 }
