@@ -22,6 +22,7 @@ use mill_foundation::protocol::analysis_result::{
 };
 use mill_plugin_api::ParsedSource;
 use regex::Regex;
+use std::sync::OnceLock;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use tracing::debug;
@@ -85,22 +86,27 @@ pub(crate) fn detect_unused_imports(
 
     // Language-specific import patterns
     // These patterns detect import statements and extract the module path
-    let import_patterns = get_import_patterns(language);
+    let import_patterns_str = get_import_patterns(language);
 
-    if import_patterns.is_empty() {
+    if import_patterns_str.is_empty() {
         return findings; // Language not supported
     }
+
+    // Compile regexes once
+    let import_patterns: Vec<Regex> = import_patterns_str
+        .iter()
+        .filter_map(|s| Regex::new(s).ok())
+        .collect();
 
     // LSP uses 0-indexed line numbers
     let lines: Vec<&str> = content.lines().collect();
 
     for (line_num, line) in lines.iter().enumerate() {
         // Check if this line contains an import
-        for pattern_str in &import_patterns {
-            if let Ok(pattern) = Regex::new(pattern_str) {
-                if let Some(captures) = pattern.captures(line) {
-                    // Get the module path from the first capture group
-                    if let Some(module_path) = captures.get(1) {
+        for pattern in &import_patterns {
+            if let Some(captures) = pattern.captures(line) {
+                // Get the module path from the first capture group
+                if let Some(module_path) = captures.get(1) {
                         let module_path_str = module_path.as_str();
 
                         // Extract symbols from this import
@@ -252,7 +258,6 @@ pub(crate) fn detect_unused_imports(
                         }
                     }
                 }
-            }
         }
     }
 
@@ -628,6 +633,27 @@ pub(crate) fn detect_unused_parameters(
     let lines: Vec<&str> = content.lines().collect();
 
     // Language-specific parameter extraction patterns
+    let param_patterns_str = match language.to_lowercase().as_str() {
+        "rust" => vec![
+            r"\(([^)]+)\)", // fn foo(param1: Type, param2: Type)
+        ],
+        "typescript" | "javascript" => vec![
+            r"\(([^)]+)\)", // function foo(param1, param2) or (param1, param2) =>
+        ],
+        "python" => vec![
+            r"def\s+\w+\(([^)]+)\)", // def foo(param1, param2):
+        ],
+        "go" => vec![
+            r"func\s+\w+\(([^)]+)\)", // func foo(param1 Type, param2 Type)
+        ],
+        _ => vec![r"\(([^)]+)\)"],
+    };
+
+    let param_patterns: Vec<Regex> = param_patterns_str
+        .iter()
+        .filter_map(|s| Regex::new(s).ok())
+        .collect();
+
     for func in &complexity_report.functions {
         // Get function signature and body
         if func.line == 0 || func.line > lines.len() {
@@ -653,26 +679,8 @@ pub(crate) fn detect_unused_parameters(
             continue;
         }
 
-        // Extract parameter names based on language
-        let param_patterns = match language.to_lowercase().as_str() {
-            "rust" => vec![
-                r"\(([^)]+)\)", // fn foo(param1: Type, param2: Type)
-            ],
-            "typescript" | "javascript" => vec![
-                r"\(([^)]+)\)", // function foo(param1, param2) or (param1, param2) =>
-            ],
-            "python" => vec![
-                r"def\s+\w+\(([^)]+)\)", // def foo(param1, param2):
-            ],
-            "go" => vec![
-                r"func\s+\w+\(([^)]+)\)", // func foo(param1 Type, param2 Type)
-            ],
-            _ => vec![r"\(([^)]+)\)"],
-        };
-
-        for pattern_str in &param_patterns {
-            if let Ok(pattern) = Regex::new(pattern_str) {
-                if let Some(captures) = pattern.captures(&signature) {
+        for pattern in &param_patterns {
+            if let Some(captures) = pattern.captures(&signature) {
                     if let Some(params_str) = captures.get(1) {
                         let params_str = params_str.as_str();
 
@@ -756,7 +764,6 @@ pub(crate) fn detect_unused_parameters(
                         break;
                     }
                 }
-            }
         }
     }
 
@@ -935,28 +942,41 @@ pub(crate) fn detect_unused_variables(
     let lines: Vec<&str> = content.lines().collect();
 
     // Language-specific variable declaration patterns
-    let var_patterns: Vec<Regex> = match language.to_lowercase().as_str() {
-        "rust" => vec![
-            r"let\s+mut\s+(\w+)\s*[=:]", // let mut x =
-            r"let\s+(\w+)\s*[=:]",       // let x =
-        ],
-        "typescript" | "javascript" => vec![
-            r"const\s+(\w+)\s*=", // const x =
-            r"let\s+(\w+)\s*=",   // let x =
-            r"var\s+(\w+)\s*=",   // var x =
-        ],
-        "python" => vec![
-            r"^\s*(\w+)\s*=\s*", // x = (at start of line)
-        ],
-        "go" => vec![
-            r"(\w+)\s*:=",     // x :=
-            r"var\s+(\w+)\s+", // var x Type
-        ],
-        _ => vec![r"let\s+(\w+)\s*="],
-    }
-    .into_iter()
-    .filter_map(|p| Regex::new(p).ok())
-    .collect();
+    static RUST_PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
+    static JS_PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
+    static PYTHON_PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
+    static GO_PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
+    static DEFAULT_PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
+
+    let var_patterns: &Vec<Regex> = match language.to_lowercase().as_str() {
+        "rust" => RUST_PATTERNS.get_or_init(|| {
+            vec![
+                Regex::new(r"let\s+mut\s+(\w+)\s*[=:]").expect("Invalid regex"), // let mut x =
+                Regex::new(r"let\s+(\w+)\s*[=:]").expect("Invalid regex"),       // let x =
+            ]
+        }),
+        "typescript" | "javascript" => JS_PATTERNS.get_or_init(|| {
+            vec![
+                Regex::new(r"const\s+(\w+)\s*=").expect("Invalid regex"), // const x =
+                Regex::new(r"let\s+(\w+)\s*=").expect("Invalid regex"),   // let x =
+                Regex::new(r"var\s+(\w+)\s*=").expect("Invalid regex"),   // var x =
+            ]
+        }),
+        "python" => PYTHON_PATTERNS.get_or_init(|| {
+            vec![
+                Regex::new(r"^\s*(\w+)\s*=\s*").expect("Invalid regex"), // x = (at start of line)
+            ]
+        }),
+        "go" => GO_PATTERNS.get_or_init(|| {
+            vec![
+                Regex::new(r"(\w+)\s*:=").expect("Invalid regex"),     // x :=
+                Regex::new(r"var\s+(\w+)\s+").expect("Invalid regex"), // var x Type
+            ]
+        }),
+        _ => DEFAULT_PATTERNS.get_or_init(|| {
+            vec![Regex::new(r"let\s+(\w+)\s*=").expect("Invalid regex")]
+        }),
+    };
 
     // Analyze within each function scope
     for func in &complexity_report.functions {
@@ -975,7 +995,7 @@ pub(crate) fn detect_unused_variables(
 
             let line = lines[i];
 
-            for pattern in &var_patterns {
+            for pattern in var_patterns {
                 if let Some(captures) = pattern.captures(line) {
                     if let Some(var_match) = captures.get(1) {
                         let var_name = var_match.as_str();
@@ -1360,19 +1380,45 @@ fn extract_imported_symbols(content: &str, module_path: &str, language: &str) ->
 /// # Returns
 /// `true` if the symbol is used, `false` otherwise
 fn is_symbol_used_in_code(content: &str, symbol: &str) -> bool {
-    // Create pattern that matches the symbol as a word boundary
-    let pattern_str = format!(r"\b{}\b", regex::escape(symbol));
+    let mut occurrences = 0;
+    let mut start_search_at = 0;
 
-    if let Ok(pattern) = Regex::new(&pattern_str) {
-        let occurrences = pattern.find_iter(content).count();
+    while let Some(relative_pos) = content[start_search_at..].find(symbol) {
+        let match_start = start_search_at + relative_pos;
+        let match_end = match_start + symbol.len();
 
-        // If the symbol appears more than once, it's used
-        // (first occurrence is typically the import/definition)
-        occurrences > 1
-    } else {
-        // If regex fails, assume it's used (conservative approach)
-        true
+        // Check start boundary
+        let start_boundary = if match_start == 0 {
+            true
+        } else {
+            // Get char before match_start
+            match content[..match_start].chars().next_back() {
+                Some(c) => !c.is_alphanumeric() && c != '_',
+                None => true,
+            }
+        };
+
+        // Check end boundary
+        let end_boundary = if match_end >= content.len() {
+            true
+        } else {
+            match content[match_end..].chars().next() {
+                Some(c) => !c.is_alphanumeric() && c != '_',
+                None => true,
+            }
+        };
+
+        if start_boundary && end_boundary {
+            occurrences += 1;
+            if occurrences > 1 {
+                return true;
+            }
+        }
+
+        start_search_at = match_end;
     }
+
+    false
 }
 
 /// Check if a module path is referenced in the code (for side-effect imports)
