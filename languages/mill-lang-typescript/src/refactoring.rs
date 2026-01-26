@@ -905,8 +905,8 @@ impl LiteralFinder {
                     && &line_text[start..start + keyword.len()] == *keyword
                 {
                     // Check word boundaries
-                    let before_ok = start == 0
-                        || !line_text[..start].ends_with(|c: char| c.is_alphanumeric());
+                    let before_ok =
+                        start == 0 || !line_text[..start].ends_with(|c: char| c.is_alphanumeric());
                     let after_ok = start + keyword.len() == line_text.len()
                         || !line_text[start + keyword.len()..]
                             .starts_with(|c: char| c.is_alphanumeric());

@@ -9,8 +9,7 @@ static CONANFILE_TXT_REQUIRES_RE: Lazy<Regex> =
 static CONANFILE_TXT_DEP_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"(\w+)/(\S+)"#).unwrap());
 static CONANFILE_PY_REQUIRES_RE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"(?s)requires\s*=\s*\[(.*?)\]"#).unwrap());
-static CONANFILE_PY_DEP_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#""([^"]+)/([^"]+)""#).unwrap());
+static CONANFILE_PY_DEP_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r#""([^"]+)/([^"]+)""#).unwrap());
 
 /// Analyzes a Conan manifest file and extracts project metadata.
 ///

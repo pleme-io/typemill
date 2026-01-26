@@ -26,8 +26,9 @@ impl TestWorkspace {
     pub fn create_file(&self, rel_path: &str, content: &str) {
         let file_path = self.path().join(rel_path);
         if let Some(parent) = file_path.parent() {
-            fs::create_dir_all(parent)
-                .unwrap_or_else(|e| panic!("Failed to create parent dirs for '{}': {}", rel_path, e));
+            fs::create_dir_all(parent).unwrap_or_else(|e| {
+                panic!("Failed to create parent dirs for '{}': {}", rel_path, e)
+            });
         }
         fs::write(&file_path, content)
             .unwrap_or_else(|e| panic!("Failed to write file '{}': {}", file_path.display(), e));
@@ -36,8 +37,9 @@ impl TestWorkspace {
     /// Creates a directory within the workspace.
     pub fn create_directory(&self, rel_path: &str) {
         let dir_path = self.path().join(rel_path);
-        fs::create_dir_all(&dir_path)
-            .unwrap_or_else(|e| panic!("Failed to create directory '{}': {}", dir_path.display(), e));
+        fs::create_dir_all(&dir_path).unwrap_or_else(|e| {
+            panic!("Failed to create directory '{}': {}", dir_path.display(), e)
+        });
     }
 
     /// Reads a file from the workspace.

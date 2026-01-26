@@ -30,7 +30,7 @@ const DEFAULT_EXCLUDES: &[&str] = &[
 
 /// File extensions to search for imports
 const SEARCHABLE_EXTENSIONS: &[&str] = &[
-    "js", "jsx", "ts", "tsx", "mjs", "mts", "cjs", "cts", // JavaScript/TypeScript
+    "js", "jsx", "ts", "tsx", "mjs", "mts", "cjs", "cts",   // JavaScript/TypeScript
     "rs",    // Rust
     "py",    // Python
     "go",    // Go
@@ -220,7 +220,7 @@ pub async fn discover_importing_files(
                     || content.contains(&source_without_ext)        // Without extension
                     || content.contains(source_filename)            // Just filename with ext
                     || (!parent_filename.is_empty() && content.contains(&parent_filename))  // parent/file pattern
-                    || contains_word(&content, source_name);        // Just file stem (with word boundary)
+                    || contains_word(&content, source_name); // Just file stem (with word boundary)
 
                 if matches {
                     debug!(
@@ -257,9 +257,8 @@ pub async fn enhance_find_references(
     context: &mill_handler_api::ToolHandlerContext,
 ) -> ServerResult<Value> {
     // Extract original locations
-    let mut locations: HashSet<Location> = extract_locations(&original_response)
-        .into_iter()
-        .collect();
+    let mut locations: HashSet<Location> =
+        extract_locations(&original_response).into_iter().collect();
 
     let source_uri = format!("file://{}", source_file.display());
 
@@ -278,12 +277,8 @@ pub async fn enhance_find_references(
     );
 
     // Find workspace root (walk up to find Cargo.toml, package.json, or .git)
-    let workspace_root = find_workspace_root(source_file).unwrap_or_else(|| {
-        source_file
-            .parent()
-            .unwrap_or(source_file)
-            .to_path_buf()
-    });
+    let workspace_root = find_workspace_root(source_file)
+        .unwrap_or_else(|| source_file.parent().unwrap_or(source_file).to_path_buf());
 
     // Discover importing files
     let importing_files = discover_importing_files(&workspace_root, source_file, context).await?;
@@ -301,7 +296,9 @@ pub async fn enhance_find_references(
         if let Ok(content) = std::fs::read_to_string(&importing_file) {
             // Get the symbol name at the original position
             if let Ok(source_content) = std::fs::read_to_string(source_file) {
-                if let Some(symbol_name) = extract_symbol_at_position(&source_content, line, character) {
+                if let Some(symbol_name) =
+                    extract_symbol_at_position(&source_content, line, character)
+                {
                     // Find occurrences of the symbol in the importing file
                     let file_uri = format!("file://{}", importing_file.display());
                     let matches = find_symbol_occurrences(&content, &symbol_name);
@@ -332,7 +329,10 @@ pub async fn enhance_find_references(
         .get("processing_time_ms")
         .cloned()
         .unwrap_or(json!(0));
-    let cached = original_response.get("cached").cloned().unwrap_or(json!(false));
+    let cached = original_response
+        .get("cached")
+        .cloned()
+        .unwrap_or(json!(false));
 
     debug!(
         original_count = extract_locations(&original_response).len(),
@@ -354,7 +354,13 @@ pub async fn enhance_find_references(
 
 /// Find workspace root by looking for marker files
 fn find_workspace_root(start: &Path) -> Option<PathBuf> {
-    let markers = ["Cargo.toml", "package.json", ".git", "go.mod", "pyproject.toml"];
+    let markers = [
+        "Cargo.toml",
+        "package.json",
+        ".git",
+        "go.mod",
+        "pyproject.toml",
+    ];
 
     let mut current = start.parent()?;
     while current.parent().is_some() {
@@ -369,7 +375,11 @@ fn find_workspace_root(start: &Path) -> Option<PathBuf> {
 }
 
 /// Extract the symbol name at a given position in source code (public wrapper)
-pub fn extract_symbol_at_position_public(content: &str, line: u32, character: u32) -> Option<String> {
+pub fn extract_symbol_at_position_public(
+    content: &str,
+    line: u32,
+    character: u32,
+) -> Option<String> {
     extract_symbol_at_position(content, line, character)
 }
 
@@ -471,11 +481,7 @@ fn find_symbol_occurrences(content: &str, symbol: &str) -> Vec<(u32, u32, u32)> 
                     .unwrap_or(false);
 
             if before_ok && after_ok {
-                occurrences.push((
-                    line_idx as u32,
-                    absolute_pos as u32,
-                    symbol.len() as u32,
-                ));
+                occurrences.push((line_idx as u32, absolute_pos as u32, symbol.len() as u32));
             }
 
             search_start = absolute_pos + 1;
@@ -523,12 +529,8 @@ pub async fn enhance_symbol_rename(
     );
 
     // Find workspace root
-    let workspace_root = find_workspace_root(source_file).unwrap_or_else(|| {
-        source_file
-            .parent()
-            .unwrap_or(source_file)
-            .to_path_buf()
-    });
+    let workspace_root = find_workspace_root(source_file)
+        .unwrap_or_else(|| source_file.parent().unwrap_or(source_file).to_path_buf());
 
     // Discover importing files
     let importing_files = discover_importing_files(&workspace_root, source_file, context).await?;

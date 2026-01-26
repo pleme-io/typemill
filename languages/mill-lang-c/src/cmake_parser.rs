@@ -4,12 +4,10 @@ use regex::Regex;
 use std::fs;
 use std::path::Path;
 
-static PROJECT_NAME_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"project\(([^)]+)\)"#).unwrap());
+static PROJECT_NAME_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"project\(([^)]+)\)"#).unwrap());
 static ADD_EXECUTABLE_RE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"add_executable\(([^ ]+)"#).unwrap());
-static ADD_LIBRARY_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"add_library\(([^ ]+)"#).unwrap());
+static ADD_LIBRARY_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"add_library\(([^ ]+)"#).unwrap());
 
 /// Analyzes a CMakeLists.txt file and extracts project metadata.
 ///

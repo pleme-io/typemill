@@ -204,7 +204,7 @@ pub fn parse_flags_to_json(
         "health_check" => {
             if !flags.is_empty() {
                 Err(FlagParseError::UnknownFlag(
-                    "health_check takes no arguments. Use: mill tool health_check '{}'".to_string()
+                    "health_check takes no arguments. Use: mill tool health_check '{}'".to_string(),
                 ))
             } else {
                 Ok(json!({}))

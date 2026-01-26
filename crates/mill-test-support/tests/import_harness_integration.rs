@@ -138,10 +138,9 @@ mod import_harness_tests {
                 .find_by_extension(fixture.language.file_extension())
                 .unwrap_or_else(|| panic!("Plugin not found for {:?}", fixture.language));
 
-            let mutation = plugin.import_mutation_support().unwrap_or_else(|| panic!(
-                "{:?} should have import mutation support",
-                fixture.language
-            ));
+            let mutation = plugin.import_mutation_support().unwrap_or_else(|| {
+                panic!("{:?} should have import mutation support", fixture.language)
+            });
 
             if let ImportOperation::AddImport { module_name } = &fixture.operation {
                 let result = mutation.add_import(fixture.source_code, module_name);
@@ -171,10 +170,9 @@ mod import_harness_tests {
                 .find_by_extension(fixture.language.file_extension())
                 .unwrap_or_else(|| panic!("Plugin not found for {:?}", fixture.language));
 
-            let mutation = plugin.import_mutation_support().unwrap_or_else(|| panic!(
-                "{:?} should have import mutation support",
-                fixture.language
-            ));
+            let mutation = plugin.import_mutation_support().unwrap_or_else(|| {
+                panic!("{:?} should have import mutation support", fixture.language)
+            });
 
             if let ImportOperation::AddImport { module_name } = &fixture.operation {
                 let result = mutation.add_import(fixture.source_code, module_name);
@@ -204,10 +202,9 @@ mod import_harness_tests {
                 .find_by_extension(fixture.language.file_extension())
                 .unwrap_or_else(|| panic!("Plugin not found for {:?}", fixture.language));
 
-            let mutation = plugin.import_mutation_support().unwrap_or_else(|| panic!(
-                "{:?} should have import mutation support",
-                fixture.language
-            ));
+            let mutation = plugin.import_mutation_support().unwrap_or_else(|| {
+                panic!("{:?} should have import mutation support", fixture.language)
+            });
 
             if let ImportOperation::RemoveImport { module_name } = &fixture.operation {
                 let result = mutation.remove_import(fixture.source_code, module_name);
@@ -237,10 +234,9 @@ mod import_harness_tests {
                 .find_by_extension(fixture.language.file_extension())
                 .unwrap_or_else(|| panic!("Plugin not found for {:?}", fixture.language));
 
-            let rename_support = plugin.import_rename_support().unwrap_or_else(|| panic!(
-                "{:?} should have import rename support",
-                fixture.language
-            ));
+            let rename_support = plugin.import_rename_support().unwrap_or_else(|| {
+                panic!("{:?} should have import rename support", fixture.language)
+            });
 
             if let ImportOperation::RewriteForRename { old_name, new_name } = &fixture.operation {
                 let (result, changes) = rename_support.rewrite_imports_for_rename(

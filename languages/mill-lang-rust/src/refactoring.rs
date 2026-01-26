@@ -393,7 +393,8 @@ fn find_rust_numeric_literal(line_text: &str, col: usize) -> Option<(String, Cod
     let scan_start =
         if (bytes[col] == b'-' && col + 1 < bytes.len() && bytes[col + 1].is_ascii_digit())
             || bytes[col].is_ascii_digit()
-            || bytes[col] == b'.' {
+            || bytes[col] == b'.'
+        {
             col
         } else {
             // Cursor not on a number
@@ -479,26 +480,27 @@ fn find_rust_keyword_literal(line_text: &str, col: usize) -> Option<(String, Cod
             ..=col.min(line_text.len().saturating_sub(keyword.len()))
         {
             if start + keyword.len() <= line_text.len()
-                && &line_text[start..start + keyword.len()] == *keyword {
-                    // Check word boundaries
-                    let before_ok = start == 0
-                        || !line_text[..start].ends_with(|c: char| c.is_alphanumeric() || c == '_');
-                    let after_ok = start + keyword.len() == line_text.len()
-                        || !line_text[start + keyword.len()..]
-                            .starts_with(|c: char| c.is_alphanumeric() || c == '_');
+                && &line_text[start..start + keyword.len()] == *keyword
+            {
+                // Check word boundaries
+                let before_ok = start == 0
+                    || !line_text[..start].ends_with(|c: char| c.is_alphanumeric() || c == '_');
+                let after_ok = start + keyword.len() == line_text.len()
+                    || !line_text[start + keyword.len()..]
+                        .starts_with(|c: char| c.is_alphanumeric() || c == '_');
 
-                    if before_ok && after_ok {
-                        return Some((
-                            keyword.to_string(),
-                            CodeRange {
-                                start_line: 0,
-                                start_col: start as u32,
-                                end_line: 0,
-                                end_col: (start + keyword.len()) as u32,
-                            },
-                        ));
-                    }
+                if before_ok && after_ok {
+                    return Some((
+                        keyword.to_string(),
+                        CodeRange {
+                            start_line: 0,
+                            start_col: start as u32,
+                            end_line: 0,
+                            end_col: (start + keyword.len()) as u32,
+                        },
+                    ));
                 }
+            }
         }
     }
 

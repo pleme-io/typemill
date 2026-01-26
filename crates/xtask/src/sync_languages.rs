@@ -305,17 +305,13 @@ fn sync_crate_features(
                 // Update existing dependency to ensure it's optional
                 if let Some(inline_table) = existing_dep.as_inline_table_mut() {
                     // For mill-services, ensure optional = true
-                    if crate_info.name == "mill-services"
-                        && !inline_table.contains_key("optional") {
-                            inline_table.insert("optional", Value::Boolean(Formatted::new(true)));
-                            if verbose {
-                                println!(
-                                    "    {} Updated {} to be optional",
-                                    "✏️ ".yellow(),
-                                    dep_name
-                                );
-                            }
+                    if crate_info.name == "mill-services" && !inline_table.contains_key("optional")
+                    {
+                        inline_table.insert("optional", Value::Boolean(Formatted::new(true)));
+                        if verbose {
+                            println!("    {} Updated {} to be optional", "✏️ ".yellow(), dep_name);
                         }
+                    }
                 }
             } else {
                 // Add new dependency

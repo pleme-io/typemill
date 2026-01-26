@@ -557,8 +557,8 @@ impl QualityHandler {
 
                 if let Ok(candidates) = generate_quality_refactoring_candidates(&finding, file_path)
                 {
-                    let suggestions =
-                        suggestion_generator.generate_multiple(candidates, &context_for_suggestions);
+                    let suggestions = suggestion_generator
+                        .generate_multiple(candidates, &context_for_suggestions);
                     finding.suggestions = suggestions
                         .into_iter()
                         .map(|s| s.into())
@@ -1385,8 +1385,7 @@ pub(crate) fn analyze_readability(
             let mut finding = Finding {
                 id: format!("deep-nesting-{}-{}", file_path, func.line),
                 kind: "deep_nesting".to_string(),
-                severity: if func.complexity.max_nesting_depth
-                    > (thresholds.max_nesting_depth + 2)
+                severity: if func.complexity.max_nesting_depth > (thresholds.max_nesting_depth + 2)
                 {
                     Severity::High
                 } else {

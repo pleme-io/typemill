@@ -67,7 +67,9 @@ pub fn list_supported_languages() -> Vec<(&'static str, String)> {
         .filter_map(|desc| {
             // Create plugin instance to check for LSP installer
             let plugin = (desc.factory)();
-            plugin.lsp_installer().map(|installer| (desc.name, installer.lsp_name().to_string()))
+            plugin
+                .lsp_installer()
+                .map(|installer| (desc.name, installer.lsp_name().to_string()))
         })
         .collect()
 }

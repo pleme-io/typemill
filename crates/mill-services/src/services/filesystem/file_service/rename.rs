@@ -90,10 +90,13 @@ impl FileService {
         let new_abs = self.to_absolute_path_checked(new_path)?;
 
         if dry_run {
-            return self.preview_rename_file(&old_abs, &new_abs, scan_scope).await;
+            return self
+                .preview_rename_file(&old_abs, &new_abs, scan_scope)
+                .await;
         }
 
-        self.execute_rename_file(&old_abs, &new_abs, scan_scope).await
+        self.execute_rename_file(&old_abs, &new_abs, scan_scope)
+            .await
     }
 
     async fn preview_rename_file(
@@ -247,10 +250,13 @@ impl FileService {
         let new_abs_dir = self.to_absolute_path_checked(new_dir_path)?;
 
         if dry_run {
-            return self.preview_rename_directory(&old_abs_dir, &new_abs_dir, details).await;
+            return self
+                .preview_rename_directory(&old_abs_dir, &new_abs_dir, details)
+                .await;
         }
 
-        self.execute_rename_directory(&old_abs_dir, &new_abs_dir, scan_scope).await
+        self.execute_rename_directory(&old_abs_dir, &new_abs_dir, scan_scope)
+            .await
     }
 
     async fn preview_rename_directory(

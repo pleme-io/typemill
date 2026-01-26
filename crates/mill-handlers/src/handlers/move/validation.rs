@@ -25,7 +25,6 @@ fn uri_to_path_string(uri: &Uri) -> Result<String, ServerError> {
         .map(|decoded| decoded.into_owned())
 }
 
-
 /// Analyze WorkspaceEdit to calculate checksums and summary
 pub async fn analyze_workspace_edit(
     edit: &WorkspaceEdit,

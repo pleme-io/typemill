@@ -35,10 +35,9 @@ mod workspace_harness_tests {
                 .find_by_extension(fixture.language.file_extension())
                 .unwrap_or_else(|| panic!("Plugin not found for {:?}", fixture.language));
 
-            let workspace_support = plugin.workspace_support().unwrap_or_else(|| panic!(
-                "{:?} should have workspace support",
-                fixture.language
-            ));
+            let workspace_support = plugin
+                .workspace_support()
+                .unwrap_or_else(|| panic!("{:?} should have workspace support", fixture.language));
 
             let is_workspace = workspace_support.is_workspace_manifest(fixture.manifest_content);
 
@@ -65,10 +64,9 @@ mod workspace_harness_tests {
                 .find_by_extension(fixture.language.file_extension())
                 .unwrap_or_else(|| panic!("Plugin not found for {:?}", fixture.language));
 
-            let workspace_support = plugin.workspace_support().unwrap_or_else(|| panic!(
-                "{:?} should have workspace support",
-                fixture.language
-            ));
+            let workspace_support = plugin
+                .workspace_support()
+                .unwrap_or_else(|| panic!("{:?} should have workspace support", fixture.language));
 
             let is_workspace = workspace_support.is_workspace_manifest(fixture.manifest_content);
 
@@ -95,10 +93,9 @@ mod workspace_harness_tests {
                 .find_by_extension(fixture.language.file_extension())
                 .unwrap_or_else(|| panic!("Plugin not found for {:?}", fixture.language));
 
-            let workspace_support = plugin.workspace_support().unwrap_or_else(|| panic!(
-                "{:?} should have workspace support",
-                fixture.language
-            ));
+            let workspace_support = plugin
+                .workspace_support()
+                .unwrap_or_else(|| panic!("{:?} should have workspace support", fixture.language));
 
             let members = workspace_support.list_workspace_members(fixture.manifest_content);
 
@@ -125,10 +122,9 @@ mod workspace_harness_tests {
                 .find_by_extension(fixture.language.file_extension())
                 .unwrap_or_else(|| panic!("Plugin not found for {:?}", fixture.language));
 
-            let workspace_support = plugin.workspace_support().unwrap_or_else(|| panic!(
-                "{:?} should have workspace support",
-                fixture.language
-            ));
+            let workspace_support = plugin
+                .workspace_support()
+                .unwrap_or_else(|| panic!("{:?} should have workspace support", fixture.language));
 
             if let WorkspaceOperation::AddWorkspaceMember { member } = &fixture.operation {
                 let result =
@@ -159,10 +155,9 @@ mod workspace_harness_tests {
                 .find_by_extension(fixture.language.file_extension())
                 .unwrap_or_else(|| panic!("Plugin not found for {:?}", fixture.language));
 
-            let workspace_support = plugin.workspace_support().unwrap_or_else(|| panic!(
-                "{:?} should have workspace support",
-                fixture.language
-            ));
+            let workspace_support = plugin
+                .workspace_support()
+                .unwrap_or_else(|| panic!("{:?} should have workspace support", fixture.language));
 
             if let WorkspaceOperation::AddWorkspaceMember { member } = &fixture.operation {
                 let result =
@@ -193,10 +188,9 @@ mod workspace_harness_tests {
                 .find_by_extension(fixture.language.file_extension())
                 .unwrap_or_else(|| panic!("Plugin not found for {:?}", fixture.language));
 
-            let workspace_support = plugin.workspace_support().unwrap_or_else(|| panic!(
-                "{:?} should have workspace support",
-                fixture.language
-            ));
+            let workspace_support = plugin
+                .workspace_support()
+                .unwrap_or_else(|| panic!("{:?} should have workspace support", fixture.language));
 
             if let WorkspaceOperation::RemoveWorkspaceMember { member } = &fixture.operation {
                 let result =
@@ -227,10 +221,9 @@ mod workspace_harness_tests {
                 .find_by_extension(fixture.language.file_extension())
                 .unwrap_or_else(|| panic!("Plugin not found for {:?}", fixture.language));
 
-            let workspace_support = plugin.workspace_support().unwrap_or_else(|| panic!(
-                "{:?} should have workspace support",
-                fixture.language
-            ));
+            let workspace_support = plugin
+                .workspace_support()
+                .unwrap_or_else(|| panic!("{:?} should have workspace support", fixture.language));
 
             if let WorkspaceOperation::UpdatePackageName { new_name } = &fixture.operation {
                 let result =
@@ -264,10 +257,9 @@ mod workspace_harness_tests {
                 .find_by_extension(fixture.language.file_extension())
                 .unwrap_or_else(|| panic!("Plugin not found for {:?}", fixture.language));
 
-            let workspace_support = plugin.workspace_support().unwrap_or_else(|| panic!(
-                "{:?} should have workspace support",
-                fixture.language
-            ));
+            let workspace_support = plugin
+                .workspace_support()
+                .unwrap_or_else(|| panic!("{:?} should have workspace support", fixture.language));
 
             let members = workspace_support.list_workspace_members(fixture.manifest_content);
 
@@ -299,10 +291,9 @@ mod workspace_harness_tests {
                 .find_by_extension(fixture.language.file_extension())
                 .unwrap_or_else(|| panic!("Plugin not found for {:?}", fixture.language));
 
-            let workspace_support = plugin.workspace_support().unwrap_or_else(|| panic!(
-                "{:?} should have workspace support",
-                fixture.language
-            ));
+            let workspace_support = plugin
+                .workspace_support()
+                .unwrap_or_else(|| panic!("{:?} should have workspace support", fixture.language));
 
             if let WorkspaceOperation::RemoveWorkspaceMember { member } = &fixture.operation {
                 let result =

@@ -987,17 +987,23 @@ mod tests {
 
         // Get plugins from registry
         let bundle_plugins = mill_plugin_bundle::all_plugins();
-        let plugin_registry = crate::services::registry_builder::build_language_plugin_registry(bundle_plugins);
+        let plugin_registry =
+            crate::services::registry_builder::build_language_plugin_registry(bundle_plugins);
         let bundle_plugins = mill_plugin_bundle::all_plugins();
-        let plugin_registry = crate::services::registry_builder::build_language_plugin_registry(bundle_plugins);
+        let plugin_registry =
+            crate::services::registry_builder::build_language_plugin_registry(bundle_plugins);
         let bundle_plugins = mill_plugin_bundle::all_plugins();
-        let plugin_registry = crate::services::registry_builder::build_language_plugin_registry(bundle_plugins);
+        let plugin_registry =
+            crate::services::registry_builder::build_language_plugin_registry(bundle_plugins);
         let bundle_plugins = mill_plugin_bundle::all_plugins();
-        let plugin_registry = crate::services::registry_builder::build_language_plugin_registry(bundle_plugins);
+        let plugin_registry =
+            crate::services::registry_builder::build_language_plugin_registry(bundle_plugins);
         let bundle_plugins = mill_plugin_bundle::all_plugins();
-        let plugin_registry = crate::services::registry_builder::build_language_plugin_registry(bundle_plugins);
+        let plugin_registry =
+            crate::services::registry_builder::build_language_plugin_registry(bundle_plugins);
         let bundle_plugins = mill_plugin_bundle::all_plugins();
-        let plugin_registry = crate::services::registry_builder::build_language_plugin_registry(bundle_plugins);
+        let plugin_registry =
+            crate::services::registry_builder::build_language_plugin_registry(bundle_plugins);
         let plugins = plugin_registry.all();
 
         // Test: find_affected_files_for_rename should detect my_crate/src/main.rs
@@ -1081,7 +1087,9 @@ mod tests {
         ];
 
         // Get plugins from registry
-        let plugin_registry = crate::services::registry_builder::build_language_plugin_registry(mill_plugin_bundle::all_plugins());
+        let plugin_registry = crate::services::registry_builder::build_language_plugin_registry(
+            mill_plugin_bundle::all_plugins(),
+        );
         let plugins = plugin_registry.all();
 
         // Test: find_affected_files_for_rename should detect common/src/processor.rs
@@ -1125,7 +1133,9 @@ mod tests {
             .await
             .unwrap();
 
-        let plugin_registry = crate::services::registry_builder::build_language_plugin_registry(mill_plugin_bundle::all_plugins());
+        let plugin_registry = crate::services::registry_builder::build_language_plugin_registry(
+            mill_plugin_bundle::all_plugins(),
+        );
         let plugins = plugin_registry.all();
 
         // Test WITHOUT RenameScope - uses plugin-based filtering (includes all plugin-supported files)
@@ -1193,7 +1203,9 @@ mod tests {
             .await
             .unwrap();
 
-        let plugin_registry = crate::services::registry_builder::build_language_plugin_registry(mill_plugin_bundle::all_plugins());
+        let plugin_registry = crate::services::registry_builder::build_language_plugin_registry(
+            mill_plugin_bundle::all_plugins(),
+        );
         let plugins = plugin_registry.all();
 
         // Test WITHOUT RenameScope - uses plugin-based filtering (includes all plugin-supported files)
@@ -1265,7 +1277,9 @@ mod tests {
             .await
             .unwrap();
 
-        let plugin_registry = crate::services::registry_builder::build_language_plugin_registry(mill_plugin_bundle::all_plugins());
+        let plugin_registry = crate::services::registry_builder::build_language_plugin_registry(
+            mill_plugin_bundle::all_plugins(),
+        );
         let plugins = plugin_registry.all();
 
         // Test WITH RenameScope and exclude patterns
@@ -1338,7 +1352,9 @@ mod tests {
             .await
             .unwrap();
 
-        let plugin_registry = crate::services::registry_builder::build_language_plugin_registry(mill_plugin_bundle::all_plugins());
+        let plugin_registry = crate::services::registry_builder::build_language_plugin_registry(
+            mill_plugin_bundle::all_plugins(),
+        );
         let plugins = plugin_registry.all();
 
         // Test WITH comprehensive RenameScope - all flags true

@@ -75,7 +75,11 @@ pub(crate) fn find_generic_affected_files(
                     if plugin.handles_extension(ext) {
                         // Debug log for test investigation
                         #[cfg(test)]
-                        println!("DEBUG: Checking plugin {} for file {}", plugin.metadata().name, file.display());
+                        println!(
+                            "DEBUG: Checking plugin {} for file {}",
+                            plugin.metadata().name,
+                            file.display()
+                        );
 
                         // Try rewriting to see if this file would be affected
                         // Pass rename_info so plugins receive scope flags (update_exact_matches, etc.)
@@ -90,12 +94,19 @@ pub(crate) fn find_generic_affected_files(
 
                         #[cfg(test)]
                         if rewrite_result.is_none() {
-                             println!("DEBUG: rewrite_file_references returned None for {}", file.display());
+                            println!(
+                                "DEBUG: rewrite_file_references returned None for {}",
+                                file.display()
+                            );
                         }
 
                         if let Some((updated_content, change_count)) = rewrite_result {
                             #[cfg(test)]
-                            println!("DEBUG: rewrite_file_references returned change_count={} for {}", change_count, file.display());
+                            println!(
+                                "DEBUG: rewrite_file_references returned change_count={} for {}",
+                                change_count,
+                                file.display()
+                            );
 
                             if change_count > 0 && updated_content != content {
                                 tracing::info!(
@@ -290,7 +301,8 @@ export function main() {
 
         // Get plugins from registry
         let bundle_plugins = mill_plugin_bundle::all_plugins();
-        let plugin_registry = crate::services::registry_builder::build_language_plugin_registry(bundle_plugins);
+        let plugin_registry =
+            crate::services::registry_builder::build_language_plugin_registry(bundle_plugins);
         let plugins = plugin_registry.all();
 
         // Test generic detector
@@ -335,7 +347,8 @@ export function main() {
 
         // Get plugins from registry
         let bundle_plugins = mill_plugin_bundle::all_plugins();
-        let plugin_registry = crate::services::registry_builder::build_language_plugin_registry(bundle_plugins);
+        let plugin_registry =
+            crate::services::registry_builder::build_language_plugin_registry(bundle_plugins);
         let plugins = plugin_registry.all();
 
         let affected =
@@ -377,7 +390,8 @@ export function main() {
 
         // Get plugins from registry
         let bundle_plugins = mill_plugin_bundle::all_plugins();
-        let plugin_registry = crate::services::registry_builder::build_language_plugin_registry(bundle_plugins);
+        let plugin_registry =
+            crate::services::registry_builder::build_language_plugin_registry(bundle_plugins);
         let plugins = plugin_registry.all();
 
         let affected =
@@ -415,7 +429,8 @@ export function main() {
         // Create Markdown plugin using the bundle
         // Get plugins from registry
         let bundle_plugins = mill_plugin_bundle::all_plugins();
-        let plugin_registry = crate::services::registry_builder::build_language_plugin_registry(bundle_plugins);
+        let plugin_registry =
+            crate::services::registry_builder::build_language_plugin_registry(bundle_plugins);
         let plugins = plugin_registry.all();
 
         let affected =
@@ -465,7 +480,8 @@ export function main() {
 
         // Get plugins from registry
         let bundle_plugins = mill_plugin_bundle::all_plugins();
-        let plugin_registry = crate::services::registry_builder::build_language_plugin_registry(bundle_plugins);
+        let plugin_registry =
+            crate::services::registry_builder::build_language_plugin_registry(bundle_plugins);
         let plugins = plugin_registry.all();
 
         let affected =

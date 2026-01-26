@@ -6,6 +6,7 @@
 //! - Converting function to closure
 //! - Other syntax transformations
 
+use crate::handlers::common::calculate_checksum;
 use crate::handlers::tools::ToolHandler;
 use async_trait::async_trait;
 use lsp_types::{Range, WorkspaceEdit};
@@ -14,7 +15,6 @@ use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResu
 use mill_foundation::planning::{PlanMetadata, PlanSummary, RefactorPlan, TransformPlan};
 use serde::Deserialize;
 use serde_json::{json, Value};
-use crate::handlers::common::calculate_checksum;
 use std::collections::HashMap;
 use std::path::Path;
 use tracing::{debug, error, info};
@@ -403,4 +403,3 @@ impl TransformHandler {
     // Removed extension_to_language() - use plugin registry instead:
     // context.app_state.language_plugins.get_plugin(ext)?.metadata().name
 }
-

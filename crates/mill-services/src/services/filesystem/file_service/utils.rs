@@ -28,17 +28,37 @@ impl FileService {
         // This prevents completely arbitrary code execution from a malicious config
         // TODO: Move this policy to a robust configuration file or security policy
         let safe_prefixes = [
-            "cargo check", "cargo test", "cargo build", "cargo clippy", "cargo fmt",
-            "npm test", "npm run build", "npm run lint",
-            "yarn test", "yarn build", "yarn lint",
-            "pnpm test", "pnpm build", "pnpm lint",
-            "pytest", "python -m pytest", "black", "ruff", "mypy",
-            "go test", "go vet", "go fmt",
-            "dotnet test", "dotnet build",
-            "make test", "make check"
+            "cargo check",
+            "cargo test",
+            "cargo build",
+            "cargo clippy",
+            "cargo fmt",
+            "npm test",
+            "npm run build",
+            "npm run lint",
+            "yarn test",
+            "yarn build",
+            "yarn lint",
+            "pnpm test",
+            "pnpm build",
+            "pnpm lint",
+            "pytest",
+            "python -m pytest",
+            "black",
+            "ruff",
+            "mypy",
+            "go test",
+            "go vet",
+            "go fmt",
+            "dotnet test",
+            "dotnet build",
+            "make test",
+            "make check",
         ];
 
-        let is_safe = safe_prefixes.iter().any(|prefix| self.validation_config.command.trim().starts_with(prefix));
+        let is_safe = safe_prefixes
+            .iter()
+            .any(|prefix| self.validation_config.command.trim().starts_with(prefix));
 
         if !is_safe {
             error!(
