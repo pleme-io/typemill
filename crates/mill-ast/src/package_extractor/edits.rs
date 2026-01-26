@@ -1,5 +1,6 @@
 use crate::error::AstError;
 use crate::package_extractor::ExtractModuleToPackageParams;
+use futures::stream::StreamExt;
 use mill_foundation::protocol::{EditLocation, EditType, TextEdit};
 use mill_plugin_api::LanguagePlugin;
 use std::path::{Path, PathBuf};
@@ -234,151 +235,172 @@ pub(crate) async fn add_import_update_edits(
         "Found source files to scan for imports"
     );
 
-    for file_path in source_files {
-        if located_files.iter().any(|f| f == &file_path) {
-            continue;
-        }
+    let located_files_set: std::collections::HashSet<_> = located_files.iter().collect();
+    let files_to_scan: Vec<_> = source_files
+        .into_iter()
+        .filter(|f| !located_files_set.contains(f))
+        .collect();
 
-        if let Ok(content) = tokio::fs::read_to_string(&file_path).await {
-            // Use ImportParser capability to detect imports
-            let import_paths = if let Some(import_parser) = plugin.import_parser() {
-                import_parser.parse_imports(&content)
-            } else {
-                // Fallback: no import parsing available for this language
-                debug!(
-                    plugin_name = ?plugin.metadata().name,
-                    "ImportParser not available for this language, skipping import updates"
-                );
-                continue;
-            };
+    let module_path = params.module_path.clone();
+    let target_package_name = params.target_package_name.clone();
 
-            debug!(
-                file = %file_path.display(),
-                import_count = import_paths.len(),
-                "Parsed imports from file"
-            );
+    let new_edits = futures::stream::iter(files_to_scan)
+        .map(|file_path| {
+            let module_path = module_path.clone();
+            let target_package_name = target_package_name.clone();
 
-            for import_path in import_paths {
-                let module_path_normalized = params.module_path.replace('.', "::");
-                let patterns_to_match = [
-                    format!("crate::{}", module_path_normalized),
-                    format!("self::{}", module_path_normalized),
-                    module_path_normalized.clone(),
-                ];
-
-                let is_match = patterns_to_match
-                    .iter()
-                    .any(|pattern| import_path.starts_with(pattern));
-
-                if is_match {
-                    // Use ImportAdvancedSupport if available, otherwise fall back to hardcoded logic
-                    if let Some(advanced_support) = plugin.import_advanced_support() {
-                        use mill_foundation::planning::DependencyUpdate;
-                        use mill_foundation::planning::DependencyUpdateType;
-
-                        let old_reference = import_path.clone();
-                        let new_reference =
-                            format!("{}::{}", params.target_package_name, &import_path[6..]);
-
-                        let update = DependencyUpdate {
-                            target_file: file_path.to_string_lossy().to_string(),
-                            update_type: DependencyUpdateType::ImportPath,
-                            old_reference: old_reference.clone(),
-                            new_reference: new_reference.clone(),
-                        };
-
-                        match advanced_support
-                            .update_import_reference(&file_path, &content, &update)
-                        {
-                            Ok(updated_content) if updated_content != content => {
-                                // Find what changed to create accurate TextEdit
-                                edits.push(TextEdit {
-                                    file_path: Some(file_path.to_string_lossy().to_string()),
-                                    edit_type: EditType::Replace,
-                                    location: EditLocation {
-                                        start_line: 1,
-                                        start_column: 0,
-                                        end_line: content.lines().count() as u32,
-                                        end_column: 0,
-                                    },
-                                    original_text: content.clone(),
-                                    new_text: updated_content,
-                                    priority: 40,
-                                    description: format!(
-                                        "Update import from {} to {}",
-                                        old_reference, new_reference
-                                    ),
-                                });
-
-                                debug!(
-                                    file = %file_path.display(),
-                                    old_ref = %old_reference,
-                                    new_ref = %new_reference,
-                                    "Used ImportAdvancedSupport to update import"
-                                );
-                            }
-                            Ok(_) => {
-                                debug!(
-                                    file = %file_path.display(),
-                                    "ImportAdvancedSupport returned no changes"
-                                );
-                            }
-                            Err(e) => {
-                                debug!(
-                                    file = %file_path.display(),
-                                    error = %e,
-                                    "ImportAdvancedSupport failed, skipping"
-                                );
-                            }
-                        }
+            async move {
+                let mut local_edits = Vec::new();
+                if let Ok(content) = tokio::fs::read_to_string(&file_path).await {
+                    // Use ImportParser capability to detect imports
+                    let import_paths = if let Some(import_parser) = plugin.import_parser() {
+                        import_parser.parse_imports(&content)
                     } else {
-                        // Fallback: Use basic line-based replacement
-                        if let Some((line_num, line)) = content
-                            .lines()
-                            .enumerate()
-                            .find(|(_, line)| line.contains(&import_path))
-                        {
-                            let old_use_statement = format!("use {};", import_path);
-                            let new_use_statement = format!(
-                                "use {}::{};",
-                                params.target_package_name,
-                                &import_path[6..]
-                            );
+                        // Fallback: no import parsing available for this language
+                        debug!(
+                            plugin_name = ?plugin.metadata().name,
+                            "ImportParser not available for this language, skipping import updates"
+                        );
+                        return local_edits;
+                    };
 
-                            let start_column = line.find("use").unwrap_or(0);
-                            let end_column =
-                                line.find(';').map(|pos| pos + 1).unwrap_or(line.len());
+                    debug!(
+                        file = %file_path.display(),
+                        import_count = import_paths.len(),
+                        "Parsed imports from file"
+                    );
 
-                            edits.push(TextEdit {
-                                file_path: Some(file_path.to_string_lossy().to_string()),
-                                edit_type: EditType::Replace,
-                                location: EditLocation {
-                                    start_line: (line_num + 1) as u32,
-                                    start_column: start_column as u32,
-                                    end_line: (line_num + 1) as u32,
-                                    end_column: end_column as u32,
-                                },
-                                original_text: old_use_statement.clone(),
-                                new_text: new_use_statement.clone(),
-                                priority: 40,
-                                description: format!(
-                                    "Update import to use new package {}",
-                                    params.target_package_name
-                                ),
-                            });
+                    for import_path in import_paths {
+                        let module_path_normalized = module_path.replace('.', "::");
+                        let patterns_to_match = [
+                            format!("crate::{}", module_path_normalized),
+                            format!("self::{}", module_path_normalized),
+                            module_path_normalized.clone(),
+                        ];
 
-                            debug!(
-                                file = %file_path.display(),
-                                old_import = %old_use_statement,
-                                new_import = %new_use_statement,
-                                "Used fallback line-based replacement for import"
-                            );
+                        let is_match = patterns_to_match
+                            .iter()
+                            .any(|pattern| import_path.starts_with(pattern));
+
+                        if is_match {
+                            // Use ImportAdvancedSupport if available, otherwise fall back to hardcoded logic
+                            if let Some(advanced_support) = plugin.import_advanced_support() {
+                                use mill_foundation::planning::DependencyUpdate;
+                                use mill_foundation::planning::DependencyUpdateType;
+
+                                let old_reference = import_path.clone();
+                                let new_reference =
+                                    format!("{}::{}", target_package_name, &import_path[6..]);
+
+                                let update = DependencyUpdate {
+                                    target_file: file_path.to_string_lossy().to_string(),
+                                    update_type: DependencyUpdateType::ImportPath,
+                                    old_reference: old_reference.clone(),
+                                    new_reference: new_reference.clone(),
+                                };
+
+                                match advanced_support
+                                    .update_import_reference(&file_path, &content, &update)
+                                {
+                                    Ok(updated_content) if updated_content != content => {
+                                        // Find what changed to create accurate TextEdit
+                                        local_edits.push(TextEdit {
+                                            file_path: Some(file_path.to_string_lossy().to_string()),
+                                            edit_type: EditType::Replace,
+                                            location: EditLocation {
+                                                start_line: 1,
+                                                start_column: 0,
+                                                end_line: content.lines().count() as u32,
+                                                end_column: 0,
+                                            },
+                                            original_text: content.clone(),
+                                            new_text: updated_content,
+                                            priority: 40,
+                                            description: format!(
+                                                "Update import from {} to {}",
+                                                old_reference, new_reference
+                                            ),
+                                        });
+
+                                        debug!(
+                                            file = %file_path.display(),
+                                            old_ref = %old_reference,
+                                            new_ref = %new_reference,
+                                            "Used ImportAdvancedSupport to update import"
+                                        );
+                                    }
+                                    Ok(_) => {
+                                        debug!(
+                                            file = %file_path.display(),
+                                            "ImportAdvancedSupport returned no changes"
+                                        );
+                                    }
+                                    Err(e) => {
+                                        debug!(
+                                            file = %file_path.display(),
+                                            error = %e,
+                                            "ImportAdvancedSupport failed, skipping"
+                                        );
+                                    }
+                                }
+                            } else {
+                                // Fallback: Use basic line-based replacement
+                                if let Some((line_num, line)) = content
+                                    .lines()
+                                    .enumerate()
+                                    .find(|(_, line)| line.contains(&import_path))
+                                {
+                                    let old_use_statement = format!("use {};", import_path);
+                                    let new_use_statement = format!(
+                                        "use {}::{};",
+                                        target_package_name,
+                                        &import_path[6..]
+                                    );
+
+                                    let start_column = line.find("use").unwrap_or(0);
+                                    let end_column =
+                                        line.find(';').map(|pos| pos + 1).unwrap_or(line.len());
+
+                                    local_edits.push(TextEdit {
+                                        file_path: Some(file_path.to_string_lossy().to_string()),
+                                        edit_type: EditType::Replace,
+                                        location: EditLocation {
+                                            start_line: (line_num + 1) as u32,
+                                            start_column: start_column as u32,
+                                            end_line: (line_num + 1) as u32,
+                                            end_column: end_column as u32,
+                                        },
+                                        original_text: old_use_statement.clone(),
+                                        new_text: new_use_statement.clone(),
+                                        priority: 40,
+                                        description: format!(
+                                            "Update import to use new package {}",
+                                            target_package_name
+                                        ),
+                                    });
+
+                                    debug!(
+                                        file = %file_path.display(),
+                                        old_import = %old_use_statement,
+                                        new_import = %new_use_statement,
+                                        "Used fallback line-based replacement for import"
+                                    );
+                                }
+                            }
                         }
                     }
                 }
+                local_edits
             }
-        }
-    }
+        })
+        .buffer_unordered(50)
+        .fold(Vec::new(), |mut acc, mut file_edits| async move {
+            acc.append(&mut file_edits);
+            acc
+        })
+        .await;
+
+    edits.extend(new_edits);
     Ok(())
 }
 
