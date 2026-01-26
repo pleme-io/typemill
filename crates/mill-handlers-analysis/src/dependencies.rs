@@ -92,7 +92,8 @@ pub(crate) fn detect_imports(
 ) -> Vec<Finding> {
     if language == "rust" {
         let mut findings = Vec::new();
-        let import_regex = Regex::new(r"use\s+.*;").unwrap();
+        static IMPORT_REGEX: OnceLock<Regex> = OnceLock::new();
+        let import_regex = IMPORT_REGEX.get_or_init(|| Regex::new(r"use\s+.*;").unwrap());
 
         for (i, line) in content.lines().enumerate() {
             if import_regex.is_match(line) {
