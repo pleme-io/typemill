@@ -86,24 +86,41 @@ pub(crate) fn detect_unused_imports(
 
     // Language-specific import patterns
     // These patterns detect import statements and extract the module path
-    let import_patterns_str = get_import_patterns(language);
+    static RUST_IMPORT_PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
+    static JS_IMPORT_PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
+    static PYTHON_IMPORT_PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
+    static GO_IMPORT_PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
+    static EMPTY_PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
 
-    if import_patterns_str.is_empty() {
+    let import_patterns: &Vec<Regex> = match language.to_lowercase().as_str() {
+        "rust" => RUST_IMPORT_PATTERNS.get_or_init(|| {
+            vec![Regex::new(r"use\s+([\w:]+)").expect("Invalid regex")]
+        }),
+        "typescript" | "javascript" => JS_IMPORT_PATTERNS.get_or_init(|| {
+            vec![Regex::new(r#"import\s+(?:\{[^}]*\}|\*\s+as\s+\w+|\w+)\s+from\s+['"]([^'"]+)['"]"#).expect("Invalid regex")]
+        }),
+        "python" => PYTHON_IMPORT_PATTERNS.get_or_init(|| {
+            vec![
+                Regex::new(r"from\s+([\w.]+)\s+import").expect("Invalid regex"),
+                Regex::new(r"import\s+([\w.]+)").expect("Invalid regex"),
+            ]
+        }),
+        "go" => GO_IMPORT_PATTERNS.get_or_init(|| {
+            vec![Regex::new(r#"import\s+"([^"]+)""#).expect("Invalid regex")]
+        }),
+        _ => EMPTY_PATTERNS.get_or_init(Vec::new),
+    };
+
+    if import_patterns.is_empty() {
         return findings; // Language not supported
     }
-
-    // Compile regexes once
-    let import_patterns: Vec<Regex> = import_patterns_str
-        .iter()
-        .filter_map(|s| Regex::new(s).ok())
-        .collect();
 
     // LSP uses 0-indexed line numbers
     let lines: Vec<&str> = content.lines().collect();
 
     for (line_num, line) in lines.iter().enumerate() {
         // Check if this line contains an import
-        for pattern in &import_patterns {
+        for pattern in import_patterns {
             if let Some(captures) = pattern.captures(line) {
                 // Get the module path from the first capture group
                 if let Some(module_path) = captures.get(1) {
@@ -633,26 +650,29 @@ pub(crate) fn detect_unused_parameters(
     let lines: Vec<&str> = content.lines().collect();
 
     // Language-specific parameter extraction patterns
-    let param_patterns_str = match language.to_lowercase().as_str() {
-        "rust" => vec![
-            r"\(([^)]+)\)", // fn foo(param1: Type, param2: Type)
-        ],
-        "typescript" | "javascript" => vec![
-            r"\(([^)]+)\)", // function foo(param1, param2) or (param1, param2) =>
-        ],
-        "python" => vec![
-            r"def\s+\w+\(([^)]+)\)", // def foo(param1, param2):
-        ],
-        "go" => vec![
-            r"func\s+\w+\(([^)]+)\)", // func foo(param1 Type, param2 Type)
-        ],
-        _ => vec![r"\(([^)]+)\)"],
-    };
+    static RUST_PARAM_PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
+    static JS_PARAM_PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
+    static PYTHON_PARAM_PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
+    static GO_PARAM_PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
+    static DEFAULT_PARAM_PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
 
-    let param_patterns: Vec<Regex> = param_patterns_str
-        .iter()
-        .filter_map(|s| Regex::new(s).ok())
-        .collect();
+    let param_patterns: &Vec<Regex> = match language.to_lowercase().as_str() {
+        "rust" => RUST_PARAM_PATTERNS.get_or_init(|| {
+            vec![Regex::new(r"\(([^)]+)\)").expect("Invalid regex")]
+        }),
+        "typescript" | "javascript" => JS_PARAM_PATTERNS.get_or_init(|| {
+            vec![Regex::new(r"\(([^)]+)\)").expect("Invalid regex")]
+        }),
+        "python" => PYTHON_PARAM_PATTERNS.get_or_init(|| {
+            vec![Regex::new(r"def\s+\w+\(([^)]+)\)").expect("Invalid regex")]
+        }),
+        "go" => GO_PARAM_PATTERNS.get_or_init(|| {
+            vec![Regex::new(r"func\s+\w+\(([^)]+)\)").expect("Invalid regex")]
+        }),
+        _ => DEFAULT_PARAM_PATTERNS.get_or_init(|| {
+            vec![Regex::new(r"\(([^)]+)\)").expect("Invalid regex")]
+        }),
+    };
 
     for func in &complexity_report.functions {
         // Get function signature and body
@@ -679,7 +699,7 @@ pub(crate) fn detect_unused_parameters(
             continue;
         }
 
-        for pattern in &param_patterns {
+        for pattern in param_patterns {
             if let Some(captures) = pattern.captures(&signature) {
                     if let Some(params_str) = captures.get(1) {
                         let params_str = params_str.as_str();
@@ -1251,37 +1271,6 @@ fn is_type_exported(type_name: &str, language: &str, content: &str) -> bool {
 
     // Conservative default: assume it's exported
     false
-}
-
-/// Get language-specific import patterns
-///
-/// Returns regex patterns for detecting imports in different languages.
-/// Each pattern should have one capture group that captures the module path.
-fn get_import_patterns(language: &str) -> Vec<String> {
-    match language.to_lowercase().as_str() {
-        "rust" => vec![
-            // use std::collections::HashMap;
-            // use crate::module::*;
-            r"use\s+([\w:]+)".to_string(),
-        ],
-        "typescript" | "javascript" => vec![
-            // import { foo } from './module'
-            // import * as foo from './module'
-            r#"import\s+(?:\{[^}]*\}|\*\s+as\s+\w+|\w+)\s+from\s+['"]([^'"]+)['"]"#.to_string(),
-        ],
-        "python" => vec![
-            // from module import foo
-            // import module
-            r"from\s+([\w.]+)\s+import".to_string(),
-            r"import\s+([\w.]+)".to_string(),
-        ],
-        "go" => vec![
-            // import "package"
-            // import ( "package1" "package2" )
-            r#"import\s+"([^"]+)""#.to_string(),
-        ],
-        _ => vec![],
-    }
 }
 
 /// Extract imported symbols from an import statement
