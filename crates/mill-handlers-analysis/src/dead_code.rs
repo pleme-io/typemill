@@ -325,10 +325,19 @@ pub(crate) fn detect_unused_symbols(
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
 
+    // Get exported functions for languages with explicit exports
+    let exported_functions = get_exported_functions(content, language);
+
     // For MVP: Focus on unused functions
     for func in &complexity_report.functions {
         // Skip if function appears to be public/exported
-        if is_function_exported(&func.name, content, language) {
+        let is_exported = if let Some(ref exports) = exported_functions {
+            exports.contains(&func.name)
+        } else {
+            is_public_by_convention(&func.name, language)
+        };
+
+        if is_exported {
             continue;
         }
 
@@ -1185,8 +1194,12 @@ fn extract_parameter_names(params_str: &str, language: &str) -> Vec<String> {
 /// # Returns
 /// `true` if the parameter is used, `false` otherwise
 fn is_parameter_used_in_body(body: &str, param_name: &str) -> bool {
+    if param_name.is_empty() {
+        return false;
+    }
+
     // Remove comments before checking usage to avoid false positives
-    let mut body_without_comments = String::new();
+    let mut body_without_comments = String::with_capacity(body.len());
     for line in body.lines() {
         // Remove line comments (// and #)
         let code_part = if let Some(pos) = line.find("//") {
@@ -1200,15 +1213,43 @@ fn is_parameter_used_in_body(body: &str, param_name: &str) -> bool {
         body_without_comments.push('\n');
     }
 
-    // Use word boundary matching to avoid partial matches
-    let pattern_str = format!(r"\b{}\b", regex::escape(param_name));
+    let content = &body_without_comments;
+    let symbol = param_name;
+    let mut start_search_at = 0;
 
-    if let Ok(pattern) = Regex::new(&pattern_str) {
-        pattern.is_match(&body_without_comments)
-    } else {
-        // If regex fails, assume it's used (conservative approach)
-        true
+    while let Some(relative_pos) = content[start_search_at..].find(symbol) {
+        let match_start = start_search_at + relative_pos;
+        let match_end = match_start + symbol.len();
+
+        // Check start boundary
+        let start_boundary = if match_start == 0 {
+            true
+        } else {
+            // Get char before match_start
+            match content[..match_start].chars().next_back() {
+                Some(c) => !c.is_alphanumeric() && c != '_',
+                None => true,
+            }
+        };
+
+        // Check end boundary
+        let end_boundary = if match_end >= content.len() {
+            true
+        } else {
+            match content[match_end..].chars().next() {
+                Some(c) => !c.is_alphanumeric() && c != '_',
+                None => true,
+            }
+        };
+
+        if start_boundary && end_boundary {
+            return true;
+        }
+
+        start_search_at = match_end;
     }
+
+    false
 }
 
 /// Check if a type is exported/public
@@ -1441,51 +1482,50 @@ fn is_module_used_in_code(content: &str, module_path: &str) -> bool {
     false
 }
 
-/// Check if a function is exported/public
-///
-/// This heuristic checks for common export patterns in different languages
-/// to determine if a function is part of the public API.
-///
-/// # Parameters
-/// - `func_name`: The function name to check
-/// - `content`: The file content to search
-/// - `language`: The language name for pattern matching
-///
-/// # Returns
-/// `true` if the function appears to be exported/public
-fn is_function_exported(func_name: &str, content: &str, language: &str) -> bool {
+/// Get all exported functions in a file (for languages with explicit export markers)
+fn get_exported_functions(
+    content: &str,
+    language: &str,
+) -> Option<std::collections::HashSet<String>> {
+    let mut exported = std::collections::HashSet::new();
+
     match language.to_lowercase().as_str() {
         "rust" => {
-            // Check for pub fn, pub(crate) fn, etc.
-            let pub_pattern = format!(r"pub(?:\([^)]*\))?\s+fn\s+{}\b", regex::escape(func_name));
-            if let Ok(pattern) = Regex::new(&pub_pattern) {
-                return pattern.is_match(content);
+            static RUST_PUB_FN: OnceLock<Regex> = OnceLock::new();
+            let pattern = RUST_PUB_FN.get_or_init(|| {
+                Regex::new(r"pub(?:\([^)]*\))?\s+fn\s+(\w+)").expect("Invalid regex")
+            });
+            for captures in pattern.captures_iter(content) {
+                if let Some(name) = captures.get(1) {
+                    exported.insert(name.as_str().to_string());
+                }
             }
+            Some(exported)
         }
         "typescript" | "javascript" => {
-            // Check for export keyword before function
-            let export_pattern = format!(
-                r"export\s+(?:async\s+)?(?:function\s+)?{}\b",
-                regex::escape(func_name)
-            );
-            if let Ok(pattern) = Regex::new(&export_pattern) {
-                return pattern.is_match(content);
+            static JS_EXPORT_FN: OnceLock<Regex> = OnceLock::new();
+            let pattern = JS_EXPORT_FN.get_or_init(|| {
+                Regex::new(r"export\s+(?:async\s+)?(?:function\s+)?(\w+)").expect("Invalid regex")
+            });
+            for captures in pattern.captures_iter(content) {
+                if let Some(name) = captures.get(1) {
+                    exported.insert(name.as_str().to_string());
+                }
             }
+            Some(exported)
         }
-        "python" => {
-            // In Python, functions not starting with _ are typically public
-            // For MVP, we'll be conservative and treat all as potentially public
-            return !func_name.starts_with('_');
-        }
-        "go" => {
-            // In Go, functions starting with uppercase are exported
-            return func_name.chars().next().is_some_and(|c| c.is_uppercase());
-        }
-        _ => {}
+        _ => None,
     }
+}
 
-    // Conservative default: assume it's exported
-    true
+/// Check if a function is public by naming convention (for languages like Python/Go)
+fn is_public_by_convention(func_name: &str, language: &str) -> bool {
+    match language.to_lowercase().as_str() {
+        "python" => !func_name.starts_with('_'),
+        "go" => func_name.chars().next().is_some_and(|c| c.is_uppercase()),
+        // For others (or if explicit scanning failed/not supported), be conservative
+        _ => true,
+    }
 }
 
 fn to_protocol_safety_level(level: suggestions::SafetyLevel) -> SafetyLevel {
