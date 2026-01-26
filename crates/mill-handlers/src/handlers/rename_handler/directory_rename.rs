@@ -3,36 +3,41 @@ use crate::handlers::common::calculate_checksums_for_directory_rename;
 use crate::handlers::tools::extensions::get_concrete_app_state;
 use mill_foundation::errors::MillResult as ServerResult;
 use mill_foundation::planning::{PlanMetadata, PlanSummary, PlanWarning, RenamePlan};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tracing::{debug, info};
 
 impl RenameHandler {
-    /// Auto-detect if this is a consolidation move
-    ///
-    /// Detects when moving a Rust crate into another crate's src/ directory.
-    /// Pattern: crates/source-crate → crates/target-crate/src/module
-    fn is_consolidation_move(old_path: &Path, new_path: &Path) -> bool {
-        // Check if source is a Cargo package
-        let has_source_cargo = old_path.join("Cargo.toml").exists();
-
-        // Check if target path is inside another crate's src/ directory
-        let mut target_in_src = false;
-        let mut parent_has_cargo = false;
-
-        for ancestor in new_path.ancestors() {
-            if ancestor.file_name().and_then(|n| n.to_str()) == Some("src") {
-                target_in_src = true;
-                // Check if this src's parent has Cargo.toml
-                if let Some(crate_root) = ancestor.parent() {
-                    if crate_root.join("Cargo.toml").exists() {
-                        parent_has_cargo = true;
-                        break;
+    /// Helper to find the crate root (parent of src/) for a path
+    async fn find_target_crate_root(path: &Path) -> Option<PathBuf> {
+        for p in path.ancestors() {
+            if p.file_name().and_then(|n| n.to_str()) == Some("src") {
+                if let Some(parent) = p.parent() {
+                    if tokio::fs::try_exists(parent.join("Cargo.toml"))
+                        .await
+                        .unwrap_or(false)
+                    {
+                        return Some(parent.to_path_buf());
                     }
                 }
             }
         }
+        None
+    }
 
-        has_source_cargo && target_in_src && parent_has_cargo
+    /// Auto-detect if this is a consolidation move
+    ///
+    /// Detects when moving a Rust crate into another crate's src/ directory.
+    /// Pattern: crates/source-crate → crates/target-crate/src/module
+    async fn is_consolidation_move(old_path: &Path, new_path: &Path) -> bool {
+        // Check if source is a Cargo package
+        let has_source_cargo = tokio::fs::try_exists(old_path.join("Cargo.toml"))
+            .await
+            .unwrap_or(false);
+
+        // Check if target path is inside another crate's src/ directory
+        let has_target_crate = Self::find_target_crate_root(new_path).await.is_some();
+
+        has_source_cargo && has_target_crate
     }
 
     /// Generate plan for directory rename using FileService
@@ -63,9 +68,10 @@ impl RenameHandler {
         };
 
         // Determine if this is a consolidation (explicit flag or auto-detect)
-        let is_consolidation = options
-            .consolidate
-            .unwrap_or_else(|| Self::is_consolidation_move(&old_path, &new_path));
+        let is_consolidation = match options.consolidate {
+            Some(val) => val,
+            None => Self::is_consolidation_move(&old_path, &new_path).await,
+        };
 
         if is_consolidation {
             info!(
@@ -76,15 +82,8 @@ impl RenameHandler {
 
             // Validate that consolidation won't create circular dependencies
             // Find target crate root (the parent of src/ directory)
-            let target_crate_root = new_path
-                .ancestors()
-                .find(|p| {
-                    p.file_name().and_then(|n| n.to_str()) == Some("src")
-                        && p.parent()
-                            .map(|parent| parent.join("Cargo.toml").exists())
-                            .unwrap_or(false)
-                })
-                .and_then(|src| src.parent())
+            let target_crate_root = Self::find_target_crate_root(&new_path)
+                .await
                 .ok_or_else(|| mill_foundation::errors::MillError::InvalidRequest {
                     message: "Could not find target crate root for consolidation".to_string(),
                     parameter: Some("newName".to_string()),
@@ -189,7 +188,9 @@ impl RenameHandler {
         }
 
         // Check if this is a Cargo package
-        let is_cargo_package = old_path.join("Cargo.toml").exists();
+        let is_cargo_package = tokio::fs::try_exists(old_path.join("Cargo.toml"))
+            .await
+            .unwrap_or(false);
 
         // For directory rename, we need to calculate checksums for all files being moved
         // Paths are already resolved against workspace root, so canonicalize directly
@@ -242,18 +243,8 @@ impl RenameHandler {
 
         // Add consolidation-specific warning
         if is_consolidation {
-            let target_crate_root = new_path
-                .ancestors()
-                .find(|p| {
-                    p.file_name()
-                        .and_then(|n| n.to_str())
-                        .map(|n| n == "src")
-                        .unwrap_or(false)
-                        && p.parent()
-                            .map(|parent| parent.join("Cargo.toml").exists())
-                            .unwrap_or(false)
-                })
-                .and_then(|src_dir| src_dir.parent())
+            let target_crate_root = Self::find_target_crate_root(&new_path)
+                .await
                 .map(|p| p.display().to_string())
                 .unwrap_or_else(|| "target crate".to_string());
 
@@ -294,5 +285,41 @@ impl RenameHandler {
             file_checksums,
             is_consolidation,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    #[tokio::test]
+    async fn test_is_consolidation_move() {
+        // Setup directory structure
+        let temp_dir = TempDir::new().unwrap();
+        let root = temp_dir.path();
+
+        // Create source crate
+        let src_crate = root.join("source_crate");
+        fs::create_dir(&src_crate).unwrap();
+        fs::write(src_crate.join("Cargo.toml"), "[package]").unwrap();
+
+        // Create target crate
+        let target_crate = root.join("target_crate");
+        fs::create_dir(&target_crate).unwrap();
+        fs::write(target_crate.join("Cargo.toml"), "[package]").unwrap();
+        let target_src = target_crate.join("src");
+        fs::create_dir(&target_src).unwrap();
+
+        // Case 1: True consolidation
+        let old_path = src_crate.clone();
+        let new_path = target_src.join("module_name");
+        assert!(RenameHandler::is_consolidation_move(&old_path, &new_path).await);
+
+        // Case 2: Not consolidation (no cargo.toml in source)
+        let other_dir = root.join("other_dir");
+        fs::create_dir(&other_dir).unwrap();
+        assert!(!RenameHandler::is_consolidation_move(&other_dir, &new_path).await);
     }
 }
