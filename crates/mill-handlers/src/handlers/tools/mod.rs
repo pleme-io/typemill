@@ -31,6 +31,9 @@ pub mod workspace_create;
 pub mod workspace_extract_deps;
 pub mod workspace_update_members;
 
+#[cfg(test)]
+pub mod perf_benchmark;
+
 // Re-export handlers
 pub use advanced::AdvancedToolsHandler;
 // pub use editing::EditingToolsHandler;  // TODO: Create EditingToolsHandler

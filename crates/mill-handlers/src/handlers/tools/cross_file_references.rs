@@ -9,11 +9,13 @@
 //!
 //! This follows the hybrid grep+LSP approach for reliable cross-file reference discovery.
 
+use futures::stream::{self, StreamExt};
 use ignore::WalkBuilder;
 use mill_foundation::errors::MillResult as ServerResult;
 use serde_json::{json, Value};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use tracing::debug;
 
 /// Default patterns to exclude from file discovery
@@ -97,6 +99,15 @@ fn extract_locations(response: &Value) -> Vec<Location> {
     }
 }
 
+/// Search parameters for finding importing files
+struct ImportSearchPatterns {
+    source_name: String,
+    source_filename: String,
+    source_path_str: String,
+    source_without_ext: String,
+    parent_filename: String,
+}
+
 /// Discover files that might import the source file
 pub async fn discover_importing_files(
     workspace_root: &Path,
@@ -118,13 +129,15 @@ pub async fn discover_importing_files(
     let source_name = source_file
         .file_stem()
         .and_then(|s| s.to_str())
-        .unwrap_or("");
+        .unwrap_or("")
+        .to_string();
 
     // Also get full filename with extension (for import path matching)
     let source_filename = source_file
         .file_name()
         .and_then(|s| s.to_str())
-        .unwrap_or("");
+        .unwrap_or("")
+        .to_string();
 
     // Get parent directory name (for relative import matching like '../galactic/')
     let source_parent = source_file
@@ -146,91 +159,123 @@ pub async fn discover_importing_files(
         "Import matching patterns"
     );
 
-    let mut importing_files = Vec::new();
+    // Prepare search patterns
+    let source_path_str = relative_source.to_string_lossy().to_string();
+    let source_without_ext = relative_source
+        .with_extension("")
+        .to_string_lossy()
+        .to_string();
 
-    // Walk workspace
-    for entry in WalkBuilder::new(workspace_root)
-        .hidden(false)
-        .git_ignore(true)
-        .build()
-        .filter_map(|e| e.ok())
-    {
-        let path = entry.path();
+    // Build pattern for relative import: "parent/filename" (e.g., "galactic/Galactic.is.js")
+    let parent_filename = if !source_parent.is_empty() && !source_filename.is_empty() {
+        format!("{}/{}", source_parent, source_filename)
+    } else {
+        String::new()
+    };
 
-        // Skip non-files
-        if !path.is_file() {
-            continue;
-        }
+    let search_patterns = Arc::new(ImportSearchPatterns {
+        source_name: source_name.clone(),
+        source_filename,
+        source_path_str,
+        source_without_ext,
+        parent_filename,
+    });
 
-        // Skip excluded paths
-        if exclude_matcher.is_match(path) {
-            continue;
-        }
+    // Walk workspace in a blocking task to avoid blocking the executor
+    let workspace_root_owned = workspace_root.to_path_buf();
+    let source_file_owned = source_file.to_path_buf();
+    // GlobSet is cheap to clone (Arc internals) and Send/Sync
+    let exclude_matcher_owned = exclude_matcher.clone();
 
-        // Skip non-searchable extensions
-        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-        if !SEARCHABLE_EXTENSIONS.contains(&ext) {
-            continue;
-        }
-
-        // Skip the source file itself
-        if path == source_file {
-            continue;
-        }
-
-        // Read file and check for imports
-        // Use std::fs directly to avoid project-root security restrictions
-        if let Ok(content) = std::fs::read_to_string(path) {
-            // Check various import patterns - use word boundaries to avoid false positives
-            // e.g., "is" shouldn't match inside "promise"
-            let has_import = contains_word(&content, source_name)
-                && (
-                    // ES6 import
-                    content.contains("import ")
-                    // CommonJS require
-                    || content.contains("require(")
-                    // Rust use
-                    || content.contains("use ")
-                    // Python import
-                    || content.contains("from ")
-                    // Go import
-                    || content.contains("import \"")
-                );
-
-            if has_import {
-                // More specific check: does it reference the source file?
-                // Check multiple patterns to catch various import styles
-                let source_path_str = relative_source.to_string_lossy();
-                let source_without_ext = relative_source
-                    .with_extension("")
-                    .to_string_lossy()
-                    .to_string();
-
-                // Build pattern for relative import: "parent/filename" (e.g., "galactic/Galactic.is.js")
-                let parent_filename = if !source_parent.is_empty() && !source_filename.is_empty() {
-                    format!("{}/{}", source_parent, source_filename)
-                } else {
-                    String::new()
-                };
-
-                // Path-based checks can use contains() since paths are specific
-                // Word boundary check for source_name to avoid false positives
-                let matches = content.contains(&*source_path_str)  // Full relative path from workspace
-                    || content.contains(&source_without_ext)        // Without extension
-                    || content.contains(source_filename)            // Just filename with ext
-                    || (!parent_filename.is_empty() && content.contains(&parent_filename))  // parent/file pattern
-                    || contains_word(&content, source_name); // Just file stem (with word boundary)
-
-                if matches {
-                    debug!(
-                        file = %path.display(),
-                        "Found importing file"
-                    );
-                    importing_files.push(path.to_path_buf());
+    let candidate_files = tokio::task::spawn_blocking(move || {
+        WalkBuilder::new(&workspace_root_owned)
+            .hidden(false)
+            .git_ignore(true)
+            .build()
+            .filter_map(|e| e.ok())
+            .map(|e| e.into_path())
+            .filter(|path| {
+                // Skip non-files
+                if !path.is_file() {
+                    return false;
                 }
+
+                // Skip excluded paths
+                if exclude_matcher_owned.is_match(path) {
+                    return false;
+                }
+
+                // Skip non-searchable extensions
+                let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+                if !SEARCHABLE_EXTENSIONS.contains(&ext) {
+                    return false;
+                }
+
+                // Skip the source file itself
+                if path == &source_file_owned {
+                    return false;
+                }
+
+                true
+            })
+            .collect::<Vec<PathBuf>>()
+    })
+    .await
+    .map_err(|e| mill_foundation::errors::MillError::internal(format!("Task join error: {}", e)))?;
+
+    // Process files in parallel
+    let mut importing_files: Vec<PathBuf> = stream::iter(candidate_files)
+        .map(|path| {
+            let patterns = search_patterns.clone();
+            async move {
+                // Read file asynchronously
+                // Use tokio::fs to avoid blocking the executor
+                if let Ok(content) = tokio::fs::read_to_string(&path).await {
+                    // Check various import patterns - use word boundaries to avoid false positives
+                    // e.g., "is" shouldn't match inside "promise"
+                    let has_import = contains_word(&content, &patterns.source_name)
+                        && (
+                            // ES6 import
+                            content.contains("import ")
+                            // CommonJS require
+                            || content.contains("require(")
+                            // Rust use
+                            || content.contains("use ")
+                            // Python import
+                            || content.contains("from ")
+                            // Go import
+                            || content.contains("import \"")
+                        );
+
+                    if has_import {
+                        // More specific check: does it reference the source file?
+                        // Path-based checks can use contains() since paths are specific
+                        // Word boundary check for source_name to avoid false positives
+                        let matches = content.contains(&patterns.source_path_str)  // Full relative path from workspace
+                            || content.contains(&patterns.source_without_ext)      // Without extension
+                            || content.contains(&patterns.source_filename)         // Just filename with ext
+                            || (!patterns.parent_filename.is_empty() && content.contains(&patterns.parent_filename))  // parent/file pattern
+                            || contains_word(&content, &patterns.source_name); // Just file stem (with word boundary)
+
+                        if matches {
+                            debug!(
+                                file = %path.display(),
+                                "Found importing file"
+                            );
+                            return Some(path);
+                        }
+                    }
+                }
+                None
             }
-        }
-    }
+        })
+        .buffer_unordered(50) // Process up to 50 files concurrently
+        .filter_map(|opt| async { opt })
+        .collect()
+        .await;
+
+    // Sort to ensure deterministic order
+    importing_files.sort();
 
     debug!(
         source = %source_file.display(),
@@ -290,27 +335,27 @@ pub async fn enhance_find_references(
     // For each importing file, query LSP for references
     // This is where we'd ideally open the file in LSP and query
     // For now, we'll do a simpler grep-based approach
-    for importing_file in importing_files {
-        // Read file content using std::fs to avoid project-root restrictions
-        if let Ok(content) = std::fs::read_to_string(&importing_file) {
-            // Get the symbol name at the original position
-            if let Ok(source_content) = std::fs::read_to_string(source_file) {
-                if let Some(symbol_name) =
-                    extract_symbol_at_position(&source_content, line, character)
-                {
-                    // Find occurrences of the symbol in the importing file
-                    let file_uri = format!("file://{}", importing_file.display());
-                    let matches = find_symbol_occurrences(&content, &symbol_name);
 
-                    for (match_line, match_char, match_len) in matches {
-                        locations.insert(Location {
-                            uri: file_uri.clone(),
-                            start_line: match_line,
-                            start_character: match_char,
-                            end_line: match_line,
-                            end_character: match_char + match_len,
-                        });
-                    }
+    // Read source content once
+    let source_content = tokio::fs::read_to_string(source_file).await.ok();
+    let symbol_name = source_content.as_deref().and_then(|c| extract_symbol_at_position(c, line, character));
+
+    if let Some(symbol_name) = symbol_name {
+        for importing_file in importing_files {
+            // Read file content using tokio::fs to avoid blocking
+            if let Ok(content) = tokio::fs::read_to_string(&importing_file).await {
+                // Find occurrences of the symbol in the importing file
+                let file_uri = format!("file://{}", importing_file.display());
+                let matches = find_symbol_occurrences(&content, &symbol_name);
+
+                for (match_line, match_char, match_len) in matches {
+                    locations.insert(Location {
+                        uri: file_uri.clone(),
+                        start_line: match_line,
+                        start_character: match_char,
+                        end_line: match_line,
+                        end_character: match_char + match_len,
+                    });
                 }
             }
         }
@@ -571,8 +616,8 @@ pub async fn enhance_symbol_rename(
 
     // For each importing file, find occurrences of the old symbol name
     for importing_file in importing_files {
-        // Read file content using std::fs to avoid project-root restrictions
-        if let Ok(content) = std::fs::read_to_string(&importing_file) {
+        // Read file content using tokio::fs to avoid blocking
+        if let Ok(content) = tokio::fs::read_to_string(&importing_file).await {
             // Find occurrences of the old symbol name
             let occurrences = find_symbol_occurrences(&content, old_name);
 
@@ -648,11 +693,11 @@ mod tests {
     fn test_find_symbol_occurrences() {
         let content = "import { is } from './is'\nconst result = is(value)\nis.type(x)";
         let occurrences = find_symbol_occurrences(content, "is");
-        assert_eq!(occurrences.len(), 4);
+        // Only matches outside strings (ignoring './is')
+        assert_eq!(occurrences.len(), 3);
         assert_eq!(occurrences[0], (0, 9, 2)); // import { is }
-        assert_eq!(occurrences[1], (0, 22, 2)); // inside './is'
-        assert_eq!(occurrences[2], (1, 15, 2)); // = is(
-        assert_eq!(occurrences[3], (2, 0, 2)); // is.type
+        assert_eq!(occurrences[1], (1, 15, 2)); // = is(
+        assert_eq!(occurrences[2], (2, 0, 2)); // is.type
     }
 
     #[test]
