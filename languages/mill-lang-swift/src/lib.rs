@@ -1067,10 +1067,10 @@ import SwiftUI
                 .plan_inline_variable(source, 0, 0, "test.swift")
                 .await
         });
-        // Current implementation will inline it anyway - in production, should check for reassignments
-        // TODO: This should ideally return an error for multiple assignments
-        // For now, verify it doesn't panic
-        let _ = result;
+
+        assert!(result.is_err(), "Should return error for reassigned variable");
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("reassigned"), "Error should mention reassignment: {}", err_msg);
     }
 
     #[test]

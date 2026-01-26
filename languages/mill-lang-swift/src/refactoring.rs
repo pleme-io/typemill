@@ -25,12 +25,13 @@ use regex::Regex;
 ///
 /// # Examples
 /// ```rust
+/// # use mill_lang_swift::refactoring::plan_extract_function;
 /// let source = r#"func main() {
 ///     let x = 10
 ///     let y = 20
 ///     print(x + y)
 /// }"#;
-/// let plan = plan_extract_function(source, 1, 2, "calculateSum", "main.swift")?;
+/// let plan = plan_extract_function(source, 1, 2, "calculateSum", "main.swift").unwrap();
 /// assert_eq!(plan.edits.len(), 2); // insert new function + replace with call
 /// ```
 pub fn plan_extract_function(
@@ -103,7 +104,7 @@ pub fn plan_extract_function(
 }
 
 lazy_static! {
-    static ref VAR_DECL_REGEX: Regex = Regex::new(r"^\s*(?:let|var)\s+([a-zA-Z0-9_]+)\s*=\s*(.*)")
+    static ref VAR_DECL_REGEX: Regex = Regex::new(r"^\s*(let|var)\s+([a-zA-Z0-9_]+)\s*=\s*(.*)")
         .expect("Invalid regex for Swift variable declaration");
 }
 
@@ -124,12 +125,13 @@ lazy_static! {
 ///
 /// # Examples
 /// ```rust
+/// # use mill_lang_swift::refactoring::plan_inline_variable;
 /// let source = r#"
 /// let rate = 0.08
 /// let tax = price * rate
 /// let total = base * rate
 /// "#;
-/// let plan = plan_inline_variable(source, 1, 0, "test.swift")?;
+/// let plan = plan_inline_variable(source, 1, 0, "test.swift").unwrap();
 /// assert!(plan.edits.len() >= 2); // replacements + declaration removal
 /// ```
 pub fn plan_inline_variable(
@@ -147,8 +149,40 @@ pub fn plan_inline_variable(
     let caps = VAR_DECL_REGEX
         .captures(line_content)
         .ok_or_else(|| PluginApiError::invalid_input("Line is not a variable declaration"))?;
-    let var_name = &caps[1];
-    let var_value = caps[2].trim().trim_end_matches(';').to_string();
+    let decl_type = &caps[1];
+    let var_name = &caps[2];
+    let var_value = caps[3].trim().trim_end_matches(';').to_string();
+
+    if decl_type == "var" {
+        let assign_pattern = format!(r"\b{}\s*([-+*/%&|^]?=)", regex::escape(var_name));
+        let assign_re = Regex::new(&assign_pattern)
+            .map_err(|e| PluginApiError::internal(format!("Invalid regex: {}", e)))?;
+
+        for (i, line) in lines.iter().enumerate() {
+            if i as u32 > variable_line {
+                let trimmed = line.trim();
+                if trimmed.starts_with("//") || trimmed.starts_with("/*") {
+                    continue;
+                }
+                let code_only = line.split("//").next().unwrap_or(line);
+
+                for mat in assign_re.find_iter(code_only) {
+                    let matched_str = mat.as_str();
+                    if matched_str.ends_with('=') {
+                        let end_pos = mat.end();
+                        if end_pos < code_only.len() && code_only.as_bytes()[end_pos] == b'=' {
+                            continue;
+                        }
+                    }
+
+                    return Err(PluginApiError::invalid_input(format!(
+                        "Variable '{}' is reassigned, cannot inline.",
+                        var_name
+                    )));
+                }
+            }
+        }
+    }
 
     let mut edits = Vec::new();
     let search_pattern = format!(r"\b{}\b", var_name);
@@ -220,11 +254,12 @@ pub fn plan_inline_variable(
 ///
 /// # Examples
 /// ```rust
+/// # use mill_lang_swift::refactoring::plan_extract_variable;
 /// let source = r#"func calculate() {
 ///     let total = 100 * 1.08
 ///     return total
 /// }"#;
-/// let plan = plan_extract_variable(source, 1, 16, 1, 26, Some("taxRate".to_string()), "test.swift")?;
+/// let plan = plan_extract_variable(source, 1, 16, 1, 26, Some("taxRate".to_string()), "test.swift").unwrap();
 /// assert_eq!(plan.edits.len(), 2); // declaration + replacement
 /// ```
 pub fn plan_extract_variable(
