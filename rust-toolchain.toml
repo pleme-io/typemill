@@ -1,4 +1,8 @@
+# Rust toolchain configuration for TypeMill
+# This file ensures all developers use the same Rust toolchain
+# See: https://rust-lang.github.io/rustup/overrides.html
+
 [toolchain]
 channel = "stable"
-components = ["rustfmt", "clippy"]
+components = ["rustfmt", "clippy", "rust-analyzer"]
 profile = "minimal"

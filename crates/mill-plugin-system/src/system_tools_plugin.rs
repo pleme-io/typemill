@@ -91,294 +91,301 @@ impl SystemToolsPlugin {
         }
     }
 
-    /// Handle list_files tool
-    async fn handle_list_files(&self, params: Value) -> PluginResult<Value> {
-        #[derive(Debug, Deserialize)]
-        #[serde(rename_all = "snake_case")]
-        struct ListFilesArgs {
-            path: Option<String>,
-            recursive: Option<bool>,
-            include_hidden: Option<bool>,
-        }
 
-        let args: ListFilesArgs =
-            serde_json::from_value(params).map_err(|e| PluginSystemError::SerializationError {
-                message: format!("Invalid list_files args: {}", e),
-            })?;
+}
 
-        let path = args.path.unwrap_or_else(|| ".".to_string());
-        let recursive = args.recursive.unwrap_or(false);
-        let include_hidden = args.include_hidden.unwrap_or(false);
+// ============================================================================
+// Standalone handler functions (avoid &self borrow across await points for Send)
+// ============================================================================
 
-        debug!(path = %path, recursive = %recursive, "Listing files");
+/// Handle list_files tool
+fn handle_list_files(params: Value) -> PluginResult<Value> {
+    #[derive(Debug, Deserialize)]
+    #[serde(rename_all = "snake_case")]
+    struct ListFilesArgs {
+        path: Option<String>,
+        recursive: Option<bool>,
+        include_hidden: Option<bool>,
+    }
 
-        // Use ignore::WalkBuilder to respect .gitignore and other ignore files
-        let mut files = Vec::new();
-        let walker = WalkBuilder::new(&path)
-            .hidden(!include_hidden)
-            .max_depth(if recursive { None } else { Some(1) })
-            .build();
+    let args: ListFilesArgs =
+        serde_json::from_value(params).map_err(|e| PluginSystemError::SerializationError {
+            message: format!("Invalid list_files args: {}", e),
+        })?;
 
-        for result in walker {
-            match result {
-                Ok(entry) => {
-                    let file_path = entry.path();
-                    let file_name = file_path
-                        .file_name()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                        .to_string();
+    let path = args.path.unwrap_or_else(|| ".".to_string());
+    let recursive = args.recursive.unwrap_or(false);
+    let include_hidden = args.include_hidden.unwrap_or(false);
 
-                    // Get metadata
-                    match entry.metadata() {
-                        Ok(metadata) => {
-                            let file_info = json!({
-                                "name": file_name,
-                                "path": file_path.to_string_lossy(),
-                                "size": metadata.len(),
-                                "is_dir": metadata.is_dir(),
-                                "is_file": metadata.is_file(),
-                            });
-                            files.push(file_info);
-                        }
-                        Err(e) => {
-                            warn!(file_path = ?file_path, error = %e, "Failed to get metadata");
-                        }
+    debug!(path = %path, recursive = %recursive, "Listing files");
+
+    // Use ignore::WalkBuilder to respect .gitignore and other ignore files
+    let mut files = Vec::new();
+    let walker = WalkBuilder::new(&path)
+        .hidden(!include_hidden)
+        .max_depth(if recursive { None } else { Some(1) })
+        .build();
+
+    for result in walker {
+        match result {
+            Ok(entry) => {
+                let file_path = entry.path();
+                let file_name = file_path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
+
+                // Get metadata
+                match entry.metadata() {
+                    Ok(metadata) => {
+                        let file_info = json!({
+                            "name": file_name,
+                            "path": file_path.to_string_lossy(),
+                            "size": metadata.len(),
+                            "is_dir": metadata.is_dir(),
+                            "is_file": metadata.is_file(),
+                        });
+                        files.push(file_info);
+                    }
+                    Err(e) => {
+                        warn!(file_path = ?file_path, error = %e, "Failed to get metadata");
                     }
                 }
-                Err(e) => {
-                    warn!(error = %e, "Error walking directory");
-                }
+            }
+            Err(e) => {
+                warn!(error = %e, "Error walking directory");
             }
         }
-
-        Ok(json!({
-            "files": files,
-            "total": files.len(),
-            "path": path,
-        }))
     }
 
-    /// Handle bulk_update_dependencies tool
-    async fn handle_bulk_update_dependencies(&self, params: Value) -> PluginResult<Value> {
-        #[derive(Debug, Deserialize)]
-        #[serde(rename_all = "snake_case")]
-        struct UpdateDependenciesArgs {
-            project_path: Option<String>,
-            package_manager: Option<String>,
-            update_type: Option<String>,
-            dry_run: Option<bool>,
-        }
+    Ok(json!({
+        "files": files,
+        "total": files.len(),
+        "path": path,
+    }))
+}
 
-        let args: UpdateDependenciesArgs =
-            serde_json::from_value(params).map_err(|e| PluginSystemError::SerializationError {
-                message: format!("Invalid bulk_update_dependencies args: {}", e),
-            })?;
-
-        let project_path = args.project_path.unwrap_or_else(|| ".".to_string());
-        let package_manager = args.package_manager.unwrap_or_else(|| "auto".to_string());
-        let update_type = args.update_type.unwrap_or_else(|| "minor".to_string());
-        let dry_run = args.dry_run.unwrap_or(false);
-
-        debug!(
-            project_path = %project_path,
-            package_manager = %package_manager,
-            "Updating dependencies"
-        );
-
-        // Detect package manager using shared utility
-        let detected_manager = if package_manager == "auto" {
-            let detected = detect_package_manager(Path::new(&project_path));
-            detected.as_str()
-        } else {
-            package_manager.as_str()
-        };
-
-        let (command, args) = match detected_manager {
-            "npm" => {
-                if dry_run {
-                    ("npm", vec!["outdated"])
-                } else {
-                    ("npm", vec!["update"])
-                }
-            }
-            "yarn" => {
-                if dry_run {
-                    ("yarn", vec!["outdated"])
-                } else {
-                    ("yarn", vec!["upgrade"])
-                }
-            }
-            "pnpm" => {
-                if dry_run {
-                    ("pnpm", vec!["outdated"])
-                } else {
-                    ("pnpm", vec!["update"])
-                }
-            }
-            "go" => {
-                if dry_run {
-                    // Go doesn't have a built-in "outdated" command
-                    // Use go list to check for available updates
-                    ("go", vec!["list", "-u", "-m", "all"])
-                } else {
-                    // Update all dependencies
-                    ("go", vec!["get", "-u", "./..."])
-                }
-            }
-            "cargo" => {
-                if dry_run {
-                    ("cargo", vec!["outdated"])
-                } else {
-                    ("cargo", vec!["update"])
-                }
-            }
-            "pip" => {
-                if dry_run {
-                    ("pip", vec!["list", "--outdated"])
-                } else {
-                    (
-                        "pip",
-                        vec!["install", "--upgrade", "-r", "requirements.txt"],
-                    )
-                }
-            }
-            _ => {
-                return Err(PluginSystemError::PluginRequestFailed {
-                    plugin: "system-tools".to_string(),
-                    message: format!("Unknown package manager: {}", detected_manager),
-                })
-            }
-        };
-
-        // Execute the command
-        let output = tokio::process::Command::new(command)
-            .args(&args)
-            .current_dir(&project_path)
-            .output()
-            .await
-            .map_err(|e| PluginSystemError::IoError {
-                message: format!("Failed to execute command: {}", e),
-            })?;
-
-        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-        let success = output.status.success();
-        let exit_code = output.status.code();
-
-        debug!(
-            command = %command,
-            args = ?args,
-            success = %success,
-            exit_code = ?exit_code,
-            "Command executed"
-        );
-
-        Ok(json!({
-            "project_path": project_path,
-            "package_manager": detected_manager,
-            "update_type": update_type,
-            "dryRun": dry_run,
-            "command": format!("{} {}", command, args.join(" ")),
-            "success": success,
-            "exit_code": exit_code,
-            "stdout": stdout,
-            "stderr": stderr,
-            "status": if dry_run { "preview" } else { "completed" },
-        }))
+/// Handle bulk_update_dependencies tool
+async fn handle_bulk_update_dependencies(params: Value) -> PluginResult<Value> {
+    #[derive(Debug, Deserialize)]
+    #[serde(rename_all = "snake_case")]
+    struct UpdateDependenciesArgs {
+        project_path: Option<String>,
+        package_manager: Option<String>,
+        update_type: Option<String>,
+        dry_run: Option<bool>,
     }
 
-    /// Handle web_fetch tool
-    async fn handle_web_fetch(&self, params: Value) -> PluginResult<Value> {
-        #[derive(Debug, Deserialize)]
-        #[serde(rename_all = "snake_case")]
-        struct WebFetchArgs {
-            url: String,
-        }
-
-        let args: WebFetchArgs =
-            serde_json::from_value(params).map_err(|e| PluginSystemError::SerializationError {
-                message: format!("Invalid web_fetch args: {}", e),
-            })?;
-
-        debug!(url = %args.url, "Fetching URL content");
-
-        // Use reqwest to fetch the URL content
-        let response =
-            reqwest::blocking::get(&args.url).map_err(|e| PluginSystemError::IoError {
-                message: format!("Failed to fetch URL: {}", e),
-            })?;
-
-        let html_content = response.text().map_err(|e| PluginSystemError::IoError {
-            message: format!("Failed to read response text: {}", e),
+    let args: UpdateDependenciesArgs =
+        serde_json::from_value(params).map_err(|e| PluginSystemError::SerializationError {
+            message: format!("Invalid bulk_update_dependencies args: {}", e),
         })?;
 
-        // Convert HTML to Markdown for easier AI processing
-        let markdown_content =
-            html2md_rs::to_md::safe_from_html_to_md(html_content).map_err(|e| {
-                PluginSystemError::IoError {
-                    message: format!("Failed to convert HTML to markdown: {}", e),
-                }
-            })?;
+    let project_path = args.project_path.unwrap_or_else(|| ".".to_string());
+    let package_manager = args.package_manager.unwrap_or_else(|| "auto".to_string());
+    let update_type = args.update_type.unwrap_or_else(|| "minor".to_string());
+    let dry_run = args.dry_run.unwrap_or(false);
 
-        Ok(json!({
-            "url": args.url,
-            "content": markdown_content,
-            "status": "success"
-        }))
-    }
+    debug!(
+        project_path = %project_path,
+        package_manager = %package_manager,
+        "Updating dependencies"
+    );
 
-    /// Handle extract_module_to_package tool
-    #[allow(unused_variables)] // params only used with lang-rust feature
-    async fn handle_extract_module_to_package(&self, params: Value) -> PluginResult<Value> {
-        // Check if Rust plugin is available at runtime
-        let has_rust = self
-            .plugin_registry
-            .all()
-            .iter()
-            .any(|p| p.metadata().name == "rust");
+    // Detect package manager using shared utility
+    let detected_manager = if package_manager == "auto" {
+        let detected = detect_package_manager(Path::new(&project_path));
+        detected.as_str()
+    } else {
+        package_manager.as_str()
+    };
 
-        if !has_rust {
-            return Err(PluginSystemError::MethodNotSupported {
-                method: "extract_module_to_package".to_string(),
-                plugin: "system-tools (requires Rust plugin)".to_string(),
-            });
+    let (command, cmd_args) = match detected_manager {
+        "npm" => {
+            if dry_run {
+                ("npm", vec!["outdated"])
+            } else {
+                ("npm", vec!["update"])
+            }
         }
+        "yarn" => {
+            if dry_run {
+                ("yarn", vec!["outdated"])
+            } else {
+                ("yarn", vec!["upgrade"])
+            }
+        }
+        "pnpm" => {
+            if dry_run {
+                ("pnpm", vec!["outdated"])
+            } else {
+                ("pnpm", vec!["update"])
+            }
+        }
+        "go" => {
+            if dry_run {
+                // Go doesn't have a built-in "outdated" command
+                // Use go list to check for available updates
+                ("go", vec!["list", "-u", "-m", "all"])
+            } else {
+                // Update all dependencies
+                ("go", vec!["get", "-u", "./..."])
+            }
+        }
+        "cargo" => {
+            if dry_run {
+                ("cargo", vec!["outdated"])
+            } else {
+                ("cargo", vec!["update"])
+            }
+        }
+        "pip" => {
+            if dry_run {
+                ("pip", vec!["list", "--outdated"])
+            } else {
+                (
+                    "pip",
+                    vec!["install", "--upgrade", "-r", "requirements.txt"],
+                )
+            }
+        }
+        _ => {
+            return Err(PluginSystemError::PluginRequestFailed {
+                plugin: "system-tools".to_string(),
+                message: format!("Unknown package manager: {}", detected_manager),
+            })
+        }
+    };
 
-        // Deserialize parameters - no cfg guard needed, we check capabilities at runtime
-        let parsed: mill_ast::package_extractor::ExtractModuleToPackageParams =
-            serde_json::from_value(params.clone()).map_err(|e| {
-                PluginSystemError::SerializationError {
-                    message: format!("Invalid extract_module_to_package args: {}", e),
-                }
-            })?;
-
-        debug!(
-            source_package = %parsed.source_package,
-            module_path = %parsed.module_path,
-            target_package_path = %parsed.target_package_path,
-            target_package_name = %parsed.target_package_name,
-            "Extracting module to package"
-        );
-
-        // Call the planning function from mill-ast with injected registry
-        // mill-ast is now language-agnostic and uses capability-based dispatch
-        let edit_plan = mill_ast::package_extractor::plan_extract_module_to_package_with_registry(
-            parsed,
-            &self.plugin_registry,
-        )
+    // Execute the command
+    let output = tokio::process::Command::new(command)
+        .args(&cmd_args)
+        .current_dir(&project_path)
+        .output()
         .await
-        .map_err(|e| PluginSystemError::PluginRequestFailed {
-            plugin: "system-tools".to_string(),
-            message: format!("Failed to plan extract_module_to_package: {}", e),
+        .map_err(|e| PluginSystemError::IoError {
+            message: format!("Failed to execute command: {}", e),
         })?;
 
-        // Return the edit plan
-        Ok(json!({
-            "edit_plan": edit_plan,
-            "status": "success"
-        }))
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    let success = output.status.success();
+    let exit_code = output.status.code();
+
+    debug!(
+        command = %command,
+        cmd_args = ?cmd_args,
+        success = %success,
+        exit_code = ?exit_code,
+        "Command executed"
+    );
+
+    Ok(json!({
+        "project_path": project_path,
+        "package_manager": detected_manager,
+        "update_type": update_type,
+        "dryRun": dry_run,
+        "command": format!("{} {}", command, cmd_args.join(" ")),
+        "success": success,
+        "exit_code": exit_code,
+        "stdout": stdout,
+        "stderr": stderr,
+        "status": if dry_run { "preview" } else { "completed" },
+    }))
+}
+
+/// Handle web_fetch tool
+fn handle_web_fetch(params: Value) -> PluginResult<Value> {
+    #[derive(Debug, Deserialize)]
+    #[serde(rename_all = "snake_case")]
+    struct WebFetchArgs {
+        url: String,
     }
+
+    let args: WebFetchArgs =
+        serde_json::from_value(params).map_err(|e| PluginSystemError::SerializationError {
+            message: format!("Invalid web_fetch args: {}", e),
+        })?;
+
+    debug!(url = %args.url, "Fetching URL content");
+
+    // Use reqwest to fetch the URL content
+    let response =
+        reqwest::blocking::get(&args.url).map_err(|e| PluginSystemError::IoError {
+            message: format!("Failed to fetch URL: {}", e),
+        })?;
+
+    let html_content = response.text().map_err(|e| PluginSystemError::IoError {
+        message: format!("Failed to read response text: {}", e),
+    })?;
+
+    // Convert HTML to Markdown for easier AI processing
+    let markdown_content =
+        html2md_rs::to_md::safe_from_html_to_md(html_content).map_err(|e| {
+            PluginSystemError::IoError {
+                message: format!("Failed to convert HTML to markdown: {}", e),
+            }
+        })?;
+
+    Ok(json!({
+        "url": args.url,
+        "content": markdown_content,
+        "status": "success"
+    }))
+}
+
+/// Handle extract_module_to_package tool
+#[allow(unused_variables)] // params only used with lang-rust feature
+async fn handle_extract_module_to_package(
+    params: Value,
+    plugin_registry: Arc<mill_plugin_api::PluginDiscovery>,
+) -> PluginResult<Value> {
+    // Check if Rust plugin is available at runtime (sync check before any await)
+    let has_rust = {
+        let plugins = plugin_registry.all();
+        plugins.iter().any(|p| p.metadata().name == "rust")
+    };
+
+    if !has_rust {
+        return Err(PluginSystemError::MethodNotSupported {
+            method: "extract_module_to_package".to_string(),
+            plugin: "system-tools (requires Rust plugin)".to_string(),
+        });
+    }
+
+    // Deserialize parameters - no cfg guard needed, we check capabilities at runtime
+    let parsed: mill_ast::package_extractor::ExtractModuleToPackageParams =
+        serde_json::from_value(params.clone()).map_err(|e| {
+            PluginSystemError::SerializationError {
+                message: format!("Invalid extract_module_to_package args: {}", e),
+            }
+        })?;
+
+    debug!(
+        source_package = %parsed.source_package,
+        module_path = %parsed.module_path,
+        target_package_path = %parsed.target_package_path,
+        target_package_name = %parsed.target_package_name,
+        "Extracting module to package"
+    );
+
+    // Call the planning function from mill-ast with injected registry
+    let edit_plan = mill_ast::package_extractor::plan_extract_module_to_package_with_registry(
+        parsed,
+        &plugin_registry,
+    )
+    .await
+    .map_err(|e| PluginSystemError::PluginRequestFailed {
+        plugin: "system-tools".to_string(),
+        message: format!("Failed to plan extract_module_to_package: {}", e),
+    })?;
+
+    // Return the edit plan
+    Ok(json!({
+        "edit_plan": edit_plan,
+        "status": "success"
+    }))
 }
 
 #[async_trait]
@@ -847,21 +854,25 @@ impl LanguagePlugin for SystemToolsPlugin {
     async fn handle_request(&self, request: PluginRequest) -> PluginResult<PluginResponse> {
         debug!(method = %request.method, "System tools plugin handling request");
 
-        let result = match request.method.as_str() {
-            "list_files" => self.handle_list_files(request.params.clone()).await?,
+        // Clone data needed from self before the match to avoid &self borrow across await
+        let plugin_name = self.metadata.name.clone();
+        let plugin_registry = self.plugin_registry.clone();
+        let method = request.method.clone();
+        let params = request.params.clone();
+
+        let result = match method.as_str() {
+            "list_files" => handle_list_files(params)?,
             "bulk_update_dependencies" => {
-                self.handle_bulk_update_dependencies(request.params.clone())
-                    .await?
+                handle_bulk_update_dependencies(params).await?
             }
-            "web_fetch" => self.handle_web_fetch(request.params.clone()).await?,
+            "web_fetch" => handle_web_fetch(params)?,
             "extract_module_to_package" => {
-                self.handle_extract_module_to_package(request.params.clone())
-                    .await?
+                handle_extract_module_to_package(params, plugin_registry).await?
             }
             _ => {
                 return Err(PluginSystemError::MethodNotSupported {
-                    method: request.method.clone(),
-                    plugin: self.metadata.name.clone(),
+                    method,
+                    plugin: plugin_name,
                 });
             }
         };

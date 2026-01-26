@@ -1,4 +1,3 @@
-use futures::stream::StreamExt;
 use mill_plugin_api::LanguagePlugin;
 use std::path::PathBuf;
 use tracing::debug;
@@ -16,42 +15,46 @@ pub(crate) async fn extract_dependencies(
         }
     };
 
-    let all_dependencies = futures::stream::iter(located_files)
-        .map(|file_path| {
-            let file_path = file_path.clone();
-            async move {
-                debug!(
-                    file_path = %file_path.display(),
-                    "Parsing dependencies from file"
-                );
+    // Read all files concurrently first, then parse synchronously
+    // This avoids holding references to import_parser across await points
+    let file_contents: Vec<(PathBuf, Option<String>)> = {
+        let read_futures: Vec<_> = located_files
+            .iter()
+            .map(|file_path| {
+                let file_path = file_path.clone();
+                async move {
+                    debug!(
+                        file_path = %file_path.display(),
+                        "Reading file for dependency extraction"
+                    );
+                    let content = tokio::fs::read_to_string(&file_path).await.ok();
+                    (file_path, content)
+                }
+            })
+            .collect();
 
-                // Read file and parse imports using ImportParser capability
-                match tokio::fs::read_to_string(&file_path).await {
-                    Ok(content) => {
-                        let deps = import_parser.parse_imports(&content);
-                        Some(deps)
-                    }
-                    Err(e) => {
-                        debug!(
-                            error = %e,
-                            file_path = %file_path.display(),
-                            "Failed to read file"
-                        );
-                        None
-                    }
-                }
+        futures::future::join_all(read_futures).await
+    };
+
+    // Now parse all files synchronously (no await points, no Send issues)
+    let mut all_dependencies = std::collections::HashSet::new();
+    for (file_path, content_opt) in file_contents {
+        if let Some(content) = content_opt {
+            debug!(
+                file_path = %file_path.display(),
+                "Parsing dependencies from file"
+            );
+            let deps = import_parser.parse_imports(&content);
+            for dep in deps {
+                all_dependencies.insert(dep);
             }
-        })
-        .buffer_unordered(50) // Process up to 50 files concurrently
-        .fold(std::collections::HashSet::new(), |mut acc, deps_opt| async move {
-            if let Some(deps) = deps_opt {
-                for dep in deps {
-                    acc.insert(dep);
-                }
-            }
-            acc
-        })
-        .await;
+        } else {
+            debug!(
+                file_path = %file_path.display(),
+                "Failed to read file, skipping"
+            );
+        }
+    }
 
     // Convert to sorted vector for consistent output
     let mut dependencies: Vec<String> = all_dependencies.into_iter().collect();

@@ -449,10 +449,17 @@ first-time-setup:
 	@echo "║  This will install everything you need (~3-5 minutes)   ║"
 	@echo "╚══════════════════════════════════════════════════════════╝"
 	@echo ""
-	@echo "📋 Step 1/9: Checking parser build dependencies..."
+	@echo "📦 Step 1/10: Initializing git submodules..."
+	@if [ -d ".git" ]; then \
+		git submodule update --init --recursive && echo "  ✅ Git submodules initialized"; \
+	else \
+		echo "  ⚠️  Not a git repository, skipping submodule init"; \
+	fi
+	@echo ""
+	@echo "📋 Step 2/10: Checking parser build dependencies..."
 	@make check-parser-deps
 	@echo ""
-	@echo "🦀 Step 2/9: Ensuring Rust toolchain is installed..."
+	@echo "🦀 Step 3/10: Ensuring Rust toolchain is installed..."
 	@if ! command -v cargo >/dev/null 2>&1; then \
 		if [ -f "$$HOME/.cargo/env" ]; then \
 			echo "  ℹ️  Rust installed but not in PATH, loading environment..."; \
@@ -468,7 +475,7 @@ first-time-setup:
 		echo "  ✅ Rust toolchain already installed"; \
 	fi
 	@echo ""
-	@echo "🔧 Step 3/9: Installing cargo-binstall (fast binary downloads)..."
+	@echo "🔧 Step 4/10: Installing cargo-binstall (fast binary downloads)..."
 	@export PATH="$$HOME/.cargo/bin:$$PATH"; \
 	if ! command -v cargo-binstall >/dev/null 2>&1; then \
 		curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash; \
@@ -477,12 +484,12 @@ first-time-setup:
 		echo "  ✅ cargo-binstall already installed"; \
 	fi
 	@echo ""
-	@echo "🛠️  Step 4/9: Installing Rust development tools (pre-built binaries)..."
+	@echo "🛠️  Step 5/10: Installing Rust development tools (pre-built binaries)..."
 	@export PATH="$$HOME/.cargo/bin:$$PATH"; \
 	cargo binstall --no-confirm cargo-nextest sccache cargo-watch cargo-audit; \
 	echo "  ✅ Rust dev tools installed"
 	@echo ""
-	@echo "🔗 Step 5/9: Installing mold linker (3-10x faster linking)..."
+	@echo "🔗 Step 6/10: Installing mold linker (3-10x faster linking)..."
 	@if command -v mold >/dev/null 2>&1; then \
 		echo "  ✅ mold already installed"; \
 	elif command -v brew >/dev/null 2>&1; then \
@@ -497,10 +504,10 @@ first-time-setup:
 		echo "  ⚠️  No package manager found, skipping mold (optional)"; \
 	fi
 	@echo ""
-	@echo "🔨 Step 6/9: Building external language parsers..."
+	@echo "🔨 Step 7/10: Building external language parsers..."
 	@make build-parsers
 	@echo ""
-	@echo "🏗️  Step 7/9: Building main Rust project (this may take a few minutes)..."
+	@echo "🏗️  Step 8/10: Building main Rust project (this may take a few minutes)..."
 	@echo "  → Fetching dependencies..."
 	@export PATH="$$HOME/.cargo/bin:$$PATH"; \
 	cargo fetch --locked || { echo "  ⚠️  cargo fetch failed, trying without --locked"; cargo fetch; }
@@ -509,10 +516,10 @@ first-time-setup:
 	cargo build --offline || cargo build
 	@echo "  💡 Tip: If build fails with missing dependencies, run: cargo clean && cargo fetch"
 	@echo ""
-	@echo "🌐 Step 8/9: Installing LSP servers (for testing)..."
+	@echo "🌐 Step 9/10: Installing LSP servers (for testing)..."
 	@make install-lsp-servers
 	@echo ""
-	@echo "🔍 Step 9/9: Validating installation..."
+	@echo "🔍 Step 10/10: Validating installation..."
 	@make validate-setup
 	@echo ""
 	@echo "╔══════════════════════════════════════════════════════════╗"
