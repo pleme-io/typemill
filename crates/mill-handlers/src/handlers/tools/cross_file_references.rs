@@ -457,33 +457,56 @@ fn contains_word(content: &str, word: &str) -> bool {
 /// Returns Vec<(line, character, length)> - all 0-indexed
 fn find_symbol_occurrences(content: &str, symbol: &str) -> Vec<(u32, u32, u32)> {
     let mut occurrences = Vec::new();
+    let symbol_len = symbol.chars().count();
+    let symbol_chars: Vec<char> = symbol.chars().collect();
+
+    if symbol_chars.is_empty() {
+        return occurrences;
+    }
 
     for (line_idx, line) in content.lines().enumerate() {
-        let mut search_start = 0;
-        while let Some(pos) = line[search_start..].find(symbol) {
-            let absolute_pos = search_start + pos;
+        let chars: Vec<char> = line.chars().collect();
+        let mut i = 0;
+        let mut in_string = false;
+        let mut quote_char = '\0';
+        let mut escaped = false;
 
-            // Check word boundaries
-            let before_ok = absolute_pos == 0
-                || !line
-                    .chars()
-                    .nth(absolute_pos - 1)
-                    .map(|c| c.is_alphanumeric() || c == '_')
-                    .unwrap_or(false);
+        while i < chars.len() {
+            let c = chars[i];
 
-            let after_pos = absolute_pos + symbol.len();
-            let after_ok = after_pos >= line.len()
-                || !line
-                    .chars()
-                    .nth(after_pos)
-                    .map(|c| c.is_alphanumeric() || c == '_')
-                    .unwrap_or(false);
+            if in_string {
+                if escaped {
+                    escaped = false;
+                } else if c == '\\' {
+                    escaped = true;
+                } else if c == quote_char {
+                    in_string = false;
+                }
+            } else {
+                // Not in string
+                if c == '"' || c == '\'' || c == '`' {
+                    in_string = true;
+                    quote_char = c;
+                } else if c == symbol_chars[0] {
+                    // Possible match
+                    if i + symbol_len <= chars.len()
+                        && &chars[i..i + symbol_len] == symbol_chars.as_slice()
+                    {
+                        // Check word boundaries
+                        let before_ok = i == 0
+                            || (!chars[i - 1].is_alphanumeric() && chars[i - 1] != '_');
 
-            if before_ok && after_ok {
-                occurrences.push((line_idx as u32, absolute_pos as u32, symbol.len() as u32));
+                        let after_idx = i + symbol_len;
+                        let after_ok = after_idx >= chars.len()
+                            || (!chars[after_idx].is_alphanumeric() && chars[after_idx] != '_');
+
+                        if before_ok && after_ok {
+                            occurrences.push((line_idx as u32, i as u32, symbol_len as u32));
+                        }
+                    }
+                }
             }
-
-            search_start = absolute_pos + 1;
+            i += 1;
         }
     }
 

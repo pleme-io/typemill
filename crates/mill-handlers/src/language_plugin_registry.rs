@@ -42,7 +42,7 @@ impl LanguagePluginRegistry {
     /// use std::sync::Arc;
     ///
     /// // At application layer (apps/mill/src/main.rs)
-    /// let registry = build_language_plugin_registry();
+    /// let registry = build_language_plugin_registry(vec![]);
     ///
     /// // Inject into handler layer
     /// let handler_registry = LanguagePluginRegistry::from_registry(registry);
