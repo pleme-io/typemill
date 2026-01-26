@@ -1068,9 +1068,16 @@ import SwiftUI
                 .await
         });
 
-        assert!(result.is_err(), "Should return error for reassigned variable");
+        assert!(
+            result.is_err(),
+            "Should return error for reassigned variable"
+        );
         let err_msg = result.unwrap_err().to_string();
-        assert!(err_msg.contains("reassigned"), "Error should mention reassignment: {}", err_msg);
+        assert!(
+            err_msg.contains("reassigned"),
+            "Error should mention reassignment: {}",
+            err_msg
+        );
     }
 
     #[test]

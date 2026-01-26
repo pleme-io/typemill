@@ -185,18 +185,18 @@ async fn handle_extract_dependencies(
     )?;
 
     // Write updated target manifest if not dry-run
-    let target_updated =
-        if let (false, Some(updated)) = (params.options.dry_run, &extraction_result.updated_content)
-        {
-            fs::write(&target_path, updated).map_err(|e| {
+    let target_updated = if let (false, Some(updated)) =
+        (params.options.dry_run, &extraction_result.updated_content)
+    {
+        fs::write(&target_path, updated).map_err(|e| {
                 error!(error = %e, target_path = %target_path.display(), "Failed to write target manifest");
                 ServerError::internal(format!("Failed to write target manifest: {}", e))
             })?;
-            debug!(target_path = %target_path.display(), "Wrote updated target manifest");
-            true
-        } else {
-            false
-        };
+        debug!(target_path = %target_path.display(), "Wrote updated target manifest");
+        true
+    } else {
+        false
+    };
 
     // Build result
     let result = ExtractDependenciesResult {

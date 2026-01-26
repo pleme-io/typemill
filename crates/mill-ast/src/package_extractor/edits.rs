@@ -305,7 +305,9 @@ pub(crate) async fn add_import_update_edits(
                                     Ok(updated_content) if updated_content != content => {
                                         // Find what changed to create accurate TextEdit
                                         local_edits.push(TextEdit {
-                                            file_path: Some(file_path.to_string_lossy().to_string()),
+                                            file_path: Some(
+                                                file_path.to_string_lossy().to_string(),
+                                            ),
                                             edit_type: EditType::Replace,
                                             location: EditLocation {
                                                 start_line: 1,

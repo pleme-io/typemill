@@ -1,12 +1,13 @@
 use super::manifest::extract_dependencies;
-use mill_plugin_api::{
-    LanguagePlugin, LanguageMetadata, PluginCapabilities, PluginResult, ParsedSource, ManifestData, ImportParser,
-};
 use async_trait::async_trait;
-use std::path::{Path};
+use mill_plugin_api::{
+    ImportParser, LanguageMetadata, LanguagePlugin, ManifestData, ParsedSource, PluginCapabilities,
+    PluginResult,
+};
+use std::path::Path;
+use std::time::Instant;
 use tempfile::tempdir;
 use tokio::fs;
-use std::time::Instant;
 
 struct MockImportParser;
 
@@ -67,7 +68,9 @@ async fn benchmark_extract_dependencies() {
     // Create many files
     for i in 0..num_files {
         let file_path = temp_dir.path().join(format!("file_{}.txt", i));
-        fs::write(&file_path, format!("import dep_{};\nimport common_dep;", i)).await.unwrap();
+        fs::write(&file_path, format!("import dep_{};\nimport common_dep;", i))
+            .await
+            .unwrap();
         files.push(file_path);
     }
 
@@ -77,6 +80,9 @@ async fn benchmark_extract_dependencies() {
     let deps = extract_dependencies(&plugin, &files).await;
     let duration = start.elapsed();
 
-    println!("BENCHMARK_RESULT: Time taken for {} files: {:?}", num_files, duration);
+    println!(
+        "BENCHMARK_RESULT: Time taken for {} files: {:?}",
+        num_files, duration
+    );
     assert!(deps.len() > 0);
 }

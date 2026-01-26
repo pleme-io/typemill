@@ -57,11 +57,13 @@ pub(crate) fn detect_unused_imports(
     static EMPTY_PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
 
     let import_patterns: &Vec<Regex> = match language.to_lowercase().as_str() {
-        "rust" => RUST_IMPORT_PATTERNS.get_or_init(|| {
-            vec![Regex::new(r"use\s+([\w:]+)").expect("Invalid regex")]
-        }),
+        "rust" => RUST_IMPORT_PATTERNS
+            .get_or_init(|| vec![Regex::new(r"use\s+([\w:]+)").expect("Invalid regex")]),
         "typescript" | "javascript" => JS_IMPORT_PATTERNS.get_or_init(|| {
-            vec![Regex::new(r#"import\s+(?:\{[^}]*\}|\*\s+as\s+\w+|\w+)\s+from\s+['"]([^'"]+)['"]"#).expect("Invalid regex")]
+            vec![Regex::new(
+                r#"import\s+(?:\{[^}]*\}|\*\s+as\s+\w+|\w+)\s+from\s+['"]([^'"]+)['"]"#,
+            )
+            .expect("Invalid regex")]
         }),
         "python" => PYTHON_IMPORT_PATTERNS.get_or_init(|| {
             vec![
@@ -69,9 +71,8 @@ pub(crate) fn detect_unused_imports(
                 Regex::new(r"import\s+([\w.]+)").expect("Invalid regex"),
             ]
         }),
-        "go" => GO_IMPORT_PATTERNS.get_or_init(|| {
-            vec![Regex::new(r#"import\s+"([^"]+)""#).expect("Invalid regex")]
-        }),
+        "go" => GO_IMPORT_PATTERNS
+            .get_or_init(|| vec![Regex::new(r#"import\s+"([^"]+)""#).expect("Invalid regex")]),
         _ => EMPTY_PATTERNS.get_or_init(Vec::new),
     };
 
@@ -88,157 +89,155 @@ pub(crate) fn detect_unused_imports(
             if let Some(captures) = pattern.captures(line) {
                 // Get the module path from the first capture group
                 if let Some(module_path) = captures.get(1) {
-                        let module_path_str = module_path.as_str();
+                    let module_path_str = module_path.as_str();
 
-                        // Extract symbols from this import
-                        let symbols = extract_imported_symbols(&lines, line_num, module_path_str, language);
+                    // Extract symbols from this import
+                    let symbols =
+                        extract_imported_symbols(&lines, line_num, module_path_str, language);
 
-                        if symbols.is_empty() {
-                            // Side-effect import (no symbols) - check if module is used
-                            if !is_module_used_in_code(content, module_path_str) {
-                                let mut metrics = HashMap::new();
-                                metrics.insert("module_path".to_string(), json!(module_path_str));
-                                metrics.insert("import_type".to_string(), json!("side_effect"));
+                    if symbols.is_empty() {
+                        // Side-effect import (no symbols) - check if module is used
+                        if !is_module_used_in_code(content, module_path_str) {
+                            let mut metrics = HashMap::new();
+                            metrics.insert("module_path".to_string(), json!(module_path_str));
+                            metrics.insert("import_type".to_string(), json!("side_effect"));
 
-                                findings.push(Finding {
-                                    id: format!("unused-import-{}-{}", file_path, line_num),
-                                    kind: "unused_import".to_string(),
-                                    severity: Severity::Low,
-                                    location: FindingLocation {
-                                        file_path: file_path.to_string(),
-                                        range: Some(Range {
-                                            start: Position {
-                                                line: line_num as u32,
-                                                character: 0,
-                                            },
-                                            end: Position {
-                                                line: line_num as u32,
-                                                character: line.len() as u32,
-                                            },
-                                        }),
-                                        symbol: None,
-                                        symbol_kind: Some("import".to_string()),
-                                    },
-                                    metrics: Some(metrics),
-                                    message: format!(
-                                        "Unused side-effect import: {}",
+                            findings.push(Finding {
+                                id: format!("unused-import-{}-{}", file_path, line_num),
+                                kind: "unused_import".to_string(),
+                                severity: Severity::Low,
+                                location: FindingLocation {
+                                    file_path: file_path.to_string(),
+                                    range: Some(Range {
+                                        start: Position {
+                                            line: line_num as u32,
+                                            character: 0,
+                                        },
+                                        end: Position {
+                                            line: line_num as u32,
+                                            character: line.len() as u32,
+                                        },
+                                    }),
+                                    symbol: None,
+                                    symbol_kind: Some("import".to_string()),
+                                },
+                                metrics: Some(metrics),
+                                message: format!("Unused side-effect import: {}", module_path_str),
+                                suggestions: vec![Suggestion {
+                                    action: "remove_import".to_string(),
+                                    description: format!(
+                                        "Remove unused import '{}'",
                                         module_path_str
                                     ),
-                                    suggestions: vec![Suggestion {
-                                        action: "remove_import".to_string(),
-                                        description: format!(
-                                            "Remove unused import '{}'",
-                                            module_path_str
-                                        ),
-                                        target: None,
-                                        estimated_impact:
-                                            "Reduces unnecessary dependencies and improves build time"
-                                                .to_string(),
-                                        safety: SafetyLevel::Safe,
-                                        confidence: 0.85,
-                                        reversible: true,
-                                        refactor_call: None,
-                                    }],
-                                });
+                                    target: None,
+                                    estimated_impact:
+                                        "Reduces unnecessary dependencies and improves build time"
+                                            .to_string(),
+                                    safety: SafetyLevel::Safe,
+                                    confidence: 0.85,
+                                    reversible: true,
+                                    refactor_call: None,
+                                }],
+                            });
+                        }
+                    } else {
+                        // Named imports - check each symbol
+                        let mut unused_symbols = Vec::new();
+                        for symbol in &symbols {
+                            if !is_symbol_used_in_code(content, symbol) {
+                                unused_symbols.push(symbol.clone());
                             }
-                        } else {
-                            // Named imports - check each symbol
-                            let mut unused_symbols = Vec::new();
-                            for symbol in &symbols {
-                                if !is_symbol_used_in_code(content, symbol) {
-                                    unused_symbols.push(symbol.clone());
+                        }
+
+                        if !unused_symbols.is_empty() {
+                            let all_unused = unused_symbols.len() == symbols.len();
+                            // Both fully unused and partially unused symbols are low priority
+                            let severity = Severity::Low;
+
+                            let mut metrics = HashMap::new();
+                            metrics.insert("module_path".to_string(), json!(module_path_str));
+                            metrics.insert("unused_symbols".to_string(), json!(unused_symbols));
+                            metrics.insert("total_symbols".to_string(), json!(symbols.len()));
+                            metrics.insert(
+                                "import_type".to_string(),
+                                json!(if all_unused {
+                                    "fully_unused"
+                                } else {
+                                    "partially_unused"
+                                }),
+                            );
+
+                            let message = if all_unused {
+                                format!(
+                                    "Entire import from '{}' is unused: {}",
+                                    module_path_str,
+                                    unused_symbols.join(", ")
+                                )
+                            } else {
+                                format!(
+                                    "Unused symbols from '{}': {}",
+                                    module_path_str,
+                                    unused_symbols.join(", ")
+                                )
+                            };
+
+                            let suggestion = if all_unused {
+                                Suggestion {
+                                    action: "remove_import".to_string(),
+                                    description: format!(
+                                        "Remove entire import from '{}'",
+                                        module_path_str
+                                    ),
+                                    target: None,
+                                    estimated_impact: "Reduces unused dependencies".to_string(),
+                                    safety: SafetyLevel::Safe,
+                                    confidence: 0.90,
+                                    reversible: true,
+                                    refactor_call: None,
                                 }
-                            }
+                            } else {
+                                Suggestion {
+                                    action: "remove_unused_symbols".to_string(),
+                                    description: format!(
+                                        "Remove unused symbols: {}",
+                                        unused_symbols.join(", ")
+                                    ),
+                                    target: None,
+                                    estimated_impact: "Cleans up import statement".to_string(),
+                                    safety: SafetyLevel::Safe,
+                                    confidence: 0.85,
+                                    reversible: true,
+                                    refactor_call: None,
+                                }
+                            };
 
-                            if !unused_symbols.is_empty() {
-                                let all_unused = unused_symbols.len() == symbols.len();
-                                // Both fully unused and partially unused symbols are low priority
-                                let severity = Severity::Low;
-
-                                let mut metrics = HashMap::new();
-                                metrics.insert("module_path".to_string(), json!(module_path_str));
-                                metrics.insert("unused_symbols".to_string(), json!(unused_symbols));
-                                metrics.insert("total_symbols".to_string(), json!(symbols.len()));
-                                metrics.insert(
-                                    "import_type".to_string(),
-                                    json!(if all_unused {
-                                        "fully_unused"
-                                    } else {
-                                        "partially_unused"
+                            findings.push(Finding {
+                                id: format!("unused-import-{}-{}", file_path, line_num),
+                                kind: "unused_import".to_string(),
+                                severity,
+                                location: FindingLocation {
+                                    file_path: file_path.to_string(),
+                                    range: Some(Range {
+                                        start: Position {
+                                            line: line_num as u32,
+                                            character: 0,
+                                        },
+                                        end: Position {
+                                            line: line_num as u32,
+                                            character: line.len() as u32,
+                                        },
                                     }),
-                                );
-
-                                let message = if all_unused {
-                                    format!(
-                                        "Entire import from '{}' is unused: {}",
-                                        module_path_str,
-                                        unused_symbols.join(", ")
-                                    )
-                                } else {
-                                    format!(
-                                        "Unused symbols from '{}': {}",
-                                        module_path_str,
-                                        unused_symbols.join(", ")
-                                    )
-                                };
-
-                                let suggestion = if all_unused {
-                                    Suggestion {
-                                        action: "remove_import".to_string(),
-                                        description: format!(
-                                            "Remove entire import from '{}'",
-                                            module_path_str
-                                        ),
-                                        target: None,
-                                        estimated_impact: "Reduces unused dependencies".to_string(),
-                                        safety: SafetyLevel::Safe,
-                                        confidence: 0.90,
-                                        reversible: true,
-                                        refactor_call: None,
-                                    }
-                                } else {
-                                    Suggestion {
-                                        action: "remove_unused_symbols".to_string(),
-                                        description: format!(
-                                            "Remove unused symbols: {}",
-                                            unused_symbols.join(", ")
-                                        ),
-                                        target: None,
-                                        estimated_impact: "Cleans up import statement".to_string(),
-                                        safety: SafetyLevel::Safe,
-                                        confidence: 0.85,
-                                        reversible: true,
-                                        refactor_call: None,
-                                    }
-                                };
-
-                                findings.push(Finding {
-                                    id: format!("unused-import-{}-{}", file_path, line_num),
-                                    kind: "unused_import".to_string(),
-                                    severity,
-                                    location: FindingLocation {
-                                        file_path: file_path.to_string(),
-                                        range: Some(Range {
-                                            start: Position {
-                                                line: line_num as u32,
-                                                character: 0,
-                                            },
-                                            end: Position {
-                                                line: line_num as u32,
-                                                character: line.len() as u32,
-                                            },
-                                        }),
-                                        symbol: None,
-                                        symbol_kind: Some("import".to_string()),
-                                    },
-                                    metrics: Some(metrics),
-                                    message,
-                                    suggestions: vec![suggestion],
-                                });
-                            }
+                                    symbol: None,
+                                    symbol_kind: Some("import".to_string()),
+                                },
+                                metrics: Some(metrics),
+                                message,
+                                suggestions: vec![suggestion],
+                            });
                         }
                     }
                 }
+            }
         }
     }
 

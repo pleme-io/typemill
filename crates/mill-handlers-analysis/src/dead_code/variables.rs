@@ -81,13 +81,12 @@ pub(crate) fn detect_unused_variables(
         }),
         "go" => GO_PATTERNS.get_or_init(|| {
             vec![
-                Regex::new(r"(\w+)\s*:=").expect("Invalid regex"),     // x :=
+                Regex::new(r"(\w+)\s*:=").expect("Invalid regex"), // x :=
                 Regex::new(r"var\s+(\w+)\s+").expect("Invalid regex"), // var x Type
             ]
         }),
-        _ => DEFAULT_PATTERNS.get_or_init(|| {
-            vec![Regex::new(r"let\s+(\w+)\s*=").expect("Invalid regex")]
-        }),
+        _ => DEFAULT_PATTERNS
+            .get_or_init(|| vec![Regex::new(r"let\s+(\w+)\s*=").expect("Invalid regex")]),
     };
 
     // Analyze within each function scope
@@ -239,21 +238,16 @@ pub(crate) fn detect_unused_parameters(
     static DEFAULT_PARAM_PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
 
     let param_patterns: &Vec<Regex> = match language.to_lowercase().as_str() {
-        "rust" => RUST_PARAM_PATTERNS.get_or_init(|| {
-            vec![Regex::new(r"\(([^)]+)\)").expect("Invalid regex")]
-        }),
-        "typescript" | "javascript" => JS_PARAM_PATTERNS.get_or_init(|| {
-            vec![Regex::new(r"\(([^)]+)\)").expect("Invalid regex")]
-        }),
-        "python" => PYTHON_PARAM_PATTERNS.get_or_init(|| {
-            vec![Regex::new(r"def\s+\w+\(([^)]+)\)").expect("Invalid regex")]
-        }),
-        "go" => GO_PARAM_PATTERNS.get_or_init(|| {
-            vec![Regex::new(r"func\s+\w+\(([^)]+)\)").expect("Invalid regex")]
-        }),
-        _ => DEFAULT_PARAM_PATTERNS.get_or_init(|| {
-            vec![Regex::new(r"\(([^)]+)\)").expect("Invalid regex")]
-        }),
+        "rust" => RUST_PARAM_PATTERNS
+            .get_or_init(|| vec![Regex::new(r"\(([^)]+)\)").expect("Invalid regex")]),
+        "typescript" | "javascript" => JS_PARAM_PATTERNS
+            .get_or_init(|| vec![Regex::new(r"\(([^)]+)\)").expect("Invalid regex")]),
+        "python" => PYTHON_PARAM_PATTERNS
+            .get_or_init(|| vec![Regex::new(r"def\s+\w+\(([^)]+)\)").expect("Invalid regex")]),
+        "go" => GO_PARAM_PATTERNS
+            .get_or_init(|| vec![Regex::new(r"func\s+\w+\(([^)]+)\)").expect("Invalid regex")]),
+        _ => DEFAULT_PARAM_PATTERNS
+            .get_or_init(|| vec![Regex::new(r"\(([^)]+)\)").expect("Invalid regex")]),
     };
 
     for func in &complexity_report.functions {
@@ -283,89 +277,87 @@ pub(crate) fn detect_unused_parameters(
 
         for pattern in param_patterns {
             if let Some(captures) = pattern.captures(&signature) {
-                    if let Some(params_str) = captures.get(1) {
-                        let params_str = params_str.as_str();
+                if let Some(params_str) = captures.get(1) {
+                    let params_str = params_str.as_str();
 
-                        // Skip if no parameters
-                        if params_str.trim().is_empty() {
-                            break;
-                        }
-
-                        // Extract individual parameter names
-                        let param_names = extract_parameter_names(params_str, language);
-
-                        // Get function body (exclude signature)
-                        let body_start = func_start + signature.lines().count();
-                        let body_end = func_end;
-                        let mut body = String::new();
-                        for i in body_start..body_end {
-                            if i < lines.len() {
-                                body.push_str(lines[i]);
-                                body.push('\n');
-                            }
-                        }
-
-                        // Check each parameter for usage in body
-                        for param_name in param_names {
-                            // Skip special parameters
-                            if param_name == "self" || param_name == "this" || param_name == "_" {
-                                continue;
-                            }
-
-                            // Check if parameter is used in function body
-                            if !is_parameter_used_in_body(&body, &param_name) {
-                                let mut metrics = HashMap::new();
-                                metrics.insert("parameter_name".to_string(), json!(param_name));
-                                metrics.insert("function_name".to_string(), json!(func.name));
-
-                                findings.push(Finding {
-                                    id: format!(
-                                        "unused-parameter-{}-{}-{}",
-                                        file_path, func.line, param_name
-                                    ),
-                                    kind: "unused_parameter".to_string(),
-                                    severity: Severity::Low,
-                                    location: FindingLocation {
-                                        file_path: file_path.to_string(),
-                                        range: Some(Range {
-                                            start: Position {
-                                                line: func.line as u32,
-                                                character: 0,
-                                            },
-                                            end: Position {
-                                                line: (func.line + signature.lines().count())
-                                                    as u32,
-                                                character: 0,
-                                            },
-                                        }),
-                                        symbol: Some(func.name.clone()),
-                                        symbol_kind: Some("parameter".to_string()),
-                                    },
-                                    metrics: Some(metrics),
-                                    message: format!(
-                                        "Parameter '{}' in function '{}' is never used",
-                                        param_name, func.name
-                                    ),
-                                    suggestions: vec![Suggestion {
-                                        action: "remove_parameter".to_string(),
-                                        description: format!(
-                                            "Remove unused parameter '{}'",
-                                            param_name
-                                        ),
-                                        target: None,
-                                        estimated_impact: "Simplifies function signature"
-                                            .to_string(),
-                                        safety: SafetyLevel::RequiresReview,
-                                        confidence: 0.75,
-                                        reversible: true,
-                                        refactor_call: None,
-                                    }],
-                                });
-                            }
-                        }
+                    // Skip if no parameters
+                    if params_str.trim().is_empty() {
                         break;
                     }
+
+                    // Extract individual parameter names
+                    let param_names = extract_parameter_names(params_str, language);
+
+                    // Get function body (exclude signature)
+                    let body_start = func_start + signature.lines().count();
+                    let body_end = func_end;
+                    let mut body = String::new();
+                    for i in body_start..body_end {
+                        if i < lines.len() {
+                            body.push_str(lines[i]);
+                            body.push('\n');
+                        }
+                    }
+
+                    // Check each parameter for usage in body
+                    for param_name in param_names {
+                        // Skip special parameters
+                        if param_name == "self" || param_name == "this" || param_name == "_" {
+                            continue;
+                        }
+
+                        // Check if parameter is used in function body
+                        if !is_parameter_used_in_body(&body, &param_name) {
+                            let mut metrics = HashMap::new();
+                            metrics.insert("parameter_name".to_string(), json!(param_name));
+                            metrics.insert("function_name".to_string(), json!(func.name));
+
+                            findings.push(Finding {
+                                id: format!(
+                                    "unused-parameter-{}-{}-{}",
+                                    file_path, func.line, param_name
+                                ),
+                                kind: "unused_parameter".to_string(),
+                                severity: Severity::Low,
+                                location: FindingLocation {
+                                    file_path: file_path.to_string(),
+                                    range: Some(Range {
+                                        start: Position {
+                                            line: func.line as u32,
+                                            character: 0,
+                                        },
+                                        end: Position {
+                                            line: (func.line + signature.lines().count()) as u32,
+                                            character: 0,
+                                        },
+                                    }),
+                                    symbol: Some(func.name.clone()),
+                                    symbol_kind: Some("parameter".to_string()),
+                                },
+                                metrics: Some(metrics),
+                                message: format!(
+                                    "Parameter '{}' in function '{}' is never used",
+                                    param_name, func.name
+                                ),
+                                suggestions: vec![Suggestion {
+                                    action: "remove_parameter".to_string(),
+                                    description: format!(
+                                        "Remove unused parameter '{}'",
+                                        param_name
+                                    ),
+                                    target: None,
+                                    estimated_impact: "Simplifies function signature".to_string(),
+                                    safety: SafetyLevel::RequiresReview,
+                                    confidence: 0.75,
+                                    reversible: true,
+                                    refactor_call: None,
+                                }],
+                            });
+                        }
+                    }
+                    break;
                 }
+            }
         }
     }
 

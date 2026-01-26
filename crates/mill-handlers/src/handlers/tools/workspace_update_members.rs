@@ -146,17 +146,18 @@ async fn handle_update_members(
     };
 
     // Write updated manifest if not dry-run and content changed
-    let workspace_updated =
-        if let (false, Some(updated)) = (params.options.dry_run, &action_result.updated_content) {
-            fs::write(&manifest_path, updated).map_err(|e| {
+    let workspace_updated = if let (false, Some(updated)) =
+        (params.options.dry_run, &action_result.updated_content)
+    {
+        fs::write(&manifest_path, updated).map_err(|e| {
                 error!(error = %e, manifest_path = %manifest_path.display(), "Failed to write workspace manifest");
                 ServerError::internal(format!("Failed to write workspace manifest: {}", e))
             })?;
-            debug!(manifest_path = %manifest_path.display(), "Wrote updated workspace manifest");
-            true
-        } else {
-            false
-        };
+        debug!(manifest_path = %manifest_path.display(), "Wrote updated workspace manifest");
+        true
+    } else {
+        false
+    };
 
     // Build result
     let result = UpdateMembersResult {

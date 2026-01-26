@@ -126,18 +126,14 @@ pub(crate) fn extract_imported_symbols(
 
         // If we found the module path and braces are closed, we might be done
         // (For languages without explicit terminators like Python)
-        if statement.contains(module_path) {
-            match language.to_lowercase().as_str() {
-                "python" => {
-                    // Python imports typically end at newline unless backslash used
-                    // But we are concatenating lines.
-                    // If the current line doesn't end with \, we assume end.
-                    if !line.ends_with('\\') {
-                        break;
-                    }
-                }
-                _ => {}
-            }
+        if statement.contains(module_path)
+            && language.to_lowercase().as_str() == "python"
+            && !line.ends_with('\\')
+        {
+            // Python imports typically end at newline unless backslash used
+            // But we are concatenating lines.
+            // If the current line doesn't end with \, we assume end.
+            break;
         }
 
         i += 1;

@@ -268,14 +268,16 @@ impl DeadCodeHandler {
     ) -> ServerResult<Value>
     where
         F: Fn(
-            &mill_ast::complexity::ComplexityReport,
-            &str,
-            &[mill_plugin_api::Symbol],
-            &str,
-            &str,
-            &dyn mill_handler_api::LanguagePluginRegistry,
-            &AnalysisConfig,
-        ) -> Vec<Finding> + Send + Sync,
+                &mill_ast::complexity::ComplexityReport,
+                &str,
+                &[mill_plugin_api::Symbol],
+                &str,
+                &str,
+                &dyn mill_handler_api::LanguagePluginRegistry,
+                &AnalysisConfig,
+            ) -> Vec<Finding>
+            + Send
+            + Sync,
     {
         use mill_foundation::protocol::analysis_result::AnalysisResult;
         use std::path::Path;
@@ -653,14 +655,8 @@ impl ToolHandler for DeadCodeHandler {
                     } else {
                         detect_unused_symbols
                     };
-                    self.run_analysis_and_suggest(
-                        context,
-                        &args,
-                        &scope_param,
-                        kind,
-                        analysis_fn,
-                    )
-                    .await
+                    self.run_analysis_and_suggest(context, &args, &scope_param, kind, analysis_fn)
+                        .await
                 }
                 "unreachable_code" | "unused_parameters" | "unused_types" | "unused_variables" => {
                     let analysis_fn = match kind {
@@ -670,14 +666,8 @@ impl ToolHandler for DeadCodeHandler {
                         "unused_variables" => detect_unused_variables,
                         _ => unreachable!(),
                     };
-                    self.run_analysis_and_suggest(
-                        context,
-                        &args,
-                        &scope_param,
-                        kind,
-                        analysis_fn,
-                    )
-                    .await
+                    self.run_analysis_and_suggest(context, &args, &scope_param, kind, analysis_fn)
+                        .await
                 }
                 _ => {
                     return Err(ServerError::invalid_request(format!(

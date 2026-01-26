@@ -493,8 +493,8 @@ fn find_symbol_occurrences(content: &str, symbol: &str) -> Vec<(u32, u32, u32)> 
                         && &chars[i..i + symbol_len] == symbol_chars.as_slice()
                     {
                         // Check word boundaries
-                        let before_ok = i == 0
-                            || (!chars[i - 1].is_alphanumeric() && chars[i - 1] != '_');
+                        let before_ok =
+                            i == 0 || (!chars[i - 1].is_alphanumeric() && chars[i - 1] != '_');
 
                         let after_idx = i + symbol_len;
                         let after_ok = after_idx >= chars.len()

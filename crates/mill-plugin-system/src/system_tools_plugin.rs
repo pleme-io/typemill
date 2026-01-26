@@ -90,8 +90,6 @@ impl SystemToolsPlugin {
             plugin_registry,
         }
     }
-
-
 }
 
 // ============================================================================
@@ -311,22 +309,20 @@ fn handle_web_fetch(params: Value) -> PluginResult<Value> {
     debug!(url = %args.url, "Fetching URL content");
 
     // Use reqwest to fetch the URL content
-    let response =
-        reqwest::blocking::get(&args.url).map_err(|e| PluginSystemError::IoError {
-            message: format!("Failed to fetch URL: {}", e),
-        })?;
+    let response = reqwest::blocking::get(&args.url).map_err(|e| PluginSystemError::IoError {
+        message: format!("Failed to fetch URL: {}", e),
+    })?;
 
     let html_content = response.text().map_err(|e| PluginSystemError::IoError {
         message: format!("Failed to read response text: {}", e),
     })?;
 
     // Convert HTML to Markdown for easier AI processing
-    let markdown_content =
-        html2md_rs::to_md::safe_from_html_to_md(html_content).map_err(|e| {
-            PluginSystemError::IoError {
-                message: format!("Failed to convert HTML to markdown: {}", e),
-            }
-        })?;
+    let markdown_content = html2md_rs::to_md::safe_from_html_to_md(html_content).map_err(|e| {
+        PluginSystemError::IoError {
+            message: format!("Failed to convert HTML to markdown: {}", e),
+        }
+    })?;
 
     Ok(json!({
         "url": args.url,
@@ -862,9 +858,7 @@ impl LanguagePlugin for SystemToolsPlugin {
 
         let result = match method.as_str() {
             "list_files" => handle_list_files(params)?,
-            "bulk_update_dependencies" => {
-                handle_bulk_update_dependencies(params).await?
-            }
+            "bulk_update_dependencies" => handle_bulk_update_dependencies(params).await?,
             "web_fetch" => handle_web_fetch(params)?,
             "extract_module_to_package" => {
                 handle_extract_module_to_package(params, plugin_registry).await?

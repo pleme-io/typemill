@@ -911,15 +911,11 @@ fn get_import_patterns(language: &str) -> &'static [Regex] {
             vec![
                 // import { foo } from './module'
                 // import * as foo from './module'
-                Regex::new(
-                    r#"import\s+(?:\{[^}]*\}|\*\s+as\s+\w+|\w+)\s+from\s+['"]([^'"]+)['"]"#,
-                )
-                .expect("Invalid JS/TS import regex"),
+                Regex::new(r#"import\s+(?:\{[^}]*\}|\*\s+as\s+\w+|\w+)\s+from\s+['"]([^'"]+)['"]"#)
+                    .expect("Invalid JS/TS import regex"),
                 // export { foo } from './module'
-                Regex::new(
-                    r#"export\s+(?:\{[^}]*\}|\*\s+as\s+\w+|\w+)\s+from\s+['"]([^'"]+)['"]"#,
-                )
-                .expect("Invalid JS/TS export regex"),
+                Regex::new(r#"export\s+(?:\{[^}]*\}|\*\s+as\s+\w+|\w+)\s+from\s+['"]([^'"]+)['"]"#)
+                    .expect("Invalid JS/TS export regex"),
             ]
         }),
         "python" => PYTHON_PATTERNS.get_or_init(|| {
