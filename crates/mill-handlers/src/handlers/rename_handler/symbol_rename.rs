@@ -83,15 +83,18 @@ impl RenameHandler {
         })?;
 
         // Get the old symbol name by reading the source file directly
-        // (We use std::fs instead of file_service to avoid project-root security restrictions,
+        // (We use tokio::fs instead of std::fs to avoid blocking the async runtime,
         // since the path was already validated by LSP)
-        let old_symbol_name = std::fs::read_to_string(&abs_path).ok().and_then(|content| {
-            cross_file_references::extract_symbol_at_position_public(
-                &content,
-                position.line,
-                position.character,
-            )
-        });
+        let old_symbol_name = tokio::fs::read_to_string(&abs_path)
+            .await
+            .ok()
+            .and_then(|content| {
+                cross_file_references::extract_symbol_at_position_public(
+                    &content,
+                    position.line,
+                    position.character,
+                )
+            });
 
         // Enhance with cross-file edits if we have the old symbol name
         let workspace_edit = if let Some(old_name) = old_symbol_name {
