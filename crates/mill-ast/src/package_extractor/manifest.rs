@@ -7,8 +7,6 @@ pub(crate) async fn extract_dependencies(
     plugin: &dyn LanguagePlugin,
     located_files: &[PathBuf],
 ) -> Vec<String> {
-    let mut all_dependencies = std::collections::HashSet::new();
-
     // Get ImportParser capability
     let import_parser = match plugin.import_parser() {
         Some(parser) => parser,
@@ -18,7 +16,7 @@ pub(crate) async fn extract_dependencies(
         }
     };
 
-    let results = futures::stream::iter(located_files)
+    let all_dependencies = futures::stream::iter(located_files)
         .map(|file_path| {
             let file_path = file_path.clone();
             async move {
@@ -45,16 +43,15 @@ pub(crate) async fn extract_dependencies(
             }
         })
         .buffer_unordered(50) // Process up to 50 files concurrently
-        .collect::<Vec<_>>()
-        .await;
-
-    for deps_opt in results {
-        if let Some(deps) = deps_opt {
-            for dep in deps {
-                all_dependencies.insert(dep);
+        .fold(std::collections::HashSet::new(), |mut acc, deps_opt| async move {
+            if let Some(deps) = deps_opt {
+                for dep in deps {
+                    acc.insert(dep);
+                }
             }
-        }
-    }
+            acc
+        })
+        .await;
 
     // Convert to sorted vector for consistent output
     let mut dependencies: Vec<String> = all_dependencies.into_iter().collect();
