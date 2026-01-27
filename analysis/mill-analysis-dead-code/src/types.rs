@@ -239,7 +239,12 @@ pub struct Stats {
 }
 
 /// Visibility level of a symbol.
+///
+/// This enum captures the full range of Rust visibility modifiers.
+/// Currently only `Public` and `Private` are used for determining entry points,
+/// but the other variants are prepared for future crate-level analysis.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)] // Variants prepared for future crate-level visibility analysis
 pub(crate) enum SymbolVisibility {
     /// Fully public (`pub`)
     Public,
@@ -257,14 +262,6 @@ impl SymbolVisibility {
     /// Returns true if this is an external API symbol (fully public).
     pub fn is_api_public(&self) -> bool {
         matches!(self, SymbolVisibility::Public)
-    }
-
-    /// Returns true if this symbol could be used from other modules in the crate.
-    pub fn is_crate_visible(&self) -> bool {
-        matches!(
-            self,
-            SymbolVisibility::Public | SymbolVisibility::Crate
-        )
     }
 }
 
@@ -286,11 +283,17 @@ pub(crate) struct Symbol {
     /// File URI for LSP queries.
     pub uri: String,
 
-    /// Line number (0-indexed for LSP).
+    /// Start line number (0-indexed for LSP).
     pub line: u32,
 
-    /// Column number (0-indexed).
+    /// Start column number (0-indexed).
     pub column: u32,
+
+    /// End line number (0-indexed for LSP).
+    pub end_line: u32,
+
+    /// End column number (0-indexed).
+    pub end_column: u32,
 
     /// Visibility level of this symbol.
     pub visibility: SymbolVisibility,

@@ -14,8 +14,9 @@ use tracing::{debug, info, warn};
 /// Gather all references between symbols via LSP with AST fallback.
 ///
 /// This function:
-/// 1. Queries LSP for cross-file references
-/// 2. Uses AST to extract intra-file calls (reduces false positives without LSP)
+/// 1. Opens all source files in LSP for proper indexing
+/// 2. Queries LSP for cross-file references
+/// 3. Uses AST to extract intra-file calls (reduces false positives without LSP)
 pub(crate) async fn gather(
     lsp: &dyn LspProvider,
     symbols: &[Symbol],
@@ -23,9 +24,18 @@ pub(crate) async fn gather(
     // Build a map from (file, line, col) to symbol ID for quick lookup
     let symbol_map = build_symbol_map(symbols);
 
+    // Step 1: Open all source files in LSP for proper indexing
+    // This ensures the LSP server knows about all files before we query references
+    let opened_count = open_documents_in_lsp(lsp, symbols).await;
+    if opened_count > 0 {
+        debug!(count = opened_count, "Opened documents in LSP");
+        // Give LSP a moment to process the opened documents
+        tokio::time::sleep(Duration::from_millis(500)).await;
+    }
+
     let mut references = Vec::new();
 
-    // 1. Query references via LSP
+    // Step 2: Query references via LSP
     for symbol in symbols {
         let refs = get_symbol_references(lsp, symbol).await?;
 
@@ -45,7 +55,7 @@ pub(crate) async fn gather(
 
     let lsp_ref_count = references.len();
 
-    // 2. Augment with intra-file AST calls (helps when LSP returns empty)
+    // Step 3: Augment with intra-file AST calls (helps when LSP returns empty)
     let ast_refs = gather_intra_file_calls(symbols)?;
     let ast_ref_count = ast_refs.len();
 
@@ -70,6 +80,43 @@ pub(crate) async fn gather(
     );
 
     Ok(references)
+}
+
+/// Open all unique source files in the LSP server for proper indexing.
+///
+/// This ensures rust-analyzer (or other LSP) knows about all files before
+/// we query references, improving cross-file reference detection.
+async fn open_documents_in_lsp(lsp: &dyn LspProvider, symbols: &[Symbol]) -> usize {
+    let mut opened: HashSet<String> = HashSet::new();
+
+    for symbol in symbols {
+        if opened.contains(&symbol.uri) {
+            continue;
+        }
+
+        // Extract file path from URI
+        let file_path = symbol.uri.strip_prefix("file://").unwrap_or(&symbol.uri);
+        let path = Path::new(file_path);
+
+        if !path.exists() {
+            continue;
+        }
+
+        // Read file content and open in LSP
+        if let Ok(content) = std::fs::read_to_string(path) {
+            if let Err(e) = lsp.open_document(&symbol.uri, &content).await {
+                debug!(
+                    uri = %symbol.uri,
+                    error = %e,
+                    "Failed to open document in LSP"
+                );
+            } else {
+                opened.insert(symbol.uri.clone());
+            }
+        }
+    }
+
+    opened.len()
 }
 
 /// Gather intra-file calls using AST parsing.
@@ -156,7 +203,6 @@ fn build_symbol_map(symbols: &[Symbol]) -> HashMap<String, Vec<&Symbol>> {
 struct RefLocation {
     uri: String,
     line: u32,
-    #[allow(dead_code)] // Parsed for future precise containment matching
     column: u32,
 }
 
@@ -204,6 +250,9 @@ fn parse_references(values: Vec<Value>) -> Vec<RefLocation> {
 }
 
 /// Find which symbol contains a reference location.
+///
+/// Uses proper range containment: finds the smallest symbol whose range
+/// completely contains the reference position.
 fn find_containing_symbol(
     ref_loc: &RefLocation,
     symbol_map: &HashMap<String, Vec<&Symbol>>,
@@ -211,21 +260,48 @@ fn find_containing_symbol(
 ) -> Option<String> {
     let symbols_in_file = symbol_map.get(&ref_loc.uri)?;
 
-    // Find the symbol that best contains this reference
-    // We look for the smallest symbol that contains the reference line
+    // Find the smallest symbol that completely contains the reference
     let mut best_match: Option<&Symbol> = None;
-    let mut best_distance = u32::MAX;
+    let mut best_size = u32::MAX;
 
     for symbol in symbols_in_file {
-        // Simple heuristic: find symbol closest to but before the reference
-        if symbol.line <= ref_loc.line {
-            let distance = ref_loc.line - symbol.line;
-            if distance < best_distance {
-                best_distance = distance;
+        // Check if this symbol's range contains the reference position
+        if range_contains_position(symbol, ref_loc.line, ref_loc.column) {
+            // Calculate symbol size (smaller is more specific)
+            let size = symbol.end_line.saturating_sub(symbol.line);
+            if best_match.is_none() || size < best_size {
                 best_match = Some(symbol);
+                best_size = size;
+            }
+        }
+    }
+
+    // Fallback: if no range match, use the "closest preceding" heuristic
+    if best_match.is_none() {
+        let mut best_distance = u32::MAX;
+        for symbol in symbols_in_file {
+            if symbol.line <= ref_loc.line {
+                let distance = ref_loc.line - symbol.line;
+                if distance < best_distance {
+                    best_distance = distance;
+                    best_match = Some(symbol);
+                }
             }
         }
     }
 
     best_match.map(|s| s.id.clone())
+}
+
+/// Check if a symbol's range contains a position.
+fn range_contains_position(symbol: &Symbol, line: u32, column: u32) -> bool {
+    // Position must be after start
+    let after_start = line > symbol.line
+        || (line == symbol.line && column >= symbol.column);
+
+    // Position must be before end
+    let before_end = line < symbol.end_line
+        || (line == symbol.end_line && column <= symbol.end_column);
+
+    after_start && before_end
 }

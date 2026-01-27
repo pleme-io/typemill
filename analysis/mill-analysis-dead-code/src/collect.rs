@@ -123,6 +123,8 @@ fn symbol_node_to_symbol(node: SymbolNode) -> Symbol {
         uri: format!("file://{}", node.file_path),
         line: node.range.start.line,
         column: node.range.start.character,
+        end_line: node.range.end.line,
+        end_column: node.range.end.character,
         visibility,
     }
 }
@@ -248,8 +250,11 @@ fn parse_symbol(value: Value) -> Option<Symbol> {
     let uri = location.get("uri")?.as_str()?;
     let range = location.get("range")?;
     let start = range.get("start")?;
+    let end = range.get("end")?;
     let line = start.get("line")?.as_u64()? as u32;
     let column = start.get("character")?.as_u64()? as u32;
+    let end_line = end.get("line").and_then(|v| v.as_u64()).unwrap_or(line as u64) as u32;
+    let end_column = end.get("character").and_then(|v| v.as_u64()).unwrap_or(column as u64) as u32;
 
     let file_path = uri.strip_prefix("file://").unwrap_or(uri).to_string();
 
@@ -268,6 +273,8 @@ fn parse_symbol(value: Value) -> Option<Symbol> {
         uri: uri.to_string(),
         line,
         column,
+        end_line,
+        end_column,
         visibility,
     })
 }
@@ -290,12 +297,21 @@ fn flatten_document_symbol(value: &Value, uri: &str, output: &mut Vec<Symbol>) {
         value.get("range"),
     ) {
         let start = range.get("start");
+        let end = range.get("end");
         if let Some(start) = start {
             let line = start.get("line").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
             let column = start
                 .get("character")
                 .and_then(|v| v.as_u64())
                 .unwrap_or(0) as u32;
+            let end_line = end
+                .and_then(|e| e.get("line"))
+                .and_then(|v| v.as_u64())
+                .unwrap_or(line as u64) as u32;
+            let end_column = end
+                .and_then(|e| e.get("character"))
+                .and_then(|v| v.as_u64())
+                .unwrap_or(column as u64) as u32;
 
             let file_path = uri.strip_prefix("file://").unwrap_or(uri).to_string();
             let id = format!("{}::{}:{}", file_path, line, name);
@@ -309,6 +325,8 @@ fn flatten_document_symbol(value: &Value, uri: &str, output: &mut Vec<Symbol>) {
                 uri: uri.to_string(),
                 line,
                 column,
+                end_line,
+                end_column,
                 visibility,
             });
         }
