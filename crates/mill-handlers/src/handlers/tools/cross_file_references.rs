@@ -537,13 +537,12 @@ pub(crate) fn find_symbol_occurrences(content: &str, symbol: &str) -> Vec<(u32, 
     let first_char = symbol.chars().next().unwrap();
 
     for (line_idx, line) in content.lines().enumerate() {
-        let mut char_idx: u32 = 0;
         let mut in_string = false;
         let mut quote_char = '\0';
         let mut escaped = false;
         let mut prev_char_is_alphanum = false;
 
-        for (byte_idx, c) in line.char_indices() {
+        for (char_idx, (byte_idx, c)) in (0_u32..).zip(line.char_indices()) {
             if in_string {
                 if escaped {
                     escaped = false;
@@ -552,33 +551,30 @@ pub(crate) fn find_symbol_occurrences(content: &str, symbol: &str) -> Vec<(u32, 
                 } else if c == quote_char {
                     in_string = false;
                 }
-            } else {
-                if c == '"' || c == '\'' || c == '`' {
-                    in_string = true;
-                    quote_char = c;
-                } else if c == first_char {
-                    // Check if the rest matches
-                    if line[byte_idx..].starts_with(symbol) {
-                        // Check word boundaries
-                        let before_ok = char_idx == 0 || !prev_char_is_alphanum;
+            } else if c == '"' || c == '\'' || c == '`' {
+                in_string = true;
+                quote_char = c;
+            } else if c == first_char {
+                // Check if the rest matches
+                if line[byte_idx..].starts_with(symbol) {
+                    // Check word boundaries
+                    let before_ok = char_idx == 0 || !prev_char_is_alphanum;
 
-                        let after_byte_idx = byte_idx + symbol_byte_len;
-                        let after_ok = if after_byte_idx >= line.len() {
-                            true
-                        } else {
-                            let after_char = line[after_byte_idx..].chars().next().unwrap();
-                            !after_char.is_alphanumeric() && after_char != '_'
-                        };
+                    let after_byte_idx = byte_idx + symbol_byte_len;
+                    let after_ok = if after_byte_idx >= line.len() {
+                        true
+                    } else {
+                        let after_char = line[after_byte_idx..].chars().next().unwrap();
+                        !after_char.is_alphanumeric() && after_char != '_'
+                    };
 
-                        if before_ok && after_ok {
-                            occurrences.push((line_idx as u32, char_idx, symbol_len));
-                        }
+                    if before_ok && after_ok {
+                        occurrences.push((line_idx as u32, char_idx, symbol_len));
                     }
                 }
             }
 
             prev_char_is_alphanum = c.is_alphanumeric() || c == '_';
-            char_idx += 1;
         }
     }
 
@@ -691,10 +687,10 @@ pub async fn enhance_symbol_rename(
 
     for (file_uri, edits) in results {
         // Skip if we already have edits for this file (from LSP)
-        if !changes.contains_key(&file_uri) {
+        if let std::collections::hash_map::Entry::Vacant(e) = changes.entry(file_uri) {
             added_edits += edits.len();
             added_files += 1;
-            changes.insert(file_uri, edits);
+            e.insert(edits);
         }
     }
 

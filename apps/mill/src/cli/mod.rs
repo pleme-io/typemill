@@ -251,8 +251,6 @@ pub enum DaemonCommands {
     Status,
 }
 
-/// The config command.
-
 /// Main CLI entry point
 pub async fn run() {
     // Parse CLI arguments first

@@ -37,7 +37,6 @@ use mill_lang_common::{
     read_manifest,
 };
 use mill_plugin_api::{LanguagePlugin, ManifestData, ParsedSource, PluginResult};
-use regex::Regex;
 use std::path::Path;
 
 // Import helpers from the imports module

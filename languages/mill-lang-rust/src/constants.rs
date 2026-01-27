@@ -16,6 +16,7 @@ pub const PARSER_VERSION: &str = "0.1.0";
 /// Regex pattern for extracting Rust test annotations
 ///
 /// Matches: `#[test]`, `#[tokio::test]`, `#[async_std::test]`, `#[actix_rt::test]`
+#[allow(dead_code)]
 pub fn test_patterns() -> Vec<Regex> {
     vec![
         Regex::new(r"#\[test\]").expect("Valid test pattern regex"),
@@ -28,6 +29,7 @@ pub fn test_patterns() -> Vec<Regex> {
 /// Regex patterns for extracting Rust assertion macros
 ///
 /// Matches: `assert!`, `assert_eq!`, `assert_ne!`, `debug_assert!`, etc.
+#[allow(dead_code)]
 pub fn assertion_patterns() -> Vec<Regex> {
     vec![
         Regex::new(r"\bassert!\(").expect("Valid assert! pattern regex"),
