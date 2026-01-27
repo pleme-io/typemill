@@ -14,7 +14,7 @@ use tokio::sync::Mutex;
 
 // Tool handler modules
 pub mod advanced;
-// pub mod editing;  // TODO: Create editing module
+pub mod editing;
 pub mod cross_file_references;
 pub mod file_ops;
 pub mod internal_editing;
@@ -34,7 +34,7 @@ pub mod perf_benchmark;
 
 // Re-export handlers
 pub use advanced::AdvancedToolsHandler;
-// pub use editing::EditingToolsHandler;  // TODO: Create EditingToolsHandler
+pub use editing::EditingToolsHandler;
 pub use file_ops::FileToolsHandler;
 pub use internal_editing::InternalEditingToolsHandler;
 pub use internal_intelligence::InternalIntelligenceHandler;

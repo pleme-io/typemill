@@ -343,7 +343,7 @@ impl PluginDispatcher {
 
             {
                 use super::tools::{
-                    AdvancedToolsHandler, FileToolsHandler,
+                    AdvancedToolsHandler, EditingToolsHandler, FileToolsHandler,
                     InternalEditingToolsHandler, InternalIntelligenceHandler, InternalNavigationHandler,
                     InternalWorkspaceHandler, LifecycleHandler, NavigationHandler,
                     SystemToolsHandler, WorkspaceToolsHandler, WorkspaceCreateHandler, WorkspaceExtractDepsHandler,
@@ -358,6 +358,7 @@ impl PluginDispatcher {
                     FileOperationHandler => "FileOperationHandler with 4 file operations (create_file, delete_file, rename_file, rename_directory)",
                     FileToolsHandler => "FileToolsHandler with 3 utility tools (read_file, write_file, list_files)",
                     AdvancedToolsHandler => "AdvancedToolsHandler with 2 INTERNAL tools (execute_edits, execute_batch)",
+                    EditingToolsHandler => "EditingToolsHandler with 1 tool (edit_file)",
                     NavigationHandler => "NavigationHandler with 8 tools (find_definition, find_references, find_implementations, find_type_definition, search_symbols, get_symbol_info, get_diagnostics, get_call_hierarchy)",
                     InternalNavigationHandler => "InternalNavigationHandler with 1 INTERNAL tool (get_document_symbols)",
                     LifecycleHandler => "LifecycleHandler with 3 INTERNAL tools (notify_file_opened, notify_file_saved, notify_file_closed)",
