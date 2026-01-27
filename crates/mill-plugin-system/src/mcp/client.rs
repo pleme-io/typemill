@@ -11,7 +11,7 @@ use tracing::{debug, error, info};
 
 pub struct ExternalMcpClient {
     name: String,
-    process: Child,
+    process: Option<Child>,
     stdin: ChildStdin,
     stdout: BufReader<ChildStdout>,
     message_id: AtomicU64,
@@ -34,7 +34,7 @@ impl ExternalMcpClient {
 
         Ok(Self {
             name,
-            process: child,
+            process: Some(child),
             stdin,
             stdout,
             message_id: AtomicU64::new(1),
@@ -125,49 +125,79 @@ impl ExternalMcpClient {
 
 impl Drop for ExternalMcpClient {
     fn drop(&mut self) {
-        // Kill the child process and reap it to avoid zombies
-        let pid = self.process.id();
+        if let Some(mut child) = self.process.take() {
+            // Kill the child process and reap it to avoid zombies
+            let pid = child.id();
+            let name = self.name.clone();
 
-        if let Err(e) = self.process.start_kill() {
+            // Try to spawn async cleanup if we are in a tokio runtime
+            if let Ok(handle) = tokio::runtime::Handle::try_current() {
+                handle.spawn(async move {
+                    if let Err(e) = child.kill().await {
+                        error!(
+                            mcp_server = %name,
+                            pid = ?pid,
+                            error = %e,
+                            "Failed to kill MCP process"
+                        );
+                    }
+                    if let Err(e) = child.wait().await {
+                        error!(
+                            mcp_server = %name,
+                            pid = ?pid,
+                            error = %e,
+                            "Failed to wait for MCP process"
+                        );
+                    } else {
+                        debug!(mcp_server = %name, pid = ?pid, "MCP process reaped");
+                    }
+                });
+                return;
+            }
+
+            // Fallback: Reap the process synchronously using try_wait() to avoid zombies.
+            // This is used when Drop is called outside of a tokio runtime context.
+
+            if let Err(e) = child.start_kill() {
+                error!(
+                    mcp_server = %self.name,
+                    pid = ?pid,
+                    error = %e,
+                    "Failed to kill MCP process"
+                );
+                return;
+            }
+
+            // try_wait() is non-blocking and synchronous (unlike wait() which is async).
+            // After SIGKILL, the process should exit very quickly.
+            for _ in 0..50 {
+                match child.try_wait() {
+                    Ok(Some(_status)) => {
+                        // Process has exited and been reaped successfully
+                        debug!(mcp_server = %self.name, pid = ?pid, "MCP process reaped");
+                        return;
+                    }
+                    Ok(None) => {
+                        // Process still running, wait a bit and retry
+                        std::thread::sleep(std::time::Duration::from_millis(10));
+                    }
+                    Err(e) => {
+                        error!(
+                            mcp_server = %self.name,
+                            pid = ?pid,
+                            error = %e,
+                            "Failed to wait for MCP process"
+                        );
+                        return;
+                    }
+                }
+            }
+            // If we get here after 500ms, the process is stuck
             error!(
                 mcp_server = %self.name,
                 pid = ?pid,
-                error = %e,
-                "Failed to kill MCP process"
+                "MCP process did not exit after kill"
             );
-            return;
         }
-
-        // Reap the process synchronously using try_wait() to avoid zombies.
-        // try_wait() is non-blocking and synchronous (unlike wait() which is async).
-        // After SIGKILL, the process should exit very quickly.
-        for _ in 0..50 {
-            match self.process.try_wait() {
-                Ok(Some(_status)) => {
-                    // Process has exited and been reaped successfully
-                    debug!(mcp_server = %self.name, pid = ?pid, "MCP process reaped");
-                    return;
-                }
-                Ok(None) => {
-                    // Process still running, wait a bit and retry
-                    std::thread::sleep(std::time::Duration::from_millis(10));
-                }
-                Err(e) => {
-                    error!(
-                        mcp_server = %self.name,
-                        pid = ?pid,
-                        error = %e,
-                        "Failed to wait for MCP process"
-                    );
-                    return;
-                }
-            }
-        }
-        // If we get here after 500ms, the process is stuck
-        error!(
-            mcp_server = %self.name,
-            pid = ?pid,
-            "MCP process did not exit after kill"
-        );
     }
 }
