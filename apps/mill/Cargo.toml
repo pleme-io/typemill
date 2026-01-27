@@ -10,7 +10,7 @@ keywords = ["mcp", "lsp", "ai", "coding", "assistant"]
 categories = ["development-tools", "command-line-utilities"]
 
 [dependencies]
-mill-server = { path = "../../crates/mill-server", default-features = false, features = ["analysis-circular-deps", "analysis-deep-dead-code"] }
+mill-server = { path = "../../crates/mill-server", default-features = false, features = ["analysis-circular-deps", "analysis-dead-code"] }
 mill-foundation = { path = "../../crates/mill-foundation" }
 mill-transport = { path = "../../crates/mill-transport", default-features = false }
 mill-plugin-api = { path = "../../crates/mill-plugin-api" }

@@ -1,9 +1,8 @@
 //! Batch analysis infrastructure for workspace-wide analysis
 use crate::ToolHandlerContext;
 use crate::{
-    dead_code as dead_code_handler, dependencies as dependencies_handler,
-    documentation as documentation_handler, quality as quality_handler,
-    structure as structure_handler,
+    dependencies as dependencies_handler, documentation as documentation_handler,
+    quality as quality_handler, structure as structure_handler,
     suggestions::{
         ActionableSuggestion, AnalysisContext, EvidenceStrength, Location, RefactorType,
         RefactoringCandidate, Scope, SuggestionConfig, SuggestionGenerator,
@@ -572,68 +571,16 @@ async fn analyze_file_with_cached_ast(
                 )))
             }
         },
-        "dead_code" => match kind {
-            "unused_imports" => dead_code_handler::detect_unused_imports(
-                &cached_ast.complexity_report,
-                &cached_ast.content,
-                &cached_ast.symbols,
-                &cached_ast.language,
-                &file_path_str,
-                context.app_state.language_plugins.as_ref(),
-                config,
-            ),
-            "unused_symbols" => dead_code_handler::detect_unused_symbols(
-                &cached_ast.complexity_report,
-                &cached_ast.content,
-                &cached_ast.symbols,
-                &cached_ast.language,
-                &file_path_str,
-                context.app_state.language_plugins.as_ref(),
-                config,
-            ),
-            "unreachable_code" => dead_code_handler::detect_unreachable_code(
-                &cached_ast.complexity_report,
-                &cached_ast.content,
-                &cached_ast.symbols,
-                &cached_ast.language,
-                &file_path_str,
-                context.app_state.language_plugins.as_ref(),
-                config,
-            ),
-            "unused_parameters" => dead_code_handler::detect_unused_parameters(
-                &cached_ast.complexity_report,
-                &cached_ast.content,
-                &cached_ast.symbols,
-                &cached_ast.language,
-                &file_path_str,
-                context.app_state.language_plugins.as_ref(),
-                config,
-            ),
-            "unused_types" => dead_code_handler::detect_unused_types(
-                &cached_ast.complexity_report,
-                &cached_ast.content,
-                &cached_ast.symbols,
-                &cached_ast.language,
-                &file_path_str,
-                context.app_state.language_plugins.as_ref(),
-                config,
-            ),
-            "unused_variables" => dead_code_handler::detect_unused_variables(
-                &cached_ast.complexity_report,
-                &cached_ast.content,
-                &cached_ast.symbols,
-                &cached_ast.language,
-                &file_path_str,
-                context.app_state.language_plugins.as_ref(),
-                config,
-            ),
-            _ => {
-                return Err(BatchError::AnalysisFailed(format!(
-                    "Unsupported dead_code kind: {}",
-                    kind
-                )))
-            }
-        },
+        "dead_code" => {
+            // Dead code analysis now uses workspace-level LSP + call graph reachability.
+            // This cannot be done on a per-file basis with cached AST data.
+            // Use the dedicated `analyze.dead_code` tool instead.
+            return Err(BatchError::AnalysisFailed(
+                "Dead code analysis requires workspace-level analysis. \
+                 Use the 'analyze.dead_code' tool instead of batch analysis."
+                    .to_string(),
+            ));
+        }
         "dependencies" => match kind {
             "imports" => dependencies_handler::detect_imports(
                 &cached_ast.complexity_report,

@@ -37,7 +37,7 @@ mill-plugin-system = { path = "../../crates/mill-plugin-system", default-feature
 mill-ast = { path = "../../crates/mill-ast", default-features = false }
 mill-client = { path = "../../crates/mill-client" }
 mill-test-support = { path = "../../crates/mill-test-support" }
-mill-handlers = { path = "../../crates/mill-handlers", default-features = false, features = ["analysis-circular-deps", "analysis-deep-dead-code", "refactor-all"] }
+mill-handlers = { path = "../../crates/mill-handlers", default-features = false, features = ["analysis-circular-deps", "analysis-dead-code", "refactor-all"] }
 
 [features]
 default = ["fast-tests"]

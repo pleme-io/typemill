@@ -1,23 +1,39 @@
 [package]
 name = "mill-analysis-dead-code"
-version = "1.0.0-rc4"
+version = "2.0.0"
 edition = "2021"
 license.workspace = true
+description = "Dead code analysis using AST + LSP + call graph reachability"
 
 [dependencies]
+# Internal
+mill-analysis-common = { path = "../mill-analysis-common" }
+mill-lang-common = { path = "../../crates/mill-lang-common" }
 
-# External dependencies
+# AST parsing
+syn = { version = "2.0", features = ["full", "parsing", "visit"] }
+proc-macro2 = { version = "1.0", features = ["span-locations"] }
+pathdiff = "0.2"
+
+# LSP types
+lsp-types = "0.97"
+
+# Async
 async-trait = "0.1"
+tokio = { version = "1.0", features = ["sync", "time"] }
+
+# Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tokio = { version = "1.0", features = ["sync", "time"] }
+
+# Graph algorithms
+petgraph = "0.6"
+
+# Utilities
 thiserror = "2.0"
-futures = "0.3"
 tracing = "0.1"
 walkdir = "2"
-mill-analysis-common = { path = "../mill-analysis-common" }
 
 [dev-dependencies]
-mockall = "0.13"
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
 tempfile = "3.8"

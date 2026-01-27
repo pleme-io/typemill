@@ -27,7 +27,7 @@ simd-json = "0.16"
 mill-plugin-system = { path = "../mill-plugin-system", default-features = false, features = ["runtime"] }
 mill-config = { path = "../mill-config" }
 mill-ast = { path = "../mill-ast", default-features = false }
-mill-handlers = { path = "../mill-handlers", default-features = false, features = ["analysis-circular-deps", "analysis-deep-dead-code", "refactor-all"] }
+mill-handlers = { path = "../mill-handlers", default-features = false, features = ["analysis-circular-deps", "analysis-dead-code", "refactor-all"] }
 
 # Plugin bundle - needs to be a regular dependency since we use it in lib code (plugin_discovery.rs)
 mill-plugin-bundle = { path = "../mill-plugin-bundle", features = ["lang-rust", "lang-typescript", "lang-python", "lang-java", "lang-go", "lang-swift", "lang-c", "lang-cpp"] }

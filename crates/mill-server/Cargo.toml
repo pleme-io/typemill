@@ -41,7 +41,7 @@ mill-config = { path = "../mill-config" }
 mill-plugin-bundle = { path = "../mill-plugin-bundle", default-features = false }
 mill-workspaces = { path = "../mill-workspaces" }
 mill-ast = { path = "../mill-ast", default-features = false }
-mill-handlers = { path = "../mill-handlers", default-features = false, features = ["analysis-circular-deps", "analysis-deep-dead-code", "refactor-all"] }
+mill-handlers = { path = "../mill-handlers", default-features = false, features = ["analysis-circular-deps", "analysis-dead-code", "refactor-all"] }
 
 [features]
 default = ["lang-gitignore", "lang-markdown", "lang-python", "lang-rust", "lang-toml", "lang-typescript", "lang-yaml"]
@@ -54,7 +54,7 @@ lang-yaml = ["mill-plugin-bundle/lang-yaml"]
 mcp-proxy = ["mill-foundation/mcp-proxy", "mill-config/mcp-proxy", "mill-services/mcp-proxy"]
 test-helpers = []
 analysis-circular-deps = ["mill-handlers/analysis-circular-deps"]
-analysis-deep-dead-code = ["mill-handlers/analysis-deep-dead-code"]
+analysis-dead-code = ["mill-handlers/analysis-dead-code"]
 lang-python = ["mill-ast/lang-python", "mill-plugin-bundle/lang-python", "mill-plugin-system/lang-python", "mill-transport/lang-python"]
 lang-gitignore = ["mill-plugin-bundle/lang-gitignore"]
 lang-cpp = ["mill-ast/lang-cpp", "mill-plugin-bundle/lang-cpp", "mill-plugin-system/lang-cpp", "mill-transport/lang-cpp"]

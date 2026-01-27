@@ -19,7 +19,6 @@ members = [
     "apps/mill",
     "analysis/mill-analysis-common",
     "analysis/mill-analysis-dead-code",
-    "analysis/mill-analysis-deep-dead-code",
     "analysis/mill-analysis-graph",
     "analysis/mill-analysis-circular-deps",
     "tests/e2e",

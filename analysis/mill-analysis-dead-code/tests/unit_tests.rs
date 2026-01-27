@@ -1,49 +1,297 @@
 //! Unit tests for the dead code analysis crate.
 
-use async_trait::async_trait;
-use mill_analysis_common::{AnalysisEngine, AnalysisError, LspProvider};
-use mill_analysis_dead_code::{config::DeadCodeConfig, DeadCodeAnalyzer};
-use serde_json::Value;
-use std::path::Path;
-use std::sync::Arc;
+use mill_analysis_dead_code::{Config, DeadCodeAnalyzer, EntryPoints, NoOpLspProvider};
+use std::path::PathBuf;
+use tempfile::TempDir;
 
-/// A mock LSP provider for testing purposes.
-struct MockLspProvider;
+#[tokio::test]
+async fn test_analyzer_runs_without_error_empty_workspace() {
+    // Use a temporary empty directory
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let noop_lsp = NoOpLspProvider;
+    let config = Config::default();
 
-#[async_trait]
-impl LspProvider for MockLspProvider {
-    async fn workspace_symbols(&self, _query: &str) -> Result<Vec<Value>, AnalysisError> {
-        Ok(vec![])
-    }
+    let result = DeadCodeAnalyzer::analyze(&noop_lsp, temp_dir.path(), config).await;
 
-    async fn find_references(
-        &self,
-        _uri: &str,
-        _line: u32,
-        _character: u32,
-    ) -> Result<Vec<Value>, AnalysisError> {
-        Ok(vec![])
-    }
-
-    async fn document_symbols(&self, _uri: &str) -> Result<Vec<Value>, AnalysisError> {
-        Ok(vec![])
-    }
+    assert!(result.is_ok(), "Analysis should not fail on empty directory");
+    let report = result.unwrap();
+    assert_eq!(
+        report.dead_code.len(),
+        0,
+        "Should find no dead symbols in an empty workspace"
+    );
 }
 
 #[tokio::test]
-async fn test_analyzer_runs_without_error() {
-    let mock_lsp = Arc::new(MockLspProvider);
-    let analyzer = DeadCodeAnalyzer;
-    let config = DeadCodeConfig::default();
-    let workspace_path = Path::new(".");
+async fn test_analyzer_with_rust_file() {
+    // Create a temporary directory with a Rust file
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let rust_file = temp_dir.path().join("lib.rs");
+    std::fs::write(
+        &rust_file,
+        r#"
+pub fn public_function() {}
+fn private_function() {}
+"#,
+    )
+    .expect("Failed to write test file");
 
-    let result = analyzer.analyze(mock_lsp, workspace_path, config).await;
+    let noop_lsp = NoOpLspProvider;
+    let config = Config::default();
 
-    assert!(result.is_ok(), "Analysis should not fail");
+    let result = DeadCodeAnalyzer::analyze(&noop_lsp, temp_dir.path(), config).await;
+
+    assert!(result.is_ok(), "Analysis should not fail: {:?}", result.err());
     let report = result.unwrap();
-    assert_eq!(
-        report.dead_symbols.len(),
-        0,
-        "Should find no dead symbols in an empty workspace"
+
+    // With AST extraction, we should find the private function as potentially dead
+    // (since public functions are entry points by default)
+    assert!(
+        report.stats.symbols_analyzed >= 2,
+        "Should have analyzed at least 2 symbols, got {}",
+        report.stats.symbols_analyzed
+    );
+}
+
+#[tokio::test]
+async fn test_config_defaults() {
+    let config = Config::default();
+
+    assert!(config.entry_points.include_main);
+    assert!(config.entry_points.include_tests);
+    assert!(config.entry_points.include_pub_exports);
+    assert!(config.min_confidence > 0.0);
+}
+
+/// Integration test: analyze the circular-deps crate (a sibling crate).
+/// This tests the analyzer on real Rust code with multiple files.
+#[tokio::test]
+async fn test_analyzer_on_real_crate_circular_deps() {
+    // Point to the actual circular-deps crate
+    let circular_deps_crate = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .join("mill-analysis-circular-deps")
+        .join("src");
+
+    if !circular_deps_crate.exists() {
+        eprintln!("Skipping test: circular-deps crate not found at {:?}", circular_deps_crate);
+        return;
+    }
+
+    let noop_lsp = NoOpLspProvider;
+    let config = Config::default();
+
+    let result = DeadCodeAnalyzer::analyze(&noop_lsp, &circular_deps_crate, config).await;
+
+    assert!(result.is_ok(), "Analysis should succeed: {:?}", result.err());
+    let report = result.unwrap();
+
+    println!("\n=== Dead Code Analysis Report ===");
+    println!("Files analyzed: {}", report.stats.files_analyzed);
+    println!("Symbols analyzed: {}", report.stats.symbols_analyzed);
+    println!("Dead code found: {}", report.stats.dead_found);
+    println!("Duration: {}ms", report.stats.duration_ms);
+
+    if !report.dead_code.is_empty() {
+        println!("\nPotentially dead symbols:");
+        for dead in &report.dead_code {
+            println!(
+                "  - {} {} at {}:{} (confidence: {:.2}) - {}",
+                dead.kind,
+                dead.name,
+                dead.location.file.display(),
+                dead.location.line,
+                dead.confidence,
+                dead.reason
+            );
+        }
+    }
+
+    // Should have analyzed at least a couple files (lib.rs, builder.rs)
+    assert!(
+        report.stats.files_analyzed >= 2,
+        "Expected at least 2 files, got {}",
+        report.stats.files_analyzed
+    );
+
+    // Should have found some symbols via AST
+    assert!(
+        report.stats.symbols_analyzed >= 5,
+        "Expected at least 5 symbols, got {}",
+        report.stats.symbols_analyzed
+    );
+}
+
+/// Test with only pub exports as entry points (no tests, no main).
+#[tokio::test]
+async fn test_analyzer_with_restricted_entry_points() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let rust_file = temp_dir.path().join("lib.rs");
+    std::fs::write(
+        &rust_file,
+        r#"
+pub fn public_function() {
+    private_helper();
+}
+
+fn private_helper() {}
+
+fn completely_unused() {}
+
+pub const PUBLIC_CONST: i32 = 42;
+
+const PRIVATE_CONST: i32 = 100;
+"#,
+    )
+    .expect("Failed to write test file");
+
+    let noop_lsp = NoOpLspProvider;
+
+    // Only consider public exports as entry points
+    let config = Config {
+        entry_points: EntryPoints {
+            include_main: false,
+            include_tests: false,
+            include_pub_exports: true,
+            custom: vec![],
+        },
+        min_confidence: 0.5, // Lower threshold to catch more
+        file_extensions: None,
+        max_symbols: None,
+    };
+
+    let result = DeadCodeAnalyzer::analyze(&noop_lsp, temp_dir.path(), config).await;
+
+    assert!(result.is_ok(), "Analysis should not fail: {:?}", result.err());
+    let report = result.unwrap();
+
+    println!("\n=== Restricted Entry Points Test ===");
+    println!("Symbols analyzed: {}", report.stats.symbols_analyzed);
+    println!("Dead code found: {}", report.stats.dead_found);
+
+    for dead in &report.dead_code {
+        println!(
+            "  - {} {} (confidence: {:.2})",
+            dead.kind, dead.name, dead.confidence
+        );
+    }
+
+    // We should find at least the completely_unused function as dead
+    let dead_names: Vec<&str> = report.dead_code.iter().map(|d| d.name.as_str()).collect();
+
+    // Note: With no LSP references, we can't determine that private_helper is used by public_function
+    // So it may be marked as dead depending on confidence threshold
+    // But completely_unused and PRIVATE_CONST should definitely be dead
+    assert!(
+        dead_names.contains(&"completely_unused") || dead_names.contains(&"PRIVATE_CONST"),
+        "Expected to find completely_unused or PRIVATE_CONST as dead, got: {:?}",
+        dead_names
+    );
+}
+
+/// Test analyzing a single file (not a directory).
+#[tokio::test]
+async fn test_analyzer_single_file() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let rust_file = temp_dir.path().join("single.rs");
+    std::fs::write(
+        &rust_file,
+        r#"
+pub struct MyStruct {
+    field: i32,
+}
+
+impl MyStruct {
+    pub fn new() -> Self {
+        Self { field: 0 }
+    }
+}
+
+fn unused_in_single_file() {}
+"#,
+    )
+    .expect("Failed to write test file");
+
+    let noop_lsp = NoOpLspProvider;
+    let config = Config::default();
+
+    // Analyze just the single file
+    let result = DeadCodeAnalyzer::analyze(&noop_lsp, &rust_file, config).await;
+
+    assert!(result.is_ok(), "Analysis of single file should succeed: {:?}", result.err());
+    let report = result.unwrap();
+
+    println!("\n=== Single File Analysis ===");
+    println!("Files analyzed: {}", report.stats.files_analyzed);
+    println!("Symbols analyzed: {}", report.stats.symbols_analyzed);
+
+    assert_eq!(report.stats.files_analyzed, 1, "Should analyze exactly 1 file");
+    assert!(report.stats.symbols_analyzed >= 2, "Should find struct and function");
+}
+
+/// Test the analyze_without_lsp convenience method.
+/// Demonstrates that intra-file call detection works without an LSP server.
+#[tokio::test]
+async fn test_analyze_without_lsp() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let rust_file = temp_dir.path().join("example.rs");
+    std::fs::write(
+        &rust_file,
+        r#"
+pub fn entry_point() {
+    used_helper();
+}
+
+fn used_helper() {}
+
+fn unused_function() {}
+"#,
+    )
+    .expect("Failed to write test file");
+
+    let config = Config {
+        entry_points: EntryPoints {
+            include_main: false,
+            include_tests: false,
+            include_pub_exports: true,
+            custom: vec![],
+        },
+        min_confidence: 0.5,
+        file_extensions: None,
+        max_symbols: None,
+    };
+
+    // Use analyze_without_lsp - no LSP server needed!
+    let result = DeadCodeAnalyzer::analyze_without_lsp(&rust_file, config).await;
+
+    assert!(result.is_ok(), "Analysis without LSP should succeed: {:?}", result.err());
+    let report = result.unwrap();
+
+    println!("\n=== Analysis Without LSP ===");
+    println!("Symbols analyzed: {}", report.stats.symbols_analyzed);
+    println!("Dead code found: {}", report.stats.dead_found);
+
+    for dead in &report.dead_code {
+        println!("  - {} {} (confidence: {:.2})", dead.kind, dead.name, dead.confidence);
+    }
+
+    // Should find 3 symbols: entry_point, used_helper, unused_function
+    assert_eq!(report.stats.symbols_analyzed, 3, "Should find 3 symbols");
+
+    // Thanks to intra-file call detection, used_helper should NOT be marked as dead
+    // because entry_point calls it. Only unused_function should be dead.
+    let dead_names: Vec<&str> = report.dead_code.iter().map(|d| d.name.as_str()).collect();
+
+    assert!(
+        dead_names.contains(&"unused_function"),
+        "unused_function should be detected as dead"
+    );
+
+    // used_helper should NOT be in dead code because it's called by entry_point
+    // (detected via AST intra-file call detection)
+    assert!(
+        !dead_names.contains(&"used_helper"),
+        "used_helper should NOT be dead (it's called by entry_point)"
     );
 }

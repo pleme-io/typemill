@@ -5,10 +5,9 @@ edition = "2021"
 license.workspace = true
 
 [features]
-default = ["analysis-dead-code", "analysis-deep-dead-code"]
+default = ["analysis-dead-code"]
 analysis-dead-code = ["dep:mill-analysis-dead-code", "dep:mill-analysis-common"]
 analysis-circular-deps = ["dep:mill-analysis-circular-deps", "dep:mill-analysis-graph"]
-analysis-deep-dead-code = ["dep:mill-analysis-deep-dead-code", "dep:mill-analysis-common"]
 
 [dependencies]
 mill-foundation = { path = "../mill-foundation" }
@@ -22,7 +21,6 @@ mill-analysis-common = { path = "../../analysis/mill-analysis-common", optional 
 mill-analysis-dead-code = { path = "../../analysis/mill-analysis-dead-code", optional = true }
 mill-analysis-circular-deps = { path = "../../analysis/mill-analysis-circular-deps", optional = true }
 mill-analysis-graph = { path = "../../analysis/mill-analysis-graph", optional = true }
-mill-analysis-deep-dead-code = { path = "../../analysis/mill-analysis-deep-dead-code", optional = true }
 
 # Core dependencies
 anyhow = { workspace = true }

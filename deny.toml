@@ -316,14 +316,10 @@ wrappers = ["mill", "e2e"]
 
 [[bans.deny]]
 name = "mill-analysis-common"
-wrappers = ["mill-handlers", "mill-analysis-dead-code", "mill-analysis-deep-dead-code", "mill-analysis-graph", "mill-analysis-circular-deps"]
+wrappers = ["mill-handlers", "mill-analysis-dead-code", "mill-analysis-graph", "mill-analysis-circular-deps"]
 
 [[bans.deny]]
 name = "mill-analysis-dead-code"
-wrappers = ["mill-handlers"]
-
-[[bans.deny]]
-name = "mill-analysis-deep-dead-code"
 wrappers = ["mill-handlers"]
 
 [[bans.deny]]

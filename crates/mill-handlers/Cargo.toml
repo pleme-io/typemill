@@ -14,7 +14,6 @@ lang-rust = ["dep:mill-lang-rust"]
 lang-java = ["dep:mill-lang-java"]
 analysis-dead-code = ["mill-handlers-analysis/analysis-dead-code"]
 analysis-circular-deps = ["mill-handlers-analysis/analysis-circular-deps"]
-analysis-deep-dead-code = ["mill-handlers-analysis/analysis-deep-dead-code"]
 
 # Refactoring operations - optional for faster compilation
 refactor-rename = []
