@@ -404,33 +404,43 @@ pub(crate) fn rewrite_imports_for_move_with_context(
     let new_import = calculate_relative_import(importing_file, new_path);
 
     if old_import != new_import {
-        // ES6 imports: from 'old_path' or "old_path"
-        for quote_char in &['\'', '"'] {
-            let old_str = format!("from {}{}{}", quote_char, old_import, quote_char);
-            let new_str = format!("from {}{}{}", quote_char, new_import, quote_char);
-            if new_content.contains(&old_str) {
-                new_content = new_content.replace(&old_str, &new_str);
-                changes += 1;
-            }
-        }
+        // TypeScript ESM commonly uses .js extensions in imports even for .ts files
+        // We need to check for imports both with and without extensions
+        let import_variants = vec![
+            (old_import.clone(), new_import.clone()),                    // No extension: ./utils/timer
+            (format!("{}.js", old_import), format!("{}.js", new_import)), // .js extension: ./utils/timer.js
+            (format!("{}.ts", old_import), format!("{}.ts", new_import)), // .ts extension (rare but possible)
+        ];
 
-        // CommonJS require: require('old_path') or require("old_path")
-        for quote_char in &['\'', '"'] {
-            let old_str = format!("require({}{}{})", quote_char, old_import, quote_char);
-            let new_str = format!("require({}{}{})", quote_char, new_import, quote_char);
-            if new_content.contains(&old_str) {
-                new_content = new_content.replace(&old_str, &new_str);
-                changes += 1;
+        for (old_variant, new_variant) in import_variants {
+            // ES6 imports: from 'old_path' or "old_path"
+            for quote_char in &['\'', '"'] {
+                let old_str = format!("from {}{}{}", quote_char, old_variant, quote_char);
+                let new_str = format!("from {}{}{}", quote_char, new_variant, quote_char);
+                if new_content.contains(&old_str) {
+                    new_content = new_content.replace(&old_str, &new_str);
+                    changes += 1;
+                }
             }
-        }
 
-        // Dynamic import: import('old_path') or import("old_path")
-        for quote_char in &['\'', '"'] {
-            let old_str = format!("import({}{}{})", quote_char, old_import, quote_char);
-            let new_str = format!("import({}{}{})", quote_char, new_import, quote_char);
-            if new_content.contains(&old_str) {
-                new_content = new_content.replace(&old_str, &new_str);
-                changes += 1;
+            // CommonJS require: require('old_path') or require("old_path")
+            for quote_char in &['\'', '"'] {
+                let old_str = format!("require({}{}{})", quote_char, old_variant, quote_char);
+                let new_str = format!("require({}{}{})", quote_char, new_variant, quote_char);
+                if new_content.contains(&old_str) {
+                    new_content = new_content.replace(&old_str, &new_str);
+                    changes += 1;
+                }
+            }
+
+            // Dynamic import: import('old_path') or import("old_path")
+            for quote_char in &['\'', '"'] {
+                let old_str = format!("import({}{}{})", quote_char, old_variant, quote_char);
+                let new_str = format!("import({}{}{})", quote_char, new_variant, quote_char);
+                if new_content.contains(&old_str) {
+                    new_content = new_content.replace(&old_str, &new_str);
+                    changes += 1;
+                }
             }
         }
     }
