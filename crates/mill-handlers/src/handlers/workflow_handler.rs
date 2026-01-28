@@ -37,8 +37,8 @@ impl ToolHandler for WorkflowHandler {
         debug!(tool_name = %tool_call.name, "Handling workflow operation");
 
         match tool_call.name.as_str() {
-            "achieve_intent" => self.handle_achieve_intent(tool_call.clone(), context).await,
-            "apply_edits" => self.handle_apply_edits(tool_call.clone(), context).await,
+            "achieve_intent" => self.handle_achieve_intent(tool_call, context).await,
+            "apply_edits" => self.handle_apply_edits(tool_call, context).await,
             _ => Err(ServerError::not_supported(format!(
                 "Unknown workflow operation: {}",
                 tool_call.name
@@ -50,13 +50,14 @@ impl ToolHandler for WorkflowHandler {
 impl WorkflowHandler {
     async fn handle_achieve_intent(
         &self,
-        tool_call: ToolCall,
+        tool_call: &ToolCall,
         context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<Value> {
         debug!(tool_name = %tool_call.name, "Planning or resuming workflow");
 
         let args = tool_call
             .arguments
+            .as_ref()
             .ok_or_else(|| ServerError::invalid_request("Missing arguments for achieve_intent"))?;
 
         // Get concrete state for workflow operations
@@ -150,14 +151,15 @@ impl WorkflowHandler {
 
     async fn handle_apply_edits(
         &self,
-        tool_call: ToolCall,
+        tool_call: &ToolCall,
         context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<Value> {
         debug!(tool_name = %tool_call.name, "Handling apply_edits");
 
-        let args = tool_call.arguments.unwrap_or(json!({}));
-        let edit_plan_value = args
-            .get("edit_plan")
+        let edit_plan_value = tool_call
+            .arguments
+            .as_ref()
+            .and_then(|args| args.get("edit_plan"))
             .ok_or_else(|| ServerError::invalid_request("Missing 'edit_plan' parameter"))?;
 
         // Parse the EditPlan from the JSON value
