@@ -14,10 +14,11 @@ use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResu
 use mill_foundation::planning::{
     DeletePlan, DeletionTarget, PlanMetadata, PlanSummary, PlanWarning, RefactorPlan,
 };
+use futures::stream::StreamExt;
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tracing::{debug, error, info};
 
 /// Handler for delete operations
@@ -501,21 +502,45 @@ impl DeleteHandler {
         }
 
         // Walk directory to collect files and checksums
-        let abs_dir = std::fs::canonicalize(dir_path).unwrap_or_else(|_| dir_path.to_path_buf());
+        // Move directory walking to a blocking task to avoid blocking the async runtime
+        let dir_path_buf = dir_path.to_path_buf();
+        let (files, abs_dir): (Vec<PathBuf>, PathBuf) = tokio::task::spawn_blocking(move || {
+            let abs_dir = std::fs::canonicalize(&dir_path_buf).unwrap_or(dir_path_buf);
+            let walker = ignore::WalkBuilder::new(&abs_dir).hidden(false).build();
+            let files = walker
+                .flatten()
+                .filter(|entry| entry.path().is_file())
+                .map(|entry| entry.path().to_path_buf())
+                .collect();
+            (files, abs_dir)
+        })
+        .await
+        .map_err(|e| ServerError::internal(format!("Task failed: {}", e)))?;
+
         let mut file_checksums = HashMap::new();
         let mut file_count = 0;
 
-        let walker = ignore::WalkBuilder::new(&abs_dir).hidden(false).build();
-        for entry in walker.flatten() {
-            if entry.path().is_file() {
-                if let Ok(content) = context.app_state.file_service.read_file(entry.path()).await {
-                    file_checksums.insert(
-                        entry.path().to_string_lossy().to_string(),
-                        calculate_checksum(&content),
-                    );
-                    file_count += 1;
+        // Process file reads and checksums concurrently
+        let results: Vec<_> = futures::stream::iter(files)
+            .map(|path| {
+                let fs = context.app_state.file_service.clone();
+                async move {
+                    match fs.read_file(&path).await {
+                        Ok(content) => Some((
+                            path.to_string_lossy().to_string(),
+                            calculate_checksum(&content),
+                        )),
+                        Err(_) => None,
+                    }
                 }
-            }
+            })
+            .buffer_unordered(50) // Process 50 files concurrently
+            .collect()
+            .await;
+
+        for (path_str, checksum) in results.into_iter().flatten() {
+            file_checksums.insert(path_str, checksum);
+            file_count += 1;
         }
 
         // Create explicit deletion target for directory
