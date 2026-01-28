@@ -548,3 +548,90 @@ pub trait ModuleDeclarationSupport: Send + Sync {
         ))
     }
 }
+
+// ============================================================================
+// File Discovery Capability
+// ============================================================================
+
+/// Capability for discovering source files in a workspace
+///
+/// This trait allows language plugins to control how source files are discovered,
+/// enabling support for custom exclusion rules, non-standard file extensions,
+/// or specific directory structures.
+#[async_trait]
+pub trait FileDiscovery: Send + Sync {
+    /// Find source files in a directory tree
+    ///
+    /// # Arguments
+    ///
+    /// * `root_path` - The root directory to start searching from
+    ///
+    /// # Returns
+    ///
+    /// A list of found source file paths relative to `root_path`, or absolute paths.
+    ///
+    async fn find_source_files(
+        &self,
+        root_path: &Path,
+    ) -> PluginResult<Vec<std::path::PathBuf>>;
+}
+
+/// Standard implementation of FileDiscovery using file extensions
+pub struct StandardFileDiscovery {
+    extensions: Vec<String>,
+}
+
+impl StandardFileDiscovery {
+    /// Create a new StandardFileDiscovery with the given extensions
+    pub fn new(extensions: &[&str]) -> Self {
+        Self {
+            extensions: extensions.iter().map(|s| s.to_string()).collect(),
+        }
+    }
+}
+
+#[async_trait]
+impl FileDiscovery for StandardFileDiscovery {
+    async fn find_source_files(
+        &self,
+        root_path: &Path,
+    ) -> PluginResult<Vec<std::path::PathBuf>> {
+        use tokio::fs;
+
+        let mut result = Vec::new();
+        let mut queue = vec![root_path.to_path_buf()];
+
+        while let Some(current_dir) = queue.pop() {
+            let mut entries = fs::read_dir(&current_dir).await.map_err(|e| {
+                crate::PluginApiError::internal(format!(
+                    "Failed to read directory {}: {}",
+                    current_dir.display(),
+                    e
+                ))
+            })?;
+
+            while let Some(entry) = entries.next_entry().await.map_err(|e| {
+                crate::PluginApiError::internal(format!("Failed to read directory entry: {}", e))
+            })? {
+                let path = entry.path();
+                let metadata = entry.metadata().await.map_err(|e| {
+                    crate::PluginApiError::internal(format!(
+                        "Failed to read metadata for {}: {}",
+                        path.display(),
+                        e
+                    ))
+                })?;
+
+                if metadata.is_dir() {
+                    queue.push(path);
+                } else if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+                    if self.extensions.iter().any(|e| e == ext) {
+                        result.push(path);
+                    }
+                }
+            }
+        }
+
+        Ok(result)
+    }
+}

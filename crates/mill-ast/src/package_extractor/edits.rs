@@ -2,7 +2,7 @@ use crate::error::AstError;
 use crate::package_extractor::ExtractModuleToPackageParams;
 use futures::stream::StreamExt;
 use mill_foundation::protocol::{EditLocation, EditType, TextEdit};
-use mill_plugin_api::LanguagePlugin;
+use mill_plugin_api::{FileDiscovery, LanguagePlugin, StandardFileDiscovery};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tracing::debug;
@@ -220,15 +220,24 @@ pub(crate) async fn add_import_update_edits(
 ) -> Result<(), AstError> {
     debug!("Starting use statement updates across workspace");
 
-    // Find all source files using plugin's file extensions
-    // TODO: This needs to be refactored to use a capability trait instead of
-    // hardcoding file discovery logic. Consider adding a FileDiscovery capability.
-    let extensions = &plugin.metadata().extensions;
-    let source_files = find_files_with_extensions(source_path, extensions)
-        .await
-        .map_err(|e| AstError::Analysis {
-            message: format!("Failed to find source files: {}", e),
-        })?;
+    // Use FileDiscovery capability or fallback to standard discovery
+    let source_files = if let Some(discovery) = plugin.file_discovery() {
+        discovery
+            .find_source_files(source_path)
+            .await
+            .map_err(|e| AstError::Analysis {
+                message: format!("Failed to find source files: {}", e),
+            })?
+    } else {
+        let extensions = &plugin.metadata().extensions;
+        let discovery = StandardFileDiscovery::new(extensions);
+        discovery
+            .find_source_files(source_path)
+            .await
+            .map_err(|e| AstError::Analysis {
+                message: format!("Failed to find source files: {}", e),
+            })?
+    };
 
     debug!(
         source_files_count = source_files.len(),
@@ -406,40 +415,3 @@ pub(crate) async fn add_import_update_edits(
     Ok(())
 }
 
-/// Find all files with given extensions in a directory tree
-async fn find_files_with_extensions(
-    dir: &Path,
-    extensions: &[&str],
-) -> Result<Vec<PathBuf>, AstError> {
-    use tokio::fs;
-
-    let mut result = Vec::new();
-    let mut queue = vec![dir.to_path_buf()];
-
-    while let Some(current_dir) = queue.pop() {
-        let mut entries = fs::read_dir(&current_dir)
-            .await
-            .map_err(|e| AstError::Analysis {
-                message: format!("Failed to read directory {}: {}", current_dir.display(), e),
-            })?;
-
-        while let Some(entry) = entries.next_entry().await.map_err(|e| AstError::Analysis {
-            message: format!("Failed to read directory entry: {}", e),
-        })? {
-            let path = entry.path();
-            let metadata = entry.metadata().await.map_err(|e| AstError::Analysis {
-                message: format!("Failed to read metadata for {}: {}", path.display(), e),
-            })?;
-
-            if metadata.is_dir() {
-                queue.push(path);
-            } else if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
-                if extensions.contains(&ext) {
-                    result.push(path);
-                }
-            }
-        }
-    }
-
-    Ok(result)
-}

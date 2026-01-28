@@ -38,8 +38,9 @@ pub mod workspace_support;
 
 // Re-exports
 pub use capabilities::{
-    ExtractParams, ImportAnalyzer, InlineParams, ManifestUpdater, ModuleDeclarationSupport,
-    ModuleLocator, ModuleReferenceScanner, RefactoringProvider, TextEdit, WorkspaceEdit,
+    ExtractParams, FileDiscovery, ImportAnalyzer, InlineParams, ManifestUpdater,
+    ModuleDeclarationSupport, ModuleLocator, ModuleReferenceScanner, RefactoringProvider,
+    StandardFileDiscovery, TextEdit, WorkspaceEdit,
 };
 pub use import_support::{
     ImportAdvancedSupport, ImportMoveSupport, ImportMutationSupport, ImportParser,
@@ -537,6 +538,11 @@ pub trait LanguagePlugin: Send + Sync {
 
     /// Get import analyzer capability if available
     fn import_analyzer(&self) -> Option<&dyn crate::capabilities::ImportAnalyzer> {
+        None
+    }
+
+    /// Get file discovery capability if available
+    fn file_discovery(&self) -> Option<&dyn crate::capabilities::FileDiscovery> {
         None
     }
 
