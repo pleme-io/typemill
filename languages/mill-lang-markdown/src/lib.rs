@@ -247,6 +247,10 @@ fn extract_headers(content: &str) -> Vec<Symbol> {
                     line: line_num + 1,
                     column: 0,
                 },
+                end_location: Some(SourceLocation {
+                    line: line_num + 1,
+                    column: 0,
+                }),
                 documentation: None,
             });
         }

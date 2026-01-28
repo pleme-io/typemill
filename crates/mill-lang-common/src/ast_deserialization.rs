@@ -51,6 +51,10 @@ impl From<AstSymbol> for Symbol {
                 line: ast.line,
                 column: ast.column.unwrap_or(0),
             },
+            end_location: ast.end_line.map(|line| SourceLocation {
+                line,
+                column: 0,
+            }),
             documentation: ast.documentation,
         }
     }
@@ -156,7 +160,7 @@ mod tests {
             line: 42,
             column: Some(10),
             documentation: Some("Test doc".to_string()),
-            end_line: None,
+            end_line: Some(50),
         };
 
         let symbol: Symbol = ast.into();
@@ -164,6 +168,7 @@ mod tests {
         assert_eq!(symbol.kind, SymbolKind::Function);
         assert_eq!(symbol.location.line, 42);
         assert_eq!(symbol.location.column, 10);
+        assert_eq!(symbol.end_location.unwrap().line, 50);
         assert_eq!(symbol.documentation, Some("Test doc".to_string()));
     }
 

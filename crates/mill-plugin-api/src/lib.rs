@@ -181,6 +181,9 @@ pub struct Symbol {
     /// Location in source code
     pub location: SourceLocation,
 
+    /// Optional end location in source code
+    pub end_location: Option<SourceLocation>,
+
     /// Optional documentation/comments
     pub documentation: Option<String>,
 }

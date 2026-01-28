@@ -22,6 +22,128 @@ impl NavigationHandler {
         Self
     }
 
+    async fn handle_find_symbol(
+        &self,
+        context: &mill_handler_api::ToolHandlerContext,
+        tool_call: &ToolCall,
+    ) -> ServerResult<Value> {
+        let args = tool_call.arguments.clone().unwrap_or(json!({}));
+        let symbol_name = args.get("name").and_then(|v| v.as_str())
+            .ok_or_else(|| ServerError::invalid_request("Missing 'name' parameter"))?;
+        let file_path = args.get("filePath").and_then(|v| v.as_str());
+
+        let mut symbols = Vec::new();
+
+        if let Some(path) = file_path {
+            // Document symbols
+            let mut request = PluginRequest::new("get_document_symbols".to_string(), PathBuf::from(path));
+            request = request.with_params(args.clone());
+
+            if let Ok(response) = context.plugin_manager.handle_request(request).await {
+                if let Some(data) = response.data {
+                    if let Some(arr) = data.as_array() {
+                        symbols.extend(arr.clone());
+                    }
+                }
+            }
+        } else {
+            // Workspace search
+            // Reuse handle_search_symbols logic but pass 'query' = symbol_name
+            let mut search_args = args.as_object().cloned().unwrap_or_default();
+            search_args.insert("query".to_string(), json!(symbol_name));
+
+            let search_call = ToolCall {
+                name: "search_symbols".to_string(),
+                arguments: Some(Value::Object(search_args)),
+            };
+
+            let result = self.handle_search_symbols(context, &search_call).await?;
+            if let Some(content) = result.get("content").and_then(|v| v.as_array()) {
+                symbols.extend(content.clone());
+            }
+        }
+
+        // Filter symbols by name (fuzzy match is usually already done by search, but we refine it)
+        let filtered: Vec<Value> = symbols.into_iter().filter(|s| {
+            s.get("name").and_then(|n| n.as_str())
+                .map(|n| n.contains(symbol_name))
+                .unwrap_or(false)
+        }).collect();
+
+        Ok(json!(filtered))
+    }
+
+    async fn handle_find_referencing_symbols(
+        &self,
+        context: &mill_handler_api::ToolHandlerContext,
+        tool_call: &ToolCall,
+    ) -> ServerResult<Value> {
+        // First find the symbol
+        let find_symbol_call = ToolCall {
+            name: "find_symbol".to_string(),
+            arguments: tool_call.arguments.clone(),
+        };
+        let symbols_json = self.handle_find_symbol(context, &find_symbol_call).await?;
+        let symbols = symbols_json.as_array()
+            .ok_or_else(|| ServerError::internal("Invalid response from find_symbol"))?;
+
+        if symbols.is_empty() {
+            return Ok(json!([]));
+        }
+
+        let mut all_references = Vec::new();
+
+        for symbol in symbols {
+            // Try to extract location and file URI
+            let location_opt = symbol.get("location");
+            // LSP SymbolInformation has location: { uri: "...", range: ... }
+            // DocumentSymbol has range, selectionRange, but NO URI (implicit in file path)
+
+            // If we have uri in location
+            let uri_opt = location_opt.and_then(|l| l.get("uri").and_then(|v| v.as_str()));
+
+            // If we have file path from args (if find_symbol was called with filePath)
+            let args_file_path = tool_call.arguments.as_ref()
+                .and_then(|a| a.get("filePath").and_then(|v| v.as_str()));
+
+            let final_uri = uri_opt.or(args_file_path);
+
+            if let Some(uri) = final_uri {
+                 let range_opt = location_opt.and_then(|l| l.get("range"))
+                     .or_else(|| symbol.get("selectionRange")) // DocumentSymbol
+                     .or_else(|| symbol.get("range")); // DocumentSymbol
+
+                 let (line, col) = if let Some(range) = range_opt {
+                     (
+                         range.get("start").and_then(|s| s.get("line")).and_then(|v| v.as_u64()),
+                         range.get("start").and_then(|s| s.get("character")).and_then(|v| v.as_u64())
+                     )
+                 } else {
+                     // Internal Symbol
+                     (
+                         location_opt.and_then(|l| l.get("line").and_then(|v| v.as_u64())),
+                         location_opt.and_then(|l| l.get("column").and_then(|v| v.as_u64()))
+                     )
+                 };
+
+                 if let (Some(l), Some(c)) = (line, col) {
+                     let mut ref_request = PluginRequest::new("find_references".to_string(), PathBuf::from(uri));
+                     ref_request = ref_request.with_position(l as u32, c as u32);
+
+                     if let Ok(response) = context.plugin_manager.handle_request(ref_request).await {
+                         if let Some(data) = response.data {
+                             if let Some(arr) = data.as_array() {
+                                 all_references.extend(arr.clone());
+                             }
+                         }
+                     }
+                 }
+            }
+        }
+
+        Ok(json!(all_references))
+    }
+
     /// Handle workspace symbol search across all plugins
     async fn handle_search_symbols(
         &self,
@@ -199,6 +321,8 @@ impl ToolHandler for NavigationHandler {
             "find_implementations",
             "find_type_definition",
             "search_symbols",
+            "find_symbol",
+            "find_referencing_symbols",
             "get_symbol_info",
             "get_diagnostics",
             "get_call_hierarchy",
@@ -216,6 +340,14 @@ impl ToolHandler for NavigationHandler {
             tool_name = %tool_call.name,
             "NavigationHandler::handle_tool_call called"
         );
+
+        if tool_call.name == "find_symbol" {
+            return self.handle_find_symbol(context, tool_call).await;
+        }
+
+        if tool_call.name == "find_referencing_symbols" {
+            return self.handle_find_referencing_symbols(context, tool_call).await;
+        }
 
         let mut call = tool_call.clone();
 

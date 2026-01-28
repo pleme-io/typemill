@@ -15,7 +15,7 @@ mill-lang-common = { path = "../../crates/mill-lang-common" }
 # For parsing Rust code
 syn = { version = "2.0", features = ["full", "visit", "extra-traits"] }
 quote = "1.0"
-proc-macro2 = "1.0"
+proc-macro2 = { version = "1.0", features = ["span-locations"] }
 tracing = { workspace = true }
 
 # For parsing Cargo.toml files

@@ -238,6 +238,10 @@ fn extract_symbols_ast(source: &str) -> Result<Vec<Symbol>, PluginApiError> {
                 line: s.location.start_line,
                 column: s.location.start_column,
             },
+            end_location: Some(mill_plugin_api::SourceLocation {
+                line: s.location.end_line,
+                column: s.location.end_column,
+            }),
             documentation: s.documentation,
         })
         .collect();

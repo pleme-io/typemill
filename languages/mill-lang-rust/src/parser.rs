@@ -5,7 +5,7 @@
 use mill_foundation::protocol::{ImportGraph, ImportInfo, ImportType, NamedImport};
 use mill_lang_common::ImportGraphBuilder;
 use mill_plugin_api::{PluginApiError, PluginResult, SourceLocation, Symbol, SymbolKind};
-use syn::{visit::Visit, File, Item, ItemUse, UseTree};
+use syn::{spanned::Spanned, visit::Visit, File, Item, ItemUse, UseTree};
 /// A visitor that walks the AST and collects function names
 struct FunctionVisitor {
     functions: Vec<String>,
@@ -23,96 +23,140 @@ impl<'ast> Visit<'ast> for FunctionVisitor {
 /// A visitor that collects all symbols (functions, structs, enums, etc.)
 struct SymbolVisitor {
     symbols: Vec<Symbol>,
-    current_line: usize,
 }
 impl<'ast> Visit<'ast> for SymbolVisitor {
     fn visit_item_fn(&mut self, i: &'ast syn::ItemFn) {
+        let span = i.span();
+        let start = span.start();
+        let end = span.end();
         self.symbols.push(Symbol {
             name: i.sig.ident.to_string(),
             kind: SymbolKind::Function,
             location: SourceLocation {
-                line: self.current_line,
-                column: 0,
+                line: start.line.saturating_sub(1),
+                column: start.column,
             },
+            end_location: Some(SourceLocation {
+                line: end.line.saturating_sub(1),
+                column: end.column,
+            }),
             documentation: extract_doc_comments(&i.attrs),
         });
         syn::visit::visit_item_fn(self, i);
     }
     fn visit_item_struct(&mut self, i: &'ast syn::ItemStruct) {
+        let span = i.span();
+        let start = span.start();
+        let end = span.end();
         self.symbols.push(Symbol {
             name: i.ident.to_string(),
             kind: SymbolKind::Struct,
             location: SourceLocation {
-                line: self.current_line,
-                column: 0,
+                line: start.line.saturating_sub(1),
+                column: start.column,
             },
+            end_location: Some(SourceLocation {
+                line: end.line.saturating_sub(1),
+                column: end.column,
+            }),
             documentation: extract_doc_comments(&i.attrs),
         });
         syn::visit::visit_item_struct(self, i);
     }
     fn visit_item_enum(&mut self, i: &'ast syn::ItemEnum) {
+        let span = i.span();
+        let start = span.start();
+        let end = span.end();
         self.symbols.push(Symbol {
             name: i.ident.to_string(),
             kind: SymbolKind::Enum,
             location: SourceLocation {
-                line: self.current_line,
-                column: 0,
+                line: start.line.saturating_sub(1),
+                column: start.column,
             },
+            end_location: Some(SourceLocation {
+                line: end.line.saturating_sub(1),
+                column: end.column,
+            }),
             documentation: extract_doc_comments(&i.attrs),
         });
         syn::visit::visit_item_enum(self, i);
     }
     fn visit_item_const(&mut self, i: &'ast syn::ItemConst) {
+        let span = i.span();
+        let start = span.start();
+        let end = span.end();
         self.symbols.push(Symbol {
             name: i.ident.to_string(),
             kind: SymbolKind::Constant,
             location: SourceLocation {
-                line: self.current_line,
-                column: 0,
+                line: start.line.saturating_sub(1),
+                column: start.column,
             },
+            end_location: Some(SourceLocation {
+                line: end.line.saturating_sub(1),
+                column: end.column,
+            }),
             documentation: extract_doc_comments(&i.attrs),
         });
         syn::visit::visit_item_const(self, i);
     }
     fn visit_item_static(&mut self, i: &'ast syn::ItemStatic) {
+        let span = i.span();
+        let start = span.start();
+        let end = span.end();
         self.symbols.push(Symbol {
             name: i.ident.to_string(),
             kind: SymbolKind::Variable,
             location: SourceLocation {
-                line: self.current_line,
-                column: 0,
+                line: start.line.saturating_sub(1),
+                column: start.column,
             },
+            end_location: Some(SourceLocation {
+                line: end.line.saturating_sub(1),
+                column: end.column,
+            }),
             documentation: extract_doc_comments(&i.attrs),
         });
         syn::visit::visit_item_static(self, i);
     }
     fn visit_item_mod(&mut self, i: &'ast syn::ItemMod) {
+        let span = i.span();
+        let start = span.start();
+        let end = span.end();
         self.symbols.push(Symbol {
             name: i.ident.to_string(),
             kind: SymbolKind::Module,
             location: SourceLocation {
-                line: self.current_line,
-                column: 0,
+                line: start.line.saturating_sub(1),
+                column: start.column,
             },
+            end_location: Some(SourceLocation {
+                line: end.line.saturating_sub(1),
+                column: end.column,
+            }),
             documentation: extract_doc_comments(&i.attrs),
         });
         syn::visit::visit_item_mod(self, i);
     }
     fn visit_impl_item_fn(&mut self, i: &'ast syn::ImplItemFn) {
+        let span = i.span();
+        let start = span.start();
+        let end = span.end();
         self.symbols.push(Symbol {
             name: i.sig.ident.to_string(),
             kind: SymbolKind::Method,
             location: SourceLocation {
-                line: self.current_line,
-                column: 0,
+                line: start.line.saturating_sub(1),
+                column: start.column,
             },
+            end_location: Some(SourceLocation {
+                line: end.line.saturating_sub(1),
+                column: end.column,
+            }),
             documentation: extract_doc_comments(&i.attrs),
         });
         syn::visit::visit_impl_item_fn(self, i);
-    }
-    fn visit_item(&mut self, node: &'ast Item) {
-        self.current_line += 1;
-        syn::visit::visit_item(self, node);
     }
 }
 /// Extract documentation from attributes
@@ -156,7 +200,6 @@ pub fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
         .map_err(|e| PluginApiError::parse(format!("Failed to parse Rust code: {}", e)))?;
     let mut visitor = SymbolVisitor {
         symbols: Vec::new(),
-        current_line: 0,
     };
     visitor.visit_file(&ast);
     Ok(visitor.symbols)

@@ -119,9 +119,10 @@ fn parse_import_names(imports_str: &str) -> Vec<NamedImport> {
 /// Extract Python function definitions with metadata
 pub(crate) fn extract_python_functions(source: &str) -> PluginResult<Vec<PythonFunction>> {
     let mut functions = Vec::new();
+    let lines: Vec<&str> = source.lines().collect();
     let func_re = Regex::new(r"^(\s*)(async\s+)?def\s+(\w+)\s*\(([^)]*)\)\s*:")
         .expect("Python function regex pattern should be valid");
-    for (line_num, line) in source.lines().enumerate() {
+    for (line_num, line) in lines.iter().enumerate() {
         if let Some(captures) = func_re.captures(line) {
             let _indent = captures
                 .get(1)
@@ -145,10 +146,11 @@ pub(crate) fn extract_python_functions(source: &str) -> PluginResult<Vec<PythonF
                     .filter(|arg| !arg.is_empty())
                     .collect()
             };
+            let end_line = find_python_function_end(&lines, line_num as u32).unwrap_or(line_num as u32);
             functions.push(PythonFunction {
                 name: name.to_string(),
                 start_line: line_num as u32,
-                end_line: line_num as u32 + 10,
+                end_line,
                 args,
                 body_start_line: line_num as u32 + 1,
                 is_async,
@@ -277,6 +279,10 @@ pub(crate) fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
                 line: func.start_line as usize,
                 column: 0,
             },
+            end_location: Some(mill_plugin_api::SourceLocation {
+                line: func.end_line as usize,
+                column: 0,
+            }),
             documentation: None,
         });
     }
@@ -294,14 +300,20 @@ pub(crate) fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
                 line: var.line as usize,
                 column: 0,
             },
+            end_location: Some(mill_plugin_api::SourceLocation {
+                line: var.line as usize,
+                column: 0,
+            }),
             documentation: None,
         });
     }
     let class_re =
         Regex::new(r"^class\s+(\w+)").expect("Python class regex pattern should be valid");
-    for (line_num, line) in source.lines().enumerate() {
+    let lines: Vec<&str> = source.lines().collect();
+    for (line_num, line) in lines.iter().enumerate() {
         if let Some(captures) = class_re.captures(line.trim()) {
             if let Some(name) = captures.get(1) {
+                let end_line = find_python_function_end(&lines, line_num as u32).unwrap_or(line_num as u32);
                 symbols.push(Symbol {
                     name: name.as_str().to_string(),
                     kind: SymbolKind::Class,
@@ -309,6 +321,10 @@ pub(crate) fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
                         line: line_num,
                         column: 0,
                     },
+                    end_location: Some(mill_plugin_api::SourceLocation {
+                        line: end_line as usize,
+                        column: 0,
+                    }),
                     documentation: None,
                 });
             }
@@ -328,12 +344,10 @@ pub(crate) fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
 ///
 /// # Returns
 /// Zero-based line number where the function ends, or an error if the start line is invalid
-#[allow(dead_code)] // Future enhancement: Precise function boundary detection
 pub(crate) fn find_python_function_end(
-    source: &str,
+    lines: &[&str],
     function_start_line: u32,
 ) -> PluginResult<u32> {
-    let lines: Vec<&str> = source.lines().collect();
     let start_line = function_start_line as usize;
     if start_line >= lines.len() {
         return Err(PluginApiError::parse("Invalid function start line"));
@@ -346,14 +360,7 @@ pub(crate) fn find_python_function_end(
         }
         let line_indent = line.chars().take_while(|c| c.is_whitespace()).count();
         if line_indent <= func_indent {
-            let trimmed = line.trim();
-            if trimmed.starts_with("def ")
-                || trimmed.starts_with("class ")
-                || trimmed.starts_with("if __name__")
-                || line_indent < func_indent
-            {
-                return Ok(idx as u32 - 1);
-            }
+            return Ok(idx as u32 - 1);
         }
     }
     Ok(lines.len() as u32 - 1)
