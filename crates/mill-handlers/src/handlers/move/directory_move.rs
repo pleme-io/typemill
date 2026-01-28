@@ -21,6 +21,7 @@ use super::converter::editplan_to_moveplan;
 pub async fn plan_directory_move(
     old_path: &Path,
     new_path: &Path,
+    update_imports: Option<bool>,
     context: &mill_handler_api::ToolHandlerContext,
     operation_id: &str,
 ) -> ServerResult<MovePlan> {
@@ -48,8 +49,17 @@ pub async fn plan_directory_move(
         new_path = %new_path.display(),
         "Calling MoveService::plan_directory_move (includes Cargo package detection)"
     );
+
+    // Map update_imports to ScanScope
+    // If update_imports is explicitly false, use None (conservative)
+    // If update_imports is true or None (default), use AllUseStatements (standard)
+    let scan_scope = match update_imports {
+        Some(false) => None,
+        Some(true) | None => Some(mill_plugin_api::ScanScope::AllUseStatements),
+    };
+
     let edit_plan = move_service
-        .plan_directory_move(old_path, new_path, None)
+        .plan_directory_move(old_path, new_path, scan_scope)
         .await
         .map_err(|e| {
             error!(

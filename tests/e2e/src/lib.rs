@@ -20,6 +20,9 @@ pub mod resilience_tests;
 
 // Unified Refactoring API integration tests (Proposal 30)
 #[cfg(test)]
+pub mod comprehensive_refactoring_test;
+
+#[cfg(test)]
 pub mod test_rename_integration;
 
 #[cfg(test)]

@@ -372,7 +372,14 @@ impl MoveHandler {
             "Delegating to directory_move::plan_directory_move"
         );
 
-        directory_move::plan_directory_move(old_path, new_path, context, operation_id).await
+        directory_move::plan_directory_move(
+            old_path,
+            new_path,
+            params.options.update_imports,
+            context,
+            operation_id,
+        )
+        .await
     }
 
     /// Handle module move operation (not yet implemented)
