@@ -210,7 +210,7 @@ pub(crate) fn tool_definitions() -> Vec<Value> {
                 "properties": {
                     "old_path": { "type": "string", "description": "Current path to the file" },
                     "new_path": { "type": "string", "description": "New path for the file (can be in a different directory)" },
-                    "dryRun": { "type": "boolean", "description": "Preview changes without applying them (default: false)" }
+                    "dryRun": { "type": "boolean", "description": "Preview changes without applying them (default: true)" }
                 },
                 "required": ["old_path", "new_path"]
             }
@@ -224,7 +224,7 @@ pub(crate) fn tool_definitions() -> Vec<Value> {
                     "filePath": { "type": "string", "description": "The path where the new file should be created" },
                     "content": { "type": "string", "description": "Initial content for the file (default: empty string)" },
                     "overwrite": { "type": "boolean", "description": "Whether to overwrite existing file if it exists (default: false)" },
-                    "dryRun": { "type": "boolean", "description": "Preview changes without applying them (default: false)" }
+                    "dryRun": { "type": "boolean", "description": "Preview changes without applying them (default: true)" }
                 },
                 "required": ["filePath"]
             }
@@ -237,7 +237,7 @@ pub(crate) fn tool_definitions() -> Vec<Value> {
                 "properties": {
                     "filePath": { "type": "string", "description": "The path to the file to delete" },
                     "force": { "type": "boolean", "description": "Force deletion even if file has uncommitted changes (default: false)" },
-                    "dryRun": { "type": "boolean", "description": "Preview changes without applying them (default: false)" }
+                    "dryRun": { "type": "boolean", "description": "Preview changes without applying them (default: true)" }
                 },
                 "required": ["filePath"]
             }

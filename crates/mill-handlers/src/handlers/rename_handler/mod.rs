@@ -102,10 +102,14 @@ pub(crate) struct RenameOptions {
     pub consolidate: Option<bool>,
 }
 
+// Manual Default implementation to ensure dry_run defaults to true for safety.
+// This is critical because #[serde(default = "default_true")] only applies
+// when deserializing the field itself, NOT when the entire struct is defaulted
+// via #[serde(default)] on the parent struct's field.
 impl Default for RenameOptions {
     fn default() -> Self {
         Self {
-            dry_run: true, // CRITICAL: Safe default - preview mode
+            dry_run: true, // Safe default - preview mode
             strict: None,
             validate_scope: None,
             update_imports: None,

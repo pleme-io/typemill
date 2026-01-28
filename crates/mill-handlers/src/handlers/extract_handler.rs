@@ -535,10 +535,11 @@ struct ExtractOptions {
     destination_path: Option<String>,
 }
 
+// Manual Default to ensure dry_run defaults to true (safe preview mode)
 impl Default for ExtractOptions {
     fn default() -> Self {
         Self {
-            dry_run: true, // CRITICAL: Safe default - preview mode
+            dry_run: true,
             visibility: None,
             destination_path: None,
         }
