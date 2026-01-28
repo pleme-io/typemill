@@ -95,19 +95,16 @@ graph TB
 - `get_diagnostics`
 - `get_call_hierarchy`
 
-#### Refactoring (7) - Unified API with dryRun Option
+#### Refactoring (5) - Unified API with dryRun Option
 - `rename` - Rename files, directories, symbols (options.dryRun: true/false)
 - `extract` - Extract function, variable, constant (options.dryRun: true/false)
 - `inline` - Inline variable, function, constant (options.dryRun: true/false)
 - `move` - Move symbols, files, directories (options.dryRun: true/false)
-- `reorder` - Reorder imports, parameters, fields (options.dryRun: true/false)
-- `transform` - Code transformations (options.dryRun: true/false)
 - `delete` - Delete files, directories, dead code (options.dryRun: true/false)
 
-#### Workspace (4) - Workspace Operations
+#### Workspace (3) - Workspace Operations
 - `workspace.create_package`
 - `workspace.extract_dependencies`
-- `workspace.update_members`
 - `workspace.find_replace`
 
 #### System (1) - Health Monitoring
@@ -175,7 +172,7 @@ graph TB
 }
 ```
 
-- **operation**: `"rename" | "extract" | "inline" | "move" | "reorder" | "transform" | "delete"`
+- **operation**: `"rename" | "extract" | "inline" | "move" | "delete"`
 - **kind**: operation-specific enumeration
 
 ---
@@ -205,7 +202,7 @@ graph TB
 }
 ```
 
-- **plan_type**: `"RenamePlan" | "ExtractPlan" | "InlinePlan" | "MovePlan" | "ReorderPlan" | "TransformPlan" | "DeletePlan"`
+- **plan_type**: `"RenamePlan" | "ExtractPlan" | "InlinePlan" | "MovePlan" | "DeletePlan"`
 - **plan_version**: string, default `"1.0"` (increment for breaking changes)
 - **edits**: conforms to LSP `WorkspaceEdit`
 - **summary**: counts must match unique file paths in `edits`
@@ -265,21 +262,6 @@ graph TB
   }
   ```
 - **options.merge_dependencies**: boolean (default true) for consolidation
-
----
-
-#### reorder
-- **kind**: `"parameters" | "imports" | "members" | "statements"`
-- **arguments.target**: `file_path` plus either `position` or `range`
-- **arguments.new_order**: array of zero-based indices
-- **options.strategy**: `"alphabetical" | "visibility" | "dependency"` (mutually exclusive with `new_order`)
-
----
-
-#### transform
-- **kind**: `"to_arrow_function" | "to_async" | "loop_to_iterator" | "callback_to_promise" | "add_null_check" | "remove_dead_branch"`
-- **arguments.target**: `file_path` and `position` or `range`
-- **options.language_specific**: object (`// additional properties allowed`)
 
 ---
 

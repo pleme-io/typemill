@@ -301,8 +301,6 @@ All refactoring tools support `options.dryRun` (default: `true`)
 | `extract` | `kind`, `source`, `name` | `options` (dryRun) | EditPlan/ApplyResult |
 | `inline` | `target` | `options` (dryRun) | EditPlan/ApplyResult |
 | `move` | `source`, `destination` | `options` (dryRun) | EditPlan/ApplyResult |
-| `reorder` | `target`, `newOrder` | `options` (dryRun) | EditPlan/ApplyResult |
-| `transform` | `kind`, `target` | `options` (dryRun) | EditPlan/ApplyResult |
 | `delete` | `target` | `options` (dryRun) | EditPlan/ApplyResult |
 
 **Target formats:**
@@ -323,7 +321,6 @@ mill tool rename '{"target": {"kind": "file", "path": "old.ts"}, "newName": "new
 |------|-------------------|-------------------|---------|
 | `workspace.create_package` | `name`, `packageType`, `path` | `options` (dryRun) | CreateResult |
 | `workspace.extract_dependencies` | `source_crate`, `target_crate`, `module_path` | `options` (dryRun) | ExtractResult |
-| `workspace.update_members` | `operation`, `members` | `options` (dryRun) | UpdateResult |
 | `workspace.find_replace` | `pattern`, `replacement` | `mode`, `scope`, `dryRun` | ReplaceResult |
 
 **Package types:**

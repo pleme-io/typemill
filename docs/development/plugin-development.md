@@ -608,8 +608,6 @@ All tools support the same `options.dryRun` parameter:
 | `extract` | Extract function/variable | `kind`, `source`, `options.dryRun` |
 | `inline` | Inline variable/function | `kind`, `target`, `options.dryRun` |
 | `move` | Move code between files | `target`, `destination`, `options.dryRun` |
-| `reorder` | Reorder parameters/imports | `target`, `new_order`, `options.dryRun` |
-| `transform` | Transform code (e.g., to async) | `transformation`, `options.dryRun` |
 | `delete` | Delete unused code/files | `target`, `options.dryRun` |
 
 ### Safety Features

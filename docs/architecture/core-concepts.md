@@ -88,37 +88,7 @@ All refactoring primitives support the **unified dryRun API**: preview mode (def
 
 ---
 
-#### 5. Reorder
-**Concept**: Change sequence of code elements for clarity/convention compliance.
-
-**Tools**: `reorder` (with dryRun option), `format_document`
-
-**Key Characteristics**:
-- Semantic preservation
-- Convention awareness
-- Dependency respect
-- Style guide compliance
-
-**Use Cases**: Organizing imports, grouping methods, following conventions
-
----
-
-#### 6. Transform
-**Concept**: Modify code structure while preserving behavior.
-
-**Tools**: `transform` (with dryRun option), `get_code_actions`, `apply_edits`
-
-**Key Characteristics**:
-- Behavior preservation
-- Pattern recognition
-- Idiomatic conversion
-- Type preservation
-
-**Use Cases**: Converting loops to functional patterns, modernizing syntax, applying patterns
-
----
-
-#### 7. Delete
+#### 5. Delete
 **Concept**: Remove symbols, files, directories, or dead code safely.
 
 **Tool**: `delete` (with dryRun option)
@@ -547,9 +517,9 @@ pub struct ToolHandlerContext {
 - **LifecycleHandler** (3 tools): file open/save/close notifications
 - **NavigationHandler** (10 tools): Symbol navigation, references, definitions
 - **EditingHandler** (9 tools): Formatting, code actions, diagnostics
-- **RefactoringHandler** (7 tools): Unified refactoring with dryRun
+- **RefactoringHandler** (5 tools): Unified refactoring with dryRun
 - **FileOpsHandler** (6 tools): File read/write/delete operations
-- **WorkspaceHandler** (7 tools): Workspace-wide refactoring and file operations
+- **WorkspaceHandler** (6 tools): Workspace-wide operations and file management
 
 ---
 

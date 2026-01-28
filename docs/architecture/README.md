@@ -55,8 +55,8 @@ Support        → Testing, tooling
 
 **Public MCP Tools:**
 - **Navigation** (8) - find_definition, find_references, search_symbols, etc.
-- **Refactoring** (7) - rename, extract, inline, move, reorder, transform, delete
-- **Workspace** (4) - create_package, extract_dependencies, update_members, find_replace
+- **Refactoring** (5) - rename, extract, inline, move, delete
+- **Workspace** (3) - create_package, extract_dependencies, find_replace
 - **System** (1) - health_check
 
 **Internal Tools** - Backend plumbing and LSP integration
