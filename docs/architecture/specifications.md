@@ -20,10 +20,10 @@ This document provides authoritative specifications for TypeMill's public and in
 
 ```mermaid
 graph TB
-    subgraph "Public API - 20 Tools"
+    subgraph "Public API - 17 Tools"
         Nav[Navigation 8<br/>Point Queries]
-        Ref[Refactoring 7<br/>dryRun API]
-        Work[Workspace 4<br/>Operations]
+        Ref[Refactoring 5<br/>dryRun API]
+        Work[Workspace 3<br/>Operations]
         Sys[System 1<br/>Health]
     end
 
@@ -83,7 +83,7 @@ graph TB
     style CLI fill:#4ECDC4
 ```
 
-### Public Tools (20 total)
+### Public Tools (17 total)
 
 #### Navigation (8) - Point Queries for IDE Workflows
 - `find_definition`

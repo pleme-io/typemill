@@ -246,9 +246,9 @@ harness.test_parse_modify_verify(source, modifier_fn)?;
 
 ### Edge cases failing?
 - Look at example implementations in:
-  - Rust: `/workspace/languages/mill-lang-rust/src/lib.rs`
-  - TypeScript: `/workspace/languages/mill-lang-typescript/src/lib.rs`
-  - Swift: `typemill-languages/mill-lang-swift/src/lib.rs`
+  - Rust: `languages/mill-lang-rust/src/lib.rs`
+  - TypeScript: `languages/mill-lang-typescript/src/lib.rs`
+  - Python: `languages/mill-lang-python/src/lib.rs`
 
 ### Can't find mill-test-support?
 - Verify path in `Cargo.toml`: `{ path = "../../crates/mill-test-support" }`

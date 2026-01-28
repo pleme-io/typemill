@@ -301,10 +301,9 @@ Ensure all 11+ tests pass before submitting.
 
 - **Shared Utilities**: `/workspace/crates/mill-test-support/src/lib.rs`
 - **Example Plugins**:
-  - Swift: `typemill-languages/mill-lang-swift/src/lib.rs` (excellent integration tests)
-  - Rust: `/workspace/languages/mill-lang-rust/src/lib.rs` (excellent edge cases)
-  - Go: `typemill-languages/mill-lang-go/src/lib.rs` (excellent error paths)
-  - TypeScript: `/workspace/languages/mill-lang-typescript/src/lib.rs` (excellent edge case coverage)
+  - Rust: `languages/mill-lang-rust/src/lib.rs` (excellent edge cases)
+  - TypeScript: `languages/mill-lang-typescript/src/lib.rs` (excellent edge case coverage)
+  - Python: `languages/mill-lang-python/src/lib.rs` (good import handling)
 
 ## Maintenance
 
