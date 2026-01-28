@@ -28,6 +28,11 @@ impl ToolHandler for WorkspaceCreateHandler {
         &["workspace.create_package"]
     }
 
+    fn is_internal(&self) -> bool {
+        // Legacy - use workspace action:create_package instead
+        true
+    }
+
     async fn handle_tool_call(
         &self,
         context: &mill_handler_api::ToolHandlerContext,

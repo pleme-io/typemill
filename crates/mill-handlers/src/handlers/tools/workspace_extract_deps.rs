@@ -31,6 +31,11 @@ impl ToolHandler for WorkspaceExtractDepsHandler {
         &["workspace.extract_dependencies"]
     }
 
+    fn is_internal(&self) -> bool {
+        // Legacy - use workspace action:extract_dependencies instead
+        true
+    }
+
     async fn handle_tool_call(
         &self,
         context: &mill_handler_api::ToolHandlerContext,

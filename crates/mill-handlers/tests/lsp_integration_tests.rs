@@ -554,10 +554,15 @@ export function getErrorId(): string {
     assert!(
         diag_messages
             .iter()
-            .any(|msg| msg.contains("undefinedVariable") || msg.contains("not defined") || msg.contains("Cannot find")),
+            .any(|msg| msg.contains("undefinedVariable")
+                || msg.contains("not defined")
+                || msg.contains("Cannot find")),
         "Should have diagnostic about undefined variable"
     );
 
     println!("✅ get_diagnostics test passed!");
-    println!("  - Found {} diagnostics in errors-file.ts", diagnostics.len());
+    println!(
+        "  - Found {} diagnostics in errors-file.ts",
+        diagnostics.len()
+    );
 }

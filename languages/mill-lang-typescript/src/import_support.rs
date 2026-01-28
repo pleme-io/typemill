@@ -407,7 +407,7 @@ pub(crate) fn rewrite_imports_for_move_with_context(
         // TypeScript ESM commonly uses .js extensions in imports even for .ts files
         // We need to check for imports both with and without extensions
         let import_variants = vec![
-            (old_import.clone(), new_import.clone()),                    // No extension: ./utils/timer
+            (old_import.clone(), new_import.clone()), // No extension: ./utils/timer
             (format!("{}.js", old_import), format!("{}.js", new_import)), // .js extension: ./utils/timer.js
             (format!("{}.ts", old_import), format!("{}.ts", new_import)), // .ts extension (rare but possible)
         ];

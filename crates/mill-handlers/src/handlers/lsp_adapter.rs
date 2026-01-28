@@ -176,7 +176,11 @@ impl DirectLspAdapter {
 
                     // For TypeScript, warm up the server by opening a file first
                     // TypeScript LSP needs project context before workspace/symbol works
-                    if extension == "ts" || extension == "tsx" || extension == "js" || extension == "jsx" {
+                    if extension == "ts"
+                        || extension == "tsx"
+                        || extension == "js"
+                        || extension == "jsx"
+                    {
                         debug!(
                             extension = %extension,
                             "TypeScript LSP requires warmup - opening a file to establish project context"
@@ -198,7 +202,10 @@ impl DirectLspAdapter {
                                     if let Ok(entries) = std::fs::read_dir(root_dir) {
                                         for entry in entries.flatten() {
                                             let path = entry.path();
-                                            if path.is_file() && path.extension().and_then(|e| e.to_str()) == Some(ext) {
+                                            if path.is_file()
+                                                && path.extension().and_then(|e| e.to_str())
+                                                    == Some(ext)
+                                            {
                                                 warmup_file = Some(path);
                                                 break;
                                             }
@@ -217,7 +224,9 @@ impl DirectLspAdapter {
                                             for entry in entries.flatten() {
                                                 let path = entry.path();
                                                 if path.is_file() {
-                                                    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                                                    if let Some(ext) =
+                                                        path.extension().and_then(|e| e.to_str())
+                                                    {
                                                         if extensions_to_try.contains(&ext) {
                                                             warmup_file = Some(path);
                                                             break;
@@ -424,15 +433,13 @@ impl LspService for DirectLspAdapter {
                     .and_then(|td| td.get("uri"))
                     .and_then(|u| u.as_str())
                     .ok_or_else(|| {
-                        format!(
-                            "Missing textDocument.uri in textDocument/diagnostic params"
-                        )
+                        format!("Missing textDocument.uri in textDocument/diagnostic params")
                     })?;
 
                 // Parse URI string into lsp_types::Uri
-                let uri_parsed = uri.parse::<lsp_types::Uri>().map_err(|e| {
-                    format!("Failed to parse URI '{}': {}", uri, e)
-                })?;
+                let uri_parsed = uri
+                    .parse::<lsp_types::Uri>()
+                    .map_err(|e| format!("Failed to parse URI '{}': {}", uri, e))?;
 
                 // Get cached diagnostics for this file
                 if let Some(diagnostics) = client.get_cached_diagnostics(&uri_parsed).await {

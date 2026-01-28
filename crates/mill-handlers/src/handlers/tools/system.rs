@@ -27,6 +27,11 @@ impl ToolHandler for SystemToolsHandler {
         &["health_check"]
     }
 
+    fn is_internal(&self) -> bool {
+        // health_check is now internal - use workspace action:verify_project instead
+        true
+    }
+
     async fn handle_tool_call(
         &self,
         context: &mill_handler_api::ToolHandlerContext,

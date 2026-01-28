@@ -99,29 +99,45 @@ async fn test_rename_symbol_integration() {
     run_tool_test(
         STANDARD_REPO_FILES,
         "rename",
-        |ws| json!({
-            "target": {
-                "kind": "symbol",
-                "path": ws.absolute_path("src/utils.ts").to_string_lossy().to_string(),
-                "selector": {
-                    "position": { "line": 5, "character": 13 } // "Helper" class definition
-                }
-            },
-            "newName": "Service"
-        }),
+        |ws| {
+            json!({
+                "target": {
+                    "kind": "symbol",
+                    "path": ws.absolute_path("src/utils.ts").to_string_lossy().to_string(),
+                    "selector": {
+                        "position": { "line": 5, "character": 13 } // "Helper" class definition
+                    }
+                },
+                "newName": "Service"
+            })
+        },
         |ws| {
             // Verify definition changed
             let utils_content = ws.read_file("src/utils.ts");
-            assert!(utils_content.contains("export class Service"), "Definition not renamed");
-            assert!(!utils_content.contains("export class Helper"), "Old definition remains");
+            assert!(
+                utils_content.contains("export class Service"),
+                "Definition not renamed"
+            );
+            assert!(
+                !utils_content.contains("export class Helper"),
+                "Old definition remains"
+            );
 
             // Verify usage in index.ts changed
             let index_content = ws.read_file("src/index.ts");
-            assert!(index_content.contains("import { Service, SOME_CONSTANT } from './utils'"), "Import not updated");
-            assert!(index_content.contains("Service.doSomething(user)"), "Usage not updated");
+            assert!(
+                index_content.contains("import { Service, SOME_CONSTANT } from './utils'"),
+                "Import not updated"
+            );
+            assert!(
+                index_content.contains("Service.doSomething(user)"),
+                "Usage not updated"
+            );
             Ok(())
-        }
-    ).await.unwrap();
+        },
+    )
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
@@ -136,17 +152,28 @@ async fn test_rename_file_integration() {
 
             // Verify imports updated
             let index_content = ws.read_file("src/index.ts");
-            assert!(index_content.contains("import { User } from './models/Person'"), "index.ts import not updated");
+            assert!(
+                index_content.contains("import { User } from './models/Person'"),
+                "index.ts import not updated"
+            );
 
             let utils_content = ws.read_file("src/utils.ts");
-            assert!(utils_content.contains("import { User } from './models/Person'"), "utils.ts import not updated");
+            assert!(
+                utils_content.contains("import { User } from './models/Person'"),
+                "utils.ts import not updated"
+            );
 
             let button_content = ws.read_file("src/components/Button.ts");
-            assert!(button_content.contains("import { User } from '../models/Person'"), "Button.ts import not updated");
+            assert!(
+                button_content.contains("import { User } from '../models/Person'"),
+                "Button.ts import not updated"
+            );
 
             Ok(())
-        }
-    ).await.unwrap();
+        },
+    )
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
@@ -161,13 +188,17 @@ async fn test_rename_directory_integration() {
 
             // Verify imports updated
             let index_content = ws.read_file("src/index.ts");
-            assert!(index_content.contains("import { User } from './entities/User'"), "index.ts import not updated");
+            assert!(
+                index_content.contains("import { User } from './entities/User'"),
+                "index.ts import not updated"
+            );
 
             Ok(())
-        }
-    ).await.unwrap();
+        },
+    )
+    .await
+    .unwrap();
 }
-
 
 // --- 2. MOVE Tests ---
 
@@ -184,18 +215,26 @@ async fn test_move_file_integration() {
             // Verify imports updated
             let index_content = ws.read_file("src/index.ts");
             // Should be ./common/utils now
-            assert!(index_content.contains("import { Helper, SOME_CONSTANT } from './common/utils'"), "index.ts import not updated");
+            assert!(
+                index_content.contains("import { Helper, SOME_CONSTANT } from './common/utils'"),
+                "index.ts import not updated"
+            );
 
             // Verify Button.ts import (was ../utils, now should be ../../common/utils or similar depending on resolution)
             // Button is in src/components/Button.ts
             // utils is in src/common/utils.ts
             // Relative path from src/components to src/common is ../common/utils
             let button_content = ws.read_file("src/components/Button.ts");
-            assert!(button_content.contains("from '../common/utils'"), "Button.ts import not updated");
+            assert!(
+                button_content.contains("from '../common/utils'"),
+                "Button.ts import not updated"
+            );
 
             Ok(())
-        }
-    ).await.unwrap();
+        },
+    )
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
@@ -204,9 +243,14 @@ async fn test_move_directory_integration() {
         STANDARD_REPO_FILES,
         "move",
         |ws| {
-            let mut params = build_move_params(ws, "src/components", "src/ui/components", "directory");
-             if let Some(obj) = params.as_object_mut() {
-                obj.entry("options").or_insert_with(|| json!({})).as_object_mut().unwrap().insert("updateImports".to_string(), json!(true));
+            let mut params =
+                build_move_params(ws, "src/components", "src/ui/components", "directory");
+            if let Some(obj) = params.as_object_mut() {
+                obj.entry("options")
+                    .or_insert_with(|| json!({}))
+                    .as_object_mut()
+                    .unwrap()
+                    .insert("updateImports".to_string(), json!(true));
             }
             params
         },
@@ -219,7 +263,10 @@ async fn test_move_directory_integration() {
             // components moved to src/ui/components
             // Import should be ./ui/components/Button
             let index_content = ws.read_file("src/index.ts");
-            assert!(index_content.contains("import { Button } from './ui/components/Button'"), "index.ts import not updated");
+            assert!(
+                index_content.contains("import { Button } from './ui/components/Button'"),
+                "index.ts import not updated"
+            );
 
             // Verify imports INSIDE Button.ts
             // Button.ts is now in src/ui/components/Button.ts
@@ -234,8 +281,10 @@ async fn test_move_directory_integration() {
 
             // For now, we verify that the file was moved and external references to it (index.ts) were updated.
             Ok(())
-        }
-    ).await.unwrap();
+        },
+    )
+    .await
+    .unwrap();
 }
 
 // --- 3. EXTRACT Tests ---
@@ -298,9 +347,15 @@ async fn test_extract_function_integration() {
     match result {
         Ok(_) => {
             let content = workspace.read_file("src/index.ts");
-            assert!(content.contains("function extractedCalculation()"), "Extracted function not found");
-            assert!(content.contains("extractedCalculation();"), "Call to extracted function not found");
-        },
+            assert!(
+                content.contains("function extractedCalculation()"),
+                "Extracted function not found"
+            );
+            assert!(
+                content.contains("extractedCalculation();"),
+                "Call to extracted function not found"
+            );
+        }
         Err(e) => {
             // Tolerate failure if due to LSP missing, but print warning
             eprintln!("Extract function failed (possibly no LSP): {}", e);
@@ -338,9 +393,15 @@ async fn test_extract_variable_integration() {
     match result {
         Ok(_) => {
             let content = workspace.read_file("src/index.ts");
-            assert!(content.contains("const sum = x + y;"), "Extracted variable not found");
-            assert!(content.contains("console.log(sum);"), "Usage of extracted variable not found");
-        },
+            assert!(
+                content.contains("const sum = x + y;"),
+                "Extracted variable not found"
+            );
+            assert!(
+                content.contains("console.log(sum);"),
+                "Usage of extracted variable not found"
+            );
+        }
         Err(e) => {
             eprintln!("Extract variable failed: {}", e);
         }
@@ -388,10 +449,13 @@ async fn test_inline_variable_integration() {
     match result {
         Ok(_) => {
             let content = workspace.read_file("src/index.ts");
-            assert!(content.contains("console.log(\"inline me\");"), "Variable not inlined");
-        },
+            assert!(
+                content.contains("console.log(\"inline me\");"),
+                "Variable not inlined"
+            );
+        }
         Err(e) => {
-             eprintln!("Inline variable failed: {}", e);
+            eprintln!("Inline variable failed: {}", e);
         }
     }
 }
@@ -403,23 +467,28 @@ async fn test_delete_symbol_integration() {
     run_tool_test(
         STANDARD_REPO_FILES,
         "delete",
-        |ws| json!({
-            "target": {
-                "kind": "symbol",
-                "path": ws.absolute_path("src/utils.ts").to_string_lossy().to_string(),
-                "selector": {
-                    "line": 3,
-                    "character": 13,
-                    "symbol_name": "SOME_CONSTANT"
+        |ws| {
+            json!({
+                "target": {
+                    "kind": "symbol",
+                    "path": ws.absolute_path("src/utils.ts").to_string_lossy().to_string(),
+                    "selector": {
+                        "line": 3,
+                        "character": 13,
+                        "symbol_name": "SOME_CONSTANT"
+                    }
+                },
+                "options": {
+                    "cleanupImports": true
                 }
-            },
-            "options": {
-                "cleanupImports": true
-            }
-        }),
+            })
+        },
         |ws| {
             let utils_content = ws.read_file("src/utils.ts");
-            assert!(!utils_content.contains("SOME_CONSTANT"), "Symbol not deleted");
+            assert!(
+                !utils_content.contains("SOME_CONSTANT"),
+                "Symbol not deleted"
+            );
 
             // Verify import cleanup (if implemented for delete symbol)
             // Note: DeleteHandler implementation for symbol delete currently creates edits for the file,
@@ -428,8 +497,10 @@ async fn test_delete_symbol_integration() {
             // So we only check the definition is gone.
 
             Ok(())
-        }
-    ).await.unwrap();
+        },
+    )
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
@@ -440,7 +511,11 @@ async fn test_delete_file_integration() {
         |ws| {
             let mut params = build_delete_params(ws, "src/components/Button.ts", "file");
             if let Some(obj) = params.as_object_mut() {
-                obj.entry("options").or_insert_with(|| json!({})).as_object_mut().unwrap().insert("force".to_string(), json!(true));
+                obj.entry("options")
+                    .or_insert_with(|| json!({}))
+                    .as_object_mut()
+                    .unwrap()
+                    .insert("force".to_string(), json!(true));
             }
             params
         },
@@ -460,8 +535,10 @@ async fn test_delete_file_integration() {
             // Let's rely on checking the file is gone.
 
             Ok(())
-        }
-    ).await.unwrap();
+        },
+    )
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
@@ -474,6 +551,8 @@ async fn test_delete_directory_integration() {
             assert!(!ws.file_exists("src/components/Button.ts"));
             assert!(!ws.file_exists("src/components"));
             Ok(())
-        }
-    ).await.unwrap();
+        },
+    )
+    .await
+    .unwrap();
 }

@@ -146,7 +146,8 @@ pub(crate) fn extract_python_functions(source: &str) -> PluginResult<Vec<PythonF
                     .filter(|arg| !arg.is_empty())
                     .collect()
             };
-            let end_line = find_python_function_end(&lines, line_num as u32).unwrap_or(line_num as u32);
+            let end_line =
+                find_python_function_end(&lines, line_num as u32).unwrap_or(line_num as u32);
             functions.push(PythonFunction {
                 name: name.to_string(),
                 start_line: line_num as u32,
@@ -313,7 +314,8 @@ pub(crate) fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
     for (line_num, line) in lines.iter().enumerate() {
         if let Some(captures) = class_re.captures(line.trim()) {
             if let Some(name) = captures.get(1) {
-                let end_line = find_python_function_end(&lines, line_num as u32).unwrap_or(line_num as u32);
+                let end_line =
+                    find_python_function_end(&lines, line_num as u32).unwrap_or(line_num as u32);
                 symbols.push(Symbol {
                     name: name.as_str().to_string(),
                     kind: SymbolKind::Class,

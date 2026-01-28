@@ -92,7 +92,8 @@ pub async fn plan_symbol_move(
                 error = %e,
                 "LSP symbol move failed, attempting AST fallback"
             );
-            ast_symbol_move_fallback(target_path, destination, position, context, operation_id).await
+            ast_symbol_move_fallback(target_path, destination, position, context, operation_id)
+                .await
         }
     }
 }

@@ -56,36 +56,36 @@ pub(crate) struct RenamePlanParams {
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct RenameTarget {
-    kind: String, // "symbol" | "file" | "directory"
-    path: String,
+pub struct RenameTarget {
+    pub kind: String, // "symbol" | "file" | "directory"
+    pub path: String,
     /// New name for this target (required for batch mode, optional for single mode)
     #[serde(default)]
-    new_name: Option<String>,
+    pub new_name: Option<String>,
     #[serde(default)]
-    selector: Option<SymbolSelector>,
+    pub selector: Option<SymbolSelector>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct SymbolSelector {
-    position: Position,
+pub struct SymbolSelector {
+    pub position: Position,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[allow(dead_code)] // Reserved for future configuration
-pub(crate) struct RenameOptions {
+pub struct RenameOptions {
     /// Preview mode - don't actually apply changes (default: true for safety)
     #[serde(default = "crate::default_true")]
     pub dry_run: bool,
 
     #[serde(default)]
-    strict: Option<bool>,
+    pub strict: Option<bool>,
     #[serde(default)]
-    validate_scope: Option<bool>,
+    pub validate_scope: Option<bool>,
     #[serde(default)]
-    update_imports: Option<bool>,
+    pub update_imports: Option<bool>,
 
     /// Scope configuration for what to update
     #[serde(default)]
@@ -156,7 +156,8 @@ impl ToolHandler for RenameHandler {
     }
 
     fn is_internal(&self) -> bool {
-        false // Public tool
+        // Legacy - use rename_all instead
+        true
     }
 
     async fn handle_tool_call(
@@ -261,7 +262,8 @@ impl ToolHandler for RenameHandler {
                 "Executing rename plan"
             );
 
-            let result = crate::handlers::common::execute_refactor_plan(context, refactor_plan).await?;
+            let result =
+                crate::handlers::common::execute_refactor_plan(context, refactor_plan).await?;
 
             let result_json = serde_json::to_value(&result).map_err(|e| {
                 ServerError::internal(format!("Failed to serialize execution result: {}", e))

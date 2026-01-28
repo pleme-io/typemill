@@ -8,12 +8,12 @@
 use crate::handlers::common::calculate_checksum;
 use crate::handlers::tools::ToolHandler;
 use async_trait::async_trait;
+use futures::stream::StreamExt;
 use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
 use mill_foundation::planning::{
     DeletePlan, DeletionTarget, PlanMetadata, PlanSummary, PlanWarning, RefactorPlan,
 };
-use futures::stream::StreamExt;
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -92,7 +92,8 @@ impl ToolHandler for DeleteHandler {
     }
 
     fn is_internal(&self) -> bool {
-        false // Public tool
+        // Legacy - use prune instead
+        true
     }
 
     async fn handle_tool_call(
@@ -156,7 +157,8 @@ impl ToolHandler for DeleteHandler {
                 "Executing delete plan"
             );
 
-            let result = crate::handlers::common::execute_refactor_plan(context, refactor_plan).await?;
+            let result =
+                crate::handlers::common::execute_refactor_plan(context, refactor_plan).await?;
 
             let result_json = serde_json::to_value(&result).map_err(|e| {
                 ServerError::internal(format!("Failed to serialize execution result: {}", e))
@@ -240,7 +242,10 @@ impl DeleteHandler {
                     path = %params.target.path,
                     "File has no extension for plugin lookup"
                 );
-                ServerError::invalid_request(format!("File has no extension: {}", params.target.path))
+                ServerError::invalid_request(format!(
+                    "File has no extension: {}",
+                    params.target.path
+                ))
             })?;
 
         debug!(
@@ -313,7 +318,8 @@ impl DeleteHandler {
             })?;
 
         // Convert EditPlan to WorkspaceEdit using the converter utility from move module
-        let workspace_edit = crate::handlers::r#move::converter::convert_edit_plan_to_workspace_edit(&edit_plan)?;
+        let workspace_edit =
+            crate::handlers::r#move::converter::convert_edit_plan_to_workspace_edit(&edit_plan)?;
 
         // Calculate file checksums
         let mut file_checksums = HashMap::new();
@@ -591,5 +597,4 @@ impl DeleteHandler {
             file_checksums,
         })
     }
-
 }

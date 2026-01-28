@@ -130,6 +130,11 @@ impl ToolHandler for FindReplaceHandler {
         &["workspace.find_replace"]
     }
 
+    fn is_internal(&self) -> bool {
+        // Legacy - use workspace action:find_replace instead
+        true
+    }
+
     async fn handle_tool_call(
         &self,
         context: &mill_handler_api::ToolHandlerContext,

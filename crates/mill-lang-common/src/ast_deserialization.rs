@@ -51,10 +51,7 @@ impl From<AstSymbol> for Symbol {
                 line: ast.line,
                 column: ast.column.unwrap_or(0),
             },
-            end_location: ast.end_line.map(|line| SourceLocation {
-                line,
-                column: 0,
-            }),
+            end_location: ast.end_line.map(|line| SourceLocation { line, column: 0 }),
             documentation: ast.documentation,
         }
     }

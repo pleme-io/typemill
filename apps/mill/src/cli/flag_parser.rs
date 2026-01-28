@@ -1415,7 +1415,6 @@ mod tests {
         assert_eq!(json["target"]["scope"], "file");
     }
 
-
     #[test]
     fn test_delete_with_scope_and_path() {
         let result = parse_flags_to_json(

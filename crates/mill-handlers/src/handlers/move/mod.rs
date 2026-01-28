@@ -116,7 +116,8 @@ impl ToolHandler for MoveHandler {
     }
 
     fn is_internal(&self) -> bool {
-        false // Public tool
+        // Legacy - use relocate instead
+        true
     }
 
     async fn handle_tool_call(
@@ -219,7 +220,8 @@ impl ToolHandler for MoveHandler {
                 "Executing move plan"
             );
 
-            let result = crate::handlers::common::execute_refactor_plan(context, refactor_plan).await?;
+            let result =
+                crate::handlers::common::execute_refactor_plan(context, refactor_plan).await?;
 
             let result_json = serde_json::to_value(&result).map_err(|e| {
                 error!(

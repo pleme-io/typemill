@@ -1401,14 +1401,17 @@ impl LspClient {
             // Create parent directories if needed
             if let Some(parent) = std::path::Path::new(&file_path).parent() {
                 tokio::fs::create_dir_all(parent).await.map_err(|e| {
-                    format!("Failed to create parent directories for {}: {}", file_path, e)
+                    format!(
+                        "Failed to create parent directories for {}: {}",
+                        file_path, e
+                    )
                 })?;
             }
 
             // Create empty file (or with overwrite option)
-            tokio::fs::write(&file_path, "").await.map_err(|e| {
-                format!("Failed to create file {}: {}", file_path, e)
-            })?;
+            tokio::fs::write(&file_path, "")
+                .await
+                .map_err(|e| format!("Failed to create file {}: {}", file_path, e))?;
             return Ok(());
         }
 
@@ -1429,13 +1432,16 @@ impl LspClient {
             // Create parent directories if needed
             if let Some(parent) = std::path::Path::new(&new_path).parent() {
                 tokio::fs::create_dir_all(parent).await.map_err(|e| {
-                    format!("Failed to create parent directories for {}: {}", new_path, e)
+                    format!(
+                        "Failed to create parent directories for {}: {}",
+                        new_path, e
+                    )
                 })?;
             }
 
-            tokio::fs::rename(&old_path, &new_path).await.map_err(|e| {
-                format!("Failed to rename {} to {}: {}", old_path, new_path, e)
-            })?;
+            tokio::fs::rename(&old_path, &new_path)
+                .await
+                .map_err(|e| format!("Failed to rename {} to {}: {}", old_path, new_path, e))?;
             return Ok(());
         }
 
@@ -1448,9 +1454,9 @@ impl LspClient {
             let file_path = Self::uri_to_path(uri)?;
             info!(path = %file_path, "Deleting file via workspace/applyEdit");
 
-            tokio::fs::remove_file(&file_path).await.map_err(|e| {
-                format!("Failed to delete file {}: {}", file_path, e)
-            })?;
+            tokio::fs::remove_file(&file_path)
+                .await
+                .map_err(|e| format!("Failed to delete file {}: {}", file_path, e))?;
             return Ok(());
         }
 
@@ -1470,7 +1476,10 @@ impl LspClient {
             return Ok(());
         }
 
-        warn!(?change, "Unknown document change type in workspace/applyEdit");
+        warn!(
+            ?change,
+            "Unknown document change type in workspace/applyEdit"
+        );
         Ok(())
     }
 
@@ -1483,7 +1492,10 @@ impl LspClient {
                 // File doesn't exist - create parent dirs and start with empty content
                 if let Some(parent) = std::path::Path::new(file_path).parent() {
                     tokio::fs::create_dir_all(parent).await.map_err(|e| {
-                        format!("Failed to create parent directories for {}: {}", file_path, e)
+                        format!(
+                            "Failed to create parent directories for {}: {}",
+                            file_path, e
+                        )
                     })?;
                 }
                 String::new()
@@ -1535,11 +1547,9 @@ impl LspClient {
         }
 
         // Sort edits in reverse order (later positions first) for safe application
-        parsed_edits.sort_by(|a, b| {
-            match b.2.cmp(&a.2) {
-                std::cmp::Ordering::Equal => b.3.cmp(&a.3),
-                other => other,
-            }
+        parsed_edits.sort_by(|a, b| match b.2.cmp(&a.2) {
+            std::cmp::Ordering::Equal => b.3.cmp(&a.3),
+            other => other,
         });
 
         // Convert content to a mutable string for editing
@@ -1566,9 +1576,9 @@ impl LspClient {
 
         // Write result back to file
         info!(path = %file_path, "Writing workspace edit to file");
-        tokio::fs::write(file_path, &result).await.map_err(|e| {
-            format!("Failed to write file {}: {}", file_path, e)
-        })?;
+        tokio::fs::write(file_path, &result)
+            .await
+            .map_err(|e| format!("Failed to write file {}: {}", file_path, e))?;
 
         Ok(())
     }
@@ -1607,7 +1617,10 @@ impl LspClient {
         #[cfg(windows)]
         {
             // On Windows, remove leading slash: /C:/path -> C:/path
-            if path.len() >= 3 && path.chars().nth(0) == Some('/') && path.chars().nth(2) == Some(':') {
+            if path.len() >= 3
+                && path.chars().nth(0) == Some('/')
+                && path.chars().nth(2) == Some(':')
+            {
                 return Ok(path[1..].to_string());
             }
         }

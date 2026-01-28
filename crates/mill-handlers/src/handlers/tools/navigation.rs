@@ -28,7 +28,9 @@ impl NavigationHandler {
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         let args = tool_call.arguments.clone().unwrap_or(json!({}));
-        let symbol_name = args.get("name").and_then(|v| v.as_str())
+        let symbol_name = args
+            .get("name")
+            .and_then(|v| v.as_str())
             .ok_or_else(|| ServerError::invalid_request("Missing 'name' parameter"))?;
         let file_path = args.get("filePath").and_then(|v| v.as_str());
 
@@ -36,7 +38,8 @@ impl NavigationHandler {
 
         if let Some(path) = file_path {
             // Document symbols
-            let mut request = PluginRequest::new("get_document_symbols".to_string(), PathBuf::from(path));
+            let mut request =
+                PluginRequest::new("get_document_symbols".to_string(), PathBuf::from(path));
             request = request.with_params(args.clone());
 
             if let Ok(response) = context.plugin_manager.handle_request(request).await {
@@ -64,11 +67,15 @@ impl NavigationHandler {
         }
 
         // Filter symbols by name (fuzzy match is usually already done by search, but we refine it)
-        let filtered: Vec<Value> = symbols.into_iter().filter(|s| {
-            s.get("name").and_then(|n| n.as_str())
-                .map(|n| n.contains(symbol_name))
-                .unwrap_or(false)
-        }).collect();
+        let filtered: Vec<Value> = symbols
+            .into_iter()
+            .filter(|s| {
+                s.get("name")
+                    .and_then(|n| n.as_str())
+                    .map(|n| n.contains(symbol_name))
+                    .unwrap_or(false)
+            })
+            .collect();
 
         Ok(json!(filtered))
     }
@@ -84,7 +91,8 @@ impl NavigationHandler {
             arguments: tool_call.arguments.clone(),
         };
         let symbols_json = self.handle_find_symbol(context, &find_symbol_call).await?;
-        let symbols = symbols_json.as_array()
+        let symbols = symbols_json
+            .as_array()
             .ok_or_else(|| ServerError::internal("Invalid response from find_symbol"))?;
 
         if symbols.is_empty() {
@@ -103,41 +111,51 @@ impl NavigationHandler {
             let uri_opt = location_opt.and_then(|l| l.get("uri").and_then(|v| v.as_str()));
 
             // If we have file path from args (if find_symbol was called with filePath)
-            let args_file_path = tool_call.arguments.as_ref()
+            let args_file_path = tool_call
+                .arguments
+                .as_ref()
                 .and_then(|a| a.get("filePath").and_then(|v| v.as_str()));
 
             let final_uri = uri_opt.or(args_file_path);
 
             if let Some(uri) = final_uri {
-                 let range_opt = location_opt.and_then(|l| l.get("range"))
-                     .or_else(|| symbol.get("selectionRange")) // DocumentSymbol
-                     .or_else(|| symbol.get("range")); // DocumentSymbol
+                let range_opt = location_opt
+                    .and_then(|l| l.get("range"))
+                    .or_else(|| symbol.get("selectionRange")) // DocumentSymbol
+                    .or_else(|| symbol.get("range")); // DocumentSymbol
 
-                 let (line, col) = if let Some(range) = range_opt {
-                     (
-                         range.get("start").and_then(|s| s.get("line")).and_then(|v| v.as_u64()),
-                         range.get("start").and_then(|s| s.get("character")).and_then(|v| v.as_u64())
-                     )
-                 } else {
-                     // Internal Symbol
-                     (
-                         location_opt.and_then(|l| l.get("line").and_then(|v| v.as_u64())),
-                         location_opt.and_then(|l| l.get("column").and_then(|v| v.as_u64()))
-                     )
-                 };
+                let (line, col) = if let Some(range) = range_opt {
+                    (
+                        range
+                            .get("start")
+                            .and_then(|s| s.get("line"))
+                            .and_then(|v| v.as_u64()),
+                        range
+                            .get("start")
+                            .and_then(|s| s.get("character"))
+                            .and_then(|v| v.as_u64()),
+                    )
+                } else {
+                    // Internal Symbol
+                    (
+                        location_opt.and_then(|l| l.get("line").and_then(|v| v.as_u64())),
+                        location_opt.and_then(|l| l.get("column").and_then(|v| v.as_u64())),
+                    )
+                };
 
-                 if let (Some(l), Some(c)) = (line, col) {
-                     let mut ref_request = PluginRequest::new("find_references".to_string(), PathBuf::from(uri));
-                     ref_request = ref_request.with_position(l as u32, c as u32);
+                if let (Some(l), Some(c)) = (line, col) {
+                    let mut ref_request =
+                        PluginRequest::new("find_references".to_string(), PathBuf::from(uri));
+                    ref_request = ref_request.with_position(l as u32, c as u32);
 
-                     if let Ok(response) = context.plugin_manager.handle_request(ref_request).await {
-                         if let Some(data) = response.data {
-                             if let Some(arr) = data.as_array() {
-                                 all_references.extend(arr.clone());
-                             }
-                         }
-                     }
-                 }
+                    if let Ok(response) = context.plugin_manager.handle_request(ref_request).await {
+                        if let Some(data) = response.data {
+                            if let Some(arr) = data.as_array() {
+                                all_references.extend(arr.clone());
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -145,7 +163,10 @@ impl NavigationHandler {
     }
 
     /// Find a representative file in the workspace with the given extension
-    fn find_representative_file(workspace_path: &std::path::Path, extension: &str) -> Option<PathBuf> {
+    fn find_representative_file(
+        workspace_path: &std::path::Path,
+        extension: &str,
+    ) -> Option<PathBuf> {
         use std::fs;
 
         // First, try to find a file in common source directories
@@ -179,7 +200,11 @@ impl NavigationHandler {
         Self::find_file_recursive(workspace_path, extension, 3)
     }
 
-    fn find_file_recursive(dir: &std::path::Path, extension: &str, max_depth: u32) -> Option<PathBuf> {
+    fn find_file_recursive(
+        dir: &std::path::Path,
+        extension: &str,
+        max_depth: u32,
+    ) -> Option<PathBuf> {
         use std::fs;
 
         if max_depth == 0 {
@@ -204,7 +229,8 @@ impl NavigationHandler {
                         }
                     }
                 } else if path.is_dir() {
-                    if let Some(found) = Self::find_file_recursive(&path, extension, max_depth - 1) {
+                    if let Some(found) = Self::find_file_recursive(&path, extension, max_depth - 1)
+                    {
                         return Some(found);
                     }
                 }
@@ -434,6 +460,11 @@ impl ToolHandler for NavigationHandler {
         ]
     }
 
+    fn is_internal(&self) -> bool {
+        // Legacy navigation tools - now internal, use inspect_code/search_code instead
+        true
+    }
+
     async fn handle_tool_call(
         &self,
         context: &mill_handler_api::ToolHandlerContext,
@@ -451,7 +482,9 @@ impl ToolHandler for NavigationHandler {
         }
 
         if tool_call.name == "find_referencing_symbols" {
-            return self.handle_find_referencing_symbols(context, tool_call).await;
+            return self
+                .handle_find_referencing_symbols(context, tool_call)
+                .await;
         }
 
         let mut call = tool_call.clone();

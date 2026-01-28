@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use std::hint::black_box;
 use mill_foundation::model::mcp::{McpError, McpRequest, McpResponse};
 use serde_json::json;
+use std::hint::black_box;
 
 fn create_simple_request() -> McpRequest {
     McpRequest {

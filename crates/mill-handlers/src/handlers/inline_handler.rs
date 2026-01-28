@@ -104,7 +104,8 @@ impl InlineHandler {
                 "Executing inline plan"
             );
 
-            let result = crate::handlers::common::execute_refactor_plan(context, refactor_plan).await?;
+            let result =
+                crate::handlers::common::execute_refactor_plan(context, refactor_plan).await?;
 
             let result_json = serde_json::to_value(&result).map_err(|e| {
                 ServerError::internal(format!("Failed to serialize execution result: {}", e))
@@ -415,7 +416,8 @@ impl ToolHandler for InlineHandler {
     }
 
     fn is_internal(&self) -> bool {
-        false // Public tool
+        // Legacy - use refactor action:inline instead
+        true
     }
 
     async fn handle_tool_call(

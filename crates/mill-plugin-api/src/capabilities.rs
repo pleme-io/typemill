@@ -625,10 +625,7 @@ pub trait FileDiscovery: Send + Sync {
     ///
     /// A list of found source file paths relative to `root_path`, or absolute paths.
     ///
-    async fn find_source_files(
-        &self,
-        root_path: &Path,
-    ) -> PluginResult<Vec<std::path::PathBuf>>;
+    async fn find_source_files(&self, root_path: &Path) -> PluginResult<Vec<std::path::PathBuf>>;
 }
 
 /// Standard implementation of FileDiscovery using file extensions
@@ -647,10 +644,7 @@ impl StandardFileDiscovery {
 
 #[async_trait]
 impl FileDiscovery for StandardFileDiscovery {
-    async fn find_source_files(
-        &self,
-        root_path: &Path,
-    ) -> PluginResult<Vec<std::path::PathBuf>> {
+    async fn find_source_files(&self, root_path: &Path) -> PluginResult<Vec<std::path::PathBuf>> {
         use tokio::fs;
 
         let mut result = Vec::new();

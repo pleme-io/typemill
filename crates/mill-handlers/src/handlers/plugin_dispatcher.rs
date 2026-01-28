@@ -351,29 +351,53 @@ impl PluginDispatcher {
                 use super::workspace::FindReplaceHandler;
                 use super::FileOperationHandler;
 
+                // Import new Magnificent Seven handlers
+                use super::{
+                    InspectHandler, SearchHandler, RenameAllHandler, RelocateHandler,
+                    PruneHandler, RefactorHandler, WorkspaceHandler,
+                };
+
                 let mut registry = self.tool_registry.lock().await;
+
+                // =====================================================================
+                // MAGNIFICENT SEVEN - New Public API (7 tools)
+                // =====================================================================
+                // These are the only public tools exposed via MCP tools/list
                 register_handlers_with_logging!(registry, {
-                    SystemToolsHandler => "SystemToolsHandler with 1 tool (health_check)",
-                    FileOperationHandler => "FileOperationHandler with 4 file operations (create_file, delete_file, rename_file, rename_directory)",
-                    FileToolsHandler => "FileToolsHandler with 3 utility tools (read_file, write_file, list_files)",
-                    AdvancedToolsHandler => "AdvancedToolsHandler with 2 INTERNAL tools (execute_edits, execute_batch)",
-                    EditingToolsHandler => "EditingToolsHandler with 1 tool (edit_file)",
-                    NavigationHandler => "NavigationHandler with 8 tools (find_definition, find_references, find_implementations, find_type_definition, search_symbols, get_symbol_info, get_diagnostics, get_call_hierarchy)",
-                    InternalNavigationHandler => "InternalNavigationHandler with 1 INTERNAL tool (get_document_symbols)",
-                    LifecycleHandler => "LifecycleHandler with 3 INTERNAL tools (notify_file_opened, notify_file_saved, notify_file_closed)",
-                    InternalEditingToolsHandler => "InternalEditingToolsHandler with 1 INTERNAL tool (rename_symbol_with_imports)",
-                    InternalWorkspaceHandler => "InternalWorkspaceHandler with 1 INTERNAL tool (apply_workspace_edit)",
-                    InternalIntelligenceHandler => "InternalIntelligenceHandler with 2 INTERNAL tools (get_completions, get_signature_help)",
-                    WorkspaceToolsHandler => "WorkspaceToolsHandler with 2 INTERNAL tools (move_directory, update_dependencies)",
-                    WorkspaceCreateHandler => "WorkspaceCreateHandler with 1 tool (workspace.create_package)",
-                    WorkspaceExtractDepsHandler => "WorkspaceExtractDepsHandler with 1 tool (workspace.extract_dependencies)",
-                    FindReplaceHandler => "FindReplaceHandler with 1 tool (workspace.find_replace)"
+                    InspectHandler => "InspectHandler: inspect_code (aggregates LSP intelligence)",
+                    SearchHandler => "SearchHandler: search_code (workspace symbol search)",
+                    RenameAllHandler => "RenameAllHandler: rename_all (symbol/file/directory rename)",
+                    RelocateHandler => "RelocateHandler: relocate (move symbol/file/directory)",
+                    PruneHandler => "PruneHandler: prune (delete with cleanup)",
+                    RefactorHandler => "RefactorHandler: refactor (extract/inline/transform)",
+                    WorkspaceHandler => "WorkspaceHandler: workspace (package/deps/find-replace/verify)"
                 });
 
-                // Register refactoring handlers (feature-gated)
-                // Each handler supports unified API with dryRun option:
-                // - dryRun: true (default) - Preview mode, returns plan
-                // - dryRun: false - Execute mode, applies changes
+                // =====================================================================
+                // INTERNAL HANDLERS - Legacy tools now internal (not exposed via MCP)
+                // =====================================================================
+                // These handlers are kept for backwards compatibility and internal use
+                // but are NOT exposed in the public MCP tools/list
+                register_handlers_with_logging!(registry, {
+                    SystemToolsHandler => "SystemToolsHandler: health_check (INTERNAL - use workspace.verify_project)",
+                    FileOperationHandler => "FileOperationHandler: 4 INTERNAL file ops (create_file, delete_file, rename_file, rename_directory)",
+                    FileToolsHandler => "FileToolsHandler: 3 INTERNAL tools (read_file, write_file, list_files)",
+                    AdvancedToolsHandler => "AdvancedToolsHandler: 2 INTERNAL tools (execute_edits, execute_batch)",
+                    EditingToolsHandler => "EditingToolsHandler: 1 INTERNAL tool (edit_file)",
+                    NavigationHandler => "NavigationHandler: 8 INTERNAL tools (find_definition, find_references, etc.)",
+                    InternalNavigationHandler => "InternalNavigationHandler: 1 INTERNAL tool (get_document_symbols)",
+                    LifecycleHandler => "LifecycleHandler: 3 INTERNAL tools (notify_file_*)",
+                    InternalEditingToolsHandler => "InternalEditingToolsHandler: 1 INTERNAL tool (rename_symbol_with_imports)",
+                    InternalWorkspaceHandler => "InternalWorkspaceHandler: 1 INTERNAL tool (apply_workspace_edit)",
+                    InternalIntelligenceHandler => "InternalIntelligenceHandler: 2 INTERNAL tools (get_completions, get_signature_help)",
+                    WorkspaceToolsHandler => "WorkspaceToolsHandler: 2 INTERNAL tools (move_directory, update_dependencies)",
+                    WorkspaceCreateHandler => "WorkspaceCreateHandler: 1 INTERNAL tool (workspace.create_package - use workspace action)",
+                    WorkspaceExtractDepsHandler => "WorkspaceExtractDepsHandler: 1 INTERNAL tool (workspace.extract_dependencies - use workspace action)",
+                    FindReplaceHandler => "FindReplaceHandler: 1 INTERNAL tool (workspace.find_replace - use workspace action)"
+                });
+
+                // Register legacy refactoring handlers as INTERNAL (feature-gated)
+                // These are still used by the new handlers but not directly exposed
                 use std::sync::Arc;
 
                 #[cfg(feature = "refactor-rename")]
@@ -381,7 +405,7 @@ impl PluginDispatcher {
                     use super::RenameHandler;
                     let rename_handler = Arc::new(RenameHandler::new());
                     register_handlers_with_logging!(registry, @arc {
-                        rename_handler => "Unified rename handler (supports dryRun)"
+                        rename_handler => "RenameHandler: INTERNAL rename (use rename_all instead)"
                     });
                 }
                 #[cfg(feature = "refactor-extract")]
@@ -389,7 +413,7 @@ impl PluginDispatcher {
                     use super::ExtractHandler;
                     let extract_handler = Arc::new(ExtractHandler::new());
                     register_handlers_with_logging!(registry, @arc {
-                        extract_handler => "Unified extract handler (supports dryRun)"
+                        extract_handler => "ExtractHandler: INTERNAL extract (use refactor action:extract instead)"
                     });
                 }
                 #[cfg(feature = "refactor-inline")]
@@ -397,7 +421,7 @@ impl PluginDispatcher {
                     use super::InlineHandler;
                     let inline_handler = Arc::new(InlineHandler::new());
                     register_handlers_with_logging!(registry, @arc {
-                        inline_handler => "Unified inline handler (supports dryRun)"
+                        inline_handler => "InlineHandler: INTERNAL inline (use refactor action:inline instead)"
                     });
                 }
                 #[cfg(feature = "refactor-move")]
@@ -405,7 +429,7 @@ impl PluginDispatcher {
                     use super::MoveHandler;
                     let move_handler = Arc::new(MoveHandler::new());
                     register_handlers_with_logging!(registry, @arc {
-                        move_handler => "Unified move handler (supports dryRun)"
+                        move_handler => "MoveHandler: INTERNAL move (use relocate instead)"
                     });
                 }
                 #[cfg(feature = "refactor-delete")]
@@ -413,7 +437,7 @@ impl PluginDispatcher {
                     use super::DeleteHandler;
                     let delete_handler = Arc::new(DeleteHandler::new());
                     register_handlers_with_logging!(registry, @arc {
-                        delete_handler => "Unified delete handler (supports dryRun)"
+                        delete_handler => "DeleteHandler: INTERNAL delete (use prune instead)"
                     });
                 }
             }

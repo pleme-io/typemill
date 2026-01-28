@@ -95,4 +95,3 @@ async fn test_delete_directory_plan_and_apply() {
         "Directory should be deleted"
     );
 }
-

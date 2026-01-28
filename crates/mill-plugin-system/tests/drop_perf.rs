@@ -9,7 +9,12 @@ fn measure_drop_latency_outside_runtime() {
         rt.block_on(async {
             // "sleep 5" ensures process outlives the spawn block
             // We use "sleep" assuming it is available in the environment (standard unix)
-            ExternalMcpClient::spawn("test_server".to_string(), vec!["sleep".to_string(), "5".to_string()]).await.unwrap()
+            ExternalMcpClient::spawn(
+                "test_server".to_string(),
+                vec!["sleep".to_string(), "5".to_string()],
+            )
+            .await
+            .unwrap()
         })
     };
 
@@ -21,5 +26,8 @@ fn measure_drop_latency_outside_runtime() {
 
     println!("Drop took: {:.2?}", duration);
 
-    assert!(duration.as_millis() < 10, "Expected drop to take less than 10ms with optimized implementation");
+    assert!(
+        duration.as_millis() < 10,
+        "Expected drop to take less than 10ms with optimized implementation"
+    );
 }

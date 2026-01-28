@@ -117,10 +117,7 @@ pub fn convert_edit_plan_to_workspace_edit(
     let mut changes = HashMap::new();
 
     for edit in &edit_plan.edits {
-        let file_path = edit
-            .file_path
-            .as_ref()
-            .unwrap_or(&edit_plan.source_file);
+        let file_path = edit.file_path.as_ref().unwrap_or(&edit_plan.source_file);
         let path = Path::new(file_path);
         let uri = url::Url::from_file_path(path)
             .map_err(|_| ServerError::invalid_request(format!("Invalid file path: {}", file_path)))?
@@ -142,10 +139,7 @@ pub fn convert_edit_plan_to_workspace_edit(
             new_text: edit.new_text.clone(),
         };
 
-        changes
-            .entry(uri)
-            .or_insert_with(Vec::new)
-            .push(lsp_edit);
+        changes.entry(uri).or_insert_with(Vec::new).push(lsp_edit);
     }
 
     Ok(lsp_types::WorkspaceEdit {

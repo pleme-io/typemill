@@ -2158,7 +2158,7 @@ mod inline_variable_tests {
         // Line 7 (0-indexed) is "  const a = await somethingSlow(0);"
         // Character 8 is 'a'
         let result = analyze_inline_variable(source, 7, 8, "test.ts");
-        
+
         match &result {
             Ok(analysis) => {
                 println!("SUCCESS!");
@@ -2172,7 +2172,11 @@ mod inline_variable_tests {
                 println!("FAILED: {:?}", e);
             }
         }
-        
-        assert!(result.is_ok(), "Should successfully analyze the variable: {:?}", result);
+
+        assert!(
+            result.is_ok(),
+            "Should successfully analyze the variable: {:?}",
+            result
+        );
     }
 }

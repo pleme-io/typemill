@@ -149,38 +149,52 @@ impl EditingToolsHandler {
         context: &mill_handler_api::ToolHandlerContext,
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
-        let args = tool_call.arguments.clone().unwrap_or(serde_json::Value::Null);
-        let symbol_name = args.get("symbol_name").and_then(|v| v.as_str())
+        let args = tool_call
+            .arguments
+            .clone()
+            .unwrap_or(serde_json::Value::Null);
+        let symbol_name = args
+            .get("symbol_name")
+            .and_then(|v| v.as_str())
             .ok_or_else(|| ServerError::invalid_request("Missing 'symbol_name' parameter"))?;
-        let new_code = args.get("new_code").and_then(|v| v.as_str())
+        let new_code = args
+            .get("new_code")
+            .and_then(|v| v.as_str())
             .ok_or_else(|| ServerError::invalid_request("Missing 'new_code' parameter"))?;
         let file_path_filter = args.get("file_path").and_then(|v| v.as_str());
 
         let mut target_symbol = None;
 
         if let Some(path) = file_path_filter {
-             // Use get_document_symbols
-             let request = mill_plugin_system::PluginRequest::new("get_document_symbols".to_string(), PathBuf::from(path));
+            // Use get_document_symbols
+            let request = mill_plugin_system::PluginRequest::new(
+                "get_document_symbols".to_string(),
+                PathBuf::from(path),
+            );
 
-             if let Ok(response) = context.plugin_manager.handle_request(request).await {
-                 if let Some(data) = response.data {
-                     if let Some(arr) = data.as_array() {
-                         for sym in arr {
-                             if sym.get("name").and_then(|n| n.as_str()) == Some(symbol_name) {
-                                 target_symbol = Some((sym.clone(), path.to_string()));
-                                 break;
-                             }
-                         }
-                     }
-                 }
-             }
+            if let Ok(response) = context.plugin_manager.handle_request(request).await {
+                if let Some(data) = response.data {
+                    if let Some(arr) = data.as_array() {
+                        for sym in arr {
+                            if sym.get("name").and_then(|n| n.as_str()) == Some(symbol_name) {
+                                target_symbol = Some((sym.clone(), path.to_string()));
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
         } else {
-             // Workspace search
-             let plugin_names = context.plugin_manager.list_plugins().await;
-             let mut symbols = Vec::new();
+            // Workspace search
+            let plugin_names = context.plugin_manager.list_plugins().await;
+            let mut symbols = Vec::new();
 
-             for plugin_name in plugin_names {
-                if let Some(plugin) = context.plugin_manager.get_plugin_by_name(&plugin_name).await {
+            for plugin_name in plugin_names {
+                if let Some(plugin) = context
+                    .plugin_manager
+                    .get_plugin_by_name(&plugin_name)
+                    .await
+                {
                     let extensions = plugin.supported_extensions();
                     let file_path = if let Some(ext) = extensions.first() {
                         PathBuf::from(format!("workspace.{}", ext))
@@ -188,7 +202,10 @@ impl EditingToolsHandler {
                         continue;
                     };
 
-                    let mut request = mill_plugin_system::PluginRequest::new("search_workspace_symbols".to_string(), file_path);
+                    let mut request = mill_plugin_system::PluginRequest::new(
+                        "search_workspace_symbols".to_string(),
+                        file_path,
+                    );
                     request = request.with_params(serde_json::json!({ "query": symbol_name }));
 
                     if let Ok(response) = plugin.handle_request(request).await {
@@ -199,39 +216,71 @@ impl EditingToolsHandler {
                         }
                     }
                 }
-             }
+            }
 
-             let matches: Vec<Value> = symbols.into_iter().filter(|s| {
-                s.get("name").and_then(|n| n.as_str())
-                    .map(|n| n == symbol_name).unwrap_or(false)
-             }).collect();
+            let matches: Vec<Value> = symbols
+                .into_iter()
+                .filter(|s| {
+                    s.get("name")
+                        .and_then(|n| n.as_str())
+                        .map(|n| n == symbol_name)
+                        .unwrap_or(false)
+                })
+                .collect();
 
-             if matches.len() == 1 {
-                 let s = &matches[0];
-                 let uri = s.get("location").and_then(|l| l.get("uri")).and_then(|v| v.as_str())
-                     .or_else(|| s.get("file_path").and_then(|v| v.as_str()));
+            if matches.len() == 1 {
+                let s = &matches[0];
+                let uri = s
+                    .get("location")
+                    .and_then(|l| l.get("uri"))
+                    .and_then(|v| v.as_str())
+                    .or_else(|| s.get("file_path").and_then(|v| v.as_str()));
 
-                 if let Some(u) = uri {
-                     target_symbol = Some((s.clone(), u.to_string()));
-                 } else {
-                     return Err(ServerError::invalid_request("Found symbol but cannot determine file path. Please specify file_path."));
-                 }
-             } else if matches.is_empty() {
-                 return Err(ServerError::invalid_request(format!("Symbol '{}' not found", symbol_name)));
-             } else {
-                 return Err(ServerError::invalid_request(format!("Multiple symbols found for '{}'. Please specify file_path.", symbol_name)));
-             }
+                if let Some(u) = uri {
+                    target_symbol = Some((s.clone(), u.to_string()));
+                } else {
+                    return Err(ServerError::invalid_request(
+                        "Found symbol but cannot determine file path. Please specify file_path.",
+                    ));
+                }
+            } else if matches.is_empty() {
+                return Err(ServerError::invalid_request(format!(
+                    "Symbol '{}' not found",
+                    symbol_name
+                )));
+            } else {
+                return Err(ServerError::invalid_request(format!(
+                    "Multiple symbols found for '{}'. Please specify file_path.",
+                    symbol_name
+                )));
+            }
         }
 
-        let (symbol, source_file) = target_symbol.ok_or_else(|| ServerError::invalid_request(format!("Symbol '{}' not found", symbol_name)))?;
+        let (symbol, source_file) = target_symbol.ok_or_else(|| {
+            ServerError::invalid_request(format!("Symbol '{}' not found", symbol_name))
+        })?;
 
         // Get end location
-        let end_location = symbol.get("end_location") // Internal
-            .or_else(|| symbol.get("location").and_then(|l| l.get("range").and_then(|r| r.get("end")))) // LSP
-            .ok_or_else(|| ServerError::invalid_request("Symbol does not have end location information"))?;
+        let end_location = symbol
+            .get("end_location") // Internal
+            .or_else(|| {
+                symbol
+                    .get("location")
+                    .and_then(|l| l.get("range").and_then(|r| r.get("end")))
+            }) // LSP
+            .ok_or_else(|| {
+                ServerError::invalid_request("Symbol does not have end location information")
+            })?;
 
-        let line = end_location.get("line").and_then(|v| v.as_u64()).ok_or_else(|| ServerError::internal("Missing line"))?;
-        let col = end_location.get("column").and_then(|v| v.as_u64()).or_else(|| end_location.get("character").and_then(|v| v.as_u64())).unwrap_or(0);
+        let line = end_location
+            .get("line")
+            .and_then(|v| v.as_u64())
+            .ok_or_else(|| ServerError::internal("Missing line"))?;
+        let col = end_location
+            .get("column")
+            .and_then(|v| v.as_u64())
+            .or_else(|| end_location.get("character").and_then(|v| v.as_u64()))
+            .unwrap_or(0);
 
         let text_to_insert = format!("\n\n{}", new_code);
 
