@@ -1,6 +1,7 @@
 //! LSP client implementation for communicating with a single LSP server
 
 use crate::progress::{ProgressError, ProgressManager, ProgressParams, ProgressToken};
+use lsp_types::{Diagnostic, ServerCapabilities, Uri};
 use mill_config::LspServerConfig;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
 use serde_json::{json, Value};
@@ -28,6 +29,9 @@ const CHANNEL_BUFFER_SIZE: usize = 1000;
 /// Type alias for pending request responses
 pub(crate) type PendingRequests = Arc<Mutex<HashMap<i64, oneshot::Sender<Result<Value, String>>>>>;
 
+/// Type alias for cached diagnostics (URI -> Vec<Diagnostic>)
+pub type DiagnosticsCache = Arc<Mutex<HashMap<Uri, Vec<Diagnostic>>>>;
+
 /// LSP client for communicating with a single LSP server process
 pub struct LspClient {
     /// Child process handle
@@ -44,6 +48,10 @@ pub struct LspClient {
     config: LspServerConfig,
     /// Progress notification manager
     progress_manager: ProgressManager,
+    /// Server capabilities (populated after initialization)
+    server_capabilities: Arc<Mutex<Option<ServerCapabilities>>>,
+    /// Cached diagnostics from textDocument/publishDiagnostics notifications
+    diagnostics_cache: DiagnosticsCache,
 }
 
 /// Internal message types for LSP communication
@@ -305,6 +313,7 @@ impl LspClient {
         let next_id = Arc::new(Mutex::new(1));
         let initialized = Arc::new(Mutex::new(false));
         let progress_manager = ProgressManager::new();
+        let diagnostics_cache: DiagnosticsCache = Arc::new(Mutex::new(HashMap::new()));
 
         // Create message channel for both requests and notifications
         let (message_tx, mut message_rx) = mpsc::channel::<LspMessage>(CHANNEL_BUFFER_SIZE);
@@ -443,6 +452,7 @@ impl LspClient {
         let server_command_stdout = command.to_string();
         let message_tx_clone = message_tx.clone();
         let progress_manager_clone = progress_manager.clone();
+        let diagnostics_cache_clone = diagnostics_cache.clone();
         tokio::spawn(async move {
             eprintln!(
                 "🔍 LSP stdout reader task started for: {}",
@@ -503,6 +513,7 @@ impl LspClient {
                                     &pending_requests_clone,
                                     &message_tx_clone,
                                     &progress_manager_clone,
+                                    &diagnostics_cache_clone,
                                 )
                                 .await;
                             }
@@ -529,6 +540,8 @@ impl LspClient {
             initialized,
             config,
             progress_manager,
+            server_capabilities: Arc::new(Mutex::new(None)),
+            diagnostics_cache,
         };
 
         // Initialize the LSP server
@@ -762,6 +775,24 @@ impl LspClient {
 
         tracing::warn!(result = ?result, "LSP server initialization response received");
 
+        // Parse and store server capabilities
+        match serde_json::from_value::<lsp_types::InitializeResult>(result) {
+            Ok(init_result) => {
+                debug!(
+                    capabilities = ?init_result.capabilities,
+                    "Parsed server capabilities"
+                );
+                let mut caps = self.server_capabilities.lock().await;
+                *caps = Some(init_result.capabilities);
+            }
+            Err(e) => {
+                warn!(
+                    error = %e,
+                    "Failed to parse InitializeResult - capability checks will be unavailable"
+                );
+            }
+        }
+
         // Send initialized notification
         self.send_notification("initialized", json!({})).await?;
 
@@ -801,6 +832,56 @@ impl LspClient {
     /// Check if the client has been initialized
     pub async fn is_initialized(&self) -> bool {
         *self.initialized.lock().await
+    }
+
+    /// Get the server capabilities (if available)
+    pub async fn capabilities(&self) -> Option<ServerCapabilities> {
+        self.server_capabilities.lock().await.clone()
+    }
+
+    /// Check if the server supports a specific capability.
+    /// Returns true if capabilities are unknown (fail open for backwards compatibility).
+    pub async fn supports_diagnostic_pull(&self) -> bool {
+        let caps = self.server_capabilities.lock().await;
+        match caps.as_ref() {
+            Some(c) => c.diagnostic_provider.is_some(),
+            None => true, // Unknown capabilities - try anyway
+        }
+    }
+
+    /// Check if the server supports workspace symbols
+    pub async fn supports_workspace_symbols(&self) -> bool {
+        let caps = self.server_capabilities.lock().await;
+        match caps.as_ref() {
+            Some(c) => c.workspace_symbol_provider.is_some(),
+            None => true, // Unknown capabilities - try anyway
+        }
+    }
+
+    /// Get cached diagnostics for a file URI
+    ///
+    /// Returns diagnostics received via textDocument/publishDiagnostics notifications.
+    /// This is useful for LSP servers that use push-model diagnostics instead of pull-model.
+    pub async fn get_cached_diagnostics(&self, uri: &Uri) -> Option<Vec<Diagnostic>> {
+        let cache: tokio::sync::MutexGuard<'_, HashMap<Uri, Vec<Diagnostic>>> =
+            self.diagnostics_cache.lock().await;
+        cache.get(uri).cloned()
+    }
+
+    /// Get all cached diagnostics
+    ///
+    /// Returns all diagnostics received via textDocument/publishDiagnostics notifications.
+    pub async fn get_all_cached_diagnostics(&self) -> HashMap<Uri, Vec<Diagnostic>> {
+        let cache: tokio::sync::MutexGuard<'_, HashMap<Uri, Vec<Diagnostic>>> =
+            self.diagnostics_cache.lock().await;
+        cache.clone()
+    }
+
+    /// Clear cached diagnostics for a specific file
+    pub async fn clear_cached_diagnostics(&self, uri: &Uri) {
+        let mut cache: tokio::sync::MutexGuard<'_, HashMap<Uri, Vec<Diagnostic>>> =
+            self.diagnostics_cache.lock().await;
+        cache.remove(uri);
     }
 
     /// Get the server configuration
@@ -1168,6 +1249,7 @@ impl LspClient {
         pending_requests: &PendingRequests,
         message_tx: &mpsc::Sender<LspMessage>,
         progress_manager: &ProgressManager,
+        diagnostics_cache: &DiagnosticsCache,
     ) {
         tracing::warn!(message = ?message, "Received message from LSP server");
 
@@ -1192,6 +1274,35 @@ impl LspClient {
                                     error = %e,
                                     params = ?params,
                                     "Failed to parse $/progress notification"
+                                );
+                            }
+                        }
+                    }
+                } else if method == Some("textDocument/publishDiagnostics") {
+                    // Handle push-model diagnostics
+                    if let Some(params) = message.get("params") {
+                        match serde_json::from_value::<lsp_types::PublishDiagnosticsParams>(
+                            params.clone(),
+                        ) {
+                            Ok(diag_params) => {
+                                let mut cache: tokio::sync::MutexGuard<
+                                    '_,
+                                    HashMap<Uri, Vec<Diagnostic>>,
+                                > = diagnostics_cache.lock().await;
+                                let diagnostic_count = diag_params.diagnostics.len();
+                                let uri_str = diag_params.uri.as_str().to_string();
+                                cache.insert(diag_params.uri, diag_params.diagnostics);
+                                debug!(
+                                    uri = %uri_str,
+                                    diagnostic_count = diagnostic_count,
+                                    "Cached diagnostics from publishDiagnostics notification"
+                                );
+                            }
+                            Err(e) => {
+                                debug!(
+                                    error = %e,
+                                    params = ?params,
+                                    "Failed to parse publishDiagnostics notification"
                                 );
                             }
                         }

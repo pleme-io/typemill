@@ -121,6 +121,15 @@ impl DirectLspAdapter {
             // Get or create client for this extension
             match self.get_or_create_client(extension).await {
                 Ok(client) => {
+                    // Check if the server supports workspace symbols
+                    if !client.supports_workspace_symbols().await {
+                        debug!(
+                            extension = %extension,
+                            "LSP server does not support workspace/symbol, skipping"
+                        );
+                        continue;
+                    }
+
                     // For rust-analyzer, check if workspace indexing notifications are sent:
                     // 1. Try event-driven wait for progress notifications (500ms timeout)
                     // 2. If no progress notification arrives, assume indexing is instant or not needed
@@ -163,6 +172,17 @@ impl DirectLspAdapter {
                                 }
                             }
                         }
+                    }
+
+                    // For TypeScript, warm up the server by opening a file first
+                    // TypeScript LSP needs project context before workspace/symbol works
+                    if extension == "ts" || extension == "tsx" || extension == "js" || extension == "jsx" {
+                        // Try to warm up by ensuring the server has project context
+                        // The didOpen notification will be sent automatically when we make a file-specific request
+                        debug!(
+                            extension = %extension,
+                            "TypeScript LSP may need warmup - workspace/symbol might return 'No Project' on cold start"
+                        );
                     }
 
                     // Send workspace/symbol request to this server
@@ -319,6 +339,17 @@ impl LspService for DirectLspAdapter {
 
         // Get appropriate LSP client
         let client = self.get_or_create_client(&extension).await?;
+
+        // Check capabilities before sending requests that may not be supported
+        if method == "textDocument/diagnostic" {
+            if !client.supports_diagnostic_pull().await {
+                return Err(format!(
+                    "LSP server for '{}' does not support pull-model diagnostics (textDocument/diagnostic). \
+                     This server uses push-model diagnostics (textDocument/publishDiagnostics) instead.",
+                    extension
+                ));
+            }
+        }
 
         // Send LSP method DIRECTLY to client (bypassing old manager and its hard-coded mappings!)
         client
