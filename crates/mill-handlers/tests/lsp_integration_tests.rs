@@ -424,3 +424,140 @@ async fn test_search_symbols_rust_workspace() {
         "Symbol location should be in src/main.rs"
     );
 }
+
+#[tokio::test]
+async fn test_get_diagnostics_typescript() {
+    use mill_test_support::harness::LspSetupHelper;
+
+    let workspace = TestWorkspace::new();
+
+    // Check if typescript-language-server is available
+    if !LspSetupHelper::is_command_available("typescript-language-server") {
+        println!("Skipping test_get_diagnostics_typescript: typescript-language-server not found.");
+        return;
+    }
+
+    LspSetupHelper::setup_lsp_config(&workspace);
+
+    // Create TypeScript file with intentional errors
+    let ts_file = workspace.path().join("errors-file.ts");
+    std::fs::write(
+        &ts_file,
+        r#"// File with intentional TypeScript errors for diagnostic testing
+
+export interface ErrorData {
+  id: number;
+  message: string;
+}
+
+// Error: Using undefined variable
+export function processError(): ErrorData {
+  return {
+    id: undefinedVariable, // Error: undefinedVariable is not defined
+    message: 'Test error',
+  };
+}
+
+// Error: Type mismatch
+export function getErrorId(): string {
+  return 123; // Error: Type 'number' is not assignable to type 'string'
+}
+"#,
+    )
+    .expect("Failed to create TypeScript test file");
+
+    // Add package.json and tsconfig.json
+    std::fs::write(
+        workspace.path().join("package.json"),
+        r#"{"name": "test-diagnostics", "version": "1.0.0"}"#,
+    )
+    .expect("Failed to create package.json");
+
+    std::fs::write(
+        workspace.path().join("tsconfig.json"),
+        r#"{"compilerOptions": {"target": "ES2020", "module": "commonjs"}}"#,
+    )
+    .expect("Failed to create tsconfig.json");
+
+    let mut client = TestClient::new(workspace.path());
+
+    // Give the TypeScript LSP server time to start and index files
+    println!("DEBUG: Waiting for TypeScript LSP to start...");
+    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+
+    // Call find_definition first to ensure file is opened
+    // (this triggers diagnostics to be published via textDocument/publishDiagnostics)
+    println!("DEBUG: Calling find_definition to open the file...");
+    let _ = client
+        .call_tool(
+            "find_definition",
+            json!({
+                "file_path": ts_file.to_string_lossy(),
+                "line": 10,
+                "character": 5
+            }),
+        )
+        .await;
+
+    // Wait a bit longer for diagnostics to be published
+    println!("DEBUG: Waiting for diagnostics to be published...");
+    tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+
+    // Now call get_diagnostics
+    println!("DEBUG: Calling get_diagnostics...");
+    let response = client
+        .call_tool(
+            "get_diagnostics",
+            json!({
+                "file_path": ts_file.to_string_lossy()
+            }),
+        )
+        .await
+        .expect("get_diagnostics should succeed");
+
+    println!("DEBUG: get_diagnostics response: {:#?}", response);
+
+    // Check for errors
+    if let Some(error) = response.get("error") {
+        panic!(
+            "get_diagnostics returned an error: {}",
+            serde_json::to_string_pretty(error).unwrap()
+        );
+    }
+
+    // Extract diagnostics from response
+    let diagnostics = response["result"]["content"]["diagnostics"]
+        .as_array()
+        .expect("get_diagnostics should return diagnostics array");
+
+    println!("DEBUG: Found {} diagnostics", diagnostics.len());
+    for (i, diag) in diagnostics.iter().enumerate() {
+        println!("  Diagnostic {}: {:?}", i + 1, diag);
+    }
+
+    // Verify we got diagnostics for the errors
+    assert!(
+        !diagnostics.is_empty(),
+        "Should have at least one diagnostic for the TypeScript errors"
+    );
+
+    // Check for specific error messages
+    let diag_messages: Vec<String> = diagnostics
+        .iter()
+        .filter_map(|d| d["message"].as_str())
+        .map(|s| s.to_string())
+        .collect();
+
+    println!("DEBUG: Diagnostic messages: {:#?}", diag_messages);
+
+    // Should have error about undefinedVariable
+    assert!(
+        diag_messages
+            .iter()
+            .any(|msg| msg.contains("undefinedVariable") || msg.contains("not defined") || msg.contains("Cannot find")),
+        "Should have diagnostic about undefined variable"
+    );
+
+    println!("✅ get_diagnostics test passed!");
+    println!("  - Found {} diagnostics in errors-file.ts", diagnostics.len());
+}
