@@ -92,7 +92,7 @@ pub async fn plan_symbol_move(
                 error = %e,
                 "LSP symbol move failed, attempting AST fallback"
             );
-            ast_symbol_move_fallback(target_path, destination, context, operation_id).await
+            ast_symbol_move_fallback(target_path, destination, position, context, operation_id).await
         }
     }
 }
@@ -453,19 +453,97 @@ async fn try_lsp_symbol_move(
 
 /// AST-based fallback for symbol move
 async fn ast_symbol_move_fallback(
-    _target_path: &str,
-    _destination: &str,
-    _context: &mill_handler_api::ToolHandlerContext,
+    target_path: &str,
+    destination: &str,
+    position: Position,
+    context: &mill_handler_api::ToolHandlerContext,
     operation_id: &str,
 ) -> ServerResult<MovePlan> {
-    // For now, return unsupported error
-    // Full AST-based symbol move would require extensive analysis
-    error!(
+    info!(
         operation_id = %operation_id,
-        function = "ast_symbol_move_fallback",
-        "AST-based symbol move not yet implemented"
+        path = %target_path,
+        destination = %destination,
+        line = position.line,
+        character = position.character,
+        "Attempting AST-based symbol move"
     );
-    Err(ServerError::not_supported(
-        "AST-based symbol move not yet implemented. LSP server required.",
-    ))
+
+    // Read source file content
+    let source_path = Path::new(target_path);
+    let source_content = context
+        .app_state
+        .file_service
+        .read_file(source_path)
+        .await
+        .map_err(|e| {
+            error!(
+                operation_id = %operation_id,
+                path = %target_path,
+                error = %e,
+                "Failed to read source file"
+            );
+            ServerError::internal(format!("Failed to read source file: {}", e))
+        })?;
+
+    // Get PluginDiscovery from language_plugins
+    let plugin_discovery = context
+        .app_state
+        .language_plugins
+        .inner()
+        .downcast_ref::<mill_plugin_api::PluginDiscovery>()
+        .ok_or_else(|| {
+            error!(
+                operation_id = %operation_id,
+                "Failed to downcast to PluginDiscovery"
+            );
+            ServerError::internal("Failed to downcast to PluginDiscovery")
+        })?;
+
+    // Call AST-based symbol move through mill-ast
+    let edit_plan = mill_ast::refactoring::move_symbol::plan_symbol_move(
+        &source_content,
+        position.line,
+        position.character,
+        target_path,
+        destination,
+        Some(plugin_discovery),
+    )
+    .await
+    .map_err(|e| {
+        error!(
+            operation_id = %operation_id,
+            error = %e,
+            "AST-based symbol move failed"
+        );
+        ServerError::internal(format!("AST-based symbol move failed: {}", e))
+    })?;
+
+    // Convert EditPlan to MovePlan
+    let workspace_edit = super::converter::convert_edit_plan_to_workspace_edit(&edit_plan)?;
+
+    // Analyze the workspace edit to build MovePlan
+    let (file_checksums, summary, warnings) =
+        analyze_workspace_edit(&workspace_edit, context).await?;
+
+    let metadata = PlanMetadata {
+        plan_version: "1.0".to_string(),
+        kind: "move".to_string(),
+        language: crate::handlers::common::detect_language(target_path).to_string(),
+        estimated_impact: estimate_impact(summary.affected_files).to_string(),
+        created_at: chrono::Utc::now().to_rfc3339(),
+    };
+
+    info!(
+        operation_id = %operation_id,
+        affected_files = summary.affected_files,
+        "AST-based symbol move plan completed"
+    );
+
+    Ok(MovePlan {
+        edits: workspace_edit,
+        summary,
+        warnings,
+        metadata,
+        file_checksums,
+    })
 }

@@ -235,6 +235,21 @@ impl mill_plugin_api::RefactoringProvider for TypeScriptPlugin {
     ) -> mill_plugin_api::PluginResult<mill_foundation::protocol::EditPlan> {
         refactoring::plan_extract_constant(source, line, character, constant_name, file_path)
     }
+
+    fn supports_symbol_move(&self) -> bool {
+        true
+    }
+
+    async fn plan_symbol_move(
+        &self,
+        source: &str,
+        symbol_line: u32,
+        symbol_col: u32,
+        file_path: &str,
+        destination: &str,
+    ) -> mill_plugin_api::PluginResult<mill_foundation::protocol::EditPlan> {
+        refactoring::plan_symbol_move(source, symbol_line, symbol_col, file_path, destination)
+    }
 }
 
 impl mill_plugin_api::ImportAnalyzer for TypeScriptPlugin {

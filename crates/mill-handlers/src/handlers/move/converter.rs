@@ -109,6 +109,52 @@ async fn calculate_file_checksums(
     calculate_checksums_for_edits(edits, &[source_path.to_path_buf()], context).await
 }
 
+/// Convert EditPlan to LSP WorkspaceEdit (for symbol moves)
+/// This is a simpler conversion that doesn't include file rename operations
+pub fn convert_edit_plan_to_workspace_edit(
+    edit_plan: &EditPlan,
+) -> ServerResult<lsp_types::WorkspaceEdit> {
+    let mut changes = HashMap::new();
+
+    for edit in &edit_plan.edits {
+        let file_path = edit
+            .file_path
+            .as_ref()
+            .unwrap_or(&edit_plan.source_file);
+        let path = Path::new(file_path);
+        let uri = url::Url::from_file_path(path)
+            .map_err(|_| ServerError::invalid_request(format!("Invalid file path: {}", file_path)))?
+            .to_string()
+            .parse::<lsp_types::Uri>()
+            .map_err(|e| ServerError::internal(format!("Failed to parse URI: {}", e)))?;
+
+        let lsp_edit = LspTextEdit {
+            range: lsp_types::Range {
+                start: lsp_types::Position {
+                    line: edit.location.start_line,
+                    character: edit.location.start_column,
+                },
+                end: lsp_types::Position {
+                    line: edit.location.end_line,
+                    character: edit.location.end_column,
+                },
+            },
+            new_text: edit.new_text.clone(),
+        };
+
+        changes
+            .entry(uri)
+            .or_insert_with(Vec::new)
+            .push(lsp_edit);
+    }
+
+    Ok(lsp_types::WorkspaceEdit {
+        changes: Some(changes),
+        document_changes: None,
+        change_annotations: None,
+    })
+}
+
 /// Build LSP WorkspaceEdit from EditPlan edits
 fn build_workspace_edit(
     old_path: &Path,

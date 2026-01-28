@@ -12,6 +12,7 @@ pub mod common;
 pub mod extract_function;
 pub mod extract_variable;
 pub mod inline_variable;
+pub mod move_symbol;
 
 /// Trait for LSP refactoring service
 ///

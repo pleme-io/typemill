@@ -250,6 +250,35 @@ pub trait RefactoringProvider: Send + Sync {
         ))
     }
 
+    /// Check if symbol move refactoring is supported
+    fn supports_symbol_move(&self) -> bool {
+        false
+    }
+
+    /// Plan symbol move refactoring
+    ///
+    /// Analyzes the code and generates an edit plan for moving a symbol (function, class, etc.)
+    /// to a different file.
+    ///
+    /// # Arguments
+    ///
+    /// * `source` - Source code content
+    /// * `symbol_line` - Line number where symbol is defined (0-based)
+    /// * `symbol_col` - Column number where symbol is defined (0-based)
+    /// * `file_path` - Path to the source file
+    /// * `destination` - Path to the destination file
+    #[allow(clippy::too_many_arguments)]
+    async fn plan_symbol_move(
+        &self,
+        _source: &str,
+        _symbol_line: u32,
+        _symbol_col: u32,
+        _file_path: &str,
+        _destination: &str,
+    ) -> PluginResult<mill_foundation::protocol::EditPlan> {
+        Err(crate::PluginApiError::not_supported("plan_symbol_move"))
+    }
+
     // ============================================================================
     // Legacy sync methods - DEPRECATED
     // These exist for backwards compatibility but should not be used in new code

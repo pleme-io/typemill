@@ -8,7 +8,7 @@ use mill_lang_common::{
 };
 use mill_plugin_api::{PluginApiError, PluginResult};
 use std::path::PathBuf;
-use swc_common::{sync::Lrc, FileName, FilePathMapping, SourceMap};
+use swc_common::{sync::Lrc, FileName, FilePathMapping, SourceMap, SourceMapper, Spanned};
 use swc_ecma_ast::*;
 use swc_ecma_parser::{lexer::Lexer, Parser, StringInput, Syntax, TsSyntax};
 use swc_ecma_visit::{Visit, VisitWith};
@@ -63,7 +63,7 @@ pub fn plan_inline_variable(
     file_path: &str,
 ) -> PluginResult<EditPlan> {
     let analysis = analyze_inline_variable(source, variable_line, variable_col, file_path)?;
-    ast_inline_variable_ts_js(source, &analysis)
+    ast_inline_variable_ts_js(source, &analysis, file_path)
 }
 
 /// Plans an extract variable refactoring for TypeScript/JavaScript code.
@@ -176,6 +176,31 @@ pub fn plan_extract_constant(
     ast_extract_constant_ts_js(source, &analysis, name, file_path)
 }
 
+/// Plans a symbol move refactoring for TypeScript/JavaScript code.
+///
+/// Creates an edit plan that moves a symbol (function, class, constant, etc.)
+/// from one file to another, updating imports as needed.
+///
+/// # Arguments
+/// * `source` - The TypeScript/JavaScript source code
+/// * `symbol_line` - Zero-based line number where the symbol is defined
+/// * `symbol_col` - Zero-based character offset of the symbol
+/// * `file_path` - Path to the source file
+/// * `destination` - Path to the destination file
+///
+/// # Returns
+/// Edit plan with symbol removal from source and addition to destination
+pub fn plan_symbol_move(
+    source: &str,
+    symbol_line: u32,
+    symbol_col: u32,
+    file_path: &str,
+    destination: &str,
+) -> PluginResult<EditPlan> {
+    let analysis = analyze_symbol_move(source, symbol_line, symbol_col, file_path)?;
+    ast_symbol_move_ts_js(source, &analysis, file_path, destination)
+}
+
 fn ast_extract_function_ts_js(
     source: &str,
     range: &CodeRange,
@@ -226,6 +251,7 @@ fn ast_extract_function_ts_js(
 fn ast_inline_variable_ts_js(
     source: &str,
     analysis: &InlineVariableAnalysis,
+    file_path: &str,
 ) -> PluginResult<EditPlan> {
     if !analysis.is_safe_to_inline {
         return Err(PluginApiError::internal(format!(
@@ -270,7 +296,7 @@ fn ast_inline_variable_ts_js(
         description: format!("Remove declaration of '{}'", analysis.variable_name),
     });
 
-    Ok(EditPlanBuilder::new("inline_variable", "inline_variable")
+    Ok(EditPlanBuilder::new(file_path, "inline_variable")
         .with_edits(edits)
         .with_syntax_validation("Verify syntax is valid after inlining")
         .with_intent_args(serde_json::json!({
@@ -378,8 +404,8 @@ pub fn analyze_inline_variable(
     variable_col: u32,
     file_path: &str,
 ) -> PluginResult<InlineVariableAnalysis> {
-    let cm = create_source_map(source, file_path)?;
-    let module = parse_module(source, file_path)?;
+    // Parse module and get the source map used for parsing (important: must use same source map!)
+    let (module, cm) = parse_module_with_source_map(source, file_path)?;
     let mut analyzer = InlineVariableAnalyzer::new(source, variable_line, variable_col, cm);
     module.visit_with(&mut analyzer);
     analyzer.finalize()
@@ -963,27 +989,257 @@ impl ExtractFunctionAnalyzer {
 }
 
 struct InlineVariableAnalyzer {
-    #[allow(dead_code)]
+    source: String,
+    source_map: Lrc<SourceMap>,
     target_line: u32,
-    variable_info: Option<InlineVariableAnalysis>,
+    target_col: u32,
+    // Found variable info
+    variable_name: Option<String>,
+    declaration_range: Option<CodeRange>,
+    initializer_expression: Option<String>,
+    usage_locations: Vec<CodeRange>,
+    // Tracking state
+    in_declaration: bool,
+    declaration_kind: Option<VarDeclKind>,
+    blocking_reasons: Vec<String>,
+    // Parent VarDecl tracking for full statement deletion
+    current_var_decl_range: Option<CodeRange>,
+    current_var_decl_count: usize,
 }
 
 impl InlineVariableAnalyzer {
-    fn new(_source: &str, line: u32, _col: u32, _source_map: Lrc<SourceMap>) -> Self {
+    fn new(source: &str, line: u32, col: u32, source_map: Lrc<SourceMap>) -> Self {
         Self {
+            source: source.to_string(),
+            source_map,
             target_line: line,
-            variable_info: None,
+            target_col: col,
+            variable_name: None,
+            declaration_range: None,
+            initializer_expression: None,
+            usage_locations: Vec::new(),
+            in_declaration: false,
+            declaration_kind: None,
+            blocking_reasons: Vec::new(),
+            current_var_decl_range: None,
+            current_var_decl_count: 0,
         }
     }
+
+    fn span_to_code_range(&self, span: swc_common::Span) -> CodeRange {
+        let lo = self.source_map.lookup_char_pos(span.lo);
+        let hi = self.source_map.lookup_char_pos(span.hi);
+        CodeRange {
+            start_line: lo.line.saturating_sub(1) as u32, // SWC uses 1-based lines
+            start_col: lo.col_display as u32,
+            end_line: hi.line.saturating_sub(1) as u32,
+            end_col: hi.col_display as u32,
+        }
+    }
+
+    fn extract_source_text(&self, span: swc_common::Span) -> String {
+        // Use SWC's span_to_snippet to correctly extract text
+        // The span's byte positions are absolute within the SourceMap, not relative to our source string
+        self.source_map
+            .span_to_snippet(span)
+            .unwrap_or_else(|_| String::new())
+    }
+
     fn finalize(self) -> PluginResult<InlineVariableAnalysis> {
-        self.variable_info.ok_or_else(|| {
-            PluginApiError::internal("Could not find variable declaration at specified location")
-        })
+        match (
+            self.variable_name,
+            self.declaration_range,
+            self.initializer_expression,
+        ) {
+            (Some(name), Some(decl_range), Some(init_expr)) => {
+                // Filter out declaration from usages
+                let usages: Vec<CodeRange> = self
+                    .usage_locations
+                    .into_iter()
+                    .filter(|loc| {
+                        // Exclude the declaration itself
+                        !(loc.start_line == decl_range.start_line
+                            && loc.start_col >= decl_range.start_col
+                            && loc.end_col <= decl_range.end_col)
+                    })
+                    .collect();
+
+                let is_safe = self.blocking_reasons.is_empty();
+
+                Ok(InlineVariableAnalysis {
+                    variable_name: name,
+                    declaration_range: decl_range,
+                    initializer_expression: init_expr,
+                    usage_locations: usages,
+                    is_safe_to_inline: is_safe,
+                    blocking_reasons: self.blocking_reasons,
+                })
+            }
+            _ => Err(PluginApiError::internal(
+                "Could not find variable declaration at specified location",
+            )),
+        }
     }
 }
 
 impl Visit for InlineVariableAnalyzer {
-    // Simplified visit implementation
+    fn visit_var_decl(&mut self, node: &VarDecl) {
+        // Check if this var declaration is on our target line
+        let range = self.span_to_code_range(node.span);
+        if range.start_line == self.target_line {
+            self.in_declaration = true;
+            self.declaration_kind = Some(node.kind);
+            // Track the full VarDecl range and declarator count
+            self.current_var_decl_range = Some(range);
+            self.current_var_decl_count = node.decls.len();
+
+            // Check for blocking reasons based on declaration kind
+            if node.kind == VarDeclKind::Var {
+                self.blocking_reasons
+                    .push("'var' declarations may have complex hoisting behavior".to_string());
+            }
+        }
+
+        // Visit children
+        node.visit_children_with(self);
+
+        if range.start_line == self.target_line {
+            self.in_declaration = false;
+            self.current_var_decl_range = None;
+            self.current_var_decl_count = 0;
+        }
+    }
+
+    fn visit_var_declarator(&mut self, node: &VarDeclarator) {
+        let range = self.span_to_code_range(node.span);
+
+        // Check if this is on our target line and we haven't found one yet
+        if range.start_line == self.target_line && self.variable_name.is_none() {
+            // Extract variable name from pattern
+            if let Pat::Ident(binding) = &node.name {
+                self.variable_name = Some(binding.id.sym.to_string());
+
+                // Get declaration range - use full VarDecl if only one declarator
+                // This ensures we delete "const x = 1;" not just "x = 1"
+                self.declaration_range = if self.current_var_decl_count == 1 {
+                    self.current_var_decl_range.clone()
+                } else {
+                    Some(range)
+                };
+
+                // Extract initializer if present
+                if let Some(init) = &node.init {
+                    let init_text = self.extract_source_text(init.span());
+                    self.initializer_expression = Some(init_text);
+
+                    // Check for complex initializers that may be unsafe
+                    match init.as_ref() {
+                        Expr::Fn(_) | Expr::Arrow(_) => {
+                            self.blocking_reasons
+                                .push("Function expressions may have different 'this' binding when inlined".to_string());
+                        }
+                        Expr::Await(_) => {
+                            self.blocking_reasons
+                                .push("Await expressions may change execution order when inlined multiple times".to_string());
+                        }
+                        Expr::Call(_) => {
+                            // Function calls might have side effects
+                            if self.usage_locations.len() > 1 {
+                                self.blocking_reasons.push(
+                                    "Function call may have side effects if inlined multiple times"
+                                        .to_string(),
+                                );
+                            }
+                        }
+                        _ => {}
+                    }
+                } else {
+                    self.blocking_reasons
+                        .push("Variable has no initializer".to_string());
+                }
+            } else {
+                // Destructuring patterns are complex to inline
+                self.blocking_reasons
+                    .push("Destructuring patterns cannot be inlined".to_string());
+            }
+        }
+
+        // Continue visiting to find usages
+        node.visit_children_with(self);
+    }
+
+    fn visit_ident(&mut self, node: &Ident) {
+        // If we've found our variable, track usages
+        if let Some(ref var_name) = self.variable_name {
+            if node.sym.as_ref() == var_name && !self.in_declaration {
+                let range = self.span_to_code_range(node.span);
+                self.usage_locations.push(range);
+            }
+        }
+    }
+
+    fn visit_assign_expr(&mut self, node: &AssignExpr) {
+        // Check if this is a reassignment of our variable
+        if let Some(ref var_name) = self.variable_name {
+            match &node.left {
+                AssignTarget::Simple(simple) => {
+                    if let SimpleAssignTarget::Ident(binding) = simple {
+                        if binding.id.sym.as_ref() == var_name {
+                            self.blocking_reasons
+                                .push("Variable is reassigned after declaration".to_string());
+                        }
+                    }
+                }
+                AssignTarget::Pat(pat) => {
+                    // Check for destructuring patterns that might include our variable
+                    match pat {
+                        AssignTargetPat::Array(arr) => {
+                            for elem in arr.elems.iter().flatten() {
+                                if let Pat::Ident(binding) = elem {
+                                    if binding.id.sym.as_ref() == var_name {
+                                        self.blocking_reasons.push(
+                                            "Variable is reassigned in destructuring pattern"
+                                                .to_string(),
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                        AssignTargetPat::Object(obj) => {
+                            for prop in &obj.props {
+                                if let ObjectPatProp::Assign(assign) = prop {
+                                    if assign.key.sym.as_ref() == var_name {
+                                        self.blocking_reasons.push(
+                                            "Variable is reassigned in destructuring pattern"
+                                                .to_string(),
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                        AssignTargetPat::Invalid(_) => {}
+                    }
+                }
+            }
+        }
+
+        // Continue visiting
+        node.visit_children_with(self);
+    }
+
+    fn visit_update_expr(&mut self, node: &UpdateExpr) {
+        // Check for ++/-- on our variable
+        if let Some(ref var_name) = self.variable_name {
+            if let Expr::Ident(ident) = node.arg.as_ref() {
+                if ident.sym.as_ref() == var_name {
+                    self.blocking_reasons
+                        .push("Variable is modified with ++/-- operator".to_string());
+                }
+            }
+        }
+
+        node.visit_children_with(self);
+    }
 }
 
 // --- Helper Functions (moved from mill-ast) ---
@@ -1017,7 +1273,15 @@ fn create_source_map(source: &str, file_path: &str) -> PluginResult<Lrc<SourceMa
 }
 
 fn parse_module(source: &str, file_path: &str) -> PluginResult<Module> {
-    let cm = create_source_map(source, file_path)?;
+    let (module, _) = parse_module_with_source_map(source, file_path)?;
+    Ok(module)
+}
+
+fn parse_module_with_source_map(
+    source: &str,
+    file_path: &str,
+) -> PluginResult<(Module, Lrc<SourceMap>)> {
+    let cm = Lrc::new(SourceMap::new(FilePathMapping::empty()));
     let file_name = Lrc::new(FileName::Real(std::path::PathBuf::from(file_path)));
     let source_file = cm.new_source_file(file_name, source.to_string());
     let lexer = Lexer::new(
@@ -1033,9 +1297,10 @@ fn parse_module(source: &str, file_path: &str) -> PluginResult<Module> {
         None,
     );
     let mut parser = Parser::new_from(lexer);
-    parser
+    let module = parser
         .parse_module()
-        .map_err(|e| PluginApiError::parse(format!("Failed to parse module: {:?}", e)))
+        .map_err(|e| PluginApiError::parse(format!("Failed to parse module: {:?}", e)))?;
+    Ok((module, cm))
 }
 
 fn extract_range_text(source: &str, range: &CodeRange) -> PluginResult<String> {
@@ -1140,6 +1405,328 @@ fn suggest_variable_name(expression: &str) -> String {
 #[allow(dead_code)]
 fn is_valid_literal_location(line: &str, pos: usize, len: usize) -> bool {
     is_valid_code_literal_location(line, pos, len)
+}
+
+// ============================================================================
+// Symbol Move Analysis
+// ============================================================================
+
+/// Analysis results for a symbol move operation
+#[derive(Debug)]
+struct SymbolMoveAnalysis {
+    /// Name of the symbol being moved
+    symbol_name: String,
+    /// Full text of the symbol definition
+    symbol_text: String,
+    /// Range of the symbol definition in source
+    symbol_range: CodeRange,
+    /// Whether the symbol is exported
+    is_exported: bool,
+    /// Symbol kind (function, class, variable, etc.)
+    symbol_kind: SymbolKind,
+}
+
+/// Kind of symbol being moved
+#[derive(Debug)]
+enum SymbolKind {
+    Function,
+    Class,
+    Variable,
+    TypeAlias,
+    Interface,
+    Enum,
+}
+
+/// Analyze source code to find symbol at the given position
+fn analyze_symbol_move(
+    source: &str,
+    symbol_line: u32,
+    _symbol_col: u32,
+    file_path: &str,
+) -> PluginResult<SymbolMoveAnalysis> {
+    let (module, cm) = parse_module_with_source_map(source, file_path)?;
+    let mut analyzer = SymbolMoveAnalyzer::new(source, symbol_line, cm);
+    module.visit_with(&mut analyzer);
+    analyzer.finalize()
+}
+
+/// AST visitor for finding symbols to move
+struct SymbolMoveAnalyzer {
+    source: String,
+    source_map: Lrc<SourceMap>,
+    target_line: u32,
+    // Found symbol info
+    symbol_name: Option<String>,
+    symbol_range: Option<CodeRange>,
+    symbol_text: Option<String>,
+    is_exported: bool,
+    symbol_kind: Option<SymbolKind>,
+}
+
+impl SymbolMoveAnalyzer {
+    fn new(source: &str, line: u32, source_map: Lrc<SourceMap>) -> Self {
+        Self {
+            source: source.to_string(),
+            source_map,
+            target_line: line,
+            symbol_name: None,
+            symbol_range: None,
+            symbol_text: None,
+            is_exported: false,
+            symbol_kind: None,
+        }
+    }
+
+    fn span_to_code_range(&self, span: swc_common::Span) -> CodeRange {
+        let lo = self.source_map.lookup_char_pos(span.lo);
+        let hi = self.source_map.lookup_char_pos(span.hi);
+        CodeRange {
+            start_line: lo.line.saturating_sub(1) as u32,
+            start_col: lo.col_display as u32,
+            end_line: hi.line.saturating_sub(1) as u32,
+            end_col: hi.col_display as u32,
+        }
+    }
+
+    fn extract_source_text(&self, span: swc_common::Span) -> String {
+        self.source_map
+            .span_to_snippet(span)
+            .unwrap_or_else(|_| String::new())
+    }
+
+    fn finalize(self) -> PluginResult<SymbolMoveAnalysis> {
+        match (
+            self.symbol_name,
+            self.symbol_range,
+            self.symbol_text,
+            self.symbol_kind,
+        ) {
+            (Some(name), Some(range), Some(text), Some(kind)) => Ok(SymbolMoveAnalysis {
+                symbol_name: name,
+                symbol_text: text,
+                symbol_range: range,
+                is_exported: self.is_exported,
+                symbol_kind: kind,
+            }),
+            _ => Err(PluginApiError::internal(
+                "Could not find symbol definition at specified location",
+            )),
+        }
+    }
+}
+
+impl Visit for SymbolMoveAnalyzer {
+    fn visit_fn_decl(&mut self, node: &FnDecl) {
+        let range = self.span_to_code_range(node.function.span);
+        if range.start_line == self.target_line && self.symbol_name.is_none() {
+            self.symbol_name = Some(node.ident.sym.to_string());
+            self.symbol_range = Some(range);
+            self.symbol_text = Some(self.extract_source_text(node.function.span));
+            self.symbol_kind = Some(SymbolKind::Function);
+        }
+    }
+
+    fn visit_var_decl(&mut self, node: &VarDecl) {
+        let range = self.span_to_code_range(node.span);
+        if range.start_line == self.target_line && self.symbol_name.is_none() {
+            if let Some(decl) = node.decls.first() {
+                if let Pat::Ident(binding) = &decl.name {
+                    self.symbol_name = Some(binding.id.sym.to_string());
+                    self.symbol_range = Some(range);
+                    self.symbol_text = Some(self.extract_source_text(node.span));
+                    self.symbol_kind = Some(SymbolKind::Variable);
+                }
+            }
+        }
+        node.visit_children_with(self);
+    }
+
+    fn visit_class_decl(&mut self, node: &ClassDecl) {
+        let range = self.span_to_code_range(node.class.span);
+        if range.start_line == self.target_line && self.symbol_name.is_none() {
+            self.symbol_name = Some(node.ident.sym.to_string());
+            self.symbol_range = Some(range);
+            self.symbol_text = Some(self.extract_source_text(node.class.span));
+            self.symbol_kind = Some(SymbolKind::Class);
+        }
+    }
+
+    fn visit_ts_type_alias_decl(&mut self, node: &TsTypeAliasDecl) {
+        let range = self.span_to_code_range(node.span);
+        if range.start_line == self.target_line && self.symbol_name.is_none() {
+            self.symbol_name = Some(node.id.sym.to_string());
+            self.symbol_range = Some(range);
+            self.symbol_text = Some(self.extract_source_text(node.span));
+            self.symbol_kind = Some(SymbolKind::TypeAlias);
+        }
+    }
+
+    fn visit_ts_interface_decl(&mut self, node: &TsInterfaceDecl) {
+        let range = self.span_to_code_range(node.span);
+        if range.start_line == self.target_line && self.symbol_name.is_none() {
+            self.symbol_name = Some(node.id.sym.to_string());
+            self.symbol_range = Some(range);
+            self.symbol_text = Some(self.extract_source_text(node.span));
+            self.symbol_kind = Some(SymbolKind::Interface);
+        }
+    }
+
+    fn visit_ts_enum_decl(&mut self, node: &TsEnumDecl) {
+        let range = self.span_to_code_range(node.span);
+        if range.start_line == self.target_line && self.symbol_name.is_none() {
+            self.symbol_name = Some(node.id.sym.to_string());
+            self.symbol_range = Some(range);
+            self.symbol_text = Some(self.extract_source_text(node.span));
+            self.symbol_kind = Some(SymbolKind::Enum);
+        }
+    }
+
+    fn visit_export_decl(&mut self, node: &ExportDecl) {
+        // Check if this export is on our target line
+        let range = self.span_to_code_range(node.span);
+        if range.start_line == self.target_line {
+            self.is_exported = true;
+            // The full export including the 'export' keyword
+            self.symbol_range = Some(range);
+            self.symbol_text = Some(self.extract_source_text(node.span));
+        }
+        // Continue visiting to capture the declaration
+        node.visit_children_with(self);
+    }
+}
+
+/// Generate edit plan for moving a symbol from source to destination
+fn ast_symbol_move_ts_js(
+    _source: &str,
+    analysis: &SymbolMoveAnalysis,
+    source_file: &str,
+    destination: &str,
+) -> PluginResult<EditPlan> {
+    let mut edits = Vec::new();
+
+    // Edit 1: Remove symbol from source file
+    edits.push(TextEdit {
+        file_path: Some(source_file.to_string()),
+        edit_type: EditType::Delete,
+        location: analysis.symbol_range.into(),
+        original_text: analysis.symbol_text.clone(),
+        new_text: String::new(),
+        priority: 100,
+        description: format!("Remove '{}' from source file", analysis.symbol_name),
+    });
+
+    // Edit 2: Add symbol to destination file
+    // For simplicity, we add at the end of the destination file
+    // A more sophisticated implementation would find the best insertion point
+    let symbol_text = if analysis.is_exported {
+        analysis.symbol_text.clone()
+    } else {
+        format!("export {}", analysis.symbol_text)
+    };
+
+    edits.push(TextEdit {
+        file_path: Some(destination.to_string()),
+        edit_type: EditType::Insert,
+        location: mill_foundation::protocol::EditLocation {
+            start_line: u32::MAX, // End of file
+            start_column: 0,
+            end_line: u32::MAX,
+            end_column: 0,
+        },
+        original_text: String::new(),
+        new_text: format!("\n{}\n", symbol_text),
+        priority: 90,
+        description: format!("Add '{}' to destination file", analysis.symbol_name),
+    });
+
+    // Edit 3: Add import in source file (if symbol was used elsewhere)
+    // Note: A full implementation would analyze usage and only add import if needed
+    let relative_path = compute_relative_import(source_file, destination)?;
+    let import_statement = format!(
+        "import {{ {} }} from '{}';\n",
+        analysis.symbol_name, relative_path
+    );
+
+    edits.push(TextEdit {
+        file_path: Some(source_file.to_string()),
+        edit_type: EditType::Insert,
+        location: mill_foundation::protocol::EditLocation {
+            start_line: 0,
+            start_column: 0,
+            end_line: 0,
+            end_column: 0,
+        },
+        original_text: String::new(),
+        new_text: import_statement,
+        priority: 80,
+        description: format!(
+            "Add import for '{}' from '{}'",
+            analysis.symbol_name, relative_path
+        ),
+    });
+
+    Ok(EditPlanBuilder::new(source_file, "move_symbol")
+        .with_edits(edits)
+        .with_syntax_validation("Verify syntax is valid after move")
+        .with_intent_args(serde_json::json!({
+            "symbol": analysis.symbol_name,
+            "destination": destination,
+        }))
+        .with_complexity(3)
+        .with_impact_area("symbol_move")
+        .build())
+}
+
+/// Compute relative import path from source to destination
+fn compute_relative_import(source_file: &str, destination: &str) -> PluginResult<String> {
+    use std::path::Path;
+
+    let source_path = Path::new(source_file);
+    let dest_path = Path::new(destination);
+
+    // Get parent directories
+    let source_dir = source_path
+        .parent()
+        .ok_or_else(|| PluginApiError::internal("Invalid source path"))?;
+    let dest_dir = dest_path
+        .parent()
+        .ok_or_else(|| PluginApiError::internal("Invalid destination path"))?;
+
+    // Get destination file stem (without extension)
+    let dest_stem = dest_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| PluginApiError::internal("Invalid destination filename"))?;
+
+    // Compute relative path
+    if source_dir == dest_dir {
+        // Same directory
+        Ok(format!("./{}", dest_stem))
+    } else {
+        // Different directories - use pathdiff crate logic or simple approach
+        // For now, a simple approach: go up from source and down to dest
+        // This is a simplified version; a real implementation would use proper path diffing
+        match pathdiff::diff_paths(dest_path, source_dir) {
+            Some(relative) => {
+                let rel_str = relative
+                    .to_str()
+                    .ok_or_else(|| PluginApiError::internal("Invalid relative path"))?;
+                // Remove .ts/.js extension
+                let without_ext = rel_str
+                    .trim_end_matches(".ts")
+                    .trim_end_matches(".tsx")
+                    .trim_end_matches(".js")
+                    .trim_end_matches(".jsx");
+                // Ensure starts with ./
+                if without_ext.starts_with("..") || without_ext.starts_with('.') {
+                    Ok(without_ext.to_string())
+                } else {
+                    Ok(format!("./{}", without_ext))
+                }
+            }
+            None => Ok(format!("./{}", dest_stem)),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1316,5 +1903,46 @@ mod tests {
         assert!(!is_valid_number("abc"), "Should reject non-numeric string");
         assert!(!is_valid_number("0x"), "Should reject incomplete hex");
         assert!(!is_valid_number("0b"), "Should reject incomplete binary");
+    }
+}
+
+#[cfg(test)]
+mod inline_variable_tests {
+    use super::*;
+
+    #[test]
+    fn test_analyze_inline_variable_basic() {
+        let source = r#"export const asyncABC = async () => {
+  const somethingSlow = (index: 0 | 1 | 2) => {
+    const storage = 'abc'.charAt(index);
+    return new Promise<string>((resolve) =>
+      resolve(storage)
+    );
+  };
+  const a = await somethingSlow(0);
+  const b = await somethingSlow(1);
+  const c = await somethingSlow(2);
+  return [a, b, c];
+};"#;
+
+        // Line 7 (0-indexed) is "  const a = await somethingSlow(0);"
+        // Character 8 is 'a'
+        let result = analyze_inline_variable(source, 7, 8, "test.ts");
+        
+        match &result {
+            Ok(analysis) => {
+                println!("SUCCESS!");
+                println!("Variable name: {}", analysis.variable_name);
+                println!("Declaration range: {:?}", analysis.declaration_range);
+                println!("Initializer: {}", analysis.initializer_expression);
+                println!("Usages: {:?}", analysis.usage_locations);
+                println!("Safe to inline: {}", analysis.is_safe_to_inline);
+            }
+            Err(e) => {
+                println!("FAILED: {:?}", e);
+            }
+        }
+        
+        assert!(result.is_ok(), "Should successfully analyze the variable: {:?}", result);
     }
 }
