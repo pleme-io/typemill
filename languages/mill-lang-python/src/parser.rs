@@ -236,12 +236,11 @@ pub(crate) enum PythonValueType {
 /// # Returns
 /// A `PythonValueType` enum variant representing the inferred type
 ///
-/// # Examples
-/// ```rust
-/// assert_eq!(infer_python_value_type("\"hello\""), PythonValueType::String);
-/// assert_eq!(infer_python_value_type("[1, 2, 3]"), PythonValueType::List);
-/// assert_eq!(infer_python_value_type("42"), PythonValueType::Number);
-/// ```
+/// # Example Usage
+///
+/// - `infer_python_value_type("\"hello\"")` returns `PythonValueType::String`
+/// - `infer_python_value_type("[1, 2, 3]")` returns `PythonValueType::List`
+/// - `infer_python_value_type("42")` returns `PythonValueType::Number`
 fn infer_python_value_type(value: &str) -> PythonValueType {
     let value = value.trim();
     if value.starts_with('"') || value.starts_with('\'') {
