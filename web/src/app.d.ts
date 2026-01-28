@@ -10,4 +10,6 @@ declare global {
 	}
 }
 
+declare module '@goobits/docs-engine/components';
+
 export {};

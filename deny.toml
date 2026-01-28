@@ -178,9 +178,37 @@ allow = [
 skip = [
     # Transitive dependencies - cannot control
     { crate = "bitflags@1.3.2", reason = "lsp-types requires v1, swc requires v2 - cannot control transitive deps" },
-    { crate = "getrandom@0.2.16", reason = "jsonwebtoken requires v0.2, newer crates use v0.3 - different major versions" },
+    { crate = "getrandom@0.2.17", reason = "jsonwebtoken requires v0.2, newer crates use v0.3 - different major versions" },
     { crate = "hashbrown@0.14.5", reason = "transitive from dashmap/indexmap - internal to collections" },
     { crate = "hashbrown@0.15.5", reason = "transitive from dashmap/indexmap - internal to collections" },
+
+    # Transitive dependencies - duplicates
+    { crate = "console@0.15.11", reason = "dialoguer requires v0.15, indicatif requires v0.16" },
+    { crate = "dirs@5.0.1", reason = "mill-transport requires v5, others use v6" },
+    { crate = "dirs-sys@0.4.1", reason = "transitive from dirs v5" },
+    { crate = "foldhash@0.1.5", reason = "petgraph -> hashbrown uses v0.1" },
+    { crate = "redox_users@0.4.6", reason = "transitive from dirs v5" },
+
+    # Windows dependencies - multiple versions required by transitive deps
+    { crate = "windows-sys@0.48.0", reason = "transitive dependency" },
+    { crate = "windows-sys@0.52.0", reason = "transitive dependency" },
+    { crate = "windows-sys@0.59.0", reason = "transitive dependency" },
+    { crate = "windows-sys@0.60.2", reason = "transitive dependency" },
+    { crate = "windows-targets@0.48.5", reason = "transitive dependency" },
+    { crate = "windows-targets@0.52.6", reason = "transitive dependency" },
+    { crate = "windows-targets@0.53.5", reason = "transitive dependency" },
+    { crate = "windows_i686_msvc@0.48.5", reason = "transitive dependency" },
+    { crate = "windows_i686_msvc@0.52.6", reason = "transitive dependency" },
+    { crate = "windows_i686_msvc@0.53.1", reason = "transitive dependency" },
+    { crate = "windows_x86_64_gnu@0.48.5", reason = "transitive dependency" },
+    { crate = "windows_x86_64_gnu@0.52.6", reason = "transitive dependency" },
+    { crate = "windows_x86_64_gnu@0.53.1", reason = "transitive dependency" },
+    { crate = "windows_x86_64_gnullvm@0.48.5", reason = "transitive dependency" },
+    { crate = "windows_x86_64_gnullvm@0.52.6", reason = "transitive dependency" },
+    { crate = "windows_x86_64_gnullvm@0.53.1", reason = "transitive dependency" },
+    { crate = "windows_x86_64_msvc@0.48.5", reason = "transitive dependency" },
+    { crate = "windows_x86_64_msvc@0.52.6", reason = "transitive dependency" },
+    { crate = "windows_x86_64_msvc@0.53.1", reason = "transitive dependency" },
 
     # Proc-macro crates - duplicates are acceptable
     { crate = "thiserror-impl@1.0.69", reason = "proc-macro crate - duplicates are safe" },
@@ -237,7 +265,7 @@ skip-tree = [
 
 [[bans.deny]]
 name = "mill-services"
-wrappers = ["mill-handlers", "mill-server", "mill-client", "mill", "mill-test-support", "e2e"]
+wrappers = ["mill-handler-api", "mill-handlers", "mill-server", "mill-client", "mill", "mill-test-support", "e2e"]
 
 [[bans.deny]]
 name = "mill-ast"
@@ -245,11 +273,11 @@ wrappers = ["mill-transport", "mill-services", "mill-plugin-system", "mill-handl
 
 [[bans.deny]]
 name = "mill-lsp"
-wrappers = ["mill-services", "mill-handlers", "mill-server", "mill", "mill-test-support", "e2e"]
+wrappers = ["mill-services", "mill-handler-api", "mill-handlers", "mill-server", "mill", "mill-test-support", "e2e"]
 
 [[bans.deny]]
 name = "mill-plugin-system"
-wrappers = ["mill-services", "mill-handlers", "mill-server", "mill-client", "mill", "mill-test-support", "e2e"]
+wrappers = ["mill-services", "mill-handler-api", "mill-handlers", "mill-server", "mill-client", "mill", "mill-test-support", "e2e"]
 
 [[bans.deny]]
 name = "mill-plugin-bundle"
@@ -306,7 +334,18 @@ wrappers = ["mill-test-support", "e2e"]
 
 [[bans.deny]]
 name = "mill-test-support"
-wrappers = ["mill", "e2e"]
+wrappers = [
+    "mill",
+    "e2e",
+    "mill-handlers",
+    "mill-lang-gitignore",
+    "mill-lang-markdown",
+    "mill-lang-python",
+    "mill-lang-toml",
+    "mill-lang-typescript",
+    "mill-lang-yaml",
+    "mill-lang-rust"
+]
 
 # List of features to allow/deny
 # Each entry the name of a crate and a version range. If version is

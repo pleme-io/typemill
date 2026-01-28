@@ -65,20 +65,13 @@
 		marked.setOptions({
 			gfm: true,
 			breaks: false,
-			headerIds: true,
-			mangle: false,
-			highlight: function(code, lang) {
-				if (lang && hljs.getLanguage(lang)) {
-					try {
-						return hljs.highlight(code, { language: lang }).value;
-					} catch (err) {
-						console.error('Highlight error:', err);
-					}
-				}
-				return code;
-			}
 		});
-		htmlContent = marked.parse(data.content);
+		const parsed = marked.parse(data.content);
+		if (parsed instanceof Promise) {
+			parsed.then((res) => (htmlContent = res));
+		} else {
+			htmlContent = parsed;
+		}
 	}
 
 	// Apply syntax highlighting after mount
