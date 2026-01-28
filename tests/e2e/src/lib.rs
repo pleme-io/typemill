@@ -95,6 +95,10 @@ pub mod test_workspace_find_replace;
 #[cfg(test)]
 pub mod test_cross_platform;
 
+// TypeScript manual integration tests
+#[cfg(test)]
+pub mod test_typescript_manual;
+
 #[cfg(test)]
 pub use harness::{TestClient, TestWorkspace};
 pub use helpers::*;
