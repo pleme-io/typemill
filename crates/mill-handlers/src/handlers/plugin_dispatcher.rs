@@ -347,7 +347,7 @@ impl PluginDispatcher {
                     InternalEditingToolsHandler, InternalIntelligenceHandler, InternalNavigationHandler,
                     InternalWorkspaceHandler, LifecycleHandler, NavigationHandler,
                     SystemToolsHandler, WorkspaceToolsHandler, WorkspaceCreateHandler, WorkspaceExtractDepsHandler,
-                    WorkspaceUpdateMembersHandler, WorkspaceAddJavaDependencyHandler,
+                    WorkspaceUpdateMembersHandler,
                 };
                 use super::workspace::FindReplaceHandler;
                 use super::FileOperationHandler;
@@ -368,7 +368,6 @@ impl PluginDispatcher {
                     WorkspaceCreateHandler => "WorkspaceCreateHandler with 1 tool (workspace.create_package)",
                     WorkspaceExtractDepsHandler => "WorkspaceExtractDepsHandler with 1 tool (workspace.extract_dependencies)",
                     WorkspaceUpdateMembersHandler => "WorkspaceUpdateMembersHandler with 1 tool (workspace.update_members)",
-                    WorkspaceAddJavaDependencyHandler => "WorkspaceAddJavaDependencyHandler with 1 tool (workspace.add_java_dependency)",
                     FindReplaceHandler => "FindReplaceHandler with 1 tool (workspace.find_replace)"
                 });
 

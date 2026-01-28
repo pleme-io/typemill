@@ -494,7 +494,7 @@ fn gcd(mut a: usize, mut b: usize) -> usize {
 /// that understands the language's syntax for strings, comments, and other contexts.
 ///
 /// For example:
-/// ```rust
+/// ```rust,ignore
 /// fn is_valid_typescript_location(line: &str, pos: usize, len: usize) -> bool {
 ///     // Check for strings with ", ', `
 ///     // Check for comments with //, /* */

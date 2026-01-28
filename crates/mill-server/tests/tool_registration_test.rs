@@ -8,7 +8,7 @@ async fn test_all_public_tools_are_registered() {
     let registry = dispatcher.tool_registry.lock().await;
     let registered_tools = registry.list_tools();
 
-    const EXPECTED_TOOLS: [&str; 21] = [
+    const EXPECTED_TOOLS: [&str; 20] = [
         // Navigation (8) - get_document_symbols moved to internal
         "find_definition",
         "find_references",
@@ -26,12 +26,11 @@ async fn test_all_public_tools_are_registered() {
         "reorder",
         "transform",
         "delete",
-        // Workspace (5)
+        // Workspace (4)
         "workspace.create_package",
         "workspace.extract_dependencies",
         "workspace.update_members",
         "workspace.find_replace",
-        "workspace.add_java_dependency",
         // System (1)
         "health_check",
     ];

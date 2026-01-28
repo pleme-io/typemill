@@ -27,33 +27,17 @@
 use serde_json::json;
 use std::collections::HashMap;
 
-/// Supported programming languages
+/// Supported programming languages (core languages only)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Language {
     TypeScript,
     Rust,
     Python,
-    Java,
-    Go,
-    CSharp,
-    Swift,
-    C,
-    Cpp,
 }
 
 impl Language {
     pub fn all() -> Vec<Language> {
-        vec![
-            Language::TypeScript,
-            Language::Rust,
-            Language::Python,
-            Language::Java,
-            Language::Go,
-            Language::CSharp,
-            Language::Swift,
-            Language::C,
-            Language::Cpp,
-        ]
+        vec![Language::TypeScript, Language::Rust, Language::Python]
     }
 
     pub fn file_extension(&self) -> &'static str {
@@ -61,35 +45,22 @@ impl Language {
             Language::TypeScript => "ts",
             Language::Rust => "rs",
             Language::Python => "py",
-            Language::Java => "java",
-            Language::Go => "go",
-            Language::CSharp => "cs",
-            Language::Swift => "swift",
-            Language::C => "c",
-            Language::Cpp => "cpp",
         }
     }
 
     pub fn supports_refactoring(&self) -> bool {
-        // All languages have AST-based stub implementations
-        // LSP is tried first, with AST fallback
+        // All core languages have full refactoring support
         true
     }
 
     pub fn supports_imports(&self) -> bool {
-        // All languages support imports
+        // All core languages support imports
         true
     }
 
     pub fn supports_workspace(&self) -> bool {
-        match self {
-            Language::TypeScript
-            | Language::Rust
-            | Language::Python
-            | Language::Java
-            | Language::Go => true,
-            Language::CSharp | Language::Swift | Language::C | Language::Cpp => false,
-        }
+        // All core languages support workspaces
+        true
     }
 }
 

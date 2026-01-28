@@ -2,7 +2,7 @@
 //!
 //! This module provides a parameterized testing framework for import operations
 //! across multiple programming languages. It enables writing a single test that runs
-//! against equivalent code in TypeScript, Rust, Python, Java, Go, C#, Swift, C, and C++.
+//! against equivalent code in TypeScript, Rust, and Python.
 //!
 //! ## Design Philosophy
 //!
@@ -22,11 +22,11 @@
 //!
 //! ## Example Usage
 //!
-//! ```rust,no_run
+//! ```text
 //! fn test_parse_imports_all_languages() {
 //!     let test_case = ImportScenarios::parse_simple_imports();
 //!     for fixture in test_case.fixtures {
-//!         // Test runs on TypeScript, Rust, Python, Java, Go, C#, Swift, C, C++
+//!         // Test runs on TypeScript, Rust, Python
 //!         assert!(fixture.expected_imports.len() > 0);
 //!     }
 //! }
@@ -38,16 +38,8 @@ pub use super::refactoring_harness::Language;
 // Extend Language enum with import-specific helper
 impl Language {
     pub fn all_with_import_support() -> Vec<Language> {
-        // 5 languages with full import support
-        // Note: Java requires Maven-built JAR (see mill-lang-java/resources/java-parser/README.md)
-        // Note: C/C++ lack mutation support, C# has stub implementations
-        vec![
-            Language::TypeScript,
-            Language::Rust,
-            Language::Python,
-            Language::Go,
-            Language::Swift,
-        ]
+        // Core languages with full import support
+        vec![Language::TypeScript, Language::Rust, Language::Python]
     }
 }
 
@@ -147,42 +139,11 @@ impl ImportScenarios {
                 ),
                 Language::Rust => (
                     "use std::collections::HashMap;\nuse crate::utils::helper;\n",
-                    // Rust parser returns module paths, not full import paths
                     vec!["std::collections".to_string(), "crate::utils".to_string()],
                 ),
                 Language::Python => (
                     "import os\nfrom typing import List\n",
                     vec!["os".to_string(), "typing".to_string()],
-                ),
-                Language::Java => (
-                    "package com.example;\n\nimport java.util.List;\nimport java.util.ArrayList;\n",
-                    vec![
-                        "java.util.List".to_string(),
-                        "java.util.ArrayList".to_string(),
-                    ],
-                ),
-                Language::Go => (
-                    "package main\n\nimport \"fmt\"\nimport \"os\"\n",
-                    vec!["fmt".to_string(), "os".to_string()],
-                ),
-                Language::CSharp => (
-                    "using System;\nusing System.Collections.Generic;\n",
-                    vec![
-                        "System".to_string(),
-                        "System.Collections.Generic".to_string(),
-                    ],
-                ),
-                Language::Swift => (
-                    "import Foundation\nimport UIKit\n",
-                    vec!["Foundation".to_string(), "UIKit".to_string()],
-                ),
-                Language::C => (
-                    "#include <stdio.h>\n#include <stdlib.h>\n",
-                    vec!["stdio.h".to_string(), "stdlib.h".to_string()],
-                ),
-                Language::Cpp => (
-                    "#include <iostream>\n#include <vector>\n",
-                    vec!["iostream".to_string(), "vector".to_string()],
                 ),
             };
 
@@ -205,21 +166,9 @@ impl ImportScenarios {
                 ),
                 Language::Rust => (
                     "use std::collections::HashMap;\nuse crate::utils::helper;\n",
-                    "std::collections", // Rust uses module paths
+                    "std::collections",
                 ),
                 Language::Python => ("import os\nfrom typing import List\n", "os"),
-                Language::Java => (
-                    "package com.example;\n\nimport java.util.List;\nimport java.util.ArrayList;\n",
-                    "java.util.List",
-                ),
-                Language::Go => ("package main\n\nimport \"fmt\"\nimport \"os\"\n", "fmt"),
-                Language::CSharp => (
-                    "using System;\nusing System.Collections.Generic;\n",
-                    "System",
-                ),
-                Language::Swift => ("import Foundation\nimport UIKit\n", "Foundation"),
-                Language::C => ("#include <stdio.h>\n#include <stdlib.h>\n", "stdio.h"),
-                Language::Cpp => ("#include <iostream>\n#include <vector>\n", "iostream"),
             };
 
             ImportFixture {
@@ -246,18 +195,6 @@ impl ImportScenarios {
                     "std::fs",
                 ),
                 Language::Python => ("import os\nfrom typing import List\n", "json"),
-                Language::Java => (
-                    "package com.example;\n\nimport java.util.List;\nimport java.util.ArrayList;\n",
-                    "java.io.File",
-                ),
-                Language::Go => ("package main\n\nimport \"fmt\"\nimport \"os\"\n", "net"),
-                Language::CSharp => (
-                    "using System;\nusing System.Collections.Generic;\n",
-                    "System.IO",
-                ),
-                Language::Swift => ("import Foundation\nimport UIKit\n", "SwiftUI"),
-                Language::C => ("#include <stdio.h>\n#include <stdlib.h>\n", "string.h"),
-                Language::Cpp => ("#include <iostream>\n#include <vector>\n", "string"),
             };
 
             ImportFixture {
@@ -281,18 +218,9 @@ impl ImportScenarios {
                 ),
                 Language::Rust => (
                     "use std::collections::HashMap;\n\nfn main() {}\n",
-                    "serde", // This creates "use serde;" with module_path "serde" (exact match)
+                    "serde",
                 ),
                 Language::Python => ("import os\n\ndef main():\n    pass\n", "sys"),
-                Language::Java => (
-                    "package com.example;\n\nimport java.util.List;\n\nclass Main {}\n",
-                    "java.util.Map",
-                ),
-                Language::Go => ("package main\n\nimport \"fmt\"\n\nfunc main() {}\n", "os"),
-                Language::CSharp => ("using System;\n\nclass Program {}\n", "System.IO"),
-                Language::Swift => ("import Foundation\n\nfunc main() {}\n", "UIKit"),
-                Language::C => ("#include <stdio.h>\n\nint main() {}\n", "stdlib.h"),
-                Language::Cpp => ("#include <iostream>\n\nint main() {}\n", "vector"),
             };
 
             ImportFixture {
@@ -311,14 +239,8 @@ impl ImportScenarios {
         ImportTestCase::new("add_import_to_empty").with_all_languages(|lang| {
             let (source, module_to_add) = match lang {
                 Language::TypeScript => ("", "./utils"),
-                Language::Rust => ("", "serde"), // Creates "use serde;" with module_path "serde" (exact match)
+                Language::Rust => ("", "serde"),
                 Language::Python => ("", "os"),
-                Language::Java => ("", "java.util.List"),
-                Language::Go => ("", "fmt"),
-                Language::CSharp => ("", "System"),
-                Language::Swift => ("", "Foundation"),
-                Language::C => ("", "stdio.h"),
-                Language::Cpp => ("", "iostream"),
             };
 
             ImportFixture {
@@ -342,21 +264,9 @@ impl ImportScenarios {
                 ),
                 Language::Rust => (
                     "use std::collections::HashMap;\nuse serde::Serialize;\n",
-                    "serde", // Single segment matches both "serde" and "serde:: Serialize" in quote! output
+                    "serde",
                 ),
                 Language::Python => ("import os\nfrom typing import List\n", "os"),
-                Language::Java => (
-                    "package com.example;\n\nimport java.util.List;\nimport java.util.ArrayList;\n",
-                    "java.util.List",
-                ),
-                Language::Go => ("package main\n\nimport \"fmt\"\nimport \"os\"\n", "fmt"),
-                Language::CSharp => (
-                    "using System;\nusing System.Collections.Generic;\n",
-                    "System",
-                ),
-                Language::Swift => ("import Foundation\nimport UIKit\n", "Foundation"),
-                Language::C => ("#include <stdio.h>\n#include <stdlib.h>\n", "stdio.h"),
-                Language::Cpp => ("#include <iostream>\n#include <vector>\n", "iostream"),
             };
 
             ImportFixture {
@@ -375,18 +285,14 @@ impl ImportScenarios {
         ImportTestCase::new("rewrite_for_module_rename").with_all_languages(|lang| {
             let (source, old_name, new_name, expected_count) = match lang {
                 Language::TypeScript => (
-                    // TypeScript rewrite_imports_for_rename renames imported SYMBOLS, not module paths
-                    // This test uses contains_import which checks MODULE paths, not symbols
-                    // So we set expected_count=0 to skip the verification for TypeScript
-                    // (A proper test would need a different verification approach for symbol renames)
                     "import { foo } from './utils';\nimport bar from './other';\n",
-                    "nonexistent",  // Module that doesn't exist
+                    "nonexistent",
                     "stillnonexistent",
-                    0usize,  // No changes expected since we're not renaming any actual symbols/modules
+                    0usize,
                 ),
                 Language::Rust => (
                     "use crate::utils::helper;\nuse std::collections::HashMap;\n",
-                    "crate::utils",  // Rename the module path
+                    "crate::utils",
                     "crate::helpers",
                     1usize,
                 ),
@@ -394,42 +300,6 @@ impl ImportScenarios {
                     "from utils import helper\nimport os\n",
                     "utils",
                     "helpers",
-                    1usize,
-                ),
-                Language::Java => (
-                    "package com.example;\n\nimport com.example.utils.Helper;\nimport java.util.List;\n",
-                    "com.example.utils",
-                    "com.example.helpers",
-                    1usize,
-                ),
-                Language::Go => (
-                    "package main\n\nimport \"myproject/utils\"\nimport \"fmt\"\n",
-                    "myproject/utils",
-                    "myproject/helpers",
-                    1usize,
-                ),
-                Language::CSharp => (
-                    "using MyProject.Utils;\nusing System;\n",
-                    "MyProject.Utils",
-                    "MyProject.Helpers",
-                    1usize,
-                ),
-                Language::Swift => (
-                    "import Utils\nimport Foundation\n",
-                    "Utils",
-                    "Helpers",
-                    1usize,
-                ),
-                Language::C => (
-                    "#include \"utils.h\"\n#include <stdio.h>\n",
-                    "utils.h",
-                    "helpers.h",
-                    1usize,
-                ),
-                Language::Cpp => (
-                    "#include \"utils.hpp\"\n#include <iostream>\n",
-                    "utils.hpp",
-                    "helpers.hpp",
                     1usize,
                 ),
             };

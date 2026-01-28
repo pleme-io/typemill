@@ -7,18 +7,8 @@ pub use super::refactoring_harness::Language;
 
 impl Language {
     pub fn all_with_workspace_support() -> Vec<Language> {
-        // 4 languages with full workspace support
-        //
-        // EXCLUDED:
-        // - Go: Fixtures added but WorkspaceSupport trait not implemented yet
-        // - CSharp, Swift, C: No workspace support implementation
-        // - Cpp: Has stub implementation that doesn't work (always returns false/empty)
-        vec![
-            Language::TypeScript,
-            Language::Rust,
-            Language::Python,
-            Language::Java, // Maven/Gradle multi-module projects
-        ]
+        // Core languages with full workspace support
+        vec![Language::TypeScript, Language::Rust, Language::Python]
     }
 }
 
@@ -89,10 +79,6 @@ impl WorkspaceScenarios {
                 Language::TypeScript => r#"{"name":"root","workspaces":["packages/*"]}"#,
                 Language::Rust => "[workspace]\nmembers = [\"crates/*\"]\n",
                 Language::Python => "[tool.pdm.workspace]\nmembers = [\"packages/*\"]\n",
-                Language::Java => "<?xml version=\"1.0\"?>\n<project>\n<modules>\n<module>module-a</module>\n</modules>\n</project>",
-                Language::Go => "go 1.21\n\nuse (\n    ./module-a\n    ./module-b\n)\n",
-                Language::Cpp => "cmake_minimum_required(VERSION 3.10)\nproject(MyWorkspace)\nadd_subdirectory(module-a)\n",
-                _ => unreachable!(),
             };
 
             WorkspaceFixture {
@@ -111,10 +97,6 @@ impl WorkspaceScenarios {
                 Language::TypeScript => r#"{"name":"single-package","version":"1.0.0"}"#,
                 Language::Rust => "[package]\nname = \"single-crate\"\nversion = \"1.0.0\"\n",
                 Language::Python => "[project]\nname = \"single-package\"\n",
-                Language::Java => "<?xml version=\"1.0\"?>\n<project>\n<artifactId>single</artifactId>\n</project>",
-                Language::Go => "module example.com/mymodule\n\ngo 1.21\n",
-                Language::Cpp => "cmake_minimum_required(VERSION 3.10)\nproject(SingleProject)\n",
-                _ => unreachable!(),
             };
 
             WorkspaceFixture {
@@ -142,19 +124,6 @@ impl WorkspaceScenarios {
                     "[tool.pdm.workspace]\nmembers = [\"packages/a\", \"packages/b\"]\n",
                     vec!["packages/a".to_string(), "packages/b".to_string()],
                 ),
-                Language::Java => (
-                    "<?xml version=\"1.0\"?>\n<project>\n<modules>\n<module>module-a</module>\n<module>module-b</module>\n</modules>\n</project>",
-                    vec!["module-a".to_string(), "module-b".to_string()],
-                ),
-                Language::Go => (
-                    "go 1.21\n\nuse (\n    ./module-a\n    ./module-b\n)\n",
-                    vec!["./module-a".to_string(), "./module-b".to_string()],
-                ),
-                Language::Cpp => (
-                    "cmake_minimum_required(VERSION 3.10)\nproject(MyWorkspace)\nadd_subdirectory(module-a)\nadd_subdirectory(module-b)\n",
-                    vec!["module-a".to_string(), "module-b".to_string()],
-                ),
-                _ => unreachable!(),
             };
 
             WorkspaceFixture {
@@ -173,10 +142,6 @@ impl WorkspaceScenarios {
                 Language::TypeScript => (r#"{"name":"root","workspaces":["packages/a"]}"#, "packages/b"),
                 Language::Rust => ("[workspace]\nmembers = [\"crates/a\"]\n", "crates/b"),
                 Language::Python => ("[tool.pdm.workspace]\nmembers = [\"packages/a\"]\n", "packages/b"),
-                Language::Java => ("<?xml version=\"1.0\"?>\n<project>\n<modules>\n<module>module-a</module>\n</modules>\n</project>", "module-b"),
-                Language::Go => ("go 1.21\n\nuse (\n    ./module-a\n)\n", "./module-b"),
-                Language::Cpp => ("cmake_minimum_required(VERSION 3.10)\nproject(MyWorkspace)\nadd_subdirectory(module-a)\n", "module-b"),
-                _ => unreachable!(),
             };
 
             WorkspaceFixture {
@@ -197,10 +162,6 @@ impl WorkspaceScenarios {
                 Language::TypeScript => (r#"{"name":"root","workspaces":["packages/a"]}"#, "packages/a"),
                 Language::Rust => ("[workspace]\nmembers = [\"crates/a\"]\n", "crates/a"),
                 Language::Python => ("[tool.pdm.workspace]\nmembers = [\"packages/a\"]\n", "packages/a"),
-                Language::Java => ("<?xml version=\"1.0\"?>\n<project>\n<modules>\n<module>module-a</module>\n</modules>\n</project>", "module-a"),
-                Language::Go => ("go 1.21\n\nuse (\n    ./module-a\n)\n", "./module-a"),
-                Language::Cpp => ("cmake_minimum_required(VERSION 3.10)\nproject(MyWorkspace)\nadd_subdirectory(module-a)\n", "module-a"),
-                _ => unreachable!(),
             };
 
             WorkspaceFixture {
@@ -209,7 +170,7 @@ impl WorkspaceScenarios {
                 operation: WorkspaceOperation::AddWorkspaceMember {
                     member: member.to_string(),
                 },
-                expected: WorkspaceExpectedBehavior::Added,  // Should still work (idempotent)
+                expected: WorkspaceExpectedBehavior::Added,
             }
         })
     }
@@ -221,10 +182,6 @@ impl WorkspaceScenarios {
                 Language::TypeScript => (r#"{"name":"root","workspaces":["packages/a","packages/b"]}"#, "packages/a"),
                 Language::Rust => ("[workspace]\nmembers = [\"crates/a\", \"crates/b\"]\n", "crates/a"),
                 Language::Python => ("[tool.pdm.workspace]\nmembers = [\"packages/a\", \"packages/b\"]\n", "packages/a"),
-                Language::Java => ("<?xml version=\"1.0\"?>\n<project>\n<modules>\n<module>module-a</module>\n<module>module-b</module>\n</modules>\n</project>", "module-a"),
-                Language::Go => ("go 1.21\n\nuse (\n    ./module-a\n    ./module-b\n)\n", "./module-a"),
-                Language::Cpp => ("cmake_minimum_required(VERSION 3.10)\nproject(MyWorkspace)\nadd_subdirectory(module-a)\nadd_subdirectory(module-b)\n", "module-a"),
-                _ => unreachable!(),
             };
 
             WorkspaceFixture {
@@ -245,10 +202,6 @@ impl WorkspaceScenarios {
                 Language::TypeScript => (r#"{"name":"old-name","version":"1.0.0"}"#, "new-name"),
                 Language::Rust => ("[package]\nname = \"old-name\"\nversion = \"1.0.0\"\n", "new-name"),
                 Language::Python => ("[project]\nname = \"old-name\"\n", "new-name"),
-                Language::Java => ("<?xml version=\"1.0\"?>\n<project>\n<artifactId>old-name</artifactId>\n</project>", "new-name"),
-                Language::Go => ("module example.com/old-name\n\ngo 1.21\n", "new-name"),
-                Language::Cpp => ("cmake_minimum_required(VERSION 3.10)\nproject(old-name)\n", "new-name"),
-                _ => unreachable!(),
             };
 
             WorkspaceFixture {
@@ -269,12 +222,6 @@ impl WorkspaceScenarios {
                 Language::TypeScript => r#"{"name":"root","workspaces":[]}"#,
                 Language::Rust => "[workspace]\nmembers = []\n",
                 Language::Python => "[tool.pdm.workspace]\nmembers = []\n",
-                Language::Java => {
-                    "<?xml version=\"1.0\"?>\n<project>\n<modules>\n</modules>\n</project>"
-                }
-                Language::Go => "go 1.21\n\nuse ()\n",
-                Language::Cpp => "cmake_minimum_required(VERSION 3.10)\nproject(MyWorkspace)\n",
-                _ => unreachable!(),
             };
 
             WorkspaceFixture {
@@ -293,10 +240,6 @@ impl WorkspaceScenarios {
                 Language::TypeScript => (r#"{"name":"root","workspaces":["packages/a"]}"#, "packages/nonexistent"),
                 Language::Rust => ("[workspace]\nmembers = [\"crates/a\"]\n", "crates/nonexistent"),
                 Language::Python => ("[tool.pdm.workspace]\nmembers = [\"packages/a\"]\n", "packages/nonexistent"),
-                Language::Java => ("<?xml version=\"1.0\"?>\n<project>\n<modules>\n<module>module-a</module>\n</modules>\n</project>", "nonexistent"),
-                Language::Go => ("go 1.21\n\nuse (\n    ./module-a\n)\n", "./nonexistent"),
-                Language::Cpp => ("cmake_minimum_required(VERSION 3.10)\nproject(MyWorkspace)\nadd_subdirectory(module-a)\n", "nonexistent"),
-                _ => unreachable!(),
             };
 
             WorkspaceFixture {
@@ -305,7 +248,7 @@ impl WorkspaceScenarios {
                 operation: WorkspaceOperation::RemoveWorkspaceMember {
                     member: member.to_string(),
                 },
-                expected: WorkspaceExpectedBehavior::Removed,  // Should be no-op, member not in list
+                expected: WorkspaceExpectedBehavior::Removed,
             }
         })
     }

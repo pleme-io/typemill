@@ -14,8 +14,8 @@ use tempfile::TempDir;
 ///
 /// # Example
 ///
-/// ```no_run
-/// use mill_plugin_test_utils::IntegrationTestHarness;
+/// ```text
+/// use mill_test_support::harness::IntegrationTestHarness;
 ///
 /// #[tokio::test]
 /// async fn test_parse_and_verify() {

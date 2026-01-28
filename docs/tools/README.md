@@ -239,8 +239,10 @@ Common error codes:
 |----------|-----------|------------|-----------------|
 | TypeScript/JavaScript | ts, tsx, js, jsx | typescript-language-server | All navigation and refactoring |
 | Rust | rs | rust-analyzer | All navigation and refactoring + Rust-specific features |
-
-**Note:** Additional languages (Python, Go, Java, Swift, C#) available in git tag `pre-language-reduction`.
+| Python | py | python-lsp-server (pylsp) | All navigation and refactoring |
+| Markdown | md | - | Config file support |
+| YAML | yaml, yml | - | Config file support |
+| TOML | toml | - | Config file support |
 
 ---
 

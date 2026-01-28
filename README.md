@@ -107,7 +107,7 @@ mill tool workspace.find_replace '{"pattern": "oldName", "replacement": "newName
 | Python | py | python-lsp-server (pylsp) | Full ✅ | Python 3 |
 | Markdown | md | - | N/A | - |
 
-**Extra languages** (Java, Go, Swift, C#, C/C++) are maintained in the separate `typemill-languages` repo.
+**Note:** Additional language plugins may be available in separate repositories.
 
 ## ⚙️ Configuration
 ```bash

@@ -254,7 +254,7 @@ cargo fmt && cargo clippy
 - [operations/cache_configuration.md](docs/operations/cache_configuration.md) - Performance tuning
 
 **Language Support:**
-TypeScript, Rust, Python (100% parity), Swift, C#, Java, Go (100% parity), C/C++ (basic support)
+TypeScript, Rust, Python (full parity), Markdown, YAML, TOML (config files)
 
 ---
 

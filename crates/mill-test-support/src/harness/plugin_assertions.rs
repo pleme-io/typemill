@@ -18,8 +18,8 @@ use std::time::Duration;
 ///
 /// # Example
 ///
-/// ```no_run
-/// use mill_plugin_test_utils::assert_performance;
+/// ```text
+/// use mill_test_support::harness::plugin_assertions::assert_performance;
 /// use std::time::Instant;
 ///
 /// let start = Instant::now();
@@ -70,8 +70,8 @@ pub fn assert_performance_millis(duration: Duration, max_millis: u128) {
 ///
 /// # Example
 ///
-/// ```no_run
-/// use mill_plugin_test_utils::assert_symbol_count;
+/// ```text
+/// use mill_test_support::harness::plugin_assertions::assert_symbol_count;
 ///
 /// let symbols = vec!["foo", "bar", "baz"];
 /// assert_symbol_count(symbols.len(), 3, "my_module.rs");
@@ -98,8 +98,8 @@ pub fn assert_symbol_count(actual: usize, expected: usize, context: &str) {
 ///
 /// # Example
 ///
-/// ```no_run
-/// use mill_plugin_test_utils::assert_reference_at_line;
+/// ```text
+/// use mill_test_support::harness::plugin_assertions::assert_reference_at_line;
 ///
 /// let refs = vec![("fmt", 3), ("io", 5)];
 /// assert_reference_at_line(&refs, "fmt", 3);
@@ -211,8 +211,8 @@ pub fn assert_contains_one_of(content: &str, patterns: &[&str], context: &str) {
 ///
 /// # Example
 ///
-/// ```no_run
-/// use mill_plugin_test_utils::assert_edit_count;
+/// ```text
+/// use mill_test_support::harness::plugin_assertions::assert_edit_count;
 ///
 /// // After getting a refactoring plan from a plugin:
 /// let edit_count = 3;  // Number of edits in the plan

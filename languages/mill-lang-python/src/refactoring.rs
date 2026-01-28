@@ -975,8 +975,6 @@ fn find_python_keyword_literal(line_text: &str, col: usize) -> Option<(String, C
 /// 3. When a quote is found, check if it's escaped by an odd number of preceding backslashes
 /// 4. If not escaped (even number of backslashes, including 0), count it
 ///
-/// # Examples
-/// ```
 /// Validates whether a position in source code is a valid location for a literal.
 ///
 /// A position is considered valid if it's not inside a string literal or comment.
@@ -1005,20 +1003,11 @@ fn find_python_keyword_literal(line_text: &str, col: usize) -> Option<(String, C
 /// - Raw strings (r"..."): Detected by checking for 'r' prefix before opening quote
 /// - F-strings (f"..."): Treated same as regular strings for literal detection
 ///
-/// # Examples
-/// ```
-/// // Valid locations (outside strings):
-/// is_valid_python_literal_location("x = 42", 4, 2) -> true
+/// # Example Usage
 ///
-/// // Invalid locations (inside strings):
-/// is_valid_python_literal_location("msg = \"42\"", 8, 2) -> false
-///
-/// // Invalid locations (inside comments):
-/// is_valid_python_literal_location("x = 0  # value is 42", 18, 2) -> false
-///
-/// // Escaped quotes handled correctly:
-/// is_valid_python_literal_location("msg = \"Rate is \\\"0.08\\\"\"", 20, 4) -> false
-/// ```
+/// - Valid locations (outside strings): `is_valid_python_literal_location("x = 42", 4, 2)` returns `true`
+/// - Invalid locations (inside strings): `is_valid_python_literal_location("msg = \"42\"", 8, 2)` returns `false`
+/// - Invalid locations (inside comments): `is_valid_python_literal_location("x = 0  # 42", 10, 2)` returns `false`
 ///
 /// # Called By
 /// - `find_literal_occurrences()` - Validates matches before including them in results

@@ -84,5 +84,5 @@ async fn benchmark_extract_dependencies() {
         "BENCHMARK_RESULT: Time taken for {} files: {:?}",
         num_files, duration
     );
-    assert!(deps.len() > 0);
+    assert!(!deps.is_empty());
 }
