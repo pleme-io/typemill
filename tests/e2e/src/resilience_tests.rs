@@ -10,7 +10,7 @@
 //! - WebSocket authentication (server spawning)
 //! - Dead code workflow (complex analysis validation)
 
-use crate::harness::{create_typescript_project, TestClient, TestWorkspace};
+use crate::harness::{TestClient, TestWorkspace};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{json, Value};
 use std::process::{Command, Stdio};
