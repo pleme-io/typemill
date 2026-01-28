@@ -48,3 +48,7 @@ criterion = "0.8"
 [[bench]]
 name = "import_helpers_bench"
 harness = false
+
+[[bench]]
+name = "manifest_common_bench"
+harness = false

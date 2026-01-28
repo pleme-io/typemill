@@ -24,8 +24,8 @@
 //! - **replace_in_lines**: < 1ms for 1K lines with 100 replacements
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use std::hint::black_box;
 use mill_lang_common::import_helpers::*;
+use std::hint::black_box;
 
 // ============================================================================
 // Test Data Generation

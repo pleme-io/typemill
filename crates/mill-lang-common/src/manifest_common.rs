@@ -204,21 +204,21 @@ impl TomlWorkspace {
             .parse::<DocumentMut>()
             .map_err(|e| MillError::parse(format!("Failed to parse base TOML: {}", e)))?;
 
-        let source_doc = source
+        let mut source_doc = source
             .parse::<DocumentMut>()
             .map_err(|e| MillError::parse(format!("Failed to parse source TOML: {}", e)))?;
 
         // Merge [dependencies] section (Cargo-style)
-        if let Some(source_deps) = source_doc.get("dependencies") {
-            if let Some(source_table) = source_deps.as_table() {
+        if let Some(source_deps) = source_doc.remove("dependencies") {
+            if let Ok(source_table) = source_deps.into_table() {
                 let base_deps = base_doc
                     .entry("dependencies")
                     .or_insert(Item::Table(toml_edit::Table::new()));
 
                 if let Some(base_table) = base_deps.as_table_mut() {
-                    for (key, value) in source_table.iter() {
-                        if !base_table.contains_key(key) {
-                            base_table.insert(key, value.clone());
+                    for (key, value) in source_table {
+                        if !base_table.contains_key(&key) {
+                            base_table.insert(&key, value);
                         }
                     }
                 }
@@ -226,16 +226,16 @@ impl TomlWorkspace {
         }
 
         // Merge dev-dependencies
-        if let Some(source_deps) = source_doc.get("dev-dependencies") {
-            if let Some(source_table) = source_deps.as_table() {
+        if let Some(source_deps) = source_doc.remove("dev-dependencies") {
+            if let Ok(source_table) = source_deps.into_table() {
                 let base_deps = base_doc
                     .entry("dev-dependencies")
                     .or_insert(Item::Table(toml_edit::Table::new()));
 
                 if let Some(base_table) = base_deps.as_table_mut() {
-                    for (key, value) in source_table.iter() {
-                        if !base_table.contains_key(key) {
-                            base_table.insert(key, value.clone());
+                    for (key, value) in source_table {
+                        if !base_table.contains_key(&key) {
+                            base_table.insert(&key, value);
                         }
                     }
                 }
@@ -333,5 +333,47 @@ impl JsonWorkspace {
 
         serde_json::to_string_pretty(&json)
             .map_err(|e| MillError::parse(format!("Failed to serialize JSON: {}", e)))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_merge_dependencies() {
+        let base = r#"
+        [package]
+        name = "base"
+        version = "0.1.0"
+
+        [dependencies]
+        dep1 = "1.0"
+        dep2 = "2.0"
+        "#;
+
+        let source = r#"
+        [package]
+        name = "source"
+        version = "0.1.0"
+
+        [dependencies]
+        dep2 = "3.0" # Conflict, should keep base
+        dep3 = "3.0" # New, should add
+
+        [dev-dependencies]
+        dev_dep1 = "1.0"
+        "#;
+
+        let result = TomlWorkspace::merge_dependencies(base, source).unwrap();
+        let doc: DocumentMut = result.parse().unwrap();
+
+        let deps = doc["dependencies"].as_table().unwrap();
+        assert_eq!(deps["dep1"].as_str(), Some("1.0"));
+        assert_eq!(deps["dep2"].as_str(), Some("2.0")); // Kept base
+        assert_eq!(deps["dep3"].as_str(), Some("3.0")); // Added new
+
+        let dev_deps = doc["dev-dependencies"].as_table().unwrap();
+        assert_eq!(dev_deps["dev_dep1"].as_str(), Some("1.0"));
     }
 }
