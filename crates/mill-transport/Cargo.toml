@@ -35,12 +35,6 @@ lang-typescript = ["mill-ast/lang-typescript"]
 lang-markdown = ["mill-ast/lang-markdown"]
 mcp-proxy = ["mill-foundation/mcp-proxy", "mill-config/mcp-proxy"]
 lang-python = ["mill-ast/lang-python"]
-lang-cpp = ["mill-ast/lang-cpp"]
-lang-swift = ["mill-ast/lang-swift"]
-lang-csharp = ["mill-ast/lang-csharp"]
-lang-c = ["mill-ast/lang-c"]
-lang-go = ["mill-ast/lang-go"]
-lang-java = ["mill-ast/lang-java"]
 
 [dev-dependencies]
 tempfile = { workspace = true }

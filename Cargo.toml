@@ -21,16 +21,8 @@ members = [
     "crates/mill-workspaces",
     "crates/mill-auth",
     "crates/xtask", "crates/mill-ast", "crates/mill-client", "crates/mill-test-support", "crates/mill-handlers", "crates/mill-handler-api", "crates/mill-config", "crates/mill-foundation",
-    "languages-extra/mill-lang-cpp",
-    "languages-extra/mill-lang-csharp",
-    "languages-extra/mill-lang-swift",
-    "languages-extra/mill-lang-c",
-    "languages-extra/mill-lang-java",
-    "languages-extra/mill-lang-go",
 ]
 exclude = [
-    "languages-extra/mill-lang-c/tree-sitter-c",
-    "languages-extra/mill-lang-cpp/tree-sitter-cpp",
 ]
 resolver = "2"
 
@@ -110,13 +102,7 @@ mill-lang-common = { path = "crates/mill-lang-common", default-features = false 
 mill-lang-typescript = { path = "languages/mill-lang-typescript", default-features = false }
 mill-lang-rust = { path = "languages/mill-lang-rust", default-features = false }
 mill-lang-python = { path = "languages/mill-lang-python", default-features = false }
-mill-lang-swift = { path = "languages-extra/mill-lang-swift", default-features = false }
-mill-lang-csharp = { path = "languages-extra/mill-lang-csharp", default-features = false }
-mill-lang-c = { path = "languages-extra/mill-lang-c", default-features = false }
-mill-lang-go = { path = "languages-extra/mill-lang-go", default-features = false }
-mill-lang-java = { path = "languages-extra/mill-lang-java", default-features = false }
 mill-lang-markdown = { path = "languages/mill-lang-markdown", default-features = false }
-mill-lang-cpp = { path = "languages-extra/mill-lang-cpp", default-features = false }
 
 # Optimize build times for dev dependencies
 [profile.dev.build-override]

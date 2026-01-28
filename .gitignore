@@ -90,6 +90,9 @@ examples/playground/
 !/playground/.gitkeep
 !/playground/README.md
 
+# External language pack repo
+/typemill-languages/
+
 # Rust build artifacts
 target/
 **/*.rs.bk

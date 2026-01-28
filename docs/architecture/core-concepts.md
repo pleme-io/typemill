@@ -350,7 +350,9 @@ graph TB
 #### Layer 4: Language Plugins
 **Purpose**: Language-specific implementations of code intelligence
 
-**Crates**: `mill-lang-common`, `mill-lang-rust`, `mill-lang-typescript`, `mill-lang-python`, `mill-lang-swift`, `mill-lang-csharp`, `mill-lang-java`, `mill-lang-go`, `mill-lang-c`, `mill-lang-cpp`, `mill-lang-markdown`, `mill-lang-toml`, `mill-lang-yaml`
+**Crates**: `mill-lang-common`, `mill-lang-rust`, `mill-lang-typescript`, `mill-lang-python`, `mill-lang-markdown`, `mill-lang-toml`, `mill-lang-yaml`, `mill-lang-gitignore`
+
+**Extra Languages**: Swift, C#, Java, Go, C, C++ live in the separate `typemill-languages` repo.
 
 **Dependencies**: Layer 3 (Plugin API), Layer 2 (Foundation)
 

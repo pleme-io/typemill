@@ -105,14 +105,9 @@ mill tool workspace.find_replace '{"pattern": "oldName", "replacement": "newName
 | TypeScript/JavaScript | ts, tsx, js, jsx | typescript-language-server | Full ✅ | Node.js |
 | Rust | rs | rust-analyzer | Full ✅ | - |
 | Python | py | python-lsp-server (pylsp) | Full ✅ | Python 3 |
-| Java | java | jdtls (Eclipse JDT LS) | Full ✅ | **Java 11+** |
-| Go | go | gopls | Full ✅ | - |
-| Swift | swift | sourcekit-lsp | Full ✅ | - |
-| C# | cs | csharp-ls | Full ✅ | .NET SDK (optional) |
-| C/C++ | c, cpp, h, hpp | clangd | Basic | - |
 | Markdown | md | - | N/A | - |
 
-**Note**: All languages except TypeScript and Rust restored from `pre-language-reduction` tag with 100% feature parity.
+**Extra languages** (Java, Go, Swift, C#, C/C++) are maintained in the separate `typemill-languages` repo.
 
 ## ⚙️ Configuration
 ```bash

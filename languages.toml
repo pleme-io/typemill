@@ -1,6 +1,7 @@
 # Language Plugin Registry
 #
 # This is the single source of truth for all language plugins in TypeMill.
+# Extra languages live in the separate typemill-languages repo and are not listed here.
 # Run `cargo xtask sync-languages` after modifying to regenerate feature flags.
 #
 # Schema:
@@ -50,52 +51,17 @@ plugin_struct = "YamlLanguagePlugin"
 category = "config"
 default = true
 
-[languages.cpp]
-path = "languages-extra/mill-lang-cpp"
-plugin_struct = "CppPlugin"
-category = "full"
-default = false
-
 [languages.gitignore]
 path = "languages/mill-lang-gitignore"
 plugin_struct = "GitignoreLanguagePlugin"
 category = "config"
 default = true
 
-[languages.swift]
-path = "languages-extra/mill-lang-swift"
-plugin_struct = "SwiftPlugin"
-category = "full"
-default = false
-
-# Future languages (examples):
+# Future languages (examples, for typemill-languages repo):
 #
 # [languages.go]
-# path = "crates/mill-lang-go"
+# path = "typemill-languages/mill-lang-go"
 # plugin_struct = "GoPlugin"
 # category = "full"
 # default = false
 #
-[languages.csharp]
-path = "languages-extra/mill-lang-csharp"
-plugin_struct = "CsharpPlugin"
-category = "full"
-default = false
-
-[languages.c]
-path = "languages-extra/mill-lang-c"
-plugin_struct = "CPlugin"
-category = "full"
-default = false
-
-[languages.go]
-path = "languages-extra/mill-lang-go"
-plugin_struct = "GoPlugin"
-category = "full"
-default = false
-
-[languages.java]
-path = "languages-extra/mill-lang-java"
-plugin_struct = "JavaPlugin"
-category = "full"
-default = false

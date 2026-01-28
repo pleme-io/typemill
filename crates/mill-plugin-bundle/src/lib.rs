@@ -13,26 +13,14 @@ use std::sync::Arc;
 // Force linker to include language plugins by actively using them.
 // This prevents linker dead code elimination from stripping the inventory submissions.
 // We reference each plugin's public type to ensure the crate is linked.
-#[cfg(feature = "lang-c")]
-use mill_lang_c::CPlugin;
-#[cfg(feature = "lang-cpp")]
-use mill_lang_cpp::CppPlugin;
-#[cfg(feature = "lang-csharp")]
-use mill_lang_csharp::CsharpPlugin;
 #[cfg(feature = "lang-gitignore")]
 use mill_lang_gitignore::GitignoreLanguagePlugin;
-#[cfg(feature = "lang-go")]
-use mill_lang_go::GoPlugin;
-#[cfg(feature = "lang-java")]
-use mill_lang_java::JavaPlugin;
 #[cfg(feature = "lang-markdown")]
 use mill_lang_markdown::MarkdownPlugin;
 #[cfg(feature = "lang-python")]
 use mill_lang_python::PythonPlugin;
 #[cfg(feature = "lang-rust")]
 use mill_lang_rust::RustPlugin;
-#[cfg(feature = "lang-swift")]
-use mill_lang_swift::SwiftPlugin;
 #[cfg(feature = "lang-toml")]
 use mill_lang_toml::TomlLanguagePlugin;
 #[cfg(feature = "lang-typescript")]
@@ -40,38 +28,25 @@ use mill_lang_typescript::TypeScriptPlugin;
 #[cfg(feature = "lang-yaml")]
 use mill_lang_yaml::YamlLanguagePlugin;
 
-// This function ensures the linker includes all plugin crates
-// Called from all_plugins() to force linkage before inventory discovery
-#[inline(never)]
+// This function is never called but ensures the linker includes all plugin crates
+#[allow(dead_code)]
 fn _force_plugin_linkage() {
-    // Use black_box to prevent compiler from optimizing away type references
-    // This ensures plugin crates are linked even in release builds
-    #[cfg(feature = "lang-c")]
-    std::hint::black_box(std::any::type_name::<CPlugin>());
-    #[cfg(feature = "lang-cpp")]
-    std::hint::black_box(std::any::type_name::<CppPlugin>());
-    #[cfg(feature = "lang-csharp")]
-    std::hint::black_box(std::any::type_name::<CsharpPlugin>());
+    // These type references ensure the plugin crates are linked
+    // The actual plugin instances will be discovered via inventory
     #[cfg(feature = "lang-gitignore")]
-    std::hint::black_box(std::any::type_name::<GitignoreLanguagePlugin>());
-    #[cfg(feature = "lang-go")]
-    std::hint::black_box(std::any::type_name::<GoPlugin>());
-    #[cfg(feature = "lang-java")]
-    std::hint::black_box(std::any::type_name::<JavaPlugin>());
+    let _: Option<GitignoreLanguagePlugin> = None;
     #[cfg(feature = "lang-markdown")]
-    std::hint::black_box(std::any::type_name::<MarkdownPlugin>());
+    let _: Option<MarkdownPlugin> = None;
     #[cfg(feature = "lang-python")]
-    std::hint::black_box(std::any::type_name::<PythonPlugin>());
+    let _: Option<PythonPlugin> = None;
     #[cfg(feature = "lang-rust")]
-    std::hint::black_box(std::any::type_name::<RustPlugin>());
-    #[cfg(feature = "lang-swift")]
-    std::hint::black_box(std::any::type_name::<SwiftPlugin>());
+    let _: Option<RustPlugin> = None;
     #[cfg(feature = "lang-toml")]
-    std::hint::black_box(std::any::type_name::<TomlLanguagePlugin>());
+    let _: Option<TomlLanguagePlugin> = None;
     #[cfg(feature = "lang-typescript")]
-    std::hint::black_box(std::any::type_name::<TypeScriptPlugin>());
+    let _: Option<TypeScriptPlugin> = None;
     #[cfg(feature = "lang-yaml")]
-    std::hint::black_box(std::any::type_name::<YamlLanguagePlugin>());
+    let _: Option<YamlLanguagePlugin> = None;
 }
 
 /// Returns all language plugins available in this bundle.
@@ -79,10 +54,6 @@ fn _force_plugin_linkage() {
 /// This function uses the plugin registry's auto-discovery mechanism
 /// to find all plugins that have self-registered using the `mill_plugin!` macro.
 pub fn all_plugins() -> Vec<Arc<dyn LanguagePlugin>> {
-    // Force linker to include all plugin crates before inventory discovery
-    // This ensures plugins are available for inventory to find
-    _force_plugin_linkage();
-
     let plugins: Vec<_> = iter_plugins()
         .map(|descriptor| {
             tracing::debug!(
@@ -112,26 +83,14 @@ mod tests {
     use super::*;
 
     // Force linker to include language plugins for inventory collection in tests
-    #[cfg(all(test, feature = "lang-c"))]
-    extern crate mill_lang_c;
-    #[cfg(all(test, feature = "lang-cpp"))]
-    extern crate mill_lang_cpp;
-    #[cfg(all(test, feature = "lang-csharp"))]
-    extern crate mill_lang_csharp;
     #[cfg(all(test, feature = "lang-gitignore"))]
     extern crate mill_lang_gitignore;
-    #[cfg(all(test, feature = "lang-go"))]
-    extern crate mill_lang_go;
-    #[cfg(all(test, feature = "lang-java"))]
-    extern crate mill_lang_java;
     #[cfg(all(test, feature = "lang-markdown"))]
     extern crate mill_lang_markdown;
     #[cfg(all(test, feature = "lang-python"))]
     extern crate mill_lang_python;
     #[cfg(all(test, feature = "lang-rust"))]
     extern crate mill_lang_rust;
-    #[cfg(all(test, feature = "lang-swift"))]
-    extern crate mill_lang_swift;
     #[cfg(all(test, feature = "lang-toml"))]
     extern crate mill_lang_toml;
     #[cfg(all(test, feature = "lang-typescript"))]

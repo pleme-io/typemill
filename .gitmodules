@@ -1,6 +1,0 @@
-[submodule "languages/mill-lang-cpp/tree-sitter-cpp"]
-	path = languages/mill-lang-cpp/tree-sitter-cpp
-	url = https://github.com/tree-sitter/tree-sitter-cpp
-[submodule "languages/mill-lang-c/tree-sitter-c"]
-	path = languages/mill-lang-c/tree-sitter-c
-	url = https://github.com/tree-sitter/tree-sitter-c

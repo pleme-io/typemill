@@ -30,21 +30,16 @@ mill-ast = { path = "../mill-ast", default-features = false }
 mill-handlers = { path = "../mill-handlers", default-features = false, features = ["refactor-all"] }
 
 # Plugin bundle - needs to be a regular dependency since we use it in lib code (plugin_discovery.rs)
-mill-plugin-bundle = { path = "../mill-plugin-bundle", features = ["lang-rust", "lang-typescript", "lang-python", "lang-java", "lang-go", "lang-swift", "lang-c", "lang-cpp"] }
+mill-plugin-bundle = { path = "../mill-plugin-bundle", features = ["lang-gitignore", "lang-markdown", "lang-python", "lang-rust", "lang-toml", "lang-typescript", "lang-yaml"] }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
 
 # Individual language plugins as dev-dependencies for extern crate declarations
 # These must match the features enabled in mill-plugin-bundle above
-mill-lang-c = { path = "../../languages-extra/mill-lang-c" }
-mill-lang-go = { path = "../../languages-extra/mill-lang-go" }
-mill-lang-java = { path = "../../languages-extra/mill-lang-java" }
 mill-lang-python = { path = "../../languages/mill-lang-python" }
 mill-lang-rust = { path = "../../languages/mill-lang-rust" }
-mill-lang-swift = { path = "../../languages-extra/mill-lang-swift" }
 mill-lang-typescript = { path = "../../languages/mill-lang-typescript" }
-mill-lang-cpp = { path = "../../languages-extra/mill-lang-cpp" }
 
 # Benchmarks
 [[bench]]
