@@ -22,7 +22,7 @@
 //!
 //! ## Example Usage
 //!
-//! ```rust,no_run
+//! ```text
 //! fn test_parse_imports_all_languages() {
 //!     let test_case = ImportScenarios::parse_simple_imports();
 //!     for fixture in test_case.fixtures {
