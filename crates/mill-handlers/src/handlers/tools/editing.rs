@@ -51,7 +51,9 @@ impl ToolHandler for EditingToolsHandler {
     }
 
     fn is_internal(&self) -> bool {
-        false
+        // edit_file is an internal tool - low-level text editing at line/column positions.
+        // AI agents should use higher-level refactoring tools (rename, extract, etc.) instead.
+        true
     }
 
     async fn handle_tool_call(
@@ -67,7 +69,10 @@ impl ToolHandler for EditingToolsHandler {
         }
 
         let params: EditFileParams = serde_json::from_value(
-            tool_call.arguments.clone().unwrap_or(serde_json::Value::Null),
+            tool_call
+                .arguments
+                .clone()
+                .unwrap_or(serde_json::Value::Null),
         )
         .map_err(|e| {
             ServerError::invalid_request(format!("Failed to parse edit_file params: {}", e))
@@ -112,7 +117,10 @@ impl ToolHandler for EditingToolsHandler {
             }],
             metadata: EditPlanMetadata {
                 intent_name: "edit_file".to_string(),
-                intent_arguments: tool_call.arguments.clone().unwrap_or(serde_json::Value::Null),
+                intent_arguments: tool_call
+                    .arguments
+                    .clone()
+                    .unwrap_or(serde_json::Value::Null),
                 created_at: chrono::Utc::now(),
                 complexity: 1,
                 impact_areas: vec!["editing".to_string()],
@@ -120,7 +128,11 @@ impl ToolHandler for EditingToolsHandler {
             },
         };
 
-        let result = context.app_state.file_service.apply_edit_plan(&plan).await?;
+        let result = context
+            .app_state
+            .file_service
+            .apply_edit_plan(&plan)
+            .await?;
 
         Ok(serde_json::to_value(result).unwrap_or(serde_json::Value::Null))
     }

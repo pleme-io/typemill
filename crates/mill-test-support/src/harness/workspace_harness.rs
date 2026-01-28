@@ -139,9 +139,15 @@ impl WorkspaceScenarios {
     pub fn add_workspace_member() -> WorkspaceTestCase {
         WorkspaceTestCase::new("add_workspace_member").with_all_languages(|lang| {
             let (manifest, member) = match lang {
-                Language::TypeScript => (r#"{"name":"root","workspaces":["packages/a"]}"#, "packages/b"),
+                Language::TypeScript => (
+                    r#"{"name":"root","workspaces":["packages/a"]}"#,
+                    "packages/b",
+                ),
                 Language::Rust => ("[workspace]\nmembers = [\"crates/a\"]\n", "crates/b"),
-                Language::Python => ("[tool.pdm.workspace]\nmembers = [\"packages/a\"]\n", "packages/b"),
+                Language::Python => (
+                    "[tool.pdm.workspace]\nmembers = [\"packages/a\"]\n",
+                    "packages/b",
+                ),
             };
 
             WorkspaceFixture {
@@ -159,9 +165,15 @@ impl WorkspaceScenarios {
     pub fn add_workspace_member_duplicate() -> WorkspaceTestCase {
         WorkspaceTestCase::new("add_workspace_member_duplicate").with_all_languages(|lang| {
             let (manifest, member) = match lang {
-                Language::TypeScript => (r#"{"name":"root","workspaces":["packages/a"]}"#, "packages/a"),
+                Language::TypeScript => (
+                    r#"{"name":"root","workspaces":["packages/a"]}"#,
+                    "packages/a",
+                ),
                 Language::Rust => ("[workspace]\nmembers = [\"crates/a\"]\n", "crates/a"),
-                Language::Python => ("[tool.pdm.workspace]\nmembers = [\"packages/a\"]\n", "packages/a"),
+                Language::Python => (
+                    "[tool.pdm.workspace]\nmembers = [\"packages/a\"]\n",
+                    "packages/a",
+                ),
             };
 
             WorkspaceFixture {
@@ -179,9 +191,18 @@ impl WorkspaceScenarios {
     pub fn remove_workspace_member() -> WorkspaceTestCase {
         WorkspaceTestCase::new("remove_workspace_member").with_all_languages(|lang| {
             let (manifest, member) = match lang {
-                Language::TypeScript => (r#"{"name":"root","workspaces":["packages/a","packages/b"]}"#, "packages/a"),
-                Language::Rust => ("[workspace]\nmembers = [\"crates/a\", \"crates/b\"]\n", "crates/a"),
-                Language::Python => ("[tool.pdm.workspace]\nmembers = [\"packages/a\", \"packages/b\"]\n", "packages/a"),
+                Language::TypeScript => (
+                    r#"{"name":"root","workspaces":["packages/a","packages/b"]}"#,
+                    "packages/a",
+                ),
+                Language::Rust => (
+                    "[workspace]\nmembers = [\"crates/a\", \"crates/b\"]\n",
+                    "crates/a",
+                ),
+                Language::Python => (
+                    "[tool.pdm.workspace]\nmembers = [\"packages/a\", \"packages/b\"]\n",
+                    "packages/a",
+                ),
             };
 
             WorkspaceFixture {
@@ -200,7 +221,10 @@ impl WorkspaceScenarios {
         WorkspaceTestCase::new("update_package_name").with_all_languages(|lang| {
             let (manifest, new_name) = match lang {
                 Language::TypeScript => (r#"{"name":"old-name","version":"1.0.0"}"#, "new-name"),
-                Language::Rust => ("[package]\nname = \"old-name\"\nversion = \"1.0.0\"\n", "new-name"),
+                Language::Rust => (
+                    "[package]\nname = \"old-name\"\nversion = \"1.0.0\"\n",
+                    "new-name",
+                ),
                 Language::Python => ("[project]\nname = \"old-name\"\n", "new-name"),
             };
 
@@ -237,9 +261,18 @@ impl WorkspaceScenarios {
     pub fn remove_nonexistent_member() -> WorkspaceTestCase {
         WorkspaceTestCase::new("remove_nonexistent_member").with_all_languages(|lang| {
             let (manifest, member) = match lang {
-                Language::TypeScript => (r#"{"name":"root","workspaces":["packages/a"]}"#, "packages/nonexistent"),
-                Language::Rust => ("[workspace]\nmembers = [\"crates/a\"]\n", "crates/nonexistent"),
-                Language::Python => ("[tool.pdm.workspace]\nmembers = [\"packages/a\"]\n", "packages/nonexistent"),
+                Language::TypeScript => (
+                    r#"{"name":"root","workspaces":["packages/a"]}"#,
+                    "packages/nonexistent",
+                ),
+                Language::Rust => (
+                    "[workspace]\nmembers = [\"crates/a\"]\n",
+                    "crates/nonexistent",
+                ),
+                Language::Python => (
+                    "[tool.pdm.workspace]\nmembers = [\"packages/a\"]\n",
+                    "packages/nonexistent",
+                ),
             };
 
             WorkspaceFixture {

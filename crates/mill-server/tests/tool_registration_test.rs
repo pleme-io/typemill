@@ -75,13 +75,14 @@ async fn test_all_20_internal_tools_are_registered_and_hidden() {
 
     let registry = dispatcher.tool_registry.lock().await;
 
-    const EXPECTED_INTERNAL_TOOLS: [&str; 20] = [
+    const EXPECTED_INTERNAL_TOOLS: [&str; 21] = [
         // Lifecycle (3)
         "notify_file_opened",
         "notify_file_saved",
         "notify_file_closed",
-        // Internal Editing (1)
+        // Internal Editing (2)
         "rename_symbol_with_imports",
+        "edit_file",
         // Internal Workspace (1)
         "apply_workspace_edit",
         // Internal Intelligence (2)

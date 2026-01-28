@@ -14,8 +14,8 @@ use tokio::sync::Mutex;
 
 // Tool handler modules
 pub mod advanced;
-pub mod editing;
 pub mod cross_file_references;
+pub mod editing;
 pub mod file_ops;
 pub mod internal_editing;
 pub mod internal_intelligence;

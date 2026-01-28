@@ -216,10 +216,7 @@ impl ImportScenarios {
                     "import { foo } from './utils';\n\nfunction main() {}\n",
                     "./newModule",
                 ),
-                Language::Rust => (
-                    "use std::collections::HashMap;\n\nfn main() {}\n",
-                    "serde",
-                ),
+                Language::Rust => ("use std::collections::HashMap;\n\nfn main() {}\n", "serde"),
                 Language::Python => ("import os\n\ndef main():\n    pass\n", "sys"),
             };
 
