@@ -515,6 +515,7 @@ struct ExtractPlanParams {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct SourceRange {
+    #[serde(alias = "file_path")]
     file_path: String,
     range: Range, // lsp_types::Range
     name: String,

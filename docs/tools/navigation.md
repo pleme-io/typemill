@@ -17,9 +17,9 @@ LSP-powered code navigation with IDE-quality intelligence. Jump to definitions, 
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| file_path | string | Yes | Path to file containing the symbol |
-| symbol_name | string | Yes | Name of the symbol to find |
-| symbol_kind | string | No | Kind hint (function, class, variable, method, etc.) |
+| filePath | string | Yes | Path to file containing the symbol (also accepts `file_path`) |
+| line | number | Yes | Line number (1-indexed) |
+| character | number | Yes | Character position (0-indexed) |
 
 **Returns:**
 
@@ -34,8 +34,9 @@ Array of definition locations with URI and range information. Each location incl
   "params": {
     "name": "find_definition",
     "arguments": {
-      "file_path": "src/app.ts",
-      "symbol_name": "processData"
+      "filePath": "src/app.ts",
+      "line": 10,
+      "character": 5
     }
   }
 }
@@ -60,9 +61,9 @@ Array of definition locations with URI and range information. Each location incl
 ```
 **Notes:**
 - LSP-based, accuracy depends on language server capabilities
-- Returns all matching definitions if symbol_name is ambiguous
-- Use symbol_kind to disambiguate when multiple symbols share the same name
+- Uses cursor position (line/character) to identify the symbol
 - Supports cross-file navigation in multi-file projects
+- Both `filePath` (camelCase) and `file_path` (snake_case) are accepted for compatibility
 
 ---
 
@@ -74,9 +75,9 @@ Array of definition locations with URI and range information. Each location incl
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| file_path | string | Yes | Path to file containing the symbol |
-| symbol_name | string | Yes | Name of the symbol to find references for |
-| symbol_kind | string | No | Kind hint (function, class, variable, method, etc.) |
+| filePath | string | Yes | Path to file containing the symbol (also accepts `file_path`) |
+| line | number | Yes | Line number (1-indexed) |
+| character | number | Yes | Character position (0-indexed) |
 | include_declaration | boolean | No | Include definition location (default: true) |
 
 **Returns:**
@@ -92,8 +93,9 @@ Array of reference locations with URI and range. Includes total count of referen
   "params": {
     "name": "find_references",
     "arguments": {
-      "file_path": "src/utils.ts",
-      "symbol_name": "sendEmail",
+      "filePath": "src/utils.ts",
+      "line": 5,
+      "character": 9,
       "include_declaration": true
     }
   }
@@ -142,7 +144,7 @@ Array of reference locations with URI and range. Includes total count of referen
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | query | string | Yes | Search query (supports partial matching) |
-| workspace_path | string | No | Workspace directory to search (defaults to current) |
+| workspacePath | string | No | Workspace directory to search (also accepts `workspace_path`, defaults to current directory) |
 
 **Returns:**
 

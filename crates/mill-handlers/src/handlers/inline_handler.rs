@@ -452,7 +452,9 @@ struct InlinePlanParams {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct InlineTarget {
+    #[serde(alias = "file_path")]
     file_path: String,
     position: Position, // lsp_types::Position
 }

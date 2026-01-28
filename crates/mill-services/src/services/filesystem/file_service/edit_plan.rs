@@ -627,17 +627,6 @@ impl FileService {
                         content_len = content.len(),
                         "Snapshot created with content"
                     );
-                    // DEBUG: Check line structure
-                    let lines: Vec<&str> = content.lines().collect();
-                    if lines.len() > 1 {
-                        eprintln!(
-                            "DEBUG SNAPSHOT: {} - line_count={}, line[0].len={}, line[1].len={}",
-                            file_path.display(),
-                            lines.len(),
-                            lines.first().map(|l| l.len()).unwrap_or(0),
-                            lines.get(1).map(|l| l.len()).unwrap_or(0)
-                        );
-                    }
                     snapshots.insert(file_path.clone(), content);
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => {

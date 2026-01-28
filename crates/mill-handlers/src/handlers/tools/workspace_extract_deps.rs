@@ -60,10 +60,10 @@ pub(crate) struct ExtractDependenciesParams {
     pub options: ExtractDependenciesOptions,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ExtractDependenciesOptions {
-    #[serde(default)]
+    #[serde(default = "crate::default_true")]
     pub dry_run: bool,
     #[serde(default = "crate::default_true")]
     #[allow(dead_code)]
@@ -73,6 +73,17 @@ pub(crate) struct ExtractDependenciesOptions {
     pub preserve_features: bool,
     #[serde(default)]
     pub section: DependencySection,
+}
+
+impl Default for ExtractDependenciesOptions {
+    fn default() -> Self {
+        Self {
+            dry_run: true, // CRITICAL: Safe default - preview mode
+            preserve_versions: true,
+            preserve_features: true,
+            section: DependencySection::default(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Default)]

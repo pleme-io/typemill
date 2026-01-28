@@ -59,15 +59,25 @@ fn default_lib() -> PackageType {
     PackageType::Library
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct CreatePackageOptions {
-    #[serde(default)]
+    #[serde(default = "crate::default_true")]
     pub dry_run: bool,
     #[serde(default = "crate::default_true")]
     pub add_to_workspace: bool,
     #[serde(default)]
     pub template: Template,
+}
+
+impl Default for CreatePackageOptions {
+    fn default() -> Self {
+        Self {
+            dry_run: true, // CRITICAL: Safe default - preview mode
+            add_to_workspace: true,
+            template: Template::default(),
+        }
+    }
 }
 
 // Result type for MCP interface

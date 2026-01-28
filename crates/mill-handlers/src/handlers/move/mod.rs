@@ -62,6 +62,7 @@ impl Default for MoveHandler {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[allow(dead_code)] // Reserved for future options support
 struct MovePlanParams {
     target: MoveTarget,
@@ -71,6 +72,7 @@ struct MovePlanParams {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct MoveTarget {
     kind: String, // "symbol" | "file" | "directory" | "module"
     path: String,
@@ -79,6 +81,7 @@ struct MoveTarget {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct SymbolSelector {
     position: Position,
 }

@@ -144,6 +144,76 @@ impl NavigationHandler {
         Ok(json!(all_references))
     }
 
+    /// Find a representative file in the workspace with the given extension
+    fn find_representative_file(workspace_path: &std::path::Path, extension: &str) -> Option<PathBuf> {
+        use std::fs;
+
+        // First, try to find a file in common source directories
+        let common_dirs = ["src", "lib", "packages", "apps", "."];
+
+        for dir in common_dirs {
+            let search_path = if dir == "." {
+                workspace_path.to_path_buf()
+            } else {
+                workspace_path.join(dir)
+            };
+
+            if search_path.is_dir() {
+                // Look for files with the target extension
+                if let Ok(entries) = fs::read_dir(&search_path) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        if path.is_file() {
+                            if let Some(ext) = path.extension() {
+                                if ext == extension {
+                                    return Some(path);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fall back to recursive search (limited depth)
+        Self::find_file_recursive(workspace_path, extension, 3)
+    }
+
+    fn find_file_recursive(dir: &std::path::Path, extension: &str, max_depth: u32) -> Option<PathBuf> {
+        use std::fs;
+
+        if max_depth == 0 {
+            return None;
+        }
+
+        if let Ok(entries) = fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+
+                // Skip hidden directories and node_modules
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    if name.starts_with('.') || name == "node_modules" || name == "target" {
+                        continue;
+                    }
+                }
+
+                if path.is_file() {
+                    if let Some(ext) = path.extension() {
+                        if ext == extension {
+                            return Some(path);
+                        }
+                    }
+                } else if path.is_dir() {
+                    if let Some(found) = Self::find_file_recursive(&path, extension, max_depth - 1) {
+                        return Some(found);
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
     /// Handle workspace symbol search across all plugins
     async fn handle_search_symbols(
         &self,
@@ -151,23 +221,33 @@ impl NavigationHandler {
         tool_call: &ToolCall,
     ) -> ServerResult<Value> {
         use std::time::Instant;
-        use tracing::debug;
+        use tracing::{debug, warn};
 
         debug!("handle_search_symbols: Starting multi-plugin workspace search");
 
         let start_time = Instant::now();
         let args = tool_call.arguments.clone().unwrap_or(json!({}));
 
+        // Get workspace path from args or use current directory
+        let workspace_path = args
+            .get("workspacePath")
+            .or_else(|| args.get("workspace_path"))
+            .and_then(|v| v.as_str())
+            .map(PathBuf::from)
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+
         // Get all registered plugins
         let plugin_names = context.plugin_manager.list_plugins().await;
         debug!(
             plugin_count = plugin_names.len(),
             plugins = ?plugin_names,
+            workspace = %workspace_path.display(),
             "handle_search_symbols: Found registered plugins"
         );
 
         let mut all_symbols = Vec::new();
         let mut queried_plugins = Vec::new();
+        let mut warnings = Vec::new();
 
         // Query each plugin for workspace symbols
         for plugin_name in plugin_names {
@@ -176,16 +256,34 @@ impl NavigationHandler {
                 .get_plugin_by_name(&plugin_name)
                 .await
             {
-                // Create a dummy file path with extension for this plugin
-                // Use first extension from plugin's supported extensions
+                // Get supported extensions for this plugin
                 let extensions = plugin.supported_extensions();
-                let file_path = if let Some(ext) = extensions.first() {
-                    PathBuf::from(format!("workspace.{}", ext))
-                } else {
-                    continue; // Skip plugins with no extensions
+                let ext = match extensions.first() {
+                    Some(e) => e,
+                    None => continue, // Skip plugins with no extensions
                 };
 
-                // Use the internal plugin method name
+                // Find a real file in the workspace with this extension
+                // This is necessary to establish project context for LSP servers like TypeScript
+                let file_path = match Self::find_representative_file(&workspace_path, ext) {
+                    Some(path) => path,
+                    None => {
+                        debug!(
+                            plugin = %plugin_name,
+                            extension = %ext,
+                            "No files found with extension, skipping plugin"
+                        );
+                        continue;
+                    }
+                };
+
+                debug!(
+                    plugin = %plugin_name,
+                    representative_file = %file_path.display(),
+                    "Found representative file for plugin"
+                );
+
+                // Use the internal plugin method name with the real file path
                 let mut request =
                     PluginRequest::new("search_workspace_symbols".to_string(), file_path);
                 request = request.with_params(args.clone());
@@ -217,13 +315,12 @@ impl NavigationHandler {
                         }
                     }
                     Err(e) => {
-                        debug!(
+                        warn!(
                             plugin = %plugin_name,
                             error = %e,
                             "Plugin query failed"
                         );
-                        // Plugin doesn't support workspace symbols or query failed
-                        // Continue to next plugin
+                        warnings.push(format!("{}: {}", plugin_name, e));
                     }
                 }
             }
@@ -231,12 +328,18 @@ impl NavigationHandler {
 
         let processing_time = start_time.elapsed().as_millis() as u64;
 
-        Ok(json!({
+        let mut result = json!({
             "content": all_symbols,
             "plugin": format!("multi-plugin ({})", queried_plugins.join(", ")),
             "processing_time_ms": processing_time,
             "cached": false
-        }))
+        });
+
+        if !warnings.is_empty() {
+            result["warnings"] = json!(warnings);
+        }
+
+        Ok(result)
     }
 
     fn convert_tool_call_to_plugin_request(
@@ -253,10 +356,12 @@ impl NavigationHandler {
             }
             _ => {
                 // Extract file path for file-specific operations
+                // Accept both camelCase (filePath) and snake_case (file_path) for compatibility
                 let file_path_str = args
                     .get("filePath")
+                    .or_else(|| args.get("file_path"))
                     .and_then(|v| v.as_str())
-                    .ok_or_else(|| ServerError::invalid_request("Missing file_path parameter"))?;
+                    .ok_or_else(|| ServerError::invalid_request("Missing 'filePath' parameter"))?;
                 PathBuf::from(file_path_str)
             }
         };
