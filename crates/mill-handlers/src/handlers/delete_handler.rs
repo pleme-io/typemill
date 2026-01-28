@@ -310,8 +310,8 @@ impl DeleteHandler {
             };
 
         // Convert file path to file:// URI
-        let canonical_path = file_path
-            .canonicalize()
+        let canonical_path = tokio::fs::canonicalize(file_path)
+            .await
             .map_err(|e| ServerError::internal(format!("Failed to canonicalize path: {}", e)))?;
         let uri_string = format!("file://{}", canonical_path.display());
         let uri: Uri = uri_string
@@ -417,8 +417,9 @@ impl DeleteHandler {
         );
 
         // Canonicalize path to ensure proper path handling
-        let abs_file_path =
-            std::fs::canonicalize(file_path).unwrap_or_else(|_| file_path.to_path_buf());
+        let abs_file_path = tokio::fs::canonicalize(file_path)
+            .await
+            .unwrap_or_else(|_| file_path.to_path_buf());
 
         // Create explicit deletion target
         let deletions = vec![DeletionTarget {
@@ -494,7 +495,12 @@ impl DeleteHandler {
         let dir_path = Path::new(&params.target.path);
 
         // Verify it's a directory
-        if !dir_path.is_dir() {
+        let is_dir = tokio::fs::metadata(dir_path)
+            .await
+            .map(|m| m.is_dir())
+            .unwrap_or(false);
+
+        if !is_dir {
             return Err(ServerError::invalid_request(format!(
                 "Path is not a directory: {}",
                 params.target.path
@@ -571,7 +577,7 @@ impl DeleteHandler {
 
         // Check if this is a Cargo package
         let cargo_toml = abs_dir.join("Cargo.toml");
-        if cargo_toml.exists() {
+        if tokio::fs::try_exists(&cargo_toml).await.unwrap_or(false) {
             warnings.push(PlanWarning {
                 code: "CARGO_PACKAGE_DELETE".to_string(),
                 message: "Deleting a Cargo package will remove it from workspace members"
