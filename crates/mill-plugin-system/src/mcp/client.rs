@@ -170,7 +170,10 @@ impl Drop for ExternalMcpClient {
 
             // try_wait() is non-blocking and synchronous (unlike wait() which is async).
             // After SIGKILL, the process should exit very quickly.
-            for _ in 0..50 {
+            let start = std::time::Instant::now();
+            let timeout = std::time::Duration::from_millis(500);
+
+            loop {
                 match child.try_wait() {
                     Ok(Some(_status)) => {
                         // Process has exited and been reaped successfully
@@ -178,8 +181,12 @@ impl Drop for ExternalMcpClient {
                         return;
                     }
                     Ok(None) => {
-                        // Process still running, wait a bit and retry
-                        std::thread::sleep(std::time::Duration::from_millis(10));
+                        if start.elapsed() >= timeout {
+                            break;
+                        }
+                        // Process still running, wait a bit and retry.
+                        // We use a short sleep (1ms) to keep latency low while avoiding busy-waiting.
+                        std::thread::sleep(std::time::Duration::from_millis(1));
                     }
                     Err(e) => {
                         error!(
