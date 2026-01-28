@@ -72,7 +72,21 @@ pub async fn plan_symbol_move(
             Ok(plan)
         }
         Err(e) => {
-            // LSP failed, try AST fallback
+            // Check if the edit was applied directly via workspace/applyEdit
+            // This happens with TypeScript LSP and other servers that use the
+            // workspace/applyEdit flow for refactorings
+            let error_msg = format!("{}", e);
+            if error_msg.contains("LSP_APPLIED_VIA_WORKSPACE_EDIT") {
+                info!(
+                    operation_id = %operation_id,
+                    "LSP applied edit directly via workspace/applyEdit - returning success"
+                );
+                // The files have already been modified by the workspace/applyEdit handler
+                // Return a success marker error that the caller can interpret
+                return Err(e);
+            }
+
+            // LSP failed for a different reason, try AST fallback
             warn!(
                 operation_id = %operation_id,
                 error = %e,
@@ -342,6 +356,26 @@ async fn try_lsp_symbol_move(
             response = ?result_value,
             "Received response from workspace/executeCommand"
         );
+
+        // Handle two cases:
+        // 1. The server returns a WorkspaceEdit directly
+        // 2. The server returns null (edit was applied via workspace/applyEdit request)
+        if result_value.is_null() {
+            // When TypeScript LSP (and others) apply refactorings, they send workspace/applyEdit
+            // to the client, then return null. Since we now handle workspace/applyEdit,
+            // the edit has already been applied. Return success with empty WorkspaceEdit
+            // since we can't reconstruct what was applied.
+            info!(
+                operation_id = %operation_id,
+                "workspace/executeCommand returned null - edit was likely applied via workspace/applyEdit"
+            );
+
+            // Return a marker indicating the edit was applied server-side
+            // The caller should check if this is dryRun and handle accordingly
+            return Err(ServerError::internal(
+                "LSP_APPLIED_VIA_WORKSPACE_EDIT: The LSP server applied the edit directly via workspace/applyEdit. The refactoring has been completed."
+            ));
+        }
 
         serde_json::from_value(result_value).map_err(|e| {
             error!(

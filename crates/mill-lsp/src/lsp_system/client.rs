@@ -11,7 +11,7 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::time::{timeout, Duration};
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 // CommandExt provides pre_exec() for Unix process group management
 #[cfg(unix)]
@@ -1239,6 +1239,298 @@ impl LspClient {
         }
     }
 
+    /// Apply a workspace edit received from the LSP server
+    ///
+    /// This handles `workspace/applyEdit` requests, which are commonly used by
+    /// refactoring operations like "Move to new file". The edit can contain:
+    /// - `changes`: A map of file URIs to arrays of text edits
+    /// - `documentChanges`: An array of document changes (edits, creates, renames, deletes)
+    async fn apply_workspace_edit(params: Option<&Value>) -> Result<(), String> {
+        let params = params.ok_or("Missing params in workspace/applyEdit")?;
+        let edit = params
+            .get("edit")
+            .ok_or("Missing 'edit' field in workspace/applyEdit params")?;
+
+        debug!(?edit, "Applying workspace edit");
+
+        // Handle documentChanges (preferred format per LSP spec)
+        if let Some(doc_changes) = edit.get("documentChanges").and_then(|v| v.as_array()) {
+            for change in doc_changes {
+                Self::apply_document_change(change).await?;
+            }
+            return Ok(());
+        }
+
+        // Handle changes (older format)
+        if let Some(changes) = edit.get("changes").and_then(|v| v.as_object()) {
+            for (uri, edits) in changes {
+                let file_path = Self::uri_to_path(uri)?;
+                let edits = edits
+                    .as_array()
+                    .ok_or_else(|| format!("Invalid edits array for {}", uri))?;
+                Self::apply_text_edits(&file_path, edits).await?;
+            }
+            return Ok(());
+        }
+
+        Err("workspace/applyEdit contained neither 'changes' nor 'documentChanges'".to_string())
+    }
+
+    /// Apply a single document change (TextDocumentEdit, CreateFile, RenameFile, or DeleteFile)
+    async fn apply_document_change(change: &Value) -> Result<(), String> {
+        // Check for CreateFile operation
+        if change.get("kind").and_then(|k| k.as_str()) == Some("create") {
+            let uri = change
+                .get("uri")
+                .and_then(|u| u.as_str())
+                .ok_or("Missing 'uri' in CreateFile")?;
+            let file_path = Self::uri_to_path(uri)?;
+            info!(path = %file_path, "Creating file via workspace/applyEdit");
+
+            // Create parent directories if needed
+            if let Some(parent) = std::path::Path::new(&file_path).parent() {
+                tokio::fs::create_dir_all(parent).await.map_err(|e| {
+                    format!("Failed to create parent directories for {}: {}", file_path, e)
+                })?;
+            }
+
+            // Create empty file (or with overwrite option)
+            tokio::fs::write(&file_path, "").await.map_err(|e| {
+                format!("Failed to create file {}: {}", file_path, e)
+            })?;
+            return Ok(());
+        }
+
+        // Check for RenameFile operation
+        if change.get("kind").and_then(|k| k.as_str()) == Some("rename") {
+            let old_uri = change
+                .get("oldUri")
+                .and_then(|u| u.as_str())
+                .ok_or("Missing 'oldUri' in RenameFile")?;
+            let new_uri = change
+                .get("newUri")
+                .and_then(|u| u.as_str())
+                .ok_or("Missing 'newUri' in RenameFile")?;
+            let old_path = Self::uri_to_path(old_uri)?;
+            let new_path = Self::uri_to_path(new_uri)?;
+            info!(from = %old_path, to = %new_path, "Renaming file via workspace/applyEdit");
+
+            // Create parent directories if needed
+            if let Some(parent) = std::path::Path::new(&new_path).parent() {
+                tokio::fs::create_dir_all(parent).await.map_err(|e| {
+                    format!("Failed to create parent directories for {}: {}", new_path, e)
+                })?;
+            }
+
+            tokio::fs::rename(&old_path, &new_path).await.map_err(|e| {
+                format!("Failed to rename {} to {}: {}", old_path, new_path, e)
+            })?;
+            return Ok(());
+        }
+
+        // Check for DeleteFile operation
+        if change.get("kind").and_then(|k| k.as_str()) == Some("delete") {
+            let uri = change
+                .get("uri")
+                .and_then(|u| u.as_str())
+                .ok_or("Missing 'uri' in DeleteFile")?;
+            let file_path = Self::uri_to_path(uri)?;
+            info!(path = %file_path, "Deleting file via workspace/applyEdit");
+
+            tokio::fs::remove_file(&file_path).await.map_err(|e| {
+                format!("Failed to delete file {}: {}", file_path, e)
+            })?;
+            return Ok(());
+        }
+
+        // Handle TextDocumentEdit (has textDocument and edits)
+        if let Some(text_doc) = change.get("textDocument") {
+            let uri = text_doc
+                .get("uri")
+                .and_then(|u| u.as_str())
+                .ok_or("Missing 'uri' in TextDocumentEdit")?;
+            let file_path = Self::uri_to_path(uri)?;
+            let edits = change
+                .get("edits")
+                .and_then(|e| e.as_array())
+                .ok_or("Missing 'edits' in TextDocumentEdit")?;
+
+            Self::apply_text_edits(&file_path, edits).await?;
+            return Ok(());
+        }
+
+        warn!(?change, "Unknown document change type in workspace/applyEdit");
+        Ok(())
+    }
+
+    /// Apply text edits to a file
+    async fn apply_text_edits(file_path: &str, edits: &[Value]) -> Result<(), String> {
+        // Read current file content (or empty for new files)
+        let content = match tokio::fs::read_to_string(file_path).await {
+            Ok(c) => c,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                // File doesn't exist - create parent dirs and start with empty content
+                if let Some(parent) = std::path::Path::new(file_path).parent() {
+                    tokio::fs::create_dir_all(parent).await.map_err(|e| {
+                        format!("Failed to create parent directories for {}: {}", file_path, e)
+                    })?;
+                }
+                String::new()
+            }
+            Err(e) => return Err(format!("Failed to read file {}: {}", file_path, e)),
+        };
+
+        // Parse and sort edits by position (reverse order for safe application)
+        let mut parsed_edits: Vec<(u32, u32, u32, u32, String)> = Vec::new();
+        for edit in edits {
+            let range = edit
+                .get("range")
+                .ok_or_else(|| format!("Missing 'range' in text edit for {}", file_path))?;
+            let start = range
+                .get("start")
+                .ok_or_else(|| format!("Missing 'start' in range for {}", file_path))?;
+            let end = range
+                .get("end")
+                .ok_or_else(|| format!("Missing 'end' in range for {}", file_path))?;
+
+            let start_line = start
+                .get("line")
+                .and_then(|l| l.as_u64())
+                .ok_or_else(|| format!("Invalid start line for {}", file_path))?
+                as u32;
+            let start_char = start
+                .get("character")
+                .and_then(|c| c.as_u64())
+                .ok_or_else(|| format!("Invalid start character for {}", file_path))?
+                as u32;
+            let end_line = end
+                .get("line")
+                .and_then(|l| l.as_u64())
+                .ok_or_else(|| format!("Invalid end line for {}", file_path))?
+                as u32;
+            let end_char = end
+                .get("character")
+                .and_then(|c| c.as_u64())
+                .ok_or_else(|| format!("Invalid end character for {}", file_path))?
+                as u32;
+
+            let new_text = edit
+                .get("newText")
+                .and_then(|t| t.as_str())
+                .unwrap_or("")
+                .to_string();
+
+            parsed_edits.push((start_line, start_char, end_line, end_char, new_text));
+        }
+
+        // Sort edits in reverse order (later positions first) for safe application
+        parsed_edits.sort_by(|a, b| {
+            match b.2.cmp(&a.2) {
+                std::cmp::Ordering::Equal => b.3.cmp(&a.3),
+                other => other,
+            }
+        });
+
+        // Convert content to a mutable string for editing
+        let mut result = content.clone();
+
+        for (start_line, start_char, end_line, end_char, new_text) in parsed_edits {
+            // Calculate byte offsets
+            let start_offset = Self::position_to_offset(&result, start_line, start_char);
+            let end_offset = Self::position_to_offset(&result, end_line, end_char);
+
+            if start_offset <= end_offset && end_offset <= result.len() {
+                result.replace_range(start_offset..end_offset, &new_text);
+            } else {
+                warn!(
+                    file = %file_path,
+                    start_line,
+                    start_char,
+                    end_line,
+                    end_char,
+                    "Invalid edit range, skipping"
+                );
+            }
+        }
+
+        // Write result back to file
+        info!(path = %file_path, "Writing workspace edit to file");
+        tokio::fs::write(file_path, &result).await.map_err(|e| {
+            format!("Failed to write file {}: {}", file_path, e)
+        })?;
+
+        Ok(())
+    }
+
+    /// Convert a line/character position to a byte offset
+    fn position_to_offset(content: &str, line: u32, character: u32) -> usize {
+        let mut offset = 0;
+        for (i, line_content) in content.lines().enumerate() {
+            if i == line as usize {
+                // Found the target line, add character offset
+                // Handle UTF-16 character units (LSP uses UTF-16)
+                let char_offset = line_content
+                    .char_indices()
+                    .take(character as usize)
+                    .last()
+                    .map(|(i, c)| i + c.len_utf8())
+                    .unwrap_or(0);
+                return offset + char_offset;
+            }
+            offset += line_content.len() + 1; // +1 for newline
+        }
+        // If line is beyond content, return end of content
+        content.len()
+    }
+
+    /// Convert a file:// URI to a filesystem path
+    fn uri_to_path(uri: &str) -> Result<String, String> {
+        if !uri.starts_with("file://") {
+            return Err(format!("Unsupported URI scheme: {}", uri));
+        }
+
+        // Parse the URI and extract the path
+        let path = &uri[7..]; // Remove "file://"
+
+        // Handle Windows paths (file:///C:/...) vs Unix (file:///home/...)
+        #[cfg(windows)]
+        {
+            // On Windows, remove leading slash: /C:/path -> C:/path
+            if path.len() >= 3 && path.chars().nth(0) == Some('/') && path.chars().nth(2) == Some(':') {
+                return Ok(path[1..].to_string());
+            }
+        }
+
+        // URL decode the path (handle %20 for spaces, etc.)
+        let decoded = Self::percent_decode(path);
+        Ok(decoded)
+    }
+
+    /// Simple percent-decoding for file URIs
+    fn percent_decode(input: &str) -> String {
+        let mut result = String::with_capacity(input.len());
+        let mut chars = input.chars().peekable();
+
+        while let Some(c) = chars.next() {
+            if c == '%' {
+                // Try to read two hex digits
+                let hex: String = chars.by_ref().take(2).collect();
+                if hex.len() == 2 {
+                    if let Ok(byte) = u8::from_str_radix(&hex, 16) {
+                        result.push(byte as char);
+                        continue;
+                    }
+                }
+                // If hex parsing failed, keep the original
+                result.push('%');
+                result.push_str(&hex);
+            } else {
+                result.push(c);
+            }
+        }
+        result
+    }
+
     /// Handle server-initiated requests
     async fn handle_server_request(request: &Value, message_tx: &mpsc::Sender<LspMessage>) {
         debug!(?request, "Handling server request");
@@ -1273,6 +1565,33 @@ impl LspClient {
                 LspMessage::Response {
                     id,
                     result: json!([]),
+                }
+            }
+            Some("workspace/applyEdit") => {
+                // Handle workspace/applyEdit requests from the LSP server
+                // This is commonly used by refactoring operations like "Move to new file"
+                info!("Received workspace/applyEdit request from LSP server");
+
+                match Self::apply_workspace_edit(request.get("params")).await {
+                    Ok(()) => {
+                        info!("Successfully applied workspace edit");
+                        LspMessage::Response {
+                            id,
+                            result: json!({
+                                "applied": true
+                            }),
+                        }
+                    }
+                    Err(e) => {
+                        error!(error = %e, "Failed to apply workspace edit");
+                        LspMessage::Response {
+                            id,
+                            result: json!({
+                                "applied": false,
+                                "failureReason": e
+                            }),
+                        }
+                    }
                 }
             }
             _ => {

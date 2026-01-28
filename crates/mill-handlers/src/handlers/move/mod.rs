@@ -328,7 +328,7 @@ impl MoveHandler {
             "Delegating to symbol_move::plan_symbol_move"
         );
 
-        symbol_move::plan_symbol_move(
+        match symbol_move::plan_symbol_move(
             &params.target.path,
             &params.destination,
             position,
@@ -336,6 +336,51 @@ impl MoveHandler {
             operation_id,
         )
         .await
+        {
+            Ok(plan) => Ok(plan),
+            Err(e) => {
+                // Check if the edit was applied directly via workspace/applyEdit
+                // This happens with TypeScript LSP and other servers that use the
+                // workspace/applyEdit flow for refactorings
+                let error_msg = format!("{}", e);
+                if error_msg.contains("LSP_APPLIED_VIA_WORKSPACE_EDIT") {
+                    info!(
+                        operation_id = %operation_id,
+                        "LSP applied edit directly via workspace/applyEdit - returning success plan"
+                    );
+
+                    // Create a success plan indicating the edit was applied
+                    // The files have already been modified by the workspace/applyEdit handler
+                    let metadata = mill_foundation::planning::PlanMetadata {
+                        plan_version: "1.0".to_string(),
+                        kind: "move".to_string(),
+                        language: "typescript".to_string(),
+                        estimated_impact: "low".to_string(),
+                        created_at: chrono::Utc::now().to_rfc3339(),
+                    };
+
+                    let summary = mill_foundation::planning::PlanSummary {
+                        affected_files: 0, // Unknown since it was applied directly
+                        created_files: 0,
+                        deleted_files: 0,
+                    };
+
+                    Ok(mill_foundation::planning::MovePlan {
+                        edits: lsp_types::WorkspaceEdit::default(),
+                        summary,
+                        warnings: vec![mill_foundation::planning::PlanWarning {
+                            code: "LSP_APPLIED_DIRECTLY".to_string(),
+                            message: "The LSP server applied this refactoring directly via workspace/applyEdit. Files have been modified.".to_string(),
+                            candidates: None,
+                        }],
+                        metadata,
+                        file_checksums: std::collections::HashMap::new(),
+                    })
+                } else {
+                    Err(e)
+                }
+            }
+        }
     }
 
     /// Handle file move operation
