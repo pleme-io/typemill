@@ -6,6 +6,7 @@
 use crate::McpDispatcher;
 use mill_foundation::core::model::mcp::{McpError, McpMessage, McpResponse};
 use mill_foundation::errors::ErrorResponse;
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -56,6 +57,10 @@ impl UnixSocketServer {
         }
 
         let listener = UnixListener::bind(socket_path)?;
+
+        // Set permissions to 0600 (owner only) to prevent unauthorized access
+        std::fs::set_permissions(socket_path, std::fs::Permissions::from_mode(0o600))?;
+
         info!(socket_path = %socket_path.display(), "Unix socket server bound");
 
         Ok(Self {

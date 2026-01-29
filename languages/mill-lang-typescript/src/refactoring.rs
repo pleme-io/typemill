@@ -1012,10 +1012,10 @@ impl ExtractFunctionAnalyzer {
 }
 
 struct InlineVariableAnalyzer {
-    source: String,
+    _source: String,
     source_map: Lrc<SourceMap>,
     target_line: u32,
-    target_col: u32,
+    _target_col: u32,
     // Found variable info
     variable_name: Option<String>,
     declaration_range: Option<CodeRange>,
@@ -1033,10 +1033,10 @@ struct InlineVariableAnalyzer {
 impl InlineVariableAnalyzer {
     fn new(source: &str, line: u32, col: u32, source_map: Lrc<SourceMap>) -> Self {
         Self {
-            source: source.to_string(),
+            _source: source.to_string(),
             source_map,
             target_line: line,
-            target_col: col,
+            _target_col: col,
             variable_name: None,
             declaration_range: None,
             initializer_expression: None,
@@ -1145,7 +1145,7 @@ impl Visit for InlineVariableAnalyzer {
                 // Get declaration range - use full VarDecl if only one declarator
                 // This ensures we delete "const x = 1;" not just "x = 1"
                 self.declaration_range = if self.current_var_decl_count == 1 {
-                    self.current_var_decl_range.clone()
+                    self.current_var_decl_range
                 } else {
                     Some(range)
                 };
@@ -1446,7 +1446,7 @@ struct SymbolMoveAnalysis {
     /// Whether the symbol is exported
     is_exported: bool,
     /// Symbol kind (function, class, variable, etc.)
-    symbol_kind: SymbolKind,
+    _symbol_kind: SymbolKind,
 }
 
 /// Kind of symbol being moved
@@ -1475,7 +1475,7 @@ fn analyze_symbol_move(
 
 /// AST visitor for finding symbols to move
 struct SymbolMoveAnalyzer {
-    source: String,
+    _source: String,
     source_map: Lrc<SourceMap>,
     target_line: u32,
     // Found symbol info
@@ -1489,7 +1489,7 @@ struct SymbolMoveAnalyzer {
 impl SymbolMoveAnalyzer {
     fn new(source: &str, line: u32, source_map: Lrc<SourceMap>) -> Self {
         Self {
-            source: source.to_string(),
+            _source: source.to_string(),
             source_map,
             target_line: line,
             symbol_name: None,
@@ -1529,7 +1529,7 @@ impl SymbolMoveAnalyzer {
                 symbol_text: text,
                 symbol_range: range,
                 is_exported: self.is_exported,
-                symbol_kind: kind,
+                _symbol_kind: kind,
             }),
             _ => Err(PluginApiError::internal(
                 "Could not find symbol definition at specified location",
@@ -1766,9 +1766,9 @@ struct SymbolDeleteAnalysis {
     /// Range of the symbol definition in source
     symbol_range: CodeRange,
     /// Whether the symbol is exported
-    is_exported: bool,
+    _is_exported: bool,
     /// Symbol kind (function, class, variable, etc.)
-    symbol_kind: SymbolKind,
+    _symbol_kind: SymbolKind,
 }
 
 /// Analyze source code to find symbol at the given position for deletion
@@ -1786,7 +1786,7 @@ fn analyze_symbol_delete(
 
 /// AST visitor for finding symbols to delete
 struct SymbolDeleteAnalyzer {
-    source: String,
+    _source: String,
     source_map: Lrc<SourceMap>,
     target_line: u32,
     // Found symbol info
@@ -1800,7 +1800,7 @@ struct SymbolDeleteAnalyzer {
 impl SymbolDeleteAnalyzer {
     fn new(source: &str, line: u32, source_map: Lrc<SourceMap>) -> Self {
         Self {
-            source: source.to_string(),
+            _source: source.to_string(),
             source_map,
             target_line: line,
             symbol_name: None,
@@ -1839,8 +1839,8 @@ impl SymbolDeleteAnalyzer {
                 symbol_name: name,
                 symbol_text: text,
                 symbol_range: range,
-                is_exported: self.is_exported,
-                symbol_kind: kind,
+                _is_exported: self.is_exported,
+                _symbol_kind: kind,
             }),
             _ => Err(PluginApiError::internal(
                 "Could not find symbol definition at specified location",

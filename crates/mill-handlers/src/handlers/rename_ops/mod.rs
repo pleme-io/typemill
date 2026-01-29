@@ -151,7 +151,7 @@ impl RenameService {
     ///
     /// When multiple targets in a batch rename modify the same file (e.g., root Cargo.toml),
     /// we need to merge their edits rather than having the last one win.
-    fn dedupe_document_changes(
+    fn _dedupe_document_changes(
         changes: Vec<lsp_types::DocumentChangeOperation>,
     ) -> Vec<lsp_types::DocumentChangeOperation> {
         use lsp_types::{
@@ -334,7 +334,7 @@ impl RenameService {
     }
 
     /// Plan batch rename for multiple targets
-    pub(crate) async fn plan_batch_rename(
+    pub(crate) async fn _plan_batch_rename(
         &self,
         targets: &[RenameTarget],
         options: &RenameOptions,
@@ -652,7 +652,7 @@ impl RenameService {
 
         // Deduplicate and merge text edits for the same file
         // This prevents "last edit wins" when multiple targets modify the same config file
-        let deduped_document_changes = Self::dedupe_document_changes(filtered_changes);
+        let deduped_document_changes = Self::_dedupe_document_changes(filtered_changes);
 
         // Build merged WorkspaceEdit with documentChanges
         let merged_workspace_edit = WorkspaceEdit {

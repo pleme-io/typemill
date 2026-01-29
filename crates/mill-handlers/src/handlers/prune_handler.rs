@@ -132,7 +132,7 @@ impl ToolHandler for PruneHandler {
         // Convert to prune planning params
         let delete_params = PrunePlanParams {
             target: PruneTarget {
-                kind: params.target.kind.clone(),
+                _kind: params.target.kind.clone(),
                 path: params.target.file_path.clone(),
                 selector: match (params.target.line, params.target.character) {
                     (Some(line), Some(character)) => Some(PruneSelector {
@@ -144,7 +144,7 @@ impl ToolHandler for PruneHandler {
                 },
             },
             options: PruneOptions {
-                dry_run: params.options.dry_run,
+                _dry_run: params.options.dry_run,
                 cleanup_imports: params.options.cleanup_imports,
                 force: params.options.force,
                 remove_tests: params.options.remove_tests,
@@ -235,7 +235,7 @@ impl PruneHandler {
             })
             .collect();
 
-        let plan_json = serde_json::to_value(&RefactorPlan::DeletePlan(plan.clone()))
+        let plan_json = serde_json::to_value(RefactorPlan::DeletePlan(plan.clone()))
             .map_err(|e| ServerError::internal(format!("Failed to serialize plan: {}", e)))?;
 
         let mut response = WriteResponse::preview(summary, files_changed, plan_json);

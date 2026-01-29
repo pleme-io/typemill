@@ -419,10 +419,9 @@ impl LspService for DirectLspAdapter {
         let client = self.get_or_create_client(&extension).await?;
 
         // Check capabilities before sending requests that may not be supported
-        if method == "textDocument/diagnostic" {
-            if !client.supports_diagnostic_pull().await {
-                // Fall back to cached diagnostics from publishDiagnostics notifications
-                debug!(
+        if method == "textDocument/diagnostic" && !client.supports_diagnostic_pull().await {
+            // Fall back to cached diagnostics from publishDiagnostics notifications
+            debug!(
                     extension = %extension,
                     "LSP server doesn't support pull-model diagnostics, using cached diagnostics"
                 );
@@ -433,7 +432,7 @@ impl LspService for DirectLspAdapter {
                     .and_then(|td| td.get("uri"))
                     .and_then(|u| u.as_str())
                     .ok_or_else(|| {
-                        format!("Missing textDocument.uri in textDocument/diagnostic params")
+                        "Missing textDocument.uri in textDocument/diagnostic params".to_string()
                     })?;
 
                 // Parse URI string into lsp_types::Uri
@@ -460,7 +459,6 @@ impl LspService for DirectLspAdapter {
                         extension, uri
                     ));
                 }
-            }
         }
 
         // Send LSP method DIRECTLY to client (bypassing old manager and its hard-coded mappings!)

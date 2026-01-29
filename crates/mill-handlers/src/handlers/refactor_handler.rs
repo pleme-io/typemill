@@ -296,7 +296,7 @@ impl RefactorHandler {
             "{} {} (preview): {} file(s) affected, {} created, {} deleted",
             operation,
             capitalize_first(
-                &plan_data
+                plan_data
                     .get("metadata")
                     .and_then(|m| m.get("kind"))
                     .and_then(|k| k.as_str())

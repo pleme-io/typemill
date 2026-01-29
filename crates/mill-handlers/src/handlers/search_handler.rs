@@ -121,7 +121,7 @@ impl SearchHandler {
                         symbol
                             .get("kind")
                             .and_then(|k| k.as_u64())
-                            .and_then(|num| Self::lsp_symbol_kind_to_string(num))
+                            .and_then(Self::lsp_symbol_kind_to_string)
                             .map(|s| s.to_lowercase())
                     });
 
@@ -484,8 +484,8 @@ impl SearchHandler {
             warnings,
         };
 
-        Ok(serde_json::to_value(response)
-            .map_err(|e| ServerError::internal(format!("Failed to serialize response: {}", e)))?)
+        serde_json::to_value(response)
+            .map_err(|e| ServerError::internal(format!("Failed to serialize response: {}", e)))
     }
 }
 

@@ -4,6 +4,7 @@ use mill_foundation::protocol::EditPlan;
 use tracing::debug;
 
 /// LSP-based symbol move refactoring
+#[allow(dead_code)]
 async fn lsp_symbol_move(
     lsp_service: &dyn LspRefactoringService,
     file_path: &str,

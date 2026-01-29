@@ -45,7 +45,7 @@ impl InspectHandler {
     async fn resolve_symbol_position(
         &self,
         context: &mill_handler_api::ToolHandlerContext,
-        file_path: &PathBuf,
+        file_path: &std::path::Path,
         symbol_name: &str,
     ) -> ServerResult<Option<(u32, u32)>> {
         debug!(
@@ -54,7 +54,7 @@ impl InspectHandler {
             "Resolving symbol position by name"
         );
 
-        let request = PluginRequest::new("get_document_symbols".to_string(), file_path.clone());
+        let request = PluginRequest::new("get_document_symbols".to_string(), file_path.to_path_buf());
 
         match context.plugin_manager.handle_request(request).await {
             Ok(response) => {

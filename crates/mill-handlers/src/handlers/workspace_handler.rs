@@ -394,15 +394,13 @@ impl WorkspaceHandler {
         } else if target_updated {
             format!("Extracted {} dependencies", deps_extracted)
         } else {
-            format!("No dependencies extracted (already present or not found)")
+            "No dependencies extracted (already present or not found)".to_string()
         };
 
         let status = if dry_run {
             WriteStatus::Preview
-        } else if target_updated {
-            WriteStatus::Success
         } else {
-            WriteStatus::Success // Still success, just nothing to do
+            WriteStatus::Success
         };
 
         let files_changed = if target_updated && !dry_run {

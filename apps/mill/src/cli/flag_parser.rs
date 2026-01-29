@@ -36,6 +36,7 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub enum FlagParseError {
     /// A required flag is missing
+    #[allow(dead_code)]
     MissingRequiredFlag(String),
     /// A flag has an invalid format
     #[allow(dead_code)]
@@ -44,6 +45,7 @@ pub enum FlagParseError {
     #[allow(dead_code)]
     ConflictingFlags(Vec<String>),
     /// An unknown flag was provided
+    #[allow(dead_code)]
     UnknownFlag(String),
     /// Invalid value for a flag
     #[allow(dead_code)]
@@ -56,6 +58,7 @@ pub enum FlagParseError {
     #[allow(dead_code)]
     ConventionError(String),
     /// Wrong tool for operation (with suggested correct tool)
+    #[allow(dead_code)]
     WrongTool {
         current_tool: String,
         suggested_tool: String,

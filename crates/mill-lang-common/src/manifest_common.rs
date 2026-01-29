@@ -209,10 +209,9 @@ impl TomlWorkspace {
             .map_err(|e| MillError::parse(format!("Failed to parse source TOML: {}", e)))?;
 
         // Merge [dependencies] section (Cargo-style)
-        if let Some(item) = source_doc.remove("dependencies") {
-            if let Item::Table(source_table) = item {
-                let base_deps = base_doc
-                    .entry("dependencies")
+        if let Some(Item::Table(source_table)) = source_doc.remove("dependencies") {
+            let base_deps = base_doc
+                .entry("dependencies")
                     .or_insert(Item::Table(toml_edit::Table::new()));
 
                 if let Some(base_table) = base_deps.as_table_mut() {
@@ -222,14 +221,12 @@ impl TomlWorkspace {
                         }
                     }
                 }
-            }
         }
 
         // Merge dev-dependencies
-        if let Some(item) = source_doc.remove("dev-dependencies") {
-            if let Item::Table(source_table) = item {
-                let base_deps = base_doc
-                    .entry("dev-dependencies")
+        if let Some(Item::Table(source_table)) = source_doc.remove("dev-dependencies") {
+            let base_deps = base_doc
+                .entry("dev-dependencies")
                     .or_insert(Item::Table(toml_edit::Table::new()));
 
                 if let Some(base_table) = base_deps.as_table_mut() {
@@ -239,7 +236,6 @@ impl TomlWorkspace {
                         }
                     }
                 }
-            }
         }
 
         Ok(base_doc.to_string())

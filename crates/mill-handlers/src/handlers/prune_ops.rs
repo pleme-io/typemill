@@ -40,7 +40,8 @@ pub(crate) struct PrunePlanParams {
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct PruneTarget {
-    pub kind: String, // "symbol" | "file" | "directory"
+    #[serde(rename = "kind")]
+    pub _kind: String, // "symbol" | "file" | "directory"
     pub path: String,
     #[serde(default)]
     pub selector: Option<PruneSelector>,
@@ -60,7 +61,8 @@ pub(crate) struct PruneSelector {
 pub(crate) struct PruneOptions {
     /// Preview mode - don't actually apply changes (default: true for safety)
     #[serde(default = "crate::default_true")]
-    pub dry_run: bool,
+    #[serde(rename = "dryRun")]
+    pub _dry_run: bool,
     #[serde(default)]
     pub cleanup_imports: Option<bool>,
     #[serde(default)]
@@ -73,7 +75,7 @@ pub(crate) struct PruneOptions {
 impl Default for PruneOptions {
     fn default() -> Self {
         Self {
-            dry_run: true, // Safe default: preview mode
+            _dry_run: true, // Safe default: preview mode
             cleanup_imports: None,
             remove_tests: None,
             force: None,
@@ -85,7 +87,7 @@ impl PrunePlanner {
     /// Helper to remove a specific identifier from an import statement
     /// Returns Some(new_line) if we can keep the import with other identifiers
     /// Returns None if the entire line should be deleted
-    fn remove_import_identifier(&self, line: &str, identifier: &str) -> Option<String> {
+    fn _remove_import_identifier(&self, line: &str, identifier: &str) -> Option<String> {
         // Check if this is an import statement with curly braces
         if !line.trim_start().starts_with("import") || !line.contains('{') || !line.contains('}') {
             return None; // Not a destructured import, delete entire line
